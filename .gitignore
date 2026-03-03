@@ -1,0 +1,57 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+.Python
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.env
+ENV/
+
+# ── Secrets — NEVER commit these ─────────────────────────────────────────────
+.env
+*.env
+secrets.json
+credentials.json
+
+# ── ML model weights (large binaries — pulled at build time) ─────────────────
+warden/models/
+models/
+
+# ── Runtime data ──────────────────────────────────────────────────────────────
+data/logs.ndjson
+data/logs.json
+data/dynamic_rules.json
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+.dockerignore
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# ── Test / coverage ───────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ── Playwright ────────────────────────────────────────────────────────────────
+playwright-report/
+test-results/

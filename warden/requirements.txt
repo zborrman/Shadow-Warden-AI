@@ -1,0 +1,48 @@
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
+
+# ── ML / AI — CPU-only ────────────────────────────────────────────────────────
+# torch is intentionally NOT installed from PyPI here.
+# The Dockerfile runs a separate pip install step using the CPU-only wheel index:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#
+# This keeps the Docker image ~200 MB instead of ~2 GB (no CUDA bundles).
+# If you run outside Docker, install manually:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+#
+# ‼ Do NOT add torch here — it would let pip pull the CUDA build from PyPI.
+
+# Transformers (HuggingFace) — used by SemanticGuard for embedding-based analysis
+transformers>=4.40.0
+
+# Fast sentence embeddings — local, no API calls, GDPR-safe
+sentence-transformers>=3.0.0
+
+# Numerics (pulled in by torch/transformers anyway, pinned for clarity)
+numpy>=1.26.0
+
+# ── Claude API (Evolution Loop) ──────────────────────────────────────────────
+# anthropic SDK — used by EvolutionEngine to call Claude Opus for auto rule
+# generation when a high-severity attack is blocked.
+# ANTHROPIC_API_KEY must be set in the environment / docker-compose.yml.
+anthropic>=0.40.0
+
+# ── Browser automation ────────────────────────────────────────────────────────
+# Playwright Python — the mcr.microsoft.com/playwright/python base image
+# ships the OS-level browser dependencies; this installs the Python bindings.
+# The Dockerfile runs `playwright install chromium` to pull the browser binary.
+playwright>=1.44.0
+
+# ── Analytics Dashboard ───────────────────────────────────────────────────────
+# Streamlit — `streamlit run warden/analytics/dashboard.py`
+# Plotly — Threat Radar (Scatterpolar) + Attack Timeline (area chart)
+streamlit>=1.35.0
+plotly>=5.22.0
+
+# ── Dashboard authentication ──────────────────────────────────────────────────
+# bcrypt — used by auth.py to verify DASHBOARD_PASSWORD_HASH.
+# Generate a hash: python -m warden.analytics.auth
+bcrypt>=4.0.0

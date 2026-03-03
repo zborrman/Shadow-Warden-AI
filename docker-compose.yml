@@ -1,0 +1,240 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────
+#  Shadow Warden AI — Orchestrator
+#  Services: proxy | warden | app | analytics | dashboard | postgres | redis
+#  Targets: US / EU  |  GDPR-compliant logging
+#  Dashboard: http://localhost:8501
+# ─────────────────────────────────────────────
+
+networks:
+  warden-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  analytics-data:
+  warden-logs:
+  warden-models:      # persists all-MiniLM-L6-v2 across container restarts
+
+services:
+
+  # ── 1. PROXY ─────────────────────────────────
+  # Public-facing reverse proxy. Routes /api/warden/* → warden,
+  # /api/* → app, /analytics/* → analytics.
+  proxy:
+    image: nginx:alpine
+    container_name: warden-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./warden/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./warden/nginx/certs:/etc/nginx/certs:ro
+      - warden-logs:/var/log/nginx
+    depends_on:
+      - warden
+      - app
+      - analytics
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── 2. WARDEN ────────────────────────────────
+  # FastAPI filter gateway + browser sandbox.
+  # Every payload from app/ passes through /filter first.
+  # Playwright (Chromium) runs inside this container for
+  # active security auditing via BrowserSandbox.
+  warden:
+    build:
+      context: ./warden
+      dockerfile: Dockerfile
+    container_name: warden-gateway
+    restart: unless-stopped
+    expose:
+      - "8001"
+    environment:
+      - ENV=${ENV:-development}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
+      - MODEL_CACHE_DIR=/warden/models
+      - SEMANTIC_THRESHOLD=${SEMANTIC_THRESHOLD:-0.72}
+      - STRICT_MODE=${STRICT_MODE:-false}
+      # Evolution Loop — set to enable automated rule generation via Claude Opus.
+      # Leave unset to run in offline/air-gapped mode (all other features work).
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
+    volumes:
+      - ./warden:/warden/src          # hot-reload in dev
+      - warden-models:/warden/models  # persists MiniLM weights
+      - warden-logs:/warden/logs
+      - ./data:/warden/data           # dynamic_rules.json lives here
+    # Playwright / Chromium needs at least 256 MB of /dev/shm.
+    # We also pass --disable-dev-shm-usage in browser.py launch args
+    # as a belt-and-suspenders fallback.
+    shm_size: "512mb"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # ── 3. APP ───────────────────────────────────
+  # Main Shadow Warden application.
+  # All outbound AI payloads must pass through warden:8001/filter.
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: warden-app
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - ENV=${ENV:-development}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/2
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - WARDEN_URL=http://warden:8001        # all payloads filtered here first
+    volumes:
+      - ./app:/app
+      - warden-logs:/app/logs
+    depends_on:
+      warden:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # ── 4. ANALYTICS ─────────────────────────────
+  # GDPR-compliant event collection and reporting.
+  # Anonymises PII before storage, enforces
+  # configurable data-retention windows.
+  analytics:
+    build:
+      context: ./analytics
+      dockerfile: Dockerfile
+    container_name: warden-analytics
+    restart: unless-stopped
+    expose:
+      - "8002"
+    environment:
+      - ENV=${ENV:-development}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/1
+      - ANALYTICS_DATA_PATH=/analytics/data
+      - GDPR_ANONYMISE=true
+      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
+    volumes:
+      - ./analytics:/analytics/src
+      - analytics-data:/analytics/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # ── 5. DASHBOARD ─────────────────────────────
+  # Streamlit analytics dashboard.
+  # Reads data/logs.json written by the warden gateway.
+  # Access: http://localhost:8501
+  dashboard:
+    build:
+      context: ./warden
+      dockerfile: Dockerfile
+    container_name: warden-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    command: >
+      streamlit run warden/analytics/dashboard.py
+      --server.port=8501
+      --server.address=0.0.0.0
+      --server.headless=true
+      --browser.gatherUsageStats=false
+    environment:
+      - LOGS_PATH=/warden/data/logs.json
+      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
+    volumes:
+      - ./warden:/warden/src          # hot-reload in dev
+      - ./data:/warden/data           # reads logs.json written by warden gateway
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── POSTGRES ──────────────────────────────────
+  # Shared relational store. One DB, two schemas:
+  # warden_core (app) and warden_analytics.
+  postgres:
+    image: postgres:16-alpine
+    container_name: warden-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-warden}
+      - POSTGRES_PASSWORD=${POSTGRES_PASS}
+      - POSTGRES_DB=${POSTGRES_DB:-warden_db}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./data/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-warden}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── REDIS ─────────────────────────────────────
+  # Shared cache and message bus.
+  # DB 0 → app session / rate-limit
+  # DB 1 → analytics event queue
+  redis:
+    image: redis:7-alpine
+    container_name: warden-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis-data:/data
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
