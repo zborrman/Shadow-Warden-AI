@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 
 from warden.schemas import FlagType, RiskLevel, SemanticFlag
 
-
 # ── Pattern banks ─────────────────────────────────────────────────────────────
 
 @dataclass
@@ -172,7 +171,7 @@ class SemanticGuard:
 
     # ── Public API ────────────────────────────────────────────────────────
 
-    def analyse(self, text: str) -> "SemanticGuard.Result":
+    def analyse(self, text: str) -> SemanticGuard.Result:
         flags:      list[SemanticFlag] = []
         risk_level: RiskLevel          = RiskLevel.LOW
 

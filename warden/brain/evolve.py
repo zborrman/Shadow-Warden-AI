@@ -29,7 +29,7 @@ import logging
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -273,7 +273,7 @@ class EvolutionEngine:
     def _build_rule(content_hash: str, ev: EvolutionResponse) -> RuleRecord:
         return RuleRecord(
             id=str(uuid.uuid4()),
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             source_hash=content_hash,
             attack_type=ev.attack_type,
             explanation=ev.explanation,
@@ -302,7 +302,7 @@ class EvolutionEngine:
         else:
             data = {"schema_version": "1.0", "rules": []}
 
-        data["last_updated"] = datetime.now(timezone.utc).isoformat()
+        data["last_updated"] = datetime.now(UTC).isoformat()
         data["rules"].append(json.loads(rule.model_dump_json()))
 
         fd, tmp = tempfile.mkstemp(
