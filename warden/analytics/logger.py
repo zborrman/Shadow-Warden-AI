@@ -70,7 +70,7 @@ def append(entry: dict) -> None:
 
 # ── Reader (used by the dashboard) ───────────────────────────────────────────
 
-def load_entries(days: int | None = None) -> list[dict]:
+def load_entries(days: float | None = None) -> list[dict]:
     """
     Read all log entries, optionally filtering to the last *days* days.
     Returns an empty list if the file does not exist yet.

@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
+from typing import Any
 
 import httpx
 
@@ -56,7 +57,7 @@ async def ship_to_splunk(entry: dict) -> None:
     except (KeyError, ValueError):
         ts = None
 
-    hec_event = {
+    hec_event: dict[str, Any] = {
         "source":     "shadow_warden_ai",
         "sourcetype": "warden:filter",
         "event":      entry,

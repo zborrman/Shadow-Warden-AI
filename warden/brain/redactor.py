@@ -141,7 +141,7 @@ _PATTERNS: tuple[_Pattern, ...] = (
 class RedactionMatch(NamedTuple):
     name:        str    # pattern name, e.g. "email"
     placeholder: str    # replacement used in clean_text
-    count:       int    # number of occurrences replaced
+    occurrences: int    # number of occurrences replaced
 
 
 @dataclass
@@ -157,7 +157,7 @@ class RedactionResult:
     def summary(self) -> str:
         if not self.matches:
             return "No sensitive content detected."
-        parts = [f"{m.name}×{m.count}" for m in self.matches]
+        parts = [f"{m.name}×{m.occurrences}" for m in self.matches]
         return "Redacted: " + ", ".join(parts)
 
 
@@ -194,7 +194,7 @@ class SecretRedactor:
                 matches.append(RedactionMatch(
                     name=pat.name,
                     placeholder=pat.placeholder,
-                    count=n,
+                    occurrences=n,
                 ))
                 text = new_text
 
