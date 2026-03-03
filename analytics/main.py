@@ -26,7 +26,7 @@ import json
 import logging
 import os
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -74,7 +74,7 @@ def _load(days: int | None = None) -> list[dict]:
     if not LOGS_PATH.exists():
         return []
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days or LOG_RETENTION_DAYS)
+    cutoff = datetime.now(UTC) - timedelta(days=days or LOG_RETENTION_DAYS)
     entries: list[dict] = []
 
     try:

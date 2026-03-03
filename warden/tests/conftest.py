@@ -9,6 +9,7 @@ they are created once per test session and reused.
 from __future__ import annotations
 
 import os
+
 import pytest
 
 # ── Environment setup (must happen before any warden imports) ─────────────────
@@ -54,6 +55,7 @@ def client():
     if they depend on this fixture and you want to skip them normally.
     """
     from fastapi.testclient import TestClient
+
     from warden.main import app
     with TestClient(app) as c:
         yield c

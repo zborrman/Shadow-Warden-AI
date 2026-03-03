@@ -21,7 +21,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-from typing import Optional
 
 log = logging.getLogger("warden.cache")
 
@@ -58,7 +57,7 @@ def _key(content: str) -> str:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def get_cached(content: str) -> Optional[str]:
+def get_cached(content: str) -> str | None:
     """Return the cached FilterResponse JSON string, or None on miss/error."""
     r = _get_client()
     if r is None:

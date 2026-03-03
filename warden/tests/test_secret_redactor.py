@@ -10,6 +10,7 @@ Each secret type gets:
 from __future__ import annotations
 
 import pytest
+
 from warden.secret_redactor import SecretRedactor
 
 r = SecretRedactor()

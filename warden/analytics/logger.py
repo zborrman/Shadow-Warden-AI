@@ -18,7 +18,7 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 log = logging.getLogger("warden.analytics.logger")
@@ -43,7 +43,7 @@ def build_entry(
     strict:       bool,
 ) -> dict:
     return {
-        "ts":           datetime.now(timezone.utc).isoformat(),
+        "ts":           datetime.now(UTC).isoformat(),
         "request_id":   request_id,
         "allowed":      allowed,
         "risk_level":   risk_level,
@@ -64,9 +64,8 @@ def append(entry: dict) -> None:
     """
     LOGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(entry, separators=(",", ":")) + "\n"
-    with _lock:
-        with LOGS_PATH.open("a", encoding="utf-8") as f:
-            f.write(line)
+    with _lock, LOGS_PATH.open("a", encoding="utf-8") as f:
+        f.write(line)
 
 
 # ── Reader (used by the dashboard) ───────────────────────────────────────────
@@ -81,7 +80,7 @@ def load_entries(days: int | None = None) -> list[dict]:
 
     cutoff = None
     if days is not None:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
 
     entries: list[dict] = []
     with LOGS_PATH.open("r", encoding="utf-8") as f:
@@ -164,7 +163,7 @@ def purge_old_entries() -> int:
     if not LOGS_PATH.exists():
         return 0
 
-    cutoff   = datetime.now(timezone.utc) - timedelta(days=LOG_RETENTION_DAYS)
+    cutoff   = datetime.now(UTC) - timedelta(days=LOG_RETENTION_DAYS)
     kept, removed = [], 0
 
     with LOGS_PATH.open("r", encoding="utf-8") as f:

@@ -39,7 +39,7 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Request, status
@@ -69,7 +69,7 @@ class _JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict = {
-            "ts":      datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "ts":      datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level":   record.levelname,
             "logger":  record.name,
             "message": record.getMessage(),

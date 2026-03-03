@@ -9,9 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -23,6 +21,7 @@ def tmp_log(monkeypatch, tmp_path):
     monkeypatch.setenv("LOGS_PATH", str(log_file))
     # Re-import to pick up the new env var
     import importlib
+
     import warden.analytics.logger as logger_mod
     importlib.reload(logger_mod)
     monkeypatch.setattr("warden.analytics.logger.LOGS_PATH", log_file)
@@ -92,7 +91,7 @@ def test_load_entries_day_filter(tmp_log) -> None:
         request_id="old", allowed=True, risk_level="low",
         flags=[], secrets_found=[], content_len=1, elapsed_ms=1.0, strict=False,
     )
-    old_entry["ts"] = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+    old_entry["ts"] = (datetime.now(UTC) - timedelta(days=2)).isoformat()
     event_logger.append(old_entry)
 
     # Write a fresh entry
@@ -109,8 +108,9 @@ def test_load_entries_day_filter(tmp_log) -> None:
 
 
 def test_purge_old_entries(tmp_log) -> None:
-    from warden.analytics import logger as event_logger
     import importlib
+
+    from warden.analytics import logger as event_logger
     # Set retention to 7 days
     os.environ["GDPR_LOG_RETENTION_DAYS"] = "7"
     importlib.reload(event_logger)
@@ -121,7 +121,7 @@ def test_purge_old_entries(tmp_log) -> None:
         request_id="old", allowed=True, risk_level="low",
         flags=[], secrets_found=[], content_len=1, elapsed_ms=1.0, strict=False,
     )
-    old["ts"] = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+    old["ts"] = (datetime.now(UTC) - timedelta(days=10)).isoformat()
     event_logger.append(old)
 
     # Write current entry
@@ -140,8 +140,9 @@ def test_purge_old_entries(tmp_log) -> None:
 
 def test_no_content_in_log_entries() -> None:
     """GDPR compliance: content must never appear in the logger schema."""
-    from warden.analytics import logger as event_logger
     import inspect
+
+    from warden.analytics import logger as event_logger
     src = inspect.getsource(event_logger.build_entry)
     assert "content" not in src.split("return")[1], (
         "build_entry must not include the content field in its return value"

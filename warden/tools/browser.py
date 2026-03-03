@@ -35,8 +35,8 @@ import base64
 import logging
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from playwright.async_api import (
@@ -53,7 +53,7 @@ log = logging.getLogger("warden.tools.browser")
 
 # ── Action types ──────────────────────────────────────────────────────────────
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     NAVIGATE    = "Navigate"
     CLICK       = "Click"
     TYPE        = "Type"
@@ -70,7 +70,7 @@ class InteractionRecord:
 
     action:     ActionType
     url:        str
-    timestamp:  datetime        = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp:  datetime        = field(default_factory=lambda: datetime.now(UTC))
     selector:   str | None      = None   # CSS selector targeted
     value:      str | None      = None   # text typed / form value
     result:     dict[str, Any]  = field(default_factory=dict)
@@ -206,7 +206,7 @@ class BrowserSandbox:
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
-    async def __aenter__(self) -> "BrowserSandbox":
+    async def __aenter__(self) -> BrowserSandbox:
         log.info("BrowserSandbox: launching headless=%s slow_mo=%dms",
                  self.headless, self.slow_mo)
 

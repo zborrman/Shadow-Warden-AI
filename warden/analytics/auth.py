@@ -38,7 +38,6 @@ from __future__ import annotations
 import hmac
 import os
 import time
-from typing import Tuple
 
 import bcrypt
 import streamlit as st
@@ -77,7 +76,7 @@ def _init_state() -> None:
             st.session_state[key] = value
 
 
-def _lockout_status() -> Tuple[bool, int]:
+def _lockout_status() -> tuple[bool, int]:
     """Return (is_locked, seconds_remaining)."""
     until = st.session_state.get(_K_LOCKED_UNTIL)
     if until is None:
@@ -342,6 +341,6 @@ if __name__ == "__main__":
             sys.exit(1)
 
     hashed = bcrypt.hashpw(raw.encode(), bcrypt.gensalt(rounds=12))
-    print(f"\nAdd this to your .env file:\n")
+    print("\nAdd this to your .env file:\n")
     print(f"DASHBOARD_PASSWORD_HASH={hashed.decode()}")
-    print(f"\nDo NOT share or commit this hash to version control.")
+    print("\nDo NOT share or commit this hash to version control.")

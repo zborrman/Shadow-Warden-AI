@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import sys
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -98,7 +98,9 @@ if not entries:
     st.warning("No log entries found yet. Make some requests through the Warden gateway to populate the dashboard.")
     st.info("Logs are written to: `data/logs.json`")
     if auto_refresh:
-        import time; time.sleep(30); st.rerun()
+        import time  # noqa: PLC0415
+        time.sleep(30)
+        st.rerun()
     st.stop()
 
 df = pd.DataFrame(entries)
@@ -157,7 +159,7 @@ with col_radar:
     flag_counts = Counter(all_flags)
 
     radar_labels = list(RADAR_CATEGORIES.values())
-    radar_values = [flag_counts.get(k, 0) for k in RADAR_CATEGORIES.keys()]
+    radar_values = [flag_counts.get(k, 0) for k in RADAR_CATEGORIES]
 
     # Close the polygon
     radar_labels += [radar_labels[0]]
@@ -353,7 +355,7 @@ else:
 st.caption(
     f"Shadow Warden AI • {total:,} events loaded • "
     f"Window: {time_window} • "
-    f"Last updated: {datetime.now(timezone.utc).strftime('%H:%M:%S UTC')}"
+    f"Last updated: {datetime.now(UTC).strftime('%H:%M:%S UTC')}"
 )
 
 # ── Auto-refresh ──────────────────────────────────────────────────────────────

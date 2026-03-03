@@ -20,7 +20,6 @@ from dataclasses import dataclass, field
 
 from warden.schemas import SecretFinding
 
-
 # ── Pattern registry ──────────────────────────────────────────────────────────
 
 @dataclass
@@ -167,10 +166,8 @@ class SecretRedactor:
 
     # ── Public API ────────────────────────────────────────────────────────
 
-    def redact(self, text: str) -> "SecretRedactor.Result":
+    def redact(self, text: str) -> SecretRedactor.Result:
         findings: list[SecretFinding] = []
-        offset = 0          # cumulative character shift after replacements
-
         for pat in _PATTERNS:
             # IPv4 only redacted in strict mode
             if pat.kind == "ipv4" and not self.strict:

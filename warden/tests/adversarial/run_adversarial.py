@@ -26,6 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 import os
+
 os.environ.setdefault("ANTHROPIC_API_KEY", "")  # disable evolution in test
 os.environ.setdefault("SEMANTIC_THRESHOLD", "0.72")
 
@@ -35,19 +36,19 @@ guard = SemanticGuard()
 
 _HERE = Path(__file__).parent
 jailbreaks = [
-    l.strip() for l in (_HERE / "jailbreaks.txt").read_text().splitlines()
-    if l.strip() and not l.startswith("#")
+    line.strip() for line in (_HERE / "jailbreaks.txt").read_text().splitlines()
+    if line.strip() and not line.startswith("#")
 ]
 benign = [
-    l.strip() for l in (_HERE / "benign.txt").read_text().splitlines()
-    if l.strip() and not l.startswith("#")
+    line.strip() for line in (_HERE / "benign.txt").read_text().splitlines()
+    if line.strip() and not line.startswith("#")
 ]
 
 failed = 0
 total = len(jailbreaks) + len(benign)
 
 print(f"\n{'─'*60}")
-print(f"  Shadow Warden Adversarial Test Suite")
+print("  Shadow Warden Adversarial Test Suite")
 print(f"  {len(jailbreaks)} jailbreaks · {len(benign)} benign prompts")
 print(f"{'─'*60}\n")
 

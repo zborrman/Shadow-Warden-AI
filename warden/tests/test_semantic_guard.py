@@ -8,8 +8,9 @@ and false positives (benign prompts MUST pass through).
 from __future__ import annotations
 
 import pytest
-from warden.semantic_guard import SemanticGuard
+
 from warden.schemas import RiskLevel
+from warden.semantic_guard import SemanticGuard
 
 guard = SemanticGuard()
 strict_guard = SemanticGuard(strict=True)
