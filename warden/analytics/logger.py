@@ -38,7 +38,7 @@ def build_entry(
     risk_level:   str,
     flags:        list[str],
     secrets_found: list[str],
-    content_len:  int,
+    payload_len:  int,
     elapsed_ms:   float,
     strict:       bool,
 ) -> dict:
@@ -49,7 +49,7 @@ def build_entry(
         "risk_level":   risk_level,
         "flags":        flags,
         "secrets_found": secrets_found,
-        "content_len":  content_len,
+        "payload_len":  payload_len,
         "elapsed_ms":   elapsed_ms,
         "strict":       strict,
     }

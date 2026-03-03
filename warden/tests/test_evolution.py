@@ -65,19 +65,26 @@ async def test_process_blocked_calls_add_examples(
     evolution_engine, mock_semantic_guard, tmp_rules_path
 ):
     """process_blocked() must call add_examples when a new rule is generated."""
+    from warden.brain.evolve import EvolutionResponse, NewRule
     from warden.schemas import FlagType, RiskLevel, SemanticFlag
 
-    mock_rule = {
-        "rule_type": "semantic_example",
-        "value": "evolved jailbreak example text",
-        "description": "Test evolved rule",
-    }
+    mock_evolution = EvolutionResponse(
+        attack_type="prompt_injection",
+        explanation="Test explanation for jailbreak attempt.",
+        evasion_variants=[],
+        new_rule=NewRule(
+            rule_type="semantic_example",
+            value="evolved jailbreak example text",
+            description="Test evolved rule",
+        ),
+        severity="high",
+    )
 
     # Mock the Claude Opus call
     with patch.object(
         evolution_engine, "_call_claude",
         new_callable=AsyncMock,
-        return_value=mock_rule,
+        return_value=mock_evolution,
     ):
         await evolution_engine.process_blocked(
             content="novel jailbreak payload xyz",
@@ -100,18 +107,25 @@ async def test_process_blocked_writes_dynamic_rules(
     evolution_engine, mock_semantic_guard, tmp_rules_path
 ):
     """Evolved rules must be persisted to dynamic_rules.json."""
+    from warden.brain.evolve import EvolutionResponse, NewRule
     from warden.schemas import FlagType, RiskLevel, SemanticFlag
 
-    mock_rule = {
-        "rule_type": "semantic_example",
-        "value": "persisted example",
-        "description": "Should be written to disk",
-    }
+    mock_evolution = EvolutionResponse(
+        attack_type="prompt_injection",
+        explanation="Test explanation for persistence check.",
+        evasion_variants=[],
+        new_rule=NewRule(
+            rule_type="semantic_example",
+            value="persisted example",
+            description="Should be written to disk",
+        ),
+        severity="high",
+    )
 
     with patch.object(
         evolution_engine, "_call_claude",
         new_callable=AsyncMock,
-        return_value=mock_rule,
+        return_value=mock_evolution,
     ):
         await evolution_engine.process_blocked(
             content="unique attack payload abc",

@@ -88,7 +88,7 @@ async def ship_to_elastic(entry: dict) -> None:
         "warden": {
             "risk_level":   entry.get("risk_level"),
             "flags":        entry.get("flags", []),
-            "content_len":  entry.get("content_len"),
+            "payload_len":  entry.get("payload_len"),
             "elapsed_ms":   entry.get("elapsed_ms"),
             "strict":       entry.get("strict", False),
             "secrets_found": entry.get("secrets_found", []),

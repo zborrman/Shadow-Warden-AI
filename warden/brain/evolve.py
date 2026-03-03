@@ -142,6 +142,10 @@ class EvolutionEngine:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
+    def _is_duplicate(self, content: str) -> bool:
+        """Return True if this exact content was already processed this session."""
+        return hashlib.sha256(content.encode()).hexdigest() in self._seen_hashes
+
     async def process_blocked(
         self,
         content:    str,

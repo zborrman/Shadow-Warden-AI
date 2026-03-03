@@ -326,7 +326,7 @@ async def filter_content(
         json.dumps({
             "event": "filter_request",
             "request_id": rid,
-            "content_len": len(payload.content),
+            "payload_len": len(payload.content),
             "strict": strict,
             "tenant_id": tenant_id,
         })
@@ -453,7 +453,7 @@ async def filter_content(
             risk_level    = guard_result.risk_level.value,
             flags         = [f.flag.value for f in guard_result.flags],
             secrets_found = [f.kind for f in redact_result.findings],
-            content_len   = len(payload.content),
+            payload_len   = len(payload.content),
             elapsed_ms    = elapsed_ms,
             strict        = strict,
         )

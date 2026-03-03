@@ -55,7 +55,7 @@ _PATTERNS: list[_Pattern] = [
              "[REDACTED:aws_secret]"),
 
     _Pattern("github_token",
-             re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}", re.ASCII),
+             re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}", re.ASCII),
              "[REDACTED:github_token]"),
 
     _Pattern("stripe_key",
@@ -63,7 +63,7 @@ _PATTERNS: list[_Pattern] = [
              "[REDACTED:stripe_key]"),
 
     _Pattern("gcp_api_key",
-             re.compile(r"AIza[A-Za-z0-9\-_]{35}", re.ASCII),
+             re.compile(r"AIza[A-Za-z0-9\-_]{33,}", re.ASCII),
              "[REDACTED:gcp_api_key]"),
 
     _Pattern("bearer_token",
@@ -72,7 +72,7 @@ _PATTERNS: list[_Pattern] = [
 
     # ── Credentials embedded in URLs ─────────────────────────────────────
     _Pattern("url_credentials",
-             re.compile(r"(?i)(https?|ftp|postgresql|mysql|mongodb)://[^:@\s]+:[^@\s]+@"),
+             re.compile(r"(?i)(https?|ftp|postgres(?:ql)?|mysql|mongodb)://[^:@\s]+:[^@\s]+@"),
              "[REDACTED:url_credentials]://"),
 
     # ── Private key / PEM blocks ──────────────────────────────────────────

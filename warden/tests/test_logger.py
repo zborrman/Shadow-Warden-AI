@@ -36,7 +36,7 @@ def test_build_entry_structure() -> None:
         risk_level="low",
         flags=[],
         secrets_found=[],
-        content_len=42,
+        payload_len=42,
         elapsed_ms=12.5,
         strict=False,
     )
@@ -52,7 +52,7 @@ def test_append_creates_file(tmp_log) -> None:
     from warden.analytics import logger as event_logger
     entry = event_logger.build_entry(
         request_id="r1", allowed=True, risk_level="low",
-        flags=[], secrets_found=[], content_len=10, elapsed_ms=5.0, strict=False,
+        flags=[], secrets_found=[], payload_len=10, elapsed_ms=5.0, strict=False,
     )
     event_logger.append(entry)
     assert tmp_log.exists()
@@ -63,7 +63,7 @@ def test_append_is_valid_ndjson(tmp_log) -> None:
     for i in range(3):
         event_logger.append(event_logger.build_entry(
             request_id=f"r{i}", allowed=True, risk_level="low",
-            flags=[], secrets_found=[], content_len=i, elapsed_ms=1.0, strict=False,
+            flags=[], secrets_found=[], payload_len=i, elapsed_ms=1.0, strict=False,
         ))
     lines = tmp_log.read_text().strip().split("\n")
     assert len(lines) == 3
@@ -76,7 +76,7 @@ def test_load_entries_returns_all(tmp_log) -> None:
     from warden.analytics import logger as event_logger
     event_logger.append(event_logger.build_entry(
         request_id="r1", allowed=False, risk_level="high",
-        flags=["prompt_injection"], secrets_found=[], content_len=50,
+        flags=["prompt_injection"], secrets_found=[], payload_len=50,
         elapsed_ms=10.0, strict=False,
     ))
     entries = event_logger.load_entries()
@@ -89,7 +89,7 @@ def test_load_entries_day_filter(tmp_log) -> None:
     # Write an entry dated 2 days ago
     old_entry = event_logger.build_entry(
         request_id="old", allowed=True, risk_level="low",
-        flags=[], secrets_found=[], content_len=1, elapsed_ms=1.0, strict=False,
+        flags=[], secrets_found=[], payload_len=1, elapsed_ms=1.0, strict=False,
     )
     old_entry["ts"] = (datetime.now(UTC) - timedelta(days=2)).isoformat()
     event_logger.append(old_entry)
@@ -97,7 +97,7 @@ def test_load_entries_day_filter(tmp_log) -> None:
     # Write a fresh entry
     fresh = event_logger.build_entry(
         request_id="fresh", allowed=True, risk_level="low",
-        flags=[], secrets_found=[], content_len=1, elapsed_ms=1.0, strict=False,
+        flags=[], secrets_found=[], payload_len=1, elapsed_ms=1.0, strict=False,
     )
     event_logger.append(fresh)
 
@@ -119,7 +119,7 @@ def test_purge_old_entries(tmp_log) -> None:
     # Write old entry
     old = event_logger.build_entry(
         request_id="old", allowed=True, risk_level="low",
-        flags=[], secrets_found=[], content_len=1, elapsed_ms=1.0, strict=False,
+        flags=[], secrets_found=[], payload_len=1, elapsed_ms=1.0, strict=False,
     )
     old["ts"] = (datetime.now(UTC) - timedelta(days=10)).isoformat()
     event_logger.append(old)
@@ -127,7 +127,7 @@ def test_purge_old_entries(tmp_log) -> None:
     # Write current entry
     current = event_logger.build_entry(
         request_id="current", allowed=True, risk_level="low",
-        flags=[], secrets_found=[], content_len=1, elapsed_ms=1.0, strict=False,
+        flags=[], secrets_found=[], payload_len=1, elapsed_ms=1.0, strict=False,
     )
     event_logger.append(current)
 

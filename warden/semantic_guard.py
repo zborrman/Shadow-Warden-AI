@@ -102,7 +102,7 @@ _RULES: list[_Rule] = [
     _Rule(FlagType.PROMPT_INJECTION,
           re.compile(
               r"(?i)(base64|rot13|hex|unicode\s+escape|url[- ]encoded?)\s+"
-              r"(decode|encode|version|translation)\s+(of\s+)?(the\s+)?"
+              r"(decode|encode|version|translation)(?:\s+\w+){0,3}\s+(of\s+)?(the\s+)?"
               r"(following|above|this|prompt|instruction)"
           ),
           score=0.75,
@@ -113,7 +113,8 @@ _RULES: list[_Rule] = [
     _Rule(FlagType.POLICY_VIOLATION,
           re.compile(
               r"(?i)\b(write|generate|produce|create)\s+"
-              r"(explicit|graphic|sexual|erotic|adult|nsfw)\s+"
+              r"(?:explicit|graphic|sexual|erotic|adult|nsfw)"
+              r"(?:\s+(?:explicit|graphic|sexual|erotic|adult|nsfw))*\s+"
               r"(content|story|scene|description|fanfic)\b"
           ),
           score=0.85,
@@ -158,12 +159,18 @@ class SemanticGuard:
 
         @property
         def safe(self) -> bool:
-            return self.risk_level not in (RiskLevel.HIGH, RiskLevel.BLOCK)
+            """True only when risk is LOW (no concern at all)."""
+            return self.risk_level == RiskLevel.LOW
 
         def safe_for(self, strict: bool) -> bool:
+            """True when the content is acceptable under the given mode.
+
+            strict=False (normal mode): allow LOW and MEDIUM.
+            strict=True:                allow LOW only.
+            """
             if strict:
                 return self.risk_level == RiskLevel.LOW
-            return self.safe
+            return self.risk_level not in (RiskLevel.HIGH, RiskLevel.BLOCK)
 
         @property
         def top_flag(self) -> SemanticFlag | None:
