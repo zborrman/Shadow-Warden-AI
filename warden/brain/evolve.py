@@ -138,7 +138,8 @@ class EvolutionEngine:
         self._client        = anthropic.AsyncAnthropic()
         self._seen_hashes:  set[str] = set()   # in-process dedup
         self._guard         = semantic_guard
-        DYNAMIC_RULES_PATH.parent.mkdir(parents=True, exist_ok=True)
+        self._rules_path    = DYNAMIC_RULES_PATH
+        self._rules_path.parent.mkdir(parents=True, exist_ok=True)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -286,8 +287,7 @@ class EvolutionEngine:
             severity=ev.severity,
         )
 
-    @staticmethod
-    def _persist(rule: RuleRecord) -> None:
+    def _persist(self, rule: RuleRecord) -> None:
         """
         Atomically append a rule to dynamic_rules.json.
 
@@ -295,9 +295,9 @@ class EvolutionEngine:
         os.replace() — this is atomic on POSIX and near-atomic on Windows,
         preventing file corruption if the process dies mid-write.
         """
-        if DYNAMIC_RULES_PATH.exists():
+        if self._rules_path.exists():
             try:
-                data = json.loads(DYNAMIC_RULES_PATH.read_text())
+                data = json.loads(self._rules_path.read_text())
             except json.JSONDecodeError:
                 log.warning(
                     "EvolutionEngine: dynamic_rules.json was corrupt — resetting."
@@ -309,13 +309,14 @@ class EvolutionEngine:
         data["last_updated"] = datetime.now(UTC).isoformat()
         data["rules"].append(json.loads(rule.model_dump_json()))
 
+        self._rules_path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(
-            dir=DYNAMIC_RULES_PATH.parent, suffix=".tmp"
+            dir=self._rules_path.parent, suffix=".tmp"
         )
         try:
             with os.fdopen(fd, "w") as f:
                 json.dump(data, f, indent=2)
-            os.replace(tmp, DYNAMIC_RULES_PATH)
+            os.replace(tmp, self._rules_path)
         except Exception:
             os.unlink(tmp)
             raise
