@@ -36,7 +36,7 @@ import logging
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from playwright.async_api import (
@@ -53,7 +53,7 @@ log = logging.getLogger("warden.tools.browser")
 
 # ── Action types ──────────────────────────────────────────────────────────────
 
-class ActionType(StrEnum):
+class ActionType(str, Enum):
     NAVIGATE    = "Navigate"
     CLICK       = "Click"
     TYPE        = "Type"
