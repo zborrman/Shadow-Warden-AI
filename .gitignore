@@ -33,8 +33,6 @@ data/logs.ndjson
 data/logs.json
 data/dynamic_rules.json
 
-# ── Docker ────────────────────────────────────────────────────────────────────
-.dockerignore
 
 # ── OS / editor ───────────────────────────────────────────────────────────────
 .DS_Store

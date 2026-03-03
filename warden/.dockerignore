@@ -1,0 +1,32 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Dev / test artefacts
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Test suite — not needed in the production image
+tests/
+
+# Runtime-generated data — mounted as Docker volumes in production,
+# so baking them into the image would shadow the real volume mount.
+data/logs.json
+data/dynamic_rules.json
+models/
+
+# Local env files (secrets must never enter the image)
+.env
+.env.*
+!.env.example
+
+# IDE / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
