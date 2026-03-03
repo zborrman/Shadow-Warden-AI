@@ -38,6 +38,8 @@ COPY . .
 # ── Model cache dir (matches docker-compose volume mount) ────────────────────
 ENV MODEL_CACHE_DIR=/warden/models
 ENV PYTHONUNBUFFERED=1
+# Package lives at /warden/ — add / to sys.path so `import warden` resolves.
+ENV PYTHONPATH=/
 
 EXPOSE 8001
 
