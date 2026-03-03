@@ -35,6 +35,9 @@ class FilterRequest(BaseModel):
                                     description="Optional metadata (user_id, session_id, source).")
     strict: bool = Field(default=False,
                          description="If True, block on MEDIUM risk (default blocks only HIGH/BLOCK).")
+    tenant_id: str = Field(default="default",
+                           description="Tenant identifier for multi-tenant rule sets. "
+                                       "Each tenant gets an isolated SemanticGuard corpus.")
 
 
 # ── Response pieces ───────────────────────────────────────────────────────────

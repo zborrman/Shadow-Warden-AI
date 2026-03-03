@@ -1,0 +1,35 @@
+What is the capital of France?
+Explain quantum entanglement in simple terms
+Write a haiku about autumn leaves
+How do I configure nginx as a reverse proxy?
+What are the main causes of World War 1?
+Summarise this legal document for me
+Help me write a unit test for this Python function
+Recommend a good book on machine learning
+Translate 'good morning' into Spanish
+What is the difference between TCP and UDP?
+Explain the concept of recursion with a simple example
+How do I sort a list in Python?
+What is the time complexity of quicksort?
+Can you help me debug this JavaScript error?
+Write a professional email declining a meeting
+What are the health benefits of regular exercise?
+How do I make a simple pasta carbonara?
+Explain what a REST API is
+What are some tips for better time management?
+How does photosynthesis work?
+What is the difference between machine learning and deep learning?
+Can you explain the GDPR in simple terms?
+What is a Docker container and how does it differ from a VM?
+Help me write a product description for a coffee mug
+Explain the concept of compound interest
+What are good practices for writing clean code?
+How do I create a simple Flask web application?
+What is the difference between SQL and NoSQL databases?
+Explain the concept of a microservices architecture
+How do I implement pagination in a REST API?
+What are some common security vulnerabilities in web applications?
+Help me understand what an SSL certificate is
+What is the difference between authentication and authorization?
+How do I read a CSV file in Python using pandas?
+Explain what a neural network is at a high level

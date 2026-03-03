@@ -723,3 +723,160 @@ dynamic rules, which are hot-reloaded by the Evolution Engine.
 ---
 
 *Shadow Warden AI — Proprietary · All rights reserved*
+
+---
+
+## 9. Docker Optimization Skills
+
+### 9.1 Skill: Layer Analysis
+
+Inspect image layers to find bloat before pushing:
+
+```bash
+# Show every layer with its size
+docker history --no-trunc <image>:<tag>
+
+# Interactive deep-dive (requires dive CLI)
+dive <image>:<tag>
+
+# Quick size summary per layer
+docker inspect <image>:<tag> | jq '.[0].RootFS.Layers | length'
+```
+
+**Interpretation:**
+- A single layer > 100 MB is a red flag — split or cache-bust it.
+- Consecutive layers that each add files that are later deleted indicate a clean-up mistake (use `&&` in one `RUN`).
+
+---
+
+### 9.2 Skill: .dockerignore Hygiene
+
+An effective `.dockerignore` prevents build-context bloat and accidental secret leaks:
+
+```
+# Version control
+.git/
+.gitignore
+
+# IDE / editor state
+.idea/
+.vscode/
+*.iml
+
+# Build artefacts
+target/
+build/
+dist/
+__pycache__/
+*.pyc
+*.class
+
+# Test output
+coverage/
+.pytest_cache/
+htmlcov/
+
+# Secrets & local config
+.env
+*.pem
+*.key
+secrets/
+
+# Node
+node_modules/
+
+# Docker files (avoid recursive context)
+Dockerfile*
+docker-compose*.yml
+```
+
+Check context size before every large build:
+
+```bash
+# macOS / Linux
+tar -czh . | wc -c
+```
+
+---
+
+### 9.3 Skill: Spring Boot Layered JAR
+
+Spring Boot 2.3+ supports layered JARs that dramatically improve cache efficiency for Java services:
+
+```dockerfile
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /build
+COPY pom.xml .
+RUN mvn dependency:go-offline
+COPY src ./src
+RUN mvn package -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine AS extractor
+WORKDIR /build
+COPY --from=builder /build/target/*.jar app.jar
+RUN java -Djarmode=layertools -jar app.jar extract
+
+FROM eclipse-temurin:21-jre-alpine AS runtime
+WORKDIR /app
+# Layer order: least→most frequently changed
+COPY --from=extractor /build/dependencies/ ./
+COPY --from=extractor /build/spring-boot-loader/ ./
+COPY --from=extractor /build/snapshot-dependencies/ ./
+COPY --from=extractor /build/application/ ./
+ENTRYPOINT ["java","org.springframework.boot.loader.JarLauncher"]
+```
+
+This turns a 200 MB "fat jar" rebuild into a ~2 MB `application/` layer push on most code changes.
+
+---
+
+### 9.4 Skill: HEALTHCHECK Patterns
+
+| Service type | Recommended HEALTHCHECK |
+|-------------|------------------------|
+| HTTP / FastAPI / Spring Boot | `CMD curl -f http://localhost:<port>/health \|\| exit 1` |
+| gRPC | `CMD grpc_health_probe -addr=:50051` |
+| Redis | `CMD redis-cli ping` |
+| PostgreSQL | `CMD-SHELL pg_isready -U $$POSTGRES_USER` |
+| Custom TCP | `CMD nc -z localhost <port>` |
+
+Docker Compose readiness gate (always use with `HEALTHCHECK`):
+
+```yaml
+depends_on:
+  db:
+    condition: service_healthy
+```
+
+---
+
+### 9.5 Skill: Vulnerability Scanning
+
+Run before every push to registry:
+
+```bash
+# Docker Desktop built-in (Snyk)
+docker scout cves <image>:<tag>
+
+# Grype (offline-capable)
+grype <image>:<tag>
+
+# Trivy (CI-friendly, JSON output)
+trivy image --format json --output scan.json <image>:<tag>
+
+# Fail CI if HIGH or CRITICAL vulns found
+trivy image --exit-code 1 --severity HIGH,CRITICAL <image>:<tag>
+```
+
+**Hadolint** — Dockerfile linter (enforce best-practice rules):
+
+```bash
+hadolint Dockerfile
+
+# Docker Desktop integration (VS Code extension)
+# Install: hadolint/hadolint-action (GitHub Actions)
+```
+
+---
+
+*Docker optimization skills last updated: 2026-03 — Docker Desktop Pro alignment*

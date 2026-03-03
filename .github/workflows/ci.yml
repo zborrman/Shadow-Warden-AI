@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Unit + Integration Tests ────────────────────────────────────────────────
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # Install CPU-only torch first (avoids pulling 2 GB CUDA build from PyPI)
+      - name: Install CPU-only PyTorch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install project dependencies
+        run: pip install -e ".[dev]"
+        working-directory: .
+
+      - name: Install warden requirements
+        run: pip install -r warden/requirements.txt
+
+      - name: Run unit and integration tests
+        run: pytest warden/tests/ -v --tb=short -m "not adversarial and not slow"
+        env:
+          ANTHROPIC_API_KEY: ""          # Evolution Engine disabled in CI
+          SEMANTIC_THRESHOLD: "0.72"
+          WARDEN_API_KEY: ""             # auth disabled in CI
+          LOGS_PATH: "/tmp/test_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/dynamic_rules.json"
+
+      - name: Run adversarial corpus tests
+        run: pytest warden/tests/ -v --tb=short -m "adversarial" || true
+        # adversarial failures are informational; don't block merges
+        env:
+          ANTHROPIC_API_KEY: ""
+          SEMANTIC_THRESHOLD: "0.72"
+          LOGS_PATH: "/tmp/test_logs.json"
+
+  # ── Linting ─────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linters
+        run: pip install ruff mypy
+
+      - name: Run ruff
+        run: ruff check warden/ analytics/ --ignore E501
+
+      - name: Run mypy
+        run: mypy warden/ --ignore-missing-imports --no-strict-optional
+
+  # ── Docker Build Smoke Test ──────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build (smoke test)
+    runs-on: ubuntu-latest
+    # Only run on PRs to main to save CI minutes
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build warden image
+        run: docker build --target=base warden/ -t warden-ci:${{ github.sha }} || docker build warden/ -t warden-ci:${{ github.sha }}
+
+      - name: Build analytics image
+        run: docker build analytics/ -t analytics-ci:${{ github.sha }}

@@ -103,6 +103,57 @@ def load_entries(days: int | None = None) -> list[dict]:
     return entries
 
 
+# ── GDPR data-subject helpers ────────────────────────────────────────────────
+
+def read_by_request_id(request_id: str) -> dict | None:
+    """
+    Return the single log entry matching *request_id*, or ``None``.
+
+    Used by the GDPR /gdpr/export endpoint so a data subject can retrieve
+    the metadata recorded about a specific request.
+    """
+    for entry in load_entries():
+        if entry.get("request_id") == request_id:
+            return entry
+    return None
+
+
+def purge_before(before: datetime) -> int:
+    """
+    Remove all log entries whose timestamp is strictly before *before*.
+    Returns the number of entries removed.
+
+    Used by the GDPR /gdpr/purge endpoint for on-demand erasure requests.
+    """
+    if not LOGS_PATH.exists():
+        return 0
+
+    kept, removed = [], 0
+    with LOGS_PATH.open("r", encoding="utf-8") as f:
+        for raw in f:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                entry = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            ts = datetime.fromisoformat(entry.get("ts", "1970-01-01T00:00:00+00:00"))
+            if ts >= before:
+                kept.append(raw)
+            else:
+                removed += 1
+
+    if removed:
+        tmp = LOGS_PATH.with_suffix(".tmp")
+        with _lock:
+            tmp.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
+            os.replace(tmp, LOGS_PATH)
+        log.info("GDPR purge_before: removed %d entries before %s.", removed, before.isoformat())
+
+    return removed
+
+
 # ── GDPR purge (call periodically, e.g. daily cron / startup) ────────────────
 
 def purge_old_entries() -> int:

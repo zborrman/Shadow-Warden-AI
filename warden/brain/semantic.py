@@ -27,8 +27,10 @@ load from disk in <1 second.  Set the env-var to override the path.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import NamedTuple
@@ -37,6 +39,11 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 
 log = logging.getLogger("warden.brain.semantic")
+
+# One thread pool shared across all SemanticGuard instances.
+# Two workers is sufficient: MiniLM is single-threaded internally and
+# running two concurrent embeddings already saturates a modern CPU core.
+_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="warden_ml")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -197,6 +204,22 @@ class SemanticGuard:
             closest_example=_JAILBREAK_CORPUS[max_idx],
             threshold=self.threshold,
         )
+
+    async def check_async(self, text: str) -> SemanticResult:
+        """
+        Non-blocking wrapper around :meth:`check`.
+
+        MiniLM inference is CPU-bound and can take 10–50 ms.  Running it
+        directly in a FastAPI async endpoint would block the Uvicorn event
+        loop for every request.  This method offloads the work to the shared
+        ``_executor`` thread pool, keeping the event loop free.
+
+        Usage in an async route::
+
+            result = await brain_guard.check_async(text)
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(_executor, self.check, text)
 
     # ── Corpus management ─────────────────────────────────────────────────────
 

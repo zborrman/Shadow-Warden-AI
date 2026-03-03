@@ -446,3 +446,127 @@ Rule: **the highest risk from any layer is the final risk.**
 ---
 
 *Last updated: 2026-03 — Shadow Warden AI v0.2.0*
+
+---
+
+## 11. Docker Engineering Standards (Docker Desktop Pro)
+
+### 11.1 Rule: Multi-Stage Builds Only
+
+Every production `Dockerfile` **must** use multi-stage builds.
+
+| Stage | Purpose | Base image |
+|-------|---------|-----------|
+| `builder` | Compile / download deps | Full SDK image |
+| `runtime` | Ship the binary only | Minimal/distroless |
+
+```dockerfile
+# ✅ Correct
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /build
+COPY . .
+RUN ./gradlew bootJar
+
+FROM eclipse-temurin:21-jre-alpine AS runtime
+COPY --from=builder /build/app.jar /app/app.jar
+ENTRYPOINT ["java","-jar","/app/app.jar"]
+```
+
+**Rationale:** Single-stage images ship build toolchains, test deps, and intermediate artefacts — ballooning image size and attack surface.
+
+---
+
+### 11.2 Rule: Base Image Selection
+
+| Language / Runtime | Preferred base | Forbidden |
+|--------------------|---------------|-----------|
+| Java 17 / 21 | `eclipse-temurin:XX-jre-alpine` or distroless | Full Ubuntu/Debian without `-slim`/`-alpine` |
+| Node.js | `node:XX-alpine` | `node:latest`, `node:XX` (Debian) without `-slim` |
+| Python | `python:3.XX-slim` or `python:3.XX-alpine` | `python:latest`, `python:3.XX` (full Debian) |
+| Go | `scratch` or `gcr.io/distroless/static` | Any full OS image |
+| General | Alpine or distroless | `ubuntu:latest`, `debian:latest` |
+
+**Pin versions** — never use `:latest` in production `Dockerfile`s.
+
+---
+
+### 11.3 Rule: Layer Caching Order
+
+Dependencies change less frequently than source code. Always order `COPY` + install steps to maximise Docker layer cache hits:
+
+```dockerfile
+# ✅ Cache-friendly order
+COPY pom.xml ./          # 1. dependency manifest (rarely changes)
+RUN mvn dependency:go-offline  # 2. download deps (cached until pom.xml changes)
+COPY src ./src           # 3. source code (changes frequently)
+RUN mvn package -DskipTests
+```
+
+```dockerfile
+# ❌ Cache-busting order — any source change invalidates dep download
+COPY . .
+RUN mvn package
+```
+
+---
+
+### 11.4 Rule: Security-First Dockerfile
+
+1. **Non-root user** — every service must run as a non-privileged user:
+
+```dockerfile
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+```
+
+2. **No secrets in Dockerfile** — never `ENV SECRET_KEY=...` or `ARG PASSWORD=...` with default values. Inject secrets at runtime via docker-compose / Kubernetes secrets.
+
+3. **Read-only filesystem** where possible — set `--read-only` in compose or pod spec; mount only the volumes that need write access.
+
+4. **Drop capabilities** — unless explicitly required:
+
+```yaml
+# docker-compose.yml
+security_opt:
+  - no-new-privileges:true
+cap_drop:
+  - ALL
+```
+
+---
+
+### 11.5 Rule: Clean Up at Build Time
+
+Each `RUN` layer that installs packages **must** clean the package manager cache in the same `RUN` command:
+
+```dockerfile
+# Alpine
+RUN apk add --no-cache curl git
+
+# Debian/Ubuntu
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl git \
+ && rm -rf /var/lib/apt/lists/*
+
+# pip
+RUN pip install --no-cache-dir -r requirements.txt
+```
+
+**Never** leave package manager indexes or download caches in the final layer — they bloat the image and may contain cached credentials.
+
+---
+
+### 11.6 Rule: HEALTHCHECK in Every Service
+
+Every long-running container **must** declare a `HEALTHCHECK`:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+```
+
+Docker Compose `condition: service_healthy` depends on this — without it, dependent services start before the app is ready.
+
+---
+
+*Docker standards last updated: 2026-03 — Docker Desktop Pro alignment*

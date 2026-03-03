@@ -1,0 +1,98 @@
+[project]
+name = "shadow-warden-ai"
+version = "0.2.0"
+description = "AI security gateway — jailbreak detection, secret redaction, and self-improving rules powered by Claude Opus"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+keywords = ["ai-safety", "llm", "security", "jailbreak", "prompt-injection", "gdpr"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.7.0",
+    "sentence-transformers>=3.0.0",
+    "numpy>=1.26.0",
+    "anthropic>=0.40.0",
+    "playwright>=1.44.0",
+    "streamlit>=1.35.0",
+    "plotly>=5.22.0",
+    "bcrypt>=4.0.0",
+    "slowapi>=0.1.9",
+    "redis>=5.0.0",
+    "httpx>=0.27.0",
+    "prometheus-fastapi-instrumentator>=6.0.0",
+    "prometheus-client>=0.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+]
+langchain = [
+    "langchain-core>=0.1.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+warden-gateway   = "warden.main:main"
+warden-dashboard = "warden.analytics.dashboard:main"
+warden-hash      = "warden.analytics.auth:__main__"
+
+[project.urls]
+Homepage   = "https://github.com/zborrman/Shadow-Warden-AI"
+Repository = "https://github.com/zborrman/Shadow-Warden-AI"
+Issues     = "https://github.com/zborrman/Shadow-Warden-AI/issues"
+
+[build-system]
+requires      = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["warden*", "analytics*"]
+
+# ── Ruff (linter) ─────────────────────────────────────────────────────────────
+
+[tool.ruff]
+line-length    = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select  = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore  = ["E501", "B008"]   # E501=line length (ruff handles it), B008=FastAPI Depends()
+
+[tool.ruff.lint.per-file-ignores]
+"warden/tests/*" = ["S101"]  # assert is expected in tests
+
+# ── Mypy ─────────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version         = "3.11"
+ignore_missing_imports = true
+strict                 = false
+
+# ── Pytest ────────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths    = ["warden/tests"]
+addopts      = "-v --tb=short --strict-markers"
+markers      = [
+    "adversarial: adversarial corpus tests (may be slow)",
+    "slow: tests that load the ML model",
+    "integration: end-to-end FastAPI tests",
+]
+asyncio_mode = "auto"

@@ -191,6 +191,25 @@ class SemanticGuard:
         if extra_flags:
             risk_level = _max_risk(risk_level, extra_risk)
 
+        # ── Compound risk escalation: 3+ MEDIUM signals → HIGH ───────────
+        # Multiple weak signals together indicate a sophisticated attack
+        # that uses lower-confidence techniques to stay under threshold.
+        if risk_level == RiskLevel.MEDIUM:
+            medium_count = sum(
+                1 for f in flags
+                if f.score < 0.85 and f.score >= 0.60
+            )
+            if medium_count >= 3:
+                risk_level = RiskLevel.HIGH
+                flags.append(SemanticFlag(
+                    flag=FlagType.POLICY_VIOLATION,
+                    score=0.70,
+                    detail=(
+                        f"Compound risk: {medium_count} MEDIUM-confidence signals "
+                        f"escalated to HIGH (possible multi-vector attack)."
+                    ),
+                ))
+
         return SemanticGuard.Result(flags=flags, risk_level=risk_level)
 
     # ── Extension hook ────────────────────────────────────────────────────

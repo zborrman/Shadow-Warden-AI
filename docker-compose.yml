@@ -3,8 +3,11 @@ version: "3.9"
 # ─────────────────────────────────────────────
 #  Shadow Warden AI — Orchestrator
 #  Services: proxy | warden | app | analytics | dashboard | postgres | redis
+#            prometheus | grafana
 #  Targets: US / EU  |  GDPR-compliant logging
-#  Dashboard: http://localhost:8501
+#  Dashboard:  http://localhost:8501  (Streamlit)
+#  Grafana:    http://localhost:3000  (Prometheus-backed metrics)
+#  Metrics:    http://localhost:8001/metrics  (Prometheus scrape target)
 # ─────────────────────────────────────────────
 
 networks:
@@ -17,6 +20,8 @@ volumes:
   analytics-data:
   warden-logs:
   warden-models:      # persists all-MiniLM-L6-v2 across container restarts
+  prometheus-data:
+  grafana-data:
 
 services:
 
@@ -59,6 +64,13 @@ services:
     restart: unless-stopped
     expose:
       - "8001"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
     environment:
       - ENV=${ENV:-development}
       - SECRET_KEY=${SECRET_KEY}
@@ -73,6 +85,18 @@ services:
       # Leave unset to run in offline/air-gapped mode (all other features work).
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
+      # ── New in v0.3 ──────────────────────────────────────────────────────────
+      - WARDEN_API_KEY=${WARDEN_API_KEY:-}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-300}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY:-}
+      - ALERT_MIN_RISK_LEVEL=${ALERT_MIN_RISK_LEVEL:-high}
+      - SPLUNK_HEC_URL=${SPLUNK_HEC_URL:-}
+      - SPLUNK_HEC_TOKEN=${SPLUNK_HEC_TOKEN:-}
+      - ELASTIC_URL=${ELASTIC_URL:-}
+      - ELASTIC_API_KEY=${ELASTIC_API_KEY:-}
+      - ELASTIC_INDEX=${ELASTIC_INDEX:-shadow-warden-events}
     volumes:
       - ./warden:/warden/src          # hot-reload in dev
       - warden-models:/warden/models  # persists MiniLM weights
@@ -190,10 +214,15 @@ services:
     volumes:
       - ./warden:/warden/src          # hot-reload in dev
       - ./data:/warden/data           # reads logs.json written by warden gateway
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
     networks:
       - warden-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -222,8 +251,9 @@ services:
 
   # ── REDIS ─────────────────────────────────────
   # Shared cache and message bus.
-  # DB 0 → app session / rate-limit
+  # DB 0 → warden filter cache + slowapi rate-limit
   # DB 1 → analytics event queue
+  # DB 2 → app session
   redis:
     image: redis:7-alpine
     container_name: warden-redis
@@ -238,3 +268,60 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # ── PROMETHEUS ────────────────────────────────
+  # Scrapes /metrics from the warden gateway every 15 s.
+  # Grafana uses this as its data source.
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: warden-prometheus
+    restart: unless-stopped
+    expose:
+      - "9090"
+    volumes:
+      - ./grafana/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      warden:
+        condition: service_healthy
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── GRAFANA ───────────────────────────────────
+  # Pre-provisioned with the Prometheus data source and
+  # the Shadow Warden dashboard (grafana/dashboards/).
+  # Access: http://localhost:3000  (admin / ${GRAFANA_PASSWORD:-admin})
+  grafana:
+    image: grafana/grafana:latest
+    container_name: warden-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

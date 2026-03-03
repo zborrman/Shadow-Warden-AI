@@ -3,6 +3,24 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+# slowapi wraps limits.io for FastAPI; uses Redis as the shared state store
+# so limits are enforced correctly across multiple Uvicorn workers.
+slowapi>=0.1.9
+
+# ── Redis client ──────────────────────────────────────────────────────────────
+# Used by: content-hash cache (warden/cache.py) + slowapi rate-limit store.
+redis>=5.0.0
+
+# ── HTTP client ───────────────────────────────────────────────────────────────
+# Used by: OpenAI proxy, LangChain callback, SIEM integration, alerting.
+httpx>=0.27.0
+
+# ── Prometheus metrics ────────────────────────────────────────────────────────
+# Auto-instruments all FastAPI routes and exposes /metrics in Prometheus format.
+prometheus-fastapi-instrumentator>=7.0.0
+prometheus-client>=0.20.0
+
 # ── ML / AI — CPU-only ────────────────────────────────────────────────────────
 # torch is intentionally NOT installed from PyPI here.
 # The Dockerfile runs a separate pip install step using the CPU-only wheel index:
