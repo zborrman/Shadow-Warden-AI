@@ -34,9 +34,10 @@ RUN playwright install chromium
 
 # ── Non-root runtime user ─────────────────────────────────────────────────────
 # Created before COPY so --chown applies in a single layer.
-# GID/UID 1001 avoids collision with the playwright base image's users.
-RUN addgroup --system --gid 1001 warden \
-    && adduser --system --uid 1001 --gid 1001 --no-create-home wardenuser
+# GID/UID 10001 — 1001 is already taken by the playwright/python:v1.49.0-noble
+# base image (internal pwuser group), so we use a high ID to avoid conflicts.
+RUN addgroup --system --gid 10001 warden \
+    && adduser --system --uid 10001 --gid 10001 --no-create-home wardenuser
 
 # ── Application source ────────────────────────────────────────────────────────
 # ARG declared here so changing GIT_SHA (passed by CI) busts the COPY cache
