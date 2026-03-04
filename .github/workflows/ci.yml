@@ -111,6 +111,7 @@ jobs:
           tags: warden-ci:${{ github.sha }}
           cache-from: type=gha,scope=warden
           cache-to: type=gha,scope=warden,mode=max
+          build-args: GIT_SHA=${{ github.sha }}
 
       # ── Build analytics image ─────────────────────────────────────────────────
       - name: Build analytics image

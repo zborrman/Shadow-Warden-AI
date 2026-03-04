@@ -33,6 +33,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install chromium
 
 # ── Application source ────────────────────────────────────────────────────────
+# ARG declared here so changing GIT_SHA (passed by CI) busts the COPY cache
+# without invalidating the expensive pip/playwright layers above.
+ARG GIT_SHA=dev
 COPY . .
 
 # ── Model cache dir (matches docker-compose volume mount) ────────────────────
