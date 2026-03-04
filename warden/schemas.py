@@ -3,23 +3,21 @@ Pydantic schemas for the Warden filter gateway.
 """
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 # ── Enums ────────────────────────────────────────────────────────────────────
-# str + Enum gives the same string-comparison behaviour as StrEnum (Py 3.11+)
-# while remaining compatible with the Python 3.10 Docker base image.
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     LOW    = "low"
     MEDIUM = "medium"
     HIGH   = "high"
     BLOCK  = "block"
 
 
-class FlagType(str, Enum):
+class FlagType(StrEnum):
     SECRET_DETECTED    = "secret_detected"
     PROMPT_INJECTION   = "prompt_injection"
     HARMFUL_CONTENT    = "harmful_content"

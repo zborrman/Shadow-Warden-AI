@@ -2,10 +2,10 @@
 #  Shadow Warden AI — Warden Gateway
 #  Base: mcr.microsoft.com/playwright/python
 #    • Chromium, Firefox, WebKit + OS dependencies pre-installed
-#    • Python 3.12  (jammy variant)
+#    • Python 3.12  (noble variant — v1.49.0+)
 #    • ~800 MB image (vs ~2 GB with CUDA torch)
 # ─────────────────────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/playwright/python:v1.44.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.49.0-noble
 
 WORKDIR /warden
 
