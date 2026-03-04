@@ -34,6 +34,14 @@ jobs:
       - name: Install warden requirements
         run: pip install -r warden/requirements.txt
 
+      # Cache the ~80 MB MiniLM model so slow/integration tests don't re-download it.
+      # Key is fixed per model name — weights never change.
+      - name: Cache ML model (all-MiniLM-L6-v2)
+        uses: actions/cache@v4
+        with:
+          path: /tmp/warden-model-cache
+          key: warden-model-all-minilm-l6-v2-v1
+
       - name: Run unit and integration tests
         run: pytest warden/tests/ -v --tb=short -m "not adversarial and not slow"
         env:
@@ -43,6 +51,7 @@ jobs:
           LOGS_PATH: "/tmp/test_logs.json"
           DYNAMIC_RULES_PATH: "/tmp/dynamic_rules.json"
           REDIS_URL: "memory://"         # in-memory rate limiter; no Redis service needed
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"   # default /warden/models is Docker-only
 
       # Full non-adversarial suite (includes slow/integration tests) for coverage gate.
       # Runs after the fast unit step so failures are already surfaced above.
@@ -55,6 +64,7 @@ jobs:
           LOGS_PATH: "/tmp/coverage_logs.json"
           DYNAMIC_RULES_PATH: "/tmp/coverage_rules.json"
           REDIS_URL: "memory://"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"   # shared with unit test step (model already downloaded)
 
       - name: Run adversarial corpus tests
         run: pytest warden/tests/ -v --tb=short -m "adversarial" || true
@@ -63,6 +73,7 @@ jobs:
           ANTHROPIC_API_KEY: ""
           SEMANTIC_THRESHOLD: "0.72"
           LOGS_PATH: "/tmp/test_logs.json"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
 
       # ── Mutation testing (informational) ──────────────────────────────────
       # Targets: secret_redactor + semantic_guard — the two core safety modules.
