@@ -1,0 +1,136 @@
+apiVersion: 1
+
+# ── Shadow Warden AI — Grafana Alerting Rules ────────────────────────────────
+#
+# Two SLO-based alerts:
+#
+#   1. HighErrorRate  — HTTP 5xx rate > 1 % over 5 min
+#      Fires when the gateway is returning server errors at a rate
+#      that suggests a systemic fault (model failure, OOM, etc.).
+#
+#   2. HighP99Latency — /filter P99 latency > 500 ms over 5 min
+#      Fires when the 99th-percentile response time for the primary
+#      filter endpoint breaches the 500 ms SLO.
+#
+# Both alerts are in the "Shadow Warden" folder and use the
+# "WardenAlerts" contact point (configure in Grafana UI or add a
+# contactPoints section below to wire up Slack / PagerDuty).
+# ─────────────────────────────────────────────────────────────────────────────
+
+groups:
+  - orgId: 1
+    name: warden_slo
+    folder: Shadow Warden
+    interval: 1m   # evaluate every minute
+    rules:
+
+      # ── 1. High HTTP Error Rate ──────────────────────────────────────────────
+      - uid: warden-high-error-rate
+        title: "Warden — High Error Rate (> 1%)"
+        condition: C
+
+        data:
+          # A: total requests in the last 5 minutes
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(http_requests_total{job="warden"}[5m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          # B: 5xx requests in the last 5 minutes
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(http_requests_total{job="warden", status=~"5.."}[5m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          # C: error rate > 1 %
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$B / $A > 0.01"
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        labels:
+          severity: critical
+          team: warden
+        annotations:
+          summary: "Warden error rate above 1%"
+          description: >
+            HTTP 5xx responses have exceeded 1% of total traffic for 5 minutes.
+            Check warden container logs and /health endpoint.
+            Dashboard: http://localhost:3000/d/warden-overview
+
+      # ── 2. High P99 Latency on /filter ───────────────────────────────────────
+      - uid: warden-high-p99-latency
+        title: "Warden — /filter P99 latency > 500 ms"
+        condition: C
+
+        data:
+          # A: P99 latency for /filter endpoint
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                histogram_quantile(
+                  0.99,
+                  sum by (le) (
+                    rate(http_request_duration_seconds_bucket{
+                      job="warden",
+                      handler="/filter"
+                    }[5m])
+                  )
+                )
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          # C: latency > 0.5 s
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.5"
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        labels:
+          severity: warning
+          team: warden
+        annotations:
+          summary: "Warden /filter P99 latency above 500ms"
+          description: >
+            The 99th-percentile latency for POST /filter has exceeded 500ms
+            for 5 consecutive minutes.  Likely cause: ML model contention or
+            Redis cache miss storm.
+            Dashboard: http://localhost:3000/d/warden-overview

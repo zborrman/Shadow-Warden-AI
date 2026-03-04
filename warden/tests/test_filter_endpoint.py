@@ -18,7 +18,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 def test_health_ok(client) -> None:
     resp = client.get("/health")
     assert resp.status_code == 200
-    assert resp.json()["status"] == "ok"
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert isinstance(data["strict"], bool)   # STRICT_MODE visible in health
 
 
 # ── Benign content ────────────────────────────────────────────────────────────

@@ -64,6 +64,27 @@ jobs:
           SEMANTIC_THRESHOLD: "0.72"
           LOGS_PATH: "/tmp/test_logs.json"
 
+      # ── Mutation testing (informational) ──────────────────────────────────
+      # Targets: secret_redactor + semantic_guard — the two core safety modules.
+      # Failures are logged but do NOT block merges; surviving mutants are
+      # tracked over time to measure test quality improvement.
+      - name: Mutation testing (mutmut)
+        run: |
+          mutmut run --no-progress 2>&1 | tee /tmp/mutmut_output.txt || true
+          echo "── Mutmut results ──"
+          mutmut results 2>/dev/null || true
+          SURVIVED=$(mutmut results 2>/dev/null | grep -c "survived" || echo 0)
+          echo "Surviving mutants: $SURVIVED"
+          if [ "$SURVIVED" -gt 20 ]; then
+            echo "WARNING: $SURVIVED surviving mutants exceed threshold (20). Review test quality."
+          fi
+        env:
+          ANTHROPIC_API_KEY: ""
+          SEMANTIC_THRESHOLD: "0.72"
+          WARDEN_API_KEY: ""
+          LOGS_PATH: "/tmp/test_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/dynamic_rules.json"
+
   # ── Linting ─────────────────────────────────────────────────────────────────
   lint:
     name: Lint

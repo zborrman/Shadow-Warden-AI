@@ -274,6 +274,7 @@ async def health():
         "service":   "warden-gateway",
         "evolution": _evolve is not None,
         "tenants":   list(_tenant_guards.keys()),
+        "strict":    os.getenv("STRICT_MODE", "false").lower() == "true",
     }
 
 

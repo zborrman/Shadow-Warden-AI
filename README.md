@@ -97,7 +97,7 @@ docker-compose up --build
 ```
 
 First-run downloads:
-- `mcr.microsoft.com/playwright/python:v1.44.0-jammy` (~800 MB base image)
+- `mcr.microsoft.com/playwright/python:v1.49.0-noble` (~800 MB base image)
 - PyTorch CPU wheels (~200 MB)
 - `all-MiniLM-L6-v2` model (~80 MB, downloaded on first request, cached to `warden-models` volume)
 
@@ -108,7 +108,7 @@ Subsequent starts are fast — the model is cached.
 | URL | Expected response |
 |-----|------------------|
 | `http://localhost:8501` | Streamlit dashboard |
-| `http://localhost/api/warden/health` | `{"status":"ok","evolution":true/false}` |
+| `http://localhost/api/warden/health` | `{"status":"ok","evolution":true/false,"tenants":["default"],"strict":false}` |
 
 ### 5. Send your first request
 
@@ -295,6 +295,47 @@ For your GDPR Article 30 documentation:
 
 ---
 
+## Service Level Objectives (SLO)
+
+These are **targets** for a production deployment on commodity hardware (4 vCPU / 8 GB RAM). Actual results depend on your infrastructure.
+
+### Latency — `POST /filter`
+
+| Percentile | Target | Notes |
+|-----------|--------|-------|
+| P50 | < 20 ms | Cache hit (Redis SHA-256) |
+| P95 | < 200 ms | Regex + rule engine; no ML inference |
+| P99 | < 500 ms | Full semantic analysis (MiniLM) |
+| P99.9 | < 2 000 ms | Evolution Engine background trigger |
+
+> Grafana alert fires when P99 > 500 ms for 5 consecutive minutes.
+> See `grafana/provisioning/alerting/warden_alerts.yml`.
+
+### Availability
+
+| Metric | Target |
+|--------|--------|
+| Uptime | 99.9% (excluding planned maintenance) |
+| Cold-start time | < 30 s (warm model cache), < 3 min (first run) |
+| Health endpoint | always responds; ML model failure degrades gracefully |
+
+### Reliability
+
+| Metric | Target | Measured by |
+|--------|--------|-------------|
+| False positive rate | < 0.1% | Adversarial corpus tests (`pytest -m adversarial`) |
+| PII pattern coverage | 100% of GDPR/PII spec | `test_secret_redactor.py` |
+| Test coverage | ≥ 75% (CI gate) | `pytest --cov-fail-under=75` |
+
+### Error budget
+
+| HTTP status | SLO | Notes |
+|-------------|-----|-------|
+| 5xx rate | < 1% over 5 min | Grafana alert: `warden-high-error-rate` |
+| 422 (validation) | not counted | Client error, not service failure |
+
+---
+
 ## Development
 
 ### Run warden locally (without Docker)
@@ -356,12 +397,23 @@ shadow-warden-ai/
 
 ## Roadmap
 
+### Shipped ✅
+- Prometheus `/metrics` endpoint + Grafana dashboard + alerting rules
+- SIEM integration (Splunk HEC + Elastic ECS)
+- Rate limiting (60 req/min per IP, Redis-backed)
+- Multi-tenant rule sets (`tenant_id` per request)
+- OpenAI-compatible proxy (`/v1/chat/completions`)
+- LangChain callback integration
+- Real-time alerting (Slack + PagerDuty)
+- Non-root Docker user, CSP security headers
+- CI coverage gate (≥ 75%), mutation testing
+
+### Planned
 - [ ] mTLS between internal services
-- [ ] Prometheus `/metrics` endpoint on warden gateway
-- [ ] Grafana dashboard template
-- [ ] SIEM integration (Splunk / Elastic)
-- [ ] Rate limiting per API key
-- [ ] Multi-tenant rule sets
+- [ ] Per-tenant rate limits (currently global)
+- [ ] WebSocket support for streaming filter responses
+- [ ] OWASP Top-10 LLM detection rules (beyond current jailbreak corpus)
+- [ ] Admin UI for managing tenants and dynamic rules
 
 ---
 

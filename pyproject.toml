@@ -42,6 +42,7 @@ dev = [
     "httpx>=0.27.0",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
+    "mutmut>=2.4.0",
 ]
 langchain = [
     "langchain-core>=0.1.0",
@@ -123,3 +124,14 @@ markers      = [
     "integration: end-to-end FastAPI tests",
 ]
 asyncio_mode = "auto"
+
+# ── Mutmut (mutation testing) ─────────────────────────────────────────────────
+# Targets: the two core safety modules — everything else is glue.
+# Runner: fast unit tests only (no ML model, no slow fixtures).
+# Threshold: < 10 surviving mutants = acceptable.
+# Run: mutmut run  (Linux / WSL / CI only — not supported on native Windows)
+
+[tool.mutmut]
+paths_to_mutate = "warden/secret_redactor.py,warden/semantic_guard.py"
+runner          = "python -m pytest warden/tests/test_secret_redactor.py warden/tests/test_semantic_guard.py -x -q --no-header --no-cov"
+tests_dir       = "warden/tests/"
