@@ -19,6 +19,7 @@ os.environ.setdefault("WARDEN_API_KEY", "")              # auth disabled in test
 os.environ.setdefault("LOGS_PATH", "/tmp/warden_test_logs.json")
 os.environ.setdefault("DYNAMIC_RULES_PATH", "/tmp/warden_test_dynamic_rules.json")
 os.environ.setdefault("STRICT_MODE", "false")
+os.environ.setdefault("REDIS_URL", "memory://")          # in-memory limiter; no Redis needed
 
 
 @pytest.fixture(scope="session")

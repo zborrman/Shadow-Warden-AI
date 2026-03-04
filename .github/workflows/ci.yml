@@ -42,6 +42,19 @@ jobs:
           WARDEN_API_KEY: ""             # auth disabled in CI
           LOGS_PATH: "/tmp/test_logs.json"
           DYNAMIC_RULES_PATH: "/tmp/dynamic_rules.json"
+          REDIS_URL: "memory://"         # in-memory rate limiter; no Redis service needed
+
+      # Full non-adversarial suite (includes slow/integration tests) for coverage gate.
+      # Runs after the fast unit step so failures are already surfaced above.
+      - name: Coverage gate (≥75%)
+        run: pytest warden/tests/ --tb=short -m "not adversarial" --cov=warden --cov-fail-under=75 -q
+        env:
+          ANTHROPIC_API_KEY: ""
+          SEMANTIC_THRESHOLD: "0.72"
+          WARDEN_API_KEY: ""
+          LOGS_PATH: "/tmp/coverage_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/coverage_rules.json"
+          REDIS_URL: "memory://"
 
       - name: Run adversarial corpus tests
         run: pytest warden/tests/ -v --tb=short -m "adversarial" || true

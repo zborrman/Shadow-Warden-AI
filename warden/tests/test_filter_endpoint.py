@@ -145,3 +145,12 @@ def test_request_id_header_echoed(client) -> None:
         headers={"X-Request-ID": "test-rid-123"},
     )
     assert resp.headers.get("X-Request-ID") == "test-rid-123"
+
+
+def test_security_headers_present(client) -> None:
+    resp = client.get("/health")
+    assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+    assert resp.headers.get("X-Frame-Options") == "DENY"
+    assert "default-src 'self'" in resp.headers.get("Content-Security-Policy", "")
+    assert "frame-ancestors 'none'" in resp.headers.get("Content-Security-Policy", "")
+    assert resp.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"

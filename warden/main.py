@@ -244,7 +244,7 @@ except ImportError:
     log.warning("openai_proxy not available — /v1 routes skipped.")
 
 
-# ── Request-ID middleware ─────────────────────────────────────────────────────
+# ── HTTP middleware (request-ID + security headers) ───────────────────────────
 
 @app.middleware("http")
 async def attach_request_id(request: Request, call_next):
@@ -252,6 +252,16 @@ async def attach_request_id(request: Request, call_next):
     request.state.request_id = rid
     response = await call_next(request)
     response.headers["X-Request-ID"] = rid
+    return response
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none';"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
 

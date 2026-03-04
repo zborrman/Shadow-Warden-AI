@@ -38,6 +38,7 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
     "httpx>=0.27.0",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
@@ -86,11 +87,36 @@ python_version         = "3.11"
 ignore_missing_imports = true
 strict                 = false
 
+# ── Coverage ──────────────────────────────────────────────────────────────────
+# Omit files that are UI layers or require live external services to exercise:
+#   dashboard / auth    — Streamlit UI; not unit-testable without a running browser
+#   siem                — Splunk / Elastic endpoints unavailable in CI
+#   langchain_callback  — requires langchain runtime
+#   browser             — Playwright headful browser (CI has no display)
+#   openai_proxy        — proxy to OpenAI; requires a live backend
+
+[tool.coverage.run]
+omit = [
+    "warden/analytics/dashboard.py",
+    "warden/analytics/auth.py",
+    "warden/analytics/siem.py",
+    "warden/integrations/langchain_callback.py",
+    "warden/tools/browser.py",
+    "warden/openai_proxy.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if __name__ == .__main__.:",
+    "pragma: no cover",
+    "raise NotImplementedError",
+]
+
 # ── Pytest ────────────────────────────────────────────────────────────────────
 
 [tool.pytest.ini_options]
 testpaths    = ["warden/tests"]
-addopts      = "-v --tb=short --strict-markers"
+addopts      = "-v --tb=short --strict-markers --cov=warden --cov-report=term-missing"
 markers      = [
     "adversarial: adversarial corpus tests (may be slow)",
     "slow: tests that load the ML model",
