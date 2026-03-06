@@ -57,7 +57,8 @@ _BASE64_RE = re.compile(
 )
 
 _HEX_RE = re.compile(
-    r"(?:0x)?(?:[0-9a-fA-F]{2}\s*){8,}"
+    r"(?:0x[0-9a-fA-F]{2}\s*){8,}"      # 0x-prefixed per-byte: 0x72 0x65 …
+    r"|(?:[0-9a-fA-F]{2}\s*){8,}"        # plain hex pairs:      69 6e 66 …
 )
 
 
@@ -99,7 +100,7 @@ def _try_hex_decode(text: str) -> list[str]:
     """Find and decode hex-encoded content."""
     decoded_parts = []
     for m in _HEX_RE.finditer(text):
-        blob = re.sub(r"[\s0x]", "", m.group())
+        blob = re.sub(r"0x|\s", "", m.group())
         if len(blob) % 2 != 0:
             continue
         try:
