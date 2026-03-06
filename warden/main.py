@@ -302,19 +302,6 @@ async def _run_filter_pipeline(
     tenant_id = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
     strict = payload.strict or (_guard.strict if _guard else False)
 
-    # ── Per-tenant rate limit (limit is set per-key in auth_guard) ─────
-    if check_tenant_rate_limit(tenant_id, auth.rate_limit):
-        log.warning(json.dumps({
-            "event": "tenant_rate_limit_exceeded",
-            "request_id": rid,
-            "tenant_id": tenant_id,
-            "limit_per_minute": auth.rate_limit,
-        }))
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Tenant '{tenant_id}' rate limit exceeded ({auth.rate_limit} req/min).",
-        )
-
     log.info(
         json.dumps({
             "event": "filter_request",
@@ -501,6 +488,26 @@ async def _run_filter_pipeline(
     return response
 
 
+# ── Rate-limit helper ─────────────────────────────────────────────────────────
+
+def _enforce_tenant_rate_limit(auth: AuthResult, rid: str) -> None:
+    """Raise HTTP 429 if this tenant has exceeded their per-minute quota."""
+    if check_tenant_rate_limit(auth.tenant_id, auth.rate_limit):
+        log.warning(json.dumps({
+            "event": "tenant_rate_limit_exceeded",
+            "request_id": rid,
+            "tenant_id": auth.tenant_id,
+            "limit_per_minute": auth.rate_limit,
+        }))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Tenant '{auth.tenant_id}' rate limit exceeded "
+                f"({auth.rate_limit} req/min)."
+            ),
+        )
+
+
 # ── /filter ───────────────────────────────────────────────────────────────────
 
 @app.post(
@@ -518,6 +525,7 @@ async def filter_content(
     auth:             AuthResult = Depends(require_api_key),
 ) -> FilterResponse:
     rid = getattr(request.state, "request_id", "-")
+    _enforce_tenant_rate_limit(auth, rid)
     return await _run_filter_pipeline(payload, rid, auth, background_tasks)
 
 
@@ -549,6 +557,7 @@ async def filter_batch(
     auth:             AuthResult = Depends(require_api_key),
 ) -> _BatchResponse:
     rid_base = getattr(request.state, "request_id", str(uuid.uuid4()))
+    _enforce_tenant_rate_limit(auth, rid_base)
     results = []
     for i, item in enumerate(payload.items):
         rid = f"{rid_base}:batch-{i}"
