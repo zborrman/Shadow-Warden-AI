@@ -60,12 +60,12 @@ def test_chat_blocked_returns_403(client) -> None:
     mock_resp = AsyncMock()
     mock_resp.json.return_value = filter_response
 
-    with patch("warden.openai_proxy.httpx.AsyncClient") as MockClient:
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_client:
         instance = AsyncMock()
         instance.post.return_value = mock_resp
         instance.__aenter__ = AsyncMock(return_value=instance)
         instance.__aexit__ = AsyncMock(return_value=False)
-        MockClient.return_value = instance
+        mock_client.return_value = instance
 
         resp = client.post(
             "/v1/chat/completions",
@@ -110,12 +110,12 @@ def test_chat_allowed_forwards_to_upstream(client) -> None:
             mock.json.return_value = upstream_response
         return mock
 
-    with patch("warden.openai_proxy.httpx.AsyncClient") as MockClient:
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_client:
         instance = AsyncMock()
         instance.post = fake_post
         instance.__aenter__ = AsyncMock(return_value=instance)
         instance.__aexit__ = AsyncMock(return_value=False)
-        MockClient.return_value = instance
+        mock_client.return_value = instance
 
         resp = client.post(
             "/v1/chat/completions",
@@ -136,12 +136,12 @@ def test_chat_allowed_forwards_to_upstream(client) -> None:
 
 def test_chat_filter_service_down_502(client) -> None:
     """When the Warden /filter call fails, return 502."""
-    with patch("warden.openai_proxy.httpx.AsyncClient") as MockClient:
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_client:
         instance = AsyncMock()
         instance.post.side_effect = Exception("connection refused")
         instance.__aenter__ = AsyncMock(return_value=instance)
         instance.__aexit__ = AsyncMock(return_value=False)
-        MockClient.return_value = instance
+        mock_client.return_value = instance
 
         resp = client.post(
             "/v1/chat/completions",
@@ -165,12 +165,12 @@ def test_models_proxied(client) -> None:
     mock_resp = AsyncMock()
     mock_resp.json.return_value = upstream_models
 
-    with patch("warden.openai_proxy.httpx.AsyncClient") as MockClient:
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_client:
         instance = AsyncMock()
         instance.get.return_value = mock_resp
         instance.__aenter__ = AsyncMock(return_value=instance)
         instance.__aexit__ = AsyncMock(return_value=False)
-        MockClient.return_value = instance
+        mock_client.return_value = instance
 
         resp = client.get("/v1/models")
 
@@ -180,12 +180,12 @@ def test_models_proxied(client) -> None:
 
 
 def test_models_upstream_down_502(client) -> None:
-    with patch("warden.openai_proxy.httpx.AsyncClient") as MockClient:
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_client:
         instance = AsyncMock()
         instance.get.side_effect = Exception("timeout")
         instance.__aenter__ = AsyncMock(return_value=instance)
         instance.__aexit__ = AsyncMock(return_value=False)
-        MockClient.return_value = instance
+        mock_client.return_value = instance
 
         resp = client.get("/v1/models")
 

@@ -7,8 +7,6 @@ from __future__ import annotations
 
 import base64
 
-import pytest
-
 from warden.obfuscation import (
     DecoderResult,
     _normalize_homoglyphs,
@@ -17,7 +15,6 @@ from warden.obfuscation import (
     _try_rot13_decode,
     decode,
 )
-
 
 # ── Base64 decoding ──────────────────────────────────────────────────────────
 

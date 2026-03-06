@@ -50,8 +50,8 @@ from warden.auth_guard import AuthResult, require_api_key
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import get_cached, set_cached
-from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
 from warden.obfuscation import decode as decode_obfuscation
+from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
 
