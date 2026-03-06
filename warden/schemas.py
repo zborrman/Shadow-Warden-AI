@@ -23,6 +23,9 @@ class FlagType(StrEnum):
     HARMFUL_CONTENT    = "harmful_content"
     PII_DETECTED       = "pii_detected"
     POLICY_VIOLATION   = "policy_violation"
+    INDIRECT_INJECTION = "indirect_injection"   # LLM01 — indirect prompt injection
+    INSECURE_OUTPUT    = "insecure_output"       # LLM05 — XSS, command injection, SSRF, path traversal
+    EXCESSIVE_AGENCY   = "excessive_agency"      # LLM06 — unauthorized autonomous actions
 
 
 # ── Request ───────────────────────────────────────────────────────────────────

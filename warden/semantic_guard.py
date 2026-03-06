@@ -120,6 +120,134 @@ _RULES: list[_Rule] = [
           score=0.85,
           risk=RiskLevel.HIGH,
           detail="Explicit adult content request."),
+
+    # ══ OWASP LLM Top-10 rules (v0.5) ═════════════════════════════════════════
+
+    # ── LLM01 — Indirect prompt injection via model token delimiters ──────
+    # Attackers embed model-specific control tokens in document/user content
+    # to hijack the model's role boundary (no legitimate use in plain prompts).
+    _Rule(FlagType.INDIRECT_INJECTION,
+          re.compile(
+              r"(?:<\|im_start\|>|<\|im_end\|>|<\|system\|>|<\|user\|>|<\|assistant\|>|"
+              r"\[INST\]|\[/INST\])"
+          ),
+          score=0.88,
+          risk=RiskLevel.HIGH,
+          detail="LLM01: Indirect injection — model control token embedded in user input."),
+
+    # ── LLM01 — Indirect prompt injection via document-embedded instructions
+    # Content passed through retrieval/RAG pipelines may carry injected
+    # instructions targeting the downstream LLM.
+    _Rule(FlagType.INDIRECT_INJECTION,
+          re.compile(
+              r"(?i)(?:"
+              r"\bnote\s+to\s+(?:the\s+)?(?:ai|llm|model|assistant)(?:[:\s]|$)|"
+              r"\bif\s+you(?:'re|\s+are)\s+an?\s+(?:ai|llm|language\s+model|assistant)(?=\W)|"
+              r"\bignore\s+(?:the\s+)?(?:above|previous)\s+(?:text|content|document|context)(?:[,.\s]|$)|"
+              r"\[(?:override|admin\s+command|system\s+override|new\s+instructions?)\]"
+              r")"
+          ),
+          score=0.80,
+          risk=RiskLevel.HIGH,
+          detail="LLM01: Indirect injection — instruction embedded in document or retrieved context."),
+
+    # ── LLM05 — Insecure output handling: XSS payloads ───────────────────
+    # Prompts containing JavaScript injection patterns that become dangerous
+    # if the LLM echoes them into a web page or template without sanitisation.
+    _Rule(FlagType.INSECURE_OUTPUT,
+          re.compile(
+              r"(?i)(?:"
+              r"<script\b[^>]*>\s*(?:eval|document\.cookie|fetch|XMLHttpRequest|window\.location)|"
+              r"javascript:\s*(?:eval|alert|fetch|document\.cookie|window\.location)|"
+              r"on(?:load|error|click|mouseover|focus|input|change)\s*=\s*[\"']?\s*"
+              r"(?:eval|fetch|document\.cookie|alert|window\.location)"
+              r")"
+          ),
+          score=0.85,
+          risk=RiskLevel.HIGH,
+          detail="LLM05: XSS payload — JavaScript injection pattern detected."),
+
+    # ── LLM05 — Insecure output handling: command/shell injection ─────────
+    # Payloads that, if incorporated into a shell command by the LLM or its
+    # tooling, would execute arbitrary code on the host.
+    _Rule(FlagType.INSECURE_OUTPUT,
+          re.compile(
+              r"(?:"
+              r";\s*(?:rm|del|format|dd)\s+[-/\*]|"         # ; rm -rf /
+              r"\$\((?:curl|wget|nc|bash|python)\s+|"        # $(curl ...)
+              r"`(?:curl|wget|nc|bash|python)\s+|"           # `curl ...`
+              r"\|\s*(?:bash|sh|cmd\.exe|powershell)\b"      # | bash
+              r")"
+          ),
+          score=0.90,
+          risk=RiskLevel.HIGH,
+          detail="LLM05: Command injection payload detected."),
+
+    # ── LLM05 — Insecure output handling: path traversal ─────────────────
+    _Rule(FlagType.INSECURE_OUTPUT,
+          re.compile(
+              r"(?:\.{2,}/){2,}(?:"
+              r"etc/(?:passwd|shadow|sudoers)|"
+              r"windows/system32|"
+              r"proc/self/(?:environ|cmdline|mem)|"
+              r"root/\.ssh"
+              r")"
+          ),
+          score=0.92,
+          risk=RiskLevel.HIGH,
+          detail="LLM05: Path traversal — attempt to access sensitive system files."),
+
+    # ── LLM05 — Insecure output handling: SSRF to private networks ───────
+    # Requests that would cause the LLM or its tooling to fetch internal
+    # infrastructure endpoints (metadata services, internal APIs, etc.).
+    _Rule(FlagType.INSECURE_OUTPUT,
+          re.compile(
+              r"(?i)(?:fetch|curl|wget|urllib|requests?\.get|http\.get)\s*\(?\s*[\"']?\s*"
+              r"https?://(?:"
+              r"127\.\d+\.\d+\.\d+|localhost|"
+              r"169\.254\.\d+\.\d+|"                         # link-local / AWS metadata
+              r"10\.\d+\.\d+\.\d+|"                          # RFC 1918
+              r"172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|"       # RFC 1918
+              r"192\.168\.\d+\.\d+"                          # RFC 1918
+              r")"
+          ),
+          score=0.88,
+          risk=RiskLevel.HIGH,
+          detail="LLM05: SSRF — request targets an internal or private-network address."),
+
+    # ── LLM06 — Excessive agency: destructive autonomous actions ─────────
+    # User attempts to instruct an agent to perform irreversible or
+    # high-impact actions without explicit human confirmation in the loop.
+    _Rule(FlagType.EXCESSIVE_AGENCY,
+          re.compile(
+              r"(?i)\b(?:"
+              # action-then-modifier word order ("wipe the disk immediately")
+              r"(?:delete|drop|truncate|destroy|wipe|format)\s+(?:the\s+)?(?:database|table|files?|disk)"
+              r"\s+(?:immediately|automatically|without\s+(?:asking|confirmation|approval))|"
+              # modifier-then-action word order ("immediately delete the database")
+              r"(?:immediately|automatically|without\s+(?:asking|confirmation|approval))\s+"
+              r"(?:delete|drop|truncate|destroy|wipe|format)\s+(?:the\s+)?(?:database|table|files?|disk)|"
+              r"transfer\s+(?:all\s+)?(?:\d+\s+)?(?:funds?|money|bitcoin|crypto|eth|btc)\s+(?:to|from)|"
+              r"send\s+(?:an?\s+)?(?:mass\s+)?(?:email|message|sms)\s+to\s+(?:all|every)\s+(?:\w+\s+)?users?"
+              r")\b"
+          ),
+          score=0.85,
+          risk=RiskLevel.HIGH,
+          detail="LLM06: Excessive agency — unauthorized destructive autonomous action requested."),
+
+    # ── LLM06 — Excessive agency: privileged / production actions ────────
+    _Rule(FlagType.EXCESSIVE_AGENCY,
+          re.compile(
+              r"(?i)\b(?:"
+              r"(?:run|execute)\s+(?:this\s+)?(?:script|command|code)\s+(?:as\s+root|"
+              r"with\s+(?:sudo|admin|elevated)\s+privileges?)|"
+              r"execute\s+(?:this\s+)?(?:sql|query|shell\s+command)\s+(?:directly|immediately|now)\b|"
+              r"deploy\s+(?:this\s+)?(?:to\s+)?production\s+(?:immediately|now|without\s+review)"
+              r")\b"
+          ),
+          score=0.80,
+          risk=RiskLevel.HIGH,
+          detail="LLM06: Excessive agency — request for direct privileged or production action."),
 ]
 
 
