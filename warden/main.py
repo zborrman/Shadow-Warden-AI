@@ -56,10 +56,10 @@ from slowapi.util import get_remote_address
 
 from warden.analytics import logger as event_logger
 from warden.auth_guard import AuthResult, require_api_key
-from warden.mtls import MTLSMiddleware
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
+from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
 from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
 from warden.secret_redactor import SecretRedactor
@@ -774,40 +774,39 @@ async def ws_stream(websocket: WebSocket):
             "messages":   messages,
             "stream":     True,
         }
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            async with client.stream(
-                "POST",
-                f"{_LLM_BASE_URL}/chat/completions",
-                headers=llm_headers,
-                json=llm_body,
-            ) as resp:
-                if resp.status_code != 200:
-                    err_body = await resp.aread()
-                    await _ws_send(websocket, {
-                        "type":   "error",
-                        "code":   resp.status_code,
-                        "detail": f"LLM error: {err_body.decode()[:200]}",
-                    })
-                    await websocket.close(code=1011)
-                    return
+        async with httpx.AsyncClient(timeout=120.0) as client, client.stream(
+            "POST",
+            f"{_LLM_BASE_URL}/chat/completions",
+            headers=llm_headers,
+            json=llm_body,
+        ) as resp:
+            if resp.status_code != 200:
+                err_body = await resp.aread()
+                await _ws_send(websocket, {
+                    "type":   "error",
+                    "code":   resp.status_code,
+                    "detail": f"LLM error: {err_body.decode()[:200]}",
+                })
+                await websocket.close(code=1011)
+                return
 
-                async for line in resp.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    chunk = line[6:].strip()
-                    if chunk == "[DONE]":
-                        break
-                    try:
-                        delta      = json.loads(chunk)
-                        token_text = (
-                            delta.get("choices", [{}])[0]
-                            .get("delta", {})
-                            .get("content", "")
-                        )
-                        if token_text:
-                            await _ws_send(websocket, {"type": "token", "content": token_text})
-                    except (json.JSONDecodeError, IndexError, KeyError):
-                        continue
+            async for line in resp.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                chunk = line[6:].strip()
+                if chunk == "[DONE]":
+                    break
+                try:
+                    delta      = json.loads(chunk)
+                    token_text = (
+                        delta.get("choices", [{}])[0]
+                        .get("delta", {})
+                        .get("content", "")
+                    )
+                    if token_text:
+                        await _ws_send(websocket, {"type": "token", "content": token_text})
+                except (json.JSONDecodeError, IndexError, KeyError):
+                    continue
 
     except WebSocketDisconnect:
         log.info(json.dumps({"event": "ws_client_disconnect", "request_id": rid}))

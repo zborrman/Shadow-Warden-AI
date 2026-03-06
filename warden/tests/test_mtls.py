@@ -8,7 +8,6 @@ MTLS_ENABLED and MTLS_ALLOWED_CNS are toggled via monkeypatch.
 """
 from __future__ import annotations
 
-import pytest
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
@@ -17,7 +16,6 @@ from starlette.testclient import TestClient
 
 import warden.mtls as mtls_module
 from warden.mtls import MTLSMiddleware, _cn_from_dn
-
 
 # ── Shared test application ───────────────────────────────────────────────────
 

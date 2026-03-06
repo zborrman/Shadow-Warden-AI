@@ -16,7 +16,6 @@ import pytest
 
 from warden.cache import check_tenant_rate_limit
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_redis(eval_return: int = 1):
