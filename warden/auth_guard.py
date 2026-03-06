@@ -23,11 +23,15 @@ JSON key file format::
           "tenant_id": "acme-corp",
           "label": "production key",
           "active": true,
+          "rate_limit": 120,
           "created_at": "2025-01-01T00:00:00Z",
           "rotated_at": null
         }
       ]
     }
+
+``rate_limit`` (optional) — requests per minute for this key.  Omit to use the
+``TENANT_RATE_LIMIT`` env var (default 60).
 
 Generate a key hash::
 
@@ -56,15 +60,20 @@ _VALID_KEY: str = os.getenv("WARDEN_API_KEY", "")
 # ── Multi-key file ───────────────────────────────────────────────────────────
 _KEYS_PATH: str = os.getenv("WARDEN_API_KEYS_PATH", "")
 
+# Default per-key rate limit; individual keys can override via their JSON entry.
+_DEFAULT_KEY_RATE: int = int(os.getenv("TENANT_RATE_LIMIT",
+                                       os.getenv("RATE_LIMIT_PER_MINUTE", "60")))
+
 MAX_KEYS = 1000  # safety cap
 
 
 @dataclass(frozen=True)
 class _KeyEntry:
-    key_hash:  str
-    tenant_id: str
-    label:     str
-    active:    bool
+    key_hash:   str
+    tenant_id:  str
+    label:      str
+    active:     bool
+    rate_limit: int = 60  # requests per minute; overridden per-key from JSON
 
 
 _key_store: list[_KeyEntry] = []
@@ -95,6 +104,7 @@ def _load_key_store() -> list[_KeyEntry]:
                 tenant_id=entry.get("tenant_id", "default"),
                 label=entry.get("label", ""),
                 active=entry.get("active", True),
+                rate_limit=int(entry.get("rate_limit", _DEFAULT_KEY_RATE)),
             ))
         log.info("Loaded %d API key(s) from %s", len(_key_store), _KEYS_PATH)
     except Exception:
@@ -115,9 +125,10 @@ def _lookup_multi_key(api_key: str) -> _KeyEntry | None:
 
 @dataclass(frozen=True)
 class AuthResult:
-    """Returned by require_api_key — carries the resolved tenant_id."""
-    api_key:   str
-    tenant_id: str
+    """Returned by require_api_key — carries resolved tenant_id and rate limit."""
+    api_key:    str
+    tenant_id:  str
+    rate_limit: int = 60  # requests per minute
 
 
 def require_api_key(api_key: str | None = Security(_API_KEY_HEADER)) -> AuthResult:
@@ -131,7 +142,7 @@ def require_api_key(api_key: str | None = Security(_API_KEY_HEADER)) -> AuthResu
     """
     # Dev / air-gapped mode
     if not _VALID_KEY and not _KEYS_PATH:
-        return AuthResult(api_key="", tenant_id="default")
+        return AuthResult(api_key="", tenant_id="default", rate_limit=_DEFAULT_KEY_RATE)
 
     if not api_key:
         raise HTTPException(
@@ -144,11 +155,13 @@ def require_api_key(api_key: str | None = Security(_API_KEY_HEADER)) -> AuthResu
     if _KEYS_PATH:
         entry = _lookup_multi_key(api_key)
         if entry:
-            return AuthResult(api_key=api_key, tenant_id=entry.tenant_id)
+            return AuthResult(api_key=api_key, tenant_id=entry.tenant_id,
+                              rate_limit=entry.rate_limit)
 
     # 2. Single shared key
     if _VALID_KEY and hmac.compare_digest(api_key.encode(), _VALID_KEY.encode()):
-        return AuthResult(api_key=api_key, tenant_id="default")
+        return AuthResult(api_key=api_key, tenant_id="default",
+                          rate_limit=_DEFAULT_KEY_RATE)
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
