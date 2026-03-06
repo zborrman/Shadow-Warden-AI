@@ -1,0 +1,47 @@
+{{- if .Values.warden.hpa.enabled -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-warden
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: warden
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "shadow-warden.fullname" . }}-warden
+  minReplicas: {{ .Values.warden.hpa.minReplicas }}
+  maxReplicas: {{ .Values.warden.hpa.maxReplicas }}
+  metrics:
+    {{- if .Values.warden.hpa.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.warden.hpa.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.warden.hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.warden.hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120   # avoid flapping
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+{{- end }}

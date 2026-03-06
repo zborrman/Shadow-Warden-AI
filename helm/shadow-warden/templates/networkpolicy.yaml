@@ -1,0 +1,147 @@
+{{- if .Values.networkPolicy.enabled -}}
+# ── NetworkPolicy: warden ──────────────────────────────────────────────────────
+# Accepts traffic only from:
+#   • ingress-controller pods (any namespace with label kubernetes.io/name=ingress-nginx)
+#   • other shadow-warden pods (app pod, analytics, admin) in same namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-warden
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: warden
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # From ingress-nginx controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8001
+    # From pods in the same release (app / analytics / admin)
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "shadow-warden.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8001
+  egress:
+    # DNS resolution
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # PostgreSQL
+    - ports:
+        - protocol: TCP
+          port: 5432
+    # Redis
+    - ports:
+        - protocol: TCP
+          port: 6379
+    # HTTPS (LLM backends, Anthropic API, alerting webhooks)
+    - ports:
+        - protocol: TCP
+          port: 443
+    # Prometheus scrape (optional — metrics endpoint on same pod)
+    - ports:
+        - protocol: TCP
+          port: 9090
+---
+# ── NetworkPolicy: analytics ───────────────────────────────────────────────────
+{{- if .Values.analytics.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-analytics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: analytics
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "shadow-warden.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8002
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8002
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - ports:
+        - protocol: TCP
+          port: 443
+{{- end }}
+---
+# ── NetworkPolicy: admin ───────────────────────────────────────────────────────
+{{- if .Values.admin.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-admin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: admin
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8502
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Calls to warden + analytics (ClusterIP, same namespace)
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "shadow-warden.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8001
+        - protocol: TCP
+          port: 8002
+{{- end }}
+{{- end }}

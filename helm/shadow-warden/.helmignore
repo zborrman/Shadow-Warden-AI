@@ -1,0 +1,21 @@
+# Patterns to ignore when building packages.
+# This supports shell glob matching, relative path matching, and
+# negation (prefixed with !). Only one pattern per line.
+.DS_Store
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+# git
+.git/
+.gitignore
+# docs & dev artifacts
+*.md
+*.txt
+!templates/NOTES.txt
+# CI
+.github/
+# local overrides
+values.local.yaml
+values.*.local.yaml

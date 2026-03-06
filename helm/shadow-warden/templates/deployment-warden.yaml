@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-warden
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: warden
+spec:
+  replicas: {{ .Values.warden.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: warden
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0       # zero-downtime deploys
+  template:
+    metadata:
+      labels:
+        {{- include "shadow-warden.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: warden
+        {{- with .Values.warden.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # Force pod restart when secrets/config changes
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.warden.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "shadow-warden.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "shadow-warden.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: warden
+          image: {{ include "shadow-warden.image" (dict "image" .Values.warden.image "Chart" .Chart "Values" .Values) }}
+          imagePullPolicy: {{ .Values.warden.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8001
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "shadow-warden.fullname" . }}-config
+            - secretRef:
+                name: {{ include "shadow-warden.fullname" . }}-secrets
+          env:
+            # $(REDIS_PASSWORD) and $(POSTGRES_PASSWORD) are substituted by Kubernetes
+            # from the env vars loaded via secretRef (envFrom) above.
+            - name: REDIS_URL
+              value: {{ include "shadow-warden.redisUrl" . | quote }}
+            - name: DATABASE_URL
+              value: {{ include "shadow-warden.databaseUrl" . | quote }}
+          volumeMounts:
+            - name: data
+              mountPath: /warden/data
+            {{- if .Values.warden.modelCache.enabled }}
+            - name: model-cache
+              mountPath: {{ .Values.warden.modelCache.mountPath }}
+            {{- end }}
+            {{- if .Values.warden.browserSandbox.enabled }}
+            - name: shm
+              mountPath: /dev/shm
+            {{- end }}
+            {{- if .Values.warden.apiKeysJson }}
+            - name: api-keys
+              mountPath: /etc/warden
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.warden.resources | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.warden.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.warden.readinessProbe | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false   # Playwright needs write access
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          {{- if .Values.persistence.data.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "shadow-warden.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.warden.modelCache.enabled }}
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: {{ include "shadow-warden.fullname" . }}-model-cache
+        {{- end }}
+        {{- if .Values.warden.browserSandbox.enabled }}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.warden.shmSize }}
+        {{- end }}
+        {{- if .Values.warden.apiKeysJson }}
+        - name: api-keys
+          secret:
+            secretName: {{ include "shadow-warden.fullname" . }}-api-keys
+        {{- end }}
+      {{- with .Values.warden.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.warden.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.warden.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

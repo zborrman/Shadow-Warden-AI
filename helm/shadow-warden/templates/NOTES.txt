@@ -1,0 +1,58 @@
+🛡️  Shadow Warden AI deployed successfully!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Release:   {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+  Version:   {{ .Chart.AppVersion }}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FILTER API
+  http{{ if .Values.ingress.tls }}s{{ end }}://{{ (first .Values.ingress.hosts).host }}/filter
+  http{{ if .Values.ingress.tls }}s{{ end }}://{{ (first .Values.ingress.hosts).host }}/docs   (Swagger UI)
+
+  Test it:
+    curl -X POST http{{ if .Values.ingress.tls }}s{{ end }}://{{ (first .Values.ingress.hosts).host }}/filter \
+      -H "Content-Type: application/json" \
+      -H "X-API-Key: $WARDEN_API_KEY" \
+      -d '{"content": "Hello, world!"}'
+
+WEBSOCKET STREAM
+  ws{{ if .Values.ingress.tls }}s{{ end }}://{{ (first .Values.ingress.hosts).host }}/ws/stream?key=$WARDEN_API_KEY
+
+{{- if .Values.admin.enabled }}
+ADMIN UI
+  http{{ if .Values.ingress.tls }}s{{ end }}://{{ (index .Values.ingress.hosts 1).host }}/
+{{- end }}
+
+HEALTH CHECK
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "shadow-warden.fullname" . }}-warden -- curl -s localhost:8001/health
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+POST-INSTALL CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Set your API key:
+   helm upgrade {{ .Release.Name }} shadow-warden/shadow-warden \
+     --set warden.secret.wardenApiKey=<your-key> \
+     --reuse-values
+
+2. (Optional) Enable Evolution Engine — provide your Anthropic API key:
+   helm upgrade {{ .Release.Name }} shadow-warden/shadow-warden \
+     --set warden.secret.anthropicApiKey=<anthropic-key> \
+     --reuse-values
+
+3. (Optional) Configure LLM backend for /ws/stream:
+   helm upgrade {{ .Release.Name }} shadow-warden/shadow-warden \
+     --set warden.secret.llmBaseUrl=https://api.openai.com/v1 \
+     --set warden.secret.llmApiKey=<openai-key> \
+     --reuse-values
+
+4. For production: enable TLS via cert-manager:
+   helm upgrade {{ .Release.Name }} shadow-warden/shadow-warden \
+     --set ingress.annotations."cert-manager\.io/cluster-issuer"=letsencrypt-prod \
+     --set ingress.tls[0].secretName=warden-tls \
+     --set ingress.tls[0].hosts[0]=warden.example.com \
+     --reuse-values
+
+Full API documentation: https://{{ (first .Values.ingress.hosts).host }}/docs

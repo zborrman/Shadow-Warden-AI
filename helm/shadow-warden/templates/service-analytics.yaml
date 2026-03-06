@@ -1,0 +1,20 @@
+{{- if .Values.analytics.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-analytics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: analytics
+spec:
+  type: {{ .Values.analytics.service.type }}
+  ports:
+    - port: {{ .Values.analytics.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "shadow-warden.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: analytics
+{{- end }}

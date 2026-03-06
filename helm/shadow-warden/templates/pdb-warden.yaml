@@ -1,0 +1,21 @@
+{{- if .Values.warden.pdb.enabled -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-warden
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: warden
+spec:
+  {{- if .Values.warden.pdb.minAvailable }}
+  minAvailable: {{ .Values.warden.pdb.minAvailable }}
+  {{- end }}
+  {{- if .Values.warden.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.warden.pdb.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: warden
+{{- end }}

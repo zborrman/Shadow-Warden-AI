@@ -1,0 +1,101 @@
+{{- if .Values.analytics.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-analytics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: analytics
+spec:
+  replicas: {{ .Values.analytics.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: analytics
+  template:
+    metadata:
+      labels:
+        {{- include "shadow-warden.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: analytics
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.analytics.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "shadow-warden.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "shadow-warden.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: analytics
+          image: {{ include "shadow-warden.image" (dict "image" .Values.analytics.image "Chart" .Chart "Values" .Values) }}
+          imagePullPolicy: {{ .Values.analytics.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8002
+              protocol: TCP
+          env:
+            - name: ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "shadow-warden.fullname" . }}-config
+                  key: ENV
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "shadow-warden.fullname" . }}-config
+                  key: LOG_LEVEL
+            - name: REDIS_URL
+              value: {{ include "shadow-warden.redisUrl" . | quote }}
+            - name: GDPR_ANONYMISE
+              value: "true"
+            - name: GDPR_LOG_RETENTION_DAYS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "shadow-warden.fullname" . }}-config
+                  key: GDPR_LOG_RETENTION_DAYS
+            - name: ANALYTICS_DATA_PATH
+              value: /analytics/data
+          volumeMounts:
+            - name: data
+              mountPath: /analytics/data
+          resources:
+            {{- toYaml .Values.analytics.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          {{- if .Values.persistence.data.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "shadow-warden.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.analytics.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.analytics.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

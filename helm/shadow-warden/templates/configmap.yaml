@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+data:
+  ENV:                      {{ .Values.warden.config.env | quote }}
+  LOG_LEVEL:                {{ .Values.warden.config.logLevel | quote }}
+  SEMANTIC_THRESHOLD:       {{ .Values.warden.config.semanticThreshold | quote }}
+  STRICT_MODE:              {{ .Values.warden.config.strictMode | quote }}
+  RATE_LIMIT_PER_MINUTE:    {{ .Values.warden.config.rateLimitPerMinute | quote }}
+  MAX_BATCH_SIZE:           {{ .Values.warden.config.maxBatchSize | quote }}
+  CACHE_TTL_SECONDS:        {{ .Values.warden.config.cacheТtlSeconds | quote }}
+  GDPR_LOG_RETENTION_DAYS:  {{ .Values.warden.config.gdprLogRetentionDays | quote }}
+  ALERT_MIN_RISK_LEVEL:     {{ .Values.warden.config.alertMinRiskLevel | quote }}
+  ELASTIC_INDEX:            {{ .Values.warden.config.elasticIndex | quote }}
+  MTLS_ENABLED:             {{ .Values.warden.mtls.enabled | quote }}
+  MTLS_ALLOWED_CNS:         {{ .Values.warden.mtls.allowedCNs | quote }}
+  MODEL_CACHE_DIR:          {{ .Values.warden.modelCache.mountPath | quote }}
+  DYNAMIC_RULES_PATH:       "/warden/data/dynamic_rules.json"
+  LOGS_PATH:                "/warden/data/logs.json"
+  {{- if .Values.warden.apiKeysJson }}
+  WARDEN_API_KEYS_PATH:     "/etc/warden/keys.json"
+  {{- end }}
+  # DATABASE_URL and REDIS_URL are set as env[] in the Deployment so that
+  # Kubernetes performs $(POSTGRES_PASSWORD) / $(REDIS_PASSWORD) substitution.

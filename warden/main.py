@@ -37,7 +37,16 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Request, status
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -47,6 +56,7 @@ from slowapi.util import get_remote_address
 
 from warden.analytics import logger as event_logger
 from warden.auth_guard import AuthResult, require_api_key
+from warden.mtls import MTLSMiddleware
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
@@ -111,6 +121,13 @@ _limiter = Limiter(
 _DYNAMIC_RULES_PATH = Path(
     os.getenv("DYNAMIC_RULES_PATH", "/warden/data/dynamic_rules.json")
 )
+
+# ── WebSocket / LLM streaming env vars ───────────────────────────────────────
+
+_LLM_BASE_URL   = os.getenv("LLM_BASE_URL", "").rstrip("/")  # e.g. https://api.openai.com/v1
+_LLM_API_KEY    = os.getenv("LLM_API_KEY", "")
+_WS_MAX_PAYLOAD = int(os.getenv("WS_MAX_PAYLOAD_BYTES", "65536"))  # 64 KiB
+
 
 # ── Risk helpers ──────────────────────────────────────────────────────────────
 
@@ -220,6 +237,11 @@ app.add_middleware(
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
+
+# mTLS enforcement — validates client-certificate CN on every non-exempt request.
+# Disabled by default (MTLS_ENABLED=false); enable in production after running
+# scripts/gen_certs.sh and mounting certs/ into each container.
+app.add_middleware(MTLSMiddleware)
 
 # ── Prometheus instrumentation ────────────────────────────────────────────────
 if _PROMETHEUS_ENABLED:
@@ -505,6 +527,7 @@ def _enforce_tenant_rate_limit(auth: AuthResult, rid: str) -> None:
                 f"Tenant '{auth.tenant_id}' rate limit exceeded "
                 f"({auth.rate_limit} req/min)."
             ),
+            headers={"Retry-After": "60"},
         )
 
 
@@ -611,6 +634,195 @@ async def gdpr_purge(body: _GdprPurgeRequest):
         json.dumps({"event": "gdpr_purge", "removed": removed, "before": body.before})
     )
     return {"removed": removed, "before": body.before}
+
+
+# ── WebSocket /ws/stream ─────────────────────────────────────────────────────
+
+async def _ws_send(ws: WebSocket, data: dict) -> None:
+    """Send a JSON event over the WebSocket."""
+    await ws.send_text(json.dumps(data, ensure_ascii=False))
+
+
+@app.websocket("/ws/stream")
+async def ws_stream(websocket: WebSocket):
+    """
+    WebSocket streaming endpoint — filter + LLM token stream.
+
+    Connect:  ws://host/ws/stream?key=<api_key>
+
+    Client sends once (JSON):
+        {"messages": [...], "model": "gpt-4o-mini", "max_tokens": 512,
+         "tenant_id": "default"}
+
+    Server sends (JSON events):
+        {"type": "filter_result", "allowed": bool, "risk": str,
+         "reason": str, "request_id": str}
+        {"type": "token",  "content": str}   <- one per LLM streamed token
+        {"type": "done",   "request_id": str}
+        {"type": "error",  "code": int, "detail": str}
+
+    WebSocket close codes:
+        1008 — Policy Violation (content blocked by Warden filter)
+        1009 — Message Too Big
+        1011 — Internal server error / upstream error
+    """
+    await websocket.accept()
+    rid = str(uuid.uuid4())
+
+    # ── 1. Authenticate via ?key= query param ─────────────────────────────────
+    api_key = websocket.query_params.get("key", "") or None
+    try:
+        auth = require_api_key(api_key)
+    except HTTPException as exc:
+        await _ws_send(websocket, {"type": "error", "code": exc.status_code, "detail": exc.detail})
+        await websocket.close(code=1008)
+        return
+
+    # ── 2. Receive initial message ────────────────────────────────────────────
+    try:
+        raw = await websocket.receive_text()
+    except WebSocketDisconnect:
+        return
+
+    if len(raw.encode()) > _WS_MAX_PAYLOAD:
+        await _ws_send(websocket, {"type": "error", "code": 413, "detail": "Payload too large."})
+        await websocket.close(code=1009)
+        return
+
+    try:
+        body = json.loads(raw)
+    except json.JSONDecodeError:
+        await _ws_send(websocket, {"type": "error", "code": 400, "detail": "Invalid JSON."})
+        await websocket.close(code=1003)
+        return
+
+    messages = body.get("messages")
+    if not isinstance(messages, list) or not messages:
+        await _ws_send(websocket, {
+            "type": "error", "code": 400,
+            "detail": "messages must be a non-empty list.",
+        })
+        await websocket.close(code=1003)
+        return
+
+    model      = str(body.get("model", "gpt-4o-mini"))
+    max_tokens = int(body.get("max_tokens", 512))
+    tenant_id  = str(body.get("tenant_id", auth.tenant_id))
+
+    # Flatten message content to plain text for the filter pipeline
+    content_parts: list[str] = []
+    for msg in messages:
+        c = msg.get("content", "")
+        if isinstance(c, str):
+            content_parts.append(c)
+        elif isinstance(c, list):
+            for part in c:
+                if isinstance(part, dict) and part.get("type") == "text":
+                    content_parts.append(part.get("text", ""))
+    content = " ".join(content_parts).strip()
+
+    if not content:
+        await _ws_send(websocket, {
+            "type": "error", "code": 400,
+            "detail": "No text content found in messages.",
+        })
+        await websocket.close(code=1003)
+        return
+
+    # ── 3. Run filter pipeline ────────────────────────────────────────────────
+    filter_payload = FilterRequest(content=content, tenant_id=tenant_id)
+    bg_tasks       = BackgroundTasks()
+    try:
+        filter_resp = await _run_filter_pipeline(filter_payload, rid, auth, bg_tasks)
+    except Exception as exc:
+        log.exception(json.dumps({"event": "ws_filter_error", "request_id": rid, "error": str(exc)}))
+        await _ws_send(websocket, {"type": "error", "code": 500, "detail": "Filter pipeline error."})
+        await websocket.close(code=1011)
+        return
+
+    await _ws_send(websocket, {
+        "type":       "filter_result",
+        "allowed":    filter_resp.allowed,
+        "risk":       filter_resp.risk_level.value,
+        "reason":     filter_resp.reason,
+        "request_id": rid,
+    })
+
+    if not filter_resp.allowed:
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
+    # ── 4. Stream from LLM backend ────────────────────────────────────────────
+    if not _LLM_BASE_URL or not _LLM_API_KEY:
+        await _ws_send(websocket, {
+            "type": "error", "code": 503,
+            "detail": "LLM backend not configured. Set LLM_BASE_URL and LLM_API_KEY.",
+        })
+        await websocket.close(code=1011)
+        return
+
+    try:
+        import httpx  # optional dep; only needed for WebSocket LLM streaming
+
+        llm_headers = {
+            "Authorization": f"Bearer {_LLM_API_KEY}",
+            "Content-Type":  "application/json",
+        }
+        llm_body = {
+            "model":      model,
+            "max_tokens": max_tokens,
+            "messages":   messages,
+            "stream":     True,
+        }
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream(
+                "POST",
+                f"{_LLM_BASE_URL}/chat/completions",
+                headers=llm_headers,
+                json=llm_body,
+            ) as resp:
+                if resp.status_code != 200:
+                    err_body = await resp.aread()
+                    await _ws_send(websocket, {
+                        "type":   "error",
+                        "code":   resp.status_code,
+                        "detail": f"LLM error: {err_body.decode()[:200]}",
+                    })
+                    await websocket.close(code=1011)
+                    return
+
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    chunk = line[6:].strip()
+                    if chunk == "[DONE]":
+                        break
+                    try:
+                        delta      = json.loads(chunk)
+                        token_text = (
+                            delta.get("choices", [{}])[0]
+                            .get("delta", {})
+                            .get("content", "")
+                        )
+                        if token_text:
+                            await _ws_send(websocket, {"type": "token", "content": token_text})
+                    except (json.JSONDecodeError, IndexError, KeyError):
+                        continue
+
+    except WebSocketDisconnect:
+        log.info(json.dumps({"event": "ws_client_disconnect", "request_id": rid}))
+        return
+    except Exception as exc:
+        log.exception(json.dumps({"event": "ws_llm_error", "request_id": rid, "error": str(exc)}))
+        try:
+            await _ws_send(websocket, {"type": "error", "code": 502, "detail": "LLM upstream error."})
+            await websocket.close(code=1011)
+        except Exception:
+            pass
+        return
+
+    await _ws_send(websocket, {"type": "done", "request_id": rid})
+    await websocket.close()
 
 
 # ── Global error handler ──────────────────────────────────────────────────────

@@ -81,23 +81,79 @@ def set_cached(content: str, response_json: str) -> None:
         log.debug("Cache set error: %s", exc)
 
 
-def check_tenant_rate_limit(tenant_id: str, limit: int) -> bool:
-    """Return True if *tenant_id* has exceeded *limit* requests in the current minute.
+# ── Token-bucket Lua script ───────────────────────────────────────────────────
+# Executed atomically by Redis (single-threaded Lua VM) — no TOCTOU race.
+#
+# KEYS[1]  warden:tokens:{tenant_id}
+# ARGV[1]  capacity      — maximum token count (= limit)
+# ARGV[2]  refill_rate   — tokens added per second (= limit / 60)
+# ARGV[3]  now           — current Unix timestamp (float)
+# ARGV[4]  ttl           — key TTL in seconds; idle buckets expire automatically
+#
+# Returns 1 if the request is allowed (token consumed), 0 if rate-limited.
+_TOKEN_BUCKET_LUA = """
+local key      = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local rate     = tonumber(ARGV[2])
+local now      = tonumber(ARGV[3])
+local ttl      = tonumber(ARGV[4])
 
-    Uses a sliding 1-minute window keyed by tenant and the current UTC minute.
-    Fail-open: returns False (allow) when Redis is unavailable.
+local raw = redis.call('GET', key)
+local tokens, last
+if raw then
+    local sep = string.find(raw, ':', 1, true)
+    tokens    = tonumber(string.sub(raw, 1, sep - 1))
+    last      = tonumber(string.sub(raw, sep + 1))
+else
+    tokens = capacity
+    last   = now
+end
+
+-- Refill proportionally to elapsed time, capped at capacity
+local elapsed = now - last
+tokens = math.min(capacity, tokens + elapsed * rate)
+
+-- Consume one token if available
+local allowed
+if tokens >= 1.0 then
+    tokens  = tokens - 1.0
+    allowed = 1
+else
+    allowed = 0
+end
+
+redis.call('SET', key, tostring(tokens) .. ':' .. tostring(now), 'EX', ttl)
+return allowed
+"""
+
+
+def check_tenant_rate_limit(tenant_id: str, limit: int) -> bool:
+    """Return True if *tenant_id* has exceeded *limit* requests per minute.
+
+    Implements a token-bucket algorithm via an atomic Redis Lua script:
+      • Capacity  = limit (full per-minute burst allowed from a cold start).
+      • Refill    = limit / 60 tokens per second (steady-state throughput).
+      • Key       = warden:tokens:{tenant_id}  (single key, no window rotation).
+      • TTL       = 120 s  (idle buckets auto-expire; no manual cleanup needed).
+
+    Fail-open: returns False (allow) when Redis is unavailable or errors.
     """
     r = _get_client()
     if r is None:
         return False
 
-    window = int(time.time() // 60)
-    key = f"warden:rate:{tenant_id}:{window}"
+    key = f"warden:tokens:{tenant_id}"
     try:
-        count = r.incr(key)
-        if count == 1:
-            r.expire(key, 60)
-        return count > limit
+        result = r.eval(
+            _TOKEN_BUCKET_LUA,
+            1,              # number of KEYS
+            key,            # KEYS[1]
+            float(limit),   # ARGV[1] — capacity
+            limit / 60.0,   # ARGV[2] — refill_rate (tokens/sec)
+            time.time(),    # ARGV[3] — now
+            120,            # ARGV[4] — TTL seconds
+        )
+        return result == 0  # 0 → no token → blocked (True); 1 → allowed (False)
     except Exception as exc:  # noqa: BLE001
         log.debug("Tenant rate limit check error: %s", exc)
         return False

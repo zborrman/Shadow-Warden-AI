@@ -1,0 +1,36 @@
+apiVersion: v2
+name: shadow-warden
+description: |
+  Shadow Warden AI — Zero-Trust AI Security Gateway.
+  Mandatory filter proxy that blocks jailbreak attempts, strips PII/secrets,
+  and self-improves via Claude Opus — all without sending sensitive data to
+  third parties. GDPR-compliant by design.
+
+type: application
+version: 0.4.0
+appVersion: "0.4.0"
+
+keywords:
+  - ai
+  - security
+  - gateway
+  - llm
+  - jailbreak
+  - gdpr
+  - zero-trust
+
+home: https://github.com/your-org/shadow-warden
+
+maintainers:
+  - name: Shadow Warden Team
+    email: security@your-org.com
+
+dependencies:
+  - name: postgresql
+    version: "15.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: redis
+    version: "19.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled

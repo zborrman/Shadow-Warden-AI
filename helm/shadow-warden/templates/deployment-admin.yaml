@@ -1,0 +1,94 @@
+{{- if .Values.admin.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-admin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin
+spec:
+  replicas: {{ .Values.admin.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: admin
+  template:
+    metadata:
+      labels:
+        {{- include "shadow-warden.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: admin
+      {{- with .Values.admin.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "shadow-warden.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "shadow-warden.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: admin
+          image: {{ include "shadow-warden.image" (dict "image" .Values.admin.image "Chart" .Chart "Values" .Values) }}
+          imagePullPolicy: {{ .Values.admin.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8502
+              protocol: TCP
+          env:
+            - name: WARDEN_URL
+              value: "http://{{ include "shadow-warden.fullname" . }}-warden:{{ .Values.warden.service.port }}"
+            - name: ANALYTICS_URL
+              value: "http://{{ include "shadow-warden.fullname" . }}-analytics:{{ .Values.analytics.service.port }}"
+            - name: DYNAMIC_RULES_PATH
+              value: "/warden/data/dynamic_rules.json"
+            - name: LOGS_PATH
+              value: "/warden/data/logs.json"
+            - name: WARDEN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "shadow-warden.fullname" . }}-secrets
+                  key: WARDEN_API_KEY
+                  optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /warden/data
+              readOnly: true
+          resources:
+            {{- toYaml .Values.admin.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8502
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8502
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false   # Streamlit needs /tmp
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          {{- if .Values.persistence.data.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "shadow-warden.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.admin.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.admin.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

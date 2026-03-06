@@ -1,11 +1,12 @@
 """
 warden/tests/test_tenant_rate_limit.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Unit tests for per-tenant rate limiting.
+Unit tests for per-tenant rate limiting (token-bucket algorithm).
 
-cache.check_tenant_rate_limit() is tested with a FakeRedis backend so no
-real Redis connection is required.  The /filter integration path is covered
-by patching check_tenant_rate_limit to verify the 429 is raised correctly.
+check_tenant_rate_limit() now executes an atomic Redis Lua script.
+Tests mock r.eval() — no real Redis connection required.
+The /filter integration path is covered by patching check_tenant_rate_limit
+to verify the 429 is raised correctly.
 """
 from __future__ import annotations
 
@@ -18,82 +19,90 @@ from warden.cache import check_tenant_rate_limit
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _make_redis(counts: dict[str, int]):
-    """Return a mock Redis client that tracks incr() calls per key."""
+def _make_redis(eval_return: int = 1):
+    """Return a mock Redis client with a fixed eval() return value.
+
+    eval_return=1  →  token consumed, request allowed.
+    eval_return=0  →  bucket empty, request blocked.
+    """
     r = MagicMock()
-
-    def _incr(key):
-        counts[key] = counts.get(key, 0) + 1
-        return counts[key]
-
-    r.incr.side_effect = _incr
-    r.expire.return_value = True
+    r.eval.return_value = eval_return
     return r
 
 
 # ── Unit tests for check_tenant_rate_limit ────────────────────────────────────
 
-def test_first_request_allowed():
-    counts: dict[str, int] = {}
-    r = _make_redis(counts)
+def test_allowed_when_eval_returns_1():
+    """Lua returning 1 (token consumed) → function returns False (allow)."""
+    r = _make_redis(eval_return=1)
     with patch("warden.cache._get_client", return_value=r):
-        assert check_tenant_rate_limit("acme", limit=5) is False
+        assert check_tenant_rate_limit("acme", limit=60) is False
 
 
-def test_at_limit_still_allowed():
-    """The Nth request exactly at the limit must be allowed."""
-    counts: dict[str, int] = {}
-    r = _make_redis(counts)
+def test_blocked_when_eval_returns_0():
+    """Lua returning 0 (bucket empty) → function returns True (block)."""
+    r = _make_redis(eval_return=0)
     with patch("warden.cache._get_client", return_value=r):
-        for _ in range(5):
-            result = check_tenant_rate_limit("acme", limit=5)
-        assert result is False  # 5th request == limit, not over
+        assert check_tenant_rate_limit("acme", limit=60) is True
 
 
-def test_over_limit_blocked():
-    """The (N+1)th request over the limit must be blocked."""
-    counts: dict[str, int] = {}
-    r = _make_redis(counts)
+def test_eval_called_with_correct_key():
+    """Redis key must be warden:tokens:{tenant_id}."""
+    r = _make_redis()
     with patch("warden.cache._get_client", return_value=r):
-        for _ in range(5):
-            check_tenant_rate_limit("acme", limit=5)
-        assert check_tenant_rate_limit("acme", limit=5) is True  # 6th → blocked
+        check_tenant_rate_limit("my-tenant", limit=30)
+    # positional args: (script, numkeys, KEYS[1], ARGV[1..4])
+    assert r.eval.call_args[0][2] == "warden:tokens:my-tenant"
+
+
+def test_eval_capacity_equals_limit():
+    """ARGV[1] (capacity) must equal the limit passed in."""
+    r = _make_redis()
+    with patch("warden.cache._get_client", return_value=r):
+        check_tenant_rate_limit("acme", limit=100)
+    capacity = r.eval.call_args[0][3]  # ARGV[1]
+    assert float(capacity) == 100.0
+
+
+def test_eval_refill_rate_is_limit_per_60():
+    """ARGV[2] (refill_rate) must equal limit / 60."""
+    r = _make_redis()
+    with patch("warden.cache._get_client", return_value=r):
+        check_tenant_rate_limit("acme", limit=120)
+    refill_rate = r.eval.call_args[0][4]  # ARGV[2]
+    assert abs(float(refill_rate) - 120 / 60.0) < 1e-9
+
+
+def test_eval_ttl_is_120():
+    """ARGV[4] (TTL) must be 120 seconds so idle buckets auto-expire."""
+    r = _make_redis()
+    with patch("warden.cache._get_client", return_value=r):
+        check_tenant_rate_limit("acme", limit=60)
+    ttl = r.eval.call_args[0][6]  # ARGV[4]
+    assert ttl == 120
 
 
 def test_different_tenants_isolated():
-    """Each tenant has an independent counter."""
-    counts: dict[str, int] = {}
-    r = _make_redis(counts)
+    """Each tenant maps to a distinct Redis key."""
+    r = _make_redis(eval_return=1)
     with patch("warden.cache._get_client", return_value=r):
-        # Exhaust tenant_a's limit
-        for _ in range(3):
-            check_tenant_rate_limit("tenant_a", limit=3)
-        assert check_tenant_rate_limit("tenant_a", limit=3) is True   # blocked
+        check_tenant_rate_limit("tenant_a", limit=5)
+        check_tenant_rate_limit("tenant_b", limit=5)
+    calls = r.eval.call_args_list
+    key_a = calls[0][0][2]
+    key_b = calls[1][0][2]
+    assert key_a == "warden:tokens:tenant_a"
+    assert key_b == "warden:tokens:tenant_b"
+    assert key_a != key_b
 
-        # tenant_b still fresh
-        assert check_tenant_rate_limit("tenant_b", limit=3) is False  # allowed
 
-
-def test_expire_called_on_first_increment():
-    """TTL must be set on the first request (count == 1) to auto-expire keys."""
-    counts: dict[str, int] = {}
-    r = _make_redis(counts)
+def test_sequential_allowed_then_blocked():
+    """Simulate bucket draining: first call allowed, second blocked."""
+    r = MagicMock()
+    r.eval.side_effect = [1, 0]  # first call: token available; second: empty
     with patch("warden.cache._get_client", return_value=r):
-        check_tenant_rate_limit("new_tenant", limit=10)
-    r.expire.assert_called_once()
-    args = r.expire.call_args[0]
-    assert args[1] == 60  # 60-second TTL
-
-
-def test_expire_not_called_on_subsequent_increments():
-    """TTL must only be set on the first increment, not on subsequent ones."""
-    counts: dict[str, int] = {}
-    r = _make_redis(counts)
-    with patch("warden.cache._get_client", return_value=r):
-        for _ in range(3):
-            check_tenant_rate_limit("existing_tenant", limit=10)
-    # expire called only once (first increment)
-    assert r.expire.call_count == 1
+        assert check_tenant_rate_limit("acme", limit=1) is False  # allowed
+        assert check_tenant_rate_limit("acme", limit=1) is True   # blocked
 
 
 def test_redis_unavailable_fail_open():
@@ -105,7 +114,7 @@ def test_redis_unavailable_fail_open():
 def test_redis_error_fail_open():
     """Transient Redis errors (network blip, timeout) must not raise."""
     r = MagicMock()
-    r.incr.side_effect = Exception("connection reset")
+    r.eval.side_effect = Exception("connection reset")
     with patch("warden.cache._get_client", return_value=r):
         assert check_tenant_rate_limit("acme", limit=10) is False
 
