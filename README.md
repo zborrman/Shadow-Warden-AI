@@ -41,15 +41,18 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 
 ### Services
 
-| Service     | Port | Description |
-|-------------|------|-------------|
-| `proxy`     | 80 / 443 | Nginx reverse proxy (routes all traffic) |
-| `warden`    | 8001 | FastAPI filter gateway (internal) |
-| `app`       | 8000 | Your application (internal) |
-| `analytics` | 8002 | Analytics API (internal) |
-| `dashboard` | **8501** | Streamlit security dashboard (public) |
-| `postgres`  | — | Shared relational store (internal) |
-| `redis`     | — | Cache and message bus (internal) |
+| Service      | Port        | Description |
+|--------------|-------------|-------------|
+| `proxy`      | 80 / 443    | Nginx reverse proxy (routes all traffic, mTLS termination) |
+| `warden`     | 8001        | FastAPI filter gateway (internal) |
+| `app`        | 8000        | Your application (internal) |
+| `analytics`  | 8002        | Analytics API (internal) |
+| `dashboard`  | **8501**    | Streamlit security dashboard |
+| `admin`      | **8502**    | Streamlit admin UI — tenants, rules, event log |
+| `postgres`   | —           | Shared relational store (internal) |
+| `redis`      | —           | Cache + token-bucket rate limiter (internal) |
+| `prometheus` | 9090        | Metrics scraper (internal) |
+| `grafana`    | **3000**    | Metrics dashboard (admin / `$GRAFANA_PASSWORD`) |
 
 ---
 
