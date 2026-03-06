@@ -63,3 +63,7 @@ class FilterResponse(BaseModel):
     secrets_found:    list[SecretFinding] = Field(default_factory=list)
     semantic_flags:   list[SemanticFlag]  = Field(default_factory=list)
     reason:           str               = Field(default="", description="Summary reason if blocked.")
+    processing_ms:    dict[str, float]  = Field(
+        default_factory=dict,
+        description="Per-stage processing time in milliseconds.",
+    )

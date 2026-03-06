@@ -1,0 +1,67 @@
+# ── Pinned dependencies ────────────────────────────────────────────────────────
+# Generated from requirements.txt — use for reproducible deployments.
+#
+# To update:
+#   pip install -r warden/requirements.txt
+#   pip freeze --exclude-editable > warden/requirements-lock.txt
+#
+# torch is intentionally excluded — install separately from CPU-only index:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+starlette==0.41.3
+
+# Rate limiting
+slowapi==0.1.9
+limits==3.14.3
+
+# Redis
+redis==5.2.1
+
+# HTTP client
+httpx==0.28.1
+
+# Prometheus
+prometheus-fastapi-instrumentator==7.0.2
+prometheus-client==0.21.1
+
+# ML / AI (CPU-only; torch excluded — see header)
+transformers==4.47.1
+sentence-transformers==3.3.1
+numpy==1.26.4
+
+# Claude API (Evolution Loop)
+anthropic==0.42.0
+
+# Browser automation
+playwright==1.49.0
+
+# Analytics dashboard
+streamlit==1.41.1
+plotly==5.24.1
+
+# Auth
+bcrypt==4.2.1
+
+# Transitive deps pinned for stability
+tokenizers==0.21.0
+safetensors==0.4.5
+huggingface-hub==0.27.1
+tqdm==4.67.1
+filelock==3.16.1
+pyyaml==6.0.2
+click==8.1.7
+h11==0.14.0
+anyio==4.8.0
+sniffio==1.3.1
+certifi==2024.12.14
+httpcore==1.0.7
+idna==3.10
+typing-extensions==4.12.2
+annotated-types==0.7.0
+pydantic-core==2.27.2
+jinja2==3.1.5
+markupsafe==3.0.2

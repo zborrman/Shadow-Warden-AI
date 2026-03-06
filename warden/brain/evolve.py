@@ -49,6 +49,12 @@ DYNAMIC_RULES_PATH = Path(
     os.getenv("DYNAMIC_RULES_PATH", "/warden/data/dynamic_rules.json")
 )
 
+# Corpus poisoning protection
+MAX_CORPUS_RULES       = int(os.getenv("MAX_CORPUS_RULES", "500"))
+MAX_EVASION_VARIANTS   = 5   # cap evasion variants per rule
+MAX_EXAMPLE_LENGTH     = 500  # max chars per semantic example
+_SEEN_HASHES_CAP       = 10_000  # cap in-process dedup set
+
 _RISK_ORDER = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.BLOCK]
 
 
@@ -140,12 +146,37 @@ class EvolutionEngine:
         self._guard         = semantic_guard
         self._rules_path    = DYNAMIC_RULES_PATH
         self._rules_path.parent.mkdir(parents=True, exist_ok=True)
+        self._corpus_count  = self._count_existing_rules()
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # ── Corpus protection ────────────────────────────────────────────────────
+
+    def _count_existing_rules(self) -> int:
+        """Count rules already in dynamic_rules.json."""
+        if self._rules_path.exists():
+            try:
+                data = json.loads(self._rules_path.read_text())
+                return len(data.get("rules", []))
+            except Exception:
+                pass
+        return 0
 
     def _is_duplicate(self, content: str) -> bool:
         """Return True if this exact content was already processed this session."""
         return hashlib.sha256(content.encode()).hexdigest() in self._seen_hashes
+
+    @staticmethod
+    def _vet_example(text: str) -> str | None:
+        """Sanitise a semantic example.  Returns None if it should be rejected."""
+        text = text.strip()
+        if not text or len(text) < 10:
+            return None
+        if len(text) > MAX_EXAMPLE_LENGTH:
+            text = text[:MAX_EXAMPLE_LENGTH]
+        # Reject if it looks like it contains real secrets
+        suspicious = ("sk-", "AKIA", "ghp_", "-----BEGIN", "bearer ")
+        if any(s in text for s in suspicious):
+            return None
+        return text
 
     async def process_blocked(
         self,
@@ -164,11 +195,22 @@ class EvolutionEngine:
         if _RISK_ORDER.index(risk_level) < _RISK_ORDER.index(EVOLUTION_MIN_RISK):
             return None
 
+        # ── Corpus growth cap ──────────────────────────────────────────
+        if self._corpus_count >= MAX_CORPUS_RULES:
+            log.warning(
+                "EvolutionEngine: corpus cap reached (%d/%d) — skipping evolution.",
+                self._corpus_count, MAX_CORPUS_RULES,
+            )
+            return None
+
         content_hash = hashlib.sha256(content.encode()).hexdigest()
         if content_hash in self._seen_hashes:
             log.debug("EvolutionEngine: duplicate — skipping %s…", content_hash[:12])
             return None
         self._seen_hashes.add(content_hash)
+        # Cap the dedup set to avoid unbounded memory growth
+        if len(self._seen_hashes) > _SEEN_HASHES_CAP:
+            self._seen_hashes.clear()
 
         log.info(
             "EvolutionEngine: analysing %s attack (hash=%s…)",
@@ -186,13 +228,19 @@ class EvolutionEngine:
 
         corpus_updated = False
         if self._guard and evolution.new_rule.rule_type == "semantic_example":
-            examples = [evolution.new_rule.value] + evolution.evasion_variants
-            self._guard.add_examples(examples)
-            corpus_updated = True
-            log.info(
-                "EvolutionEngine: SemanticGuard corpus extended with %d examples.",
-                len(examples),
-            )
+            # Vet all examples before injecting into the corpus
+            raw_candidates = [evolution.new_rule.value] + evolution.evasion_variants[:MAX_EVASION_VARIANTS]
+            examples = [e for raw in raw_candidates if (e := self._vet_example(raw)) is not None]
+            if examples:
+                self._guard.add_examples(examples)
+                corpus_updated = True
+                self._corpus_count += 1
+                log.info(
+                    "EvolutionEngine: SemanticGuard corpus extended with %d vetted examples.",
+                    len(examples),
+                )
+            else:
+                log.warning("EvolutionEngine: all examples rejected by vetting — corpus unchanged.")
 
         log.info(
             "EvolutionEngine: rule written — attack=%s type=%s severity=%s",

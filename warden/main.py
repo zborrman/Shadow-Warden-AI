@@ -15,20 +15,15 @@ Pipeline
         → [if blocked] EvolutionEngine  (BackgroundTask — calls Claude Opus,
                                          writes new rule, hot-reloads corpus)
         → [if blocked] AlertEngine      (BackgroundTask — Slack / PagerDuty)
-        → FilterResponse  (allowed | blocked, with reasons)
+        → FilterResponse  (allowed | blocked, with reasons + per-stage timing)
 
-New in v0.3
+New in v0.4
 ───────────
-  • API-key authentication      (X-API-Key header, via auth_guard.py)
-  • Rate limiting                (slowapi, Redis-backed)
-  • Redis content-hash cache     (replay protection + latency reduction)
-  • Multi-tenant SemanticGuard   (per-tenant isolated corpus, tenant_id field)
-  • Structured JSON logging      (machine-parseable, replaces plain-text)
-  • Prometheus metrics           (prometheus-fastapi-instrumentator)
-  • GDPR endpoints               (POST /gdpr/export, POST /gdpr/purge)
-  • OpenAI-compatible proxy      (/v1/chat/completions forwarded after /filter)
-  • Real-time alerting           (Slack + PagerDuty on high-severity blocks)
-  • Async ML inference           (BrainSemanticGuard.check_async — non-blocking)
+  • Per-tenant API keys     (JSON file multi-key auth with SHA-256 hash lookup)
+  • Per-stage timing        (processing_ms in FilterResponse)
+  • Health degradation      (/health reports cache + Redis status)
+  • Batch filtering         (POST /filter/batch — up to 50 items)
+  • Obfuscation decoding    (base64, hex, unicode homoglyphs, ROT13 pre-filter)
 """
 from __future__ import annotations
 
@@ -45,24 +40,22 @@ from pathlib import Path
 from fastapi import BackgroundTasks, Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from warden.analytics import logger as event_logger
-from warden.auth_guard import require_api_key
+from warden.auth_guard import AuthResult, require_api_key
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import get_cached, set_cached
 from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
+from warden.obfuscation import decode as decode_obfuscation
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
-# Replace the default human-readable formatter with one that emits
-# machine-parseable JSON so log aggregators (Loki, Splunk, Datadog) can
-# ingest fields directly without a custom parsing rule.
 
 class _JsonFormatter(logging.Formatter):
     """Emit each log record as a single JSON line."""
@@ -94,8 +87,6 @@ _configure_json_logging()
 log = logging.getLogger("warden.gateway")
 
 # ── Prometheus metrics ────────────────────────────────────────────────────────
-# prometheus-fastapi-instrumentator adds /metrics automatically.
-# Import is optional — the gateway works without it.
 
 try:
     from prometheus_fastapi_instrumentator import Instrumentator as _Instrumentator
@@ -105,8 +96,6 @@ except ImportError:
     log.warning("prometheus-fastapi-instrumentator not installed — /metrics disabled.")
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
-# Default: 60 requests / minute per IP.  Override with RATE_LIMIT_PER_MINUTE.
-# Uses Redis as the shared store so limits are enforced across all workers.
 
 _RATE_LIMIT = os.getenv("RATE_LIMIT_PER_MINUTE", "60")
 _limiter = Limiter(
@@ -130,8 +119,6 @@ def _max_risk(a: RiskLevel, b: RiskLevel) -> RiskLevel:
 
 
 # ── Multi-tenant SemanticGuard registry ──────────────────────────────────────
-# One SemanticGuard (BrainSemanticGuard) per tenant_id.  Tenants start with
-# the base corpus; their evolved rules are isolated from one another.
 
 _tenant_guards: dict[str, BrainSemanticGuard] = {}
 
@@ -215,7 +202,7 @@ app = FastAPI(
         "Blocked HIGH/BLOCK attacks trigger the Evolution Loop: Claude Opus "
         "analyses the attack and auto-generates a new detection rule."
     ),
-    version="0.3.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
@@ -267,71 +254,50 @@ async def security_headers(request: Request, call_next):
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
+def _check_redis_health() -> dict:
+    """Probe Redis and return degradation info."""
+    try:
+        from warden.cache import _get_client
+        client = _get_client()
+        if client is None:
+            return {"status": "unavailable", "latency_ms": None}
+        t0 = time.perf_counter()
+        client.ping()
+        lat = round((time.perf_counter() - t0) * 1000, 2)
+        return {"status": "ok", "latency_ms": lat}
+    except Exception as exc:
+        return {"status": f"degraded: {exc}", "latency_ms": None}
+
+
 @app.get("/health", tags=["ops"], summary="Liveness probe")
 async def health():
+    redis_health = _check_redis_health()
+    overall = "ok" if redis_health["status"] == "ok" or redis_health["status"] == "unavailable" else "degraded"
     return {
-        "status":    "ok",
+        "status":    overall,
         "service":   "warden-gateway",
         "evolution": _evolve is not None,
         "tenants":   list(_tenant_guards.keys()),
         "strict":    os.getenv("STRICT_MODE", "false").lower() == "true",
+        "cache":     redis_health,
     }
 
 
-# ── /filter ───────────────────────────────────────────────────────────────────
+# ── Core filter logic (shared by /filter and /filter/batch) ──────────────────
 
-@app.post(
-    "/filter",
-    response_model=FilterResponse,
-    tags=["filter"],
-    summary="Filter raw content through the Warden pipeline",
-    status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_api_key)],
-)
-@_limiter.limit(f"{_RATE_LIMIT}/minute")
-async def filter_content(
-    payload:          FilterRequest,
-    request:          Request,
-    background_tasks: BackgroundTasks,
+async def _run_filter_pipeline(
+    payload: FilterRequest,
+    rid: str,
+    auth: AuthResult,
+    background_tasks: BackgroundTasks | None = None,
 ) -> FilterResponse:
-    """
-    **Pipeline** (in order):
-
-    1. **Cache check** — SHA-256 hash of content looked up in Redis.  If hit,
-       return the cached FilterResponse immediately (< 1 ms).
-
-    2. **SecretRedactor** — regex scan for API keys, credentials, PII, credit
-       cards, SSNs, IBANs, email addresses.  All found values are replaced
-       with `[REDACTED:<kind>]` tokens *before* any semantic analysis.
-
-    3. **SemanticGuard (rule-based)** — rule + keyword scan of the redacted
-       text for prompt injection, jailbreak attempts, harmful content, and
-       policy violations.
-
-    4. **BrainSemanticGuard (ML)** — all-MiniLM-L6-v2 catches paraphrased
-       jailbreaks that regex misses.  Runs asynchronously (non-blocking).
-       Each tenant_id gets its own isolated corpus.
-
-    5. **Decision** — `allowed=True` if `risk_level` is LOW (or MEDIUM when
-       not in strict mode).
-
-    6. **Evolution Loop** *(background)* — if blocked at HIGH/BLOCK and
-       `ANTHROPIC_API_KEY` is set, Claude Opus analyses the attack and appends
-       a new rule to `dynamic_rules.json`.
-
-    7. **Alerting** *(background)* — Slack / PagerDuty notifications for
-       HIGH/BLOCK attacks.
-
-    8. **Cache write** — successful responses are stored in Redis for 5 min.
-
-    GDPR note: original secrets are never logged; only their *type* and
-    character offsets are recorded.
-    """
-    rid   = getattr(request.state, "request_id", "-")
+    """Execute the full filter pipeline and return a FilterResponse."""
     start = time.perf_counter()
+    timings: dict[str, float] = {}
 
-    strict    = payload.strict or (_guard.strict if _guard else False)
-    tenant_id = payload.tenant_id
+    # Use tenant_id from auth if available, else from payload
+    tenant_id = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
+    strict = payload.strict or (_guard.strict if _guard else False)
 
     log.info(
         json.dumps({
@@ -344,19 +310,37 @@ async def filter_content(
     )
 
     # ── Stage 0: Redis cache check ─────────────────────────────────────
+    t0 = time.perf_counter()
     cached_json = get_cached(payload.content)
+    timings["cache_check"] = round((time.perf_counter() - t0) * 1000, 2)
     if cached_json:
         try:
             cached = json.loads(cached_json)
-            log.info(
-                json.dumps({"event": "cache_hit", "request_id": rid})
-            )
+            log.info(json.dumps({"event": "cache_hit", "request_id": rid}))
             return FilterResponse(**cached)
         except Exception:
-            pass  # corrupted cache entry — proceed normally
+            pass
+
+    # ── Stage 0b: Obfuscation decoding ────────────────────────────────
+    t0 = time.perf_counter()
+    obfuscation_result = decode_obfuscation(payload.content)
+    timings["obfuscation"] = round((time.perf_counter() - t0) * 1000, 2)
+
+    # Use decoded+original combined text for downstream analysis
+    analysis_text = obfuscation_result.combined
+    if obfuscation_result.has_obfuscation:
+        log.warning(
+            json.dumps({
+                "event":      "obfuscation_detected",
+                "request_id": rid,
+                "layers":     obfuscation_result.layers_found,
+            })
+        )
 
     # ── Stage 1: Secret Redaction ──────────────────────────────────────
-    redact_result = _redactor.redact(payload.content)   # type: ignore[union-attr]
+    t0 = time.perf_counter()
+    redact_result = _redactor.redact(analysis_text)   # type: ignore[union-attr]
+    timings["redaction"] = round((time.perf_counter() - t0) * 1000, 2)
 
     if redact_result.findings:
         kinds = [f.kind for f in redact_result.findings]
@@ -365,7 +349,9 @@ async def filter_content(
         )
 
     # ── Stage 2: Rule-based Semantic Analysis ─────────────────────────
+    t0 = time.perf_counter()
     guard_result = _guard.analyse(redact_result.text)   # type: ignore[union-attr]
+    timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
 
     if guard_result.flags:
         log.warning(
@@ -378,8 +364,10 @@ async def filter_content(
         )
 
     # ── Stage 2b: ML Semantic Brain (async, per-tenant) ───────────────
+    t0 = time.perf_counter()
     brain_guard = _get_tenant_guard(tenant_id)
     brain_result = await brain_guard.check_async(redact_result.text)
+    timings["ml"] = round((time.perf_counter() - t0) * 1000, 2)
 
     if brain_result.is_jailbreak:
         ml_risk = (
@@ -418,6 +406,7 @@ async def filter_content(
     if (
         not allowed
         and _evolve is not None
+        and background_tasks is not None
         and _RISK_ORDER.index(guard_result.risk_level) >= _RISK_ORDER.index(RiskLevel.HIGH)
     ):
         background_tasks.add_task(
@@ -426,12 +415,10 @@ async def filter_content(
             flags      = guard_result.flags,
             risk_level = guard_result.risk_level,
         )
-        log.info(
-            json.dumps({"event": "evolution_queued", "request_id": rid})
-        )
+        log.info(json.dumps({"event": "evolution_queued", "request_id": rid}))
 
     # ── Stage 4b: Real-time alerting ──────────────────────────────────
-    if not allowed:
+    if not allowed and background_tasks is not None:
         try:
             from warden.alerting import alert_block_event
             top_flag = guard_result.top_flag
@@ -446,6 +433,7 @@ async def filter_content(
             pass
 
     elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+    timings["total"] = elapsed_ms
     log.info(
         json.dumps({
             "event":      "filter_done",
@@ -456,7 +444,7 @@ async def filter_content(
         })
     )
 
-    # ── Stage 5: Analytics logging ────────────────────────────────────
+    # ── Analytics logging ─────────────────────────────────────────────
     try:
         entry = event_logger.build_entry(
             request_id    = rid,
@@ -472,12 +460,13 @@ async def filter_content(
     except Exception:
         log.exception(json.dumps({"event": "analytics_error", "request_id": rid}))
 
-    # ── Stage 6: SIEM integration ─────────────────────────────────────
-    try:
-        from warden.analytics.siem import ship_event
-        background_tasks.add_task(ship_event, entry)  # type: ignore[possibly-undefined]
-    except ImportError:
-        pass
+    # ── SIEM integration ──────────────────────────────────────────────
+    if background_tasks is not None:
+        try:
+            from warden.analytics.siem import ship_event
+            background_tasks.add_task(ship_event, entry)  # type: ignore[possibly-undefined]
+        except ImportError:
+            pass
 
     response = FilterResponse(
         allowed          = allowed,
@@ -486,13 +475,70 @@ async def filter_content(
         secrets_found    = redact_result.findings,
         semantic_flags   = guard_result.flags,
         reason           = reason,
+        processing_ms    = timings,
     )
 
-    # ── Stage 7: Cache write ──────────────────────────────────────────
+    # ── Cache write ───────────────────────────────────────────────────
     if allowed:
         set_cached(payload.content, response.model_dump_json())
 
     return response
+
+
+# ── /filter ───────────────────────────────────────────────────────────────────
+
+@app.post(
+    "/filter",
+    response_model=FilterResponse,
+    tags=["filter"],
+    summary="Filter raw content through the Warden pipeline",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit(f"{_RATE_LIMIT}/minute")
+async def filter_content(
+    payload:          FilterRequest,
+    request:          Request,
+    background_tasks: BackgroundTasks,
+    auth:             AuthResult = Depends(require_api_key),
+) -> FilterResponse:
+    rid = getattr(request.state, "request_id", "-")
+    return await _run_filter_pipeline(payload, rid, auth, background_tasks)
+
+
+# ── /filter/batch ─────────────────────────────────────────────────────────────
+
+_MAX_BATCH_SIZE = int(os.getenv("MAX_BATCH_SIZE", "50"))
+
+
+class _BatchRequest(BaseModel):
+    items: list[FilterRequest] = Field(..., min_length=1, max_length=_MAX_BATCH_SIZE)
+
+
+class _BatchResponse(BaseModel):
+    results: list[FilterResponse]
+
+
+@app.post(
+    "/filter/batch",
+    response_model=_BatchResponse,
+    tags=["filter"],
+    summary="Filter multiple items in a single request (up to 50)",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit(f"{_RATE_LIMIT}/minute")
+async def filter_batch(
+    payload:          _BatchRequest,
+    request:          Request,
+    background_tasks: BackgroundTasks,
+    auth:             AuthResult = Depends(require_api_key),
+) -> _BatchResponse:
+    rid_base = getattr(request.state, "request_id", str(uuid.uuid4()))
+    results = []
+    for i, item in enumerate(payload.items):
+        rid = f"{rid_base}:batch-{i}"
+        resp = await _run_filter_pipeline(item, rid, auth, background_tasks)
+        results.append(resp)
+    return _BatchResponse(results=results)
 
 
 # ── GDPR endpoints ────────────────────────────────────────────────────────────
@@ -512,11 +558,6 @@ class _GdprPurgeRequest(BaseModel):
     dependencies=[Depends(require_api_key)],
 )
 async def gdpr_export(body: _GdprExportRequest):
-    """
-    Return the log metadata recorded for a specific *request_id*.
-
-    No prompt content is ever stored — only metadata (flags, timing, lengths).
-    """
     entry = event_logger.read_by_request_id(body.request_id)
     if entry is None:
         raise JSONResponse(
@@ -533,12 +574,6 @@ async def gdpr_export(body: _GdprExportRequest):
     dependencies=[Depends(require_api_key)],
 )
 async def gdpr_purge(body: _GdprPurgeRequest):
-    """
-    Remove all log entries whose timestamp is strictly before *before*.
-
-    Use this to honour GDPR right-to-erasure requests.  Returns the
-    count of entries removed.
-    """
     try:
         before_dt = datetime.fromisoformat(body.before)
     except ValueError:

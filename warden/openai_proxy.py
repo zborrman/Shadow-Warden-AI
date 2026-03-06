@@ -28,7 +28,7 @@ import os
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import AuthResult, require_api_key
 
 log = logging.getLogger("warden.openai_proxy")
 
@@ -42,7 +42,7 @@ _FILTER_URL = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
 async def proxy_chat(
     payload:  dict,
     request:  Request,
-    _api_key: str = Depends(require_api_key),
+    auth: AuthResult = Depends(require_api_key),
 ):
     """
     OpenAI /v1/chat/completions proxy.
@@ -71,7 +71,7 @@ async def proxy_chat(
             filter_resp = await client.post(
                 f"{_FILTER_URL}/filter",
                 json={"content": user_content},
-                headers={"X-API-Key": _api_key} if _api_key else {},
+                headers={"X-API-Key": auth.api_key} if auth.api_key else {},
             )
         filter_data = filter_resp.json()
     except Exception as exc:
@@ -119,7 +119,7 @@ async def proxy_chat(
 @router.get("/models")
 async def list_models(
     request:  Request,
-    _api_key: str = Depends(require_api_key),
+    auth: AuthResult = Depends(require_api_key),
 ):
     """Proxy GET /v1/models to the upstream transparently."""
     auth_header = request.headers.get("Authorization", "")
