@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import time
 
 log = logging.getLogger("warden.cache")
 
@@ -78,3 +79,25 @@ def set_cached(content: str, response_json: str) -> None:
         r.setex(_key(content), _TTL, response_json)
     except Exception as exc:  # noqa: BLE001
         log.debug("Cache set error: %s", exc)
+
+
+def check_tenant_rate_limit(tenant_id: str, limit: int) -> bool:
+    """Return True if *tenant_id* has exceeded *limit* requests in the current minute.
+
+    Uses a sliding 1-minute window keyed by tenant and the current UTC minute.
+    Fail-open: returns False (allow) when Redis is unavailable.
+    """
+    r = _get_client()
+    if r is None:
+        return False
+
+    window = int(time.time() // 60)
+    key = f"warden:rate:{tenant_id}:{window}"
+    try:
+        count = r.incr(key)
+        if count == 1:
+            r.expire(key, 60)
+        return count > limit
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Tenant rate limit check error: %s", exc)
+        return False

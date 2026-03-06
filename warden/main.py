@@ -49,7 +49,7 @@ from warden.analytics import logger as event_logger
 from warden.auth_guard import AuthResult, require_api_key
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
-from warden.cache import get_cached, set_cached
+from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.obfuscation import decode as decode_obfuscation
 from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
 from warden.secret_redactor import SecretRedactor
@@ -102,6 +102,19 @@ _limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=os.getenv("REDIS_URL", "redis://redis:6379/0"),
 )
+
+# Per-tenant rate limits (requests/minute).
+# Override per-tenant via JSON env var, e.g.:
+#   TENANT_RATE_LIMITS='{"premium": 300, "trial": 10}'
+_DEFAULT_TENANT_RATE = int(os.getenv("TENANT_RATE_LIMIT", "60"))
+_TENANT_RATE_OVERRIDES: dict[str, int] = {}
+try:
+    import json as _json
+    _raw = os.getenv("TENANT_RATE_LIMITS", "")
+    if _raw:
+        _TENANT_RATE_OVERRIDES = {k: int(v) for k, v in _json.loads(_raw).items()}
+except Exception:
+    log.warning("Could not parse TENANT_RATE_LIMITS env var — using default for all tenants.")
 
 # ── Dynamic rules path ────────────────────────────────────────────────────────
 
@@ -298,6 +311,20 @@ async def _run_filter_pipeline(
     # Use tenant_id from auth if available, else from payload
     tenant_id = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
     strict = payload.strict or (_guard.strict if _guard else False)
+
+    # ── Per-tenant rate limit ───────────────────────────────────────────
+    tenant_limit = _TENANT_RATE_OVERRIDES.get(tenant_id, _DEFAULT_TENANT_RATE)
+    if check_tenant_rate_limit(tenant_id, tenant_limit):
+        log.warning(json.dumps({
+            "event": "tenant_rate_limit_exceeded",
+            "request_id": rid,
+            "tenant_id": tenant_id,
+            "limit_per_minute": tenant_limit,
+        }))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Tenant '{tenant_id}' rate limit exceeded ({tenant_limit} req/min).",
+        )
 
     log.info(
         json.dumps({
