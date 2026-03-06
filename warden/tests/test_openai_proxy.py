@@ -8,7 +8,7 @@ call is also mocked so these tests exercise only the proxy logic.
 """
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -57,7 +57,7 @@ def test_chat_blocked_returns_403(client) -> None:
         "processing_ms": {},
     }
 
-    mock_resp = AsyncMock()
+    mock_resp = MagicMock()
     mock_resp.json.return_value = filter_response
 
     with patch("warden.openai_proxy.httpx.AsyncClient") as mock_client:
@@ -103,7 +103,7 @@ def test_chat_allowed_forwards_to_upstream(client) -> None:
     async def fake_post(url, **kwargs):
         nonlocal call_count
         call_count += 1
-        mock = AsyncMock()
+        mock = MagicMock()
         if "/filter" in url:
             mock.json.return_value = filter_response
         else:
@@ -162,7 +162,7 @@ def test_models_proxied(client) -> None:
         "object": "list",
         "data": [{"id": "gpt-4", "object": "model"}],
     }
-    mock_resp = AsyncMock()
+    mock_resp = MagicMock()
     mock_resp.json.return_value = upstream_models
 
     with patch("warden.openai_proxy.httpx.AsyncClient") as mock_client:
