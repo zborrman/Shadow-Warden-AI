@@ -12,6 +12,9 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
  ┌─────────┐     POST /filter      ┌─────────────────────────────────────────┐
  │  app/   │ ──────────────────►  │  Warden Gateway (FastAPI :8001)          │
  └─────────┘                      │                                          │
+                                  │  0. ObfuscationDecoder (base64·hex·      │
+                                  │     ROT13·homoglyphs pre-filter)         │
+                                  │                                          │
                                   │  1. SecretRedactor  (regex — API keys,   │
                                   │     emails, SSNs, IBANs, credit cards)   │
                                   │                                          │
@@ -66,8 +69,8 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-org/shadow-warden-ai.git
-cd shadow-warden-ai
+git clone https://github.com/zborrman/Shadow-Warden-AI.git
+cd Shadow-Warden-AI
 ```
 
 ### 2. Configure environment
@@ -276,13 +279,15 @@ For your GDPR Article 30 documentation:
 
 ### Detection layers
 
-1. **SecretRedactor** — Regex patterns for 13+ secret types (API keys, credit cards, SSNs, IBANs, PEM blocks). Runs first — secrets are stripped before semantic analysis.
+1. **ObfuscationDecoder** — Pre-filter that decodes Base64, hex, ROT13, and Unicode homoglyphs (Cyrillic/Greek/Fullwidth → ASCII) before passing to downstream stages. Attackers cannot hide encoded payloads — the decoded text is appended for analysis while the original is preserved for logging.
 
-2. **SemanticGuard** — `all-MiniLM-L6-v2` cosine similarity against a curated corpus of jailbreak examples. Threshold configurable per deployment. Falls back to rule-based detection.
+2. **SecretRedactor** — Regex patterns for 15+ secret types (API keys, credit cards, SSNs, IBANs, PEM blocks). Strips secrets from the combined (original + decoded) text before semantic analysis.
 
-3. **BrowserSandbox** (active defense) — Playwright headless Chromium for multi-step security audits. Uses `Context7Manager` to maintain a rolling 7-interaction audit window.
+3. **SemanticGuard** — Dual-layer: regex rule engine (compound risk escalation: 3+ MEDIUM → HIGH) plus `all-MiniLM-L6-v2` cosine similarity. Threshold configurable per deployment.
 
-4. **EvolutionEngine** — When a HIGH/BLOCK-severity attack is detected, Claude Opus analyses the attack pattern and generates a new detection rule. Rules are hot-loaded into the running corpus without restart.
+4. **BrowserSandbox** (active defense) — Playwright headless Chromium for multi-step security audits. Uses `Context7Manager` to maintain a rolling 7-interaction audit window.
+
+5. **EvolutionEngine** — When a HIGH/BLOCK-severity attack is detected, Claude Opus analyses the attack pattern and generates a new detection rule. Rules are hot-loaded into the running corpus without restart.
 
 ### Risk levels
 
@@ -375,19 +380,28 @@ shadow-warden-ai/
 ├── warden/                     # Warden gateway package
 │   ├── Dockerfile              # Playwright + CPU torch base
 │   ├── requirements.txt
-│   ├── main.py                 # FastAPI app — /filter endpoint
-│   ├── schemas.py              # Pydantic models
-│   ├── secret_redactor.py      # Regex-based PII/secret stripper
-│   ├── semantic_guard.py       # Rule-based semantic analyser
+│   ├── requirements-lock.txt   # Pinned transitive deps for reproducible builds
+│   ├── main.py                 # FastAPI app — /filter, /filter/batch, GDPR endpoints
+│   ├── schemas.py              # Pydantic models (FilterRequest, FilterResponse, RiskLevel)
+│   ├── obfuscation.py          # Pre-filter: base64 · hex · ROT13 · homoglyphs
+│   ├── secret_redactor.py      # Regex-based PII/secret stripper (15 patterns)
+│   ├── semantic_guard.py       # Rule-based semantic analyser + compound escalation
+│   ├── auth_guard.py           # X-API-Key auth, per-tenant keys, constant-time compare
+│   ├── cache.py                # Redis SHA-256 content-hash cache (5-min TTL)
+│   ├── alerting.py             # Real-time alerts — Slack + PagerDuty
+│   ├── openai_proxy.py         # OpenAI-compatible /v1/chat/completions proxy
 │   ├── brain/
-│   │   ├── semantic.py         # ML jailbreak detector (MiniLM)
+│   │   ├── semantic.py         # ML jailbreak detector (MiniLM, async ThreadPoolExecutor)
 │   │   ├── redactor.py         # ML-aware PII scrubber
-│   │   └── evolve.py           # Evolution Loop (Claude Opus)
+│   │   └── evolve.py           # Evolution Loop (Claude Opus, streaming + adaptive thinking)
 │   ├── tools/
 │   │   └── browser.py          # Playwright browser sandbox
+│   ├── integrations/
+│   │   └── langchain_callback.py  # LangChain WardenCallback duck-typed integration
 │   ├── analytics/
-│   │   ├── logger.py           # NDJSON GDPR-compliant logger
-│   │   └── dashboard.py        # Streamlit dashboard
+│   │   ├── logger.py           # NDJSON GDPR-compliant logger + purge/export
+│   │   ├── dashboard.py        # Streamlit dashboard (auto-refresh, GDPR-safe)
+│   │   └── siem.py             # Splunk HEC + Elastic ECS SIEM integration
 │   └── nginx/
 │       └── nginx.conf          # Reverse proxy config
 └── app/                        # Your application (add your Dockerfile here)
@@ -398,6 +412,11 @@ shadow-warden-ai/
 ## Roadmap
 
 ### Shipped ✅
+- **Obfuscation decoder** pre-filter (Base64 · hex · ROT13 · Unicode homoglyphs)
+- **Per-tenant API keys** with `X-API-Key` header authentication
+- **Batch filter endpoint** (`POST /filter/batch`, up to 50 items)
+- **Per-stage timing** in every `/filter` response (`processing_ms` dict)
+- **Health degradation** endpoint (`/health/degraded` — ML model failure detection)
 - Prometheus `/metrics` endpoint + Grafana dashboard + alerting rules
 - SIEM integration (Splunk HEC + Elastic ECS)
 - Rate limiting (60 req/min per IP, Redis-backed)
@@ -407,6 +426,7 @@ shadow-warden-ai/
 - Real-time alerting (Slack + PagerDuty)
 - Non-root Docker user, CSP security headers
 - CI coverage gate (≥ 75%), mutation testing
+- Pinned dependency lockfile (`requirements-lock.txt`)
 
 ### Planned
 - [ ] mTLS between internal services
