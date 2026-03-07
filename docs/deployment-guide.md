@@ -27,6 +27,7 @@
 19. [Health Checks & Smoke Tests](#19-health-checks--smoke-tests)
 20. [Troubleshooting](#20-troubleshooting)
 21. [Air-Gapped / Offline Deployments](#21-air-gapped--offline-deployments)
+22. [VPS / Single-Server Deployment (Docker Compose)](#22-vps--single-server-deployment-docker-compose)
 
 ---
 
@@ -1601,4 +1602,153 @@ kubectl rollout restart deployment/shadow-warden-warden -n shadow-warden
 
 # Scale manually
 kubectl scale deployment/shadow-warden-warden -n shadow-warden --replicas=5
+```
+
+---
+
+## 22. VPS / Single-Server Deployment (Docker Compose)
+
+Use this path for a **single Linux VM** (DigitalOcean, Hetzner, AWS EC2, etc.)
+where Kubernetes is not available or not needed.
+
+### 22.1 Server Requirements
+
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| CPU | 2 vCPU | 4 vCPU |
+| RAM | 4 GB | 8 GB |
+| Disk | 20 GB SSD | 40 GB SSD |
+| OS | Ubuntu 22.04 LTS | Ubuntu 24.04 LTS |
+
+### 22.2 One-Time Server Setup
+
+Run the following as root (or with sudo) on the VPS:
+
+```bash
+# 1. Install Docker (Compose v2 is bundled)
+curl -fsSL https://get.docker.com | sh
+usermod -aG docker $USER   # add your deploy user to the docker group
+newgrp docker               # activate without logout
+
+# 2. Install git
+apt-get install -y git
+
+# 3. Clone the repository
+git clone https://github.com/<YOUR_ORG>/shadow-warden-ai.git /opt/shadow-warden
+cd /opt/shadow-warden
+
+# 4. Create and configure .env
+cp .env.example .env
+nano .env
+# Fill in at minimum:
+#   SECRET_KEY          — python -c "import secrets; print(secrets.token_hex(32))"
+#   POSTGRES_PASS       — strong random password
+#   WARDEN_API_KEY      — python -c "import secrets; print(secrets.token_hex(32))"
+#   ANTHROPIC_API_KEY   — leave blank for air-gapped mode
+#   GRAFANA_PASSWORD    — change from default "admin"
+
+# 5. Generate mTLS certificates (see §3 for details)
+bash scripts/gen_certs.sh
+
+# 6. First start (downloads ~2 GB: images + ML model)
+docker compose up -d
+
+# 7. Confirm all services are healthy
+docker compose ps
+curl http://localhost:8001/health
+```
+
+### 22.3 Automated CI/CD Deployment via GitHub Actions
+
+The CI pipeline (`.github/workflows/ci.yml`) includes a `deploy` job that runs
+automatically on every push to `main` — after all tests pass — by SSHing into
+your VPS and running `git pull + docker compose up`.
+
+#### Step 1 — Generate an ED25519 deploy key
+
+Run this **on your local machine** (not the server):
+
+```bash
+ssh-keygen -t ed25519 -C "shadow-warden-deploy" -f ~/.ssh/shadow_warden_deploy -N ""
+# Creates two files:
+#   ~/.ssh/shadow_warden_deploy      ← private key (goes into GitHub Secret)
+#   ~/.ssh/shadow_warden_deploy.pub  ← public key  (goes onto the server)
+```
+
+#### Step 2 — Authorise the key on the server
+
+```bash
+# On the VPS:
+cat ~/.ssh/shadow_warden_deploy.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+#### Step 3 — Add GitHub Secrets
+
+Go to your repository → **Settings → Secrets and variables → Actions → New repository secret**.
+Add all four secrets:
+
+| Secret name | Value |
+|-------------|-------|
+| `DEPLOY_HOST` | VPS public IP or hostname (e.g. `203.0.113.42`) |
+| `DEPLOY_USER` | SSH username (e.g. `ubuntu`, `debian`, or `root`) |
+| `DEPLOY_SSH_KEY` | Full content of `~/.ssh/shadow_warden_deploy` (private key) |
+| `DEPLOY_PATH` | Absolute path on server (e.g. `/opt/shadow-warden`) |
+
+#### Step 4 — Push to trigger the first automated deploy
+
+```bash
+git push origin main
+```
+
+Go to your repository → **Actions** → select the latest **CI** run →
+watch the `Deploy to VPS` job. A green tick means the server is live.
+
+### 22.4 What the deploy job does
+
+1. Waits for `test`, `lint`, and `docker-build` to pass.
+2. SSHes into `DEPLOY_HOST` as `DEPLOY_USER`.
+3. `cd DEPLOY_PATH && git pull origin main` — fetches new code.
+4. `docker compose pull --quiet` — pulls any updated base images.
+5. `docker compose up -d --remove-orphans` — restarts only changed services.
+6. Polls `GET /health` for up to 2 minutes to confirm the warden is up.
+7. Dumps `docker compose logs warden` and fails the job if health check times out.
+
+> ⚠️ The deploy job only runs on `push` to `main` — not on pull requests or
+> feature branches.
+
+### 22.5 Manual deploy (without CI)
+
+```bash
+ssh user@your-vps
+cd /opt/shadow-warden
+git pull origin main
+docker compose up -d --remove-orphans
+curl http://localhost:8001/health
+```
+
+### 22.6 Viewing logs on the VPS
+
+```bash
+# All services
+docker compose logs -f
+
+# Warden only (most useful for debugging filter decisions)
+docker compose logs -f warden
+
+# Last 100 lines of a specific service
+docker compose logs --tail 100 analytics
+```
+
+### 22.7 Firewall recommendations
+
+Expose only what your clients need. Block everything else with `ufw`:
+
+```bash
+ufw default deny incoming
+ufw allow ssh         # port 22
+ufw allow 443         # nginx HTTPS (proxy service)
+ufw allow 80          # optional: HTTP → redirect to HTTPS
+# Internal ports (8001, 8501, 8502, 3000, 9090) should NOT be public
+ufw enable
 ```
