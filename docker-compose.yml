@@ -81,6 +81,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
       - MODEL_CACHE_DIR=/warden/models
+      - HF_HOME=/warden/models
       - SEMANTIC_THRESHOLD=${SEMANTIC_THRESHOLD:-0.72}
       - STRICT_MODE=${STRICT_MODE:-false}
       # Evolution Loop — set to enable automated rule generation via Claude Opus.

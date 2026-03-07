@@ -50,6 +50,7 @@ RUN mkdir -p /warden/models && chown wardenuser:warden /warden/models
 
 # ── Runtime environment ───────────────────────────────────────────────────────
 ENV MODEL_CACHE_DIR=/warden/models
+ENV HF_HOME=/warden/models
 ENV PYTHONUNBUFFERED=1
 # Package lives at /warden/ — add / to sys.path so `import warden` resolves.
 ENV PYTHONPATH=/
