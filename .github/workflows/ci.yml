@@ -292,16 +292,22 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          # Write key to temp file
-          echo "$DEPLOY_KEY" > /tmp/deploy_key
+          # Strip whitespace/newlines from secrets to prevent SSH errors
+          SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
+          SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
+          SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
+
+          # Write key preserving exact newlines
+          printf '%s\n' "$DEPLOY_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
+          # $SSH_PATH expands on runner side; \$ variables run on server
           ssh -i /tmp/deploy_key \
             -o StrictHostKeyChecking=no \
             -o BatchMode=yes \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s << 'ENDSSH'
+            "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
           set -euo pipefail
-          cd "${DEPLOY_PATH}"
+          cd "$SSH_PATH"
 
           echo "── [1/4] Pull latest code ──────────────────────────────────"
           git pull origin main
@@ -313,15 +319,15 @@ jobs:
           docker compose up -d --remove-orphans
 
           echo "── [4/4] Verify warden health ──────────────────────────────"
-          for i in $(seq 1 24); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          for i in \$(seq 1 24); do
+            STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \
               http://localhost:8001/health 2>/dev/null || echo 000)
-            if [ "$STATUS" = "200" ]; then
-              BODY=$(curl -sf http://localhost:8001/health)
-              echo "  Warden healthy after ${i}×5 s  →  $BODY"
+            if [ "\$STATUS" = "200" ]; then
+              BODY=\$(curl -sf http://localhost:8001/health)
+              echo "  Warden healthy after \${i}x5 s  ->  \$BODY"
               exit 0
             fi
-            echo "  attempt $i/24 — HTTP $STATUS — waiting 5 s …"
+            echo "  attempt \$i/24 -- HTTP \$STATUS -- waiting 5 s"
             sleep 5
           done
           echo "ERROR: /health did not return 200 within 2 minutes after deploy"
