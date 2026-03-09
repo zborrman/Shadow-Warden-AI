@@ -12,13 +12,19 @@ Covers:
   • IBAN / bank account numbers
   • Email addresses  (GDPR PII)
   • IPv4 addresses flagged in strict mode
+
+Redaction policies (RedactionPolicy):
+  • FULL   — replace entirely with [REDACTED:<kind>]  (default)
+  • MASKED — keep last 4 non-sensitive chars for audit roles
+             e.g. ****-****-****-1234, j***@example.com
+  • RAW    — detect only; leave content unchanged (service-to-service)
 """
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
 
-from warden.schemas import SecretFinding
+from warden.schemas import RedactionPolicy, SecretFinding
 
 # ── Pattern registry ──────────────────────────────────────────────────────────
 
@@ -26,7 +32,7 @@ from warden.schemas import SecretFinding
 class _Pattern:
     kind:        str
     regex:       re.Pattern[str]
-    token:       str        # replacement placeholder
+    token:       str        # FULL-mode replacement placeholder
     pii:         bool = False   # GDPR personal-data flag
 
 
@@ -115,6 +121,10 @@ _PATTERNS: list[_Pattern] = [
              pii=True),
 ]
 
+# ── Token lookup (used by both FULL and MASKED helpers) ───────────────────────
+
+_TOKEN: dict[str, str] = {p.kind: p.token for p in _PATTERNS}
+
 
 # ── Luhn check (credit cards) ─────────────────────────────────────────────────
 
@@ -128,6 +138,49 @@ def _luhn_valid(number: str) -> bool:
                 d -= 9
         total += d
     return total % 10 == 0
+
+
+# ── Masked replacement builder ────────────────────────────────────────────────
+
+def _mask_value(matched: str, kind: str) -> str:
+    """
+    Build a MASKED replacement that reveals only the minimum needed for
+    audit/admin use-cases — never enough to reconstruct the original secret.
+
+    Rules by kind:
+      credit_card      → ****-****-****-<last4 digits>
+      email            → <first char>***@<domain>
+      us_ssn           → ***-**-<last4 digits>
+      iban             → [MASKED:iban:...<last4 alphanum>]
+      private_key_block→ [MASKED:private_key]          (never reveal any part)
+      url_credentials  → [MASKED:url_credentials]://   (never reveal credentials)
+      everything else  → [MASKED:<kind>:...<last4 alphanum>]
+    """
+    if kind == "credit_card":
+        digits = re.sub(r"\D", "", matched)
+        last4 = digits[-4:] if len(digits) >= 4 else digits
+        return f"****-****-****-{last4}"
+
+    if kind == "email":
+        local, _, domain = matched.partition("@")
+        first = local[0] if local else "*"
+        return f"{first}***@{domain}"
+
+    if kind == "us_ssn":
+        digits = re.sub(r"\D", "", matched)
+        last4 = digits[-4:] if len(digits) >= 4 else digits
+        return f"***-**-{last4}"
+
+    if kind == "private_key_block":
+        return "[MASKED:private_key]"
+
+    if kind == "url_credentials":
+        return "[MASKED:url_credentials]://"
+
+    # Generic: last 4 alphanumeric characters of the matched text
+    alphanum = re.sub(r"[^A-Za-z0-9]", "", matched)
+    last4 = alphanum[-4:] if len(alphanum) >= 4 else alphanum
+    return f"[MASKED:{kind}:...{last4}]"
 
 
 # ── SecretRedactor ────────────────────────────────────────────────────────────
@@ -144,6 +197,18 @@ class SecretRedactor:
         safe_text    = result.text
         findings     = result.findings   # list[SecretFinding]
         contains_pii = result.has_pii
+
+    Redaction policy::
+
+        # Default — replace entirely:
+        result = redactor.redact(text)
+        result = redactor.redact(text, RedactionPolicy.FULL)
+
+        # Admin/audit — keep last 4 chars:
+        result = redactor.redact(text, RedactionPolicy.MASKED)
+
+        # Internal service — detect only, no replacement:
+        result = redactor.redact(text, RedactionPolicy.RAW)
     """
 
     strict: bool = False   # when True, also redacts IPs and raises on any PII
@@ -166,8 +231,23 @@ class SecretRedactor:
 
     # ── Public API ────────────────────────────────────────────────────────
 
-    def redact(self, text: str) -> SecretRedactor.Result:
+    def redact(
+        self,
+        text: str,
+        policy: RedactionPolicy = RedactionPolicy.FULL,
+    ) -> SecretRedactor.Result:
+        """
+        Scan *text* for secrets/PII and apply *policy*:
+
+        * ``FULL``   — replace matches with opaque tokens (default).
+        * ``MASKED`` — replace with partially-revealed tokens (last 4 chars).
+        * ``RAW``    — detect only; return original text unchanged.
+        """
         findings: list[SecretFinding] = []
+        # Maps (start, end) → original matched text; needed for MASKED calculation
+        # when we apply replacements in reverse order.
+        _matched: dict[tuple[int, int], str] = {}
+
         for pat in _PATTERNS:
             # IPv4 only redacted in strict mode
             if pat.kind == "ipv4" and not self.strict:
@@ -180,26 +260,37 @@ class SecretRedactor:
                     if not _luhn_valid(raw):
                         continue
 
-                original_start = match.start()
-                original_end   = match.end()
+                start, end = match.start(), match.end()
+                _matched[(start, end)] = match.group()
 
                 findings.append(SecretFinding(
                     kind=pat.kind,
-                    start=original_start,
-                    end=original_end,
-                    redacted_to=pat.token,
+                    start=start,
+                    end=end,
+                    redacted_to=_TOKEN[pat.kind],  # updated below for non-FULL
                 ))
 
-        # Apply replacements in reverse order so offsets stay valid
+        # Apply replacements right-to-left so earlier offsets stay valid
         findings.sort(key=lambda f: f.start, reverse=True)
-        for finding in findings:
-            # Find which pattern owns this finding
-            token = next(
-                p.token for p in _PATTERNS if p.kind == finding.kind
-            )
-            text = text[:finding.start] + token + text[finding.end:]
 
-        # Re-sort findings into document order for the response
+        for finding in findings:
+            matched_text = _matched[(finding.start, finding.end)]
+
+            if policy is RedactionPolicy.RAW:
+                # Detect only — no text modification
+                finding.redacted_to = f"[DETECTED:{finding.kind}]"
+                continue
+
+            if policy is RedactionPolicy.MASKED:
+                replacement = _mask_value(matched_text, finding.kind)
+            else:
+                # FULL (default)
+                replacement = _TOKEN[finding.kind]
+
+            finding.redacted_to = replacement
+            text = text[: finding.start] + replacement + text[finding.end :]
+
+        # Re-sort findings into document order for the caller
         findings.sort(key=lambda f: f.start)
 
         return SecretRedactor.Result(text=text, findings=findings)

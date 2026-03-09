@@ -364,7 +364,7 @@ async def _run_filter_pipeline(
 
     # ── Stage 1: Secret Redaction ──────────────────────────────────────
     t0 = time.perf_counter()
-    redact_result = _redactor.redact(analysis_text)   # type: ignore[union-attr]
+    redact_result = _redactor.redact(analysis_text, payload.redaction_policy)   # type: ignore[union-attr]
     timings["redaction"] = round((time.perf_counter() - t0) * 1000, 2)
 
     if redact_result.findings:
@@ -494,13 +494,14 @@ async def _run_filter_pipeline(
             pass
 
     response = FilterResponse(
-        allowed          = allowed,
-        risk_level       = guard_result.risk_level,
-        filtered_content = redact_result.text,
-        secrets_found    = redact_result.findings,
-        semantic_flags   = guard_result.flags,
-        reason           = reason,
-        processing_ms    = timings,
+        allowed                  = allowed,
+        risk_level               = guard_result.risk_level,
+        filtered_content         = redact_result.text,
+        secrets_found            = redact_result.findings,
+        semantic_flags           = guard_result.flags,
+        reason                   = reason,
+        redaction_policy_applied = payload.redaction_policy,
+        processing_ms            = timings,
     )
 
     # ── Cache write ───────────────────────────────────────────────────
