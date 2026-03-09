@@ -320,10 +320,10 @@ jobs:
 
           echo "── [4/4] Verify warden health ──────────────────────────────"
           for i in \$(seq 1 24); do
-            STATUS=\$(curl -s -o /dev/null -w "%{http_code}" \
+            STATUS=\$(docker exec warden-gateway curl -s -o /dev/null -w "%{http_code}" \
               http://localhost:8001/health 2>/dev/null || echo 000)
             if [ "\$STATUS" = "200" ]; then
-              BODY=\$(curl -sf http://localhost:8001/health)
+              BODY=\$(docker exec warden-gateway curl -sf http://localhost:8001/health)
               echo "  Warden healthy after \${i}x5 s  ->  \$BODY"
               exit 0
             fi
