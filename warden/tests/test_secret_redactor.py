@@ -6,11 +6,16 @@ True-positive and false-negative tests for SecretRedactor.
 Each secret type gets:
   - At least one TP test (must be caught)
   - At least one FP test (clean text must pass through unchanged)
+
+Redaction policy tests cover FULL / MASKED / RAW for every secret category.
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 
+from warden.schemas import RedactionPolicy
 from warden.secret_redactor import SecretRedactor
 
 r = SecretRedactor()
@@ -161,3 +166,216 @@ def test_anthropic_not_double_flagged_as_openai() -> None:
     assert "anthropic_api_key" in kinds
     # Should be flagged as anthropic, not openai (ordering matters)
     assert kinds[0] == "anthropic_api_key"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RedactionPolicy tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── FULL policy: same as default behaviour ────────────────────────────────────
+
+@pytest.mark.parametrize("text,kind", [
+    ("sk-abcdefghijklmnopqrstuvwx",       "openai_key"),
+    ("4532015112830366",                   "credit_card"),
+    ("user@example.com",                   "email"),
+    ("123-45-6789",                        "us_ssn"),
+    ("GB29NWBK60161331926819",             "iban"),
+    ("ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ123456", "github_token"),
+    ("Bearer eyJhbGciOiJIUzI1NiJ9.t.s",   "bearer_token"),
+    ("postgres://user:s3cr3t@host/db",     "url_credentials"),
+    (
+        "-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----",
+        "private_key_block",
+    ),
+])
+def test_full_policy_replaces_secret(text: str, kind: str) -> None:
+    result = r.redact(text, RedactionPolicy.FULL)
+    assert result.findings, f"No findings for kind={kind!r}"
+    assert text not in result.text, "Original secret must not appear in output"
+    assert result.findings[0].redacted_to.startswith("[REDACTED:"), (
+        f"FULL token should start with [REDACTED:, got {result.findings[0].redacted_to!r}"
+    )
+
+
+def test_full_is_default() -> None:
+    """Calling redact() without policy must behave identically to FULL."""
+    text = "sk-abcdefghijklmnopqrstuvwx"
+    assert r.redact(text).text == r.redact(text, RedactionPolicy.FULL).text
+
+
+# ── MASKED policy: partial reveal ─────────────────────────────────────────────
+
+def test_masked_credit_card_format() -> None:
+    # Luhn-valid Visa: 4532015112830366 → last 4 digits = 0366
+    result = r.redact("4532015112830366", RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    assert re.fullmatch(r"\*{4}-\*{4}-\*{4}-\d{4}", replacement), (
+        f"Credit card mask must match ****-****-****-XXXX, got {replacement!r}"
+    )
+    # Last 4 digits preserved correctly
+    assert replacement.endswith("-0366")
+    # Original must not appear
+    assert "4532015112830366" not in result.text
+
+
+def test_masked_email_keeps_domain() -> None:
+    result = r.redact("john.doe@example.com", RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    # Domain must be preserved
+    assert replacement.endswith("@example.com"), (
+        f"Email mask must preserve domain, got {replacement!r}"
+    )
+    # Local part must be partially hidden
+    assert "***" in replacement
+    # First char preserved
+    assert replacement.startswith("j")
+    # Full original must not appear
+    assert "john.doe" not in result.text
+
+
+def test_masked_ssn_keeps_last_four() -> None:
+    result = r.redact("123-45-6789", RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    assert replacement == "***-**-6789", (
+        f"SSN mask must be ***-**-XXXX, got {replacement!r}"
+    )
+    assert "123-45" not in result.text
+
+
+def test_masked_api_key_keeps_last_four_alphanum() -> None:
+    # Last 4 alphanum of "sk-abcdefghijklmnopqrstuvwx" are "uvwx"
+    result = r.redact("sk-abcdefghijklmnopqrstuvwx", RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    assert replacement.startswith("[MASKED:openai_key:...")
+    assert replacement.endswith("uvwx]"), (
+        f"Masked key must end with last 4 alphanum chars, got {replacement!r}"
+    )
+    assert "sk-abcdefghijklmnopqrstuvwx" not in result.text
+
+
+def test_masked_private_key_never_reveals_content() -> None:
+    pem = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQ==\n-----END RSA PRIVATE KEY-----"
+    result = r.redact(pem, RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    # Must not reveal any key material
+    assert "MIIE" not in replacement
+    assert replacement == "[MASKED:private_key]"
+
+
+def test_masked_url_credentials_never_reveals_password() -> None:
+    result = r.redact("postgres://admin:s3cr3t@db.host/prod", RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    assert "s3cr3t" not in replacement
+    assert "admin" not in replacement
+    assert replacement == "[MASKED:url_credentials]://"
+
+
+@pytest.mark.parametrize("text,kind", [
+    ("GB29NWBK60161331926819",             "iban"),
+    ("ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ123456", "github_token"),
+    ("AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz12345", "gcp_api_key"),
+    ("Bearer eyJhbGciOiJIUzI1NiJ9.test.sig", "bearer_token"),
+])
+def test_masked_generic_keeps_last_four(text: str, kind: str) -> None:
+    result = r.redact(text, RedactionPolicy.MASKED)
+    assert result.findings, f"No findings for kind={kind!r}"
+    replacement = result.findings[0].redacted_to
+    assert replacement.startswith(f"[MASKED:{kind}:..."), (
+        f"Generic mask format wrong for {kind}: {replacement!r}"
+    )
+    # Last 4 alphanum of original text must appear at the end
+    alphanum = re.sub(r"[^A-Za-z0-9]", "", text)
+    assert replacement.endswith(alphanum[-4:] + "]"), (
+        f"Last 4 chars mismatch for {kind}: {replacement!r}"
+    )
+    # Original secret must not appear verbatim
+    assert text not in result.text
+
+
+# ── RAW policy: detect only, no text modification ────────────────────────────
+
+@pytest.mark.parametrize("text,kind", [
+    ("sk-abcdefghijklmnopqrstuvwx",       "openai_key"),
+    ("4532015112830366",                   "credit_card"),
+    ("user@example.com",                   "email"),
+    ("123-45-6789",                        "us_ssn"),
+    ("GB29NWBK60161331926819",             "iban"),
+    ("ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ123456", "github_token"),
+    ("Bearer eyJhbGciOiJIUzI1NiJ9.t.s",   "bearer_token"),
+    ("postgres://user:s3cr3t@host/db",     "url_credentials"),
+    (
+        "-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----",
+        "private_key_block",
+    ),
+])
+def test_raw_policy_preserves_text(text: str, kind: str) -> None:
+    result = r.redact(text, RedactionPolicy.RAW)
+    # Text must be completely unchanged
+    assert result.text == text, (
+        f"RAW policy must not modify text for kind={kind!r}"
+    )
+    # But findings must still be populated
+    kinds = [f.kind for f in result.findings]
+    assert kind in kinds, (
+        f"RAW policy must still detect kind={kind!r}, got findings={kinds!r}"
+    )
+
+
+def test_raw_findings_use_detected_prefix() -> None:
+    result = r.redact("user@example.com", RedactionPolicy.RAW)
+    assert result.findings
+    for finding in result.findings:
+        assert finding.redacted_to.startswith("[DETECTED:"), (
+            f"RAW findings must use [DETECTED:...] prefix, got {finding.redacted_to!r}"
+        )
+
+
+def test_raw_has_secrets_still_true() -> None:
+    """has_secrets must reflect detection even when text is unchanged."""
+    result = r.redact("sk-abcdefghijklmnopqrstuvwx", RedactionPolicy.RAW)
+    assert result.has_secrets is True
+
+
+def test_raw_multi_secret_all_detected_none_replaced() -> None:
+    text = "card 4532015112830366 email user@example.com key sk-abcdefghijklmnopqrstuvwx"
+    result = r.redact(text, RedactionPolicy.RAW)
+    assert result.text == text
+    assert len(result.findings) == 3
+    for f in result.findings:
+        assert f.redacted_to.startswith("[DETECTED:")
+
+
+# ── Policy isolation: policies do not cross-contaminate ──────────────────────
+
+def test_policies_produce_independent_results() -> None:
+    """The same SecretRedactor instance must return correct results for each
+    policy when called consecutively — no shared mutable state."""
+    text = "key sk-abcdefghijklmnopqrstuvwx and card 4532015112830366"
+    full   = r.redact(text, RedactionPolicy.FULL)
+    masked = r.redact(text, RedactionPolicy.MASKED)
+    raw    = r.redact(text, RedactionPolicy.RAW)
+
+    # FULL: opaque tokens
+    assert "[REDACTED:openai_key]" in full.text
+    assert "[REDACTED:credit_card]" in full.text
+
+    # MASKED: partial reveal
+    assert "[MASKED:openai_key:..." in masked.text
+    assert "****-****-****-" in masked.text
+
+    # RAW: original text intact
+    assert raw.text == text
+
+    # Each call produced its own independent findings list
+    for f in full.findings:
+        assert f.redacted_to.startswith("[REDACTED:")
+    for f in masked.findings:
+        assert f.redacted_to.startswith(("[MASKED:", "****-", "j***@"))
+    for f in raw.findings:
+        assert f.redacted_to.startswith("[DETECTED:")
