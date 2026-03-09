@@ -32,6 +32,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.metrics import TOOL_BLOCKS
 from warden.tool_guard import ToolCallGuard
 
 log = logging.getLogger("warden.openai_proxy")
@@ -105,6 +106,11 @@ async def proxy_chat(
                 tool_call_id,
                 [t.kind for t in result.threats],
             )
+            TOOL_BLOCKS.labels(
+                direction="result",
+                tool_name=tool_name,
+                threat=result.threats[0].kind if result.threats else "unknown",
+            ).inc()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -195,6 +201,11 @@ async def proxy_chat(
                     [t.kind for t in result.threats],
                     arguments[:120] if isinstance(arguments, str) else str(arguments)[:120],
                 )
+                TOOL_BLOCKS.labels(
+                    direction="call",
+                    tool_name=tool_name,
+                    threat=result.threats[0].kind if result.threats else "unknown",
+                ).inc()
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
