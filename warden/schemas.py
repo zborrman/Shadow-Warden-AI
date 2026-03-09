@@ -28,6 +28,12 @@ class FlagType(StrEnum):
     EXCESSIVE_AGENCY   = "excessive_agency"      # LLM06 — unauthorized autonomous actions
 
 
+class RedactionPolicy(StrEnum):
+    FULL   = "full"    # replace entirely with [REDACTED_<KIND>] — default for all tenants
+    MASKED = "masked"  # keep last 4 chars: ****-****-****-1234  (admin / audit roles)
+    RAW    = "raw"     # detect but do not replace (internal service-to-service, audit logs)
+
+
 # ── Request ───────────────────────────────────────────────────────────────────
 
 class FilterRequest(BaseModel):
@@ -40,6 +46,14 @@ class FilterRequest(BaseModel):
     tenant_id: str = Field(default="default",
                            description="Tenant identifier for multi-tenant rule sets. "
                                        "Each tenant gets an isolated SemanticGuard corpus.")
+    redaction_policy: RedactionPolicy = Field(
+        default=RedactionPolicy.FULL,
+        description=(
+            "Controls how matched secrets/PII are rewritten in filtered_content. "
+            "'full' replaces entirely (default), 'masked' keeps last 4 chars, "
+            "'raw' detects but leaves content unchanged."
+        ),
+    )
 
 
 # ── Response pieces ───────────────────────────────────────────────────────────
@@ -60,13 +74,17 @@ class SemanticFlag(BaseModel):
 # ── Main response ─────────────────────────────────────────────────────────────
 
 class FilterResponse(BaseModel):
-    allowed:          bool
-    risk_level:       RiskLevel
-    filtered_content: str               = Field(..., description="Content after redaction (safe to forward).")
-    secrets_found:    list[SecretFinding] = Field(default_factory=list)
-    semantic_flags:   list[SemanticFlag]  = Field(default_factory=list)
-    reason:           str               = Field(default="", description="Summary reason if blocked.")
-    processing_ms:    dict[str, float]  = Field(
+    allowed:                  bool
+    risk_level:               RiskLevel
+    filtered_content:         str               = Field(..., description="Content after redaction (safe to forward).")
+    secrets_found:            list[SecretFinding] = Field(default_factory=list)
+    semantic_flags:           list[SemanticFlag]  = Field(default_factory=list)
+    reason:                   str               = Field(default="", description="Summary reason if blocked.")
+    redaction_policy_applied: RedactionPolicy   = Field(
+        default=RedactionPolicy.FULL,
+        description="The redaction policy that was applied to filtered_content.",
+    )
+    processing_ms:            dict[str, float]  = Field(
         default_factory=dict,
         description="Per-stage processing time in milliseconds.",
     )
