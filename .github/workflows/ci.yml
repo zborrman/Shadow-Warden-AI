@@ -286,37 +286,47 @@ jobs:
 
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # script runs on the remote server; appleboy handles key setup
-          script: |
-            set -euo pipefail
-            cd "${{ secrets.DEPLOY_PATH }}"
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          # Write key to temp file
+          echo "$DEPLOY_KEY" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
 
-            echo "── [1/4] Pull latest code ──────────────────────────────────"
-            git pull origin main
+          ssh -i /tmp/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s << 'ENDSSH'
+          set -euo pipefail
+          cd "${DEPLOY_PATH}"
 
-            echo "── [2/4] Pull updated images ───────────────────────────────"
-            docker compose pull --quiet
+          echo "── [1/4] Pull latest code ──────────────────────────────────"
+          git pull origin main
 
-            echo "── [3/4] Restart services ──────────────────────────────────"
-            docker compose up -d --remove-orphans
+          echo "── [2/4] Pull updated images ───────────────────────────────"
+          docker compose pull --quiet
 
-            echo "── [4/4] Verify warden health ──────────────────────────────"
-            for i in $(seq 1 24); do
-              STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                http://localhost:8001/health 2>/dev/null || echo 000)
-              if [ "$STATUS" = "200" ]; then
-                BODY=$(curl -sf http://localhost:8001/health)
-                echo "  Warden healthy after ${i}×5 s  →  $BODY"
-                exit 0
-              fi
-              echo "  attempt $i/24 — HTTP $STATUS — waiting 5 s …"
-              sleep 5
-            done
-            echo "ERROR: /health did not return 200 within 2 minutes after deploy"
-            docker compose logs --tail 50 warden
-            exit 1
+          echo "── [3/4] Restart services ──────────────────────────────────"
+          docker compose up -d --remove-orphans
+
+          echo "── [4/4] Verify warden health ──────────────────────────────"
+          for i in $(seq 1 24); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              http://localhost:8001/health 2>/dev/null || echo 000)
+            if [ "$STATUS" = "200" ]; then
+              BODY=$(curl -sf http://localhost:8001/health)
+              echo "  Warden healthy after ${i}×5 s  →  $BODY"
+              exit 0
+            fi
+            echo "  attempt $i/24 — HTTP $STATUS — waiting 5 s …"
+            sleep 5
+          done
+          echo "ERROR: /health did not return 200 within 2 minutes after deploy"
+          docker compose logs --tail 50 warden
+          exit 1
+          ENDSSH
+
+          rm -f /tmp/deploy_key
