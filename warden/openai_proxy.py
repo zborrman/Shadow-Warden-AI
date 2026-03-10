@@ -46,7 +46,12 @@ _FILTER_URL = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
 _tool_guard = ToolCallGuard()
 
 # Injected by main.py lifespan after AgentMonitor is created; None = monitoring disabled
-_agent_monitor = None  # type: ignore[assignment]
+try:
+    from warden.agent_monitor import AgentMonitor as _AgentMonitor
+
+    _agent_monitor: _AgentMonitor | None = None
+except ImportError:
+    _agent_monitor = None  # type: ignore[assignment]
 
 
 def _build_tool_name_map(messages: list[dict]) -> dict[str, str]:
