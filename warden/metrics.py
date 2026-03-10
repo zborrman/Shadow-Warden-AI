@@ -69,6 +69,25 @@ try:
             "warden_agent_session_blocks_total"
         )
 
+    # ── EvolutionEngine skip counter ──────────────────────────────────────────
+    # Incremented by brain/evolve.py whenever process_blocked() returns early.
+    #
+    # Label:
+    #   reason  "low_risk"    — risk below EVOLUTION_MIN_RISK threshold
+    #           "corpus_cap"  — MAX_CORPUS_RULES reached
+    #           "duplicate"   — content SHA-256 already processed this session
+    #           "rate_limited"— EVOLUTION_RATE_MAX calls/window exceeded
+    try:
+        EVOLUTION_SKIPPED_TOTAL = Counter(
+            "warden_evolution_skipped_total",
+            "EvolutionEngine calls skipped before reaching the Claude Opus API",
+            ["reason"],
+        )
+    except ValueError:
+        EVOLUTION_SKIPPED_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_evolution_skipped_total"
+        )
+
     # ── Filter-stage latency (optional extension point) ───────────────────────
     # Already covered by prometheus-fastapi-instrumentator for HTTP-level
     # latency.  No extra histogram needed here yet.
@@ -89,7 +108,8 @@ except ImportError:
         def set(self, _value: float) -> None:
             pass
 
-    TOOL_BLOCKS           = _Noop()  # type: ignore[assignment]
-    AGENT_SESSIONS_ACTIVE = _Noop()  # type: ignore[assignment]
-    AGENT_ANOMALIES_TOTAL = _Noop()  # type: ignore[assignment]
-    AGENT_SESSION_BLOCKS  = _Noop()  # type: ignore[assignment]
+    TOOL_BLOCKS             = _Noop()  # type: ignore[assignment]
+    AGENT_SESSIONS_ACTIVE   = _Noop()  # type: ignore[assignment]
+    AGENT_ANOMALIES_TOTAL   = _Noop()  # type: ignore[assignment]
+    AGENT_SESSION_BLOCKS    = _Noop()  # type: ignore[assignment]
+    EVOLUTION_SKIPPED_TOTAL = _Noop()  # type: ignore[assignment]

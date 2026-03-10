@@ -36,6 +36,8 @@ from typing import Literal
 import anthropic
 from pydantic import BaseModel, Field
 
+from warden.cache import _get_client as _get_redis
+from warden.metrics import EVOLUTION_SKIPPED_TOTAL
 from warden.schemas import RiskLevel, SemanticFlag
 
 log = logging.getLogger("warden.brain.evolve")
@@ -55,7 +57,43 @@ MAX_EVASION_VARIANTS   = 5   # cap evasion variants per rule
 MAX_EXAMPLE_LENGTH     = 500  # max chars per semantic example
 _SEEN_HASHES_CAP       = 10_000  # cap in-process dedup set
 
+# Evolution rate gate — prevent Claude Opus API cost exhaustion under flood attacks.
+# A fixed-window counter in Redis caps how many novel attacks trigger the LLM per window.
+# Fail-open: when Redis is unavailable the gate is bypassed so evolution still works.
+EVOLUTION_RATE_WINDOW  = int(os.getenv("EVOLUTION_RATE_WINDOW", "300"))  # seconds
+EVOLUTION_RATE_MAX     = int(os.getenv("EVOLUTION_RATE_MAX",    "10"))   # calls per window
+_RATE_KEY              = "warden:evolution:calls"
+
 _RISK_ORDER = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.BLOCK]
+
+
+def _is_rate_limited() -> bool:
+    """Return True when the EvolutionEngine is over its Claude Opus API budget.
+
+    Strategy: fixed-window counter stored in Redis.
+      • Key  ``warden:evolution:calls``  shared across all processes/workers.
+      • TTL  ``EVOLUTION_RATE_WINDOW`` seconds — the key auto-expires, resetting
+             the window with no cron job or scheduled cleanup needed.
+      • Cap  ``EVOLUTION_RATE_MAX`` calls per window (default 10 / 5 min).
+
+    ``INCR`` is called on every entry so the attempt is counted even when
+    rate-limited; this prevents a thundering herd from evading the cap via
+    parallel workers each staying just below the threshold.
+
+    Fail-open: returns False (allow) when Redis is unavailable or raises,
+    preserving the evolution loop in air-gapped / test environments.
+    """
+    r = _get_redis()
+    if r is None:
+        return False
+    try:
+        count = r.incr(_RATE_KEY)
+        if count == 1:
+            # First call in this window — arm the TTL so the window auto-resets.
+            r.expire(_RATE_KEY, EVOLUTION_RATE_WINDOW)
+        return int(count) > EVOLUTION_RATE_MAX
+    except Exception:  # noqa: BLE001
+        return False
 
 
 # ── Pydantic schema — what Claude must return ─────────────────────────────────
@@ -189,24 +227,44 @@ class EvolutionEngine:
 
         Returns None when:
           • risk_level is below EVOLUTION_MIN_RISK  (LOW / MEDIUM)
+          • corpus cap (MAX_CORPUS_RULES) is reached
           • this exact content was already processed (dedup by SHA-256)
+          • the call-rate cap (EVOLUTION_RATE_MAX / EVOLUTION_RATE_WINDOW) is exceeded
           • the Claude API call fails               (error logged, not raised)
         """
+        # ── 1. Risk gate ────────────────────────────────────────────────
         if _RISK_ORDER.index(risk_level) < _RISK_ORDER.index(EVOLUTION_MIN_RISK):
+            EVOLUTION_SKIPPED_TOTAL.labels(reason="low_risk").inc()
             return None
 
-        # ── Corpus growth cap ──────────────────────────────────────────
+        # ── 2. Corpus growth cap ────────────────────────────────────────
         if self._corpus_count >= MAX_CORPUS_RULES:
+            EVOLUTION_SKIPPED_TOTAL.labels(reason="corpus_cap").inc()
             log.warning(
                 "EvolutionEngine: corpus cap reached (%d/%d) — skipping evolution.",
                 self._corpus_count, MAX_CORPUS_RULES,
             )
             return None
 
+        # ── 3. Content dedup ────────────────────────────────────────────
         content_hash = hashlib.sha256(content.encode()).hexdigest()
         if content_hash in self._seen_hashes:
+            EVOLUTION_SKIPPED_TOTAL.labels(reason="duplicate").inc()
             log.debug("EvolutionEngine: duplicate — skipping %s…", content_hash[:12])
             return None
+
+        # ── 4. Rate gate — protect Claude Opus API budget ───────────────
+        # Checked AFTER dedup so replay attacks don't consume rate slots.
+        # Checked BEFORE adding to seen_hashes so rate-limited content is
+        # retried next window (it won't be marked as seen until it's processed).
+        if _is_rate_limited():
+            EVOLUTION_SKIPPED_TOTAL.labels(reason="rate_limited").inc()
+            log.warning(
+                "EvolutionEngine: rate limit reached (%d calls per %ds window) — skipping.",
+                EVOLUTION_RATE_MAX, EVOLUTION_RATE_WINDOW,
+            )
+            return None
+
         self._seen_hashes.add(content_hash)
         # Cap the dedup set to avoid unbounded memory growth
         if len(self._seen_hashes) > _SEEN_HASHES_CAP:
