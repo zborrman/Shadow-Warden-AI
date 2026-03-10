@@ -26,10 +26,10 @@ Storage:
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
-import tempfile
 import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -252,10 +252,8 @@ class AgentMonitor:
                 raw_list = r.lrange(self._r_events_key(session_id), 0, -1)
                 events = []
                 for raw in raw_list:
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         events.append(json.loads(raw))
-                    except json.JSONDecodeError:
-                        pass
                 return events
             except Exception:
                 pass
@@ -584,10 +582,8 @@ def _read_sessions_file() -> list[dict]:
                 raw = raw.strip()
                 if not raw:
                     continue
-                try:
+                with contextlib.suppress(json.JSONDecodeError):
                     sessions.append(json.loads(raw))
-                except json.JSONDecodeError:
-                    pass
     except OSError as exc:
         log.warning("AgentMonitor: could not read sessions file: %s", exc)
     return sessions

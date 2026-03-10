@@ -225,17 +225,15 @@ def _patch_http(filter_resp: dict, upstream_resp: dict):
         mock.json.return_value = filter_resp if "/filter" in url else upstream_resp
         return mock
 
-    from unittest.mock import patch as _patch, AsyncMock as _AM, MagicMock as _MM
-
-    outer = _patch("warden.openai_proxy.httpx.AsyncClient")
+    outer = patch("warden.openai_proxy.httpx.AsyncClient")
 
     def start():
         mock_cls = outer.__enter__()
-        inst = _AM()
+        inst = AsyncMock()
         inst.post = fake_post
-        inst.get = _AM(return_value=_MM(**{"json.return_value": upstream_resp}))
-        inst.__aenter__ = _AM(return_value=inst)
-        inst.__aexit__ = _AM(return_value=False)
+        inst.get = AsyncMock(return_value=MagicMock(**{"json.return_value": upstream_resp}))
+        inst.__aenter__ = AsyncMock(return_value=inst)
+        inst.__aexit__ = AsyncMock(return_value=False)
         mock_cls.return_value = inst
         return inst
 

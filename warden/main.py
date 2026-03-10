@@ -33,7 +33,7 @@ import logging.handlers
 import os
 import time
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -157,7 +157,7 @@ _redactor:       SecretRedactor    | None = None
 _guard:          SemanticGuard     | None = None
 _brain_guard:    BrainSemanticGuard| None = None   # "default" tenant
 _evolve:         EvolutionEngine   | None = None
-_agent_monitor:  "AgentMonitor | None"   = None
+_agent_monitor:  AgentMonitor | None   = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -528,7 +528,7 @@ async def _run_filter_pipeline(
 
     # ── Agentic session monitoring ────────────────────────────────────
     if session_id and _agent_monitor is not None and background_tasks is not None:
-        try:
+        with suppress(Exception):
             background_tasks.add_task(
                 _agent_monitor.record_request,
                 session_id,
@@ -538,8 +538,6 @@ async def _run_filter_pipeline(
                 [f.flag.value for f in guard_result.flags],
                 tenant_id,
             )
-        except Exception:
-            pass
 
     response = FilterResponse(
         allowed                  = allowed,

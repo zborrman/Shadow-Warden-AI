@@ -13,7 +13,7 @@ is safe to import multiple times (pytest reimports between test files).
 from __future__ import annotations
 
 try:
-    from prometheus_client import Counter, Gauge, Histogram, REGISTRY  # noqa: F401
+    from prometheus_client import REGISTRY, Counter, Gauge, Histogram  # noqa: F401
 
     # ── Tool block counter ────────────────────────────────────────────────────
     # Incremented by openai_proxy.py on every ToolCallGuard block (Phase A + B).

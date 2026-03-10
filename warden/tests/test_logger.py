@@ -32,18 +32,18 @@ def tmp_log(monkeypatch, tmp_path):
 
 def _entry(**overrides):
     """Return a minimal valid build_entry() kwargs dict with all required fields."""
-    defaults = dict(
-        request_id="req-1",
-        allowed=True,
-        risk_level="low",
-        flags=[],
-        secrets_found=[],
-        payload_len=40,
-        payload_tokens=10,
-        attack_cost_usd=0.0000015,
-        elapsed_ms=5.0,
-        strict=False,
-    )
+    defaults = {
+        "request_id": "req-1",
+        "allowed": True,
+        "risk_level": "low",
+        "flags": [],
+        "secrets_found": [],
+        "payload_len": 40,
+        "payload_tokens": 10,
+        "attack_cost_usd": 0.0000015,
+        "elapsed_ms": 5.0,
+        "strict": False,
+    }
     defaults.update(overrides)
     return defaults
 

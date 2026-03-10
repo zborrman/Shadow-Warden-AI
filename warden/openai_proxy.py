@@ -24,7 +24,7 @@ Environment variables:
 """
 from __future__ import annotations
 
-import json
+import contextlib
 import logging
 import os
 
@@ -121,13 +121,11 @@ async def proxy_chat(
                 threat=result.threats[0].kind if result.threats else "unknown",
             ).inc()
             if session_id and _agent_monitor is not None:
-                try:
+                with contextlib.suppress(Exception):
                     _agent_monitor.record_tool_event(
                         session_id, tool_name, "result", True,
                         result.threats[0].kind if result.threats else None,
                     )
-                except Exception:
-                    pass
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -146,10 +144,8 @@ async def proxy_chat(
                 continue
             tc_id = msg.get("tool_call_id", "")
             tc_name = tool_name_map.get(tc_id, "unknown_tool")
-            try:
+            with contextlib.suppress(Exception):
                 _agent_monitor.record_tool_event(session_id, tc_name, "result", False, None)
-            except Exception:
-                pass
 
     # ── Find the last user message ─────────────────────────────────────────
     last_user_idx = next(
@@ -236,13 +232,11 @@ async def proxy_chat(
                     threat=result.threats[0].kind if result.threats else "unknown",
                 ).inc()
                 if session_id and _agent_monitor is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         _agent_monitor.record_tool_event(
                             session_id, tool_name, "call", True,
                             result.threats[0].kind if result.threats else None,
                         )
-                    except Exception:
-                        pass
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
@@ -262,10 +256,8 @@ async def proxy_chat(
                 if tc.get("type") != "function":
                     continue
                 tc_name = tc.get("function", {}).get("name", "unknown_tool")
-                try:
+                with contextlib.suppress(Exception):
                     _agent_monitor.record_tool_event(session_id, tc_name, "call", False, None)
-                except Exception:
-                    pass
 
     return upstream_data
 
