@@ -27,13 +27,16 @@ New in v0.4
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import logging.handlers
 import os
+import re
 import time
 import uuid
 from contextlib import asynccontextmanager, suppress
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -61,6 +64,7 @@ from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
+from warden.rule_ledger import RuleLedger
 from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
@@ -138,6 +142,20 @@ def _max_risk(a: RiskLevel, b: RiskLevel) -> RiskLevel:
     return a if _RISK_ORDER.index(a) >= _RISK_ORDER.index(b) else b
 
 
+# ── Dynamic evolution rule registry ───────────────────────────────────────────
+
+@dataclass
+class _DynamicRegexRule:
+    rule_id: str
+    pattern: re.Pattern  # type: ignore[type-arg]
+    snippet: str         # first 60 chars of the pattern for logging
+
+
+# Hot-loadable list of evolution-generated regex rules (populated at startup
+# and whenever the EvolutionEngine generates a new regex_pattern rule).
+_dynamic_regex_rules: list[_DynamicRegexRule] = []
+
+
 # ── Multi-tenant SemanticGuard registry ──────────────────────────────────────
 
 _tenant_guards: dict[str, BrainSemanticGuard] = {}
@@ -158,6 +176,7 @@ _guard:          SemanticGuard     | None = None
 _brain_guard:    BrainSemanticGuard| None = None   # "default" tenant
 _evolve:         EvolutionEngine   | None = None
 _agent_monitor:  AgentMonitor | None   = None
+_ledger:         RuleLedger        | None = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -166,9 +185,45 @@ except ImportError:
     _AGENT_MONITOR_AVAILABLE = False
 
 
+def _add_dynamic_regex_rule(rule_id: str, pattern_str: str) -> None:
+    """Hot-load a new evolution-generated regex rule into the running filter."""
+    try:
+        compiled = re.compile(pattern_str, re.IGNORECASE)
+        _dynamic_regex_rules.append(
+            _DynamicRegexRule(
+                rule_id = rule_id,
+                pattern = compiled,
+                snippet = pattern_str[:60],
+            )
+        )
+        log.info(
+            json.dumps({
+                "event":   "dynamic_regex_hot_loaded",
+                "rule_id": rule_id,
+                "snippet": pattern_str[:60],
+            })
+        )
+    except re.error as exc:
+        log.warning(
+            json.dumps({
+                "event":   "dynamic_regex_compile_error",
+                "rule_id": rule_id,
+                "error":   str(exc),
+            })
+        )
+
+
+async def _nightly_rule_retirement() -> None:
+    """Background task: run retire_stale() once every 24 hours."""
+    while True:
+        await asyncio.sleep(86_400)
+        if _ledger is not None:
+            _ledger.retire_stale()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -204,9 +259,35 @@ async def lifespan(app: FastAPI):
     _brain_guard.check("system warm-up ping")
     log.info("ML brain warm-up complete.")
 
+    # ── Rule Ledger ────────────────────────────────────────────────────
+    _ledger = RuleLedger()
+    stale = _ledger.retire_stale()
+    if stale:
+        log.info("RuleLedger: retired %d stale rule(s) at startup.", stale)
+
+    # Load evolution-generated regex rules into the in-memory dynamic list
+    for dyn in _ledger.get_active_regex_rules():
+        with suppress(re.error):
+            _dynamic_regex_rules.append(
+                _DynamicRegexRule(
+                    rule_id = dyn["rule_id"],
+                    pattern = re.compile(dyn["pattern"], re.IGNORECASE),
+                    snippet = dyn["pattern"][:60],
+                )
+            )
+    if _dynamic_regex_rules:
+        log.info(
+            "RuleLedger: loaded %d active dynamic regex rule(s).",
+            len(_dynamic_regex_rules),
+        )
+
     # ── Evolution Engine ──────────────────────────────────────────────
     if os.getenv("ANTHROPIC_API_KEY"):
-        _evolve = EvolutionEngine(semantic_guard=_brain_guard)
+        _evolve = EvolutionEngine(
+            semantic_guard = _brain_guard,
+            ledger         = _ledger,
+            on_new_regex   = _add_dynamic_regex_rule,
+        )
         log.info("EvolutionEngine online.")
     else:
         log.warning(
@@ -226,7 +307,19 @@ async def lifespan(app: FastAPI):
             pass
 
     log.info("Filter pipeline ready.")
+
+    # ── Nightly rule retirement task ──────────────────────────────────
+    _retirement_task = asyncio.create_task(_nightly_rule_retirement())
+
     yield
+
+    _retirement_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await _retirement_task
+
+    if _ledger is not None:
+        _ledger.close()
+
     log.info("Warden gateway shutting down.")
 
 
@@ -408,6 +501,29 @@ async def _run_filter_pipeline(
                 "risk":       guard_result.risk_level,
             })
         )
+
+    # ── Stage 2.5: Dynamic evolution regex rules ──────────────────────
+    if _dynamic_regex_rules:
+        for dyn_rule in list(_dynamic_regex_rules):   # snapshot avoids mutation
+            if dyn_rule.pattern.search(redact_result.text):
+                guard_result.flags.append(SemanticFlag(
+                    flag   = FlagType.PROMPT_INJECTION,
+                    score  = 0.80,
+                    detail = f"Dynamic evolution rule matched: {dyn_rule.snippet}",
+                ))
+                guard_result.risk_level = _max_risk(
+                    guard_result.risk_level, RiskLevel.HIGH
+                )
+                if _ledger is not None:
+                    _ledger.increment(dyn_rule.rule_id)
+                log.warning(
+                    json.dumps({
+                        "event":      "dynamic_rule_fired",
+                        "request_id": rid,
+                        "rule_id":    dyn_rule.rule_id,
+                        "snippet":    dyn_rule.snippet,
+                    })
+                )
 
     # ── Stage 1b: PII flag ─────────────────────────────────────────────
     if redact_result.has_pii:
@@ -681,6 +797,62 @@ async def gdpr_purge(body: _GdprPurgeRequest):
         json.dumps({"event": "gdpr_purge", "removed": removed, "before": body.before})
     )
     return {"removed": removed, "before": body.before}
+
+
+# ── Rule ledger endpoints ─────────────────────────────────────────────────────
+
+class _FpReportRequest(BaseModel):
+    reason: str | None = None
+
+
+@app.post(
+    "/rules/{rule_id}/report-fp",
+    tags=["rules"],
+    summary="Report a false-positive for an evolution-generated rule (increments fp_reports)",
+    dependencies=[Depends(require_api_key)],
+)
+async def report_false_positive(rule_id: str, body: _FpReportRequest):
+    if _ledger is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Rule ledger not available.",
+        )
+    found = _ledger.report_fp(rule_id)
+    if not found:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Rule {rule_id!r} not found in ledger.",
+        )
+    rule = _ledger.get_rule(rule_id)
+    log.info(
+        json.dumps({
+            "event":        "fp_reported",
+            "rule_id":      rule_id,
+            "fp_reports":   rule["fp_reports"],  # type: ignore[index]
+            "rule_status":  rule["status"],       # type: ignore[index]
+            "reason":       body.reason,
+        })
+    )
+    return {
+        "rule_id":    rule_id,
+        "fp_reports": rule["fp_reports"],    # type: ignore[index]
+        "status":     rule["status"],        # type: ignore[index]
+    }
+
+
+@app.get(
+    "/rules",
+    tags=["rules"],
+    summary="List evolution-generated rules from the ledger",
+    dependencies=[Depends(require_api_key)],
+)
+async def list_rules(rule_status: str | None = None, limit: int = 100):
+    if _ledger is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Rule ledger not available.",
+        )
+    return {"rules": _ledger.list_rules(status=rule_status, limit=limit)}
 
 
 # ── WebSocket /ws/stream ─────────────────────────────────────────────────────

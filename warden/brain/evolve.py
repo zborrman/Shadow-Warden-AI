@@ -171,17 +171,31 @@ class EvolutionEngine:
             )
     """
 
-    def __init__(self, semantic_guard=None) -> None:
+    def __init__(
+        self,
+        semantic_guard=None,
+        ledger=None,
+        on_new_regex=None,
+    ) -> None:
         """
         Parameters
         ----------
         semantic_guard : SemanticGuard | None
             When provided, new semantic examples are injected into the
             live corpus immediately — no restart required.
+        ledger : RuleLedger | None
+            When provided, each generated rule is written to the ledger
+            with status='pending_review' for lifecycle tracking.
+        on_new_regex : Callable[[str, str], None] | None
+            Called with (rule_id, pattern_str) when a new regex_pattern
+            rule is generated.  Used by main.py to hot-load the pattern
+            into the in-memory dynamic rule list without a restart.
         """
         self._client        = anthropic.AsyncAnthropic()
         self._seen_hashes:  set[str] = set()   # in-process dedup
         self._guard         = semantic_guard
+        self._ledger        = ledger
+        self._on_new_regex  = on_new_regex
         self._rules_path    = DYNAMIC_RULES_PATH
         self._rules_path.parent.mkdir(parents=True, exist_ok=True)
         self._corpus_count  = self._count_existing_rules()
@@ -283,6 +297,26 @@ class EvolutionEngine:
 
         rule = self._build_rule(content_hash, evolution)
         self._persist(rule)
+
+        # ── Write to rule ledger ─────────────────────────────────────────────
+        if self._ledger is not None:
+            try:
+                self._ledger.write_rule(
+                    rule_id         = rule.id,
+                    source          = "evolution",
+                    created_at      = rule.created_at,
+                    pattern_snippet = rule.new_rule.value[:100],
+                    rule_type       = rule.new_rule.rule_type,
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.warning("EvolutionEngine: ledger write failed — %s", exc)
+
+        # ── Hot-reload new regex pattern into the running filter ─────────────
+        if self._on_new_regex and rule.new_rule.rule_type == "regex_pattern":
+            try:
+                self._on_new_regex(rule.id, rule.new_rule.value)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("EvolutionEngine: on_new_regex callback failed — %s", exc)
 
         corpus_updated = False
         if self._guard and evolution.new_rule.rule_type == "semantic_example":
