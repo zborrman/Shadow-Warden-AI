@@ -45,6 +45,9 @@ _FILTER_URL = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
 # Module-level singleton — no state, safe to share
 _tool_guard = ToolCallGuard()
 
+# Injected by main.py lifespan after AgentMonitor is created; None = monitoring disabled
+_agent_monitor = None  # type: ignore[assignment]
+
 
 def _build_tool_name_map(messages: list[dict]) -> dict[str, str]:
     """
@@ -83,6 +86,12 @@ async def proxy_chat(
     if not messages:
         raise HTTPException(status_code=400, detail="No messages in request.")
 
+    # ── Session ID for agentic monitoring ─────────────────────────────────
+    session_id: str | None = (
+        request.headers.get("X-Session-ID")
+        or payload.get("metadata", {}).get("session_id")
+    )
+
     # ── [A] Inspect role=tool messages (indirect injection / LLM01) ────────
     tool_name_map = _build_tool_name_map(messages)
     for msg in messages:
@@ -111,6 +120,14 @@ async def proxy_chat(
                 tool_name=tool_name,
                 threat=result.threats[0].kind if result.threats else "unknown",
             ).inc()
+            if session_id and _agent_monitor is not None:
+                try:
+                    _agent_monitor.record_tool_event(
+                        session_id, tool_name, "result", True,
+                        result.threats[0].kind if result.threats else None,
+                    )
+                except Exception:
+                    pass
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -121,6 +138,18 @@ async def proxy_chat(
                     "threats": [t.kind for t in result.threats],
                 },
             )
+
+    # Record clean tool results for session monitoring
+    if session_id and _agent_monitor is not None:
+        for msg in messages:
+            if msg.get("role") != "tool":
+                continue
+            tc_id = msg.get("tool_call_id", "")
+            tc_name = tool_name_map.get(tc_id, "unknown_tool")
+            try:
+                _agent_monitor.record_tool_event(session_id, tc_name, "result", False, None)
+            except Exception:
+                pass
 
     # ── Find the last user message ─────────────────────────────────────────
     last_user_idx = next(
@@ -206,6 +235,14 @@ async def proxy_chat(
                     tool_name=tool_name,
                     threat=result.threats[0].kind if result.threats else "unknown",
                 ).inc()
+                if session_id and _agent_monitor is not None:
+                    try:
+                        _agent_monitor.record_tool_event(
+                            session_id, tool_name, "call", True,
+                            result.threats[0].kind if result.threats else None,
+                        )
+                    except Exception:
+                        pass
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
@@ -216,6 +253,19 @@ async def proxy_chat(
                         "threats": [t.kind for t in result.threats],
                     },
                 )
+
+    # Record clean outgoing tool calls for session monitoring
+    if session_id and _agent_monitor is not None:
+        for choice in upstream_data.get("choices") or []:
+            msg = choice.get("message") or {}
+            for tc in msg.get("tool_calls") or []:
+                if tc.get("type") != "function":
+                    continue
+                tc_name = tc.get("function", {}).get("name", "unknown_tool")
+                try:
+                    _agent_monitor.record_tool_event(session_id, tc_name, "call", False, None)
+                except Exception:
+                    pass
 
     return upstream_data
 

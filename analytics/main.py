@@ -45,7 +45,9 @@ log = logging.getLogger("analytics.api")
 # ── Config ────────────────────────────────────────────────────────────────────
 
 LOGS_PATH          = Path(os.getenv("ANALYTICS_DATA_PATH", "/analytics/data")) / "logs.json"
+SESSIONS_PATH      = Path(os.getenv("ANALYTICS_DATA_PATH", "/analytics/data")) / "sessions.json"
 LOG_RETENTION_DAYS = int(os.getenv("GDPR_LOG_RETENTION_DAYS", "30"))
+SESSION_TTL_SECONDS = int(os.getenv("AGENT_SESSION_TTL", "1800"))
 
 # ── App ───────────────────────────────────────────────────────────────────────
 
@@ -99,6 +101,38 @@ def _load(days: int | None = None) -> list[dict]:
         log.warning("Could not read log file: %s", exc)
 
     return entries
+
+
+def _load_sessions(active_only: bool = False) -> list[dict]:
+    """Load session summaries from sessions.json NDJSON file."""
+    if not SESSIONS_PATH.exists():
+        return []
+
+    sessions: list[dict] = []
+    cutoff_ts: str | None = None
+    if active_only:
+        cutoff = datetime.now(UTC) - timedelta(seconds=SESSION_TTL_SECONDS)
+        cutoff_ts = cutoff.isoformat()
+
+    try:
+        with SESSIONS_PATH.open("r", encoding="utf-8") as f:
+            for raw in f:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    entry = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if cutoff_ts is not None:
+                    last_seen = entry.get("last_seen", "")
+                    if last_seen < cutoff_ts:
+                        continue
+                sessions.append(entry)
+    except OSError as exc:
+        log.warning("Could not read sessions file: %s", exc)
+
+    return sessions
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -285,6 +319,36 @@ def threats(
         "total_flags": sum(counter.values()),
         "threats": [{"flag": flag, "count": count} for flag, count in top],
     }
+
+
+@app.get("/api/v1/agent-sessions", tags=["agent-monitoring"])
+def list_agent_sessions(
+    limit: int = Query(default=20, ge=1, le=200,
+                       description="Maximum number of sessions to return."),
+    active_only: bool = Query(default=False,
+                              description="If true, return only sessions active within the TTL window."),
+) -> dict[str, Any]:
+    """
+    Return agent session summaries, sorted newest-first by last_seen.
+
+    Each session entry includes: session_id, first_seen, last_seen, tenant_id,
+    request_count, block_count, risk_score, and detected threats.
+    """
+    sessions = _load_sessions(active_only=active_only)
+    sessions.sort(key=lambda s: s.get("last_seen", ""), reverse=True)
+    return {"total": len(sessions), "sessions": sessions[:limit]}
+
+
+@app.get("/api/v1/agent-sessions/{session_id}", tags=["agent-monitoring"])
+def get_agent_session(session_id: str) -> dict[str, Any]:
+    """Return the full session summary for a given session_id, or HTTP 404."""
+    for session in _load_sessions():
+        if session.get("session_id") == session_id:
+            return session
+    raise HTTPException(
+        status_code=404,
+        detail=f"No session found for session_id={session_id!r}.",
+    )
 
 
 # ── Error handler ─────────────────────────────────────────────────────────────

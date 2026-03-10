@@ -157,11 +157,18 @@ _redactor:       SecretRedactor    | None = None
 _guard:          SemanticGuard     | None = None
 _brain_guard:    BrainSemanticGuard| None = None   # "default" tenant
 _evolve:         EvolutionEngine   | None = None
+_agent_monitor:  "AgentMonitor | None"   = None
+
+try:
+    from warden.agent_monitor import AgentMonitor
+    _AGENT_MONITOR_AVAILABLE = True
+except ImportError:
+    _AGENT_MONITOR_AVAILABLE = False
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -206,6 +213,17 @@ async def lifespan(app: FastAPI):
             "ANTHROPIC_API_KEY not set — EvolutionEngine disabled. "
             "Set the key to enable automated rule generation."
         )
+
+    # ── Agent Monitor ─────────────────────────────────────────────────
+    if _AGENT_MONITOR_AVAILABLE:
+        _agent_monitor = AgentMonitor()
+        log.info("AgentMonitor online.")
+        # Share singleton with openai_proxy so it records tool events
+        try:
+            import warden.openai_proxy as _proxy_mod
+            _proxy_mod._agent_monitor = _agent_monitor
+        except Exception:
+            pass
 
     log.info("Filter pipeline ready.")
     yield
@@ -324,6 +342,9 @@ async def _run_filter_pipeline(
     tenant_id = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
     strict = payload.strict or (_guard.strict if _guard else False)
 
+    # Extract optional session_id for agentic monitoring
+    session_id: str | None = (payload.context or {}).get("session_id")
+
     log.info(
         json.dumps({
             "event": "filter_request",
@@ -387,6 +408,14 @@ async def _run_filter_pipeline(
                 "risk":       guard_result.risk_level,
             })
         )
+
+    # ── Stage 1b: PII flag ─────────────────────────────────────────────
+    if redact_result.has_pii:
+        guard_result.flags.append(SemanticFlag(
+            flag=FlagType.PII_DETECTED,
+            score=1.0,
+            detail=f"PII detected: {[f.kind for f in redact_result.findings]}",
+        ))
 
     # ── Stage 2b: ML Semantic Brain (async, per-tenant) ───────────────
     t0 = time.perf_counter()
@@ -483,6 +512,7 @@ async def _run_filter_pipeline(
             attack_cost_usd = event_logger.token_cost_usd(_tokens),
             elapsed_ms      = elapsed_ms,
             strict          = strict,
+            session_id      = session_id,
         )
         event_logger.append(entry)
     except Exception:
@@ -494,6 +524,21 @@ async def _run_filter_pipeline(
             from warden.analytics.siem import ship_event
             background_tasks.add_task(ship_event, entry)  # type: ignore[possibly-undefined]
         except ImportError:
+            pass
+
+    # ── Agentic session monitoring ────────────────────────────────────
+    if session_id and _agent_monitor is not None and background_tasks is not None:
+        try:
+            background_tasks.add_task(
+                _agent_monitor.record_request,
+                session_id,
+                rid,
+                allowed,
+                guard_result.risk_level.value,
+                [f.flag.value for f in guard_result.flags],
+                tenant_id,
+            )
+        except Exception:
             pass
 
     response = FilterResponse(

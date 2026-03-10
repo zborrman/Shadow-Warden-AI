@@ -67,8 +67,9 @@ def build_entry(
     attack_cost_usd: float,
     elapsed_ms:      float,
     strict:          bool,
+    session_id:      str | None = None,
 ) -> dict:
-    return {
+    entry = {
         "ts":              datetime.now(UTC).isoformat(),
         "request_id":      request_id,
         "allowed":         allowed,
@@ -81,6 +82,9 @@ def build_entry(
         "elapsed_ms":      elapsed_ms,
         "strict":          strict,
     }
+    if session_id is not None:
+        entry["session_id"] = session_id
+    return entry
 
 
 # ── Writer ────────────────────────────────────────────────────────────────────

@@ -89,6 +89,26 @@ r = SecretRedactor()
         "user@example.com",
         "email",
     ),
+    # Phone number (US with country code)
+    (
+        "+1 (555) 867-5309",
+        "phone_number",
+    ),
+    # Ethereum address
+    (
+        "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+        "ethereum_address",
+    ),
+    # Bitcoin P2PKH address
+    (
+        "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
+        "bitcoin_address",
+    ),
+    # Bitcoin P2SH address
+    (
+        "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy",
+        "bitcoin_address",
+    ),
 ])
 def test_redacts_secret(text: str, expected_kind: str) -> None:
     result = r.redact(text)
@@ -379,3 +399,67 @@ def test_policies_produce_independent_results() -> None:
         assert f.redacted_to.startswith(("[MASKED:", "****-", "j***@"))
     for f in raw.findings:
         assert f.redacted_to.startswith("[DETECTED:")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# New PII patterns: phone, ethereum, bitcoin, passport
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Strict mode: passport also redacted ───────────────────────────────────────
+
+def test_strict_redacts_us_passport() -> None:
+    sr = SecretRedactor(strict=True)
+    result = sr.redact("Passport: A12345678")
+    kinds = [f.kind for f in result.findings]
+    assert "us_passport" in kinds
+    assert "A12345678" not in result.text
+
+
+def test_non_strict_ignores_us_passport() -> None:
+    result = r.redact("Passport: A12345678")
+    kinds = [f.kind for f in result.findings]
+    assert "us_passport" not in kinds
+
+
+# ── has_pii returns True for new PII kinds ────────────────────────────────────
+
+@pytest.mark.parametrize("text,kind", [
+    ("+1 (555) 867-5309",                          "phone_number"),
+    ("0x71C7656EC7ab88b098defB751B7401B5f6d8976F",  "ethereum_address"),
+    ("1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",          "bitcoin_address"),
+])
+def test_has_pii_true_for_new_kinds(text: str, kind: str) -> None:
+    result = r.redact(text)
+    assert result.has_pii, f"has_pii must be True for kind={kind!r}"
+
+
+# ── MASKED policy for new PII kinds ──────────────────────────────────────────
+
+def test_masked_phone_shows_last_four_digits() -> None:
+    result = r.redact("+1 (555) 867-5309", RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    assert replacement == "***-***-5309"
+    assert "555" not in result.text
+
+
+def test_masked_ethereum_shows_last_four() -> None:
+    eth = "0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
+    result = r.redact(eth, RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    assert replacement.startswith("[MASKED:ethereum_address:...")
+    # last 4 alphanum of "0x71C7656EC7ab88b098defB751B7401B5f6d8976F" → "976F"
+    assert replacement.endswith("976F]")
+    assert eth not in result.text
+
+
+def test_masked_bitcoin_shows_last_four() -> None:
+    # "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2" — last 4 alphanum = "NVN2"
+    btc = "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2"
+    result = r.redact(btc, RedactionPolicy.MASKED)
+    assert result.findings
+    replacement = result.findings[0].redacted_to
+    assert replacement.startswith("[MASKED:bitcoin_address:...")
+    assert replacement.endswith("NVN2]")
+    assert btc not in result.text

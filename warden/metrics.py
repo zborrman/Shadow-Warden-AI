@@ -13,7 +13,7 @@ is safe to import multiple times (pytest reimports between test files).
 from __future__ import annotations
 
 try:
-    from prometheus_client import Counter, Histogram, REGISTRY  # noqa: F401
+    from prometheus_client import Counter, Gauge, Histogram, REGISTRY  # noqa: F401
 
     # ── Tool block counter ────────────────────────────────────────────────────
     # Incremented by openai_proxy.py on every ToolCallGuard block (Phase A + B).
@@ -34,6 +34,41 @@ try:
             "warden_tool_blocks_total"
         )
 
+    # ── Agent session metrics ─────────────────────────────────────────────────
+    # Populated by AgentMonitor in warden/agent_monitor.py.
+
+    try:
+        AGENT_SESSIONS_ACTIVE = Gauge(
+            "warden_agent_sessions_active",
+            "Active agent sessions within the TTL window",
+        )
+    except ValueError:
+        AGENT_SESSIONS_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined]
+            "warden_agent_sessions_active"
+        )
+
+    try:
+        AGENT_ANOMALIES_TOTAL = Counter(
+            "warden_agent_anomalies_total",
+            "Session-level anomalies detected by AgentMonitor",
+            ["pattern_type", "severity"],
+        )
+    except ValueError:
+        AGENT_ANOMALIES_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined]
+            "warden_agent_anomalies_total"
+        )
+
+    try:
+        AGENT_SESSION_BLOCKS = Counter(
+            "warden_agent_session_blocks_total",
+            "Blocked events in agent sessions per tenant",
+            ["tenant_id"],
+        )
+    except ValueError:
+        AGENT_SESSION_BLOCKS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined]
+            "warden_agent_session_blocks_total"
+        )
+
     # ── Filter-stage latency (optional extension point) ───────────────────────
     # Already covered by prometheus-fastapi-instrumentator for HTTP-level
     # latency.  No extra histogram needed here yet.
@@ -51,5 +86,10 @@ except ImportError:
             pass
         def observe(self, _amount: float) -> None:
             pass
+        def set(self, _value: float) -> None:
+            pass
 
-    TOOL_BLOCKS = _Noop()  # type: ignore[assignment]
+    TOOL_BLOCKS           = _Noop()  # type: ignore[assignment]
+    AGENT_SESSIONS_ACTIVE = _Noop()  # type: ignore[assignment]
+    AGENT_ANOMALIES_TOTAL = _Noop()  # type: ignore[assignment]
+    AGENT_SESSION_BLOCKS  = _Noop()  # type: ignore[assignment]

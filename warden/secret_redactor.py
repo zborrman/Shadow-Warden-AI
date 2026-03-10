@@ -34,6 +34,7 @@ class _Pattern:
     regex:       re.Pattern[str]
     token:       str        # FULL-mode replacement placeholder
     pii:         bool = False   # GDPR personal-data flag
+    strict_only: bool = False   # when True, only active in strict mode
 
 
 _PATTERNS: list[_Pattern] = [
@@ -119,11 +120,52 @@ _PATTERNS: list[_Pattern] = [
                         r"(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b"),
              "[REDACTED:ipv4]",
              pii=True),
+
+    # ── Phone numbers (US + E.164) ────────────────────────────────────────
+    # US branch: optional +1 prefix, tolerates spaces/dashes/dots between groups.
+    # E.164 branch: requires explicit '+' for international — prevents matching
+    # bare digit sequences like credit card numbers or prices.
+    _Pattern("phone_number",
+             re.compile(
+                 r"(?<!\d)"
+                 r"(?:"
+                 r"\+?1[\s\-.]?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}"
+                 r"|\+[1-9]\d{0,2}[\s\-.]?\d{2,4}(?:[\s\-.]?\d{2,4})+"
+                 r")"
+                 r"(?!\d)"
+             ),
+             "[REDACTED:phone_number]",
+             pii=True),
+
+    # ── Ethereum wallet addresses (ERC-20 / EVM) ─────────────────────────
+    _Pattern("ethereum_address",
+             re.compile(r"\b0x[0-9a-fA-F]{40}\b"),
+             "[REDACTED:ethereum_address]",
+             pii=True),
+
+    # ── Bitcoin addresses (P2PKH, P2SH, Bech32) ──────────────────────────
+    _Pattern("bitcoin_address",
+             re.compile(
+                 r"\b(?:1[A-Za-z0-9]{24,33}|3[A-Za-z0-9]{24,33}|bc1[a-z0-9]{25,62})\b"
+             ),
+             "[REDACTED:bitcoin_address]",
+             pii=True),
+
+    # ── US Passport number (strict mode only) ────────────────────────────
+    _Pattern("us_passport",
+             re.compile(r"\b[A-Z][0-9]{8}\b"),
+             "[REDACTED:us_passport]",
+             pii=True,
+             strict_only=True),
 ]
 
 # ── Token lookup (used by both FULL and MASKED helpers) ───────────────────────
 
 _TOKEN: dict[str, str] = {p.kind: p.token for p in _PATTERNS}
+
+# ── PII kind set (auto-populated from _PATTERNS) ──────────────────────────────
+
+_PII_KINDS: frozenset[str] = frozenset(p.kind for p in _PATTERNS if p.pii)
 
 
 # ── Luhn check (credit cards) ─────────────────────────────────────────────────
@@ -177,6 +219,11 @@ def _mask_value(matched: str, kind: str) -> str:
     if kind == "url_credentials":
         return "[MASKED:url_credentials]://"
 
+    if kind == "phone_number":
+        digits = re.sub(r"\D", "", matched)
+        last4 = digits[-4:] if len(digits) >= 4 else digits
+        return f"***-***-{last4}"
+
     # Generic: last 4 alphanumeric characters of the matched text
     alphanum = re.sub(r"[^A-Za-z0-9]", "", matched)
     last4 = alphanum[-4:] if len(alphanum) >= 4 else alphanum
@@ -222,8 +269,7 @@ class SecretRedactor:
 
         @property
         def has_pii(self) -> bool:
-            return any(f.kind in ("email", "us_ssn", "iban", "ipv4")
-                       for f in self.findings)
+            return any(f.kind in _PII_KINDS for f in self.findings)
 
         @property
         def has_secrets(self) -> bool:
@@ -251,6 +297,9 @@ class SecretRedactor:
         for pat in _PATTERNS:
             # IPv4 only redacted in strict mode
             if pat.kind == "ipv4" and not self.strict:
+                continue
+            # strict_only patterns (e.g. us_passport) skipped in non-strict mode
+            if pat.strict_only and not self.strict:
                 continue
 
             for match in pat.regex.finditer(text):
