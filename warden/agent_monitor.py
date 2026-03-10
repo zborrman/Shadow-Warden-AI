@@ -36,6 +36,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from warden.tenant_policy import TenantPolicy, get_policy
+
 log = logging.getLogger("warden.agent_monitor")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -142,10 +144,10 @@ def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _is_expired(last_seen: str) -> bool:
+def _is_expired(last_seen: str, ttl: int = SESSION_TTL_SECONDS) -> bool:
     try:
         ts = datetime.fromisoformat(last_seen)
-        return (datetime.now(UTC) - ts).total_seconds() > SESSION_TTL_SECONDS
+        return (datetime.now(UTC) - ts).total_seconds() > ttl
     except (ValueError, TypeError):
         return True
 
@@ -212,14 +214,14 @@ class AgentMonitor:
             return None
         return meta
 
-    def _r_set_meta(self, session_id: str, meta: dict) -> None:
+    def _r_set_meta(self, session_id: str, meta: dict, ttl: int = SESSION_TTL_SECONDS) -> None:
         r = self._get_redis()
         if r is not None:
             try:
                 r.set(
                     self._r_meta_key(session_id),
                     json.dumps(meta, separators=(",", ":")),
-                    ex=SESSION_TTL_SECONDS,
+                    ex=ttl,
                 )
                 return
             except Exception:
@@ -229,14 +231,14 @@ class AgentMonitor:
                 self._fallback[session_id] = {"meta": {}, "events": []}
             self._fallback[session_id]["meta"] = meta
 
-    def _r_append_event(self, session_id: str, event: dict) -> None:
+    def _r_append_event(self, session_id: str, event: dict, ttl: int = SESSION_TTL_SECONDS) -> None:
         r = self._get_redis()
         line = json.dumps(event, separators=(",", ":"))
         if r is not None:
             try:
                 key = self._r_events_key(session_id)
                 r.rpush(key, line)
-                r.expire(key, SESSION_TTL_SECONDS)
+                r.expire(key, ttl)
                 return
             except Exception:
                 pass
@@ -261,12 +263,12 @@ class AgentMonitor:
             entry = self._fallback.get(session_id)
         return list(entry["events"]) if entry else []
 
-    def _r_touch_ttl(self, session_id: str) -> None:
+    def _r_touch_ttl(self, session_id: str, ttl: int = SESSION_TTL_SECONDS) -> None:
         r = self._get_redis()
         if r is not None:
             try:
-                r.expire(self._r_meta_key(session_id),   SESSION_TTL_SECONDS)
-                r.expire(self._r_events_key(session_id), SESSION_TTL_SECONDS)
+                r.expire(self._r_meta_key(session_id),   ttl)
+                r.expire(self._r_events_key(session_id), ttl)
             except Exception:
                 pass
 
@@ -303,6 +305,7 @@ class AgentMonitor:
         Fail-open: any internal error returns None.
         """
         try:
+            policy = get_policy(tenant_id)
             meta = self._r_get_meta(session_id) or self._new_meta(session_id, tenant_id)
             meta["last_seen"]      = _now_iso()
             meta["request_count"]  = int(meta.get("request_count", 0)) + 1
@@ -319,12 +322,12 @@ class AgentMonitor:
                 "risk_level": risk_level,
                 "flags":      flags,
             }
-            self._r_set_meta(session_id, meta)
-            self._r_append_event(session_id, event)
-            self._r_touch_ttl(session_id)
+            self._r_set_meta(session_id, meta, ttl=policy.session_ttl)
+            self._r_append_event(session_id, event, ttl=policy.session_ttl)
+            self._r_touch_ttl(session_id, ttl=policy.session_ttl)
 
             events = self._r_get_events(session_id)
-            threats = self._analyze_patterns(session_id, meta, events)
+            threats = self._analyze_patterns(session_id, meta, events, policy)
             return self._handle_new_threats(session_id, meta, threats)
 
         except Exception as exc:
@@ -346,6 +349,8 @@ class AgentMonitor:
         """
         try:
             meta = self._r_get_meta(session_id) or self._new_meta(session_id, "default")
+            tenant_id = str(meta.get("tenant_id", "default"))
+            policy = get_policy(tenant_id)
             meta["last_seen"] = _now_iso()
 
             # Track tool names seen (no duplicates)
@@ -369,12 +374,12 @@ class AgentMonitor:
                 "blocked":     blocked,
                 "threat_kind": threat_kind,
             }
-            self._r_set_meta(session_id, meta)
-            self._r_append_event(session_id, event)
-            self._r_touch_ttl(session_id)
+            self._r_set_meta(session_id, meta, ttl=policy.session_ttl)
+            self._r_append_event(session_id, event, ttl=policy.session_ttl)
+            self._r_touch_ttl(session_id, ttl=policy.session_ttl)
 
             events = self._r_get_events(session_id)
-            threats = self._analyze_patterns(session_id, meta, events)
+            threats = self._analyze_patterns(session_id, meta, events, policy)
             return self._handle_new_threats(session_id, meta, threats)
 
         except Exception as exc:
@@ -413,6 +418,7 @@ class AgentMonitor:
         session_id: str,
         meta: dict,
         events: list[dict],
+        policy: TenantPolicy | None = None,
     ) -> list[SessionThreat]:
         """Run all 5 pattern checks; return only those not already recorded."""
         already = {t["pattern"] for t in (meta.get("threats_detected") or [])}
@@ -425,7 +431,7 @@ class AgentMonitor:
             self._check_exfil_chain,
         ):
             try:
-                threat = check(meta, events)  # type: ignore[call-arg]
+                threat = check(meta, events, policy)  # type: ignore[call-arg]
                 if threat and threat.pattern not in already:
                     found.append(threat)
                     already.add(threat.pattern)
@@ -433,8 +439,11 @@ class AgentMonitor:
                 pass
         return found
 
-    def _check_rapid_block(self, meta: dict, _events: list[dict]) -> SessionThreat | None:
-        if int(meta.get("block_count", 0)) >= RAPID_BLOCK_THRESHOLD:
+    def _check_rapid_block(
+        self, meta: dict, _events: list[dict], policy: TenantPolicy | None = None,
+    ) -> SessionThreat | None:
+        threshold = policy.rapid_block_threshold if policy is not None else RAPID_BLOCK_THRESHOLD
+        if int(meta.get("block_count", 0)) >= threshold:
             return SessionThreat(
                 pattern=PATTERN_RAPID_BLOCK,
                 severity="HIGH",
@@ -442,27 +451,31 @@ class AgentMonitor:
             )
         return None
 
-    def _check_tool_velocity(self, _meta: dict, events: list[dict]) -> SessionThreat | None:
-        cutoff = datetime.now(UTC) - timedelta(seconds=VELOCITY_WINDOW_SECS)
+    def _check_tool_velocity(
+        self, _meta: dict, events: list[dict], policy: TenantPolicy | None = None,
+    ) -> SessionThreat | None:
+        velocity_window    = policy.velocity_window    if policy is not None else VELOCITY_WINDOW_SECS
+        velocity_threshold = policy.velocity_threshold if policy is not None else VELOCITY_THRESHOLD
+        cutoff = datetime.now(UTC) - timedelta(seconds=velocity_window)
         recent = [
             e for e in events
             if e.get("event_type") == "tool"
             and e.get("direction") == "call"
             and _parse_ts(e.get("ts", "")) >= cutoff
         ]
-        if len(recent) > VELOCITY_THRESHOLD:
+        if len(recent) > velocity_threshold:
             return SessionThreat(
                 pattern=PATTERN_TOOL_VELOCITY,
                 severity="HIGH",
                 detail=(
-                    f"{len(recent)} tool calls in {VELOCITY_WINDOW_SECS}s window "
-                    f"(threshold={VELOCITY_THRESHOLD})"
+                    f"{len(recent)} tool calls in {velocity_window}s window "
+                    f"(threshold={velocity_threshold})"
                 ),
             )
         return None
 
     def _check_privilege_escalation(
-        self, _meta: dict, events: list[dict]
+        self, _meta: dict, events: list[dict], policy: TenantPolicy | None = None,
     ) -> SessionThreat | None:
         tool_calls = [
             e for e in events
@@ -486,7 +499,9 @@ class AgentMonitor:
                 max_seen = cat
         return None
 
-    def _check_evasion_attempt(self, _meta: dict, events: list[dict]) -> SessionThreat | None:
+    def _check_evasion_attempt(
+        self, _meta: dict, events: list[dict], policy: TenantPolicy | None = None,
+    ) -> SessionThreat | None:
         tool_events = [e for e in events if e.get("event_type") == "tool"]
         blocked_names: set[str] = set()
         for e in tool_events:
@@ -505,7 +520,9 @@ class AgentMonitor:
                 )
         return None
 
-    def _check_exfil_chain(self, _meta: dict, events: list[dict]) -> SessionThreat | None:
+    def _check_exfil_chain(
+        self, _meta: dict, events: list[dict], policy: TenantPolicy | None = None,
+    ) -> SessionThreat | None:
         tool_calls = [
             e for e in events
             if e.get("event_type") == "tool" and e.get("direction") == "call"
