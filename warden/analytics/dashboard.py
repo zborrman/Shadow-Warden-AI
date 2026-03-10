@@ -324,6 +324,66 @@ with col_flags:
 
 st.divider()
 
+# ── Row 3.5: Cost-to-Attack Metrics ───────────────────────────────────────────
+
+st.markdown('<p class="section-title">Cost-to-Attack Metrics</p>', unsafe_allow_html=True)
+
+blocked_df = df[~df["allowed"]].copy()
+
+# Backward-compat: older log entries may not have these columns
+if "attack_cost_usd" not in blocked_df.columns:
+    blocked_df["attack_cost_usd"] = 0.0
+if "payload_tokens" not in blocked_df.columns:
+    blocked_df["payload_tokens"] = 0
+
+total_cost    = float(blocked_df["attack_cost_usd"].sum())
+avg_cost      = float(blocked_df["attack_cost_usd"].mean()) if not blocked_df.empty else 0.0
+total_tokens  = int(blocked_df["payload_tokens"].sum())
+costliest     = float(blocked_df["attack_cost_usd"].max()) if not blocked_df.empty else 0.0
+
+ca1, ca2, ca3, ca4 = st.columns(4)
+_card(ca1, f"${total_cost:.6f}",  "TOTAL ATTACK COST (USD)", delta_good=True)
+_card(ca2, f"${avg_cost:.8f}",    "AVG COST / ATTACK",       delta_good=True)
+_card(ca3, f"{total_tokens:,}",   "TOTAL TOKENS BLOCKED",    delta_good=True)
+_card(ca4, f"${costliest:.8f}",   "COSTLIEST SINGLE ATTACK", delta_good=True)
+
+if not blocked_df.empty and blocked_df["attack_cost_usd"].sum() > 0:
+    cost_by_day = (
+        blocked_df.groupby(blocked_df["ts"].dt.date)["attack_cost_usd"]
+        .sum()
+        .reset_index()
+        .rename(columns={"ts": "date", "attack_cost_usd": "cost_usd"})
+    )
+    cost_by_day["date"] = pd.to_datetime(cost_by_day["date"])
+
+    fig_cost = px.area(
+        cost_by_day,
+        x="date",
+        y="cost_usd",
+        template="plotly_dark",
+        labels={"date": "", "cost_usd": "Attack Cost (USD)"},
+        color_discrete_sequence=["#E53E3E"],
+    )
+    fig_cost.update_traces(
+        fillcolor="rgba(229, 62, 62, 0.18)",
+        line=dict(color="#E53E3E", width=2),
+    )
+    fig_cost.update_layout(
+        paper_bgcolor="#111827",
+        plot_bgcolor="#111827",
+        xaxis=dict(gridcolor="#2d3748", showgrid=True),
+        yaxis=dict(gridcolor="#2d3748", showgrid=True, tickformat=".8f"),
+        margin=dict(l=10, r=10, t=20, b=10),
+        height=220,
+        hovermode="x unified",
+    )
+    st.plotly_chart(fig_cost, use_container_width=True)
+    st.caption("Daily cumulative cost of blocked payloads — proxy for attacker spend.")
+else:
+    st.info("No cost data available yet (requires log entries with `attack_cost_usd`).")
+
+st.divider()
+
 # ── Row 4: Recent blocked events ──────────────────────────────────────────────
 
 st.markdown('<p class="section-title">Recent Blocked Events</p>', unsafe_allow_html=True)

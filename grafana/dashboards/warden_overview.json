@@ -89,6 +89,65 @@
         {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"warden-gateway\",handler=\"/filter\"}[5m])) by (le)) * 1000", "legendFormat": "p95", "refId": "B"},
         {"expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"warden-gateway\",handler=\"/filter\"}[5m])) by (le)) * 1000", "legendFormat": "p99", "refId": "C"}
       ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 100},
+            {"color": "red", "value": 1000}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 12},
+      "id": 6,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Tool Blocks — Incoming Results (Phase A)",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_tool_blocks_total{direction=\"result\"}[24h]))", "legendFormat": "blocked results", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 50},
+            {"color": "red", "value": 500}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 12},
+      "id": 7,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Tool Blocks — Outgoing Calls (Phase B)",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_tool_blocks_total{direction=\"call\"}[24h]))", "legendFormat": "blocked calls", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "id": 8,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "title": "Tool Blocks by Threat Type",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (threat) (increase(warden_tool_blocks_total[5m]))", "legendFormat": "{{threat}}", "refId": "A"}
+      ]
     }
   ],
   "schemaVersion": 38,

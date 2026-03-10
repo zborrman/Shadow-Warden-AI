@@ -183,6 +183,84 @@ def stats(
     }
 
 
+@app.get("/api/v1/attack-cost", tags=["analytics"])
+def attack_cost(
+    days: int = Query(default=7, ge=1, le=LOG_RETENTION_DAYS,
+                      description="Number of past days to aggregate."),
+) -> dict[str, Any]:
+    """
+    Cost-to-Attack metrics — aggregate USD cost of all blocked payloads.
+
+    Reports:
+      total_attack_cost_usd  — cumulative cost of all blocked requests
+      avg_cost_per_attack    — mean cost per blocked request
+      total_tokens_blocked   — total tokens in blocked payloads
+      costliest_attack_usd   — single most expensive blocked payload
+      by_risk_level          — cost breakdown by risk level (high/block)
+      by_day                 — daily cost time-series (blocked only)
+    """
+    entries = _load(days=days)
+    blocked = [e for e in entries if not e.get("allowed")]
+
+    if not blocked:
+        return {
+            "days": days,
+            "total_requests": len(entries),
+            "total_blocked": 0,
+            "total_attack_cost_usd": 0.0,
+            "avg_cost_per_attack": 0.0,
+            "total_tokens_blocked": 0,
+            "costliest_attack_usd": 0.0,
+            "by_risk_level": {},
+            "by_day": {},
+        }
+
+    costs  = [e.get("attack_cost_usd", 0.0) for e in blocked]
+    tokens = [e.get("payload_tokens", 0) for e in blocked]
+
+    total_cost   = round(sum(costs), 8)
+    avg_cost     = round(total_cost / len(blocked), 8)
+    total_tokens = sum(tokens)
+    costliest    = round(max(costs), 8)
+
+    # Per-risk-level breakdown
+    by_risk: dict[str, dict[str, float | int]] = {}
+    for e in blocked:
+        rl = e.get("risk_level", "unknown")
+        if rl not in by_risk:
+            by_risk[rl] = {"count": 0, "total_cost_usd": 0.0, "total_tokens": 0}
+        by_risk[rl]["count"] = int(by_risk[rl]["count"]) + 1
+        by_risk[rl]["total_cost_usd"] = round(
+            float(by_risk[rl]["total_cost_usd"]) + e.get("attack_cost_usd", 0.0), 8
+        )
+        by_risk[rl]["total_tokens"] = (
+            int(by_risk[rl]["total_tokens"]) + e.get("payload_tokens", 0)
+        )
+
+    # Daily time-series
+    by_day: dict[str, dict[str, float | int]] = {}
+    for e in blocked:
+        day = e.get("ts", "")[:10]
+        if day not in by_day:
+            by_day[day] = {"count": 0, "total_cost_usd": 0.0}
+        by_day[day]["count"] = int(by_day[day]["count"]) + 1
+        by_day[day]["total_cost_usd"] = round(
+            float(by_day[day]["total_cost_usd"]) + e.get("attack_cost_usd", 0.0), 8
+        )
+
+    return {
+        "days":                  days,
+        "total_requests":        len(entries),
+        "total_blocked":         len(blocked),
+        "total_attack_cost_usd": total_cost,
+        "avg_cost_per_attack":   avg_cost,
+        "total_tokens_blocked":  total_tokens,
+        "costliest_attack_usd":  costliest,
+        "by_risk_level":         by_risk,
+        "by_day":                dict(sorted(by_day.items())),
+    }
+
+
 @app.get("/api/v1/threats", tags=["analytics"])
 def threats(
     days: int = Query(default=7, ge=1, le=LOG_RETENTION_DAYS,

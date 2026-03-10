@@ -29,29 +29,57 @@ LOG_RETENTION_DAYS = int(os.getenv("GDPR_LOG_RETENTION_DAYS", "30"))
 _lock = threading.Lock()   # one write at a time; I/O is fast for NDJSON
 
 
+# ── Cost-to-Attack model ──────────────────────────────────────────────────────
+#
+# We approximate "how much does it cost an attacker to send this payload?"
+# using the input-token pricing of a cheap frontier model as a proxy —
+# default $0.15 / 1 million tokens (GPT-4o-mini / Haiku tier).
+#
+# Token count: len(text) / 4  (rule-of-thumb, ±10% for English/code).
+# attack_cost_usd = payload_tokens × COST_PER_TOKEN_USD
+
+_COST_PER_TOKEN_USD: float = float(
+    os.getenv("COST_PER_TOKEN_USD", str(0.15 / 1_000_000))
+)
+
+
+def estimate_tokens(text: str) -> int:
+    """Rough token count: len(text) // 4, minimum 1."""
+    return max(1, len(text) // 4)
+
+
+def token_cost_usd(tokens: int) -> float:
+    """Convert token count to USD using the configured cost-per-token rate."""
+    return round(tokens * _COST_PER_TOKEN_USD, 8)
+
+
 # ── Public schema (what gets written per request) ─────────────────────────────
 
 def build_entry(
     *,
-    request_id:   str,
-    allowed:      bool,
-    risk_level:   str,
-    flags:        list[str],
-    secrets_found: list[str],
-    payload_len:  int,
-    elapsed_ms:   float,
-    strict:       bool,
+    request_id:      str,
+    allowed:         bool,
+    risk_level:      str,
+    flags:           list[str],
+    secrets_found:   list[str],
+    payload_len:     int,
+    payload_tokens:  int,
+    attack_cost_usd: float,
+    elapsed_ms:      float,
+    strict:          bool,
 ) -> dict:
     return {
-        "ts":           datetime.now(UTC).isoformat(),
-        "request_id":   request_id,
-        "allowed":      allowed,
-        "risk_level":   risk_level,
-        "flags":        flags,
-        "secrets_found": secrets_found,
-        "payload_len":  payload_len,
-        "elapsed_ms":   elapsed_ms,
-        "strict":       strict,
+        "ts":              datetime.now(UTC).isoformat(),
+        "request_id":      request_id,
+        "allowed":         allowed,
+        "risk_level":      risk_level,
+        "flags":           flags,
+        "secrets_found":   secrets_found,
+        "payload_len":     payload_len,
+        "payload_tokens":  payload_tokens,
+        "attack_cost_usd": attack_cost_usd,
+        "elapsed_ms":      elapsed_ms,
+        "strict":          strict,
     }
 
 

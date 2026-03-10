@@ -471,15 +471,18 @@ async def _run_filter_pipeline(
 
     # ── Analytics logging ─────────────────────────────────────────────
     try:
+        _tokens = event_logger.estimate_tokens(payload.content)
         entry = event_logger.build_entry(
-            request_id    = rid,
-            allowed       = allowed,
-            risk_level    = guard_result.risk_level.value,
-            flags         = [f.flag.value for f in guard_result.flags],
-            secrets_found = [f.kind for f in redact_result.findings],
-            payload_len   = len(payload.content),
-            elapsed_ms    = elapsed_ms,
-            strict        = strict,
+            request_id      = rid,
+            allowed         = allowed,
+            risk_level      = guard_result.risk_level.value,
+            flags           = [f.flag.value for f in guard_result.flags],
+            secrets_found   = [f.kind for f in redact_result.findings],
+            payload_len     = len(payload.content),
+            payload_tokens  = _tokens,
+            attack_cost_usd = event_logger.token_cost_usd(_tokens),
+            elapsed_ms      = elapsed_ms,
+            strict          = strict,
         )
         event_logger.append(entry)
     except Exception:
