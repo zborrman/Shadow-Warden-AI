@@ -175,27 +175,27 @@ class EvolutionEngine:
         self,
         semantic_guard=None,
         ledger=None,
-        on_new_regex=None,
+        review_queue=None,
     ) -> None:
         """
         Parameters
         ----------
         semantic_guard : SemanticGuard | None
             When provided, new semantic examples are injected into the
-            live corpus immediately — no restart required.
+            live corpus immediately — no restart required (auto mode only).
         ledger : RuleLedger | None
             When provided, each generated rule is written to the ledger
             with status='pending_review' for lifecycle tracking.
-        on_new_regex : Callable[[str, str], None] | None
-            Called with (rule_id, pattern_str) when a new regex_pattern
-            rule is generated.  Used by main.py to hot-load the pattern
-            into the in-memory dynamic rule list without a restart.
+        review_queue : ReviewQueue | None
+            Activation gate.  In auto mode (default) rules are hot-loaded
+            immediately; in manual mode they stay pending_review until an
+            operator calls POST /admin/rules/{rule_id}/approve.
         """
         self._client        = anthropic.AsyncAnthropic()
         self._seen_hashes:  set[str] = set()   # in-process dedup
         self._guard         = semantic_guard
         self._ledger        = ledger
-        self._on_new_regex  = on_new_regex
+        self._review_queue  = review_queue
         self._rules_path    = DYNAMIC_RULES_PATH
         self._rules_path.parent.mkdir(parents=True, exist_ok=True)
         self._corpus_count  = self._count_existing_rules()
@@ -311,15 +311,15 @@ class EvolutionEngine:
             except Exception as exc:  # noqa: BLE001
                 log.warning("EvolutionEngine: ledger write failed — %s", exc)
 
-        # ── Hot-reload new regex pattern into the running filter ─────────────
-        if self._on_new_regex and rule.new_rule.rule_type == "regex_pattern":
-            try:
-                self._on_new_regex(rule.id, rule.new_rule.value)
-            except Exception as exc:  # noqa: BLE001
-                log.warning("EvolutionEngine: on_new_regex callback failed — %s", exc)
+        # ── Route through review queue (auto: hot-load now; manual: hold) ──────
+        activated = True   # default: activate immediately when no queue is set
+        if self._review_queue is not None:
+            activated = self._review_queue.submit(
+                rule.id, rule.new_rule.rule_type, rule.new_rule.value
+            )
 
         corpus_updated = False
-        if self._guard and evolution.new_rule.rule_type == "semantic_example":
+        if activated and self._guard and evolution.new_rule.rule_type == "semantic_example":
             # Vet all examples before injecting into the corpus
             raw_candidates = [evolution.new_rule.value] + evolution.evasion_variants[:MAX_EVASION_VARIANTS]
             examples = [e for raw in raw_candidates if (e := self._vet_example(raw)) is not None]

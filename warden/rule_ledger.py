@@ -288,6 +288,45 @@ class RuleLedger:
         )
         return [{"rule_id": row[0], "pattern": row[1]} for row in cur.fetchall()]
 
+    # ── Admin / manual lifecycle ──────────────────────────────────────────────
+
+    def approve_rule(self, rule_id: str) -> bool:
+        """
+        Manually promote a *pending_review* rule to *active*.
+
+        Called by ``POST /admin/rules/{rule_id}/approve`` when
+        ``RULE_REVIEW_MODE=manual``.  Returns True if the rule was found and
+        promoted, False if the rule_id is unknown or was not in pending_review.
+        """
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE rules SET status='active' WHERE rule_id=? AND status='pending_review'",
+                (rule_id,),
+            )
+            self._conn.commit()
+        found = cur.rowcount > 0
+        if found:
+            log.info("RuleLedger: rule %s manually approved → active", rule_id)
+        return found
+
+    def retire_rule(self, rule_id: str) -> bool:
+        """
+        Manually retire a rule regardless of its current status.
+
+        Called by ``DELETE /admin/rules/{rule_id}``.  Returns True if the rule
+        was found, False if the rule_id is unknown.
+        """
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE rules SET status='retired' WHERE rule_id=?",
+                (rule_id,),
+            )
+            self._conn.commit()
+        found = cur.rowcount > 0
+        if found:
+            log.info("RuleLedger: rule %s manually retired", rule_id)
+        return found
+
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def close(self) -> None:

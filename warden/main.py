@@ -64,6 +64,7 @@ from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
+from warden.review_queue import ReviewQueue
 from warden.rule_ledger import RuleLedger
 from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
 from warden.secret_redactor import SecretRedactor
@@ -177,6 +178,7 @@ _brain_guard:    BrainSemanticGuard| None = None   # "default" tenant
 _evolve:         EvolutionEngine   | None = None
 _agent_monitor:  AgentMonitor | None   = None
 _ledger:         RuleLedger        | None = None
+_review_queue:   ReviewQueue       | None = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -223,7 +225,7 @@ async def _nightly_rule_retirement() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -281,12 +283,15 @@ async def lifespan(app: FastAPI):
             len(_dynamic_regex_rules),
         )
 
+    # ── Review Queue ──────────────────────────────────────────────────
+    _review_queue = ReviewQueue(on_activate_regex=_add_dynamic_regex_rule)
+
     # ── Evolution Engine ──────────────────────────────────────────────
     if os.getenv("ANTHROPIC_API_KEY"):
         _evolve = EvolutionEngine(
             semantic_guard = _brain_guard,
             ledger         = _ledger,
-            on_new_regex   = _add_dynamic_regex_rule,
+            review_queue   = _review_queue,
         )
         log.info("EvolutionEngine online.")
     else:
@@ -853,6 +858,107 @@ async def list_rules(rule_status: str | None = None, limit: int = 100):
             detail="Rule ledger not available.",
         )
     return {"rules": _ledger.list_rules(status=rule_status, limit=limit)}
+
+
+# ── Admin rule lifecycle endpoints ────────────────────────────────────────────
+
+
+@app.post(
+    "/admin/rules/{rule_id}/approve",
+    tags=["admin"],
+    summary="Approve a pending_review rule and activate it (RULE_REVIEW_MODE=manual)",
+    dependencies=[Depends(require_api_key)],
+)
+async def admin_approve_rule(rule_id: str):
+    """
+    Promote a rule from *pending_review* to *active* and hot-load it into the
+    running filter pipeline.
+
+    Only meaningful when ``RULE_REVIEW_MODE=manual``.  Safe to call in auto mode
+    (the rule is already active; the ledger update is idempotent).
+    """
+    if _ledger is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Rule ledger not available.",
+        )
+    rule = _ledger.get_rule(rule_id)
+    if rule is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Rule {rule_id!r} not found in ledger.",
+        )
+    if rule["status"] == "retired":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Rule {rule_id!r} is already retired and cannot be approved.",
+        )
+
+    # Activate in the running pipeline
+    if _review_queue is not None:
+        _review_queue.activate(
+            rule_id    = rule_id,
+            rule_type  = rule["rule_type"],
+            value      = rule["pattern_snippet"],
+            brain_guard= _brain_guard,
+        )
+
+    # Promote in the ledger (approve_rule only changes pending_review → active;
+    # already-active rules are unaffected).
+    _ledger.approve_rule(rule_id)
+
+    log.info(
+        json.dumps({
+            "event":     "admin_rule_approved",
+            "rule_id":   rule_id,
+            "rule_type": rule["rule_type"],
+        })
+    )
+    updated = _ledger.get_rule(rule_id)
+    return {
+        "rule_id": rule_id,
+        "status":  updated["status"],  # type: ignore[index]
+        "message": f"Rule {rule_id!r} activated.",
+    }
+
+
+@app.delete(
+    "/admin/rules/{rule_id}",
+    tags=["admin"],
+    summary="Retire an evolution-generated rule immediately",
+    dependencies=[Depends(require_api_key)],
+)
+async def admin_retire_rule(rule_id: str):
+    """
+    Immediately retire a rule: removes it from the in-memory regex list and sets
+    ``status='retired'`` in the ledger so it is not reloaded on restart.
+    """
+    if _ledger is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Rule ledger not available.",
+        )
+    found = _ledger.retire_rule(rule_id)
+    if not found:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Rule {rule_id!r} not found in ledger.",
+        )
+
+    # Remove from the in-memory dynamic regex list (takes effect immediately)
+    _dynamic_regex_rules[:] = [r for r in _dynamic_regex_rules if r.rule_id != rule_id]
+
+    log.info(
+        json.dumps({
+            "event":   "admin_rule_retired",
+            "rule_id": rule_id,
+        })
+    )
+    return {
+        "rule_id": rule_id,
+        "status":  "retired",
+        "message": f"Rule {rule_id!r} retired and removed from live filter.",
+    }
 
 
 # ── WebSocket /ws/stream ─────────────────────────────────────────────────────
