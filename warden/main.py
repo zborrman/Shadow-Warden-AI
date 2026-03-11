@@ -63,13 +63,16 @@ from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
+from warden.data_policy import DataPolicyEngine
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
+from warden.onboarding import OnboardingEngine, PLANS
 from warden.review_queue import ReviewQueue
 from warden.rule_ledger import RuleLedger
 from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
+from warden.telegram_alert import send_block_alert as _tg_block_alert
 from warden.threat_store import ThreatStore
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
@@ -183,6 +186,8 @@ _ledger:         RuleLedger        | None = None
 _review_queue:   ReviewQueue       | None = None
 _threat_store:   ThreatStore       | None = None
 _billing:        BillingStore      | None = None
+_onboarding:     OnboardingEngine  | None = None
+_policy:         DataPolicyEngine  | None = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -238,7 +243,7 @@ async def _billing_aggregation_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -305,6 +310,16 @@ async def lifespan(app: FastAPI):
     _billing.aggregate_from_logs()   # catch up on any logs from last run
     log.info("BillingStore online.")
 
+    # ── Onboarding Engine ─────────────────────────────────────────────
+    _onboarding = OnboardingEngine(
+        gateway_url=os.getenv("GATEWAY_URL", "http://localhost:8001")
+    )
+    log.info("OnboardingEngine online.")
+
+    # ── Data Policy Engine ────────────────────────────────────────────
+    _policy = DataPolicyEngine()
+    log.info("DataPolicyEngine online.")
+
     # ── Review Queue ──────────────────────────────────────────────────
     _review_queue = ReviewQueue(on_activate_regex=_add_dynamic_regex_rule)
 
@@ -354,6 +369,8 @@ async def lifespan(app: FastAPI):
         _threat_store.close()
     if _billing is not None:
         _billing.close()
+    if _policy is not None:
+        _policy.close()
 
     log.info("Warden gateway shutting down.")
 
@@ -493,6 +510,29 @@ async def _run_filter_pipeline(
             detail=f"Monthly cost quota exceeded for tenant {tenant_id!r}. "
                    "Contact your administrator to increase the limit.",
         )
+
+    # ── Data policy check (traffic light) ────────────────────────────
+    if _policy is not None:
+        _dp_provider = (payload.context or {}).get("provider", "openai")
+        _dp_decision = _policy.classify(payload.content, _dp_provider, tenant_id)
+        if not _dp_decision.allowed:
+            log.warning(
+                json.dumps({
+                    "event":      "data_policy_block",
+                    "request_id": rid,
+                    "tenant_id":  tenant_id,
+                    "class":      _dp_decision.data_class,
+                    "rule":       _dp_decision.triggered_rule,
+                })
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "reason":     _dp_decision.reason,
+                    "suggestion": _dp_decision.suggestion,
+                    "data_class": _dp_decision.data_class,
+                },
+            )
 
     # Extract optional session_id for agentic monitoring
     session_id: str | None = (payload.context or {}).get("session_id")
@@ -656,11 +696,11 @@ async def _run_filter_pipeline(
                 flags      = [f.flag.value for f in guard_result.flags],
             )
 
-    # ── Stage 4b: Real-time alerting ──────────────────────────────────
+    # ── Stage 4b: Real-time alerting (Slack / PagerDuty + Telegram) ───
     if not allowed and background_tasks is not None:
+        top_flag = guard_result.top_flag
         try:
             from warden.alerting import alert_block_event
-            top_flag = guard_result.top_flag
             background_tasks.add_task(
                 alert_block_event,
                 attack_type  = top_flag.flag.value if top_flag else "unknown",
@@ -670,6 +710,17 @@ async def _run_filter_pipeline(
             )
         except ImportError:
             pass
+        # Telegram channel (per-tenant chat_id from onboarding)
+        tg_chat = _onboarding.get_telegram_chat_id(tenant_id) if _onboarding else None
+        background_tasks.add_task(
+            _tg_block_alert,
+            tenant_id      = tenant_id,
+            risk_level     = guard_result.risk_level.value,
+            attack_type    = top_flag.flag.value if top_flag else "unknown",
+            detail         = reason,
+            request_id     = rid,
+            tenant_chat_id = tg_chat,
+        )
 
     elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
     timings["total"] = elapsed_ms
@@ -1421,6 +1472,321 @@ async def ws_stream(websocket: WebSocket):
 
     await _ws_send(websocket, {"type": "done", "request_id": rid})
     await websocket.close()
+
+
+# ── Onboarding API ───────────────────────────────────────────────────────────
+
+class _OnboardRequest(BaseModel):
+    company_name:     str   = Field(..., min_length=2, max_length=120)
+    contact_email:    str   = Field(..., min_length=5)
+    plan:             str   = Field("pro", pattern="^(free|pro|msp)$")
+    telegram_chat_id: str | None = None
+    custom_quota_usd: float | None = None
+
+
+class _RotateKeyResponse(BaseModel):
+    tenant_id: str
+    api_key:   str
+    message:   str
+
+
+class _TelegramSetRequest(BaseModel):
+    chat_id: str | None = None
+
+
+class _TelegramTestRequest(BaseModel):
+    chat_id: str
+
+
+def _require_onboarding() -> None:
+    if _onboarding is None:
+        raise HTTPException(503, detail="OnboardingEngine not initialized.")
+
+
+@app.post(
+    "/onboard",
+    tags=["onboarding"],
+    summary="Create a new SMB tenant (MSP admin only)",
+    status_code=201,
+)
+async def create_tenant(
+    body: _OnboardRequest,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """
+    Provision a new SMB client tenant.
+
+    Returns a one-time setup kit including the raw API key (not stored in plaintext),
+    OPENAI_BASE_URL for the client, and a .env template.
+    """
+    _require_onboarding()
+    try:
+        kit = _onboarding.create_tenant(  # type: ignore[union-attr]
+            company_name     = body.company_name,
+            contact_email    = body.contact_email,
+            plan             = body.plan,
+            telegram_chat_id = body.telegram_chat_id,
+            custom_quota_usd = body.custom_quota_usd,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    # Apply billing quota if billing is configured
+    if _billing is not None and kit.quota_usd > 0:
+        _billing.set_quota(kit.tenant_id, kit.quota_usd)
+
+    log.info(
+        json.dumps({
+            "event":     "tenant_created",
+            "tenant_id": kit.tenant_id,
+            "plan":      kit.plan,
+            "by":        auth.tenant_id,
+        })
+    )
+    return kit.as_dict()
+
+
+@app.get(
+    "/onboard/{tenant_id}",
+    tags=["onboarding"],
+    summary="Get tenant status",
+)
+async def get_tenant_status(
+    tenant_id: str,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Return tenant metadata (no key hash exposed)."""
+    _require_onboarding()
+    tenant = _onboarding.get_tenant(tenant_id)  # type: ignore[union-attr]
+    if not tenant:
+        raise HTTPException(404, detail=f"Tenant {tenant_id!r} not found.")
+    return tenant
+
+
+@app.get(
+    "/tenants",
+    tags=["onboarding"],
+    summary="List all tenants (MSP dashboard)",
+)
+async def list_tenants(
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Return all provisioned tenants with metadata (no key hashes)."""
+    _require_onboarding()
+    tenants = _onboarding.list_tenants()  # type: ignore[union-attr]
+    return {"count": len(tenants), "tenants": tenants}
+
+
+@app.post(
+    "/onboard/{tenant_id}/rotate-key",
+    tags=["onboarding"],
+    summary="Issue a new API key for a tenant (invalidates old key immediately)",
+)
+async def rotate_tenant_key(
+    tenant_id: str,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Rotate the API key for a tenant. Old key is immediately revoked."""
+    _require_onboarding()
+    new_key = _onboarding.rotate_key(tenant_id)  # type: ignore[union-attr]
+    if new_key is None:
+        raise HTTPException(404, detail=f"Tenant {tenant_id!r} not found.")
+    log.info(
+        json.dumps({"event": "key_rotated", "tenant_id": tenant_id, "by": auth.tenant_id})
+    )
+    return {
+        "tenant_id": tenant_id,
+        "api_key":   new_key,
+        "message":   "New API key issued. Update your client's OPENAI_API_KEY immediately.",
+    }
+
+
+@app.put(
+    "/onboard/{tenant_id}/status",
+    tags=["onboarding"],
+    summary="Activate or deactivate a tenant",
+)
+async def set_tenant_status(
+    tenant_id: str,
+    active: bool,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Enable or suspend a tenant's API key."""
+    _require_onboarding()
+    if active:
+        found = _onboarding.reactivate_tenant(tenant_id)  # type: ignore[union-attr]
+    else:
+        found = _onboarding.deactivate_tenant(tenant_id)  # type: ignore[union-attr]
+    if not found:
+        raise HTTPException(404, detail=f"Tenant {tenant_id!r} not found.")
+    return {"tenant_id": tenant_id, "active": active}
+
+
+@app.put(
+    "/onboard/{tenant_id}/telegram",
+    tags=["onboarding"],
+    summary="Set or clear a tenant's Telegram chat_id",
+)
+async def set_tenant_telegram(
+    tenant_id: str,
+    body: _TelegramSetRequest,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Store a Telegram chat_id for per-tenant block event notifications."""
+    _require_onboarding()
+    found = _onboarding.update_telegram(tenant_id, body.chat_id)  # type: ignore[union-attr]
+    if not found:
+        raise HTTPException(404, detail=f"Tenant {tenant_id!r} not found.")
+    return {"tenant_id": tenant_id, "telegram_chat_id": body.chat_id}
+
+
+@app.post(
+    "/onboard/{tenant_id}/verify-telegram",
+    tags=["onboarding"],
+    summary="Send a test Telegram message to verify bot and chat_id",
+)
+async def verify_tenant_telegram(
+    tenant_id: str,
+    body: _TelegramTestRequest,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Send a test Telegram message. Returns ok=true if message was delivered."""
+    from warden.telegram_alert import send_test_message
+    ok = await send_test_message(body.chat_id)
+    return {"ok": ok, "chat_id": body.chat_id}
+
+
+# ── Data Policy API ───────────────────────────────────────────────────────────
+
+class _PolicySettingsRequest(BaseModel):
+    default_class:      str  = Field("green", pattern="^(green|yellow|red)$")
+    block_cloud_yellow: bool = True
+
+
+class _AddRuleRequest(BaseModel):
+    data_class:   str = Field(..., pattern="^(green|yellow|red)$")
+    trigger_type: str = Field(..., pattern="^(pattern|keyword)$")
+    value:        str = Field(..., min_length=1)
+    description:  str = ""
+
+
+class _ClassifyRequest(BaseModel):
+    text:     str = Field(..., min_length=1)
+    provider: str = "openai"
+
+
+def _require_policy() -> None:
+    if _policy is None:
+        raise HTTPException(503, detail="DataPolicyEngine not initialized.")
+
+
+@app.get(
+    "/policy/{tenant_id}",
+    tags=["data-policy"],
+    summary="Get full data classification policy for a tenant",
+)
+async def get_policy(
+    tenant_id: str,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """
+    Returns: settings (block_cloud_yellow), custom rules (RED/YELLOW/GREEN),
+    and built-in category descriptions.
+    """
+    _require_policy()
+    return _policy.get_full_policy(tenant_id)  # type: ignore[union-attr]
+
+
+@app.put(
+    "/policy/{tenant_id}/settings",
+    tags=["data-policy"],
+    summary="Update tenant policy settings",
+)
+async def update_policy_settings(
+    tenant_id: str,
+    body: _PolicySettingsRequest,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """
+    Set block_cloud_yellow=true to restrict YELLOW data to local AI only.
+    Set block_cloud_yellow=false to allow YELLOW data to cloud AI (with advisory).
+    """
+    _require_policy()
+    _policy.update_settings(  # type: ignore[union-attr]
+        tenant_id          = tenant_id,
+        default_class      = body.default_class,
+        block_cloud_yellow = body.block_cloud_yellow,
+    )
+    return {"tenant_id": tenant_id, "settings": body.model_dump()}
+
+
+@app.post(
+    "/policy/{tenant_id}/rules",
+    tags=["data-policy"],
+    summary="Add a custom classification rule",
+    status_code=201,
+)
+async def add_policy_rule(
+    tenant_id: str,
+    body: _AddRuleRequest,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """
+    Add a RED/YELLOW/GREEN rule for this tenant.
+
+    trigger_type='keyword' accepts comma-separated keywords and converts them to
+    a regex pattern automatically (e.g. 'client list, crm, contact database').
+    trigger_type='pattern' accepts a raw Python regex string.
+    """
+    _require_policy()
+    try:
+        rule_id = _policy.add_rule(  # type: ignore[union-attr]
+            tenant_id    = tenant_id,
+            data_class   = body.data_class,
+            trigger_type = body.trigger_type,
+            value        = body.value,
+            description  = body.description,
+        )
+    except (ValueError, Exception) as exc:
+        raise HTTPException(400, detail=str(exc))
+    return {"rule_id": rule_id, "tenant_id": tenant_id, "data_class": body.data_class}
+
+
+@app.delete(
+    "/policy/{tenant_id}/rules/{rule_id}",
+    tags=["data-policy"],
+    summary="Delete a custom classification rule",
+)
+async def delete_policy_rule(
+    tenant_id: str,
+    rule_id:   str,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Delete a custom rule by ID. Built-in category patterns cannot be deleted."""
+    _require_policy()
+    found = _policy.delete_rule(rule_id, tenant_id)  # type: ignore[union-attr]
+    if not found:
+        raise HTTPException(404, detail=f"Rule {rule_id!r} not found for tenant {tenant_id!r}.")
+    return {"deleted": rule_id}
+
+
+@app.post(
+    "/policy/{tenant_id}/classify",
+    tags=["data-policy"],
+    summary="Test-classify a piece of text against the tenant's data policy",
+)
+async def classify_text(
+    tenant_id: str,
+    body: _ClassifyRequest,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """
+    Dry-run the data policy against arbitrary text.
+    Does NOT block the request — used by MSP admins to test rules before applying them.
+    """
+    _require_policy()
+    decision = _policy.classify(body.text, body.provider, tenant_id)  # type: ignore[union-attr]
+    return decision.as_dict()
 
 
 # ── Global error handler ──────────────────────────────────────────────────────
