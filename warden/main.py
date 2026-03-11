@@ -1779,6 +1779,76 @@ async def delete_policy_rule(
     return {"deleted": rule_id}
 
 
+@app.get(
+    "/msp/overview",
+    tags=["msp"],
+    summary="Cross-tenant MSP overview — aggregate stats for all tenants",
+)
+async def msp_overview(
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """
+    Returns per-tenant stats (requests, blocks, cost, block rate, quota usage)
+    for the current calendar month, plus fleet-wide totals.
+
+    Designed for the MSP sales dashboard — shows all client activity in one view.
+    Requires a valid API key (any key; MSP keys have plan=msp in the key file).
+    """
+    _require_onboarding()
+    tenants = _onboarding.list_tenants()  # type: ignore[union-attr]
+    year_month = datetime.now(UTC).strftime("%Y-%m")
+
+    tenant_rows: list[dict] = []
+    fleet_requests = 0
+    fleet_blocked  = 0
+    fleet_cost     = 0.0
+
+    for t in tenants:
+        tid = t["tenant_id"]
+        if _billing is not None:
+            usage = _billing.get_usage(tid, from_date=f"{year_month}-01")
+        else:
+            usage = {"requests": 0, "blocked": 0, "cost_usd": 0.0, "quota_usd": None, "quota_remaining": None}
+
+        reqs    = usage.get("requests", 0)
+        blocked = usage.get("blocked",  0)
+        cost    = usage.get("cost_usd", 0.0)
+        quota   = usage.get("quota_usd")
+
+        fleet_requests += reqs
+        fleet_blocked  += blocked
+        fleet_cost     += cost
+
+        tenant_rows.append({
+            "tenant_id":    tid,
+            "label":        t.get("label", tid),
+            "plan":         t.get("plan", "unknown"),
+            "active":       t.get("active", True),
+            "requests":     reqs,
+            "blocked":      blocked,
+            "block_rate":   round(blocked / reqs, 4) if reqs else 0.0,
+            "cost_usd":     round(cost, 6),
+            "quota_usd":    quota,
+            "quota_pct":    round(cost / quota * 100, 1) if quota else None,
+            "created_at":   t.get("created_at", ""),
+        })
+
+    # Sort by most blocked first for the demo table
+    tenant_rows.sort(key=lambda r: r["blocked"], reverse=True)
+
+    return {
+        "month":          year_month,
+        "fleet": {
+            "tenants":    len(tenant_rows),
+            "requests":   fleet_requests,
+            "blocked":    fleet_blocked,
+            "block_rate": round(fleet_blocked / fleet_requests, 4) if fleet_requests else 0.0,
+            "cost_usd":   round(fleet_cost, 6),
+        },
+        "tenants": tenant_rows,
+    }
+
+
 @app.post(
     "/policy/{tenant_id}/classify",
     tags=["data-policy"],

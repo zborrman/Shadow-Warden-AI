@@ -1,0 +1,55 @@
+{
+  "description": "Shadow Warden AI — Managed Extension Storage Policy",
+  "instructions": [
+    "Deploy this file via Google Workspace Admin > Devices > Chrome > Apps & Extensions",
+    "Or via Windows GPO: Computer Configuration > Administrative Templates > Google > Chrome > Extensions",
+    "Set as 'Managed storage schema' for the extension ID obtained after publishing to Chrome Web Store"
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "gatewayUrl": {
+        "title": "Shadow Warden Gateway URL",
+        "description": "URL of the Shadow Warden AI server (Hetzner or on-premise)",
+        "type": "string",
+        "default": "https://your-warden-server.com"
+      },
+      "apiKey": {
+        "title": "Tenant API Key",
+        "description": "X-API-Key issued by your MSP via POST /onboard",
+        "type": "string"
+      },
+      "tenantId": {
+        "title": "Tenant ID",
+        "description": "Your company slug (e.g. acme-dental)",
+        "type": "string",
+        "default": "default"
+      },
+      "ollamaUrl": {
+        "title": "Local AI URL",
+        "description": "URL of local AI (Ollama/LM Studio) for YELLOW zone redirect",
+        "type": "string",
+        "default": "http://localhost:3000"
+      },
+      "enabled": {
+        "title": "Protection Enabled",
+        "description": "Whether the extension actively intercepts AI requests",
+        "type": "boolean",
+        "default": true
+      },
+      "notifyOnBlock": {
+        "title": "Desktop Notifications",
+        "description": "Show desktop notifications when a request is blocked",
+        "type": "boolean",
+        "default": true
+      },
+      "minRiskNotify": {
+        "title": "Minimum risk level for notifications",
+        "description": "Only notify for this risk level and above",
+        "type": "string",
+        "enum": ["low", "medium", "high", "block"],
+        "default": "high"
+      }
+    }
+  }
+}

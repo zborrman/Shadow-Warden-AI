@@ -23,6 +23,7 @@ async function _loadConfig() {
   document.getElementById("gateway-url").value = cfg.gatewayUrl || "";
   document.getElementById("api-key").value     = cfg.apiKey     || "";
   document.getElementById("tenant-id").value   = cfg.tenantId   || "default";
+  document.getElementById("ollama-url").value  = cfg.ollamaUrl  || "http://localhost:3000";
 
   _updateStatusUI(cfg.enabled !== false, !!cfg.apiKey);
 
@@ -36,6 +37,7 @@ async function _saveConfig() {
   const gatewayUrl = document.getElementById("gateway-url").value.trim().replace(/\/$/, "");
   const apiKey     = document.getElementById("api-key").value.trim();
   const tenantId   = document.getElementById("tenant-id").value.trim() || "default";
+  const ollamaUrl  = document.getElementById("ollama-url").value.trim() || "http://localhost:3000";
 
   if (!gatewayUrl || !apiKey) {
     _showToast("Gateway URL and API Key are required.", "error");
@@ -46,7 +48,7 @@ async function _saveConfig() {
   saveBtn.disabled = true;
   saveBtn.textContent = "Saving…";
 
-  await chrome.storage.sync.set({ gatewayUrl, apiKey, tenantId, enabled: true });
+  await chrome.storage.sync.set({ gatewayUrl, apiKey, tenantId, ollamaUrl, enabled: true });
 
   _updateStatusUI(true, true);
   document.getElementById("tenant-display").textContent = tenantId;
