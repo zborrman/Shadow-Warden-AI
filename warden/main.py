@@ -393,12 +393,21 @@ app = FastAPI(
 app.state.limiter = _limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+_DEFAULT_CORS = ",".join([
+    "http://localhost:3000",
+    # Browser extension origins — required for Shadow Warden browser extension
+    "https://chatgpt.com",
+    "https://chat.openai.com",
+    "https://claude.ai",
+    "https://gemini.google.com",
+    "https://copilot.microsoft.com",
+])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
-    allow_credentials=True,
-    allow_methods=["POST", "GET"],
-    allow_headers=["*"],
+    allow_origins=os.getenv("CORS_ORIGINS", _DEFAULT_CORS).split(","),
+    allow_credentials=False,   # extensions don't send cookies
+    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Request-ID"],
 )
 
 # mTLS enforcement — validates client-certificate CN on every non-exempt request.
