@@ -59,6 +59,7 @@ from slowapi.util import get_remote_address
 
 from warden.analytics import logger as event_logger
 from warden.auth_guard import AuthResult, require_api_key
+from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
@@ -181,6 +182,7 @@ _agent_monitor:  AgentMonitor | None   = None
 _ledger:         RuleLedger        | None = None
 _review_queue:   ReviewQueue       | None = None
 _threat_store:   ThreatStore       | None = None
+_billing:        BillingStore      | None = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -225,9 +227,18 @@ async def _nightly_rule_retirement() -> None:
             _ledger.retire_stale()
 
 
+async def _billing_aggregation_loop() -> None:
+    """Background task: aggregate new log entries into billing totals every N seconds."""
+    while True:
+        await asyncio.sleep(BILLING_AGG_INTERVAL)
+        if _billing is not None:
+            with suppress(Exception):
+                _billing.aggregate_from_logs()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -289,6 +300,11 @@ async def lifespan(app: FastAPI):
     _threat_store = ThreatStore()
     log.info("ThreatStore online.")
 
+    # ── Billing Store ─────────────────────────────────────────────────
+    _billing = BillingStore()
+    _billing.aggregate_from_logs()   # catch up on any logs from last run
+    log.info("BillingStore online.")
+
     # ── Review Queue ──────────────────────────────────────────────────
     _review_queue = ReviewQueue(on_activate_regex=_add_dynamic_regex_rule)
 
@@ -319,19 +335,25 @@ async def lifespan(app: FastAPI):
 
     log.info("Filter pipeline ready.")
 
-    # ── Nightly rule retirement task ──────────────────────────────────
+    # ── Background tasks ──────────────────────────────────────────────
     _retirement_task = asyncio.create_task(_nightly_rule_retirement())
+    _billing_task    = asyncio.create_task(_billing_aggregation_loop())
 
     yield
 
     _retirement_task.cancel()
+    _billing_task.cancel()
     with suppress(asyncio.CancelledError):
         await _retirement_task
+    with suppress(asyncio.CancelledError):
+        await _billing_task
 
     if _ledger is not None:
         _ledger.close()
     if _threat_store is not None:
         _threat_store.close()
+    if _billing is not None:
+        _billing.close()
 
     log.info("Warden gateway shutting down.")
 
@@ -460,6 +482,17 @@ async def _run_filter_pipeline(
     # Use tenant_id from auth if available, else from payload
     tenant_id = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
     strict = payload.strict or (_guard.strict if _guard else False)
+
+    # ── Monthly quota gate ────────────────────────────────────────────
+    if _billing is not None and _billing.is_quota_exceeded(tenant_id):
+        log.info(
+            json.dumps({"event": "quota_exceeded", "tenant_id": tenant_id, "request_id": rid})
+        )
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=f"Monthly cost quota exceeded for tenant {tenant_id!r}. "
+                   "Contact your administrator to increase the limit.",
+        )
 
     # Extract optional session_id for agentic monitoring
     session_id: str | None = (payload.context or {}).get("session_id")
@@ -666,6 +699,7 @@ async def _run_filter_pipeline(
             strict          = strict,
             session_id      = session_id,
         )
+        entry["tenant_id"] = tenant_id   # needed for billing aggregation
         event_logger.append(entry)
     except Exception:
         log.exception(json.dumps({"event": "analytics_error", "request_id": rid}))
@@ -1105,6 +1139,100 @@ async def unblock_ip(ip: str, tenant_id: str = "default"):
         )
     log.info(json.dumps({"event": "ip_unblocked", "ip": ip, "tenant_id": tenant_id}))
     return {"ip": ip, "tenant_id": tenant_id, "message": f"IP {ip!r} unblocked."}
+
+
+# ── Billing endpoints ─────────────────────────────────────────────────────────
+
+
+def _require_billing() -> None:
+    if _billing is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Billing store not available.",
+        )
+
+
+class _QuotaRequest(BaseModel):
+    quota_usd: float   # monthly USD cap; set to 0 to remove cap
+
+
+@app.get(
+    "/billing/{tenant_id}",
+    tags=["billing"],
+    summary="Aggregated usage and cost for a tenant",
+    dependencies=[Depends(require_api_key)],
+)
+async def get_billing(
+    tenant_id: str,
+    from_date: str | None = None,
+    to_date:   str | None = None,
+):
+    """
+    Return aggregated request counts and USD cost for *tenant_id* over the
+    given date range (``from_date`` / ``to_date`` inclusive, format YYYY-MM-DD).
+    Includes current-month cost and quota_remaining when a quota is set.
+    """
+    _require_billing()
+    return _billing.get_usage(tenant_id, from_date=from_date, to_date=to_date)  # type: ignore[union-attr]
+
+
+@app.get(
+    "/billing/{tenant_id}/daily",
+    tags=["billing"],
+    summary="Day-by-day billing breakdown for a tenant",
+    dependencies=[Depends(require_api_key)],
+)
+async def get_billing_daily(
+    tenant_id: str,
+    from_date: str | None = None,
+    to_date:   str | None = None,
+    limit:     int        = 90,
+):
+    _require_billing()
+    return {
+        "tenant_id": tenant_id,
+        "rows": _billing.get_daily_breakdown(tenant_id, from_date, to_date, limit),  # type: ignore[union-attr]
+    }
+
+
+@app.post(
+    "/billing/{tenant_id}/quota",
+    tags=["billing"],
+    summary="Set or update the monthly USD cost cap for a tenant",
+    dependencies=[Depends(require_api_key)],
+)
+async def set_billing_quota(tenant_id: str, body: _QuotaRequest):
+    """
+    Set the monthly cost cap for *tenant_id*.  All subsequent filter requests
+    from this tenant will receive HTTP 402 once the cap is reached.
+
+    Set ``quota_usd=0`` to remove the cap (unlimited).
+    """
+    _require_billing()
+    if body.quota_usd <= 0:
+        # Treat 0 / negative as "remove quota" — just set a very high value
+        # or use a sentinel.  Here we delete the row to restore unlimited.
+        with suppress(Exception):
+            _billing._conn.execute(  # type: ignore[union-attr]
+                "DELETE FROM tenant_quotas WHERE tenant_id=?", (tenant_id,)
+            )
+            _billing._conn.commit()  # type: ignore[union-attr]
+        log.info(json.dumps({"event": "quota_removed", "tenant_id": tenant_id}))
+        return {"tenant_id": tenant_id, "quota_usd": None, "message": "Quota removed (unlimited)."}
+
+    _billing.set_quota(tenant_id, body.quota_usd)  # type: ignore[union-attr]
+    log.info(
+        json.dumps({
+            "event":     "quota_set",
+            "tenant_id": tenant_id,
+            "quota_usd": body.quota_usd,
+        })
+    )
+    return {
+        "tenant_id": tenant_id,
+        "quota_usd": body.quota_usd,
+        "message":   f"Monthly quota set to ${body.quota_usd:.4f} for tenant {tenant_id!r}.",
+    }
 
 
 # ── WebSocket /ws/stream ─────────────────────────────────────────────────────
