@@ -69,6 +69,7 @@ from warden.rule_ledger import RuleLedger
 from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
+from warden.threat_store import ThreatStore
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
 
@@ -179,6 +180,7 @@ _evolve:         EvolutionEngine   | None = None
 _agent_monitor:  AgentMonitor | None   = None
 _ledger:         RuleLedger        | None = None
 _review_queue:   ReviewQueue       | None = None
+_threat_store:   ThreatStore       | None = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -225,7 +227,7 @@ async def _nightly_rule_retirement() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -283,6 +285,10 @@ async def lifespan(app: FastAPI):
             len(_dynamic_regex_rules),
         )
 
+    # ── Threat Store ──────────────────────────────────────────────────
+    _threat_store = ThreatStore()
+    log.info("ThreatStore online.")
+
     # ── Review Queue ──────────────────────────────────────────────────
     _review_queue = ReviewQueue(on_activate_regex=_add_dynamic_regex_rule)
 
@@ -324,6 +330,8 @@ async def lifespan(app: FastAPI):
 
     if _ledger is not None:
         _ledger.close()
+    if _threat_store is not None:
+        _threat_store.close()
 
     log.info("Warden gateway shutting down.")
 
@@ -427,14 +435,27 @@ async def health():
 # ── Core filter logic (shared by /filter and /filter/batch) ──────────────────
 
 async def _run_filter_pipeline(
-    payload: FilterRequest,
-    rid: str,
-    auth: AuthResult,
+    payload:          FilterRequest,
+    rid:              str,
+    auth:             AuthResult,
     background_tasks: BackgroundTasks | None = None,
+    client_ip:        str                    = "",
 ) -> FilterResponse:
     """Execute the full filter pipeline and return a FilterResponse."""
     start = time.perf_counter()
     timings: dict[str, float] = {}
+
+    # ── IP block check (pre-auth, earliest possible gate) ──────────────
+    if client_ip and _threat_store is not None and _threat_store.is_blocked(
+        client_ip, auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
+    ):
+        log.info(
+            json.dumps({"event": "ip_blocked", "ip": client_ip, "request_id": rid})
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied.",
+        )
 
     # Use tenant_id from auth if available, else from payload
     tenant_id = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
@@ -592,6 +613,16 @@ async def _run_filter_pipeline(
         )
         log.info(json.dumps({"event": "evolution_queued", "request_id": rid}))
 
+    # ── Stage 4c: Threat intelligence recording ───────────────────────
+    if not allowed and client_ip and _threat_store is not None:
+        with suppress(Exception):
+            _threat_store.record_block_event(
+                ip         = client_ip,
+                tenant_id  = tenant_id,
+                risk_level = guard_result.risk_level.value,
+                flags      = [f.flag.value for f in guard_result.flags],
+            )
+
     # ── Stage 4b: Real-time alerting ──────────────────────────────────
     if not allowed and background_tasks is not None:
         try:
@@ -650,8 +681,7 @@ async def _run_filter_pipeline(
     # ── Agentic session monitoring ────────────────────────────────────
     if session_id and _agent_monitor is not None and background_tasks is not None:
         with suppress(Exception):
-            background_tasks.add_task(
-                _agent_monitor.record_request,
+            session_threat = _agent_monitor.record_request(
                 session_id,
                 rid,
                 allowed,
@@ -659,6 +689,16 @@ async def _run_filter_pipeline(
                 [f.flag.value for f in guard_result.flags],
                 tenant_id,
             )
+            # Persist session anomalies to threat store for cross-session correlation
+            if session_threat is not None and client_ip and _threat_store is not None:
+                with suppress(Exception):
+                    _threat_store.record_session_threat(
+                        ip         = client_ip,
+                        tenant_id  = tenant_id,
+                        session_id = session_id,
+                        pattern    = session_threat.pattern,
+                        severity   = session_threat.severity,
+                    )
 
     response = FilterResponse(
         allowed                  = allowed,
@@ -717,7 +757,8 @@ async def filter_content(
 ) -> FilterResponse:
     rid = getattr(request.state, "request_id", "-")
     _enforce_tenant_rate_limit(auth, rid)
-    return await _run_filter_pipeline(payload, rid, auth, background_tasks)
+    client_ip = request.client.host if request.client else ""
+    return await _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
 
 
 # ── /filter/batch ─────────────────────────────────────────────────────────────
@@ -749,10 +790,11 @@ async def filter_batch(
 ) -> _BatchResponse:
     rid_base = getattr(request.state, "request_id", str(uuid.uuid4()))
     _enforce_tenant_rate_limit(auth, rid_base)
+    client_ip = request.client.host if request.client else ""
     results = []
     for i, item in enumerate(payload.items):
         rid = f"{rid_base}:batch-{i}"
-        resp = await _run_filter_pipeline(item, rid, auth, background_tasks)
+        resp = await _run_filter_pipeline(item, rid, auth, background_tasks, client_ip)
         results.append(resp)
     return _BatchResponse(results=results)
 
@@ -959,6 +1001,110 @@ async def admin_retire_rule(rule_id: str):
         "status":  "retired",
         "message": f"Rule {rule_id!r} retired and removed from live filter.",
     }
+
+
+# ── Threat intelligence endpoints ─────────────────────────────────────────────
+
+
+class _BlockIpRequest(BaseModel):
+    ip:         str
+    tenant_id:  str         = "default"
+    reason:     str         = ""
+    expires_at: str | None  = None   # ISO-8601; None = permanent
+
+
+@app.get(
+    "/threats/profiles",
+    tags=["threats"],
+    summary="Cross-session attacker profiles aggregated by IP + tenant",
+    dependencies=[Depends(require_api_key)],
+)
+async def get_threat_profiles(tenant_id: str | None = None, limit: int = 50):
+    """Return attacker profiles sorted by most recent block activity."""
+    if _threat_store is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Threat store not available.",
+        )
+    return {"profiles": _threat_store.get_profiles(tenant_id=tenant_id, limit=limit)}
+
+
+@app.get(
+    "/threats/blocked-ips",
+    tags=["threats"],
+    summary="List all currently-blocked IPs",
+    dependencies=[Depends(require_api_key)],
+)
+async def get_blocked_ips(tenant_id: str | None = None):
+    if _threat_store is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Threat store not available.",
+        )
+    return {"blocked_ips": _threat_store.get_blocked_ips(tenant_id=tenant_id)}
+
+
+@app.post(
+    "/threats/block-ip",
+    tags=["threats"],
+    summary="Manually block an IP address across the filter pipeline",
+    dependencies=[Depends(require_api_key)],
+)
+async def block_ip(body: _BlockIpRequest):
+    """
+    Add an IP to the blocklist.  All future requests from this IP will receive
+    HTTP 403 before any other processing occurs.  Optionally provide an
+    ISO-8601 ``expires_at`` for temporary blocks; omit for permanent.
+    """
+    if _threat_store is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Threat store not available.",
+        )
+    _threat_store.block_ip(
+        ip         = body.ip,
+        tenant_id  = body.tenant_id,
+        reason     = body.reason,
+        blocked_by = "manual",
+        expires_at = body.expires_at,
+    )
+    log.info(
+        json.dumps({
+            "event":     "ip_manually_blocked",
+            "ip":        body.ip,
+            "tenant_id": body.tenant_id,
+            "reason":    body.reason,
+        })
+    )
+    return {
+        "ip":         body.ip,
+        "tenant_id":  body.tenant_id,
+        "blocked_by": "manual",
+        "expires_at": body.expires_at,
+        "message":    f"IP {body.ip!r} blocked.",
+    }
+
+
+@app.delete(
+    "/threats/blocked-ips/{ip}",
+    tags=["threats"],
+    summary="Remove an IP from the blocklist",
+    dependencies=[Depends(require_api_key)],
+)
+async def unblock_ip(ip: str, tenant_id: str = "default"):
+    if _threat_store is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Threat store not available.",
+        )
+    found = _threat_store.unblock_ip(ip, tenant_id)
+    if not found:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"IP {ip!r} is not in the blocklist for tenant {tenant_id!r}.",
+        )
+    log.info(json.dumps({"event": "ip_unblocked", "ip": ip, "tenant_id": tenant_id}))
+    return {"ip": ip, "tenant_id": tenant_id, "message": f"IP {ip!r} unblocked."}
 
 
 # ── WebSocket /ws/stream ─────────────────────────────────────────────────────
