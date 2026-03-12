@@ -12,7 +12,6 @@ import pytest
 
 import warden.telegram_alert as tg
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _mock_http_ok():

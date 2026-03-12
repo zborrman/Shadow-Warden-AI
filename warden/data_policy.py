@@ -42,7 +42,6 @@ Pattern cache: compiled regex patterns are cached per-tenant and invalidated on 
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re

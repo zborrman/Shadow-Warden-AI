@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from warden.onboarding import OnboardingEngine, PLANS, TenantSetupKit
+from warden.onboarding import PLANS, OnboardingEngine, TenantSetupKit
 
 
 @pytest.fixture
@@ -83,7 +83,8 @@ class TestCreateTenant:
         assert data["keys"][0]["tenant_id"] == "co-g"
 
     def test_key_hash_not_equal_to_raw_key(self, engine: OnboardingEngine) -> None:
-        import json, hashlib
+        import hashlib
+        import json
         kit = engine.create_tenant("Co H", "h@h.com")
         keys_path = engine._keys_path
         data = json.loads(keys_path.read_text())
@@ -159,7 +160,8 @@ class TestRotateKey:
         assert new_key != kit.api_key
 
     def test_rotate_updates_hash(self, engine: OnboardingEngine) -> None:
-        import json, hashlib
+        import hashlib
+        import json
         engine.create_tenant("Hash Co", "h@h.com")
         new_key = engine.rotate_key("hash-co")
         data = json.loads(engine._keys_path.read_text())

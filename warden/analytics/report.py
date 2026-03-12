@@ -28,7 +28,7 @@ import calendar
 import collections
 import html as _html
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from warden.analytics.logger import load_entries

@@ -35,7 +35,6 @@ import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -148,7 +147,7 @@ async def submit_rule(
             source_id   = body.source_id,
         )
     except ValueError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
     # Trigger auto-vetting after every submission
     _store.auto_vet(min_unique_sources=_MIN_VET)

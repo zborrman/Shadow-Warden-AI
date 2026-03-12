@@ -15,8 +15,6 @@ Coverage:
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -317,7 +315,6 @@ class TestRenderJson:
 
     def test_serialisable(self) -> None:
         """Must not raise when JSON-serialised."""
-        import json
         d = self._json()
         json.dumps(d)   # should not raise
 
@@ -338,6 +335,7 @@ class TestReportEndpoint:
     @pytest.fixture(autouse=True)
     def _client(self):
         from fastapi.testclient import TestClient
+
         from warden.main import app
         self.client = TestClient(app, raise_server_exceptions=True)
 

@@ -79,7 +79,8 @@ ignore  = ["E501", "B008"]   # E501=line length (ruff handles it), B008=FastAPI 
 
 [tool.ruff.lint.per-file-ignores]
 "warden/tests/*" = ["S101"]                    # assert is expected in tests
-"warden/analytics/dashboard.py" = ["C408"]    # Plotly uses dict() kwargs by convention
+"warden/analytics/dashboard.py"     = ["C408"]    # Plotly uses dict() kwargs by convention
+"warden/analytics/msp_dashboard.py" = ["C408"]    # Plotly uses dict() kwargs by convention
 
 # ── Mypy ─────────────────────────────────────────────────────────────────────
 

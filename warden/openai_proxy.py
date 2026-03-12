@@ -32,10 +32,9 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import TOOL_BLOCKS
 from warden.tool_guard import ToolCallGuard
-
-from warden.masking.engine import get_engine as _get_masking_engine
 
 log = logging.getLogger("warden.openai_proxy")
 

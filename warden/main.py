@@ -65,16 +65,24 @@ from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.data_policy import DataPolicyEngine
+from warden.masking.engine import get_engine as _get_masking_engine
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
-from warden.onboarding import OnboardingEngine, PLANS
+from warden.onboarding import OnboardingEngine
 from warden.review_queue import ReviewQueue
 from warden.rule_ledger import RuleLedger
-from warden.masking.engine import MaskingEngine as _MaskingEngine, get_engine as _get_masking_engine
 from warden.schemas import (
-    FilterRequest, FilterResponse, FlagType, MaskRequest, MaskResponse,
-    MaskedEntityInfo, MaskingReport, RiskLevel, SemanticFlag,
-    UnmaskRequest, UnmaskResponse,
+    FilterRequest,
+    FilterResponse,
+    FlagType,
+    MaskedEntityInfo,
+    MaskingReport,
+    MaskRequest,
+    MaskResponse,
+    RiskLevel,
+    SemanticFlag,
+    UnmaskRequest,
+    UnmaskResponse,
 )
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
@@ -1607,7 +1615,7 @@ async def create_tenant(
             custom_quota_usd = body.custom_quota_usd,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Apply billing quota if billing is configured
     if _billing is not None and kit.quota_usd > 0:
@@ -1826,7 +1834,7 @@ async def add_policy_rule(
             description  = body.description,
         )
     except (ValueError, Exception) as exc:
-        raise HTTPException(400, detail=str(exc))
+        raise HTTPException(400, detail=str(exc)) from exc
     return {"rule_id": rule_id, "tenant_id": tenant_id, "data_class": body.data_class}
 
 
@@ -1971,11 +1979,11 @@ async def msp_report(
         year_i, mon_i = map(int, month.split("-"))
         if not (1 <= mon_i <= 12):
             raise ValueError
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError) as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid month format {month!r} — expected YYYY-MM.",
-        )
+        ) from exc
 
     engine = _get_report_engine()
 

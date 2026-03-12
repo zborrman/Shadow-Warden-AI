@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from warden.data_policy import DataClass, DataPolicyEngine, PolicyDecision, classify_provider
-
+from warden.data_policy import DataClass, DataPolicyEngine, classify_provider
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -189,7 +188,8 @@ class TestCustomRules:
             engine.add_rule("t1", DataClass.RED, "regex", r"\btest\b")
 
     def test_invalid_regex_raises(self, engine: DataPolicyEngine) -> None:
-        with pytest.raises(Exception):
+        import re
+        with pytest.raises(re.error):
             engine.add_rule("t1", DataClass.RED, "pattern", r"[invalid")
 
     def test_empty_keyword_list_raises(self, engine: DataPolicyEngine) -> None:
@@ -228,7 +228,7 @@ class TestCustomRules:
     def test_pattern_cache_invalidated_after_add(self, engine: DataPolicyEngine) -> None:
         """Ensure classify() picks up newly-added rules (cache must be invalidated)."""
         # First call: no rule, green
-        d1 = engine.classify("super confidential stuff", tenant_id="t1")
+        engine.classify("super confidential stuff", tenant_id="t1")
         # Add a red rule
         engine.add_rule("t1", DataClass.RED, "keyword", "super confidential")
         # Second call: should now fire the new rule

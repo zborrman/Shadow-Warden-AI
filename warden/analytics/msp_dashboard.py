@@ -25,14 +25,13 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from warden.analytics.logger import LOGS_PATH, load_entries
+from warden.analytics.logger import load_entries
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -249,7 +248,7 @@ with col_charts:
             "PHONE":  "#fbd38d",
             "ID":     "#76e4f7",
         }
-        colors = [_ENTITY_COLORS.get(l, "#a0aec0") for l in entity_labels]
+        colors = [_ENTITY_COLORS.get(lbl, "#a0aec0") for lbl in entity_labels]
         fig_entity = go.Figure(go.Pie(
             labels=entity_labels,
             values=entity_values,
@@ -527,7 +526,7 @@ with st.expander("Generate & Download Report", expanded=False):
             f"?month={_report_month}&fmt={_fmt_param}"
         )
         try:
-            _headers = {"X-API-Key": _api_key} if _api_key else {}
+            _headers = {"X-API-Key": _API_KEY} if _API_KEY else {}
             _resp = requests.get(_report_url, headers=_headers, timeout=15)
             _resp.raise_for_status()
 
@@ -537,7 +536,6 @@ with st.expander("Generate & Download Report", expanded=False):
                 _data      = _resp.content
                 _open_hint = "💡 Open in browser → File → Print → Save as PDF"
             else:
-                import json as _json
                 _filename  = f"warden-report-{_report_tenant}-{_report_month}.json"
                 _mime      = "application/json"
                 _data      = _resp.content

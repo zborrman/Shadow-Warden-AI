@@ -49,7 +49,6 @@ import json
 import logging
 import os
 import re
-import time
 import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -320,7 +319,6 @@ class ThreatFeedClient:
             "last_sync":  self._last_sync,
             "saved_at":   datetime.now(UTC).isoformat(),
         }
-        import tempfile
         tmp = self._cache_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         import os as _os

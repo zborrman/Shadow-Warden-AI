@@ -8,14 +8,11 @@ All network I/O is mocked — no real HTTP calls are made.
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from warden.threat_feed import ThreatFeedClient, _anonymise, _daily_source_id
-
 
 # ── Anonymiser ────────────────────────────────────────────────────────────────
 
@@ -325,7 +322,7 @@ class TestFeedStore:
         store.close()
 
     def test_daily_rate_cap(self, tmp_path):
-        from warden.feed_server.store import FeedStore, _DAILY_SUBMIT_CAP
+        from warden.feed_server.store import _DAILY_SUBMIT_CAP, FeedStore
         store = FeedStore(db_path=tmp_path / "feed.db")
         # Submit up to cap
         for i in range(_DAILY_SUBMIT_CAP):
