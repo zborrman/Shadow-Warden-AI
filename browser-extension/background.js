@@ -19,16 +19,49 @@ const DEFAULT_CONFIG = {
   minRiskNotify: "high",                   // low | medium | high | block
 };
 
+// ── Config resolution: managed (GPO) > sync (user) > defaults ────────────────
+//
+// chrome.storage.managed is populated by Windows Registry GPO keys written by
+// Invoke-WardenProvision.ps1.  When present, it takes precedence and the UI is
+// locked so end-users cannot override IT policy.
+
+async function _resolveConfig() {
+  let managed = {};
+  try {
+    managed = await chrome.storage.managed.get(null);
+  } catch (_) {
+    // chrome.storage.managed is unavailable in non-enterprise builds — ignore
+  }
+
+  const synced = await chrome.storage.sync.get(null);
+
+  // Merge: managed keys win over user-synced keys, both win over defaults
+  return { ...DEFAULT_CONFIG, ...synced, ...managed };
+}
+
 // ── Initialise storage on install ────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async () => {
-  const existing = await chrome.storage.sync.get(null);
-  if (!existing.gatewayUrl) {
-    await chrome.storage.sync.set(DEFAULT_CONFIG);
+  let managed = {};
+  try { managed = await chrome.storage.managed.get(null); } catch (_) {}
+
+  const isManagedDeploy = !!(managed.gatewayUrl || managed.apiKey);
+
+  if (isManagedDeploy) {
+    // GPO-provisioned: sync any managed keys into storage.sync so content.js
+    // can read them via the standard GET_CONFIG message without needing managed
+    // storage access itself.
+    await chrome.storage.sync.set({ ...DEFAULT_CONFIG, ...managed });
+    console.log("[Shadow Warden] GPO-managed config applied for tenant:", managed.tenantId);
+  } else {
+    const existing = await chrome.storage.sync.get(null);
+    if (!existing.gatewayUrl) {
+      await chrome.storage.sync.set(DEFAULT_CONFIG);
+    }
   }
-  // Reset today's stats
+
   await _resetDailyStats();
-  console.log("[Shadow Warden] Extension installed, default config applied.");
+  console.log("[Shadow Warden] Extension installed.");
 });
 
 // ── Message handler (from content.js) ────────────────────────────────────────
@@ -39,11 +72,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: true });
   }
   if (message.type === "GET_CONFIG") {
-    chrome.storage.sync.get(null).then(sendResponse);
+    _resolveConfig().then(sendResponse);
     return true;   // keep channel open for async response
   }
   if (message.type === "GET_STATS") {
     chrome.storage.local.get(["blocksToday", "requestsToday"]).then(sendResponse);
+    return true;
+  }
+  if (message.type === "IS_MANAGED") {
+    _resolveConfig().then(cfg => sendResponse({ managed: !!cfg.managed }));
     return true;
   }
 });

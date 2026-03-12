@@ -1,0 +1,36 @@
+{
+  "type": "object",
+  "properties": {
+    "gatewayUrl": {
+      "title": "Shadow Warden Gateway URL",
+      "description": "Base URL of the Shadow Warden AI gateway (e.g. https://ai.acme-msp.com)",
+      "type": "string"
+    },
+    "apiKey": {
+      "title": "Tenant API Key",
+      "description": "Per-tenant X-API-Key for authenticating requests to the gateway.",
+      "type": "string",
+      "sensitiveValue": true
+    },
+    "tenantId": {
+      "title": "Tenant ID",
+      "description": "Opaque tenant identifier returned by POST /onboard.",
+      "type": "string"
+    },
+    "ollamaUrl": {
+      "title": "Local Ollama URL",
+      "description": "URL of a local Ollama instance for on-device inference (optional).",
+      "type": "string"
+    },
+    "enabled": {
+      "title": "Extension Enabled",
+      "description": "Master on/off switch for the Shadow Warden content filter.",
+      "type": "boolean"
+    },
+    "managed": {
+      "title": "Managed by IT Policy",
+      "description": "Set to true by GPO/RMM to lock the UI against user modification.",
+      "type": "boolean"
+    }
+  }
+}

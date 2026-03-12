@@ -58,6 +58,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from warden.analytics import logger as event_logger
+from warden.analytics.report import get_engine as _get_report_engine
 from warden.auth_guard import AuthResult, require_api_key
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
@@ -69,7 +70,12 @@ from warden.obfuscation import decode as decode_obfuscation
 from warden.onboarding import OnboardingEngine, PLANS
 from warden.review_queue import ReviewQueue
 from warden.rule_ledger import RuleLedger
-from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, SemanticFlag
+from warden.masking.engine import MaskingEngine as _MaskingEngine, get_engine as _get_masking_engine
+from warden.schemas import (
+    FilterRequest, FilterResponse, FlagType, MaskRequest, MaskResponse,
+    MaskedEntityInfo, MaskingReport, RiskLevel, SemanticFlag,
+    UnmaskRequest, UnmaskResponse,
+)
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
 from warden.telegram_alert import send_block_alert as _tg_block_alert
@@ -416,7 +422,7 @@ app = FastAPI(
         "Blocked HIGH/BLOCK attacks trigger the Evolution Loop: Claude Opus "
         "analyses the attack and auto-generates a new detection rule."
     ),
-    version="0.4.0",
+    version="0.5.0",
     lifespan=lifespan,
 )
 
@@ -774,21 +780,42 @@ async def _run_filter_pipeline(
         })
     )
 
+    # ── Yellow zone entity detection (fast regex, always-on) ──────────────────
+    # Runs MaskingEngine purely for detection — token replacement happens only
+    # in the OpenAI proxy.  Fast (<1 ms for typical prompts), no ML required.
+    _mask_detected: list[str] = []
+    _mask_count:    int       = 0
+    try:
+        _mask_result = _get_masking_engine().mask(
+            redact_result.text,              # post-redaction content (secrets already stripped)
+            session_id = f"_detect_{rid}",   # ephemeral session, never unmasked
+        )
+        if _mask_result.has_entities:
+            _mask_detected = list(_mask_result.summary().keys())
+            _mask_count    = _mask_result.entity_count
+            # Invalidate immediately — we only needed the detection summary
+            _get_masking_engine().invalidate_session(f"_detect_{rid}")
+    except Exception:
+        pass   # detection is best-effort; never block a request
+
     # ── Analytics logging ─────────────────────────────────────────────
     try:
         _tokens = event_logger.estimate_tokens(payload.content)
         entry = event_logger.build_entry(
-            request_id      = rid,
-            allowed         = allowed,
-            risk_level      = guard_result.risk_level.value,
-            flags           = [f.flag.value for f in guard_result.flags],
-            secrets_found   = [f.kind for f in redact_result.findings],
-            payload_len     = len(payload.content),
-            payload_tokens  = _tokens,
-            attack_cost_usd = event_logger.token_cost_usd(_tokens),
-            elapsed_ms      = elapsed_ms,
-            strict          = strict,
-            session_id      = session_id,
+            request_id        = rid,
+            allowed           = allowed,
+            risk_level        = guard_result.risk_level.value,
+            flags             = [f.flag.value for f in guard_result.flags],
+            secrets_found     = [f.kind for f in redact_result.findings],
+            payload_len       = len(payload.content),
+            payload_tokens    = _tokens,
+            attack_cost_usd   = event_logger.token_cost_usd(_tokens),
+            elapsed_ms        = elapsed_ms,
+            strict            = strict,
+            session_id        = session_id,
+            entities_detected = _mask_detected,
+            entity_count      = _mask_count,
+            masked            = False,   # proxy sets True when tokens are actually replaced
         )
         entry["tenant_id"] = tenant_id   # needed for billing aggregation
         event_logger.append(entry)
@@ -825,6 +852,16 @@ async def _run_filter_pipeline(
                         severity   = session_threat.severity,
                     )
 
+    _masking_report = MaskingReport(
+        masked       = False,
+        session_id   = None,
+        entities     = [
+            MaskedEntityInfo(entity_type=k, token=f"[{k}_N]", count=0)
+            for k in _mask_detected
+        ],
+        entity_count = _mask_count,
+    )
+
     response = FilterResponse(
         allowed                  = allowed,
         risk_level               = guard_result.risk_level,
@@ -834,6 +871,7 @@ async def _run_filter_pipeline(
         reason                   = reason,
         redaction_policy_applied = payload.redaction_policy,
         processing_ms            = timings,
+        masking                  = _masking_report,
     )
 
     # ── Cache write ───────────────────────────────────────────────────
@@ -1834,6 +1872,24 @@ async def msp_overview(
     fleet_blocked  = 0
     fleet_cost     = 0.0
 
+    # ── Aggregate masking stats from the log (last 31 days covers current month)
+    _log_entries    = event_logger.load_entries(days=31)
+    _masked_by_tid: dict[str, int] = {}
+    _entity_by_tid: dict[str, dict[str, int]] = {}
+    fleet_masked    = 0
+    fleet_entities: dict[str, int] = {}
+    for _le in _log_entries:
+        _tid = _le.get("tenant_id", "default")
+        _ec  = _le.get("entity_count", 0)
+        if _ec:
+            _masked_by_tid[_tid] = _masked_by_tid.get(_tid, 0) + _ec
+            fleet_masked        += _ec
+            for _et in _le.get("entities_detected", []):
+                fleet_entities[_et] = fleet_entities.get(_et, 0) + 1
+                if _tid not in _entity_by_tid:
+                    _entity_by_tid[_tid] = {}
+                _entity_by_tid[_tid][_et] = _entity_by_tid[_tid].get(_et, 0) + 1
+
     for t in tenants:
         tid = t["tenant_id"]
         if _billing is not None:
@@ -1845,23 +1901,25 @@ async def msp_overview(
         blocked = usage.get("blocked",  0)
         cost    = usage.get("cost_usd", 0.0)
         quota   = usage.get("quota_usd")
+        masked  = _masked_by_tid.get(tid, 0)
 
         fleet_requests += reqs
         fleet_blocked  += blocked
         fleet_cost     += cost
 
         tenant_rows.append({
-            "tenant_id":    tid,
-            "label":        t.get("label", tid),
-            "plan":         t.get("plan", "unknown"),
-            "active":       t.get("active", True),
-            "requests":     reqs,
-            "blocked":      blocked,
-            "block_rate":   round(blocked / reqs, 4) if reqs else 0.0,
-            "cost_usd":     round(cost, 6),
-            "quota_usd":    quota,
-            "quota_pct":    round(cost / quota * 100, 1) if quota else None,
-            "created_at":   t.get("created_at", ""),
+            "tenant_id":       tid,
+            "label":           t.get("label", tid),
+            "plan":            t.get("plan", "unknown"),
+            "active":          t.get("active", True),
+            "requests":        reqs,
+            "blocked":         blocked,
+            "masked_entities": masked,
+            "block_rate":      round(blocked / reqs, 4) if reqs else 0.0,
+            "cost_usd":        round(cost, 6),
+            "quota_usd":       quota,
+            "quota_pct":       round(cost / quota * 100, 1) if quota else None,
+            "created_at":      t.get("created_at", ""),
         })
 
     # Sort by most blocked first for the demo table
@@ -1870,14 +1928,69 @@ async def msp_overview(
     return {
         "month":          year_month,
         "fleet": {
-            "tenants":    len(tenant_rows),
-            "requests":   fleet_requests,
-            "blocked":    fleet_blocked,
-            "block_rate": round(fleet_blocked / fleet_requests, 4) if fleet_requests else 0.0,
-            "cost_usd":   round(fleet_cost, 6),
+            "tenants":          len(tenant_rows),
+            "requests":         fleet_requests,
+            "blocked":          fleet_blocked,
+            "masked_entities":  fleet_masked,
+            "top_entities":     fleet_entities,
+            "block_rate":       round(fleet_blocked / fleet_requests, 4) if fleet_requests else 0.0,
+            "cost_usd":         round(fleet_cost, 6),
         },
         "tenants": tenant_rows,
     }
+
+
+@app.get(
+    "/msp/report/{tenant_id}",
+    tags=["msp"],
+    summary="Monthly compliance report for a single tenant",
+)
+async def msp_report(
+    tenant_id: str,
+    month:     str  = "",   # YYYY-MM; defaults to current calendar month
+    fmt:       str  = "html",  # html | json
+    auth: AuthResult = Depends(require_api_key),
+):
+    """
+    Generate a monthly compliance report for *tenant_id*.
+
+    - **month** — ``YYYY-MM`` format (e.g. ``2026-02``). Defaults to the
+      current calendar month.
+    - **fmt** — ``html`` returns a self-contained, print-ready HTML document
+      (open in browser → File → Print → Save as PDF).
+      ``json`` returns a structured JSON object for programmatic access.
+
+    The report covers: executive summary, threat intelligence, PII intercepts,
+    risk-level breakdown, daily activity, and auto-generated recommendations.
+    """
+    if not month:
+        month = datetime.now(UTC).strftime("%Y-%m")
+
+    # Basic format validation
+    try:
+        year_i, mon_i = map(int, month.split("-"))
+        if not (1 <= mon_i <= 12):
+            raise ValueError
+    except (ValueError, AttributeError):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid month format {month!r} — expected YYYY-MM.",
+        )
+
+    engine = _get_report_engine()
+
+    if fmt == "json":
+        return engine.render_json(tenant_id, month)
+
+    # Default: HTML — return as a downloadable attachment
+    html_bytes = engine.render_html(tenant_id, month).encode("utf-8")
+    filename   = f"warden-report-{tenant_id}-{month}.html"
+    from fastapi.responses import Response
+    return Response(
+        content     = html_bytes,
+        media_type  = "text/html; charset=utf-8",
+        headers     = {"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post(
@@ -1939,6 +2052,89 @@ async def feed_sync_now(auth: AuthResult = Depends(require_api_key)) -> dict:
     loop = asyncio.get_running_loop()
     imported = await loop.run_in_executor(None, _feed.sync)
     return {"imported": imported}
+
+
+# ── Yellow Zone: /mask and /unmask ────────────────────────────────────────────
+#
+# POST /mask   — replace PII entities with reversible tokens
+# POST /unmask — restore original values from a previous /mask session
+#
+# Use-case: the OpenAI proxy calls /mask before forwarding to an LLM, then
+# /unmask on the response.  Can also be called directly from any client.
+#
+# Masking mode env var:
+#   MASKING_MODE=off     — masking endpoints available but proxy does NOT auto-mask (default)
+#   MASKING_MODE=auto    — proxy auto-masks user messages when PII detected
+
+
+@app.post(
+    "/mask",
+    response_model=MaskResponse,
+    tags=["masking"],
+    summary="Yellow Zone — replace PII entities with reversible tokens",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit(f"{_RATE_LIMIT}/minute")
+async def mask_text(
+    payload: MaskRequest,
+    request: Request,
+    auth:    AuthResult = Depends(require_api_key),
+) -> MaskResponse:
+    """
+    Scan the input text for PII entities (names, money amounts, dates,
+    organisations, emails, phones, reference IDs) and replace each with a
+    short reversible token such as [PERSON_1] or [MONEY_2].
+
+    The returned ``session_id`` must be passed to ``POST /unmask`` to restore
+    the original values in the LLM response.
+
+    Supported entity types: PERSON, MONEY, DATE, ORG, EMAIL, PHONE, ID
+    """
+    engine = _get_masking_engine()
+    loop   = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None, lambda: engine.mask(payload.text, payload.session_id)
+    )
+
+    entity_map: dict[str, int] = result.summary()
+    entities = [
+        MaskedEntityInfo(entity_type=k, token=f"[{k}_N]", count=v)
+        for k, v in entity_map.items()
+    ]
+
+    return MaskResponse(
+        masked       = result.masked,
+        session_id   = result.session_id,
+        entity_count = result.entity_count,
+        entities     = entities,
+    )
+
+
+@app.post(
+    "/unmask",
+    response_model=UnmaskResponse,
+    tags=["masking"],
+    summary="Yellow Zone — restore original PII values in a masked text",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit(f"{_RATE_LIMIT}/minute")
+async def unmask_text(
+    payload: UnmaskRequest,
+    request: Request,
+    auth:    AuthResult = Depends(require_api_key),
+) -> UnmaskResponse:
+    """
+    Replace all [TYPE_N] tokens in the text with the original values from the
+    vault session created by a previous call to ``POST /mask``.
+
+    The session vault expires 2 hours after creation.
+    """
+    engine = _get_masking_engine()
+    loop   = asyncio.get_running_loop()
+    unmasked = await loop.run_in_executor(
+        None, lambda: engine.unmask(payload.text, payload.session_id)
+    )
+    return UnmaskResponse(unmasked=unmasked, session_id=payload.session_id)
 
 
 # ── Global error handler ──────────────────────────────────────────────────────

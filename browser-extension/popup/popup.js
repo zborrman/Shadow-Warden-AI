@@ -15,10 +15,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   await _loadStats();
 });
 
-// ── Config (chrome.storage.sync) ──────────────────────────────────────────────
+// ── Config (managed > sync > defaults) ───────────────────────────────────────
 
 async function _loadConfig() {
-  const cfg = await chrome.storage.sync.get(null);
+  // Ask background to resolve config (managed keys win over sync keys)
+  const cfg = await new Promise(resolve =>
+    chrome.runtime.sendMessage({ type: "GET_CONFIG" }, resolve)
+  );
 
   document.getElementById("gateway-url").value = cfg.gatewayUrl || "";
   document.getElementById("api-key").value     = cfg.apiKey     || "";
@@ -31,9 +34,64 @@ async function _loadConfig() {
   tenantDisplay.textContent = cfg.tenantId && cfg.apiKey
     ? cfg.tenantId
     : "Not configured";
+
+  // Lock the UI if this is a GPO-managed deployment
+  if (cfg.managed) {
+    _applyManagedLock();
+  }
+}
+
+/**
+ * Lock all editable fields and controls when the config comes from GPO.
+ * Shows a read-only banner so users understand why they can't change settings.
+ */
+function _applyManagedLock() {
+  // Disable all inputs and buttons the user would normally interact with
+  ["gateway-url", "api-key", "tenant-id", "ollama-url"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.disabled = true;
+      el.style.cursor = "not-allowed";
+      el.title = "Managed by IT policy — contact your administrator to change this.";
+    }
+  });
+
+  ["save-btn", "test-btn", "toggle-btn"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.disabled = true;
+      el.style.display = "none";
+    }
+  });
+
+  // Inject a lock banner at the top of the popup
+  const banner = document.createElement("div");
+  banner.id = "managed-banner";
+  banner.style.cssText = [
+    "background:#1a365d",
+    "color:#bee3f8",
+    "font-size:11px",
+    "padding:6px 10px",
+    "text-align:center",
+    "border-radius:4px",
+    "margin-bottom:8px",
+  ].join(";");
+  banner.innerHTML = "&#128274; Managed by IT policy";
+
+  const body = document.body;
+  body.insertBefore(banner, body.firstChild);
 }
 
 async function _saveConfig() {
+  // Refuse saves in managed mode
+  const cfg = await new Promise(resolve =>
+    chrome.runtime.sendMessage({ type: "GET_CONFIG" }, resolve)
+  );
+  if (cfg.managed) {
+    _showToast("Settings are managed by IT policy.", "error");
+    return;
+  }
+
   const gatewayUrl = document.getElementById("gateway-url").value.trim().replace(/\/$/, "");
   const apiKey     = document.getElementById("api-key").value.trim();
   const tenantId   = document.getElementById("tenant-id").value.trim() || "default";
@@ -52,7 +110,7 @@ async function _saveConfig() {
 
   _updateStatusUI(true, true);
   document.getElementById("tenant-display").textContent = tenantId;
-  _showToast("✅ Saved! Extension is now active.", "success");
+  _showToast("Saved! Extension is now active.", "success");
 
   saveBtn.disabled = false;
   saveBtn.textContent = "Save & Connect";
@@ -107,12 +165,16 @@ async function _testConnection() {
 // ── Enable / disable toggle ────────────────────────────────────────────────────
 
 async function _toggleEnabled() {
-  const cfg = await chrome.storage.sync.get(["enabled"]);
+  const cfg = await new Promise(resolve =>
+    chrome.runtime.sendMessage({ type: "GET_CONFIG" }, resolve)
+  );
+  if (cfg.managed) {
+    _showToast("Settings are managed by IT policy.", "error");
+    return;
+  }
   const newEnabled = !(cfg.enabled !== false);
   await chrome.storage.sync.set({ enabled: newEnabled });
-
-  const hasKey = !!(await chrome.storage.sync.get("apiKey")).apiKey;
-  _updateStatusUI(newEnabled, hasKey);
+  _updateStatusUI(newEnabled, !!cfg.apiKey);
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────

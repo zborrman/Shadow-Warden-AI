@@ -71,6 +71,45 @@ class SemanticFlag(BaseModel):
     detail: str         = Field(default="", description="Human-readable explanation.")
 
 
+# ── Masking (Yellow Zone) ─────────────────────────────────────────────────────
+
+class MaskedEntityInfo(BaseModel):
+    entity_type: str  = Field(..., description="PERSON | MONEY | DATE | ORG | EMAIL | PHONE | ID")
+    token:       str  = Field(..., description="Replacement token, e.g. [PERSON_1]")
+    count:       int  = Field(default=1)
+
+
+class MaskingReport(BaseModel):
+    masked:       bool                   = Field(default=False)
+    session_id:   str | None             = Field(default=None, description="Vault session ID — pass back to unmask.")
+    entities:     list[MaskedEntityInfo] = Field(default_factory=list)
+    entity_count: int                    = Field(default=0)
+
+
+# ── Masking request/response (direct /mask and /unmask endpoints) ──────────────
+
+class MaskRequest(BaseModel):
+    text:       str           = Field(..., min_length=1, max_length=32_000)
+    session_id: str | None    = Field(default=None, description="Reuse an existing vault session.")
+
+
+class MaskResponse(BaseModel):
+    masked:       str
+    session_id:   str
+    entity_count: int
+    entities:     list[MaskedEntityInfo] = Field(default_factory=list)
+
+
+class UnmaskRequest(BaseModel):
+    text:       str  = Field(..., min_length=1, max_length=32_000)
+    session_id: str  = Field(..., description="Session ID returned by /mask.")
+
+
+class UnmaskResponse(BaseModel):
+    unmasked:   str
+    session_id: str
+
+
 # ── Main response ─────────────────────────────────────────────────────────────
 
 class FilterResponse(BaseModel):
@@ -87,4 +126,8 @@ class FilterResponse(BaseModel):
     processing_ms:            dict[str, float]  = Field(
         default_factory=dict,
         description="Per-stage processing time in milliseconds.",
+    )
+    masking:                  MaskingReport     = Field(
+        default_factory=MaskingReport,
+        description="Yellow-zone masking report (populated when masking is enabled).",
     )

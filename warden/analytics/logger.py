@@ -57,17 +57,21 @@ def token_cost_usd(tokens: int) -> float:
 
 def build_entry(
     *,
-    request_id:      str,
-    allowed:         bool,
-    risk_level:      str,
-    flags:           list[str],
-    secrets_found:   list[str],
-    payload_len:     int,
-    payload_tokens:  int,
-    attack_cost_usd: float,
-    elapsed_ms:      float,
-    strict:          bool,
-    session_id:      str | None = None,
+    request_id:        str,
+    allowed:           bool,
+    risk_level:        str,
+    flags:             list[str],
+    secrets_found:     list[str],
+    payload_len:       int,
+    payload_tokens:    int,
+    attack_cost_usd:   float,
+    elapsed_ms:        float,
+    strict:            bool,
+    session_id:        str | None        = None,
+    # ── Yellow zone (masking) ────────────────────────────────────────────────
+    entities_detected: list[str]         = (),   # entity TYPES found (not values!)
+    entity_count:      int               = 0,    # total entity occurrences
+    masked:            bool              = False, # True when masking was actually applied
 ) -> dict:
     entry = {
         "ts":              datetime.now(UTC).isoformat(),
@@ -84,6 +88,10 @@ def build_entry(
     }
     if session_id is not None:
         entry["session_id"] = session_id
+    if entity_count or entities_detected:
+        entry["entities_detected"] = list(entities_detected)
+        entry["entity_count"]      = entity_count
+        entry["masked"]            = masked
     return entry
 
 

@@ -11,6 +11,10 @@
     "notifications"
   ],
 
+  "storage": {
+    "managed_schema": "managed_storage_schema.json"
+  },
+
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",

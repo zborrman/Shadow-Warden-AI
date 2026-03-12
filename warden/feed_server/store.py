@@ -67,6 +67,17 @@ class FeedStore:
                 CREATE INDEX IF NOT EXISTS idx_rules_status  ON rules(status);
                 CREATE INDEX IF NOT EXISTS idx_rules_source  ON rules(source_id);
 
+                -- Tracks every source that has submitted a given rule value.
+                -- Populated on first submit AND on every dedup hit (different source,
+                -- same value) so that auto_vet can correctly count unique sources.
+                CREATE TABLE IF NOT EXISTS rule_sources (
+                    rule_id   TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    submitted TEXT NOT NULL,
+                    UNIQUE(rule_id, source_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_rule_sources_rule ON rule_sources(rule_id);
+
                 CREATE TABLE IF NOT EXISTS subscriptions (
                     sub_id      TEXT PRIMARY KEY,
                     key_hash    TEXT NOT NULL UNIQUE,
@@ -129,12 +140,21 @@ class FeedStore:
                     f"Daily submission cap ({_DAILY_SUBMIT_CAP}) reached for this source."
                 )
 
-            # Dedup by value
+            # Dedup by value — if value already exists, record this source
+            # in rule_sources so auto_vet can count unique contributors.
             existing = self._conn.execute(
                 "SELECT rule_id, status FROM rules WHERE value=?", (value,)
             ).fetchone()
             if existing:
-                return {"rule_id": existing["rule_id"], "status": existing["status"]}
+                rid_existing = existing["rule_id"]
+                now_existing = datetime.now(UTC).isoformat()
+                self._conn.execute(
+                    "INSERT OR IGNORE INTO rule_sources (rule_id, source_id, submitted)"
+                    " VALUES (?, ?, ?)",
+                    (rid_existing, source_id, now_existing),
+                )
+                self._conn.commit()
+                return {"rule_id": rid_existing, "status": existing["status"]}
 
             rule_id = str(uuid.uuid4())
             now     = datetime.now(UTC).isoformat()
@@ -144,6 +164,11 @@ class FeedStore:
                     source_id, status, submitted)
                    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)""",
                 (rule_id, rule_type, value, attack_type, risk_level, source_id, now),
+            )
+            self._conn.execute(
+                "INSERT OR IGNORE INTO rule_sources (rule_id, source_id, submitted)"
+                " VALUES (?, ?, ?)",
+                (rule_id, source_id, now),
             )
             self._audit("submit", rule_id, f"source={source_id} type={attack_type}")
             self._conn.commit()
@@ -161,13 +186,19 @@ class FeedStore:
         """
         now = datetime.now(UTC).isoformat()
         with self._lock:
+            # Join with rule_sources to get an accurate count of distinct
+            # contributors — the rules table only stores the first source_id.
             rows = self._conn.execute(
                 """
-                SELECT rule_id, value
-                FROM rules
-                WHERE status = 'pending'
-                GROUP BY value
-                HAVING COUNT(DISTINCT source_id) >= ?
+                SELECT r.rule_id, r.value
+                FROM rules r
+                JOIN (
+                    SELECT rule_id, COUNT(DISTINCT source_id) AS src_count
+                    FROM rule_sources
+                    GROUP BY rule_id
+                ) rs ON rs.rule_id = r.rule_id
+                WHERE r.status = 'pending'
+                  AND rs.src_count >= ?
                 """,
                 (min_unique_sources,),
             ).fetchall()
@@ -201,11 +232,12 @@ class FeedStore:
             return bool(cur.rowcount)
 
     def publish(self, rule_id: str) -> bool:
-        """Manually approve a pending rule."""
+        """Manually approve a pending rule. No-op if already rejected or published."""
         now = datetime.now(UTC).isoformat()
         with self._lock:
             cur = self._conn.execute(
-                "UPDATE rules SET status='published', published=? WHERE rule_id=?",
+                "UPDATE rules SET status='published', published=?"
+                " WHERE rule_id=? AND status='pending'",
                 (now, rule_id),
             )
             if cur.rowcount:

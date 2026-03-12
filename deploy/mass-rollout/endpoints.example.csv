@@ -1,0 +1,6 @@
+Hostname,CompanyName,ContactEmail,Plan,OllamaUrl
+ACME-PC-001,Acme Dental Clinic,it@acme-dental.com,starter,http://localhost:11434
+RIVERSIDE-WS01,Riverside Medical,admin@riverside-med.com,professional,http://localhost:11434
+HARBOR-LAPTOP02,Harbor Law Group,support@harborlaw.com,starter,
+NORTHVIEW-PC01,Northview Accounting,cto@northview-cpa.com,professional,http://localhost:11434
+SUNCOAST-WS03,Suncoast Realty,tech@suncoast-realty.com,starter,

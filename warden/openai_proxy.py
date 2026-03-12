@@ -35,12 +35,17 @@ from warden.auth_guard import AuthResult, require_api_key
 from warden.metrics import TOOL_BLOCKS
 from warden.tool_guard import ToolCallGuard
 
+from warden.masking.engine import get_engine as _get_masking_engine
+
 log = logging.getLogger("warden.openai_proxy")
 
 router = APIRouter(prefix="/v1", tags=["openai-proxy"])
 
-_UPSTREAM = os.getenv("OPENAI_UPSTREAM", "https://api.openai.com")
-_FILTER_URL = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
+_UPSTREAM     = os.getenv("OPENAI_UPSTREAM",   "https://api.openai.com")
+_FILTER_URL   = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
+# MASKING_MODE=auto  — transparently mask PII in user messages, unmask LLM responses
+# MASKING_MODE=off   — standard redact-only behaviour (default)
+_MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
 
 # Module-level singleton — no state, safe to share
 _tool_guard = ToolCallGuard()
@@ -185,11 +190,30 @@ async def proxy_chat(
             detail=f"Blocked by Warden: {filter_data.get('reason', 'policy violation')}",
         )
 
-    # Replace user message content with redacted version
+    # ── Yellow Zone: transparent PII masking ──────────────────────────────────
+    # Start with the redacted content from /filter (secrets/keys already removed).
+    forwarded_content = filter_data.get("filtered_content", user_content)
+    _mask_session_id: str | None = None
+
+    if _MASKING_MODE == "auto":
+        # Re-use or create a masking session keyed on X-Session-ID so the vault
+        # persists across conversational turns.
+        engine = _get_masking_engine()
+        mask_result = engine.mask(forwarded_content, session_id or None)
+        if mask_result.has_entities:
+            forwarded_content = mask_result.masked
+            _mask_session_id  = mask_result.session_id
+            log.info(
+                "masking_applied session=%r entities=%r",
+                _mask_session_id,
+                mask_result.summary(),
+            )
+
+    # Replace user message content with (redacted +) masked version
     messages_out = list(messages)
     messages_out[last_user_idx] = {
         **messages[last_user_idx],
-        "content": filter_data.get("filtered_content", user_content),
+        "content": forwarded_content,
     }
     payload_out = {**payload, "messages": messages_out}
 
@@ -263,6 +287,14 @@ async def proxy_chat(
                 tc_name = tc.get("function", {}).get("name", "unknown_tool")
                 with contextlib.suppress(Exception):
                     _agent_monitor.record_tool_event(session_id, tc_name, "call", False, None)
+
+    # ── Yellow Zone: unmask the LLM response before returning to the caller ────
+    if _mask_session_id:
+        engine = _get_masking_engine()
+        for choice in upstream_data.get("choices") or []:
+            msg = choice.get("message") or {}
+            if isinstance(msg.get("content"), str):
+                msg["content"] = engine.unmask(msg["content"], _mask_session_id)
 
     return upstream_data
 
