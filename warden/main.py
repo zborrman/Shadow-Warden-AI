@@ -73,6 +73,7 @@ from warden.schemas import FilterRequest, FilterResponse, FlagType, RiskLevel, S
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
 from warden.telegram_alert import send_block_alert as _tg_block_alert
+from warden.threat_feed import ThreatFeedClient
 from warden.threat_store import ThreatStore
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
@@ -188,6 +189,7 @@ _threat_store:   ThreatStore       | None = None
 _billing:        BillingStore      | None = None
 _onboarding:     OnboardingEngine  | None = None
 _policy:         DataPolicyEngine  | None = None
+_feed:           ThreatFeedClient  | None = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -241,9 +243,25 @@ async def _billing_aggregation_loop() -> None:
                 _billing.aggregate_from_logs()
 
 
+_FEED_SYNC_SECS = float(os.getenv("THREAT_FEED_SYNC_HRS", "6")) * 3600
+
+
+async def _threat_feed_sync_loop() -> None:
+    """Background task: sync threat intelligence feed every THREAT_FEED_SYNC_HRS hours."""
+    # First sync shortly after startup to populate corpus early
+    await asyncio.sleep(60)
+    while True:
+        if _feed is not None and _feed.is_enabled():
+            with suppress(Exception):
+                n = await asyncio.get_running_loop().run_in_executor(None, _feed.sync)
+                if n:
+                    log.info("ThreatFeed: synced %d new rule(s) into corpus.", n)
+        await asyncio.sleep(_FEED_SYNC_SECS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy, _feed
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -323,12 +341,21 @@ async def lifespan(app: FastAPI):
     # ── Review Queue ──────────────────────────────────────────────────
     _review_queue = ReviewQueue(on_activate_regex=_add_dynamic_regex_rule)
 
+    # ── Threat Intelligence Feed client ──────────────────────────────
+    # Initialised here (before EvolutionEngine) so we can pass it in.
+    _feed = ThreatFeedClient(guard=_brain_guard)
+    if _feed.is_enabled():
+        log.info("ThreatFeed: enabled — feed_url=%s", os.getenv("THREAT_FEED_URL", ""))
+    else:
+        log.info("ThreatFeed: disabled (set THREAT_FEED_ENABLED=true to opt in).")
+
     # ── Evolution Engine ──────────────────────────────────────────────
     if os.getenv("ANTHROPIC_API_KEY"):
         _evolve = EvolutionEngine(
             semantic_guard = _brain_guard,
             ledger         = _ledger,
             review_queue   = _review_queue,
+            feed_client    = _feed,
         )
         log.info("EvolutionEngine online.")
     else:
@@ -351,17 +378,21 @@ async def lifespan(app: FastAPI):
     log.info("Filter pipeline ready.")
 
     # ── Background tasks ──────────────────────────────────────────────
-    _retirement_task = asyncio.create_task(_nightly_rule_retirement())
-    _billing_task    = asyncio.create_task(_billing_aggregation_loop())
+    _retirement_task  = asyncio.create_task(_nightly_rule_retirement())
+    _billing_task     = asyncio.create_task(_billing_aggregation_loop())
+    _feed_sync_task   = asyncio.create_task(_threat_feed_sync_loop())
 
     yield
 
     _retirement_task.cancel()
     _billing_task.cancel()
+    _feed_sync_task.cancel()
     with suppress(asyncio.CancelledError):
         await _retirement_task
     with suppress(asyncio.CancelledError):
         await _billing_task
+    with suppress(asyncio.CancelledError):
+        await _feed_sync_task
 
     if _ledger is not None:
         _ledger.close()
@@ -1866,6 +1897,48 @@ async def classify_text(
     _require_policy()
     decision = _policy.classify(body.text, body.provider, tenant_id)  # type: ignore[union-attr]
     return decision.as_dict()
+
+
+# ── Threat Intelligence Feed endpoints ───────────────────────────────────────
+
+@app.get(
+    "/feed/status",
+    tags=["threat-feed"],
+    summary="Threat Intelligence Feed status for this instance",
+)
+async def feed_status(auth: AuthResult = Depends(require_api_key)) -> dict:
+    """
+    Returns opt-in status, last sync time, number of imported rules, and
+    number of rules this instance has submitted to the central feed.
+    """
+    if _feed is None:
+        raise HTTPException(503, "ThreatFeedClient not initialised.")
+    s = _feed.status()
+    return {
+        "enabled":         s.enabled,
+        "feed_url":        s.feed_url,
+        "last_sync":       s.last_sync,
+        "next_sync":       s.next_sync,
+        "rules_imported":  s.rules_imported,
+        "rules_submitted": s.rules_submitted,
+        "errors":          s.errors,
+    }
+
+
+@app.post(
+    "/feed/sync",
+    tags=["threat-feed"],
+    summary="Trigger an immediate threat feed sync (admin / debug)",
+)
+async def feed_sync_now(auth: AuthResult = Depends(require_api_key)) -> dict:
+    """Force an immediate download and import of the latest feed rules."""
+    if _feed is None:
+        raise HTTPException(503, "ThreatFeedClient not initialised.")
+    if not _feed.is_enabled():
+        raise HTTPException(400, "Threat feed is disabled. Set THREAT_FEED_ENABLED=true.")
+    loop = asyncio.get_running_loop()
+    imported = await loop.run_in_executor(None, _feed.sync)
+    return {"imported": imported}
 
 
 # ── Global error handler ──────────────────────────────────────────────────────

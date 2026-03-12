@@ -176,6 +176,7 @@ class EvolutionEngine:
         semantic_guard=None,
         ledger=None,
         review_queue=None,
+        feed_client=None,
     ) -> None:
         """
         Parameters
@@ -190,12 +191,16 @@ class EvolutionEngine:
             Activation gate.  In auto mode (default) rules are hot-loaded
             immediately; in manual mode they stay pending_review until an
             operator calls POST /admin/rules/{rule_id}/approve.
+        feed_client : ThreatFeedClient | None
+            When provided and THREAT_FEED_ENABLED=true, each activated rule
+            is anonymised and submitted to the central threat intelligence feed.
         """
         self._client        = anthropic.AsyncAnthropic()
         self._seen_hashes:  set[str] = set()   # in-process dedup
         self._guard         = semantic_guard
         self._ledger        = ledger
         self._review_queue  = review_queue
+        self._feed_client   = feed_client
         self._rules_path    = DYNAMIC_RULES_PATH
         self._rules_path.parent.mkdir(parents=True, exist_ok=True)
         self._corpus_count  = self._count_existing_rules()
@@ -340,6 +345,19 @@ class EvolutionEngine:
             evolution.new_rule.rule_type,
             evolution.severity,
         )
+
+        # ── Opt-in threat feed submission ────────────────────────────────────
+        if activated and self._feed_client is not None:
+            try:
+                self._feed_client.submit_rule(
+                    rule_text   = evolution.new_rule.value,
+                    rule_type   = evolution.new_rule.rule_type,
+                    attack_type = evolution.attack_type,
+                    risk_level  = evolution.severity,
+                )
+            except Exception:
+                log.debug("EvolutionEngine: feed submission skipped (non-fatal).")
+
         return EvolutionResult(rule=rule, corpus_updated=corpus_updated)
 
     # ── Claude API call ───────────────────────────────────────────────────────
