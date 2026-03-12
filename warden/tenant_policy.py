@@ -166,7 +166,7 @@ class TenantPolicyStore:
         # SIGHUP is unavailable on Windows; also fails if called from a
         # non-main thread (e.g., pytest fixtures).
         with contextlib.suppress(OSError, ValueError, AttributeError):
-            signal.signal(signal.SIGHUP, lambda _sig, _frame: self.reload())
+            signal.signal(signal.SIGHUP, lambda _sig, _frame: self.reload())  # type: ignore[attr-defined]
 
 
 # ── Module-level singleton + convenience helpers ──────────────────────────────

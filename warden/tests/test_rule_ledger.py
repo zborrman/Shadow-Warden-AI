@@ -6,6 +6,7 @@ Unit tests for RuleLedger — the SQLite rule effectiveness ledger.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from warden.rule_ledger import FP_RETIRE_THRESHOLD, RETIRE_AFTER_DAYS, RuleLedge
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def ledger(tmp_path: Path) -> RuleLedger:
+def ledger(tmp_path: Path) -> Generator[RuleLedger, None, None]:
     """Return a fresh in-memory-equivalent ledger backed by a temp file."""
     rl = RuleLedger(db_path=tmp_path / "test_ledger.db")
     yield rl

@@ -6,6 +6,7 @@ Unit tests for ThreatStore — the SQLite threat intelligence ledger.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from warden.threat_store import ThreatStore
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def store(tmp_path: Path) -> ThreatStore:
+def store(tmp_path: Path) -> Generator[ThreatStore, None, None]:
     ts = ThreatStore(db_path=tmp_path / "test_threats.db")
     yield ts
     ts.close()

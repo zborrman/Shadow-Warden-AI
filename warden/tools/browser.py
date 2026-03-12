@@ -222,7 +222,7 @@ class BrowserSandbox:
             ],
         )
         self._context = await self._browser.new_context(
-            viewport=self.viewport,
+            viewport=self.viewport,  # type: ignore[arg-type]
             ignore_https_errors=True,         # intentional: audit self-signed certs
             user_agent=(
                 "Mozilla/5.0 (compatible; WardenBot/1.0; "

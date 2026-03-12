@@ -30,7 +30,7 @@ try:
         )
     except ValueError:
         # Already registered (e.g. test re-import) — retrieve existing
-        TOOL_BLOCKS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined]
+        TOOL_BLOCKS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
             "warden_tool_blocks_total"
         )
 
@@ -43,7 +43,7 @@ try:
             "Active agent sessions within the TTL window",
         )
     except ValueError:
-        AGENT_SESSIONS_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined]
+        AGENT_SESSIONS_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
             "warden_agent_sessions_active"
         )
 
@@ -54,7 +54,7 @@ try:
             ["pattern_type", "severity"],
         )
     except ValueError:
-        AGENT_ANOMALIES_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined]
+        AGENT_ANOMALIES_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
             "warden_agent_anomalies_total"
         )
 
@@ -65,7 +65,7 @@ try:
             ["tenant_id"],
         )
     except ValueError:
-        AGENT_SESSION_BLOCKS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined]
+        AGENT_SESSION_BLOCKS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
             "warden_agent_session_blocks_total"
         )
 

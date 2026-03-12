@@ -531,7 +531,7 @@ def _get_tool_block_count(direction: str, tool_name: str, threat: str) -> float:
     """Read warden_tool_blocks_total for the given label combination."""
     try:
         metric = REGISTRY._names_to_collectors["warden_tool_blocks_total"]
-        for sample in metric.collect()[0].samples:
+        for sample in list(metric.collect())[0].samples:
             labels = sample.labels
             if (
                 labels.get("direction") == direction

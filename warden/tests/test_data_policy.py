@@ -5,6 +5,7 @@ Unit tests for DataPolicyEngine — data classification traffic light.
 """
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ from warden.data_policy import DataClass, DataPolicyEngine, classify_provider
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def engine(tmp_path: Path) -> DataPolicyEngine:
+def engine(tmp_path: Path) -> Generator[DataPolicyEngine, None, None]:
     e = DataPolicyEngine(db_path=tmp_path / "test_policy.db")
     yield e
     e.close()

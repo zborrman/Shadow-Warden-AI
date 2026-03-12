@@ -436,7 +436,7 @@ app = FastAPI(
 
 # Rate limiter state must be on app.state for slowapi to find it
 app.state.limiter = _limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 _DEFAULT_CORS = ",".join([
     "http://localhost:3000",
@@ -989,9 +989,9 @@ class _GdprPurgeRequest(BaseModel):
 async def gdpr_export(body: _GdprExportRequest):
     entry = event_logger.read_by_request_id(body.request_id)
     if entry is None:
-        raise JSONResponse(
+        raise HTTPException(
             status_code=404,
-            content={"detail": f"No log entry found for request_id={body.request_id!r}."},
+            detail=f"No log entry found for request_id={body.request_id!r}.",
         )
     return {"request_id": body.request_id, "entry": entry}
 

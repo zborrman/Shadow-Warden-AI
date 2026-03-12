@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from warden.billing import BillingStore
 # ── Fixtures & helpers ─────────────────────────────────────────────────────────
 
 @pytest.fixture
-def store(tmp_path: Path) -> BillingStore:
+def store(tmp_path: Path) -> Generator[BillingStore, None, None]:
     bs = BillingStore(
         db_path   = tmp_path / "test_billing.db",
         logs_path = tmp_path / "test_logs.json",

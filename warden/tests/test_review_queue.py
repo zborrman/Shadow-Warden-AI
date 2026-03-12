@@ -7,6 +7,7 @@ approve_rule / retire_rule methods added to RuleLedger.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ def _make_rule_id() -> str:
 
 
 @pytest.fixture
-def ledger(tmp_path: Path) -> RuleLedger:
+def ledger(tmp_path: Path) -> Generator[RuleLedger, None, None]:
     rl = RuleLedger(db_path=tmp_path / "rq_test_ledger.db")
     yield rl
     rl.close()
@@ -114,7 +115,7 @@ class TestActivate:
                 injected.append(examples)
 
         rq = ReviewQueue(mode="manual")
-        result = rq.activate(_make_rule_id(), "semantic_example", "ignore instructions", _FakeBrain())
+        result = rq.activate(_make_rule_id(), "semantic_example", "ignore instructions", _FakeBrain())  # type: ignore[arg-type]
         assert result is True
         assert injected == [["ignore instructions"]]
 

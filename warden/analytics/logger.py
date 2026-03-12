@@ -69,7 +69,7 @@ def build_entry(
     strict:            bool,
     session_id:        str | None        = None,
     # ── Yellow zone (masking) ────────────────────────────────────────────────
-    entities_detected: list[str]         = (),   # entity TYPES found (not values!)
+    entities_detected: list[str]         = (),   # type: ignore[assignment]  # entity TYPES found (not values!)
     entity_count:      int               = 0,    # total entity occurrences
     masked:            bool              = False, # True when masking was actually applied
 ) -> dict:
