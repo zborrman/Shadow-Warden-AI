@@ -2145,6 +2145,84 @@ async def unmask_text(
     return UnmaskResponse(unmasked=unmasked, session_id=payload.session_id)
 
 
+# ── Stripe Billing ────────────────────────────────────────────────────────────
+
+class _CheckoutRequest(BaseModel):
+    tenant_id:      str
+    plan:           str            # "pro" | "msp"
+    success_url:    str
+    cancel_url:     str
+    customer_email: str | None = None
+
+
+@app.get(
+    "/stripe/status",
+    tags=["stripe"],
+    summary="Current Stripe subscription plan and quota for a tenant",
+)
+async def stripe_status(tenant_id: str):
+    from warden.stripe_billing import get_stripe_billing
+    return get_stripe_billing().get_status(tenant_id)
+
+
+@app.post(
+    "/stripe/checkout",
+    tags=["stripe"],
+    summary="Create a Stripe Checkout session — returns hosted payment URL",
+)
+async def stripe_checkout(body: _CheckoutRequest):
+    from warden.stripe_billing import get_stripe_billing
+    sb = get_stripe_billing()
+    if not sb._enabled:
+        raise HTTPException(503, "Stripe billing not configured on this instance.")
+    try:
+        url = sb.create_checkout_session(
+            body.tenant_id, body.plan,
+            body.success_url, body.cancel_url,
+            body.customer_email,
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"checkout_url": url}
+
+
+@app.post(
+    "/stripe/portal",
+    tags=["stripe"],
+    summary="Create a Stripe Billing Portal session for self-serve plan management",
+)
+async def stripe_portal(tenant_id: str, return_url: str):
+    from warden.stripe_billing import get_stripe_billing
+    sb = get_stripe_billing()
+    if not sb._enabled:
+        raise HTTPException(503, "Stripe billing not configured on this instance.")
+    try:
+        url = sb.create_portal_session(tenant_id, return_url)
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"portal_url": url}
+
+
+@app.post(
+    "/stripe/webhook",
+    tags=["stripe"],
+    summary="Stripe webhook receiver — validates signature and updates subscription state",
+    include_in_schema=False,   # not for public API docs
+)
+async def stripe_webhook(request: Request):
+    from warden.stripe_billing import get_stripe_billing
+    sb = get_stripe_billing()
+    if not sb._enabled:
+        raise HTTPException(503, "Stripe billing not configured on this instance.")
+    payload    = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+    try:
+        etype = sb.handle_webhook(payload, sig_header)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"received": True, "event_type": etype}
+
+
 # ── Global error handler ──────────────────────────────────────────────────────
 
 @app.exception_handler(Exception)

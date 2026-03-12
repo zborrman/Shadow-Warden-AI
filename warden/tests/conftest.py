@@ -30,6 +30,8 @@ os.environ.setdefault("THREAT_FEED_CACHE_PATH", "/tmp/warden_test_threat_feed_ca
 os.environ.setdefault("TENANT_POLICIES_PATH", "/tmp/warden_test_tenant_policies.json")
 os.environ.setdefault("WARDEN_API_KEYS_PATH", "")        # multi-tenant keys disabled in tests
 os.environ.setdefault("FEED_DB_PATH",         "/tmp/warden_test_feed_server.db")
+os.environ.setdefault("STRIPE_DB_PATH",       "/tmp/warden_test_stripe.db")
+os.environ.setdefault("STRIPE_SECRET_KEY",    "")   # Stripe disabled in tests
 
 
 @pytest.fixture(scope="session")
