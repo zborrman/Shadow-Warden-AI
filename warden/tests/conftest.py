@@ -16,11 +16,20 @@ import pytest
 os.environ.setdefault("ANTHROPIC_API_KEY", "")           # disable Evolution Engine
 os.environ.setdefault("SEMANTIC_THRESHOLD", "0.72")
 os.environ.setdefault("WARDEN_API_KEY", "")              # auth disabled in tests
-os.environ.setdefault("LOGS_PATH", "/tmp/warden_test_logs.json")
-os.environ.setdefault("DYNAMIC_RULES_PATH", "/tmp/warden_test_dynamic_rules.json")
+os.environ.setdefault("LOGS_PATH",            "/tmp/warden_test_logs.json")
+os.environ.setdefault("DYNAMIC_RULES_PATH",   "/tmp/warden_test_dynamic_rules.json")
 os.environ.setdefault("STRICT_MODE", "false")
 os.environ.setdefault("REDIS_URL", "memory://")          # in-memory limiter; no Redis needed
-os.environ.setdefault("MODEL_CACHE_DIR", "/tmp/warden_test_models")  # default is /warden/models (Docker-only path)
+os.environ.setdefault("MODEL_CACHE_DIR",      "/tmp/warden_test_models")  # default is /warden/models (Docker-only)
+# Additional Docker-only paths — redirect to /tmp so tests work outside container
+os.environ.setdefault("BILLING_DB_PATH",      "/tmp/warden_test_billing.db")
+os.environ.setdefault("POLICY_DB_PATH",       "/tmp/warden_test_data_policy.db")
+os.environ.setdefault("RULE_LEDGER_PATH",     "/tmp/warden_test_rule_ledger.db")
+os.environ.setdefault("THREAT_DB_PATH",       "/tmp/warden_test_threat_store.db")
+os.environ.setdefault("THREAT_FEED_CACHE_PATH", "/tmp/warden_test_threat_feed_cache.json")
+os.environ.setdefault("TENANT_POLICIES_PATH", "/tmp/warden_test_tenant_policies.json")
+os.environ.setdefault("WARDEN_API_KEYS_PATH", "")        # multi-tenant keys disabled in tests
+os.environ.setdefault("FEED_DB_PATH",         "/tmp/warden_test_feed_server.db")
 
 
 @pytest.fixture(scope="session")
