@@ -45,8 +45,12 @@ RUN addgroup --system --gid 10001 warden \
 ARG GIT_SHA=dev
 COPY --chown=wardenuser:warden . .
 
-# Model cache dir must be writable by the runtime user before USER drops root.
-RUN mkdir -p /warden/models && chown wardenuser:warden /warden/models
+# Runtime dirs must be writable by the non-root user before USER drops root.
+# /warden/models — ML model weights (overridden by volume mount in production)
+# /warden/data   — SQLite DBs + JSON state files (volume-mounted in production;
+#                  pre-created here so standalone / CI containers work without a mount)
+RUN mkdir -p /warden/models /warden/data \
+    && chown -R wardenuser:warden /warden/models /warden/data
 
 # ── Runtime environment ───────────────────────────────────────────────────────
 ENV MODEL_CACHE_DIR=/warden/models
