@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shadow Warden AI — Zero-Trust AI Security for MSPs</title>
+  <meta name="description" content="Shadow Warden AI intercepts every AI request before it reaches the model — stripping PII, blocking jailbreaks, and generating GDPR-compliant audit logs. Built for Managed Service Providers." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#f0f9ff',
+              100: '#e0f2fe',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e',
+            },
+            dark: {
+              900: '#050a13',
+              800: '#0b1220',
+              700: '#0f1a2e',
+              600: '#162035',
+              500: '#1e2d42',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body { background-color: #050a13; }
+    .gradient-text {
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .card-glow {
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.12), 0 4px 24px rgba(56,189,248,0.06);
+    }
+    .card-glow:hover {
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.25), 0 8px 32px rgba(56,189,248,0.12);
+    }
+    .hero-glow {
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(14,165,233,0.15), transparent);
+    }
+    pre { white-space: pre; }
+  </style>
+</head>
+
+<body class="font-sans text-slate-200 antialiased">
+
+  <!-- ── NAV ─────────────────────────────────────────────────────────────── -->
+  <nav class="fixed top-0 inset-x-0 z-50 border-b border-slate-800/60 bg-dark-900/80 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <span class="font-bold text-lg tracking-tight text-white">
+        <span class="gradient-text">Shadow</span> Warden AI
+      </span>
+      <div class="hidden md:flex items-center gap-6 text-sm text-slate-400">
+        <a href="#how-it-works" class="hover:text-white transition-colors">How it works</a>
+        <a href="#owasp"         class="hover:text-white transition-colors">OWASP Coverage</a>
+        <a href="#for-msps"      class="hover:text-white transition-colors">For MSPs</a>
+        <a href="#pricing"       class="hover:text-white transition-colors">Pricing</a>
+      </div>
+      <a href="mailto:vladimir@shadowwarden.ai?subject=Shadow%20Warden%20Demo%20Request"
+         class="text-sm font-semibold px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white transition-colors">
+        Book a Demo
+      </a>
+    </div>
+  </nav>
+
+  <!-- ── HERO ─────────────────────────────────────────────────────────────── -->
+  <section class="hero-glow pt-32 pb-24 px-6 text-center">
+    <div class="max-w-4xl mx-auto">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-400 text-xs font-medium mb-8">
+        <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse"></span>
+        OWASP LLM Top 10 — All 10 Categories Covered
+      </div>
+
+      <h1 class="text-5xl md:text-6xl font-extrabold text-white leading-tight mb-6">
+        Every AI request.<br/>
+        <span class="gradient-text">Intercepted. Secured.</span>
+      </h1>
+
+      <p class="text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+        Shadow Warden sits in front of every AI tool your clients use.
+        It strips PII, blocks jailbreaks, and generates a GDPR-compliant audit trail —
+        in under <strong class="text-white">40 milliseconds</strong>.
+        Built for Managed Service Providers.
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="mailto:vladimir@shadowwarden.ai?subject=Shadow%20Warden%20Demo%20Request"
+           class="px-6 py-3 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold transition-colors text-sm">
+          Book a 15-Minute Demo →
+        </a>
+        <a href="#how-it-works"
+           class="px-6 py-3 rounded-lg border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-semibold transition-colors text-sm">
+          See How It Works
+        </a>
+      </div>
+
+      <p class="mt-6 text-xs text-slate-600">
+        NFR license available — full features, unlimited internal tenants, no time limit.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── PROBLEM ───────────────────────────────────────────────────────────── -->
+  <section class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-6xl mx-auto">
+      <p class="text-center text-slate-500 text-sm uppercase tracking-widest mb-12">
+        The risks your clients don't see
+      </p>
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <div class="w-10 h-10 rounded-lg bg-red-500/15 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          </div>
+          <h3 class="font-semibold text-white mb-2">Data Exfiltration</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Technicians paste SSNs, API keys, and network configs into ChatGPT. No audit trail. No control.</p>
+          <p class="mt-3 text-xs text-red-400 font-medium">GDPR fines up to 4% of global turnover</p>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <div class="w-10 h-10 rounded-lg bg-orange-500/15 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h3 class="font-semibold text-white mb-2">Jailbreak Attacks</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Adversaries manipulate AI tools to bypass safety controls and extract sensitive client data.</p>
+          <p class="mt-3 text-xs text-orange-400 font-medium">OWASP LLM01 — Prompt Injection</p>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <div class="w-10 h-10 rounded-lg bg-yellow-500/15 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <h3 class="font-semibold text-white mb-2">Compliance Gap</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Enterprise clients now ask: "How do you control AI data handling?" MSPs without an answer lose deals.</p>
+          <p class="mt-3 text-xs text-yellow-400 font-medium">EU AI Act enforcement started 2026</p>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <div class="w-10 h-10 rounded-lg bg-purple-500/15 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+          </div>
+          <h3 class="font-semibold text-white mb-2">AI Supply Chain</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">LLM outputs contain XSS, SQL injection, and shell commands — silently inserted into your client's codebase.</p>
+          <p class="mt-3 text-xs text-purple-400 font-medium">OWASP LLM02 — Insecure Output</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HOW IT WORKS ───────────────────────────────────────────────────────── -->
+  <section id="how-it-works" class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl font-bold text-white mb-3">Intercept. Filter. Audit.</h2>
+        <p class="text-slate-400 max-w-xl mx-auto">Shadow Warden sits between your team and every AI API. Under 40ms. Zero impact on user experience.</p>
+      </div>
+
+      <div class="rounded-xl bg-dark-800 border border-slate-700/60 p-6 md:p-8 overflow-x-auto">
+        <pre class="font-mono text-sm leading-relaxed text-slate-300"><span class="text-slate-500">  Employee / App</span>
+<span class="text-slate-500">        │</span>
+<span class="text-slate-500">        ▼</span>
+<span class="text-slate-600">┌──────────────────────────────────────────────────────┐</span>
+<span class="text-slate-600">│</span>              <span class="text-brand-400 font-semibold">SHADOW WARDEN AI</span>  <span class="text-slate-500">&lt;40ms</span>                <span class="text-slate-600">│</span>
+<span class="text-slate-600">│</span>                                                      <span class="text-slate-600">│</span>
+<span class="text-slate-600">│</span>  <span class="text-slate-400">①</span> <span class="text-white">Decode obfuscation</span>  <span class="text-slate-500">base64 / hex / ROT13 / homoglyphs</span>  <span class="text-slate-600">│</span>
+<span class="text-slate-600">│</span>  <span class="text-slate-400">②</span> <span class="text-white">Strip PII &amp; secrets</span>  <span class="text-slate-500">SSN · IBAN · API keys · emails · crypto</span>  <span class="text-slate-600">│</span>
+<span class="text-slate-600">│</span>  <span class="text-slate-400">③</span> <span class="text-white">Block jailbreaks</span>    <span class="text-slate-500">ML + 300+ rules  (OWASP LLM01)</span>      <span class="text-slate-600">│</span>
+<span class="text-slate-600">│</span>  <span class="text-slate-400">④</span> <span class="text-white">Scan AI output</span>      <span class="text-slate-500">XSS · SQLi · shell cmds  (LLM02)</span>    <span class="text-slate-600">│</span>
+<span class="text-slate-600">│</span>  <span class="text-slate-400">⑤</span> <span class="text-white">Log metadata</span>        <span class="text-slate-500">GDPR-safe · no raw content · ever</span>    <span class="text-slate-600">│</span>
+<span class="text-slate-600">└──────────────────────────────────────────────────────┘</span>
+<span class="text-slate-500">        │                           │</span>
+<span class="text-slate-500">        ▼                           ▼</span>
+<span class="text-green-400">  AI Model API</span>               <span class="text-brand-400">Audit Log</span>
+<span class="text-slate-500">  (clean input)         (per tenant, GDPR Art. 30)</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── OWASP ──────────────────────────────────────────────────────────────── -->
+  <section id="owasp" class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl font-bold text-white mb-3">OWASP LLM Top 10 Coverage</h2>
+        <p class="text-slate-400">The only control layer purpose-built for AI-specific threats.</p>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-700/60">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-700/60 bg-dark-700">
+              <th class="text-left px-5 py-3 text-slate-400 font-medium">Category</th>
+              <th class="text-left px-5 py-3 text-slate-400 font-medium">Shadow Warden Control</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            <tr class="hover:bg-dark-600/40 transition-colors">
+              <td class="px-5 py-3 font-mono text-brand-400 whitespace-nowrap">LLM01 — Prompt Injection</td>
+              <td class="px-5 py-3 text-slate-300">MiniLM ML semantic detector + 300+ regex rules + obfuscation decoding</td>
+            </tr>
+            <tr class="hover:bg-dark-600/40 transition-colors">
+              <td class="px-5 py-3 font-mono text-brand-400 whitespace-nowrap">LLM02 — Insecure Output</td>
+              <td class="px-5 py-3 text-slate-300">Output scanner: XSS, HTML injection, Markdown injection, shell commands</td>
+            </tr>
+            <tr class="hover:bg-dark-600/40 transition-colors">
+              <td class="px-5 py-3 font-mono text-brand-400 whitespace-nowrap">LLM06 — Sensitive Info</td>
+              <td class="px-5 py-3 text-slate-300">17 PII/secret patterns — GDPR-compliant redaction before transmission</td>
+            </tr>
+            <tr class="hover:bg-dark-600/40 transition-colors">
+              <td class="px-5 py-3 font-mono text-brand-400 whitespace-nowrap">LLM08 — Excessive Agency</td>
+              <td class="px-5 py-3 text-slate-300">SQL injection, SSRF, path traversal, shell command detection</td>
+            </tr>
+            <tr class="hover:bg-dark-600/40 transition-colors">
+              <td class="px-5 py-3 font-mono text-slate-400 whitespace-nowrap">All 10 categories</td>
+              <td class="px-5 py-3 text-slate-300">Continuous self-improvement via Evolution Engine — new attack patterns blocked across all clients within hours</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOR MSPS ───────────────────────────────────────────────────────────── -->
+  <section id="for-msps" class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl font-bold text-white mb-3">Built for MSPs</h2>
+        <p class="text-slate-400 max-w-xl mx-auto">One deployment. Every client in an isolated sandbox. Add a new client in minutes via API.</p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6">
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+            <span class="text-brand-400">⚡</span> Security
+          </h3>
+          <ul class="space-y-2 text-sm text-slate-400">
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> 17 PII/secret patterns (SSN, IBAN, API keys, crypto wallets)</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> Jailbreak detection: MiniLM + 300+ semantic rules</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> Obfuscation decoder: base64, hex, ROT13, homoglyphs</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> AI output scanner (OWASP LLM02/LLM08)</li>
+          </ul>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+            <span class="text-brand-400">📋</span> Compliance
+          </h3>
+          <ul class="space-y-2 text-sm text-slate-400">
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> GDPR Article 30 RoPA — auto-generated per tenant</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> Data subject export &amp; purge (one API call)</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> Immutable audit log — metadata only, never raw content</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> SOC 2 roadmap — audit trail pre-aligned to TSC</li>
+          </ul>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <h3 class="font-semibold text-white mb-3 flex items-center gap-2">
+            <span class="text-brand-400">🔧</span> MSP Operations
+          </h3>
+          <ul class="space-y-2 text-sm text-slate-400">
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> RBAC dashboard — Admin / Auditor / Viewer</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> SAML SSO (Okta, Entra ID)</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> Client SIEM webhooks (HMAC-SHA256 signed)</li>
+            <li class="flex gap-2"><span class="text-green-400 mt-0.5">✓</span> Federated threat feed — new attacks blocked fleet-wide</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── COMPLIANCE / DPA STRIP ─────────────────────────────────────────────── -->
+  <section class="py-14 px-6 border-t border-slate-800/50 bg-dark-800/50">
+    <div class="max-w-5xl mx-auto">
+      <div class="grid md:grid-cols-4 gap-6 text-center">
+        <div>
+          <p class="text-3xl font-extrabold gradient-text">40ms</p>
+          <p class="text-slate-500 text-sm mt-1">End-to-end filter latency</p>
+        </div>
+        <div>
+          <p class="text-3xl font-extrabold gradient-text">17+</p>
+          <p class="text-slate-500 text-sm mt-1">PII &amp; secret patterns</p>
+        </div>
+        <div>
+          <p class="text-3xl font-extrabold gradient-text">$4.45M</p>
+          <p class="text-slate-500 text-sm mt-1">Avg. AI breach cost (IBM 2024)</p>
+        </div>
+        <div>
+          <p class="text-3xl font-extrabold gradient-text">GDPR</p>
+          <p class="text-slate-500 text-sm mt-1">Art. 30 RoPA out of the box</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── QUICKSTART ──────────────────────────────────────────────────────────── -->
+  <section class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-3xl mx-auto">
+      <div class="text-center mb-10">
+        <h2 class="text-3xl font-bold text-white mb-3">Up in 5 Minutes</h2>
+        <p class="text-slate-400">Docker Compose. No external dependencies. No data leaves your environment.</p>
+      </div>
+      <div class="rounded-xl bg-dark-800 border border-slate-700/60 p-6 overflow-x-auto">
+        <pre class="font-mono text-sm text-slate-300 leading-relaxed"><span class="text-slate-500"># Clone and start</span>
+<span class="text-green-400">git clone</span> https://github.com/zborrman/Shadow-Warden-AI
+<span class="text-green-400">cd</span> Shadow-Warden-AI <span class="text-slate-500">&amp;&amp;</span> <span class="text-green-400">cp</span> .env.example .env
+<span class="text-green-400">docker-compose up -d</span> warden
+
+<span class="text-slate-500"># Verify — your first intercept</span>
+<span class="text-green-400">curl</span> -X POST http://localhost:8001/filter \
+  -H <span class="text-yellow-300">"Content-Type: application/json"</span> \
+  -d <span class="text-yellow-300">'{"content": "SSN: 078-05-1120, key: sk-ant-api03-demo", "tenant_id": "test"}'</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PRICING ────────────────────────────────────────────────────────────── -->
+  <section id="pricing" class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl font-bold text-white mb-3">Pricing</h2>
+        <p class="text-slate-400">Start with an NFR license — prove it to yourself first, then offer it to clients.</p>
+      </div>
+      <div class="grid md:grid-cols-4 gap-4">
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <p class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">NFR License</p>
+          <p class="text-white font-bold text-xl mb-1">Free</p>
+          <p class="text-slate-500 text-xs mb-4">Internal MSP use</p>
+          <ul class="space-y-1.5 text-xs text-slate-400">
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Full features</li>
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Unlimited internal tenants</li>
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> No time limit</li>
+          </ul>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <p class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">MSP Starter</p>
+          <p class="text-white font-bold text-xl mb-1">Contact us</p>
+          <p class="text-slate-500 text-xs mb-4">Up to 10 client tenants</p>
+          <ul class="space-y-1.5 text-xs text-slate-400">
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Dashboard &amp; RBAC</li>
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Webhooks</li>
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Compliance reports</li>
+          </ul>
+        </div>
+
+        <div class="card-glow rounded-xl bg-brand-900/40 border border-brand-500/30 p-6 transition-all duration-200 relative">
+          <span class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-brand-500 text-white text-xs font-semibold rounded-full">Popular</span>
+          <p class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">MSP Pro</p>
+          <p class="text-white font-bold text-xl mb-1">Contact us</p>
+          <p class="text-slate-500 text-xs mb-4">Unlimited tenants</p>
+          <ul class="space-y-1.5 text-xs text-slate-400">
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Everything in Starter</li>
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Federated threat feed</li>
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Priority support</li>
+          </ul>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <p class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Enterprise</p>
+          <p class="text-white font-bold text-xl mb-1">Custom</p>
+          <p class="text-slate-500 text-xs mb-4">Large MSPs &amp; VARs</p>
+          <ul class="space-y-1.5 text-xs text-slate-400">
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> Dedicated feed</li>
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> SOC 2 report</li>
+            <li class="flex gap-1.5"><span class="text-green-400">✓</span> SLA + dedicated CSM</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA ───────────────────────────────────────────────────────────────── -->
+  <section class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-2xl mx-auto text-center">
+      <h2 class="text-3xl font-bold text-white mb-4">See it intercept a real credential in 3 minutes.</h2>
+      <p class="text-slate-400 mb-8">
+        No slides. No decks. Live demo — we strip an SSN and block a jailbreak in front of you.
+        Worst case: you walk away with a working AI security layer for your own team.
+      </p>
+      <a href="mailto:vladimir@shadowwarden.ai?subject=Shadow%20Warden%20Demo%20Request&body=Hi%20Vladimir%2C%0A%0AI%27d%20like%20to%20see%20a%20demo%20of%20Shadow%20Warden%20AI.%0A%0ACompany%3A%20%0ATeam%20size%3A%20%0ANumber%20of%20MSP%20clients%3A%20"
+         class="inline-block px-8 py-4 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-base transition-colors">
+        Book a Demo — vladimir@shadowwarden.ai
+      </a>
+      <p class="mt-4 text-xs text-slate-600">
+        15 minutes on Zoom · NFR license on the same call if you qualify
+      </p>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────────────────────── -->
+  <footer class="border-t border-slate-800/50 py-10 px-6">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-600">
+      <span><span class="text-slate-400 font-semibold">Shadow Warden AI</span> — Proprietary. All rights reserved.</span>
+      <div class="flex gap-6">
+        <a href="mailto:vladimir@shadowwarden.ai" class="hover:text-slate-400 transition-colors">vladimir@shadowwarden.ai</a>
+        <a href="https://github.com/zborrman/Shadow-Warden-AI" class="hover:text-slate-400 transition-colors">GitHub</a>
+      </div>
+      <span>GDPR-compliant by design · v1.3.0</span>
+    </div>
+  </footer>
+
+</body>
+</html>
