@@ -429,6 +429,7 @@ class TestWhiteLabel:
 
     def test_via_http_brand_name_param(self) -> None:
         from fastapi.testclient import TestClient
+
         from warden.main import app
         client = TestClient(app, raise_server_exceptions=True)
         with patch("warden.analytics.report.load_entries", return_value=_make_entries()):
@@ -464,9 +465,8 @@ class TestRenderPdf:
         engine  = ReportEngine()
         entries = _make_entries(n_allowed=5)
         _, pw_patch = _make_playwright_mock(b"%PDF-1.4 real")
-        with patch("warden.analytics.report.load_entries", return_value=entries):
-            with pw_patch:
-                result = engine.render_pdf("acme", "2026-02")
+        with patch("warden.analytics.report.load_entries", return_value=entries), pw_patch:
+            result = engine.render_pdf("acme", "2026-02")
         assert isinstance(result, bytes)
         assert result == b"%PDF-1.4 real"
 
@@ -498,9 +498,8 @@ class TestRenderPdf:
 
         engine  = ReportEngine()
         entries = _make_entries(n_allowed=5)
-        with patch("warden.analytics.report.load_entries", return_value=entries):
-            with pw_patch:
-                engine.render_pdf("acme", "2026-02", brand_name="PartnerBrand")
+        with patch("warden.analytics.report.load_entries", return_value=entries), pw_patch:
+            engine.render_pdf("acme", "2026-02", brand_name="PartnerBrand")
 
         assert captured_html, "set_content was never called"
         assert "PartnerBrand" in captured_html[0]
@@ -508,14 +507,14 @@ class TestRenderPdf:
     def test_via_http_pdf_content_type(self) -> None:
         """Successful PDF render returns application/pdf with correct filename."""
         from fastapi.testclient import TestClient
+
         from warden.main import app
         client  = TestClient(app, raise_server_exceptions=True)
         entries = _make_entries(n_allowed=1)
         _, pw_patch = _make_playwright_mock(b"%PDF-mock")
 
-        with patch("warden.analytics.report.load_entries", return_value=entries):
-            with pw_patch:
-                resp = client.get("/msp/report/acme?month=2026-02&fmt=pdf")
+        with patch("warden.analytics.report.load_entries", return_value=entries), pw_patch:
+            resp = client.get("/msp/report/acme?month=2026-02&fmt=pdf")
 
         assert resp.status_code == 200
         assert resp.headers["content-type"] == "application/pdf"

@@ -39,11 +39,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 # ── Finding categories ────────────────────────────────────────────────────────
 
-class OutputRisk(str, Enum):
+class OutputRisk(StrEnum):
     XSS              = "xss"                 # LLM02
     HTML_INJECTION   = "html_injection"      # LLM02
     MARKDOWN_INJECT  = "markdown_inject"     # LLM02
@@ -141,8 +141,8 @@ _PROMPT_LEAK_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>", re.IGNORECASE),
     # Common "you are a..." system prompt preambles echoed verbatim
     re.compile(
-        r"(?:you are|your instructions? are|your (system )?prompt is|"
-        r"as an AI assistant,? your (goal|purpose|directive) is)",
+        r"(?:you are|your instructions? are|your (?:system |hidden )?prompt is|"
+        r"as an AI assistant,? your (?:goal|purpose|directive) is)",
         re.IGNORECASE,
     ),
     # Internal tool / function call names leaking into output
@@ -172,7 +172,7 @@ _CMD_INJECT_PATTERNS: list[re.Pattern[str]] = [
 
 # ── LLM08: SQL injection ──────────────────────────────────────────────────────
 _SQL_INJECT_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"(?:'\s*(?:OR|AND)\s*'?\s*\d+\s*=\s*\d+|'\s*--)", re.IGNORECASE),
+    re.compile(r"(?:'\s*(?:OR|AND)\s*'?\s*\d+\s*=\s*'?\s*\d+|'\s*(?:OR|AND)\s*'[^']*'\s*=\s*'[^']*'|'\s*--)", re.IGNORECASE),
     re.compile(r"\bUNION\s+(?:ALL\s+)?SELECT\b", re.IGNORECASE),
     re.compile(r"\bDROP\s+TABLE\b", re.IGNORECASE),
     re.compile(r"\bINSERT\s+INTO\b.*\bVALUES\b", re.IGNORECASE),

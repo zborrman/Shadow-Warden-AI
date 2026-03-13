@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from warden.output_sanitizer import OutputRisk, OutputSanitizer, get_sanitizer
+from warden.output_sanitizer import OutputRisk, OutputSanitizer
 
 # ── Shared sanitizer instance ─────────────────────────────────────────────────
 

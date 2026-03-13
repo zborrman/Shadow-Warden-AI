@@ -460,11 +460,10 @@ def require_auth() -> None:
         st.stop()
 
     # ── Step 2: Valid SAML JWT session ────────────────────────────────────────
-    if _SAML_ENABLED and st.session_state.get(_K_SAML_JWT):
-        if _saml_session_valid():
-            _render_sidebar_session()
-            return
-        # JWT expired — fall through to login screen
+    if _SAML_ENABLED and st.session_state.get(_K_SAML_JWT) and _saml_session_valid():
+        _render_sidebar_session()
+        return
+    # JWT expired — fall through to login screen
 
     # ── Step 3: Valid password session ────────────────────────────────────────
     if _session_valid():

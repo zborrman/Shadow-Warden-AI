@@ -33,14 +33,13 @@ import logging
 import logging.handlers
 import os
 import re
+import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-
-import secrets
 
 from fastapi import (
     BackgroundTasks,
@@ -63,6 +62,8 @@ from slowapi.util import get_remote_address
 
 from warden.analytics import logger as event_logger
 from warden.analytics.report import get_engine as _get_report_engine
+from warden.auth.saml_provider import SAMLProvider, SamlSession
+from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import AuthResult, require_api_key
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
@@ -73,6 +74,7 @@ from warden.masking.engine import get_engine as _get_masking_engine
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
 from warden.onboarding import OnboardingEngine
+from warden.output_sanitizer import get_sanitizer as _get_output_sanitizer
 from warden.review_queue import ReviewQueue
 from warden.rule_ledger import RuleLedger
 from warden.schemas import (
@@ -91,13 +93,11 @@ from warden.schemas import (
     UnmaskRequest,
     UnmaskResponse,
 )
-from warden.output_sanitizer import get_sanitizer as _get_output_sanitizer
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
 from warden.telegram_alert import send_block_alert as _tg_block_alert
 from warden.threat_feed import ThreatFeedClient
 from warden.threat_store import ThreatStore
-from warden.auth.saml_provider import SAMLProvider, SamlSession, get_provider as _get_saml_provider
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
 
@@ -2435,7 +2435,6 @@ async def filter_output(
 
 def _saml_request_data(request: Request, form_data: dict | None = None) -> dict:
     """Build the python3-saml request_data dict from a FastAPI Request."""
-    url = str(request.url)
     https = request.headers.get("x-forwarded-proto", "http") == "https"
     return {
         "https":       "on" if https else "off",
@@ -2522,7 +2521,7 @@ async def saml_acs(request: Request):
         raise HTTPException(503, "SAML SSO is not configured on this instance.")
 
     form = await request.form()
-    form_data = {k: v for k, v in form.items()}
+    form_data = dict(form.items())
     rd = _saml_request_data(request, form_data=form_data)
 
     try:

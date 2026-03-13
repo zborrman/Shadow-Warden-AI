@@ -9,12 +9,7 @@ server needed.  urllib calls are patched to avoid real gateway traffic.
 from __future__ import annotations
 
 import json
-from io import BytesIO
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
-
-import pytest
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

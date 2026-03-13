@@ -351,9 +351,8 @@ class StripeBilling:
         period_end_ts = sub.get("current_period_end") if hasattr(sub, "get") else None  # type: ignore[union-attr]
         period_end: str | None = None
         if period_end_ts:
-            from datetime import timezone  # noqa: PLC0415
             period_end = datetime.fromtimestamp(
-                int(period_end_ts), tz=timezone.utc
+                int(period_end_ts), tz=UTC
             ).isoformat()
 
         return plan, period_end, str(status)

@@ -212,9 +212,8 @@ class TestWebhookHandler:
         with patch(
             "stripe.Webhook.construct_event",
             side_effect=stripe.error.SignatureVerificationError("bad", "hdr"),
-        ):
-            with pytest.raises(ValueError, match="signature"):
-                enabled_store.handle_webhook(b"{}", "bad_sig")
+        ), pytest.raises(ValueError, match="signature"):
+            enabled_store.handle_webhook(b"{}", "bad_sig")
 
     def test_checkout_completed_activates_plan(self, enabled_store: StripeBilling) -> None:
         mock_sub = {
@@ -278,6 +277,7 @@ class TestBillingEndpoints:
     @pytest.fixture(autouse=True)
     def _client(self):
         from fastapi.testclient import TestClient
+
         from warden.main import app
         self.client = TestClient(app, raise_server_exceptions=True)
 

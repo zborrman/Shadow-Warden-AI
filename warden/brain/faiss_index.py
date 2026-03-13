@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -68,11 +68,11 @@ class FAISSCorpus:
         scores, indices = corpus.search(query_embedding_tensor, k=1)
         max_score = scores[0][0]  # float, 0–1
     """
-    index: "faiss.Index"            # type: ignore[name-defined]  # noqa: F821
+    index: faiss.Index            # type: ignore[name-defined]  # noqa: F821
     size:  int
 
     @classmethod
-    def build(cls, embeddings: "torch.Tensor") -> FAISSCorpus:
+    def build(cls, embeddings: torch.Tensor) -> FAISSCorpus:
         """
         Build a FAISS IndexFlatIP from a (N, dim) float32 tensor.
         Vectors must already be L2-normalised (unit norm) so that
@@ -106,7 +106,7 @@ class FAISSCorpus:
                  vecs.shape[0], dim, type(index).__name__)
         return cls(index=index, size=vecs.shape[0])
 
-    def search(self, query: "torch.Tensor", k: int = 1) -> tuple[np.ndarray, np.ndarray]:
+    def search(self, query: torch.Tensor, k: int = 1) -> tuple[np.ndarray, np.ndarray]:
         """
         Find the k nearest neighbours.
 
@@ -117,7 +117,7 @@ class FAISSCorpus:
         scores, indices = self.index.search(vec, k)
         return scores, indices
 
-    def max_similarity(self, query: "torch.Tensor") -> float:
+    def max_similarity(self, query: torch.Tensor) -> float:
         """Return the single highest cosine similarity in the corpus."""
         scores, _ = self.search(query, k=1)
         return float(scores[0][0])
@@ -128,7 +128,7 @@ def should_use_faiss(corpus_size: int) -> bool:
     return corpus_size >= FAISS_MIN_CORPUS
 
 
-def try_build_faiss(embeddings: "torch.Tensor") -> FAISSCorpus | None:
+def try_build_faiss(embeddings: torch.Tensor) -> FAISSCorpus | None:
     """
     Attempt to build a FAISSCorpus.  Returns None (and logs a warning)
     if faiss-cpu is not installed — the caller falls back to torch scan.

@@ -9,10 +9,12 @@ Redis is replaced by a simple dict-backed fake.
 """
 from __future__ import annotations
 
-import json
-import os
 import time
-from unittest.mock import MagicMock, patch
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
+
+if TYPE_CHECKING:
+    from warden.auth.saml_provider import SAMLProvider
 
 import pytest
 from fastapi.testclient import TestClient
@@ -52,7 +54,7 @@ class TestSAMLProvider:
         monkeypatch.setenv("SAML_JWT_SECRET",    "a" * 32)
         monkeypatch.setenv("SAML_IDP_METADATA_XML", _DUMMY_IDP_XML)
 
-    def _make_provider(self) -> "SAMLProvider":
+    def _make_provider(self) -> SAMLProvider:
         from warden.auth.saml_provider import SAMLProvider
         p = SAMLProvider.__new__(SAMLProvider)
         # Bypass real python3-saml settings build — inject stub settings
@@ -115,8 +117,9 @@ class TestSAMLProvider:
         assert p.verify_jwt("not.a.jwt") is None
 
     def test_verify_jwt_wrong_secret(self):
-        from warden.auth.saml_provider import SamlSession
         import jwt
+
+        from warden.auth.saml_provider import SamlSession
         p = self._make_provider()
         session = SamlSession(
             email="eve@acme.com", name="Eve",
@@ -133,7 +136,9 @@ class TestSAMLProvider:
         from warden.auth.saml_provider import SamlSession
         monkeypatch.setenv("SAML_JWT_SECRET", "")
         # Re-import to pick up new env var
-        import importlib, warden.auth.saml_provider as mod
+        import importlib
+
+        import warden.auth.saml_provider as mod
         importlib.reload(mod)
         p = mod.SAMLProvider.__new__(mod.SAMLProvider)
         p._settings = {}

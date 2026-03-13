@@ -45,7 +45,6 @@ Dependency
 """
 from __future__ import annotations
 
-import hmac
 import json
 import logging
 import os
@@ -102,7 +101,6 @@ class SAMLProvider:
     def get_metadata_xml(self) -> tuple[str, list[str]]:
         """Return (metadata_xml, errors).  Errors list is empty on success."""
         try:
-            from onelogin.saml2.auth import OneLogin_Saml2_Auth
             from onelogin.saml2.settings import OneLogin_Saml2_Settings
         except ImportError as exc:
             raise RuntimeError("python3-saml is not installed") from exc
@@ -214,7 +212,8 @@ class SAMLProvider:
 
     def issue_jwt(self, session: SamlSession) -> str:
         """Return a signed JWT encoding the session."""
-        if not _JWT_SECRET:
+        secret = os.getenv("SAML_JWT_SECRET", "")
+        if not secret:
             raise RuntimeError("SAML_JWT_SECRET is not set")
         try:
             import jwt
@@ -229,15 +228,16 @@ class SAMLProvider:
             "exp":  session.expires_at,
             "iat":  int(time.time()),
         }
-        return jwt.encode(payload, _JWT_SECRET, algorithm="HS256")
+        return jwt.encode(payload, secret, algorithm="HS256")
 
     def verify_jwt(self, token: str) -> dict[str, Any] | None:
         """Verify a JWT and return its payload, or None if invalid/expired."""
-        if not _JWT_SECRET:
+        secret = os.getenv("SAML_JWT_SECRET", "")
+        if not secret:
             return None
         try:
             import jwt
-            return jwt.decode(token, _JWT_SECRET, algorithms=["HS256"])
+            return jwt.decode(token, secret, algorithms=["HS256"])
         except Exception:
             return None
 

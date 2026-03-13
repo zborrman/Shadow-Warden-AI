@@ -155,7 +155,7 @@ class SemanticGuard:
 
     threshold: float = DEFAULT_THRESHOLD
     _corpus_embeddings: torch.Tensor = field(init=False, repr=False)
-    _faiss_index: "Any | None" = field(init=False, repr=False, default=None)
+    _faiss_index: Any | None = field(init=False, repr=False, default=None)
 
     def __post_init__(self) -> None:
         model = _load_model()
