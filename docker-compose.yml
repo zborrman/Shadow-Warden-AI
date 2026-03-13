@@ -346,8 +346,8 @@ services:
   # Access: http://localhost:8003  (POST /rules, GET /feed.json)
   feed:
     build:
-      context: .
-      dockerfile: warden/Dockerfile
+      context: ./warden
+      dockerfile: Dockerfile
     container_name: warden-feed
     restart: unless-stopped
     command: >
