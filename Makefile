@@ -111,6 +111,9 @@ install:  ## Install project + dev dependencies locally
 install-sdk:  ## Install Python SDK locally (editable)
 	pip install -e "sdk/python[dev]"
 
+install-saml:  ## Install SAML 2.0 dependencies (python3-saml + PyJWT)
+	pip install python3-saml PyJWT
+
 install-hooks:  ## Install pre-commit hooks
 	pre-commit install
 

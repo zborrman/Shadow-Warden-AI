@@ -70,3 +70,10 @@ plotly>=5.22.0
 # bcrypt — used by auth.py to verify DASHBOARD_PASSWORD_HASH.
 # Generate a hash: python -m warden.analytics.auth
 bcrypt>=4.0.0
+
+# ── SAML 2.0 SSO (optional — only required when SAML_SP_ENTITY_ID is set) ────
+# python3-saml — SAML 2.0 SP; wraps lxml + xmlsec for signature validation.
+# PyJWT — signs and verifies session JWTs issued after successful SAML login.
+# Install separately if SAML SSO is not needed (saves ~50 MB of native deps).
+python3-saml>=1.16.0
+PyJWT>=2.8.0

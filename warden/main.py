@@ -93,6 +93,7 @@ from warden.semantic_guard import SemanticGuard
 from warden.telegram_alert import send_block_alert as _tg_block_alert
 from warden.threat_feed import ThreatFeedClient
 from warden.threat_store import ThreatStore
+from warden.auth.saml_provider import SAMLProvider, SamlSession, get_provider as _get_saml_provider
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
 
@@ -242,6 +243,7 @@ _billing:        BillingStore      | None = None
 _onboarding:     OnboardingEngine  | None = None
 _policy:         DataPolicyEngine  | None = None
 _feed:           ThreatFeedClient  | None = None
+_saml:           SAMLProvider      | None = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -313,7 +315,7 @@ async def _threat_feed_sync_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy, _feed
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy, _feed, _saml
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -433,6 +435,19 @@ async def lifespan(app: FastAPI):
     _retirement_task  = asyncio.create_task(_nightly_rule_retirement())
     _billing_task     = asyncio.create_task(_billing_aggregation_loop())
     _feed_sync_task   = asyncio.create_task(_threat_feed_sync_loop())
+
+    # ── SAML 2.0 SSO (optional — only if env vars are set) ───────────
+    _saml = _get_saml_provider()
+    if _saml is not None:
+        from warden.cache import _get_client as _redis_client_fn  # noqa: PLC0415
+        try:
+            _saml.attach_redis(_redis_client_fn())
+            app.state.saml = _saml
+            log.info("SAML 2.0 SSO provider ready.")
+        except Exception as _saml_err:
+            log.warning("SAML provider initialised but Redis attach failed: %s", _saml_err)
+    else:
+        app.state.saml = None
 
     yield
 
@@ -2312,6 +2327,210 @@ async def stripe_webhook(request: Request):
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"received": True, "event_type": etype}
+
+
+# ── SAML 2.0 SSO endpoints ────────────────────────────────────────────────────
+#
+# These routes are active only when SAML_SP_ENTITY_ID + SAML_SP_ACS_URL are set.
+# If SAML is not configured, all three routes return 503.
+#
+# Integration guide (Okta):
+#   1. In Okta: New App → SAML 2.0
+#      • Single Sign-On URL (ACS URL): <SAML_SP_ACS_URL>
+#      • Audience URI (Entity ID):     <SAML_SP_ENTITY_ID>
+#      • Name ID format:               EmailAddress
+#      • Attribute Statements:         displayName → user.displayName
+#                                      groups      → user.groups  (requires Groups filter)
+#   2. Download IdP metadata XML from Okta; set SAML_IDP_METADATA_URL
+#      or paste XML into SAML_IDP_METADATA_XML.
+#   3. Set SAML_JWT_SECRET (min 32 chars), SAML_SP_ENTITY_ID, SAML_SP_ACS_URL.
+#
+# Integration guide (Microsoft Entra ID / Azure AD):
+#   1. Azure Portal → Entra ID → Enterprise Applications → New App → Create your own
+#   2. Single sign-on → SAML → Basic SAML Configuration:
+#      • Identifier (Entity ID):       <SAML_SP_ENTITY_ID>
+#      • Reply URL (ACS URL):          <SAML_SP_ACS_URL>
+#   3. SAML Certificates → Federation Metadata Document URL → set as SAML_IDP_METADATA_URL
+#   4. Attributes & Claims: add "groups" claim (Security Groups or All Groups).
+
+
+def _saml_request_data(request: Request, form_data: dict | None = None) -> dict:
+    """Build the python3-saml request_data dict from a FastAPI Request."""
+    url = str(request.url)
+    https = request.headers.get("x-forwarded-proto", "http") == "https"
+    return {
+        "https":       "on" if https else "off",
+        "http_host":   request.headers.get("host", "localhost"),
+        "script_name": request.url.path,
+        "server_port": str(request.url.port or (443 if https else 80)),
+        "get_data":    dict(request.query_params),
+        "post_data":   form_data or {},
+    }
+
+
+@app.get(
+    "/auth/saml/metadata",
+    tags=["SSO"],
+    summary="SAML 2.0 SP Metadata XML",
+    response_class=JSONResponse,
+    include_in_schema=True,
+)
+async def saml_metadata(request: Request):
+    """
+    Return the Service Provider metadata XML.
+
+    Paste this URL (or the downloaded XML) into your IdP (Okta / Entra ID)
+    to configure the integration automatically.
+    """
+    provider: SAMLProvider | None = getattr(app.state, "saml", None)
+    if provider is None:
+        raise HTTPException(503, "SAML SSO is not configured on this instance.")
+    xml, errors = provider.get_metadata_xml()
+    if errors:
+        raise HTTPException(500, f"SAML metadata errors: {errors}")
+    from fastapi.responses import Response  # noqa: PLC0415
+    return Response(content=xml, media_type="application/xml")
+
+
+@app.get(
+    "/auth/saml/login",
+    tags=["SSO"],
+    summary="Initiate SAML 2.0 login (redirect to IdP)",
+    include_in_schema=True,
+)
+async def saml_login(request: Request, relay_state: str = ""):
+    """
+    Start the SAML login flow.
+
+    Redirects the browser to the IdP (Okta / Entra ID) login page.
+    After authentication, the IdP will POST the SAMLResponse back to
+    ``/auth/saml/acs``.
+    """
+    from fastapi.responses import RedirectResponse  # noqa: PLC0415
+    provider: SAMLProvider | None = getattr(app.state, "saml", None)
+    if provider is None:
+        raise HTTPException(503, "SAML SSO is not configured on this instance.")
+    rd = _saml_request_data(request)
+    try:
+        login_url = provider.build_login_url(rd, relay_state=relay_state)
+    except Exception as exc:
+        log.error("SAML login URL build failed: %s", exc)
+        raise HTTPException(500, "Failed to build SAML login request.") from exc
+    return RedirectResponse(url=login_url, status_code=302)
+
+
+@app.post(
+    "/auth/saml/acs",
+    tags=["SSO"],
+    summary="SAML 2.0 Assertion Consumer Service (ACS)",
+    include_in_schema=True,
+)
+async def saml_acs(request: Request):
+    """
+    Assertion Consumer Service — the IdP POSTs the signed SAMLResponse here.
+
+    On success:
+      1. Validates the X.509 signature.
+      2. Extracts email + groups from the assertion.
+      3. Issues a one-time token (30 s TTL) stored in Redis.
+      4. Redirects the browser to the Streamlit dashboard with ``?token=<otp>``.
+
+    The dashboard exchanges the OTP for a JWT via ``GET /auth/saml/session``.
+    """
+    from fastapi.responses import RedirectResponse  # noqa: PLC0415
+    provider: SAMLProvider | None = getattr(app.state, "saml", None)
+    if provider is None:
+        raise HTTPException(503, "SAML SSO is not configured on this instance.")
+
+    form = await request.form()
+    form_data = {k: v for k, v in form.items()}
+    rd = _saml_request_data(request, form_data=form_data)
+
+    try:
+        session: SamlSession = provider.process_response(rd)
+    except ValueError as exc:
+        log.warning("SAML ACS rejected: %s", exc)
+        raise HTTPException(401, str(exc)) from exc
+    except Exception as exc:
+        log.error("SAML ACS error: %s", exc)
+        raise HTTPException(500, "SAML processing error.") from exc
+
+    try:
+        otp = provider.store_otp(session)
+    except Exception as exc:
+        log.error("SAML OTP store failed: %s", exc)
+        raise HTTPException(500, "Failed to create login session.") from exc
+
+    dashboard_url = os.getenv("DASHBOARD_URL", "http://localhost:8501")
+    redirect_url  = f"{dashboard_url}?token={otp}"
+    log.info("SAML ACS: login accepted for %s → redirecting to dashboard", session.email)
+    return RedirectResponse(url=redirect_url, status_code=302)
+
+
+@app.get(
+    "/auth/saml/session",
+    tags=["SSO"],
+    summary="Exchange SAML one-time token for a session JWT",
+)
+async def saml_session(token: str):
+    """
+    Exchange the one-time token (from the ``?token=`` dashboard query param)
+    for a signed JWT.
+
+    The JWT encodes: ``sub`` (email), ``name``, ``grp`` (groups),
+    ``tid`` (tenant_id), ``exp``, ``iat``.
+
+    The dashboard stores this JWT in ``st.session_state`` and includes it
+    as ``Authorization: Bearer <jwt>`` on privileged API calls.
+    """
+    provider: SAMLProvider | None = getattr(app.state, "saml", None)
+    if provider is None:
+        raise HTTPException(503, "SAML SSO is not configured on this instance.")
+
+    session = provider.redeem_otp(token)
+    if session is None:
+        raise HTTPException(401, "Invalid or expired login token. Please log in again.")
+
+    try:
+        jwt_token = provider.issue_jwt(session)
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+    return {
+        "access_token": jwt_token,
+        "token_type":   "bearer",
+        "expires_in":   int(os.getenv("SAML_SESSION_TTL", "28800")),
+        "email":        session.email,
+        "name":         session.name,
+        "tenant_id":    session.tenant_id,
+    }
+
+
+@app.get(
+    "/auth/saml/verify",
+    tags=["SSO"],
+    summary="Verify a session JWT (for dashboard middleware use)",
+)
+async def saml_verify(request: Request):
+    """
+    Verify the Bearer JWT supplied in the Authorization header.
+    Returns the decoded payload on success.  Used by the dashboard
+    to validate an existing session without involving the IdP.
+    """
+    provider: SAMLProvider | None = getattr(app.state, "saml", None)
+    if provider is None:
+        raise HTTPException(503, "SAML SSO is not configured on this instance.")
+
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(401, "Missing or malformed Authorization header.")
+
+    token   = auth_header[len("Bearer "):]
+    payload = provider.verify_jwt(token)
+    if payload is None:
+        raise HTTPException(401, "Invalid or expired JWT.")
+
+    return payload
 
 
 # ── Global error handler ──────────────────────────────────────────────────────
