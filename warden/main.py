@@ -40,6 +40,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import secrets
+
 from fastapi import (
     BackgroundTasks,
     Depends,
@@ -51,7 +53,9 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -129,6 +133,40 @@ try:
 except ImportError:
     _PROMETHEUS_ENABLED = False
     log.warning("prometheus-fastapi-instrumentator not installed — /metrics disabled.")
+
+# ── API Docs auth (HTTP Basic) ────────────────────────────────────────────────
+# DOCS_PASSWORD="" (default) → docs served without auth (dev / CI only).
+# DOCS_PASSWORD set          → /docs, /redoc, /openapi.json require HTTP Basic.
+# Never set DOCS_PASSWORD="" on a public-facing server.
+
+_DOCS_USERNAME: str = os.getenv("DOCS_USERNAME", "warden")
+_DOCS_PASSWORD: str = os.getenv("DOCS_PASSWORD", "")
+_http_basic = HTTPBasic(auto_error=False)
+
+
+async def _docs_auth(
+    credentials: HTTPBasicCredentials | None = Depends(_http_basic),
+) -> None:
+    """Dependency: pass-through in dev, HTTP Basic in production."""
+    if not _DOCS_PASSWORD:
+        return  # dev mode — no password configured → open access
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="Shadow Warden API Docs"'},
+        )
+    ok_user = secrets.compare_digest(
+        credentials.username.encode(), _DOCS_USERNAME.encode()
+    )
+    ok_pass = secrets.compare_digest(
+        credentials.password.encode(), _DOCS_PASSWORD.encode()
+    )
+    if not (ok_user and ok_pass):
+        raise HTTPException(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="Shadow Warden API Docs"'},
+        )
+
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
 
@@ -432,6 +470,10 @@ app = FastAPI(
     ),
     version="0.5.0",
     lifespan=lifespan,
+    # Disable FastAPI's built-in docs routes — we serve protected versions below.
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 # Rate limiter state must be on app.state for slowapi to find it
@@ -463,6 +505,31 @@ app.add_middleware(MTLSMiddleware)
 # ── Prometheus instrumentation ────────────────────────────────────────────────
 if _PROMETHEUS_ENABLED:
     _Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
+# ── Protected API documentation ───────────────────────────────────────────────
+# Served only when DOCS_PASSWORD is set (production) or openly in dev mode.
+# The actual OpenAPI schema is also gated so attackers cannot enumerate routes.
+
+@app.get("/openapi.json", include_in_schema=False)
+async def _openapi_schema(_: None = Depends(_docs_auth)):
+    return JSONResponse(app.openapi())
+
+
+@app.get("/docs", include_in_schema=False)
+async def _swagger_ui(_: None = Depends(_docs_auth)):
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title="Shadow Warden AI — API Docs",
+    )
+
+
+@app.get("/redoc", include_in_schema=False)
+async def _redoc_ui(_: None = Depends(_docs_auth)):
+    return get_redoc_html(
+        openapi_url="/openapi.json",
+        title="Shadow Warden AI — API Docs",
+    )
+
 
 # ── Include sub-routers ───────────────────────────────────────────────────────
 try:
@@ -1954,9 +2021,11 @@ async def msp_overview(
     summary="Monthly compliance report for a single tenant",
 )
 async def msp_report(
-    tenant_id: str,
-    month:     str  = "",   # YYYY-MM; defaults to current calendar month
-    fmt:       str  = "html",  # html | json
+    tenant_id:  str,
+    month:      str       = "",   # YYYY-MM; defaults to current calendar month
+    fmt:        str       = "html",  # html | json | pdf
+    brand_name: str       = "Shadow Warden AI",
+    logo_url:   str | None = None,
     auth: AuthResult = Depends(require_api_key),
 ):
     """
@@ -1964,9 +2033,14 @@ async def msp_report(
 
     - **month** — ``YYYY-MM`` format (e.g. ``2026-02``). Defaults to the
       current calendar month.
-    - **fmt** — ``html`` returns a self-contained, print-ready HTML document
-      (open in browser → File → Print → Save as PDF).
-      ``json`` returns a structured JSON object for programmatic access.
+    - **fmt** — ``html`` (default) returns a self-contained, print-ready HTML
+      document. ``pdf`` renders via Playwright headless Chromium and returns a
+      ``application/pdf`` attachment. ``json`` returns structured data for
+      programmatic access.
+    - **brand_name** — Override the "Shadow Warden AI" title for white-label
+      deployments (default: ``"Shadow Warden AI"``).
+    - **logo_url** — Optional URL to a tenant logo image displayed on the cover
+      page (must be publicly accessible when rendering PDF).
 
     The report covers: executive summary, threat intelligence, PII intercepts,
     risk-level breakdown, daily activity, and auto-generated recommendations.
@@ -1990,8 +2064,25 @@ async def msp_report(
     if fmt == "json":
         return engine.render_json(tenant_id, month)
 
+    if fmt == "pdf":
+        try:
+            pdf_bytes = engine.render_pdf(
+                tenant_id, month, brand_name=brand_name, logo_url=logo_url
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        filename = f"warden-report-{tenant_id}-{month}.pdf"
+        from fastapi.responses import Response
+        return Response(
+            content    = pdf_bytes,
+            media_type = "application/pdf",
+            headers    = {"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
     # Default: HTML — return as a downloadable attachment
-    html_bytes = engine.render_html(tenant_id, month).encode("utf-8")
+    html_bytes = engine.render_html(
+        tenant_id, month, brand_name=brand_name, logo_url=logo_url
+    ).encode("utf-8")
     filename   = f"warden-report-{tenant_id}-{month}.html"
     from fastapi.responses import Response
     return Response(

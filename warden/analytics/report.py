@@ -184,10 +184,50 @@ class ReportEngine:
             daily           = list(day_map.values()),
         )
 
-    def render_html(self, tenant_id: str, month: str) -> str:
+    def render_html(
+        self,
+        tenant_id:  str,
+        month:      str,
+        *,
+        brand_name: str       = "Shadow Warden AI",
+        logo_url:   str | None = None,
+    ) -> str:
         """Return a self-contained HTML string (inline CSS, no external assets)."""
         data = self.build(tenant_id, month)
-        return _render_html(data)
+        return _render_html(data, brand_name=brand_name, logo_url=logo_url)
+
+    def render_pdf(
+        self,
+        tenant_id:  str,
+        month:      str,
+        *,
+        brand_name: str       = "Shadow Warden AI",
+        logo_url:   str | None = None,
+    ) -> bytes:
+        """
+        Render the compliance report as a PDF and return raw bytes.
+
+        Uses Playwright headless Chromium.  The ``playwright`` package must be
+        installed (``playwright install chromium``) — it is already present in
+        the Docker image.
+
+        Raises ``RuntimeError`` if Playwright is not available.
+        """
+        try:
+            from playwright.sync_api import sync_playwright  # noqa: PLC0415
+        except ImportError as exc:
+            raise RuntimeError(
+                "Playwright is not installed. Run: pip install playwright && playwright install chromium"
+            ) from exc
+
+        html = self.render_html(tenant_id, month, brand_name=brand_name, logo_url=logo_url)
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch()
+            page    = browser.new_page()
+            page.set_content(html, wait_until="domcontentloaded")
+            pdf_bytes = page.pdf(format="A4", print_background=True)
+            browser.close()
+        return pdf_bytes
 
     def render_json(self, tenant_id: str, month: str) -> dict[str, Any]:
         """Return a JSON-serialisable dict of the report data."""
@@ -315,7 +355,12 @@ def _recommendations(data: ReportData) -> list[str]:
     return recs
 
 
-def _render_html(data: ReportData) -> str:  # noqa: C901
+def _render_html(  # noqa: C901
+    data:       ReportData,
+    *,
+    brand_name: str       = "Shadow Warden AI",
+    logo_url:   str | None = None,
+) -> str:
     posture_color = _POSTURE_COLOR.get(data.posture, "#e2e8f0")
 
     # ── Flags table rows ──────────────────────────────────────────────
@@ -379,12 +424,18 @@ def _render_html(data: ReportData) -> str:  # noqa: C901
         f"<li>{_e(r)}</li>" for r in _recommendations(data)
     )
 
+    logo_html = (
+        f'<img src="{_e(logo_url)}" alt="{_e(brand_name)} logo"'
+        f' style="height:48px;margin-bottom:16px;display:block;">'
+        if logo_url else ""
+    )
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shadow Warden AI — Compliance Report — {_e(data.tenant_id)} — {_e(data.month)}</title>
+<title>{_e(brand_name)} — Compliance Report — {_e(data.tenant_id)} — {_e(data.month)}</title>
 <style>
   /* ── Base ── */
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -546,8 +597,9 @@ def _render_html(data: ReportData) -> str:  # noqa: C901
 
   <!-- ── Cover ── -->
   <div class="cover">
+    {logo_html}
     <div class="cover-badge">Monthly Security Compliance Report</div>
-    <h1>Shadow Warden AI</h1>
+    <h1>{_e(brand_name)}</h1>
     <h2>{_e(data.month_label)} · {_e(data.tenant_id)}</h2>
     <div class="cover-meta">
       Generated: <span>{_e(data.generated_at)}</span> &nbsp;|&nbsp;
@@ -647,7 +699,7 @@ def _render_html(data: ReportData) -> str:  # noqa: C901
 
   <!-- ── Footer ── -->
   <div class="footer">
-    <strong>Shadow Warden AI</strong> — AI Security Gateway &nbsp;|&nbsp;
+    <strong>{_e(brand_name)}</strong> — AI Security Gateway &nbsp;|&nbsp;
     Report generated {_e(data.generated_at)} &nbsp;|&nbsp;
     Tenant: {_e(data.tenant_id)} &nbsp;|&nbsp; Period: {_e(data.month)}<br>
     <em>This document contains security-sensitive information.

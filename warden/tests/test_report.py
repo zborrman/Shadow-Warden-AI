@@ -385,3 +385,139 @@ class TestReportEndpoint:
         cd = resp.headers.get("content-disposition", "")
         assert "attachment" in cd
         assert "warden-report-acme-2026-02.html" in cd
+
+
+# ── White-label branding ───────────────────────────────────────────────────────
+
+class TestWhiteLabel:
+    """render_html() uses brand_name / logo_url params."""
+
+    def _html(self, **kwargs) -> str:
+        entries = _make_entries(n_allowed=10, n_blocked=0)
+        engine  = ReportEngine()
+        with patch("warden.analytics.report.load_entries", return_value=entries):
+            return engine.render_html("acme", "2026-02", **kwargs)
+
+    def test_default_brand_name_present(self) -> None:
+        h = self._html()
+        assert "Shadow Warden AI" in h
+
+    def test_custom_brand_name_replaces_default(self) -> None:
+        h = self._html(brand_name="Acme SecureAI")
+        assert "Acme SecureAI" in h
+        # Default brand should not appear anywhere in title/header/footer
+        # (it may still appear in CSS/comments but the user-visible h1/title/footer should not)
+        assert "Shadow Warden AI" not in h
+
+    def test_logo_url_rendered_as_img(self) -> None:
+        h = self._html(logo_url="https://cdn.example.com/logo.png")
+        assert '<img src="https://cdn.example.com/logo.png"' in h
+
+    def test_no_logo_url_no_img_tag(self) -> None:
+        h = self._html(logo_url=None)
+        assert "<img" not in h
+
+    def test_logo_url_html_escaped(self) -> None:
+        """Malicious logo_url must be escaped."""
+        h = self._html(logo_url='"><script>alert(1)</script>')
+        assert "<script>alert(1)</script>" not in h
+
+    def test_brand_name_html_escaped(self) -> None:
+        h = self._html(brand_name="<Evil & Co>")
+        assert "<Evil & Co>" not in h
+        assert "&lt;Evil" in h
+
+    def test_via_http_brand_name_param(self) -> None:
+        from fastapi.testclient import TestClient
+        from warden.main import app
+        client = TestClient(app, raise_server_exceptions=True)
+        with patch("warden.analytics.report.load_entries", return_value=_make_entries()):
+            resp = client.get(
+                "/msp/report/acme?month=2026-02&fmt=html&brand_name=CorpShield",
+            )
+        assert resp.status_code == 200
+        assert "CorpShield" in resp.text
+        assert "Shadow Warden AI" not in resp.text
+
+
+# ── PDF export ────────────────────────────────────────────────────────────────
+
+def _make_playwright_mock(pdf_bytes: bytes = b"%PDF-mock"):
+    """Build a mock for playwright.sync_api.sync_playwright (local-import style)."""
+    from unittest.mock import MagicMock
+    mock_page    = MagicMock()
+    mock_page.pdf.return_value = pdf_bytes
+    mock_browser = MagicMock()
+    mock_browser.new_page.return_value = mock_page
+    mock_pw      = MagicMock()
+    mock_pw.chromium.launch.return_value = mock_browser
+    mock_ctx     = MagicMock()
+    mock_ctx.__enter__ = lambda s: mock_pw
+    mock_ctx.__exit__  = MagicMock(return_value=False)
+    return mock_page, patch("playwright.sync_api.sync_playwright", return_value=mock_ctx)
+
+
+class TestRenderPdf:
+    """render_pdf() smoke tests — Playwright is mocked so no browser needed."""
+
+    def test_returns_bytes(self) -> None:
+        engine  = ReportEngine()
+        entries = _make_entries(n_allowed=5)
+        _, pw_patch = _make_playwright_mock(b"%PDF-1.4 real")
+        with patch("warden.analytics.report.load_entries", return_value=entries):
+            with pw_patch:
+                result = engine.render_pdf("acme", "2026-02")
+        assert isinstance(result, bytes)
+        assert result == b"%PDF-1.4 real"
+
+    def test_playwright_not_available_raises_runtime_error(self) -> None:
+        import sys
+        engine  = ReportEngine()
+        entries = _make_entries(n_allowed=1)
+        with patch("warden.analytics.report.load_entries", return_value=entries):
+            # Simulate missing playwright by hiding it from sys.modules
+            saved = sys.modules.pop("playwright.sync_api", ...)
+            saved2 = sys.modules.pop("playwright", ...)
+            sys.modules["playwright.sync_api"] = None  # type: ignore[assignment]
+            try:
+                with pytest.raises(RuntimeError, match="Playwright"):
+                    engine.render_pdf("acme", "2026-02")
+            finally:
+                sys.modules.pop("playwright.sync_api", None)
+                if saved is not ...:
+                    sys.modules["playwright.sync_api"] = saved  # type: ignore[assignment]
+                if saved2 is not ...:
+                    sys.modules["playwright"] = saved2  # type: ignore[assignment]
+
+    def test_brand_name_passed_to_html(self) -> None:
+        """HTML fed to Playwright must contain the custom brand name."""
+        captured_html: list[str] = []
+
+        mock_page, pw_patch = _make_playwright_mock()
+        mock_page.set_content.side_effect = lambda h, **kw: captured_html.append(h)
+
+        engine  = ReportEngine()
+        entries = _make_entries(n_allowed=5)
+        with patch("warden.analytics.report.load_entries", return_value=entries):
+            with pw_patch:
+                engine.render_pdf("acme", "2026-02", brand_name="PartnerBrand")
+
+        assert captured_html, "set_content was never called"
+        assert "PartnerBrand" in captured_html[0]
+
+    def test_via_http_pdf_content_type(self) -> None:
+        """Successful PDF render returns application/pdf with correct filename."""
+        from fastapi.testclient import TestClient
+        from warden.main import app
+        client  = TestClient(app, raise_server_exceptions=True)
+        entries = _make_entries(n_allowed=1)
+        _, pw_patch = _make_playwright_mock(b"%PDF-mock")
+
+        with patch("warden.analytics.report.load_entries", return_value=entries):
+            with pw_patch:
+                resp = client.get("/msp/report/acme?month=2026-02&fmt=pdf")
+
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == "application/pdf"
+        cd = resp.headers.get("content-disposition", "")
+        assert "warden-report-acme-2026-02.pdf" in cd
