@@ -217,6 +217,7 @@ jobs:
             -p 8001:8001 \
             -v /tmp/warden-model-cache:/warden/models \
             -e WARDEN_API_KEY=smoke-test-key \
+            -e REDIS_URL=memory:// \
             -e LOG_LEVEL=warning \
             -e LOGS_PATH=/tmp/logs.json \
             -e DYNAMIC_RULES_PATH=/tmp/dynamic_rules.json \
