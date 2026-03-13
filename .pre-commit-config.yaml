@@ -1,0 +1,64 @@
+repos:
+  # ── Fast built-in hooks ───────────────────────────────────────────────────
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=500"]          # block accidental model weight commits
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: debug-statements          # no breakpoint() left in prod code
+      - id: detect-private-key        # block accidental key commits
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: trailing-whitespace
+
+  # ── Ruff (lint + format) ──────────────────────────────────────────────────
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: ["--fix", "--ignore", "E501"]
+        files: ^(warden|analytics|sdk)/
+      - id: ruff-format
+        files: ^(warden|analytics|sdk)/
+
+  # ── Mypy ─────────────────────────────────────────────────────────────────
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        files: ^warden/
+        args:
+          - "--ignore-missing-imports"
+          - "--no-strict-optional"
+        additional_dependencies:
+          - "httpx"
+          - "fastapi"
+          - "pydantic"
+
+  # ── Bandit (security linting) ─────────────────────────────────────────────
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.8
+    hooks:
+      - id: bandit
+        args: ["-r", "-ll"]           # report medium/high only (-ll = level 2)
+        files: ^warden/
+        exclude: ^warden/tests/       # test code is not production
+
+  # ── Secrets detection ─────────────────────────────────────────────────────
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: (\.env\.example|requirements.*\.txt|.*\.lock)

@@ -1,0 +1,92 @@
+# docker-compose.dev.yml — Shadow Warden AI development overlay
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   OR:
+#   make up-dev
+#
+# What this overlay adds vs production:
+#   • Bind-mounts source dirs → edits take effect without rebuilding
+#   • Uvicorn --reload for warden and analytics (auto-restart on file change)
+#   • DEBUG log level
+#   • No resource limits (allows profiling / debuggers)
+#   • Exposes Postgres port for direct DB inspection
+#   • Mounts ./data and ./warden/models locally (survives container restarts)
+
+services:
+
+  warden:
+    volumes:
+      # Source hot-reload
+      - ./warden:/app/warden:ro
+      # Persist model weights locally (avoid re-download)
+      - ./warden/models:/warden/models
+      # Writable log/rule files land on the host
+      - ./data:/data
+    command: >
+      uvicorn warden.main:app
+        --host 0.0.0.0
+        --port 8001
+        --reload
+        --reload-dir /app/warden
+        --log-level debug
+    environment:
+      LOG_LEVEL: debug
+      LOGS_PATH: /data/logs.json
+      DYNAMIC_RULES_PATH: /data/dynamic_rules.json
+    # Remove resource limits in dev to allow profiling
+    deploy:
+      resources:
+        limits:
+          cpus: ""
+          memory: ""
+
+  analytics:
+    volumes:
+      - ./analytics:/app/analytics:ro
+      - ./data:/data:ro
+    command: >
+      uvicorn analytics.main:app
+        --host 0.0.0.0
+        --port 8002
+        --reload
+        --reload-dir /app/analytics
+        --log-level debug
+    environment:
+      LOG_LEVEL: debug
+      LOGS_PATH: /data/logs.json
+    deploy:
+      resources:
+        limits:
+          cpus: ""
+          memory: ""
+
+  dashboard:
+    volumes:
+      - ./warden/analytics:/app/warden/analytics:ro
+      - ./data:/data:ro
+    environment:
+      LOGS_PATH: /data/logs.json
+    deploy:
+      resources:
+        limits:
+          cpus: ""
+          memory: ""
+
+  postgres:
+    # Expose Postgres in dev for psql / pgAdmin / DBeaver
+    ports:
+      - "5432:5432"
+
+  redis:
+    # Expose Redis in dev for redis-cli inspection
+    ports:
+      - "6379:6379"
+
+  prometheus:
+    volumes:
+      - ./grafana/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    environment:
+      GF_LOG_LEVEL: debug
