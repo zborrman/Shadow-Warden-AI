@@ -116,7 +116,7 @@ Employee / App
 | **MSP Pro** | Unlimited tenants | + Federated threat feed, priority support |
 | **MSP Enterprise** | Custom | + Dedicated feed, SOC 2 report, SLA |
 
-*Contact for pricing: vladimir@shadowwarden.ai*
+*Contact for pricing: val@shadow-warden-ai.com*
 
 ---
 
@@ -142,7 +142,7 @@ curl -X POST http://localhost:8001/filter \
   -d '{"content": "SSN: 078-05-1120, key: sk-ant-api03-demo", "tenant_id": "test"}'
 ```
 
-**shadowwarden.ai** | vladimir@shadowwarden.ai | [Calendar link]
+**shadow-warden-ai.com** | val@shadow-warden-ai.com | [Calendar link]
 
 ---
 

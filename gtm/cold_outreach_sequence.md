@@ -6,7 +6,7 @@
 
 > **Usage notes**
 > - Personalize `[FIRST_NAME]`, `[COMPANY]`, `[MSP_CITY/REGION]` before sending
-> - Send from a named inbox (e.g. vladimir@shadowwarden.ai), not a CRM alias
+> - Send from a named inbox (e.g. val@shadow-warden-ai.com), not a CRM alias
 > - Wait 4–5 business days between touches
 > - Stop sequence immediately on reply (any reply)
 > - Best send times: Tuesday–Thursday, 7:30–9:00 AM recipient local time
@@ -43,7 +43,7 @@ I'd love to show you a 15-minute live demo — we catch a real SSN and a real AP
 Worth a look?
 
 [Your Name]
-Shadow Warden AI | shadowwarden.ai
+Shadow Warden AI | shadow-warden-ai.com
 [Calendar link]
 
 ---
@@ -114,7 +114,7 @@ If you'd like to see the 15-minute demo, here's my calendar: [Calendar link]
 Either way, good luck with the AI compliance wave coming your way.
 
 [Your Name]
-Shadow Warden AI | shadowwarden.ai
+Shadow Warden AI | shadow-warden-ai.com
 
 P.S. — If you know a colleague who owns AI security decisions at [COMPANY] or another MSP, I'd appreciate an intro. Happy to return the favor.
 
