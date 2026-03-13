@@ -43,6 +43,15 @@ from typing import Any
 import bcrypt
 import streamlit as st
 
+from warden.rbac import (
+    ROLE_BADGE_COLOUR,
+    ROLE_LABEL,
+    DashboardRole,
+    has_permission,
+    role_from_password_login,
+    role_from_saml_groups,
+)
+
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 _USERNAME         = os.getenv("DASHBOARD_USERNAME", "admin")
@@ -72,6 +81,8 @@ _K_USERNAME     = "_wa_username"
 _K_SAML_JWT     = "_wa_saml_jwt"
 _K_SAML_USER    = "_wa_saml_user"
 _K_SAML_TENANT  = "_wa_saml_tenant"
+# RBAC
+_K_ROLE         = "_wa_role"
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -86,6 +97,7 @@ def _init_state() -> None:
         _K_SAML_JWT:     None,
         _K_SAML_USER:    "",
         _K_SAML_TENANT:  "default",
+        _K_ROLE:         DashboardRole.ADMIN,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -144,6 +156,7 @@ def _logout(silent: bool = False) -> None:
     st.session_state[_K_SAML_JWT]     = None
     st.session_state[_K_SAML_USER]    = ""
     st.session_state[_K_SAML_TENANT]  = "default"
+    st.session_state[_K_ROLE]         = DashboardRole.ADMIN
     if not silent:
         st.rerun()
 
@@ -211,6 +224,8 @@ def _saml_session_valid() -> bool:
     # Refresh cached user info from latest payload
     st.session_state[_K_SAML_USER]   = payload.get("name") or payload.get("sub", "")
     st.session_state[_K_SAML_TENANT] = payload.get("tid", "default")
+    groups = payload.get("grp", [])
+    st.session_state[_K_ROLE] = role_from_saml_groups(groups)
     return True
 
 
@@ -235,6 +250,8 @@ def _try_saml_otp_exchange() -> bool:
     st.session_state[_K_SAML_JWT]    = data["access_token"]
     st.session_state[_K_SAML_USER]   = data.get("name") or data.get("email", "")
     st.session_state[_K_SAML_TENANT] = data.get("tenant_id", "default")
+    groups = data.get("groups", [])
+    st.session_state[_K_ROLE] = role_from_saml_groups(groups)
     return True
 
 
@@ -318,6 +335,7 @@ def _render_login() -> None:
             st.session_state[_K_AUTH]      = True
             st.session_state[_K_AUTH_TIME] = time.monotonic()
             st.session_state[_K_USERNAME]  = _USERNAME
+            st.session_state[_K_ROLE]      = role_from_password_login()
             st.rerun()
             return
 
@@ -363,6 +381,7 @@ def _render_login() -> None:
                 st.session_state[_K_AUTH_TIME] = time.monotonic()
                 st.session_state[_K_USERNAME]  = username.strip()
                 st.session_state[_K_ATTEMPTS]  = 0
+                st.session_state[_K_ROLE]      = role_from_password_login()
                 st.rerun()
             else:
                 st.session_state[_K_ATTEMPTS] += 1
@@ -405,7 +424,11 @@ def _render_login() -> None:
 # ── Sidebar logout widget (call from dashboard after require_auth passes) ──────
 
 def _render_sidebar_session() -> None:
-    """Inject session info + logout button into the sidebar."""
+    """Inject session info + role badge + logout button into the sidebar."""
+    role       = st.session_state.get(_K_ROLE, DashboardRole.ADMIN)
+    role_label = ROLE_LABEL.get(role, str(role).capitalize())
+    role_color = ROLE_BADGE_COLOUR.get(role, "#718096")
+
     # SAML session takes priority over password session for display
     if st.session_state.get(_K_SAML_JWT):
         user   = st.session_state.get(_K_SAML_USER, "SSO User")
@@ -413,7 +436,9 @@ def _render_sidebar_session() -> None:
         st.sidebar.markdown(
             f'<div class="warden-session-badge">'
             f'<span class="warden-session-dot"></span>'
-            f'<span>🏢 {user}<br><small style="color:#4a5568">tenant: {tenant}</small></span>'
+            f'<span>🏢 {user}<br>'
+            f'<small style="color:#4a5568">tenant: {tenant}</small><br>'
+            f'<small style="color:{role_color};font-weight:600">{role_label}</small></span>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -426,7 +451,8 @@ def _render_sidebar_session() -> None:
             st.sidebar.markdown(
                 f'<div class="warden-session-badge">'
                 f'<span class="warden-session-dot"></span>'
-                f'<span>{user} &nbsp;·&nbsp; {remaining} min left</span>'
+                f'<span>{user} &nbsp;·&nbsp; {remaining} min left<br>'
+                f'<small style="color:{role_color};font-weight:600">{role_label}</small></span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -479,9 +505,39 @@ def get_saml_tenant() -> str:
     """
     Return the tenant_id of the currently authenticated SAML user.
     Returns "default" if not using SAML auth or no tenant was mapped.
-    Useful for dashboard code that filters data by tenant.
     """
     return st.session_state.get(_K_SAML_TENANT, "default")
+
+
+def get_role() -> DashboardRole:
+    """Return the DashboardRole of the currently authenticated user."""
+    return st.session_state.get(_K_ROLE, DashboardRole.ADMIN)
+
+
+def require_role(required: DashboardRole) -> None:
+    """
+    Enforce a minimum role for the current page section.
+    Call after require_auth().  Renders an 'Access denied' banner and calls
+    st.stop() if the user's role is insufficient.
+
+    Example usage::
+
+        from warden.analytics.auth import require_auth, require_role
+        from warden.rbac import DashboardRole
+
+        require_auth()
+        require_role(DashboardRole.AUDITOR)   # Viewer cannot access this page
+    """
+    role = get_role()
+    if not has_permission(role, required):
+        needed = ROLE_LABEL.get(required, str(required).capitalize())
+        current = ROLE_LABEL.get(role, str(role).capitalize())
+        st.error(
+            f"**Access denied.** This section requires the **{needed}** role. "
+            f"Your current role is **{current}**. "
+            "Contact your administrator to request elevated access."
+        )
+        st.stop()
 
 
 # ── CLI — hash generator ──────────────────────────────────────────────────────

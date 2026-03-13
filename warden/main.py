@@ -92,12 +92,17 @@ from warden.schemas import (
     SemanticFlag,
     UnmaskRequest,
     UnmaskResponse,
+    WebhookRegisterRequest,
+    WebhookStatusResponse,
 )
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
 from warden.telegram_alert import send_block_alert as _tg_block_alert
 from warden.threat_feed import ThreatFeedClient
 from warden.threat_store import ThreatStore
+from warden.webhook_dispatch import WebhookStore
+from warden.webhook_dispatch import dispatch_event as _dispatch_webhook
+from warden.xai.explainer import explain as _xai_explain
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
 
@@ -248,6 +253,7 @@ _onboarding:     OnboardingEngine  | None = None
 _policy:         DataPolicyEngine  | None = None
 _feed:           ThreatFeedClient  | None = None
 _saml:           SAMLProvider      | None = None
+_webhook_store:  WebhookStore      | None = None
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -439,6 +445,10 @@ async def lifespan(app: FastAPI):
     _retirement_task  = asyncio.create_task(_nightly_rule_retirement())
     _billing_task     = asyncio.create_task(_billing_aggregation_loop())
     _feed_sync_task   = asyncio.create_task(_threat_feed_sync_loop())
+
+    # ── Webhook store ─────────────────────────────────────────────────
+    _webhook_store = WebhookStore()
+    log.info("WebhookStore ready.")
 
     # ── SAML 2.0 SSO (optional — only if env vars are set) ───────────
     _saml = _get_saml_provider()
@@ -956,6 +966,28 @@ async def _run_filter_pipeline(
         entity_count = _mask_count,
     )
 
+    # ── XAI explanation ───────────────────────────────────────────────
+    _xai_flags = [f.flag.value for f in guard_result.flags]
+    _explanation = _xai_explain(
+        risk_level       = guard_result.risk_level.value,
+        flags            = _xai_flags,
+        reason           = reason,
+        owasp_categories = [],
+    )
+
+    # ── Webhook dispatch ──────────────────────────────────────────────
+    if background_tasks is not None and _webhook_store is not None:
+        background_tasks.add_task(
+            _dispatch_webhook,
+            tenant_id        = tenant_id,
+            risk_level       = guard_result.risk_level.value,
+            owasp_categories = [],
+            reason           = reason,
+            content          = payload.content,
+            processing_ms    = timings.get("total", 0.0),
+            store            = _webhook_store,
+        )
+
     response = FilterResponse(
         allowed                  = allowed,
         risk_level               = guard_result.risk_level,
@@ -966,6 +998,7 @@ async def _run_filter_pipeline(
         redaction_policy_applied = payload.redaction_policy,
         processing_ms            = timings,
         masking                  = _masking_report,
+        explanation              = _explanation,
     )
 
     # ── Cache write ───────────────────────────────────────────────────
@@ -2398,6 +2431,14 @@ async def filter_output(
             })
         )
 
+    _out_flags = [f.risk for f in result.findings]
+    _out_explanation = _xai_explain(
+        risk_level       = "high" if result.risky else "low",
+        flags            = _out_flags,
+        reason           = ", ".join(result.owasp_categories),
+        owasp_categories = result.owasp_categories,
+    )
+
     return OutputScanResponse(
         safe             = not result.risky,
         findings         = findings,
@@ -2405,7 +2446,93 @@ async def filter_output(
         risk_categories  = result.risk_categories,
         owasp_categories = result.owasp_categories,
         processing_ms    = round(elapsed_ms, 2),
+        explanation      = _out_explanation,
     )
+
+
+# ── Webhook management endpoints ──────────────────────────────────────────────
+
+@app.post(
+    "/webhook",
+    response_model=WebhookStatusResponse,
+    tags=["webhooks"],
+    summary="Register or update a webhook for the authenticated tenant",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit("10/minute")
+async def register_webhook(
+    request: Request,
+    payload: WebhookRegisterRequest,
+    auth:    AuthResult = Depends(require_api_key),
+) -> WebhookStatusResponse:
+    """
+    Register (or update) a webhook URL for your tenant.
+    Shadow Warden will POST a signed JSON event to this URL whenever
+    a request meets or exceeds ``min_risk`` (default: high).
+    """
+    if _webhook_store is None:
+        raise HTTPException(503, "Webhook store not available.")
+    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
+    _webhook_store.register(
+        tenant_id = tenant_id,
+        url       = payload.url,
+        secret    = payload.secret,
+        min_risk  = payload.min_risk,
+    )
+    cfg = _webhook_store.get(tenant_id)
+    return WebhookStatusResponse(
+        tenant_id     = tenant_id,
+        url           = cfg["url"],
+        min_risk      = cfg["min_risk"],
+        registered_at = cfg["created_at"],
+        updated_at    = cfg["updated_at"],
+    )
+
+
+@app.get(
+    "/webhook",
+    response_model=WebhookStatusResponse,
+    tags=["webhooks"],
+    summary="Get the current webhook configuration for the authenticated tenant",
+)
+@_limiter.limit("30/minute")
+async def get_webhook(
+    request: Request,
+    auth:    AuthResult = Depends(require_api_key),
+) -> WebhookStatusResponse:
+    if _webhook_store is None:
+        raise HTTPException(503, "Webhook store not available.")
+    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
+    cfg = _webhook_store.get(tenant_id)
+    if cfg is None:
+        raise HTTPException(404, f"No webhook registered for tenant '{tenant_id}'.")
+    return WebhookStatusResponse(
+        tenant_id     = tenant_id,
+        url           = cfg["url"],
+        min_risk      = cfg["min_risk"],
+        registered_at = cfg["created_at"],
+        updated_at    = cfg["updated_at"],
+    )
+
+
+@app.delete(
+    "/webhook",
+    tags=["webhooks"],
+    summary="Deregister the webhook for the authenticated tenant",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit("10/minute")
+async def delete_webhook(
+    request: Request,
+    auth:    AuthResult = Depends(require_api_key),
+) -> dict:
+    if _webhook_store is None:
+        raise HTTPException(503, "Webhook store not available.")
+    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
+    deleted = _webhook_store.deregister(tenant_id)
+    if not deleted:
+        raise HTTPException(404, f"No webhook registered for tenant '{tenant_id}'.")
+    return {"status": "deleted", "tenant_id": tenant_id}
 
 
 # ── SAML 2.0 SSO endpoints ────────────────────────────────────────────────────

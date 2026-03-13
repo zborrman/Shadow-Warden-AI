@@ -139,6 +139,13 @@ class FilterResponse(BaseModel):
             "Empty list when no OWASP-classified risk was detected."
         ),
     )
+    explanation:              str               = Field(
+        default="",
+        description=(
+            "Plain-language XAI summary of why this request was allowed or blocked. "
+            "Safe to show directly to non-technical users or include in PDF reports."
+        ),
+    )
 
 
 # ── Output scanning (LLM02 / LLM06 / LLM08) ──────────────────────────────────
@@ -163,3 +170,27 @@ class OutputScanResponse(BaseModel):
     risk_categories:  list[str] = Field(default_factory=list)
     owasp_categories: list[str] = Field(default_factory=list)
     processing_ms:    float = Field(default=0.0)
+    explanation:      str   = Field(
+        default="",
+        description="Plain-language XAI summary of output scan findings.",
+    )
+
+
+# ── Webhook registration ───────────────────────────────────────────────────────
+
+class WebhookRegisterRequest(BaseModel):
+    url:      str = Field(..., description="HTTPS endpoint to receive POST events.")
+    secret:   str = Field(..., min_length=16,
+                          description="Shared secret for HMAC-SHA256 signing (min 16 chars).")
+    min_risk: str = Field(
+        default="high",
+        description="Minimum risk level to trigger delivery: medium | high | block.",
+    )
+
+
+class WebhookStatusResponse(BaseModel):
+    tenant_id:    str
+    url:          str
+    min_risk:     str
+    registered_at: str
+    updated_at:   str
