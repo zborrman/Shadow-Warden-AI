@@ -77,3 +77,9 @@ bcrypt>=4.0.0
 # Install separately if SAML SSO is not needed (saves ~50 MB of native deps).
 python3-saml>=1.16.0
 PyJWT>=2.8.0
+
+# ── FAISS ANN index (optional — auto-activates when corpus > 500 entries) ─────
+# faiss-cpu provides approximate nearest neighbour search for the threat corpus.
+# Not required for standard deployments (corpus < 500 entries uses torch scan).
+# Install separately if needed: pip install faiss-cpu
+# faiss-cpu>=1.8.0

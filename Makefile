@@ -114,6 +114,9 @@ install-sdk:  ## Install Python SDK locally (editable)
 install-saml:  ## Install SAML 2.0 dependencies (python3-saml + PyJWT)
 	pip install python3-saml PyJWT
 
+install-faiss:  ## Install FAISS ANN index (activates automatically when corpus > 500)
+	pip install faiss-cpu
+
 install-hooks:  ## Install pre-commit hooks
 	pre-commit install
 

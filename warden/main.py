@@ -83,11 +83,15 @@ from warden.schemas import (
     MaskingReport,
     MaskRequest,
     MaskResponse,
+    OutputFindingSchema,
+    OutputScanRequest,
+    OutputScanResponse,
     RiskLevel,
     SemanticFlag,
     UnmaskRequest,
     UnmaskResponse,
 )
+from warden.output_sanitizer import get_sanitizer as _get_output_sanitizer
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
 from warden.telegram_alert import send_block_alert as _tg_block_alert
@@ -2327,6 +2331,81 @@ async def stripe_webhook(request: Request):
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"received": True, "event_type": etype}
+
+
+# ── OWASP LLM Output Scanning ─────────────────────────────────────────────────
+#
+# POST /filter/output — scan AI-generated text *after* it returns from the model.
+#
+# Covers three OWASP LLM Top 10 categories:
+#   LLM02 — Insecure Output Handling: XSS, HTML injection, Markdown link injection
+#   LLM06 — Sensitive Information Disclosure: prompt leakage, system prompt echo
+#   LLM08 — Excessive Agency: shell/SQL/SSRF/path-traversal in AI-generated content
+
+
+@app.post(
+    "/filter/output",
+    response_model=OutputScanResponse,
+    tags=["Filter"],
+    summary="Scan AI output for OWASP LLM02 / LLM06 / LLM08 risks",
+)
+@_limiter.limit("120/minute")
+async def filter_output(
+    request:   Request,
+    payload:   OutputScanRequest,
+    auth:      AuthResult = Depends(require_api_key),
+) -> OutputScanResponse:
+    """
+    Scan AI-generated text **before it reaches the browser or downstream system**.
+
+    Unlike ``POST /filter`` (which scans *input* prompts), this endpoint scans
+    the AI model's *output* — catching content that is harmless as a prompt but
+    dangerous once rendered.
+
+    **OWASP LLM Top 10 coverage:**
+
+    | Category | Risks detected |
+    |----------|---------------|
+    | LLM02 — Insecure Output Handling | XSS (`<script>`, `onerror=`, `javascript:`), HTML injection (`<iframe>`, `<object>`), Markdown link injection |
+    | LLM06 — Sensitive Information Disclosure | System prompt leakage, CoT scratchpad echo, internal tool name disclosure |
+    | LLM08 — Excessive Agency | Shell command injection, SQL injection, SSRF (internal IP / metadata endpoints), path traversal |
+
+    **Response:**
+    - `safe`: `true` when no risks detected.
+    - `sanitized`: the output with dangerous patterns stripped/escaped — safe to render.
+    - `findings`: list of detected risks with OWASP category labels.
+    """
+    t0 = time.perf_counter()
+
+    sanitizer = _get_output_sanitizer()
+    result    = sanitizer.scan(payload.output)
+
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+
+    findings = [
+        OutputFindingSchema(risk=f.risk.value, snippet=f.snippet, owasp=f.owasp)
+        for f in result.findings
+    ]
+
+    if result.risky:
+        log.warning(
+            json.dumps({
+                "event":           "output_risk_detected",
+                "tenant_id":       payload.tenant_id,
+                "risk_categories": result.risk_categories,
+                "owasp":           result.owasp_categories,
+                "finding_count":   len(result.findings),
+            })
+        )
+
+    return OutputScanResponse(
+        safe             = not result.risky,
+        findings         = findings,
+        sanitized        = result.sanitized,
+        risk_categories  = result.risk_categories,
+        owasp_categories = result.owasp_categories,
+        processing_ms    = round(elapsed_ms, 2),
+    )
 
 
 # ── SAML 2.0 SSO endpoints ────────────────────────────────────────────────────

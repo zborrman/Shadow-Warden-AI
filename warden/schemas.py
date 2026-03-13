@@ -131,3 +131,35 @@ class FilterResponse(BaseModel):
         default_factory=MaskingReport,
         description="Yellow-zone masking report (populated when masking is enabled).",
     )
+    owasp_categories:         list[str]         = Field(
+        default_factory=list,
+        description=(
+            "OWASP LLM Top 10 categories triggered by this request "
+            "(e.g. 'LLM01 — Prompt Injection', 'LLM06 — Sensitive Information Disclosure'). "
+            "Empty list when no OWASP-classified risk was detected."
+        ),
+    )
+
+
+# ── Output scanning (LLM02 / LLM06 / LLM08) ──────────────────────────────────
+
+class OutputScanRequest(BaseModel):
+    output:    str = Field(..., min_length=1, max_length=128_000,
+                           description="AI-generated text to scan before rendering/forwarding.")
+    tenant_id: str = Field(default="default")
+    context:   dict[str, Any] = Field(default_factory=dict)
+
+
+class OutputFindingSchema(BaseModel):
+    risk:    str = Field(..., description="Risk type (e.g. 'xss', 'prompt_leakage').")
+    snippet: str = Field(..., description="Offending text excerpt (max 120 chars).")
+    owasp:   str = Field(..., description="OWASP LLM category label.")
+
+
+class OutputScanResponse(BaseModel):
+    safe:             bool
+    findings:         list[OutputFindingSchema] = Field(default_factory=list)
+    sanitized:        str  = Field(..., description="Output with dangerous patterns stripped.")
+    risk_categories:  list[str] = Field(default_factory=list)
+    owasp_categories: list[str] = Field(default_factory=list)
+    processing_ms:    float = Field(default=0.0)

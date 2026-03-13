@@ -33,7 +33,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import torch
 from sentence_transformers import SentenceTransformer, util
@@ -140,6 +140,10 @@ class SemanticGuard:
     """
     Embedding-based jailbreak detector using all-MiniLM-L6-v2.
 
+    When the corpus exceeds FAISS_MIN_CORPUS (default 500 entries) the
+    brute-force torch scan is replaced with a FAISS approximate nearest
+    neighbour index for sub-millisecond lookup at scale.
+
     Usage::
 
         guard  = SemanticGuard()          # loads model lazily on first call
@@ -151,6 +155,7 @@ class SemanticGuard:
 
     threshold: float = DEFAULT_THRESHOLD
     _corpus_embeddings: torch.Tensor = field(init=False, repr=False)
+    _faiss_index: "Any | None" = field(init=False, repr=False, default=None)
 
     def __post_init__(self) -> None:
         model = _load_model()
@@ -161,6 +166,7 @@ class SemanticGuard:
             show_progress_bar=False,
             normalize_embeddings=True,   # pre-normalise → dot product == cosine sim
         )
+        self._faiss_index = None
         log.info("Corpus ready.")
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -183,12 +189,18 @@ class SemanticGuard:
             normalize_embeddings=True,
         )
 
-        # Shape: (1, corpus_size)
-        similarities: torch.Tensor = util.cos_sim(query_embedding, self._corpus_embeddings)
-        flat = similarities[0]
-
-        max_idx   = int(flat.argmax())
-        max_score = float(flat[max_idx])
+        # FAISS path: O(log n) ANN search when corpus is large
+        if self._faiss_index is not None:
+            max_score = self._faiss_index.max_similarity(query_embedding)
+            # For closest_example we still need the index — do a top-1 search
+            _, idxs = self._faiss_index.search(query_embedding, k=1)
+            max_idx = int(idxs[0][0]) if idxs[0][0] >= 0 else 0
+        else:
+            # Shape: (1, corpus_size) — brute-force O(n) scan
+            similarities: torch.Tensor = util.cos_sim(query_embedding, self._corpus_embeddings)
+            flat = similarities[0]
+            max_idx   = int(flat.argmax())
+            max_score = float(flat[max_idx])
 
         flagged = max_score >= self.threshold
 
@@ -238,4 +250,13 @@ class SemanticGuard:
         )
         self._corpus_embeddings = torch.cat([self._corpus_embeddings, new_embs], dim=0)
         _JAILBREAK_CORPUS.extend(new_examples)
-        log.info("Corpus extended — total examples now: %d", len(_JAILBREAK_CORPUS))
+        corpus_size = len(_JAILBREAK_CORPUS)
+        log.info("Corpus extended — total examples now: %d", corpus_size)
+
+        # Switch to FAISS when corpus crosses the size threshold
+        from warden.brain.faiss_index import should_use_faiss, try_build_faiss  # noqa: PLC0415
+        if should_use_faiss(corpus_size):
+            faiss_idx = try_build_faiss(self._corpus_embeddings)
+            if faiss_idx is not None:
+                self._faiss_index = faiss_idx
+                log.info("FAISS ANN index activated (%d vectors).", corpus_size)
