@@ -277,3 +277,43 @@ externalRedis:
   host: ""
   port: 6379
   password: ""
+
+# ── Threat Intelligence Feed Server (v1.2+) ───────────────────────────────────
+feed:
+  enabled: true
+  image:
+    repository: shadow-warden/feed-server
+    tag: "1.3.0"
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+  service:
+    type: ClusterIP
+    port: 8003
+
+  config:
+    feedPublic: "false"       # set true to expose feed without auth
+    minVetSources: "2"        # unique sources before auto-publishing a rule
+    dailySubmitCap: "50"      # max rule submissions per source per day
+    logRetentionDays: "30"
+
+  secret:
+    adminKey: ""              # set via --set feed.secret.adminKey=...
+
+  persistence:
+    enabled: true
+    size: "2Gi"
+    storageClass: ""
+
+# ── XAI (Explainable AI, v1.3+) ───────────────────────────────────────────────
+xai:
+  useClause: false            # set true + provide anthropicApiKey to enable Claude Haiku explanations

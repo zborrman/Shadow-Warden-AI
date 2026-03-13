@@ -24,6 +24,7 @@ volumes:
   warden-models:      # persists all-MiniLM-L6-v2 across container restarts
   prometheus-data:
   grafana-data:
+  feed-data:
 
 services:
 
@@ -338,6 +339,47 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # ── 11. FEED SERVER ──────────────────────────
+  # Central threat-intelligence feed: receives anonymised attack rules
+  # from opted-in Shadow Warden instances and publishes a vetted feed.
+  # Access: http://localhost:8003  (POST /rules, GET /feed.json)
+  feed:
+    build:
+      context: .
+      dockerfile: warden/Dockerfile
+    container_name: warden-feed
+    restart: unless-stopped
+    command: >
+      uvicorn warden.feed_server.main:app
+        --host 0.0.0.0
+        --port 8003
+        --workers 2
+        --log-level info
+    ports:
+      - "8003:8003"
+    environment:
+      - FEED_DB_PATH=/data/feed_server.db
+      - FEED_ADMIN_KEY=${FEED_ADMIN_KEY:-changeme-in-production}
+      - FEED_PUBLIC=${FEED_PUBLIC:-false}
+      - FEED_MIN_VET_SOURCES=${FEED_MIN_VET_SOURCES:-2}
+      - FEED_DAILY_SUBMIT_CAP=${FEED_DAILY_SUBMIT_CAP:-50}
+    volumes:
+      - feed-data:/data
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
 
   # ── GRAFANA ───────────────────────────────────
   # Pre-provisioned with the Prometheus data source and

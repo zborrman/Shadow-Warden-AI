@@ -1,0 +1,96 @@
+{{- if .Values.feed.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-feed
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: feed
+spec:
+  replicas: {{ .Values.feed.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: feed
+  template:
+    metadata:
+      labels:
+        {{- include "shadow-warden.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: feed
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      {{- include "shadow-warden.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "shadow-warden.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: feed
+          image: {{ include "shadow-warden.image" (dict "image" .Values.feed.image "Chart" .Chart "Values" .Values) }}
+          imagePullPolicy: {{ .Values.feed.image.pullPolicy }}
+          command:
+            - uvicorn
+            - warden.feed_server.main:app
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8003"
+            - --workers
+            - "2"
+          ports:
+            - name: http
+              containerPort: 8003
+              protocol: TCP
+          env:
+            - name: FEED_DB_PATH
+              value: /data/feed_server.db
+            - name: FEED_PUBLIC
+              value: {{ .Values.feed.config.feedPublic | quote }}
+            - name: FEED_MIN_VET_SOURCES
+              value: {{ .Values.feed.config.minVetSources | quote }}
+            - name: FEED_DAILY_SUBMIT_CAP
+              value: {{ .Values.feed.config.dailySubmitCap | quote }}
+            {{- if .Values.feed.secret.adminKey }}
+            - name: FEED_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "shadow-warden.fullname" . }}-secret
+                  key: feed-admin-key
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.feed.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          {{- if .Values.feed.persistence.enabled }}
+          volumeMounts:
+            - name: feed-data
+              mountPath: /data
+          {{- end }}
+      {{- if .Values.feed.persistence.enabled }}
+      volumes:
+        - name: feed-data
+          persistentVolumeClaim:
+            claimName: {{ include "shadow-warden.fullname" . }}-feed-data
+      {{- end }}
+{{- end }}

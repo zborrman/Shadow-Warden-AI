@@ -1,0 +1,20 @@
+{{- if .Values.feed.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-feed
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: feed
+spec:
+  type: {{ .Values.feed.service.type }}
+  ports:
+    - port: {{ .Values.feed.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "shadow-warden.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: feed
+{{- end }}
