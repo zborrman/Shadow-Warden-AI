@@ -65,3 +65,4 @@ certs/issued/
 # ── Playwright ────────────────────────────────────────────────────────────────
 playwright-report/
 test-results/
+gtm/leads.csv
