@@ -2431,7 +2431,7 @@ async def filter_output(
             })
         )
 
-    _out_flags = [f.risk for f in result.findings]
+    _out_flags = [str(f.risk) for f in result.findings]
     _out_explanation = _xai_explain(
         risk_level       = "high" if result.risky else "low",
         flags            = _out_flags,

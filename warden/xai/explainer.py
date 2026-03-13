@@ -223,4 +223,5 @@ def _claude_explain(
         max_tokens=200,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text.strip()
+    block = message.content[0]
+    return block.text.strip() if hasattr(block, "text") else ""  # type: ignore[union-attr]
