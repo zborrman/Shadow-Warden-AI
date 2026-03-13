@@ -163,7 +163,7 @@ def check_dmarc(domain: str) -> CheckResult:
     passed = policy is not None
     detail = (
         f"DMARC present. Policy: {policy}."
-        + ("  ⚠  Consider upgrading to p=quarantine or p=reject once domain is warmed."
+        + ("  [NOTE] Consider upgrading to p=quarantine or p=reject once domain is warmed."
            if policy == "none" else "")
         if passed else
         f"DMARC record found but no valid p= tag: {dmarc}"
