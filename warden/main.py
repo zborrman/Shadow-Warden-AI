@@ -1698,6 +1698,222 @@ async def ws_stream(websocket: WebSocket):
     await websocket.close()
 
 
+# ── WebSocket /ws/filter — per-stage streaming ───────────────────────────────
+
+@app.websocket("/ws/filter")
+async def ws_filter_stream(websocket: WebSocket):
+    """
+    WebSocket endpoint that emits a JSON event after each filter-pipeline stage.
+
+    Connect:  ws://host/ws/filter?key=<api_key>
+
+    Send one JSON message matching FilterRequest:
+        {"content": "...", "tenant_id": "acme", "strict": false}
+
+    Receive event stream:
+        {"type": "stage", "stage": "cache",       "hit": bool,    "ms": float}
+        {"type": "stage", "stage": "obfuscation", "detected": bool, "layers": list, "ms": float}
+        {"type": "stage", "stage": "redaction",   "count": int,   "kinds": list,  "ms": float}
+        {"type": "stage", "stage": "rules",       "flags": list,  "risk": str,    "ms": float}
+        {"type": "stage", "stage": "ml",          "score": float, "is_jailbreak": bool, "ms": float}
+        {"type": "result", "request_id": str, ...FilterResponse fields...}
+        {"type": "done",   "request_id": str}
+    or
+        {"type": "error",  "code": int, "detail": str}
+
+    WebSocket close codes:
+        1008 — Policy Violation (content blocked)
+        1009 — Message Too Big
+        1003 — Unsupported data (invalid JSON / validation error)
+        1011 — Internal server error
+    """
+    await websocket.accept()
+    rid = str(uuid.uuid4())
+
+    # ── 1. Authenticate ────────────────────────────────────────────────────────
+    api_key = websocket.query_params.get("key", "") or None
+    try:
+        auth = require_api_key(api_key)
+    except HTTPException as exc:
+        await _ws_send(websocket, {"type": "error", "code": exc.status_code, "detail": exc.detail})
+        await websocket.close(code=1008)
+        return
+
+    # ── 2. Receive + validate payload ─────────────────────────────────────────
+    try:
+        raw = await websocket.receive_text()
+    except WebSocketDisconnect:
+        return
+
+    if len(raw.encode()) > _WS_MAX_PAYLOAD:
+        await _ws_send(websocket, {"type": "error", "code": 413, "detail": "Payload too large."})
+        await websocket.close(code=1009)
+        return
+
+    try:
+        body = json.loads(raw)
+    except json.JSONDecodeError:
+        await _ws_send(websocket, {"type": "error", "code": 400, "detail": "Invalid JSON."})
+        await websocket.close(code=1003)
+        return
+
+    try:
+        payload = FilterRequest(**body)
+    except Exception as exc:
+        await _ws_send(websocket, {"type": "error", "code": 422, "detail": str(exc)})
+        await websocket.close(code=1003)
+        return
+
+    tenant_id = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
+    strict = payload.strict or (_guard.strict if _guard else False)
+    timings: dict[str, float] = {}
+
+    log.info(json.dumps({"event": "ws_filter_start", "request_id": rid, "tenant_id": tenant_id}))
+
+    # ── Stage 0: Redis cache check ─────────────────────────────────────────────
+    t0 = time.perf_counter()
+    cached_json = get_cached(payload.content)
+    timings["cache_check"] = round((time.perf_counter() - t0) * 1000, 2)
+    await _ws_send(websocket, {
+        "type": "stage", "stage": "cache",
+        "hit": cached_json is not None,
+        "ms": timings["cache_check"],
+    })
+
+    if cached_json:
+        try:
+            resp = FilterResponse(**json.loads(cached_json))
+            await _ws_send(websocket, {"type": "result", "request_id": rid, **resp.model_dump()})
+            await _ws_send(websocket, {"type": "done", "request_id": rid})
+            await websocket.close()
+            return
+        except Exception:
+            pass  # corrupted cache entry → fall through to full pipeline
+
+    # ── Stage 0b: Obfuscation decoding ────────────────────────────────────────
+    t0 = time.perf_counter()
+    obfuscation_result = decode_obfuscation(payload.content)
+    timings["obfuscation"] = round((time.perf_counter() - t0) * 1000, 2)
+    analysis_text = obfuscation_result.combined
+    await _ws_send(websocket, {
+        "type": "stage", "stage": "obfuscation",
+        "detected": obfuscation_result.has_obfuscation,
+        "layers": obfuscation_result.layers_found,
+        "ms": timings["obfuscation"],
+    })
+
+    # ── Stage 1: Secret Redaction ─────────────────────────────────────────────
+    t0 = time.perf_counter()
+    redact_result = _redactor.redact(analysis_text, payload.redaction_policy)  # type: ignore[union-attr]
+    timings["redaction"] = round((time.perf_counter() - t0) * 1000, 2)
+    await _ws_send(websocket, {
+        "type": "stage", "stage": "redaction",
+        "count": len(redact_result.findings),
+        "kinds": [f.kind for f in redact_result.findings],
+        "ms": timings["redaction"],
+    })
+
+    # ── Stage 2: Rule-based Semantic Analysis ─────────────────────────────────
+    t0 = time.perf_counter()
+    guard_result = _guard.analyse(redact_result.text)  # type: ignore[union-attr]
+    timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
+
+    # Dynamic evolution regex rules
+    for dyn_rule in list(_dynamic_regex_rules):
+        if dyn_rule.pattern.search(redact_result.text):
+            guard_result.flags.append(SemanticFlag(
+                flag=FlagType.PROMPT_INJECTION,
+                score=0.80,
+                detail=f"Dynamic evolution rule matched: {dyn_rule.snippet}",
+            ))
+            guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.HIGH)
+
+    if redact_result.has_pii:
+        guard_result.flags.append(SemanticFlag(
+            flag=FlagType.PII_DETECTED,
+            score=1.0,
+            detail=f"PII detected: {[f.kind for f in redact_result.findings]}",
+        ))
+
+    await _ws_send(websocket, {
+        "type": "stage", "stage": "rules",
+        "flags": [
+            {"flag": f.flag.value, "score": f.score, "detail": f.detail}
+            for f in guard_result.flags
+        ],
+        "risk": guard_result.risk_level.value,
+        "ms": timings["rules"],
+    })
+
+    # ── Stage 3: ML Semantic Brain ────────────────────────────────────────────
+    t0 = time.perf_counter()
+    brain_guard = _get_tenant_guard(tenant_id)
+    try:
+        brain_result = await brain_guard.check_async(redact_result.text)
+    except Exception as exc:
+        log.exception(json.dumps({"event": "ws_filter_ml_error", "request_id": rid, "error": str(exc)}))
+        await _ws_send(websocket, {"type": "error", "code": 500, "detail": "ML stage error."})
+        await websocket.close(code=1011)
+        return
+    timings["ml"] = round((time.perf_counter() - t0) * 1000, 2)
+
+    if brain_result.is_jailbreak:
+        ml_risk = RiskLevel.HIGH if brain_result.score >= 0.85 else RiskLevel.MEDIUM
+        guard_result.flags.append(SemanticFlag(
+            flag=FlagType.PROMPT_INJECTION,
+            score=round(brain_result.score, 4),
+            detail=f"ML jailbreak detected (similarity={brain_result.score:.3f})",
+        ))
+        guard_result.risk_level = _max_risk(guard_result.risk_level, ml_risk)
+
+    await _ws_send(websocket, {
+        "type": "stage", "stage": "ml",
+        "score": round(brain_result.score, 4),
+        "is_jailbreak": brain_result.is_jailbreak,
+        "ms": timings["ml"],
+    })
+
+    # ── Decision ──────────────────────────────────────────────────────────────
+    allowed = guard_result.safe_for(strict)
+    reason = ""
+    if not allowed:
+        top = guard_result.top_flag
+        reason = top.detail if top else f"Risk level: {guard_result.risk_level}"
+
+    timings["total"] = round(sum(timings.values()), 2)
+
+    response = FilterResponse(
+        allowed                  = allowed,
+        risk_level               = guard_result.risk_level,
+        filtered_content         = redact_result.text,
+        secrets_found            = redact_result.findings,
+        semantic_flags           = guard_result.flags,
+        reason                   = reason,
+        redaction_policy_applied = payload.redaction_policy,
+        processing_ms            = timings,
+    )
+
+    if allowed:
+        set_cached(payload.content, response.model_dump_json())
+
+    log.info(json.dumps({
+        "event":      "ws_filter_done",
+        "request_id": rid,
+        "allowed":    allowed,
+        "risk":       guard_result.risk_level.value,
+        "elapsed_ms": timings["total"],
+    }))
+
+    await _ws_send(websocket, {"type": "result", "request_id": rid, **response.model_dump()})
+
+    if not allowed:
+        await websocket.close(code=1008)
+        return
+
+    await _ws_send(websocket, {"type": "done", "request_id": rid})
+    await websocket.close()
+
+
 # ── Onboarding API ───────────────────────────────────────────────────────────
 
 class _OnboardRequest(BaseModel):
