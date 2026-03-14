@@ -200,3 +200,39 @@ class WebhookStatusResponse(BaseModel):
     min_risk:     str
     registered_at: str
     updated_at:   str
+
+
+# ── Threat Intelligence Engine ────────────────────────────────────────────────
+
+class ThreatIntelStatus(StrEnum):
+    NEW             = "new"
+    ANALYZED        = "analyzed"
+    RULES_GENERATED = "rules_generated"
+    DISMISSED       = "dismissed"
+
+
+class ThreatIntelItem(BaseModel):
+    id:               str
+    source:           str                       # "mitre_atlas" | "nvd" | "github" | "arxiv" | "owasp"
+    title:            str
+    url:              str
+    published_at:     str | None = None
+    raw_description:  str
+    relevance_score:  float | None = None       # 0.0–1.0; set after Claude Haiku analysis
+    owasp_category:   str | None = None         # "LLM01".."LLM10"
+    attack_pattern:   str = ""
+    detection_hint:   str = ""                  # regex pattern or canonical attack sentence
+    countermeasure:   str = ""
+    status:           ThreatIntelStatus = ThreatIntelStatus.NEW
+    rules_generated:  int = 0
+    created_at:       str
+    analyzed_at:      str | None = None
+
+
+class ThreatIntelStats(BaseModel):
+    total:                 int
+    by_source:             dict[str, int]
+    by_owasp:              dict[str, int]
+    by_status:             dict[str, int]
+    rules_generated_total: int
+    last_collection_at:    str | None

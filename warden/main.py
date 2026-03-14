@@ -267,6 +267,8 @@ _agent_monitor:  AgentMonitor | None   = None
 _ledger:         RuleLedger        | None = None
 _review_queue:   ReviewQueue       | None = None
 _threat_store:   ThreatStore       | None = None
+_threat_intel_store: object | None = None   # ThreatIntelStore — imported lazily
+_ti_scheduler:   object | None = None       # ThreatIntelScheduler — imported lazily
 _billing:        BillingStore      | None = None
 _onboarding:     OnboardingEngine  | None = None
 _policy:         DataPolicyEngine  | None = None
@@ -460,6 +462,36 @@ async def lifespan(app: FastAPI):
 
     log.info("Filter pipeline ready.")
 
+    # ── Threat Intelligence Engine (opt-in) ───────────────────────────
+    _ti_task = None
+    if os.getenv("THREAT_INTEL_ENABLED", "false").lower() == "true":
+        try:
+            from warden.threat_intel import (  # noqa: PLC0415
+                RuleFactory,
+                ThreatIntelAnalyzer,
+                ThreatIntelCollector,
+                ThreatIntelScheduler,
+                ThreatIntelStore,
+            )
+            global _threat_intel_store, _ti_scheduler
+            _threat_intel_store = ThreatIntelStore()
+            _ti_analyzer   = ThreatIntelAnalyzer(store=_threat_intel_store)
+            _ti_collector  = ThreatIntelCollector(store=_threat_intel_store)
+            _ti_factory    = RuleFactory(
+                store=_threat_intel_store,
+                review_queue=_review_queue,
+                ledger=_ledger,
+                brain_guard=_brain_guard,
+            )
+            _ti_scheduler  = ThreatIntelScheduler(_ti_collector, _ti_analyzer, _ti_factory)
+            _ti_task = asyncio.create_task(_ti_scheduler.loop())
+            log.info("ThreatIntelScheduler online (sync every %sh).",
+                     os.getenv("THREAT_INTEL_SYNC_HRS", "6"))
+        except Exception as _ti_err:
+            log.warning("ThreatIntelEngine failed to start: %s", _ti_err)
+    else:
+        log.info("ThreatIntelEngine disabled (set THREAT_INTEL_ENABLED=true to opt in).")
+
     # ── Background tasks ──────────────────────────────────────────────
     _retirement_task  = asyncio.create_task(_nightly_rule_retirement())
     _billing_task     = asyncio.create_task(_billing_aggregation_loop())
@@ -487,12 +519,17 @@ async def lifespan(app: FastAPI):
     _retirement_task.cancel()
     _billing_task.cancel()
     _feed_sync_task.cancel()
+    if _ti_task is not None:
+        _ti_task.cancel()
     with suppress(asyncio.CancelledError):
         await _retirement_task
     with suppress(asyncio.CancelledError):
         await _billing_task
     with suppress(asyncio.CancelledError):
         await _feed_sync_task
+    if _ti_task is not None:
+        with suppress(asyncio.CancelledError):
+            await _ti_task
 
     if _ledger is not None:
         _ledger.close()
@@ -1414,6 +1451,81 @@ async def unblock_ip(ip: str, tenant_id: str = "default"):
         )
     log.info(json.dumps({"event": "ip_unblocked", "ip": ip, "tenant_id": tenant_id}))
     return {"ip": ip, "tenant_id": tenant_id, "message": f"IP {ip!r} unblocked."}
+
+
+# ── Threat Intelligence endpoints ────────────────────────────────────────────
+
+
+def _require_threat_intel():
+    if _threat_intel_store is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Threat Intelligence Engine disabled. Set THREAT_INTEL_ENABLED=true.",
+        )
+    return _threat_intel_store
+
+
+@app.get("/threats/intel/stats", tags=["threat-intel"])
+async def threat_intel_stats(_: AuthResult = Depends(require_api_key)):
+    """Aggregated statistics for the threat intelligence collection."""
+    store = _require_threat_intel()
+    return store.stats()
+
+
+@app.get("/threats/intel", tags=["threat-intel"])
+async def list_threat_intel(
+    item_status: str | None = None,
+    source:      str | None = None,
+    limit:       int        = 50,
+    offset:      int        = 0,
+    _: AuthResult = Depends(require_api_key),
+):
+    """List collected threat intelligence items."""
+    store = _require_threat_intel()
+    items = store.list_items(status=item_status, source=source, limit=limit, offset=offset)
+    return {"items": [i.model_dump() for i in items], "total": len(items)}
+
+
+@app.get("/threats/intel/{item_id}", tags=["threat-intel"])
+async def get_threat_intel_item(
+    item_id: str,
+    _: AuthResult = Depends(require_api_key),
+):
+    """Retrieve a single threat intelligence item with its countermeasures."""
+    store = _require_threat_intel()
+    item = store.get_item(item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Threat item {item_id!r} not found.")
+    countermeasures = store.get_countermeasures(item_id)
+    return {**item.model_dump(), "countermeasures": countermeasures}
+
+
+@app.post("/threats/intel/refresh", tags=["threat-intel"], status_code=202)
+async def refresh_threat_intel(
+    background_tasks: BackgroundTasks,
+    _: AuthResult = Depends(require_api_key),
+):
+    """Trigger an immediate out-of-cycle collection + analysis run."""
+    if _ti_scheduler is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Threat Intelligence Engine disabled. Set THREAT_INTEL_ENABLED=true.",
+        )
+    background_tasks.add_task(_ti_scheduler.run_once)
+    return {"queued": True, "message": "Threat intel refresh queued as background task."}
+
+
+@app.post("/threats/intel/{item_id}/dismiss", tags=["threat-intel"])
+async def dismiss_threat_intel_item(
+    item_id: str,
+    _: AuthResult = Depends(require_api_key),
+):
+    """Manually dismiss a threat intelligence item (will not generate rules)."""
+    store = _require_threat_intel()
+    found = store.dismiss(item_id)
+    if not found:
+        raise HTTPException(status_code=404, detail=f"Threat item {item_id!r} not found.")
+    return {"item_id": item_id, "status": "dismissed"}
 
 
 # ── Billing endpoints ─────────────────────────────────────────────────────────

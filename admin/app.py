@@ -111,7 +111,7 @@ st.sidebar.title("Shadow Warden")
 st.sidebar.caption("Admin Panel")
 page = st.sidebar.radio(
     "Navigate",
-    ["Dynamic Rules", "Tenant Management", "Rule Ledger", "Event Log", "System Health"],
+    ["Dynamic Rules", "Tenant Management", "Rule Ledger", "Threat Intel", "Event Log", "System Health"],
     label_visibility="collapsed",
 )
 
@@ -534,6 +534,164 @@ elif page == "Rule Ledger":
                                     st.rerun()
                                 elif r is not None:
                                     st.error(f"{r.status_code} — {r.text[:200]}")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: Threat Intel
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "Threat Intel":
+    st.title("🌐 Threat Intelligence")
+    st.caption(
+        "Continuously collected from MITRE ATLAS, NVD, GitHub Advisories, arXiv, and OWASP. "
+        "Claude Haiku analyzes each item for LLM relevance and generates detection rules."
+    )
+
+    # ── Stats ─────────────────────────────────────────────────────────────────
+    stats_resp = _api("GET", "/threats/intel/stats")
+    if stats_resp is not None and stats_resp.status_code == 200:
+        stats = stats_resp.json()
+        s1, s2, s3, s4, s5 = st.columns(5)
+        s1.metric("Total collected", stats.get("total", 0))
+        by_status = stats.get("by_status", {})
+        s2.metric("Pending analysis", by_status.get("new", 0))
+        s3.metric("Analyzed", by_status.get("analyzed", 0))
+        s4.metric("Rules generated", stats.get("rules_generated_total", 0))
+        s5.metric("Dismissed", by_status.get("dismissed", 0))
+        if stats.get("last_collection_at"):
+            st.caption(f"Last collection: {stats['last_collection_at'][:19]}")
+    elif stats_resp is not None and stats_resp.status_code == 503:
+        st.warning(
+            "Threat Intelligence Engine is disabled. "
+            "Set `THREAT_INTEL_ENABLED=true` in your `.env` to activate."
+        )
+        st.stop()
+    else:
+        st.error(f"Cannot reach warden at {WARDEN_URL}.")
+        st.stop()
+
+    st.divider()
+
+    # ── Filters + refresh ────────────────────────────────────────────────────
+    fc1, fc2, fc3, fc4 = st.columns([2, 2, 2, 1])
+    source_opts  = ["all", "mitre_atlas", "nvd", "github", "arxiv", "owasp"]
+    status_opts  = ["all", "new", "analyzed", "rules_generated", "dismissed"]
+    src_filter   = fc1.selectbox("Source", source_opts)
+    stat_filter  = fc2.selectbox("Status", status_opts)
+    limit_val    = fc3.number_input("Max rows", min_value=10, max_value=200, value=50, step=10)
+
+    with fc4:
+        st.write("")
+        if st.button("↻ Refresh Now", use_container_width=True):
+            r = _api("POST", "/threats/intel/refresh")
+            if r is not None and r.status_code in (200, 202):
+                st.success("Collection run queued.")
+            elif r is not None:
+                st.error(f"{r.status_code} — {r.text[:200]}")
+
+    # ── Fetch items ───────────────────────────────────────────────────────────
+    params: dict = {"limit": limit_val}
+    if src_filter  != "all":
+        params["source"] = src_filter
+    if stat_filter != "all":
+        params["item_status"] = stat_filter
+
+    items_resp = _api("GET", "/threats/intel", params=params)
+    items: list[dict] = []
+    if items_resp is not None and items_resp.status_code == 200:
+        items = items_resp.json().get("items", [])
+
+    if not items:
+        st.info("No threat intelligence items found matching the current filters.")
+    else:
+        import pandas as pd
+
+        # ── Summary table ─────────────────────────────────────────────────────
+        rows = []
+        for it in items:
+            score = it.get("relevance_score")
+            rows.append({
+                "source":    it.get("source", ""),
+                "title":     it.get("title", "")[:80],
+                "owasp":     it.get("owasp_category") or "—",
+                "relevance": f"{score:.2f}" if score is not None else "—",
+                "status":    it.get("status", ""),
+                "rules":     it.get("rules_generated", 0),
+                "published": (it.get("published_at") or "")[:10],
+            })
+        df = pd.DataFrame(rows)
+        st.dataframe(df, use_container_width=True, height=340)
+
+        st.divider()
+        st.subheader("Item detail")
+
+        # ── Item detail cards ─────────────────────────────────────────────────
+        owasp_colors = {
+            "LLM01": "red", "LLM02": "orange", "LLM03": "violet",
+            "LLM04": "red", "LLM05": "orange", "LLM06": "blue",
+            "LLM07": "orange", "LLM08": "violet", "LLM09": "gray",
+            "LLM10": "blue",
+        }
+        for it in items:
+            score  = it.get("relevance_score")
+            owasp  = it.get("owasp_category") or ""
+            status = it.get("status", "")
+            status_icon = {"new": "🔵", "analyzed": "🟡", "rules_generated": "🟢",
+                           "dismissed": "⚫"}.get(status, "⚪")
+            label = f"{status_icon} [{it['source']}] {it['title'][:90]}"
+
+            with st.expander(label):
+                d1, d2, d3 = st.columns(3)
+                d1.write(f"**Source:** `{it['source']}`")
+                d2.write(f"**Status:** `{status}`")
+                d3.write(f"**Rules generated:** {it.get('rules_generated', 0)}")
+
+                if owasp:
+                    color = owasp_colors.get(owasp, "gray")
+                    st.badge(owasp, color=color)
+                if score is not None:
+                    st.progress(score, text=f"Relevance: {score:.0%}")
+
+                if it.get("attack_pattern"):
+                    st.write(f"**Attack pattern:** {it['attack_pattern']}")
+                if it.get("detection_hint"):
+                    st.code(it["detection_hint"], language=None)
+                if it.get("countermeasure"):
+                    st.info(it["countermeasure"])
+                if it.get("url"):
+                    st.markdown(f"[Source link]({it['url']})")
+
+                # Actions
+                act1, act2 = st.columns(2)
+                item_id = it["id"]
+                with act1:
+                    if status not in ("rules_generated", "dismissed"):
+                        if st.button("🗑️ Dismiss", key=f"dismiss_{item_id}",
+                                     use_container_width=True):
+                            r = _api("POST", f"/threats/intel/{item_id}/dismiss")
+                            if r is not None and r.status_code == 200:
+                                st.success("Dismissed.")
+                                st.rerun()
+                            elif r is not None:
+                                st.error(f"{r.status_code} — {r.text[:200]}")
+                with act2:
+                    if status == "analyzed":
+                        if st.button("⚙️ Trigger refresh", key=f"refresh_{item_id}",
+                                     use_container_width=True):
+                            r = _api("POST", "/threats/intel/refresh")
+                            if r is not None and r.status_code in (200, 202):
+                                st.success("Refresh queued — rules will be generated shortly.")
+
+    # ── OWASP distribution chart ──────────────────────────────────────────────
+    if stats_resp is not None and stats_resp.status_code == 200:
+        by_owasp = stats.get("by_owasp", {})
+        if by_owasp:
+            st.divider()
+            st.subheader("OWASP category distribution")
+            import pandas as pd
+            owasp_df = pd.DataFrame(
+                [{"category": k, "count": v} for k, v in sorted(by_owasp.items())]
+            )
+            st.bar_chart(owasp_df.set_index("category"))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
