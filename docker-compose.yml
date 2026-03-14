@@ -102,8 +102,10 @@ services:
       - ELASTIC_URL=${ELASTIC_URL:-}
       - ELASTIC_API_KEY=${ELASTIC_API_KEY:-}
       - ELASTIC_INDEX=${ELASTIC_INDEX:-shadow-warden-events}
-      # ── mTLS (v0.6) — disabled by default; enable after scripts/gen_certs.sh
-      - MTLS_ENABLED=${MTLS_ENABLED:-false}
+      # ── mTLS — enabled by default; certs in ./certs/ (git-ignored).
+      # Run scripts/gen_certs.sh once to initialise, then docker compose up.
+      # Set MTLS_ENABLED=false in .env to run without TLS (dev/CI only).
+      - MTLS_ENABLED=${MTLS_ENABLED:-true}
       - MTLS_ALLOWED_CNS=${MTLS_ALLOWED_CNS:-proxy,analytics,app}
     volumes:
       - ./warden:/warden/src          # hot-reload in dev
@@ -123,7 +125,8 @@ services:
     networks:
       - warden-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      # --insecure: warden uses a self-signed cert in mTLS mode
+      test: ["CMD", "curl", "-fk", "https://localhost:8001/health"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -145,10 +148,13 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/2
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      - WARDEN_URL=http://warden:8001        # all payloads filtered here first
+      - WARDEN_URL=https://warden:8001       # all payloads filtered here first
+      - REQUESTS_CA_BUNDLE=/certs/ca.crt    # trust the internal CA
+      - SSL_CERT_FILE=/certs/ca.crt         # httpx / aiohttp compatibility
     volumes:
       - ./app:/app
       - warden-logs:/app/logs
+      - ./certs:/certs:ro                   # app-client.crt for mTLS to warden
     depends_on:
       warden:
         condition: service_healthy

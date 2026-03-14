@@ -63,6 +63,5 @@ USER wardenuser
 
 EXPOSE 8001
 
-# 2 workers: one handles live /filter requests while the other can run
-# a browser sandbox audit without blocking the API.
-CMD ["uvicorn", "warden.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "2"]
+# entrypoint.sh selects plain HTTP or mTLS-TLS based on MTLS_ENABLED env var.
+ENTRYPOINT ["/bin/bash", "/warden/entrypoint.sh"]
