@@ -79,7 +79,43 @@ _FLAG_TEMPLATES: dict[str, str] = {
     "excessive_agency": (
         "The AI attempted to take autonomous actions beyond its authorised "
         "scope — making unsanctioned API calls, accessing files, or executing "
-        "code without explicit user approval (OWASP LLM08)."
+        "code without explicit user approval (OWASP LLM06)."
+    ),
+    "sensitive_disclosure": (
+        "The request attempted to extract content the model memorized from "
+        "its training data, or probe its internal embeddings and model weights. "
+        "This is an OWASP LLM02 (Sensitive Information Disclosure) attack vector "
+        "that can reveal private or copyrighted training material."
+    ),
+    "model_poisoning": (
+        "The request attempted to permanently alter the model's behavior or "
+        "plant a hidden backdoor trigger for future exploitation. "
+        "This matches OWASP LLM04 (Data and Model Poisoning) — "
+        "the content was blocked before it could influence any persistent state."
+    ),
+    "system_prompt_leakage": (
+        "The request attempted to extract the full system prompt or context "
+        "window, including confidential instructions configured by the operator. "
+        "Exposing these details (OWASP LLM07) can help attackers craft "
+        "targeted jailbreaks tailored to this deployment."
+    ),
+    "vector_attack": (
+        "The content contained markers designed to manipulate a RAG pipeline "
+        "or confuse the model's embedding-based safety classifier. "
+        "This is an OWASP LLM08 (Vector and Embedding Weakness) attack — "
+        "forged retrieval context or adversarial suffix to bypass semantic filters."
+    ),
+    "misinformation": (
+        "The request asked the model to generate deliberately false content "
+        "presented as authoritative — fake studies, fabricated news, or invented "
+        "citations. Producing and distributing such content (OWASP LLM09) "
+        "can cause real-world harm and erode trust in legitimate information."
+    ),
+    "resource_exhaustion": (
+        "The request was designed to consume an unbounded number of tokens — "
+        "for example by requesting infinite repetition or exponential content "
+        "expansion. This is an OWASP LLM10 (Unbounded Consumption) pattern "
+        "that degrades service availability for all users."
     ),
 
     # ── Output-side flags (OWASP LLM02 / LLM06 / LLM08) ──────────────────────

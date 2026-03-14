@@ -248,6 +248,264 @@ _RULES: list[_Rule] = [
           score=0.80,
           risk=RiskLevel.HIGH,
           detail="LLM06: Excessive agency — request for direct privileged or production action."),
+
+    # ══ OWASP LLM02 — Sensitive Information Disclosure ════════════════════════
+
+    # ── LLM02 — Training data extraction / memorization probing ──────────
+    # Attempts to recover verbatim content the model memorized from pre-training.
+    _Rule(FlagType.SENSITIVE_DISCLOSURE,
+          re.compile(
+              r"(?i)(?:"
+              # "verbatim/word-for-word ... from ... training [data/corpus]"
+              r"(?:verbatim|word[- ]for[- ]word|character[- ]for[- ]character)\b.{0,40}"
+              r"(?:from\s+)?(?:your\s+)?(?:training(?:\s+(?:data|corpus|set|examples?))?|"
+              r"pre[- ]training(?:\s+data)?)\b|"
+              # "[anything] in your training data/corpus"
+              r"\bin\s+(?:your\s+)?training\s+(?:data|corpus|set|examples?)\b|"
+              # "from your pre-training data"
+              r"\bfrom\s+(?:your\s+)?pre[- ]training(?:\s+data)?\b|"
+              # "training examples/data you memorized"
+              r"\btraining\s+(?:data|examples?|corpus)\s+(?:you\s+)?memorized\b"
+              r")"
+          ),
+          score=0.78,
+          risk=RiskLevel.HIGH,
+          detail="LLM02: Training data extraction — attempting to recover memorized training content."),
+
+    # ── LLM02 — Model internals / embedding inversion ─────────────────────
+    _Rule(FlagType.SENSITIVE_DISCLOSURE,
+          re.compile(
+              r"(?i)(?:"
+              r"(?:list|reveal|output|show|reconstruct)\s+(?:\w+\s+){0,4}"
+              r"(?:few[- ]shot\s+examples?|in[- ]context\s+examples?|training\s+examples?)\b|"
+              r"(?:invert|reconstruct|recover)\s+(?:\w+\s+){0,5}"
+              r"(?:model\s+weights?|embedding|gradient|training\s+data)\b"
+              r")"
+          ),
+          score=0.75,
+          risk=RiskLevel.HIGH,
+          detail="LLM02: Model internals probe — attempting to extract few-shot examples or invert embeddings."),
+
+    # ══ OWASP LLM04 — Data and Model Poisoning ════════════════════════════════
+
+    # ── LLM04 — Persistent behavior modification / backdoor triggers ──────
+    # Prompts that try to permanently alter the model's future responses or
+    # plant a hidden trigger that activates on a specific keyword.
+    _Rule(FlagType.MODEL_POISONING,
+          re.compile(
+              r"(?i)\b(?:"
+              r"(?:permanently|always|forever)\s+(?:remember|store|save|learn|update)\s+"
+              r"(?:this|that|the\s+following|these\s+instructions?)\b|"
+              r"(?:update|modify|change|alter)\s+(?:your|the)\s+"
+              r"(?:core\s+instructions?|base\s+(?:instructions?|rules?)|training|"
+              r"behavior|behaviour|guidelines?)\s+(?:to\b|permanently\b|from\s+now\s+on)\b|"
+              r"(?:add|inject|insert|append)\s+(?:\w+\s+){0,3}"
+              r"(?:rule|instruction|command)\s+(?:to|into)\s+(?:your\s+)?"
+              r"(?:memory|training|corpus|core\s+rules?|base\s+instructions?)\b"
+              r")\b"
+          ),
+          score=0.82,
+          risk=RiskLevel.HIGH,
+          detail="LLM04: Model poisoning — attempting to persistently modify model behavior or inject a backdoor."),
+
+    # ── LLM04 — Conditional backdoor trigger implantation ─────────────────
+    _Rule(FlagType.MODEL_POISONING,
+          re.compile(
+              r"(?i)\b(?:"
+              r"(?:every|each)\s+time\s+(?:you|a\s+user|someone)\s+"
+              r"(?:see[s]?|receive[s]?|get[s]?|read[s]?|hear[s]?)\b.{0,60}"
+              r"(?:do|respond|act|behave|output|return|execute)\b|"
+              r"(?:whenever|if)\s+(?:you\s+(?:see|receive|get|encounter))\b.{0,60}"
+              r"(?:you\s+must|automatically|always\s+(?:do|respond|lie|output|execute))\b"
+              r")\b"
+          ),
+          score=0.80,
+          risk=RiskLevel.HIGH,
+          detail="LLM04: Backdoor trigger — attempting to plant a conditional trigger for future exploitation."),
+
+    # ══ OWASP LLM05 additions — SQL injection and SSTI ════════════════════════
+
+    # ── LLM05 — SQL injection payloads in LLM-generated output context ────
+    _Rule(FlagType.INSECURE_OUTPUT,
+          re.compile(
+              r"(?i)(?:"
+              r"'\s*(?:or|and)\s+['\"]?1['\"]?\s*=\s*['\"]?1|"          # ' OR '1'='1
+              r"'\s*;\s*(?:drop|truncate|delete|update|insert)\s+(?:table|from|into)\s+\w+|"
+              r"union\s+(?:all\s+)?select\s+(?:\w+\s*,\s*)*"
+              r"(?:password|passwd|username|email|secret|hash|token)\b"
+              r")"
+          ),
+          score=0.88,
+          risk=RiskLevel.HIGH,
+          detail="LLM05: SQL injection — payload could manipulate a connected database if executed."),
+
+    # ── LLM05 — Server-Side Template Injection (SSTI) ─────────────────────
+    _Rule(FlagType.INSECURE_OUTPUT,
+          re.compile(
+              r"(?:"
+              # Jinja2/Twig arithmetic probe: {{7*7}}
+              r"\{\{[\s]*\d+\s*[+\-*/]\s*\d+[\s]*\}\}|"
+              # Jinja2 object access: {{config}}, {{self.__class__}}, {{request.environ}}
+              r"\{\{[\s]*(?:config|self\b|request\b|application\b|lipsum|namespace\b|"
+              r"__class__|__mro__|__subclasses__|__import__|range\s*\()"
+              r"[^}]{0,60}\}\}|"
+              # FreeMarker/EL: ${7*7} or ${Runtime.exec}
+              r"\$\{[\s]*(?:\d+\s*[+\-*/]\s*\d+|Runtime\.|Thread\.|System\.)[^}]{0,40}\}|"
+              # ERB: <%= 7*7 %> or <%= system(...)  %>
+              r"<%=\s*(?:\d+\s*[+\-*/]\s*\d+|system\s*\(|exec\s*\(|`)[^%]{0,50}%>"
+              r")"
+          ),
+          score=0.85,
+          risk=RiskLevel.HIGH,
+          detail="LLM05: Server-Side Template Injection (SSTI) — template expression that executes server-side code."),
+
+    # ── LLM05 — XML External Entity (XXE) injection ───────────────────────
+    _Rule(FlagType.INSECURE_OUTPUT,
+          re.compile(
+              r"(?i)(?:"
+              r"<!DOCTYPE\s+\w+\s*\[|"                               # XXE doctype declaration
+              r"<!ENTITY\s+\w+\s+SYSTEM\s+[\"'](?:file://|http://)|" # External entity reference
+              r"<!ENTITY\s+\w+\s+PUBLIC\s+[\"'][^\"']*[\"']\s+[\"']"  # Public entity reference
+              r")"
+          ),
+          score=0.88,
+          risk=RiskLevel.HIGH,
+          detail="LLM05: XXE injection — XML external entity that could read server files or trigger SSRF."),
+
+    # ══ OWASP LLM07 — System Prompt Leakage ═══════════════════════════════════
+
+    # ── LLM07 — Full context window / system prompt extraction ────────────
+    # More sophisticated than the basic exfiltration rule above — targets
+    # prompts specifically trying to extract the full system context.
+    _Rule(FlagType.SYSTEM_PROMPT_LEAKAGE,
+          re.compile(
+              r"(?i)(?:"
+              r"(?:output|print|show|display|repeat|write)\s+"
+              r"(?:your\s+)?(?:full|complete|entire|whole|initial)\s+"
+              r"(?:context|context\s+window|prompt|instructions?|system\s+message)\b|"
+              # Allow subject words between "what" and "comes/is/was before"
+              r"what\b.{0,30}\b(?:comes|is|was)\s+(?:before|prior\s+to)\b.{0,30}"
+              r"\b(?:message|prompt|question|input)\b|"
+              r"(?:print|output|show|dump)\s+(?:everything|all\s+(?:text|content|messages?))\s+"
+              r"(?:you\s+(?:were\s+)?(?:told|given|sent|provided)|in\s+your\s+context)\b|"
+              # Allow optional adjective ("full", "hidden") before "system prompt"
+              r"summarize\s+(?:your\s+)?(?:\w+\s+)?(?:system\s+prompt|instructions?)\b"
+              r")"
+          ),
+          score=0.82,
+          risk=RiskLevel.HIGH,
+          detail="LLM07: System prompt leakage — attempting to extract complete context window or system instructions."),
+
+    # ── LLM07 — Multilingual system-prompt extraction ─────────────────────
+    # Attackers switch language hoping filters only match English patterns.
+    _Rule(FlagType.SYSTEM_PROMPT_LEAKAGE,
+          re.compile(
+              r"(?i)(?:"
+              r"(?:in|into)\s+(?:spanish|french|german|chinese|japanese|arabic|"
+              r"russian|hindi|portuguese|korean)\s*[,:]?\s+"
+              r"(?:what\s+are|repeat|say|write|output)\s+(?:your\s+)?(?:instructions?|system\s+prompt)\b|"
+              # "translate your [initial/full/...] instructions into <lang>"
+              r"translate\s+(?:your\s+)?(?:\w+\s+)?(?:instructions?|system\s+prompt|initial\s+prompt)\s+"
+              r"(?:to|into)\s+\w+\b"
+              r")"
+          ),
+          score=0.78,
+          risk=RiskLevel.HIGH,
+          detail="LLM07: Multilingual system-prompt extraction — language-switching to bypass filter coverage."),
+
+    # ══ OWASP LLM08 — Vector and Embedding Weaknesses ═════════════════════════
+
+    # ── LLM08 — RAG context poisoning via forged retrieval markers ────────
+    # Attackers embed strings that look like RAG/tool-output delimiters to
+    # make the LLM treat injected text as trusted retrieved context.
+    _Rule(FlagType.VECTOR_ATTACK,
+          re.compile(
+              r"(?:"
+              r"\[\[(?:SEARCH_RESULT|RETRIEVED|CONTEXT|DOCUMENT|TOOL_OUTPUT|SYSTEM)[_\]]|"
+              r"\{\{(?:RETRIEVED|CONTEXT|SEARCH|DOCUMENT)_|"
+              r"<!--\s*(?:RETRIEVED|CONTEXT|INJECTED|SYSTEM_PROMPT)\s*:|"
+              r"<(?:retrieved_content|context_window|system_context|tool_output)>"
+              r")"
+          ),
+          score=0.85,
+          risk=RiskLevel.HIGH,
+          detail="LLM08: RAG poisoning — forged retrieval markers attempting to inject trusted-context content."),
+
+    # ── LLM08 — Explicit adversarial ML attack technique ─────────────────
+    _Rule(FlagType.VECTOR_ATTACK,
+          re.compile(
+              r"(?i)\b(?:"
+              r"adversarial\s+(?:suffix|prefix|prompt|example|perturbation)\s+"
+              r"(?:to|that\s+(?:will|can|could)|which\s+(?:will|can|could))\s+"
+              r"(?:bypass|fool|trick|confuse|evade|jailbreak)|"
+              r"universal\s+adversarial\s+(?:perturbation|trigger|suffix|patch)|"
+              r"(?:embedding|gradient)\s+(?:attack|inversion|extraction|poisoning|hijacking)"
+              r")\b"
+          ),
+          score=0.80,
+          risk=RiskLevel.HIGH,
+          detail="LLM08: Adversarial ML attack — explicit reference to embedding or gradient-based attack technique."),
+
+    # ══ OWASP LLM09 — Misinformation ═════════════════════════════════════════
+
+    # ── LLM09 — Eliciting deliberately false authoritative content ────────
+    # Prompts designed to make the model produce confident misinformation
+    # (fake medical studies, fabricated legal citations, false news).
+    _Rule(FlagType.MISINFORMATION,
+          re.compile(
+              r"(?i)(?:"
+              r"(?:write|create|generate|produce)\s+(?:a\s+)?(?:convincing|realistic|believable|authoritative)\s+"
+              r"(?:fake|false|fabricated|made[- ]up|fictional\s+but\s+realistic)\s+"
+              r"(?:news\s+(?:article|story|report)|scientific?\s+(?:study|paper|research)|"
+              r"medical\s+(?:study|report|advice)|legal\s+(?:precedent|citation|ruling)|"
+              r"financial\s+(?:report|study|analysis|data))|"
+              r"make\s+up\s+(?:a\s+)?(?:convincing|believable|realistic)\s+"
+              r"(?:\w+\s+)?(?:statistic|study|research|citation|fact|evidence)\s+(?:about|that|which)\b|"
+              r"generate\s+(?:a\s+)?(?:false|fake|fabricated)\s+"
+              r"(?:\w+\s+)?(?:proof|evidence|citation|study|research)\b"
+              r")"
+          ),
+          score=0.82,
+          risk=RiskLevel.HIGH,
+          detail="LLM09: Misinformation — requesting fabricated authoritative content designed to deceive."),
+
+    # ══ OWASP LLM10 — Unbounded Consumption ═══════════════════════════════════
+
+    # ── LLM10 — Repetition bombs / infinite output loops ─────────────────
+    # Prompts that would cause the model to generate unbounded output,
+    # exhausting token budgets and degrading service for other users.
+    _Rule(FlagType.RESOURCE_EXHAUSTION,
+          re.compile(
+              r"(?i)(?:"
+              r"(?:repeat|say|write|output|print|generate)\s+"
+              r"(?:the\s+(?:word|phrase|string)\s+)?['\"]?\w+['\"]?\s+"
+              r"(?:\d{4,}|\d+,\d{3,})\s+times?\b|"                       # "repeat X 10000 times"
+              r"(?:infinitely|forever|endlessly)\s+(?:repeat|generate|continue|loop|output|expand)\b|"
+              # allow up to 3 interleaved words: "keep generating text forever"
+              r"(?:keep|continue)\s+(?:\w+\s+){0,3}"
+              r"(?:forever|indefinitely|without\s+(?:stopping|end|pausing))\b|"
+              r"(?:writing|generating|outputting)\s+(?:forever|endlessly|infinitely)\b"
+              r")"
+          ),
+          score=0.85,
+          risk=RiskLevel.HIGH,
+          detail="LLM10: Unbounded consumption — repetition bomb or infinite-loop prompt."),
+
+    # ── LLM10 — Recursive / exponential expansion ─────────────────────────
+    _Rule(FlagType.RESOURCE_EXHAUSTION,
+          re.compile(
+              r"(?i)(?:"
+              r"(?:write|generate|create)\s+(?:a\s+)?"
+              r"(?:\d{5,}|(?:ten|hundred|thousand|million)[- ]?(?:word|page|paragraph|sentence))[- ]"
+              r"(?:word\s+)?(?:essay|story|document|article|response|explanation)\b|"
+              # "expand each [adj] point/bullet recursively into N [sub-]points"
+              r"expand\s+each\s+(?:\w+\s+)?(?:point|item|bullet)\b.{0,40}"
+              r"into\s+(?:\d{3,}|many|countless)\s+(?:more\s+)?(?:points?|items?|sub[- ](?:points?|items?))\b"
+              r")"
+          ),
+          score=0.80,
+          risk=RiskLevel.HIGH,
+          detail="LLM10: Resource exhaustion — request for extremely large output that would exhaust token budget."),
 ]
 
 

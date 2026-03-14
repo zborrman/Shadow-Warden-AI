@@ -23,9 +23,15 @@ class FlagType(StrEnum):
     HARMFUL_CONTENT    = "harmful_content"
     PII_DETECTED       = "pii_detected"
     POLICY_VIOLATION   = "policy_violation"
-    INDIRECT_INJECTION = "indirect_injection"   # LLM01 — indirect prompt injection
-    INSECURE_OUTPUT    = "insecure_output"       # LLM05 — XSS, command injection, SSRF, path traversal
-    EXCESSIVE_AGENCY   = "excessive_agency"      # LLM06 — unauthorized autonomous actions
+    INDIRECT_INJECTION   = "indirect_injection"    # LLM01 — indirect prompt injection
+    INSECURE_OUTPUT      = "insecure_output"       # LLM05 — XSS, command injection, SSRF, path traversal
+    EXCESSIVE_AGENCY     = "excessive_agency"      # LLM06 — unauthorized autonomous actions
+    SENSITIVE_DISCLOSURE = "sensitive_disclosure"  # LLM02 — training data / model internals extraction
+    MODEL_POISONING      = "model_poisoning"       # LLM04 — persistent behavior modification / backdoor injection
+    SYSTEM_PROMPT_LEAKAGE = "system_prompt_leakage" # LLM07 — full context window / system prompt extraction
+    VECTOR_ATTACK        = "vector_attack"         # LLM08 — RAG poisoning / adversarial embedding attack
+    MISINFORMATION       = "misinformation"        # LLM09 — eliciting deliberately false authoritative content
+    RESOURCE_EXHAUSTION  = "resource_exhaustion"   # LLM10 — unbounded token consumption / generation loops
 
 
 class RedactionPolicy(StrEnum):
