@@ -4,47 +4,36 @@
 
 ---
 
-> **Usage notes**
-> - Personalize `[FIRST_NAME]`, `[COMPANY]`, `[MSP_CITY/REGION]` before sending
-> - Send from a named inbox (e.g. val@shadow-warden-ai.com), not a CRM alias
-> - Wait 4–5 business days between touches
-> - Stop sequence immediately on reply (any reply)
-> - Best send times: Tuesday–Thursday, 7:30–9:00 AM recipient local time
+> **Merge tags** (Instantly.ai column names → CSV columns from `apollo_scraper.py`)
+> - `{{first_name}}` → `first_name`
+> - `{{company}}`    → `company`
+> - `{{personalization}}` → `personalization` (auto-generated opening line)
+>
+> **Rules**
+> - Send from `val@shadow-warden-ai.com` — named inbox, never a CRM alias
+> - 4–5 business days between touches; stop on any reply
+> - Best window: Tue–Thu, 7:30–9:00 AM recipient local time
+> - Keep Email 1 under 100 words — friction kills open-to-reply conversion
 
 ---
 
 ## Email 1 — The Wake-Up Call
-**Subject:** `Your clients' data is going into ChatGPT right now`
+**Subject:** `Your clients' data is in ChatGPT. Do you know what's in there?`
 
 ---
 
-Hi [FIRST_NAME],
+Hi {{first_name}},
 
-Quick question — do you know what your technicians are pasting into ChatGPT today?
+{{personalization}}
 
-At most MSPs, the answer is: **everything**. Support ticket notes, client network diagrams, Active Directory exports, sometimes full backup configs with credentials embedded.
+One thing most MSPs don't have: a record of what their technicians send to AI tools on behalf of clients. SSNs, API keys, network diagrams — it all flows out in plaintext, with no audit trail.
 
-That's not a hypothetical. In Q1 2025, a single mid-market MSP in [MSP_CITY] received a €340,000 GDPR fine after a technician used an AI assistant to summarize a client's HR data export. The AI vendor's ToS allowed training on inputs. The MSP had no audit trail.
+Shadow Warden sits in front of every AI request and strips PII in under 40ms. One deployment, every client isolated, GDPR Article 30 log auto-generated.
 
-The regulation doesn't care that the employee "didn't mean to" share PII. It cares that you had no control layer.
+Open to a 15-minute demo? I'll show you a live SSN intercept in the first 3 minutes — no slides.
 
-**Shadow Warden AI is that layer.**
-
-It sits in front of every AI request — ChatGPT, Copilot, Claude, your internal LLM tools — and in under 40ms:
-
-- Strips SSNs, API keys, IBAN numbers, and 15 other PII/secret types before they leave your network
-- Blocks jailbreak attempts (the kind that trick AI into ignoring its own safety rules)
-- Generates a GDPR-compliant audit log, per tenant, per request
-
-We built it specifically for MSPs: one deployment protects all your clients, each in an isolated tenant with their own policies and compliance exports.
-
-I'd love to show you a 15-minute live demo — we catch a real SSN and a real API key in the first 3 minutes. No slides, no decks.
-
-Worth a look?
-
-[Your Name]
-Shadow Warden AI | shadow-warden-ai.com
-[Calendar link]
+Val
+shadow-warden-ai.com | {{calendar_link}}
 
 ---
 
