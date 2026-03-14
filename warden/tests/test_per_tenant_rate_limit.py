@@ -12,23 +12,18 @@ Covers:
 """
 from __future__ import annotations
 
-import os
 import hashlib
-
-import pytest
-from unittest.mock import patch, MagicMock
-from starlette.testclient import TestClient
-
+from unittest.mock import MagicMock
 
 # ── auth_guard.get_rate_limit ──────────────────────────────────────────────
 
 class TestGetRateLimit:
     def test_empty_key_returns_default(self):
-        from warden.auth_guard import get_rate_limit, _DEFAULT_KEY_RATE
+        from warden.auth_guard import _DEFAULT_KEY_RATE, get_rate_limit
         assert get_rate_limit("") == _DEFAULT_KEY_RATE
 
     def test_unknown_key_returns_default(self):
-        from warden.auth_guard import get_rate_limit, _DEFAULT_KEY_RATE
+        from warden.auth_guard import _DEFAULT_KEY_RATE, get_rate_limit
         assert get_rate_limit("not-a-real-key-xyzxyz") == _DEFAULT_KEY_RATE
 
     def test_single_shared_key_returns_default(self, monkeypatch):
@@ -36,12 +31,13 @@ class TestGetRateLimit:
         from warden import auth_guard
         monkeypatch.setattr(auth_guard, "_VALID_KEY", "shared-secret")
         monkeypatch.setattr(auth_guard, "_KEYS_PATH", "")
-        from warden.auth_guard import get_rate_limit, _DEFAULT_KEY_RATE
+        from warden.auth_guard import _DEFAULT_KEY_RATE, get_rate_limit
         assert get_rate_limit("shared-secret") == _DEFAULT_KEY_RATE
 
     def test_multi_key_returns_configured_rate(self, monkeypatch, tmp_path):
         """Key with rate_limit:200 in JSON store → returns 200."""
-        import json, hashlib
+        import json
+
         from warden import auth_guard
 
         raw_key = "tenant-a-secret"
@@ -61,7 +57,8 @@ class TestGetRateLimit:
 
     def test_multi_key_different_tenants(self, monkeypatch, tmp_path):
         """Different keys → different rate limits."""
-        import json, hashlib
+        import json
+
         from warden import auth_guard
 
         key_a, key_b = "key-alpha", "key-beta"
@@ -87,7 +84,8 @@ class TestGetRateLimit:
 
     def test_revoked_key_returns_default(self, monkeypatch, tmp_path):
         """Revoked key (active=false) is not matched → returns default."""
-        import json, hashlib
+        import json
+
         from warden import auth_guard
 
         raw_key = "revoked-key"
@@ -102,7 +100,7 @@ class TestGetRateLimit:
         monkeypatch.setattr(auth_guard, "_key_store", [])
         monkeypatch.setattr(auth_guard, "_key_store_loaded", False)
 
-        from warden.auth_guard import get_rate_limit, _DEFAULT_KEY_RATE
+        from warden.auth_guard import _DEFAULT_KEY_RATE, get_rate_limit
         assert get_rate_limit(raw_key) == _DEFAULT_KEY_RATE
 
 
@@ -140,17 +138,18 @@ class TestTenantLimitFunc:
     """
 
     def test_returns_default_for_unknown_key(self):
-        from warden.main import _tenant_limit
         from warden.auth_guard import _DEFAULT_KEY_RATE
+        from warden.main import _tenant_limit
         assert _tenant_limit("unknown-xyz") == f"{_DEFAULT_KEY_RATE}/minute"
 
     def test_returns_default_for_ip_fallback(self):
-        from warden.main import _tenant_limit
         from warden.auth_guard import _DEFAULT_KEY_RATE
+        from warden.main import _tenant_limit
         assert _tenant_limit("192.168.1.1") == f"{_DEFAULT_KEY_RATE}/minute"
 
     def test_returns_configured_rate_for_known_key(self, monkeypatch, tmp_path):
-        import json, hashlib
+        import json
+
         from warden import auth_guard
 
         raw_key = "enterprise-key"

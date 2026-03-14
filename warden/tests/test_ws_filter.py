@@ -19,7 +19,6 @@ import json
 
 import pytest
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _send(ws, data: dict) -> None:
@@ -54,6 +53,7 @@ _STAGE_ORDER = ["cache", "obfuscation", "redaction", "rules", "ml"]
 def ws_client():
     """TestClient wrapping the full warden app (ML model loaded once per module)."""
     from fastapi.testclient import TestClient
+
     from warden.main import app
     with TestClient(app) as c:
         yield c
@@ -295,10 +295,9 @@ class TestWsFilterCacheHit:
         }
         import json as _json
 
-        with patch("warden.main.get_cached", return_value=_json.dumps(cached_resp)):
-            with ws_client.websocket_connect("/ws/filter") as ws:
-                _send(ws, _SAFE_PAYLOAD)
-                msgs = _collect_until(ws, {"done", "error"})
+        with patch("warden.main.get_cached", return_value=_json.dumps(cached_resp)), ws_client.websocket_connect("/ws/filter") as ws:
+            _send(ws, _SAFE_PAYLOAD)
+            msgs = _collect_until(ws, {"done", "error"})
 
         stage_names = [m["stage"] for m in msgs if m["type"] == "stage"]
         assert stage_names == ["cache"]
