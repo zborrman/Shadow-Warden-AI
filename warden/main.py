@@ -64,7 +64,7 @@ from warden.analytics import logger as event_logger
 from warden.analytics.report import get_engine as _get_report_engine
 from warden.auth.saml_provider import SAMLProvider, SamlSession
 from warden.auth.saml_provider import get_provider as _get_saml_provider
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, get_rate_limit, require_api_key
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
@@ -181,13 +181,32 @@ async def _docs_auth(
 # ── Rate limiter ──────────────────────────────────────────────────────────────
 
 _RATE_LIMIT = os.getenv("RATE_LIMIT_PER_MINUTE", "60")
+
+
+def _tenant_key(request: Request) -> str:
+    """Rate-limit bucket key: API key when present, IP address as fallback.
+
+    Keying on the API key means each tenant gets their own independent bucket
+    even when all requests arrive from the same nginx IP.
+    """
+    return request.headers.get("x-api-key") or get_remote_address(request)
+
+
+def _tenant_limit(key: str) -> str:
+    """Per-tenant slowapi limit string derived from the key's configured rate.
+
+    slowapi calls this with the value returned by _tenant_key — the API key
+    string when present, or the remote IP as fallback.  get_rate_limit()
+    returns the per-tenant rate_limit from WARDEN_API_KEYS_PATH, falling back
+    to the RATE_LIMIT_PER_MINUTE default for unrecognised / plain-IP keys.
+    """
+    return f"{get_rate_limit(key)}/minute"
+
+
 _limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=_tenant_key,
     storage_uri=os.getenv("REDIS_URL", "redis://redis:6379/0"),
 )
-
-# Per-key rate limit is now carried by AuthResult.rate_limit (set in auth_guard.py).
-# TENANT_RATE_LIMIT env var sets the default for single-key / dev-mode requests.
 
 # ── Dynamic rules path ────────────────────────────────────────────────────────
 
@@ -1038,7 +1057,7 @@ def _enforce_tenant_rate_limit(auth: AuthResult, rid: str) -> None:
     summary="Filter raw content through the Warden pipeline",
     status_code=status.HTTP_200_OK,
 )
-@_limiter.limit(f"{_RATE_LIMIT}/minute")
+@_limiter.limit(_tenant_limit)
 async def filter_content(
     payload:          FilterRequest,
     request:          Request,
@@ -1071,7 +1090,7 @@ class _BatchResponse(BaseModel):
     summary="Filter multiple items in a single request (up to 50)",
     status_code=status.HTTP_200_OK,
 )
-@_limiter.limit(f"{_RATE_LIMIT}/minute")
+@_limiter.limit(_tenant_limit)
 async def filter_batch(
     payload:          _BatchRequest,
     request:          Request,
@@ -2225,7 +2244,7 @@ async def feed_sync_now(auth: AuthResult = Depends(require_api_key)) -> dict:
     summary="Yellow Zone — replace PII entities with reversible tokens",
     status_code=status.HTTP_200_OK,
 )
-@_limiter.limit(f"{_RATE_LIMIT}/minute")
+@_limiter.limit(_tenant_limit)
 async def mask_text(
     payload: MaskRequest,
     request: Request,
@@ -2268,7 +2287,7 @@ async def mask_text(
     summary="Yellow Zone — restore original PII values in a masked text",
     status_code=status.HTTP_200_OK,
 )
-@_limiter.limit(f"{_RATE_LIMIT}/minute")
+@_limiter.limit(_tenant_limit)
 async def unmask_text(
     payload: UnmaskRequest,
     request: Request,
@@ -2382,7 +2401,7 @@ async def stripe_webhook(request: Request):
     tags=["Filter"],
     summary="Scan AI output for OWASP LLM02 / LLM06 / LLM08 risks",
 )
-@_limiter.limit("120/minute")
+@_limiter.limit(_tenant_limit)
 async def filter_output(
     request:   Request,
     payload:   OutputScanRequest,

@@ -170,6 +170,23 @@ def require_api_key(api_key: str | None = Security(_API_KEY_HEADER)) -> AuthResu
     )
 
 
+def get_rate_limit(api_key: str) -> int:
+    """Return the configured rate limit (req/min) for an API key.
+
+    Used by the slowapi key_func to set per-tenant limits without performing
+    full auth validation.  Falls back to _DEFAULT_KEY_RATE for unknown keys.
+    """
+    if not api_key:
+        return _DEFAULT_KEY_RATE
+    if _KEYS_PATH:
+        entry = _lookup_multi_key(api_key)
+        if entry:
+            return entry.rate_limit
+    if _VALID_KEY and hmac.compare_digest(api_key.encode(), _VALID_KEY.encode()):
+        return _DEFAULT_KEY_RATE
+    return _DEFAULT_KEY_RATE
+
+
 def reload_keys() -> int:
     """Force-reload the key store from disk.  Returns the new key count."""
     global _key_store_loaded
