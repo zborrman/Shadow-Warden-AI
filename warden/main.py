@@ -28,6 +28,11 @@ New in v0.4
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from warden.threat_intel.scheduler import ThreatIntelScheduler as _TISchedulerT
+    from warden.threat_intel.store import ThreatIntelStore as _TIStoreT
 import json
 import logging
 import logging.handlers
@@ -267,8 +272,8 @@ _agent_monitor:  AgentMonitor | None   = None
 _ledger:         RuleLedger        | None = None
 _review_queue:   ReviewQueue       | None = None
 _threat_store:   ThreatStore       | None = None
-_threat_intel_store: object | None = None   # ThreatIntelStore — imported lazily
-_ti_scheduler:   object | None = None       # ThreatIntelScheduler — imported lazily
+_threat_intel_store: _TIStoreT | None = None
+_ti_scheduler:       _TISchedulerT | None = None
 _billing:        BillingStore      | None = None
 _onboarding:     OnboardingEngine  | None = None
 _policy:         DataPolicyEngine  | None = None
