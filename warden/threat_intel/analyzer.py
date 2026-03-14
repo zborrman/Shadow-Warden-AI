@@ -35,7 +35,6 @@ log = logging.getLogger("warden.threat_intel.analyzer")
 _MODEL               = os.getenv("THREAT_INTEL_MODEL", "claude-haiku-4-5-20251001")
 _MIN_RELEVANCE       = float(os.getenv("THREAT_INTEL_MIN_RELEVANCE", "0.65"))
 _MIN_ACTIONABILITY   = float(os.getenv("THREAT_INTEL_MIN_ACTIONABILITY", "0.5"))
-_API_KEY_SET         = bool(os.getenv("ANTHROPIC_API_KEY", ""))
 
 # ── Analysis schema ───────────────────────────────────────────────────────────
 
@@ -161,7 +160,7 @@ class ThreatIntelAnalyzer:
         Fetch NEW items, analyze with Claude Haiku, persist results.
         Returns count of items analyzed (not counting errors/skips).
         """
-        if not _API_KEY_SET:
+        if not os.getenv("ANTHROPIC_API_KEY", ""):
             log.debug("ThreatIntelAnalyzer: ANTHROPIC_API_KEY not set — skipping analysis.")
             return 0
 
