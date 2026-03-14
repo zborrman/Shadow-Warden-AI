@@ -66,3 +66,12 @@ certs/issued/
 playwright-report/
 test-results/
 gtm/leads.csv
+
+# Databases
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# AI/IDE Cache
+.claude/
+=8.0.0
