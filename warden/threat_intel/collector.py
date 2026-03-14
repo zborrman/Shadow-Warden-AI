@@ -75,7 +75,10 @@ class ThreatIntelCollector:
                 continue
 
             for raw in raw_items:
-                url_hash = hashlib.sha256(raw.url.encode()).hexdigest()
+                # Hash URL + description prefix so updated advisories (same URL,
+                # changed content) are re-collected rather than silently skipped.
+                content_key = raw.url + "|" + raw.raw_description[:200]
+                url_hash = hashlib.sha256(content_key.encode()).hexdigest()
                 if url_hash in existing_hashes:
                     result.skipped_duplicates += 1
                     continue

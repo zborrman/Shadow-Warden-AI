@@ -192,8 +192,8 @@ class TestThreatIntelStore:
 class _MockSource(ThreatSource):
     name = "mock"
 
-    def __init__(self, items: list[RawThreatItem], fail: bool = False) -> None:
-        self._items = items
+    def __init__(self, items: list[RawThreatItem] | None = None, fail: bool = False) -> None:
+        self._items = items or []
         self._fail  = fail
 
     def fetch(self, max_items: int = 20) -> list[RawThreatItem]:

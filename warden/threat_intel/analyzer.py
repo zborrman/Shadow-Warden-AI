@@ -32,9 +32,10 @@ from warden.threat_intel.store import ThreatIntelStore
 
 log = logging.getLogger("warden.threat_intel.analyzer")
 
-_MODEL           = os.getenv("THREAT_INTEL_MODEL", "claude-haiku-4-5-20251001")
-_MIN_RELEVANCE   = float(os.getenv("THREAT_INTEL_MIN_RELEVANCE", "0.65"))
-_API_KEY_SET     = bool(os.getenv("ANTHROPIC_API_KEY", ""))
+_MODEL               = os.getenv("THREAT_INTEL_MODEL", "claude-haiku-4-5-20251001")
+_MIN_RELEVANCE       = float(os.getenv("THREAT_INTEL_MIN_RELEVANCE", "0.65"))
+_MIN_ACTIONABILITY   = float(os.getenv("THREAT_INTEL_MIN_ACTIONABILITY", "0.5"))
+_API_KEY_SET         = bool(os.getenv("ANTHROPIC_API_KEY", ""))
 
 # ── Analysis schema ───────────────────────────────────────────────────────────
 
@@ -43,6 +44,13 @@ class HaikuAnalysisResponse(BaseModel):
     relevance_score: float = Field(
         ..., ge=0.0, le=1.0,
         description="0 = irrelevant to LLM security, 1 = directly actionable.",
+    )
+    actionability_score: float = Field(
+        0.5, ge=0.0, le=1.0,
+        description=(
+            "How actionable is this threat for an input-filter rule? "
+            "0 = purely theoretical / academic, 1 = concrete PoC or live exploit."
+        ),
     )
     owasp_category: str | None = Field(
         None,
@@ -95,6 +103,13 @@ Scoring rules for relevance_score:
   0.65-0.85 — directly actionable: a regex or semantic rule can catch this
   0.85-1.0 — critical: well-defined attack pattern, high detection confidence
 
+Scoring rules for actionability_score (separate from relevance):
+  0.0-0.3  — purely theoretical paper with no concrete attack string or PoC
+  0.3-0.5  — describes an attack concept but no reproducible technique
+  0.5-0.7  — demonstrates a technique with example prompts or payloads
+  0.7-1.0  — concrete PoC, exploit-in-the-wild, or well-defined payload pattern
+  NOTE: arXiv preprints that only propose a method without testing it score ≤ 0.4.
+
 For detection_hint:
   • Prefer 'regex' when the attack has a distinctive token/phrase pattern.
     Write Python-compatible regex; be specific to minimize false positives.
@@ -135,9 +150,11 @@ class ThreatIntelAnalyzer:
         self,
         store: ThreatIntelStore,
         min_relevance: float = _MIN_RELEVANCE,
+        min_actionability: float = _MIN_ACTIONABILITY,
     ) -> None:
         self._store = store
         self._min_relevance = min_relevance
+        self._min_actionability = min_actionability
 
     async def analyze_pending(self, batch_size: int = 10) -> int:
         """
@@ -155,11 +172,14 @@ class ThreatIntelAnalyzer:
             if result is None:
                 continue  # leave as 'new' for retry next run
 
-            if result.relevance_score < self._min_relevance:
+            if (
+                result.relevance_score < self._min_relevance
+                or result.actionability_score < self._min_actionability
+            ):
                 self._store.dismiss(item.id)
                 log.debug(
-                    "ThreatIntelAnalyzer: dismissed [%.2f] %s",
-                    result.relevance_score, item.title[:60],
+                    "ThreatIntelAnalyzer: dismissed [relevance=%.2f, actionability=%.2f] %s",
+                    result.relevance_score, result.actionability_score, item.title[:60],
                 )
                 continue
 

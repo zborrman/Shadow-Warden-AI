@@ -54,7 +54,11 @@ class ThreatIntelStore:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
+        conn = sqlite3.connect(
+            str(self._path),
+            check_same_thread=False,
+            timeout=30,  # seconds to wait for WAL lock before raising OperationalError
+        )
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
@@ -111,11 +115,14 @@ class ThreatIntelStore:
 
     def upsert_item(self, item: ThreatIntelItem) -> bool:
         """
-        Insert if url_hash is new.  Returns True when a new row was inserted.
-        Silent no-op (returns False) when the URL was already collected.
+        Insert if content_hash is new.  Returns True when a new row was inserted.
+        Silent no-op (returns False) when the same URL+description was already seen.
+        Hash covers URL + first 200 chars of description so updated advisories
+        (same URL, changed content) are re-collected rather than silently skipped.
         """
         import hashlib
-        url_hash = hashlib.sha256(item.url.encode()).hexdigest()
+        content_key = item.url + "|" + (item.raw_description or "")[:200]
+        url_hash = hashlib.sha256(content_key.encode()).hexdigest()
         try:
             with self._lock:
                 self._conn.execute(
@@ -252,7 +259,7 @@ class ThreatIntelStore:
         return self.list_items(status=ThreatIntelStatus.ANALYZED, limit=limit)
 
     def get_url_hashes(self) -> set[str]:
-        """Return all source_url_hashes for O(1) dedup lookups."""
+        """Return all content hashes (SHA256(url+description)) for O(1) dedup lookups."""
         rows = self._conn.execute(
             "SELECT source_url_hash FROM threat_intel_items"
         ).fetchall()

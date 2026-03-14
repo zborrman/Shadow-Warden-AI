@@ -19,6 +19,7 @@ Rule types
 """
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import os
 import re
@@ -26,6 +27,8 @@ import uuid
 from dataclasses import dataclass
 
 from warden.schemas import ThreatIntelItem
+
+_REGEX_TIMEOUT = float(os.getenv("THREAT_INTEL_REGEX_TIMEOUT", "1.0"))  # seconds
 
 log = logging.getLogger("warden.threat_intel.rule_factory")
 
@@ -102,17 +105,17 @@ class RuleFactory:
         if not hint or len(hint) < 5:
             return []
 
-        # Determine rule type from hint_type stored in the analysis
-        # We infer it: if it compiles as a regex and looks like one, use regex.
-        # Otherwise treat as semantic example.
-        rule_type = self._infer_rule_type(hint)
-
-        if rule_type == "regex_pattern":
+        # If the hint looks regex-like, validate it strictly.
+        # A hint that looks like a regex but fails to compile is rejected (not
+        # silently downgraded to semantic) to avoid storing broken patterns.
+        if self._looks_like_regex(hint):
             if not self._validate_regex(hint):
                 log.debug("RuleFactory: invalid regex for item %s — %s", item.id[:8], hint[:60])
                 return []
+            rule_type = "regex_pattern"
             value = hint
         else:
+            rule_type = "semantic_example"
             vetted = self._vet_semantic(hint)
             if vetted is None:
                 return []
@@ -183,13 +186,18 @@ class RuleFactory:
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
+    def _looks_like_regex(hint: str) -> bool:
+        """True when the hint contains common regex metacharacter sequences."""
+        regex_signals = (r"\b", r"\s", r"(?i", r"(?:", r"[a-z", r".*", r".+")
+        return any(sig in hint for sig in regex_signals)
+
+    @staticmethod
     def _infer_rule_type(hint: str) -> str:
         """
         Heuristic: if the hint contains regex metacharacters and compiles
         without error, treat it as a regex; otherwise as semantic.
         """
-        regex_signals = (r"\b", r"\s", r"(?i)", r"(?:", r"[a-z", r".*", r".+")
-        if any(sig in hint for sig in regex_signals):
+        if RuleFactory._looks_like_regex(hint):
             try:
                 re.compile(hint)
                 return "regex_pattern"
@@ -199,11 +207,30 @@ class RuleFactory:
 
     @staticmethod
     def _validate_regex(pattern: str) -> bool:
-        try:
-            re.compile(pattern)
-            return True
-        except re.error:
-            return False
+        """
+        Validate a regex pattern is safe to use.
+
+        Runs re.compile() in an isolated thread with a timeout so that
+        catastrophically backtracking (ReDoS) patterns cannot stall the
+        main process.  Returns False on compile error OR timeout.
+        """
+        def _compile() -> bool:
+            try:
+                re.compile(pattern)
+                return True
+            except re.error:
+                return False
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            future = ex.submit(_compile)
+            try:
+                return future.result(timeout=_REGEX_TIMEOUT)
+            except concurrent.futures.TimeoutError:
+                log.warning(
+                    "RuleFactory: regex validation timed out (possible ReDoS) — pattern truncated: %s",
+                    pattern[:80],
+                )
+                return False
 
     @staticmethod
     def _vet_semantic(text: str) -> str | None:
