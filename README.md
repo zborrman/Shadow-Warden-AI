@@ -374,40 +374,150 @@ streamlit run warden/analytics/dashboard.py
 
 ```
 shadow-warden-ai/
-├── docker-compose.yml          # Orchestrator — all services
-├── .env.example                # Environment variable template
-├── data/
-│   ├── init.sql                # PostgreSQL schema bootstrap
-│   ├── logs.json               # NDJSON event log (auto-created)
-│   └── dynamic_rules.json      # Evolution Loop output (auto-created)
-├── warden/                     # Warden gateway package
-│   ├── Dockerfile              # Playwright + CPU torch base
+├── docker-compose.yml              # Orchestrator — 10 services
+├── pyproject.toml                  # pip-installable shadow-warden-ai package
+├── .env.example                    # Environment variable template
+├── .github/workflows/ci.yml        # CI: test matrix (3.11/3.12) + lint + Docker smoke
+│
+├── data/                           # Runtime data (auto-created, gitignored)
+│   ├── logs.json                   # NDJSON event log (GDPR-safe, metadata only)
+│   ├── dynamic_rules.json          # Evolution Loop output (hot-reloaded)
+│   ├── billing.db                  # SQLite billing ledger
+│   ├── rule_ledger.db              # SQLite rule lifecycle ledger
+│   └── threat_store.db             # SQLite threat feed store
+│
+├── warden/                         # Core gateway package
+│   ├── Dockerfile                  # Playwright MCR base + CPU-only torch (non-root UID 10001)
 │   ├── requirements.txt
-│   ├── requirements-lock.txt   # Pinned transitive deps for reproducible builds
-│   ├── main.py                 # FastAPI app — /filter, /filter/batch, GDPR endpoints
-│   ├── schemas.py              # Pydantic models (FilterRequest, FilterResponse, RiskLevel)
-│   ├── obfuscation.py          # Pre-filter: base64 · hex · ROT13 · homoglyphs
-│   ├── secret_redactor.py      # Regex-based PII/secret stripper (15 patterns)
-│   ├── semantic_guard.py       # Rule-based semantic analyser + compound escalation
-│   ├── auth_guard.py           # X-API-Key auth, per-tenant keys, constant-time compare
-│   ├── cache.py                # Redis SHA-256 content-hash cache (5-min TTL)
-│   ├── alerting.py             # Real-time alerts — Slack + PagerDuty
-│   ├── openai_proxy.py         # OpenAI-compatible /v1/chat/completions proxy
+│   ├── requirements-lock.txt       # Pinned transitive deps for reproducible builds
+│   │
+│   ├── main.py                     # FastAPI gateway — /filter, /filter/batch, /ws/filter,
+│   │                               #   /onboard, /admin, /billing, GDPR, /v1/chat/completions
+│   ├── schemas.py                  # Pydantic models — FilterRequest/Response, RiskLevel,
+│   │                               #   FlagType (14 types), OutputScan, Masking, Webhooks
+│   │
+│   ├── obfuscation.py              # Pre-filter: base64 · hex · ROT13 · Unicode homoglyphs
+│   ├── secret_redactor.py          # Regex PII/secret stripper — 15+ patterns (API keys,
+│   │                               #   SSNs, IBANs, credit cards, PEM blocks)
+│   ├── semantic_guard.py           # Rule engine — compound escalation (3× MEDIUM → HIGH)
+│   │                               #   + full OWASP LLM Top-10 (LLM01–LLM10) rule set
+│   ├── output_sanitizer.py         # Output scanner — XSS, HTML injection, command injection,
+│   │                               #   SQL injection, path traversal, SSRF, SSTI, XXE
+│   ├── auth_guard.py               # X-API-Key auth — per-tenant JSON key store, SHA-256
+│   │                               #   hash lookup, constant-time compare
+│   ├── cache.py                    # Redis SHA-256 content-hash cache (5-min TTL, fail-open)
+│   ├── alerting.py                 # Real-time alerts — Slack + PagerDuty on HIGH/BLOCK
+│   ├── telegram_alert.py           # Per-tenant Telegram block notifications
+│   ├── openai_proxy.py             # OpenAI-compatible /v1/chat/completions proxy
+│   ├── onboarding.py               # MSP tenant provisioning engine (TenantSetupKit)
+│   ├── billing.py                  # Usage metering + quota enforcement (SQLite)
+│   ├── stripe_billing.py           # Stripe subscription + usage-based billing integration
+│   ├── rbac.py                     # Role-based access control (admin / analyst / viewer)
+│   ├── rule_ledger.py              # SQLite rule lifecycle ledger — pending/active/retired
+│   ├── review_queue.py             # Rule review queue (auto-approve or hold for manual review)
+│   ├── data_policy.py              # Per-tenant data retention + GDPR policy enforcement
+│   ├── tenant_policy.py            # Per-tenant content policy (custom block rules)
+│   ├── mtls.py                     # Mutual TLS cert loading + enforcement between services
+│   ├── metrics.py                  # Prometheus metric definitions (counters, histograms)
+│   ├── agent_monitor.py            # Agentic workflow monitor — tool call + memory guard
+│   ├── tool_guard.py               # Tool/function call whitelist enforcement
+│   ├── threat_feed.py              # External threat intelligence feed subscriber
+│   ├── threat_store.py             # SQLite threat indicator store
+│   ├── webhook_dispatch.py         # Outbound webhook delivery + HMAC-SHA256 signing
+│   │
 │   ├── brain/
-│   │   ├── semantic.py         # ML jailbreak detector (MiniLM, async ThreadPoolExecutor)
-│   │   ├── redactor.py         # ML-aware PII scrubber
-│   │   └── evolve.py           # Evolution Loop (Claude Opus, streaming + adaptive thinking)
-│   ├── tools/
-│   │   └── browser.py          # Playwright browser sandbox
+│   │   ├── semantic.py             # ML jailbreak detector — all-MiniLM-L6-v2, cosine
+│   │   │                           #   similarity, async ThreadPoolExecutor, FAISS at scale
+│   │   ├── faiss_index.py          # FAISS ANN index — sub-ms lookup for large corpora
+│   │   ├── redactor.py             # ML-aware PII scrubber
+│   │   └── evolve.py               # Evolution Loop — Claude Opus adaptive thinking,
+│   │                               #   corpus poisoning protection, RuleLedger integration
+│   │
+│   ├── masking/
+│   │   └── engine.py               # Yellow-zone PII masking — tokenise/vault/restore
+│   │                               #   (PERSON, EMAIL, PHONE, MONEY, DATE, ORG, ID)
+│   │
+│   ├── xai/
+│   │   └── explainer.py            # Explainable AI — plain-language security summaries,
+│   │                               #   template mode + Claude Haiku mode (opt-in)
+│   │
+│   ├── auth/
+│   │   └── saml_provider.py        # SAML 2.0 / SSO identity provider integration
+│   │
 │   ├── integrations/
-│   │   └── langchain_callback.py  # LangChain WardenCallback duck-typed integration
+│   │   └── langchain_callback.py   # LangChain WardenCallback duck-typed integration
+│   │
 │   ├── analytics/
-│   │   ├── logger.py           # NDJSON GDPR-compliant logger + purge/export
-│   │   ├── dashboard.py        # Streamlit dashboard (auto-refresh, GDPR-safe)
-│   │   └── siem.py             # Splunk HEC + Elastic ECS SIEM integration
-│   └── nginx/
-│       └── nginx.conf          # Reverse proxy config
-└── app/                        # Your application (add your Dockerfile here)
+│   │   ├── logger.py               # NDJSON GDPR-compliant logger + purge/export helpers
+│   │   ├── dashboard.py            # Streamlit security dashboard (:8501)
+│   │   ├── msp_dashboard.py        # MSP multi-tenant aggregated dashboard
+│   │   ├── report.py               # PDF/CSV compliance report generator
+│   │   └── siem.py                 # SIEM integration — Splunk HEC + Elastic ECS
+│   │
+│   ├── feed_server/
+│   │   ├── main.py                 # Threat feed WebSocket server
+│   │   └── store.py                # Feed persistence + dedup store
+│   │
+│   └── tools/
+│       └── browser.py              # Playwright headless Chromium sandbox (Context7Manager)
+│
+├── admin/                          # Admin UI service (:8502)
+│   ├── Dockerfile
+│   └── app.py                      # Streamlit admin — tenant management, rule ledger,
+│                                   #   dynamic rules, event log, system health
+│
+├── analytics/                      # Analytics API service (:8002)
+│   ├── Dockerfile
+│   └── main.py                     # FastAPI analytics — /events, /stats, /threats
+│
+├── app/                            # Your application (add your Dockerfile here)
+│   ├── Dockerfile
+│   └── main.py                     # Placeholder app wired to warden via WARDEN_URL
+│
+├── sdk/python/                     # Official Python SDK
+│   └── shadow_warden/
+│       ├── client.py               # WardenClient — async/sync filter + output scan
+│       ├── models.py               # SDK-side Pydantic models
+│       └── errors.py               # WardenError, BlockedError, RateLimitError
+│
+├── gtm/                            # Go-to-market tooling
+│   ├── apollo_scraper.py           # Apollo.io lead scraper (MSP / IT security contacts)
+│   └── warmup_validator.py         # Email warm-up readiness checker
+│
+├── grafana/
+│   ├── prometheus.yml              # Prometheus scrape config
+│   ├── provisioning/               # Auto-provisioned datasource + dashboard provider
+│   └── dashboards/warden_overview.json  # Pre-built Grafana dashboard
+│
+└── warden/tests/                   # Test suite (~86% coverage)
+    ├── conftest.py                 # Fixtures, env vars, test client
+    ├── test_filter_endpoint.py     # /filter happy path + edge cases
+    ├── test_semantic_guard.py      # Rule engine — 127 tests, full OWASP LLM Top-10
+    ├── test_secret_redactor.py     # PII/secret patterns (15+ types)
+    ├── test_obfuscation.py         # Obfuscation decoder (14 tests)
+    ├── test_output_sanitizer.py    # Output scanner (XSS, SQLi, SSRF, etc.)
+    ├── test_masking.py             # Yellow-zone masking vault roundtrip
+    ├── test_auth_guard.py          # API key auth + tenant isolation
+    ├── test_evolution.py           # Evolution Loop + corpus poisoning protection
+    ├── test_rule_ledger.py         # Rule lifecycle — approve/retire/FP reporting
+    ├── test_review_queue.py        # Rule review queue routing
+    ├── test_onboarding.py          # Tenant provisioning + key rotation
+    ├── test_billing.py             # Usage metering + quota enforcement
+    ├── test_stripe_billing.py      # Stripe integration
+    ├── test_rbac.py                # Role-based access control
+    ├── test_openai_proxy.py        # OpenAI-compatible proxy (8 tests)
+    ├── test_analytics_api.py       # Analytics API endpoints
+    ├── test_logger.py              # GDPR logger + purge/export
+    ├── test_data_policy.py         # Data retention policies
+    ├── test_tenant_policy.py       # Per-tenant content policies
+    ├── test_mtls.py                # mTLS cert enforcement
+    ├── test_per_tenant_rate_limit.py  # Per-tenant rate limiting
+    ├── test_agent_monitor.py       # Agentic workflow monitoring
+    ├── test_feed_server.py         # Threat feed server
+    ├── test_telegram_alert.py      # Telegram notification delivery
+    ├── test_saml.py / test_saml_auth.py  # SAML/SSO flows
+    ├── test_report.py              # Compliance report generation
+    └── test_docs_auth.py           # API docs auth gating
 ```
 
 ---
@@ -415,28 +525,67 @@ shadow-warden-ai/
 ## Roadmap
 
 ### Shipped ✅
-- **Obfuscation decoder** pre-filter (Base64 · hex · ROT13 · Unicode homoglyphs)
-- **Per-tenant API keys** with `X-API-Key` header authentication
-- **Batch filter endpoint** (`POST /filter/batch`, up to 50 items)
-- **Per-stage timing** in every `/filter` response (`processing_ms` dict)
-- **Health degradation** endpoint (`/health/degraded` — ML model failure detection)
-- Prometheus `/metrics` endpoint + Grafana dashboard + alerting rules
-- SIEM integration (Splunk HEC + Elastic ECS)
-- Rate limiting (60 req/min per IP, Redis-backed)
-- Multi-tenant rule sets (`tenant_id` per request)
-- OpenAI-compatible proxy (`/v1/chat/completions`)
-- LangChain callback integration
-- Real-time alerting (Slack + PagerDuty)
-- Non-root Docker user, CSP security headers
-- CI coverage gate (≥ 75%), mutation testing
-- Pinned dependency lockfile (`requirements-lock.txt`)
+
+**Gateway core**
+- **Obfuscation decoder** pre-filter — Base64 · hex · ROT13 · Unicode homoglyphs
+- **Per-tenant API keys** — `X-API-Key` + SHA-256 hash lookup, constant-time compare
+- **Batch filter endpoint** — `POST /filter/batch`, up to 50 items
+- **Per-stage timing** — `processing_ms` dict in every `/filter` response
+- **WebSocket streaming** — `POST /ws/filter` emits per-stage JSON events in real time
+- **mTLS** between internal services (cert loading + enforcement)
+- **Redis content-hash cache** — SHA-256 dedup, 5-min TTL, fail-open
+- **Per-tenant rate limiting** — individual token-bucket per tenant (Redis-backed)
+- **Output scanner** — `POST /scan/output` — XSS, HTML injection, SQL injection,
+  command injection, path traversal, SSRF, SSTI, XXE detection + sanitisation
+
+**Detection intelligence**
+- **OWASP LLM Top-10 (2025)** — full LLM01–LLM10 rule coverage in SemanticGuard
+  (indirect injection, insecure output, sensitive disclosure, model poisoning,
+  system prompt leakage, vector/RAG attacks, misinformation, resource exhaustion)
+- **FAISS ANN index** — sub-millisecond jailbreak lookup at scale (>500 corpus entries)
+- **Compound risk escalation** — 3+ MEDIUM signals → HIGH auto-promotion
+- **Evolution Loop** — Claude Opus generates detection rules from live attacks;
+  corpus poisoning protection (growth cap, vetting, dedup, rate gate)
+- **Rule Ledger** — SQLite lifecycle tracker (pending_review → active → retired)
+- **Review queue** — auto-approve or hold rules for manual operator review
+
+**Multi-tenant platform**
+- **Onboarding engine** — `POST /onboard` provisions tenant + issues one-time API key
+- **MSP tenant management** — list, activate/deactivate, rotate key, set quota
+- **Per-tenant content policies** — custom block rules per deployment
+- **Billing** — usage metering + quota enforcement (SQLite) + Stripe integration
+- **RBAC** — role-based access (admin / analyst / viewer)
+- **SAML 2.0 / SSO** — identity provider integration for enterprise logins
+- **Telegram block alerts** — per-tenant real-time notifications
+
+**Observability & compliance**
+- **Admin UI** (`:8502`) — Streamlit panel for tenant management, rule ledger
+  (approve/retire/FP), dynamic rules, event log with filters, system health
+- **XAI explainer** — plain-language security summaries (template + Claude Haiku modes)
+- **PII masking** — Yellow-zone vault (tokenise → process → restore: PERSON, EMAIL,
+  PHONE, MONEY, DATE, ORG, ID)
+- **Compliance reports** — PDF/CSV audit reports for SOC / GDPR reviewers
+- **MSP dashboard** — multi-tenant aggregated security view
+- **SIEM integration** — Splunk HEC + Elastic ECS
+- **Prometheus metrics** + Grafana dashboard + P99 latency / 5xx error rate alerts
+- **Webhook dispatch** — HMAC-SHA256 signed outbound events on HIGH/BLOCK
+- **Threat feed server** — WebSocket threat intelligence feed + SQLite store
+
+**Developer experience**
+- **Python SDK** — `WardenClient` async/sync, `BlockedError`, `RateLimitError`
+- **LangChain callback** — `WardenCallback` duck-typed integration
+- **OpenAI-compatible proxy** — `/v1/chat/completions` filter-before-forward
+- **Agent monitor** — agentic workflow guard (tool call whitelist + memory guard)
+- CI coverage gate (≥ 75%), mutation testing, Docker smoke tests
 
 ### Planned
-- [ ] mTLS between internal services
-- [ ] Per-tenant rate limits (currently global)
-- [ ] WebSocket support for streaming filter responses
-- [ ] OWASP Top-10 LLM detection rules (beyond current jailbreak corpus)
-- [ ] Admin UI for managing tenants and dynamic rules
+- [ ] **SOC 2 Type II** audit controls + evidence collection automation
+- [ ] **Kubernetes Helm chart** for cloud-native / EKS / GKE deployments
+- [ ] **Azure OpenAI · Amazon Bedrock · Google Vertex AI** native adapters
+- [ ] **Browser extension** — real-time protection for ChatGPT, Claude.ai, Copilot
+- [ ] **Scheduled compliance reports** — weekly/monthly PDF delivery via email
+- [ ] **Threat intelligence sharing** — STIX/TAXII feed export for SOC platforms
+- [ ] **Fine-grained ABAC** — attribute-based access control for enterprise deployments
 
 ---
 
