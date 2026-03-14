@@ -10,7 +10,7 @@
 > - `{{personalization}}` → `personalization` (auto-generated opening line)
 >
 > **Rules**
-> - Send from `val@shadow-warden-ai.com` — named inbox, never a CRM alias
+> - Send from `vz@shadow-warden-ai.com` — named inbox, never a CRM alias
 > - 4–5 business days between touches; stop on any reply
 > - Best window: Tue–Thu, 7:30–9:00 AM recipient local time
 > - Keep Email 1 under 100 words — friction kills open-to-reply conversion

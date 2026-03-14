@@ -153,7 +153,7 @@ def check_dmarc(domain: str) -> CheckResult:
         return CheckResult(
             "DMARC Record", False,
             f"No DMARC record at {qname}. "
-            'Add TXT:  v=DMARC1; p=none; rua=mailto:val@shadow-warden-ai.com',
+            'Add TXT:  v=DMARC1; p=none; rua=mailto:vz@shadow-warden-ai.com',
         )
 
     dmarc = dmarc_records[0]
@@ -280,7 +280,7 @@ def render_text(domain: str, results: list[CheckResult]) -> None:
     if passed_count == total:
         print(f"\n  {_GREEN}{_BOLD}All {total} checks passed.{_RESET}")
         print("  Your domain is ready for warm-up.")
-        print("  -> Add val@shadow-warden-ai.com to Instantly.ai / Lemlist.")
+        print("  -> Add vz@shadow-warden-ai.com to Instantly.ai / Lemlist.")
         print("  -> Start at 2 emails/day, +2 each day, cap at 35/day.")
     else:
         failed = total - passed_count
