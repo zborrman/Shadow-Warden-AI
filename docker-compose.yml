@@ -107,6 +107,13 @@ services:
       # Set MTLS_ENABLED=false in .env to run without TLS (dev/CI only).
       - MTLS_ENABLED=${MTLS_ENABLED:-true}
       - MTLS_ALLOWED_CNS=${MTLS_ALLOWED_CNS:-proxy,analytics,app}
+      # ── New in v0.5 ──────────────────────────────────────────────────────────
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      - SESSION_GUARD_ENABLED=${SESSION_GUARD_ENABLED:-true}
+      - HONEY_MODE=${HONEY_MODE:-false}
+      - ONNX_MODEL_PATH=${ONNX_MODEL_PATH:-}
+      - DATABASE_URL=${DATABASE_URL:-}
     volumes:
       - ./warden:/warden/src          # hot-reload in dev
       - warden-models:/warden/models  # persists MiniLM weights
@@ -387,6 +394,27 @@ services:
         limits:
           cpus: "0.5"
           memory: 256M
+
+  # ── JAEGER ────────────────────────────────────────────────────────────────
+  # Distributed tracing backend.  All-in-one image includes collector + UI.
+  # Enable tracing by setting OTEL_ENABLED=true in .env.
+  # Jaeger UI: http://localhost:16686  |  OTLP HTTP: http://localhost:4318
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: warden-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4318:4318"     # OTLP HTTP receiver
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:16686"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ── GRAFANA ───────────────────────────────────
   # Pre-provisioned with the Prometheus data source and

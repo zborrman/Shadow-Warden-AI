@@ -54,6 +54,23 @@ numpy>=1.26.0
 # ANTHROPIC_API_KEY must be set in the environment / docker-compose.yml.
 anthropic>=0.40.0
 
+# ── OpenTelemetry distributed tracing (optional, OTEL_ENABLED=true) ──────────
+# Install to enable Jaeger tracing across filter pipeline stages.
+opentelemetry-api>=1.27.0
+opentelemetry-sdk>=1.27.0
+opentelemetry-exporter-otlp-proto-http>=1.27.0
+opentelemetry-instrumentation-fastapi>=0.48b0
+
+# ── ONNX Runtime (optional, ONNX_MODEL_PATH=...) ─────────────────────────────
+# 2-4x faster MiniLM CPU inference vs. PyTorch.
+# Export model once with: python scripts/export_onnx.py
+onnxruntime>=1.18.0
+
+# ── PostgreSQL support (optional, DATABASE_URL=postgresql://...) ─────────────
+# Required when DATABASE_URL points to PostgreSQL instead of SQLite.
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
 # ── Browser automation ────────────────────────────────────────────────────────
 # Playwright Python — the mcr.microsoft.com/playwright/python base image
 # ships the OS-level browser dependencies; this installs the Python bindings.
