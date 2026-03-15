@@ -267,6 +267,8 @@ def _get_tenant_guard(tenant_id: str) -> BrainSemanticGuard:
 _redactor:       SecretRedactor    | None = None
 _guard:          SemanticGuard     | None = None
 _brain_guard:    BrainSemanticGuard| None = None   # "default" tenant
+_session_guard:  "SessionGuard | None"    = None
+_honey_engine:   "HoneyEngine | None"     = None
 _evolve:         EvolutionEngine   | None = None
 _agent_monitor:  AgentMonitor | None   = None
 _ledger:         RuleLedger        | None = None
@@ -351,7 +353,7 @@ async def _threat_feed_sync_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy, _feed, _saml
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy, _feed, _saml, _session_guard, _honey_engine
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -518,6 +520,35 @@ async def lifespan(app: FastAPI):
             log.warning("SAML provider initialised but Redis attach failed: %s", _saml_err)
     else:
         app.state.saml = None
+
+    # ── Session Guard (incremental injection detection) ───────────────
+    try:
+        from warden.session_guard import SessionGuard  # noqa: PLC0415
+        from warden.cache import _get_client as _redis_client_for_sg  # noqa: PLC0415
+        _sg_redis = _redis_client_for_sg()
+        if _sg_redis is not None:
+            _session_guard = SessionGuard(_sg_redis)
+            log.info("SessionGuard online (incremental injection detection).")
+        else:
+            log.info("SessionGuard: Redis unavailable — disabled.")
+    except Exception as _sg_err:
+        log.warning("SessionGuard failed to initialise: %s", _sg_err)
+
+    # ── Honey Engine (deception technology) ──────────────────────────
+    try:
+        from warden.honey import HoneyEngine  # noqa: PLC0415
+        from warden.cache import _get_client as _redis_client_for_honey  # noqa: PLC0415
+        _honey_engine = HoneyEngine(_redis_client_for_honey())
+        log.info("HoneyEngine online (HONEY_MODE=%s).", os.getenv("HONEY_MODE", "false"))
+    except Exception as _honey_err:
+        log.warning("HoneyEngine failed to initialise: %s", _honey_err)
+
+    # ── OpenTelemetry distributed tracing ─────────────────────────────
+    try:
+        from warden.telemetry import setup_telemetry  # noqa: PLC0415
+        setup_telemetry(app)
+    except Exception as _otel_err:
+        log.warning("OpenTelemetry init failed: %s", _otel_err)
 
     yield
 
@@ -770,9 +801,14 @@ async def _run_filter_pipeline(
         except Exception:
             pass
 
+    from warden.telemetry import trace_stage as _trace_stage  # noqa: PLC0415
+
     # ── Stage 0b: Obfuscation decoding ────────────────────────────────
     t0 = time.perf_counter()
-    obfuscation_result = decode_obfuscation(payload.content)
+    with _trace_stage("obfuscation", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+        obfuscation_result = decode_obfuscation(payload.content)
+        _sp.set_attribute("obfuscation.detected", obfuscation_result.has_obfuscation)
+        _sp.set_attribute("obfuscation.layers",   str(obfuscation_result.layers_found))
     timings["obfuscation"] = round((time.perf_counter() - t0) * 1000, 2)
 
     # Use decoded+original combined text for downstream analysis
@@ -788,7 +824,10 @@ async def _run_filter_pipeline(
 
     # ── Stage 1: Secret Redaction ──────────────────────────────────────
     t0 = time.perf_counter()
-    redact_result = _redactor.redact(analysis_text, payload.redaction_policy)   # type: ignore[union-attr]
+    with _trace_stage("secret_redaction", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+        redact_result = _redactor.redact(analysis_text, payload.redaction_policy)  # type: ignore[union-attr]
+        _sp.set_attribute("redaction.secrets_found", len(redact_result.findings))
+        _sp.set_attribute("redaction.has_pii",       redact_result.has_pii)
     timings["redaction"] = round((time.perf_counter() - t0) * 1000, 2)
 
     if redact_result.findings:
@@ -799,7 +838,10 @@ async def _run_filter_pipeline(
 
     # ── Stage 2: Rule-based Semantic Analysis ─────────────────────────
     t0 = time.perf_counter()
-    guard_result = _guard.analyse(redact_result.text)   # type: ignore[union-attr]
+    with _trace_stage("rule_analysis", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+        guard_result = _guard.analyse(redact_result.text)  # type: ignore[union-attr]
+        _sp.set_attribute("rules.flags_count", len(guard_result.flags))
+        _sp.set_attribute("rules.risk_level",  guard_result.risk_level.value)
     timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
 
     if guard_result.flags:
@@ -846,7 +888,11 @@ async def _run_filter_pipeline(
     # ── Stage 2b: ML Semantic Brain (async, per-tenant) ───────────────
     t0 = time.perf_counter()
     brain_guard = _get_tenant_guard(tenant_id)
-    brain_result = await brain_guard.check_async(redact_result.text)
+    with _trace_stage("ml_inference", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+        brain_result = await brain_guard.check_async(redact_result.text)
+        _sp.set_attribute("ml.score",        brain_result.score)
+        _sp.set_attribute("ml.is_jailbreak", brain_result.is_jailbreak)
+        _sp.set_attribute("ml.threshold",    brain_result.threshold)
     timings["ml"] = round((time.perf_counter() - t0) * 1000, 2)
 
     if brain_result.is_jailbreak:
@@ -875,12 +921,59 @@ async def _run_filter_pipeline(
         )
 
     # ── Stage 3: Decision ─────────────────────────────────────────────
-    allowed = guard_result.safe_for(strict)
+    with _trace_stage("decision", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+        allowed = guard_result.safe_for(strict)
+        _sp.set_attribute("decision.allowed",    allowed)
+        _sp.set_attribute("decision.risk_level", guard_result.risk_level.value)
+        _sp.set_attribute("decision.strict",     strict)
 
     reason = ""
     if not allowed:
         top = guard_result.top_flag
         reason = top.detail if top else f"Risk level: {guard_result.risk_level}"
+
+    # ── Stage 3b: Session-aware incremental injection detection ───────
+    if session_id and _session_guard is not None:
+        with suppress(Exception):
+            session_risk = _session_guard.record_and_check(
+                session_id,
+                guard_result.risk_level.value,
+                [f.flag.value for f in guard_result.flags],
+                rid,
+            )
+            if session_risk.escalated and allowed:
+                allowed = False
+                reason  = f"[SessionGuard] {session_risk.pattern}"
+                guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.HIGH)
+                log.warning(
+                    json.dumps({
+                        "event":      "session_escalation",
+                        "request_id": rid,
+                        "session_id": session_id,
+                        "pattern":    session_risk.pattern,
+                        "score":      session_risk.cumulative_score,
+                    })
+                )
+
+    # ── Stage 3c: Honey-prompt deception ──────────────────────────────
+    if not allowed and _honey_engine is not None:
+        with suppress(Exception):
+            honey_result = _honey_engine.maybe_honey(
+                rid,
+                [f.flag.value for f in guard_result.flags],
+                tenant_id,
+            )
+            if honey_result.is_honey:
+                timings["total"] = round((time.perf_counter() - start) * 1000, 2)
+                return FilterResponse(
+                    allowed          = True,   # honey looks like "success" to attacker
+                    risk_level       = guard_result.risk_level,
+                    filtered_content = honey_result.response_text,
+                    secrets_found    = [],
+                    semantic_flags   = guard_result.flags,
+                    reason           = "",
+                    processing_ms    = timings,
+                )
 
     # ── Stage 4: Evolution Loop ───────────────────────────────────────
     if (
