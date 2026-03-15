@@ -128,6 +128,43 @@ def get_connection():
     return get_engine().connect()
 
 
+# ── Async session factory (FastAPI dependency injection) ──────────────────────
+
+def _make_session_factory():
+    """Build AsyncSessionLocal lazily so import doesn't fail when DATABASE_URL is unset."""
+    try:
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from sqlalchemy.orm import sessionmaker
+        return sessionmaker(
+            get_async_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+    except Exception:
+        return None
+
+_AsyncSessionLocal = None
+
+
+async def get_db():
+    """
+    FastAPI dependency — yields an AsyncSession per request.
+
+    Usage::
+
+        @app.get("/example")
+        async def handler(db: AsyncSession = Depends(get_db)):
+            result = await db.execute(select(MyModel))
+    """
+    global _AsyncSessionLocal
+    if _AsyncSessionLocal is None:
+        _AsyncSessionLocal = _make_session_factory()
+    if _AsyncSessionLocal is None:
+        raise RuntimeError("DATABASE_URL not configured for async sessions.")
+    async with _AsyncSessionLocal() as session:
+        yield session
+
+
 def create_schema() -> None:
     """
     Create all Warden tables via the sync engine.
