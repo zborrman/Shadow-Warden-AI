@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, NamedTuple
 
+import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer, util
 
@@ -199,18 +200,32 @@ class SemanticGuard:
     """
 
     threshold: float = DEFAULT_THRESHOLD
-    _corpus_embeddings: torch.Tensor = field(init=False, repr=False)
+    _corpus_embeddings: torch.Tensor | np.ndarray = field(init=False, repr=False)
     _faiss_index: Any | None = field(init=False, repr=False, default=None)
+    _onnx: Any | None = field(init=False, repr=False, default=None)
 
     def __post_init__(self) -> None:
-        model = _load_model()
-        log.info("Pre-computing corpus embeddings (%d examples) …", len(_JAILBREAK_CORPUS))
-        self._corpus_embeddings = model.encode(
-            _JAILBREAK_CORPUS,
-            convert_to_tensor=True,
-            show_progress_bar=False,
-            normalize_embeddings=True,   # pre-normalise → dot product == cosine sim
-        )
+        from warden.brain.onnx_runner import get_onnx_encoder
+        self._onnx = get_onnx_encoder()
+
+        if self._onnx is not None:
+            log.info(
+                "SemanticGuard: ONNX backend active — pre-computing %d corpus embeddings …",
+                len(_JAILBREAK_CORPUS),
+            )
+            self._corpus_embeddings = self._onnx.encode_batch(_JAILBREAK_CORPUS)
+        else:
+            model = _load_model()
+            log.info(
+                "SemanticGuard: PyTorch backend — pre-computing %d corpus embeddings …",
+                len(_JAILBREAK_CORPUS),
+            )
+            self._corpus_embeddings = model.encode(
+                _JAILBREAK_CORPUS,
+                convert_to_tensor=True,
+                show_progress_bar=False,
+                normalize_embeddings=True,
+            )
         self._faiss_index = None
         log.info("Corpus ready.")
 
@@ -225,27 +240,38 @@ class SemanticGuard:
           • score         — the highest similarity found
           • closest_example — the corpus entry that triggered the match
         """
-        model = _load_model()
+        # ── ONNX path ─────────────────────────────────────────────────────
+        if self._onnx is not None:
+            query_vec = self._onnx.encode(text)          # (384,) float32
+            corpus    = self._corpus_embeddings          # (N, 384) float32
+            # Dot product == cosine sim (both are L2-normalised)
+            sims    = corpus @ query_vec                 # (N,)
+            max_idx   = int(np.argmax(sims))
+            max_score = float(sims[max_idx])
 
-        query_embedding = model.encode(
-            text,
-            convert_to_tensor=True,
-            show_progress_bar=False,
-            normalize_embeddings=True,
-        )
-
-        # FAISS path: O(log n) ANN search when corpus is large
-        if self._faiss_index is not None:
-            max_score = self._faiss_index.max_similarity(query_embedding)
-            # For closest_example we still need the index — do a top-1 search
-            _, idxs = self._faiss_index.search(query_embedding, k=1)
-            max_idx = int(idxs[0][0]) if idxs[0][0] >= 0 else 0
+        # ── PyTorch path ───────────────────────────────────────────────────
         else:
-            # Shape: (1, corpus_size) — brute-force O(n) scan
-            similarities: torch.Tensor = util.cos_sim(query_embedding, self._corpus_embeddings)
-            flat = similarities[0]
-            max_idx   = int(flat.argmax())
-            max_score = float(flat[max_idx])
+            model = _load_model()
+            query_embedding = model.encode(
+                text,
+                convert_to_tensor=True,
+                show_progress_bar=False,
+                normalize_embeddings=True,
+            )
+
+            # FAISS path: O(log n) ANN search when corpus is large
+            if self._faiss_index is not None:
+                max_score = self._faiss_index.max_similarity(query_embedding)
+                _, idxs   = self._faiss_index.search(query_embedding, k=1)
+                max_idx   = int(idxs[0][0]) if idxs[0][0] >= 0 else 0
+            else:
+                # Shape: (1, corpus_size) — brute-force O(n) scan
+                similarities: torch.Tensor = util.cos_sim(
+                    query_embedding, self._corpus_embeddings
+                )
+                flat      = similarities[0]
+                max_idx   = int(flat.argmax())
+                max_score = float(flat[max_idx])
 
         flagged = max_score >= self.threshold
 
@@ -286,14 +312,20 @@ class SemanticGuard:
         of confirmed attacks collected in production).
         New embeddings are appended and the guard re-normalises.
         """
-        model = _load_model()
-        new_embs = model.encode(
-            new_examples,
-            convert_to_tensor=True,
-            show_progress_bar=False,
-            normalize_embeddings=True,
-        )
-        self._corpus_embeddings = torch.cat([self._corpus_embeddings, new_embs], dim=0)
+        if self._onnx is not None:
+            new_embs = self._onnx.encode_batch(new_examples)          # (N, 384) ndarray
+            self._corpus_embeddings = np.concatenate(
+                [self._corpus_embeddings, new_embs], axis=0
+            )
+        else:
+            model    = _load_model()
+            new_embs = model.encode(
+                new_examples,
+                convert_to_tensor=True,
+                show_progress_bar=False,
+                normalize_embeddings=True,
+            )
+            self._corpus_embeddings = torch.cat([self._corpus_embeddings, new_embs], dim=0)
         _JAILBREAK_CORPUS.extend(new_examples)
         corpus_size = len(_JAILBREAK_CORPUS)
         log.info("Corpus extended — total examples now: %d", corpus_size)
