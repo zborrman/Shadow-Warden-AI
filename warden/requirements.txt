@@ -66,9 +66,12 @@ opentelemetry-instrumentation-fastapi>=0.48b0
 # Export model once with: python scripts/export_onnx.py
 onnxruntime>=1.18.0
 
-# ── PostgreSQL support (optional, DATABASE_URL=postgresql://...) ─────────────
+# ── PostgreSQL support (optional, DATABASE_URL=postgresql+asyncpg://...) ─────
 # Required when DATABASE_URL points to PostgreSQL instead of SQLite.
-sqlalchemy>=2.0.0
+# asyncpg  — async driver for FastAPI / SQLAlchemy async engine
+# psycopg2 — sync driver for migration scripts and CLI tools
+sqlalchemy[asyncio]>=2.0.0
+asyncpg>=0.29.0
 psycopg2-binary>=2.9.0
 
 # ── Browser automation ────────────────────────────────────────────────────────

@@ -67,6 +67,68 @@ CREATE TABLE IF NOT EXISTS warden_analytics.hourly_stats (
     PRIMARY KEY (hour)
 );
 
+-- ── warden_core: Threat Intelligence ─────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS warden_core.threat_intel_items (
+    id                  TEXT        PRIMARY KEY,
+    source              TEXT        NOT NULL,
+    title               TEXT        NOT NULL,
+    url                 TEXT        NOT NULL,
+    source_url_hash     TEXT        UNIQUE NOT NULL,
+    published_at        TEXT,
+    raw_description     TEXT,
+    relevance_score     NUMERIC(4,3),
+    owasp_category      TEXT,
+    attack_pattern      TEXT,
+    detection_hint      TEXT,
+    countermeasure      TEXT,
+    status              TEXT        NOT NULL DEFAULT 'new',
+    rules_generated     INTEGER     NOT NULL DEFAULT 0,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    analyzed_at         TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS warden_core.threat_intel_countermeasures (
+    id              BIGSERIAL   PRIMARY KEY,
+    threat_item_id  TEXT        NOT NULL REFERENCES warden_core.threat_intel_items(id),
+    rule_id         TEXT        NOT NULL,
+    rule_type       TEXT        NOT NULL,
+    rule_value      TEXT        NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS threat_intel_status_idx ON warden_core.threat_intel_items(status);
+CREATE INDEX IF NOT EXISTS threat_intel_source_idx ON warden_core.threat_intel_items(source);
+
+-- ── warden_core: Rule Ledger ───────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS warden_core.rule_ledger (
+    rule_id         TEXT        PRIMARY KEY,
+    source          TEXT        NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    pattern_snippet TEXT,
+    rule_type       TEXT,
+    status          TEXT        NOT NULL DEFAULT 'active'
+);
+
+CREATE INDEX IF NOT EXISTS rule_ledger_source_idx ON warden_core.rule_ledger(source);
+
+-- ── warden_core: Billing ───────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS warden_core.billing_usage (
+    id          BIGSERIAL   PRIMARY KEY,
+    tenant_id   TEXT        NOT NULL,
+    period      TEXT        NOT NULL,   -- YYYY-MM
+    requests    INTEGER     NOT NULL DEFAULT 0,
+    tokens_in   BIGINT      NOT NULL DEFAULT 0,
+    tokens_out  BIGINT      NOT NULL DEFAULT 0,
+    cost_usd    NUMERIC(10,6) NOT NULL DEFAULT 0,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (tenant_id, period)
+);
+
+CREATE INDEX IF NOT EXISTS billing_tenant_idx ON warden_core.billing_usage(tenant_id);
+
 -- ── Grants ────────────────────────────────────────────────────────────────────
 -- The docker-compose POSTGRES_USER gets full access to both schemas.
 -- Adjust if you use separate read-only users for analytics.

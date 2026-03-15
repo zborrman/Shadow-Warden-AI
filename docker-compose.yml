@@ -78,7 +78,7 @@ services:
     environment:
       - ENV=${ENV:-development}
       - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-warden}
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
@@ -113,7 +113,6 @@ services:
       - SESSION_GUARD_ENABLED=${SESSION_GUARD_ENABLED:-true}
       - HONEY_MODE=${HONEY_MODE:-false}
       - ONNX_MODEL_PATH=${ONNX_MODEL_PATH:-}
-      - DATABASE_URL=${DATABASE_URL:-}
     volumes:
       - ./warden:/warden/src          # hot-reload in dev
       - warden-models:/warden/models  # persists MiniLM weights
@@ -152,7 +151,7 @@ services:
     environment:
       - ENV=${ENV:-development}
       - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-warden}
       - REDIS_URL=redis://redis:6379/2
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - WARDEN_URL=https://warden:8001       # all payloads filtered here first
@@ -191,7 +190,7 @@ services:
       - "8002"
     environment:
       - ENV=${ENV:-development}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-warden}
       - REDIS_URL=redis://redis:6379/1
       - ANALYTICS_DATA_PATH=/analytics/data
       - GDPR_ANONYMISE=true
@@ -292,16 +291,16 @@ services:
     container_name: warden-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-warden}
-      - POSTGRES_PASSWORD=${POSTGRES_PASS}
-      - POSTGRES_DB=${POSTGRES_DB:-warden_db}
+      - POSTGRES_USER=${POSTGRES_USER:-warden_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-warden}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./data/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - warden-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-warden}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-warden_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
