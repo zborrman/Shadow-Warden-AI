@@ -38,6 +38,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from typing import TypedDict
 
 log = logging.getLogger("warden.honey")
 
@@ -77,7 +78,12 @@ _RESPONSES: dict[str, list[str]] = {
 # Each template has a prefix that mimics a real credential format.
 # The unique suffix is derived from the honey_id so it is reproducible
 # and can be matched on inbound requests.
-_FAKE_SECRET_TEMPLATES: list[dict[str, str]] = [
+class _FakeSecretTemplate(TypedDict):
+    label:  str
+    prefix: str
+    len:    int
+
+_FAKE_SECRET_TEMPLATES: list[_FakeSecretTemplate] = [
     # Anthropic / OpenAI style keys
     {"label": "ANTHROPIC_API_KEY", "prefix": "sk-ant-api03-",  "len": 40},
     {"label": "OPENAI_API_KEY",    "prefix": "sk-",             "len": 48},
