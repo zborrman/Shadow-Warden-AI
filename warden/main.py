@@ -31,6 +31,8 @@ import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from warden.honey import HoneyEngine
+    from warden.session_guard import SessionGuard
     from warden.threat_intel.scheduler import ThreatIntelScheduler as _TISchedulerT
     from warden.threat_intel.store import ThreatIntelStore as _TIStoreT
 import json
@@ -267,8 +269,8 @@ def _get_tenant_guard(tenant_id: str) -> BrainSemanticGuard:
 _redactor:       SecretRedactor    | None = None
 _guard:          SemanticGuard     | None = None
 _brain_guard:    BrainSemanticGuard| None = None   # "default" tenant
-_session_guard:  "SessionGuard | None"    = None
-_honey_engine:   "HoneyEngine | None"     = None
+_session_guard:  SessionGuard | None       = None
+_honey_engine:   HoneyEngine | None       = None
 _evolve:         EvolutionEngine   | None = None
 _agent_monitor:  AgentMonitor | None   = None
 _ledger:         RuleLedger        | None = None
@@ -523,8 +525,8 @@ async def lifespan(app: FastAPI):
 
     # ── Session Guard (incremental injection detection) ───────────────
     try:
-        from warden.session_guard import SessionGuard  # noqa: PLC0415
         from warden.cache import _get_client as _redis_client_for_sg  # noqa: PLC0415
+        from warden.session_guard import SessionGuard  # noqa: PLC0415
         _sg_redis = _redis_client_for_sg()
         if _sg_redis is not None:
             _session_guard = SessionGuard(_sg_redis)
@@ -536,8 +538,8 @@ async def lifespan(app: FastAPI):
 
     # ── Honey Engine (deception technology) ──────────────────────────
     try:
-        from warden.honey import HoneyEngine  # noqa: PLC0415
         from warden.cache import _get_client as _redis_client_for_honey  # noqa: PLC0415
+        from warden.honey import HoneyEngine  # noqa: PLC0415
         _honey_engine = HoneyEngine(_redis_client_for_honey())
         log.info("HoneyEngine online (HONEY_MODE=%s).", os.getenv("HONEY_MODE", "false"))
     except Exception as _honey_err:
@@ -741,6 +743,28 @@ async def _run_filter_pipeline(
     # Use tenant_id from auth if available, else from payload
     tenant_id = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
     strict = payload.strict or (_guard.strict if _guard else False)
+
+    # ── Fake-secret reuse detection ───────────────────────────────────
+    # If the inbound text contains one of our previously-issued honey credentials,
+    # the attacker is trying to use a fake secret we planted — log and block.
+    if _honey_engine is not None and payload.content:
+        with suppress(Exception):
+            fake_meta = _honey_engine.check_fake_secret_used(payload.content)
+            if fake_meta:
+                log.warning(
+                    json.dumps({
+                        "event":    "fake_secret_reuse",
+                        "honey_id": fake_meta.get("honey_id"),
+                        "label":    fake_meta.get("label"),
+                        "tenant":   tenant_id,
+                        "request_id": rid,
+                    })
+                )
+                # Treat as a blocked high-risk request so the attacker gets no feedback
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied.",
+                )
 
     # ── Monthly quota gate ────────────────────────────────────────────
     if _billing is not None and _billing.is_quota_exceeded(tenant_id):

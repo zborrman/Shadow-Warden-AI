@@ -42,6 +42,7 @@ Usage::
 """
 from __future__ import annotations
 
+import contextlib
 import functools
 import inspect
 import logging
@@ -163,10 +164,8 @@ def trace_stage(
     with _tracer.start_as_current_span(name) as span:
         if attributes:
             for k, v in attributes.items():
-                try:
+                with contextlib.suppress(Exception):
                     span.set_attribute(k, v)
-                except Exception:
-                    pass   # non-serialisable values silently skipped
         try:
             yield span
         except Exception as exc:

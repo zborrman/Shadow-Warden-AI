@@ -204,49 +204,32 @@ class TestHoneyEngine:
         monkeypatch.setenv("HONEY_MODE", "true")
         monkeypatch.setenv("HONEY_PROBABILITY", "1.0")
 
-        import importlib
-
-        import warden.honey as honey_mod
-        importlib.reload(honey_mod)
-
-        engine = honey_mod.HoneyEngine(fake_redis)
+        from warden.honey import HoneyEngine
+        engine = HoneyEngine(fake_redis)
         result = engine.maybe_honey("req-honey", ["PROMPT_INJECTION"], "tenant-x")
         assert result.is_honey is True
         assert len(result.honey_id) == 16
         assert len(result.response_text) > 0
-
-        importlib.reload(honey_mod)
 
     def test_honey_response_matches_flag(self, fake_redis, monkeypatch):
         """Honey response should be selected from the matching flag's response list."""
         monkeypatch.setenv("HONEY_MODE", "true")
         monkeypatch.setenv("HONEY_PROBABILITY", "1.0")
 
-        import importlib
-
-        import warden.honey as honey_mod
-        importlib.reload(honey_mod)
-
-        engine = honey_mod.HoneyEngine(fake_redis)
+        from warden.honey import _RESPONSES, HoneyEngine
+        engine = HoneyEngine(fake_redis)
         result = engine.maybe_honey("req-j", ["JAILBREAK_ATTEMPT"], "tenant-y")
         assert result.is_honey is True
         # Response should come from JAILBREAK_ATTEMPT pool
-        jailbreak_responses = honey_mod._RESPONSES["JAILBREAK_ATTEMPT"]
-        assert result.response_text in jailbreak_responses
-
-        importlib.reload(honey_mod)
+        assert result.response_text in _RESPONSES["JAILBREAK_ATTEMPT"]
 
     def test_honey_session_stored_in_redis(self, fake_redis, monkeypatch):
         """Honey session metadata should be stored in Redis for follow-up correlation."""
         monkeypatch.setenv("HONEY_MODE", "true")
         monkeypatch.setenv("HONEY_PROBABILITY", "1.0")
 
-        import importlib
-
-        import warden.honey as honey_mod
-        importlib.reload(honey_mod)
-
-        engine = honey_mod.HoneyEngine(fake_redis)
+        from warden.honey import HoneyEngine
+        engine = HoneyEngine(fake_redis)
         result = engine.maybe_honey("req-store", ["PROMPT_INJECTION"], "tenant-z")
         assert result.is_honey is True
 
@@ -255,8 +238,6 @@ class TestHoneyEngine:
         assert meta["honey_id"] == result.honey_id
         assert meta["tenant_id"] == "tenant-z"
         assert "PROMPT_INJECTION" in meta["flags"]
-
-        importlib.reload(honey_mod)
 
     def test_is_honey_session_returns_none_for_unknown(self, honey_engine):
         """is_honey_session should return None for an unknown honey_id."""
@@ -268,10 +249,7 @@ class TestHoneyEngine:
         monkeypatch.setenv("HONEY_MODE", "true")
         monkeypatch.setenv("HONEY_PROBABILITY", "1.0")
 
-        import importlib
-
-        import warden.honey as honey_mod
-        importlib.reload(honey_mod)
+        from warden.honey import HoneyEngine
 
         class BrokenRedis:
             def setex(self, *a, **kw):
@@ -279,13 +257,11 @@ class TestHoneyEngine:
             def get(self, key):
                 return None
 
-        engine = honey_mod.HoneyEngine(BrokenRedis())
+        engine = HoneyEngine(BrokenRedis())
         result = engine.maybe_honey("req-broken", ["PROMPT_INJECTION"], "t")
         # Should still return a honey response even though Redis failed
         assert result.is_honey is True
         assert len(result.response_text) > 0
-
-        importlib.reload(honey_mod)
 
     def test_log_followup_respects_gdpr(self, honey_engine, caplog):
         """log_followup should log content_hash but never actual content."""
