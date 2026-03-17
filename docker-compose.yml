@@ -1,16 +1,25 @@
 version: "3.9"
 
-# ─────────────────────────────────────────────
-#  Shadow Warden AI — Orchestrator
-#  Services: proxy | warden | app | analytics | dashboard | admin | postgres | redis
-#            prometheus | grafana
-#  Targets: US / EU  |  GDPR-compliant logging
-#  Dashboard:  http://localhost:8501  (Streamlit analytics)
-#  Admin UI:   http://localhost:8502  (Streamlit admin — tenants, rules, logs)
-#  Grafana:    http://localhost:3000  (Prometheus-backed metrics)
-#  Metrics:    http://localhost:8001/metrics  (Prometheus scrape target)
-#  WS stream:  ws://localhost/ws/stream?key=<api_key>  (LLM token streaming)
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+#  Shadow Warden AI — Minimal Production Stack  (2 CPU / 4 GB RAM / 40 GB disk)
+#
+#  ACTIVE (4 services):
+#    proxy    — nginx reverse proxy  (port 80)
+#    warden   — FastAPI security gateway  (internal :8001)
+#    postgres — persistent storage
+#    redis    — cache + rate limiting
+#
+#  DEFERRED (re-enable when server is upgraded to ≥80 GB disk):
+#    dashboard  — Streamlit analytics UI
+#    analytics  — FastAPI analytics API
+#    prometheus — metrics collection
+#    grafana    — metrics visualization
+#    jaeger     — distributed tracing
+#    portal     — customer portal
+#    app        — demo application
+#    admin      — MSP admin UI
+#    feed       — threat intelligence feed
+# ─────────────────────────────────────────────────────────────────────────────
 
 networks:
   warden-net:
@@ -19,37 +28,22 @@ networks:
 volumes:
   postgres-data:
   redis-data:
-  analytics-data:
   warden-logs:
-  # warden-models was a named volume — replaced by bind mount ./warden/models
-  # so that scripts/export_onnx.py output is immediately visible to the container.
-  prometheus-data:
-  grafana-data:
-  feed-data:
 
 services:
 
-  # ── 1. PROXY ─────────────────────────────────
-  # Public-facing reverse proxy. Routes /api/warden/* → warden,
-  # /api/* → app, /analytics/* → analytics.
+  # ── PROXY ──────────────────────────────────────────────────────────────────
   proxy:
     image: nginx:alpine
     container_name: warden-proxy
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./warden/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs:/etc/nginx/certs:ro                    # mTLS certs (gen_certs.sh)
-      - ./nginx/tls:/etc/nginx/tls:ro                  # Let's Encrypt certs (hetzner.sh)
-      - ./nginx/auth:/etc/nginx/auth:ro                # .htpasswd (gen_htpasswd.sh)
-      - ./landing:/usr/share/nginx/html/landing:ro     # static marketing site
       - warden-logs:/var/log/nginx
     depends_on:
       - warden
-      - app
-      - analytics
     networks:
       - warden-net
     healthcheck:
@@ -58,29 +52,7 @@ services:
       timeout: 5s
       retries: 3
 
-  # ── PORTAL ───────────────────────────────────
-  # Customer portal: Next.js static export served by nginx.
-  # Accessible at portal.shadow-warden-ai.com (via host nginx + Certbot).
-  portal:
-    build:
-      context: ./portal
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: https://api.shadow-warden-ai.com
-    container_name: warden-portal
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:3001:80"
-    networks:
-      - warden-net
-    labels:
-      - "com.shadow-warden.service=portal"
-
-  # ── 2. WARDEN ────────────────────────────────
-  # FastAPI filter gateway + browser sandbox.
-  # Every payload from app/ passes through /filter first.
-  # Playwright (Chromium) runs inside this container for
-  # active security auditing via BrowserSandbox.
+  # ── WARDEN GATEWAY ─────────────────────────────────────────────────────────
   warden:
     build:
       context: ./warden
@@ -92,14 +64,14 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2.0"
-          memory: 2G
+          cpus: "1.5"
+          memory: 1800M
         reservations:
           memory: 512M
     environment:
       - ENV=${ENV:-development}
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-warden}
+      - SECRET_KEY=${SECRET_KEY:-change-me-generate-a-strong-random-key}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-warden}
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
@@ -107,56 +79,51 @@ services:
       - HF_HOME=/warden/models
       - SEMANTIC_THRESHOLD=${SEMANTIC_THRESHOLD:-0.72}
       - STRICT_MODE=${STRICT_MODE:-false}
-      # Evolution Loop — set to enable automated rule generation via Claude Opus.
-      # Leave unset to run in offline/air-gapped mode (all other features work).
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
-      # ── New in v0.3 ──────────────────────────────────────────────────────────
       - WARDEN_API_KEY=${WARDEN_API_KEY:-}
-      - CORS_ORIGINS=${CORS_ORIGINS:-https://shadow-warden-ai.com,https://www.shadow-warden-ai.com,https://portal.shadow-warden-ai.com,http://localhost:3000,http://localhost:3001}
-      # ── Customer portal JWT ──────────────────────────────────────────────────
-      - PORTAL_JWT_SECRET=${PORTAL_JWT_SECRET:-change-me}
-      - PORTAL_ACCESS_TOKEN_TTL=${PORTAL_ACCESS_TOKEN_TTL:-60}
-      - PORTAL_REFRESH_TOKEN_TTL=${PORTAL_REFRESH_TOKEN_TTL:-7}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://shadow-warden-ai.com,https://www.shadow-warden-ai.com,http://localhost:3000}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
       - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-300}
+      # Browser sandbox deferred (slim image has no Chromium binary)
+      - BROWSER_ENABLED=false
+      # mTLS disabled — plain HTTP between nginx and warden
+      - MTLS_ENABLED=false
+      # OpenTelemetry disabled (no Jaeger)
+      - OTEL_ENABLED=false
+      # Security features
+      - SESSION_GUARD_ENABLED=${SESSION_GUARD_ENABLED:-true}
+      - HONEY_MODE=${HONEY_MODE:-false}
+      - HONEY_INJECT_SECRETS=false
+      - POISON_DETECTION_ENABLED=${POISON_DETECTION_ENABLED:-true}
+      - CORPUS_SNAPSHOT_PATH=/warden/data/corpus_snapshot
+      # Stage 4 / 5 — OutputGuard + WalletShield
+      - OUTPUT_GUARDRAILS_ENABLED=${OUTPUT_GUARDRAILS_ENABLED:-true}
+      - OUTPUT_MAX_DISCOUNT_PCT=${OUTPUT_MAX_DISCOUNT_PCT:-50}
+      - OUTPUT_COMMITMENT_BLOCK=${OUTPUT_COMMITMENT_BLOCK:-true}
+      - WALLET_ENABLED=${WALLET_ENABLED:-true}
+      - WALLET_DEFAULT_BUDGET=${WALLET_DEFAULT_BUDGET:-100000}
+      - WALLET_WINDOW_SECONDS=${WALLET_WINDOW_SECONDS:-3600}
+      - WALLET_HARD_LIMIT=${WALLET_HARD_LIMIT:-200000}
+      # Alerting (set tokens in .env to activate)
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
       - PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY:-}
       - ALERT_MIN_RISK_LEVEL=${ALERT_MIN_RISK_LEVEL:-high}
-      - SPLUNK_HEC_URL=${SPLUNK_HEC_URL:-}
-      - SPLUNK_HEC_TOKEN=${SPLUNK_HEC_TOKEN:-}
-      - ELASTIC_URL=${ELASTIC_URL:-}
-      - ELASTIC_API_KEY=${ELASTIC_API_KEY:-}
-      - ELASTIC_INDEX=${ELASTIC_INDEX:-shadow-warden-events}
-      # ── mTLS — enabled by default; certs in ./certs/ (git-ignored).
-      # Run scripts/gen_certs.sh once to initialise, then docker compose up.
-      # Set MTLS_ENABLED=false in .env to run without TLS (dev/CI only).
-      - MTLS_ENABLED=${MTLS_ENABLED:-true}
-      - MTLS_ALLOWED_CNS=${MTLS_ALLOWED_CNS:-proxy,analytics,app}
-      # ── New in v0.5 ──────────────────────────────────────────────────────────
-      - OTEL_ENABLED=${OTEL_ENABLED:-false}
-      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-shadow-warden}
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
-      - OTEL_SAMPLE_RATE=${OTEL_SAMPLE_RATE:-1.0}
-      - SESSION_GUARD_ENABLED=${SESSION_GUARD_ENABLED:-true}
-      - HONEY_MODE=${HONEY_MODE:-false}
-      - HONEY_INJECT_SECRETS=${HONEY_INJECT_SECRETS:-false}
-      # ONNX_MODEL_PATH — set to /warden/models/minilm-onnx after running:
-      #   python3 scripts/export_onnx.py
-      # Leave empty to use the default PyTorch inference path.
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      # ONNX (optional — set after running scripts/export_onnx.py)
       - ONNX_MODEL_PATH=${ONNX_MODEL_PATH:-}
+      # OpenAI-compatible proxy
+      - OPENAI_UPSTREAM=${OPENAI_UPSTREAM:-https://api.openai.com}
+      - WARDEN_FILTER_URL=http://warden:8001
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      # Dashboard auth
+      - DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
+      - DASHBOARD_PASSWORD_HASH=${DASHBOARD_PASSWORD_HASH:-}
     volumes:
-      - ./warden:/warden/src          # hot-reload in dev
-      # Bind mount — lets scripts/export_onnx.py output reach the container directly.
-      # The directory is git-ignored; Docker creates it if absent.
       - ./warden/models:/warden/models
-      - warden-logs:/warden/logs
-      - ./data:/warden/data           # dynamic_rules.json lives here
-      - ./certs:/certs:ro             # mTLS certificates (git-ignored)
-    # Playwright / Chromium needs at least 256 MB of /dev/shm.
-    # We also pass --disable-dev-shm-usage in browser.py launch args
-    # as a belt-and-suspenders fallback.
-    shm_size: "512mb"
+      - ./data:/warden/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -165,168 +132,19 @@ services:
     networks:
       - warden-net
     healthcheck:
-      # --insecure: warden uses a self-signed cert in mTLS mode
-      test: ["CMD", "curl", "-fk", "https://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 20s
       timeout: 5s
       retries: 5
 
-  # ── 3. APP ───────────────────────────────────
-  # Main Shadow Warden application.
-  # All outbound AI payloads must pass through warden:8001/filter.
-  app:
-    build:
-      context: ./app
-      dockerfile: Dockerfile
-    container_name: warden-app
-    restart: unless-stopped
-    expose:
-      - "8000"
-    environment:
-      - ENV=${ENV:-development}
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-warden}
-      - REDIS_URL=redis://redis:6379/2
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - WARDEN_URL=https://warden:8001       # all payloads filtered here first
-      - REQUESTS_CA_BUNDLE=/certs/ca.crt    # trust the internal CA
-      - SSL_CERT_FILE=/certs/ca.crt         # httpx / aiohttp compatibility
-    volumes:
-      - ./app:/app
-      - warden-logs:/app/logs
-      - ./certs:/certs:ro                   # app-client.crt for mTLS to warden
-    depends_on:
-      warden:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - warden-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-
-  # ── 4. ANALYTICS ─────────────────────────────
-  # GDPR-compliant event collection and reporting.
-  # Anonymises PII before storage, enforces
-  # configurable data-retention windows.
-  analytics:
-    build:
-      context: ./analytics
-      dockerfile: Dockerfile
-    container_name: warden-analytics
-    restart: unless-stopped
-    expose:
-      - "8002"
-    environment:
-      - ENV=${ENV:-development}
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD}@postgres:5432/${POSTGRES_DB:-warden}
-      - REDIS_URL=redis://redis:6379/1
-      - ANALYTICS_DATA_PATH=/analytics/data
-      - GDPR_ANONYMISE=true
-      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
-    volumes:
-      - ./analytics:/analytics/src
-      - analytics-data:/analytics/data
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - warden-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-
-  # ── 5. DASHBOARD ─────────────────────────────
-  # Streamlit analytics dashboard.
-  # Reads data/logs.json written by the warden gateway.
-  # Access: http://localhost:8501
-  dashboard:
-    build:
-      context: ./warden
-      dockerfile: Dockerfile
-    container_name: warden-dashboard
-    restart: unless-stopped
-    ports:
-      - "8501:8501"
-    command: >
-      streamlit run analytics/dashboard.py
-      --server.port=8501
-      --server.address=0.0.0.0
-      --server.headless=true
-      --browser.gatherUsageStats=false
-    environment:
-      - LOGS_PATH=/warden/data/logs.json
-      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
-    volumes:
-      - ./warden:/warden/src          # hot-reload in dev
-      - ./data:/warden/data           # reads logs.json written by warden gateway
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-    networks:
-      - warden-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-
-  # ── 6. ADMIN UI ──────────────────────────────
-  # Streamlit admin panel — manage tenants, dynamic rules, event log.
-  # Access: http://localhost:8502
-  admin:
-    build:
-      context: ./admin
-      dockerfile: Dockerfile
-    container_name: warden-admin
-    restart: unless-stopped
-    ports:
-      - "8502:8502"
-    environment:
-      - WARDEN_URL=http://warden:8001
-      - ANALYTICS_URL=http://analytics:8002
-      - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
-      - LOGS_PATH=/warden/data/logs.json
-      - WARDEN_API_KEY=${WARDEN_API_KEY:-}
-    volumes:
-      - ./data:/warden/data           # reads dynamic_rules.json + logs.json
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: 256M
-    depends_on:
-      warden:
-        condition: service_healthy
-    networks:
-      - warden-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8502/_stcore/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-
-  # ── POSTGRES ──────────────────────────────────
-  # Shared relational store. One DB, two schemas:
-  # warden_core (app) and warden_analytics.
+  # ── POSTGRES ────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: warden-postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-warden_user}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-change-me}
       - POSTGRES_DB=${POSTGRES_DB:-warden}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -339,11 +157,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── REDIS ─────────────────────────────────────
-  # Shared cache and message bus.
-  # DB 0 → warden filter cache + slowapi rate-limit
-  # DB 1 → analytics event queue
-  # DB 2 → app session
+  # ── REDIS ───────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: warden-redis
@@ -358,131 +172,3 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-
-  # ── PROMETHEUS ────────────────────────────────
-  # Scrapes /metrics from the warden gateway every 15 s.
-  # Grafana uses this as its data source.
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: warden-prometheus
-    restart: unless-stopped
-    expose:
-      - "9090"
-    volumes:
-      - ./grafana/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=15d"
-      - "--web.enable-lifecycle"
-    depends_on:
-      warden:
-        condition: service_healthy
-    networks:
-      - warden-net
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-
-  # ── 11. FEED SERVER ──────────────────────────
-  # Central threat-intelligence feed: receives anonymised attack rules
-  # from opted-in Shadow Warden instances and publishes a vetted feed.
-  # Access: http://localhost:8003  (POST /rules, GET /feed.json)
-  feed:
-    build:
-      context: ./warden
-      dockerfile: Dockerfile
-    container_name: warden-feed
-    restart: unless-stopped
-    command: >
-      uvicorn warden.feed_server.main:app
-        --host 0.0.0.0
-        --port 8003
-        --workers 2
-        --log-level info
-    ports:
-      - "8003:8003"
-    environment:
-      - FEED_DB_PATH=/data/feed_server.db
-      - FEED_ADMIN_KEY=${FEED_ADMIN_KEY:-changeme-in-production}
-      - FEED_PUBLIC=${FEED_PUBLIC:-false}
-      - FEED_MIN_VET_SOURCES=${FEED_MIN_VET_SOURCES:-2}
-      - FEED_DAILY_SUBMIT_CAP=${FEED_DAILY_SUBMIT_CAP:-50}
-    volumes:
-      - feed-data:/data
-    networks:
-      - warden-net
-    healthcheck:
-      test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
-      interval: 30s
-      timeout: 10s
-      start_period: 20s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-
-  # ── JAEGER ────────────────────────────────────────────────────────────────
-  # Distributed tracing backend.  All-in-one image includes collector + UI.
-  # Enable tracing by setting OTEL_ENABLED=true in .env.
-  #
-  # Ports:
-  #   UI (16686)  — NOT exposed to host. Access via nginx Basic Auth:
-  #                 https://admin.shadow-warden-ai.com/jaeger/
-  #   OTLP (4318) — internal only; warden container sends traces directly.
-  #
-  # Dev override: uncomment the ports block below for direct localhost access.
-  jaeger:
-    image: jaegertracing/all-in-one:1.76.0
-    container_name: warden-jaeger
-    restart: unless-stopped
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
-    expose:
-      - "16686"   # Jaeger UI — nginx proxies this with Basic Auth
-      - "4318"    # OTLP HTTP receiver — warden sends traces here (internal)
-    # ports:
-    #   - "16686:16686"   # ← uncomment for local dev only
-    #   - "4318:4318"     # ← uncomment for local dev only
-    networks:
-      - warden-net
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:16686"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ── GRAFANA ───────────────────────────────────
-  # Pre-provisioned with the Prometheus data source and
-  # the Shadow Warden dashboard (grafana/dashboards/).
-  # Access: http://localhost:3000  (admin / ${GRAFANA_PASSWORD:-admin})
-  grafana:
-    image: grafana/grafana:latest
-    container_name: warden-grafana
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_ANALYTICS_REPORTING_ENABLED=false
-      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-    depends_on:
-      - prometheus
-    networks:
-      - warden-net
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
