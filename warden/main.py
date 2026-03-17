@@ -968,7 +968,6 @@ async def _run_filter_pipeline(
         )
 
     # ── Stage 2c: Data Poisoning Detection ───────────────────────────
-    poison_result_dict: dict = {}
     if _poison_guard is not None:
         t0 = time.perf_counter()
         try:
