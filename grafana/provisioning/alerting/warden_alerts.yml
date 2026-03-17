@@ -134,3 +134,136 @@ groups:
             for 5 consecutive minutes.  Likely cause: ML model contention or
             Redis cache miss storm.
             Dashboard: http://localhost:3000/d/warden-overview
+
+      # ── 3. Corpus Canary Failure (Self-Healing trigger) ───────────────────────
+      - uid: warden-canary-failing
+        title: "Warden — Corpus Canary Failure (poisoning suspected)"
+        condition: C
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "warden_corpus_canary_failing"
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        labels:
+          severity: critical
+          team: warden
+          category: corpus_poisoning
+        annotations:
+          summary: "Corpus canary examples failing — poisoning suspected"
+          description: >
+            One or more of the 10 canary examples now scores below 0.70
+            against the threat corpus.  Self-Healing rollback has been
+            triggered automatically.  Review CorpusHealthMonitor logs and
+            check for suspicious Evolution Engine activity.
+            Dashboard: http://localhost:3000/d/ai-security-health
+
+      # ── 4. Corpus Centroid Drift ──────────────────────────────────────────────
+      - uid: warden-corpus-drift
+        title: "Warden — Corpus centroid drift exceeds threshold"
+        condition: C
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "warden_corpus_drift_score"
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.08"
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        labels:
+          severity: warning
+          team: warden
+          category: corpus_poisoning
+        annotations:
+          summary: "Corpus centroid has drifted beyond 0.08"
+          description: >
+            The cosine distance between the current corpus centroid and the
+            baseline has exceeded 0.08 for 5 minutes.  This indicates the
+            Evolution Engine may have absorbed adversarial examples that are
+            gradually shifting the detection boundary toward benign space.
+            Dashboard: http://localhost:3000/d/ai-security-health
+
+      # ── 5. Data Poisoning Spike ───────────────────────────────────────────────
+      - uid: warden-poisoning-spike
+        title: "Warden — Data poisoning attack spike"
+        condition: C
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(warden_poisoning_attempts_total[5m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.1"
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        labels:
+          severity: critical
+          team: warden
+          category: corpus_poisoning
+        annotations:
+          summary: "Data poisoning rate above 6 attempts / minute"
+          description: >
+            The rate of data poisoning detections has exceeded 0.1 req/s
+            (6 per minute) for 2 consecutive minutes.  This may indicate
+            an automated boundary-probing or adversarial-perturbation
+            campaign targeting this Warden instance.
+            Dashboard: http://localhost:3000/d/ai-security-health

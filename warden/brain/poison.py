@@ -42,8 +42,10 @@ Environment variables
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
+import pathlib
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -64,6 +66,12 @@ _BOUNDARY_WINDOW  = int(os.getenv("POISON_BOUNDARY_WINDOW", "60"))   # seconds
 _BOUNDARY_MAX     = int(os.getenv("POISON_BOUNDARY_MAX", "6"))        # hits before flag
 _DRIFT_THRESHOLD  = float(os.getenv("POISON_DRIFT_THRESHOLD", "0.08"))
 _MONITOR_INTERVAL = int(os.getenv("POISON_MONITOR_INTERVAL", "300"))  # seconds
+
+# Corpus snapshot path — for Self-Healing rollback on canary failure.
+_SNAPSHOT_BASE = pathlib.Path(
+    os.getenv("CORPUS_SNAPSHOT_PATH", "/tmp/warden_corpus_snapshot")
+)
+# Two files: <base>.npz (embeddings) + <base>.json (text examples)
 
 # Near-boundary zone: [threshold - LOWER_MARGIN, threshold + UPPER_MARGIN]
 # Inputs in this zone are suspicious — too close to the decision boundary.
@@ -394,6 +402,72 @@ class DataPoisoningGuard:
 
         return report
 
+    # ── Corpus snapshot (Self-Healing) ────────────────────────────────────────
+
+    async def save_snapshot_async(self) -> bool:
+        """Atomically persist current corpus embeddings + examples to disk."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._save_snapshot_sync)
+
+    def _save_snapshot_sync(self) -> bool:
+        try:
+            emb = self._guard._embeddings  # type: ignore[attr-defined]
+            if emb is None or len(emb) == 0:
+                return False
+            arr      = emb.numpy()
+            examples = list(getattr(self._guard, "_examples", []))
+
+            # Atomic write: write to .tmp then os.replace()
+            npz_path  = _SNAPSHOT_BASE.with_suffix(".npz")
+            json_path = _SNAPSHOT_BASE.with_suffix(".json")
+            tmp_npz   = _SNAPSHOT_BASE.with_suffix(".tmp.npz")
+            tmp_json  = _SNAPSHOT_BASE.with_suffix(".tmp.json")
+
+            _SNAPSHOT_BASE.parent.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(str(tmp_npz), embeddings=arr)
+            with open(tmp_json, "w", encoding="utf-8") as fh:
+                json.dump(examples, fh)
+            os.replace(str(tmp_npz),  str(npz_path))
+            os.replace(str(tmp_json), str(json_path))
+            log.info(
+                "Self-Healing: corpus snapshot saved (%d embeddings, %d examples)",
+                len(arr), len(examples),
+            )
+            return True
+        except Exception as exc:
+            log.warning("Corpus snapshot save failed: %s", exc)
+            return False
+
+    async def restore_snapshot_async(self) -> bool:
+        """Restore corpus from last healthy snapshot (Self-Healing rollback)."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._restore_snapshot_sync)
+
+    def _restore_snapshot_sync(self) -> bool:
+        try:
+            npz_path  = _SNAPSHOT_BASE.with_suffix(".npz")
+            json_path = _SNAPSHOT_BASE.with_suffix(".json")
+            if not npz_path.exists():
+                log.warning(
+                    "Self-Healing: no corpus snapshot found at %s — rollback skipped",
+                    npz_path,
+                )
+                return False
+            data = np.load(str(npz_path))
+            arr  = data["embeddings"]
+            self._guard._embeddings = torch.tensor(arr)  # type: ignore[attr-defined]
+            if json_path.exists():
+                with open(json_path, encoding="utf-8") as fh:
+                    examples = json.load(fh)
+                self._guard._examples = examples  # type: ignore[attr-defined]
+            log.info(
+                "Self-Healing: corpus restored from snapshot (%d embeddings)", len(arr)
+            )
+            return True
+        except Exception as exc:
+            log.warning("Corpus snapshot restore failed: %s", exc)
+            return False
+
     @property
     def last_health(self) -> CorpusHealthReport:
         return self._health
@@ -427,11 +501,32 @@ class CorpusHealthMonitor:
                         "corpus_health: DEGRADED — drift=%.5f canaries_failing=%d — %s",
                         report.centroid_drift, report.failing_canaries, report.detail
                     )
+                    # ── Self-Healing: auto-rollback if canaries are failing ─────
+                    if report.failing_canaries > 0:
+                        log.warning(
+                            "Self-Healing: %d canary(s) failing — triggering corpus rollback",
+                            report.failing_canaries,
+                        )
+                        rolled_back = await self._guard.restore_snapshot_async()
+                        if rolled_back:
+                            log.info("Self-Healing: corpus rollback complete")
+                        # Fire Telegram + Slack alert (non-blocking)
+                        try:
+                            from warden import alerting
+                            asyncio.create_task(alerting.alert_corpus_rollback(
+                                failing_canaries = report.failing_canaries,
+                                drift            = report.centroid_drift,
+                                detail           = report.detail,
+                            ))
+                        except Exception as _ae:
+                            log.debug("Rollback alert dispatch error: %s", _ae)
                 else:
                     log.info(
                         "corpus_health: OK — drift=%.5f min_canary=%.4f",
                         report.centroid_drift, report.min_canary_score
                     )
+                    # Corpus is healthy — save a fresh snapshot for future rollbacks
+                    await self._guard.save_snapshot_async()
             except Exception as exc:
                 log.error("CorpusHealthMonitor error: %s", exc)
 

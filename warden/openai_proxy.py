@@ -24,6 +24,7 @@ Environment variables:
 """
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import os
@@ -33,8 +34,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from warden.auth_guard import AuthResult, require_api_key
 from warden.masking.engine import get_engine as _get_masking_engine
-from warden.metrics import TOOL_BLOCKS
+from warden.metrics import OUTPUT_GUARD_BLOCKS, OUTPUT_GUARD_SANITIZATIONS, TOOL_BLOCKS
+from warden.notification_hook import get_notification_hook
+from warden.output_guard import get_output_guard
 from warden.tool_guard import ToolCallGuard
+from warden.wallet_shield import estimate_tokens, get_wallet_shield
 
 log = logging.getLogger("warden.openai_proxy")
 
@@ -45,6 +49,9 @@ _FILTER_URL   = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
 # MASKING_MODE=auto  — transparently mask PII in user messages, unmask LLM responses
 # MASKING_MODE=off   — standard redact-only behaviour (default)
 _MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
+
+_WALLET_ENABLED       = os.getenv("WALLET_ENABLED",        "true").lower() == "true"
+_OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARDRAILS_ENABLED", "true").lower() == "true"
 
 # Module-level singleton — no state, safe to share
 _tool_guard = ToolCallGuard()
@@ -166,6 +173,33 @@ async def proxy_chat(
         raise HTTPException(status_code=400, detail="No user message found.")
 
     user_content = messages[last_user_idx].get("content", "")
+
+    # ── WalletShield: token budget pre-flight ──────────────────────────────
+    # Blocks the request before it reaches the upstream LLM if the user/tenant
+    # has exhausted their token budget window.  Fail-open on Redis errors.
+    _tenant_id     = auth.tenant_id if hasattr(auth, "tenant_id") and auth.tenant_id else "default"
+    _user_id       = (
+        request.headers.get("X-User-ID")
+        or payload.get("user", "")
+        or "anonymous"
+    )
+    _estimated_tok = 0
+    if _WALLET_ENABLED:
+        _estimated_tok = estimate_tokens(messages)
+        _budget = get_wallet_shield().check_and_consume(
+            tenant_id = _tenant_id,
+            user_id   = _user_id,
+            estimated = _estimated_tok,
+        )
+        if not _budget.allowed:
+            log.warning(
+                "wallet_shield_block tenant=%s user=%s used=%d limit=%d",
+                _tenant_id, _user_id, _budget.used, _budget.limit,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=_budget.to_dict(),
+            )
 
     # ── Run through Warden /filter ─────────────────────────────────────────
     try:
@@ -294,6 +328,64 @@ async def proxy_chat(
             msg = choice.get("message") or {}
             if isinstance(msg.get("content"), str):
                 msg["content"] = engine.unmask(msg["content"], _mask_session_id)
+
+    # ── Stage 4: OutputGuard — business-layer guardrails ───────────────────
+    # Scans LLM output for price manipulation, unauthorized commitments,
+    # competitor mentions, and policy violations.  Sanitizes in-place;
+    # does NOT raise HTTP errors (sanitize > block for business rules).
+    if _OUTPUT_GUARD_ENABLED:
+        _guard      = get_output_guard()
+        _og_tenant  = _tenant_id
+        _og_blocked = False
+        for choice in upstream_data.get("choices") or []:
+            msg     = choice.get("message") or {}
+            content = msg.get("content")
+            if not isinstance(content, str) or not content:
+                continue
+            og_result = _guard.scan(content)
+            if og_result.risky:
+                _og_blocked = True
+                msg["content"] = og_result.sanitized
+                for finding in og_result.findings:
+                    with contextlib.suppress(Exception):
+                        OUTPUT_GUARD_BLOCKS.labels(
+                            tenant_id=_og_tenant,
+                            risk=finding.risk.value,
+                        ).inc()
+                with contextlib.suppress(Exception):
+                    OUTPUT_GUARD_SANITIZATIONS.labels(tenant_id=_og_tenant).inc()
+                log.warning(
+                    "output_guard_sanitized tenant=%r risks=%r snippet=%r",
+                    _og_tenant,
+                    og_result.risk_types,
+                    og_result.findings[0].snippet if og_result.findings else "",
+                )
+                # ── Stage 5: Notification Hook ─────────────────────────────
+                # Notify the shop manager via Telegram / CRM webhook for
+                # high-business-impact violations (price manipulation, commitments).
+                _hook = get_notification_hook()
+                for _finding in og_result.findings:
+                    with contextlib.suppress(Exception):
+                        asyncio.create_task(_hook.fire(
+                            finding    = _finding,
+                            session_id = session_id,
+                            tenant_id  = _og_tenant,
+                            user_id    = _user_id,
+                        ))
+
+    # ── WalletShield: actual token reconciliation ──────────────────────────
+    # Correct the budget counter from the heuristic estimate to the real count
+    # returned by the upstream API in usage.total_tokens.
+    if _WALLET_ENABLED and _estimated_tok:
+        _usage      = upstream_data.get("usage") or {}
+        _actual_tok = _usage.get("total_tokens", 0)
+        if _actual_tok > 0:
+            get_wallet_shield().record_actual(
+                tenant_id = _tenant_id,
+                user_id   = _user_id,
+                actual    = _actual_tok,
+                estimated = _estimated_tok,
+            )
 
     return upstream_data
 

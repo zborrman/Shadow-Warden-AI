@@ -1005,6 +1005,16 @@ async def _run_filter_pipeline(
                         "detail":       _pr.detail,
                     })
                 )
+                # High-confidence poisoning (>85%) → Telegram + Slack alert
+                if _pr.poisoning_score > 0.85:
+                    from warden import alerting  # noqa: PLC0415
+                    background_tasks.add_task(
+                        alerting.alert_poisoning_event,
+                        attack_vector   = _pr.attack_vector,
+                        poisoning_score = _pr.poisoning_score,
+                        detail          = _pr.detail,
+                        tenant_id       = tenant_id,
+                    )
         except Exception as _pe:
             log.debug("Poison detection error (non-fatal): %s", _pe)
 

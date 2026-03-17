@@ -1,0 +1,1011 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {"type": "grafana",    "id": "grafana",    "name": "Grafana",    "version": "10.0.0"},
+    {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"},
+    {"type": "panel",      "id": "piechart",   "name": "Pie chart",  "version": ""}
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Shadow Warden AI — Corpus integrity, data poisoning detection, Self-Healing events, evolution engine and agent security",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "arrow-left",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": ["shadow-warden"],
+      "targetBlank": false,
+      "title": "← Gateway Overview",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {"text": "● HEALTHY", "color": "green", "index": 0}
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 10000,
+                "result": {"text": "● DEGRADED", "color": "red", "index": 1}
+              }
+            }
+          ],
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "red",   "value": 1}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Corpus Status",
+      "description": "HEALTHY = all canaries ≥ 0.70 and drift within limit. Any canary failure triggers Self-Healing rollback.",
+      "type": "stat",
+      "targets": [{"expr": "warden_corpus_canary_failing", "legendFormat": "failing", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 3,
+          "max": 1,
+          "min": 0,
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "red",    "value": null},
+            {"color": "yellow", "value": 0.55},
+            {"color": "green",  "value": 0.70}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Canary Min Score",
+      "description": "Minimum cosine similarity of the 10 canary examples vs corpus. Must stay ≥ 0.70.",
+      "type": "stat",
+      "targets": [{"expr": "warden_corpus_canary_min_score", "legendFormat": "min canary", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 4,
+          "max": 0.20,
+          "min": 0,
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 0.04},
+            {"color": "red",    "value": 0.08}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Corpus Drift",
+      "description": "Cosine distance of current centroid from baseline. Red ≥ 0.08 triggers Self-Healing rollback.",
+      "type": "stat",
+      "targets": [{"expr": "warden_corpus_drift_score", "legendFormat": "drift", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "red",   "value": 1}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Failing Canaries",
+      "description": "Number of canary examples scoring below 0.70. Non-zero = corpus poisoning suspected.",
+      "type": "stat",
+      "targets": [{"expr": "warden_corpus_canary_failing", "legendFormat": "failing canaries", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 5},
+            {"color": "red",    "value": 20}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Poisoning Attempts (24 h)",
+      "description": "Total data poisoning attempts detected across all tenants in the last 24 hours.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_poisoning_attempts_total[24h]))", "legendFormat": "attempts", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "blue",   "value": null},
+            {"color": "yellow", "value": 3},
+            {"color": "orange", "value": 8}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Active Agent Sessions",
+      "description": "Live agent sessions currently monitored by AgentMonitor.",
+      "type": "stat",
+      "targets": [{"expr": "warden_agent_sessions_active", "legendFormat": "sessions", "refId": "A"}]
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 4}, "id": 7, "title": "Corpus Integrity", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "fillOpacity": 12,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Canary Min Score"},
+            "properties": [
+              {"id": "color", "value": {"fixedColor": "#73BF69", "mode": "fixed"}},
+              {"id": "custom.thresholdsStyle", "value": {"mode": "dashed"}},
+              {"id": "thresholds", "value": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "transparent", "value": null},
+                  {"color": "red",         "value": 0},
+                  {"color": "transparent", "value": 0.70}
+                ]
+              }}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Corpus Drift"},
+            "properties": [
+              {"id": "color", "value": {"fixedColor": "#FF9830", "mode": "fixed"}},
+              {"id": "custom.thresholdsStyle", "value": {"mode": "dashed"}},
+              {"id": "thresholds", "value": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "transparent", "value": null},
+                  {"color": "transparent", "value": 0},
+                  {"color": "red",         "value": 0.08}
+                ]
+              }}
+            ]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5},
+      "id": 8,
+      "options": {
+        "legend": {"calcs": ["last", "min"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "title": "Corpus Health Scores Over Time",
+      "description": "Canary min score (green) must stay ≥ 0.70. Drift (orange) must stay < 0.08. Dashed lines mark thresholds.",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "warden_corpus_canary_min_score", "legendFormat": "Canary Min Score", "refId": "A"},
+        {"expr": "warden_corpus_drift_score",      "legendFormat": "Corpus Drift",     "refId": "B"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "red"},
+          "custom": {
+            "fillOpacity": 25,
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "spanNulls": true
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5},
+      "id": 9,
+      "options": {
+        "legend": {"calcs": ["max", "sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "title": "Failing Canaries Over Time",
+      "description": "Any non-zero value means corpus poisoning is suspected. Self-Healing fires a rollback automatically.",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "warden_corpus_canary_failing", "legendFormat": "Failing Canaries", "refId": "A"}
+      ]
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 13}, "id": 10, "title": "Data Poisoning Attacks", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 20, "lineWidth": 2, "showPoints": "auto", "spanNulls": true},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 16, "x": 0, "y": 14},
+      "id": 11,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "title": "Poisoning Attempts Rate — by Attack Vector",
+      "description": "Rate per minute of poisoning detections, split by attack vector (boundary_probing / adversarial_perturbation).",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (attack_vector) (rate(warden_poisoning_attempts_total[5m]))",
+          "legendFormat": "{{attack_vector}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 14},
+      "id": 12,
+      "options": {
+        "displayLabels": ["percent", "name"],
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true},
+        "pieType": "donut",
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "title": "Attack Vector Distribution (24 h)",
+      "description": "Share of each poisoning attack type in the last 24 hours.",
+      "type": "piechart",
+      "targets": [
+        {
+          "expr": "sum by (attack_vector) (increase(warden_poisoning_attempts_total[24h]))",
+          "legendFormat": "{{attack_vector}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short", "min": 0},
+        "overrides": []
+      },
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 22},
+      "id": 13,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "title": "Poisoning Attempts by Tenant (24 h)",
+      "description": "Total poisoning attempts grouped by tenant_id over the last 24 hours.",
+      "type": "bargauge",
+      "targets": [
+        {
+          "expr": "sum by (tenant_id) (increase(warden_poisoning_attempts_total[24h]))",
+          "legendFormat": "{{tenant_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 28}, "id": 14, "title": "Evolution Engine (Claude Opus)", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 50},
+            {"color": "red",    "value": 200}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 29},
+      "id": 15,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Evolution Skips (24 h)",
+      "description": "Times the Evolution Engine skipped calling Claude Opus (corpus_cap / low_risk / duplicate / rate_limited).",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_evolution_skipped_total[24h]))", "legendFormat": "skips", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "blue", "value": null},
+            {"color": "red",  "value": 1}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 29},
+      "id": 16,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Corpus Cap Hits (24 h)",
+      "description": "How many times MAX_CORPUS_RULES was reached, blocking new rule additions.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_evolution_skipped_total{reason=\"corpus_cap\"}[24h]))", "legendFormat": "cap hits", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short", "min": 0},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 10, "x": 0, "y": 33},
+      "id": 17,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "title": "Evolution Skips by Reason (24 h)",
+      "description": "corpus_cap = quota hit; low_risk = below threshold; duplicate = SHA already seen; rate_limited = API window.",
+      "type": "bargauge",
+      "targets": [
+        {
+          "expr": "sum by (reason) (increase(warden_evolution_skipped_total[24h]))",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "showPoints": "never", "spanNulls": true},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 14, "x": 10, "y": 33},
+      "id": 18,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "title": "Evolution Skip Rate Over Time",
+      "description": "Rate per minute at which the Evolution Engine skips calling Claude Opus, by reason.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(warden_evolution_skipped_total[5m]))",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 41}, "id": 19, "title": "Agent Security (AgentMonitor)", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "blue",   "value": null},
+            {"color": "yellow", "value": 5},
+            {"color": "orange", "value": 15}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 42},
+      "id": 20,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Active Agent Sessions",
+      "type": "stat",
+      "targets": [{"expr": "warden_agent_sessions_active", "legendFormat": "sessions", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 10},
+            {"color": "red",    "value": 50}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 42},
+      "id": 21,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Agent Anomalies (24 h)",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_agent_anomalies_total[24h]))", "legendFormat": "anomalies", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 5},
+            {"color": "red",    "value": 25}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 42},
+      "id": 22,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Agent Session Blocks (24 h)",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_agent_session_blocks_total[24h]))", "legendFormat": "blocks", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short", "min": 0},
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 12, "x": 12, "y": 42},
+      "id": 23,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "title": "Agent Session Blocks by Tenant (24 h)",
+      "type": "bargauge",
+      "targets": [
+        {
+          "expr": "sum by (tenant_id) (increase(warden_agent_session_blocks_total[24h]))",
+          "legendFormat": "{{tenant_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "showPoints": "never", "spanNulls": true},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 46},
+      "id": 24,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "title": "Agent Anomalies by Pattern Type",
+      "description": "Rate of agent-level anomalies broken down by pattern_type label.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (pattern_type) (rate(warden_agent_anomalies_total[5m]))",
+          "legendFormat": "{{pattern_type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 20, "lineWidth": 2, "showPoints": "never", "spanNulls": true},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "critical"},
+            "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "warning"},
+            "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "info"},
+            "properties": [{"id": "color", "value": {"fixedColor": "#73BF69", "mode": "fixed"}}]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 46},
+      "id": 25,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "title": "Agent Anomalies by Severity",
+      "description": "Breakdown of agent anomaly severity (critical / warning / info).",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (severity) (rate(warden_agent_anomalies_total[5m]))",
+          "legendFormat": "{{severity}}",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 54}, "id": 30, "title": "WalletShield — Token Budget (LLM10: Resource Exhaustion)", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 5},
+            {"color": "red",    "value": 20}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 55},
+      "id": 31,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Budget Exceeded Events (24 h)",
+      "description": "Times a user hit their token budget limit — each = a blocked request (HTTP 429).",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_wallet_budget_exceeded_total[24h]))", "legendFormat": "exceeded", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "blue", "value": null}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 55},
+      "id": 32,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Tokens Consumed (24 h)",
+      "description": "Total estimated input tokens forwarded to upstream LLMs across all tenants.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_wallet_tokens_consumed_total[24h]))", "legendFormat": "tokens", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "showPoints": "never", "spanNulls": true},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 16, "x": 8, "y": 55},
+      "id": 33,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "title": "Token Consumption Rate by Tenant",
+      "description": "Rate of token consumption per tenant. A sudden spike may indicate a prompt-flood attack.",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (tenant_id) (rate(warden_wallet_tokens_consumed_total[5m]))", "legendFormat": "{{tenant_id}}", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short", "min": 0},
+        "overrides": []
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 63},
+      "id": 34,
+      "options": {"displayMode": "gradient", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "showUnfilled": true, "valueMode": "color"},
+      "title": "Budget Exceeded by Tenant (24 h)",
+      "type": "bargauge",
+      "targets": [
+        {"expr": "sum by (tenant_id) (increase(warden_wallet_budget_exceeded_total[24h]))", "legendFormat": "{{tenant_id}}", "refId": "A"}
+      ]
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 69}, "id": 35, "title": "OutputGuard — Business Guardrails (Stage 4)", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 3},
+            {"color": "red",    "value": 10}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 70},
+      "id": 36,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Output Blocks (24 h)",
+      "description": "LLM responses sanitized by OutputGuard (price manipulation, commitments, competitor mentions, policy violations).",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_output_guard_blocks_total[24h]))", "legendFormat": "blocks", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 3},
+            {"color": "orange", "value": 10}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 70},
+      "id": 37,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Sanitizations Applied (24 h)",
+      "description": "Total LLM responses where content was replaced with a safe alternative.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_output_guard_sanitizations_total[24h]))", "legendFormat": "sanitizations", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short", "min": 0},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 70},
+      "id": 38,
+      "options": {
+        "displayLabels": ["percent", "name"],
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true},
+        "pieType": "donut",
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "title": "Output Violations by Risk Type (24 h)",
+      "description": "Distribution of business-rule violations: price_manipulation / unauthorized_commitment / competitor_mention / policy_violation.",
+      "type": "piechart",
+      "targets": [
+        {"expr": "sum by (risk) (increase(warden_output_guard_blocks_total[24h]))", "legendFormat": "{{risk}}", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "showPoints": "auto", "spanNulls": true},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 70},
+      "id": 39,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "title": "Output Violation Rate Over Time",
+      "description": "Rate of business-rule violations caught per minute, by risk type.",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (risk) (rate(warden_output_guard_blocks_total[5m]))", "legendFormat": "{{risk}}", "refId": "A"}
+      ]
+    },
+
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 78}, "id": 40, "title": "Tool Call Guard (LLM06 — Excessive Agency)", "type": "row"},
+
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 5},
+            {"color": "red",    "value": 50}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 79},
+      "id": 41,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Tool Result Blocks — Phase A (24 h)",
+      "description": "Incoming tool results blocked (LLM output injection via tool result).",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_tool_blocks_total{direction=\"result\"}[24h]))", "legendFormat": "blocked results", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green",  "value": null},
+            {"color": "yellow", "value": 5},
+            {"color": "red",    "value": 50}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 79},
+      "id": 42,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "title": "Tool Call Blocks — Phase B (24 h)",
+      "description": "Outgoing tool calls blocked (agent attempting unauthorized autonomous actions).",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_tool_blocks_total{direction=\"call\"}[24h]))", "legendFormat": "blocked calls", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"fillOpacity": 15, "lineWidth": 2, "showPoints": "never", "spanNulls": true},
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 16, "x": 8, "y": 79},
+      "id": 43,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "desc"}
+      },
+      "title": "Tool Blocks by Threat Type",
+      "description": "Rate of tool call/result blocks grouped by threat label (shell_destruction, prompt_injection, etc.).",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (threat) (rate(warden_tool_blocks_total[5m]))",
+          "legendFormat": "{{threat}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+
+  "schemaVersion": 38,
+  "tags": ["shadow-warden", "security", "ai-health"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource"
+      },
+      {
+        "current": {"selected": false, "text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "definition": "label_values(warden_poisoning_attempts_total, tenant_id)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "tenant",
+        "options": [],
+        "query": {
+          "query": "label_values(warden_poisoning_attempts_total, tenant_id)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query",
+        "label": "Tenant"
+      }
+    ]
+  },
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Shadow Warden — AI Security Health",
+  "uid": "ai-security-health",
+  "version": 1
+}

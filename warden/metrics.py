@@ -135,6 +135,56 @@ try:
             "warden_corpus_canary_failing"
         )
 
+    # ── WalletShield metrics ──────────────────────────────────────────────────
+    # Populated by wallet_shield.py on every /v1/chat/completions call.
+
+    try:
+        WALLET_TOKENS_CONSUMED = Counter(
+            "warden_wallet_tokens_consumed_total",
+            "Estimated input tokens consumed per tenant (WalletShield)",
+            ["tenant_id"],
+        )
+    except ValueError:
+        WALLET_TOKENS_CONSUMED = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_wallet_tokens_consumed_total"
+        )
+
+    try:
+        WALLET_BUDGET_EXCEEDED = Counter(
+            "warden_wallet_budget_exceeded_total",
+            "Token budget exceeded events per tenant",
+            ["tenant_id", "limit_type"],
+        )
+    except ValueError:
+        WALLET_BUDGET_EXCEEDED = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_wallet_budget_exceeded_total"
+        )
+
+    # ── OutputGuard business-layer metrics ───────────────────────────────────
+    # Populated by output_guard.py on every /v1/chat/completions response scan.
+
+    try:
+        OUTPUT_GUARD_BLOCKS = Counter(
+            "warden_output_guard_blocks_total",
+            "OutputGuard business-rule violations detected per tenant and risk type",
+            ["tenant_id", "risk"],
+        )
+    except ValueError:
+        OUTPUT_GUARD_BLOCKS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_output_guard_blocks_total"
+        )
+
+    try:
+        OUTPUT_GUARD_SANITIZATIONS = Counter(
+            "warden_output_guard_sanitizations_total",
+            "OutputGuard sanitizations applied to LLM responses per tenant",
+            ["tenant_id"],
+        )
+    except ValueError:
+        OUTPUT_GUARD_SANITIZATIONS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_output_guard_sanitizations_total"
+        )
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -151,12 +201,16 @@ except ImportError:
         def set(self, _value: float) -> None:
             pass
 
-    TOOL_BLOCKS              = _Noop()  # type: ignore[assignment]
-    AGENT_SESSIONS_ACTIVE    = _Noop()  # type: ignore[assignment]
-    AGENT_ANOMALIES_TOTAL    = _Noop()  # type: ignore[assignment]
-    AGENT_SESSION_BLOCKS     = _Noop()  # type: ignore[assignment]
-    EVOLUTION_SKIPPED_TOTAL  = _Noop()  # type: ignore[assignment]
-    POISONING_ATTEMPTS_TOTAL = _Noop()  # type: ignore[assignment]
-    CORPUS_DRIFT_SCORE       = _Noop()  # type: ignore[assignment]
-    CORPUS_CANARY_MIN_SCORE  = _Noop()  # type: ignore[assignment]
-    CORPUS_CANARY_FAILING    = _Noop()  # type: ignore[assignment]
+    TOOL_BLOCKS                 = _Noop()  # type: ignore[assignment]
+    AGENT_SESSIONS_ACTIVE       = _Noop()  # type: ignore[assignment]
+    AGENT_ANOMALIES_TOTAL       = _Noop()  # type: ignore[assignment]
+    AGENT_SESSION_BLOCKS        = _Noop()  # type: ignore[assignment]
+    EVOLUTION_SKIPPED_TOTAL     = _Noop()  # type: ignore[assignment]
+    POISONING_ATTEMPTS_TOTAL    = _Noop()  # type: ignore[assignment]
+    CORPUS_DRIFT_SCORE          = _Noop()  # type: ignore[assignment]
+    CORPUS_CANARY_MIN_SCORE     = _Noop()  # type: ignore[assignment]
+    CORPUS_CANARY_FAILING       = _Noop()  # type: ignore[assignment]
+    WALLET_TOKENS_CONSUMED      = _Noop()  # type: ignore[assignment]
+    WALLET_BUDGET_EXCEEDED      = _Noop()  # type: ignore[assignment]
+    OUTPUT_GUARD_BLOCKS         = _Noop()  # type: ignore[assignment]
+    OUTPUT_GUARD_SANITIZATIONS  = _Noop()  # type: ignore[assignment]
