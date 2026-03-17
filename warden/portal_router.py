@@ -31,11 +31,11 @@ import logging
 import os
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 import bcrypt
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr, Field
@@ -61,13 +61,13 @@ _bearer = HTTPBearer(auto_error=False)
 # ── JWT helpers ───────────────────────────────────────────────────────────────
 
 def _issue_access_token(user_id: str, tenant_id: str, role: str) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(minutes=_ACCESS_TTL_MIN)
+    exp = datetime.now(datetime.UTC) + timedelta(minutes=_ACCESS_TTL_MIN)
     payload = {"sub": user_id, "tid": tenant_id, "role": role, "exp": exp}
     return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
 
 
 def _issue_refresh_token(user_id: str) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(days=_REFRESH_TTL_DAY)
+    exp = datetime.now(datetime.UTC) + timedelta(days=_REFRESH_TTL_DAY)
     payload = {"sub": user_id, "type": "refresh", "exp": exp, "jti": secrets.token_hex(16)}
     return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
 
@@ -181,7 +181,6 @@ def _reload_keys_file(tenant_id: str, key_hash: str, rate_limit: int, revoke: bo
     auth_guard.py picks it up on next reload.  Fail-open — errors are logged.
     """
     import json
-    import tempfile
 
     keys_path = os.getenv("WARDEN_API_KEYS_PATH", "")
     if not keys_path:
@@ -298,7 +297,7 @@ async def forgot_password(body: _ForgotPasswordIn, db: AsyncSession = Depends(ge
     if not user:
         return {"detail": "If the email exists, a reset link has been sent."}
     token = secrets.token_urlsafe(32)
-    expires = datetime.now(timezone.utc) + timedelta(hours=1)
+    expires = datetime.now(datetime.UTC) + timedelta(hours=1)
     await db.execute(
         text("UPDATE warden_core.portal_users SET reset_token=:t, reset_expires=:e WHERE id=:id"),
         {"t": token, "e": expires, "id": str(user["id"])},
@@ -319,7 +318,7 @@ async def reset_password(body: _ResetPasswordIn, db: AsyncSession = Depends(get_
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
     expires = user["reset_expires"]
-    if expires and expires < datetime.now(timezone.utc):
+    if expires and expires < datetime.now(datetime.UTC):
         raise HTTPException(status_code=400, detail="Reset token expired.")
     pw_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
     await db.execute(
@@ -591,7 +590,7 @@ async def billing(
     me: _PortalUser = Depends(require_portal_user),
     db: AsyncSession = Depends(get_db),
 ):
-    period = datetime.now(timezone.utc).strftime("%Y-%m")
+    period = datetime.now(datetime.UTC).strftime("%Y-%m")
     row = await db.execute(
         text("""
             SELECT requests, cost_usd
