@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Shadow Warden AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: '#030712',
+            surface: '#0f172a',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { background: #030712; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+    .gradient-text {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    }
+    .card {
+      background: #0f172a;
+      border: 1px solid rgba(99,102,241,0.18);
+      border-radius: 1rem;
+    }
+    .input-field {
+      background: rgba(99,102,241,0.06);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 0.5rem;
+      color: #e2e8f0;
+      width: 100%;
+      padding: 0.625rem 0.875rem;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus { border-color: rgba(99,102,241,0.6); }
+    .input-field::placeholder { color: #475569; }
+    .glow {
+      position: fixed; border-radius: 50%; filter: blur(120px); opacity: 0.12; pointer-events: none;
+    }
+    #error-msg { display: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Background glows -->
+  <div class="glow" style="width:500px;height:500px;background:#6366f1;top:-100px;left:-100px;"></div>
+  <div class="glow" style="width:400px;height:400px;background:#8b5cf6;bottom:-100px;right:-100px;"></div>
+
+  <!-- Nav -->
+  <nav class="w-full px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 text-white font-bold text-lg">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+        <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#sg)" opacity=".9"/>
+        <defs><linearGradient id="sg" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+        <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span><span class="gradient-text">Shadow</span> Warden</span>
+    </a>
+    <a href="/" class="text-sm text-[#64748b] hover:text-white transition-colors">← Back to home</a>
+  </nav>
+
+  <!-- Main -->
+  <main class="flex-1 flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-sm">
+
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-white mb-2">Sign in to your account</h1>
+        <p class="text-sm text-[#64748b]">Access your Shadow Warden dashboard</p>
+      </div>
+
+      <div class="card p-8">
+        <form id="login-form" class="space-y-5">
+
+          <div>
+            <label class="block text-xs font-medium text-[#94a3b8] mb-1.5">Email address</label>
+            <input id="email" type="email" class="input-field" placeholder="you@company.com" autocomplete="email" required />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-medium text-[#94a3b8]">Password</label>
+              <a href="#" class="text-xs text-[#6366f1] hover:text-[#818cf8]">Forgot password?</a>
+            </div>
+            <input id="password" type="password" class="input-field" placeholder="••••••••" autocomplete="current-password" required />
+          </div>
+
+          <div id="error-msg" class="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="error-text">Invalid email or password.</span>
+          </div>
+
+          <button type="submit" id="submit-btn" class="gradient-bg w-full py-2.5 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+            <span id="btn-text">Sign In</span>
+            <svg id="btn-spinner" class="hidden animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          </button>
+
+        </form>
+
+        <div class="mt-6 pt-6 border-t border-[rgba(99,102,241,0.12)] text-center">
+          <p class="text-xs text-[#475569]">
+            Don't have an account?
+            <a href="#pricing" onclick="window.location='/'" class="text-[#6366f1] hover:text-[#818cf8] ml-1">Start free trial</a>
+          </p>
+        </div>
+      </div>
+
+      <p class="text-center text-xs text-[#334155] mt-6">
+        Protected by Shadow Warden AI · <a href="/" class="hover:text-[#64748b]">Privacy Policy</a>
+      </p>
+
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('login-form');
+    const errorMsg = document.getElementById('error-msg');
+    const errorText = document.getElementById('error-text');
+    const submitBtn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const btnSpinner = document.getElementById('btn-spinner');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorMsg.style.display = 'none';
+      btnText.textContent = 'Signing in…';
+      btnSpinner.classList.remove('hidden');
+      submitBtn.disabled = true;
+
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          // Store token and redirect to dashboard
+          if (data.token) localStorage.setItem('warden_token', data.token);
+          window.location.href = data.redirect || '/dashboard';
+        } else {
+          const data = await res.json().catch(() => ({}));
+          errorText.textContent = data.detail || 'Invalid email or password.';
+          errorMsg.style.display = 'flex';
+        }
+      } catch {
+        errorText.textContent = 'Unable to connect. Please try again.';
+        errorMsg.style.display = 'flex';
+      } finally {
+        btnText.textContent = 'Sign In';
+        btnSpinner.classList.add('hidden');
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+
+</body>
+</html>
