@@ -439,7 +439,7 @@ services:
   #
   # Dev override: uncomment the ports block below for direct localhost access.
   jaeger:
-    image: jaegertracing/all-in-one:1.63
+    image: jaegertracing/all-in-one:1.76.0
     container_name: warden-jaeger
     restart: unless-stopped
     environment:
