@@ -359,10 +359,14 @@
 
       <!-- CTA + hamburger -->
       <div class="flex items-center gap-3">
-        <a href="/login" class="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#94a3b8] hover:text-white border border-[rgba(99,102,241,0.3)] hover:border-[rgba(99,102,241,0.6)] rounded-lg transition-all">
+        <a id="nav-signin" href="/login" class="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#94a3b8] hover:text-white border border-[rgba(99,102,241,0.3)] hover:border-[rgba(99,102,241,0.6)] rounded-lg transition-all">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
           Sign In
         </a>
+        <button id="nav-signout" onclick="signOut()" class="hidden items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#94a3b8] hover:text-white border border-[rgba(99,102,241,0.3)] hover:border-[rgba(99,102,241,0.6)] rounded-lg transition-all">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          Sign Out
+        </button>
         <a href="#pricing" class="hidden sm:inline-flex items-center px-4 py-2 text-sm font-semibold text-white gradient-bg rounded-lg hover:opacity-90 transition-opacity">
           Start Free Trial
         </a>
@@ -385,10 +389,14 @@
         <a href="/settings" class="block px-4 py-2.5 text-sm text-[#94a3b8] hover:text-white hover:bg-[rgba(99,102,241,0.08)] rounded-lg">Settings</a>
         <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="block px-4 py-2.5 text-sm text-[#94a3b8] hover:text-white hover:bg-[rgba(99,102,241,0.08)] rounded-lg">GitHub</a>
         <div class="px-4 pt-2 space-y-2">
-          <a href="/login" class="flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium text-[#94a3b8] border border-[rgba(99,102,241,0.3)] rounded-lg">
+          <a id="mob-signin" href="/login" class="flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium text-[#94a3b8] border border-[rgba(99,102,241,0.3)] rounded-lg">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
             Sign In
           </a>
+          <button id="mob-signout" onclick="signOut()" class="hidden w-full items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium text-[#94a3b8] border border-[rgba(99,102,241,0.3)] rounded-lg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            Sign Out
+          </button>
           <a href="#pricing" class="block text-center px-4 py-2.5 text-sm font-semibold text-white gradient-bg rounded-lg">Start Free Trial</a>
         </div>
       </div>
@@ -1258,6 +1266,35 @@
      JAVASCRIPT
 ═══════════════════════════════════════════════ -->
 <script>
+  // ── Auth state ──
+  function updateAuthNav() {
+    const loggedIn = !!localStorage.getItem('warden_token');
+    const signin  = document.getElementById('nav-signin');
+    const signout = document.getElementById('nav-signout');
+    const mobIn   = document.getElementById('mob-signin');
+    const mobOut  = document.getElementById('mob-signout');
+    if (loggedIn) {
+      signin.classList.add('!hidden');
+      signout.classList.remove('hidden');
+      signout.classList.add('sm:inline-flex');
+      mobIn.classList.add('hidden');
+      mobOut.classList.remove('hidden');
+      mobOut.classList.add('flex');
+    } else {
+      signin.classList.remove('!hidden');
+      signout.classList.add('hidden');
+      mobIn.classList.remove('hidden');
+      mobOut.classList.add('hidden');
+    }
+  }
+  function signOut() {
+    localStorage.removeItem('warden_token');
+    localStorage.removeItem('warden_user');
+    updateAuthNav();
+    window.location.href = '/';
+  }
+  updateAuthNav();
+
   // ── Mobile menu toggle ──
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobile-menu');
