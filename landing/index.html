@@ -62,22 +62,115 @@
 
 <body class="font-sans text-slate-200 antialiased">
 
+  <style>
+    .mega-menu { display: none; }
+    .nav-item:hover .mega-menu { display: block; }
+  </style>
+
   <!-- ── NAV ─────────────────────────────────────────────────────────────── -->
   <nav class="fixed top-0 inset-x-0 z-50 border-b border-slate-800/60 bg-dark-900/80 backdrop-blur-md">
     <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
       <span class="font-bold text-lg tracking-tight text-white">
         <span class="gradient-text">Shadow</span> Warden AI
       </span>
-      <div class="hidden md:flex items-center gap-6 text-sm text-slate-400">
-        <a href="#how-it-works" class="hover:text-white transition-colors">How it works</a>
-        <a href="#owasp"         class="hover:text-white transition-colors">OWASP Coverage</a>
-        <a href="#for-msps"      class="hover:text-white transition-colors">For MSPs</a>
-        <a href="#pricing"       class="hover:text-white transition-colors">Pricing</a>
-        <a href="#live-demo"     class="hover:text-brand-400 transition-colors text-brand-400">Live Demo</a>
+      <div class="hidden md:flex items-center gap-1 text-sm text-slate-400">
+
+        <!-- Products mega-menu -->
+        <div class="nav-item relative">
+          <button class="flex items-center gap-1 px-3 py-2 hover:text-white transition-colors rounded-lg hover:bg-white/5">
+            Products
+            <svg class="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div class="mega-menu absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[680px] rounded-2xl border border-slate-700/60 bg-dark-800/95 backdrop-blur-xl shadow-2xl p-6">
+            <div class="grid grid-cols-3 gap-6">
+              <!-- Products column -->
+              <div class="col-span-1">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Products</p>
+                <div class="space-y-1">
+                  <a href="#products" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+                    <div class="w-8 h-8 rounded-lg bg-brand-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg class="w-4 h-4 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-white group-hover:text-brand-400 transition-colors">AI Agent Security</p>
+                      <p class="text-xs text-slate-500 mt-0.5">Runtime security for your GenAI</p>
+                    </div>
+                  </a>
+                  <a href="#products" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+                    <div class="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9v2m0 4h.01"/></svg>
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-white group-hover:text-brand-400 transition-colors">AI Red Teaming</p>
+                      <p class="text-xs text-slate-500 mt-0.5">Risk-based GenAI red teaming</p>
+                    </div>
+                  </a>
+                  <a href="#products" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-white group-hover:text-brand-400 transition-colors">Gandalf Training</p>
+                      <p class="text-xs text-slate-500 mt-0.5">AI security training for your org</p>
+                    </div>
+                  </a>
+                </div>
+              </div>
+              <!-- Use Cases column -->
+              <div class="col-span-1">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Use Cases</p>
+                <div class="space-y-1">
+                  <a href="#use-cases" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0"></span> Conversational Agents
+                  </a>
+                  <a href="#use-cases" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0"></span> Document / RAG Agents
+                  </a>
+                  <a href="#use-cases" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0"></span> GenAI Gateway Security
+                  </a>
+                  <a href="#use-cases" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0"></span> Connected Agents
+                  </a>
+                </div>
+              </div>
+              <!-- Risks column -->
+              <div class="col-span-1">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Risks We Manage</p>
+                <div class="space-y-1">
+                  <a href="#risks" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></span> Prompt Injection Attacks
+                  </a>
+                  <a href="#risks" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></span> AI Data Leaks
+                  </a>
+                  <a href="#risks" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0"></span> Compliance &amp; Regulatory
+                  </a>
+                  <a href="#risks" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0"></span> Toxic Content Generation
+                  </a>
+                  <a href="#risks" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0"></span> Indirect Prompt Injection
+                  </a>
+                  <a href="#risks" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-slate-400 hover:text-white">
+                    <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0"></span> Multilingual &amp; Multimodal
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <a href="#how-it-works" class="px-3 py-2 hover:text-white transition-colors rounded-lg hover:bg-white/5">How it works</a>
+        <a href="#owasp"         class="px-3 py-2 hover:text-white transition-colors rounded-lg hover:bg-white/5">OWASP Coverage</a>
+        <a href="#for-msps"      class="px-3 py-2 hover:text-white transition-colors rounded-lg hover:bg-white/5">For MSPs</a>
+        <a href="#pricing"       class="px-3 py-2 hover:text-white transition-colors rounded-lg hover:bg-white/5">Pricing</a>
+        <a href="#live-demo"     class="px-3 py-2 hover:text-brand-400 transition-colors text-brand-400 rounded-lg hover:bg-brand-500/10">Live Demo</a>
       </div>
-      <a href="#live-demo"
+      <a href="https://portal.shadow-warden-ai.com"
          class="text-sm font-semibold px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white transition-colors">
-        Try Demo
+        Get Started
       </a>
     </div>
   </nav>
@@ -192,6 +285,188 @@
 <span class="text-slate-500">        ▼                           ▼</span>
 <span class="text-green-400">  AI Model API</span>               <span class="text-brand-400">Audit Log</span>
 <span class="text-slate-500">  (clean input)         (per tenant, GDPR Art. 30)</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PRODUCTS ─────────────────────────────────────────────────────────── -->
+  <section id="products" class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-14">
+        <p class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Products</p>
+        <h2 class="text-3xl font-bold text-white mb-3">Security for Every Layer of Your AI Stack</h2>
+        <p class="text-slate-400 max-w-xl mx-auto">From runtime protection to proactive red teaming and team training — Shadow Warden covers the full attack surface.</p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6">
+
+        <div class="card-glow rounded-2xl bg-dark-700 p-7 transition-all duration-200 flex flex-col">
+          <div class="w-11 h-11 rounded-xl bg-brand-500/15 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-white mb-2">AI Agent Security</h3>
+          <p class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-3">Runtime Security for Your GenAI</p>
+          <p class="text-slate-400 text-sm leading-relaxed flex-1">Inline filter gateway deployed in front of every AI request. Blocks prompt injection, strips PII/secrets, and generates GDPR-compliant audit logs — in under 40ms. Supports any LLM via OpenAI-compatible proxy.</p>
+          <ul class="mt-5 space-y-1.5 text-xs text-slate-500">
+            <li class="flex gap-2"><span class="text-green-400">✓</span> OpenAI / Anthropic / Azure compatible</li>
+            <li class="flex gap-2"><span class="text-green-400">✓</span> Multi-tenant isolation</li>
+            <li class="flex gap-2"><span class="text-green-400">✓</span> Self-hosted or cloud deployment</li>
+          </ul>
+        </div>
+
+        <div class="card-glow rounded-2xl bg-dark-700 p-7 transition-all duration-200 flex flex-col">
+          <div class="w-11 h-11 rounded-xl bg-red-500/15 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-white mb-2">AI Red Teaming</h3>
+          <p class="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3">Risk-Based GenAI Red Teaming</p>
+          <p class="text-slate-400 text-sm leading-relaxed flex-1">Automated adversarial testing of your AI applications before attackers find the gaps. Our Evolution Engine continuously generates new attack patterns using Claude Opus — testing your defences around the clock.</p>
+          <ul class="mt-5 space-y-1.5 text-xs text-slate-500">
+            <li class="flex gap-2"><span class="text-green-400">✓</span> Continuous corpus evolution</li>
+            <li class="flex gap-2"><span class="text-green-400">✓</span> OWASP LLM Top 10 coverage</li>
+            <li class="flex gap-2"><span class="text-green-400">✓</span> Attack pattern sharing across fleet</li>
+          </ul>
+        </div>
+
+        <div class="card-glow rounded-2xl bg-dark-700 p-7 transition-all duration-200 flex flex-col">
+          <div class="w-11 h-11 rounded-xl bg-purple-500/15 flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-white mb-2">Gandalf Training</h3>
+          <p class="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">AI Security Training for Your Organization</p>
+          <p class="text-slate-400 text-sm leading-relaxed flex-1">Interactive security awareness training tailored for teams working with AI tools. Teaches employees to recognise prompt injection, social engineering via AI, and data handling best practices — directly from the Shadow Warden dashboard.</p>
+          <ul class="mt-5 space-y-1.5 text-xs text-slate-500">
+            <li class="flex gap-2"><span class="text-green-400">✓</span> Per-tenant training modules</li>
+            <li class="flex gap-2"><span class="text-green-400">✓</span> Phishing-style AI attack simulations</li>
+            <li class="flex gap-2"><span class="text-green-400">✓</span> Compliance reporting</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── USE CASES ──────────────────────────────────────────────────────────── -->
+  <section id="use-cases" class="py-20 px-6 border-t border-slate-800/50 bg-dark-800/30">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-14">
+        <p class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Use Cases</p>
+        <h2 class="text-3xl font-bold text-white mb-3">Securing Every AI Architecture</h2>
+        <p class="text-slate-400 max-w-xl mx-auto">Whether you're building a chatbot or orchestrating a multi-agent pipeline — Shadow Warden fits in.</p>
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <div class="w-9 h-9 rounded-lg bg-brand-500/15 flex items-center justify-center mb-4">
+            <svg class="w-4.5 h-4.5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+          </div>
+          <h3 class="font-semibold text-white mb-2">Conversational Agents</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Protect customer-facing chatbots from jailbreak attempts, data extraction, and prompt injection — without slowing down the conversation.</p>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <div class="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-4">
+            <svg class="w-4.5 h-4.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <h3 class="font-semibold text-white mb-2">Document / RAG Agents</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Prevent sensitive documents from leaking through RAG pipelines. Detect indirect prompt injection hidden inside uploaded files or retrieved chunks.</p>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <div class="w-9 h-9 rounded-lg bg-orange-500/15 flex items-center justify-center mb-4">
+            <svg class="w-4.5 h-4.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+          </div>
+          <h3 class="font-semibold text-white mb-2">GenAI Gateway Security</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Drop-in security layer for any existing AI gateway or LLM proxy. OpenAI-compatible API — no application changes required.</p>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200">
+          <div class="w-9 h-9 rounded-lg bg-purple-500/15 flex items-center justify-center mb-4">
+            <svg class="w-4.5 h-4.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h3 class="font-semibold text-white mb-2">Connected Agents</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Secure autonomous agents that browse the web, execute code, or call external APIs. Detect and block malicious instructions injected from external content.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RISKS ──────────────────────────────────────────────────────────────── -->
+  <section id="risks" class="py-20 px-6 border-t border-slate-800/50">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-14">
+        <p class="text-xs font-semibold text-brand-400 uppercase tracking-widest mb-3">Risks We Manage</p>
+        <h2 class="text-3xl font-bold text-white mb-3">The AI Threat Landscape, Covered</h2>
+        <p class="text-slate-400 max-w-xl mx-auto">Shadow Warden is purpose-built for threats that traditional security tools miss entirely.</p>
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200 flex gap-4">
+          <div class="w-10 h-10 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-white mb-1">Prompt Injection Attacks</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">Malicious instructions embedded in user input or retrieved data hijack your AI's behaviour. Detected by MiniLM semantic model + 300+ rules.</p>
+            <p class="mt-2 text-xs font-mono text-red-400">OWASP LLM01</p>
+          </div>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200 flex gap-4">
+          <div class="w-10 h-10 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-white mb-1">AI Data Leaks</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">SSNs, API keys, IBANs, and credentials sent to AI providers in plain text. 17+ PII patterns stripped before transmission — GDPR-compliant by design.</p>
+            <p class="mt-2 text-xs font-mono text-orange-400">OWASP LLM06</p>
+          </div>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200 flex gap-4">
+          <div class="w-10 h-10 rounded-lg bg-yellow-500/15 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-white mb-1">Compliance &amp; Regulatory Risks</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">GDPR Art. 30, EU AI Act, and SOC 2 require demonstrable AI data controls. Shadow Warden generates per-tenant audit trails automatically.</p>
+            <p class="mt-2 text-xs font-mono text-yellow-400">GDPR · EU AI Act · SOC 2</p>
+          </div>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200 flex gap-4">
+          <div class="w-10 h-10 rounded-lg bg-pink-500/15 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-white mb-1">Toxic Content Generation</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">AI models manipulated into generating harmful, discriminatory, or legally-risky content. Semantic rules detect and block before output reaches users.</p>
+            <p class="mt-2 text-xs font-mono text-pink-400">OWASP LLM09</p>
+          </div>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200 flex gap-4">
+          <div class="w-10 h-10 rounded-lg bg-cyan-500/15 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-white mb-1">Indirect Prompt Injection</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">Instructions hidden inside web pages, documents, or emails hijack agents that retrieve external content. Obfuscation decoder catches base64, hex, ROT13, and homoglyph variants.</p>
+            <p class="mt-2 text-xs font-mono text-cyan-400">OWASP LLM01 variant</p>
+          </div>
+        </div>
+
+        <div class="card-glow rounded-xl bg-dark-700 p-6 transition-all duration-200 flex gap-4">
+          <div class="w-10 h-10 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-white mb-1">Multilingual &amp; Multimodal Attacks</h3>
+            <p class="text-slate-400 text-sm leading-relaxed">Attacks crafted in non-English languages or embedded in images bypass naive keyword filters. MiniLM semantic embeddings detect intent regardless of language or encoding.</p>
+            <p class="mt-2 text-xs font-mono text-indigo-400">Language-agnostic detection</p>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
@@ -597,14 +872,46 @@
   </section>
 
   <!-- ── FOOTER ─────────────────────────────────────────────────────────────── -->
-  <footer class="border-t border-slate-800/50 py-10 px-6">
-    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-600">
-      <span><span class="text-slate-400 font-semibold">Shadow Warden AI</span> — Proprietary. All rights reserved.</span>
-      <div class="flex gap-6">
-        <a href="mailto:vz@shadow-warden-ai.com" class="hover:text-slate-400 transition-colors">vz@shadow-warden-ai.com</a>
-        <a href="https://github.com/zborrman/Shadow-Warden-AI" class="hover:text-slate-400 transition-colors">GitHub</a>
+  <footer class="border-t border-slate-800/50 py-14 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="grid md:grid-cols-4 gap-10 mb-12">
+        <div>
+          <span class="font-bold text-base text-white"><span class="gradient-text">Shadow</span> Warden AI</span>
+          <p class="text-slate-500 text-sm mt-3 leading-relaxed">Zero-trust AI security gateway. Intercept. Filter. Audit.</p>
+          <p class="text-slate-600 text-xs mt-4">GDPR-compliant by design · v1.3.0</p>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Products</p>
+          <ul class="space-y-2 text-sm text-slate-500">
+            <li><a href="#products" class="hover:text-slate-300 transition-colors">AI Agent Security</a></li>
+            <li><a href="#products" class="hover:text-slate-300 transition-colors">AI Red Teaming</a></li>
+            <li><a href="#products" class="hover:text-slate-300 transition-colors">Gandalf Training</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Use Cases</p>
+          <ul class="space-y-2 text-sm text-slate-500">
+            <li><a href="#use-cases" class="hover:text-slate-300 transition-colors">Conversational Agents</a></li>
+            <li><a href="#use-cases" class="hover:text-slate-300 transition-colors">Document / RAG Agents</a></li>
+            <li><a href="#use-cases" class="hover:text-slate-300 transition-colors">GenAI Gateway Security</a></li>
+            <li><a href="#use-cases" class="hover:text-slate-300 transition-colors">Connected Agents</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Company</p>
+          <ul class="space-y-2 text-sm text-slate-500">
+            <li><a href="#pricing" class="hover:text-slate-300 transition-colors">Pricing</a></li>
+            <li><a href="#live-demo" class="hover:text-slate-300 transition-colors">Live Demo</a></li>
+            <li><a href="https://portal.shadow-warden-ai.com" class="hover:text-slate-300 transition-colors">Customer Portal</a></li>
+            <li><a href="mailto:vz@shadow-warden-ai.com" class="hover:text-slate-300 transition-colors">Contact</a></li>
+            <li><a href="https://github.com/zborrman/Shadow-Warden-AI" class="hover:text-slate-300 transition-colors">GitHub</a></li>
+          </ul>
+        </div>
       </div>
-      <span>GDPR-compliant by design · v1.3.0</span>
+      <div class="border-t border-slate-800/50 pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+        <span><span class="text-slate-500 font-semibold">Shadow Warden AI</span> — Proprietary. All rights reserved.</span>
+        <span>vz@shadow-warden-ai.com</span>
+      </div>
     </div>
   </footer>
 
