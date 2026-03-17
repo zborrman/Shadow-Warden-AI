@@ -1229,6 +1229,31 @@ async def filter_content(
     return await _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
 
 
+# ── /demo/filter ──────────────────────────────────────────────────────────────
+# Public endpoint for the landing-page live demo widget.
+# No API key required — rate-limited to 10 req/min/IP.
+
+_DEMO_AUTH = AuthResult(api_key="", tenant_id="demo", rate_limit=10)
+
+
+@app.post(
+    "/demo/filter",
+    response_model=FilterResponse,
+    tags=["filter"],
+    summary="Public demo endpoint (no auth, 10 req/min/IP)",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit("10/minute")
+async def demo_filter(
+    payload:          FilterRequest,
+    request:          Request,
+    background_tasks: BackgroundTasks,
+) -> FilterResponse:
+    rid = getattr(request.state, "request_id", str(uuid.uuid4()))
+    client_ip = request.client.host if request.client else ""
+    return await _run_filter_pipeline(payload, rid, _DEMO_AUTH, background_tasks, client_ip)
+
+
 # ── /filter/batch ─────────────────────────────────────────────────────────────
 
 _MAX_BATCH_SIZE = int(os.getenv("MAX_BATCH_SIZE", "50"))

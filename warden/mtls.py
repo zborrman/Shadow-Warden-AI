@@ -55,7 +55,7 @@ _ALLOWED_CNS: frozenset[str] = frozenset(
 )
 
 # Internal probe paths that don't carry client certs — exempt from enforcement
-_EXEMPT_PATHS: frozenset[str] = frozenset({"/health", "/metrics"})
+_EXEMPT_PATHS: frozenset[str] = frozenset({"/health", "/metrics", "/demo/filter"})
 
 
 class MTLSMiddleware(BaseHTTPMiddleware):

@@ -466,7 +466,6 @@
   // ── Configuration ──────────────────────────────────────────────────────────
   // Set WARDEN_ENDPOINT to your API URL (e.g. https://api.shadow-warden-ai.com)
   const WARDEN_ENDPOINT = 'https://api.shadow-warden-ai.com';
-  const DEMO_API_KEY    = '';   // leave empty if WARDEN_API_KEY="" on server
 
   // ── Example payloads ───────────────────────────────────────────────────────
   const EXAMPLES = {
@@ -498,9 +497,8 @@
 
     try {
       const headers = { 'Content-Type': 'application/json' };
-      if (DEMO_API_KEY) headers['X-API-Key'] = DEMO_API_KEY;
 
-      const resp = await fetch(`${WARDEN_ENDPOINT}/filter`, {
+      const resp = await fetch(`${WARDEN_ENDPOINT}/demo/filter`, {
         method:  'POST',
         headers,
         body:    JSON.stringify({ content: text }),
