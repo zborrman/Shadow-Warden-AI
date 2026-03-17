@@ -357,7 +357,6 @@ class DataPoisoningGuard:
     def _corpus_health_sync(self) -> CorpusHealthReport:
         report = CorpusHealthReport(checked_at=time.time())
         try:
-            model      = self._guard._model        # type: ignore[attr-defined]
             corpus_emb = self._guard._embeddings   # type: ignore[attr-defined]
 
             # Centroid drift
@@ -537,9 +536,9 @@ class CorpusHealthMonitor:
     def _push_metrics(report: CorpusHealthReport) -> None:
         try:
             from warden.metrics import (
-                CORPUS_DRIFT_SCORE,
-                CORPUS_CANARY_MIN_SCORE,
                 CORPUS_CANARY_FAILING,
+                CORPUS_CANARY_MIN_SCORE,
+                CORPUS_DRIFT_SCORE,
             )
             CORPUS_DRIFT_SCORE.set(report.centroid_drift)
             CORPUS_CANARY_MIN_SCORE.set(report.min_canary_score)

@@ -31,6 +31,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from warden.brain.poison import DataPoisoningGuard
     from warden.honey import HoneyEngine
     from warden.session_guard import SessionGuard
     from warden.threat_intel.scheduler import ThreatIntelScheduler as _TISchedulerT
@@ -284,7 +285,7 @@ _policy:         DataPolicyEngine  | None = None
 _feed:           ThreatFeedClient  | None = None
 _saml:           SAMLProvider      | None = None
 _webhook_store:  WebhookStore      | None = None
-_poison_guard:   "DataPoisoningGuard | None" = None  # type: ignore[assignment]
+_poison_guard:   DataPoisoningGuard | None = None  # type: ignore[assignment]
 
 try:
     from warden.agent_monitor import AgentMonitor

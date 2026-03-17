@@ -332,10 +332,12 @@ class EvolutionEngine:
             # ── Data Poisoning Guard: secondary vetting ───────────────────────
             # Import lazily to avoid circular imports; fails silently if unavailable.
             try:
-                from warden.brain.poison import DataPoisoningGuard as _DPG  # noqa: PLC0415
                 import warden.main as _main  # noqa: PLC0415
+                from warden.brain.poison import (
+                    DataPoisoningGuard as _DataPoisoningGuard,  # noqa: PLC0415
+                )
                 _pg = getattr(_main, "_poison_guard", None)
-                if _pg is not None and isinstance(_pg, _DPG):
+                if _pg is not None and isinstance(_pg, _DataPoisoningGuard):
                     vetted: list[str] = []
                     for ex in examples:
                         approved, reason = await _pg.vet_example_async(ex)
