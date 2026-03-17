@@ -615,9 +615,9 @@ _DEFAULT_CORS = ",".join([
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", _DEFAULT_CORS).split(","),
-    allow_credentials=False,   # extensions don't send cookies
-    allow_methods=["POST", "GET", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key", "X-Request-ID"],
+    allow_credentials=True,
+    allow_methods=["POST", "GET", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Request-ID", "Authorization"],
 )
 
 # mTLS enforcement — validates client-certificate CN on every non-exempt request.
