@@ -201,8 +201,8 @@ class DataPoisoningGuard:
                              show_progress_bar=False)
             )
             # Baseline corpus centroid
-            if self._guard._embeddings is not None and len(self._guard._embeddings):
-                self._corpus_baseline_centroid = self._guard._embeddings.numpy().mean(axis=0)
+            if self._guard._corpus_embeddings is not None and len(self._guard._corpus_embeddings):
+                self._corpus_baseline_centroid = torch.as_tensor(self._guard._corpus_embeddings).numpy().mean(axis=0)
             self._ready = True
             log.info("DataPoisoningGuard initialised — %d canaries, baseline centroid set",
                      len(CANARY_EXAMPLES))
@@ -255,7 +255,7 @@ class DataPoisoningGuard:
             emb   = torch.tensor(
                 model.encode([content], convert_to_numpy=True, show_progress_bar=False)
             )
-            corpus_emb = self._guard._embeddings  # type: ignore[attr-defined]
+            corpus_emb = torch.as_tensor(self._guard._corpus_embeddings)  # type: ignore[attr-defined]
             if corpus_emb is not None and len(corpus_emb) >= 20:
                 sims = torch.nn.functional.cosine_similarity(
                     emb, corpus_emb, dim=1
@@ -322,10 +322,10 @@ class DataPoisoningGuard:
             # ③ Corpus Drift check — does adding this example shift centroid excessively?
             if (
                 self._corpus_baseline_centroid is not None
-                and self._guard._embeddings is not None
-                and len(self._guard._embeddings) > 0
+                and self._guard._corpus_embeddings is not None
+                and len(self._guard._corpus_embeddings) > 0
             ):
-                current = self._guard._embeddings.numpy()
+                current = torch.as_tensor(self._guard._corpus_embeddings).numpy()
                 new_centroid = np.vstack(
                     [current, cand_emb.numpy()]
                 ).mean(axis=0)
@@ -357,7 +357,7 @@ class DataPoisoningGuard:
     def _corpus_health_sync(self) -> CorpusHealthReport:
         report = CorpusHealthReport(checked_at=time.time())
         try:
-            corpus_emb = self._guard._embeddings   # type: ignore[attr-defined]
+            corpus_emb = torch.as_tensor(self._guard._corpus_embeddings)   # type: ignore[attr-defined]
 
             # Centroid drift
             if corpus_emb is not None and self._corpus_baseline_centroid is not None:
@@ -379,9 +379,10 @@ class DataPoisoningGuard:
             # Canary scores
             if self._canary_embeddings is not None and corpus_emb is not None:
                 scores = []
+                corpus_emb_t = torch.as_tensor(corpus_emb)
                 for canary_emb in self._canary_embeddings:
                     sim = torch.nn.functional.cosine_similarity(
-                        canary_emb.unsqueeze(0), corpus_emb, dim=1
+                        canary_emb.unsqueeze(0), corpus_emb_t, dim=1
                     ).max().item()
                     scores.append(sim)
                 min_score = min(scores)
@@ -410,7 +411,7 @@ class DataPoisoningGuard:
 
     def _save_snapshot_sync(self) -> bool:
         try:
-            emb = self._guard._embeddings  # type: ignore[attr-defined]
+            emb = torch.as_tensor(self._guard._corpus_embeddings)  # type: ignore[attr-defined]
             if emb is None or len(emb) == 0:
                 return False
             arr      = emb.numpy()
@@ -454,7 +455,7 @@ class DataPoisoningGuard:
                 return False
             data = np.load(str(npz_path))
             arr  = data["embeddings"]
-            self._guard._embeddings = torch.tensor(arr)  # type: ignore[attr-defined]
+            self._guard._corpus_embeddings = torch.tensor(arr)  # type: ignore[attr-defined]
             if json_path.exists():
                 with open(json_path, encoding="utf-8") as fh:
                     examples = json.load(fh)

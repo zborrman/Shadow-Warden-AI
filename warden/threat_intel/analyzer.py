@@ -255,7 +255,7 @@ class ThreatIntelAnalyzer:
         try:
             import anthropic
             client = anthropic.AsyncAnthropic()
-            message = await client.messages.create(
+            message = await client.messages.create(  # type: ignore[call-overload]
                 model=_MODEL,
                 max_tokens=1024,
                 system=_SYSTEM_PROMPT,

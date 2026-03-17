@@ -325,7 +325,7 @@ class SemanticGuard:
                 show_progress_bar=False,
                 normalize_embeddings=True,
             )
-            self._corpus_embeddings = torch.cat([self._corpus_embeddings, new_embs], dim=0)
+            self._corpus_embeddings = torch.cat([torch.as_tensor(self._corpus_embeddings), new_embs], dim=0)
         _JAILBREAK_CORPUS.extend(new_examples)
         corpus_size = len(_JAILBREAK_CORPUS)
         log.info("Corpus extended — total examples now: %d", corpus_size)
@@ -333,7 +333,7 @@ class SemanticGuard:
         # Switch to FAISS when corpus crosses the size threshold
         from warden.brain.faiss_index import should_use_faiss, try_build_faiss  # noqa: PLC0415
         if should_use_faiss(corpus_size):
-            faiss_idx = try_build_faiss(self._corpus_embeddings)
+            faiss_idx = try_build_faiss(torch.as_tensor(self._corpus_embeddings))
             if faiss_idx is not None:
                 self._faiss_index = faiss_idx
                 log.info("FAISS ANN index activated (%d vectors).", corpus_size)
