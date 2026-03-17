@@ -123,6 +123,10 @@ services:
       # Dashboard auth
       - DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
       - DASHBOARD_PASSWORD_HASH=${DASHBOARD_PASSWORD_HASH:-}
+      # Portal JWT (generate: openssl rand -hex 32)
+      - PORTAL_JWT_SECRET=${PORTAL_JWT_SECRET:-change-me-generate-a-strong-secret-key-32ch}
+      - PORTAL_ACCESS_TOKEN_TTL=${PORTAL_ACCESS_TOKEN_TTL:-60}
+      - PORTAL_REFRESH_TOKEN_TTL=${PORTAL_REFRESH_TOKEN_TTL:-7}
     volumes:
       - ./warden/models:/warden/models
       - ./data:/warden/data

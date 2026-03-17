@@ -362,6 +362,16 @@ async def lifespan(app: FastAPI):
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
     log.info("Warden gateway starting — initialising filter pipeline…")
+
+    # ── DB schema (idempotent — IF NOT EXISTS) ────────────────────────
+    try:
+        from warden.db.connection import DATABASE_URL, create_schema  # noqa: PLC0415
+        if DATABASE_URL:
+            await asyncio.to_thread(create_schema)
+            log.info("DB schema verified.")
+    except Exception as _db_err:
+        log.warning("DB schema init failed (non-fatal): %s", _db_err)
+
     _redactor = SecretRedactor(strict=strict)
     _guard    = SemanticGuard(strict=strict)
 

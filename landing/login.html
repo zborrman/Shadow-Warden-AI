@@ -5,21 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sign In — Shadow Warden AI</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            bg: '#030712',
-            surface: '#0f172a',
-          },
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-          }
-        }
-      }
-    }
-  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -29,14 +14,8 @@
       background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
-    .gradient-bg {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    }
-    .card {
-      background: #0f172a;
-      border: 1px solid rgba(99,102,241,0.18);
-      border-radius: 1rem;
-    }
+    .gradient-bg { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+    .card { background: #0f172a; border: 1px solid rgba(99,102,241,0.18); border-radius: 1rem; }
     .input-field {
       background: rgba(99,102,241,0.06);
       border: 1px solid rgba(99,102,241,0.2);
@@ -50,15 +29,14 @@
     }
     .input-field:focus { border-color: rgba(99,102,241,0.6); }
     .input-field::placeholder { color: #475569; }
-    .glow {
-      position: fixed; border-radius: 50%; filter: blur(120px); opacity: 0.12; pointer-events: none;
-    }
-    #error-msg { display: none; }
+    .glow { position: fixed; border-radius: 50%; filter: blur(120px); opacity: 0.12; pointer-events: none; }
+    .tab-btn { transition: color 0.2s, border-color 0.2s; }
+    .tab-btn.active { color: #6366f1; border-bottom: 2px solid #6366f1; }
+    .tab-btn:not(.active) { color: #475569; border-bottom: 2px solid transparent; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- Background glows -->
   <div class="glow" style="width:500px;height:500px;background:#6366f1;top:-100px;left:-100px;"></div>
   <div class="glow" style="width:400px;height:400px;background:#8b5cf6;bottom:-100px;right:-100px;"></div>
 
@@ -80,97 +58,190 @@
     <div class="w-full max-w-sm">
 
       <div class="text-center mb-8">
-        <h1 class="text-2xl font-bold text-white mb-2">Sign in to your account</h1>
-        <p class="text-sm text-[#64748b]">Access your Shadow Warden dashboard</p>
+        <h1 class="text-2xl font-bold text-white mb-2">Welcome back</h1>
+        <p class="text-sm text-[#64748b]">Sign in to your Shadow Warden dashboard</p>
       </div>
 
       <div class="card p-8">
-        <form id="login-form" class="space-y-5">
 
+        <!-- Tabs -->
+        <div class="flex mb-6 gap-6 border-b border-[rgba(99,102,241,0.12)]">
+          <button id="tab-signin" class="tab-btn active pb-3 text-sm font-medium" onclick="switchTab('signin')">Sign In</button>
+          <button id="tab-register" class="tab-btn pb-3 text-sm font-medium" onclick="switchTab('register')">Create Account</button>
+        </div>
+
+        <!-- Sign In form -->
+        <form id="form-signin" onsubmit="handleSignIn(event)" class="space-y-4">
           <div>
-            <label class="block text-xs font-medium text-[#94a3b8] mb-1.5">Email address</label>
-            <input id="email" type="email" class="input-field" placeholder="you@company.com" autocomplete="email" required />
+            <label class="block text-xs font-medium text-[#94a3b8] mb-1.5">Email</label>
+            <input id="si-email" type="email" class="input-field" placeholder="you@company.com" autocomplete="email" required />
           </div>
-
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <label class="block text-xs font-medium text-[#94a3b8]">Password</label>
               <a href="#" class="text-xs text-[#6366f1] hover:text-[#818cf8]">Forgot password?</a>
             </div>
-            <input id="password" type="password" class="input-field" placeholder="••••••••" autocomplete="current-password" required />
+            <input id="si-password" type="password" class="input-field" placeholder="••••••••" autocomplete="current-password" required />
           </div>
-
-          <div id="error-msg" class="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5">
+          <div id="si-error" class="hidden flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="error-text">Invalid email or password.</span>
+            <span id="si-error-text">Invalid email or password.</span>
           </div>
-
-          <button type="submit" id="submit-btn" class="gradient-bg w-full py-2.5 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
-            <span id="btn-text">Sign In</span>
-            <svg id="btn-spinner" class="hidden animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          <button type="submit" id="si-btn" class="gradient-bg w-full py-2.5 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+            <span id="si-btn-text">Sign In</span>
+            <svg id="si-spinner" class="hidden animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
           </button>
-
         </form>
 
-        <div class="mt-6 pt-6 border-t border-[rgba(99,102,241,0.12)] text-center">
-          <p class="text-xs text-[#475569]">
-            Don't have an account?
-            <a href="#pricing" onclick="window.location='/'" class="text-[#6366f1] hover:text-[#818cf8] ml-1">Start free trial</a>
-          </p>
-        </div>
+        <!-- Register form -->
+        <form id="form-register" class="hidden space-y-4" onsubmit="handleRegister(event)">
+          <div>
+            <label class="block text-xs font-medium text-[#94a3b8] mb-1.5">Full name</label>
+            <input id="reg-name" type="text" class="input-field" placeholder="Jane Smith" autocomplete="name" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-[#94a3b8] mb-1.5">Email</label>
+            <input id="reg-email" type="email" class="input-field" placeholder="you@company.com" autocomplete="email" required />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-[#94a3b8] mb-1.5">Password <span class="text-[#475569]">(min 8 chars)</span></label>
+            <input id="reg-password" type="password" class="input-field" placeholder="••••••••" autocomplete="new-password" required minlength="8" />
+          </div>
+          <div id="reg-error" class="hidden flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="reg-error-text">Registration failed.</span>
+          </div>
+          <div id="reg-success" class="hidden flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Account created — signing you in…
+          </div>
+          <button type="submit" id="reg-btn" class="gradient-bg w-full py-2.5 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+            <span id="reg-btn-text">Create Account</span>
+            <svg id="reg-spinner" class="hidden animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          </button>
+        </form>
+
       </div>
 
       <p class="text-center text-xs text-[#334155] mt-6">
-        Protected by Shadow Warden AI · <a href="/" class="hover:text-[#64748b]">Privacy Policy</a>
+        Protected by Shadow Warden AI ·
+        <a href="/" class="hover:text-[#64748b]">Privacy Policy</a>
       </p>
 
     </div>
   </main>
 
   <script>
-    const form = document.getElementById('login-form');
-    const errorMsg = document.getElementById('error-msg');
-    const errorText = document.getElementById('error-text');
-    const submitBtn = document.getElementById('submit-btn');
-    const btnText = document.getElementById('btn-text');
-    const btnSpinner = document.getElementById('btn-spinner');
+    // ── Tab switching ──
+    function switchTab(tab) {
+      const isSignIn = tab === 'signin';
+      document.getElementById('form-signin').classList.toggle('hidden', !isSignIn);
+      document.getElementById('form-register').classList.toggle('hidden', isSignIn);
+      document.getElementById('tab-signin').classList.toggle('active', isSignIn);
+      document.getElementById('tab-register').classList.toggle('active', !isSignIn);
+    }
 
-    form.addEventListener('submit', async (e) => {
+    // ── Sign In ──
+    async function handleSignIn(e) {
       e.preventDefault();
-      errorMsg.style.display = 'none';
-      btnText.textContent = 'Signing in…';
-      btnSpinner.classList.remove('hidden');
-      submitBtn.disabled = true;
+      const errEl  = document.getElementById('si-error');
+      const errTxt = document.getElementById('si-error-text');
+      const btn    = document.getElementById('si-btn');
+      const btnTxt = document.getElementById('si-btn-text');
+      const spin   = document.getElementById('si-spinner');
 
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
+      errEl.classList.add('hidden');
+      btnTxt.textContent = 'Signing in…';
+      spin.classList.remove('hidden');
+      btn.disabled = true;
 
       try {
-        const res = await fetch('/auth/login', {
+        const res = await fetch('/portal/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email:    document.getElementById('si-email').value,
+            password: document.getElementById('si-password').value,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.access_token) {
+          localStorage.setItem('warden_token', data.access_token);
+          window.location.href = '/';
+        } else {
+          errTxt.textContent = data.detail || 'Invalid email or password.';
+          errEl.classList.remove('hidden');
+        }
+      } catch {
+        errTxt.textContent = 'Unable to connect. Please try again.';
+        errEl.classList.remove('hidden');
+      } finally {
+        btnTxt.textContent = 'Sign In';
+        spin.classList.add('hidden');
+        btn.disabled = false;
+      }
+    }
+
+    // ── Register ──
+    async function handleRegister(e) {
+      e.preventDefault();
+      const errEl  = document.getElementById('reg-error');
+      const errTxt = document.getElementById('reg-error-text');
+      const okEl   = document.getElementById('reg-success');
+      const btn    = document.getElementById('reg-btn');
+      const btnTxt = document.getElementById('reg-btn-text');
+      const spin   = document.getElementById('reg-spinner');
+
+      errEl.classList.add('hidden');
+      okEl.classList.add('hidden');
+      btnTxt.textContent = 'Creating account…';
+      spin.classList.remove('hidden');
+      btn.disabled = true;
+
+      const email    = document.getElementById('reg-email').value;
+      const password = document.getElementById('reg-password').value;
+      const name     = document.getElementById('reg-name').value;
+
+      try {
+        // Register
+        const regRes = await fetch('/portal/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, display_name: name }),
+        });
+        const regData = await regRes.json().catch(() => ({}));
+        if (!regRes.ok) {
+          errTxt.textContent = regData.detail || 'Registration failed.';
+          errEl.classList.remove('hidden');
+          return;
+        }
+
+        okEl.classList.remove('hidden');
+
+        // Auto sign-in
+        const loginRes = await fetch('/portal/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
         });
-
-        if (res.ok) {
-          const data = await res.json();
-          // Store token and redirect to dashboard
-          if (data.token) localStorage.setItem('warden_token', data.token);
-          window.location.href = data.redirect || '/dashboard';
+        const loginData = await loginRes.json().catch(() => ({}));
+        if (loginRes.ok && loginData.access_token) {
+          localStorage.setItem('warden_token', loginData.access_token);
+          window.location.href = '/';
         } else {
-          const data = await res.json().catch(() => ({}));
-          errorText.textContent = data.detail || 'Invalid email or password.';
-          errorMsg.style.display = 'flex';
+          // Registered but auto-login failed — switch to sign-in tab
+          switchTab('signin');
+          document.getElementById('si-email').value = email;
         }
       } catch {
-        errorText.textContent = 'Unable to connect. Please try again.';
-        errorMsg.style.display = 'flex';
+        errTxt.textContent = 'Unable to connect. Please try again.';
+        errEl.classList.remove('hidden');
       } finally {
-        btnText.textContent = 'Sign In';
-        btnSpinner.classList.add('hidden');
-        submitBtn.disabled = false;
+        btnTxt.textContent = 'Create Account';
+        spin.classList.add('hidden');
+        btn.disabled = false;
       }
-    });
+    }
   </script>
 
 </body>
