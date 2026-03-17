@@ -32,6 +32,7 @@ class FlagType(StrEnum):
     VECTOR_ATTACK        = "vector_attack"         # LLM08 — RAG poisoning / adversarial embedding attack
     MISINFORMATION       = "misinformation"        # LLM09 — eliciting deliberately false authoritative content
     RESOURCE_EXHAUSTION  = "resource_exhaustion"   # LLM10 — unbounded token consumption / generation loops
+    DATA_POISONING       = "data_poisoning"        # LLM04 variant — corpus/inference-plane poisoning attack
 
 
 class RedactionPolicy(StrEnum):
@@ -150,6 +151,13 @@ class FilterResponse(BaseModel):
         description=(
             "Plain-language XAI summary of why this request was allowed or blocked. "
             "Safe to show directly to non-technical users or include in PDF reports."
+        ),
+    )
+    poisoning:                dict              = Field(
+        default_factory=dict,
+        description=(
+            "Data poisoning detection result. Non-empty when DataPoisoningGuard fires. "
+            "Fields: is_poisoning_attempt, poisoning_score, attack_vector, detail."
         ),
     )
 

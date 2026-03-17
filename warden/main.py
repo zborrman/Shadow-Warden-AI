@@ -284,6 +284,7 @@ _policy:         DataPolicyEngine  | None = None
 _feed:           ThreatFeedClient  | None = None
 _saml:           SAMLProvider      | None = None
 _webhook_store:  WebhookStore      | None = None
+_poison_guard:   "DataPoisoningGuard | None" = None  # type: ignore[assignment]
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -390,6 +391,18 @@ async def lifespan(app: FastAPI):
     # ── Pre-warm inference path ───────────────────────────────────────
     _brain_guard.check("system warm-up ping")
     log.info("ML brain warm-up complete.")
+
+    # ── Data Poisoning Guard ──────────────────────────────────────────
+    global _poison_guard
+    try:
+        from warden.brain.poison import CorpusHealthMonitor, DataPoisoningGuard
+        _poison_guard = DataPoisoningGuard(_brain_guard)
+        await _poison_guard.initialise_async()
+        _monitor = CorpusHealthMonitor(_poison_guard)
+        asyncio.create_task(_monitor.run())
+        log.info("DataPoisoningGuard active — corpus health monitor started.")
+    except Exception as _pe:
+        log.warning("DataPoisoningGuard unavailable (non-fatal): %s", _pe)
 
     # ── Rule Ledger ────────────────────────────────────────────────────
     _ledger = RuleLedger()
@@ -820,6 +833,8 @@ async def _run_filter_pipeline(
         })
     )
 
+    poison_result_dict: dict = {}   # populated by Stage 2c if guard fires
+
     # ── Stage 0: Redis cache check ─────────────────────────────────────
     t0 = time.perf_counter()
     cached_json = get_cached(payload.content)
@@ -950,6 +965,48 @@ async def _run_filter_pipeline(
                 "tenant_id":  tenant_id,
             })
         )
+
+    # ── Stage 2c: Data Poisoning Detection ───────────────────────────
+    poison_result_dict: dict = {}
+    if _poison_guard is not None:
+        t0 = time.perf_counter()
+        try:
+            from warden.brain.poison import PoisonResult  # noqa: PLC0415
+            _pr: PoisonResult = await _poison_guard.check_async(
+                content=redact_result.text,
+                tenant_id=tenant_id,
+                ml_score=brain_result.score,
+                threshold=brain_result.threshold,
+            )
+            timings["poison"] = round((time.perf_counter() - t0) * 1000, 2)
+            if _pr.is_poisoning_attempt:
+                poison_result_dict = _pr.as_dict
+                guard_result.flags.append(SemanticFlag(
+                    flag=FlagType.DATA_POISONING,
+                    score=round(_pr.poisoning_score, 4),
+                    detail=_pr.detail,
+                ))
+                guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.HIGH)
+                try:
+                    from warden.metrics import POISONING_ATTEMPTS_TOTAL  # noqa: PLC0415
+                    POISONING_ATTEMPTS_TOTAL.labels(
+                        tenant_id=tenant_id,
+                        attack_vector=_pr.attack_vector,
+                    ).inc()
+                except Exception:
+                    pass
+                log.warning(
+                    json.dumps({
+                        "event":        "data_poisoning_detected",
+                        "request_id":   rid,
+                        "tenant_id":    tenant_id,
+                        "attack_vector": _pr.attack_vector,
+                        "score":        _pr.poisoning_score,
+                        "detail":       _pr.detail,
+                    })
+                )
+        except Exception as _pe:
+            log.debug("Poison detection error (non-fatal): %s", _pe)
 
     # ── Stage 3: Decision ─────────────────────────────────────────────
     with _trace_stage("decision", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
@@ -1184,6 +1241,7 @@ async def _run_filter_pipeline(
         processing_ms            = timings,
         masking                  = _masking_report,
         explanation              = _explanation,
+        poisoning                = poison_result_dict,
     )
 
     # ── Cache write ───────────────────────────────────────────────────

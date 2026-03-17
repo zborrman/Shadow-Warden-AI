@@ -92,6 +92,49 @@ try:
     # Already covered by prometheus-fastapi-instrumentator for HTTP-level
     # latency.  No extra histogram needed here yet.
 
+    # ── Data Poisoning Detection metrics ──────────────────────────────────────
+
+    try:
+        POISONING_ATTEMPTS_TOTAL = Counter(
+            "warden_poisoning_attempts_total",
+            "Data poisoning attempts detected by DataPoisoningGuard",
+            ["tenant_id", "attack_vector"],
+        )
+    except ValueError:
+        POISONING_ATTEMPTS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_poisoning_attempts_total"
+        )
+
+    try:
+        CORPUS_DRIFT_SCORE = Gauge(
+            "warden_corpus_drift_score",
+            "Current cosine distance of corpus centroid from baseline (0=healthy)",
+        )
+    except ValueError:
+        CORPUS_DRIFT_SCORE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_corpus_drift_score"
+        )
+
+    try:
+        CORPUS_CANARY_MIN_SCORE = Gauge(
+            "warden_corpus_canary_min_score",
+            "Minimum cosine similarity of canary examples against corpus (should stay ≥0.70)",
+        )
+    except ValueError:
+        CORPUS_CANARY_MIN_SCORE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_corpus_canary_min_score"
+        )
+
+    try:
+        CORPUS_CANARY_FAILING = Gauge(
+            "warden_corpus_canary_failing",
+            "Number of canary examples scoring below minimum threshold",
+        )
+    except ValueError:
+        CORPUS_CANARY_FAILING = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_corpus_canary_failing"
+        )
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -108,8 +151,12 @@ except ImportError:
         def set(self, _value: float) -> None:
             pass
 
-    TOOL_BLOCKS             = _Noop()  # type: ignore[assignment]
-    AGENT_SESSIONS_ACTIVE   = _Noop()  # type: ignore[assignment]
-    AGENT_ANOMALIES_TOTAL   = _Noop()  # type: ignore[assignment]
-    AGENT_SESSION_BLOCKS    = _Noop()  # type: ignore[assignment]
-    EVOLUTION_SKIPPED_TOTAL = _Noop()  # type: ignore[assignment]
+    TOOL_BLOCKS              = _Noop()  # type: ignore[assignment]
+    AGENT_SESSIONS_ACTIVE    = _Noop()  # type: ignore[assignment]
+    AGENT_ANOMALIES_TOTAL    = _Noop()  # type: ignore[assignment]
+    AGENT_SESSION_BLOCKS     = _Noop()  # type: ignore[assignment]
+    EVOLUTION_SKIPPED_TOTAL  = _Noop()  # type: ignore[assignment]
+    POISONING_ATTEMPTS_TOTAL = _Noop()  # type: ignore[assignment]
+    CORPUS_DRIFT_SCORE       = _Noop()  # type: ignore[assignment]
+    CORPUS_CANARY_MIN_SCORE  = _Noop()  # type: ignore[assignment]
+    CORPUS_CANARY_FAILING    = _Noop()  # type: ignore[assignment]

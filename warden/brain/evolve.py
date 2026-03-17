@@ -328,6 +328,27 @@ class EvolutionEngine:
             # Vet all examples before injecting into the corpus
             raw_candidates = [evolution.new_rule.value] + evolution.evasion_variants[:MAX_EVASION_VARIANTS]
             examples = [e for raw in raw_candidates if (e := self._vet_example(raw)) is not None]
+
+            # ── Data Poisoning Guard: secondary vetting ───────────────────────
+            # Import lazily to avoid circular imports; fails silently if unavailable.
+            try:
+                from warden.brain.poison import DataPoisoningGuard as _DPG  # noqa: PLC0415
+                import warden.main as _main  # noqa: PLC0415
+                _pg = getattr(_main, "_poison_guard", None)
+                if _pg is not None and isinstance(_pg, _DPG):
+                    vetted: list[str] = []
+                    for ex in examples:
+                        approved, reason = await _pg.vet_example_async(ex)
+                        if approved:
+                            vetted.append(ex)
+                        else:
+                            log.warning(
+                                "DataPoisoningGuard rejected corpus candidate: %s", reason
+                            )
+                    examples = vetted
+            except Exception as _pe:
+                log.debug("Poison guard corpus vetting skipped: %s", _pe)
+
             if examples:
                 self._guard.add_examples(examples)
                 corpus_updated = True
