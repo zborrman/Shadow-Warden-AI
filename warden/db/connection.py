@@ -239,6 +239,47 @@ def create_schema() -> None:
         "CREATE INDEX IF NOT EXISTS threat_intel_source_idx ON warden_core.threat_intel_items(source)",
         "CREATE INDEX IF NOT EXISTS rule_ledger_source_idx  ON warden_core.rule_ledger(source)",
         "CREATE INDEX IF NOT EXISTS billing_tenant_idx      ON warden_core.billing_usage(tenant_id)",
+
+        # ── Portal: customer accounts ──────────────────────────────────────────
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.portal_users (
+            id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            email           TEXT        UNIQUE NOT NULL,
+            password_hash   TEXT        NOT NULL,
+            display_name    TEXT        NOT NULL DEFAULT '',
+            tenant_id       TEXT        NOT NULL,
+            role            TEXT        NOT NULL DEFAULT 'owner',
+            email_verified  BOOLEAN     NOT NULL DEFAULT false,
+            verify_token    TEXT,
+            reset_token     TEXT,
+            reset_expires   TIMESTAMPTZ,
+            notify_high     BOOLEAN     NOT NULL DEFAULT true,
+            notify_block    BOOLEAN     NOT NULL DEFAULT true,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            last_login_at   TIMESTAMPTZ
+        )
+        """,
+
+        # ── Portal: customer API keys ──────────────────────────────────────────
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.portal_api_keys (
+            id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id   TEXT        NOT NULL,
+            label       TEXT        NOT NULL DEFAULT 'Default',
+            key_hash    TEXT        UNIQUE NOT NULL,
+            key_prefix  TEXT        NOT NULL,
+            rate_limit  INTEGER     NOT NULL DEFAULT 60,
+            active      BOOLEAN     NOT NULL DEFAULT true,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            created_by  UUID        REFERENCES warden_core.portal_users(id),
+            revoked_at  TIMESTAMPTZ
+        )
+        """,
+
+        "CREATE INDEX IF NOT EXISTS portal_users_email_idx  ON warden_core.portal_users(email)",
+        "CREATE INDEX IF NOT EXISTS portal_users_tenant_idx ON warden_core.portal_users(tenant_id)",
+        "CREATE INDEX IF NOT EXISTS portal_keys_tenant_idx  ON warden_core.portal_api_keys(tenant_id)",
+        "CREATE INDEX IF NOT EXISTS portal_keys_hash_idx    ON warden_core.portal_api_keys(key_hash)",
     ]
 
     with engine.begin() as conn:

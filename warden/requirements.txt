@@ -91,6 +91,10 @@ plotly>=5.22.0
 # Generate a hash: python -m warden.analytics.auth
 bcrypt>=4.0.0
 
+# ── Portal authentication (customer portal JWT) ───────────────────────────────
+# python-jose — signs and verifies JWTs for the customer portal.
+python-jose[cryptography]>=3.3.0
+
 # ── SAML 2.0 SSO (optional — only required when SAML_SP_ENTITY_ID is set) ────
 # python3-saml — SAML 2.0 SP; wraps lxml + xmlsec for signature validation.
 # PyJWT — signs and verifies session JWTs issued after successful SAML login.

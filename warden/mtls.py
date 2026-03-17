@@ -56,6 +56,8 @@ _ALLOWED_CNS: frozenset[str] = frozenset(
 
 # Internal probe paths that don't carry client certs — exempt from enforcement
 _EXEMPT_PATHS: frozenset[str] = frozenset({"/health", "/metrics", "/demo/filter"})
+# Portal paths are exempt — they carry their own JWT Bearer auth
+_EXEMPT_PREFIXES: tuple[str, ...] = ("/portal/",)
 
 
 class MTLSMiddleware(BaseHTTPMiddleware):
@@ -63,7 +65,10 @@ class MTLSMiddleware(BaseHTTPMiddleware):
     internal service identified by its client-certificate CN."""
 
     async def dispatch(self, request: Request, call_next):
-        if not _MTLS_ENABLED or request.url.path in _EXEMPT_PATHS:
+        path = request.url.path
+        if (not _MTLS_ENABLED
+                or path in _EXEMPT_PATHS
+                or any(path.startswith(p) for p in _EXEMPT_PREFIXES)):
             return await call_next(request)
 
         cn = _extract_cn(request)

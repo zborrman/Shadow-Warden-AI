@@ -58,6 +58,24 @@ services:
       timeout: 5s
       retries: 3
 
+  # ── PORTAL ───────────────────────────────────
+  # Customer portal: Next.js static export served by nginx.
+  # Accessible at portal.shadow-warden-ai.com (via host nginx + Certbot).
+  portal:
+    build:
+      context: ./portal
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://api.shadow-warden-ai.com
+    container_name: warden-portal
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:80"
+    networks:
+      - warden-net
+    labels:
+      - "com.shadow-warden.service=portal"
+
   # ── 2. WARDEN ────────────────────────────────
   # FastAPI filter gateway + browser sandbox.
   # Every payload from app/ passes through /filter first.
@@ -95,6 +113,11 @@ services:
       - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
       # ── New in v0.3 ──────────────────────────────────────────────────────────
       - WARDEN_API_KEY=${WARDEN_API_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://shadow-warden-ai.com,https://www.shadow-warden-ai.com,https://portal.shadow-warden-ai.com,http://localhost:3000,http://localhost:3001}
+      # ── Customer portal JWT ──────────────────────────────────────────────────
+      - PORTAL_JWT_SECRET=${PORTAL_JWT_SECRET:-change-me}
+      - PORTAL_ACCESS_TOKEN_TTL=${PORTAL_ACCESS_TOKEN_TTL:-60}
+      - PORTAL_REFRESH_TOKEN_TTL=${PORTAL_REFRESH_TOKEN_TTL:-7}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
       - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-300}
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}

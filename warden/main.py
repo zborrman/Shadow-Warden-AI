@@ -662,6 +662,13 @@ try:
 except ImportError:
     log.warning("openai_proxy not available — /v1 routes skipped.")
 
+try:
+    from warden.portal_router import router as _portal_router
+    app.include_router(_portal_router, prefix="/portal")
+    log.info("Customer portal API mounted at /portal")
+except ImportError:
+    log.warning("portal_router not available — /portal routes skipped.")
+
 
 # ── HTTP middleware (request-ID + security headers) ───────────────────────────
 
