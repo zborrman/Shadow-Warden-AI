@@ -386,34 +386,34 @@
   <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
   <aside class="sidebar">
     <div class="sidebar-group">Detection</div>
-    <a class="sidebar-item active" onclick="showSection('detection')" href="#detection">
+    <a class="sidebar-item active" onclick="return showSection('detection', this)" href="#detection">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       Detection Engine
     </a>
-    <a class="sidebar-item" onclick="showSection('evolution')" href="#evolution">
+    <a class="sidebar-item" onclick="return showSection('evolution', this)" href="#evolution">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Evolution Engine
     </a>
     <div class="sidebar-group">Infrastructure</div>
-    <a class="sidebar-item" onclick="showSection('ratelimit')" href="#ratelimit">
+    <a class="sidebar-item" onclick="return showSection('ratelimit', this)" href="#ratelimit">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Rate Limiting
     </a>
-    <a class="sidebar-item" onclick="showSection('cache')" href="#cache">
+    <a class="sidebar-item" onclick="return showSection('cache', this)" href="#cache">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
       Cache &amp; Redis
     </a>
     <div class="sidebar-group">Integrations</div>
-    <a class="sidebar-item" onclick="showSection('alerting')" href="#alerting">
+    <a class="sidebar-item" onclick="return showSection('alerting', this)" href="#alerting">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
       Alerting
     </a>
     <div class="sidebar-group">Compliance</div>
-    <a class="sidebar-item" onclick="showSection('gdpr')" href="#gdpr">
+    <a class="sidebar-item" onclick="return showSection('gdpr', this)" href="#gdpr">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
       GDPR &amp; Privacy
     </a>
-    <a class="sidebar-item" onclick="showSection('api')" href="#api">
+    <a class="sidebar-item" onclick="return showSection('api', this)" href="#api">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
       API Keys
     </a>
@@ -853,11 +853,12 @@
   }
 
   // ── Sidebar navigation ──────────────────────────────────────────────────────
-  function showSection(id) {
+  function showSection(id, el) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
     document.getElementById('section-' + id)?.classList.add('active');
-    event?.currentTarget?.classList.add('active');
+    if (el) el.classList.add('active');
+    return false;
   }
 
   // ── Toast helper ─────────────────────────────────────────────────────────────
