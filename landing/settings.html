@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — Shadow Warden AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #030712;
+      --surf:     #0a0f1e;
+      --surf2:    #0f172a;
+      --surf3:    #1e293b;
+      --border:   rgba(99,102,241,0.14);
+      --border-h: rgba(99,102,241,0.35);
+      --indigo:   #6366f1;
+      --violet:   #8b5cf6;
+      --cyan:     #06b6d4;
+      --green:    #34d399;
+      --amber:    #fbbf24;
+      --red:      #f87171;
+      --text:     #f1f5f9;
+      --text2:    #94a3b8;
+      --text3:    #475569;
+      --radius:   12px;
+    }
+
+    html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+    /* ── Nav ─────────────────────────────────────────────────────────── */
+    .nav {
+      height: 56px;
+      background: rgba(10,15,30,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font-weight: 700; font-size: 0.9375rem; flex-shrink: 0; }
+    .nav-logo span { background: linear-gradient(135deg, var(--indigo), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-links { display: flex; align-items: center; gap: 4px; flex: 1; }
+    .nav-link { padding: 5px 12px; border-radius: 7px; text-decoration: none; font-size: 0.8125rem; font-weight: 500; color: var(--text2); transition: all 0.15s; }
+    .nav-link:hover { background: var(--surf2); color: var(--text); }
+    .nav-link.active { background: rgba(99,102,241,0.12); color: var(--indigo); }
+    .nav-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 56px); }
+    @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────── */
+    .sidebar {
+      background: var(--surf);
+      border-right: 1px solid var(--border);
+      padding: 24px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      position: sticky;
+      top: 56px;
+      height: calc(100vh - 56px);
+      overflow-y: auto;
+    }
+
+    .sidebar-group { font-size: 0.6875rem; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; padding: 12px 12px 6px; }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text2);
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+
+    .sidebar-item:hover { background: var(--surf2); color: var(--text); }
+    .sidebar-item.active { background: rgba(99,102,241,0.12); color: var(--indigo); }
+    .sidebar-item svg { flex-shrink: 0; }
+
+    /* ── Content ─────────────────────────────────────────────────────── */
+    .content { padding: 32px; max-width: 780px; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .section-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .section-sub { font-size: 0.875rem; color: var(--text2); margin-bottom: 28px; }
+
+    /* ── Setting row ─────────────────────────────────────────────────── */
+    .setting-group {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .setting-group-title {
+      padding: 14px 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.015);
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    .setting-row:last-child { border-bottom: none; }
+    .setting-row:hover { background: rgba(255,255,255,0.015); }
+
+    .setting-info { flex: 1; min-width: 0; }
+
+    .setting-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .setting-desc { font-size: 0.75rem; color: var(--text3); line-height: 1.5; }
+
+    .setting-control { flex-shrink: 0; display: flex; align-items: center; gap: 10px; }
+
+    /* ── Toggle ──────────────────────────────────────────────────────── */
+    .toggle-wrap { position: relative; display: inline-flex; align-items: center; }
+
+    .toggle-input { opacity: 0; position: absolute; }
+
+    .toggle-track {
+      width: 40px;
+      height: 22px;
+      border-radius: 11px;
+      background: var(--surf3);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .toggle-input:checked + .toggle-track { background: var(--indigo); border-color: var(--indigo); }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .toggle-input:checked + .toggle-track::after { transform: translateX(18px); }
+
+    /* ── Input / Select ──────────────────────────────────────────────── */
+    .ctrl-input {
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 0.8125rem;
+      font-family: inherit;
+      padding: 6px 10px;
+      width: 160px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .ctrl-input:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+    .ctrl-input.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; }
+
+    .ctrl-input.wide { width: 260px; }
+
+    select.ctrl-input { cursor: pointer; }
+    select.ctrl-input option { background: var(--surf2); }
+
+    /* ── Range slider ────────────────────────────────────────────────── */
+    .slider-wrap { display: flex; align-items: center; gap: 10px; }
+
+    .ctrl-range {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 140px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--surf3);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .ctrl-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--indigo);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+
+    .range-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--indigo);
+      min-width: 36px;
+      text-align: center;
+    }
+
+    /* ── Status badges ───────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+    }
+
+    .badge-green  { background: rgba(52,211,153,0.1);  color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+    .badge-amber  { background: rgba(251,191,36,0.1);  color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+    .badge-gray   { background: rgba(148,163,184,0.08); color: var(--text3); border: 1px solid var(--border); }
+    .badge-red    { background: rgba(248,113,113,0.1);  color: var(--red);   border: 1px solid rgba(248,113,113,0.2); }
+
+    /* ── Buttons ─────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: linear-gradient(135deg, var(--indigo), var(--violet)); color: #fff; }
+    .btn-primary:hover { opacity: 0.88; }
+
+    .btn-outline { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--border-h); color: var(--text); background: var(--surf2); }
+
+    .btn-danger { background: rgba(248,113,113,0.08); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+    .btn-danger:hover { background: rgba(248,113,113,0.15); }
+
+    .btn-sm { padding: 5px 12px; font-size: 0.75rem; }
+
+    /* ── Save bar ─────────────────────────────────────────────────────── */
+    .save-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: rgba(99,102,241,0.06);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: var(--radius);
+      margin-top: 20px;
+    }
+
+    .save-bar-text { font-size: 0.8125rem; color: var(--text2); }
+
+    /* ── Toast ───────────────────────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 0.8125rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.2s;
+      z-index: 200;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: none; }
+    .toast.success { border-color: rgba(52,211,153,0.3); color: var(--green); }
+    .toast.error   { border-color: rgba(248,113,113,0.3); color: var(--red); }
+
+    /* ── Code block ──────────────────────────────────────────────────── */
+    .code-block {
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text2);
+      line-height: 1.7;
+      overflow-x: auto;
+      margin-top: 8px;
+    }
+
+    .code-key   { color: var(--indigo); }
+    .code-val   { color: var(--cyan); }
+    .code-str   { color: var(--green); }
+
+    /* ── GDPR action ─────────────────────────────────────────────────── */
+    .gdpr-action {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gdpr-action:last-child { border-bottom: none; }
+
+    /* ── Restart notice ──────────────────────────────────────────────── */
+    .restart-notice {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.6875rem;
+      color: var(--amber);
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.2);
+      border-radius: 6px;
+      padding: 2px 8px;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ──────────────────────────────────────────────────────────────────── -->
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+      <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#snl)" opacity=".9"/>
+      <defs><linearGradient id="snl" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+      <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Shadow</span> Warden
+  </a>
+  <div class="nav-links">
+    <a href="/dashboard" class="nav-link">Dashboard</a>
+    <a href="/settings" class="nav-link active">Settings</a>
+    <a href="/docs" class="nav-link">API Docs</a>
+  </div>
+  <div class="nav-right">
+    <a href="/" id="auth-link" style="font-size:0.8125rem;color:var(--text2);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid var(--border)">Sign In</a>
+  </div>
+</nav>
+
+<div class="layout">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-group">Detection</div>
+    <a class="sidebar-item active" onclick="showSection('detection')" href="#detection">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Detection Engine
+    </a>
+    <a class="sidebar-item" onclick="showSection('evolution')" href="#evolution">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Evolution Engine
+    </a>
+    <div class="sidebar-group">Infrastructure</div>
+    <a class="sidebar-item" onclick="showSection('ratelimit')" href="#ratelimit">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Rate Limiting
+    </a>
+    <a class="sidebar-item" onclick="showSection('cache')" href="#cache">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      Cache &amp; Redis
+    </a>
+    <div class="sidebar-group">Integrations</div>
+    <a class="sidebar-item" onclick="showSection('alerting')" href="#alerting">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      Alerting
+    </a>
+    <div class="sidebar-group">Compliance</div>
+    <a class="sidebar-item" onclick="showSection('gdpr')" href="#gdpr">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      GDPR &amp; Privacy
+    </a>
+    <a class="sidebar-item" onclick="showSection('api')" href="#api">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      API Keys
+    </a>
+  </aside>
+
+  <!-- ── Content ─────────────────────────────────────────────────────────── -->
+  <div class="content">
+
+    <!-- ── Detection Engine ─────────────────────────────────────────── -->
+    <section class="section active" id="section-detection">
+      <div class="section-title">Detection Engine</div>
+      <div class="section-sub">Configure the semantic filter pipeline thresholds and behaviour</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">ML Brain (MiniLM)</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Semantic Threshold</div>
+            <div class="setting-desc">Cosine similarity score above which a request is flagged by the ML model.<br/>Lower = more sensitive (more false positives). Default: 0.72</div>
+          </div>
+          <div class="setting-control">
+            <div class="slider-wrap">
+              <input type="range" class="ctrl-range" id="threshold-range" min="0.3" max="0.99" step="0.01" value="0.72" oninput="document.getElementById('threshold-val').textContent=parseFloat(this.value).toFixed(2)" />
+              <span class="range-val" id="threshold-val">0.72</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Strict Mode</div>
+            <div class="setting-desc">In strict mode, MEDIUM risk requests are also blocked (not just HIGH/BLOCK). Increases security at the cost of higher false-positive rate.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap">
+              <input type="checkbox" class="toggle-input" id="strict-mode" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Compound Risk Escalation</div>
+            <div class="setting-desc">3 or more MEDIUM signals in a single request auto-escalate to HIGH. Always enabled — prevents compound jailbreaks.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Always On</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Pipeline Stages</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Obfuscation Decoder</div>
+            <div class="setting-desc">Decodes base64, hex, ROT13, and unicode homoglyphs before semantic analysis.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Active</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Secret / PII Redactor</div>
+            <div class="setting-desc">15 regex patterns: API keys, emails, SSN, IBAN, Anthropic tokens, HuggingFace tokens.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Active</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Rule-based SemanticGuard</div>
+            <div class="setting-desc">Pattern matching for known jailbreak vectors, prompt injection, harmful intent.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Active</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Browser Sandbox (Playwright)</div>
+            <div class="setting-desc">Headless Chromium for analysing URLs in payloads. Requires Playwright base image.</div>
+            <div class="restart-notice">⚠ Requires BROWSER_ENABLED=true + restart</div>
+          </div>
+          <div class="setting-control" id="browser-status">
+            <span class="badge badge-gray">Disabled</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">OpenTelemetry Tracing</div>
+            <div class="setting-desc">Distributed tracing via OTEL. Set OTEL_ENDPOINT for Jaeger/Tempo.</div>
+            <div class="restart-notice">⚠ Requires OTEL_ENABLED=true + restart</div>
+          </div>
+          <div class="setting-control" id="otel-status">
+            <span class="badge badge-gray">Disabled</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <span class="save-bar-text">Threshold and strict mode apply instantly — no restart required.</span>
+        <button class="btn btn-primary" onclick="saveDetection()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Apply Changes
+        </button>
+      </div>
+    </section>
+
+    <!-- ── Evolution Engine ─────────────────────────────────────────── -->
+    <section class="section" id="section-evolution">
+      <div class="section-title">Evolution Engine</div>
+      <div class="section-sub">Auto-generates detection rules from blocked attacks using Claude Opus</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Engine Status</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Evolution Engine</div>
+            <div class="setting-desc">When active, blocked HIGH/BLOCK requests trigger Claude Opus to generate new detection rules. Requires ANTHROPIC_API_KEY.</div>
+          </div>
+          <div class="setting-control" id="evolution-status">
+            <span class="badge badge-gray">Disabled (no API key)</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Corpus Poisoning Protection</div>
+            <div class="setting-desc">Growth cap (500 examples), dedup cap (10k), vetting of generated rules before hot-reload.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Active</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">ANTHROPIC_API_KEY</div>
+            <div class="setting-desc">Set in .env to enable evolution. Required for Claude Opus rule generation. Never logged.</div>
+            <div class="restart-notice">⚠ Set in server .env + restart to activate</div>
+          </div>
+          <div class="setting-control">
+            <input type="password" class="ctrl-input" placeholder="sk-ant-…" disabled value="••••••••••••••••" />
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Current Corpus</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Dynamic Rules</div>
+            <div class="setting-desc">Rules generated at runtime and persisted in dynamic_rules.json. Survive service restarts.</div>
+          </div>
+          <div class="setting-control" id="corpus-count">
+            <span class="badge badge-gray">—</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Rate Limiting ─────────────────────────────────────────────── -->
+    <section class="section" id="section-ratelimit">
+      <div class="section-title">Rate Limiting</div>
+      <div class="section-sub">Per-tenant request throttling via Redis-backed slowapi</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Limits</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Default Rate Limit</div>
+            <div class="setting-desc">Requests per minute per tenant (API key bucket). Falls back to IP bucket when no API key is provided.</div>
+            <div class="restart-notice">⚠ Requires RATE_LIMIT_PER_MINUTE env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="rate-limit-val" min="1" max="10000" value="60" />
+            <span style="font-size:0.75rem;color:var(--text3)">req/min</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Batch Endpoint Limit</div>
+            <div class="setting-desc">Maximum items per POST /filter/batch call. Hard limit prevents abuse of bulk endpoint.</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" value="50" disabled />
+            <span style="font-size:0.75rem;color:var(--text3)">items</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Rate Limit Backend</div>
+            <div class="setting-desc">Redis-backed for production. Falls back to in-memory (memory://) for development.</div>
+          </div>
+          <div class="setting-control" id="redis-status">
+            <span class="badge badge-green">Redis</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Cache ─────────────────────────────────────────────────────── -->
+    <section class="section" id="section-cache">
+      <div class="section-title">Cache &amp; Redis</div>
+      <div class="section-sub">SHA-256 content-hash cache with configurable TTL</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Redis Configuration</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Redis URL</div>
+            <div class="setting-desc">Connection string for the cache and rate-limiter Redis instance.</div>
+            <div class="restart-notice">⚠ Requires REDIS_URL env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input wide mono" id="redis-url" value="redis://redis:6379/0" disabled />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Cache TTL</div>
+            <div class="setting-desc">How long a cached filter result is reused for identical payloads (SHA-256 hash match).</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" value="300" disabled />
+            <span style="font-size:0.75rem;color:var(--text3)">seconds</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Cache Strategy</div>
+            <div class="setting-desc">Fail-open: if Redis is unavailable, requests are processed normally (no blocking).</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Fail-Open</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Alerting ───────────────────────────────────────────────────── -->
+    <section class="section" id="section-alerting">
+      <div class="section-title">Alerting</div>
+      <div class="section-sub">Real-time notifications on HIGH risk and BLOCK decisions</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Slack</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Slack Webhook URL</div>
+            <div class="setting-desc">Incoming webhook URL for your Slack channel. Alerts fire on HIGH and BLOCK decisions.</div>
+            <div class="restart-notice">⚠ Set SLACK_WEBHOOK_URL env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="url" class="ctrl-input wide" placeholder="https://hooks.slack.com/…" disabled />
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">PagerDuty</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Integration Key</div>
+            <div class="setting-desc">Events API v2 routing key. Triggers P1 incidents on BLOCK decisions.</div>
+            <div class="restart-notice">⚠ Set PAGERDUTY_KEY env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="password" class="ctrl-input" placeholder="xxxxxxxxxxxxxxxx" disabled />
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">SIEM</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Splunk HEC Endpoint</div>
+            <div class="setting-desc">HTTP Event Collector URL. Events are forwarded as JSON with standard CIM fields.</div>
+            <div class="restart-notice">⚠ Set SPLUNK_HEC_URL + SPLUNK_HEC_TOKEN env vars + restart</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-gray">Not configured</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Elastic ECS</div>
+            <div class="setting-desc">Forward events to Elasticsearch in ECS format for SIEM correlation.</div>
+            <div class="restart-notice">⚠ Set ELASTIC_URL + ELASTIC_INDEX env vars + restart</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-gray">Not configured</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── GDPR ──────────────────────────────────────────────────────── -->
+    <section class="section" id="section-gdpr">
+      <div class="section-title">GDPR &amp; Privacy</div>
+      <div class="section-sub">Data retention, export, and erasure — content is never logged</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Log Retention</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Retention Period</div>
+            <div class="setting-desc">Log entries (metadata only — no content) are automatically purged after this period.</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="retention-days" min="1" max="730" value="30" />
+            <span style="font-size:0.75rem;color:var(--text3)">days</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Content Logging</div>
+            <div class="setting-desc">Request content is NEVER stored — only metadata (type, length, timing, flags). Hard-coded by design.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Never logged</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Data Subject Rights</div>
+
+        <div class="gdpr-action">
+          <div class="setting-info">
+            <div class="setting-name">Export Request Data</div>
+            <div class="setting-desc">Retrieve all metadata logged for a specific request ID (Article 15 — Right of Access).</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <input type="text" class="ctrl-input" id="export-rid" placeholder="request-uuid" />
+            <button class="btn btn-outline btn-sm" onclick="gdprExport()">Export</button>
+          </div>
+        </div>
+
+        <div class="gdpr-action">
+          <div class="setting-info">
+            <div class="setting-name">Purge Logs Before Date</div>
+            <div class="setting-desc">Permanently erase all log entries before the specified date (Article 17 — Right to Erasure).</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <input type="date" class="ctrl-input" id="purge-date" />
+            <button class="btn btn-danger btn-sm" onclick="gdprPurge()">Purge</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── API Keys ───────────────────────────────────────────────────── -->
+    <section class="section" id="section-api">
+      <div class="section-title">API Keys</div>
+      <div class="section-sub">Per-tenant key management with SHA-256 hash lookup</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Authentication</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Auth Mode</div>
+            <div class="setting-desc">When WARDEN_API_KEYS_PATH is set: JSON multi-key file with per-tenant rate limits. When WARDEN_API_KEY is set: single shared key mode.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green" id="auth-mode-badge">Multi-Key</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Key Format</div>
+            <div class="setting-desc">Keys are stored as SHA-256 hashes — plaintext is never persisted. Comparison is constant-time to prevent timing attacks.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">SHA-256 Hashed</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Key File Format</div>
+        <div style="padding:16px 20px">
+          <div style="font-size:0.8125rem;color:var(--text2);margin-bottom:10px">Set <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--indigo)">WARDEN_API_KEYS_PATH</code> to a JSON file:</div>
+          <div class="code-block"><span class="code-key">{</span><br/>
+&nbsp;&nbsp;<span class="code-str">"keys"</span>: [<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-key">{</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-str">"key_hash"</span>: <span class="code-val">"sha256-of-key"</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-str">"tenant_id"</span>: <span class="code-val">"acme-corp"</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-str">"rate_limit"</span>: <span class="code-val">120</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-key">}</span><br/>
+&nbsp;&nbsp;]<br/>
+<span class="code-key">}</span></div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+</div><!-- /layout -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Auth ────────────────────────────────────────────────────────────────────
+  const token = localStorage.getItem('warden_token');
+  const authLink = document.getElementById('auth-link');
+  if (token) {
+    authLink.textContent = 'Sign Out';
+    authLink.href = '#';
+    authLink.onclick = () => { localStorage.removeItem('warden_token'); location.href = '/'; };
+  }
+
+  // ── Sidebar navigation ──────────────────────────────────────────────────────
+  function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+    document.getElementById('section-' + id)?.classList.add('active');
+    event?.currentTarget?.classList.add('active');
+  }
+
+  // ── Toast helper ─────────────────────────────────────────────────────────────
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => { t.className = 'toast'; }, 3000);
+  }
+
+  // ── Load config ─────────────────────────────────────────────────────────────
+  async function loadConfig() {
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const res  = await fetch('/api/config', { headers });
+      if (!res.ok) return;
+      const cfg  = await res.json();
+
+      document.getElementById('threshold-range').value = cfg.semantic_threshold;
+      document.getElementById('threshold-val').textContent = cfg.semantic_threshold.toFixed(2);
+      document.getElementById('strict-mode').checked = cfg.strict_mode;
+      document.getElementById('rate-limit-val').value = cfg.rate_limit_per_minute;
+
+      if (cfg.evolution_enabled) {
+        document.getElementById('evolution-status').innerHTML = '<span class="badge badge-green">Active</span>';
+      }
+
+      if (cfg.browser_enabled) {
+        document.getElementById('browser-status').innerHTML = '<span class="badge badge-green">Active</span>';
+      }
+
+      if (cfg.otel_enabled) {
+        document.getElementById('otel-status').innerHTML = '<span class="badge badge-green">Active</span>';
+      }
+
+    } catch (e) {
+      console.warn('Config load failed:', e);
+    }
+  }
+
+  // ── Save detection settings ─────────────────────────────────────────────────
+  async function saveDetection() {
+    const threshold = parseFloat(document.getElementById('threshold-range').value);
+    const strict    = document.getElementById('strict-mode').checked;
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = 'Bearer ' + token;
+
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ semantic_threshold: threshold, strict_mode: strict }),
+      });
+
+      if (res.ok) {
+        showToast('Detection settings applied', 'success');
+      } else {
+        showToast('Failed to apply settings', 'error');
+      }
+    } catch {
+      showToast('Connection error', 'error');
+    }
+  }
+
+  // ── GDPR actions ─────────────────────────────────────────────────────────────
+  async function gdprExport() {
+    const rid = document.getElementById('export-rid').value.trim();
+    if (!rid) { showToast('Enter a request ID', 'error'); return; }
+
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const res  = await fetch('/gdpr/export', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: rid }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'gdpr-export-' + rid.slice(0, 8) + '.json'; a.click();
+        URL.revokeObjectURL(url);
+        showToast('Export downloaded', 'success');
+      } else {
+        showToast(data.detail || 'Request ID not found', 'error');
+      }
+    } catch {
+      showToast('Connection error', 'error');
+    }
+  }
+
+  async function gdprPurge() {
+    const date = document.getElementById('purge-date').value;
+    if (!date) { showToast('Select a date', 'error'); return; }
+
+    if (!confirm('Permanently delete all log entries before ' + date + '? This cannot be undone.')) return;
+
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const res  = await fetch('/gdpr/purge', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ before: date + 'T00:00:00Z' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Purged ' + (data.removed || 0) + ' entries', 'success');
+      } else {
+        showToast('Purge failed', 'error');
+      }
+    } catch {
+      showToast('Connection error', 'error');
+    }
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  loadConfig();
+
+  // Default purge date to today
+  document.getElementById('purge-date').value = new Date().toISOString().slice(0, 10);
+</script>
+</body>
+</html>

@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Shadow Warden AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #030712;
+      --surf:     #0a0f1e;
+      --surf2:    #0f172a;
+      --surf3:    #1e293b;
+      --border:   rgba(99,102,241,0.14);
+      --indigo:   #6366f1;
+      --violet:   #8b5cf6;
+      --cyan:     #06b6d4;
+      --green:    #34d399;
+      --amber:    #fbbf24;
+      --red:      #f87171;
+      --text:     #f1f5f9;
+      --text2:    #94a3b8;
+      --text3:    #475569;
+      --radius:   12px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Top nav ─────────────────────────────────────────────────────── */
+    .nav {
+      height: 56px;
+      background: rgba(10,15,30,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 0.9375rem;
+      flex-shrink: 0;
+    }
+
+    .nav-logo span {
+      background: linear-gradient(135deg, var(--indigo), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .nav-link {
+      padding: 5px 12px;
+      border-radius: 7px;
+      text-decoration: none;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text2);
+      transition: all 0.15s;
+    }
+
+    .nav-link:hover { background: var(--surf2); color: var(--text); }
+    .nav-link.active { background: rgba(99,102,241,0.12); color: var(--indigo); }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--green);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .time-range {
+      display: flex;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .time-btn {
+      padding: 4px 10px;
+      border: none;
+      background: transparent;
+      color: var(--text3);
+      font-size: 0.75rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+
+    .time-btn.active {
+      background: var(--surf3);
+      color: var(--text);
+    }
+
+    /* ── Main layout ─────────────────────────────────────────────────── */
+    .main {
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── KPI cards ───────────────────────────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .kpi-row { grid-template-columns: 1fr; } }
+
+    .kpi-card {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent, var(--indigo));
+      opacity: 0.7;
+    }
+
+    .kpi-card:hover { border-color: rgba(99,102,241,0.3); }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--text3);
+    }
+
+    .kpi-sub .up   { color: var(--green); }
+    .kpi-sub .down { color: var(--red); }
+
+    /* ── Chart grid ──────────────────────────────────────────────────── */
+    .chart-row-2 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    .chart-row-2b {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .chart-row-2, .chart-row-2b { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surf);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .card-sub {
+      font-size: 0.75rem;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    .chart-wrap {
+      position: relative;
+    }
+
+    /* ── Event feed ──────────────────────────────────────────────────── */
+    .feed {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .feed::-webkit-scrollbar { width: 4px; }
+    .feed::-webkit-scrollbar-track { background: transparent; }
+    .feed::-webkit-scrollbar-thumb { background: var(--surf3); border-radius: 2px; }
+
+    .feed-row {
+      display: grid;
+      grid-template-columns: 56px 80px 70px 1fr 60px;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 7px;
+      font-size: 0.75rem;
+      transition: background 0.1s;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+    .feed-row:hover { background: var(--surf2); }
+
+    .feed-header {
+      display: grid;
+      grid-template-columns: 56px 80px 70px 1fr 60px;
+      gap: 8px;
+      padding: 6px 10px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    .risk-badge {
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 0.625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      display: inline-block;
+    }
+
+    .risk-LOW    { background: rgba(52,211,153,0.12); color: #34d399; }
+    .risk-MEDIUM { background: rgba(251,191,36,0.12);  color: #fbbf24; }
+    .risk-HIGH   { background: rgba(248,113,113,0.15); color: #f87171; }
+    .risk-BLOCK  { background: rgba(239,68,68,0.2);    color: #ef4444; }
+
+    .allow-chip { color: var(--green); font-weight: 600; }
+    .block-chip { color: var(--red);   font-weight: 600; }
+
+    .flag-list {
+      color: var(--text2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .latency-mono {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text3);
+      font-size: 0.6875rem;
+      text-align: right;
+    }
+
+    .time-mono {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text3);
+      font-size: 0.6875rem;
+    }
+
+    /* ── Empty state ─────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text3);
+      font-size: 0.8125rem;
+    }
+
+    .empty-state svg { opacity: 0.3; margin-bottom: 12px; }
+
+    /* ── Loading skeleton ────────────────────────────────────────────── */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, var(--surf2) 25%, var(--surf3) 50%, var(--surf2) 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navigation ──────────────────────────────────────────────────────────── -->
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+      <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#nl)" opacity=".9"/>
+      <defs><linearGradient id="nl" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+      <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Shadow</span> Warden
+  </a>
+
+  <div class="nav-links">
+    <a href="/dashboard" class="nav-link active">Dashboard</a>
+    <a href="/settings" class="nav-link">Settings</a>
+    <a href="/docs" class="nav-link">API Docs</a>
+  </div>
+
+  <div class="nav-right">
+    <div class="time-range">
+      <button class="time-btn" onclick="setRange(1)">1h</button>
+      <button class="time-btn" onclick="setRange(6)">6h</button>
+      <button class="time-btn active" id="range-btn-24" onclick="setRange(24)">24h</button>
+    </div>
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      Live
+    </div>
+    <a href="/" id="auth-link" style="font-size:0.8125rem;color:var(--text2);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid var(--border);transition:all 0.15s">Sign In</a>
+  </div>
+</nav>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi-card" style="--accent:var(--indigo)">
+      <div class="kpi-label">Total Requests</div>
+      <div class="kpi-value" id="kpi-total">—</div>
+      <div class="kpi-sub" id="kpi-total-sub">last 24 hours</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--red)">
+      <div class="kpi-label">Blocked</div>
+      <div class="kpi-value" style="color:var(--red)" id="kpi-blocked">—</div>
+      <div class="kpi-sub" id="kpi-blocked-sub">0% block rate</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--cyan)">
+      <div class="kpi-label">Avg Latency</div>
+      <div class="kpi-value" style="color:var(--cyan)" id="kpi-latency">—</div>
+      <div class="kpi-sub" id="kpi-p99">p99: —</div>
+    </div>
+    <div class="kpi-card" style="--accent:var(--green)">
+      <div class="kpi-label">Allowed</div>
+      <div class="kpi-value" style="color:var(--green)" id="kpi-allowed">—</div>
+      <div class="kpi-sub" id="kpi-allowed-sub">passing requests</div>
+    </div>
+  </div>
+
+  <!-- Line chart + Donut -->
+  <div class="chart-row-2">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Requests / minute</div>
+          <div class="card-sub">Last 60 minutes — total vs blocked</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-timeline"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Risk Distribution</div>
+          <div class="card-sub">Decision breakdown</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px;display:flex;align-items:center;justify-content:center">
+        <canvas id="chart-donut" style="max-height:200px;max-width:200px"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flags + Latency distribution -->
+  <div class="chart-row-2b">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Top Threat Flags</div>
+          <div class="card-sub">Detected attack categories</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-flags"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Secrets Detected</div>
+          <div class="card-sub">PII / credential types stripped</div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:220px">
+        <canvas id="chart-secrets"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live event feed -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Live Event Feed</div>
+        <div class="card-sub">Recent filter decisions — no content logged (GDPR)</div>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text3)" id="feed-count">0 events</div>
+    </div>
+    <div class="feed-header">
+      <span>Time</span>
+      <span>Decision</span>
+      <span>Risk</span>
+      <span>Flags</span>
+      <span style="text-align:right">Latency</span>
+    </div>
+    <div class="feed" id="event-feed">
+      <div class="empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>No events yet — send a request to /filter to see live data</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ── Auth state ──────────────────────────────────────────────────────────────
+  const token = localStorage.getItem('warden_token');
+  const authLink = document.getElementById('auth-link');
+  if (token) {
+    authLink.textContent = 'Sign Out';
+    authLink.href = '#';
+    authLink.onclick = () => { localStorage.removeItem('warden_token'); location.href = '/'; };
+  }
+
+  // ── Chart defaults ──────────────────────────────────────────────────────────
+  Chart.defaults.color = '#475569';
+  Chart.defaults.borderColor = 'rgba(99,102,241,0.1)';
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+
+  const C = {
+    indigo: '#6366f1', violet: '#8b5cf6', cyan: '#06b6d4',
+    green:  '#34d399', amber:  '#fbbf24', red:   '#f87171',
+    orange: '#fb923c', pink:   '#ec4899',
+  };
+
+  function makeGrad(ctx, color) {
+    const g = ctx.createLinearGradient(0, 0, 0, 220);
+    g.addColorStop(0, color + '33');
+    g.addColorStop(1, color + '00');
+    return g;
+  }
+
+  // ── Timeline chart ──────────────────────────────────────────────────────────
+  let chartTimeline, chartDonut, chartFlags, chartSecrets;
+
+  function initCharts() {
+    // Timeline
+    const ctxT = document.getElementById('chart-timeline').getContext('2d');
+    chartTimeline = new Chart(ctxT, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Total',
+            data: [],
+            borderColor: C.indigo,
+            backgroundColor: makeGrad(ctxT, C.indigo),
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+          },
+          {
+            label: 'Blocked',
+            data: [],
+            borderColor: C.red,
+            backgroundColor: makeGrad(ctxT, C.red),
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { boxWidth: 10, padding: 16, font: { size: 11 } } },
+          tooltip: { backgroundColor: '#0f172a', borderColor: 'rgba(99,102,241,0.3)', borderWidth: 1 },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+          y: { beginAtZero: true, grid: { color: 'rgba(99,102,241,0.07)' }, ticks: { font: { size: 11 }, precision: 0 } },
+        },
+      },
+    });
+
+    // Donut
+    const ctxD = document.getElementById('chart-donut').getContext('2d');
+    chartDonut = new Chart(ctxD, {
+      type: 'doughnut',
+      data: {
+        labels: ['LOW', 'MEDIUM', 'HIGH', 'BLOCK'],
+        datasets: [{
+          data: [0, 0, 0, 0],
+          backgroundColor: [C.green, C.amber, C.red, '#ef4444'],
+          borderColor: '#0a0f1e',
+          borderWidth: 3,
+          hoverBorderWidth: 3,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '72%',
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12, font: { size: 11 } } },
+          tooltip: { backgroundColor: '#0f172a', borderColor: 'rgba(99,102,241,0.3)', borderWidth: 1 },
+        },
+      },
+    });
+
+    // Flags (horizontal bar)
+    const ctxF = document.getElementById('chart-flags').getContext('2d');
+    chartFlags = new Chart(ctxF, {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Detections',
+          data: [],
+          backgroundColor: C.violet + 'cc',
+          borderColor: C.violet,
+          borderWidth: 1,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', borderColor: 'rgba(99,102,241,0.3)', borderWidth: 1 } },
+        scales: {
+          x: { grid: { color: 'rgba(99,102,241,0.07)' }, ticks: { font: { size: 11 }, precision: 0 } },
+          y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        },
+      },
+    });
+
+    // Secrets (bar)
+    const ctxS = document.getElementById('chart-secrets').getContext('2d');
+    chartSecrets = new Chart(ctxS, {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Occurrences',
+          data: [],
+          backgroundColor: C.cyan + 'cc',
+          borderColor: C.cyan,
+          borderWidth: 1,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', borderColor: 'rgba(99,102,241,0.3)', borderWidth: 1 } },
+        scales: {
+          x: { grid: { color: 'rgba(99,102,241,0.07)' }, ticks: { font: { size: 11 }, precision: 0 } },
+          y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        },
+      },
+    });
+  }
+
+  // ── Data update ─────────────────────────────────────────────────────────────
+  let currentHours = 24;
+
+  function setRange(h) {
+    currentHours = h;
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('range-btn-' + h)?.classList.add('active');
+    fetchStats();
+  }
+
+  function fmt(n) {
+    if (n === undefined || n === null) return '—';
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return String(n);
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch { return iso.slice(11, 19); }
+  }
+
+  function fmtMs(ms) {
+    if (ms === undefined || ms === null) return '—';
+    return ms.toFixed(1) + 'ms';
+  }
+
+  function updateKPIs(data) {
+    const blockRate = data.total > 0 ? ((data.blocked / data.total) * 100).toFixed(1) : '0.0';
+    document.getElementById('kpi-total').textContent    = fmt(data.total);
+    document.getElementById('kpi-blocked').textContent  = fmt(data.blocked);
+    document.getElementById('kpi-latency').textContent  = data.avg_latency_ms + 'ms';
+    document.getElementById('kpi-allowed').textContent  = fmt(data.allowed);
+    document.getElementById('kpi-blocked-sub').textContent = blockRate + '% block rate';
+    document.getElementById('kpi-p99').textContent = 'p99: ' + data.p99_latency_ms + 'ms';
+    document.getElementById('kpi-total-sub').textContent = 'last ' + currentHours + 'h';
+  }
+
+  function updateTimeline(ts) {
+    chartTimeline.data.labels   = ts.map(p => p.ts);
+    chartTimeline.data.datasets[0].data = ts.map(p => p.total);
+    chartTimeline.data.datasets[1].data = ts.map(p => p.blocked);
+    chartTimeline.update('none');
+  }
+
+  function updateDonut(byRisk) {
+    const order = ['LOW', 'MEDIUM', 'HIGH', 'BLOCK'];
+    chartDonut.data.datasets[0].data = order.map(k => byRisk[k] || 0);
+    chartDonut.update('none');
+  }
+
+  function updateFlags(topFlags) {
+    chartFlags.data.labels = topFlags.map(f => f[0].replace(/_/g, ' '));
+    chartFlags.data.datasets[0].data = topFlags.map(f => f[1]);
+    chartFlags.update('none');
+  }
+
+  function updateSecrets(secrets) {
+    const entries = Object.entries(secrets).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    chartSecrets.data.labels = entries.map(e => e[0].replace(/_/g, ' '));
+    chartSecrets.data.datasets[0].data = entries.map(e => e[1]);
+    chartSecrets.update('none');
+  }
+
+  function updateFeed(events) {
+    const feed = document.getElementById('event-feed');
+    document.getElementById('feed-count').textContent = events.length + ' events';
+
+    if (!events.length) {
+      feed.innerHTML = `<div class="empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>No events yet — send a request to /filter to see live data</div>
+      </div>`;
+      return;
+    }
+
+    feed.innerHTML = events.map(e => {
+      const flags = e.flags && e.flags.length
+        ? e.flags.map(f => f.replace(/_/g, ' ')).join(', ')
+        : '<span style="color:var(--text3)">none</span>';
+
+      return `<div class="feed-row">
+        <span class="time-mono">${fmtTime(e.ts)}</span>
+        <span class="${e.allowed ? 'allow-chip' : 'block-chip'}">${e.allowed ? '✓ Allow' : '✗ Block'}</span>
+        <span><span class="risk-badge risk-${e.risk_level || 'LOW'}">${e.risk_level || 'LOW'}</span></span>
+        <span class="flag-list">${flags}</span>
+        <span class="latency-mono">${fmtMs(e.elapsed_ms)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function fetchStats() {
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const res  = await fetch('/api/stats?hours=' + currentHours, { headers });
+      if (!res.ok) return;
+      const data = await res.json();
+      updateKPIs(data);
+      updateTimeline(data.time_series || []);
+      updateDonut(data.by_risk || {});
+      updateFlags(data.top_flags || []);
+      updateSecrets(data.secrets_found || {});
+      updateFeed(data.recent || []);
+    } catch (e) {
+      console.warn('Stats fetch failed:', e);
+    }
+  }
+
+  // ── Bootstrap ────────────────────────────────────────────────────────────────
+  initCharts();
+  fetchStats();
+  setInterval(fetchStats, 3000);
+</script>
+</body>
+</html>

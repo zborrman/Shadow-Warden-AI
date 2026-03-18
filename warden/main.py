@@ -44,9 +44,10 @@ import re
 import secrets
 import time
 import uuid
+from collections import Counter, defaultdict
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import (
@@ -744,6 +745,119 @@ async def health():
         "strict":    os.getenv("STRICT_MODE", "false").lower() == "true",
         "cache":     redis_health,
     }
+
+
+# ── Dashboard stats API ───────────────────────────────────────────────────────
+
+@app.get("/api/stats", tags=["ops"], summary="Aggregated filter stats for dashboard")
+async def api_stats(hours: float = 24.0):
+    entries = event_logger.load_entries(days=hours / 24)
+
+    total   = len(entries)
+    blocked = sum(1 for e in entries if not e.get("allowed"))
+    allowed = total - blocked
+
+    by_risk: Counter = Counter(e.get("risk_level", "LOW") for e in entries)
+
+    all_flags: list[str] = []
+    for e in entries:
+        all_flags.extend(e.get("flags", []))
+    top_flags = Counter(all_flags).most_common(10)
+
+    secrets_counter: Counter = Counter()
+    for e in entries:
+        secrets_counter.update(e.get("secrets_found", []))
+
+    latencies = [e["elapsed_ms"] for e in entries if "elapsed_ms" in e]
+    avg_lat = round(sum(latencies) / len(latencies), 2) if latencies else 0.0
+    sorted_lat = sorted(latencies)
+    p99_lat = round(sorted_lat[int(len(sorted_lat) * 0.99)], 2) if sorted_lat else 0.0
+
+    # 1-minute buckets for last 60 minutes
+    now = datetime.now(UTC)
+    buckets: dict[int, dict] = defaultdict(lambda: {"total": 0, "blocked": 0})
+    for e in entries:
+        try:
+            ts = datetime.fromisoformat(e["ts"])
+            age_min = int((now - ts).total_seconds() / 60)
+            if 0 <= age_min < 60:
+                buckets[age_min]["total"] += 1
+                if not e.get("allowed"):
+                    buckets[age_min]["blocked"] += 1
+        except Exception:
+            pass
+
+    time_series = [
+        {
+            "minute_ago": m,
+            "ts": (now - timedelta(minutes=m)).strftime("%H:%M"),
+            "total": buckets[m]["total"],
+            "blocked": buckets[m]["blocked"],
+        }
+        for m in range(59, -1, -1)
+    ]
+
+    recent = [
+        {
+            "ts":         e.get("ts"),
+            "request_id": e.get("request_id"),
+            "allowed":    e.get("allowed"),
+            "risk_level": e.get("risk_level"),
+            "flags":      e.get("flags", []),
+            "elapsed_ms": e.get("elapsed_ms"),
+            "payload_len": e.get("payload_len"),
+        }
+        for e in reversed(entries[-50:])
+    ]
+
+    return {
+        "period_hours":   hours,
+        "total":          total,
+        "allowed":        allowed,
+        "blocked":        blocked,
+        "by_risk":        dict(by_risk),
+        "top_flags":      top_flags,
+        "secrets_found":  dict(secrets_counter.most_common(10)),
+        "avg_latency_ms": avg_lat,
+        "p99_latency_ms": p99_lat,
+        "time_series":    time_series,
+        "recent":         recent,
+        "generated_at":   now.isoformat(),
+    }
+
+
+class _ConfigUpdate(BaseModel):
+    semantic_threshold: float | None = None
+    strict_mode: bool | None = None
+
+
+@app.get("/api/config", tags=["ops"], summary="Current live configuration")
+async def api_config():
+    return {
+        "semantic_threshold":   float(os.getenv("SEMANTIC_THRESHOLD", "0.72")),
+        "strict_mode":          os.getenv("STRICT_MODE", "false").lower() == "true",
+        "rate_limit_per_minute": int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),
+        "evolution_enabled":    _evolve is not None,
+        "log_retention_days":   int(os.getenv("GDPR_LOG_RETENTION_DAYS", "30")),
+        "browser_enabled":      os.getenv("BROWSER_ENABLED", "false").lower() == "true",
+        "mtls_enabled":         os.getenv("MTLS_ENABLED", "false").lower() == "true",
+        "otel_enabled":         os.getenv("OTEL_ENABLED", "false").lower() == "true",
+        "model_cache_dir":      os.getenv("MODEL_CACHE_DIR", "/warden/models"),
+    }
+
+
+@app.post("/api/config", tags=["ops"], summary="Update live-tunable settings")
+async def update_config(update: _ConfigUpdate):
+    if update.semantic_threshold is not None:
+        val = max(0.1, min(1.0, update.semantic_threshold))
+        os.environ["SEMANTIC_THRESHOLD"] = str(val)
+        if _brain_guard is not None:
+            _brain_guard.threshold = val
+    if update.strict_mode is not None:
+        os.environ["STRICT_MODE"] = str(update.strict_mode).lower()
+        if _guard is not None:
+            _guard.strict = update.strict_mode
+    return {"ok": True}
 
 
 # ── Core filter logic (shared by /filter and /filter/batch) ──────────────────
