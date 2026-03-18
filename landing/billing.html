@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Billing — Shadow Warden AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #030712; --surf: #0a0f1e; --surf2: #0f172a; --surf3: #1e293b;
+      --border: rgba(99,102,241,0.14); --indigo: #6366f1; --violet: #8b5cf6;
+      --cyan: #06b6d4; --green: #34d399; --amber: #fbbf24; --red: #f87171;
+      --text: #f1f5f9; --text2: #94a3b8; --text3: #475569;
+    }
+    html, body { min-height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+    .nav { height: 56px; background: rgba(10,15,30,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 4px; position: sticky; top: 0; z-index: 100; }
+    .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font-weight: 700; font-size: 0.9375rem; }
+    .nav-logo span { background: linear-gradient(135deg, var(--indigo), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-link { padding: 5px 12px; border-radius: 7px; text-decoration: none; font-size: 0.8125rem; font-weight: 500; color: var(--text2); transition: all 0.15s; margin-left: 4px; }
+    .nav-link:hover { background: var(--surf2); color: var(--text); }
+    .nav-link.active { background: rgba(99,102,241,0.12); color: var(--indigo); }
+    .nav-right { margin-left: auto; }
+
+    .main { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+    .page-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .page-sub { font-size: 0.875rem; color: var(--text2); margin-bottom: 36px; }
+
+    .card { background: var(--surf); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
+    .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-size: 0.9375rem; font-weight: 600; }
+    .card-body { padding: 24px; }
+
+    .plan-card { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+    .plan-info {}
+    .plan-name-big { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 4px; }
+    .plan-meta { font-size: 0.8125rem; color: var(--text2); }
+
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 100px; font-size: 0.6875rem; font-weight: 600; }
+    .badge-active   { background: rgba(52,211,153,0.1);   color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+    .badge-trial    { background: rgba(251,191,36,0.1);   color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+    .badge-free     { background: rgba(148,163,184,0.08); color: var(--text3); border: 1px solid var(--border); }
+    .badge-canceled { background: rgba(248,113,113,0.1);  color: var(--red);   border: 1px solid rgba(248,113,113,0.2); }
+
+    .plan-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: all 0.15s; text-decoration: none; }
+    .btn-primary { background: linear-gradient(135deg, var(--indigo), var(--violet)); color: #fff; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-outline { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: rgba(99,102,241,0.35); color: var(--text); background: var(--surf2); }
+    .btn-danger { background: rgba(248,113,113,0.08); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+    .btn-danger:hover { background: rgba(248,113,113,0.15); }
+    .btn-sm { padding: 6px 12px; font-size: 0.75rem; }
+
+    /* Usage meter */
+    .usage-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+    .usage-label { font-size: 0.8125rem; color: var(--text2); min-width: 120px; }
+    .usage-bar-wrap { flex: 1; height: 6px; background: var(--surf3); border-radius: 3px; overflow: hidden; }
+    .usage-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--indigo), var(--cyan)); transition: width 0.6s ease; }
+    .usage-bar.warn { background: linear-gradient(90deg, var(--amber), #f97316); }
+    .usage-bar.crit { background: linear-gradient(90deg, var(--red), #dc2626); }
+    .usage-val { font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; color: var(--text3); min-width: 80px; text-align: right; }
+
+    /* Invoice table */
+    .invoice-table { width: 100%; border-collapse: collapse; }
+    .invoice-table th { text-align: left; padding: 8px 12px; font-size: 0.6875rem; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+    .invoice-table td { padding: 12px; font-size: 0.8125rem; color: var(--text2); border-bottom: 1px solid rgba(99,102,241,0.06); }
+    .invoice-table tr:last-child td { border-bottom: none; }
+    .invoice-table tr:hover td { background: rgba(255,255,255,0.015); }
+
+    .status-paid   { color: var(--green); font-weight: 600; font-size: 0.75rem; }
+    .status-open   { color: var(--amber); font-weight: 600; font-size: 0.75rem; }
+    .status-failed { color: var(--red);   font-weight: 600; font-size: 0.75rem; }
+
+    /* Plan comparison */
+    .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 640px) { .plan-grid { grid-template-columns: 1fr; } }
+    .plan-tile { background: var(--surf2); border: 2px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
+    .plan-tile.current { border-color: var(--indigo); }
+    .plan-tile:not(.current):hover { border-color: rgba(99,102,241,0.3); }
+    .plan-tile-name { font-size: 0.8125rem; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .plan-tile-price { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 4px; }
+    .plan-tile-sub { font-size: 0.6875rem; color: var(--text3); margin-bottom: 14px; }
+    .plan-tile-features { font-size: 0.75rem; color: var(--text2); line-height: 1.8; }
+
+    /* Alert banner */
+    .alert-banner { display: none; align-items: center; gap: 12px; padding: 14px 20px; border-radius: 10px; font-size: 0.8125rem; margin-bottom: 24px; }
+    .alert-banner.success { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); color: #6ee7b7; }
+    .alert-banner svg { flex-shrink: 0; }
+
+    /* Skeleton */
+    @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+    .skeleton { background: linear-gradient(90deg, var(--surf2) 25%, var(--surf3) 50%, var(--surf2) 75%); background-size: 800px; animation: shimmer 1.5s infinite; border-radius: 6px; height: 16px; }
+
+    .payoneer-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; background: rgba(255,102,0,0.1); border: 1px solid rgba(255,102,0,0.2); border-radius: 100px; font-size: 0.6875rem; color: #fdba74; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+      <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#bl)" opacity=".9"/>
+      <defs><linearGradient id="bl" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+      <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Shadow</span> Warden
+  </a>
+  <a href="/dashboard" class="nav-link">Dashboard</a>
+  <a href="/settings" class="nav-link">Settings</a>
+  <div class="nav-right">
+    <a href="#" id="auth-link" class="nav-link">Sign Out</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="page-title">Billing &amp; Subscription</div>
+  <div class="page-sub" id="tenant-sub">Managing subscription for your account</div>
+
+  <!-- Success banner -->
+  <div class="alert-banner success" id="success-banner">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <span id="success-text">Payment successful! Your subscription is now active.</span>
+  </div>
+
+  <!-- ── Current plan ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Current Plan</div>
+      <span id="plan-status-badge" class="badge badge-free">Free</span>
+    </div>
+    <div class="card-body">
+      <div class="plan-card">
+        <div class="plan-info">
+          <div class="plan-name-big" id="plan-name">Free</div>
+          <div class="plan-meta" id="plan-meta">10,000 requests / month</div>
+          <div style="margin-top:8px;font-size:0.8125rem;color:var(--text3)" id="plan-period"></div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap" id="payment-method-row"></div>
+        </div>
+        <div class="plan-actions" id="plan-actions">
+          <a href="/checkout?plan=pro" class="btn btn-primary btn-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+            Upgrade Plan
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Usage this month ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Usage This Month</div>
+      <span style="font-size:0.75rem;color:var(--text3)" id="usage-period">—</span>
+    </div>
+    <div class="card-body">
+      <div class="usage-row">
+        <div class="usage-label">Filter requests</div>
+        <div class="usage-bar-wrap"><div class="usage-bar" id="req-bar" style="width:0%"></div></div>
+        <div class="usage-val" id="req-val">— / —</div>
+      </div>
+      <div class="usage-row">
+        <div class="usage-label">Blocked requests</div>
+        <div class="usage-bar-wrap"><div class="usage-bar" id="block-bar" style="width:0%;background:linear-gradient(90deg,var(--red),#dc2626)"></div></div>
+        <div class="usage-val" id="block-val">—</div>
+      </div>
+      <div class="usage-row">
+        <div class="usage-label">Avg latency</div>
+        <div class="usage-bar-wrap"><div class="usage-bar" id="lat-bar" style="width:0%"></div></div>
+        <div class="usage-val" id="lat-val">—</div>
+      </div>
+      <div style="margin-top:16px;padding:12px 16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;font-size:0.75rem;color:var(--text3)">
+        Usage data is pulled from the live filter pipeline. Content is never stored — only metadata counts.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Upgrade plans ── -->
+  <div class="card" id="upgrade-section">
+    <div class="card-header">
+      <div class="card-title">Available Plans</div>
+    </div>
+    <div class="card-body">
+      <div class="plan-grid">
+        <div class="plan-tile" id="tile-free">
+          <div class="plan-tile-name">Starter</div>
+          <div class="plan-tile-price">Free</div>
+          <div class="plan-tile-sub">Forever, no credit card</div>
+          <div class="plan-tile-features">10,000 requests/mo<br/>Single tenant<br/>All 5 stages<br/>Community support</div>
+          <div style="margin-top:14px">
+            <span class="badge badge-free" style="font-size:0.6875rem">Current plan</span>
+          </div>
+        </div>
+        <div class="plan-tile" id="tile-pro" style="border-color:rgba(99,102,241,0.4)">
+          <div class="plan-tile-name" style="color:var(--indigo)">Business</div>
+          <div class="plan-tile-price">$49<span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span></div>
+          <div class="plan-tile-sub">14-day free trial</div>
+          <div class="plan-tile-features">Unlimited requests<br/>Multi-tenant (50)<br/>Slack + PagerDuty<br/>GDPR API<br/>Email support 48h</div>
+          <div style="margin-top:14px">
+            <a href="/checkout?plan=pro" class="btn btn-primary btn-sm" style="width:100%;justify-content:center">Upgrade</a>
+          </div>
+        </div>
+        <div class="plan-tile" id="tile-msp">
+          <div class="plan-tile-name">MSP</div>
+          <div class="plan-tile-price">$199<span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span></div>
+          <div class="plan-tile-sub">For managed service providers</div>
+          <div class="plan-tile-features">Everything in Business<br/>Unlimited tenants<br/>White-label dashboard<br/>Dedicated engineer<br/>SLA 99.9%</div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
+            <a href="/checkout?plan=msp" class="btn btn-outline btn-sm" style="justify-content:center">Upgrade to MSP</a>
+            <a href="/checkout?plan=msp" class="btn btn-sm" style="justify-content:center;background:rgba(255,102,0,0.1);color:#fdba74;border:1px solid rgba(255,102,0,0.2)">Pay with Payoneer</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Billing management ── -->
+  <div class="card" id="stripe-portal-card" style="display:none">
+    <div class="card-header">
+      <div class="card-title">Billing Management</div>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+        <div>
+          <div style="font-size:0.875rem;color:var(--text2);margin-bottom:4px">Update payment method, download invoices, or cancel your subscription.</div>
+          <div style="font-size:0.75rem;color:var(--text3)">Powered by Stripe — your card details are never stored on our servers.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="openStripePortal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            Manage Payment Method
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="openStripePortal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+            Download Invoices
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="openStripePortal()">Cancel Subscription</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Invoices (mock) ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Invoice History</div>
+    </div>
+    <div class="card-body" style="padding:0" id="invoice-body">
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Amount</th>
+            <th>Method</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="invoice-rows">
+          <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3);font-size:0.8125rem">No invoices yet — subscribe to a paid plan to see billing history.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ── Auth ────────────────────────────────────────────────────────────────────
+  const token  = localStorage.getItem('warden_token');
+  const authLink = document.getElementById('auth-link');
+  if (token) {
+    authLink.onclick = () => { localStorage.removeItem('warden_token'); location.href = '/'; };
+  } else {
+    authLink.textContent = 'Sign In';
+    authLink.href = '/login';
+  }
+
+  // Get tenant from JWT
+  let tenantId = 'default';
+  if (token) {
+    try {
+      const p = JSON.parse(atob(token.split('.')[1]));
+      tenantId = p.tenant_id || p.sub || 'default';
+    } catch {}
+  }
+  document.getElementById('tenant-sub').textContent = 'Managing subscription for ' + tenantId;
+
+  // ── Success banner ──────────────────────────────────────────────────────────
+  const params = new URLSearchParams(location.search);
+  if (params.get('success')) {
+    const banner = document.getElementById('success-banner');
+    banner.style.display = 'flex';
+    const plan = params.get('plan') || 'pro';
+    document.getElementById('success-text').textContent =
+      'Payment successful! Your ' + (plan === 'msp' ? 'MSP' : 'Business') + ' plan is now active.';
+    history.replaceState({}, '', '/billing');
+  }
+
+  // ── Load subscription status ────────────────────────────────────────────────
+  async function loadStatus() {
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const res  = await fetch('/stripe/status?tenant_id=' + encodeURIComponent(tenantId), { headers });
+      if (!res.ok) return;
+      const s = await res.json();
+
+      const planMap = { free: 'Free', pro: 'Business', msp: 'MSP' };
+      const quotaMap = { free: '10,000 req/mo', pro: 'Unlimited requests', msp: 'Unlimited requests' };
+
+      document.getElementById('plan-name').textContent = planMap[s.plan] || s.plan;
+      document.getElementById('plan-meta').textContent = quotaMap[s.plan] || '';
+
+      // Status badge
+      const badge = document.getElementById('plan-status-badge');
+      if (s.status === 'trialing') {
+        badge.textContent = 'Trial'; badge.className = 'badge badge-trial';
+      } else if (s.status === 'active' && s.plan !== 'free') {
+        badge.textContent = 'Active'; badge.className = 'badge badge-active';
+      } else if (s.status === 'cancelled') {
+        badge.textContent = 'Cancelled'; badge.className = 'badge badge-canceled';
+      }
+
+      if (s.period_end) {
+        const d = new Date(s.period_end);
+        document.getElementById('plan-period').textContent =
+          'Next billing: ' + d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      }
+
+      // Show Stripe portal for paid plans
+      if (s.plan !== 'free' && s.customer_id) {
+        document.getElementById('stripe-portal-card').style.display = '';
+      }
+
+      // Update plan tiles
+      if (s.plan === 'pro') {
+        document.getElementById('tile-pro').classList.add('current');
+        document.getElementById('tile-pro').querySelector('a').outerHTML =
+          '<span class="badge badge-active">Current plan</span>';
+      } else if (s.plan === 'msp') {
+        document.getElementById('tile-msp').classList.add('current');
+      }
+
+      // Actions
+      if (s.plan !== 'free') {
+        document.getElementById('plan-actions').innerHTML = `
+          <button class="btn btn-outline btn-sm" onclick="openStripePortal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            Manage Billing
+          </button>`;
+      }
+
+    } catch (e) {
+      console.warn('Status load failed:', e);
+    }
+  }
+
+  // ── Load usage stats ────────────────────────────────────────────────────────
+  async function loadUsage() {
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const res  = await fetch('/api/stats?hours=720', { headers }); // ~30 days
+      if (!res.ok) return;
+      const d = await res.json();
+
+      const now = new Date();
+      document.getElementById('usage-period').textContent =
+        'as of ' + now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      // Requests
+      const quota = 10000;
+      const pct   = Math.min(100, Math.round((d.total / quota) * 100));
+      document.getElementById('req-val').textContent = d.total.toLocaleString() + ' / ' + quota.toLocaleString();
+      const reqBar = document.getElementById('req-bar');
+      reqBar.style.width = pct + '%';
+      if (pct > 90) reqBar.classList.add('crit');
+      else if (pct > 70) reqBar.classList.add('warn');
+
+      // Blocked
+      const blockPct = d.total > 0 ? Math.round((d.blocked / d.total) * 100) : 0;
+      document.getElementById('block-val').textContent = d.blocked.toLocaleString() + ' (' + blockPct + '%)';
+      document.getElementById('block-bar').style.width = blockPct + '%';
+
+      // Latency (max 20ms for 100%)
+      const latPct = Math.min(100, Math.round((d.avg_latency_ms / 20) * 100));
+      document.getElementById('lat-val').textContent = d.avg_latency_ms + 'ms avg';
+      document.getElementById('lat-bar').style.width = latPct + '%';
+    } catch (e) {
+      console.warn('Usage load failed:', e);
+    }
+  }
+
+  // ── Stripe portal ───────────────────────────────────────────────────────────
+  async function openStripePortal() {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = 'Bearer ' + token;
+      const res  = await fetch('/stripe/portal?tenant_id=' + encodeURIComponent(tenantId) +
+        '&return_url=' + encodeURIComponent(location.origin + '/billing'), { method: 'POST', headers });
+      const data = await res.json();
+      if (res.ok && data.portal_url) {
+        location.href = data.portal_url;
+      } else {
+        alert(data.detail || 'Stripe portal not available. Configure STRIPE_SECRET_KEY.');
+      }
+    } catch {
+      alert('Connection error. Please try again.');
+    }
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  loadStatus();
+  loadUsage();
+</script>
+</body>
+</html>
