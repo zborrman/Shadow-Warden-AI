@@ -242,9 +242,9 @@ class TestWebhookHandler:
 class TestBillingEndpoints:
     @pytest.fixture(autouse=True)
     def _client(self):
-        import warden.paddle_billing as _pb
         from fastapi.testclient import TestClient
 
+        import warden.paddle_billing as _pb
         from warden.main import app
 
         # Reset singleton so it picks up PADDLE_DB_PATH from conftest env vars
