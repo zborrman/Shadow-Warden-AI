@@ -242,8 +242,8 @@ class TestWebhookHandler:
 class TestBillingEndpoints:
     @pytest.fixture(autouse=True)
     def _client(self):
-        from warden.main import app
         from fastapi.testclient import TestClient
+        from warden.main import app
         self.client = TestClient(app, raise_server_exceptions=True)
 
     def test_status_unknown_tenant_returns_free(self) -> None:
