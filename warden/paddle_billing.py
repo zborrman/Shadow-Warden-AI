@@ -48,7 +48,11 @@ _PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "")
 _PADDLE_PRICE_PRO      = os.getenv("PADDLE_PRICE_PRO", "")
 _PADDLE_PRICE_MSP      = os.getenv("PADDLE_PRICE_MSP", "")
 _PADDLE_SANDBOX        = os.getenv("PADDLE_SANDBOX", "false").lower() == "true"
-_DB_PATH               = Path(os.getenv("PADDLE_DB_PATH", "/warden/data/paddle.db"))
+
+
+def _db_path() -> Path:
+    """Resolved lazily so test env vars set after import are respected."""
+    return Path(os.getenv("PADDLE_DB_PATH", "/warden/data/paddle.db"))
 
 _API_BASE = (
     "https://sandbox-api.paddle.com" if _PADDLE_SANDBOX
@@ -102,8 +106,9 @@ def _paddle_request(method: str, path: str, body: dict | None = None) -> dict:
 class PaddleBilling:
     """Manages Paddle Billing subscriptions and plan state per tenant."""
 
-    def __init__(self, db_path: Path = _DB_PATH) -> None:
-        self._enabled = bool(_PADDLE_API_KEY)
+    def __init__(self, db_path: Path | None = None) -> None:
+        db_path = db_path or _db_path()
+        self._enabled = bool(os.getenv("PADDLE_API_KEY", _PADDLE_API_KEY))
         self._path    = db_path
         self._lock    = threading.Lock()
         self._path.parent.mkdir(parents=True, exist_ok=True)
