@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -152,9 +152,9 @@ class TestCreateCheckoutSession:
         assert body["custom_data"]["tenant_id"] == "acme"
 
     def test_missing_checkout_url_raises(self, enabled_store: PaddleBilling) -> None:
-        with patch("warden.paddle_billing._paddle_request", return_value={"data": {}}):
-            with pytest.raises(RuntimeError, match="checkout URL"):
-                enabled_store.create_checkout_session("t1", "pro", "https://ok", "https://c")
+        with patch("warden.paddle_billing._paddle_request", return_value={"data": {}}), \
+             pytest.raises(RuntimeError, match="checkout URL"):
+            enabled_store.create_checkout_session("t1", "pro", "https://ok", "https://c")
 
 
 # ── get_portal_url ────────────────────────────────────────────────────────────
@@ -242,8 +242,8 @@ class TestWebhookHandler:
 class TestBillingEndpoints:
     @pytest.fixture(autouse=True)
     def _client(self):
-        from fastapi.testclient import TestClient
         from warden.main import app
+        from fastapi.testclient import TestClient
         self.client = TestClient(app, raise_server_exceptions=True)
 
     def test_status_unknown_tenant_returns_free(self) -> None:
