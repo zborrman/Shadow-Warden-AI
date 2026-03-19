@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Roadmap — Shadow Warden AI</title>
+  <meta name="description" content="Shadow Warden AI product roadmap — upcoming features, releases, and long-term vision."/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #020c14; --bg2: #05131f; --bg3: #0a2035;
+      --cyan: #22d3ee; --green: #10b981; --purple: #8b5cf6;
+      --red: #f43f5e; --amber: #f59e0b;
+      --t1: #dff0ff; --t2: #5d8aa8; --t3: #1e3a50;
+      --border: rgba(34,211,238,0.09); --border2: rgba(34,211,238,0.2);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--t1); font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    .grid-bg {
+      background-image: linear-gradient(rgba(34,211,238,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.025) 1px, transparent 1px);
+      background-size: 56px 56px;
+    }
+    .text-grad { background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 40%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    .btn-cyan { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 10px; background: linear-gradient(135deg, #0891b2, #22d3ee); color: #020c14; font-weight: 700; font-size: 0.875rem; box-shadow: 0 0 20px rgba(34,211,238,0.25); transition: all 0.2s; text-decoration: none; }
+    .btn-cyan:hover { box-shadow: 0 0 36px rgba(34,211,238,0.42); transform: translateY(-1px); }
+    .btn-outline { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 10px; border: 1px solid rgba(34,211,238,0.22); color: var(--t1); font-size: 0.875rem; font-weight: 500; transition: all 0.2s; text-decoration: none; }
+    .btn-outline:hover { border-color: rgba(34,211,238,0.5); background: rgba(34,211,238,0.05); }
+
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 100px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.03em; }
+    .badge-cyan   { background: rgba(34,211,238,0.1);  border: 1px solid rgba(34,211,238,0.25); color: #22d3ee; }
+    .badge-green  { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.25); color: #34d399; }
+    .badge-purple { background: rgba(139,92,246,0.1);  border: 1px solid rgba(139,92,246,0.25); color: #c4b5fd; }
+    .badge-amber  { background: rgba(245,158,11,0.1);  border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
+    .badge-red    { background: rgba(244,63,94,0.1);   border: 1px solid rgba(244,63,94,0.25);  color: #fb7185; }
+    .badge-done   { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3);  color: #34d399; }
+
+    .nav-link { font-size: 0.875rem; color: var(--t2); transition: color 0.2s; text-decoration: none; }
+    .nav-link:hover { color: var(--t1); }
+    .eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cyan); }
+
+    /* Release card */
+    .release {
+      position: relative;
+      background: rgba(5,19,31,0.85);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem;
+      transition: border-color 0.25s;
+    }
+    .release:hover { border-color: var(--border2); }
+    .release.current { border-color: rgba(34,211,238,0.32); background: rgba(8,24,42,0.95); box-shadow: 0 0 40px rgba(34,211,238,0.06); }
+    .release.done { border-color: rgba(16,185,129,0.2); }
+
+    /* Feature item */
+    .feat { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(34,211,238,0.05); }
+    .feat:last-child { border-bottom: none; }
+    .feat-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+
+    /* Timeline line */
+    .timeline-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: linear-gradient(180deg, rgba(34,211,238,0.3), rgba(34,211,238,0.05)); transform: translateX(-50%); }
+    .timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px rgba(34,211,238,0.5); border: 2px solid var(--bg); flex-shrink: 0; }
+    .timeline-dot-done { background: var(--green); box-shadow: 0 0 8px rgba(16,185,129,0.4); }
+    .timeline-dot-future { background: var(--bg3); border-color: rgba(34,211,238,0.2); box-shadow: none; }
+
+    /* Status pill */
+    .status-done    { background: rgba(16,185,129,0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+    .status-current { background: rgba(34,211,238,0.1); color: #22d3ee; border: 1px solid rgba(34,211,238,0.25); }
+    .status-next    { background: rgba(245,158,11,0.08); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+    .status-planned { background: rgba(139,92,246,0.08); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.2); }
+
+    .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.55s ease, transform 0.55s ease; }
+    .reveal.in { opacity: 1; transform: translateY(0); }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="sticky top-0 z-50" style="background:rgba(2,12,20,0.88);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
+    <a href="/" class="flex items-center gap-3">
+      <svg width="30" height="30" viewBox="0 0 80 80" fill="none">
+        <rect x="4" y="30" width="20" height="49" fill="#1a3355" rx="2"/><rect x="4" y="21" width="7" height="11" fill="#1a3355" rx="1"/><rect x="14" y="21" width="7" height="11" fill="#1a3355" rx="1"/>
+        <rect x="56" y="30" width="20" height="49" fill="#1a3355" rx="2"/><rect x="56" y="21" width="7" height="11" fill="#1a3355" rx="1"/><rect x="66" y="21" width="7" height="11" fill="#1a3355" rx="1"/>
+        <rect x="24" y="40" width="32" height="39" fill="#1a3355" rx="1"/><rect x="29" y="18" width="22" height="24" fill="#1a3355" rx="1"/>
+        <rect x="29" y="9" width="6" height="11" fill="#1a3355" rx="1"/><rect x="37" y="9" width="6" height="11" fill="#1a3355" rx="1"/><rect x="45" y="9" width="6" height="11" fill="#1a3355" rx="1"/>
+        <path d="M33 79 L33 63 A7 7 0 0 1 47 63 L47 79 Z" fill="#020c14"/>
+        <rect x="31" y="22" width="18" height="3.5" fill="#1e4a6e" rx="1"/><rect x="31" y="27" width="18" height="3.5" fill="#245980" rx="1"/><rect x="31" y="32" width="18" height="3.5" fill="#1e4a6e" rx="1"/>
+        <polyline points="31,24 23,24 23,34 13,34" stroke="#22d3ee" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="34" r="2" fill="#22d3ee"/>
+        <polyline points="31,29 21,29 21,44 11,44" stroke="#22d3ee" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="44" r="2" fill="#22d3ee"/>
+        <polyline points="49,24 57,24 57,34 67,34" stroke="#22d3ee" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="68" cy="34" r="2" fill="#22d3ee"/>
+        <polyline points="49,29 59,29 59,44 69,44" stroke="#22d3ee" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="70" cy="44" r="2" fill="#22d3ee"/>
+        <line x1="40" y1="9" x2="40" y2="3" stroke="#22d3ee" stroke-width="1.8" stroke-linecap="round"/><circle cx="40" cy="2" r="2" fill="#22d3ee"/>
+      </svg>
+      <span class="font-bold text-base tracking-tight" style="color:white;"><span class="text-grad">Shadow</span> Warden</span>
+    </a>
+    <div class="hidden md:flex items-center gap-6">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/#pricing" class="nav-link">Pricing</a>
+      <a href="/agents" class="nav-link">Agents</a>
+      <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="nav-link">GitHub</a>
+    </div>
+    <a href="/#pricing" class="btn-cyan" style="padding:8px 18px;font-size:0.82rem;">Start Free</a>
+  </div>
+</header>
+
+
+<!-- HERO -->
+<section class="relative py-24 lg:py-32 grid-bg overflow-hidden">
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 60% 50% at 50% -5%, rgba(34,211,238,0.1), transparent 65%);"></div>
+  <div class="relative max-w-4xl mx-auto px-4 sm:px-6 text-center">
+    <span class="badge badge-cyan mb-6 inline-flex">
+      <span class="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse"></span>
+      Updated March 2026
+    </span>
+    <h1 class="text-5xl sm:text-6xl font-black tracking-tight mb-6" style="color:var(--t1);">
+      Product <span class="text-grad">Roadmap</span>
+    </h1>
+    <p class="text-xl leading-relaxed mb-8" style="color:var(--t2);max-width:560px;margin-left:auto;margin-right:auto;">
+      Where Shadow Warden AI is going. Built in public — every release ships to GitHub.
+    </p>
+    <!-- Legend -->
+    <div class="flex flex-wrap items-center justify-center gap-3 text-xs">
+      <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full status-done">✓ Shipped</span>
+      <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full status-current">⚡ In Progress</span>
+      <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full status-next">◆ Next Up</span>
+      <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full status-planned">○ Planned</span>
+    </div>
+  </div>
+</section>
+
+
+<!-- ROADMAP TIMELINE -->
+<section class="pb-32 max-w-5xl mx-auto px-4 sm:px-6">
+
+  <!-- ── v0.4 (current / shipped) ─────────────────────── -->
+  <div class="reveal mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="timeline-dot timeline-dot-done"></div>
+      <span class="text-xs font-bold uppercase tracking-wider" style="color:#34d399;">Shipped · March 2026</span>
+      <div class="flex-1 h-px" style="background:rgba(16,185,129,0.15);"></div>
+    </div>
+    <div class="release done">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <h2 class="text-2xl font-black" style="color:var(--t1);">v0.4 — Security Hardening + AP2</h2>
+            <span class="px-3 py-1 rounded-full text-xs font-bold status-done">✓ Shipped</span>
+          </div>
+          <p class="text-sm" style="color:var(--t2);">Complete security overhaul + agentic payment protocol</p>
+        </div>
+        <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="btn-outline" style="padding:7px 16px;font-size:0.8rem;">View on GitHub →</a>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-x-8">
+        <div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(16,185,129,0.1);"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">AP2 Agentic Payment Protocol</div><div class="text-xs mt-0.5" style="color:var(--t2);">HMAC mandates, agent registry, MCP endpoints</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(16,185,129,0.1);"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">Obfuscation Decoder</div><div class="text-xs mt-0.5" style="color:var(--t2);">base64, hex, ROT13, unicode homoglyphs</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(16,185,129,0.1);"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">Per-Tenant API Key Auth</div><div class="text-xs mt-0.5" style="color:var(--t2);">SHA-256 hashed keys, multi-tenant isolation</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(16,185,129,0.1);"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">Corpus Poisoning Protection</div><div class="text-xs mt-0.5" style="color:var(--t2);">Growth cap, vetting, dedup for Evolution Engine</div></div></div>
+        </div>
+        <div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(16,185,129,0.1);"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">Paddle Billing Integration</div><div class="text-xs mt-0.5" style="color:var(--t2);">Webhook, checkout, portal — Israel-friendly</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(16,185,129,0.1);"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">Batch Filtering API</div><div class="text-xs mt-0.5" style="color:var(--t2);">POST /filter/batch — up to 50 items</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(16,185,129,0.1);"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">User Consent Dashboard</div><div class="text-xs mt-0.5" style="color:var(--t2);">Glassmorphism UI, trust score, MCP tester</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(16,185,129,0.1);"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">Legal Pages + Paddle Verification</div><div class="text-xs mt-0.5" style="color:var(--t2);">Terms, Privacy, Refund — GDPR compliant</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── v0.5 — In Progress ────────────────────────────── -->
+  <div class="reveal mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="timeline-dot" style="background:#22d3ee;box-shadow:0 0 12px rgba(34,211,238,0.6);"></div>
+      <span class="text-xs font-bold uppercase tracking-wider" style="color:#22d3ee;">In Progress · Q2 2026</span>
+      <div class="flex-1 h-px" style="background:rgba(34,211,238,0.12);"></div>
+    </div>
+    <div class="release current">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <h2 class="text-2xl font-black" style="color:var(--t1);">v0.5 — Streaming &amp; Output Guard</h2>
+            <span class="px-3 py-1 rounded-full text-xs font-bold status-current">⚡ In Progress</span>
+          </div>
+          <p class="text-sm" style="color:var(--t2);">Real-time streaming filter + response analysis</p>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-x-8">
+        <div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">WebSocket Streaming Filter</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Token-by-token analysis for streaming LLM responses</div>
+            </div>
+          </div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">Output Guard</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Filter model responses — PII leakage, toxic output, hallucinations</div>
+            </div>
+          </div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">Visual Rule Builder</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Drag-and-drop UI to create detection rules without code</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">gRPC Endpoint</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">&lt;5ms latency for high-throughput integrations</div>
+            </div>
+          </div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">Shadow Testing Mode</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Test new rule sets in parallel before promoting to prod</div>
+            </div>
+          </div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">OpenTelemetry Tracing</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Distributed traces across all 5 pipeline stages</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── v0.6 — Next Up ────────────────────────────────── -->
+  <div class="reveal mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="timeline-dot" style="background:#f59e0b;box-shadow:0 0 10px rgba(245,158,11,0.4);border-color:var(--bg);"></div>
+      <span class="text-xs font-bold uppercase tracking-wider" style="color:#f59e0b;">Next Up · Q3 2026</span>
+      <div class="flex-1 h-px" style="background:rgba(245,158,11,0.1);"></div>
+    </div>
+    <div class="release">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <h2 class="text-2xl font-black" style="color:var(--t1);">v0.6 — Threat Intelligence Network</h2>
+            <span class="px-3 py-1 rounded-full text-xs font-bold status-next">◆ Next Up</span>
+          </div>
+          <p class="text-sm" style="color:var(--t2);">Community-powered attack intelligence + automated red-teaming</p>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-x-8">
+        <div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">Community Threat Feed</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Opt-in anonymized attack pattern sharing across tenants</div>
+            </div>
+          </div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">MITRE ATLAS Integration</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Map every blocked request to ATLAS adversarial ML tactics</div>
+            </div>
+          </div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">Automated Red-Teaming</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Claude Opus generates adversarial probes to stress-test your config</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M3 17v1a3 3 0 003 3h1M3 14v-1"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">Policy-as-Code</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">YAML/JSON policy files — version-controlled filter configs</div>
+            </div>
+          </div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">Model-Specific Profiles</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Tuned jailbreak sets per model: GPT-4, Claude, Gemini, Llama</div>
+            </div>
+          </div>
+          <div class="feat">
+            <div class="feat-icon" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 13.5 19.79 19.79 0 01.06 4.84 2 2 0 012 2.68h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 10.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 17z"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-medium" style="color:var(--t1);">Webhook Alerts v2</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Custom payload, retry logic, Teams + Discord + webhook.site</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── v0.7 — Enterprise Compliance ─────────────────── -->
+  <div class="reveal mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="timeline-dot timeline-dot-future"></div>
+      <span class="text-xs font-bold uppercase tracking-wider" style="color:#c4b5fd;">Planned · Q4 2026</span>
+      <div class="flex-1 h-px" style="background:rgba(139,92,246,0.08);"></div>
+    </div>
+    <div class="release" style="border-color:rgba(139,92,246,0.12);">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <h2 class="text-2xl font-black" style="color:var(--t1);">v0.7 — Enterprise Compliance</h2>
+            <span class="px-3 py-1 rounded-full text-xs font-bold status-planned">○ Planned</span>
+          </div>
+          <p class="text-sm" style="color:var(--t2);">SOC 2, SSO, RBAC, HIPAA mode — enterprise procurement ready</p>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-x-8">
+        <div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.18);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">SOC 2 Type II</div><div class="text-xs mt-0.5" style="color:var(--t2);">Full audit trail, access controls, trust report</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.18);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">SAML / OIDC SSO</div><div class="text-xs mt-0.5" style="color:var(--t2);">Okta, Azure AD, Google Workspace, Ping Identity</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.18);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">RBAC</div><div class="text-xs mt-0.5" style="color:var(--t2);">Role-based access: Admin, Analyst, Read-only per tenant</div></div></div>
+        </div>
+        <div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.18);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">Compliance Report Generator</div><div class="text-xs mt-0.5" style="color:var(--t2);">One-click PDF reports: GDPR, HIPAA, EU AI Act</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.18);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">Data Residency Controls</div><div class="text-xs mt-0.5" style="color:var(--t2);">Pin logs and ML processing to EU or US regions</div></div></div>
+          <div class="feat"><div class="feat-icon" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.18);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div><div class="text-sm font-medium" style="color:var(--t1);">HIPAA Compliance Mode</div><div class="text-xs mt-0.5" style="color:var(--t2);">PHI detection + enhanced audit logging for healthcare</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── v0.8 — Developer Platform ────────────────────── -->
+  <div class="reveal mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="timeline-dot timeline-dot-future"></div>
+      <span class="text-xs font-bold uppercase tracking-wider" style="color:#c4b5fd;">Planned · Q1 2027</span>
+      <div class="flex-1 h-px" style="background:rgba(139,92,246,0.08);"></div>
+    </div>
+    <div class="release" style="border-color:rgba(139,92,246,0.12);">
+      <div class="flex items-center gap-3 mb-2">
+        <h2 class="text-2xl font-black" style="color:var(--t1);">v0.8 — Developer Platform</h2>
+        <span class="px-3 py-1 rounded-full text-xs font-bold status-planned">○ Planned</span>
+      </div>
+      <p class="text-sm mb-6" style="color:var(--t2);">Multi-language SDKs, CI/CD integrations, Kubernetes-native deployment</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="p-4 rounded-xl text-center" style="background:rgba(5,19,31,0.8);border:1px solid rgba(139,92,246,0.12);">
+          <div class="text-lg font-black mb-1" style="color:#c4b5fd;">Python</div>
+          <div class="text-xs" style="color:var(--t2);">pip install shadow-warden</div>
+        </div>
+        <div class="p-4 rounded-xl text-center" style="background:rgba(5,19,31,0.8);border:1px solid rgba(139,92,246,0.12);">
+          <div class="text-lg font-black mb-1" style="color:#c4b5fd;">Node.js</div>
+          <div class="text-xs" style="color:var(--t2);">npm i @shadow-warden/sdk</div>
+        </div>
+        <div class="p-4 rounded-xl text-center" style="background:rgba(5,19,31,0.8);border:1px solid rgba(139,92,246,0.12);">
+          <div class="text-lg font-black mb-1" style="color:#c4b5fd;">Go</div>
+          <div class="text-xs" style="color:var(--t2);">go get shadow-warden/go</div>
+        </div>
+        <div class="p-4 rounded-xl text-center" style="background:rgba(5,19,31,0.8);border:1px solid rgba(139,92,246,0.12);">
+          <div class="text-lg font-black mb-1" style="color:#c4b5fd;">Helm</div>
+          <div class="text-xs" style="color:var(--t2);">helm install shadow-warden</div>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-3 mt-3">
+        <div class="p-3 rounded-xl flex items-center gap-3" style="background:rgba(5,19,31,0.8);border:1px solid rgba(139,92,246,0.1);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:#c4b5fd;flex-shrink:0;"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <div><div class="text-xs font-medium" style="color:var(--t1);">GitHub Action</div><div class="text-xs" style="color:var(--t2);">Scan prompts in CI/CD pipelines</div></div>
+        </div>
+        <div class="p-3 rounded-xl flex items-center gap-3" style="background:rgba(5,19,31,0.8);border:1px solid rgba(139,92,246,0.1);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <div><div class="text-xs font-medium" style="color:var(--t1);">VS Code Extension</div><div class="text-xs" style="color:var(--t2);">Inline prompt risk analysis in your IDE</div></div>
+        </div>
+        <div class="p-3 rounded-xl flex items-center gap-3" style="background:rgba(5,19,31,0.8);border:1px solid rgba(139,92,246,0.1);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <div><div class="text-xs font-medium" style="color:var(--t1);">Terraform Provider</div><div class="text-xs" style="color:var(--t2);">Infrastructure-as-code for Warden rules</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── v0.9 — AI Cost Protection ────────────────────── -->
+  <div class="reveal mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="timeline-dot timeline-dot-future"></div>
+      <span class="text-xs font-bold uppercase tracking-wider" style="color:#c4b5fd;">Planned · Q2 2027</span>
+      <div class="flex-1 h-px" style="background:rgba(139,92,246,0.08);"></div>
+    </div>
+    <div class="release" style="border-color:rgba(139,92,246,0.12);">
+      <div class="flex items-center gap-3 mb-2">
+        <h2 class="text-2xl font-black" style="color:var(--t1);">v0.9 — AI Cost Protection</h2>
+        <span class="px-3 py-1 rounded-full text-xs font-bold status-planned">○ Planned</span>
+      </div>
+      <p class="text-sm mb-6" style="color:var(--t2);">Stop sponge attacks, prompt injections designed to inflate token usage, and runaway agent costs</p>
+      <div class="grid sm:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl" style="background:rgba(244,63,94,0.05);border:1px solid rgba(244,63,94,0.12);">
+          <div class="text-2xl font-black mb-1" style="color:#fb7185;">TokenShield</div>
+          <div class="text-xs leading-relaxed" style="color:var(--t2);">Detect sponge attacks designed to maximize token consumption. Per-request and per-session token budgets with automatic cutoff.</div>
+        </div>
+        <div class="p-4 rounded-xl" style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.12);">
+          <div class="text-2xl font-black mb-1" style="color:#fbbf24;">CostAnomaly</div>
+          <div class="text-xs leading-relaxed" style="color:var(--t2);">ML-based anomaly detection on token spend patterns. Alert when usage deviates &gt;2σ from baseline — before your bill spikes.</div>
+        </div>
+        <div class="p-4 rounded-xl" style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.12);">
+          <div class="text-2xl font-black mb-1" style="color:#34d399;">AgentWallet</div>
+          <div class="text-xs leading-relaxed" style="color:var(--t2);">Hard per-agent monthly and per-request spending caps. AP2 mandate enforcement with real-time spend tracking across all tenants.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── v1.0 — SaaS Platform ──────────────────────────── -->
+  <div class="reveal mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="timeline-dot timeline-dot-future"></div>
+      <span class="text-xs font-bold uppercase tracking-wider" style="color:#c4b5fd;">Planned · Q3 2027</span>
+      <div class="flex-1 h-px" style="background:rgba(139,92,246,0.08);"></div>
+    </div>
+    <div class="release" style="border-color:rgba(139,92,246,0.12);">
+      <div class="flex items-center gap-3 mb-2">
+        <h2 class="text-2xl font-black" style="color:var(--t1);">v1.0 — <span class="text-grad">SaaS Platform</span></h2>
+        <span class="px-3 py-1 rounded-full text-xs font-bold status-planned">○ Planned</span>
+      </div>
+      <p class="text-sm mb-6" style="color:var(--t2);">Fully hosted version — no Docker, no ops. One API key and you're filtering.</p>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="text-center p-4 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style="background:rgba(34,211,238,0.1);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg></div>
+          <div class="text-sm font-bold mb-1" style="color:var(--t1);">Hosted Cloud</div>
+          <div class="text-xs" style="color:var(--t2);">AWS, GCP, Azure — choose your region</div>
+        </div>
+        <div class="text-center p-4 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style="background:rgba(34,211,238,0.1);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+          <div class="text-sm font-bold mb-1" style="color:var(--t1);">AWS Marketplace</div>
+          <div class="text-xs" style="color:var(--t2);">1-click deploy, consolidated billing</div>
+        </div>
+        <div class="text-center p-4 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style="background:rgba(34,211,238,0.1);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+          <div class="text-sm font-bold mb-1" style="color:var(--t1);">White-Label OEM</div>
+          <div class="text-xs" style="color:var(--t2);">Re-brand for MSPs and security vendors</div>
+        </div>
+        <div class="text-center p-4 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style="background:rgba(34,211,238,0.1);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="text-sm font-bold mb-1" style="color:var(--t1);">Edge Deployment</div>
+          <div class="text-xs" style="color:var(--t2);">Cloudflare Workers · &lt;5ms global</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="reveal mt-16 text-center p-12 rounded-2xl" style="background:rgba(8,24,42,0.95);border:1px solid rgba(34,211,238,0.2);box-shadow:0 0 50px rgba(34,211,238,0.05);">
+    <p class="eyebrow mb-4">Shape the Roadmap</p>
+    <h2 class="text-3xl font-black mb-4" style="color:var(--t1);">Have a feature request?</h2>
+    <p class="text-lg mb-8" style="color:var(--t2);max-width:400px;margin-left:auto;margin-right:auto;">Open a GitHub issue or email us. Customer requests directly influence what ships next.</p>
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a href="https://github.com/zborrman/Shadow-Warden-AI/issues/new" target="_blank" rel="noopener" class="btn-cyan">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        Open GitHub Issue
+      </a>
+      <a href="mailto:product@shadow-warden-ai.com" class="btn-outline">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Email Product Team
+      </a>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- FOOTER -->
+<footer style="background:var(--bg);border-top:1px solid var(--border);">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs" style="color:var(--t2);">
+    <span>© 2026 Shadow Warden AI Ltd. All rights reserved.</span>
+    <div class="flex items-center gap-5">
+      <a href="/" class="nav-link" style="font-size:0.75rem;">Home</a>
+      <a href="/terms" class="nav-link" style="font-size:0.75rem;">Terms</a>
+      <a href="/privacy" class="nav-link" style="font-size:0.75rem;">Privacy</a>
+      <a href="/refund" class="nav-link" style="font-size:0.75rem;">Refund</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+}, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
