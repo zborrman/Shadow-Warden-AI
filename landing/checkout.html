@@ -461,7 +461,7 @@
     document.getElementById('stripe-spinner').style.display = '';
 
     try {
-      const res  = await fetch('/billing/checkout', {
+      const res  = await fetch('/subscription/checkout', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -2992,8 +2992,8 @@ class _CheckoutRequest(BaseModel):
 
 
 @app.get(
-    "/billing/status",
-    tags=["billing"],
+    "/subscription/status",
+    tags=["subscription"],
     summary="Current subscription plan and quota for a tenant",
 )
 async def billing_status(tenant_id: str):
@@ -3002,8 +3002,8 @@ async def billing_status(tenant_id: str):
 
 
 @app.post(
-    "/billing/checkout",
-    tags=["billing"],
+    "/subscription/checkout",
+    tags=["subscription"],
     summary="Create a Paddle checkout session — returns hosted payment URL",
 )
 async def billing_checkout(body: _CheckoutRequest):
@@ -3023,8 +3023,8 @@ async def billing_checkout(body: _CheckoutRequest):
 
 
 @app.get(
-    "/billing/portal",
-    tags=["billing"],
+    "/subscription/portal",
+    tags=["subscription"],
     summary="Return Paddle customer portal URL for self-serve plan management",
 )
 async def billing_portal(tenant_id: str):
@@ -3037,8 +3037,8 @@ async def billing_portal(tenant_id: str):
 
 
 @app.post(
-    "/billing/webhook",
-    tags=["billing"],
+    "/subscription/webhook",
+    tags=["subscription"],
     summary="Paddle webhook receiver — validates signature and updates subscription state",
     include_in_schema=False,
 )

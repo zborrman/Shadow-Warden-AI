@@ -13,8 +13,8 @@ Coverage
   • get_portal_url          — no customer, with customer
   • handle_webhook          — bad sig, transaction.completed, subscription.canceled,
                               subscription.past_due, unknown event
-  • HTTP endpoints          — /billing/status, /billing/checkout,
-                              /billing/webhook (via TestClient)
+  • HTTP endpoints          — /subscription/status, /subscription/checkout,
+                              /subscription/webhook (via TestClient)
 """
 from __future__ import annotations
 
@@ -252,14 +252,14 @@ class TestBillingEndpoints:
         self.client = TestClient(app, raise_server_exceptions=True)
 
     def test_status_unknown_tenant_returns_free(self) -> None:
-        resp = self.client.get("/billing/status?tenant_id=nobody")
+        resp = self.client.get("/subscription/status?tenant_id=nobody")
         assert resp.status_code == 200
         data = resp.json()
         assert data["plan"]  == "free"
         assert data["quota"] == 1_000
 
     def test_checkout_paddle_disabled_returns_503(self) -> None:
-        resp = self.client.post("/billing/checkout", json={
+        resp = self.client.post("/subscription/checkout", json={
             "tenant_id":   "t1",
             "plan":        "pro",
             "success_url": "https://example.com/ok",
@@ -268,13 +268,13 @@ class TestBillingEndpoints:
         assert resp.status_code == 503
 
     def test_portal_returns_url(self) -> None:
-        resp = self.client.get("/billing/portal?tenant_id=nobody")
+        resp = self.client.get("/subscription/portal?tenant_id=nobody")
         assert resp.status_code == 200
         assert "portal_url" in resp.json()
 
     def test_webhook_accepts_empty_payload(self) -> None:
         resp = self.client.post(
-            "/billing/webhook",
+            "/subscription/webhook",
             content=b'{"event_type":"ping","data":{}}',
             headers={"Paddle-Signature": ""},
         )
@@ -282,7 +282,7 @@ class TestBillingEndpoints:
 
     def test_checkout_invalid_plan_disabled_returns_503(self) -> None:
         """Paddle disabled in test env — 503 fires before plan validation."""
-        resp = self.client.post("/billing/checkout", json={
+        resp = self.client.post("/subscription/checkout", json={
             "tenant_id":   "t1",
             "plan":        "enterprise",
             "success_url": "https://example.com/ok",
