@@ -694,6 +694,13 @@ try:
 except ImportError:
     log.warning("portal_router not available — /portal routes skipped.")
 
+try:
+    from warden.agentic.router import router as _agentic_router
+    app.include_router(_agentic_router)
+    log.info("Agentic Payment Protocol (AP2) mounted at /agents and /mcp")
+except ImportError:
+    log.warning("agentic router not available — /agents and /mcp routes skipped.")
+
 
 # ── HTTP middleware (request-ID + security headers) ───────────────────────────
 
