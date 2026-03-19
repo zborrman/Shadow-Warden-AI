@@ -2992,27 +2992,27 @@ class _CheckoutRequest(BaseModel):
 
 
 @app.get(
-    "/stripe/status",
-    tags=["stripe"],
-    summary="Current Stripe subscription plan and quota for a tenant",
+    "/billing/status",
+    tags=["billing"],
+    summary="Current subscription plan and quota for a tenant",
 )
-async def stripe_status(tenant_id: str):
-    from warden.stripe_billing import get_stripe_billing
-    return get_stripe_billing().get_status(tenant_id)
+async def billing_status(tenant_id: str):
+    from warden.paddle_billing import get_paddle_billing
+    return get_paddle_billing().get_status(tenant_id)
 
 
 @app.post(
-    "/stripe/checkout",
-    tags=["stripe"],
-    summary="Create a Stripe Checkout session — returns hosted payment URL",
+    "/billing/checkout",
+    tags=["billing"],
+    summary="Create a Paddle checkout session — returns hosted payment URL",
 )
-async def stripe_checkout(body: _CheckoutRequest):
-    from warden.stripe_billing import get_stripe_billing
-    sb = get_stripe_billing()
-    if not sb._enabled:
-        raise HTTPException(503, "Stripe billing not configured on this instance.")
+async def billing_checkout(body: _CheckoutRequest):
+    from warden.paddle_billing import get_paddle_billing
+    pb = get_paddle_billing()
+    if not pb._enabled:
+        raise HTTPException(503, "Paddle billing not configured on this instance.")
     try:
-        url = sb.create_checkout_session(
+        url = pb.create_checkout_session(
             body.tenant_id, body.plan,
             body.success_url, body.cancel_url,
             body.customer_email,
@@ -3022,38 +3022,33 @@ async def stripe_checkout(body: _CheckoutRequest):
     return {"checkout_url": url}
 
 
-@app.post(
-    "/stripe/portal",
-    tags=["stripe"],
-    summary="Create a Stripe Billing Portal session for self-serve plan management",
+@app.get(
+    "/billing/portal",
+    tags=["billing"],
+    summary="Return Paddle customer portal URL for self-serve plan management",
 )
-async def stripe_portal(tenant_id: str, return_url: str):
-    from warden.stripe_billing import get_stripe_billing
-    sb = get_stripe_billing()
-    if not sb._enabled:
-        raise HTTPException(503, "Stripe billing not configured on this instance.")
+async def billing_portal(tenant_id: str):
+    from warden.paddle_billing import get_paddle_billing
     try:
-        url = sb.create_portal_session(tenant_id, return_url)
-    except (ValueError, RuntimeError) as exc:
+        url = get_paddle_billing().get_portal_url(tenant_id)
+    except RuntimeError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"portal_url": url}
 
 
 @app.post(
-    "/stripe/webhook",
-    tags=["stripe"],
-    summary="Stripe webhook receiver — validates signature and updates subscription state",
-    include_in_schema=False,   # not for public API docs
+    "/billing/webhook",
+    tags=["billing"],
+    summary="Paddle webhook receiver — validates signature and updates subscription state",
+    include_in_schema=False,
 )
-async def stripe_webhook(request: Request):
-    from warden.stripe_billing import get_stripe_billing
-    sb = get_stripe_billing()
-    if not sb._enabled:
-        raise HTTPException(503, "Stripe billing not configured on this instance.")
+async def billing_webhook(request: Request):
+    from warden.paddle_billing import get_paddle_billing
+    pb         = get_paddle_billing()
     payload    = await request.body()
-    sig_header = request.headers.get("stripe-signature", "")
+    sig_header = request.headers.get("Paddle-Signature", "")
     try:
-        etype = sb.handle_webhook(payload, sig_header)
+        etype = pb.handle_webhook(payload, sig_header)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"received": True, "event_type": etype}

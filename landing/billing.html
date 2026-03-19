@@ -226,7 +226,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
         <div>
           <div style="font-size:0.875rem;color:var(--text2);margin-bottom:4px">Update payment method, download invoices, or cancel your subscription.</div>
-          <div style="font-size:0.75rem;color:var(--text3)">Powered by Stripe — your card details are never stored on our servers.</div>
+          <div style="font-size:0.75rem;color:var(--text3)">Powered by Paddle — your card details are never stored on our servers.</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-outline btn-sm" onclick="openStripePortal()">
@@ -305,7 +305,7 @@
   async function loadStatus() {
     try {
       const headers = token ? { Authorization: 'Bearer ' + token } : {};
-      const res  = await fetch('/stripe/status?tenant_id=' + encodeURIComponent(tenantId), { headers });
+      const res  = await fetch('/billing/status?tenant_id=' + encodeURIComponent(tenantId), { headers });
       if (!res.ok) return;
       const s = await res.json();
 
@@ -331,7 +331,7 @@
           'Next billing: ' + d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       }
 
-      // Show Stripe portal for paid plans
+      // Show Paddle portal for paid plans
       if (s.plan !== 'free' && s.customer_id) {
         document.getElementById('stripe-portal-card').style.display = '';
       }
@@ -348,7 +348,7 @@
       // Actions
       if (s.plan !== 'free') {
         document.getElementById('plan-actions').innerHTML = `
-          <button class="btn btn-outline btn-sm" onclick="openStripePortal()">
+          <button class="btn btn-outline btn-sm" onclick="openBillingPortal()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Manage Billing
           </button>`;
@@ -394,23 +394,24 @@
     }
   }
 
-  // ── Stripe portal ───────────────────────────────────────────────────────────
-  async function openStripePortal() {
+  // ── Paddle billing portal ────────────────────────────────────────────────────
+  async function openBillingPortal() {
     try {
-      const headers = { 'Content-Type': 'application/json' };
+      const headers = {};
       if (token) headers.Authorization = 'Bearer ' + token;
-      const res  = await fetch('/stripe/portal?tenant_id=' + encodeURIComponent(tenantId) +
-        '&return_url=' + encodeURIComponent(location.origin + '/billing'), { method: 'POST', headers });
+      const res  = await fetch('/billing/portal?tenant_id=' + encodeURIComponent(tenantId), { headers });
       const data = await res.json();
       if (res.ok && data.portal_url) {
-        location.href = data.portal_url;
+        window.open(data.portal_url, '_blank');
       } else {
-        alert(data.detail || 'Stripe portal not available. Configure STRIPE_SECRET_KEY.');
+        alert(data.detail || 'Billing portal not available. Configure PADDLE_API_KEY.');
       }
     } catch {
       alert('Connection error. Please try again.');
     }
   }
+  // Keep alias for any inline onclick references
+  const openStripePortal = openBillingPortal;
 
   // ── Init ────────────────────────────────────────────────────────────────────
   loadStatus();
