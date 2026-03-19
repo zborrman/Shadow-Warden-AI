@@ -75,3 +75,6 @@ data/*.db-wal
 # AI/IDE Cache
 .claude/
 =8.0.0
+
+# SSL certificates (generated on server, not committed)
+ssl/
