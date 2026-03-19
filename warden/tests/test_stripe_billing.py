@@ -243,6 +243,7 @@ class TestBillingEndpoints:
     @pytest.fixture(autouse=True)
     def _client(self):
         from fastapi.testclient import TestClient
+
         from warden.main import app
         self.client = TestClient(app, raise_server_exceptions=True)
 
