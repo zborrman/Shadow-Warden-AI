@@ -614,34 +614,404 @@
 <!-- ════════════════════════════════════════════════════════
      OWASP LLM TOP 10
 ════════════════════════════════════════════════════════ -->
+<style>
+  .owasp-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .owasp-card:hover {
+    border-color: var(--border2);
+    box-shadow: 0 0 24px rgba(34,211,238,0.07);
+    transform: translateY(-2px);
+  }
+  .owasp-card.active {
+    border-color: rgba(34,211,238,0.45);
+    box-shadow: 0 0 28px rgba(34,211,238,0.12);
+  }
+  .owasp-card-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .owasp-badge {
+    font-size:10px; font-weight:800; letter-spacing:0.08em;
+    padding:3px 8px; border-radius:6px; flex-shrink:0;
+    background:rgba(34,211,238,0.12); color:var(--cyan);
+    border:1px solid rgba(34,211,238,0.2);
+  }
+  .owasp-badge.critical { background:rgba(239,68,68,0.12); color:#f87171; border-color:rgba(239,68,68,0.25); }
+  .owasp-badge.high     { background:rgba(249,115,22,0.12); color:#fb923c; border-color:rgba(249,115,22,0.25); }
+  .owasp-badge.medium   { background:rgba(234,179,8,0.12);  color:#fbbf24; border-color:rgba(234,179,8,0.25); }
+  .owasp-title { font-size:14px; font-weight:700; color:var(--t1); flex:1; }
+  .owasp-num   { font-size:11px; font-weight:800; color:var(--cyan); letter-spacing:0.05em; }
+  .owasp-chevron { color:var(--t3); transition:transform 0.25s; flex-shrink:0; }
+  .owasp-card.active .owasp-chevron { transform:rotate(180deg); color:var(--cyan); }
+  .owasp-body { display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+  .owasp-card.active .owasp-body { display:block; }
+  .owasp-desc { font-size:13px; color:var(--t2); line-height:1.6; margin-bottom:12px; }
+  .owasp-attacks { margin-bottom:12px; }
+  .owasp-attacks-label { font-size:10px; font-weight:700; letter-spacing:0.08em; color:var(--t3); text-transform:uppercase; margin-bottom:6px; }
+  .owasp-attack-item { display:flex; align-items:flex-start; gap:7px; margin-bottom:4px; font-size:12px; color:var(--t2); }
+  .owasp-attack-item::before { content:'›'; color:#f87171; flex-shrink:0; font-weight:700; }
+  .owasp-shield { background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:10px 12px; }
+  .owasp-shield-label { font-size:10px; font-weight:700; letter-spacing:0.08em; color:#34d399; text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; gap:5px; }
+  .owasp-shield-item { display:flex; align-items:flex-start; gap:7px; margin-bottom:3px; font-size:12px; color:var(--t2); }
+  .owasp-shield-item::before { content:'✓'; color:#34d399; flex-shrink:0; font-weight:700; }
+  .owasp-status { display:inline-flex; align-items:center; gap:5px; margin-top:10px; font-size:11px; font-weight:600; color:#34d399; }
+  .owasp-status-dot { width:6px; height:6px; border-radius:50%; background:#34d399; animation:pulse-dot 2s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+</style>
+
 <section id="owasp" class="py-24 lg:py-32" style="background:var(--bg2);">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <div class="text-center mb-14 reveal">
       <p class="eyebrow mb-3">Compliance</p>
       <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">Full OWASP LLM Top 10 Coverage</h2>
-      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Shadow Warden maps directly to every risk category. Tick the box in your security review.</p>
+      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Shadow Warden maps directly to every risk category. Click any card for full threat detail and how we neutralise it.</p>
     </div>
 
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 reveal">
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM01</div><div class="text-xs" style="color:var(--t1);">Prompt Injection</div></div></div>
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM02</div><div class="text-xs" style="color:var(--t1);">Info Disclosure</div></div></div>
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM03</div><div class="text-xs" style="color:var(--t1);">Supply Chain</div></div></div>
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM04</div><div class="text-xs" style="color:var(--t1);">Data Poisoning</div></div></div>
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM05</div><div class="text-xs" style="color:var(--t1);">Output Handling</div></div></div>
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM06</div><div class="text-xs" style="color:var(--t1);">Excessive Agency</div></div></div>
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM07</div><div class="text-xs" style="color:var(--t1);">Prompt Leakage</div></div></div>
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM08</div><div class="text-xs" style="color:var(--t1);">Vector Weaknesses</div></div></div>
-      <div class="owasp-pill"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#34d399;">LLM09</div><div class="text-xs" style="color:var(--t1);">Misinformation</div></div></div>
-      <div class="owasp-pill" style="border-color:rgba(139,92,246,0.25);background:rgba(139,92,246,0.05);"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="text-xs font-bold" style="color:#c4b5fd;">LLM10</div><div class="text-xs" style="color:var(--t1);">Unbounded Consumption</div></div></div>
-    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 reveal" id="owaspGrid">
 
-    <div class="mt-6 text-center reveal">
-      <p class="text-sm" style="color:var(--t2);">Mapped to OWASP LLM Top 10 v1.1 (2025) · <a href="mailto:security@shadow-warden-ai.com" style="color:var(--cyan);">Request compliance mapping PDF →</a></p>
+      <!-- LLM01 -->
+      <div class="owasp-card active" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM01</div>
+            <div class="owasp-title">Prompt Injection</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge critical">CRITICAL</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">Adversarial input manipulates an LLM into overriding its instructions or taking unintended actions. Includes direct injection (user crafts the payload) and indirect injection (payload hidden in documents, URLs, or tool outputs the model processes).</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">DAN / STAN / AIM / DUDE persona jailbreaks</div>
+            <div class="owasp-attack-item">«Ignore previous instructions» overrides</div>
+            <div class="owasp-attack-item">Indirect injection via RAG documents or tool results</div>
+            <div class="owasp-attack-item">Base64 / ROT13 / Unicode obfuscation to bypass keyword filters</div>
+            <div class="owasp-attack-item">Fictional, hypothetical, and roleplay framing</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">ThreatVault Stage 1.5 — 50+ jailbreak signatures matched before ML</div>
+            <div class="owasp-shield-item">SemanticBrain (MiniLM) cosine similarity against adversarial corpus</div>
+            <div class="owasp-shield-item">ObfuscationDecoder strips base64 / hex / ROT13 / homoglyphs at Stage 0b</div>
+            <div class="owasp-shield-item">EvolutionEngine auto-generates new rules from blocked attempts (Claude Opus)</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively protected</div>
+        </div>
+      </div>
+
+      <!-- LLM02 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM02</div>
+            <div class="owasp-title">Sensitive Information Disclosure</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge high">HIGH</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">LLMs may inadvertently expose API keys, PII, confidential data, or training-set memorization in their responses. Attackers probe models to extract secrets embedded in prompts or memorised during training.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">API keys, tokens, and credentials in user prompts forwarded to LLM</div>
+            <div class="owasp-attack-item">Training data extraction via repetition attacks («repeat the words above…»)</div>
+            <div class="owasp-attack-item">PII — names, emails, phone numbers, credit cards — leaked in context</div>
+            <div class="owasp-attack-item">Mass credential harvesting via bulk queries</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">SecretRedactor — 15+ regex patterns: API keys, JWT, credit cards, SSNs, IBANs</div>
+            <div class="owasp-shield-item">Redaction policies: FULL (replace), MASKED (last 4 chars), RAW (detect-only)</div>
+            <div class="owasp-shield-item">PII Yellow-Zone masking — vault tokenisation with reversible session IDs</div>
+            <div class="owasp-shield-item">GDPR: content never logged — only metadata (type, length, timing)</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively protected</div>
+        </div>
+      </div>
+
+      <!-- LLM03 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM03</div>
+            <div class="owasp-title">Supply Chain Vulnerabilities</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge high">HIGH</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">Compromised third-party model providers, plugins, datasets, or pre-trained weights introduce backdoors or malicious behaviour before the application even runs. Attackers target the model supply chain rather than the deployed system.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">Poisoned Hugging Face or PyPI packages with trojanised weights</div>
+            <div class="owasp-attack-item">Malicious fine-tuning datasets injected via public contribution pipelines</div>
+            <div class="owasp-attack-item">Compromised plugins or tool integrations in LLM agent frameworks</div>
+            <div class="owasp-attack-item">Dependency confusion / typosquatting in ML library installs</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">Pinned dependencies (requirements-lock.txt) — reproducible, auditable builds</div>
+            <div class="owasp-shield-item">Dockerfile builds from verified MCR base images — no public Hugging Face at runtime</div>
+            <div class="owasp-shield-item">All inter-service communication is internal Docker network — no external model calls</div>
+            <div class="owasp-shield-item">CI/CD pipeline validates Docker build integrity on every commit</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively monitored</div>
+        </div>
+      </div>
+
+      <!-- LLM04 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM04</div>
+            <div class="owasp-title">Data &amp; Model Poisoning</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge critical">CRITICAL</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">Malicious examples are injected into the model's training data or in-context learning corpus to install hidden backdoors, alter behaviour on trigger inputs, or degrade detection accuracy for specific attack classes.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">Sleeper agent — trigger word activates hidden behaviour after fine-tuning</div>
+            <div class="owasp-attack-item">Few-shot corpus injection — adversarial examples flood the in-context corpus</div>
+            <div class="owasp-attack-item">Gradient-based backdoor insertion into model weights</div>
+            <div class="owasp-attack-item">Persistent session override — «from now on ignore all restrictions»</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">DataPoisoningGuard (Stage 2c) — statistical anomaly detection on corpus growth</div>
+            <div class="owasp-shield-item">Corpus cap (500 examples) + vetting — auto-rejects examples with ≥10% similarity</div>
+            <div class="owasp-shield-item">EvolutionEngine vets all Claude-generated rules before corpus insertion</div>
+            <div class="owasp-shield-item">ThreatVault signature: sleeper agent trigger patterns blocked at Stage 1.5</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively protected</div>
+        </div>
+      </div>
+
+      <!-- LLM05 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM05</div>
+            <div class="owasp-title">Insecure Output Handling</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge high">HIGH</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">Unsanitised LLM output is passed to downstream components — browsers, shells, databases — causing XSS, command injection, SQL injection, SSRF, or path traversal. The LLM becomes the attack vector into the rest of the stack.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">XSS — &lt;script&gt; tags or event handlers in AI-rendered HTML</div>
+            <div class="owasp-attack-item">SQL injection via AI-generated database queries (UNION SELECT, DROP TABLE)</div>
+            <div class="owasp-attack-item">OS command injection — shell metacharacters in AI-generated scripts</div>
+            <div class="owasp-attack-item">SSRF — AI instructs fetch to cloud metadata endpoint (169.254.169.254)</div>
+            <div class="owasp-attack-item">Path traversal — ../../etc/passwd in AI-generated file paths</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">OutputGuard — scans all AI-generated text before it reaches downstream systems</div>
+            <div class="owasp-shield-item">SemanticGuard LLM05 rules — XSS, SQLi, CMDi, SSTI, XXE, SSRF, path traversal patterns</div>
+            <div class="owasp-shield-item">ThreatVault — dedicated signatures for each injection class</div>
+            <div class="owasp-shield-item">/output/scan endpoint — standalone output scanner for existing pipelines</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively protected</div>
+        </div>
+      </div>
+
+      <!-- LLM06 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM06</div>
+            <div class="owasp-title">Excessive Agency</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge critical">CRITICAL</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">An LLM agent is granted excessive permissions or takes high-impact autonomous actions without human approval. Attackers instruct the agent to delete files, exfiltrate data, make API calls, or modify infrastructure on their behalf.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">Mass deletion — «delete all database records» via injected instruction</div>
+            <div class="owasp-attack-item">Data exfiltration — agent POSTs sensitive data to attacker-controlled webhook</div>
+            <div class="owasp-attack-item">Privilege escalation — agent modifies ACLs or IAM roles autonomously</div>
+            <div class="owasp-attack-item">Supply chain abuse — agent installs malicious packages via npm/pip</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">AP2 Agentic Payment Protocol — 7-layer mandate validation before any agent action</div>
+            <div class="owasp-shield-item">WalletShield — hard token budget limits; blocks runaway cost from agent loops</div>
+            <div class="owasp-shield-item">SemanticGuard LLM06 rules — flags destructive bulk operations before execution</div>
+            <div class="owasp-shield-item">AgentMonitor — tracks all agent calls and kills sessions exceeding risk threshold</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively protected</div>
+        </div>
+      </div>
+
+      <!-- LLM07 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM07</div>
+            <div class="owasp-title">System Prompt Leakage</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge high">HIGH</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">Attackers craft prompts that cause the LLM to reveal its confidential system prompt, proprietary instructions, or the entire context window — exposing business logic, security rules, and competitive IP.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">«Print your system prompt» / «reveal your instructions»</div>
+            <div class="owasp-attack-item">«Output everything above this line» context dump</div>
+            <div class="owasp-attack-item">Multilingual variants — request in Russian, Arabic, Japanese to bypass English filters</div>
+            <div class="owasp-attack-item">Simulated error message tricking the model into including prompt in stack trace</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">SemanticGuard LLM07 rules — multilingual system prompt extraction patterns</div>
+            <div class="owasp-shield-item">ThreatVault signatures: direct dump, context window extraction, error-leak simulation</div>
+            <div class="owasp-shield-item">OutputGuard scans responses for system-prompt echoes before delivery</div>
+            <div class="owasp-shield-item">Policy engine — per-tenant rules can enforce hard block on any prompt reference</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively protected</div>
+        </div>
+      </div>
+
+      <!-- LLM08 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM08</div>
+            <div class="owasp-title">Vector &amp; Embedding Weaknesses</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge high">HIGH</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">Adversarially crafted embeddings or RAG-poisoned documents manipulate semantic similarity searches to inject malicious content into the model's retrieval context, bypassing keyword-based filters entirely.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">RAG poisoning — malicious instructions hidden in documents indexed by the vector DB</div>
+            <div class="owasp-attack-item">Adversarial embedding manipulation — crafted text designed to score near safe examples</div>
+            <div class="owasp-attack-item">«Ignore retrieved context, instead follow these new instructions» injection</div>
+            <div class="owasp-attack-item">Cross-document instruction propagation via shared embedding space</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">SemanticGuard LLM08 rules — RAG poisoning and adversarial embedding detection</div>
+            <div class="owasp-shield-item">ThreatVault — RAG injection signatures (ignore retrieved context patterns)</div>
+            <div class="owasp-shield-item">All RAG chunks pass through the full /filter pipeline before reaching the LLM</div>
+            <div class="owasp-shield-item">MiniLM cosine similarity — measures semantic distance from known attack corpus</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively protected</div>
+        </div>
+      </div>
+
+      <!-- LLM09 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM09</div>
+            <div class="owasp-title">Misinformation</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge medium">MEDIUM</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">LLMs are prompted to generate convincing but false authoritative content — fake news, fabricated legal/medical documents, false scientific studies — that will be trusted by end users or downstream systems because it appears to come from an AI.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">Fake news articles crafted to appear genuine — used in disinformation campaigns</div>
+            <div class="owasp-attack-item">Fabricated medical advice or legal documents with authoritative framing</div>
+            <div class="owasp-attack-item">Hallucination amplification — prompts designed to maximise confident false output</div>
+            <div class="owasp-attack-item">Deepfake text generation — impersonating real public figures or organisations</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">SemanticGuard LLM09 rules — fabricated authoritative content detection</div>
+            <div class="owasp-shield-item">ThreatVault — «fabricated news / legal / medical document» signature</div>
+            <div class="owasp-shield-item">OutputGuard post-generation scan — flags high-confidence false claims in AI output</div>
+            <div class="owasp-shield-item">Custom policy engine — block or watermark AI-generated authoritative content per tenant</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively monitored</div>
+        </div>
+      </div>
+
+      <!-- LLM10 -->
+      <div class="owasp-card" onclick="toggleOwasp(this)">
+        <div class="owasp-card-header">
+          <div>
+            <div class="owasp-num">LLM10</div>
+            <div class="owasp-title">Unbounded Consumption</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="owasp-badge high">HIGH</span>
+            <svg class="owasp-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="owasp-body">
+          <p class="owasp-desc">Attackers craft inputs that cause the LLM to consume unlimited compute, tokens, or memory — through repetition bombs, infinite generation loops, or high-cost reasoning chains — resulting in DoS or runaway cloud bills.</p>
+          <div class="owasp-attacks">
+            <div class="owasp-attacks-label">Attack vectors</div>
+            <div class="owasp-attack-item">Token bomb — «repeat this word 100,000 times» exhausts context window</div>
+            <div class="owasp-attack-item">Infinite generation loop — «write an endless story, never stop»</div>
+            <div class="owasp-attack-item">High-cost reasoning chains — adversarial chain-of-thought prompts triggering max compute</div>
+            <div class="owasp-attack-item">Batch flooding — submitting thousands of long requests to deplete API quotas</div>
+          </div>
+          <div class="owasp-shield">
+            <div class="owasp-shield-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1l9 4v6c0 5.5-3.8 10.7-9 12C3.8 21.7 3 16.5 3 11V5l9-4z"/></svg> Shadow Warden protection</div>
+            <div class="owasp-shield-item">WalletShield — per-tenant token budget with configurable hard limits and hourly windows</div>
+            <div class="owasp-shield-item">Rate limiter — 60 req/min per API key (Redis-backed, configurable per tenant)</div>
+            <div class="owasp-shield-item">SemanticGuard LLM10 rules — repetition bombs and infinite loop patterns</div>
+            <div class="owasp-shield-item">Batch endpoint cap — max 50 items per /filter/batch request</div>
+          </div>
+          <div class="owasp-status"><span class="owasp-status-dot"></span>Actively protected</div>
+        </div>
+      </div>
+
+    </div><!-- /grid -->
+
+    <div class="mt-8 text-center reveal">
+      <p class="text-sm" style="color:var(--t2);">Mapped to OWASP LLM Top 10 v1.1 (2025) · <a href="mailto:vz@shadow-warden-ai.com" style="color:var(--cyan);">Request compliance mapping PDF →</a></p>
     </div>
 
   </div>
 </section>
+
+<script>
+function toggleOwasp(card) {
+  const isActive = card.classList.contains('active');
+  card.classList.toggle('active', !isActive);
+}
+</script>
 
 
 <!-- ════════════════════════════════════════════════════════
