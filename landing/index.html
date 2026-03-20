@@ -332,7 +332,7 @@
         <div class="flex items-center gap-3 mb-7">
           <span class="badge badge-cyan">
             <span class="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse"></span>
-            v0.4 · AP2 Agentic Payments
+            v0.5 · ThreatVault + Google 2FA
           </span>
           <span class="badge badge-green">GDPR Compliant</span>
         </div>
@@ -366,8 +366,8 @@
             <div class="text-xs mt-0.5" style="color:var(--t2);">P99 latency</div>
           </div>
           <div class="text-center p-3 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
-            <div class="text-xl font-black text-grad">42+</div>
-            <div class="text-xs mt-0.5" style="color:var(--t2);">Attack patterns</div>
+            <div class="text-xl font-black text-grad">50+</div>
+            <div class="text-xs mt-0.5" style="color:var(--t2);">Threat signatures</div>
           </div>
           <div class="text-center p-3 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
             <div class="text-xl font-black text-grad">99.9%</div>
@@ -407,8 +407,8 @@
 
     <div class="text-center mb-14 reveal">
       <p class="eyebrow mb-3">How It Works</p>
-      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">5-Stage Defense Pipeline</h2>
-      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Every request runs through all five stages sequentially. Any stage can block. All stages run in under 15ms P99.</p>
+      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">6-Stage Defense Pipeline</h2>
+      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Every request runs through all six stages sequentially. Any stage can block. All stages run in under 15ms P99.</p>
     </div>
 
     <!-- Pipeline flow - horizontal on desktop, stacked on mobile -->
@@ -436,11 +436,22 @@
 
       <div class="pipe-arrow">→</div>
 
+      <div class="pipe-step flex-1" style="border-color:rgba(239,68,68,0.2);background:rgba(10,5,20,0.9);">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.28);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        </div>
+        <div class="text-xs font-bold mb-1" style="color:#f87171;">Stage 3</div>
+        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">ThreatVault</div>
+        <div class="text-xs leading-relaxed" style="color:var(--t2);">50 signatures · DAN · roleplay · RAG · encoding attacks</div>
+      </div>
+
+      <div class="pipe-arrow">→</div>
+
       <div class="pipe-step flex-1">
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.25);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#22d3ee;">Stage 3</div>
+        <div class="text-xs font-bold mb-1" style="color:#22d3ee;">Stage 4</div>
         <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Semantic Rules</div>
         <div class="text-xs leading-relaxed" style="color:var(--t2);">42+ regex patterns · compound risk escalation · 3× MEDIUM → HIGH</div>
       </div>
@@ -451,7 +462,7 @@
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#c4b5fd;">Stage 4</div>
+        <div class="text-xs font-bold mb-1" style="color:#c4b5fd;">Stage 5</div>
         <div class="text-sm font-semibold mb-2" style="color:var(--t1);">ML Brain</div>
         <div class="text-xs leading-relaxed" style="color:var(--t2);">all-MiniLM-L6-v2 · cosine similarity · async ThreadPoolExecutor</div>
       </div>
@@ -462,7 +473,7 @@
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#34d399;">Stage 5</div>
+        <div class="text-xs font-bold mb-1" style="color:#34d399;">Stage 6</div>
         <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Decision</div>
         <div class="text-xs leading-relaxed" style="color:var(--t2);">ALLOW · REDACT · HIGH · BLOCK · Evolution Engine feedback</div>
       </div>
@@ -478,17 +489,21 @@
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(244,63,94,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
         <div><div class="text-xs font-bold" style="color:#fb7185;">Stage 2 — Secret Redactor</div><div class="text-xs" style="color:var(--t2);">15 PII/secret patterns · API keys</div></div>
       </div>
+      <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(10,5,20,0.9);border:1px solid rgba(239,68,68,0.2);">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>
+        <div><div class="text-xs font-bold" style="color:#f87171;">Stage 3 — ThreatVault</div><div class="text-xs" style="color:var(--t2);">50 signatures · DAN · roleplay · RAG attacks</div></div>
+      </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,19,31,0.85);border:1px solid var(--border);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(34,211,238,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#22d3ee;">Stage 3 — Semantic Rules</div><div class="text-xs" style="color:var(--t2);">42+ patterns · compound escalation</div></div>
+        <div><div class="text-xs font-bold" style="color:#22d3ee;">Stage 4 — Semantic Rules</div><div class="text-xs" style="color:var(--t2);">42+ patterns · compound escalation</div></div>
       </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,19,31,0.85);border:1px solid var(--border);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(139,92,246,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#c4b5fd;">Stage 4 — ML Brain (MiniLM)</div><div class="text-xs" style="color:var(--t2);">Cosine similarity · self-improving</div></div>
+        <div><div class="text-xs font-bold" style="color:#c4b5fd;">Stage 5 — ML Brain (MiniLM)</div><div class="text-xs" style="color:var(--t2);">Cosine similarity · self-improving</div></div>
       </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,22,36,0.95);border:1px solid rgba(16,185,129,0.2);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(16,185,129,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#34d399;">Stage 5 — Decision + Evolution</div><div class="text-xs" style="color:var(--t2);">ALLOW / REDACT / HIGH / BLOCK</div></div>
+        <div><div class="text-xs font-bold" style="color:#34d399;">Stage 6 — Decision + Evolution</div><div class="text-xs" style="color:var(--t2);">ALLOW / REDACT / HIGH / BLOCK</div></div>
       </div>
     </div>
 
@@ -634,6 +649,74 @@
           </div>
           <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Redis Cache + Batch API</h3>
           <p class="text-sm leading-relaxed" style="color:var(--t2);">SHA-256 content hash cache with 5-min TTL. <span class="mono" style="color:#22d3ee;">POST /filter/batch</span> supports up to 50 items.</p>
+        </div>
+      </div>
+
+      <!-- ThreatVault -->
+      <div class="bento lg:col-span-2" style="border-color:rgba(239,68,68,0.18);">
+        <div class="bento-inner">
+          <div class="flex items-start gap-5">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            </div>
+            <div class="flex-1">
+              <div class="badge badge-red mb-3">Stage 3 · Signature Engine</div>
+              <h3 class="text-xl font-bold mb-2" style="color:var(--t1);">ThreatVault — Adversarial Signature Scanner</h3>
+              <p class="text-sm leading-relaxed mb-5" style="color:var(--t2);max-width:520px;">50 hand-crafted adversarial prompt signatures matched before ML inference. Instant zero-latency blocking of known attack families — DAN variants, roleplay exploits, prompt injection, RAG poisoning, encoding obfuscation, and more. Hot-reloadable via API with no restarts.</p>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="p-2.5 rounded-xl text-center" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);">
+                  <div class="text-base font-black" style="color:#f87171;">50</div>
+                  <div class="text-xs" style="color:var(--t2);">Signatures</div>
+                </div>
+                <div class="p-2.5 rounded-xl text-center" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);">
+                  <div class="text-base font-black" style="color:#f87171;">14</div>
+                  <div class="text-xs" style="color:var(--t2);">Attack categories</div>
+                </div>
+                <div class="p-2.5 rounded-xl text-center" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);">
+                  <div class="text-base font-black" style="color:#f87171;">&lt;1ms</div>
+                  <div class="text-xs" style="color:var(--t2);">Scan latency</div>
+                </div>
+                <div class="p-2.5 rounded-xl text-center" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);">
+                  <div class="text-base font-black" style="color:#f87171;">Live</div>
+                  <div class="text-xs" style="color:var(--t2);">Hot-reload API</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Category chips -->
+          <div class="flex flex-wrap gap-2 mt-5">
+            <span class="mono px-2.5 py-1 rounded-lg text-xs" style="background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.2);">jailbreak_template</span>
+            <span class="mono px-2.5 py-1 rounded-lg text-xs" style="background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.2);">instruction_override</span>
+            <span class="mono px-2.5 py-1 rounded-lg text-xs" style="background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.2);">roleplay_exploit</span>
+            <span class="mono px-2.5 py-1 rounded-lg text-xs" style="background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.2);">prompt_injection</span>
+            <span class="mono px-2.5 py-1 rounded-lg text-xs" style="background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.2);">rag_attack</span>
+            <span class="mono px-2.5 py-1 rounded-lg text-xs" style="background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.2);">encoding_obfuscation</span>
+            <span class="mono px-2.5 py-1 rounded-lg text-xs" style="background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.2);">social_engineering</span>
+            <span class="mono px-2.5 py-1 rounded-lg text-xs" style="background:rgba(239,68,68,0.08);color:#fb923c;border:1px solid rgba(251,146,60,0.2);">+ 7 more</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google Authenticator 2FA -->
+      <div class="bento" style="border-color:rgba(34,211,238,0.18);">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/><circle cx="12" cy="16" r="1" fill="#22d3ee" stroke="none"/></svg>
+          </div>
+          <div class="badge badge-cyan mb-3">Portal Security</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Google Authenticator 2FA</h3>
+          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">RFC 6238 TOTP two-factor authentication. Scan a QR code in Google Authenticator — every login requires a 6-digit rotating code.</p>
+          <div class="p-3 rounded-xl" style="background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.1);">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse"></div>
+              <span class="text-xs font-semibold" style="color:#34d399;">Two-step sign in active</span>
+            </div>
+            <div class="mono text-xs space-y-1">
+              <div style="color:var(--t2);">① Password verified</div>
+              <div style="color:#22d3ee;">② Enter 6-digit code ·  ·  · — · ·  · </div>
+              <div style="color:#34d399;">③ Access granted ✓</div>
+            </div>
+          </div>
         </div>
       </div>
 
