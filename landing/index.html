@@ -182,6 +182,37 @@
     }
     .owasp-pill:hover { border-color: var(--border2); }
 
+    /* ── OWASP Cards ── */
+    .owasp-card {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px; cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    }
+    .owasp-card:hover { border-color: var(--border2); box-shadow: 0 0 24px rgba(34,211,238,0.07); transform: translateY(-2px); }
+    .owasp-card.active { border-color: rgba(34,211,238,0.45); box-shadow: 0 0 28px rgba(34,211,238,0.12); }
+    .owasp-card-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .owasp-badge { font-size:10px; font-weight:800; letter-spacing:0.08em; padding:3px 8px; border-radius:6px; flex-shrink:0; }
+    .owasp-badge.critical { background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.25); }
+    .owasp-badge.high     { background:rgba(249,115,22,0.12); color:#fb923c; border:1px solid rgba(249,115,22,0.25); }
+    .owasp-badge.medium   { background:rgba(234,179,8,0.12);  color:#fbbf24; border:1px solid rgba(234,179,8,0.25); }
+    .owasp-title { font-size:14px; font-weight:700; color:var(--t1); flex:1; }
+    .owasp-num   { font-size:11px; font-weight:800; color:var(--cyan); letter-spacing:0.05em; margin-bottom:2px; }
+    .owasp-chevron { color:var(--t3); transition:transform 0.25s; flex-shrink:0; }
+    .owasp-card.active .owasp-chevron { transform:rotate(180deg); color:var(--cyan); }
+    .owasp-body { display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+    .owasp-card.active .owasp-body { display:block; }
+    .owasp-desc { font-size:13px; color:var(--t2); line-height:1.6; margin-bottom:12px; }
+    .owasp-attacks-label, .owasp-shield-label { font-size:10px; font-weight:700; letter-spacing:0.08em; color:var(--t3); text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; gap:5px; }
+    .owasp-shield-label { color:#34d399; }
+    .owasp-attack-item, .owasp-shield-item { display:flex; align-items:flex-start; gap:7px; margin-bottom:4px; font-size:12px; color:var(--t2); line-height:1.5; }
+    .owasp-attack-item::before { content:'›'; color:#f87171; flex-shrink:0; font-weight:700; }
+    .owasp-shield-item::before { content:'✓'; color:#34d399; flex-shrink:0; font-weight:700; }
+    .owasp-attacks { margin-bottom:12px; }
+    .owasp-shield { background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:10px 12px; }
+    .owasp-status { display:inline-flex; align-items:center; gap:5px; margin-top:10px; font-size:11px; font-weight:600; color:#34d399; }
+    .owasp-status-dot { width:6px; height:6px; border-radius:50%; background:#34d399; animation:pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
     /* ── Nav ── */
     .nav-link { font-size: 0.875rem; color: var(--t2); transition: color 0.2s; text-decoration: none; }
     .nav-link:hover { color: var(--t1); }
@@ -614,56 +645,6 @@
 <!-- ════════════════════════════════════════════════════════
      OWASP LLM TOP 10
 ════════════════════════════════════════════════════════ -->
-<style>
-  .owasp-card {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px;
-    cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-    position: relative;
-    overflow: hidden;
-  }
-  .owasp-card:hover {
-    border-color: var(--border2);
-    box-shadow: 0 0 24px rgba(34,211,238,0.07);
-    transform: translateY(-2px);
-  }
-  .owasp-card.active {
-    border-color: rgba(34,211,238,0.45);
-    box-shadow: 0 0 28px rgba(34,211,238,0.12);
-  }
-  .owasp-card-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .owasp-badge {
-    font-size:10px; font-weight:800; letter-spacing:0.08em;
-    padding:3px 8px; border-radius:6px; flex-shrink:0;
-    background:rgba(34,211,238,0.12); color:var(--cyan);
-    border:1px solid rgba(34,211,238,0.2);
-  }
-  .owasp-badge.critical { background:rgba(239,68,68,0.12); color:#f87171; border-color:rgba(239,68,68,0.25); }
-  .owasp-badge.high     { background:rgba(249,115,22,0.12); color:#fb923c; border-color:rgba(249,115,22,0.25); }
-  .owasp-badge.medium   { background:rgba(234,179,8,0.12);  color:#fbbf24; border-color:rgba(234,179,8,0.25); }
-  .owasp-title { font-size:14px; font-weight:700; color:var(--t1); flex:1; }
-  .owasp-num   { font-size:11px; font-weight:800; color:var(--cyan); letter-spacing:0.05em; }
-  .owasp-chevron { color:var(--t3); transition:transform 0.25s; flex-shrink:0; }
-  .owasp-card.active .owasp-chevron { transform:rotate(180deg); color:var(--cyan); }
-  .owasp-body { display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
-  .owasp-card.active .owasp-body { display:block; }
-  .owasp-desc { font-size:13px; color:var(--t2); line-height:1.6; margin-bottom:12px; }
-  .owasp-attacks { margin-bottom:12px; }
-  .owasp-attacks-label { font-size:10px; font-weight:700; letter-spacing:0.08em; color:var(--t3); text-transform:uppercase; margin-bottom:6px; }
-  .owasp-attack-item { display:flex; align-items:flex-start; gap:7px; margin-bottom:4px; font-size:12px; color:var(--t2); }
-  .owasp-attack-item::before { content:'›'; color:#f87171; flex-shrink:0; font-weight:700; }
-  .owasp-shield { background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:10px 12px; }
-  .owasp-shield-label { font-size:10px; font-weight:700; letter-spacing:0.08em; color:#34d399; text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; gap:5px; }
-  .owasp-shield-item { display:flex; align-items:flex-start; gap:7px; margin-bottom:3px; font-size:12px; color:var(--t2); }
-  .owasp-shield-item::before { content:'✓'; color:#34d399; flex-shrink:0; font-weight:700; }
-  .owasp-status { display:inline-flex; align-items:center; gap:5px; margin-top:10px; font-size:11px; font-weight:600; color:#34d399; }
-  .owasp-status-dot { width:6px; height:6px; border-radius:50%; background:#34d399; animation:pulse-dot 2s infinite; }
-  @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-</style>
-
 <section id="owasp" class="py-24 lg:py-32" style="background:var(--bg2);">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
