@@ -72,6 +72,13 @@ def _issue_refresh_token(user_id: str) -> str:
     return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
 
 
+def _issue_totp_session(user_id: str) -> str:
+    """Short-lived (15 min) JWT issued after password OK but TOTP not yet verified."""
+    exp = datetime.now(UTC) + timedelta(minutes=15)
+    payload = {"sub": user_id, "type": "totp_pending", "exp": exp}
+    return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
+
+
 def _decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
@@ -149,6 +156,19 @@ class _ForgotPasswordIn(BaseModel):
 class _ResetPasswordIn(BaseModel):
     token:        str
     new_password: str = Field(..., min_length=8)
+
+
+class _TotpCompleteIn(BaseModel):
+    totp_session: str
+    code:         str = Field(..., min_length=6, max_length=6)
+
+
+class _TotpConfirmIn(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class _TotpDisableIn(BaseModel):
+    code: str = Field(..., min_length=6, max_length=6)
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
@@ -234,29 +254,161 @@ async def register(body: _RegisterIn, db: AsyncSession = Depends(get_db)):
     return {"user_id": user_id, "tenant_id": tenant_id}
 
 
-@router.post("/auth/login", response_model=_TokenOut)
+@router.post("/auth/login")
 async def login(body: _LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
     user = await _get_user_by_email(db, body.email.lower())
     if not user or not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
+    # If TOTP is enabled, issue a short-lived totp_session instead of full JWT
+    if user.get("totp_enabled"):
+        totp_session = _issue_totp_session(str(user["id"]))
+        return {"requires_totp": True, "totp_session": totp_session}
+
     access  = _issue_access_token(str(user["id"]), user["tenant_id"], user["role"])
     refresh = _issue_refresh_token(str(user["id"]))
 
-    # Update last_login_at
     await db.execute(
         text("UPDATE warden_core.portal_users SET last_login_at = NOW() WHERE id = :id"),
         {"id": str(user["id"])},
     )
     await db.commit()
 
-    # Refresh token in HttpOnly cookie (not accessible to JS)
     response.set_cookie(
         key=_COOKIE_NAME, value=refresh,
         httponly=True, secure=True, samesite="strict",
         max_age=_REFRESH_TTL_DAY * 86400,
     )
     return _TokenOut(access_token=access, expires_in=_ACCESS_TTL_MIN * 60)
+
+
+@router.post("/auth/totp/complete")
+async def totp_complete(body: _TotpCompleteIn, response: Response, db: AsyncSession = Depends(get_db)):
+    """Step 2 of login when TOTP is enabled: verify 6-digit code and issue full JWT."""
+    import pyotp  # noqa: PLC0415
+
+    try:
+        claims = _decode_token(body.totp_session)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="TOTP session expired or invalid.")
+
+    if claims.get("type") != "totp_pending":
+        raise HTTPException(status_code=401, detail="Invalid session token type.")
+
+    user = await _get_user_by_id(db, claims["sub"])
+    if not user or not user.get("totp_enabled") or not user.get("totp_secret"):
+        raise HTTPException(status_code=401, detail="TOTP not configured for this account.")
+
+    totp = pyotp.TOTP(user["totp_secret"])
+    if not totp.verify(body.code, valid_window=1):
+        raise HTTPException(status_code=401, detail="Invalid authenticator code.")
+
+    access  = _issue_access_token(str(user["id"]), user["tenant_id"], user["role"])
+    refresh = _issue_refresh_token(str(user["id"]))
+
+    await db.execute(
+        text("UPDATE warden_core.portal_users SET last_login_at = NOW() WHERE id = :id"),
+        {"id": str(user["id"])},
+    )
+    await db.commit()
+
+    response.set_cookie(
+        key=_COOKIE_NAME, value=refresh,
+        httponly=True, secure=True, samesite="strict",
+        max_age=_REFRESH_TTL_DAY * 86400,
+    )
+    return _TokenOut(access_token=access, expires_in=_ACCESS_TTL_MIN * 60)
+
+
+@router.post("/auth/totp/setup")
+async def totp_setup(user: _PortalUser = Depends(require_portal_user), db: AsyncSession = Depends(get_db)):
+    """Generate a new TOTP secret and return otpauth:// URI for QR code rendering."""
+    import pyotp  # noqa: PLC0415
+
+    row = await _get_user_by_id(db, user.user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if row.get("totp_enabled"):
+        raise HTTPException(status_code=409, detail="TOTP is already enabled. Disable it first.")
+
+    secret = pyotp.random_base32()
+    totp   = pyotp.TOTP(secret)
+    email  = row["email"]
+    uri    = totp.provisioning_uri(name=email, issuer_name="Shadow Warden AI")
+
+    # Store secret (not yet enabled — confirmed by /auth/totp/confirm)
+    await db.execute(
+        text("UPDATE warden_core.portal_users SET totp_secret=:s, totp_enabled=FALSE WHERE id=:id"),
+        {"s": secret, "id": user.user_id},
+    )
+    await db.commit()
+    return {"secret": secret, "otpauth_uri": uri}
+
+
+@router.post("/auth/totp/confirm", status_code=200)
+async def totp_confirm(
+    body: _TotpConfirmIn,
+    user: _PortalUser = Depends(require_portal_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm the first TOTP code to activate 2FA on the account."""
+    import pyotp  # noqa: PLC0415
+
+    row = await _get_user_by_id(db, user.user_id)
+    if not row or not row.get("totp_secret"):
+        raise HTTPException(status_code=400, detail="Call /auth/totp/setup first.")
+    if row.get("totp_enabled"):
+        raise HTTPException(status_code=409, detail="TOTP already enabled.")
+
+    totp = pyotp.TOTP(row["totp_secret"])
+    if not totp.verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid code — try again.")
+
+    await db.execute(
+        text("UPDATE warden_core.portal_users SET totp_enabled=TRUE WHERE id=:id"),
+        {"id": user.user_id},
+    )
+    await db.commit()
+    log.info("portal: TOTP enabled for user %s", user.user_id)
+    return {"totp_enabled": True}
+
+
+@router.post("/auth/totp/disable", status_code=200)
+async def totp_disable(
+    body: _TotpDisableIn,
+    user: _PortalUser = Depends(require_portal_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Disable TOTP — requires current authenticator code."""
+    import pyotp  # noqa: PLC0415
+
+    row = await _get_user_by_id(db, user.user_id)
+    if not row or not row.get("totp_enabled") or not row.get("totp_secret"):
+        raise HTTPException(status_code=400, detail="TOTP is not enabled.")
+
+    totp = pyotp.TOTP(row["totp_secret"])
+    if not totp.verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid authenticator code.")
+
+    await db.execute(
+        text("UPDATE warden_core.portal_users SET totp_secret=NULL, totp_enabled=FALSE WHERE id=:id"),
+        {"id": user.user_id},
+    )
+    await db.commit()
+    log.info("portal: TOTP disabled for user %s", user.user_id)
+    return {"totp_enabled": False}
+
+
+@router.get("/auth/totp/status")
+async def totp_status(
+    user: _PortalUser = Depends(require_portal_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return whether TOTP is enabled for the current user."""
+    row = await _get_user_by_id(db, user.user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return {"totp_enabled": bool(row.get("totp_enabled"))}
 
 
 @router.post("/auth/refresh", response_model=_TokenOut)

@@ -129,6 +129,12 @@ CREATE TABLE IF NOT EXISTS warden_core.billing_usage (
 
 CREATE INDEX IF NOT EXISTS billing_tenant_idx ON warden_core.billing_usage(tenant_id);
 
+-- ── TOTP / Google Authenticator (MFA) ───────────────────────────────────────
+-- Added to portal_users via ALTER TABLE so existing DBs are patched automatically.
+ALTER TABLE IF EXISTS warden_core.portal_users
+    ADD COLUMN IF NOT EXISTS totp_secret  TEXT,
+    ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
 -- ── Grants ────────────────────────────────────────────────────────────────────
 -- The docker-compose POSTGRES_USER gets full access to both schemas.
 -- Adjust if you use separate read-only users for analytics.

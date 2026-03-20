@@ -565,6 +565,40 @@
         </form>
       </div>
 
+      <!-- ── TOTP Step 2 panel ──────────────────────────────────── -->
+      <div id="panel-totp" style="display:none" role="tabpanel">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="width:56px;height:56px;border-radius:16px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/><circle cx="12" cy="16" r="1" fill="#22d3ee"/></svg>
+          </div>
+          <div style="font-size:17px;font-weight:800;color:var(--text-primary,#f1f5f9);">Two-Factor Authentication</div>
+          <div style="font-size:13px;color:var(--text-secondary,#94a3b8);margin-top:4px;">Enter the 6-digit code from your Google Authenticator app</div>
+        </div>
+
+        <div class="alert error" id="totp-error" role="alert">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="totp-error-text"></span>
+        </div>
+
+        <!-- 6-digit code boxes -->
+        <div id="totp-boxes" style="display:flex;gap:8px;justify-content:center;margin-bottom:24px;">
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <div style="display:flex;align-items:center;color:rgba(148,163,184,0.4);font-size:18px;font-weight:300;">–</div>
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+        </div>
+
+        <button class="btn-primary" id="totp-btn" onclick="handleTotpVerify()">
+          <span id="totp-btn-text">Verify Code</span>
+          <svg id="totp-spinner" class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        </button>
+
+        <button onclick="showTotpPanel(false)" style="width:100%;margin-top:10px;background:none;border:none;color:var(--text-secondary,#94a3b8);font-size:13px;cursor:pointer;padding:6px;">← Back to Sign In</button>
+      </div>
+
       <!-- ── Create Account form ───────────────────────────────── -->
       <div id="panel-register" style="display:none" role="tabpanel">
         <div class="alert error" id="reg-error" role="alert">
@@ -700,6 +734,28 @@
 
   function hideAlert(id) { document.getElementById(id).style.display = 'none'; }
 
+  // ── TOTP state ─────────────────────────────────────────────────────────
+  let _totpSession = null;   // short-lived JWT from /auth/login when TOTP required
+
+  // ── Show / hide TOTP panel ─────────────────────────────────────────────
+  function showTotpPanel(visible) {
+    document.getElementById('panel-signin').style.display = visible ? 'none' : '';
+    document.getElementById('panel-totp').style.display   = visible ? ''     : 'none';
+    // Hide tabs while on TOTP step so user can't switch mid-flow
+    document.querySelector('.tabs').style.display = visible ? 'none' : '';
+    if (visible) {
+      hideAlert('totp-error');
+      document.querySelectorAll('.totp-box').forEach(b => { b.value = ''; });
+      document.querySelectorAll('.totp-box')[0].focus();
+      document.getElementById('form-heading').textContent = 'Two-Factor Auth';
+      document.getElementById('form-sub').textContent     = 'Enter the code from your Authenticator app';
+    } else {
+      _totpSession = null;
+      document.getElementById('form-heading').textContent = HEADINGS.signin[0];
+      document.getElementById('form-sub').textContent     = HEADINGS.signin[1];
+    }
+  }
+
   // ── Sign In ────────────────────────────────────────────────────────────
   async function handleSignIn(e) {
     e.preventDefault();
@@ -719,6 +775,10 @@
       if (res.ok && data.access_token) {
         localStorage.setItem('warden_token', data.access_token);
         window.location.href = '/';
+      } else if (res.ok && data.requires_totp && data.totp_session) {
+        // Password OK — TOTP required next
+        _totpSession = data.totp_session;
+        showTotpPanel(true);
       } else {
         showAlert('si-error', data.detail || 'Invalid email or password.');
         document.getElementById('si-password').classList.add('error');
@@ -728,6 +788,49 @@
     } finally {
       setLoading('si', false);
     }
+  }
+
+  // ── TOTP verify ────────────────────────────────────────────────────────
+  async function handleTotpVerify() {
+    hideAlert('totp-error');
+    const boxes = document.querySelectorAll('.totp-box');
+    const code  = Array.from(boxes).map(b => b.value).join('');
+    if (code.length < 6) {
+      showTotpError('Please enter all 6 digits.');
+      return;
+    }
+
+    const btn  = document.getElementById('totp-btn');
+    const txt  = document.getElementById('totp-btn-text');
+    const spin = document.getElementById('totp-spinner');
+    btn.disabled = true; spin.style.display = ''; txt.textContent = 'Verifying…';
+
+    try {
+      const res  = await fetch('/portal/auth/totp/complete', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ totp_session: _totpSession, code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.access_token) {
+        localStorage.setItem('warden_token', data.access_token);
+        window.location.href = '/';
+      } else {
+        showTotpError(data.detail || 'Invalid code. Try again.');
+        boxes.forEach(b => { b.value = ''; });
+        boxes[0].focus();
+      }
+    } catch {
+      showTotpError('Connection error. Please try again.');
+    } finally {
+      btn.disabled = false; spin.style.display = 'none'; txt.textContent = 'Verify Code';
+    }
+  }
+
+  function showTotpError(msg) {
+    const el = document.getElementById('totp-error');
+    document.getElementById('totp-error-text').textContent = msg;
+    el.style.display = 'flex';
   }
 
   // ── Register ───────────────────────────────────────────────────────────
@@ -789,6 +892,47 @@
   document.getElementById('si-password').addEventListener('input', function () {
     this.classList.remove('error');
     hideAlert('si-error');
+  });
+
+  // ── TOTP digit-box keyboard UX ─────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    const boxes = document.querySelectorAll('.totp-box');
+    boxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        // Allow only digits
+        box.value = box.value.replace(/\D/g, '').slice(-1);
+        if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+        // Auto-submit when last digit entered
+        if (i === boxes.length - 1 && box.value) handleTotpVerify();
+      });
+      box.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !box.value && i > 0) {
+          boxes[i - 1].value = '';
+          boxes[i - 1].focus();
+        }
+        if (e.key === 'ArrowLeft'  && i > 0)              boxes[i - 1].focus();
+        if (e.key === 'ArrowRight' && i < boxes.length-1) boxes[i + 1].focus();
+        if (e.key === 'Enter') handleTotpVerify();
+      });
+      // Handle paste of full 6-digit code
+      box.addEventListener('paste', e => {
+        e.preventDefault();
+        const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+        if (digits.length === 6) {
+          boxes.forEach((b, j) => { b.value = digits[j] || ''; });
+          boxes[5].focus();
+          handleTotpVerify();
+        }
+      });
+      box.addEventListener('focus', () => {
+        box.style.borderColor = 'rgba(34,211,238,0.6)';
+        box.style.boxShadow   = '0 0 0 3px rgba(34,211,238,0.12)';
+      });
+      box.addEventListener('blur', () => {
+        box.style.borderColor = 'rgba(148,163,184,0.2)';
+        box.style.boxShadow   = '';
+      });
+    });
   });
 </script>
 </body>
