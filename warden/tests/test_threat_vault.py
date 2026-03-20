@@ -4,7 +4,6 @@ Tests for ThreatVault — adversarial prompt signature scanner.
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -204,7 +203,7 @@ def test_reload_picks_up_new_signatures(feed_path: Path) -> None:
     ]
     feed_path.write_text(json.dumps(new_feed), encoding="utf-8")
 
-    count = v.reload()
+    v.reload()
     assert len(v.list_threats()) == original_count + 1
     matches = v.scan("This contains new_secret_keyword_xyz in the text")
     assert any(m.threat_id == "new_threat" for m in matches)

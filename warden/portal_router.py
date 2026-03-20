@@ -290,7 +290,7 @@ async def totp_complete(body: _TotpCompleteIn, response: Response, db: AsyncSess
     try:
         claims = _decode_token(body.totp_session)
     except HTTPException:
-        raise HTTPException(status_code=401, detail="TOTP session expired or invalid.")
+        raise HTTPException(status_code=401, detail="TOTP session expired or invalid.") from None
 
     if claims.get("type") != "totp_pending":
         raise HTTPException(status_code=401, detail="Invalid session token type.")

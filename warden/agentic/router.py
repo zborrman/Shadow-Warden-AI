@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from warden.agentic.mandate import MandateResult, create_invoice, validate_mandate
-from warden.agentic.registry import AgentRegistry, get_registry
+from warden.agentic.registry import get_registry
 from warden.auth_guard import AuthResult, require_api_key
 
 log = logging.getLogger("warden.agentic.router")
