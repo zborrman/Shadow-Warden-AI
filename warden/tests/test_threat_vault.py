@@ -10,7 +10,6 @@ import pytest
 
 from warden.threat_vault import ThreatVault
 
-
 # ── Fixture: minimal feed written to a temp file ──────────────────────────────
 
 MINIMAL_FEED = {
