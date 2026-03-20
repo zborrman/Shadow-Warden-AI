@@ -755,6 +755,129 @@
     </div>
   </div>
 
+  <!-- ── Danger Zone ────────────────────────────────────────────────────────── -->
+  <div class="card" style="border-color:rgba(248,113,113,0.18);">
+    <div class="card-header">
+      <div>
+        <div class="card-title" style="color:var(--red);">Danger Zone</div>
+        <div class="card-sub">Irreversible actions — read carefully before proceeding</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;border-radius:10px;background:rgba(248,113,113,0.04);border:1px solid rgba(248,113,113,0.12);">
+      <div>
+        <div style="font-size:0.875rem;font-weight:600;color:var(--text);margin-bottom:3px;">Uninstall Shadow Warden</div>
+        <div style="font-size:0.8125rem;color:var(--text2);">Stop all containers, remove images, volumes, and project files from your server.</div>
+      </div>
+      <button onclick="openUninstall()" style="flex-shrink:0;padding:8px 18px;border-radius:8px;border:1px solid rgba(248,113,113,0.35);background:rgba(248,113,113,0.07);color:var(--red);font-size:0.8125rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.15s;white-space:nowrap;"
+        onmouseover="this.style.background='rgba(248,113,113,0.14)'" onmouseout="this.style.background='rgba(248,113,113,0.07)'">
+        Uninstall
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Uninstall modal ────────────────────────────────────────────────────── -->
+  <div id="uninstall-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;align-items:center;justify-content:center;">
+    <div style="background:var(--surf);border:1px solid rgba(248,113,113,0.3);border-radius:18px;padding:32px;width:100%;max-width:540px;margin:16px;max-height:90vh;overflow-y:auto;">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        </div>
+        <div>
+          <div style="font-size:1.0625rem;font-weight:700;color:var(--text);">Uninstall Shadow Warden</div>
+          <div style="font-size:0.8125rem;color:var(--text2);">Run these commands on your server via SSH</div>
+        </div>
+      </div>
+
+      <!-- Warning -->
+      <div style="background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:0.8125rem;color:#fca5a5;line-height:1.6;">
+        <strong style="color:var(--red);">⚠ This will permanently delete:</strong><br/>
+        All containers · All Docker images · Database + logs · Your .env and docker-compose.yml
+      </div>
+
+      <!-- Steps -->
+      <div style="display:flex;flex-direction:column;gap:0;">
+
+        <div class="install-step">
+          <div class="step-num" style="background:rgba(248,113,113,0.12);border-color:rgba(248,113,113,0.3);color:var(--red);">1</div>
+          <div style="flex:1">
+            <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">SSH into your server</div>
+            <div style="position:relative;">
+              <div class="code-line" id="ucmd1">ssh root@YOUR_SERVER_IP</div>
+              <button class="copy-line-btn" onclick="copyU('ucmd1')">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step">
+          <div class="step-num" style="background:rgba(248,113,113,0.12);border-color:rgba(248,113,113,0.3);color:var(--red);">2</div>
+          <div style="flex:1">
+            <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Go to install directory</div>
+            <div style="position:relative;">
+              <div class="code-line" id="ucmd2">cd /opt/shadow-warden</div>
+              <button class="copy-line-btn" onclick="copyU('ucmd2')">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step">
+          <div class="step-num" style="background:rgba(248,113,113,0.12);border-color:rgba(248,113,113,0.3);color:var(--red);">3</div>
+          <div style="flex:1">
+            <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Stop and remove all containers + volumes</div>
+            <div style="position:relative;">
+              <div class="code-line" id="ucmd3">docker compose down -v --remove-orphans</div>
+              <button class="copy-line-btn" onclick="copyU('ucmd3')">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step">
+          <div class="step-num" style="background:rgba(248,113,113,0.12);border-color:rgba(248,113,113,0.3);color:var(--red);">4</div>
+          <div style="flex:1">
+            <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Remove Docker images</div>
+            <div style="position:relative;">
+              <div class="code-line" id="ucmd4">docker images | grep shadow-warden | awk '{print $3}' | xargs -r docker rmi -f</div>
+              <button class="copy-line-btn" onclick="copyU('ucmd4')">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step">
+          <div class="step-num" style="background:rgba(248,113,113,0.12);border-color:rgba(248,113,113,0.3);color:var(--red);">5</div>
+          <div style="flex:1">
+            <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Delete project files</div>
+            <div style="position:relative;">
+              <div class="code-line" id="ucmd5">cd / && rm -rf /opt/shadow-warden</div>
+              <button class="copy-line-btn" onclick="copyU('ucmd5')">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step" style="border-bottom:none;">
+          <div class="step-num" style="background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.3);color:var(--green);">✓</div>
+          <div style="flex:1">
+            <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Verify everything is removed</div>
+            <div style="position:relative;">
+              <div class="code-line" id="ucmd6">docker ps -a | grep warden; ls /opt/shadow-warden 2>/dev/null && echo "still exists" || echo "removed ✓"</div>
+              <button class="copy-line-btn" onclick="copyU('ucmd6')">copy</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Copy all button + close -->
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button onclick="copyAllUninstall()" style="flex:1;padding:9px;border-radius:9px;border:1px solid rgba(248,113,113,0.3);background:rgba(248,113,113,0.07);color:var(--red);font-size:0.8125rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all 0.15s;"
+          onmouseover="this.style.background='rgba(248,113,113,0.14)'" onmouseout="this.style.background='rgba(248,113,113,0.07)'">
+          Copy all commands
+        </button>
+        <button onclick="closeUninstall()" class="btn-sm" style="flex:1;">Close</button>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -866,6 +989,31 @@
     document.getElementById('modal-backdrop').style.display = 'none';
     loadKeys();
   }
+
+  // ── Uninstall modal ─────────────────────────────────────────────────────────
+  function openUninstall() {
+    document.getElementById('uninstall-modal').style.display = 'flex';
+  }
+
+  function closeUninstall() {
+    document.getElementById('uninstall-modal').style.display = 'none';
+  }
+
+  function copyU(id) {
+    navigator.clipboard.writeText(document.getElementById(id).innerText)
+      .then(() => showToast('Copied!'));
+  }
+
+  function copyAllUninstall() {
+    const cmds = ['ucmd2','ucmd3','ucmd4','ucmd5','ucmd6']
+      .map(id => document.getElementById(id).innerText)
+      .join('\n');
+    navigator.clipboard.writeText(cmds).then(() => showToast('All commands copied!'));
+  }
+
+  document.getElementById('uninstall-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeUninstall();
+  });
 
   async function createKey() {
     const label = document.getElementById('new-key-label').value.trim() || 'Default';
