@@ -109,6 +109,7 @@ from warden.semantic_guard import SemanticGuard
 from warden.telegram_alert import send_block_alert as _tg_block_alert
 from warden.threat_feed import ThreatFeedClient
 from warden.threat_store import ThreatStore
+from warden.threat_vault import SEVERITY_RANK, ThreatVault
 from warden.webhook_dispatch import WebhookStore
 from warden.webhook_dispatch import dispatch_event as _dispatch_webhook
 from warden.xai.explainer import explain as _xai_explain
@@ -278,6 +279,7 @@ _agent_monitor:  AgentMonitor | None   = None
 _ledger:         RuleLedger        | None = None
 _review_queue:   ReviewQueue       | None = None
 _threat_store:   ThreatStore       | None = None
+_threat_vault:   ThreatVault       | None = None
 _threat_intel_store: _TIStoreT | None = None
 _ti_scheduler:       _TISchedulerT | None = None
 _billing:        BillingStore      | None = None
@@ -441,6 +443,11 @@ async def lifespan(app: FastAPI):
     # ── Threat Store ──────────────────────────────────────────────────
     _threat_store = ThreatStore()
     log.info("ThreatStore online.")
+
+    # ── ThreatVault (adversarial prompt signatures) ───────────────────
+    global _threat_vault
+    _threat_vault = ThreatVault()
+    log.info("ThreatVault online: %d signatures loaded.", _threat_vault.stats()["total"])
 
     # ── Billing Store ─────────────────────────────────────────────────
     _billing = BillingStore()
@@ -1014,6 +1021,53 @@ async def _run_filter_pipeline(
             json.dumps({"event": "secrets_redacted", "request_id": rid, "kinds": kinds})
         )
 
+    # ── Stage 1.5: ThreatVault Signature Scan ─────────────────────────
+    vault_matches: list[dict] = []
+    if _threat_vault is not None:
+        t0 = time.perf_counter()
+        with _trace_stage("threat_vault", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+            vault_hits = _threat_vault.scan(analysis_text)
+            _sp.set_attribute("vault.hits", len(vault_hits))
+        timings["threat_vault"] = round((time.perf_counter() - t0) * 1000, 2)
+
+        if vault_hits:
+            vault_matches = [
+                {
+                    "id":       h.threat_id,
+                    "name":     h.name,
+                    "category": h.category,
+                    "severity": h.severity,
+                    "owasp":    h.owasp,
+                }
+                for h in vault_hits
+            ]
+            top_hit = max(vault_hits, key=lambda h: SEVERITY_RANK.get(h.severity, 0))
+            vault_risk = {
+                "critical": RiskLevel.BLOCK,
+                "high":     RiskLevel.HIGH,
+                "medium":   RiskLevel.MEDIUM,
+                "low":      RiskLevel.LOW,
+            }.get(top_hit.severity, RiskLevel.MEDIUM)
+
+            # Initialise guard_result placeholder so we can append flags before Stage 2
+            # (guard_result is set by Stage 2 below; pre-declare to avoid NameError)
+            _vault_flags_pending = vault_hits
+            log.warning(
+                json.dumps({
+                    "event":        "threat_vault_hit",
+                    "request_id":   rid,
+                    "threats":      [h.threat_id for h in vault_hits],
+                    "max_severity": top_hit.severity,
+                    "tenant_id":    tenant_id,
+                })
+            )
+        else:
+            _vault_flags_pending = []
+            vault_risk = RiskLevel.LOW
+    else:
+        _vault_flags_pending = []
+        vault_risk = RiskLevel.LOW
+
     # ── Stage 2: Rule-based Semantic Analysis ─────────────────────────
     t0 = time.perf_counter()
     with _trace_stage("rule_analysis", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
@@ -1021,6 +1075,20 @@ async def _run_filter_pipeline(
         _sp.set_attribute("rules.flags_count", len(guard_result.flags))
         _sp.set_attribute("rules.risk_level",  guard_result.risk_level.value)
     timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
+
+    # Merge ThreatVault hits into guard_result (now that guard_result exists)
+    if _vault_flags_pending:
+        for hit in _vault_flags_pending:
+            guard_result.flags.append(SemanticFlag(
+                flag=FlagType.PROMPT_INJECTION,
+                score=1.0,
+                detail=(
+                    f"[ThreatVault:{hit.threat_id}] {hit.name} "
+                    f"({hit.severity.upper()}) — {hit.owasp}: "
+                    f"{hit.description[:120]}"
+                ),
+            ))
+        guard_result.risk_level = _max_risk(guard_result.risk_level, vault_risk)
 
     if guard_result.flags:
         log.warning(
@@ -1383,6 +1451,7 @@ async def _run_filter_pipeline(
         masking                  = _masking_report,
         explanation              = _explanation,
         poisoning                = poison_result_dict,
+        threat_matches           = vault_matches,
     )
 
     # ── Cache write ───────────────────────────────────────────────────
@@ -1879,6 +1948,37 @@ async def dismiss_threat_intel_item(
     if not found:
         raise HTTPException(status_code=404, detail=f"Threat item {item_id!r} not found.")
     return {"item_id": item_id, "status": "dismissed"}
+
+
+# ── ThreatVault endpoints ──────────────────────────────────────────────────────
+
+
+@app.get("/threats/vault", tags=["threat-vault"])
+async def list_threat_vault(_: AuthResult = Depends(require_api_key)):
+    """List all adversarial prompt signatures loaded in the ThreatVault."""
+    if _threat_vault is None:
+        raise HTTPException(status_code=503, detail="ThreatVault not initialized.")
+    return {
+        "stats":   _threat_vault.stats(),
+        "threats": _threat_vault.list_threats(),
+    }
+
+
+@app.get("/threats/vault/stats", tags=["threat-vault"])
+async def threat_vault_stats(_: AuthResult = Depends(require_api_key)):
+    """Aggregated ThreatVault statistics: totals by severity, category, OWASP."""
+    if _threat_vault is None:
+        raise HTTPException(status_code=503, detail="ThreatVault not initialized.")
+    return _threat_vault.stats()
+
+
+@app.post("/threats/vault/reload", tags=["threat-vault"], status_code=202)
+async def reload_threat_vault(_: AuthResult = Depends(require_api_key)):
+    """Hot-reload ThreatVault signatures from disk (no restart required)."""
+    if _threat_vault is None:
+        raise HTTPException(status_code=503, detail="ThreatVault not initialized.")
+    count = _threat_vault.reload()
+    return {"reloaded": True, "signatures_loaded": count}
 
 
 # ── Billing endpoints ─────────────────────────────────────────────────────────

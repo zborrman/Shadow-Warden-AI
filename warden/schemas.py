@@ -160,6 +160,14 @@ class FilterResponse(BaseModel):
             "Fields: is_poisoning_attempt, poisoning_score, attack_vector, detail."
         ),
     )
+    threat_matches:           list[dict]        = Field(
+        default_factory=list,
+        description=(
+            "ThreatVault signature hits (Stage 1.5). Each entry: "
+            "id, name, category, severity, owasp. "
+            "Empty list when no known adversarial signatures matched."
+        ),
+    )
 
 
 # ── Output scanning (LLM02 / LLM06 / LLM08) ──────────────────────────────────
