@@ -958,22 +958,39 @@ response = client.chat.completions.create(
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Live Event Feed</div>
-        <div class="card-sub">Recent filter decisions — no content logged (GDPR)</div>
+        <div class="card-title" style="display:flex;align-items:center;gap:8px;">
+          Live Event Feed
+          <!-- WebSocket status dot -->
+          <span id="ws-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background 0.3s;" title="Disconnected"></span>
+          <span id="ws-status" style="font-size:0.7rem;font-weight:400;color:var(--text3);">connecting…</span>
+        </div>
+        <div class="card-sub">Real-time WebSocket feed — no content logged (GDPR)</div>
       </div>
-      <div style="font-size:0.75rem;color:var(--text3)" id="feed-count">0 events</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="feed-pause-btn" onclick="toggleFeedPause()" style="font-size:0.7rem;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:inherit;">⏸ Pause</button>
+        <button onclick="clearFeed()" style="font-size:0.7rem;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:inherit;">Clear</button>
+        <div style="font-size:0.75rem;color:var(--text3)" id="feed-count">0 events</div>
+      </div>
     </div>
-    <div class="feed-header">
+    <!-- mini stats bar -->
+    <div style="display:flex;gap:16px;padding:8px 16px 0;border-top:1px solid var(--border);">
+      <div style="font-size:0.7rem;color:var(--text3);">Total: <span id="fs-total" style="color:var(--text);font-weight:600;">0</span></div>
+      <div style="font-size:0.7rem;color:var(--text3);">Blocked: <span id="fs-blocked" style="color:#f87171;font-weight:600;">0</span></div>
+      <div style="font-size:0.7rem;color:var(--text3);">HIGH/BLOCK: <span id="fs-high" style="color:#fb923c;font-weight:600;">0</span></div>
+      <div style="font-size:0.7rem;color:var(--text3);">Secrets: <span id="fs-secrets" style="color:#c084fc;font-weight:600;">0</span></div>
+      <div style="font-size:0.7rem;color:var(--text3);">Avg latency: <span id="fs-lat" style="color:var(--text);font-weight:600;">—</span></div>
+    </div>
+    <div class="feed-header" style="margin-top:8px;">
       <span>Time</span>
       <span>Decision</span>
       <span>Risk</span>
-      <span>Flags</span>
+      <span>Flags / Secrets</span>
       <span style="text-align:right">Latency</span>
     </div>
     <div class="feed" id="event-feed">
-      <div class="empty-state">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <div>No events yet — send a request to /filter to see live data</div>
+      <div class="empty-state" id="feed-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        <div>Waiting for events — WebSocket connecting…</div>
       </div>
     </div>
   </div>
@@ -1544,12 +1561,171 @@ services:
     }
   }
 
+  // ── Live Event Feed (WebSocket) ───────────────────────────────────────────────
+  let _ws = null;
+  let _wsPaused = false;
+  let _wsReconnectDelay = 1000;
+  let _wsReconnectTimer = null;
+  let _fsTotal = 0, _fsBlocked = 0, _fsHigh = 0, _fsSecrets = 0;
+  let _fsLatSum = 0, _fsLatCount = 0;
+  const MAX_FEED_ROWS = 200;
+
+  function _wsSetStatus(state) {
+    const dot = document.getElementById('ws-dot');
+    const lbl = document.getElementById('ws-status');
+    if (!dot || !lbl) return;
+    if (state === 'connected') {
+      dot.style.background = '#4ade80';
+      dot.title = 'Connected';
+      lbl.textContent = 'live';
+      lbl.style.color = '#4ade80';
+    } else if (state === 'connecting') {
+      dot.style.background = '#fb923c';
+      dot.title = 'Connecting…';
+      lbl.textContent = 'connecting…';
+      lbl.style.color = 'var(--text3)';
+    } else {
+      dot.style.background = 'var(--text3)';
+      dot.title = 'Disconnected';
+      lbl.textContent = 'disconnected';
+      lbl.style.color = 'var(--text3)';
+    }
+  }
+
+  function _wsUpdateStats() {
+    const el = (elId) => document.getElementById(elId);
+    if (el('fs-total'))   el('fs-total').textContent   = _fsTotal;
+    if (el('fs-blocked')) el('fs-blocked').textContent = _fsBlocked;
+    if (el('fs-high'))    el('fs-high').textContent    = _fsHigh;
+    if (el('fs-secrets')) el('fs-secrets').textContent = _fsSecrets;
+    if (el('fs-lat'))     el('fs-lat').textContent     = _fsLatCount ? Math.round(_fsLatSum / _fsLatCount) + ' ms' : '—';
+    const fc = document.getElementById('feed-count');
+    if (fc) fc.textContent = _fsTotal + ' event' + (_fsTotal !== 1 ? 's' : '');
+  }
+
+  function _riskBadge(risk, allowed) {
+    const map = {
+      BLOCK: ['#f87171','#1f0f0f'], HIGH: ['#fb923c','#1f1000'],
+      MEDIUM: ['#fbbf24','#1a1400'], LOW: ['#4ade80','#001a0a'],
+    };
+    const [fg, bg] = map[risk] || ['var(--text2)','transparent'];
+    const label = allowed === false ? 'BLOCKED' : (risk || '—');
+    return `<span style="font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:4px;background:${bg};color:${fg};border:1px solid ${fg}33;">${label}</span>`;
+  }
+
+  function addLiveEvent(evt) {
+    if (_wsPaused) return;
+    const feed = document.getElementById('event-feed');
+    const empty = document.getElementById('feed-empty');
+    if (!feed) return;
+    if (empty) empty.style.display = 'none';
+
+    // Update counters
+    _fsTotal++;
+    if (evt.allowed === false) _fsBlocked++;
+    if (evt.risk === 'HIGH' || evt.risk === 'BLOCK') _fsHigh++;
+    if (evt.secrets && evt.secrets.length > 0) _fsSecrets++;
+    if (evt.elapsed_ms) { _fsLatSum += evt.elapsed_ms; _fsLatCount++; }
+    _wsUpdateStats();
+
+    // Build row
+    const ts = evt.ts ? new Date(evt.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+    const flags = (evt.flags || []).slice(0,3).join(', ') || '—';
+    const secrets = (evt.secrets || []).length > 0 ? `<span style="color:#c084fc;">${evt.secrets.length} secret${evt.secrets.length>1?'s':''}</span>` : '—';
+    const lat = evt.elapsed_ms ? evt.elapsed_ms + ' ms' : '—';
+    const tenant = evt.tenant_id ? `<span style="font-size:0.65rem;color:var(--text3);margin-left:4px;">[${evt.tenant_id}]</span>` : '';
+
+    const row = document.createElement('div');
+    row.className = 'feed-row';
+    row.style.cssText = 'animation:fadeIn 0.2s ease;';
+    row.innerHTML = `
+      <span style="color:var(--text3);font-size:0.75rem;">${ts}${tenant}</span>
+      <span>${_riskBadge(evt.risk, evt.allowed)}</span>
+      <span style="font-size:0.75rem;color:var(--text2);">${evt.risk || '—'}</span>
+      <span style="font-size:0.75rem;color:var(--text2);">${flags} ${secrets !== '—' ? '· '+secrets : ''}</span>
+      <span style="text-align:right;font-size:0.75rem;color:var(--text3);">${lat}</span>`;
+
+    feed.insertBefore(row, feed.firstChild);
+
+    // Trim to MAX_FEED_ROWS
+    while (feed.children.length > MAX_FEED_ROWS + 1) { // +1 for empty-state div
+      feed.removeChild(feed.lastChild);
+    }
+  }
+
+  function toggleFeedPause() {
+    _wsPaused = !_wsPaused;
+    const btn = document.getElementById('feed-pause-btn');
+    if (btn) btn.textContent = _wsPaused ? '▶ Resume' : '⏸ Pause';
+  }
+
+  function clearFeed() {
+    const feed = document.getElementById('event-feed');
+    const empty = document.getElementById('feed-empty');
+    if (!feed) return;
+    // Remove all rows except empty-state
+    [...feed.children].forEach(c => { if (c.id !== 'feed-empty') c.remove(); });
+    if (empty) empty.style.display = 'flex';
+    _fsTotal = _fsBlocked = _fsHigh = _fsSecrets = _fsLatSum = _fsLatCount = 0;
+    _wsUpdateStats();
+  }
+
+  function initLiveFeed() {
+    if (!token) return; // no auth token yet
+    _wsSetStatus('connecting');
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${proto}//${location.host}/ws/events?key=${encodeURIComponent(token)}`;
+    try {
+      _ws = new WebSocket(wsUrl);
+    } catch (e) {
+      _wsSetStatus('disconnected');
+      return;
+    }
+
+    _ws.onopen = () => {
+      _wsSetStatus('connected');
+      _wsReconnectDelay = 1000; // reset backoff
+    };
+
+    _ws.onmessage = (msg) => {
+      let data;
+      try { data = JSON.parse(msg.data); } catch { return; }
+      if (data.type === 'event') addLiveEvent(data);
+      // ignore 'ping' and 'connected' control frames
+    };
+
+    _ws.onclose = () => {
+      _wsSetStatus('disconnected');
+      _ws = null;
+      // Exponential backoff reconnect (max 30s)
+      _wsReconnectTimer = setTimeout(() => {
+        _wsReconnectDelay = Math.min(_wsReconnectDelay * 2, 30000);
+        initLiveFeed();
+      }, _wsReconnectDelay);
+    };
+
+    _ws.onerror = () => {
+      _ws && _ws.close();
+    };
+  }
+
+  // Inject fadeIn keyframe once
+  (function() {
+    const s = document.createElement('style');
+    s.textContent = '@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}';
+    document.head.appendChild(s);
+  })();
+
   // ── Bootstrap ────────────────────────────────────────────────────────────────
   initCharts();
   loadMe();
   loadKeys();
   fetchStats();
   setInterval(fetchStats, 10000);
+
+  // Start WebSocket after token is available (loadMe sets `token`)
+  // We wait a tick so loadMe's fetch can complete if token is in localStorage
+  setTimeout(() => initLiveFeed(), 300);
 
   // Close modal on backdrop click
   document.getElementById('modal-backdrop').addEventListener('click', function(e) {
