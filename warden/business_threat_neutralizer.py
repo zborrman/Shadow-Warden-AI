@@ -667,8 +667,8 @@ def analyze(
     has_pii:              bool        = False,
     risk_level:           str         = "LOW",
     ml_score:             float       = 0.0,
-    vault_matches:        list[dict]  = field(default_factory=list),  # type: ignore[assignment]
-    semantic_flags:       list[str]   = field(default_factory=list),  # type: ignore[assignment]
+    vault_matches:        list[dict] | None = None,
+    semantic_flags:       list[str]  | None = None,
     poisoning_detected:   bool        = False,
 ) -> NeutralizerReport:
     """
@@ -798,11 +798,21 @@ def get_threat_matrix(sector: SectorType | None = None) -> list[dict]:
         if sector
         else THREAT_DB
     )
+    _SEVERITY_MAP = {
+        ControlLevel.ELIMINATION:    "CRITICAL",
+        ControlLevel.SUBSTITUTION:   "HIGH",
+        ControlLevel.ENGINEERING:    "HIGH",
+        ControlLevel.ADMINISTRATIVE: "MEDIUM",
+        ControlLevel.DETECTIVE:      "MEDIUM",
+        ControlLevel.CORRECTIVE:     "LOW",
+    }
+    _ALL = ["B2B", "B2C", "E-Commerce"]
     return [
         {
             "id":                       t.id,
             "name":                     t.name,
-            "sectors":                  t.sectors,
+            "sectors":                  _ALL if "All" in t.sectors else list(t.sectors),
+            "severity":                 _SEVERITY_MAP.get(t.recommended_control, "MEDIUM"),
             "description":              t.description,
             "defense_layers":           {
                 str(layer): _DEFENSE_LAYER_NAMES.get(layer, f"Layer {layer}")
@@ -845,18 +855,25 @@ def get_threat_by_id(threat_id: str) -> dict | None:
 
 def list_sectors() -> list[dict]:
     """Return available sectors with threat counts."""
-    sectors: dict[str, int] = {"B2B": 0, "B2C": 0, "E-Commerce": 0}
+    _ALL_SECTORS = ("B2B", "B2C", "E-Commerce")
+    sectors: dict[str, int] = {s: 0 for s in _ALL_SECTORS}
+    top: dict[str, str | None] = {s: None for s in _ALL_SECTORS}
     for t in THREAT_DB:
         for s in t.sectors:
             if s in sectors:
                 sectors[s] += 1
+                if top[s] is None:
+                    top[s] = t.name
             elif s == "All":
                 for k in sectors:
                     sectors[k] += 1
+                    if top[k] is None:
+                        top[k] = t.name
     return [
         {
             "sector": sector,
             "threat_count": count,
+            "top_threat": top.get(sector),
             "primary_risks": {
                 "B2B":        ["Supply chain attacks", "Ransomware", "Credential theft", "Lateral movement"],
                 "B2C":        ["Customer data breaches", "Account takeover", "PII exposure", "Phishing"],

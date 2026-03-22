@@ -168,7 +168,7 @@ _FREE_OFFER_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bat\s+no\s+(?:extra\s+)?cost\b",       re.IGNORECASE),
     re.compile(r"\bbесплатно\b",                          re.IGNORECASE),
     re.compile(r"\bза\s+0\s+(?:руб|коп|центов?|dollar)", re.IGNORECASE),
-    re.compile(r"\b\$0(?:\.00)?\b"),
+    re.compile(r"(?<!\d)\$0(?:\.00)?\b"),
     re.compile(r"\b0\s*(?:USD|EUR|GBP|RUB)\b",           re.IGNORECASE),
     re.compile(r"\bкомплиментарно\b",                    re.IGNORECASE),
 ]
@@ -259,7 +259,7 @@ _SENSITIVE_DATA_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r'\b(?:AKIA|ASIA|AROA)[A-Z0-9]{16}\b'),                                "AWS access key"),
     (re.compile(r'\bghp_[A-Za-z0-9]{36}\b'),                                           "GitHub PAT"),
     (re.compile(r'\bxoxb-[0-9A-Za-z\-]{50,}\b'),                                       "Slack bot token"),
-    (re.compile(r'\b(?:password|passwd|pwd)\s*[:=]\s*\S{4,}\b', re.IGNORECASE),        "password"),
+    (re.compile(r'\b(?:password|passwd|pwd)\b[^:=\n]{0,20}[:=]\s*\S{4,}', re.IGNORECASE), "password"),
     (re.compile(r'\bBearer\s+[A-Za-z0-9._\-]{20,}\b',           re.IGNORECASE),        "auth bearer token"),
     (re.compile(r'-----BEGIN (?:RSA |EC )?PRIVATE KEY-----'),                           "private key block"),
 ]
