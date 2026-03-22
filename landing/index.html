@@ -267,6 +267,7 @@
       <a href="#owasp" class="nav-link">Security</a>
       <a href="/roadmap" class="nav-link">Roadmap</a>
       <a href="/agents" class="nav-link">Agents</a>
+      <a href="#btn-section" class="nav-link">Threats</a>
       <a href="/dashboard" class="nav-link">Dashboard</a>
       <a href="/contact" class="nav-link">Contact</a>
       <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="nav-link flex items-center gap-1.5">
@@ -1275,6 +1276,349 @@ function submitPdfRequest() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePdfModal(); });
 </script>
 
+
+<!-- ════════════════════════════════════════════════════════
+     BUSINESS THREAT NEUTRALIZER
+════════════════════════════════════════════════════════ -->
+<section id="btn-section" class="py-24 lg:py-32" style="background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 50%,var(--bg) 100%);">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="text-center mb-14 reveal">
+      <p class="eyebrow mb-3">Business Security Intelligence</p>
+      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">Business Threat Neutralizer</h2>
+      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Every Shadow Warden signal is mapped to named threat families — Ryuk, Magecart, Zeus, LockBit — matched to your industry sector and resolved to a concrete risk control recommendation.</p>
+    </div>
+
+    <!-- Layout: tabs left + hierarchy right -->
+    <div class="grid lg:grid-cols-5 gap-8 reveal">
+
+      <!-- Left: sector tabs + threat cards (3/5) -->
+      <div class="lg:col-span-3">
+
+        <!-- Sector tabs -->
+        <div style="display:flex;gap:6px;margin-bottom:20px;background:rgba(5,19,31,0.6);border:1px solid var(--border);border-radius:12px;padding:5px;">
+          <button class="btn-sector active" id="tab-B2B"        onclick="switchSector('B2B')">B2B</button>
+          <button class="btn-sector"        id="tab-B2C"        onclick="switchSector('B2C')">B2C</button>
+          <button class="btn-sector"        id="tab-E-Commerce" onclick="switchSector('E-Commerce')">E-Commerce</button>
+        </div>
+
+        <!-- Threat cards per sector -->
+        <div id="threats-B2B">
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Ryuk Ransomware</div>
+              <div class="threat-tags"><span class="threat-tag">Obfuscation</span><span class="threat-tag">Lateral Movement</span></div>
+            </div>
+            <div class="threat-sev critical">Critical</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:91%;background:linear-gradient(90deg,#f87171,#fb7185);"></div><span class="threat-pct">91%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">LockBit 3.0</div>
+              <div class="threat-tags"><span class="threat-tag">PII Exfiltration</span><span class="threat-tag">Double Extortion</span></div>
+            </div>
+            <div class="threat-sev critical">Critical</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:88%;background:linear-gradient(90deg,#a78bfa,#8b5cf6);"></div><span class="threat-pct">88%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(251,191,36,0.1);border-color:rgba(251,191,36,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">SolarWinds-style APT</div>
+              <div class="threat-tags"><span class="threat-tag">Supply Chain</span><span class="threat-tag">Credential Theft</span></div>
+            </div>
+            <div class="threat-sev high">High</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:74%;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div><span class="threat-pct">74%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(6,182,212,0.1);border-color:rgba(6,182,212,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">BEC / CEO Fraud</div>
+              <div class="threat-tags"><span class="threat-tag">Social Engineering</span><span class="threat-tag">Wire Transfer</span></div>
+            </div>
+            <div class="threat-sev high">High</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:69%;background:linear-gradient(90deg,#22d3ee,#06b6d4);"></div><span class="threat-pct">69%</span></div>
+          </div>
+          <div class="threat-row" style="border-bottom:none">
+            <div class="threat-icon" style="background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Emotet / Loader</div>
+              <div class="threat-tags"><span class="threat-tag">Malware Delivery</span><span class="threat-tag">Persistence</span></div>
+            </div>
+            <div class="threat-sev medium">Medium</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:55%;background:linear-gradient(90deg,#34d399,#10b981);"></div><span class="threat-pct">55%</span></div>
+          </div>
+        </div>
+
+        <div id="threats-B2C" style="display:none">
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Zeus Banking Trojan</div>
+              <div class="threat-tags"><span class="threat-tag">Credential Theft</span><span class="threat-tag">Man-in-Browser</span></div>
+            </div>
+            <div class="threat-sev critical">Critical</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:89%;background:linear-gradient(90deg,#f87171,#fb7185);"></div><span class="threat-pct">89%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Dridex Banking Malware</div>
+              <div class="threat-tags"><span class="threat-tag">PII Harvesting</span><span class="threat-tag">Injection</span></div>
+            </div>
+            <div class="threat-sev critical">Critical</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:84%;background:linear-gradient(90deg,#a78bfa,#8b5cf6);"></div><span class="threat-pct">84%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(251,191,36,0.1);border-color:rgba(251,191,36,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Credential Stuffing</div>
+              <div class="threat-tags"><span class="threat-tag">Account Takeover</span><span class="threat-tag">Brute Force</span></div>
+            </div>
+            <div class="threat-sev high">High</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:77%;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div><span class="threat-pct">77%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(6,182,212,0.1);border-color:rgba(6,182,212,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Mirai DDoS Botnet</div>
+              <div class="threat-tags"><span class="threat-tag">Resource Exhaustion</span><span class="threat-tag">IoT Exploitation</span></div>
+            </div>
+            <div class="threat-sev high">High</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:62%;background:linear-gradient(90deg,#22d3ee,#06b6d4);"></div><span class="threat-pct">62%</span></div>
+          </div>
+          <div class="threat-row" style="border-bottom:none">
+            <div class="threat-icon" style="background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">GandCrab Ransomware</div>
+              <div class="threat-tags"><span class="threat-tag">Encryption</span><span class="threat-tag">Ransom</span></div>
+            </div>
+            <div class="threat-sev medium">Medium</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:51%;background:linear-gradient(90deg,#34d399,#10b981);"></div><span class="threat-pct">51%</span></div>
+          </div>
+        </div>
+
+        <div id="threats-E-Commerce" style="display:none">
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 001.99 1.61h9.72a2 2 0 001.99-1.61L23 6H6"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Magecart Card Skimmer</div>
+              <div class="threat-tags"><span class="threat-tag">JavaScript Injection</span><span class="threat-tag">Payment Theft</span></div>
+            </div>
+            <div class="threat-sev critical">Critical</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:93%;background:linear-gradient(90deg,#f87171,#fb7185);"></div><span class="threat-pct">93%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Formjacking Attack</div>
+              <div class="threat-tags"><span class="threat-tag">Form Data Theft</span><span class="threat-tag">XSS</span></div>
+            </div>
+            <div class="threat-sev critical">Critical</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:87%;background:linear-gradient(90deg,#a78bfa,#8b5cf6);"></div><span class="threat-pct">87%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(251,191,36,0.1);border-color:rgba(251,191,36,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">FIN7 POS Malware</div>
+              <div class="threat-tags"><span class="threat-tag">Point-of-Sale</span><span class="threat-tag">Memory Scraping</span></div>
+            </div>
+            <div class="threat-sev high">High</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:79%;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div><span class="threat-pct">79%</span></div>
+          </div>
+          <div class="threat-row">
+            <div class="threat-icon" style="background:rgba(6,182,212,0.1);border-color:rgba(6,182,212,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2"><path d="M21 2H3v16h5v4l4-4h5l4-4V2z"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">Prompt Injection (Agentic)</div>
+              <div class="threat-tags"><span class="threat-tag">LLM01</span><span class="threat-tag">Autonomous Action</span></div>
+            </div>
+            <div class="threat-sev high">High</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:83%;background:linear-gradient(90deg,#22d3ee,#06b6d4);"></div><span class="threat-pct">83%</span></div>
+          </div>
+          <div class="threat-row" style="border-bottom:none">
+            <div class="threat-icon" style="background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="threat-name">NotPetya / Wiper</div>
+              <div class="threat-tags"><span class="threat-tag">Data Destruction</span><span class="threat-tag">Supply Chain</span></div>
+            </div>
+            <div class="threat-sev medium">Medium</div>
+            <div class="threat-bar-wrap"><div class="threat-bar" style="width:58%;background:linear-gradient(90deg,#34d399,#10b981);"></div><span class="threat-pct">58%</span></div>
+          </div>
+        </div>
+
+        <!-- API callout -->
+        <div style="margin-top:18px;display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:12px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.18);">
+          <div style="font-size:0.8rem;color:var(--t2);line-height:1.55;flex:1;">Add <span class="mono" style="color:#a5b4fc;">"sector": "B2B"</span> to any <span class="mono" style="color:#a5b4fc;">/filter</span> request — the response includes a full <span class="mono" style="color:#a5b4fc;">business_intel</span> object with named threat matches and immediate actions.</div>
+          <a href="/docs#filter" class="btn-outline" style="font-size:0.8rem;padding:7px 16px;white-space:nowrap;">API Docs →</a>
+        </div>
+      </div>
+
+      <!-- Right: Risk Control Hierarchy (2/5) -->
+      <div class="lg:col-span-2">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:22px;">
+          <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:4px;">Risk Control Hierarchy</div>
+          <div style="font-size:0.8125rem;color:var(--t2);margin-bottom:18px;">Always implement higher levels first. Eliminating a risk is 4× more effective than monitoring it.</div>
+
+          <div class="hier-row">
+            <div class="hier-num" style="background:rgba(52,211,153,0.15);color:#34d399;border-color:rgba(52,211,153,0.3);">1</div>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:0.875rem;font-weight:600;color:var(--t1);">Elimination</span>
+                <span style="font-size:0.75rem;font-weight:700;color:#34d399;">98%</span>
+              </div>
+              <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:98%;background:linear-gradient(90deg,#34d399,#10b981);border-radius:3px;"></div>
+              </div>
+              <div style="font-size:0.72rem;color:var(--t3);margin-top:3px;">Remove the risk source entirely</div>
+            </div>
+          </div>
+          <div class="hier-row">
+            <div class="hier-num" style="background:rgba(6,182,212,0.12);color:#22d3ee;border-color:rgba(6,182,212,0.25);">2</div>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:0.875rem;font-weight:600;color:var(--t1);">Substitution</span>
+                <span style="font-size:0.75rem;font-weight:700;color:#22d3ee;">90%</span>
+              </div>
+              <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:90%;background:linear-gradient(90deg,#22d3ee,#06b6d4);border-radius:3px;"></div>
+              </div>
+              <div style="font-size:0.72rem;color:var(--t3);margin-top:3px;">Replace high-risk element with safer alternative</div>
+            </div>
+          </div>
+          <div class="hier-row">
+            <div class="hier-num" style="background:rgba(99,102,241,0.12);color:#a5b4fc;border-color:rgba(99,102,241,0.25);">3</div>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:0.875rem;font-weight:600;color:var(--t1);">Engineering Controls</span>
+                <span style="font-size:0.75rem;font-weight:700;color:#a5b4fc;">80%</span>
+              </div>
+              <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:80%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:3px;"></div>
+              </div>
+              <div style="font-size:0.72rem;color:var(--t3);margin-top:3px;">MFA, Zero Trust, EDR, WAF — works regardless of human behaviour</div>
+            </div>
+          </div>
+          <div class="hier-row">
+            <div class="hier-num" style="background:rgba(251,191,36,0.1);color:#fbbf24;border-color:rgba(251,191,36,0.2);">4</div>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:0.875rem;font-weight:600;color:var(--t1);">Administrative Controls</span>
+                <span style="font-size:0.75rem;font-weight:700;color:#fbbf24;">60%</span>
+              </div>
+              <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:60%;background:linear-gradient(90deg,#fbbf24,#f59e0b);border-radius:3px;"></div>
+              </div>
+              <div style="font-size:0.72rem;color:var(--t3);margin-top:3px;">Policies, training, patch SLA — must pair with Level 3</div>
+            </div>
+          </div>
+          <div class="hier-row">
+            <div class="hier-num" style="background:rgba(251,146,60,0.1);color:#fb923c;border-color:rgba(251,146,60,0.2);">5</div>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:0.875rem;font-weight:600;color:var(--t1);">Detective Controls</span>
+                <span style="font-size:0.75rem;font-weight:700;color:#fb923c;">45%</span>
+              </div>
+              <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:45%;background:linear-gradient(90deg,#fb923c,#f97316);border-radius:3px;"></div>
+              </div>
+              <div style="font-size:0.72rem;color:var(--t3);margin-top:3px;">SIEM, EDR behavioural, Shadow Warden &lt;1ms MTTD</div>
+            </div>
+          </div>
+          <div class="hier-row" style="border-bottom:none;margin-bottom:0;padding-bottom:0;">
+            <div class="hier-num" style="background:rgba(248,113,113,0.1);color:#f87171;border-color:rgba(248,113,113,0.2);">6</div>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:0.875rem;font-weight:600;color:var(--t1);">Corrective Controls</span>
+                <span style="font-size:0.75rem;font-weight:700;color:#f87171;">25%</span>
+              </div>
+              <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:25%;background:linear-gradient(90deg,#f87171,#ef4444);border-radius:3px;"></div>
+              </div>
+              <div style="font-size:0.72rem;color:var(--t3);margin-top:3px;">Restore from backup, root cause analysis, insurance</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;padding:10px 14px;border-radius:9px;background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.12);font-size:0.75rem;color:var(--t2);line-height:1.5;">
+            Shadow Warden operates at <strong style="color:var(--cyan);">Levels 3 + 5</strong> simultaneously — Engineering Control that prevents threats + Detective Control with &lt;1ms MTTD.
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /grid -->
+  </div>
+</section>
+
+<style>
+  .btn-sector {
+    flex:1; padding:7px 14px; border-radius:8px; border:none; background:transparent;
+    color:var(--t2); font-size:0.875rem; font-weight:500; cursor:pointer; font-family:inherit;
+    transition:all 0.15s;
+  }
+  .btn-sector:hover { color:var(--t1); }
+  .btn-sector.active { background:linear-gradient(135deg,rgba(34,211,238,0.15),rgba(99,102,241,0.15)); color:var(--t1); font-weight:600; border:1px solid rgba(34,211,238,0.25); }
+  .threat-row {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 0; border-bottom:1px solid var(--border);
+  }
+  .threat-icon {
+    width:34px; height:34px; border-radius:9px; border:1px solid;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .threat-name { font-size:0.875rem; font-weight:600; color:var(--t1); margin-bottom:3px; }
+  .threat-tags { display:flex; gap:5px; flex-wrap:wrap; }
+  .threat-tag  { font-size:0.65rem; padding:1px 7px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--t2); border:1px solid var(--border); }
+  .threat-sev  { font-size:0.65rem; font-weight:700; padding:2px 8px; border-radius:5px; white-space:nowrap; }
+  .threat-sev.critical { background:rgba(248,113,113,0.12); color:#f87171; }
+  .threat-sev.high     { background:rgba(251,191,36,0.12);  color:#fbbf24; }
+  .threat-sev.medium   { background:rgba(52,211,153,0.12);  color:#34d399; }
+  .threat-bar-wrap { display:flex; align-items:center; gap:7px; width:90px; flex-shrink:0; }
+  .threat-bar { height:5px; border-radius:3px; }
+  .threat-pct  { font-size:0.7rem; font-weight:600; color:var(--t2); width:30px; text-align:right; flex-shrink:0; }
+  .hier-row { display:flex; align-items:flex-start; gap:12px; padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .hier-num { width:28px; height:28px; border-radius:8px; border:1px solid; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; flex-shrink:0; margin-top:1px; }
+</style>
+
+<script>
+function switchSector(s) {
+  ['B2B','B2C','E-Commerce'].forEach(sec => {
+    document.getElementById('threats-' + sec).style.display = sec === s ? '' : 'none';
+    const tab = document.getElementById('tab-' + sec);
+    if (tab) tab.classList.toggle('active', sec === s);
+  });
+}
+</script>
 
 <!-- ════════════════════════════════════════════════════════
      PRICING
