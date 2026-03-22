@@ -12,7 +12,7 @@ Source: Business Cybersecurity Defense Matrix v1.0 · Risk Control Hierarchy v1.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
 from typing import Literal
 
@@ -798,7 +798,7 @@ def get_threat_matrix(sector: SectorType | None = None) -> list[dict]:
         if sector
         else THREAT_DB
     )
-    _SEVERITY_MAP = {
+    severity_map = {
         ControlLevel.ELIMINATION:    "CRITICAL",
         ControlLevel.SUBSTITUTION:   "HIGH",
         ControlLevel.ENGINEERING:    "HIGH",
@@ -806,13 +806,13 @@ def get_threat_matrix(sector: SectorType | None = None) -> list[dict]:
         ControlLevel.DETECTIVE:      "MEDIUM",
         ControlLevel.CORRECTIVE:     "LOW",
     }
-    _ALL = ["B2B", "B2C", "E-Commerce"]
+    all_sectors = ["B2B", "B2C", "E-Commerce"]
     return [
         {
             "id":                       t.id,
             "name":                     t.name,
-            "sectors":                  _ALL if "All" in t.sectors else list(t.sectors),
-            "severity":                 _SEVERITY_MAP.get(t.recommended_control, "MEDIUM"),
+            "sectors":                  all_sectors if "All" in t.sectors else list(t.sectors),
+            "severity":                 severity_map.get(t.recommended_control, "MEDIUM"),
             "description":              t.description,
             "defense_layers":           {
                 str(layer): _DEFENSE_LAYER_NAMES.get(layer, f"Layer {layer}")
@@ -855,9 +855,9 @@ def get_threat_by_id(threat_id: str) -> dict | None:
 
 def list_sectors() -> list[dict]:
     """Return available sectors with threat counts."""
-    _ALL_SECTORS = ("B2B", "B2C", "E-Commerce")
-    sectors: dict[str, int] = {s: 0 for s in _ALL_SECTORS}
-    top: dict[str, str | None] = {s: None for s in _ALL_SECTORS}
+    all_sectors = ("B2B", "B2C", "E-Commerce")
+    sectors: dict[str, int] = dict.fromkeys(all_sectors, 0)
+    top: dict[str, str | None] = dict.fromkeys(all_sectors, None)
     for t in THREAT_DB:
         for s in t.sectors:
             if s in sectors:
