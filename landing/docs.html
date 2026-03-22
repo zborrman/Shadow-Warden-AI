@@ -1040,33 +1040,73 @@ data = resp.<span class="c-method">json</span>()
     <div class="section section-anchor" id="v1-chat">
       <h2>OpenAI-Compatible Proxy</h2>
       <p>Drop-in replacement for the OpenAI SDK. Warden intercepts each message, filters it, then forwards clean content to your configured model. Zero code changes required if you're already using the OpenAI SDK.</p>
+      <p style="margin-top:10px;">Provider is <strong>auto-detected from the model name</strong> — no config changes needed per request:</p>
+      <table class="params-table" style="margin:12px 0 20px;">
+        <thead><tr><th>Model prefix</th><th>Routes to</th><th>Env var needed</th></tr></thead>
+        <tbody>
+          <tr><td><code>gpt-*</code>, <code>o1-*</code>, etc.</td><td class="p-desc">OpenAI</td><td class="p-desc"><code>OPENAI_API_KEY</code> or client <code>Authorization</code> header</td></tr>
+          <tr><td><code>sonar-*</code>, <code>llama-*</code>, <code>r1-*</code>, <code>pplx-*</code>, <code>mixtral</code></td><td class="p-desc">Perplexity AI</td><td class="p-desc"><code>PERPLEXITY_API_KEY</code></td></tr>
+          <tr><td><code>gemini-*</code></td><td class="p-desc">Google Gemini</td><td class="p-desc"><code>GEMINI_API_KEY</code></td></tr>
+        </tbody>
+      </table>
 
       <div class="endpoint">
         <div class="endpoint-header">
           <span class="method-badge method-post">POST</span>
           <span class="endpoint-path">/v1/chat/completions</span>
-          <span class="endpoint-desc">OpenAI-compatible chat endpoint</span>
+          <span class="endpoint-desc">Multi-provider chat proxy</span>
         </div>
         <div class="endpoint-body">
+
+          <!-- OpenAI example -->
+          <p style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:6px;">OpenAI</p>
           <div class="code-wrap">
             <pre class="code-block"><span class="c-cmd">from</span> openai <span class="c-cmd">import</span> OpenAI
 
 client = OpenAI(
     base_url=<span class="c-str">"https://shadow-warden-ai.com/v1"</span>,
-    api_key=<span class="c-str">"sw_your_key"</span>,  <span class="c-comment"># Warden key, not OpenAI key</span>
+    api_key=<span class="c-str">"sw_your_key"</span>,  <span class="c-comment"># Warden key</span>
 )
-
 response = client.chat.completions.<span class="c-method">create</span>(
     model=<span class="c-str">"gpt-4o"</span>,
     messages=[{<span class="c-str">"role"</span>: <span class="c-str">"user"</span>, <span class="c-str">"content"</span>: <span class="c-str">"Hello!"</span>}]
-)
-<span class="c-comment"># Warden filters the message before it reaches OpenAI</span></pre>
+)</pre>
             <button class="copy-btn" onclick="copyCode(this, this.previousElementSibling.innerText)">copy</button>
           </div>
 
-          <div class="info-box success">
+          <!-- Perplexity example -->
+          <p style="font-size:13px;font-weight:600;color:var(--t2);margin:16px 0 6px;">Perplexity AI</p>
+          <div class="code-wrap">
+            <pre class="code-block"><span class="c-comment"># Set PERPLEXITY_API_KEY in your .env — no code change needed</span>
+client = OpenAI(
+    base_url=<span class="c-str">"https://shadow-warden-ai.com/v1"</span>,
+    api_key=<span class="c-str">"sw_your_key"</span>,
+)
+response = client.chat.completions.<span class="c-method">create</span>(
+    model=<span class="c-str">"sonar-pro"</span>,  <span class="c-comment"># auto-routed to api.perplexity.ai</span>
+    messages=[{<span class="c-str">"role"</span>: <span class="c-str">"user"</span>, <span class="c-str">"content"</span>: <span class="c-str">"Latest AI news?"</span>}]
+)</pre>
+            <button class="copy-btn" onclick="copyCode(this, this.previousElementSibling.innerText)">copy</button>
+          </div>
+
+          <!-- Gemini example -->
+          <p style="font-size:13px;font-weight:600;color:var(--t2);margin:16px 0 6px;">Google Gemini</p>
+          <div class="code-wrap">
+            <pre class="code-block"><span class="c-comment"># Set GEMINI_API_KEY in your .env — no code change needed</span>
+client = OpenAI(
+    base_url=<span class="c-str">"https://shadow-warden-ai.com/v1"</span>,
+    api_key=<span class="c-str">"sw_your_key"</span>,
+)
+response = client.chat.completions.<span class="c-method">create</span>(
+    model=<span class="c-str">"gemini-2.0-flash"</span>,  <span class="c-comment"># auto-routed to Gemini API</span>
+    messages=[{<span class="c-str">"role"</span>: <span class="c-str">"user"</span>, <span class="c-str">"content"</span>: <span class="c-str">"Explain quantum computing"</span>}]
+)</pre>
+            <button class="copy-btn" onclick="copyCode(this, this.previousElementSibling.innerText)">copy</button>
+          </div>
+
+          <div class="info-box success" style="margin-top:16px;">
             <span class="info-icon">&#10003;</span>
-            <span>Works with any OpenAI-compatible model: GPT-4o, Claude, Mistral, Llama. Set your actual model API key in the Warden environment (<code>OPENAI_API_KEY</code>).</span>
+            <span>All three providers pass through the same 6-stage Warden security pipeline. Only the final forwarding destination changes.</span>
           </div>
         </div>
       </div>

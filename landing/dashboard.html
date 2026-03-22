@@ -610,6 +610,14 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:5px;vertical-align:-1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
         OpenAI Proxy
       </button>
+      <button class="int-tab" onclick="switchIntTab('perplexity')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:5px;vertical-align:-1px"><path d="M12 3L4 8v8l8 5 8-5V8L12 3z" stroke-linejoin="round"/></svg>
+        Perplexity
+      </button>
+      <button class="int-tab" onclick="switchIntTab('gemini')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:5px;vertical-align:-1px"><path d="M12 3C12 3 9 9 3 12C9 15 12 21 12 21C12 21 15 15 21 12C15 9 12 3 12 3Z" stroke-linejoin="round"/></svg>
+        Gemini
+      </button>
     </div>
 
     <!-- Docker panel -->
@@ -759,6 +767,81 @@ response = client.chat.completions.create(
       </div>
       <div style="margin-top:14px;padding:12px 16px;border-radius:9px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);font-size:0.8125rem;color:var(--text2);">
         Zero code changes if you already use the OpenAI SDK. Works with any OpenAI-compatible model: GPT-4o, Claude, Mistral, Llama.
+      </div>
+    </div>
+
+    <!-- Perplexity panel -->
+    <div class="int-panel" id="int-perplexity">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div style="flex:1">
+          <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Add your Perplexity key to the server</div>
+          <div style="position:relative">
+            <div class="code-line" id="cmd-pplx1">echo "PERPLEXITY_API_KEY=pplx-..." >> .env && docker compose restart warden</div>
+            <button class="copy-line-btn" onclick="copyLine('cmd-pplx1')">copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="install-step" style="border-bottom:none">
+        <div class="step-num">2</div>
+        <div style="flex:1">
+          <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Use a sonar-* or llama-* model — auto-routed</div>
+          <div style="position:relative">
+            <div class="code-line" id="cmd-pplx2">from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://shadow-warden-ai.com/v1",
+    api_key="<span id='key-pplx' style='color:#6366f1'>your-warden-key</span>"
+)
+
+response = client.chat.completions.create(
+    model="sonar-pro",   # auto-routed to api.perplexity.ai
+    messages=[{"role": "user", "content": "Latest AI news?"}]
+)</div>
+            <button class="copy-line-btn" onclick="copyLine('cmd-pplx2')">copy</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:12px 16px;border-radius:9px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.15);font-size:0.8125rem;color:var(--text2);">
+        Supported model prefixes: <span style="font-family:monospace;color:#22d3ee;">sonar-*</span>, <span style="font-family:monospace;color:#22d3ee;">llama-*</span>, <span style="font-family:monospace;color:#22d3ee;">r1-*</span>, <span style="font-family:monospace;color:#22d3ee;">pplx-*</span>, <span style="font-family:monospace;color:#22d3ee;">mixtral</span>. All messages pass through Warden's 6-stage filter first.
+      </div>
+    </div>
+
+    <!-- Gemini panel -->
+    <div class="int-panel" id="int-gemini">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div style="flex:1">
+          <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Add your Gemini API key to the server</div>
+          <div style="position:relative">
+            <div class="code-line" id="cmd-gem1">echo "GEMINI_API_KEY=AIza..." >> .env && docker compose restart warden</div>
+            <button class="copy-line-btn" onclick="copyLine('cmd-gem1')">copy</button>
+          </div>
+          <div style="font-size:0.75rem;color:var(--text3);margin-top:6px;">Get your key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#818cf8;">aistudio.google.com</a></div>
+        </div>
+      </div>
+      <div class="install-step" style="border-bottom:none">
+        <div class="step-num">2</div>
+        <div style="flex:1">
+          <div style="font-size:0.8125rem;font-weight:500;color:var(--text);">Use a gemini-* model — auto-routed to Google</div>
+          <div style="position:relative">
+            <div class="code-line" id="cmd-gem2">from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://shadow-warden-ai.com/v1",
+    api_key="<span id='key-gem' style='color:#6366f1'>your-warden-key</span>"
+)
+
+response = client.chat.completions.create(
+    model="gemini-2.0-flash",  # auto-routed to Gemini API
+    messages=[{"role": "user", "content": "Explain quantum computing"}]
+)</div>
+            <button class="copy-line-btn" onclick="copyLine('cmd-gem2')">copy</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:12px 16px;border-radius:9px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);font-size:0.8125rem;color:var(--text2);">
+        Supported model prefixes: <span style="font-family:monospace;color:#a5b4fc;">gemini-*</span> (e.g. gemini-2.0-flash, gemini-1.5-pro). Routes to the Gemini OpenAI-compatible endpoint automatically.
       </div>
     </div>
   </div>
@@ -1187,7 +1270,7 @@ response = client.chat.completions.create(
 
   // ── Install commands ────────────────────────────────────────────────────────
   function updateInstallCommands(key) {
-    ['key-placeholder','key-placeholder-2','key-py','key-py2','key-lc','key-oa'].forEach(id => {
+    ['key-placeholder','key-placeholder-2','key-py','key-py2','key-lc','key-oa','key-pplx','key-gem'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = key;
     });

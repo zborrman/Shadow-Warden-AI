@@ -18,9 +18,17 @@ Pipeline:
       → return upstream response (or HTTP 400 if tool_call blocked)
 
 Environment variables:
-  OPENAI_UPSTREAM   Upstream base URL (default: https://api.openai.com)
-  WARDEN_FILTER_URL Internal URL for Warden /filter endpoint
-                    (default: http://localhost:8001 — works inside Docker)
+  OPENAI_UPSTREAM      Upstream base URL (default: https://api.openai.com)
+  OPENAI_API_KEY       API key forwarded to OpenAI (optional — client can send Authorization header)
+  PERPLEXITY_API_KEY   Perplexity API key (auto-routed for sonar-* / llama-* / pplx-* models)
+  GEMINI_API_KEY       Google Gemini API key (auto-routed for gemini-* models)
+  WARDEN_FILTER_URL    Internal URL for Warden /filter endpoint
+                       (default: http://localhost:8001 — works inside Docker)
+
+Provider auto-routing (based on model name):
+  gemini-*                  → https://generativelanguage.googleapis.com/v1beta/openai
+  sonar-* / llama-* / pplx  → https://api.perplexity.ai
+  everything else           → OPENAI_UPSTREAM (default: https://api.openai.com)
 """
 from __future__ import annotations
 
@@ -44,8 +52,23 @@ log = logging.getLogger("warden.openai_proxy")
 
 router = APIRouter(prefix="/v1", tags=["openai-proxy"])
 
-_UPSTREAM     = os.getenv("OPENAI_UPSTREAM",   "https://api.openai.com")
-_FILTER_URL   = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
+_UPSTREAM            = os.getenv("OPENAI_UPSTREAM",   "https://api.openai.com")
+_FILTER_URL          = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
+
+_PERPLEXITY_UPSTREAM = "https://api.perplexity.ai"
+_GEMINI_UPSTREAM     = "https://generativelanguage.googleapis.com/v1beta/openai"
+_PERPLEXITY_API_KEY  = os.getenv("PERPLEXITY_API_KEY", "")
+_GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY", "")
+
+
+def _resolve_upstream(model: str) -> tuple[str, str]:
+    """Return (base_url, provider_api_key) for the requested model."""
+    m = model.lower()
+    if m.startswith("gemini"):
+        return _GEMINI_UPSTREAM, _GEMINI_API_KEY
+    if any(m.startswith(p) for p in ("sonar", "llama-", "r1-", "pplx", "mixtral")):
+        return _PERPLEXITY_UPSTREAM, _PERPLEXITY_API_KEY
+    return _UPSTREAM, ""
 # MASKING_MODE=auto  — transparently mask PII in user messages, unmask LLM responses
 # MASKING_MODE=off   — standard redact-only behaviour (default)
 _MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
@@ -250,12 +273,17 @@ async def proxy_chat(
     }
     payload_out = {**payload, "messages": messages_out}
 
-    # ── Forward to upstream OpenAI ─────────────────────────────────────────
+    # ── Forward to upstream (OpenAI / Perplexity / Gemini) ────────────────
+    model = payload.get("model", "")
+    _upstream_url, _provider_key = _resolve_upstream(model)
     auth_header = request.headers.get("Authorization", "")
+    # If the client did not supply a key but we have a provider key, inject it
+    if not auth_header and _provider_key:
+        auth_header = f"Bearer {_provider_key}"
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             upstream_resp = await client.post(
-                f"{_UPSTREAM}/v1/chat/completions",
+                f"{_upstream_url}/chat/completions",
                 json=payload_out,
                 headers={
                     "Authorization": auth_header,
