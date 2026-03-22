@@ -12,8 +12,6 @@ Also covers: TenantOutputConfig overrides, custom_patterns, backward compat.
 """
 from __future__ import annotations
 
-import pytest
-
 from warden.output_guard import (
     BusinessRisk,
     OutputGuard,

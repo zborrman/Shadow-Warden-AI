@@ -692,7 +692,7 @@ def test_stream_chunks_have_data_prefix(client) -> None:
         )
 
     body = resp.content.decode()
-    data_lines = [l for l in body.splitlines() if l.startswith("data: ") and "[DONE]" not in l]
+    data_lines = [ln for ln in body.splitlines() if ln.startswith("data: ") and "[DONE]" not in ln]
     assert len(data_lines) > 0
 
 

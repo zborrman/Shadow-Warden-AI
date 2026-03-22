@@ -288,13 +288,12 @@ async def proxy_chat(
     if payload_out.get("stream"):
         async def _stream_gen() -> AsyncGenerator[bytes, None]:
             try:
-                async with httpx.AsyncClient(timeout=120.0) as _sc:
-                    async with _sc.stream(
-                        "POST",
-                        f"{_upstream_url}/chat/completions",
-                        json=payload_out,
-                        headers=_req_headers,
-                    ) as up:
+                async with httpx.AsyncClient(timeout=120.0) as _sc, _sc.stream(
+                    "POST",
+                    f"{_upstream_url}/chat/completions",
+                    json=payload_out,
+                    headers=_req_headers,
+                ) as up:
                         # ── Collect all SSE chunks from upstream ──────────
                         _chunks: list[dict] = []
                         _parts:  list[str]  = []
