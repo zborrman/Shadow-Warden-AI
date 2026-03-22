@@ -603,9 +603,9 @@ def _make_stream_chunk(idx: int, content: str, finish: str | None = None) -> dic
 
 
 def _patch_stream(filter_resp: dict, sse_lines: list[str]):
-    """Patch httpx so:
-    - client.post(...) → filter response
-    - client.stream(...) → async context yielding sse_lines via aiter_lines()
+    """Return (patch_ctx, make_inst) where:
+    - patch_ctx is used as `with patch_ctx as mock_cls:`
+    - make_inst() builds the AsyncClient instance to assign to mock_cls.return_value
     """
     from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -624,19 +624,15 @@ def _patch_stream(filter_resp: dict, sse_lines: list[str]):
     async def fake_post(url, **kwargs):
         return filter_mock
 
-    outer = patch("warden.openai_proxy.httpx.AsyncClient")
-
-    def start():
-        mock_cls = outer.__enter__()
+    def make_inst():
         inst = AsyncMock()
         inst.post = fake_post
         inst.stream = MagicMock(return_value=stream_ctx)
         inst.__aenter__ = AsyncMock(return_value=inst)
         inst.__aexit__ = AsyncMock(return_value=False)
-        mock_cls.return_value = inst
         return inst
 
-    return outer, start
+    return patch("warden.openai_proxy.httpx.AsyncClient"), make_inst
 
 
 def test_stream_returns_event_stream_content_type(client) -> None:
@@ -645,9 +641,9 @@ def test_stream_returns_event_stream_content_type(client) -> None:
     chunks = [_make_stream_chunk(0, "Hi ", None), _make_stream_chunk(1, "there!", "stop")]
     sse_lines = _make_sse_lines(chunks)
 
-    ctx, start = _patch_stream(filter_resp, sse_lines)
-    with ctx:
-        start()
+    ctx, make_inst = _patch_stream(filter_resp, sse_lines)
+    with ctx as mock_cls:
+        mock_cls.return_value = make_inst()
         resp = client.post(
             "/v1/chat/completions",
             json={"model": "gpt-4", "stream": True,
@@ -664,9 +660,9 @@ def test_stream_contains_done_sentinel(client) -> None:
     chunks = [_make_stream_chunk(0, "Hello!", "stop")]
     sse_lines = _make_sse_lines(chunks)
 
-    ctx, start = _patch_stream(filter_resp, sse_lines)
-    with ctx:
-        start()
+    ctx, make_inst = _patch_stream(filter_resp, sse_lines)
+    with ctx as mock_cls:
+        mock_cls.return_value = make_inst()
         resp = client.post(
             "/v1/chat/completions",
             json={"model": "gpt-4", "stream": True,
@@ -682,9 +678,9 @@ def test_stream_chunks_have_data_prefix(client) -> None:
     chunks = [_make_stream_chunk(0, "chunk1 "), _make_stream_chunk(1, "chunk2", "stop")]
     sse_lines = _make_sse_lines(chunks)
 
-    ctx, start = _patch_stream(filter_resp, sse_lines)
-    with ctx:
-        start()
+    ctx, make_inst = _patch_stream(filter_resp, sse_lines)
+    with ctx as mock_cls:
+        mock_cls.return_value = make_inst()
         resp = client.post(
             "/v1/chat/completions",
             json={"model": "gpt-4", "stream": True,
@@ -730,9 +726,9 @@ def test_stream_assembled_content_passthrough(client) -> None:
               for i, p in enumerate(pieces)]
     sse_lines = _make_sse_lines(chunks)
 
-    ctx, start = _patch_stream(filter_resp, sse_lines)
-    with ctx:
-        start()
+    ctx, make_inst = _patch_stream(filter_resp, sse_lines)
+    with ctx as mock_cls:
+        mock_cls.return_value = make_inst()
         resp = client.post(
             "/v1/chat/completions",
             json={"model": "gpt-4", "stream": True,
