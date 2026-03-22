@@ -722,9 +722,11 @@ def analyze(
     for conf, threat, matched_sigs in matches:
         all_layers.update(threat.defense_layers)
         ctrl = threat.recommended_control
+        _all = ["B2B", "B2C", "E-Commerce"]
         match_dicts.append({
             "id":                       threat.id,
             "name":                     threat.name,
+            "sectors":                  _all if "All" in threat.sectors else list(threat.sectors),
             "confidence":               round(conf, 3),
             "matched_signals":          sorted(matched_sigs),
             "description":              threat.description,
