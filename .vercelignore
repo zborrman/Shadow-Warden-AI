@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+env/
+.env/
+.venv/
+
+# Models / ML weights
+warden/models/
+*.bin
+*.pt
+*.onnx
+*.safetensors
+
+# Data / logs
+data/
+*.json.log
+
+# Docker
+.docker/
+
+# Node
+node_modules/
+
+# Tests / CI artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+mutmut-cache/
+
+# Git
+.git/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Vercel only needs the landing/ folder
+warden/
+analytics/
+grafana/
+postgres/
+redis/

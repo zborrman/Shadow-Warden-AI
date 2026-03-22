@@ -78,3 +78,5 @@ data/*.db-wal
 
 # SSL certificates (generated on server, not committed)
 ssl/
+
+.vercel
