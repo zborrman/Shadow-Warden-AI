@@ -267,6 +267,7 @@
       <a href="#owasp" class="nav-link">Security</a>
       <a href="/roadmap" class="nav-link">Roadmap</a>
       <a href="/agents" class="nav-link">Agents</a>
+      <a href="/dashboard" class="nav-link">Dashboard</a>
       <a href="/contact" class="nav-link">Contact</a>
       <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="nav-link flex items-center gap-1.5">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -279,6 +280,10 @@
       <a id="nav-signin" href="/login" class="btn-outline hidden sm:inline-flex" style="padding:8px 18px;font-size:0.82rem;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
         Sign In
+      </a>
+      <a id="nav-panel" href="/dashboard" class="btn-cyan hidden" style="padding:8px 18px;font-size:0.82rem;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Control Panel
       </a>
       <button id="nav-signout" onclick="signOut()" class="btn-outline hidden" style="padding:8px 18px;font-size:0.82rem;border-color:rgba(244,63,94,0.3);color:#fb7185;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
@@ -306,6 +311,7 @@
       <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="block px-3 py-2.5 text-sm nav-link rounded-lg hover:bg-[rgba(34,211,238,0.05)]">GitHub</a>
       <div class="pt-2 flex flex-col gap-2">
         <a id="mob-signin" href="/login" class="btn-outline justify-center">Sign In</a>
+        <a id="mob-panel" href="/dashboard" class="btn-cyan justify-center hidden">Control Panel</a>
         <button id="mob-signout" onclick="signOut()" class="btn-outline justify-center hidden w-full" style="border-color:rgba(244,63,94,0.3);color:#fb7185;">Sign Out</button>
         <a href="#pricing" class="btn-cyan justify-center">Start Free</a>
       </div>
@@ -1501,20 +1507,26 @@ function updateAuthNav() {
   const loggedIn = !!localStorage.getItem('warden_token');
   const signin   = document.getElementById('nav-signin');
   const signout  = document.getElementById('nav-signout');
+  const panel    = document.getElementById('nav-panel');
   const mobIn    = document.getElementById('mob-signin');
   const mobOut   = document.getElementById('mob-signout');
+  const mobPanel = document.getElementById('mob-panel');
   if (loggedIn) {
     signin.classList.add('hidden');
     signout.classList.remove('hidden');
     signout.classList.add('inline-flex');
-    if (mobIn)  mobIn.classList.add('hidden');
-    if (mobOut) { mobOut.classList.remove('hidden'); mobOut.classList.add('flex'); }
+    if (panel)    { panel.classList.remove('hidden'); panel.classList.add('inline-flex'); }
+    if (mobIn)    mobIn.classList.add('hidden');
+    if (mobOut)   { mobOut.classList.remove('hidden'); mobOut.classList.add('flex'); }
+    if (mobPanel) { mobPanel.classList.remove('hidden'); mobPanel.classList.add('flex'); }
   } else {
     signin.classList.remove('hidden');
     signout.classList.add('hidden');
     signout.classList.remove('inline-flex');
-    if (mobIn)  mobIn.classList.remove('hidden');
-    if (mobOut) mobOut.classList.add('hidden');
+    if (panel)    { panel.classList.add('hidden'); panel.classList.remove('inline-flex'); }
+    if (mobIn)    mobIn.classList.remove('hidden');
+    if (mobOut)   mobOut.classList.add('hidden');
+    if (mobPanel) { mobPanel.classList.add('hidden'); mobPanel.classList.remove('flex'); }
   }
 }
 function signOut() {
