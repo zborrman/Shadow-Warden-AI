@@ -77,6 +77,7 @@ from warden.auth_guard import AuthResult, get_rate_limit, require_api_key
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
+from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
@@ -108,6 +109,7 @@ from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
 from warden.telegram_alert import send_block_alert as _tg_block_alert
 from warden.threat_feed import ThreatFeedClient
+from warden.threat_neutralizer_router import router as _neutralizer_router
 from warden.threat_store import ThreatStore
 from warden.threat_vault import SEVERITY_RANK, ThreatVault
 from warden.webhook_dispatch import WebhookStore
@@ -707,6 +709,9 @@ try:
     log.info("Agentic Payment Protocol (AP2) mounted at /agents and /mcp")
 except ImportError:
     log.warning("agentic router not available — /agents and /mcp routes skipped.")
+
+app.include_router(_neutralizer_router)
+log.info("Business Threat Neutralizer mounted at /threat/neutralizer")
 
 
 # ── HTTP middleware (request-ID + security headers) ───────────────────────────
@@ -1439,6 +1444,25 @@ async def _run_filter_pipeline(
             store            = _webhook_store,
         )
 
+    # ── Business Threat Neutralizer (optional — only when sector is set) ──
+    _business_intel: dict | None = None
+    if payload.sector:
+        try:
+            _neutralizer_report = _neutralizer_analyze(
+                payload.sector,  # type: ignore[arg-type]
+                obfuscation_detected = obfuscation_result.has_obfuscation,
+                redacted_count       = len(redact_result.findings),
+                has_pii              = redact_result.has_pii,
+                risk_level           = guard_result.risk_level.value.upper(),
+                ml_score             = brain_result.score,
+                vault_matches        = vault_matches,
+                semantic_flags       = [f.flag.value for f in guard_result.flags],
+                poisoning_detected   = bool(poison_result_dict),
+            )
+            _business_intel = _neutralizer_report.as_dict()
+        except Exception as _bte:
+            log.debug("Business threat neutralizer error (non-fatal): %s", _bte)
+
     response = FilterResponse(
         allowed                  = allowed,
         risk_level               = guard_result.risk_level,
@@ -1452,6 +1476,7 @@ async def _run_filter_pipeline(
         explanation              = _explanation,
         poisoning                = poison_result_dict,
         threat_matches           = vault_matches,
+        business_intel           = _business_intel,
     )
 
     # ── Cache write ───────────────────────────────────────────────────

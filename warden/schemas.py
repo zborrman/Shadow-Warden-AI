@@ -61,6 +61,14 @@ class FilterRequest(BaseModel):
             "'raw' detects but leaves content unchanged."
         ),
     )
+    sector: str | None = Field(
+        default=None,
+        description=(
+            "Business sector for threat neutralizer enrichment: 'B2B' | 'B2C' | 'E-Commerce'. "
+            "When set, the response includes a 'business_intel' field with named threat family "
+            "matches, risk control hierarchy recommendations, and immediate remediation actions."
+        ),
+    )
 
 
 # ── Response pieces ───────────────────────────────────────────────────────────
@@ -166,6 +174,15 @@ class FilterResponse(BaseModel):
             "ThreatVault signature hits (Stage 1.5). Each entry: "
             "id, name, category, severity, owasp. "
             "Empty list when no known adversarial signatures matched."
+        ),
+    )
+    business_intel:           dict | None       = Field(
+        default=None,
+        description=(
+            "Business Threat Neutralizer report. Populated when 'sector' is set in the request. "
+            "Contains: threat_matches (named families like Ryuk, Magecart, Zeus), "
+            "top_threat_name, recommended_control_level (1–6 risk hierarchy), "
+            "control_effectiveness_pct, immediate_actions, defense_layers_activated, risk_score."
         ),
     )
 
