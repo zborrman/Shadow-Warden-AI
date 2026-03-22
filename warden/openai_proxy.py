@@ -34,11 +34,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
+from collections.abc import AsyncGenerator
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 
 from warden.auth_guard import AuthResult, require_api_key
 from warden.masking.engine import get_engine as _get_masking_engine
@@ -273,22 +276,138 @@ async def proxy_chat(
     }
     payload_out = {**payload, "messages": messages_out}
 
-    # ── Forward to upstream (OpenAI / Perplexity / Gemini) ────────────────
+    # ── Resolve upstream once (used by both streaming + non-streaming) ────
     model = payload.get("model", "")
     _upstream_url, _provider_key = _resolve_upstream(model)
     auth_header = request.headers.get("Authorization", "")
-    # If the client did not supply a key but we have a provider key, inject it
     if not auth_header and _provider_key:
         auth_header = f"Bearer {_provider_key}"
+    _req_headers = {"Authorization": auth_header, "Content-Type": "application/json"}
+
+    # ── Streaming path ─────────────────────────────────────────────────────
+    if payload_out.get("stream"):
+        async def _stream_gen() -> AsyncGenerator[bytes, None]:
+            try:
+                async with httpx.AsyncClient(timeout=120.0) as _sc:
+                    async with _sc.stream(
+                        "POST",
+                        f"{_upstream_url}/chat/completions",
+                        json=payload_out,
+                        headers=_req_headers,
+                    ) as up:
+                        # ── Collect all SSE chunks from upstream ──────────
+                        _chunks: list[dict] = []
+                        _parts:  list[str]  = []
+                        async for _line in up.aiter_lines():
+                            if not _line.startswith("data: "):
+                                continue
+                            _raw = _line[6:].strip()
+                            if _raw == "[DONE]":
+                                break
+                            try:
+                                _c = json.loads(_raw)
+                                _chunks.append(_c)
+                                for _ch in _c.get("choices") or []:
+                                    _d = _ch.get("delta") or {}
+                                    if isinstance(_d.get("content"), str):
+                                        _parts.append(_d["content"])
+                            except json.JSONDecodeError:
+                                pass
+
+                # ── Unmask if PII masking was applied ─────────────────────
+                _full = "".join(_parts)
+                if _mask_session_id:
+                    _full = _get_masking_engine().unmask(_full, _mask_session_id)
+
+                # ── OutputGuard on fully assembled content ─────────────────
+                _sanitized: str | None = None
+                if _OUTPUT_GUARD_ENABLED and _full:
+                    _og = get_output_guard()
+                    _ogr = _og.scan(_full)
+                    if _ogr.risky:
+                        _sanitized = _ogr.sanitized
+                        for _f in _ogr.findings:
+                            with contextlib.suppress(Exception):
+                                OUTPUT_GUARD_BLOCKS.labels(
+                                    tenant_id=_tenant_id, risk=_f.risk.value
+                                ).inc()
+                        with contextlib.suppress(Exception):
+                            OUTPUT_GUARD_SANITIZATIONS.labels(
+                                tenant_id=_tenant_id
+                            ).inc()
+                        log.warning(
+                            "output_guard_sanitized_stream tenant=%r risks=%r",
+                            _tenant_id, _ogr.risk_types,
+                        )
+                        _hook = get_notification_hook()
+                        for _f in _ogr.findings:
+                            with contextlib.suppress(Exception):
+                                asyncio.create_task(_hook.fire(
+                                    finding=_f, session_id=session_id,
+                                    tenant_id=_tenant_id, user_id=_user_id,
+                                ))
+
+                # ── Re-emit as SSE ─────────────────────────────────────────
+                _emit = _sanitized if _sanitized is not None else _full
+
+                if _sanitized is None:
+                    # Pass through original chunks with unmasked content patched in
+                    _pos = 0
+                    for _c in _chunks:
+                        for _ch in _c.get("choices") or []:
+                            _d = _ch.get("delta") or {}
+                            if isinstance(_d.get("content"), str):
+                                _len = len(_d["content"])
+                                _d["content"] = _emit[_pos:_pos + _len]
+                                _pos += _len
+                        yield (f"data: {json.dumps(_c)}\n\n").encode()
+                else:
+                    # Re-stream sanitized content as fresh chunks
+                    _tmpl = _chunks[0] if _chunks else {}
+                    _pieces = [_emit[i:i + 20] for i in range(0, len(_emit), 20)] or [""]
+                    for _i, _piece in enumerate(_pieces):
+                        _nc = {
+                            "id":      _tmpl.get("id", "chatcmpl-warden"),
+                            "object":  "chat.completion.chunk",
+                            "created": _tmpl.get("created", 0),
+                            "model":   _tmpl.get("model", model),
+                            "choices": [{
+                                "index": 0,
+                                "delta": {"content": _piece},
+                                "finish_reason": "stop" if _i == len(_pieces) - 1 else None,
+                            }],
+                        }
+                        yield (f"data: {json.dumps(_nc)}\n\n").encode()
+
+                yield b"data: [DONE]\n\n"
+
+                # ── WalletShield reconciliation (no usage in stream) ───────
+                if _WALLET_ENABLED and _estimated_tok:
+                    get_wallet_shield().record_actual(
+                        tenant_id=_tenant_id, user_id=_user_id,
+                        actual=_estimated_tok, estimated=_estimated_tok,
+                    )
+
+            except Exception as _exc:
+                log.error("Upstream stream failed: %s", _exc)
+                yield (
+                    f"data: {json.dumps({'error': {'message': str(_exc), 'type': 'upstream_error'}})}\n\n"
+                ).encode()
+                yield b"data: [DONE]\n\n"
+
+        return StreamingResponse(
+            _stream_gen(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    # ── Non-streaming path ─────────────────────────────────────────────────
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             upstream_resp = await client.post(
                 f"{_upstream_url}/chat/completions",
                 json=payload_out,
-                headers={
-                    "Authorization": auth_header,
-                    "Content-Type": "application/json",
-                },
+                headers=_req_headers,
             )
         upstream_data = upstream_resp.json()
     except Exception as exc:
