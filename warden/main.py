@@ -757,12 +757,13 @@ async def health():
     redis_health = _check_redis_health()
     overall = "ok" if redis_health["status"] == "ok" or redis_health["status"] == "unavailable" else "degraded"
     return {
-        "status":    overall,
-        "service":   "warden-gateway",
-        "evolution": _evolve is not None,
-        "tenants":   list(_tenant_guards.keys()),
-        "strict":    os.getenv("STRICT_MODE", "false").lower() == "true",
-        "cache":     redis_health,
+        "status":     overall,
+        "service":    "warden-gateway",
+        "evolution":  _evolve is not None,
+        "tenants":    list(_tenant_guards.keys()),
+        "strict":     os.getenv("STRICT_MODE", "false").lower() == "true",
+        "cache":      redis_health,
+        "ws_clients": _event_bus.client_count,
     }
 
 
@@ -1379,6 +1380,20 @@ async def _run_filter_pipeline(
         )
         entry["tenant_id"] = tenant_id   # needed for billing aggregation
         event_logger.append(entry)
+        # Broadcast to all connected /ws/events dashboard clients
+        asyncio.create_task(_event_bus.broadcast({
+            "type":        "event",
+            "request_id":  rid,
+            "ts":          entry.get("ts", ""),
+            "risk":        guard_result.risk_level.value,
+            "allowed":     allowed,
+            "flags":       [f.flag.value for f in guard_result.flags],
+            "secrets":     [f.kind for f in redact_result.findings],
+            "payload_len": len(payload.content),
+            "elapsed_ms":  round(elapsed_ms, 2),
+            "tenant_id":   tenant_id,
+            "session_id":  session_id,
+        }))
     except Exception:
         log.exception(json.dumps({"event": "analytics_error", "request_id": rid}))
 
@@ -2098,6 +2113,101 @@ async def set_billing_quota(tenant_id: str, body: _QuotaRequest):
         "quota_usd": body.quota_usd,
         "message":   f"Monthly quota set to ${body.quota_usd:.4f} for tenant {tenant_id!r}.",
     }
+
+
+# ── Live Event Bus — broadcast security events to monitoring dashboards ───────
+
+class _EventBus:
+    """
+    Pub/sub bus for real-time security event streaming.
+
+    All connected /ws/events clients receive every security event within ~1ms.
+    Thread-safe via asyncio; no external deps (Redis-free).
+    """
+
+    def __init__(self) -> None:
+        self._clients: set[WebSocket] = set()
+
+    async def connect(self, ws: WebSocket) -> None:
+        await ws.accept()
+        self._clients.add(ws)
+        log.info("ws_events: client connected (total=%d)", len(self._clients))
+
+    def disconnect(self, ws: WebSocket) -> None:
+        self._clients.discard(ws)
+        log.info("ws_events: client disconnected (total=%d)", len(self._clients))
+
+    async def broadcast(self, data: dict) -> None:
+        if not self._clients:
+            return
+        payload = json.dumps(data, ensure_ascii=False, default=str)
+        dead: list[WebSocket] = []
+        for ws in list(self._clients):
+            try:
+                await ws.send_text(payload)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self._clients.discard(ws)
+
+    @property
+    def client_count(self) -> int:
+        return len(self._clients)
+
+
+_event_bus = _EventBus()
+
+
+@app.websocket("/ws/events")
+async def ws_events(websocket: WebSocket):
+    """
+    Real-time security event feed for the monitoring dashboard.
+
+    Connect:  ws://host/ws/events?key=<api_key>
+
+    Server pushes one JSON object per security event:
+        {
+          "type":        "event",
+          "request_id":  str,
+          "ts":          ISO-8601,
+          "risk":        "low" | "medium" | "high" | "block",
+          "allowed":     bool,
+          "flags":       [str],
+          "secrets":     [str],
+          "payload_len": int,
+          "elapsed_ms":  float,
+          "tenant_id":   str,
+          "session_id":  str | null
+        }
+
+    On connect, server sends one welcome frame:
+        {"type": "connected", "clients": int}
+    """
+    api_key = websocket.query_params.get("key", "") or None
+    try:
+        require_api_key(api_key)
+    except HTTPException as exc:
+        await websocket.accept()
+        await websocket.send_text(
+            json.dumps({"type": "error", "code": exc.status_code, "detail": exc.detail})
+        )
+        await websocket.close(code=1008)
+        return
+
+    await _event_bus.connect(websocket)
+    try:
+        await websocket.send_text(
+            json.dumps({"type": "connected", "clients": _event_bus.client_count})
+        )
+        while True:
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+            except asyncio.TimeoutError:
+                await websocket.send_text(json.dumps({"type": "ping"}))
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        _event_bus.disconnect(websocket)
 
 
 # ── WebSocket /ws/stream ─────────────────────────────────────────────────────
