@@ -1527,6 +1527,40 @@ intentional and safe.
 
 ---
 
+### Corpus changes in `semantic.py` not taking effect after redeploy
+
+**Symptom:** updated seed corpus entries in `warden/brain/semantic.py` are
+ignored after `docker compose build` + restart. The old corpus entry still
+appears in `"detail"` fields of `/filter` responses.
+
+**Root cause:** the corpus is persisted to disk by the Evolution Engine at
+`CORPUS_SNAPSHOT_PATH` (default `/warden/data/corpus_snapshot.json` +
+`.npz`). On startup, this snapshot is loaded **instead of** the in-code
+`_JAILBREAK_CORPUS`, overwriting your changes.
+
+**Fix — Docker Compose (VPS):**
+```bash
+rm /opt/shadow-warden/data/corpus_snapshot.json \
+   /opt/shadow-warden/data/corpus_snapshot.npz
+docker compose up -d --force-recreate --no-deps warden
+```
+
+**Fix — Kubernetes:**
+```bash
+kubectl exec -n shadow-warden \
+  $(kubectl get pod -n shadow-warden -l app.kubernetes.io/component=warden -o name | head -1) \
+  -- rm -f /warden/data/corpus_snapshot.json /warden/data/corpus_snapshot.npz
+kubectl rollout restart deployment/shadow-warden-warden -n shadow-warden
+```
+
+> **Note:** deleting the snapshot discards any examples the Evolution Engine
+> accumulated at runtime. If `ANTHROPIC_API_KEY` is configured and the engine
+> has been running, export the snapshot first (`cp corpus_snapshot.* /backup/`)
+> before deleting, then manually review and merge good examples back into the
+> seed corpus in `semantic.py` to make them permanent.
+
+---
+
 ## 21. Air-Gapped / Offline Deployments
 
 Shadow Warden functions fully without external network access:
