@@ -739,25 +739,25 @@ def test_stream_assembled_content_passthrough(client) -> None:
 
 def test_resolve_upstream_gemini() -> None:
     from warden.openai_proxy import _resolve_upstream
-    url, _ = _resolve_upstream("gemini-2.0-flash")
+    url, _, _h = _resolve_upstream("gemini-2.0-flash")
     assert "generativelanguage.googleapis.com" in url
 
 
 def test_resolve_upstream_perplexity_sonar() -> None:
     from warden.openai_proxy import _resolve_upstream
-    url, _ = _resolve_upstream("sonar-pro")
+    url, _, _h = _resolve_upstream("sonar-pro")
     assert "perplexity.ai" in url
 
 
 def test_resolve_upstream_perplexity_llama() -> None:
     from warden.openai_proxy import _resolve_upstream
-    url, _ = _resolve_upstream("llama-3.1-70b-instruct")
+    url, _, _h = _resolve_upstream("llama-3.1-70b-instruct")
     assert "perplexity.ai" in url
 
 
 def test_resolve_upstream_openai_default() -> None:
     from warden.openai_proxy import _resolve_upstream
-    url, _ = _resolve_upstream("gpt-4o")
+    url, _, _h = _resolve_upstream("gpt-4o")
     assert "openai.com" in url or url  # falls through to _UPSTREAM
 
 
