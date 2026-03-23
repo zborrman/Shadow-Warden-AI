@@ -93,8 +93,9 @@ _PATTERNS: list[tuple[re.Pattern, InjectionType, float]] = [
     (re.compile(
         r"(?i)\b(act\s+as|pretend\s+(?:to\s+be|you\s+are)|simulate|impersonate|"
         r"role.?play\s+as)\b"
-        r".{0,80}\b(without\s+(?:restriction|limit|filter|safeguard|guardrail)|"
-        r"unrestricted|no\s+(?:rule|limit|filter)|jailbreak|DAN\b)",
+        r".{0,80}\b(without\s+(?:\w+\s+){0,3}(?:restriction|limit|filter|safeguard|guardrail)|"
+        r"unrestricted|no\s+(?:rule|limit|filter|guideline|safeguard|guardrail|restriction)|"
+        r"jailbreak|DAN\b)",
         re.DOTALL,
     ), InjectionType.PERSONA_SWITCH, 0.90),
     (re.compile(
@@ -114,7 +115,7 @@ _PATTERNS: list[tuple[re.Pattern, InjectionType, float]] = [
     ), InjectionType.EXFIL_TRIGGER, 0.90),
     (re.compile(
         r"(?i)\bwhat\s+(?:are|were|is|exactly\s+are)\s+your\s+"
-        r"(?:system\s+)?(?:instruction|prompt|directive|guideline|rule)\b",
+        r"(?:system\s+)?(?:instructions?|prompts?|directives?|guidelines?|rules?)\b",
     ), InjectionType.EXFIL_TRIGGER, 0.82),
     (re.compile(
         r"(?i)\b(summarize|list|describe)\b.{0,40}"
