@@ -421,22 +421,15 @@ form.addEventListener('submit', async function(e) {
       ? `Company: ${company}\n\n${message}`
       : message;
 
-    const res = await fetch('https://formsubmit.co/ajax/vz@shadow-warden-ai.com', {
+    const res = await fetch('/api/contact', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({
-        name,
-        email,
-        _subject: `[Shadow Warden] ${subject}`,
-        message:  fullMessage,
-        _captcha: 'false',
-        _template: 'table',
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, subject, message: fullMessage, company }),
     });
 
     const data = await res.json();
 
-    if (res.ok && data.success === 'true') {
+    if (res.ok && data.ok) {
       form.reset();
       submitBtn.innerHTML = `
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>

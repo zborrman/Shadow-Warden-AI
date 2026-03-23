@@ -143,6 +143,12 @@ services:
       # v0.9 — Cryptographic Audit Trail (SOC 2 Type II)
       - AUDIT_TRAIL_ENABLED=${AUDIT_TRAIL_ENABLED:-true}
       - AUDIT_TRAIL_PATH=/warden/data/audit_trail.db
+      # Contact form SMTP (set in .env to enable email delivery)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - CONTACT_TO_EMAIL=${CONTACT_TO_EMAIL:-vz@shadow-warden-ai.com}
       # Dashboard auth
       - DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
       - DASHBOARD_PASSWORD_HASH=${DASHBOARD_PASSWORD_HASH:-}
