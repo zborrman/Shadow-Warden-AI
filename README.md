@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 0.6.0 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 0.9.0 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
@@ -111,6 +111,11 @@ AZURE_OPENAI_API_VERSION=2024-05-01-preview
 AWS_ACCESS_KEY_ID=AKIA...
 AWS_SECRET_ACCESS_KEY=...
 AWS_REGION=us-east-1
+
+# Optional — enables Vertex AI routing (vertex/<model-name>)
+VERTEX_PROJECT_ID=my-gcp-project
+VERTEX_LOCATION=us-central1
+VERTEX_ACCESS_TOKEN=ya29...  # or use Application Default Credentials (google-auth)
 ```
 
 ### 3. Build and start
@@ -163,7 +168,8 @@ Shadow Warden proxies `/v1/chat/completions` with filter-before-forward. Provide
 |---|---|
 | `gpt-*`, `o1-*`, `o3-*` | OpenAI |
 | `azure/<deployment>` | Azure OpenAI Service |
-| `bedrock/<model-id>` | Amazon Bedrock (Converse API) |
+| `bedrock/<model-id>` | Amazon Bedrock (Converse / ConverseStream API) |
+| `vertex/<model-name>` | Google Cloud Vertex AI |
 | `gemini-*` | Google Gemini |
 | `sonar-*`, `llama-*`, `pplx-*`, `r1-*`, `mixtral` | Perplexity |
 
@@ -191,7 +197,33 @@ Supported Bedrock models (any model accessible to your IAM role):
 - `meta.llama3-8b-instruct-v1:0`, `meta.llama3-70b-instruct-v1:0`
 - `mistral.mistral-7b-instruct-v0:2`, `mistral.mixtral-8x7b-instruct-v0:1`
 
-**Streaming** (`"stream": true`) is fully supported for OpenAI/Azure/Gemini/Perplexity — Warden buffers the complete response, runs OutputGuard on the assembled content, then re-emits the original SSE chunks. Bedrock returns a synchronous response (streaming planned for v0.7).
+**Streaming** (`"stream": true`) is fully supported for all providers. For OpenAI/Azure/Gemini/Perplexity/Vertex, Warden buffers the SSE stream, runs OutputGuard on the assembled content, then re-emits chunks. For Bedrock, Warden decodes the binary AWS EventStream (ConverseStream API) and re-emits as SSE — identical downstream behaviour.
+
+### Vertex AI
+
+```bash
+# Set VERTEX_PROJECT_ID + VERTEX_LOCATION + VERTEX_ACCESS_TOKEN (or use ADC) in .env, then:
+curl -X POST http://localhost/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"vertex/gemini-1.5-flash-001","messages":[{"role":"user","content":"Hello!"}]}'
+```
+
+For production, install `google-auth` and configure Application Default Credentials instead of a static token:
+```bash
+pip install google-auth
+gcloud auth application-default login
+```
+
+### Embeddings
+
+```bash
+# /v1/embeddings — input is filtered through Warden before forwarding
+curl -X POST http://localhost/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"model":"text-embedding-3-small","input":"Hello world"}'
+```
+
+Supports the same provider routing as `/v1/chat/completions` (`azure/`, `vertex/`, or default upstream).
 
 ---
 
@@ -503,8 +535,11 @@ shadow-warden-ai/
 │   ├── auth_guard.py                  # Per-tenant API key auth (SHA-256)
 │   ├── cache.py                       # Redis content-hash cache
 │   ├── alerting.py                    # Slack + PagerDuty alerts
+│   ├── prompt_shield.py               # Indirect injection detector (LLM01/02 — 6 attack types)
+│   ├── audit_trail.py                 # SHA-256 hash-chain audit log (SOC 2 Type II)
 │   ├── providers/
-│   │   └── bedrock.py                 # Amazon Bedrock Converse API adapter + SigV4
+│   │   ├── bedrock.py                 # Amazon Bedrock Converse + ConverseStream adapter + SigV4
+│   │   └── vertex.py                  # Google Cloud Vertex AI adapter (OAuth2 / ADC)
 │   ├── masking/
 │   │   └── engine.py                  # Reversible PII masking (MASKING_MODE=auto)
 │   ├── brain/
@@ -527,6 +562,26 @@ shadow-warden-ai/
 ## Roadmap
 
 ### Shipped
+
+**v0.9 — Cryptographic Audit Trail (SOC 2 Type II)**
+- `AuditTrail` — SHA-256 hash-chain tamper-evident log (SQLite + WAL); each filter decision chains off the previous entry's hash
+- `GET /admin/audit/verify` — walk the entire chain and confirm integrity in O(N); returns `{"valid": true, "entries": N}`
+- `GET /admin/audit/export?start=&end=&limit=` — export entries for auditors, with inline `valid` field
+- GDPR-safe: risk_level / action / reason / flags only — content is never stored
+- SOC 2 controls: CC6.1 (logical access), CC6.7 (data protection), CC7.2 (security monitoring)
+- `AUDIT_TRAIL_ENABLED=true` (default); thread-safe; fail-open on any DB error
+
+**v0.8 — Prompt Shield (Indirect Injection Detection)**
+- `PromptShield` — dedicated OWASP LLM01/02 indirect injection detector with six labeled attack types: `role_override`, `hierarchy_inversion`, `persona_switch`, `exfil_trigger`, `chain_break`, `unicode_override`
+- Wired into `/v1/chat/completions` proxy — every tool result is scanned before it reaches the LLM (primary indirect injection surface)
+- `PROMPT_SHIELD_ENABLED=true` (default) / configurable block threshold
+- 12 high-precision regex patterns; fail-open (never raises)
+
+**v0.7 — Vertex AI + Bedrock Streaming + Embeddings Proxy**
+- Google Cloud Vertex AI provider — OpenAI-compatible endpoint, OAuth2/ADC auth, `vertex/<model>` routing
+- Amazon Bedrock streaming — binary AWS EventStream (ConverseStream API) decoded and re-emitted as SSE
+- `/v1/embeddings` proxy endpoint — Warden input filtering + Azure/Vertex/OpenAI routing
+- Unified streaming path — all providers (OpenAI, Azure, Gemini, Perplexity, Bedrock, Vertex) share the same OutputGuard + masking logic
 
 **v0.6 — Agentic Security + Multi-Cloud Providers**
 - ToolCallGuard — inspect tool calls and results in agentic pipelines
@@ -568,11 +623,10 @@ shadow-warden-ai/
 ### Planned
 
 - [ ] Kubernetes Helm chart (EKS / GKE)
-- [ ] Bedrock streaming (ConverseStream API)
-- [ ] SOC 2 Type II audit controls
 - [ ] Browser extension — real-time protection for ChatGPT, Claude.ai, Copilot
 - [ ] Threat intelligence sharing (STIX/TAXII feed export)
-- [ ] Vertex AI (Google Cloud) native adapter
+- [ ] Vertex AI multimodal (image/video content blocks)
+- [ ] SOC 2 Type II certification audit (controls now in codebase via v0.9)
 
 ---
 

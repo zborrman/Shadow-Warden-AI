@@ -55,6 +55,7 @@ jobs:
           DYNAMIC_RULES_PATH: "/tmp/dynamic_rules.json"
           REDIS_URL: "memory://"         # in-memory rate limiter; no Redis service needed
           MODEL_CACHE_DIR: "/tmp/warden-model-cache"   # default /warden/models is Docker-only
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail.db"      # default /warden/data is Docker-only
 
       # Full non-adversarial suite (includes slow/integration tests) for coverage gate.
       # Runs after the fast unit step so failures are already surfaced above.
@@ -68,6 +69,7 @@ jobs:
           DYNAMIC_RULES_PATH: "/tmp/coverage_rules.json"
           REDIS_URL: "memory://"
           MODEL_CACHE_DIR: "/tmp/warden-model-cache"   # shared with unit test step (model already downloaded)
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_cov.db"
 
       - name: Run adversarial corpus tests
         run: pytest warden/tests/ -v --tb=short -m "adversarial" || true
@@ -77,6 +79,7 @@ jobs:
           SEMANTIC_THRESHOLD: "0.72"
           LOGS_PATH: "/tmp/test_logs.json"
           MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_adv.db"
 
       # ── Mutation testing (informational) ──────────────────────────────────
       # Targets: secret_redactor + semantic_guard — the two core safety modules.

@@ -9,13 +9,14 @@ keep your existing OpenAI client code — no SDK changes needed.
 Pipeline:
   POST /v1/chat/completions
       → [A] inspect role=tool messages for prompt injection / secret exfil
+             PromptShield scans tool results for indirect injection (LLM01/02)
       → extract last user message
       → POST /filter  (Warden pipeline — redaction + threat analysis)
       → if blocked: HTTP 403
       → replace message content with redacted version
       → forward to real OpenAI (or any OpenAI-compatible upstream)
       → [B] inspect tool_calls in upstream response before returning
-      → return upstream response (or HTTP 400 if tool_call blocked)
+      → return upstream response (or HTTP 400 if tool_call/injection blocked)
 
 Environment variables:
   OPENAI_UPSTREAM      Upstream base URL (default: https://api.openai.com)
@@ -27,7 +28,8 @@ Environment variables:
 
 Provider auto-routing (based on model name):
   azure/<deployment>        → AZURE_OPENAI_ENDPOINT  (Azure OpenAI Service)
-  bedrock/<model-id>        → AWS Bedrock Converse API  (SigV4-signed, no streaming)
+  bedrock/<model-id>        → AWS Bedrock Converse / ConverseStream API  (SigV4-signed)
+  vertex/<model-name>       → Google Cloud Vertex AI  (OpenAI-compat endpoint, OAuth2)
   gemini-*                  → https://generativelanguage.googleapis.com/v1beta/openai
   sonar-* / llama-* / pplx  → https://api.perplexity.ai
   everything else           → OPENAI_UPSTREAM (default: https://api.openai.com)
@@ -50,6 +52,7 @@ from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import OUTPUT_GUARD_BLOCKS, OUTPUT_GUARD_SANITIZATIONS, TOOL_BLOCKS
 from warden.notification_hook import get_notification_hook
 from warden.output_guard import get_output_guard
+from warden.prompt_shield import scan as _shield_scan
 from warden.tool_guard import ToolCallGuard
 from warden.wallet_shield import estimate_tokens, get_wallet_shield
 
@@ -79,6 +82,13 @@ _BEDROCK_REGION     = os.getenv("AWS_REGION",            "us-east-1")
 _BEDROCK_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID",     "")
 _BEDROCK_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 
+# ── Google Cloud Vertex AI ─────────────────────────────────────────────────────
+# Model name format: "vertex/<model-name>"
+# e.g. "vertex/gemini-1.5-flash-001"  "vertex/mistral-nemo@2407"
+# Requires: VERTEX_PROJECT_ID + (VERTEX_ACCESS_TOKEN or google-auth ADC)
+_VERTEX_PROJECT  = os.getenv("VERTEX_PROJECT_ID", "")
+_VERTEX_LOCATION = os.getenv("VERTEX_LOCATION",   "us-central1")
+
 
 def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
     """Return (completions_url, bearer_key, extra_headers) for the requested model.
@@ -104,8 +114,8 @@ def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
     if any(m.startswith(p) for p in ("sonar", "llama-", "r1-", "pplx", "mixtral")):
         return f"{_PERPLEXITY_UPSTREAM}/chat/completions", _PERPLEXITY_API_KEY, {}
 
-    # Bedrock is handled separately — return sentinel
-    if m.startswith("bedrock/"):
+    # Bedrock and Vertex AI are handled via separate async code paths — return sentinel
+    if m.startswith("bedrock/") or m.startswith("vertex/"):
         return "", "", {}
 
     return f"{_UPSTREAM}/chat/completions", "", {}
@@ -113,8 +123,9 @@ def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
 # MASKING_MODE=off   — standard redact-only behaviour (default)
 _MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
 
-_WALLET_ENABLED       = os.getenv("WALLET_ENABLED",        "true").lower() == "true"
-_OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARDRAILS_ENABLED", "true").lower() == "true"
+_WALLET_ENABLED        = os.getenv("WALLET_ENABLED",             "true").lower() == "true"
+_OUTPUT_GUARD_ENABLED  = os.getenv("OUTPUT_GUARDRAILS_ENABLED", "true").lower() == "true"
+_PROMPT_SHIELD_ENABLED = os.getenv("PROMPT_SHIELD_ENABLED",     "true").lower() == "true"
 
 # Module-level singleton — no state, safe to share
 _tool_guard = ToolCallGuard()
@@ -215,6 +226,29 @@ async def proxy_chat(
                     "threats": [t.kind for t in result.threats],
                 },
             )
+
+        # ── PromptShield: indirect injection in tool results ──────────────
+        if _PROMPT_SHIELD_ENABLED:
+            _shield_result = _shield_scan(content, source_hint=f"tool:{tool_name}")
+            if _shield_result.blocked:
+                log.warning(
+                    "prompt_shield_blocked_tool_result tool=%r "
+                    "injection_type=%r confidence=%.2f tool_call_id=%r",
+                    tool_name,
+                    _shield_result.injection_type,
+                    _shield_result.confidence,
+                    tool_call_id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "error":          "indirect_injection_blocked",
+                        "tool_name":      tool_name,
+                        "tool_call_id":   tool_call_id,
+                        "injection_type": _shield_result.injection_type,
+                        "confidence":     round(_shield_result.confidence, 3),
+                    },
+                )
 
     # Record clean tool results for session monitoring
     if session_id and _agent_monitor is not None:
@@ -327,19 +361,42 @@ async def proxy_chat(
         if auth_header:
             _req_headers["Authorization"] = auth_header
 
-    # ── Streaming path (Bedrock uses non-streaming Converse API) ──────────────
-    if payload_out.get("stream") and not model.lower().startswith("bedrock/"):
+    # ── Vertex AI: acquire OAuth2 token + resolve URL async ───────────────
+    if model.lower().startswith("vertex/"):
+        from warden.providers.vertex import resolve_vertex
+        _completions_url, _vertex_extra, _vertex_model = await resolve_vertex(model)
+        _req_headers = {"Content-Type": "application/json", **_vertex_extra}
+        payload_out = {**payload_out, "model": _vertex_model}
+
+    # ── Streaming path ────────────────────────────────────────────────────────
+    if payload_out.get("stream"):
         async def _stream_gen() -> AsyncGenerator[bytes, None]:
             try:
-                async with httpx.AsyncClient(timeout=120.0) as _sc, _sc.stream(
-                    "POST",
-                    _completions_url,
-                    json=payload_out,
-                    headers=_req_headers,
-                ) as up:
-                        # ── Collect all SSE chunks from upstream ──────────
-                        _chunks: list[dict] = []
-                        _parts:  list[str]  = []
+                _chunks: list[dict] = []
+                _parts:  list[str]  = []
+
+                if model.lower().startswith("bedrock/"):
+                    # ── Collect from Bedrock ConverseStream ───────────────
+                    from warden.providers.bedrock import stream_bedrock
+                    async for _chunk in stream_bedrock(
+                        payload_out,
+                        region=_BEDROCK_REGION,
+                        access_key=_BEDROCK_ACCESS_KEY,
+                        secret_key=_BEDROCK_SECRET_KEY,
+                    ):
+                        _chunks.append(_chunk)
+                        for _ch in _chunk.get("choices") or []:
+                            _d = _ch.get("delta") or {}
+                            if isinstance(_d.get("content"), str):
+                                _parts.append(_d["content"])
+                else:
+                    # ── Collect from OpenAI-compatible SSE stream ─────────
+                    async with httpx.AsyncClient(timeout=120.0) as _sc, _sc.stream(
+                        "POST",
+                        _completions_url,
+                        json=payload_out,
+                        headers=_req_headers,
+                    ) as up:
                         async for _line in up.aiter_lines():
                             if not _line.startswith("data: "):
                                 continue
@@ -612,3 +669,79 @@ async def list_models(
     except Exception as exc:
         log.error("Upstream /models call failed: %s", exc)
         raise HTTPException(status_code=502, detail="Upstream unavailable.") from exc
+
+
+@router.post("/embeddings")
+async def proxy_embeddings(
+    payload: dict,
+    request: Request,
+    auth: AuthResult = Depends(require_api_key),
+):
+    """
+    OpenAI /v1/embeddings proxy with Warden input filtering.
+
+    Supported providers (via model name prefix):
+      vertex/<model>   → Vertex AI embeddings endpoint
+      azure/<deployment> → Azure OpenAI embeddings endpoint
+      everything else  → OPENAI_UPSTREAM /v1/embeddings
+    """
+    inp = payload.get("input", "")
+    texts: list[str] = [inp] if isinstance(inp, str) else [str(t) for t in (inp or [])]
+
+    # ── Filter every input text through Warden ────────────────────────────
+    for text in texts:
+        if not text:
+            continue
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                filter_resp = await client.post(
+                    f"{_FILTER_URL}/filter",
+                    json={"content": text},
+                    headers={"X-API-Key": auth.api_key} if auth.api_key else {},
+                )
+            filter_data = filter_resp.json()
+        except Exception as exc:
+            log.error("Warden /filter call failed (embeddings): %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Warden filter service unavailable.",
+            ) from exc
+        if not filter_data.get("allowed", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Blocked by Warden: {filter_data.get('reason', 'policy violation')}",
+            )
+
+    # ── Determine embeddings URL + auth headers ───────────────────────────
+    model = payload.get("model", "")
+    _emb_headers: dict[str, str] = {"Content-Type": "application/json"}
+    _emb_url: str
+
+    if model.lower().startswith("vertex/"):
+        from warden.providers.vertex import build_embeddings_url, get_access_token
+        _emb_url = build_embeddings_url()
+        _emb_headers["Authorization"] = f"Bearer {await get_access_token()}"
+    elif model.lower().startswith("azure/"):
+        deployment = model[6:]
+        _emb_url = (
+            f"{_AZURE_ENDPOINT}/openai/deployments/{deployment}"
+            f"/embeddings?api-version={_AZURE_API_VERSION}"
+        )
+        _emb_headers["api-key"] = _AZURE_API_KEY
+    else:
+        _emb_url = f"{_UPSTREAM}/v1/embeddings"
+        _auth_hdr = request.headers.get("Authorization", "")
+        if _auth_hdr:
+            _emb_headers["Authorization"] = _auth_hdr
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(_emb_url, json=payload, headers=_emb_headers)
+            resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        log.error("Embeddings upstream call failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Embeddings upstream unavailable.",
+        ) from exc

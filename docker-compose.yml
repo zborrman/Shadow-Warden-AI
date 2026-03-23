@@ -128,6 +128,23 @@ services:
       - WARDEN_FILTER_URL=http://warden:8001
       - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
       - LLM_API_KEY=${LLM_API_KEY:-}
+      # v0.7 — Azure OpenAI
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-05-01-preview}
+      # v0.7 — Amazon Bedrock
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      # v0.7 — Google Vertex AI
+      - VERTEX_PROJECT_ID=${VERTEX_PROJECT_ID:-}
+      - VERTEX_LOCATION=${VERTEX_LOCATION:-us-central1}
+      - VERTEX_ACCESS_TOKEN=${VERTEX_ACCESS_TOKEN:-}
+      # v0.8 — Prompt Shield (indirect injection detection)
+      - PROMPT_SHIELD_ENABLED=${PROMPT_SHIELD_ENABLED:-true}
+      # v0.9 — Cryptographic Audit Trail (SOC 2 Type II)
+      - AUDIT_TRAIL_ENABLED=${AUDIT_TRAIL_ENABLED:-true}
+      - AUDIT_TRAIL_PATH=/warden/data/audit_trail.db
       # Dashboard auth
       - DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
       - DASHBOARD_PASSWORD_HASH=${DASHBOARD_PASSWORD_HASH:-}

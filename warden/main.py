@@ -291,6 +291,7 @@ _feed:           ThreatFeedClient  | None = None
 _saml:           SAMLProvider      | None = None
 _webhook_store:  WebhookStore      | None = None
 _poison_guard:   DataPoisoningGuard | None = None  # type: ignore[assignment]
+_audit_trail:    "AuditTrail | None"       = None  # type: ignore[name-defined]
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -585,6 +586,15 @@ async def lifespan(app: FastAPI):
         setup_telemetry(app)
     except Exception as _otel_err:
         log.warning("OpenTelemetry init failed: %s", _otel_err)
+
+    # ── Cryptographic audit trail (SOC 2) ──────────────────────────────
+    global _audit_trail
+    try:
+        from warden.audit_trail import AuditTrail  # noqa: PLC0415
+        _audit_trail = AuditTrail()
+        log.info("AuditTrail online (SOC 2 tamper-evident chain).")
+    except Exception as _audit_err:
+        log.warning("AuditTrail init failed (non-fatal): %s", _audit_err)
 
     yield
 
@@ -1397,6 +1407,19 @@ async def _run_filter_pipeline(
     except Exception:
         log.exception(json.dumps({"event": "analytics_error", "request_id": rid}))
 
+    # ── Audit Trail: tamper-evident chain entry ────────────────────────
+    if _audit_trail is not None:
+        with suppress(Exception):
+            _audit_trail.record(
+                request_id    = rid,
+                tenant_id     = tenant_id,
+                risk_level    = guard_result.risk_level.value,
+                action        = "allowed" if allowed else "blocked",
+                reason        = reason,
+                flags         = [f.flag.value for f in guard_result.flags],
+                processing_ms = timings.get("total", 0.0),
+            )
+
     # ── SIEM integration ──────────────────────────────────────────────
     if background_tasks is not None:
         try:
@@ -1808,6 +1831,68 @@ async def admin_retire_rule(rule_id: str):
         "rule_id": rule_id,
         "status":  "retired",
         "message": f"Rule {rule_id!r} retired and removed from live filter.",
+    }
+
+
+# ── Audit Trail endpoints (SOC 2) ─────────────────────────────────────────────
+
+
+@app.get(
+    "/admin/audit/verify",
+    tags=["admin"],
+    summary="Verify cryptographic integrity of the audit chain",
+    dependencies=[Depends(require_api_key)],
+)
+async def audit_verify():
+    """
+    Walk every entry in the audit chain and recompute each SHA-256 hash.
+
+    Returns ``{"valid": true, "entries": N}`` when the chain is intact.
+    Returns ``{"valid": false, "broken_at_seq": N}`` if tampering is detected.
+    Complexity: O(N) — runs synchronously; suitable for periodic health checks.
+    """
+    if _audit_trail is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AuditTrail not initialised.",
+        )
+    valid, count = _audit_trail.verify_chain()
+    if valid:
+        return {"valid": True, "entries": count}
+    return {"valid": False, "broken_at_seq": count}
+
+
+@app.get(
+    "/admin/audit/export",
+    tags=["admin"],
+    summary="Export audit chain entries for SOC 2 auditors",
+    dependencies=[Depends(require_api_key)],
+)
+async def audit_export(
+    start: str | None = None,
+    end:   str | None = None,
+    limit: int        = 10_000,
+):
+    """
+    Export audit entries in ISO-8601 UTC range ``[start, end]``.
+
+    Both *start* and *end* are inclusive recorded_at timestamps.
+    Omit both to export the full chain (up to *limit*).
+
+    Also verifies chain integrity and includes ``"valid"`` in the response
+    so auditors can confirm the export has not been tampered with.
+    """
+    if _audit_trail is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AuditTrail not initialised.",
+        )
+    entries     = _audit_trail.export_range(start=start, end=end, limit=limit)
+    valid, _cnt = _audit_trail.verify_chain()
+    return {
+        "valid":   valid,
+        "count":   len(entries),
+        "entries": entries,
     }
 
 

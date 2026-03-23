@@ -1,26 +1,55 @@
 """
-Tests for warden/providers/bedrock.py and openai_proxy Azure routing.
+Tests for warden/providers/bedrock.py, warden/providers/vertex.py, and openai_proxy routing.
 
 Covers:
-  • oai_to_converse   — payload conversion (OpenAI → Bedrock Converse)
-  • converse_to_oai   — response conversion (Bedrock → OpenAI)
-  • _sigv4_headers    — AWS SigV4 header generation (structure, not crypto correctness)
-  • call_bedrock      — end-to-end with mocked httpx
-  • _resolve_upstream — Azure URL building + api-key header; Bedrock sentinel
+  • oai_to_converse      — payload conversion (OpenAI → Bedrock Converse)
+  • converse_to_oai      — response conversion (Bedrock → OpenAI)
+  • _sigv4_headers       — AWS SigV4 header generation (structure, not crypto correctness)
+  • call_bedrock         — end-to-end with mocked httpx
+  • _parse_event_frame   — AWS EventStream binary frame parser
+  • stream_bedrock       — ConverseStream with mocked httpx
+  • build_completions_url / build_embeddings_url — Vertex AI URL builders
+  • get_access_token     — static token path
+  • resolve_vertex       — full Vertex AI resolution
+  • _resolve_upstream    — Azure, Bedrock, Vertex sentinels; Gemini; Perplexity
 """
 from __future__ import annotations
 
 import json
+import struct
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from warden.providers.bedrock import (
+    _parse_event_frame,
     _sigv4_headers,
     call_bedrock,
     converse_to_oai,
     oai_to_converse,
+    stream_bedrock,
 )
+
+
+# ── EventStream frame builder (test utility) ──────────────────────────────────
+
+def _build_event_frame(event_type: str, payload: dict) -> bytes:
+    """Construct a minimal AWS EventStream frame for testing."""
+    name_b = b":event-type"
+    val_b  = event_type.encode()
+    headers = (
+        bytes([len(name_b)])
+        + name_b
+        + bytes([7])                      # type = string
+        + struct.pack(">H", len(val_b))
+        + val_b
+    )
+    payload_b = json.dumps(payload).encode()
+    total_len = 12 + len(headers) + len(payload_b) + 4
+    prelude   = struct.pack(">II", total_len, len(headers))
+    prelude_crc   = struct.pack(">I", 0)
+    message_crc   = struct.pack(">I", 0)
+    return prelude + prelude_crc + headers + payload_b + message_crc
 
 # ── oai_to_converse ────────────────────────────────────────────────────────────
 
@@ -444,3 +473,257 @@ class TestAzureRouting:
 
         url, _, _ = _resolve_upstream("r1-1776")
         assert "perplexity.ai" in url
+
+    def test_vertex_returns_empty_sentinel(self):
+        from warden.openai_proxy import _resolve_upstream
+
+        url, key, extra = _resolve_upstream("vertex/gemini-1.5-flash-001")
+        assert url == ""
+        assert key == ""
+        assert extra == {}
+
+
+# ── _parse_event_frame ─────────────────────────────────────────────────────────
+
+class TestParseEventFrame:
+    def test_incomplete_frame_returns_none(self):
+        # Only 8 bytes — less than minimum 12-byte prelude
+        assert _parse_event_frame(b"\x00" * 8) is None
+
+    def test_partial_frame_returns_none(self):
+        # Build a real frame but only give half of it
+        frame = _build_event_frame("contentBlockDelta", {"delta": {"text": "Hi"}})
+        assert _parse_event_frame(frame[: len(frame) // 2]) is None
+
+    def test_complete_frame_returns_event_and_consumed(self):
+        payload = {"delta": {"text": "Hello"}}
+        frame = _build_event_frame("contentBlockDelta", payload)
+        result = _parse_event_frame(frame)
+        assert result is not None
+        event, consumed = result
+        assert consumed == len(frame)
+        assert event["type"] == "contentBlockDelta"
+        assert event["data"] == payload
+
+    def test_message_stop_frame(self):
+        payload = {"stopReason": "end_turn"}
+        frame = _build_event_frame("messageStop", payload)
+        event, _ = _parse_event_frame(frame)
+        assert event["type"] == "messageStop"
+        assert event["data"]["stopReason"] == "end_turn"
+
+    def test_consumed_length_equals_frame_length(self):
+        frame1 = _build_event_frame("contentBlockDelta", {"delta": {"text": "A"}})
+        frame2 = _build_event_frame("messageStop", {"stopReason": "end_turn"})
+        buf = frame1 + frame2
+
+        event1, c1 = _parse_event_frame(buf)
+        assert c1 == len(frame1)
+
+        event2, c2 = _parse_event_frame(buf[c1:])
+        assert event2["type"] == "messageStop"
+        assert c2 == len(frame2)
+
+    def test_empty_payload_frame(self):
+        # contentBlockStart or similar with no JSON body still parses
+        frame = _build_event_frame("contentBlockStart", {})
+        event, consumed = _parse_event_frame(frame)
+        assert event["type"] == "contentBlockStart"
+        assert event["data"] == {}
+
+
+# ── stream_bedrock ─────────────────────────────────────────────────────────────
+
+class TestStreamBedrock:
+    def _make_streaming_mock(self, *event_payloads: tuple[str, dict]):
+        """Build an httpx streaming context-manager mock yielding EventStream frames."""
+        frames = b"".join(
+            _build_event_frame(etype, edata) for etype, edata in event_payloads
+        )
+
+        async def _aiter_bytes():
+            yield frames
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.aiter_bytes = _aiter_bytes
+        mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+        mock_resp.__aexit__ = AsyncMock(return_value=False)
+
+        mock_client = MagicMock()
+        mock_client.stream = MagicMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        return mock_client
+
+    @pytest.mark.asyncio
+    async def test_yields_text_chunks(self):
+        mock_client = self._make_streaming_mock(
+            ("contentBlockDelta", {"delta": {"text": "Hello"}}),
+            ("contentBlockDelta", {"delta": {"text": " world"}}),
+            ("messageStop",       {"stopReason": "end_turn"}),
+        )
+        with patch("warden.providers.bedrock.httpx.AsyncClient", return_value=mock_client):
+            chunks = [c async for c in stream_bedrock(
+                {"model": "bedrock/amazon.nova-lite-v1:0",
+                 "messages": [{"role": "user", "content": "Hi"}]},
+                region="us-east-1", access_key="K", secret_key="S",
+            )]
+
+        text_chunks = [c for c in chunks if c["choices"][0]["delta"].get("content")]
+        assert len(text_chunks) == 2
+        contents = [c["choices"][0]["delta"]["content"] for c in text_chunks]
+        assert contents == ["Hello", " world"]
+
+    @pytest.mark.asyncio
+    async def test_final_chunk_has_finish_reason(self):
+        mock_client = self._make_streaming_mock(
+            ("contentBlockDelta", {"delta": {"text": "Hi"}}),
+            ("messageStop",       {"stopReason": "end_turn"}),
+        )
+        with patch("warden.providers.bedrock.httpx.AsyncClient", return_value=mock_client):
+            chunks = [c async for c in stream_bedrock(
+                {"model": "bedrock/amazon.nova-lite-v1:0",
+                 "messages": [{"role": "user", "content": "Hi"}]},
+                region="us-east-1", access_key="K", secret_key="S",
+            )]
+
+        stop_chunks = [c for c in chunks if c["choices"][0].get("finish_reason")]
+        assert len(stop_chunks) == 1
+        assert stop_chunks[0]["choices"][0]["finish_reason"] == "stop"
+
+    @pytest.mark.asyncio
+    async def test_max_tokens_stop_reason(self):
+        mock_client = self._make_streaming_mock(
+            ("messageStop", {"stopReason": "max_tokens"}),
+        )
+        with patch("warden.providers.bedrock.httpx.AsyncClient", return_value=mock_client):
+            chunks = [c async for c in stream_bedrock(
+                {"model": "bedrock/amazon.nova-lite-v1:0",
+                 "messages": [{"role": "user", "content": "Hi"}]},
+                region="us-east-1", access_key="K", secret_key="S",
+            )]
+
+        assert chunks[0]["choices"][0]["finish_reason"] == "max_tokens"
+
+    @pytest.mark.asyncio
+    async def test_chunk_shape(self):
+        mock_client = self._make_streaming_mock(
+            ("contentBlockDelta", {"delta": {"text": "X"}}),
+        )
+        with patch("warden.providers.bedrock.httpx.AsyncClient", return_value=mock_client):
+            chunks = [c async for c in stream_bedrock(
+                {"model": "bedrock/amazon.nova-lite-v1:0",
+                 "messages": [{"role": "user", "content": "Hi"}]},
+                region="us-east-1", access_key="K", secret_key="S",
+            )]
+
+        c = chunks[0]
+        assert c["object"] == "chat.completion.chunk"
+        assert c["id"].startswith("chatcmpl-bedrock-")
+        assert c["model"] == "bedrock/amazon.nova-lite-v1:0"
+
+    @pytest.mark.asyncio
+    async def test_uses_converse_stream_url(self):
+        mock_client = self._make_streaming_mock(
+            ("messageStop", {"stopReason": "end_turn"}),
+        )
+        with patch("warden.providers.bedrock.httpx.AsyncClient", return_value=mock_client):
+            _ = [c async for c in stream_bedrock(
+                {"model": "bedrock/anthropic.claude-3-haiku-20240307-v1:0",
+                 "messages": [{"role": "user", "content": "Hi"}]},
+                region="ap-southeast-1", access_key="K", secret_key="S",
+            )]
+
+        call_args = mock_client.stream.call_args
+        url = call_args[0][1]
+        assert "bedrock-runtime.ap-southeast-1.amazonaws.com" in url
+        assert url.endswith("/converse-stream")
+
+
+# ── Vertex AI provider ─────────────────────────────────────────────────────────
+
+class TestVertexUrlBuilders:
+    def test_completions_url_structure(self):
+        from warden.providers.vertex import build_completions_url
+
+        url = build_completions_url(project="my-proj", location="us-central1")
+        assert "us-central1-aiplatform.googleapis.com" in url
+        assert "my-proj" in url
+        assert url.endswith("/chat/completions")
+
+    def test_embeddings_url_structure(self):
+        from warden.providers.vertex import build_embeddings_url
+
+        url = build_embeddings_url(project="my-proj", location="europe-west4")
+        assert "europe-west4-aiplatform.googleapis.com" in url
+        assert "my-proj" in url
+        assert url.endswith("/embeddings")
+
+    def test_missing_project_raises(self):
+        from warden.providers.vertex import build_completions_url
+
+        with patch("warden.providers.vertex._PROJECT", ""):
+            with pytest.raises(RuntimeError, match="VERTEX_PROJECT_ID"):
+                build_completions_url(project="", location="us-central1")
+
+    def test_location_in_both_url_slots(self):
+        """Vertex URL has location in subdomain AND path."""
+        from warden.providers.vertex import build_completions_url
+
+        url = build_completions_url(project="p", location="us-west4")
+        # Appears in subdomain and in /locations/<loc>/
+        assert url.count("us-west4") == 2
+
+
+class TestGetAccessToken:
+    @pytest.mark.asyncio
+    async def test_static_token_env_var(self):
+        from warden.providers.vertex import get_access_token
+
+        with patch.dict("os.environ", {"VERTEX_ACCESS_TOKEN": "my-static-token"}):
+            token = await get_access_token()
+        assert token == "my-static-token"
+
+    @pytest.mark.asyncio
+    async def test_missing_credentials_raises(self):
+        from warden.providers.vertex import get_access_token
+
+        # No static token, no google-auth installed in test env
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("warden.providers.vertex.os.getenv", return_value=""),
+        ):
+            with pytest.raises(RuntimeError):
+                await get_access_token()
+
+
+class TestResolveVertex:
+    @pytest.mark.asyncio
+    async def test_returns_url_headers_model_id(self):
+        from warden.providers.vertex import resolve_vertex
+
+        with (
+            patch("warden.providers.vertex._PROJECT",  "test-proj"),
+            patch("warden.providers.vertex._LOCATION", "us-central1"),
+            patch("warden.providers.vertex.get_access_token", AsyncMock(return_value="tok")),
+        ):
+            url, headers, model_id = await resolve_vertex("vertex/gemini-1.5-flash-001")
+
+        assert "test-proj" in url
+        assert url.endswith("/chat/completions")
+        assert headers == {"Authorization": "Bearer tok"}
+        assert model_id == "gemini-1.5-flash-001"
+
+    @pytest.mark.asyncio
+    async def test_strips_vertex_prefix(self):
+        from warden.providers.vertex import resolve_vertex
+
+        with (
+            patch("warden.providers.vertex._PROJECT",  "p"),
+            patch("warden.providers.vertex._LOCATION", "us-central1"),
+            patch("warden.providers.vertex.get_access_token", AsyncMock(return_value="t")),
+        ):
+            _, _, model_id = await resolve_vertex("vertex/mistral-nemo@2407")
+
+        assert model_id == "mistral-nemo@2407"
