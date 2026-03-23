@@ -26,6 +26,8 @@ Environment variables:
                        (default: http://localhost:8001 — works inside Docker)
 
 Provider auto-routing (based on model name):
+  azure/<deployment>        → AZURE_OPENAI_ENDPOINT  (Azure OpenAI Service)
+  bedrock/<model-id>        → AWS Bedrock Converse API  (SigV4-signed, no streaming)
   gemini-*                  → https://generativelanguage.googleapis.com/v1beta/openai
   sonar-* / llama-* / pplx  → https://api.perplexity.ai
   everything else           → OPENAI_UPSTREAM (default: https://api.openai.com)
@@ -63,15 +65,50 @@ _GEMINI_UPSTREAM     = "https://generativelanguage.googleapis.com/v1beta/openai"
 _PERPLEXITY_API_KEY  = os.getenv("PERPLEXITY_API_KEY", "")
 _GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY", "")
 
+# ── Azure OpenAI ─────────────────────────────────────────────────────────────
+# AZURE_OPENAI_ENDPOINT  e.g. https://my-resource.openai.azure.com
+# Model name format: "azure/<deployment-name>"
+_AZURE_ENDPOINT    = os.getenv("AZURE_OPENAI_ENDPOINT",    "").rstrip("/")
+_AZURE_API_KEY     = os.getenv("AZURE_OPENAI_API_KEY",     "")
+_AZURE_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-05-01-preview")
 
-def _resolve_upstream(model: str) -> tuple[str, str]:
-    """Return (base_url, provider_api_key) for the requested model."""
+# ── Amazon Bedrock ────────────────────────────────────────────────────────────
+# Model name format: "bedrock/<model-id>"
+# e.g. "bedrock/amazon.nova-lite-v1:0"  "bedrock/anthropic.claude-3-haiku-20240307-v1:0"
+_BEDROCK_REGION     = os.getenv("AWS_REGION",            "us-east-1")
+_BEDROCK_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID",     "")
+_BEDROCK_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+
+
+def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
+    """Return (completions_url, bearer_key, extra_headers) for the requested model.
+
+    ``completions_url`` is the full POST target URL (empty string for Bedrock,
+    which is handled via a separate code path).
+    ``extra_headers`` carries provider-specific auth (e.g. Azure's ``api-key``);
+    when non-empty the ``Authorization`` header is omitted from the request.
+    """
     m = model.lower()
+
+    # Azure OpenAI — model format: "azure/<deployment-name>"
+    if m.startswith("azure/"):
+        deployment = model[6:]   # strip "azure/" prefix
+        url = (
+            f"{_AZURE_ENDPOINT}/openai/deployments/{deployment}"
+            f"/chat/completions?api-version={_AZURE_API_VERSION}"
+        )
+        return url, "", {"api-key": _AZURE_API_KEY}
+
     if m.startswith("gemini"):
-        return _GEMINI_UPSTREAM, _GEMINI_API_KEY
+        return f"{_GEMINI_UPSTREAM}/chat/completions", _GEMINI_API_KEY, {}
     if any(m.startswith(p) for p in ("sonar", "llama-", "r1-", "pplx", "mixtral")):
-        return _PERPLEXITY_UPSTREAM, _PERPLEXITY_API_KEY
-    return _UPSTREAM, ""
+        return f"{_PERPLEXITY_UPSTREAM}/chat/completions", _PERPLEXITY_API_KEY, {}
+
+    # Bedrock is handled separately — return sentinel
+    if m.startswith("bedrock/"):
+        return "", "", {}
+
+    return f"{_UPSTREAM}/chat/completions", "", {}
 # MASKING_MODE=auto  — transparently mask PII in user messages, unmask LLM responses
 # MASKING_MODE=off   — standard redact-only behaviour (default)
 _MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
@@ -278,19 +315,25 @@ async def proxy_chat(
 
     # ── Resolve upstream once (used by both streaming + non-streaming) ────
     model = payload.get("model", "")
-    _upstream_url, _provider_key = _resolve_upstream(model)
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header and _provider_key:
-        auth_header = f"Bearer {_provider_key}"
-    _req_headers = {"Authorization": auth_header, "Content-Type": "application/json"}
+    _completions_url, _provider_key, _extra_headers = _resolve_upstream(model)
+    _req_headers: dict[str, str] = {"Content-Type": "application/json"}
+    if _extra_headers:
+        # Provider uses non-Bearer auth (e.g. Azure api-key header)
+        _req_headers.update(_extra_headers)
+    else:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header and _provider_key:
+            auth_header = f"Bearer {_provider_key}"
+        if auth_header:
+            _req_headers["Authorization"] = auth_header
 
-    # ── Streaming path ─────────────────────────────────────────────────────
-    if payload_out.get("stream"):
+    # ── Streaming path (Bedrock uses non-streaming Converse API) ──────────────
+    if payload_out.get("stream") and not model.lower().startswith("bedrock/"):
         async def _stream_gen() -> AsyncGenerator[bytes, None]:
             try:
                 async with httpx.AsyncClient(timeout=120.0) as _sc, _sc.stream(
                     "POST",
-                    f"{_upstream_url}/chat/completions",
+                    _completions_url,
                     json=payload_out,
                     headers=_req_headers,
                 ) as up:
@@ -401,20 +444,36 @@ async def proxy_chat(
         )
 
     # ── Non-streaming path ─────────────────────────────────────────────────
-    try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            upstream_resp = await client.post(
-                f"{_upstream_url}/chat/completions",
-                json=payload_out,
-                headers=_req_headers,
+    if model.lower().startswith("bedrock/"):
+        from warden.providers.bedrock import call_bedrock
+        try:
+            upstream_data = await call_bedrock(
+                payload_out,
+                region=_BEDROCK_REGION,
+                access_key=_BEDROCK_ACCESS_KEY,
+                secret_key=_BEDROCK_SECRET_KEY,
             )
-        upstream_data = upstream_resp.json()
-    except Exception as exc:
-        log.error("Upstream OpenAI call failed: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Upstream model service unavailable.",
-        ) from exc
+        except Exception as exc:
+            log.error("Bedrock call failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Amazon Bedrock service unavailable.",
+            ) from exc
+    else:
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                upstream_resp = await client.post(
+                    _completions_url,
+                    json=payload_out,
+                    headers=_req_headers,
+                )
+            upstream_data = upstream_resp.json()
+        except Exception as exc:
+            log.error("Upstream OpenAI call failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Upstream model service unavailable.",
+            ) from exc
 
     # ── [B] Inspect tool_calls in upstream response ────────────────────────
     for choice in upstream_data.get("choices") or []:
