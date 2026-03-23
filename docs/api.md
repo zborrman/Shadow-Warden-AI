@@ -1,8 +1,18 @@
 # Shadow Warden AI — API Reference
 
-**Version:** 0.4.0 · **Base URL:** `https://warden.example.com` · **Interactive docs:** `/docs` (Swagger UI), `/redoc`
+**Version:** 1.1.0 · **Base URL:** `https://warden.example.com` · **Interactive docs:** `/docs` (Swagger UI), `/redoc`
 
 Shadow Warden AI is a mandatory security gateway for AI payloads. Every request must pass through `/filter` before reaching any model or downstream service.
+
+### What's new in v1.1 — Enterprise Resilience
+
+| Feature | Details |
+|---------|---------|
+| **Fail strategy** | `WARDEN_FAIL_STRATEGY=open\|closed` — choose pass-through or block on pipeline timeout |
+| **Pipeline timeout** | `PIPELINE_TIMEOUT_MS` — asyncio.wait_for wrapper, 0 = disabled |
+| **ML uncertainty zone** | `UNCERTAINTY_LOWER_THRESHOLD` — scores in `[lower, threshold)` get `ml_uncertain` flag + MEDIUM risk |
+| **GDPR anonymization** | Evolution Engine strips UUID/IP/email/timestamp/hex before sending to Claude Opus (Art. 25/44) |
+| **Config API** | `GET /api/config` + `POST /api/config` — live-tune resilience settings |
 
 ---
 
@@ -14,15 +24,18 @@ Shadow Warden AI is a mandatory security gateway for AI payloads. Every request 
    - [GET /health](#get-health)
    - [POST /filter](#post-filter)
    - [POST /filter/batch](#post-filterbatch)
+   - [GET /api/config](#get-apiconfig)
+   - [POST /api/config](#post-apiconfig)
    - [POST /gdpr/export](#post-gdprexport)
    - [POST /gdpr/purge](#post-gdprpurge)
    - [GET /metrics](#get-metrics)
    - [POST /v1/chat/completions](#post-v1chatcompletions)
 4. [WebSocket /ws/stream](#4-websocket-wsstream)
 5. [Response Schemas](#5-response-schemas)
-6. [Error Codes](#6-error-codes)
-7. [SDK Examples](#7-sdk-examples)
-8. [Multi-Tenant Setup](#8-multi-tenant-setup)
+6. [Enterprise Resilience](#6-enterprise-resilience)
+7. [Error Codes](#7-error-codes)
+8. [SDK Examples](#8-sdk-examples)
+9. [Multi-Tenant Setup](#9-multi-tenant-setup)
 
 ---
 
@@ -107,17 +120,22 @@ Main filter endpoint. Run content through the full Warden pipeline.
 {
   "content": "Your AI payload text here",
   "tenant_id": "default",
-  "strict": false
+  "strict": false,
+  "redaction_policy": "full",
+  "sector": null
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `content` | string | ✅ | The text payload to filter |
+| `content` | string | ✅ | The text payload to filter (max 32,000 chars) |
 | `tenant_id` | string | — | Tenant identifier (default: `"default"`) |
-| `strict` | boolean | — | Strict mode — treat MEDIUM risk as blocked (default: `false`) |
+| `strict` | boolean | — | Treat MEDIUM risk as blocked (default: `false`) |
+| `redaction_policy` | string | — | `"full"` (default) · `"masked"` (last 4 chars) · `"raw"` (detect only) |
+| `sector` | string | — | `"B2B"` · `"B2C"` · `"E-Commerce"` — activates Business Threat Neutralizer enrichment |
+| `context` | object | — | Arbitrary metadata forwarded to the event log (user_id, session_id, etc.) |
 
-**Response 200:**
+**Response 200 — allowed:**
 ```json
 {
   "allowed": true,
@@ -126,6 +144,13 @@ Main filter endpoint. Run content through the full Warden pipeline.
   "secrets_found": [],
   "semantic_flags": [],
   "reason": "",
+  "redaction_policy_applied": "full",
+  "owasp_categories": [],
+  "explanation": "No security risks detected. Content is safe to forward.",
+  "poisoning": {},
+  "threat_matches": [],
+  "business_intel": null,
+  "masking": {"masked": false, "session_id": null, "entities": [], "entity_count": 0},
   "processing_ms": {
     "cache_check": 0.8,
     "obfuscation": 0.3,
@@ -137,13 +162,13 @@ Main filter endpoint. Run content through the full Warden pipeline.
 }
 ```
 
-**Blocked response:**
+**Response 200 — blocked (jailbreak + secret):**
 ```json
 {
   "allowed": false,
   "risk_level": "high",
   "filtered_content": "[ANTHROPIC_API_KEY_REDACTED] ignore previous instructions...",
-  "secrets_found": [{"kind": "anthropic_api_key", "start": 0, "end": 30}],
+  "secrets_found": [{"kind": "anthropic_api_key", "start": 0, "end": 30, "redacted_to": "[ANTHROPIC_API_KEY_REDACTED]"}],
   "semantic_flags": [
     {
       "flag": "prompt_injection",
@@ -152,9 +177,44 @@ Main filter endpoint. Run content through the full Warden pipeline.
     }
   ],
   "reason": "ML jailbreak detected (similarity=0.934)...",
+  "owasp_categories": ["LLM01 — Prompt Injection"],
+  "explanation": "This request attempts to override system instructions — a classic prompt injection pattern.",
   "processing_ms": { "total": 24.7 }
 }
 ```
+
+**Response 200 — gray zone (v1.1 uncertainty escalation):**
+
+When the ML score falls between `UNCERTAINTY_LOWER_THRESHOLD` (default 0.55) and `SEMANTIC_THRESHOLD` (default 0.72), the request is **allowed** but flagged for review:
+
+```json
+{
+  "allowed": true,
+  "risk_level": "medium",
+  "semantic_flags": [
+    {
+      "flag": "ml_uncertain",
+      "score": 0.61,
+      "detail": "ML score 0.610 in uncertainty zone [0.55, 0.72) — escalated to MEDIUM for review"
+    }
+  ],
+  "reason": ""
+}
+```
+
+**Response 200 — fail-open timeout bypass (v1.1):**
+
+When `PIPELINE_TIMEOUT_MS > 0` and the pipeline times out with `WARDEN_FAIL_STRATEGY=open`:
+```json
+{
+  "allowed": true,
+  "risk_level": "low",
+  "filtered_content": "<original content unchanged>",
+  "reason": "emergency_bypass:timeout",
+  "semantic_flags": []
+}
+```
+The `reason` field `"emergency_bypass:timeout"` is machine-readable — integrate with your monitoring to alert on elevated bypass rates.
 
 **Risk levels:** `low` → `medium` → `high` → `block`
 
@@ -215,6 +275,84 @@ curl -X POST https://warden.example.com/filter/batch \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $WARDEN_API_KEY" \
   -d '{"items": [{"content": "Hello"}, {"content": "Ignore all previous instructions"}]}'
+```
+
+---
+
+### GET /api/config
+
+Read the current live configuration. No authentication required (values are non-sensitive).
+
+**Response 200:**
+```json
+{
+  "semantic_threshold": 0.72,
+  "strict_mode": false,
+  "rate_limit_per_minute": 60,
+  "evolution_enabled": true,
+  "browser_enabled": false,
+  "otel_enabled": false,
+  "fail_strategy": "open",
+  "pipeline_timeout_ms": 0,
+  "uncertainty_lower_threshold": 0.55,
+  "nvidia_api_key_set": false,
+  "prompt_shield_enabled": true,
+  "audit_trail_enabled": true,
+  "nim_endpoint": "",
+  "nim_default_model": "",
+  "nim_routing_enabled": true,
+  "nim_embeddings_enabled": false,
+  "agent_toolkit_enabled": false,
+  "agent_toolkit_block": true
+}
+```
+
+---
+
+### POST /api/config
+
+Update live-tunable settings. Most changes take effect immediately without restart.
+
+> **Note:** `fail_strategy` and `pipeline_timeout_ms` require a service restart — they are read once at startup from environment variables. `uncertainty_lower_threshold` and `semantic_threshold` apply immediately.
+
+**Request — update resilience settings:**
+```json
+{
+  "fail_strategy": "closed",
+  "pipeline_timeout_ms": 300,
+  "uncertainty_lower_threshold": 0.60
+}
+```
+
+**Request — update detection settings:**
+```json
+{
+  "semantic_threshold": 0.75,
+  "strict_mode": true
+}
+```
+
+**Tunable fields:**
+
+| Field | Type | Restart? | Description |
+|-------|------|----------|-------------|
+| `semantic_threshold` | float 0.1–1.0 | No | ML block threshold |
+| `strict_mode` | boolean | No | Treat MEDIUM as blocked |
+| `fail_strategy` | `"open"\|"closed"` | Yes | Timeout behaviour |
+| `pipeline_timeout_ms` | integer ≥0 | Yes | Pipeline timeout (0 = off) |
+| `uncertainty_lower_threshold` | float 0–0.99 | No | Gray-zone lower bound |
+| `nvidia_api_key` | string | Yes | NVIDIA NIM API key (write-only) |
+| `nim_endpoint` | string | Yes | NIM base URL |
+| `nim_default_model` | string | No | Default NIM model |
+| `nim_routing_enabled` | boolean | No | Route `nim/` prefix to NIM |
+| `nim_embeddings_enabled` | boolean | No | Use NIM for embeddings |
+| `agent_toolkit_enabled` | boolean | No | NVIDIA Agent Toolkit enforcement |
+| `prompt_shield_enabled` | boolean | No | Prompt Shield indirect injection |
+| `audit_trail_enabled` | boolean | No | Cryptographic audit trail |
+
+**Response 200:**
+```json
+{ "updated": ["fail_strategy", "pipeline_timeout_ms"] }
 ```
 
 ---
@@ -450,49 +588,164 @@ asyncio.run(stream())
 |-------|------|-------------|
 | `allowed` | boolean | Whether the content passed all filters |
 | `risk_level` | string | `low` \| `medium` \| `high` \| `block` |
-| `filtered_content` | string | Content with secrets redacted (safe to forward) |
-| `secrets_found` | array | List of `{kind, start, end}` objects |
-| `semantic_flags` | array | List of `{flag, score, detail}` objects |
-| `reason` | string | Human-readable block reason (empty if allowed) |
-| `processing_ms` | object | Per-stage timing breakdown |
+| `filtered_content` | string | Content after redaction — safe to forward to your model |
+| `secrets_found` | array | List of `SecretFinding` objects |
+| `semantic_flags` | array | List of `SemanticFlag` objects |
+| `reason` | string | Human-readable block reason (`"emergency_bypass:timeout"` on fail-open) |
+| `redaction_policy_applied` | string | `"full"` \| `"masked"` \| `"raw"` |
+| `owasp_categories` | array | OWASP LLM Top 10 labels triggered (e.g. `"LLM01 — Prompt Injection"`) |
+| `explanation` | string | Plain-language XAI summary (safe to show non-technical users) |
+| `poisoning` | object | Data poisoning result — empty `{}` if none detected |
+| `threat_matches` | array | ThreatVault signature hits — each: `{id, name, category, severity, owasp}` |
+| `business_intel` | object\|null | Business Threat Neutralizer report (set when `sector` is provided) |
+| `masking` | object | Yellow-zone masking report |
+| `processing_ms` | object | Per-stage timing: `cache_check`, `obfuscation`, `redaction`, `rules`, `ml`, `total` |
 
 ### SemanticFlag
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `flag` | string | Flag type: `prompt_injection`, `harmful_intent`, `system_override`, `data_exfiltration`, `social_engineering` |
-| `score` | float | Confidence score 0–1 |
-| `detail` | string | Detailed explanation |
+| `flag` | string | See **FlagType** table below |
+| `score` | float | Confidence 0–1 |
+| `detail` | string | Human-readable explanation |
+
+### FlagType enum (complete)
+
+| Value | OWASP | Description |
+|-------|-------|-------------|
+| `prompt_injection` | LLM01 | Jailbreak / instruction override attempt |
+| `harmful_content` | — | Violent, illegal, or abuse-enabling content |
+| `secret_detected` | — | API key / credential present in payload |
+| `pii_detected` | — | Personal data (name, email, phone, ID) |
+| `policy_violation` | — | Custom tenant rule triggered |
+| `indirect_injection` | LLM01 | Injection via retrieved context (RAG, tool output) |
+| `insecure_output` | LLM05 | XSS, command injection, SSRF, path traversal in AI output |
+| `excessive_agency` | LLM06 | Unauthorized autonomous action attempt |
+| `sensitive_disclosure` | LLM02 | Attempt to extract training data or model internals |
+| `model_poisoning` | LLM04 | Persistent behavior modification / backdoor |
+| `system_prompt_leakage` | LLM07 | System prompt / full context extraction attempt |
+| `vector_attack` | LLM08 | RAG poisoning / adversarial embedding |
+| `misinformation` | LLM09 | Eliciting deliberately false authoritative content |
+| `resource_exhaustion` | LLM10 | Unbounded token consumption / generation loop |
+| `data_poisoning` | LLM04v | Corpus / inference-plane poisoning variant |
+| `ml_uncertain` | — | **v1.1** ML score in gray zone `[lower_threshold, block_threshold)` |
 
 ### SecretFinding
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `kind` | string | Secret type: `anthropic_api_key`, `openai_api_key`, `aws_access_key`, `stripe_key`, `generic_token`, etc. |
-| `start` | integer | Start offset in original content |
-| `end` | integer | End offset in original content |
+| `kind` | string | `anthropic_api_key` · `openai_api_key` · `aws_access_key` · `stripe_key` · `huggingface_token` · `generic_token` · etc. |
+| `start` | integer | Character offset in original content |
+| `end` | integer | Character offset end |
+| `redacted_to` | string | Replacement token in `filtered_content` |
+
+### processing_ms breakdown
+
+| Key | Stage | Notes |
+|-----|-------|-------|
+| `cache_check` | Redis SHA-256 lookup | <1 ms typical |
+| `obfuscation` | Base64/hex/ROT13/homoglyph decoder | ~0.3 ms |
+| `redaction` | SecretRedactor (15 regex patterns) | ~1 ms |
+| `rules` | SemanticGuard (rule engine + compound escalation) | ~2 ms |
+| `ml` | MiniLM-L6-v2 cosine similarity | 15–25 ms CPU |
+| `total` | End-to-end pipeline | sum of above |
+
+> **Timeout note (v1.1):** when `PIPELINE_TIMEOUT_MS` fires, `processing_ms` reflects the partial time only. The `reason` field will contain `"emergency_bypass:timeout"`.
 
 ---
 
-## 6. Error Codes
+## 6. Enterprise Resilience (v1.1)
+
+### Fail Strategy
+
+Controlled by `WARDEN_FAIL_STRATEGY` environment variable (requires restart).
+
+| Strategy | Env value | Timeout behaviour | Use case |
+|----------|-----------|-------------------|----------|
+| Fail-open | `open` (default) | Pass request through unchanged | High-throughput / business-critical APIs |
+| Fail-closed | `closed` | Return HTTP 503 | Security-critical / Finance / Healthcare |
+
+**Detection (client-side):**
+```python
+result = warden.filter(content)
+if result["reason"] == "emergency_bypass:timeout":
+    metrics.increment("warden.bypass.timeout")
+    alert_oncall_if_rate_exceeds(threshold=0.05)  # >5% bypass rate
+```
+
+### Pipeline Timeout
+
+Set `PIPELINE_TIMEOUT_MS` (integer, milliseconds). Recommended values:
+
+| Environment | Recommended | Notes |
+|-------------|-------------|-------|
+| Production CPU | `300` | Covers P99 MiniLM latency with headroom |
+| High-throughput | `200` | Allows 5 req/s per worker |
+| Disabled | `0` | Default — no timeout |
+
+### ML Uncertainty Escalation
+
+Scores between `UNCERTAINTY_LOWER_THRESHOLD` (default `0.55`) and `SEMANTIC_THRESHOLD` (default `0.72`) produce an `ml_uncertain` flag at MEDIUM risk — request is **allowed but logged** for review.
+
+```
+Score = 0.0 ─────── 0.55 ────────── 0.72 ──── 1.0
+                [uncertain zone]  [blocked]
+                   MEDIUM risk
+```
+
+Tune the zone by adjusting either threshold via `POST /api/config` (no restart needed).
+
+**Grafana alert for gray-zone traffic:**
+```promql
+sum(rate(http_requests_total{flag="ml_uncertain"}[5m])) > 10
+```
+
+### GDPR — Evolution Engine Anonymization
+
+Before any blocked content is forwarded to Claude Opus for rule generation, `_anonymize_for_evolution()` strips:
+
+| Pattern | Replacement |
+|---------|-------------|
+| UUID v1–v5 (with and without hyphens) | `[UUID]` |
+| IPv4 addresses | `[IPv4]` |
+| IPv6 addresses | `[IPv6]` |
+| Email addresses | `[EMAIL]` |
+| ISO 8601 timestamps | `[TIMESTAMP]` |
+| Hex strings ≥ 16 chars (tokens, hashes) | `[HEX]` |
+
+This satisfies **GDPR Art. 25** (data protection by design) and **Art. 44** (transfers to third countries — Claude Opus API).
+
+> The original unredacted content is never stored or forwarded. Even `DEBUG=true` does not bypass anonymization — it is applied unconditionally in `evolve.py` before the Claude API call.
+
+---
+
+## 7. Error Codes
 
 | HTTP | Warden Code | Meaning |
 |------|-------------|---------|
-| 200 | — | Success |
+| 200 | — | Success (check `allowed` field — blocked content also returns 200) |
 | 400 | `invalid_request` | Malformed request body |
-| 401 | `unauthorized` | Missing or invalid X-API-Key |
+| 401 | `unauthorized` | Missing or invalid `X-API-Key` |
 | 422 | `validation_error` | Pydantic schema validation failure |
 | 429 | `rate_limited` | Per-IP or per-tenant rate limit exceeded |
 | 500 | `internal_error` | Unexpected server error |
+| 503 | `pipeline_timeout` | **v1.1** Pipeline exceeded `PIPELINE_TIMEOUT_MS` with `WARDEN_FAIL_STRATEGY=closed` |
 
 All error responses follow:
 ```json
 { "detail": "Human-readable error message", "request_id": "uuid" }
 ```
 
+**503 body (fail-closed timeout):**
+```json
+{
+  "detail": "Filter pipeline timeout — request blocked (fail-closed strategy). Retry or contact support."
+}
+```
+
 ---
 
-## 7. SDK Examples
+## 8. SDK Examples
 
 ### Python — Drop-in Guard
 
@@ -578,7 +831,7 @@ response = llm.invoke("Summarise this document...")
 
 ---
 
-## 8. Multi-Tenant Setup
+## 9. Multi-Tenant Setup
 
 Each tenant gets an isolated ML brain corpus that evolves independently.
 
