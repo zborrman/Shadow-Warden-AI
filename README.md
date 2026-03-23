@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 0.9.0 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 1.0.0 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
@@ -563,6 +563,14 @@ shadow-warden-ai/
 
 ### Shipped
 
+**v1.0 — NVIDIA NIM + Full Multi-Cloud Provider Gateway**
+- NVIDIA NIM routing — `nim/<org>/<model>` prefix routes to `integrate.api.nvidia.com` (Nemotron, Llama, Mistral, Phi)
+- Full provider catalogue: OpenAI · Azure OpenAI · Amazon Bedrock · Google Vertex AI · Google Gemini · Perplexity · NVIDIA NIM
+- `/v1/embeddings` NIM-aware — `nim/<org>/<model>` embeddings routed to NIM, `nim/` prefix stripped before forwarding
+- `NVIDIA_API_KEY` env var; zero-config for air-gapped or key-less deployments (routes silently skipped)
+- Backend contact form `/api/contact` — SMTP delivery via configurable `SMTP_HOST/USER/PASS`; fail-open logging fallback
+- 3 new routing tests; all 1,314 existing tests still green
+
 **v0.9 — Cryptographic Audit Trail (SOC 2 Type II)**
 - `AuditTrail` — SHA-256 hash-chain tamper-evident log (SQLite + WAL); each filter decision chains off the previous entry's hash
 - `GET /admin/audit/verify` — walk the entire chain and confirm integrity in O(N); returns `{"valid": true, "entries": N}`
@@ -622,11 +630,13 @@ shadow-warden-ai/
 
 ### Planned
 
-- [ ] Kubernetes Helm chart (EKS / GKE)
+- [ ] Kubernetes Helm chart (EKS / GKE / AKS)
+- [ ] OpenShell compatibility layer (NVIDIA Agent Toolkit)
 - [ ] Browser extension — real-time protection for ChatGPT, Claude.ai, Copilot
 - [ ] Threat intelligence sharing (STIX/TAXII feed export)
 - [ ] Vertex AI multimodal (image/video content blocks)
-- [ ] SOC 2 Type II certification audit (controls now in codebase via v0.9)
+- [ ] SOC 2 Type II certification audit (controls in codebase via v0.9)
+- [ ] SaaS hosted option (no Docker, single API key)
 
 ---
 
