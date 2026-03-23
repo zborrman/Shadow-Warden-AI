@@ -3806,7 +3806,7 @@ async def contact(body: _ContactRequest):
         return {"ok": True}
     except Exception as exc:
         log.error("contact form send failed: %s", exc)
-        raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.")
+        raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.") from exc
 
 
 # ── Global error handler ──────────────────────────────────────────────────────
