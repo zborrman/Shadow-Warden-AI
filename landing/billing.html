@@ -76,8 +76,9 @@
     .status-failed { color: var(--red);   font-weight: 600; font-size: 0.75rem; }
 
     /* Plan comparison */
-    .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    @media (max-width: 640px) { .plan-grid { grid-template-columns: 1fr; } }
+    .plan-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 900px) { .plan-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .plan-grid { grid-template-columns: 1fr; } }
     .plan-tile { background: var(--surf2); border: 2px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
     .plan-tile.current { border-color: var(--indigo); }
     .plan-tile:not(.current):hover { border-color: rgba(99,102,241,0.3); }
@@ -189,9 +190,18 @@
           <div class="plan-tile-name">Starter</div>
           <div class="plan-tile-price">Free</div>
           <div class="plan-tile-sub">Forever, no credit card</div>
-          <div class="plan-tile-features">10,000 requests/mo<br/>Single tenant<br/>All 5 stages<br/>Community support</div>
+          <div class="plan-tile-features">10,000 requests/mo<br/>Single tenant<br/>All 6 stages<br/>Community support</div>
           <div style="margin-top:14px">
-            <span class="badge badge-free" style="font-size:0.6875rem">Current plan</span>
+            <span class="badge badge-free" style="font-size:0.6875rem" id="tile-free-action">Current plan</span>
+          </div>
+        </div>
+        <div class="plan-tile" id="tile-individual">
+          <div class="plan-tile-name" style="color:var(--cyan)">Individual</div>
+          <div class="plan-tile-price">$5<span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span></div>
+          <div class="plan-tile-sub">Solo developers &amp; hobbyists</div>
+          <div class="plan-tile-features">5,000 requests/mo<br/>All 6 detection stages<br/>Prompt Shield + Audit Trail<br/>OpenAI / Gemini proxy<br/>2FA (Google Auth)</div>
+          <div style="margin-top:14px">
+            <a href="/checkout?plan=individual" class="btn btn-outline btn-sm" style="width:100%;justify-content:center" id="tile-individual-action">Upgrade</a>
           </div>
         </div>
         <div class="plan-tile" id="tile-pro" style="border-color:rgba(99,102,241,0.4)">
@@ -296,8 +306,9 @@
     const banner = document.getElementById('success-banner');
     banner.style.display = 'flex';
     const plan = params.get('plan') || 'pro';
+    const planLabel = { individual: 'Individual', pro: 'Business', msp: 'MSP' }[plan] || 'Business';
     document.getElementById('success-text').textContent =
-      'Payment successful! Your ' + (plan === 'msp' ? 'MSP' : 'Business') + ' plan is now active.';
+      'Payment successful! Your ' + planLabel + ' plan is now active.';
     history.replaceState({}, '', '/billing');
   }
 
@@ -309,8 +320,8 @@
       if (!res.ok) return;
       const s = await res.json();
 
-      const planMap = { free: 'Free', pro: 'Business', msp: 'MSP' };
-      const quotaMap = { free: '10,000 req/mo', pro: 'Unlimited requests', msp: 'Unlimited requests' };
+      const planMap = { free: 'Free', individual: 'Individual', pro: 'Business', msp: 'MSP' };
+      const quotaMap = { free: '10,000 req/mo', individual: '5,000 req/mo', pro: '50,000 req/mo', msp: 'Unlimited requests' };
 
       document.getElementById('plan-name').textContent = planMap[s.plan] || s.plan;
       document.getElementById('plan-meta').textContent = quotaMap[s.plan] || '';
@@ -332,21 +343,28 @@
       }
 
       // Show Paddle portal for paid plans
-      if (s.plan !== 'free' && s.customer_id) {
+      if (!['free'].includes(s.plan) && s.customer_id) {
         document.getElementById('stripe-portal-card').style.display = '';
       }
 
       // Update plan tiles
-      if (s.plan === 'pro') {
+      if (s.plan === 'individual') {
+        document.getElementById('tile-individual').classList.add('current');
+        document.getElementById('tile-individual-action').outerHTML =
+          '<span class="badge badge-active">Current plan</span>';
+        document.getElementById('tile-free-action').outerHTML = '';
+      } else if (s.plan === 'pro') {
         document.getElementById('tile-pro').classList.add('current');
         document.getElementById('tile-pro').querySelector('a').outerHTML =
           '<span class="badge badge-active">Current plan</span>';
+        document.getElementById('tile-free-action').outerHTML = '';
       } else if (s.plan === 'msp') {
         document.getElementById('tile-msp').classList.add('current');
+        document.getElementById('tile-free-action').outerHTML = '';
       }
 
       // Actions
-      if (s.plan !== 'free') {
+      if (!['free'].includes(s.plan)) {
         document.getElementById('plan-actions').innerHTML = `
           <button class="btn btn-outline btn-sm" onclick="openBillingPortal()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
