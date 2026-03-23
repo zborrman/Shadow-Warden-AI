@@ -61,8 +61,20 @@ _VALID_KEY: str = os.getenv("WARDEN_API_KEY", "")
 _KEYS_PATH: str = os.getenv("WARDEN_API_KEYS_PATH", "")
 
 # Default per-key rate limit; individual keys can override via their JSON entry.
+# Stored in a list so set_default_rate_limit() can mutate it without a global stmt.
 _DEFAULT_KEY_RATE: int = int(os.getenv("TENANT_RATE_LIMIT",
                                        os.getenv("RATE_LIMIT_PER_MINUTE", "60")))
+_rate_limit_box: list[int] = [_DEFAULT_KEY_RATE]
+
+
+def set_default_rate_limit(per_minute: int) -> None:
+    """Live-update the default rate limit without a container restart.
+
+    Called by POST /api/config when rate_limit_per_minute is set.
+    Per-tenant overrides in WARDEN_API_KEYS_PATH are not affected.
+    """
+    _rate_limit_box[0] = max(1, per_minute)
+    os.environ["RATE_LIMIT_PER_MINUTE"] = str(_rate_limit_box[0])
 
 MAX_KEYS = 1000  # safety cap
 
@@ -177,14 +189,14 @@ def get_rate_limit(api_key: str) -> int:
     full auth validation.  Falls back to _DEFAULT_KEY_RATE for unknown keys.
     """
     if not api_key:
-        return _DEFAULT_KEY_RATE
+        return _rate_limit_box[0]
     if _KEYS_PATH:
         entry = _lookup_multi_key(api_key)
         if entry:
             return entry.rate_limit
     if _VALID_KEY and hmac.compare_digest(api_key.encode(), _VALID_KEY.encode()):
-        return _DEFAULT_KEY_RATE
-    return _DEFAULT_KEY_RATE
+        return _rate_limit_box[0]
+    return _rate_limit_box[0]
 
 
 def reload_keys() -> int:

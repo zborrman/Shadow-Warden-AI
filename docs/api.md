@@ -338,9 +338,10 @@ Update live-tunable settings. Most changes take effect immediately without resta
 |-------|------|----------|-------------|
 | `semantic_threshold` | float 0.1–1.0 | No | ML block threshold |
 | `strict_mode` | boolean | No | Treat MEDIUM as blocked |
+| `rate_limit_per_minute` | integer ≥1 | No | Default req/min limit (per-tenant overrides unaffected) |
+| `uncertainty_lower_threshold` | float 0–0.99 | No | Gray-zone lower bound |
 | `fail_strategy` | `"open"\|"closed"` | Yes | Timeout behaviour |
 | `pipeline_timeout_ms` | integer ≥0 | Yes | Pipeline timeout (0 = off) |
-| `uncertainty_lower_threshold` | float 0–0.99 | No | Gray-zone lower bound |
 | `nvidia_api_key` | string | Yes | NVIDIA NIM API key (write-only) |
 | `nim_endpoint` | string | Yes | NIM base URL |
 | `nim_default_model` | string | No | Default NIM model |

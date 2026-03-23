@@ -73,7 +73,7 @@ from warden.analytics import logger as event_logger
 from warden.analytics.report import get_engine as _get_report_engine
 from warden.auth.saml_provider import SAMLProvider, SamlSession
 from warden.auth.saml_provider import get_provider as _get_saml_provider
-from warden.auth_guard import AuthResult, get_rate_limit, require_api_key
+from warden.auth_guard import AuthResult, get_rate_limit, require_api_key, set_default_rate_limit
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
@@ -859,6 +859,8 @@ async def api_stats(hours: float = 24.0):
 class _ConfigUpdate(BaseModel):
     semantic_threshold: float | None = None
     strict_mode: bool | None = None
+    rate_limit_per_minute: int | None = None
+    uncertainty_lower_threshold: float | None = None
 
 
 @app.get("/api/config", tags=["ops"], summary="Current live configuration")
@@ -866,7 +868,7 @@ async def api_config():
     return {
         "semantic_threshold":   float(os.getenv("SEMANTIC_THRESHOLD", "0.72")),
         "strict_mode":          os.getenv("STRICT_MODE", "false").lower() == "true",
-        "rate_limit_per_minute": int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),
+        "rate_limit_per_minute": int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),  # live value via set_default_rate_limit()
         "evolution_enabled":    _evolve is not None,
         "log_retention_days":   int(os.getenv("GDPR_LOG_RETENTION_DAYS", "30")),
         "browser_enabled":      os.getenv("BROWSER_ENABLED", "false").lower() == "true",
@@ -894,6 +896,12 @@ async def update_config(update: _ConfigUpdate):
         os.environ["STRICT_MODE"] = str(update.strict_mode).lower()
         if _guard is not None:
             _guard.strict = update.strict_mode
+    if update.rate_limit_per_minute is not None:
+        set_default_rate_limit(update.rate_limit_per_minute)
+    if update.uncertainty_lower_threshold is not None:
+        global _UNCERTAINTY_LOWER
+        _UNCERTAINTY_LOWER = max(0.0, min(0.99, update.uncertainty_lower_threshold))
+        os.environ["UNCERTAINTY_LOWER_THRESHOLD"] = str(_UNCERTAINTY_LOWER)
     return {"ok": True}
 
 

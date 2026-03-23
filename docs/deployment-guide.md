@@ -1786,3 +1786,89 @@ ufw allow 80          # optional: HTTP → redirect to HTTPS
 # Internal ports (8001, 8501, 8502, 3000, 9090) should NOT be public
 ufw enable
 ```
+
+---
+
+## 23. Load & Chaos Testing (v1.1)
+
+Two test scripts are provided in `scripts/`:
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/load_test.py` | Baseline throughput — P50/P95/P99 latency, bypass rate, flag distribution |
+| `scripts/chaos_test.py` | Locust chaos test — concurrent traffic + live config hot-swap |
+
+### 23.1 Baseline load test
+
+```bash
+python3 -m venv /tmp/loadtest-venv
+/tmp/loadtest-venv/bin/pip install httpx rich -q
+
+WARDEN_API_KEY=$(grep ^WARDEN_API_KEY .env | cut -d= -f2)
+/tmp/loadtest-venv/bin/python3 scripts/load_test.py \
+  --url http://localhost --key $WARDEN_API_KEY \
+  --requests 100 --workers 20
+```
+
+**Reference results (2 CPU / 4 GB VPS, PIPELINE_TIMEOUT_MS=500):**
+
+| Scenario | P50 | P95 | P99 | Notes |
+|----------|-----|-----|-----|-------|
+| Normal (clean) | ~30ms | ~52ms | ~77ms | MiniLM CPU inference |
+| Gray-zone | ~27ms | ~50ms | ~75ms | Redis cache hits |
+| Fail-open trigger | ~18ms | ~30ms | ~33ms | Cached payload |
+
+If P99 exceeds 500ms under normal load, reduce `PIPELINE_TIMEOUT_MS` or scale workers.
+
+### 23.2 Chaos test (live config hot-swap)
+
+```bash
+/tmp/loadtest-venv/bin/pip install locust -q
+
+# For high-concurrency test, raise rate limit first:
+RATE_LIMIT_PER_MINUTE=10000 \
+  docker compose up -d --force-recreate --no-deps warden
+sleep 20
+
+WARDEN_API_KEY=$(grep ^WARDEN_API_KEY .env | cut -d= -f2) \
+  /tmp/loadtest-venv/bin/locust -f scripts/chaos_test.py \
+  --host http://localhost --headless -u 50 -r 10 --run-time 60s
+```
+
+**Key finding (v1.1 validation):** 50 concurrent workers + continuous
+`semantic_threshold` and `uncertainty_lower_threshold` hot-swaps produced
+**zero HTTP 500 errors** over 60 seconds — confirming no race condition in
+`POST /api/config` → `_ConfigUpdate` → `set_default_rate_limit()` path.
+
+**Custom event types in Locust output:**
+
+| Type | Meaning | Action if high |
+|------|---------|----------------|
+| `BYPASS` | `emergency_bypass:timeout` fired | Increase `PIPELINE_TIMEOUT_MS` or scale workers |
+| `UNCERTAIN` | `ml_uncertain` flag triggered | Review in Grafana — tune `UNCERTAINTY_LOWER_THRESHOLD` |
+| `FAIL-CLOSED` | HTTP 503 (fail-closed strategy) | Expected when `WARDEN_FAIL_STRATEGY=closed` |
+| `CONFIG-SWAP` | `/api/config` hot-swap completed | Informational |
+
+### 23.3 Triggering fail-open bypasses
+
+To force bypass events and verify the fail-open path end-to-end:
+
+```bash
+# 1. Set an aggressive timeout
+sed -i 's/^PIPELINE_TIMEOUT_MS=.*/PIPELINE_TIMEOUT_MS=50/' .env
+docker compose up -d --force-recreate --no-deps warden
+sleep 20
+
+# 2. Run chaos test — BYPASS events should appear in output
+WARDEN_API_KEY=$(grep ^WARDEN_API_KEY .env | cut -d= -f2) \
+  /tmp/loadtest-venv/bin/locust -f scripts/chaos_test.py \
+  --host http://localhost --headless -u 50 -r 10 --run-time 60s
+
+# 3. Restore production timeout
+sed -i 's/^PIPELINE_TIMEOUT_MS=.*/PIPELINE_TIMEOUT_MS=500/' .env
+docker compose up -d --force-recreate --no-deps warden
+```
+
+> **Rate limiting during tests:** `RATE_LIMIT_PER_MINUTE` is now live-tunable
+> via `POST /api/config` (no restart needed since v1.1). Alternatively set it
+> in `.env` before starting the container.
