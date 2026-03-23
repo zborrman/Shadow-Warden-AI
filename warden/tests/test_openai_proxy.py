@@ -602,21 +602,21 @@ def _make_stream_chunk(idx: int, content: str, finish: str | None = None) -> dic
     }
 
 
-def _patch_stream(filter_resp: dict, sse_lines: list[str]):
-    """Return (patch_ctx, make_inst) where:
-    - patch_ctx is used as `with patch_ctx as mock_cls:`
-    - make_inst() builds the AsyncClient instance to assign to mock_cls.return_value
-    """
-    from unittest.mock import AsyncMock, MagicMock, patch
+def _make_stream_mock(filter_resp: dict, sse_lines: list[str]):
+    """Build a fully-configured AsyncClient mock for streaming tests.
 
-    async def _aiter_lines():
+    Returns the mock instance directly — caller uses it as:
+        with patch("warden.openai_proxy.httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = _make_stream_mock(filter_resp, sse_lines)
+    """
+    async def _aiter():
         for line in sse_lines:
             yield line
 
     stream_ctx = MagicMock()
     stream_ctx.__aenter__ = AsyncMock(return_value=stream_ctx)
     stream_ctx.__aexit__ = AsyncMock(return_value=False)
-    stream_ctx.aiter_lines = _aiter_lines
+    stream_ctx.aiter_lines = _aiter
 
     filter_mock = MagicMock()
     filter_mock.json.return_value = filter_resp
@@ -624,31 +624,24 @@ def _patch_stream(filter_resp: dict, sse_lines: list[str]):
     async def fake_post(url, **kwargs):
         return filter_mock
 
-    def make_inst():
-        inst = AsyncMock()
-        inst.post = fake_post
-        inst.stream = MagicMock(return_value=stream_ctx)
-        inst.__aenter__ = AsyncMock(return_value=inst)
-        inst.__aexit__ = AsyncMock(return_value=False)
-        return inst
-
-    return patch("warden.openai_proxy.httpx.AsyncClient"), make_inst
+    inst = AsyncMock()
+    inst.post = fake_post
+    inst.stream = MagicMock(return_value=stream_ctx)
+    inst.__aenter__ = AsyncMock(return_value=inst)
+    inst.__aexit__ = AsyncMock(return_value=False)
+    return inst
 
 
 def test_stream_returns_event_stream_content_type(client) -> None:
     """stream:true → Content-Type: text/event-stream."""
     filter_resp = _make_allowed_filter_response("Hello")
-    chunks = [_make_stream_chunk(0, "Hi ", None), _make_stream_chunk(1, "there!", "stop")]
-    sse_lines = _make_sse_lines(chunks)
+    sse = _make_sse_lines([_make_stream_chunk(0, "Hi ", None), _make_stream_chunk(1, "there!", "stop")])
 
-    ctx, make_inst = _patch_stream(filter_resp, sse_lines)
-    with ctx as mock_cls:
-        mock_cls.return_value = make_inst()
-        resp = client.post(
-            "/v1/chat/completions",
-            json={"model": "gpt-4", "stream": True,
-                  "messages": [{"role": "user", "content": "Hello"}]},
-        )
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value = _make_stream_mock(filter_resp, sse)
+        resp = client.post("/v1/chat/completions",
+                           json={"model": "gpt-4", "stream": True,
+                                 "messages": [{"role": "user", "content": "Hello"}]})
 
     assert resp.status_code == 200
     assert "text/event-stream" in resp.headers.get("content-type", "")
@@ -657,17 +650,13 @@ def test_stream_returns_event_stream_content_type(client) -> None:
 def test_stream_contains_done_sentinel(client) -> None:
     """SSE stream must end with 'data: [DONE]'."""
     filter_resp = _make_allowed_filter_response("Hello")
-    chunks = [_make_stream_chunk(0, "Hello!", "stop")]
-    sse_lines = _make_sse_lines(chunks)
+    sse = _make_sse_lines([_make_stream_chunk(0, "Hello!", "stop")])
 
-    ctx, make_inst = _patch_stream(filter_resp, sse_lines)
-    with ctx as mock_cls:
-        mock_cls.return_value = make_inst()
-        resp = client.post(
-            "/v1/chat/completions",
-            json={"model": "gpt-4", "stream": True,
-                  "messages": [{"role": "user", "content": "Hello"}]},
-        )
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value = _make_stream_mock(filter_resp, sse)
+        resp = client.post("/v1/chat/completions",
+                           json={"model": "gpt-4", "stream": True,
+                                 "messages": [{"role": "user", "content": "Hello"}]})
 
     assert b"[DONE]" in resp.content
 
@@ -675,17 +664,13 @@ def test_stream_contains_done_sentinel(client) -> None:
 def test_stream_chunks_have_data_prefix(client) -> None:
     """Each SSE chunk line must start with 'data: '."""
     filter_resp = _make_allowed_filter_response("Hi")
-    chunks = [_make_stream_chunk(0, "chunk1 "), _make_stream_chunk(1, "chunk2", "stop")]
-    sse_lines = _make_sse_lines(chunks)
+    sse = _make_sse_lines([_make_stream_chunk(0, "chunk1 "), _make_stream_chunk(1, "chunk2", "stop")])
 
-    ctx, make_inst = _patch_stream(filter_resp, sse_lines)
-    with ctx as mock_cls:
-        mock_cls.return_value = make_inst()
-        resp = client.post(
-            "/v1/chat/completions",
-            json={"model": "gpt-4", "stream": True,
-                  "messages": [{"role": "user", "content": "Hi"}]},
-        )
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value = _make_stream_mock(filter_resp, sse)
+        resp = client.post("/v1/chat/completions",
+                           json={"model": "gpt-4", "stream": True,
+                                 "messages": [{"role": "user", "content": "Hi"}]})
 
     body = resp.content.decode()
     data_lines = [ln for ln in body.splitlines() if ln.startswith("data: ") and "[DONE]" not in ln]
@@ -726,9 +711,8 @@ def test_stream_assembled_content_passthrough(client) -> None:
               for i, p in enumerate(pieces)]
     sse_lines = _make_sse_lines(chunks)
 
-    ctx, make_inst = _patch_stream(filter_resp, sse_lines)
-    with ctx as mock_cls:
-        mock_cls.return_value = make_inst()
+    with patch("warden.openai_proxy.httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value = _make_stream_mock(filter_resp, sse_lines)
         resp = client.post(
             "/v1/chat/completions",
             json={"model": "gpt-4", "stream": True,
