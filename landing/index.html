@@ -276,6 +276,134 @@
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+    /* ── NVIDIA Agent Toolkit Modal ── */
+    .nim-modal-overlay {
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(2,12,20,0.88);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .nim-modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .nim-modal {
+      background: #071726;
+      border: 1px solid rgba(118,185,0,0.25);
+      border-radius: 20px;
+      width: 100%; max-width: 860px;
+      max-height: 90vh;
+      overflow-y: auto;
+      transform: translateY(24px) scale(0.98);
+      transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow: 0 0 80px rgba(118,185,0,0.12), 0 32px 64px rgba(0,0,0,0.6);
+    }
+    .nim-modal-overlay.open .nim-modal { transform: none; }
+
+    .nim-modal-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px;
+      padding: 28px 32px 22px;
+      border-bottom: 1px solid rgba(118,185,0,0.12);
+      background: linear-gradient(135deg, rgba(118,185,0,0.06) 0%, rgba(2,12,20,0) 60%);
+    }
+    .nim-modal-body { padding: 28px 32px; display: flex; flex-direction: column; gap: 24px; }
+    .nim-close {
+      width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(118,185,0,0.2);
+      background: transparent; color: #5d8aa8; cursor: pointer; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .nim-close:hover { background: rgba(118,185,0,0.1); color: #76b900; }
+
+    .nim-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 100px; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .nim-badge-green { background: rgba(118,185,0,0.12); border: 1px solid rgba(118,185,0,0.3); color: #76b900; }
+    .nim-badge-cyan  { background: rgba(34,211,238,0.1);  border: 1px solid rgba(34,211,238,0.25); color: #22d3ee; }
+    .nim-badge-gray  { background: rgba(93,138,168,0.1);  border: 1px solid rgba(93,138,168,0.2);  color: #5d8aa8; }
+
+    .nim-section-title {
+      font-size: 0.65rem; font-weight: 700; color: #76b900;
+      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;
+    }
+    .nim-grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    @media (max-width: 640px) { .nim-grid-3 { grid-template-columns: 1fr; } }
+
+    .nim-feature-card {
+      background: rgba(5,19,31,0.7);
+      border: 1px solid rgba(118,185,0,0.1);
+      border-radius: 12px; padding: 16px;
+      transition: border-color 0.2s;
+    }
+    .nim-feature-card:hover { border-color: rgba(118,185,0,0.3); }
+
+    .nim-step {
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .nim-step-num {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(118,185,0,0.12); border: 1px solid rgba(118,185,0,0.3);
+      color: #76b900; font-size: 0.72rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nim-code {
+      background: rgba(5,19,31,0.9);
+      border: 1px solid rgba(118,185,0,0.12);
+      border-radius: 8px; padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.73rem;
+      color: #5d8aa8; line-height: 1.7; overflow-x: auto;
+    }
+    .nim-code .k  { color: #76b900; }
+    .nim-code .s  { color: #22d3ee; }
+    .nim-code .c  { color: #1e3a50; }
+    .nim-code .v  { color: #a78bfa; }
+
+    .nim-arch {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; flex-wrap: wrap;
+    }
+    .nim-arch-box {
+      background: rgba(5,19,31,0.8);
+      border: 1px solid rgba(118,185,0,0.18);
+      border-radius: 10px; padding: 10px 16px; text-align: center;
+      min-width: 120px;
+    }
+    .nim-arch-arrow { color: #76b900; font-size: 1.1rem; padding: 0 6px; flex-shrink: 0; }
+
+    .nim-use-case {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 14px 16px;
+      background: rgba(5,19,31,0.6);
+      border: 1px solid rgba(118,185,0,0.08);
+      border-radius: 10px;
+    }
+    .nim-cta-row {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      padding-top: 8px;
+      border-top: 1px solid rgba(118,185,0,0.1);
+    }
+    .nim-btn-primary {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 20px; border-radius: 9px; border: none; cursor: pointer;
+      background: #76b900; color: #020c14;
+      font-size: 0.8125rem; font-weight: 700; font-family: inherit;
+      transition: all 0.15s; text-decoration: none;
+    }
+    .nim-btn-primary:hover { background: #8fd400; box-shadow: 0 0 20px rgba(118,185,0,0.35); }
+    .nim-btn-outline {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 20px; border-radius: 9px; cursor: pointer;
+      background: transparent; color: #5d8aa8;
+      border: 1px solid rgba(118,185,0,0.2);
+      font-size: 0.8125rem; font-weight: 600; font-family: inherit;
+      transition: all 0.15s; text-decoration: none;
+    }
+    .nim-btn-outline:hover { border-color: rgba(118,185,0,0.45); color: #76b900; background: rgba(118,185,0,0.06); }
   </style>
 </head>
 <body>
@@ -519,11 +647,12 @@
           <span class="text-sm font-medium" style="color:var(--t1);">NVIDIA NIM</span>
         </div>
 
-        <!-- NVIDIA Agent Toolkit -->
-        <div class="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+        <!-- NVIDIA Agent Toolkit — clickable -->
+        <button onclick="openNimModal()" class="flex items-center gap-2 transition-all cursor-pointer" style="background:none;border:none;padding:4px 10px;border-radius:8px;border:1px solid rgba(118,185,0,0.22);opacity:0.85;" onmouseover="this.style.opacity='1';this.style.borderColor='rgba(118,185,0,0.5)';this.style.background='rgba(118,185,0,0.06)'" onmouseout="this.style.opacity='0.85';this.style.borderColor='rgba(118,185,0,0.22)';this.style.background='none'">
           <svg width="20" height="18" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="5" fill="rgba(118,185,0,0.18)"/><path d="M12 4l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z" stroke="#76b900" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 20h14" stroke="#76b900" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="text-sm font-medium" style="color:var(--t1);">Agent Toolkit</span>
-        </div>
+          <span class="text-sm font-medium" style="color:#dff0ff;">Agent Toolkit</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
 
         <!-- AWS Bedrock -->
         <div class="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
@@ -2202,6 +2331,231 @@ async function runTerminal() {
 
 // Start terminal after a short delay
 setTimeout(runTerminal, 800);
+</script>
+
+<!-- ════════════════════════════════════════════════════════
+     NVIDIA AGENT TOOLKIT MODAL
+════════════════════════════════════════════════════════ -->
+<div class="nim-modal-overlay" id="nimModalOverlay" onclick="closeNimModal(event)">
+  <div class="nim-modal" role="dialog" aria-modal="true" aria-labelledby="nimModalTitle">
+
+    <!-- Header -->
+    <div class="nim-modal-head">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="rgba(118,185,0,0.15)"/><path d="M4 16V8l4-2 4 2 4-2 4 2v8l-4 2-4-2-4 2-4-2z" stroke="#76b900" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 6v12M4 12h16" stroke="#76b900" stroke-width="1" stroke-dasharray="2 2"/></svg>
+          <div>
+            <div style="font-size:0.65rem;font-weight:700;color:#76b900;letter-spacing:0.1em;text-transform:uppercase">NVIDIA</div>
+            <div id="nimModalTitle" style="font-size:1.25rem;font-weight:800;color:#dff0ff;letter-spacing:-0.02em;line-height:1.2">Agent Toolkit</div>
+          </div>
+        </div>
+        <p style="font-size:0.875rem;color:#5d8aa8;max-width:560px;line-height:1.6">Policy-based safety runtime for autonomous AI agents — integrates with Shadow Warden to enforce zero-trust guardrails on every agentic call, regardless of model or provider.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <span class="nim-badge nim-badge-green">v1.1 Shipped</span>
+          <span class="nim-badge nim-badge-cyan">Zero-Trust Agentic</span>
+          <span class="nim-badge nim-badge-gray">SOC 2 Compliant</span>
+          <span class="nim-badge nim-badge-gray">GDPR Ready</span>
+        </div>
+      </div>
+      <button class="nim-close" onclick="closeNimModal()" aria-label="Close">✕</button>
+    </div>
+
+    <div class="nim-modal-body">
+
+      <!-- What is it -->
+      <div>
+        <div class="nim-section-title">What Is NVIDIA Agent Toolkit</div>
+        <div class="nim-grid-3">
+          <div class="nim-feature-card">
+            <div style="font-size:1.25rem;margin-bottom:8px">🛡️</div>
+            <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:4px">Policy Rails</div>
+            <div style="font-size:0.75rem;color:#5d8aa8;line-height:1.5">Input/output guardrails enforced at the framework level — before any model sees the prompt.</div>
+          </div>
+          <div class="nim-feature-card">
+            <div style="font-size:1.25rem;margin-bottom:8px">🤖</div>
+            <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:4px">Agentic Safety</div>
+            <div style="font-size:0.75rem;color:#5d8aa8;line-height:1.5">Blocks tool-call hijacking, indirect prompt injection, and persona switches in multi-step agent pipelines.</div>
+          </div>
+          <div class="nim-feature-card">
+            <div style="font-size:1.25rem;margin-bottom:8px">⚡</div>
+            <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:4px">Any LLM, Any Cloud</div>
+            <div style="font-size:0.75rem;color:#5d8aa8;line-height:1.5">Works with NVIDIA NIM, OpenAI, Anthropic, Bedrock, Vertex AI — unified policy layer across providers.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture -->
+      <div>
+        <div class="nim-section-title">Integration Architecture</div>
+        <div class="nim-arch" style="gap:4px;flex-wrap:wrap;row-gap:8px">
+          <div class="nim-arch-box">
+            <div style="font-size:0.65rem;color:#5d8aa8;margin-bottom:2px">Client App</div>
+            <div style="font-size:0.8rem;font-weight:700;color:#dff0ff">Agent Toolkit</div>
+            <div style="font-size:0.6rem;color:#76b900;margin-top:2px">Policy YAML</div>
+          </div>
+          <div class="nim-arch-arrow">→</div>
+          <div class="nim-arch-box" style="border-color:rgba(34,211,238,0.3)">
+            <div style="font-size:0.65rem;color:#5d8aa8;margin-bottom:2px">:8001/v1</div>
+            <div style="font-size:0.8rem;font-weight:700;color:#22d3ee">Shadow Warden</div>
+            <div style="font-size:0.6rem;color:#22d3ee;margin-top:2px">6-stage filter</div>
+          </div>
+          <div class="nim-arch-arrow">→</div>
+          <div class="nim-arch-box" style="border-color:rgba(118,185,0,0.3)">
+            <div style="font-size:0.65rem;color:#5d8aa8;margin-bottom:2px">integrate.api.nvidia.com</div>
+            <div style="font-size:0.8rem;font-weight:700;color:#76b900">NVIDIA NIM</div>
+            <div style="font-size:0.6rem;color:#76b900;margin-top:2px">Clean request only</div>
+          </div>
+          <div class="nim-arch-arrow" style="color:#f43f5e">⊥</div>
+          <div class="nim-arch-box" style="border-color:rgba(244,63,94,0.25)">
+            <div style="font-size:0.65rem;color:#5d8aa8;margin-bottom:2px">Blocked</div>
+            <div style="font-size:0.8rem;font-weight:700;color:#f43f5e">Audit Trail</div>
+            <div style="font-size:0.6rem;color:#f43f5e;margin-top:2px">SHA-256 chain</div>
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:#1e3a50;text-align:center;margin-top:8px">Every blocked request is logged with a cryptographic hash — tamper-evident, SOC 2 compliant</div>
+      </div>
+
+      <!-- Implementation Steps -->
+      <div>
+        <div class="nim-section-title">Client Implementation — 4 Steps</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+
+          <div class="nim-step">
+            <div class="nim-step-num">1</div>
+            <div style="flex:1">
+              <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:4px">Install NeMo Guardrails</div>
+              <div class="nim-code"><span class="k">pip</span> install nemo-guardrails</div>
+            </div>
+          </div>
+
+          <div class="nim-step">
+            <div class="nim-step-num">2</div>
+            <div style="flex:1">
+              <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:4px">Point it at Shadow Warden (<code style="color:#22d3ee;font-size:0.7rem">config/config.yml</code>)</div>
+              <div class="nim-code">
+models:<br/>
+&nbsp;&nbsp;- type: main<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;engine: <span class="s">openai</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;model: <span class="s">nim/nvidia/llama-3.1-nemotron-70b-instruct</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;parameters:<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;base_url: <span class="v">http://&lt;warden-host&gt;:8001/v1</span>  <span class="c"># Shadow Warden</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;api_key: <span class="v">${WARDEN_API_KEY}</span></div>
+            </div>
+          </div>
+
+          <div class="nim-step">
+            <div class="nim-step-num">3</div>
+            <div style="flex:1">
+              <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:4px">Wrap agent calls</div>
+              <div class="nim-code">
+<span class="k">from</span> nemoguardrails <span class="k">import</span> RailsConfig, LLMRails<br/><br/>
+rails = LLMRails(RailsConfig.from_path(<span class="s">"./config"</span>))<br/><br/>
+<span class="c"># All calls now pass through policy + Shadow Warden</span><br/>
+response = <span class="k">await</span> rails.generate_async(<br/>
+&nbsp;&nbsp;messages=[{<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: user_input}]<br/>
+)</div>
+            </div>
+          </div>
+
+          <div class="nim-step">
+            <div class="nim-step-num">4</div>
+            <div style="flex:1">
+              <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:4px">Set environment variables</div>
+              <div class="nim-code">
+<span class="k">NVIDIA_API_KEY</span>=<span class="v">nvapi-xxxxxxxxxxxxxxxxxxxx</span><br/>
+<span class="k">WARDEN_API_KEY</span>=<span class="v">your-warden-key</span><br/>
+<span class="k">PROMPT_SHIELD_ENABLED</span>=<span class="v">true</span><br/>
+<span class="k">AUDIT_TRAIL_ENABLED</span>=<span class="v">true</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Client use-cases -->
+      <div>
+        <div class="nim-section-title">Deployment Scenarios</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="nim-use-case">
+            <div style="font-size:1.1rem;flex-shrink:0">🏢</div>
+            <div>
+              <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:2px">Enterprise — Internal Copilots</div>
+              <div style="font-size:0.75rem;color:#5d8aa8;line-height:1.5">Deploy Agent Toolkit as a sidecar to internal LLM copilots. Shadow Warden enforces GDPR redaction + jailbreak detection before any corporate data reaches NVIDIA NIM. Audit trail satisfies SOC 2 Type II requirements.</div>
+            </div>
+          </div>
+          <div class="nim-use-case">
+            <div style="font-size:1.1rem;flex-shrink:0">🔗</div>
+            <div>
+              <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:2px">MSP — Multi-Tenant Agent Farms</div>
+              <div style="font-size:0.75rem;color:#5d8aa8;line-height:1.5">Route hundreds of client tenants through a single Shadow Warden cluster. Each tenant gets isolated rate limits, API keys, and audit logs. Agent Toolkit policies are per-client via YAML config.</div>
+            </div>
+          </div>
+          <div class="nim-use-case">
+            <div style="font-size:1.1rem;flex-shrink:0">🧪</div>
+            <div>
+              <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:2px">Research — Autonomous Agent Safety</div>
+              <div style="font-size:0.75rem;color:#5d8aa8;line-height:1.5">Test multi-step autonomous agents against adversarial inputs. Shadow Warden's Evolution Engine (Claude Opus) automatically generates new detection rules from blocked attacks and hot-reloads them without restart.</div>
+            </div>
+          </div>
+          <div class="nim-use-case">
+            <div style="font-size:1.1rem;flex-shrink:0">💊</div>
+            <div>
+              <div style="font-size:0.8125rem;font-weight:700;color:#dff0ff;margin-bottom:2px">Healthcare / Finance — Regulated Agentic AI</div>
+              <div style="font-size:0.75rem;color:#5d8aa8;line-height:1.5">Zero-trust pipeline ensures PII and PHI are stripped before leaving the perimeter. Cryptographic audit trail provides irrefutable evidence of policy enforcement for HIPAA / DORA compliance audits.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Included features -->
+      <div>
+        <div class="nim-section-title">What's Included With Shadow Warden + Agent Toolkit</div>
+        <div class="nim-grid-3">
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> Obfuscation decoder (base64, ROT13, homoglyphs)</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> PII / secret redaction (15 regex patterns)</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> Rule-based jailbreak detection</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> MiniLM ML cosine similarity (P99 &lt;15ms)</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> Prompt Shield (agentic tool-call protection)</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> SHA-256 cryptographic audit trail</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> NVIDIA NIM multi-model routing</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> Slack + PagerDuty real-time alerts</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:0.78rem;color:#5d8aa8"><span style="color:#76b900;font-weight:800;flex-shrink:0">✓</span> GDPR export + purge API</div>
+        </div>
+      </div>
+
+      <!-- CTAs -->
+      <div class="nim-cta-row">
+        <a href="/contact?subject=NVIDIA+Agent+Toolkit" class="nim-btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Talk to an Expert
+        </a>
+        <a href="/settings#nvidia" class="nim-btn-outline" onclick="closeNimModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Configure in Settings
+        </a>
+        <a href="/checkout?plan=pro" class="nim-btn-outline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+          Start Free Trial
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function openNimModal() {
+    document.getElementById('nimModalOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeNimModal(e) {
+    if (e && e.target !== document.getElementById('nimModalOverlay')) return;
+    document.getElementById('nimModalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { document.getElementById('nimModalOverlay').classList.remove('open'); document.body.style.overflow = ''; }
+  });
 </script>
 
 </body>
