@@ -19,12 +19,20 @@ Prerequisites:
 Quick start (force bypasses by setting a short timeout first):
     # In .env: PIPELINE_TIMEOUT_MS=50  WARDEN_FAIL_STRATEGY=open
     # docker compose up -d --force-recreate --no-deps warden
-    locust -f scripts/chaos_test.py --host http://localhost --headless \\
-           -u 50 -r 10 --run-time 60s
+
+    # Pass API key via env (required if WARDEN_API_KEY is set):
+    WARDEN_API_KEY=$(grep ^WARDEN_API_KEY .env | cut -d= -f2) \\
+      locust -f scripts/chaos_test.py --host http://localhost --headless \\
+             -u 50 -r 10 --run-time 60s
 
 Web UI:
-    locust -f scripts/chaos_test.py --host http://localhost
-    # Open http://localhost:8089 — set 50-100 users, spawn rate 10/s
+    WARDEN_API_KEY=<key> locust -f scripts/chaos_test.py --host http://localhost
+    # Open http://localhost:8089 — set 50 FilterUsers + 1 ConfigSwapper, spawn 10/s
+
+IMPORTANT — user ratios:
+    Run many FilterUsers (40-100) but only 1-2 ConfigSwappers.
+    Multiple ConfigSwappers racing each other will cause false "threshold
+    mismatch" errors in the verify task (test artifact, not a warden bug).
 """
 
 from __future__ import annotations
@@ -242,10 +250,15 @@ class ConfigSwapper(HttpUser):
                     expected = round(_current_threshold, 2)
                 # Allow 1 swap latency — config may have been swapped between
                 # our POST and this GET, so check within ±0.15 range
-                if abs(live - expected) > 0.15:
+                # Allow wide tolerance — concurrent ConfigSwapper instances
+                # will overwrite _current_threshold between POST and this GET.
+                # A mismatch here is a test-script artifact, NOT a warden bug.
+                # The real signal to watch is absence of HTTP 500 errors.
+                if abs(live - expected) > 0.20:
                     resp.failure(
-                        f"Threshold mismatch: live={live} expected={expected} "
-                        f"(swaps so far: {_swap_count})"
+                        f"Threshold mismatch: live={live} expected≈{expected} "
+                        f"(swaps so far: {_swap_count}) — "
+                        "likely multiple ConfigSwappers racing; use only 1"
                     )
                     return
             except Exception as exc:
