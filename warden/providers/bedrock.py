@@ -300,20 +300,25 @@ def _parse_event_frame(buf: bytes) -> tuple[dict[str, Any], int] | None:
     while pos < end:
         if pos >= end:
             break
-        name_len = buf[pos];  pos += 1
+        name_len = buf[pos]
+        pos += 1
         if pos + name_len > end:
             break
-        name = buf[pos: pos + name_len].decode("utf-8");  pos += name_len
+        name = buf[pos: pos + name_len].decode("utf-8")
+        pos += name_len
         if pos >= end:
             break
-        val_type = buf[pos];  pos += 1
+        val_type = buf[pos]
+        pos += 1
         if val_type == 7:                # string header
             if pos + 2 > end:
                 break
-            val_len = struct.unpack_from(">H", buf, pos)[0];  pos += 2
+            val_len = struct.unpack_from(">H", buf, pos)[0]
+            pos += 2
             if pos + val_len > end:
                 break
-            val = buf[pos: pos + val_len].decode("utf-8");    pos += val_len
+            val = buf[pos: pos + val_len].decode("utf-8")
+            pos += val_len
         else:
             break                        # unsupported header type — stop parsing
         headers[name] = val
@@ -377,8 +382,10 @@ async def stream_bedrock(
     ts     = int(time.time())
     msg_id = f"chatcmpl-bedrock-{ts}"
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        async with client.stream("POST", url, content=body, headers=headers) as resp:
+    async with (
+        httpx.AsyncClient(timeout=timeout) as client,
+        client.stream("POST", url, content=body, headers=headers) as resp,
+    ):
             resp.raise_for_status()
 
             buf = b""

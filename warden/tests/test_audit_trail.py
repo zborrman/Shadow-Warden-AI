@@ -13,15 +13,13 @@ Covers:
 """
 from __future__ import annotations
 
-import json
 import sqlite3
 import threading
 from pathlib import Path
 
 import pytest
 
-from warden.audit_trail import AuditTrail, _GENESIS_HASH
-
+from warden.audit_trail import _GENESIS_HASH, AuditTrail
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -291,7 +289,9 @@ class TestDisabledMode:
         monkeypatch.setenv("AUDIT_TRAIL_ENABLED", "false")
         # Re-import to pick up the env var
         import importlib
+
         import warden.audit_trail as _at_mod
+
         importlib.reload(_at_mod)
 
         trail = _at_mod.AuditTrail(db_path=tmp_path / "disabled.db")

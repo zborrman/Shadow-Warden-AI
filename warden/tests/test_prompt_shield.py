@@ -16,7 +16,6 @@ import pytest
 
 from warden.prompt_shield import InjectionType, PromptShield, ShieldResult, scan
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture

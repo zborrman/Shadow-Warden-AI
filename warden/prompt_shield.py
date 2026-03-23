@@ -25,7 +25,7 @@ Thread-safe: all patterns are module-level compiled singletons.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 
 # ── Injection type taxonomy ────────────────────────────────────────────────────

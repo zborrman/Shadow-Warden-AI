@@ -291,7 +291,7 @@ _feed:           ThreatFeedClient  | None = None
 _saml:           SAMLProvider      | None = None
 _webhook_store:  WebhookStore      | None = None
 _poison_guard:   DataPoisoningGuard | None = None  # type: ignore[assignment]
-_audit_trail:    "AuditTrail | None"       = None  # type: ignore[name-defined]
+_audit_trail = None  # AuditTrail | None — imported lazily in lifespan
 
 try:
     from warden.agent_monitor import AgentMonitor

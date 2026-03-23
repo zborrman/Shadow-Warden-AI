@@ -30,7 +30,6 @@ from warden.providers.bedrock import (
     stream_bedrock,
 )
 
-
 # ── EventStream frame builder (test utility) ──────────────────────────────────
 
 def _build_event_frame(event_type: str, payload: dict) -> bytes:
@@ -663,9 +662,8 @@ class TestVertexUrlBuilders:
     def test_missing_project_raises(self):
         from warden.providers.vertex import build_completions_url
 
-        with patch("warden.providers.vertex._PROJECT", ""):
-            with pytest.raises(RuntimeError, match="VERTEX_PROJECT_ID"):
-                build_completions_url(project="", location="us-central1")
+        with patch("warden.providers.vertex._PROJECT", ""), pytest.raises(RuntimeError, match="VERTEX_PROJECT_ID"):
+            build_completions_url(project="", location="us-central1")
 
     def test_location_in_both_url_slots(self):
         """Vertex URL has location in subdomain AND path."""
@@ -693,9 +691,9 @@ class TestGetAccessToken:
         with (
             patch.dict("os.environ", {}, clear=True),
             patch("warden.providers.vertex.os.getenv", return_value=""),
+            pytest.raises(RuntimeError),
         ):
-            with pytest.raises(RuntimeError):
-                await get_access_token()
+            await get_access_token()
 
 
 class TestResolveVertex:
