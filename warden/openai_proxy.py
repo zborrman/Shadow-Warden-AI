@@ -28,6 +28,7 @@ Environment variables:
 
 Provider auto-routing (based on model name):
   azure/<deployment>        → AZURE_OPENAI_ENDPOINT  (Azure OpenAI Service)
+  nim/<org>/<model>         → NVIDIA NIM  (integrate.api.nvidia.com, NVIDIA_API_KEY)
   bedrock/<model-id>        → AWS Bedrock Converse / ConverseStream API  (SigV4-signed)
   vertex/<model-name>       → Google Cloud Vertex AI  (OpenAI-compat endpoint, OAuth2)
   gemini-*                  → https://generativelanguage.googleapis.com/v1beta/openai
@@ -68,6 +69,15 @@ _GEMINI_UPSTREAM     = "https://generativelanguage.googleapis.com/v1beta/openai"
 _PERPLEXITY_API_KEY  = os.getenv("PERPLEXITY_API_KEY", "")
 _GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY", "")
 
+# ── NVIDIA NIM (NVIDIA Inference Microservices) ───────────────────────────────
+# Model name format: "nim/<org>/<model-name>"
+# e.g. "nim/nvidia/llama-3.1-nemotron-70b-instruct"
+#      "nim/meta/llama-3.3-70b-instruct"
+#      "nim/mistralai/mistral-large-2-instruct"
+# Full catalogue: https://build.nvidia.com/explore/discover
+_NIM_UPSTREAM   = "https://integrate.api.nvidia.com/v1"
+_NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+
 # ── Azure OpenAI ─────────────────────────────────────────────────────────────
 # AZURE_OPENAI_ENDPOINT  e.g. https://my-resource.openai.azure.com
 # Model name format: "azure/<deployment-name>"
@@ -93,8 +103,8 @@ _VERTEX_LOCATION = os.getenv("VERTEX_LOCATION",   "us-central1")
 def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
     """Return (completions_url, bearer_key, extra_headers) for the requested model.
 
-    ``completions_url`` is the full POST target URL (empty string for Bedrock,
-    which is handled via a separate code path).
+    ``completions_url`` is the full POST target URL (empty string for Bedrock/Vertex,
+    which are handled via separate async code paths).
     ``extra_headers`` carries provider-specific auth (e.g. Azure's ``api-key``);
     when non-empty the ``Authorization`` header is omitted from the request.
     """
@@ -108,6 +118,10 @@ def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
             f"/chat/completions?api-version={_AZURE_API_VERSION}"
         )
         return url, "", {"api-key": _AZURE_API_KEY}
+
+    # NVIDIA NIM — model format: "nim/<org>/<model-name>"
+    if m.startswith("nim/"):
+        return f"{_NIM_UPSTREAM}/chat/completions", _NVIDIA_API_KEY, {}
 
     if m.startswith("gemini"):
         return f"{_GEMINI_UPSTREAM}/chat/completions", _GEMINI_API_KEY, {}
@@ -360,6 +374,10 @@ async def proxy_chat(
             auth_header = f"Bearer {_provider_key}"
         if auth_header:
             _req_headers["Authorization"] = auth_header
+
+    # ── NVIDIA NIM: strip "nim/" prefix — NIM expects "org/model-name" ───────
+    if model.lower().startswith("nim/"):
+        payload_out = {**payload_out, "model": model[4:]}
 
     # ── Vertex AI: acquire OAuth2 token + resolve URL async ───────────────
     if model.lower().startswith("vertex/"):
@@ -728,6 +746,10 @@ async def proxy_embeddings(
             f"/embeddings?api-version={_AZURE_API_VERSION}"
         )
         _emb_headers["api-key"] = _AZURE_API_KEY
+    elif model.lower().startswith("nim/"):
+        _emb_url = f"{_NIM_UPSTREAM}/embeddings"
+        _emb_headers["Authorization"] = f"Bearer {_NVIDIA_API_KEY}"
+        payload = {**payload, "model": model[4:]}   # strip nim/ prefix
     else:
         _emb_url = f"{_UPSTREAM}/v1/embeddings"
         _auth_hdr = request.headers.get("Authorization", "")

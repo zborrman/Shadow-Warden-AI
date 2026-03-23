@@ -761,6 +761,26 @@ def test_resolve_upstream_openai_default() -> None:
     assert "openai.com" in url or url  # falls through to _UPSTREAM
 
 
+def test_resolve_upstream_nim_nemotron() -> None:
+    from warden.openai_proxy import _resolve_upstream
+    url, _, _h = _resolve_upstream("nim/nvidia/llama-3.1-nemotron-70b-instruct")
+    assert "integrate.api.nvidia.com" in url
+
+
+def test_resolve_upstream_nim_meta_llama() -> None:
+    from warden.openai_proxy import _resolve_upstream
+    url, _, _h = _resolve_upstream("nim/meta/llama-3.3-70b-instruct")
+    assert "integrate.api.nvidia.com" in url
+
+
+def test_resolve_upstream_nim_strips_prefix() -> None:
+    """NIM models route to NIM upstream regardless of org prefix."""
+    from warden.openai_proxy import _resolve_upstream
+    url, _, _h = _resolve_upstream("nim/mistralai/mistral-large-2-instruct")
+    assert "integrate.api.nvidia.com" in url
+    assert "/chat/completions" in url
+
+
 def test_tool_block_counter_incremented_on_phase_b(client) -> None:
     """warden_tool_blocks_total{direction=call} increments on Phase B block."""
     filter_resp = _make_allowed_filter_response("Delete logs")

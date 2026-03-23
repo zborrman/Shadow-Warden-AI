@@ -126,6 +126,8 @@ services:
       - WARDEN_FILTER_URL=http://warden:8001
       - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
       - LLM_API_KEY=${LLM_API_KEY:-}
+      # v1.0 — NVIDIA NIM (Nemotron, Llama, Mistral via integrate.api.nvidia.com)
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
       # v0.7 — Azure OpenAI
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
