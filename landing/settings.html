@@ -404,6 +404,10 @@
       Cache &amp; Redis
     </a>
     <div class="sidebar-group">Integrations</div>
+    <a class="sidebar-item" onclick="return showSection('nvidia', this)" href="#nvidia">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16V8l4-2 4 2 4-2 4 2v8l-4 2-4-2-4 2-4-2z"/><path d="M12 6v12"/></svg>
+      NVIDIA
+    </a>
     <a class="sidebar-item" onclick="return showSection('alerting', this)" href="#alerting">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
       Alerting
@@ -836,6 +840,160 @@
       </div>
     </section>
 
+    <!-- ── NVIDIA ──────────────────────────────────────────────────────── -->
+    <section class="section" id="section-nvidia">
+      <div class="section-title">NVIDIA Integration</div>
+      <div class="section-sub">NVIDIA NIM model routing + Agent Toolkit policy runtime for autonomous agents</div>
+
+      <!-- API Key -->
+      <div class="setting-group">
+        <div class="setting-group-title">NVIDIA API Key</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">NVIDIA_API_KEY</div>
+            <div class="setting-desc">Required for NIM model routing. Generate at <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--indigo)">build.nvidia.com</code> → API Keys.</div>
+            <div class="restart-notice">⚠ Set in server .env + restart to activate</div>
+          </div>
+          <div class="setting-control" id="nvidia-key-status">
+            <span class="badge badge-gray">Not configured</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">NIM Endpoint</div>
+            <div class="setting-desc">All <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">nim/</code> model requests are routed to this endpoint automatically.</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input wide mono" value="integrate.api.nvidia.com/v1" disabled />
+          </div>
+        </div>
+      </div>
+
+      <!-- NIM Routing -->
+      <div class="setting-group">
+        <div class="setting-group-title">NIM Model Routing</div>
+        <div style="padding:16px 20px">
+          <div style="font-size:0.8125rem;color:var(--text2);margin-bottom:10px">Use the <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">nim/</code> prefix to route any request through NVIDIA's inference microservices:</div>
+          <div class="code-block">
+<span style="color:var(--text3);"># Python — OpenAI-compatible client</span><br/>
+<span class="code-key">from</span> openai <span class="code-key">import</span> OpenAI<br/>
+<br/>
+client = OpenAI(<br/>
+&nbsp;&nbsp;base_url=<span class="code-str">"https://your-warden-host/v1"</span>,<br/>
+&nbsp;&nbsp;api_key=<span class="code-str">"your-warden-api-key"</span>,<br/>
+)<br/>
+<br/>
+response = client.chat.completions.create(<br/>
+&nbsp;&nbsp;model=<span class="code-str">"nim/nvidia/llama-3.1-nemotron-70b-instruct"</span>,<br/>
+&nbsp;&nbsp;messages=[{<span class="code-str">"role"</span>: <span class="code-str">"user"</span>, <span class="code-str">"content"</span>: <span class="code-str">"Hello"</span>}],<br/>
+)
+          </div>
+          <div style="margin-top:12px;font-size:0.75rem;color:var(--text3)">
+            Shadow Warden strips the <code style="font-family:JetBrains Mono;color:var(--cyan)">nim/</code> prefix, runs the full 6-stage filter, then forwards to <code style="font-family:JetBrains Mono;color:var(--cyan)">integrate.api.nvidia.com/v1</code> with your NVIDIA_API_KEY.
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Supported NIM Models</div>
+            <div class="setting-desc">Any model available on NVIDIA's API catalog — prefix with <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">nim/</code>.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Auto-routed</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Toolkit Installation -->
+      <div class="setting-group">
+        <div class="setting-group-title">NVIDIA Agent Toolkit — Installation</div>
+        <div style="padding:16px 20px">
+
+          <div style="font-size:0.875rem;font-weight:600;color:var(--text);margin-bottom:6px">Step 1 — Install</div>
+          <div class="code-block">pip install nvidia-agent-toolkit</div>
+
+          <div style="font-size:0.875rem;font-weight:600;color:var(--text);margin:16px 0 6px">Step 2 — Configure policy runtime</div>
+          <div class="code-block">
+<span style="color:var(--text3);"># config/agent_policy.yml</span><br/>
+models:<br/>
+&nbsp;&nbsp;- type: main<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;engine: <span class="code-str">openai</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;model: <span class="code-str">nim/nvidia/llama-3.1-nemotron-70b-instruct</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;parameters:<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;base_url: <span class="code-str">http://localhost:8001/v1</span>  <span style="color:var(--text3);"># Shadow Warden proxy</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;api_key: <span class="code-str">${WARDEN_API_KEY}</span><br/>
+<br/>
+rails:<br/>
+&nbsp;&nbsp;input:<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;flows:<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- check input safety<br/>
+&nbsp;&nbsp;output:<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;flows:<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- check output safety
+          </div>
+
+          <div style="font-size:0.875rem;font-weight:600;color:var(--text);margin:16px 0 6px">Step 3 — Wrap your agent</div>
+          <div class="code-block">
+<span class="code-key">from</span> nemoguardrails <span class="code-key">import</span> RailsConfig, LLMRails<br/>
+<br/>
+config = RailsConfig.from_path(<span class="code-str">"./config"</span>)<br/>
+rails  = LLMRails(config)<br/>
+<br/>
+<span style="color:var(--text3);"># Every call now routes through Shadow Warden</span><br/>
+response = <span class="code-key">await</span> rails.generate_async(<br/>
+&nbsp;&nbsp;messages=[{<span class="code-str">"role"</span>: <span class="code-str">"user"</span>, <span class="code-str">"content"</span>: user_input}]<br/>
+)
+          </div>
+
+          <div style="font-size:0.875rem;font-weight:600;color:var(--text);margin:16px 0 6px">Step 4 — Environment variables</div>
+          <div class="code-block">
+<span class="code-key">NVIDIA_API_KEY</span>=<span class="code-val">nvapi-xxxxxxxxxxxxxxxxxxxx</span><br/>
+<span class="code-key">WARDEN_API_KEY</span>=<span class="code-val">your-warden-key</span><br/>
+<span class="code-key">PROMPT_SHIELD_ENABLED</span>=<span class="code-val">true</span><br/>
+<span class="code-key">AUDIT_TRAIL_ENABLED</span>=<span class="code-val">true</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture -->
+      <div class="setting-group">
+        <div class="setting-group-title">How It Works Together</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Agent Toolkit → Shadow Warden → NVIDIA NIM</div>
+            <div class="setting-desc">Agent Toolkit sends policy-wrapped requests → Shadow Warden runs 6-stage filter (obfuscation, redaction, rules, ML, Prompt Shield, Audit Trail) → clean requests forwarded to NIM endpoint. All blocked attempts logged with cryptographic audit trail.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Zero-Trust</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Prompt Shield</div>
+            <div class="setting-desc">Detects indirect prompt injection, tool-call hijacking, and persona switches specific to agentic workflows. Enabled via PROMPT_SHIELD_ENABLED=true.</div>
+          </div>
+          <div class="setting-control" id="prompt-shield-status">
+            <span class="badge badge-gray">—</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Cryptographic Audit Trail</div>
+            <div class="setting-desc">Every agentic decision is logged with a SHA-256 hash chain — tamper-evident, SOC 2 compliant. Enabled via AUDIT_TRAIL_ENABLED=true.</div>
+          </div>
+          <div class="setting-control" id="audit-trail-status">
+            <span class="badge badge-gray">—</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
   </div><!-- /content -->
 </div><!-- /layout -->
 
@@ -892,6 +1050,22 @@
 
       if (cfg.otel_enabled) {
         document.getElementById('otel-status').innerHTML = '<span class="badge badge-green">Active</span>';
+      }
+
+      if (cfg.nvidia_api_key_set) {
+        document.getElementById('nvidia-key-status').innerHTML = '<span class="badge badge-green">Configured</span>';
+      }
+
+      if (cfg.prompt_shield_enabled) {
+        document.getElementById('prompt-shield-status').innerHTML = '<span class="badge badge-green">Active</span>';
+      } else {
+        document.getElementById('prompt-shield-status').innerHTML = '<span class="badge badge-gray">Disabled</span>';
+      }
+
+      if (cfg.audit_trail_enabled) {
+        document.getElementById('audit-trail-status').innerHTML = '<span class="badge badge-green">Active</span>';
+      } else {
+        document.getElementById('audit-trail-status').innerHTML = '<span class="badge badge-gray">Disabled</span>';
       }
 
     } catch (e) {
