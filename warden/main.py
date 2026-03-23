@@ -872,7 +872,14 @@ async def api_config():
         "browser_enabled":      os.getenv("BROWSER_ENABLED", "false").lower() == "true",
         "mtls_enabled":         os.getenv("MTLS_ENABLED", "false").lower() == "true",
         "otel_enabled":         os.getenv("OTEL_ENABLED", "false").lower() == "true",
-        "model_cache_dir":      os.getenv("MODEL_CACHE_DIR", "/warden/models"),
+        "model_cache_dir":          os.getenv("MODEL_CACHE_DIR", "/warden/models"),
+        # Enterprise resilience
+        "fail_strategy":            _FAIL_STRATEGY,
+        "pipeline_timeout_ms":      _PIPELINE_TIMEOUT_MS,
+        "uncertainty_lower_threshold": _UNCERTAINTY_LOWER,
+        "nvidia_api_key_set":       bool(os.getenv("NVIDIA_API_KEY")),
+        "prompt_shield_enabled":    os.getenv("PROMPT_SHIELD_ENABLED", "false").lower() == "true",
+        "audit_trail_enabled":      os.getenv("AUDIT_TRAIL_ENABLED", "false").lower() == "true",
     }
 
 
@@ -1178,6 +1185,33 @@ async def _run_filter_pipeline(
                 "request_id": rid,
                 "score":      brain_result.score,
                 "risk":       guard_result.risk_level.value,
+                "tenant_id":  tenant_id,
+            })
+        )
+
+    # ── Stage 2b-ii: ML uncertainty escalation ────────────────────────
+    # Flag requests whose ML score falls in the gray zone [UNCERTAINTY_LOWER, threshold).
+    if (
+        _UNCERTAINTY_LOWER > 0
+        and not brain_result.is_jailbreak
+        and brain_result.score >= _UNCERTAINTY_LOWER
+    ):
+        guard_result.flags.append(SemanticFlag(
+            flag=FlagType.ML_UNCERTAIN,
+            score=round(brain_result.score, 4),
+            detail=(
+                f"ML score {brain_result.score:.3f} in uncertainty zone "
+                f"[{_UNCERTAINTY_LOWER:.2f}, {brain_result.threshold:.2f}) — suspicious but below block threshold"
+            ),
+        ))
+        guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.MEDIUM)
+        log.info(
+            json.dumps({
+                "event":      "ml_uncertain",
+                "request_id": rid,
+                "score":      brain_result.score,
+                "lower":      _UNCERTAINTY_LOWER,
+                "threshold":  brain_result.threshold,
                 "tenant_id":  tenant_id,
             })
         )
@@ -1564,7 +1598,35 @@ async def filter_content(
     rid = getattr(request.state, "request_id", "-")
     _enforce_tenant_rate_limit(auth, rid)
     client_ip = request.client.host if request.client else ""
-    return await _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
+    coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
+    if _PIPELINE_TIMEOUT_MS > 0:
+        try:
+            return await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
+        except asyncio.TimeoutError:
+            log.warning(
+                json.dumps({
+                    "event":      "pipeline_timeout",
+                    "request_id": rid,
+                    "strategy":   _FAIL_STRATEGY,
+                    "timeout_ms": _PIPELINE_TIMEOUT_MS,
+                })
+            )
+            if _FAIL_STRATEGY == "closed":
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Filter pipeline timeout — request blocked (WARDEN_FAIL_STRATEGY=closed).",
+                ) from None
+            # fail-open: pass the request through with a LOW-risk response
+            return FilterResponse(
+                allowed          = True,
+                risk_level       = RiskLevel.LOW,
+                filtered_content = payload.content,
+                secrets_found    = [],
+                semantic_flags   = [],
+                reason           = "",
+                processing_ms    = {"total": _PIPELINE_TIMEOUT_MS, "timeout": 1},
+            )
+    return await coro
 
 
 # ── /demo/filter ──────────────────────────────────────────────────────────────
@@ -1595,6 +1657,18 @@ async def demo_filter(
 # ── /filter/batch ─────────────────────────────────────────────────────────────
 
 _MAX_BATCH_SIZE = int(os.getenv("MAX_BATCH_SIZE", "50"))
+
+# ── Fail strategy & pipeline timeout ──────────────────────────────────────────
+# WARDEN_FAIL_STRATEGY=open  → pass request through on timeout (business priority)
+# WARDEN_FAIL_STRATEGY=closed → block request on timeout   (security priority)
+_FAIL_STRATEGY       = os.getenv("WARDEN_FAIL_STRATEGY", "open").lower()   # "open" | "closed"
+_PIPELINE_TIMEOUT_MS = int(os.getenv("PIPELINE_TIMEOUT_MS", "0"))          # 0 = disabled
+
+# ── ML uncertainty escalation ─────────────────────────────────────────────────
+# Requests with ML score in [UNCERTAINTY_LOWER, threshold) are flagged as ML_UNCERTAIN
+# and escalated to MEDIUM risk even though they didn't cross the block threshold.
+# Set to 0 to disable.
+_UNCERTAINTY_LOWER = float(os.getenv("UNCERTAINTY_LOWER_THRESHOLD", "0.55"))
 
 
 class _BatchRequest(BaseModel):

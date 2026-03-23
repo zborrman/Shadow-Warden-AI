@@ -33,6 +33,7 @@ class FlagType(StrEnum):
     MISINFORMATION       = "misinformation"        # LLM09 — eliciting deliberately false authoritative content
     RESOURCE_EXHAUSTION  = "resource_exhaustion"   # LLM10 — unbounded token consumption / generation loops
     DATA_POISONING       = "data_poisoning"        # LLM04 variant — corpus/inference-plane poisoning attack
+    ML_UNCERTAIN         = "ml_uncertain"          # ML score in gray zone — below block threshold but suspicious
 
 
 class RedactionPolicy(StrEnum):

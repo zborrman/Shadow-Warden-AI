@@ -27,6 +27,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import tempfile
 import uuid
 from datetime import UTC, datetime
@@ -41,6 +42,52 @@ from warden.metrics import EVOLUTION_SKIPPED_TOTAL
 from warden.schemas import RiskLevel, SemanticFlag
 
 log = logging.getLogger("warden.brain.evolve")
+
+# ── GDPR: anonymize unique identifiers before sending to Claude ───────────────
+# Strip UUIDs, IPv4/IPv6 addresses, emails, long hex strings, and ISO timestamps
+# so that no unique data-subject identifiers leave the perimeter via the
+# Evolution Engine prompt — even if SecretRedactor missed them.
+_ANON_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    # UUID v1-v5
+    (re.compile(
+        r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+        re.IGNORECASE,
+    ), "[UUID]"),
+    # IPv4
+    (re.compile(
+        r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
+    ), "[IPv4]"),
+    # IPv6 (simplified — catches most forms)
+    (re.compile(
+        r"\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b",
+        re.IGNORECASE,
+    ), "[IPv6]"),
+    # Email addresses
+    (re.compile(
+        r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b",
+    ), "[EMAIL]"),
+    # ISO 8601 timestamps (2025-03-23T12:34:56)
+    (re.compile(
+        r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b",
+    ), "[TIMESTAMP]"),
+    # Long hex strings ≥ 16 chars (tokens, hashes, session IDs)
+    (re.compile(
+        r"\b[0-9a-f]{16,}\b",
+        re.IGNORECASE,
+    ), "[HEX]"),
+]
+
+
+def _anonymize_for_evolution(text: str) -> str:
+    """Scrub unique identifiers from content before sending to Claude Opus.
+
+    GDPR safeguard: the evolution prompt must never carry data-subject
+    identifiers (IPs, UUIDs, emails, timestamps) to the external API.
+    SecretRedactor handles credentials; this layer handles structural UIDs.
+    """
+    for pattern, replacement in _ANON_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -404,7 +451,9 @@ class EvolutionEngine:
             f"{f.flag.value}(score={f.score:.2f})" for f in flags
         ) or "none detected"
 
-        safe_content = content[:2_000]
+        # GDPR: strip structural UIDs (UUIDs, IPs, emails, timestamps, hex tokens)
+        # before the content leaves the perimeter via the Anthropic API.
+        safe_content = _anonymize_for_evolution(content[:2_000])
 
         system = (
             "You are an expert red-team AI security analyst for the Shadow Warden "
