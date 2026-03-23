@@ -131,6 +131,20 @@ class FilterUser(HttpUser):
                 resp.success()
                 return
 
+            if resp.status_code == 403:
+                # HoneyEngine trap — attack payload caught by HONEY_MODE=true.
+                # This is valid security behaviour, not an error.
+                events.request.fire(
+                    request_type="HONEYTRAP",
+                    name="403 honey engine",
+                    response_time=resp.elapsed.total_seconds() * 1000,
+                    response_length=len(resp.content),
+                    exception=None,
+                    context={},
+                )
+                resp.success()
+                return
+
             if resp.status_code != 200:
                 resp.failure(f"Unexpected {resp.status_code}")
                 return
