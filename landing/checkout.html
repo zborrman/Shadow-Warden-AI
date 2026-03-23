@@ -398,10 +398,18 @@
 <script>
   // ── Plan config ─────────────────────────────────────────────────────────────
   const PLANS = {
+    individual: {
+      badge: 'Individual Plan',
+      name: 'Individual',
+      amount: 5,
+      desc: 'For solo developers & hobbyists. 5,000 requests/month, all 6 detection stages, Prompt Shield + Audit Trail.',
+      requests: '5,000 / month',
+      planKey: 'individual',
+    },
     pro: {
       badge: 'Business Plan',
       name: 'Business',
-      price: '$49<small>/mo</small>',
+      amount: 49,
       desc: 'Unlimited requests, multi-tenant, full alerting stack. 14-day free trial — no charge until trial ends.',
       requests: 'Unlimited',
       planKey: 'pro',
@@ -409,7 +417,7 @@
     msp: {
       badge: 'MSP Plan',
       name: 'MSP',
-      price: '$199<small>/mo</small>',
+      amount: 199,
       desc: 'For Managed Service Providers. Unlimited tenants, white-label, dedicated support engineer.',
       requests: 'Unlimited',
       planKey: 'msp',
@@ -422,7 +430,7 @@
 
   document.getElementById('plan-badge').textContent = plan.badge;
   document.getElementById('plan-name').textContent  = plan.name;
-  document.getElementById('plan-price').innerHTML   = '<sup>$</sup>' + (planKey === 'msp' ? '199' : '49') + '<small>/mo</small>';
+  document.getElementById('plan-price').innerHTML   = '<sup>$</sup>' + plan.amount + '<small>/mo</small>';
   document.getElementById('plan-desc').textContent  = plan.desc;
   document.getElementById('order-plan').textContent = plan.name;
   document.getElementById('order-requests').textContent = plan.requests;
@@ -510,7 +518,7 @@
 
     // Send to billing contact endpoint (or mailto fallback)
     const subject = `Payoneer Payment Request — Shadow Warden ${plan.name} Plan`;
-    const body    = `Name: ${first} ${last}\nEmail: ${email}\nCompany: ${company}\nCountry: ${country}\nPlan: ${plan.name}\nAmount: $${planKey === 'msp' ? 199 : 49}/mo`;
+    const body    = `Name: ${first} ${last}\nEmail: ${email}\nCompany: ${company}\nCountry: ${country}\nPlan: ${plan.name}\nAmount: $${plan.amount}/mo`;
 
     // Simulate API call + fallback to mailto
     await new Promise(r => setTimeout(r, 1200));
