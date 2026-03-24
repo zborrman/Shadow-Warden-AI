@@ -35,6 +35,11 @@ services:
     image: nginx:alpine
     container_name: warden-proxy
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "80:80"
       - "443:443"
@@ -61,6 +66,11 @@ services:
       dockerfile: Dockerfile
     container_name: warden-gateway
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     expose:
       - "8001"
     deploy:
@@ -183,6 +193,11 @@ services:
     image: postgres:16-alpine
     container_name: warden-postgres
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-warden_user}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-change-me}
@@ -203,6 +218,11 @@ services:
     image: redis:7-alpine
     container_name: warden-redis
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: redis-server --save 60 1 --loglevel warning --appendonly yes
     volumes:
       - redis-data:/data
