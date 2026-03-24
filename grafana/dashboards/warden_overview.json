@@ -376,6 +376,100 @@
         {"expr": "sum by (source_region) (increase(warden_sync_rules_applied_total[5m]))", "legendFormat": "from {{source_region}}", "refId": "A"},
         {"expr": "sum by (source_region) (increase(warden_sync_blocks_applied_total[5m]))", "legendFormat": "blocks from {{source_region}}", "refId": "B"}
       ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 47},
+      "id": 40,
+      "title": "Multi-Modal Guard — v1.4",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 48},
+      "id": 41,
+      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area", "justifyMode": "auto"},
+      "title": "Visual Jailbreaks Blocked",
+      "description": "CLIP-detected jailbreak text in images.",
+      "type": "stat",
+      "targets": [
+        {"expr": "sum(increase(warden_image_guard_blocks_total{reason=\"visual_jailbreak\"}[1h])) or vector(0)", "legendFormat": "last 1h", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 48},
+      "id": 42,
+      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area", "justifyMode": "auto"},
+      "title": "PII Detected in Images",
+      "description": "GDPR: image not forwarded to LLM when PII found.",
+      "type": "stat",
+      "targets": [
+        {"expr": "sum(increase(warden_image_guard_blocks_total{reason=\"pii_detected\"}[1h])) or vector(0)", "legendFormat": "last 1h", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 48},
+      "id": 43,
+      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area", "justifyMode": "auto"},
+      "title": "Audio Injections Blocked",
+      "description": "Whisper + ultrasound detected hidden commands in audio.",
+      "type": "stat",
+      "targets": [
+        {"expr": "sum(increase(warden_audio_guard_blocks_total[1h])) or vector(0)", "legendFormat": "last 1h", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 48},
+      "id": 44,
+      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area", "justifyMode": "auto"},
+      "title": "Multimodal Requests",
+      "description": "Total POST /filter/multimodal calls.",
+      "type": "stat",
+      "targets": [
+        {"expr": "sum(increase(warden_multimodal_requests_total[1h])) or vector(0)", "legendFormat": "last 1h", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 52},
+      "id": 45,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "title": "Multi-Modal Blocks / min",
+      "description": "Visual jailbreaks, PII in images, audio injections, and ultrasound detections over time.",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum(rate(warden_image_guard_blocks_total{reason=\"visual_jailbreak\"}[1m])) * 60", "legendFormat": "visual jailbreak", "refId": "A"},
+        {"expr": "sum(rate(warden_image_guard_blocks_total{reason=\"pii_detected\"}[1m])) * 60", "legendFormat": "image PII", "refId": "B"},
+        {"expr": "sum(rate(warden_audio_guard_blocks_total{reason=\"semantic_injection\"}[1m])) * 60", "legendFormat": "audio injection", "refId": "C"},
+        {"expr": "sum(rate(warden_audio_guard_blocks_total{reason=\"ultrasound\"}[1m])) * 60", "legendFormat": "ultrasound", "refId": "D"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 52},
+      "id": 46,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "title": "Multimodal Requests by Modality",
+      "description": "Breakdown of /filter/multimodal calls by modality combination (text, image, audio, image+audio, etc).",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (modalities) (rate(warden_multimodal_requests_total[5m])) * 60", "legendFormat": "{{modalities}}", "refId": "A"}
+      ]
     }
   ],
   "schemaVersion": 38,

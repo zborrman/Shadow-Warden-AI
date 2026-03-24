@@ -622,6 +622,14 @@ async def lifespan(app: FastAPI):
     except Exception as _honey_err:
         log.warning("HoneyEngine failed to initialise: %s", _honey_err)
 
+    # ── Multi-Modal Guard pre-warm (CLIP + Whisper) ───────────────────
+    try:
+        from warden import image_guard as _ig, audio_guard as _ag  # noqa: PLC0415
+        _ig.prewarm()
+        _ag.prewarm()
+    except Exception as _mm_err:
+        log.warning("MultiModal guard pre-warm failed (non-fatal): %s", _mm_err)
+
     # ── OpenTelemetry distributed tracing ─────────────────────────────
     try:
         from warden.telemetry import setup_telemetry  # noqa: PLC0415
@@ -1872,6 +1880,123 @@ async def filter_batch(
         resp = await _run_filter_pipeline(item, rid, auth, background_tasks, client_ip)
         results.append(resp)
     return _BatchResponse(results=results)
+
+
+# ── /filter/multimodal ────────────────────────────────────────────────────────
+
+class _MultimodalRequest(BaseModel):
+    content:   str | None = Field(default=None, max_length=32_000,
+                                   description="Text payload (optional — submit image/audio alone).")
+    image_b64: str | None = Field(default=None, description="Base64-encoded image (PNG/JPEG/WebP).")
+    audio_b64: str | None = Field(default=None, description="Base64-encoded audio (WAV/MP3/OGG).")
+    tenant_id: str        = Field(default="default")
+    strict:    bool       = Field(default=False)
+    context:   dict       = Field(default_factory=dict)
+
+
+class _MultimodalResponse(BaseModel):
+    allowed:        bool
+    risk_level:     str
+    flags:          list[dict]      = Field(default_factory=list)
+    modalities:     dict            = Field(default_factory=dict)
+    processing_ms:  dict[str, float] = Field(default_factory=dict)
+    pii_redacted:   bool            = False
+    text_result:    FilterResponse | None = None
+
+
+@app.post(
+    "/filter/multimodal",
+    response_model=_MultimodalResponse,
+    tags=["filter"],
+    summary="Unified text + image + audio threat filter (v1.4 Multi-Modal Guard)",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit(_tenant_limit)
+async def filter_multimodal(
+    payload:          _MultimodalRequest,
+    request:          Request,
+    background_tasks: BackgroundTasks,
+    auth:             AuthResult = Depends(require_api_key),
+) -> _MultimodalResponse:
+    from warden.multimodal import run_multimodal  # noqa: PLC0415
+    from warden.metrics import (  # noqa: PLC0415
+        IMAGE_GUARD_BLOCKS_TOTAL,
+        AUDIO_GUARD_BLOCKS_TOTAL,
+        MULTIMODAL_REQUESTS_TOTAL,
+    )
+
+    if not payload.content and not payload.image_b64 and not payload.audio_b64:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least one of content, image_b64, or audio_b64 must be provided.",
+        )
+
+    rid = getattr(request.state, "request_id", str(uuid.uuid4()))
+
+    # ── Text pipeline (if content provided) ──────────────────────────
+    text_resp: FilterResponse | None = None
+    text_risk = RiskLevel.LOW
+    text_flags: list = []
+
+    if payload.content:
+        filter_req = FilterRequest(
+            content   = payload.content,
+            tenant_id = payload.tenant_id,
+            strict    = payload.strict,
+            context   = payload.context,
+        )
+        client_ip = request.client.host if request.client else ""
+        text_resp = await _run_filter_pipeline(filter_req, rid, auth, background_tasks, client_ip)
+        text_risk  = text_resp.risk_level
+        text_flags = list(text_resp.semantic_flags)
+
+    # ── Tenant brain guard for audio transcript ───────────────────────
+    tenant_guard = _tenant_guards.get(payload.tenant_id, _brain_guard)
+
+    # ── Multimodal pipeline ───────────────────────────────────────────
+    mm_result = await run_multimodal(
+        text_content   = payload.content,
+        image_b64      = payload.image_b64,
+        audio_b64      = payload.audio_b64,
+        text_risk      = text_risk,
+        text_flags     = text_flags,
+        semantic_guard = tenant_guard,
+        strict         = payload.strict,
+    )
+
+    # ── Modalities label for Prometheus ──────────────────────────────
+    active_modalities = "+".join(filter(None, [
+        "text"  if payload.content   else None,
+        "image" if payload.image_b64 else None,
+        "audio" if payload.audio_b64 else None,
+    ]))
+    MULTIMODAL_REQUESTS_TOTAL.labels(modalities=active_modalities).inc()
+
+    # ── Per-modality block counters ───────────────────────────────────
+    for flag in mm_result.flags:
+        if flag.flag == FlagType.VISUAL_JAILBREAK:
+            IMAGE_GUARD_BLOCKS_TOTAL.labels(reason="visual_jailbreak").inc()
+        elif flag.flag == FlagType.PII_DETECTED and payload.image_b64:
+            IMAGE_GUARD_BLOCKS_TOTAL.labels(reason="pii_detected").inc()
+        elif flag.flag == FlagType.AUDIO_INJECTION:
+            reason = "ultrasound" if "Ultrasound" in flag.detail else "semantic_injection"
+            AUDIO_GUARD_BLOCKS_TOTAL.labels(reason=reason).inc()
+
+    return _MultimodalResponse(
+        allowed       = mm_result.allowed,
+        risk_level    = mm_result.risk_level.value,
+        flags         = [
+            {"flag": f.flag.value, "score": f.score, "detail": f.detail}
+            for f in mm_result.flags
+        ],
+        modalities    = mm_result.modalities,
+        processing_ms = {
+            **(text_resp.processing_ms if text_resp else {}),
+            **mm_result.processing_ms,
+        },
+        pii_redacted  = mm_result.pii_redacted,
+        text_result   = text_resp,
+    )
 
 
 # ── GDPR endpoints ────────────────────────────────────────────────────────────

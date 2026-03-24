@@ -1,0 +1,211 @@
+"""
+warden/multimodal.py
+━━━━━━━━━━━━━━━━━━━
+Multi-Modal Pipeline Coordinator — Step 6 of v1.4.
+
+Orchestrates parallel execution of the text, image, and audio guard stages,
+then merges individual risk scores into a unified verdict.
+
+Pipeline (parallel streams)
+────────────────────────────
+  MultimodalRequest
+    ├── text content  ──→ existing /filter pipeline (SemanticGuard + ThreatVault)
+    ├── image_b64     ──→ ImageGuard (CLIP zero-shot)          ─┐
+    └── audio_b64     ──→ AudioGuard (Whisper + SemanticGuard) ─┘
+                                ↓  asyncio.gather
+                         MultimodalResult
+                           unified risk_level = max(text, image, audio)
+                           flags += VISUAL_JAILBREAK | AUDIO_INJECTION
+
+Risk merging rules
+───────────────────
+  • Final risk = max(text_risk, image_risk, audio_risk) by severity order
+  • A VISUAL_JAILBREAK or AUDIO_INJECTION flag always escalates to HIGH
+  • Ultrasound detection alone → HIGH (even with empty transcript)
+  • PII in image → PII_DETECTED flag + MEDIUM escalation (for GDPR masking)
+
+GDPR image masking (Step 7)
+────────────────────────────
+  If ImageGuard detects PII (is_pii=True), the image is NOT forwarded to
+  downstream LLMs.  The response includes a masked placeholder and a
+  'pii_redacted' boolean in the modalities field.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+from warden.schemas import FlagType, RiskLevel, SemanticFlag
+
+log = logging.getLogger("warden.multimodal")
+
+_RISK_ORDER = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.BLOCK]
+
+
+def _max_risk(*levels: RiskLevel) -> RiskLevel:
+    return max(levels, key=lambda r: _RISK_ORDER.index(r))
+
+
+# ── Result ────────────────────────────────────────────────────────────────────
+
+@dataclass
+class MultimodalResult:
+    risk_level:     RiskLevel          = RiskLevel.LOW
+    allowed:        bool               = True
+    flags:          list[SemanticFlag] = field(default_factory=list)
+    modalities:     dict[str, Any]     = field(default_factory=dict)
+    processing_ms:  dict[str, float]   = field(default_factory=dict)
+    pii_redacted:   bool               = False
+
+
+# ── Unified scoring ───────────────────────────────────────────────────────────
+
+def _image_risk(image_result) -> RiskLevel:
+    from warden.image_guard import ImageGuardResult  # noqa: PLC0415
+    if image_result.error or not hasattr(image_result, "is_jailbreak"):
+        return RiskLevel.LOW
+    if image_result.is_jailbreak:
+        return RiskLevel.HIGH
+    if image_result.is_pii:
+        return RiskLevel.MEDIUM
+    return RiskLevel.LOW
+
+
+def _audio_risk(audio_result) -> RiskLevel:
+    from warden.audio_guard import AudioGuardResult  # noqa: PLC0415
+    if audio_result.error or not hasattr(audio_result, "is_injection"):
+        return RiskLevel.LOW
+    if audio_result.is_injection or audio_result.ultrasound_detected:
+        return RiskLevel.HIGH
+    return RiskLevel.LOW
+
+
+# ── Main coordinator ──────────────────────────────────────────────────────────
+
+async def run_multimodal(
+    *,
+    text_content:   str | None = None,
+    image_b64:      str | None = None,
+    audio_b64:      str | None = None,
+    text_risk:      RiskLevel  = RiskLevel.LOW,
+    text_flags:     list[SemanticFlag] | None = None,
+    semantic_guard  = None,
+    strict:         bool = False,
+) -> MultimodalResult:
+    """
+    Run image + audio guards in parallel, merge with existing text result.
+
+    Args:
+        text_content:   Raw text (already filtered by main pipeline).
+        image_b64:      Base64-encoded image (PNG/JPEG/WebP).
+        audio_b64:      Base64-encoded audio (WAV/MP3/OGG).
+        text_risk:      Risk level already determined by text pipeline.
+        text_flags:     Flags already raised by text pipeline.
+        semantic_guard: BrainSemanticGuard instance for audio transcript check.
+        strict:         If True, MEDIUM → block.
+
+    Returns MultimodalResult with unified verdict.
+    """
+    t0 = time.time()
+    all_flags = list(text_flags or [])
+    modalities: dict[str, Any] = {"text": {"risk": text_risk.value}}
+
+    # ── Parallel image + audio ────────────────────────────────────────────────
+    tasks = []
+    has_image = bool(image_b64)
+    has_audio = bool(audio_b64)
+
+    if has_image:
+        from warden.image_guard import check_image_b64  # noqa: PLC0415
+        tasks.append(check_image_b64(image_b64))
+    else:
+        tasks.append(asyncio.coroutine(lambda: None)() if False else _noop())
+
+    if has_audio:
+        from warden.audio_guard import check_audio_b64  # noqa: PLC0415
+        tasks.append(check_audio_b64(audio_b64, semantic_guard))
+    else:
+        tasks.append(_noop())
+
+    image_result, audio_result = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # ── Image result ──────────────────────────────────────────────────────────
+    img_risk  = RiskLevel.LOW
+    pii_found = False
+    if has_image and not isinstance(image_result, Exception):
+        img_risk  = _image_risk(image_result)
+        pii_found = getattr(image_result, "is_pii", False)
+        modalities["image"] = {
+            "risk":            img_risk.value,
+            "jailbreak_score": getattr(image_result, "jailbreak_score", 0.0),
+            "pii_score":       getattr(image_result, "pii_score", 0.0),
+            "elapsed_ms":      getattr(image_result, "elapsed_ms", 0.0),
+            "error":           getattr(image_result, "error", ""),
+        }
+        if getattr(image_result, "is_jailbreak", False):
+            all_flags.append(SemanticFlag(
+                flag   = FlagType.VISUAL_JAILBREAK,
+                score  = getattr(image_result, "jailbreak_score", 1.0),
+                detail = "Visual jailbreak pattern detected by CLIP image analysis.",
+            ))
+        if pii_found:
+            all_flags.append(SemanticFlag(
+                flag   = FlagType.PII_DETECTED,
+                score  = getattr(image_result, "pii_score", 0.8),
+                detail = "PII detected in image (passport/ID/card) — GDPR: image not forwarded.",
+            ))
+
+    # ── Audio result ──────────────────────────────────────────────────────────
+    aud_risk = RiskLevel.LOW
+    if has_audio and not isinstance(audio_result, Exception):
+        aud_risk = _audio_risk(audio_result)
+        modalities["audio"] = {
+            "risk":               aud_risk.value,
+            "transcript":         getattr(audio_result, "transcript", ""),
+            "ultrasound":         getattr(audio_result, "ultrasound_detected", False),
+            "ultrasound_energy":  getattr(audio_result, "ultrasound_energy", 0.0),
+            "elapsed_ms":         getattr(audio_result, "elapsed_ms", 0.0),
+            "error":              getattr(audio_result, "error", ""),
+        }
+        if getattr(audio_result, "is_injection", False):
+            all_flags.append(SemanticFlag(
+                flag   = FlagType.AUDIO_INJECTION,
+                score  = 1.0 if getattr(audio_result, "ultrasound_detected", False) else 0.85,
+                detail = (
+                    "Ultrasound command detected (inaudible frequency band)."
+                    if getattr(audio_result, "ultrasound_detected", False)
+                    else f"Audio injection in transcript: {getattr(audio_result, 'transcript', '')[:100]!r}"
+                ),
+            ))
+
+    # ── Unified risk ──────────────────────────────────────────────────────────
+    final_risk = _max_risk(text_risk, img_risk, aud_risk)
+    if strict and final_risk == RiskLevel.MEDIUM:
+        final_risk = RiskLevel.HIGH
+    allowed = final_risk not in (RiskLevel.HIGH, RiskLevel.BLOCK)
+
+    elapsed = round((time.time() - t0) * 1000, 2)
+    modalities["unified"] = {"risk": final_risk.value, "allowed": allowed}
+
+    log.info(
+        "MultimodalPipeline: text=%s image=%s audio=%s → unified=%s allowed=%s elapsed=%.1fms",
+        text_risk.value, img_risk.value, aud_risk.value,
+        final_risk.value, allowed, elapsed,
+    )
+
+    return MultimodalResult(
+        risk_level    = final_risk,
+        allowed       = allowed,
+        flags         = all_flags,
+        modalities    = modalities,
+        processing_ms = {"multimodal_total": elapsed},
+        pii_redacted  = pii_found,
+    )
+
+
+async def _noop():
+    """Placeholder for missing modality."""
+    return None

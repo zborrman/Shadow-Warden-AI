@@ -232,6 +232,41 @@ try:
     # Labels:
     #   source_region  region that originally generated the rule/block/snapshot
 
+    # ── v1.4 Multi-Modal Guard metrics ───────────────────────────────────────────
+
+    try:
+        IMAGE_GUARD_BLOCKS_TOTAL = Counter(
+            "warden_image_guard_blocks_total",
+            "Visual jailbreaks detected by ImageGuard (CLIP)",
+            ["reason"],   # "visual_jailbreak" | "pii_detected"
+        )
+    except ValueError:
+        IMAGE_GUARD_BLOCKS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_image_guard_blocks_total"
+        )
+
+    try:
+        AUDIO_GUARD_BLOCKS_TOTAL = Counter(
+            "warden_audio_guard_blocks_total",
+            "Audio injection attempts detected by AudioGuard (Whisper)",
+            ["reason"],   # "semantic_injection" | "ultrasound"
+        )
+    except ValueError:
+        AUDIO_GUARD_BLOCKS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_audio_guard_blocks_total"
+        )
+
+    try:
+        MULTIMODAL_REQUESTS_TOTAL = Counter(
+            "warden_multimodal_requests_total",
+            "Total multi-modal filter requests",
+            ["modalities"],  # "image" | "audio" | "image+audio"
+        )
+    except ValueError:
+        MULTIMODAL_REQUESTS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_multimodal_requests_total"
+        )
+
     try:
         SYNC_RULES_PUBLISHED_TOTAL = Counter(
             "warden_sync_rules_published_total",
@@ -328,6 +363,9 @@ except ImportError:
     WALLET_BUDGET_EXCEEDED          = _Noop()  # type: ignore[assignment]
     OUTPUT_GUARD_BLOCKS             = _Noop()  # type: ignore[assignment]
     OUTPUT_GUARD_SANITIZATIONS      = _Noop()  # type: ignore[assignment]
+    IMAGE_GUARD_BLOCKS_TOTAL        = _Noop()  # type: ignore[assignment]
+    AUDIO_GUARD_BLOCKS_TOTAL        = _Noop()  # type: ignore[assignment]
+    MULTIMODAL_REQUESTS_TOTAL       = _Noop()  # type: ignore[assignment]
     SYNC_RULES_PUBLISHED_TOTAL      = _Noop()  # type: ignore[assignment]
     SYNC_RULES_APPLIED_TOTAL        = _Noop()  # type: ignore[assignment]
     SYNC_CORPUS_UPLOADS_TOTAL       = _Noop()  # type: ignore[assignment]

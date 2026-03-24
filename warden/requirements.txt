@@ -111,3 +111,15 @@ PyJWT>=2.8.0
 # Not required for standard deployments (corpus < 500 entries uses torch scan).
 # Install separately if needed: pip install faiss-cpu
 # faiss-cpu>=1.8.0
+
+# ── v1.4 Multi-Modal Guard ────────────────────────────────────────────────────
+# Pillow — image decoding for ImageGuard (CLIP input preprocessing)
+Pillow>=10.0.0
+
+# faster-whisper — CTranslate2-optimized Whisper for AudioGuard.
+# Uses int8 quantization for 2-4x faster CPU inference vs openai/whisper.
+faster-whisper>=1.0.0
+
+# soundfile — audio decoding fallback (WAV/FLAC/OGG) for AudioGuard.
+# librosa is preferred but adds heavier scipy dependency; soundfile is lighter.
+soundfile>=0.12.0

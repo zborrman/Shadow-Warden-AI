@@ -34,6 +34,8 @@ class FlagType(StrEnum):
     RESOURCE_EXHAUSTION  = "resource_exhaustion"   # LLM10 — unbounded token consumption / generation loops
     DATA_POISONING       = "data_poisoning"        # LLM04 variant — corpus/inference-plane poisoning attack
     ML_UNCERTAIN         = "ml_uncertain"          # ML score in gray zone — below block threshold but suspicious
+    VISUAL_JAILBREAK     = "visual_jailbreak"      # LLM01 variant — jailbreak text hidden in image (CLIP detected)
+    AUDIO_INJECTION      = "audio_injection"        # LLM01 variant — hidden command in audio (Whisper + ultrasound)
 
 
 class RedactionPolicy(StrEnum):
