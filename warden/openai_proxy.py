@@ -135,6 +135,14 @@ def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
     return f"{_UPSTREAM}/chat/completions", "", {}
 # MASKING_MODE=auto  — transparently mask PII in user messages, unmask LLM responses
 # MASKING_MODE=off   — standard redact-only behaviour (default)
+# STREAMING_FAST_SCAN_BUFFER — number of accumulated response chars to buffer
+# before running a fast OutputGuard pass and switching to live-emit mode.
+# This eliminates TTFB latency: once the buffer passes the fast scan the client
+# starts receiving chunks immediately instead of waiting for the full response.
+# Set to 0 to disable (always buffer everything — maximum safety, worst TTFB).
+# Masking mode always buffers regardless of this setting (unmask requires full text).
+_STREAM_FAST_SCAN_BUFFER = int(os.getenv("STREAMING_FAST_SCAN_BUFFER", "400"))
+
 _MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
 
 _WALLET_ENABLED        = os.getenv("WALLET_ENABLED",             "true").lower() == "true"
@@ -422,8 +430,70 @@ async def proxy_chat(
                 _chunks: list[dict] = []
                 _parts:  list[str]  = []
 
+                # Progressive streaming state.
+                # When masking is active we MUST buffer the full response (unmask
+                # requires complete text).  Otherwise we use a fast-scan buffer:
+                # accumulate _STREAM_FAST_SCAN_BUFFER chars, run OutputGuard once,
+                # then emit all buffered chunks and continue in live-emit mode.
+                _must_buffer = bool(_mask_session_id) or _STREAM_FAST_SCAN_BUFFER == 0
+                _live_mode   = False   # True once fast-scan passed and we live-emit
+                _buf_len     = 0
+
+                def _extract_parts(chunk: dict) -> list[str]:
+                    out = []
+                    for _ch in chunk.get("choices") or []:
+                        _d = _ch.get("delta") or {}
+                        if isinstance(_d.get("content"), str):
+                            out.append(_d["content"])
+                    return out
+
+                async def _collect_or_emit(chunk: dict) -> bool:
+                    """
+                    Buffer or emit one chunk.  Returns False when the stream
+                    should be terminated (fast-scan blocked the content).
+                    nonlocal: _live_mode, _buf_len
+                    """
+                    nonlocal _live_mode, _buf_len
+                    _chunks.append(chunk)
+                    _piece_parts = _extract_parts(chunk)
+                    _parts.extend(_piece_parts)
+                    _piece_len = sum(len(p) for p in _piece_parts)
+                    _buf_len += _piece_len
+
+                    if _must_buffer:
+                        return True  # always buffer when masking is active
+
+                    if _live_mode:
+                        # Already in live mode — emit immediately
+                        yield_chunk = (f"data: {json.dumps(chunk)}\n\n").encode()
+                        return yield_chunk  # signal: caller must yield this
+
+                    # Check if we've accumulated enough for fast-scan
+                    if _buf_len >= _STREAM_FAST_SCAN_BUFFER or _piece_len == 0:
+                        _buf_text = "".join(_parts)
+                        if _OUTPUT_GUARD_ENABLED and _buf_text:
+                            _og_fast = get_output_guard()
+                            _fast_ogr = _og_fast.scan(_buf_text)
+                            if _fast_ogr.risky:
+                                # Block: surface the risk immediately
+                                for _f in _fast_ogr.findings:
+                                    with contextlib.suppress(Exception):
+                                        OUTPUT_GUARD_BLOCKS.labels(
+                                            tenant_id=_tenant_id, risk=_f.risk.value
+                                        ).inc()
+                                log.warning(
+                                    "output_guard_fast_scan_blocked tenant=%r risks=%r",
+                                    _tenant_id, _fast_ogr.risk_types,
+                                )
+                                return False   # signal: terminate stream
+                        # Fast-scan passed — flush buffer and go live
+                        _live_mode = True
+                        return True  # caller flushes buffered chunks
+
+                    return True  # still buffering
+
                 if model.lower().startswith("bedrock/"):
-                    # ── Collect from Bedrock ConverseStream ───────────────
+                    # ── Bedrock: always full-buffer (binary protocol) ─────
                     from warden.providers.bedrock import stream_bedrock
                     async for _chunk in stream_bedrock(
                         payload_out,
@@ -432,12 +502,9 @@ async def proxy_chat(
                         secret_key=_BEDROCK_SECRET_KEY,
                     ):
                         _chunks.append(_chunk)
-                        for _ch in _chunk.get("choices") or []:
-                            _d = _ch.get("delta") or {}
-                            if isinstance(_d.get("content"), str):
-                                _parts.append(_d["content"])
+                        _parts.extend(_extract_parts(_chunk))
                 else:
-                    # ── Collect from OpenAI-compatible SSE stream ─────────
+                    # ── OpenAI-compatible SSE stream ──────────────────────
                     async with httpx.AsyncClient(timeout=120.0) as _sc, _sc.stream(
                         "POST",
                         _completions_url,
@@ -452,22 +519,84 @@ async def proxy_chat(
                                 break
                             try:
                                 _c = json.loads(_raw)
-                                _chunks.append(_c)
-                                for _ch in _c.get("choices") or []:
-                                    _d = _ch.get("delta") or {}
-                                    if isinstance(_d.get("content"), str):
-                                        _parts.append(_d["content"])
                             except json.JSONDecodeError:
-                                pass
+                                continue
 
-                # ── Unmask if PII masking was applied ─────────────────────
+                            if not _must_buffer:
+                                _chunks.append(_c)
+                                _new_parts = _extract_parts(_c)
+                                _parts.extend(_new_parts)
+                                _buf_len += sum(len(p) for p in _new_parts)
+
+                                if _live_mode:
+                                    # Already past fast-scan — emit immediately
+                                    yield (f"data: {json.dumps(_c)}\n\n").encode()
+                                elif _buf_len >= _STREAM_FAST_SCAN_BUFFER:
+                                    # Enough buffer accumulated — run fast-scan
+                                    _buf_text = "".join(_parts)
+                                    _blocked = False
+                                    if _OUTPUT_GUARD_ENABLED and _buf_text:
+                                        _og_fast = get_output_guard()
+                                        _fast_ogr = _og_fast.scan(_buf_text)
+                                        if _fast_ogr.risky:
+                                            for _f in _fast_ogr.findings:
+                                                with contextlib.suppress(Exception):
+                                                    OUTPUT_GUARD_BLOCKS.labels(
+                                                        tenant_id=_tenant_id,
+                                                        risk=_f.risk.value,
+                                                    ).inc()
+                                            log.warning(
+                                                "output_guard_fast_scan_blocked "
+                                                "tenant=%r risks=%r",
+                                                _tenant_id, _fast_ogr.risk_types,
+                                            )
+                                            _blocked = True
+                                    if _blocked:
+                                        yield (
+                                            f"data: {json.dumps({'error': {'message': 'Response blocked by OutputGuard', 'type': 'output_guard_block', 'risks': [f.risk.value for f in _fast_ogr.findings]}})}\n\n"
+                                        ).encode()
+                                        yield b"data: [DONE]\n\n"
+                                        return
+                                    # Fast-scan passed — flush buffered chunks, go live
+                                    _live_mode = True
+                                    for _bc in _chunks:
+                                        yield (f"data: {json.dumps(_bc)}\n\n").encode()
+                                # else: still buffering
+                            else:
+                                _chunks.append(_c)
+                                _parts.extend(_extract_parts(_c))
+
+                    # If we collected chunks but never reached _STREAM_FAST_SCAN_BUFFER
+                    # (short response), ensure live mode is set for the re-emit below
+                    if not _live_mode and not _must_buffer and _chunks:
+                        _buf_text = "".join(_parts)
+                        _blocked = False
+                        if _OUTPUT_GUARD_ENABLED and _buf_text:
+                            _og_fast = get_output_guard()
+                            _fast_ogr = _og_fast.scan(_buf_text)
+                            if _fast_ogr.risky:
+                                for _f in _fast_ogr.findings:
+                                    with contextlib.suppress(Exception):
+                                        OUTPUT_GUARD_BLOCKS.labels(
+                                            tenant_id=_tenant_id, risk=_f.risk.value
+                                        ).inc()
+                                log.warning(
+                                    "output_guard_short_stream_blocked tenant=%r risks=%r",
+                                    _tenant_id, _fast_ogr.risk_types,
+                                )
+                                _blocked = True
+                        if not _blocked:
+                            _live_mode = True
+                            for _bc in _chunks:
+                                yield (f"data: {json.dumps(_bc)}\n\n").encode()
+
+                # ── Post-stream: unmask + full OutputGuard (buffered/masking path) ─
                 _full = "".join(_parts)
                 if _mask_session_id:
                     _full = _get_masking_engine().unmask(_full, _mask_session_id)
 
-                # ── OutputGuard on fully assembled content ─────────────────
                 _sanitized: str | None = None
-                if _OUTPUT_GUARD_ENABLED and _full:
+                if _must_buffer and _OUTPUT_GUARD_ENABLED and _full:
                     _og = get_output_guard()
                     _ogr = _og.scan(_full)
                     if _ogr.risky:
@@ -478,9 +607,7 @@ async def proxy_chat(
                                     tenant_id=_tenant_id, risk=_f.risk.value
                                 ).inc()
                         with contextlib.suppress(Exception):
-                            OUTPUT_GUARD_SANITIZATIONS.labels(
-                                tenant_id=_tenant_id
-                            ).inc()
+                            OUTPUT_GUARD_SANITIZATIONS.labels(tenant_id=_tenant_id).inc()
                         log.warning(
                             "output_guard_sanitized_stream tenant=%r risks=%r",
                             _tenant_id, _ogr.risk_types,
@@ -493,41 +620,39 @@ async def proxy_chat(
                                     tenant_id=_tenant_id, user_id=_user_id,
                                 ))
 
-                # ── Re-emit as SSE ─────────────────────────────────────────
-                _emit = _sanitized if _sanitized is not None else _full
-
-                if _sanitized is None:
-                    # Pass through original chunks with unmasked content patched in
-                    _pos = 0
-                    for _c in _chunks:
-                        for _ch in _c.get("choices") or []:
-                            _d = _ch.get("delta") or {}
-                            if isinstance(_d.get("content"), str):
-                                _len = len(_d["content"])
-                                _d["content"] = _emit[_pos:_pos + _len]
-                                _pos += _len
-                        yield (f"data: {json.dumps(_c)}\n\n").encode()
-                else:
-                    # Re-stream sanitized content as fresh chunks
-                    _tmpl = _chunks[0] if _chunks else {}
-                    _pieces = [_emit[i:i + 20] for i in range(0, len(_emit), 20)] or [""]
-                    for _i, _piece in enumerate(_pieces):
-                        _nc = {
-                            "id":      _tmpl.get("id", "chatcmpl-warden"),
-                            "object":  "chat.completion.chunk",
-                            "created": _tmpl.get("created", 0),
-                            "model":   _tmpl.get("model", model),
-                            "choices": [{
-                                "index": 0,
-                                "delta": {"content": _piece},
-                                "finish_reason": "stop" if _i == len(_pieces) - 1 else None,
-                            }],
-                        }
-                        yield (f"data: {json.dumps(_nc)}\n\n").encode()
+                # ── Emit buffered content (masking path or short-response path) ────
+                if _must_buffer:
+                    _emit = _sanitized if _sanitized is not None else _full
+                    if _sanitized is None:
+                        _pos = 0
+                        for _c in _chunks:
+                            for _ch in _c.get("choices") or []:
+                                _d = _ch.get("delta") or {}
+                                if isinstance(_d.get("content"), str):
+                                    _len = len(_d["content"])
+                                    _d["content"] = _emit[_pos:_pos + _len]
+                                    _pos += _len
+                            yield (f"data: {json.dumps(_c)}\n\n").encode()
+                    else:
+                        _tmpl = _chunks[0] if _chunks else {}
+                        _pieces = [_emit[i:i + 20] for i in range(0, len(_emit), 20)] or [""]
+                        for _i, _piece in enumerate(_pieces):
+                            _nc = {
+                                "id":      _tmpl.get("id", "chatcmpl-warden"),
+                                "object":  "chat.completion.chunk",
+                                "created": _tmpl.get("created", 0),
+                                "model":   _tmpl.get("model", model),
+                                "choices": [{
+                                    "index": 0,
+                                    "delta": {"content": _piece},
+                                    "finish_reason": "stop" if _i == len(_pieces) - 1 else None,
+                                }],
+                            }
+                            yield (f"data: {json.dumps(_nc)}\n\n").encode()
 
                 yield b"data: [DONE]\n\n"
 
-                # ── WalletShield reconciliation (no usage in stream) ───────
+                # ── WalletShield reconciliation ────────────────────────────
                 if _WALLET_ENABLED and _estimated_tok:
                     get_wallet_shield().record_actual(
                         tenant_id=_tenant_id, user_id=_user_id,

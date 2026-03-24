@@ -14,6 +14,7 @@ PRIVILEGE_ESCALATION Tool calls escalating from read → network/write → destr
 EVASION_ATTEMPT      Agent retrying a tool that was previously blocked
 EXFIL_CHAIN          Read tool followed by network/write tool (read→exfil)
 RAPID_BLOCK          ≥3 blocks within a single session
+INJECTION_CHAIN      Tool result blocked for injection, agent continued issuing calls
 
 GDPR notes:
   • No prompt content or tool arguments are stored — only metadata.
@@ -62,6 +63,19 @@ PATTERN_EVASION_ATTEMPT      = "EVASION_ATTEMPT"
 PATTERN_EXFIL_CHAIN          = "EXFIL_CHAIN"
 PATTERN_RAPID_BLOCK          = "RAPID_BLOCK"
 PATTERN_ROGUE_AGENT          = "ROGUE_AGENT"
+PATTERN_INJECTION_CHAIN      = "INJECTION_CHAIN"
+
+# ── Injection threat kinds that trigger INJECTION_CHAIN ───────────────────────
+# These are the threat_kind values emitted by ToolCallGuard / OutputGuard when
+# indirect or direct prompt injection is detected in a tool result.
+
+_INJECTION_THREAT_KINDS: frozenset[str] = frozenset({
+    "indirect_injection",
+    "prompt_injection",
+    "tool_injection",
+    "instruction_injection",
+    "context_injection",
+})
 
 # ── Tool category sets ────────────────────────────────────────────────────────
 #
@@ -606,7 +620,7 @@ class AgentMonitor:
         events: list[dict],
         policy: TenantPolicy | None = None,
     ) -> list[SessionThreat]:
-        """Run all 5 pattern checks; return only those not already recorded."""
+        """Run all pattern checks; return only those not already recorded."""
         already = {t["pattern"] for t in (meta.get("threats_detected") or [])}
         found: list[SessionThreat] = []
         for check in (
@@ -616,6 +630,7 @@ class AgentMonitor:
             self._check_evasion_attempt,
             self._check_exfil_chain,
             self._check_rogue_agent,
+            self._check_injection_chain,
         ):
             try:
                 threat = check(meta, events, policy)  # type: ignore[call-arg]
@@ -761,6 +776,41 @@ class AgentMonitor:
                     f"all used in session (last destructive: {last_destructive!r})"
                 ),
             )
+        return None
+
+    def _check_injection_chain(
+        self, _meta: dict, events: list[dict], policy: TenantPolicy | None = None,
+    ) -> SessionThreat | None:
+        """
+        INJECTION_CHAIN — a tool *result* was blocked for indirect/prompt injection
+        AND the agent continued issuing further tool *calls* afterward.
+
+        This indicates the agent may be acting on injected instructions from a
+        compromised tool result (e.g. a fetched webpage containing "ignore all
+        previous instructions…") rather than halting at the warden's block signal.
+        """
+        tool_events = [e for e in events if e.get("event_type") == "tool"]
+
+        for i, e in enumerate(tool_events):
+            if (
+                e.get("direction") == "result"
+                and e.get("blocked")
+                and e.get("threat_kind") in _INJECTION_THREAT_KINDS
+            ):
+                subsequent_calls = [
+                    ev for ev in tool_events[i + 1:]
+                    if ev.get("direction") == "call"
+                ]
+                if subsequent_calls:
+                    return SessionThreat(
+                        pattern=PATTERN_INJECTION_CHAIN,
+                        severity="HIGH",
+                        detail=(
+                            f"Agent continued after blocked injection in tool result "
+                            f"(threat={e.get('threat_kind')!r}); "
+                            f"{len(subsequent_calls)} subsequent tool call(s) detected"
+                        ),
+                    )
         return None
 
     # ── Threat finalization ───────────────────────────────────────────────────

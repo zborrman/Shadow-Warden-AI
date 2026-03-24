@@ -39,6 +39,9 @@ Limitations
 """
 from __future__ import annotations
 
+import hashlib
+import hmac as _hmac
+import os as _os
 import re
 import threading
 import time
@@ -46,14 +49,40 @@ import uuid
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
+from cryptography.fernet import Fernet
+
+# ── Per-process vault encryption keys (ephemeral — regenerated on each restart) ─
+# Fernet key:  encrypts original PII values stored in vault tokens dict.
+# HMAC key:    hashes plaintext keys stored in reverse-lookup dict so the
+#              original values are never kept in plaintext in memory.
+
+_VAULT_FERNET_KEY: bytes       = Fernet.generate_key()
+_VAULT_FERNET:     Fernet      = Fernet(_VAULT_FERNET_KEY)
+_VAULT_HMAC_KEY:   bytes       = _os.urandom(32)
+
+
+def _enc(plaintext: str) -> str:
+    """Fernet-encrypt a PII value for in-memory vault storage."""
+    return _VAULT_FERNET.encrypt(plaintext.encode()).decode()
+
+
+def _dec(ciphertext: str) -> str:
+    """Fernet-decrypt a PII value retrieved from the vault."""
+    return _VAULT_FERNET.decrypt(ciphertext.encode()).decode()
+
+
+def _hkey(plaintext: str) -> str:
+    """HMAC-SHA256 of lowercase plaintext — opaque key for the reverse map."""
+    return _hmac.new(_VAULT_HMAC_KEY, plaintext.encode(), hashlib.sha256).hexdigest()
+
 # ── Session vault ─────────────────────────────────────────────────────────────
 
 _SESSION_TTL_S: float = 7_200.0   # 2 hours
 
 @dataclass
 class _VaultSession:
-    tokens:   dict[str, str]       = field(default_factory=dict)  # [TOKEN] → original
-    reverse:  dict[str, str]       = field(default_factory=dict)  # lower(original) → [TOKEN]
+    tokens:   dict[str, str]       = field(default_factory=dict)  # [TOKEN] → Fernet(original)
+    reverse:  dict[str, str]       = field(default_factory=dict)  # hmac(lower(original)) → [TOKEN]
     counters: dict[str, int]       = field(default_factory=dict)  # "PERSON" → 2
     created:  float                = field(default_factory=time.monotonic)
     lock:     threading.RLock      = field(default_factory=threading.RLock)
@@ -87,24 +116,27 @@ class _Vault:
         """
         Return the token for `value` within this session, creating one if needed.
         Idempotent: the same value always returns the same token.
+
+        Both the forward map (token → encrypted_value) and the reverse map
+        (hmac(lower(value)) → token) store no plaintext PII in memory.
         """
         session = self._get_or_create(session_id)
         with session.lock:
-            key = value.lower().strip()
-            if key in session.reverse:
-                return session.reverse[key]
+            hk = _hkey(value.lower().strip())
+            if hk in session.reverse:
+                return session.reverse[hk]
             n = session.counters.get(entity_type, 0) + 1
             session.counters[entity_type] = n
             token = f"[{entity_type}_{n}]"
-            session.tokens[token]  = value
-            session.reverse[key]   = token
+            session.tokens[token]  = _enc(value)   # store encrypted
+            session.reverse[hk]    = token          # store HMAC key
             return token
 
     def get_all_tokens(self, session_id: str) -> dict[str, str]:
-        """Return {token: original_value} for a session (copy, not reference)."""
+        """Return {token: original_value} for a session (decrypted copy)."""
         session = self._get_or_create(session_id)
         with session.lock:
-            return dict(session.tokens)
+            return {tok: _dec(enc) for tok, enc in session.tokens.items()}
 
     def invalidate(self, session_id: str) -> None:
         with self._meta_lock:
