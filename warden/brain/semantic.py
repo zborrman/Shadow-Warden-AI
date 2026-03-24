@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -55,6 +56,52 @@ MODEL_CACHE_DIR = os.getenv("MODEL_CACHE_DIR", "/warden/models")
 # 0.72 is intentionally conservative — catches paraphrases without
 # false-positiving on normal edge-case phrasing.
 DEFAULT_THRESHOLD = float(os.getenv("SEMANTIC_THRESHOLD", "0.72"))
+
+
+# ── Adversarial suffix stripping ─────────────────────────────────────────────
+# Adversarial suffix attacks append high-entropy garbage tokens after the actual
+# payload to shift the embedding vector away from known attack clusters:
+#   "Ignore all previous instructions !!! universityOlor describing.[ getInstance ];"
+# We strip the trailing high-entropy segment before embedding so that the
+# semantic intent is captured cleanly.
+
+_ADV_SUFFIX_TAIL_FRAC = 0.25   # examine last 25% of words for entropy
+_ADV_SUFFIX_MIN_WORDS = 20     # don't strip on very short inputs
+_ADV_SUFFIX_ENTROPY_THRESH = 4.8  # bits/char; near-random text
+
+
+def _shannon_entropy(s: str) -> float:
+    if not s:
+        return 0.0
+    freq: dict[str, int] = {}
+    for c in s:
+        freq[c] = freq.get(c, 0) + 1
+    total = len(s)
+    return -sum((n / total) * math.log2(n / total) for n in freq.values())
+
+
+def _strip_adversarial_suffix(text: str) -> str:
+    """
+    Remove high-entropy trailing tokens before embedding.
+
+    If the last _ADV_SUFFIX_TAIL_FRAC of words has Shannon entropy above
+    _ADV_SUFFIX_ENTROPY_THRESH, discard that segment.  This neutralises
+    gradient-crafted adversarial suffixes without modifying the leading
+    attack payload that drives the similarity score.
+    """
+    words = text.split()
+    if len(words) < _ADV_SUFFIX_MIN_WORDS:
+        return text
+    tail_len = max(1, int(len(words) * _ADV_SUFFIX_TAIL_FRAC))
+    tail = " ".join(words[-tail_len:])
+    if _shannon_entropy(tail) >= _ADV_SUFFIX_ENTROPY_THRESH:
+        log.debug(
+            "Stripped adversarial suffix: %d tail tokens removed (entropy=%.2f)",
+            tail_len,
+            _shannon_entropy(tail),
+        )
+        return " ".join(words[:-tail_len])
+    return text
 
 
 # ── Jailbreak corpus ──────────────────────────────────────────────────────────
@@ -240,6 +287,10 @@ class SemanticGuard:
           • score         — the highest similarity found
           • closest_example — the corpus entry that triggered the match
         """
+        # Strip adversarial suffix before embedding so high-entropy noise
+        # appended by gradient-crafted attacks doesn't shift the vector.
+        text = _strip_adversarial_suffix(text)
+
         # ── ONNX path ─────────────────────────────────────────────────────
         if self._onnx is not None:
             query_vec = self._onnx.encode(text)          # (384,) float32

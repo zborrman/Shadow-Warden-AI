@@ -21,6 +21,7 @@ Redaction policies (RedactionPolicy):
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -167,6 +168,46 @@ _TOKEN: dict[str, str] = {p.kind: p.token for p in _PATTERNS}
 # ── PII kind set (auto-populated from _PATTERNS) ──────────────────────────────
 
 _PII_KINDS: frozenset[str] = frozenset(p.kind for p in _PATTERNS if p.pii)
+
+
+# ── High-entropy token detection ─────────────────────────────────────────────
+# Catches unknown API keys and tokens that don't match any named pattern.
+# Threshold: truly random alphanumeric strings score ~5.0 bits/char.
+# We flag at 4.5 to catch slightly structured secrets while avoiding normal words.
+
+_HIGH_ENTROPY_RE = re.compile(r"[A-Za-z0-9+/=_\-]{32,}")
+_ENTROPY_THRESHOLD = 4.5
+_ENTROPY_EXCLUSIONS = re.compile(
+    r"[A-Za-z0-9+/]{32,}={0,2}"  # already caught by pattern matching above
+    r"|AKIA[A-Z0-9]{16}"         # AWS access key — has its own pattern
+)
+
+
+def _shannon_entropy(s: str) -> float:
+    """Shannon entropy in bits/character."""
+    if not s:
+        return 0.0
+    freq: dict[str, int] = {}
+    for c in s:
+        freq[c] = freq.get(c, 0) + 1
+    total = len(s)
+    return -sum((n / total) * math.log2(n / total) for n in freq.values())
+
+
+def _find_high_entropy_tokens(text: str) -> list[tuple[int, int]]:
+    """
+    Return (start, end) spans of high-entropy tokens not matched by named patterns.
+
+    Finds alphanumeric runs ≥ 32 chars with Shannon entropy ≥ _ENTROPY_THRESHOLD.
+    This catches API keys, bearer tokens, and session secrets that don't match
+    any named pattern — e.g., a custom service's key format.
+    """
+    spans = []
+    for m in _HIGH_ENTROPY_RE.finditer(text):
+        token = m.group()
+        if _shannon_entropy(token) >= _ENTROPY_THRESHOLD:
+            spans.append((m.start(), m.end()))
+    return spans
 
 
 # ── Luhn check (credit cards) ─────────────────────────────────────────────────
@@ -319,6 +360,21 @@ class SecretRedactor:
                     end=end,
                     redacted_to=_TOKEN[pat.kind],  # updated below for non-FULL
                 ))
+
+        # ── High-entropy token scan (catches unknown secret formats) ──────────
+        # Only run when no named patterns already cover the span to avoid double-flagging.
+        covered_spans: set[tuple[int, int]] = {(f.start, f.end) for f in findings}
+        for start, end in _find_high_entropy_tokens(text):
+            # Skip if this span is already covered by a named pattern
+            if any(s <= start and end <= e for s, e in covered_spans):
+                continue
+            findings.append(SecretFinding(
+                kind="high_entropy_secret",
+                start=start,
+                end=end,
+                redacted_to="[REDACTED:high_entropy_secret]",
+            ))
+            covered_spans.add((start, end))
 
         # Apply replacements right-to-left so earlier offsets stay valid
         findings.sort(key=lambda f: f.start, reverse=True)
