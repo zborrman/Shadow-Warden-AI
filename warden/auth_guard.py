@@ -137,10 +137,13 @@ def _lookup_multi_key(api_key: str) -> _KeyEntry | None:
 
 @dataclass(frozen=True)
 class AuthResult:
-    """Returned by require_api_key — carries resolved tenant_id and rate limit."""
-    api_key:    str
-    tenant_id:  str
-    rate_limit: int = 60  # requests per minute
+    """Returned by require_api_key — carries resolved tenant_id, rate limit, and ERS score."""
+    api_key:     str
+    tenant_id:   str
+    rate_limit:  int   = 60     # requests per minute
+    ers_score:   float = 0.0    # Entity Risk Score 0.0–1.0 (populated by main.py after auth)
+    shadow_ban:  bool  = False  # True when ERS >= ERS_SHADOW_BAN_THRESHOLD
+    entity_key:  str   = ""     # SHA-256[:16] of tenant_id:ip (GDPR-safe)
 
 
 def require_api_key(api_key: str | None = Security(_API_KEY_HEADER)) -> AuthResult:

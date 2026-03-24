@@ -74,6 +74,8 @@ from warden.analytics.report import get_engine as _get_report_engine
 from warden.auth.saml_provider import SAMLProvider, SamlSession
 from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import AuthResult, get_rate_limit, require_api_key, set_default_rate_limit
+from warden import entity_risk as _ers
+from warden import shadow_ban as _sban
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
@@ -1459,6 +1461,16 @@ async def _run_filter_pipeline(
             )
             if honey_result.is_honey:
                 FILTER_HONEYTRAP_TOTAL.labels(tenant_id=tenant_id).inc()
+                if background_tasks is not None and auth.entity_key:
+                    background_tasks.add_task(
+                        _ers_record,
+                        auth                = auth,
+                        blocked             = False,
+                        obfuscation_hit     = obfuscation_result.has_obfuscation,
+                        honeytrap_hit       = True,
+                        evolution_triggered = False,
+                        rid                 = rid,
+                    )
                 timings["total"] = round((time.perf_counter() - start) * 1000, 2)
                 return FilterResponse(
                     allowed          = True,   # honey looks like "success" to attacker
@@ -1703,6 +1715,23 @@ async def _run_filter_pipeline(
     if allowed:
         set_cached(payload.content, response.model_dump_json())
 
+    # ── ERS event recording (background — non-blocking) ───────────────
+    if background_tasks is not None and auth.entity_key:
+        _evolution_fired = (
+            not allowed
+            and _evolve is not None
+            and _RISK_ORDER.index(guard_result.risk_level) >= _RISK_ORDER.index(RiskLevel.HIGH)
+        )
+        background_tasks.add_task(
+            _ers_record,
+            auth                = auth,
+            blocked             = not allowed,
+            obfuscation_hit     = obfuscation_result.has_obfuscation,
+            honeytrap_hit       = False,   # honeytrap returns early — recorded below
+            evolution_triggered = _evolution_fired,
+            rid                 = rid,
+        )
+
     return response
 
 
@@ -1727,6 +1756,54 @@ def _enforce_tenant_rate_limit(auth: AuthResult, rid: str) -> None:
         )
 
 
+# ── ERS enrichment helper ─────────────────────────────────────────────────────
+
+import dataclasses as _dc
+
+def _ers_enrich(auth: AuthResult, client_ip: str) -> AuthResult:
+    """
+    Compute ERS score for this entity and return an enriched AuthResult.
+
+    Fail-open: any error returns the original auth unchanged (score=0, no shadow ban).
+    """
+    try:
+        entity_key = _ers.make_entity_key(auth.tenant_id, client_ip)
+        ers_result = _ers.score(entity_key)
+        return _dc.replace(
+            auth,
+            entity_key = entity_key,
+            ers_score  = ers_result.score,
+            shadow_ban = ers_result.shadow_ban,
+        )
+    except Exception as exc:
+        log.debug("ERS enrichment failed (non-fatal): %s", exc)
+        return auth
+
+
+def _ers_record(
+    auth:                AuthResult,
+    blocked:             bool,
+    obfuscation_hit:     bool,
+    honeytrap_hit:       bool,
+    evolution_triggered: bool,
+    rid:                 str,
+) -> None:
+    """Record ERS events after a pipeline run. Called as a background task."""
+    if not auth.entity_key:
+        return
+    try:
+        if blocked:
+            _ers.record_event(auth.entity_key, "block", rid)
+        if obfuscation_hit:
+            _ers.record_event(auth.entity_key, "obfuscation", rid)
+        if honeytrap_hit:
+            _ers.record_event(auth.entity_key, "honeytrap", rid)
+        if evolution_triggered:
+            _ers.record_event(auth.entity_key, "evolution_trigger", rid)
+    except Exception as exc:
+        log.debug("ERS record failed (non-fatal): %s", exc)
+
+
 # ── /filter ───────────────────────────────────────────────────────────────────
 
 @app.post(
@@ -1746,6 +1823,14 @@ async def filter_content(
     rid = getattr(request.state, "request_id", "-")
     _enforce_tenant_rate_limit(auth, rid)
     client_ip = request.client.host if request.client else ""
+
+    # ── ERS check: enrich auth, shadow ban confirmed attackers ────────────
+    auth = _ers_enrich(auth, client_ip)
+    if auth.shadow_ban:
+        return FilterResponse(
+            **_sban.fake_filter_response(payload.content, auth.entity_key, auth.ers_score)
+        )
+
     coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
     if _PIPELINE_TIMEOUT_MS > 0:
         try:
@@ -2435,6 +2520,43 @@ async def unblock_ip(ip: str, tenant_id: str = "default"):
         )
     log.info(json.dumps({"event": "ip_unblocked", "ip": ip, "tenant_id": tenant_id}))
     return {"ip": ip, "tenant_id": tenant_id, "message": f"IP {ip!r} unblocked."}
+
+
+# ── ERS / Shadow Ban admin endpoints ─────────────────────────────────────────
+
+@app.get(
+    "/ers/score",
+    tags=["security"],
+    summary="Get ERS score for the current caller (tenant + IP)",
+    dependencies=[Depends(require_api_key)],
+)
+async def ers_score_self(request: Request, auth: AuthResult = Depends(require_api_key)):
+    """Return the ERS score for the caller's own entity key."""
+    client_ip  = request.client.host if request.client else ""
+    entity_key = _ers.make_entity_key(auth.tenant_id, client_ip)
+    result     = _ers.score(entity_key)
+    return {
+        "entity_key": entity_key,
+        "score":      result.score,
+        "level":      result.level,
+        "shadow_ban": result.shadow_ban,
+        "total_1h":   result.total_1h,
+        "counts":     result.counts,
+        "window_secs": _ers.WINDOW_SECS,
+    }
+
+
+@app.post(
+    "/ers/reset",
+    tags=["security"],
+    summary="Reset ERS score for a given tenant+IP (admin — false-positive clearance)",
+    dependencies=[Depends(require_api_key)],
+)
+async def ers_reset(tenant_id: str, ip: str):
+    """Clear all ERS signal counters for the specified entity."""
+    entity_key = _ers.make_entity_key(tenant_id, ip)
+    _ers.reset(entity_key)
+    return {"entity_key": entity_key, "message": "ERS counters reset."}
 
 
 # ── Threat Intelligence endpoints ────────────────────────────────────────────
