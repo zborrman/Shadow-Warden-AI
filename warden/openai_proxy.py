@@ -152,6 +152,14 @@ try:
 except ImportError:
     _agent_monitor = None  # type: ignore[assignment]
 
+# Injected by main.py lifespan after SandboxRegistry is loaded; None = sandbox disabled
+try:
+    from warden.agent_sandbox import SandboxRegistry as _SandboxRegistry
+
+    _sandbox_registry: _SandboxRegistry | None = None
+except ImportError:
+    _sandbox_registry = None  # type: ignore[assignment]
+
 
 def _build_tool_name_map(messages: list[dict]) -> dict[str, str]:
     """
@@ -190,11 +198,16 @@ async def proxy_chat(
     if not messages:
         raise HTTPException(status_code=400, detail="No messages in request.")
 
-    # ── Session ID for agentic monitoring ─────────────────────────────────
+    # ── Session ID + Agent ID for agentic monitoring / sandbox ───────────
     session_id: str | None = (
         request.headers.get("X-Session-ID")
         or payload.get("metadata", {}).get("session_id")
     )
+    agent_id: str = request.headers.get("X-Agent-Id", "")
+
+    # Attach sandbox registry to tool guard if available
+    if _sandbox_registry is not None:
+        _tool_guard._sandbox = _sandbox_registry
 
     # ── [A] Inspect role=tool messages (indirect injection / LLM01) ────────
     tool_name_map = _build_tool_name_map(messages)
@@ -560,7 +573,11 @@ async def proxy_chat(
             tool_name = func.get("name", "unknown_tool")
             arguments = func.get("arguments", "{}")
 
-            result = _tool_guard.inspect_call(tool_name, arguments)
+            result = _tool_guard.inspect_call(
+                tool_name, arguments,
+                agent_id=agent_id,
+                session_id=session_id or "",
+            )
             if result.blocked:
                 log.warning(
                     "tool_call_blocked_proxy tool=%r threats=%r args_preview=%r",

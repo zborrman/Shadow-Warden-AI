@@ -317,6 +317,8 @@ try:
 except ImportError:
     _AGENT_MONITOR_AVAILABLE = False
 
+from warden.agent_sandbox import get_registry as _get_sandbox_registry  # noqa: E402
+
 
 def _add_dynamic_regex_rule(rule_id: str, pattern_str: str) -> None:
     """Hot-load a new evolution-generated regex rule into the running filter."""
@@ -523,6 +525,19 @@ async def lifespan(app: FastAPI):
             pass
 
     log.info("Filter pipeline ready.")
+
+    # ── Agent Sandbox manifest registry ──────────────────────────────
+    _sandbox_count = _get_sandbox_registry().load_from_file()
+    if _sandbox_count:
+        log.info("AgentSandbox: loaded %d manifest(s).", _sandbox_count)
+    else:
+        log.info("AgentSandbox: no manifest file configured (set AGENT_SANDBOX_PATH).")
+    # Share sandbox registry with openai_proxy so ToolCallGuard picks it up
+    try:
+        import warden.openai_proxy as _proxy_mod  # noqa: PLC0415
+        _proxy_mod._sandbox_registry = _get_sandbox_registry()
+    except Exception:
+        pass
 
     # ── Threat Intelligence Engine (opt-in) ───────────────────────────
     _ti_task = None
@@ -2557,6 +2572,60 @@ async def ers_reset(tenant_id: str, ip: str):
     entity_key = _ers.make_entity_key(tenant_id, ip)
     _ers.reset(entity_key)
     return {"entity_key": entity_key, "message": "ERS counters reset."}
+
+
+# ── Zero-Trust Agent Sandbox — manifest management ────────────────────────────
+
+
+@app.get(
+    "/api/agent/manifests",
+    tags=["agent-sandbox"],
+    summary="List all registered agent capability manifests",
+    dependencies=[Depends(require_api_key)],
+)
+async def list_agent_manifests():
+    """Return the list of all registered agent manifests (agent_id, tools, egress flag)."""
+    return {"manifests": _get_sandbox_registry().list_agents()}
+
+
+@app.get(
+    "/api/agent/manifest/{agent_id}",
+    tags=["agent-sandbox"],
+    summary="Get capability manifest for a specific agent",
+    dependencies=[Depends(require_api_key)],
+)
+async def get_agent_manifest(agent_id: str):
+    """Return full manifest detail for *agent_id*, or 404 if not registered."""
+    m = _get_sandbox_registry().get_manifest(agent_id)
+    if m is None:
+        raise HTTPException(status_code=404, detail=f"No manifest for agent_id={agent_id!r}.")
+    return {
+        "agent_id":               m.agent_id,
+        "description":            m.description,
+        "network_egress_allowed": m.network_egress_allowed,
+        "default_deny":           m.default_deny,
+        "capabilities": [
+            {
+                "tool_name":             c.tool_name,
+                "allowed_params":        c.allowed_params,
+                "max_calls_per_session": c.max_calls_per_session,
+                "required_approval":     c.required_approval,
+            }
+            for c in m.capabilities
+        ],
+    }
+
+
+@app.post(
+    "/api/agent/manifest/reload",
+    tags=["agent-sandbox"],
+    summary="Hot-reload agent manifests from AGENT_SANDBOX_PATH",
+    dependencies=[Depends(require_api_key)],
+)
+async def reload_agent_manifests():
+    """Force-reload all manifests from the JSON file on disk."""
+    count = await asyncio.to_thread(_get_sandbox_registry().reload)
+    return {"loaded": count, "message": f"Reloaded {count} manifest(s) from disk."}
 
 
 # ── Threat Intelligence endpoints ────────────────────────────────────────────

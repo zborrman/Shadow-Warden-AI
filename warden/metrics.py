@@ -34,6 +34,24 @@ try:
             "warden_tool_blocks_total"
         )
 
+    # ── Sandbox capability violations ────────────────────────────────────────
+    # Incremented by ToolCallGuard when SandboxRegistry denies a tool call.
+    #
+    # Labels:
+    #   agent_id  — agent that attempted the call
+    #   reason    — denial reason key (no_manifest, tool_not_allowed,
+    #               param_not_allowed, quota_exceeded, network_egress_denied)
+    try:
+        SANDBOX_VIOLATIONS_TOTAL = Counter(
+            "warden_sandbox_violations_total",
+            "Tool calls denied by the Zero-Trust Agent Sandbox",
+            ["agent_id", "reason"],
+        )
+    except ValueError:
+        SANDBOX_VIOLATIONS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_sandbox_violations_total"
+        )
+
     # ── Agent session metrics ─────────────────────────────────────────────────
     # Populated by AgentMonitor in warden/agent_monitor.py.
 
@@ -347,6 +365,7 @@ except ImportError:
         def set(self, _value: float) -> None:
             pass
 
+    SANDBOX_VIOLATIONS_TOTAL    = _Noop()  # type: ignore[assignment]
     TOOL_BLOCKS                 = _Noop()  # type: ignore[assignment]
     AGENT_SESSIONS_ACTIVE       = _Noop()  # type: ignore[assignment]
     AGENT_ANOMALIES_TOTAL       = _Noop()  # type: ignore[assignment]

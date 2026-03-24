@@ -29,8 +29,12 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from warden.secret_redactor import SecretRedactor
+
+if TYPE_CHECKING:
+    from warden.agent_sandbox import SandboxRegistry
 
 log = logging.getLogger("warden.tool_guard")
 
@@ -259,8 +263,9 @@ class ToolCallGuard:
             # strip or quarantine the result
     """
 
-    def __init__(self) -> None:
+    def __init__(self, sandbox: SandboxRegistry | None = None) -> None:
         self._redactor = SecretRedactor()
+        self._sandbox  = sandbox
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -268,13 +273,55 @@ class ToolCallGuard:
         self,
         tool_name: str,
         arguments: dict | str,
+        agent_id:  str = "",
+        session_id: str = "",
     ) -> ToolInspectionResult:
         """
         Inspect outgoing tool call arguments before execution.
 
         *arguments* may be a dict or a raw JSON string (as returned by the
         OpenAI API ``tool_calls[].function.arguments`` field).
+
+        If *agent_id* is supplied and a SandboxRegistry was passed to the
+        constructor, the capability manifest check runs first (Zero-Trust).
+        Any denied call is returned immediately without regex scanning.
         """
+        # ── 0. Zero-Trust sandbox capability check ────────────────────────
+        if self._sandbox is not None and agent_id:
+            params_dict: dict = {}
+            if isinstance(arguments, dict):
+                params_dict = arguments
+            else:
+                try:
+                    parsed = json.loads(arguments)
+                    if isinstance(parsed, dict):
+                        params_dict = parsed
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            decision = self._sandbox.authorize_tool_call(
+                agent_id, tool_name, params_dict, session_id
+            )
+            if not decision.allowed:
+                try:
+                    from warden.metrics import SANDBOX_VIOLATIONS_TOTAL  # noqa: PLC0415
+                    SANDBOX_VIOLATIONS_TOTAL.labels(
+                        agent_id=agent_id,
+                        reason=decision.reason.split(":")[0],
+                    ).inc()
+                except Exception:
+                    pass
+                log.warning(
+                    "sandbox_violation agent_id=%r tool=%r reason=%r",
+                    agent_id, tool_name, decision.reason,
+                )
+                return ToolInspectionResult(
+                    tool_name=tool_name,
+                    allowed=False,
+                    threats=[ToolThreat(kind="sandbox_violation", detail=decision.reason)],
+                    reason=decision.reason,
+                )
+
+        # ── Regex / pattern scanning ──────────────────────────────────────
         args_str = self._serialise_args(arguments)
         threats = self._scan(args_str, applies_to="call")
 
