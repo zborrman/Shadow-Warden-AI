@@ -4,9 +4,17 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 1.8 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 1.9 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
+
+## What's New in v1.9
+
+| Feature | Description |
+|---------|-------------|
+| **INJECTION_CHAIN Detection** | New agentic threat pattern fires HIGH when a tool result is blocked for injection and the agent continues issuing further tool calls — catches compromised agents acting on injected instructions from fetched content. |
+| **Encrypted PII Vault** | Masking engine vault encrypts all original PII values at rest with a per-process Fernet key. Reverse-lookup map stores HMAC-SHA256 instead of plaintext — no original value ever lives unencrypted in memory. Ephemeral key regenerated on each restart. |
+| **Progressive Streaming** | OpenAI proxy buffers first 400 chars for OutputGuard fast-scan, then live-emits subsequent chunks. Eliminates streaming TTFB without sacrificing output safety. Full buffer mode automatically engaged when PII masking session is active. |
 
 ## What's New in v1.8
 
@@ -319,7 +327,7 @@ Shadow Warden proxies `/v1/chat/completions` with filter-before-forward. Provide
 | `nim/<org>/<model>` | NVIDIA NIM |
 | `sonar-*`, `llama-*`, `pplx-*`, `r1-*`, `mixtral` | Perplexity |
 
-**Streaming** (`"stream": true`) is fully supported for all providers. Warden buffers the SSE stream, runs OutputGuard on the assembled content, then re-emits chunks.
+**Streaming** (`"stream": true`) is fully supported for all providers. Progressive scan: the first 400 chars are buffered for an OutputGuard fast-scan, then subsequent chunks are live-emitted with zero added latency. Full buffering is automatically engaged when a PII masking session (`X-Mask-Session-Id`) is active. Configure the scan buffer size with `STREAMING_FAST_SCAN_BUFFER` (default `400`, set `0` to force full-buffer mode).
 
 ---
 
@@ -367,6 +375,7 @@ All tunable parameters are documented in `.env.example`. Critical values:
 | `HF_TOKEN` | _(blank)_ | HuggingFace auth for CLIP/Whisper download |
 | `DYNAMIC_RULES_PATH` | `/warden/data/dynamic_rules.json` | Evolved rules corpus |
 | `GDPR_LOG_RETENTION_DAYS` | `30` | Auto-purge log entries after N days |
+| `STREAMING_FAST_SCAN_BUFFER` | `400` | Chars buffered for OutputGuard fast-scan before live-emit begins. Set `0` to force full-buffer mode. |
 
 Live-tunable without restart via `POST /api/config/update`:
 
@@ -430,15 +439,17 @@ Automate with cron — see [docs/sop.md](docs/sop.md) for the recommended cron e
 
 ### Detection layers
 
-1. **ObfuscationDecoder** — Decodes Base64, hex, ROT13, Unicode homoglyphs before analysis.
-2. **SecretRedactor** — 15+ regex patterns (API keys, credit cards with Luhn validation, JWTs, SSH keys).
+1. **ObfuscationDecoder** — Decodes Base64, hex, ROT13, Caesar variants, word-splitting, UUencode, Unicode homoglyphs. Multi-layer recursive up to depth 3.
+2. **SecretRedactor** — 15+ regex patterns (API keys, credit cards with Luhn validation, JWTs, SSH keys) + Shannon entropy scan for unknown secret formats.
 3. **SemanticGuard** — Regex rule engine with compound escalation (3+ MEDIUM → HIGH).
-4. **SemanticBrain** — `all-MiniLM-L6-v2` cosine similarity against corpus of known-malicious examples.
+4. **SemanticBrain** — `all-MiniLM-L6-v2` cosine similarity against corpus of known-malicious examples. Adversarial suffix stripping before embedding.
 5. **MultimodalGuard** — CLIP (image patch embeddings) + Whisper+FFT (audio transcription + ultrasonic detection).
 6. **Entity Risk Scoring** — Redis sliding-window reputation with shadow ban at critical threshold.
 7. **ToolCallGuard** — Inspects tool calls and results in agentic pipelines. Blocks injection, SSRF, OS command abuse.
-8. **EvolutionEngine** — Claude Opus generates new detection rules from live HIGH/BLOCK attacks. Hot-reloaded without restart.
-9. **Evidence Vault** — SHA-256 attestation chains per session. Tamper-evident, litigation-ready.
+8. **AgentMonitor** — Session-level threat patterns: INJECTION_CHAIN, EXFIL_CHAIN, PRIVILEGE_ESCALATION, EVASION_ATTEMPT, ROGUE_AGENT, TOOL_VELOCITY, RAPID_BLOCK. Cryptographic attestation chain per session.
+9. **EvolutionEngine** — Claude Opus generates new detection rules from live HIGH/BLOCK attacks. Hot-reloaded without restart.
+10. **Evidence Vault** — SHA-256 attestation chains per session. Tamper-evident, litigation-ready.
+11. **Encrypted PII Vault** — Masking engine stores original PII values Fernet-encrypted. Reverse map uses HMAC-SHA256 keys. No plaintext PII ever in memory.
 
 ### Risk levels
 
@@ -553,7 +564,13 @@ shadow-warden-ai/
 
 ## Roadmap
 
-### v1.8 (current)
+### v1.9 (current)
+
+- INJECTION_CHAIN pattern — detects compromised agents acting on injected instructions after a blocked tool result
+- Encrypted PII vault — Fernet + HMAC-SHA256, no original PII value ever unencrypted in memory
+- Progressive streaming — 400-char fast-scan buffer then live-emit; eliminates streaming TTFB
+
+### v1.8
 
 - Entity Risk Scoring (ERS) — Redis sliding-window reputation, shadow ban at critical threshold
 - Shadow Ban — fake `allowed=true` responses, real LLM never called, no adversarial feedback

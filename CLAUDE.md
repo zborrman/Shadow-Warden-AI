@@ -4,15 +4,16 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 0.4.0 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 1.9 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
 ```
-POST /filter → ObfuscationDecoder (base64/hex/ROT13/homoglyphs)
-                → SecretRedactor (regex)
-                → SemanticGuard (rules)
-                → SemanticBrain (MiniLM ML)
+POST /filter → ObfuscationDecoder (base64/hex/ROT13/Caesar/word-split/UUencode/homoglyphs, depth-3 recursive)
+                → SecretRedactor (15 regex patterns + Shannon entropy scan for unknown secrets)
+                → SemanticGuard (rules, compound risk escalation)
+                → SemanticBrain (MiniLM ML, adversarial suffix stripping)
+                → ERS (Redis sliding window, shadow ban at score ≥ 0.75)
                 → Decision
                     ↓
     EvolutionEngine (background, Claude Opus) ← HIGH/BLOCK
@@ -20,6 +21,11 @@ POST /filter → ObfuscationDecoder (base64/hex/ROT13/homoglyphs)
     _brain_guard corpus
                 ↓
     event_logger → data/logs.json → Streamlit dashboard (:8501)
+
+Agent pipeline:
+    AgentMonitor.record_tool_event() → _check_injection_chain() (+ 6 other patterns)
+    MaskingEngine.mask/unmask()      → Fernet-encrypted vault (HMAC-SHA256 reverse map)
+    openai_proxy._stream_gen()       → 400-char fast-scan → live-emit (progressive streaming)
 ```
 
 9 Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000).
@@ -41,12 +47,14 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/brain/semantic.py` | ML jailbreak detector (all-MiniLM-L6-v2, `@lru_cache` singleton, ThreadPoolExecutor) |
 | `warden/brain/evolve.py` | Claude Opus auto-rule generation (streaming + adaptive thinking + corpus poisoning protection) |
 | `warden/obfuscation.py` | Obfuscation decoder pre-filter (base64, hex, ROT13, unicode homoglyphs) |
-| `warden/secret_redactor.py` | 15 PII/secret regex patterns (incl. anthropic, huggingface keys) |
+| `warden/secret_redactor.py` | 15 PII/secret regex patterns + Shannon entropy scan for unknown secrets |
 | `warden/semantic_guard.py` | Rule-based semantic analyser, compound risk escalation (3+ MEDIUM → HIGH) |
 | `warden/schemas.py` | Pydantic models (`FilterRequest` with `tenant_id`, `FilterResponse` with `processing_ms`) |
 | `warden/cache.py` | Redis SHA-256 content hash cache (5-min TTL, fail-open) |
 | `warden/auth_guard.py` | Per-tenant API keys (JSON multi-key + SHA-256 hash lookup), constant-time compare |
-| `warden/openai_proxy.py` | OpenAI-compatible `/v1/chat/completions` proxy with filter-before-forward |
+| `warden/openai_proxy.py` | OpenAI-compatible `/v1/chat/completions` proxy — progressive streaming (400-char fast-scan buffer → live-emit) |
+| `warden/agent_monitor.py` | Session-level threat patterns incl. INJECTION_CHAIN — cryptographic attestation chain |
+| `warden/masking/engine.py` | PII masking engine — Fernet-encrypted vault, HMAC-SHA256 reverse map, no plaintext in memory |
 | `warden/alerting.py` | Slack + PagerDuty real-time alerts on HIGH/BLOCK |
 | `warden/analytics/logger.py` | NDJSON logger + GDPR helpers (`purge_before`, `read_by_request_id`) |
 | `warden/analytics/dashboard.py` | Streamlit security dashboard (reads logs.json directly) |
