@@ -298,6 +298,16 @@ _poison_guard:   DataPoisoningGuard | None = None  # type: ignore[assignment]
 _audit_trail = None  # AuditTrail | None — imported lazily in lifespan
 _threat_sync    = None  # ThreatSyncClient | None — cross-region sync
 _corpus_watcher = None  # CorpusSyncWatcher | None — corpus invalidation consumer
+_bl_watcher     = None  # GlobalBlocklistWatcher | None — cross-region IP blocklist
+
+
+def _global_blocklist_is_blocked(ip: str, tenant_id: str) -> bool:
+    """Thin wrapper — fail-open if global_blocklist is not importable."""
+    try:
+        from warden.global_blocklist import is_blocked as _gbl_check  # noqa: PLC0415
+        return _gbl_check(ip, tenant_id)
+    except Exception:
+        return False
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -568,6 +578,15 @@ async def lifespan(app: FastAPI):
     except Exception as _cw_err:
         log.warning("CorpusSyncWatcher init failed (non-fatal): %s", _cw_err)
 
+    # ── Global Blocklist Watcher (cross-region IP ban sync) ───────────
+    global _bl_watcher
+    try:
+        from warden.global_blocklist import GlobalBlocklistWatcher  # noqa: PLC0415
+        _bl_watcher = GlobalBlocklistWatcher(threat_store=_threat_store)
+        _bl_watcher.start()
+    except Exception as _blw_err:
+        log.warning("GlobalBlocklistWatcher init failed (non-fatal): %s", _blw_err)
+
     # ── SAML 2.0 SSO (optional — only if env vars are set) ───────────
     _saml = _get_saml_provider()
     if _saml is not None:
@@ -648,6 +667,8 @@ async def lifespan(app: FastAPI):
         _threat_sync.stop()
     if _corpus_watcher is not None:
         _corpus_watcher.stop()
+    if _bl_watcher is not None:
+        _bl_watcher.stop()
 
     log.info("Warden gateway shutting down.")
 
@@ -1020,9 +1041,15 @@ async def _run_filter_pipeline(
         )
 
     # ── IP block check (pre-auth, earliest possible gate) ──────────────
-    if client_ip and _threat_store is not None and _threat_store.is_blocked(
-        client_ip, auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
-    ):
+    _check_tenant = auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
+    _ip_blocked = (
+        # 1. Global Redis blocklist — cross-region, sub-millisecond
+        (client_ip and _global_blocklist_is_blocked(client_ip, _check_tenant))
+        # 2. Local SQLite ThreatStore — offline / Redis-down fallback
+        or (client_ip and _threat_store is not None
+            and _threat_store.is_blocked(client_ip, _check_tenant))
+    )
+    if _ip_blocked:
         log.info(
             json.dumps({"event": "ip_blocked", "ip": client_ip, "request_id": rid})
         )
@@ -2178,6 +2205,18 @@ async def block_ip(body: _BlockIpRequest):
         blocked_by = "manual",
         expires_at = body.expires_at,
     )
+    # Mirror to global Redis blocklist so all regions enforce immediately
+    _global_blocklist_is_blocked  # import side-effect; actual call:
+    try:
+        from warden.global_blocklist import block_ip as _gbl_block  # noqa: PLC0415
+        expires_s = 0
+        if body.expires_at:
+            from datetime import datetime as _dt  # noqa: PLC0415
+            delta = _dt.fromisoformat(body.expires_at) - _dt.now(UTC)
+            expires_s = max(0, int(delta.total_seconds()))
+        _gbl_block(body.ip, body.tenant_id, body.reason, expires_s, "manual")
+    except Exception as _gbl_err:
+        log.debug("GlobalBlocklist.block_ip skipped (non-fatal): %s", _gbl_err)
     log.info(
         json.dumps({
             "event":     "ip_manually_blocked",
@@ -2191,7 +2230,7 @@ async def block_ip(body: _BlockIpRequest):
         "tenant_id":  body.tenant_id,
         "blocked_by": "manual",
         "expires_at": body.expires_at,
-        "message":    f"IP {body.ip!r} blocked.",
+        "message":    f"IP {body.ip!r} blocked globally.",
     }
 
 
