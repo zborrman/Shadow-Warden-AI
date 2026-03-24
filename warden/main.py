@@ -2717,6 +2717,116 @@ async def revoke_agent_session(
     return result
 
 
+# ── v1.8 Compliance Reporting & Evidence Bundles ─────────────────────────────
+
+
+@app.get(
+    "/compliance/art30",
+    tags=["compliance"],
+    summary="GDPR Article 30 Record of Processing Activities",
+    dependencies=[Depends(require_api_key)],
+)
+async def compliance_art30(
+    days: float = 30,
+    format: str = "json",
+):
+    """
+    Generate a GDPR Art. 30 RoPA from real traffic data.
+
+    Set ``format=html`` to receive a styled HTML document ready for DPO sign-off
+    (print to PDF from the browser).  Default is ``json``.
+    """
+    from warden.compliance.art30 import Art30Generator  # noqa: PLC0415
+    from fastapi.responses import HTMLResponse           # noqa: PLC0415
+
+    gen    = Art30Generator()
+    record = await asyncio.to_thread(gen.generate, days)
+    if format.lower() == "html":
+        html = await asyncio.to_thread(gen.to_html, record)
+        return HTMLResponse(content=html)
+    return record
+
+
+@app.get(
+    "/compliance/soc2/export",
+    tags=["compliance"],
+    summary="SOC 2 Evidence Bundle — ZIP archive for auditors",
+    dependencies=[Depends(require_api_key)],
+)
+async def compliance_soc2_export(days: float = 30):
+    """
+    Export a tamper-evident ZIP bundle containing:
+    config snapshot, threat statistics, audit chain status,
+    evolved rules, session summaries, and SHA-256 audit manifest.
+
+    Safe to share with external auditors — no prompt content or PII values included.
+    """
+    from fastapi.responses import StreamingResponse  # noqa: PLC0415
+    from warden.compliance.soc2 import SOC2Exporter  # noqa: PLC0415
+    from datetime import UTC, datetime                # noqa: PLC0415
+
+    exporter = SOC2Exporter(audit_trail=_audit_trail)
+    buf      = await asyncio.to_thread(exporter.export_bundle, days)
+    slug     = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    filename = f"soc2_evidence_{slug}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get(
+    "/compliance/incident/{session_id}",
+    tags=["compliance"],
+    summary="Incident Post-Mortem report for a session or ERS entity",
+    dependencies=[Depends(require_api_key)],
+)
+async def compliance_incident_report(
+    session_id: str,
+    entity_key: str | None = None,
+    format: str = "json",
+):
+    """
+    Generate a post-mortem report for *session_id*.
+
+    Includes threat timeline, detected patterns, attestation chain status,
+    ERS profile (if *entity_key* provided), and recommended actions.
+
+    Set ``format=html`` for a printable HTML document.
+    """
+    from warden.compliance.incident import IncidentReporter  # noqa: PLC0415
+    from fastapi.responses import HTMLResponse               # noqa: PLC0415
+
+    reporter = IncidentReporter(agent_monitor=_agent_monitor)
+    report   = await asyncio.to_thread(reporter.generate, session_id, entity_key)
+    if format.lower() == "html":
+        html = await asyncio.to_thread(reporter.to_html, report)
+        return HTMLResponse(content=html)
+    return report
+
+
+@app.get(
+    "/compliance/dashboard",
+    tags=["compliance"],
+    summary="Compliance & Risk Mitigation ROI dashboard",
+    dependencies=[Depends(require_api_key)],
+)
+async def compliance_dashboard(days: float = 30):
+    """
+    Return risk-mitigation ROI metrics: shadow-ban compute savings,
+    estimated breach cost avoided, secret protection value, agent security summary.
+
+    Override ``COMPLIANCE_*`` environment variables to use your organisation's
+    actual LLM pricing and breach cost estimates.
+    """
+    from warden.compliance.dashboard import ComplianceDashboard  # noqa: PLC0415
+
+    dash    = ComplianceDashboard(agent_monitor=_agent_monitor)
+    metrics = await asyncio.to_thread(dash.get_metrics, days)
+    return metrics
+
+
 # ── Threat Intelligence endpoints ────────────────────────────────────────────
 
 
