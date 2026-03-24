@@ -163,6 +163,11 @@ def upload_snapshot(npz_path: Path, json_path: Path, embedding_count: int) -> bo
             "CorpusSync: snapshot uploaded — region=%s embeddings=%d npz=%s",
             REGION, embedding_count, npz_key,
         )
+        try:
+            from warden.metrics import SYNC_CORPUS_UPLOADS_TOTAL  # noqa: PLC0415
+            SYNC_CORPUS_UPLOADS_TOTAL.inc()
+        except Exception:
+            pass
     except Exception as exc:
         log.warning("CorpusSync: S3 upload failed: %s", exc)
         return False
@@ -255,6 +260,11 @@ def _download_and_reload(entry: dict, poison_guard) -> None:
                 log.info(
                     "CorpusSync: corpus hot-reloaded from region=%s", source_region
                 )
+                try:
+                    from warden.metrics import SYNC_CORPUS_DOWNLOADS_TOTAL  # noqa: PLC0415
+                    SYNC_CORPUS_DOWNLOADS_TOTAL.labels(source_region=source_region).inc()
+                except Exception:
+                    pass
             else:
                 log.warning("CorpusSync: restore_snapshot_async returned False")
         except Exception as exc:

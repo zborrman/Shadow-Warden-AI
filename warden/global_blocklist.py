@@ -184,6 +184,11 @@ def block_ip(
             "GlobalBlocklist: blocked ip=%s tenant=%s reason=%r expires_s=%d region=%s",
             ip, tenant_id, reason, expires_s, REGION,
         )
+        try:
+            from warden.metrics import SYNC_BLOCKS_PROPAGATED_TOTAL  # noqa: PLC0415
+            SYNC_BLOCKS_PROPAGATED_TOTAL.labels(blocked_by=blocked_by).inc()
+        except Exception:
+            pass
     except Exception as exc:
         log.warning("GlobalBlocklist.block_ip ZADD failed: %s", exc)
         return False
@@ -364,6 +369,13 @@ def _apply_event(fields: dict, threat_store) -> None:
                 "GlobalBlocklist: synced block ip=%s from region=%s",
                 ip, fields.get("source_region", "?"),
             )
+            try:
+                from warden.metrics import SYNC_BLOCKS_APPLIED_TOTAL  # noqa: PLC0415
+                SYNC_BLOCKS_APPLIED_TOTAL.labels(
+                    source_region=fields.get("source_region", "unknown")
+                ).inc()
+            except Exception:
+                pass
         elif action == "unblock":
             threat_store.unblock_ip(ip, tenant_id)
             log.info(

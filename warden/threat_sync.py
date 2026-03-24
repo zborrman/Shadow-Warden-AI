@@ -161,6 +161,11 @@ def publish_rule(rule: "RuleRecord") -> bool:
             "ThreatSync published: rule_id=%s attack_type=%s region=%s",
             rule.id, rule.attack_type, REGION,
         )
+        try:
+            from warden.metrics import SYNC_RULES_PUBLISHED_TOTAL  # noqa: PLC0415
+            SYNC_RULES_PUBLISHED_TOTAL.inc()
+        except Exception:
+            pass
         return True
     except Exception as exc:
         log.warning("ThreatSync publish failed: %s", exc)
@@ -218,6 +223,11 @@ def _apply_rule(entry: dict, semantic_guard) -> None:
                 "ThreatSync applied semantic rule: rule_id=%s from=%s attack=%s",
                 rule_id, source_region, attack_type,
             )
+            try:
+                from warden.metrics import SYNC_RULES_APPLIED_TOTAL  # noqa: PLC0415
+                SYNC_RULES_APPLIED_TOTAL.labels(source_region=source_region).inc()
+            except Exception:
+                pass
         except Exception as exc:
             log.warning("ThreatSync: add_examples failed: %s", exc)
 

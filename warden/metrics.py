@@ -228,6 +228,74 @@ try:
             "warden_output_guard_sanitizations_total"
         )
 
+    # ── v1.3 Global Sync metrics ──────────────────────────────────────────────
+    # Labels:
+    #   source_region  region that originally generated the rule/block/snapshot
+
+    try:
+        SYNC_RULES_PUBLISHED_TOTAL = Counter(
+            "warden_sync_rules_published_total",
+            "Rules published to the global threat stream by this node",
+        )
+    except ValueError:
+        SYNC_RULES_PUBLISHED_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_sync_rules_published_total"
+        )
+
+    try:
+        SYNC_RULES_APPLIED_TOTAL = Counter(
+            "warden_sync_rules_applied_total",
+            "Rules received and applied from remote regions",
+            ["source_region"],
+        )
+    except ValueError:
+        SYNC_RULES_APPLIED_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_sync_rules_applied_total"
+        )
+
+    try:
+        SYNC_CORPUS_UPLOADS_TOTAL = Counter(
+            "warden_sync_corpus_uploads_total",
+            "Corpus snapshots uploaded to S3 by this node",
+        )
+    except ValueError:
+        SYNC_CORPUS_UPLOADS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_sync_corpus_uploads_total"
+        )
+
+    try:
+        SYNC_CORPUS_DOWNLOADS_TOTAL = Counter(
+            "warden_sync_corpus_downloads_total",
+            "Corpus snapshots downloaded and hot-reloaded from remote regions",
+            ["source_region"],
+        )
+    except ValueError:
+        SYNC_CORPUS_DOWNLOADS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_sync_corpus_downloads_total"
+        )
+
+    try:
+        SYNC_BLOCKS_PROPAGATED_TOTAL = Counter(
+            "warden_sync_blocks_propagated_total",
+            "IP block events published to the global blocklist stream",
+            ["blocked_by"],
+        )
+    except ValueError:
+        SYNC_BLOCKS_PROPAGATED_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_sync_blocks_propagated_total"
+        )
+
+    try:
+        SYNC_BLOCKS_APPLIED_TOTAL = Counter(
+            "warden_sync_blocks_applied_total",
+            "IP block events received and applied from remote regions",
+            ["source_region"],
+        )
+    except ValueError:
+        SYNC_BLOCKS_APPLIED_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_sync_blocks_applied_total"
+        )
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -256,7 +324,13 @@ except ImportError:
     CORPUS_DRIFT_SCORE          = _Noop()  # type: ignore[assignment]
     CORPUS_CANARY_MIN_SCORE     = _Noop()  # type: ignore[assignment]
     CORPUS_CANARY_FAILING       = _Noop()  # type: ignore[assignment]
-    WALLET_TOKENS_CONSUMED      = _Noop()  # type: ignore[assignment]
-    WALLET_BUDGET_EXCEEDED      = _Noop()  # type: ignore[assignment]
-    OUTPUT_GUARD_BLOCKS         = _Noop()  # type: ignore[assignment]
-    OUTPUT_GUARD_SANITIZATIONS  = _Noop()  # type: ignore[assignment]
+    WALLET_TOKENS_CONSUMED          = _Noop()  # type: ignore[assignment]
+    WALLET_BUDGET_EXCEEDED          = _Noop()  # type: ignore[assignment]
+    OUTPUT_GUARD_BLOCKS             = _Noop()  # type: ignore[assignment]
+    OUTPUT_GUARD_SANITIZATIONS      = _Noop()  # type: ignore[assignment]
+    SYNC_RULES_PUBLISHED_TOTAL      = _Noop()  # type: ignore[assignment]
+    SYNC_RULES_APPLIED_TOTAL        = _Noop()  # type: ignore[assignment]
+    SYNC_CORPUS_UPLOADS_TOTAL       = _Noop()  # type: ignore[assignment]
+    SYNC_CORPUS_DOWNLOADS_TOTAL     = _Noop()  # type: ignore[assignment]
+    SYNC_BLOCKS_PROPAGATED_TOTAL    = _Noop()  # type: ignore[assignment]
+    SYNC_BLOCKS_APPLIED_TOTAL       = _Noop()  # type: ignore[assignment]
