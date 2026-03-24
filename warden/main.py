@@ -1902,6 +1902,14 @@ class _MultimodalRequest(BaseModel):
             "Set False to receive the detection verdict only without redaction."
         ),
     )
+    redact_audio: bool     = Field(
+        default=True,
+        description=(
+            "Auto-silence injected audio segments before returning. "
+            "When True, redacted_audio_b64 (WAV) is populated when injection or "
+            "ultrasound is detected. Set False to receive the verdict only."
+        ),
+    )
 
 
 class _MultimodalResponse(BaseModel):
@@ -1917,6 +1925,14 @@ class _MultimodalResponse(BaseModel):
             "Blurred version of the input image (base64 PNG). "
             "Populated when ImageGuard detects PII and redaction is enabled. "
             "Safe to forward to the LLM instead of the original."
+        ),
+    )
+    redacted_audio_b64:  str | None       = Field(
+        default=None,
+        description=(
+            "Cleaned version of the input audio (base64 WAV). "
+            "Injected segments replaced with silence; ultrasound band stripped. "
+            "Populated when AudioGuard detects injection or ultrasound and redaction is enabled."
         ),
     )
     text_result:         FilterResponse | None = None
@@ -1981,6 +1997,7 @@ async def filter_multimodal(
         semantic_guard = tenant_guard,
         strict         = payload.strict,
         redact_pii     = payload.redact_pii,
+        redact_audio   = payload.redact_audio,
     )
 
     # ── Modalities label for Prometheus ──────────────────────────────
@@ -2015,6 +2032,7 @@ async def filter_multimodal(
         },
         pii_redacted       = mm_result.pii_redacted,
         redacted_image_b64 = mm_result.redacted_image_b64,
+        redacted_audio_b64 = mm_result.redacted_audio_b64,
         text_result        = text_resp,
     )
 

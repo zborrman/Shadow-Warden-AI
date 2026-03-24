@@ -60,6 +60,7 @@ class MultimodalResult:
     processing_ms:       dict[str, float]   = field(default_factory=dict)
     pii_redacted:        bool               = False
     redacted_image_b64:  str | None         = None   # blurred PNG, base64 (set when PII found)
+    redacted_audio_b64:  str | None         = None   # silenced WAV, base64 (set when injection found)
 
 
 # ── Unified scoring ───────────────────────────────────────────────────────────
@@ -95,7 +96,8 @@ async def run_multimodal(
     text_flags:     list[SemanticFlag] | None = None,
     semantic_guard  = None,
     strict:         bool = False,
-    redact_pii:     bool = True,   # auto-blur PII regions before returning image
+    redact_pii:     bool = True,    # auto-blur PII regions before returning image
+    redact_audio:   bool = True,    # auto-silence injection segments before returning audio
 ) -> MultimodalResult:
     """
     Run image + audio guards in parallel, merge with existing text result.
@@ -202,6 +204,34 @@ async def run_multimodal(
                 ),
             ))
 
+    # ── Audio redaction (v1.5) ────────────────────────────────────────────────
+    redacted_audio_b64: str | None = None
+    if (
+        has_audio
+        and redact_audio
+        and not isinstance(audio_result, Exception)
+        and audio_result is not None
+        and (
+            getattr(audio_result, "is_injection", False)
+            or getattr(audio_result, "ultrasound_detected", False)
+        )
+    ):
+        try:
+            from warden.audio_redactor import redact_audio_b64 as _redact_aud  # noqa: PLC0415
+            redacted_audio_b64, _ar = await _redact_aud(audio_b64, audio_result)
+            modalities["audio"]["redaction"] = {
+                "segments_bleeped":    len(_ar.segments_bleeped),
+                "ultrasound_filtered": _ar.ultrasound_filtered,
+                "elapsed_ms":          _ar.elapsed_ms,
+                "error":               _ar.error,
+            }
+            log.info(
+                "AudioRedactor: %d segment(s) bleeped ultrasound_filtered=%s elapsed=%.1fms",
+                len(_ar.segments_bleeped), _ar.ultrasound_filtered, _ar.elapsed_ms,
+            )
+        except Exception as _are:
+            log.debug("AudioRedactor: skipped (non-fatal): %s", _are)
+
     # ── Unified risk ──────────────────────────────────────────────────────────
     final_risk = _max_risk(text_risk, img_risk, aud_risk)
     if strict and final_risk == RiskLevel.MEDIUM:
@@ -225,6 +255,7 @@ async def run_multimodal(
         processing_ms      = {"multimodal_total": elapsed},
         pii_redacted       = pii_found,
         redacted_image_b64 = redacted_image_b64,
+        redacted_audio_b64 = redacted_audio_b64,
     )
 
 

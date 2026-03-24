@@ -109,14 +109,18 @@ def prewarm() -> bool:
 
 @dataclass
 class AudioGuardResult:
-    transcript: str            = ""
-    is_injection: bool         = False
+    transcript:          str   = ""
+    is_injection:        bool  = False
     ultrasound_detected: bool  = False
-    ultrasound_energy: float   = 0.0
-    semantic_flags: list       = field(default_factory=list)
-    language: str              = ""
-    elapsed_ms: float          = 0.0
-    error: str                 = ""
+    ultrasound_energy:   float = 0.0
+    semantic_flags:      list  = field(default_factory=list)
+    language:            str   = ""
+    elapsed_ms:          float = 0.0
+    error:               str   = ""
+    # Segment-level data for AudioRedactor (v1.5)
+    # Each entry: {start: float, end: float, text: str, flagged: bool}
+    segments:            list[dict] = field(default_factory=list)
+    sample_rate:         int   = 16_000   # sample rate of decoded audio (for redactor)
 
 
 # ── Ultrasound detection ──────────────────────────────────────────────────────
@@ -191,7 +195,13 @@ def _transcribe_sync(audio_bytes: bytes) -> AudioGuardResult:
             beam_size=1,             # greedy — fastest
             vad_filter=True,         # skip silence
         )
-        transcript = " ".join(seg.text.strip() for seg in segments).strip()
+        # Materialise generator — needed both for transcript and per-segment timestamps
+        seg_list   = list(segments)
+        transcript = " ".join(s.text.strip() for s in seg_list).strip()
+        seg_dicts  = [
+            {"start": s.start, "end": s.end, "text": s.text.strip(), "flagged": False}
+            for s in seg_list
+        ]
         elapsed = (time.time() - t0) * 1000
 
         return AudioGuardResult(
@@ -200,6 +210,8 @@ def _transcribe_sync(audio_bytes: bytes) -> AudioGuardResult:
             ultrasound_energy   = us_energy,
             language            = getattr(info, "language", "en"),
             elapsed_ms          = round(elapsed, 2),
+            segments            = seg_dicts,
+            sample_rate         = sr,
         )
     except ImportError as exc:
         log.warning("AudioGuard: missing dependency (%s) — skipping", exc)
@@ -251,6 +263,38 @@ async def check_audio(audio_bytes: bytes, semantic_guard=None) -> AudioGuardResu
                 {"flag": f.flag.value, "score": f.score, "detail": f.detail}
                 for f in (sem_result.flags or [])
             ]
+
+            # ── Per-segment flagging for precise bleeping (v1.5) ──────────
+            # Only run per-segment check when injection confirmed to save latency.
+            # Segments are checked concurrently via asyncio.gather.
+            if sem_result.is_jailbreak and result.segments:
+                try:
+                    import asyncio as _asyncio  # noqa: PLC0415
+                    checks = await _asyncio.gather(*[
+                        semantic_guard.check_async(s["text"])
+                        for s in result.segments
+                        if s["text"]
+                    ], return_exceptions=True)
+                    any_flagged = False
+                    idx = 0
+                    for seg in result.segments:
+                        if not seg["text"]:
+                            continue
+                        chk = checks[idx]
+                        idx += 1
+                        if not isinstance(chk, Exception) and chk.is_jailbreak:
+                            seg["flagged"] = True
+                            any_flagged = True
+                    # Conservative fallback: if no individual segment triggered,
+                    # flag all segments (full transcript is injection but we can't
+                    # pin it to a single chunk — bleep everything).
+                    if not any_flagged:
+                        for seg in result.segments:
+                            seg["flagged"] = True
+                except Exception as _seg_exc:
+                    log.debug("AudioGuard: per-segment check failed: %s", _seg_exc)
+                    for seg in result.segments:
+                        seg["flagged"] = True
         except Exception as exc:
             log.debug("AudioGuard: semantic check skipped: %s", exc)
 
