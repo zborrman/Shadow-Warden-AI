@@ -61,6 +61,7 @@ class MultimodalResult:
     pii_redacted:        bool               = False
     redacted_image_b64:  str | None         = None   # blurred PNG, base64 (set when PII found)
     redacted_audio_b64:  str | None         = None   # silenced WAV, base64 (set when injection found)
+    image_description:   str | None         = None   # CLIP-generated safe description (synthesis proxy)
 
 
 # ── Unified scoring ───────────────────────────────────────────────────────────
@@ -96,8 +97,9 @@ async def run_multimodal(
     text_flags:     list[SemanticFlag] | None = None,
     semantic_guard  = None,
     strict:         bool = False,
-    redact_pii:     bool = True,    # auto-blur PII regions before returning image
-    redact_audio:   bool = True,    # auto-silence injection segments before returning audio
+    redact_pii:       bool = True,    # auto-blur PII regions before returning image
+    redact_audio:     bool = True,    # auto-silence injection segments before returning audio
+    synthesize_proxy: bool = False,   # generate safe text description instead of forwarding image
 ) -> MultimodalResult:
     """
     Run image + audio guards in parallel, merge with existing text result.
@@ -204,6 +206,35 @@ async def run_multimodal(
                 ),
             ))
 
+    # ── Synthesis proxy (v1.5) ───────────────────────────────────────────────
+    # Trigger: PII found + NOT a jailbreak + caller opts in via synthesize_proxy=True
+    # Result: safe text description replaces image in downstream LLM context.
+    image_description: str | None = None
+    if (
+        has_image
+        and synthesize_proxy
+        and pii_found
+        and not getattr(image_result, "is_jailbreak", False)
+        and not isinstance(image_result, Exception)
+    ):
+        try:
+            from warden.image_synth import synthesize_b64 as _synth  # noqa: PLC0415
+            synth_result = await _synth(image_b64)
+            image_description = synth_result.description
+            modalities["image"]["synthesis"] = {
+                "scene":       synth_result.scene,
+                "people":      synth_result.people,
+                "sensitivity": synth_result.sensitivity,
+                "elapsed_ms":  synth_result.elapsed_ms,
+                "error":       synth_result.error,
+            }
+            log.info(
+                "ImageSynth: description generated scene=%r people=%r elapsed=%.1fms",
+                synth_result.scene, synth_result.people, synth_result.elapsed_ms,
+            )
+        except Exception as _se:
+            log.debug("ImageSynth: skipped (non-fatal): %s", _se)
+
     # ── Audio redaction (v1.5) ────────────────────────────────────────────────
     redacted_audio_b64: str | None = None
     if (
@@ -256,6 +287,7 @@ async def run_multimodal(
         pii_redacted       = pii_found,
         redacted_image_b64 = redacted_image_b64,
         redacted_audio_b64 = redacted_audio_b64,
+        image_description  = image_description,
     )
 
 

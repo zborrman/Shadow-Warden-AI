@@ -1910,6 +1910,14 @@ class _MultimodalRequest(BaseModel):
             "ultrasound is detected. Set False to receive the verdict only."
         ),
     )
+    synthesize_proxy: bool = Field(
+        default=False,
+        description=(
+            "Generate a safe text description of the image instead of forwarding it. "
+            "Triggered when ImageGuard detects PII (MEDIUM risk, no jailbreak). "
+            "Use the returned image_description as LLM context in place of the image bytes."
+        ),
+    )
 
 
 class _MultimodalResponse(BaseModel):
@@ -1933,6 +1941,14 @@ class _MultimodalResponse(BaseModel):
             "Cleaned version of the input audio (base64 WAV). "
             "Injected segments replaced with silence; ultrasound band stripped. "
             "Populated when AudioGuard detects injection or ultrasound and redaction is enabled."
+        ),
+    )
+    image_description:   str | None       = Field(
+        default=None,
+        description=(
+            "CLIP-generated safe text description of the image (synthesis proxy). "
+            "Populated when synthesize_proxy=True and PII is detected (not jailbreak). "
+            "Inject this into the LLM prompt instead of the image bytes."
         ),
     )
     text_result:         FilterResponse | None = None
@@ -1989,15 +2005,16 @@ async def filter_multimodal(
 
     # ── Multimodal pipeline ───────────────────────────────────────────
     mm_result = await run_multimodal(
-        text_content   = payload.content,
-        image_b64      = payload.image_b64,
-        audio_b64      = payload.audio_b64,
-        text_risk      = text_risk,
-        text_flags     = text_flags,
-        semantic_guard = tenant_guard,
-        strict         = payload.strict,
-        redact_pii     = payload.redact_pii,
-        redact_audio   = payload.redact_audio,
+        text_content      = payload.content,
+        image_b64         = payload.image_b64,
+        audio_b64         = payload.audio_b64,
+        text_risk         = text_risk,
+        text_flags        = text_flags,
+        semantic_guard    = tenant_guard,
+        strict            = payload.strict,
+        redact_pii        = payload.redact_pii,
+        redact_audio      = payload.redact_audio,
+        synthesize_proxy  = payload.synthesize_proxy,
     )
 
     # ── Modalities label for Prometheus ──────────────────────────────
@@ -2033,6 +2050,7 @@ async def filter_multimodal(
         pii_redacted       = mm_result.pii_redacted,
         redacted_image_b64 = mm_result.redacted_image_b64,
         redacted_audio_b64 = mm_result.redacted_audio_b64,
+        image_description  = mm_result.image_description,
         text_result        = text_resp,
     )
 
