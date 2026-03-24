@@ -2815,16 +2815,88 @@ async def compliance_incident_report(
 async def compliance_dashboard(days: float = 30):
     """
     Return risk-mitigation ROI metrics: shadow-ban compute savings,
-    estimated breach cost avoided, secret protection value, agent security summary.
+    estimated breach cost avoided, secret protection value, agent security summary,
+    and the Compliance Score (Cs = verified_audit_entries / total_log_entries).
 
     Override ``COMPLIANCE_*`` environment variables to use your organisation's
     actual LLM pricing and breach cost estimates.
     """
     from warden.compliance.dashboard import ComplianceDashboard  # noqa: PLC0415
 
-    dash    = ComplianceDashboard(agent_monitor=_agent_monitor)
+    dash    = ComplianceDashboard(agent_monitor=_agent_monitor, audit_trail=_audit_trail)
     metrics = await asyncio.to_thread(dash.get_metrics, days)
     return metrics
+
+
+# ── Evidence Vault ────────────────────────────────────────────────────────────
+
+
+@app.get(
+    "/compliance/evidence/{session_id}",
+    tags=["compliance"],
+    summary="Export a cryptographically-signed evidence bundle for a session",
+    dependencies=[Depends(require_api_key)],
+)
+async def compliance_evidence_bundle(
+    session_id: str,
+    agent_id:   str = "",
+    entity_key: str = "",
+):
+    """
+    Generate a tamper-evident JSON evidence bundle for *session_id*.
+
+    The bundle includes session metadata, ERS profile, attestation chain
+    status, tool timeline, and a ``bundle_hash`` (SHA-256 over canonical JSON).
+    Any post-export modification invalidates the hash.
+
+    Use ``POST /compliance/evidence/verify`` to check integrity later.
+    """
+    if _agent_monitor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AgentMonitor not available.",
+        )
+    from warden.compliance.bundler import EvidenceBundler  # noqa: PLC0415
+
+    bundler = EvidenceBundler(agent_monitor=_agent_monitor)
+    bundle  = await asyncio.to_thread(bundler.generate, session_id, agent_id, entity_key)
+    return bundle
+
+
+@app.post(
+    "/compliance/evidence/verify",
+    tags=["compliance"],
+    summary="Verify integrity of a previously exported evidence bundle",
+    dependencies=[Depends(require_api_key)],
+)
+async def compliance_evidence_verify(bundle: dict):
+    """
+    Verify the ``bundle_hash`` of a submitted evidence bundle.
+
+    Returns ``{"valid": true}`` if the bundle is intact, ``{"valid": false}``
+    if any field has been modified since export.
+    """
+    from warden.compliance.bundler import EvidenceBundler  # noqa: PLC0415
+
+    valid = await asyncio.to_thread(EvidenceBundler.verify_bundle, bundle)
+    return {"valid": valid, "bundle_hash": bundle.get("bundle_hash", "")}
+
+
+# ── GDPR RoPA alias (regulators expect this path) ────────────────────────────
+
+
+@app.get(
+    "/api/compliance/gdpr/ropa",
+    tags=["compliance"],
+    summary="GDPR Article 30 RoPA — regulatory path alias",
+    dependencies=[Depends(require_api_key)],
+)
+async def compliance_gdpr_ropa(days: float = 30, format: str = "json"):
+    """
+    Alias for ``GET /compliance/art30`` using the path regulators expect.
+    Returns the Art. 30 Record of Processing Activities.
+    """
+    return await compliance_art30(days=days, format=format)
 
 
 # ── Threat Intelligence endpoints ────────────────────────────────────────────

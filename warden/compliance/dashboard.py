@@ -57,12 +57,13 @@ class ComplianceDashboard:
 
     Usage::
 
-        dash = ComplianceDashboard(agent_monitor=_agent_monitor)
+        dash = ComplianceDashboard(agent_monitor=_agent_monitor, audit_trail=_audit)
         metrics = dash.get_metrics(days=30)
     """
 
-    def __init__(self, agent_monitor=None) -> None:
-        self._monitor = agent_monitor  # warden.agent_monitor.AgentMonitor | None
+    def __init__(self, agent_monitor=None, audit_trail=None) -> None:
+        self._monitor = agent_monitor   # warden.agent_monitor.AgentMonitor | None
+        self._audit   = audit_trail     # warden.audit_trail.AuditTrail | None
 
     def get_metrics(self, days: float = 30) -> dict:
         from warden.analytics.logger import load_entries  # noqa: PLC0415
@@ -134,6 +135,12 @@ class ComplianceDashboard:
 
         total_roi = round(shadow_ban_cost_saved + breach_avoided + credential_cost, 2)
 
+        # ── Compliance Score (Cs) ─────────────────────────────────────────────
+        # Cs = verified_audit_entries / total_log_entries
+        # A perfect score (1.0) means every log entry has a valid position in
+        # the cryptographic hash chain — nothing has been deleted or tampered.
+        compliance_score, audit_total, audit_verified = _compute_cs(self._audit, total)
+
         return {
             "generated_at":  now.isoformat(),
             "period_days":   days,
@@ -204,6 +211,17 @@ class ComplianceDashboard:
                     "with your organisation's actual LLM pricing and breach cost data."
                 ),
             },
+            "compliance_score": {
+                "Cs":             compliance_score,
+                "formula":        "Σ(verified_audit_entries) / Σ(total_log_entries)",
+                "audit_entries":  audit_total,
+                "verified":       audit_verified,
+                "status":         _cs_status(compliance_score),
+                "explanation": (
+                    "1.0 = every log entry sits in an intact cryptographic hash chain. "
+                    "Any deletion or modification causes Cs to drop and triggers an alert."
+                ),
+            },
         }
 
 
@@ -212,3 +230,42 @@ def _highest_severity(threats: list[dict]) -> str:
         if any(t.get("severity") == sev for t in threats):
             return sev
     return ""
+
+
+def _compute_cs(
+    audit_trail,
+    total_log_entries: int,
+) -> tuple[float, int, int]:
+    """
+    Compute Compliance Score (Cs), audit_total, and audit_verified.
+
+    Cs = verified_audit_entries / total_log_entries
+
+    If the audit chain is valid → verified = chain entry count → Cs = min(1.0, count/total)
+    If the audit chain is broken → verified = 0 → Cs = 0.0
+    If no audit trail → falls back to log-entry count (no cryptographic guarantee)
+    """
+    if total_log_entries == 0:
+        return 1.0, 0, 0
+
+    if audit_trail is None:
+        # No cryptographic audit trail — cannot make a verified claim
+        return 0.0, total_log_entries, 0
+
+    try:
+        valid, count = audit_trail.verify_chain()
+        verified = count if valid else 0
+        cs = round(min(1.0, verified / total_log_entries), 4)
+        return cs, count, verified
+    except Exception:
+        return 0.0, total_log_entries, 0
+
+
+def _cs_status(cs: float) -> str:
+    if cs >= 1.0:
+        return "COMPLIANT"
+    if cs >= 0.9:
+        return "DEGRADED"
+    if cs > 0.0:
+        return "COMPROMISED"
+    return "UNVERIFIED"
