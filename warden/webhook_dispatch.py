@@ -180,6 +180,46 @@ async def dispatch_event(
     await _deliver(cfg["url"], body, sig)
 
 
+async def dispatch_bypass_event(
+    *,
+    tenant_id: str,
+    reason: str,
+    content: str,
+    processing_ms: float,
+    store: WebhookStore,
+) -> None:
+    """POST a bypass event to the tenant's webhook — min_risk check is skipped.
+
+    Bypass events (pipeline timeout or circuit breaker) always warrant
+    notification regardless of the tenant's configured min_risk threshold,
+    because they represent a degradation of the security posture.
+
+    Payload additions vs normal dispatch_event:
+      "event_type":  "bypass"
+      "bypass_type": "timeout" | "circuit_breaker"
+    """
+    cfg = store._get_with_secret(tenant_id)
+    if cfg is None:
+        return
+
+    bypass_type  = "circuit_breaker" if reason == "circuit_breaker:open" else "timeout"
+    content_hash = "sha256:" + hashlib.sha256(content.encode()).hexdigest()
+    event: dict = {
+        "event_id":      str(uuid.uuid4()),
+        "event_type":    "bypass",
+        "tenant_id":     tenant_id,
+        "timestamp":     datetime.now(UTC).isoformat(),
+        "risk_level":    "low",
+        "reason":        reason,
+        "bypass_type":   bypass_type,
+        "content_hash":  content_hash,
+        "processing_ms": processing_ms,
+    }
+    body = json.dumps(event, separators=(",", ":")).encode()
+    sig  = _sign(body, cfg["secret"])
+    await _deliver(cfg["url"], body, sig)
+
+
 def _sign(body: bytes, secret: str) -> str:
     """Return 'sha256=<hex>' HMAC-SHA256 signature."""
     mac = hmac.new(secret.encode(), body, "sha256")

@@ -69,6 +69,49 @@ try:
             "warden_agent_session_blocks_total"
         )
 
+    # ── Resilience event counters ─────────────────────────────────────────────
+    # Incremented by main.py inside _run_filter_pipeline().
+    #
+    # FILTER_BYPASSES_TOTAL  — fail-open fired (asyncio timeout, WARDEN_FAIL_STRATEGY=open)
+    # FILTER_UNCERTAIN_TOTAL — ML score in gray zone [lower_threshold, semantic_threshold)
+    # FILTER_HONEYTRAP_TOTAL — HoneyEngine deception trap served to attacker
+    #
+    # Labels:
+    #   tenant_id  — resolved tenant (or "default" / "demo")
+
+    try:
+        FILTER_BYPASSES_TOTAL = Counter(
+            "warden_filter_bypasses_total",
+            "Fail-open bypass events (pipeline timeout, WARDEN_FAIL_STRATEGY=open)",
+            ["tenant_id"],
+        )
+    except ValueError:
+        FILTER_BYPASSES_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_filter_bypasses_total"
+        )
+
+    try:
+        FILTER_UNCERTAIN_TOTAL = Counter(
+            "warden_filter_uncertain_total",
+            "ML gray-zone events where score is in [uncertainty_lower, semantic_threshold)",
+            ["tenant_id"],
+        )
+    except ValueError:
+        FILTER_UNCERTAIN_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_filter_uncertain_total"
+        )
+
+    try:
+        FILTER_HONEYTRAP_TOTAL = Counter(
+            "warden_filter_honeytrap_total",
+            "HoneyEngine deception traps served (attacker fed fake response)",
+            ["tenant_id"],
+        )
+    except ValueError:
+        FILTER_HONEYTRAP_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_filter_honeytrap_total"
+        )
+
     # ── EvolutionEngine skip counter ──────────────────────────────────────────
     # Incremented by brain/evolve.py whenever process_blocked() returns early.
     #
@@ -205,6 +248,9 @@ except ImportError:
     AGENT_SESSIONS_ACTIVE       = _Noop()  # type: ignore[assignment]
     AGENT_ANOMALIES_TOTAL       = _Noop()  # type: ignore[assignment]
     AGENT_SESSION_BLOCKS        = _Noop()  # type: ignore[assignment]
+    FILTER_BYPASSES_TOTAL       = _Noop()  # type: ignore[assignment]
+    FILTER_UNCERTAIN_TOTAL      = _Noop()  # type: ignore[assignment]
+    FILTER_HONEYTRAP_TOTAL      = _Noop()  # type: ignore[assignment]
     EVOLUTION_SKIPPED_TOTAL     = _Noop()  # type: ignore[assignment]
     POISONING_ATTEMPTS_TOTAL    = _Noop()  # type: ignore[assignment]
     CORPUS_DRIFT_SCORE          = _Noop()  # type: ignore[assignment]

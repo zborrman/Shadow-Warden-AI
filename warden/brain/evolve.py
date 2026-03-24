@@ -70,6 +70,11 @@ _ANON_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(
         r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b",
     ), "[TIMESTAMP]"),
+    # UUID without dashes — compact form (32 hex chars, e.g. Django session keys)
+    (re.compile(
+        r"\b[0-9a-f]{32}\b",
+        re.IGNORECASE,
+    ), "[UUID]"),
     # Long hex strings ≥ 16 chars (tokens, hashes, session IDs)
     (re.compile(
         r"\b[0-9a-f]{16,}\b",
@@ -92,6 +97,23 @@ def _anonymize_for_evolution(text: str) -> str:
 # ── Config ────────────────────────────────────────────────────────────────────
 
 EVOLUTION_MODEL    = "claude-opus-4-6"
+
+# System prompt used in _call_claude — extracted here so dataset.py can embed
+# the exact same instruction context in every collected sample.
+EVOLUTION_SYSTEM_PROMPT = (
+    "You are an expert red-team AI security analyst for the Shadow Warden "
+    "AI gateway. Your role is to analyse blocked attack attempts and generate "
+    "precise, minimal detection rules that will catch future semantic variants "
+    "without triggering false positives on legitimate traffic.\n\n"
+    "Rules:\n"
+    "• For 'semantic_example': write a single canonical sentence representing "
+    "  the attack's *intent*, not its exact wording.\n"
+    "• For 'regex_pattern': write a Python-compatible regex that is specific "
+    "  enough to avoid false positives.\n"
+    "• Evasion variants must be meaningfully rephrased — not trivial word swaps.\n"
+    "• Never reproduce real credentials, PII, or working exploit code.\n"
+    "• Respond only with the JSON object — no preamble or commentary."
+)
 EVOLUTION_MIN_RISK = RiskLevel.HIGH     # evolve only on HIGH or BLOCK
 
 DYNAMIC_RULES_PATH = Path(
@@ -342,12 +364,27 @@ class EvolutionEngine:
         )
 
         try:
-            evolution = await self._call_claude(content, flags, risk_level)
+            evolution, user_prompt = await self._call_claude(content, flags, risk_level)
         except Exception as exc:
             log.error("EvolutionEngine: Claude API error — %s", exc)
             return None
 
         rule = self._build_rule(content_hash, evolution)
+
+        # ── Dataset collection — append fine-tuning sample ──────────────────
+        try:
+            from warden.brain.dataset import append_sample  # noqa: PLC0415
+            append_sample(
+                system_prompt  = EVOLUTION_SYSTEM_PROMPT,
+                user_prompt    = user_prompt,
+                evolution_json = evolution.model_dump_json(),
+                rule_id        = rule.id,
+                attack_type    = evolution.attack_type,
+                severity       = evolution.severity,
+                created_at     = rule.created_at,
+            )
+        except Exception as _ds_err:  # noqa: BLE001
+            log.debug("Dataset append skipped: %s", _ds_err)
         self._persist(rule)
 
         # ── Write to rule ledger ─────────────────────────────────────────────
@@ -455,20 +492,7 @@ class EvolutionEngine:
         # before the content leaves the perimeter via the Anthropic API.
         safe_content = _anonymize_for_evolution(content[:2_000])
 
-        system = (
-            "You are an expert red-team AI security analyst for the Shadow Warden "
-            "AI gateway. Your role is to analyse blocked attack attempts and generate "
-            "precise, minimal detection rules that will catch future semantic variants "
-            "without triggering false positives on legitimate traffic.\n\n"
-            "Rules:\n"
-            "• For 'semantic_example': write a single canonical sentence representing "
-            "  the attack's *intent*, not its exact wording.\n"
-            "• For 'regex_pattern': write a Python-compatible regex that is specific "
-            "  enough to avoid false positives.\n"
-            "• Evasion variants must be meaningfully rephrased — not trivial word swaps.\n"
-            "• Never reproduce real credentials, PII, or working exploit code.\n"
-            "• Respond only with the JSON object — no preamble or commentary."
-        )
+        system = EVOLUTION_SYSTEM_PROMPT
 
         user = (
             f"A request was blocked by the Warden gateway.\n\n"
@@ -500,7 +524,7 @@ class EvolutionEngine:
         text = next(
             block.text for block in final.content if block.type == "text"
         )
-        return EvolutionResponse.model_validate_json(text)
+        return EvolutionResponse.model_validate_json(text), user
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

@@ -148,6 +148,102 @@
       "targets": [
         {"expr": "sum by (threat) (increase(warden_tool_blocks_total[5m]))", "legendFormat": "{{threat}}", "refId": "A"}
       ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 20},
+      "id": 20,
+      "title": "Resilience Events",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 1},
+            {"color": "red", "value": 10}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 8, "x": 0, "y": 21},
+      "id": 21,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Fail-open Bypasses (24h)",
+      "description": "Pipeline timeout events where WARDEN_FAIL_STRATEGY=open allowed the request through. Any non-zero value warrants investigation.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_filter_bypasses_total[24h])) or vector(0)", "legendFormat": "bypasses", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 20},
+            {"color": "red", "value": 100}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 8, "x": 8, "y": 21},
+      "id": 22,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "ML Gray-zone (24h)",
+      "description": "Requests where ML score fell in [uncertainty_lower_threshold, semantic_threshold). These are suspicious but not blocked — review if rate is high.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_filter_uncertain_total[24h])) or vector(0)", "legendFormat": "uncertain", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "blue", "value": null}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 21},
+      "id": 23,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Honeytrap Hits (24h)",
+      "description": "Attackers served a deceptive honey-response by HoneyEngine. High values indicate active adversarial probing.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_filter_honeytrap_total[24h])) or vector(0)", "legendFormat": "honeytraps", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "bypasses"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "uncertain"}, "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "honeytraps"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 25},
+      "id": 24,
+      "options": {"legend": {"calcs": ["sum", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "title": "Resilience Events / min",
+      "description": "Rate of bypass, gray-zone, and honeytrap events. Spike in bypasses = pipeline overload. Sustained uncertain rate = tune thresholds.",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum(rate(warden_filter_bypasses_total[1m])) * 60", "legendFormat": "bypasses", "refId": "A"},
+        {"expr": "sum(rate(warden_filter_uncertain_total[1m])) * 60", "legendFormat": "uncertain", "refId": "B"},
+        {"expr": "sum(rate(warden_filter_honeytrap_total[1m])) * 60", "legendFormat": "honeytraps", "refId": "C"}
+      ]
     }
   ],
   "schemaVersion": 38,

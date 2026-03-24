@@ -44,7 +44,7 @@ import re
 import secrets
 import time
 import uuid
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -78,6 +78,7 @@ from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
+from warden.cache import _get_client as _get_redis
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
@@ -112,7 +113,10 @@ from warden.threat_feed import ThreatFeedClient
 from warden.threat_neutralizer_router import router as _neutralizer_router
 from warden.threat_store import ThreatStore
 from warden.threat_vault import SEVERITY_RANK, ThreatVault
+import warden.circuit_breaker as _cb
+from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
 from warden.webhook_dispatch import WebhookStore
+from warden.webhook_dispatch import dispatch_bypass_event as _dispatch_bypass_webhook
 from warden.webhook_dispatch import dispatch_event as _dispatch_webhook
 from warden.xai.explainer import explain as _xai_explain
 
@@ -766,14 +770,35 @@ def _check_redis_health() -> dict:
 async def health():
     redis_health = _check_redis_health()
     overall = "ok" if redis_health["status"] == "ok" or redis_health["status"] == "unavailable" else "degraded"
+
+    # Compute bypass_rate_1m from sliding windows (prune entries older than 60 s)
+    now = time.perf_counter()
+    cutoff = now - 60.0
+    while _bypass_window and _bypass_window[0] < cutoff:
+        _bypass_window.popleft()
+    while _filter_window and _filter_window[0] < cutoff:
+        _filter_window.popleft()
+    bypasses_1m  = len(_bypass_window)
+    filter_1m    = len(_filter_window)
+    bypass_rate  = round(bypasses_1m / filter_1m, 4) if filter_1m else 0.0
+
+    cb_state = _cb.get_state(_get_redis())
+    if cb_state.get("status") == "open":
+        overall = "degraded"
+
     return {
-        "status":     overall,
-        "service":    "warden-gateway",
-        "evolution":  _evolve is not None,
-        "tenants":    list(_tenant_guards.keys()),
-        "strict":     os.getenv("STRICT_MODE", "false").lower() == "true",
-        "cache":      redis_health,
-        "ws_clients": _event_bus.client_count,
+        "status":           overall,
+        "service":          "warden-gateway",
+        "evolution":        _evolve is not None,
+        "tenants":          list(_tenant_guards.keys()),
+        "strict":           os.getenv("STRICT_MODE", "false").lower() == "true",
+        "fail_strategy":    _FAIL_STRATEGY,
+        "cache":            redis_health,
+        "ws_clients":       _event_bus.client_count,
+        "bypass_rate_1m":   bypass_rate,
+        "bypasses_1m":      bypasses_1m,
+        "filter_rps_1m":    round(filter_1m / 60, 2),
+        "circuit_breaker":  cb_state,
     }
 
 
@@ -905,6 +930,20 @@ async def update_config(update: _ConfigUpdate):
     return {"ok": True}
 
 
+# ── SIEM bypass helper ────────────────────────────────────────────────────────
+
+async def _ship_bypass(background_tasks, entry: dict) -> None:  # type: ignore[type-arg]
+    """Fire-and-forget SIEM ship for bypass events that exit the pipeline early."""
+    try:
+        from warden.analytics.siem import ship_bypass_alert  # noqa: PLC0415
+        if background_tasks is not None:
+            background_tasks.add_task(ship_bypass_alert, entry)
+        else:
+            await ship_bypass_alert(entry)
+    except Exception:  # noqa: BLE001
+        pass   # SIEM is best-effort; never block response delivery
+
+
 # ── Core filter logic (shared by /filter and /filter/batch) ──────────────────
 
 async def _run_filter_pipeline(
@@ -916,7 +955,46 @@ async def _run_filter_pipeline(
 ) -> FilterResponse:
     """Execute the full filter pipeline and return a FilterResponse."""
     start = time.perf_counter()
+    _filter_window.append(start)   # record for bypass_rate_1m
     timings: dict[str, float] = {}
+
+    # ── Circuit breaker — short-circuit immediately if open ───────────
+    _r = _get_redis()
+    if _cb.is_open(_r):
+        tenant_id = (
+            auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
+        )
+        FILTER_BYPASSES_TOTAL.labels(tenant_id=tenant_id).inc()
+        _bypass_window.append(start)
+        _cb_entry = {
+            "ts":         datetime.now(UTC).isoformat(),
+            "request_id": rid,
+            "tenant_id":  tenant_id,
+            "allowed":    True,
+            "risk_level": RiskLevel.LOW.value,
+            "flags":      [],
+            "reason":     "circuit_breaker:open",
+            "payload_len": len(payload.content) if payload.content else 0,
+            "elapsed_ms": 0,
+        }
+        asyncio.create_task(_ship_bypass(background_tasks, _cb_entry))
+        if _webhook_store is not None:
+            asyncio.create_task(_dispatch_bypass_webhook(
+                tenant_id     = tenant_id,
+                reason        = "circuit_breaker:open",
+                content       = payload.content or "",
+                processing_ms = 0,
+                store         = _webhook_store,
+            ))
+        return FilterResponse(
+            allowed          = True,
+            risk_level       = RiskLevel.LOW,
+            filtered_content = payload.content,
+            secrets_found    = [],
+            semantic_flags   = [],
+            reason           = "circuit_breaker:open",
+            processing_ms    = {"total": 0, "circuit_breaker": 1},
+        )
 
     # ── IP block check (pre-auth, earliest possible gate) ──────────────
     if client_ip and _threat_store is not None and _threat_store.is_blocked(
@@ -1223,6 +1301,7 @@ async def _run_filter_pipeline(
                 "tenant_id":  tenant_id,
             })
         )
+        FILTER_UNCERTAIN_TOTAL.labels(tenant_id=tenant_id).inc()
 
     # ── Stage 2c: Data Poisoning Detection ───────────────────────────
     if _poison_guard is not None:
@@ -1319,6 +1398,7 @@ async def _run_filter_pipeline(
                 tenant_id,
             )
             if honey_result.is_honey:
+                FILTER_HONEYTRAP_TOTAL.labels(tenant_id=tenant_id).inc()
                 timings["total"] = round((time.perf_counter() - start) * 1000, 2)
                 return FilterResponse(
                     allowed          = True,   # honey looks like "success" to attacker
@@ -1625,13 +1705,39 @@ async def filter_content(
                     detail="Filter pipeline timeout — request blocked (WARDEN_FAIL_STRATEGY=closed).",
                 ) from None
             # fail-open: pass the request through with a LOW-risk response
+            _tid = getattr(payload, "tenant_id", None) or "default"
+            FILTER_BYPASSES_TOTAL.labels(tenant_id=_tid).inc()
+            _bypass_window.append(time.perf_counter())
+            _r2 = _get_redis()
+            _cb.record_bypass(_r2)
+            _cb.check_and_trip(_r2, len(_filter_window))
+            _to_entry = {
+                "ts":         datetime.now(UTC).isoformat(),
+                "request_id": rid,
+                "tenant_id":  _tid,
+                "allowed":    True,
+                "risk_level": RiskLevel.LOW.value,
+                "flags":      [],
+                "reason":     "emergency_bypass:timeout",
+                "payload_len": len(payload.content) if payload.content else 0,
+                "elapsed_ms": _PIPELINE_TIMEOUT_MS,
+            }
+            asyncio.create_task(_ship_bypass(background_tasks, _to_entry))
+            if _webhook_store is not None:
+                asyncio.create_task(_dispatch_bypass_webhook(
+                    tenant_id     = _tid,
+                    reason        = "emergency_bypass:timeout",
+                    content       = payload.content or "",
+                    processing_ms = float(_PIPELINE_TIMEOUT_MS),
+                    store         = _webhook_store,
+                ))
             return FilterResponse(
                 allowed          = True,
                 risk_level       = RiskLevel.LOW,
                 filtered_content = payload.content,
                 secrets_found    = [],
                 semantic_flags   = [],
-                reason           = "",
+                reason           = "emergency_bypass:timeout",
                 processing_ms    = {"total": _PIPELINE_TIMEOUT_MS, "timeout": 1},
             )
     return await coro
@@ -1677,6 +1783,12 @@ _PIPELINE_TIMEOUT_MS = int(os.getenv("PIPELINE_TIMEOUT_MS", "0"))          # 0 =
 # and escalated to MEDIUM risk even though they didn't cross the block threshold.
 # Set to 0 to disable.
 _UNCERTAINTY_LOWER = float(os.getenv("UNCERTAINTY_LOWER_THRESHOLD", "0.55"))
+
+# ── Resilience sliding window ──────────────────────────────────────────────────
+# Lightweight deques (timestamps in seconds) for the /health bypass_rate_1m field.
+# Pruned to the last 60 s on every /health read — no background task required.
+_bypass_window:    deque[float] = deque()   # fail-open bypass events
+_filter_window:    deque[float] = deque()   # all /filter requests (denominator)
 
 
 class _BatchRequest(BaseModel):
