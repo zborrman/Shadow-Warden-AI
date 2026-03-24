@@ -470,6 +470,136 @@
       "targets": [
         {"expr": "sum by (modalities) (rate(warden_multimodal_requests_total[5m])) * 60", "legendFormat": "{{modalities}}", "refId": "A"}
       ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 60},
+      "id": 50,
+      "title": "Agent Security & Compliance — v1.7/v1.8",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "yellow", "value": 10},
+            {"color": "red", "value": 50}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 61},
+      "id": 51,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Active Agent Sessions",
+      "description": "Sessions currently active within the TTL window (AGENT_SESSION_TTL seconds).",
+      "type": "stat",
+      "targets": [{"expr": "warden_agent_sessions_active or vector(0)", "legendFormat": "active", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "red", "value": 1}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 61},
+      "id": 52,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Sessions Revoked (24h)",
+      "description": "Agent sessions terminated via DELETE /api/agent/session (kill-switch). Any non-zero value indicates a confirmed or suspected compromise.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_agent_sessions_revoked_total[24h])) or vector(0)", "legendFormat": "revoked", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "orange", "value": 1},
+            {"color": "red", "value": 10}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 61},
+      "id": 53,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "Sandbox Violations (24h)",
+      "description": "Tool calls denied by the Zero-Trust Agent Sandbox (no_manifest, tool_not_allowed, param_not_allowed, quota_exceeded, network_egress_denied).",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_sandbox_violations_total[24h])) or vector(0)", "legendFormat": "violations", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {"mode": "absolute", "steps": [
+            {"color": "green", "value": null},
+            {"color": "red", "value": 1}
+          ]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 61},
+      "id": 54,
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "title": "ROGUE_AGENT Detections (24h)",
+      "description": "Full kill-chain detected: read + network/write + destructive tool calls in the same session. Treat each as confirmed compromise.",
+      "type": "stat",
+      "targets": [{"expr": "sum(increase(warden_agent_anomalies_total{pattern_type=\"ROGUE_AGENT\"}[24h])) or vector(0)", "legendFormat": "rogue agents", "refId": "A"}]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "ROGUE_AGENT"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "PRIVILEGE_ESCALATION"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "EXFIL_CHAIN"}, "properties": [{"id": "color", "value": {"fixedColor": "purple", "mode": "fixed"}}]},
+          {"matcher": {"id": "byName", "options": "EVASION_ATTEMPT"}, "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 65},
+      "id": 55,
+      "options": {"legend": {"calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "title": "Agent Anomalies by Pattern / min",
+      "description": "Rate of threat patterns detected by AgentMonitor. ROGUE_AGENT = full kill-chain; EXFIL_CHAIN = read→network; PRIVILEGE_ESCALATION = capability abuse; EVASION_ATTEMPT = retried blocked tool.",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (pattern_type) (rate(warden_agent_anomalies_total[1m])) * 60", "legendFormat": "{{pattern_type}}", "refId": "A"}
+      ]
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 65},
+      "id": 56,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "title": "Sandbox Violations by Reason / min",
+      "description": "Breakdown of Zero-Trust sandbox denials by reason. no_manifest = agent has no capability manifest registered; quota_exceeded = tool call rate limit hit.",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "sum by (reason) (rate(warden_sandbox_violations_total[1m])) * 60", "legendFormat": "{{reason}}", "refId": "A"}
+      ]
     }
   ],
   "schemaVersion": 38,
@@ -493,5 +623,5 @@
   "timezone": "browser",
   "title": "Shadow Warden — Overview",
   "uid": "shadow-warden-overview",
-  "version": 1
+  "version": 2
 }

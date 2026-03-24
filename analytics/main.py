@@ -351,6 +351,129 @@ def get_agent_session(session_id: str) -> dict[str, Any]:
     )
 
 
+# ── Compliance endpoints ───────────────────────────────────────────────────────
+
+
+@app.get("/api/v1/compliance/roi", tags=["compliance"])
+def compliance_roi(
+    days: int = Query(default=30, ge=1, le=LOG_RETENTION_DAYS,
+                      description="Number of past days to aggregate."),
+) -> dict[str, Any]:
+    """
+    Conservative ROI estimates derived directly from the event log.
+
+    Matches the model in GET /compliance/dashboard on the warden gateway:
+      • Shadow-ban savings: avg 500 tokens × $0.15/1M tokens
+      • Breach cost avoided: IBM 2023 median $4.45M / 2 incidents/yr / 365 days
+      • Credential exposure: $50 k per secret redacted
+    """
+    entries = _load(days=days)
+    total   = len(entries)
+    blocked = sum(1 for e in entries if not e.get("allowed", True))
+
+    shadow_ban_count   = sum(1 for e in entries if "shadow_ban" in e.get("flags", []))
+    tokens_saved       = shadow_ban_count * 500
+    shadow_ban_savings = round(tokens_saved * (0.15 / 1_000_000), 6)
+
+    high_blocks       = sum(1 for e in entries if e.get("risk_level") in ("high", "block"))
+    breach_per_event  = 4_450_000 / (2 * 365)
+    breach_avoided    = round(high_blocks * breach_per_event, 2)
+
+    secrets_total      = sum(len(e.get("secrets_found", [])) for e in entries)
+    credential_savings = round(secrets_total * 50_000, 2)
+
+    return {
+        "days":             days,
+        "total_requests":   total,
+        "blocked_requests": blocked,
+        "shadow_ban": {
+            "count":          shadow_ban_count,
+            "tokens_saved":   tokens_saved,
+            "cost_saved_usd": shadow_ban_savings,
+        },
+        "threat_mitigation": {
+            "high_block_events":             high_blocks,
+            "estimated_breach_cost_avoided": breach_avoided,
+        },
+        "secret_protection": {
+            "secrets_redacted":             secrets_total,
+            "estimated_credential_savings": credential_savings,
+        },
+        "total_estimated_roi_usd": round(shadow_ban_savings + breach_avoided + credential_savings, 2),
+        "note": "Override COMPLIANCE_* env vars on the warden gateway for organisation-specific figures.",
+    }
+
+
+@app.get("/api/v1/compliance/agent-threats", tags=["compliance"])
+def compliance_agent_threats() -> dict[str, Any]:
+    """
+    Agent threat pattern breakdown from session data.
+
+    Reports ROGUE_AGENT, PRIVILEGE_ESCALATION, EXFIL_CHAIN and other
+    patterns detected by AgentMonitor, plus revoked and high-risk session counts.
+    """
+    sessions = _load_sessions()
+
+    pattern_counts: Counter[str] = Counter()
+    revoked   = 0
+    high_risk = 0
+
+    for s in sessions:
+        for t in s.get("threats_detected", []):
+            p = t.get("pattern", "")
+            if p:
+                pattern_counts[p] += 1
+        if s.get("revoked"):
+            revoked += 1
+        if s.get("risk_score", 0) >= 0.7:
+            high_risk += 1
+
+    return {
+        "total_sessions":     len(sessions),
+        "revoked_sessions":   revoked,
+        "high_risk_sessions": high_risk,
+        "threat_patterns": [
+            {"pattern": pattern, "count": count}
+            for pattern, count in pattern_counts.most_common()
+        ],
+    }
+
+
+@app.get("/api/v1/compliance/secrets", tags=["compliance"])
+def compliance_secrets(
+    days: int = Query(default=30, ge=1, le=LOG_RETENTION_DAYS,
+                      description="Number of past days to aggregate."),
+) -> dict[str, Any]:
+    """
+    Secret / PII type breakdown from event log data.
+
+    Counts each secret type (anthropic_key, aws_key, email, phone, …) across
+    all log entries in the window.  Useful for GDPR Art. 30 and SOC 2 evidence.
+    """
+    entries = _load(days=days)
+
+    secret_counts: Counter[str] = Counter()
+    entries_with_secrets = 0
+
+    for e in entries:
+        secrets = e.get("secrets_found", [])
+        if secrets:
+            entries_with_secrets += 1
+            for s in secrets:
+                secret_counts[s] += 1
+
+    return {
+        "days":                  days,
+        "total_requests":        len(entries),
+        "requests_with_secrets": entries_with_secrets,
+        "total_secrets_found":   sum(secret_counts.values()),
+        "by_type": [
+            {"type": t, "count": c}
+            for t, c in secret_counts.most_common()
+        ],
+    }
+
+
 # ── Error handler ─────────────────────────────────────────────────────────────
 
 @app.exception_handler(Exception)
