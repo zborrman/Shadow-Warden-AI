@@ -296,7 +296,8 @@ _saml:           SAMLProvider      | None = None
 _webhook_store:  WebhookStore      | None = None
 _poison_guard:   DataPoisoningGuard | None = None  # type: ignore[assignment]
 _audit_trail = None  # AuditTrail | None — imported lazily in lifespan
-_threat_sync = None  # ThreatSyncClient | None — cross-region sync
+_threat_sync    = None  # ThreatSyncClient | None — cross-region sync
+_corpus_watcher = None  # CorpusSyncWatcher | None — corpus invalidation consumer
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -551,13 +552,21 @@ async def lifespan(app: FastAPI):
     log.info("WebhookStore ready.")
 
     # ── Global Threat Sync (cross-region Redis Streams) ───────────────
-    global _threat_sync
+    global _threat_sync, _corpus_watcher
     try:
         from warden.threat_sync import ThreatSyncClient  # noqa: PLC0415
         _threat_sync = ThreatSyncClient(semantic_guard=_brain_guard)
         _threat_sync.start()
     except Exception as _ts_err:
         log.warning("ThreatSync init failed (non-fatal): %s", _ts_err)
+
+    # ── Corpus Sync (S3 upload + invalidation watcher) ────────────────
+    try:
+        from warden.corpus_sync import CorpusSyncWatcher  # noqa: PLC0415
+        _corpus_watcher = CorpusSyncWatcher(poison_guard=_poison_guard)
+        _corpus_watcher.start()
+    except Exception as _cw_err:
+        log.warning("CorpusSyncWatcher init failed (non-fatal): %s", _cw_err)
 
     # ── SAML 2.0 SSO (optional — only if env vars are set) ───────────
     _saml = _get_saml_provider()
@@ -637,6 +646,8 @@ async def lifespan(app: FastAPI):
         _policy.close()
     if _threat_sync is not None:
         _threat_sync.stop()
+    if _corpus_watcher is not None:
+        _corpus_watcher.stop()
 
     log.info("Warden gateway shutting down.")
 

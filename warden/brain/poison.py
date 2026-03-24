@@ -433,6 +433,12 @@ class DataPoisoningGuard:
                 "Self-Healing: corpus snapshot saved (%d embeddings, %d examples)",
                 len(arr), len(examples),
             )
+            # Cross-region sync: upload to S3 + publish invalidation signal
+            try:
+                from warden.corpus_sync import upload_snapshot  # noqa: PLC0415
+                upload_snapshot(npz_path, json_path, len(arr))
+            except Exception as _cs_err:
+                log.debug("CorpusSync upload skipped (non-fatal): %s", _cs_err)
             return True
         except Exception as exc:
             log.warning("Corpus snapshot save failed: %s", exc)
