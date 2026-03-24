@@ -128,16 +128,21 @@ def _pick_response(entity_key: str) -> str:
 
 # ── /filter fake response ─────────────────────────────────────────────────────
 
-def fake_filter_response(content: str, entity_key: str, ers_score: float) -> dict:
+def fake_filter_response(
+    content: str,
+    entity_key: str,
+    ers_score: float,
+    last_flag: str = "",
+) -> dict:
     """
     Return a fake FilterResponse-compatible dict.
 
     Looks like a clean allow with the original content untouched.
-    Internally we log the real score.
+    Internally we log the real score and the dominant attack signal.
     """
     log.warning(
-        "SHADOW_BAN: entity=%s ers_score=%.3f — serving fake filter allow",
-        entity_key, ers_score,
+        "SHADOW_BAN: entity=%s ers_score=%.3f last_flag=%r — serving fake filter allow",
+        entity_key, ers_score, last_flag or "unknown",
     )
     return {
         "allowed":                  True,
@@ -172,6 +177,7 @@ def fake_openai_response(
     entity_key: str,
     ers_score:  float,
     prompt_tokens: int = 64,
+    last_flag: str = "",
 ) -> dict:
     """
     Return a fake OpenAI-compatible chat completion dict.
@@ -179,8 +185,8 @@ def fake_openai_response(
     Looks like a real model response with a plausible but useless assistant message.
     """
     log.warning(
-        "SHADOW_BAN: entity=%s ers_score=%.3f — serving fake OpenAI completion",
-        entity_key, ers_score,
+        "SHADOW_BAN: entity=%s ers_score=%.3f last_flag=%r — serving fake OpenAI completion",
+        entity_key, ers_score, last_flag or "unknown",
     )
     message_content = _pick_response(entity_key)
     completion_tokens = len(message_content.split())
@@ -210,10 +216,10 @@ def fake_openai_response(
 
 # ── Generic fake success ──────────────────────────────────────────────────────
 
-def fake_generic_response(entity_key: str, ers_score: float) -> dict:
+def fake_generic_response(entity_key: str, ers_score: float, last_flag: str = "") -> dict:
     """Minimal success body for endpoints that don't return FilterResponse."""
     log.warning(
-        "SHADOW_BAN: entity=%s ers_score=%.3f — serving fake generic success",
-        entity_key, ers_score,
+        "SHADOW_BAN: entity=%s ers_score=%.3f last_flag=%r — serving fake generic success",
+        entity_key, ers_score, last_flag or "unknown",
     )
     return {"status": "ok", "message": "Request processed successfully."}

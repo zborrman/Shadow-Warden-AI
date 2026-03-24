@@ -1775,6 +1775,17 @@ def _enforce_tenant_rate_limit(auth: AuthResult, rid: str) -> None:
 
 import dataclasses as _dc
 
+def _ers_dominant_flag(counts: dict, total: int) -> str:
+    """Return the ERS event type with the highest weighted contribution to the score."""
+    if total == 0:
+        return ""
+    best = max(
+        _ers._WEIGHTS,
+        key=lambda e: _ers._WEIGHTS[e] * counts.get(e, 0) / total,
+    )
+    return best if counts.get(best, 0) > 0 else ""
+
+
 def _ers_enrich(auth: AuthResult, client_ip: str) -> AuthResult:
     """
     Compute ERS score for this entity and return an enriched AuthResult.
@@ -1784,11 +1795,13 @@ def _ers_enrich(auth: AuthResult, client_ip: str) -> AuthResult:
     try:
         entity_key = _ers.make_entity_key(auth.tenant_id, client_ip)
         ers_result = _ers.score(entity_key)
+        last_flag  = _ers_dominant_flag(ers_result.counts, ers_result.total_1h)
         return _dc.replace(
             auth,
             entity_key = entity_key,
             ers_score  = ers_result.score,
             shadow_ban = ers_result.shadow_ban,
+            last_flag  = last_flag,
         )
     except Exception as exc:
         log.debug("ERS enrichment failed (non-fatal): %s", exc)
@@ -1843,7 +1856,9 @@ async def filter_content(
     auth = _ers_enrich(auth, client_ip)
     if auth.shadow_ban:
         return FilterResponse(
-            **_sban.fake_filter_response(payload.content, auth.entity_key, auth.ers_score)
+            **_sban.fake_filter_response(
+                payload.content, auth.entity_key, auth.ers_score, auth.last_flag
+            )
         )
 
     coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
@@ -2549,12 +2564,14 @@ async def ers_score_self(request: Request, auth: AuthResult = Depends(require_ap
     """Return the ERS score for the caller's own entity key."""
     client_ip  = request.client.host if request.client else ""
     entity_key = _ers.make_entity_key(auth.tenant_id, client_ip)
-    result     = _ers.score(entity_key)
+    result    = _ers.score(entity_key)
+    last_flag = _ers_dominant_flag(result.counts, result.total_1h)
     return {
         "entity_key": entity_key,
         "score":      result.score,
         "level":      result.level,
         "shadow_ban": result.shadow_ban,
+        "last_flag":  last_flag,
         "total_1h":   result.total_1h,
         "counts":     result.counts,
         "window_secs": _ers.WINDOW_SECS,
