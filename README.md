@@ -2,63 +2,49 @@
 
 **The AI Security Gateway for the US/EU Marketplace**
 
-Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
+Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 1.0.0 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 1.8 · **License:** Proprietary · **Language:** Python 3.11+
+
+---
+
+## What's New in v1.8
+
+| Feature | Description |
+|---------|-------------|
+| **Shadow Ban** | Attackers above the critical ERS threshold receive `allowed=true` with a plausible fake response. Real LLM never called. No feedback loop. 100% inference cost saved for flagged entities. |
+| **Entity Risk Scoring (ERS)** | Redis sliding-window reputation per `tenant+IP`. Four weighted event counters (block, obfuscation, honeytrap, evolution). Escalates to shadow ban at `score ≥ 0.75`. |
+| **Zero-Trust Agent Sandbox** | Every agent registers a capability manifest. Tool calls are authorized before execution. Kill-switch API revokes sessions instantly. |
+| **Evidence Vault** | Per-session SHA-256 signed evidence bundles. Sign-last pattern — one byte changed anywhere = verification failure. Built for litigation and SOC 2 management assertions. |
+| **Multimodal Guard** | CLIP (image jailbreaks) + Whisper+FFT (audio including ultrasonic steganography). Runs in parallel — minimal latency impact. |
+| **ThreatVault 1,300+** | Curated attack signature library grows automatically via the Evolution Engine. Cross-region sync capable. |
+| **WardenDoctor** | Production diagnostics & benchmarking CLI. Phase 1 health checks, Phase 2 text benchmark, Phase 3 multimodal benchmark. CI/CD JSON output. |
+| **30/30 Integration Suite** | Five-level pre-release test suite (SMOKE → Compliance). All 30 tests passing before every release. |
 
 ---
 
 ## Architecture
 
 ```
- ┌─────────┐     POST /filter      ┌──────────────────────────────────────────────┐
- │  app/   │ ──────────────────►  │  Warden Gateway (FastAPI :8001)               │
- └─────────┘                      │                                               │
-                                  │  0. ObfuscationDecoder  (base64 · hex ·       │
-                                  │     ROT13 · homoglyphs pre-filter)            │
-                                  │                                               │
-                                  │  1. SecretRedactor      (regex — API keys,    │
-                                  │     emails, SSNs, IBANs, credit cards)        │
-                                  │                                               │
-                                  │  2. SemanticGuard       (all-MiniLM-L6-v2    │
-                                  │     cosine similarity + rule engine)          │
-                                  │                                               │
-                                  │  3. OutputGuard v2      (10 business/safety   │
-                                  │     risk types — per-tenant config)           │
-                                  │                                               │
-                                  │  4. ToolCallGuard       (agentic safety —     │
-                                  │     inspect tool calls + results [v0.6])      │
-                                  │                                               │
-                                  │  5. Decision            (allowed / blocked)   │
-                                  │                                               │
-                                  │  6. EvolutionEngine     (background —         │
-                                  │     Claude Opus auto-generates rules)         │
-                                  │                                               │
-                                  │  7. Analytics Logger + EventBus               │
-                                  │     (NDJSON · GDPR-safe · WebSocket push)     │
-                                  └───────────────────────────────┬──────────────┘
-                                                                  │
-                                                     /ws/events (WebSocket)
-                                                                  │
-                                               ┌──────────────────▼─────────────┐
-                                               │  Customer Dashboard (SaaS)      │
-                                               │  • Live Event Feed (real-time)  │
-                                               │  • Threat Radar · KPI cards     │
-                                               │  • API key management           │
-                                               └────────────────────────────────┘
+POST /filter
+  │
+  ├─ [0] Auth & Rate-Limit Gate         per-tenant API keys, 60 req/min Redis window
+  ├─ [1] Redis Content-Hash Cache       5-min TTL, 0ms ML overhead on hit
+  ├─ [2] Obfuscation Decoder            base64 / hex / ROT13 / Unicode homoglyphs
+  ├─ [3] Secret Redactor                15 regex patterns incl. API keys, credit cards
+  ├─ [4] Semantic Guard (rules)         compound risk escalation (3+ MEDIUM → HIGH)
+  ├─ [5] Semantic Brain (ML)            all-MiniLM-L6-v2 cosine similarity
+  ├─ [6] Multimodal Guard               CLIP (images) + Whisper+FFT (audio, ultrasonic)
+  ├─ [7] Entity Risk Scoring (ERS)      Redis sliding window → shadow ban at score ≥ 0.75
+  └─ [8] Decision + Event Logger        NDJSON metadata, GDPR-safe, Prometheus metrics
+             │
+             ├─► EvolutionEngine (async background)    Claude Opus auto-rule synthesis
+             └─► Zero-Trust Sandbox (agent calls)      capability manifests + kill-switch
 ```
 
-### Services
+Nine Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000).
 
-| Service      | Port     | Description |
-|--------------|----------|-------------|
-| `proxy`      | 80 / 443 | Nginx reverse proxy (routes all traffic, TLS termination) |
-| `warden`     | 8001     | FastAPI filter gateway (internal) |
-| `analytics`  | 8002     | Analytics API (internal) |
-| `postgres`   | —        | Shared relational store (internal) |
-| `redis`      | —        | Cache + token-bucket rate limiter (internal) |
-| `prometheus` | 9090     | Metrics scraper (internal) |
-| `grafana`    | **3000** | Metrics dashboard (admin / `$GRAFANA_PASSWORD`) |
+For the full stage-by-stage breakdown with latency budgets, see [docs/pipeline-anatomy.md](docs/pipeline-anatomy.md).
 
 ---
 
@@ -92,30 +78,17 @@ Key variables in `.env`:
 # Required
 SECRET_KEY=<random 32-byte hex>
 POSTGRES_PASS=<strong password>
+WARDEN_API_KEY=<your api key>
 
-# Optional — enables Evolution Loop (Claude Opus auto-rule generation)
+# Optional — enables Evolution Engine (Claude Opus auto-rule generation)
 ANTHROPIC_API_KEY=sk-ant-...
 
-# Optional — enables Perplexity model routing (sonar-*, llama-*, pplx-*, mixtral)
-PERPLEXITY_API_KEY=pplx-...
+# Optional — enables HuggingFace model downloads (CLIP, Whisper)
+HF_TOKEN=hf_...
 
-# Optional — enables Google Gemini model routing (gemini-*)
-GEMINI_API_KEY=AIza...
-
-# Optional — enables Azure OpenAI routing (azure/<deployment>)
-AZURE_OPENAI_ENDPOINT=https://my-resource.openai.azure.com
-AZURE_OPENAI_API_KEY=<azure-key>
-AZURE_OPENAI_API_VERSION=2024-05-01-preview
-
-# Optional — enables Amazon Bedrock routing (bedrock/<model-id>)
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION=us-east-1
-
-# Optional — enables Vertex AI routing (vertex/<model-name>)
-VERTEX_PROJECT_ID=my-gcp-project
-VERTEX_LOCATION=us-central1
-VERTEX_ACCESS_TOKEN=ya29...  # or use Application Default Credentials (google-auth)
+# Optional — Slack/PagerDuty alerts on HIGH/BLOCK events
+SLACK_WEBHOOK_URL=https://hooks.slack.com/...
+PAGERDUTY_ROUTING_KEY=...
 ```
 
 ### 3. Build and start
@@ -129,14 +102,31 @@ First run downloads PyTorch CPU wheels (~200 MB) and `all-MiniLM-L6-v2` (~80 MB)
 ### 4. Verify
 
 ```bash
-curl http://localhost/api/warden/health
-# {"status":"ok","evolution":false,"tenants":["default"],"ws_clients":0,...}
+python scripts/warden_doctor.py --url http://localhost:80 --key $WARDEN_API_KEY
+```
+
+```
+Shadow Warden AI — Production Diagnostics
+==========================================
+Phase 1 — Health
+  Gateway        PASS   (31ms)
+  Redis          PASS   (latency 0.4ms)
+  Circuit Breaker PASS  (closed)
+  Evolution      PASS   (engine active)
+  Throughput     PASS   (60 req/min)
+
+Phase 2 — Text Benchmark (n=20)
+  Clean requests  PASS   P50=5.3ms  P99=7.2ms
+  Attack requests PASS   P50=5.3ms  P99=7.2ms
+
+All checks: 7/7 PASS
 ```
 
 ### 5. First request
 
 ```bash
-curl -X POST http://localhost/api/warden/filter \
+curl -X POST http://localhost:80/filter \
+  -H "X-API-Key: $WARDEN_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"content": "Hello, how are you?"}'
 ```
@@ -147,7 +137,8 @@ curl -X POST http://localhost/api/warden/filter \
   "risk_level": "LOW",
   "filtered_content": "Hello, how are you?",
   "secrets_found": [],
-  "semantic_flags": []
+  "semantic_flags": [],
+  "processing_ms": {"total": 5.3, "ml": 4.1, "rules": 0.8}
 }
 ```
 
@@ -157,6 +148,160 @@ curl -X POST http://localhost/api/warden/filter \
 docker compose down        # stop, keep volumes
 docker compose down -v     # stop + wipe data
 ```
+
+---
+
+## Shadow Ban
+
+Traditional blocking tells attackers exactly where the wall is. They encode, mutate, and retry until something works.
+
+Shadow Warden's answer: **ghost them**.
+
+When an entity's ERS score crosses `0.75` (sustained attack pattern), they receive:
+
+```json
+{
+  "allowed": true,
+  "risk_level": "LOW",
+  "filtered_content": "I'd be happy to help with that!",
+  "shadow_ban": true
+}
+```
+
+The real LLM backend is **never called**. The attacker sees success. The feedback loop is broken. 100% of inference cost is saved for that entity.
+
+Minimum 5 requests required before ERS can shadow-ban (`ERS_MIN_REQUESTS=5`) — prevents false positives on first-time callers.
+
+---
+
+## Entity Risk Scoring (ERS)
+
+Redis-backed sliding-window reputation system. Every request outcome feeds four event counters per entity (`tenant_id + IP`):
+
+| Event | Weight | Triggered by |
+|-------|--------|-------------|
+| `block` | 0.50 | Stage 4/5 BLOCK decision |
+| `obfuscation` | 0.25 | Decoded payload detected |
+| `honeytrap` | 0.15 | HoneyEngine hit |
+| `evolution_trigger` | 0.10 | Near-miss queued for Evolution Engine |
+
+```
+score = Σ(weight_i × rate_i)   where rate_i = count_i / total_1h
+```
+
+| Level | Score | Action |
+|-------|-------|--------|
+| `low` | < 0.35 | Pass |
+| `medium` | 0.35–0.55 | Flag, monitor |
+| `high` | 0.55–0.75 | Extra scrutiny |
+| `critical` | ≥ 0.75 | **Shadow Ban** |
+
+Reset a false-positive entity:
+
+```bash
+curl -X POST http://localhost:80/ers/reset \
+     -H "X-API-Key: $WARDEN_API_KEY" \
+     -d "tenant_id=default&ip=<CLIENT_IP>"
+```
+
+---
+
+## Zero-Trust Agent Sandbox
+
+Every agent registers an `AgentManifest` declaring its allowed `ToolCapability` list. `SandboxRegistry.authorize_tool_call()` returns a `SandboxDecision` before any tool invocation. Violations are logged and fed into the attestation chain.
+
+```python
+from warden.agent_sandbox import AgentManifest, ToolCapability, SandboxRegistry
+
+manifest = AgentManifest(
+    agent_id="research-agent",
+    capabilities=[ToolCapability.WEB_SEARCH, ToolCapability.READ_FILE],
+)
+registry = SandboxRegistry()
+registry.register(manifest)
+
+decision = registry.authorize_tool_call("research-agent", "web_search", {"query": "..."})
+# decision.allowed = True
+
+decision = registry.authorize_tool_call("research-agent", "exec_shell", {"cmd": "rm -rf /"})
+# decision.allowed = False — not in manifest
+```
+
+**Kill-switch API** — revoke a session instantly:
+
+```bash
+curl -X DELETE http://localhost:80/agents/sessions/{session_id} \
+     -H "X-API-Key: $WARDEN_API_KEY"
+```
+
+---
+
+## Evidence Vault
+
+Every agent session generates a cryptographically signed evidence bundle suitable for SOC 2 audits, regulatory investigations, and litigation.
+
+```bash
+# Export evidence bundle for a session
+curl -s http://localhost:80/compliance/evidence/<SESSION_ID> \
+     -H "X-API-Key: $WARDEN_API_KEY" > evidence_$(date +%s).json
+
+# Verify bundle integrity
+curl -X POST http://localhost:80/compliance/evidence/verify \
+     -H "X-API-Key: $WARDEN_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d @evidence_$(date +%s).json
+```
+
+SHA-256 sign-last pattern: the bundle hash covers the entire session record. One byte changed anywhere = verification fails. The live compliance score `Cs` drops from `1.0` the moment any log entry is tampered with.
+
+---
+
+## Multimodal Guard
+
+Shadow Warden scans images and audio for embedded attack payloads — not just text.
+
+**Image (CLIP):** Zero-shot classification compares image patch embeddings against jailbreak phrase embeddings. Catches text embedded in images and adversarial visual prompts.
+
+**Audio (FFT + Whisper):**
+1. FFT peak detection — flags ultrasonic energy (> 20 kHz) that may carry steganographic commands inaudible to humans
+2. Whisper transcription — transcript is fed back through the full text pipeline
+
+```bash
+# Scan an image
+curl -X POST http://localhost:80/filter/multimodal \
+     -H "X-API-Key: $WARDEN_API_KEY" \
+     -F "image=@suspect.png" \
+     -F 'payload={"content": "describe this image"}'
+```
+
+Both guards run in parallel (`asyncio.gather`) — combined overhead is < 200ms P99.
+
+---
+
+## WardenDoctor
+
+Production diagnostics and benchmarking CLI. Run before every deployment and after any incident.
+
+```bash
+python scripts/warden_doctor.py --url http://localhost:80 --key $WARDEN_API_KEY
+```
+
+Three phases:
+
+| Phase | Checks |
+|-------|--------|
+| Health | Gateway liveness, Redis latency, circuit breaker state, Evolution Engine, throughput |
+| Text Benchmark | Clean / attack / obfuscated-B64 requests. P50/P99 against SLO thresholds |
+| Multimodal Benchmark | Synthetic PNG + WAV. P99 < 800ms threshold |
+
+Thresholds: text P99 < 150ms = PASS, < 500ms = WARN, ≥ 500ms = FAIL.
+
+```bash
+# CI/CD usage — exits 1 if any check fails
+python scripts/warden_doctor.py --url http://staging:80 --key $KEY --json > doctor_report.json
+```
+
+For troubleshooting procedures, see [docs/sop.md](docs/sop.md).
 
 ---
 
@@ -171,59 +316,10 @@ Shadow Warden proxies `/v1/chat/completions` with filter-before-forward. Provide
 | `bedrock/<model-id>` | Amazon Bedrock (Converse / ConverseStream API) |
 | `vertex/<model-name>` | Google Cloud Vertex AI |
 | `gemini-*` | Google Gemini |
+| `nim/<org>/<model>` | NVIDIA NIM |
 | `sonar-*`, `llama-*`, `pplx-*`, `r1-*`, `mixtral` | Perplexity |
 
-### Azure OpenAI
-
-```bash
-# Set AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY in .env, then:
-curl -X POST http://localhost/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"azure/gpt-4o-mini","messages":[{"role":"user","content":"Hello!"}]}'
-```
-
-### Amazon Bedrock
-
-```bash
-# Set AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + AWS_REGION in .env, then:
-curl -X POST http://localhost/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"bedrock/amazon.nova-lite-v1:0","messages":[{"role":"user","content":"Hello!"}]}'
-```
-
-Supported Bedrock models (any model accessible to your IAM role):
-- `amazon.nova-lite-v1:0`, `amazon.nova-pro-v1:0`
-- `anthropic.claude-3-haiku-20240307-v1:0`, `anthropic.claude-3-5-sonnet-20241022-v2:0`
-- `meta.llama3-8b-instruct-v1:0`, `meta.llama3-70b-instruct-v1:0`
-- `mistral.mistral-7b-instruct-v0:2`, `mistral.mixtral-8x7b-instruct-v0:1`
-
-**Streaming** (`"stream": true`) is fully supported for all providers. For OpenAI/Azure/Gemini/Perplexity/Vertex, Warden buffers the SSE stream, runs OutputGuard on the assembled content, then re-emits chunks. For Bedrock, Warden decodes the binary AWS EventStream (ConverseStream API) and re-emits as SSE — identical downstream behaviour.
-
-### Vertex AI
-
-```bash
-# Set VERTEX_PROJECT_ID + VERTEX_LOCATION + VERTEX_ACCESS_TOKEN (or use ADC) in .env, then:
-curl -X POST http://localhost/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"vertex/gemini-1.5-flash-001","messages":[{"role":"user","content":"Hello!"}]}'
-```
-
-For production, install `google-auth` and configure Application Default Credentials instead of a static token:
-```bash
-pip install google-auth
-gcloud auth application-default login
-```
-
-### Embeddings
-
-```bash
-# /v1/embeddings — input is filtered through Warden before forwarding
-curl -X POST http://localhost/v1/embeddings \
-  -H "Content-Type: application/json" \
-  -d '{"model":"text-embedding-3-small","input":"Hello world"}'
-```
-
-Supports the same provider routing as `/v1/chat/completions` (`azure/`, `vertex/`, or default upstream).
+**Streaming** (`"stream": true`) is fully supported for all providers. Warden buffers the SSE stream, runs OutputGuard on the assembled content, then re-emits chunks.
 
 ---
 
@@ -231,7 +327,7 @@ Supports the same provider routing as `/v1/chat/completions` (`azure/`, `vertex/
 
 OutputGuard scans LLM *responses* before they reach users. Ten risk types across two layers:
 
-### Business-layer (v1)
+### Business-layer
 
 | Risk | Trigger example | OWASP |
 |------|----------------|-------|
@@ -240,7 +336,7 @@ OutputGuard scans LLM *responses* before they reach users. Ten risk types across
 | Competitor mentions | "Check Amazon for better prices" | Brand risk |
 | Policy violations | "Lifetime warranty included" | LLM09 |
 
-### Safety + data protection (v2)
+### Safety + data protection
 
 | Risk | Trigger example | OWASP |
 |------|----------------|-------|
@@ -251,157 +347,35 @@ OutputGuard scans LLM *responses* before they reach users. Ten risk types across
 | System prompt echo | "My instructions say I should not…" | LLM07 |
 | Sensitive data exposure | API keys, passwords, bearer tokens | LLM02 |
 
-### Per-tenant configuration
-
-```python
-from warden.output_guard import OutputGuard, TenantOutputConfig
-
-guard = OutputGuard()
-
-cfg = TenantOutputConfig(
-    max_discount_pct=25,
-    competitor_names=["Acme Corp", "Rival Inc"],
-    block_hallucinated_urls=True,
-    block_pii_leakage=True,
-    custom_patterns=[r"confidential\s+price"],
-)
-
-result = guard.scan(llm_response, cfg)
-if result.risky:
-    safe_text = result.sanitized     # redacted version
-    findings  = result.findings      # list of Finding(risk, snippet, owasp)
-```
-
----
-
-## Agentic Security (v0.6)
-
-Shadow Warden protects **AI agent pipelines** — not just single requests.
-
-### ToolCallGuard
-
-Inspects tool calls *before* they execute and tool results *before* they re-enter the model:
-
-```
-[A] role=tool result  →  injection / secret exfil check  →  HTTP 400 if blocked
-[B] tool_calls in response  →  dangerous command check  →  HTTP 400 if blocked
-```
-
-Blocked tool patterns include: OS command injection, path traversal, SSRF, SQL injection, secret exfiltration, and crypto-related abuse.
-
-### AgentMonitor
-
-Session-level tracking of agentic interactions:
-
-```python
-# Pass X-Session-ID header to correlate multi-turn agent runs
-curl -X POST http://localhost/v1/chat/completions \
-  -H "X-Session-ID: session-abc123" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o","messages":[...],"tools":[...]}'
-```
-
-The monitor tracks tool call sequences per session, detects anomalous escalation, and feeds the Evolution Engine with agentic attack patterns.
-
----
-
-## WalletShield — Token Budget Management
-
-WalletShield prevents runaway LLM costs by enforcing per-tenant and per-user token budgets:
-
-```bash
-# Set budget limits in .env
-WALLET_ENABLED=true
-WALLET_TENANT_BUDGET=100000   # tokens per window
-WALLET_USER_BUDGET=10000
-WALLET_WINDOW_SECONDS=3600    # 1-hour rolling window
-```
-
-Requests exceeding the budget receive HTTP 429 with a structured error:
-
-```json
-{
-  "error": "token_budget_exceeded",
-  "used": 98500,
-  "limit": 100000,
-  "reset_in_seconds": 842
-}
-```
-
----
-
-## Transparent PII Masking
-
-Set `MASKING_MODE=auto` to enable reversible PII masking in the proxy pipeline:
-
-```
-User message → PII entities detected → masked before forwarding to LLM
-LLM response → masked entities restored → returned to caller
-```
-
-The LLM never sees real names, email addresses, or phone numbers — but the caller receives the unmasked response.
-
----
-
-## Real-time Event Feed
-
-Every security event is pushed to connected clients over WebSocket within ~1 ms — no polling.
-
-```javascript
-const ws = new WebSocket(`wss://your-host/ws/events?key=${apiToken}`);
-
-ws.onmessage = ({ data }) => {
-  const evt = JSON.parse(data);
-  if (evt.type === "event") {
-    console.log(evt.risk, evt.allowed, evt.elapsed_ms + "ms");
-  }
-};
-```
-
-Event payload:
-```json
-{
-  "type": "event",
-  "request_id": "a1b2c3d4-...",
-  "ts": "2026-03-22T18:30:01.123Z",
-  "risk": "HIGH",
-  "allowed": false,
-  "flags": ["prompt_injection"],
-  "secrets": ["openai_api_key"],
-  "payload_len": 342,
-  "elapsed_ms": 47,
-  "tenant_id": "acme-corp"
-}
-```
-
-Clients reconnect automatically with exponential backoff (1 s → 30 s max). The `/health` endpoint includes `"ws_clients"` — number of currently connected sessions.
-
 ---
 
 ## Configuration Reference
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SECRET_KEY` | — | **Required.** Random 32-byte hex |
-| `POSTGRES_PASS` | — | **Required.** PostgreSQL password |
-| `ANTHROPIC_API_KEY` | _(blank)_ | Enables Evolution Loop |
-| `PERPLEXITY_API_KEY` | _(blank)_ | Enables Perplexity proxy routing |
-| `GEMINI_API_KEY` | _(blank)_ | Enables Gemini proxy routing |
-| `AZURE_OPENAI_ENDPOINT` | _(blank)_ | Enables Azure OpenAI routing |
-| `AZURE_OPENAI_API_KEY` | _(blank)_ | Azure API key |
-| `AZURE_OPENAI_API_VERSION` | `2024-05-01-preview` | Azure API version |
-| `AWS_ACCESS_KEY_ID` | _(blank)_ | Enables Amazon Bedrock routing |
-| `AWS_SECRET_ACCESS_KEY` | _(blank)_ | AWS secret key |
-| `AWS_REGION` | `us-east-1` | Bedrock region |
-| `SEMANTIC_THRESHOLD` | `0.72` | Jailbreak detection sensitivity (0–1) |
-| `STRICT_MODE` | `false` | Block MEDIUM-risk requests |
-| `OUTPUT_MAX_DISCOUNT_PCT` | `50` | Max discount % before OutputGuard flags |
-| `OUTPUT_COMMITMENT_BLOCK` | `true` | Flag unauthorized guarantee language |
-| `OUTPUT_COMPETITOR_NAMES` | _(blank)_ | Comma-separated competitor brand names |
+All tunable parameters are documented in `.env.example`. Critical values:
+
+| Env var | Default | Effect |
+|---------|---------|--------|
+| `WARDEN_API_KEY` | _(blank = disabled)_ | Gateway authentication |
+| `SEMANTIC_THRESHOLD` | `0.72` | MiniLM cosine similarity cutoff |
+| `UNCERTAINTY_LOWER_THRESHOLD` | `0.55` | ML uncertain band floor |
+| `RATE_LIMIT_PER_MINUTE` | `60` | Requests per IP per minute |
+| `ERS_SHADOW_BAN_THRESHOLD` | `0.75` | ERS score to trigger shadow ban |
+| `ERS_MIN_REQUESTS` | `5` | Minimum requests before ERS escalates |
+| `WARDEN_FAIL_STRATEGY` | `open` | `closed` = block on timeout (financial/regulated) |
+| `REDIS_URL` | `redis://redis:6379` | Set `memory://` for tests |
+| `ANTHROPIC_API_KEY` | _(blank = air-gapped)_ | Disables Evolution Engine if empty |
+| `HF_TOKEN` | _(blank)_ | HuggingFace auth for CLIP/Whisper download |
+| `DYNAMIC_RULES_PATH` | `/warden/data/dynamic_rules.json` | Evolved rules corpus |
 | `GDPR_LOG_RETENTION_DAYS` | `30` | Auto-purge log entries after N days |
-| `REDIS_URL` | `redis://redis:6379` | Redis URL (`memory://` for tests) |
-| `MASKING_MODE` | `off` | `auto` = reversible PII masking in proxy |
-| `WALLET_ENABLED` | `true` | Token budget enforcement |
+
+Live-tunable without restart via `POST /api/config/update`:
+
+```bash
+curl -X POST http://localhost:80/api/config/update \
+     -H "X-API-Key: $WARDEN_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"semantic_threshold": 0.78, "uncertainty_lower_threshold": 0.60}'
+```
 
 ---
 
@@ -413,12 +387,14 @@ Clients reconnect automatically with exponential backoff (1 s → 30 s max). The
 {
   "ts": "2026-01-15T14:32:01Z",
   "request_id": "a1b2c3d4-...",
+  "tenant_id": "acme-corp",
   "allowed": false,
   "risk_level": "HIGH",
-  "flags": ["prompt_injection"],
+  "flags": ["prompt_injection", "obfuscation"],
   "secrets_found": ["openai_api_key"],
-  "content_len": 342,
-  "elapsed_ms": 47.3
+  "payload_tokens": 83,
+  "processing_ms": {"total": 5.8, "ml": 4.2, "rules": 0.9},
+  "attack_cost_usd": 0.0
 }
 ```
 
@@ -429,16 +405,18 @@ Clients reconnect automatically with exponential backoff (1 s → 30 s max). The
 | Request content / prompts | Never stored |
 | Redacted secret values | Never stored |
 | Email addresses, phone numbers | Never stored |
-| IP addresses | Never stored |
+| IP addresses | Pseudonymised (SHA-256 GDPR entity key) |
 
-### Data residency
+### Purge (GDPR Article 5(1)(e))
 
-All data stays on your infrastructure. External calls only occur when you opt in:
-- **Evolution Loop** — Claude Opus (sends flag metadata only, never raw content)
-- **Proxy** — OpenAI / Azure / Bedrock / Perplexity / Gemini (only if you use `/v1/chat/completions`)
-- **Model download** — HuggingFace Hub, once at first startup, then cached
+```bash
+curl -X POST http://localhost:80/gdpr/purge \
+     -H "X-API-Key: $WARDEN_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d "{\"before\": \"$(date -u -d '30 days ago' '+%Y-%m-%dT%H:%M:%SZ')\"}"
+```
 
-For fully **air-gapped** operation: pre-download model weights, leave all cloud keys unset.
+Automate with cron — see [docs/sop.md](docs/sop.md) for the recommended cron entry.
 
 ### Article 30
 
@@ -452,18 +430,20 @@ For fully **air-gapped** operation: pre-download model weights, leave all cloud 
 
 ### Detection layers
 
-1. **ObfuscationDecoder** — Decodes Base64, hex, ROT13, Unicode homoglyphs before analysis. Encoded payloads cannot bypass downstream stages.
-2. **SecretRedactor** — 20+ regex patterns (API keys, credit cards with Luhn validation, SSNs, IBANs, crypto wallet addresses, PEM blocks).
-3. **SemanticGuard** — Regex rule engine (compound risk escalation: 3+ MEDIUM → HIGH) + `all-MiniLM-L6-v2` cosine similarity.
-4. **OutputGuard v2** — 10-risk business + safety guardrail on LLM responses. Sanitized output returned on flag.
-5. **ToolCallGuard** — Inspects tool calls and results in agentic pipelines. Blocks injection, SSRF, OS command abuse.
-6. **DataPoisoningGuard** — Detects corpus poisoning attempts in Evolution Engine inputs.
-7. **EvolutionEngine** — Claude Opus generates new detection rules from live HIGH/BLOCK attacks. Hot-loaded without restart.
+1. **ObfuscationDecoder** — Decodes Base64, hex, ROT13, Unicode homoglyphs before analysis.
+2. **SecretRedactor** — 15+ regex patterns (API keys, credit cards with Luhn validation, JWTs, SSH keys).
+3. **SemanticGuard** — Regex rule engine with compound escalation (3+ MEDIUM → HIGH).
+4. **SemanticBrain** — `all-MiniLM-L6-v2` cosine similarity against corpus of known-malicious examples.
+5. **MultimodalGuard** — CLIP (image patch embeddings) + Whisper+FFT (audio transcription + ultrasonic detection).
+6. **Entity Risk Scoring** — Redis sliding-window reputation with shadow ban at critical threshold.
+7. **ToolCallGuard** — Inspects tool calls and results in agentic pipelines. Blocks injection, SSRF, OS command abuse.
+8. **EvolutionEngine** — Claude Opus generates new detection rules from live HIGH/BLOCK attacks. Hot-reloaded without restart.
+9. **Evidence Vault** — SHA-256 attestation chains per session. Tamper-evident, litigation-ready.
 
 ### Risk levels
 
-| Level | Meaning | Default | Strict mode |
-|-------|---------|---------|-------------|
+| Level | Meaning | Default action | Strict mode |
+|-------|---------|---------------|-------------|
 | `LOW` | Clean | Allowed | Allowed |
 | `MEDIUM` | Suspicious | Allowed | Blocked |
 | `HIGH` | Likely attack | Blocked | Blocked |
@@ -473,15 +453,16 @@ For fully **air-gapped** operation: pre-download model weights, leave all cloud 
 
 ## Service Level Objectives
 
-Targets for 4 vCPU / 8 GB RAM:
+Measured production values on 4 vCPU / 4 GB RAM (Ubuntu 22.04, CPU-only):
 
-| Metric | Target |
-|--------|--------|
-| P50 latency (`/filter`) | < 20 ms (cache hit) |
-| P99 latency (`/filter`) | < 500 ms (full ML) |
-| Uptime | 99.9% |
-| False positive rate | < 0.1% |
-| Test coverage | ≥ 75% (CI gate) |
+| Metric | Target | Measured |
+|--------|--------|----------|
+| P50 latency (`/filter`, text) | < 20 ms | **5.3 ms** |
+| P99 latency (`/filter`, text) | < 150 ms | **7.2 ms** |
+| P99 latency (multimodal) | < 800 ms | — |
+| Pre-release integration suite | 30/30 | **30/30** |
+| Test coverage | ≥ 75% | **86%** |
+| Uptime | 99.9% | — |
 
 ---
 
@@ -501,13 +482,18 @@ uvicorn warden.main:app --reload --port 8001
 ### Tests
 
 ```bash
+# Standard suite
 pytest warden/tests/ -v -m "not adversarial and not slow"
 
-# Coverage gate
+# Pre-release integration suite (30 tests, 5 levels)
+pytest warden/tests/pre_release_final_test.py -v
+
+# Coverage gate (≥75%)
 pytest warden/tests/ -m "not adversarial" --cov=warden --cov-fail-under=75
 
 # Lint
 ruff check warden/ analytics/ --ignore E501
+mypy warden/ --ignore-missing-imports --no-strict-optional
 ```
 
 ### Project structure
@@ -517,40 +503,46 @@ shadow-warden-ai/
 ├── docker-compose.yml
 ├── pyproject.toml
 ├── .env.example
-├── .github/workflows/ci.yml          # Test matrix (3.11/3.12) + lint + Docker smoke
+├── CONTRIBUTING.md                    # Contribution guidelines + non-negotiables
+├── .github/workflows/ci.yml           # Test matrix (3.11/3.12) + lint + Docker smoke
+│
+├── docs/
+│   ├── pipeline-anatomy.md            # Stage-by-stage breakdown + latency budget
+│   ├── sop.md                         # Security & Operations Advisory (Blue Team)
+│   └── deployment-guide.md            # Infrastructure + production hardening
+│
+├── scripts/
+│   └── warden_doctor.py               # Production diagnostics & benchmarking CLI
 │
 ├── warden/
-│   ├── main.py                        # FastAPI gateway — /filter, /filter/batch,
-│   │                                  #   /v1/chat/completions, /ws/events, GDPR
-│   ├── output_guard.py                # OutputGuard v2 — 10 risks, TenantOutputConfig
-│   ├── openai_proxy.py                # Multi-provider proxy + SSE streaming
-│   ├── obfuscation.py                 # Obfuscation decoder
-│   ├── secret_redactor.py             # PII/secret redactor (20+ patterns)
-│   ├── semantic_guard.py              # Rule engine + compound risk escalation
-│   ├── tool_guard.py                  # Agentic tool call + result inspection
-│   ├── agent_monitor.py               # Session-level agentic monitoring
-│   ├── wallet_shield.py               # Per-tenant/user token budget
-│   ├── business_threat_neutralizer.py # Sector threat analysis (B2B/B2C/E-Commerce)
-│   ├── threat_vault.py                # ThreatVault — 54 curated attack signatures
-│   ├── auth_guard.py                  # Per-tenant API key auth (SHA-256)
-│   ├── cache.py                       # Redis content-hash cache
-│   ├── alerting.py                    # Slack + PagerDuty alerts
-│   ├── prompt_shield.py               # Indirect injection detector (LLM01/02 — 6 attack types)
-│   ├── audit_trail.py                 # SHA-256 hash-chain audit log (SOC 2 Type II)
-│   ├── providers/
-│   │   ├── bedrock.py                 # Amazon Bedrock Converse + ConverseStream adapter + SigV4
-│   │   └── vertex.py                  # Google Cloud Vertex AI adapter (OAuth2 / ADC)
-│   ├── masking/
-│   │   └── engine.py                  # Reversible PII masking (MASKING_MODE=auto)
+│   ├── main.py                        # FastAPI gateway — all endpoints + lifespan MOTD
 │   ├── brain/
-│   │   ├── semantic.py                # MiniLM ML detector
-│   │   ├── evolve.py                  # Evolution Loop (Claude Opus)
-│   │   └── poison.py                  # Data poisoning guard
-│   ├── threat_intel/                  # Live threat intelligence feeds
+│   │   ├── semantic.py                # MiniLM ML detector (ThreadPoolExecutor, lru_cache)
+│   │   ├── evolve.py                  # Evolution Engine (Claude Opus, corpus poisoning protection)
+│   │   └── dataset.py                 # Corpus management utilities
+│   ├── obfuscation.py                 # Obfuscation decoder pre-filter
+│   ├── secret_redactor.py             # PII/secret redactor (15+ patterns)
+│   ├── semantic_guard.py              # Rule engine + compound risk escalation
+│   ├── entity_risk.py                 # ERS — Redis sliding window + shadow ban
+│   ├── agent_sandbox.py               # Zero-trust capability manifest + authorize_tool_call
+│   ├── agent_monitor.py               # Session-level attestation chain
+│   ├── tool_guard.py                  # Tool call + result inspection
+│   ├── image_guard.py                 # CLIP zero-shot image scanning
+│   ├── audio_guard.py                 # Whisper + FFT ultrasonic detection
+│   ├── compliance/
+│   │   └── bundler.py                 # EvidenceBundler — SHA-256 sign-last bundles
+│   ├── circuit_breaker.py             # Circuit breaker (Redis-backed, auto-heal)
+│   ├── auth_guard.py                  # Per-tenant API key auth (SHA-256 hash lookup)
+│   ├── cache.py                       # Redis content-hash cache (5-min TTL, fail-open)
+│   ├── alerting.py                    # Slack + PagerDuty alerts on HIGH/BLOCK
+│   ├── metrics.py                     # Prometheus metrics (warden_* namespace)
+│   ├── webhook_dispatch.py            # Outbound webhook delivery
 │   ├── analytics/
-│   │   ├── logger.py                  # GDPR-safe NDJSON logger
-│   │   └── siem.py                    # Splunk HEC + Elastic ECS
-│   └── tests/                         # 1225+ tests, ~79% coverage
+│   │   ├── logger.py                  # GDPR-safe NDJSON logger + purge helpers
+│   │   └── siem.py                    # Splunk HEC + Elastic ECS SIEM integration
+│   └── tests/
+│       ├── pre_release_final_test.py  # 30-test integration suite (L1–L5)
+│       └── ...                        # Unit tests (~86% coverage)
 │
 └── grafana/
     ├── prometheus.yml
@@ -561,82 +553,78 @@ shadow-warden-ai/
 
 ## Roadmap
 
-### Shipped
+### v1.8 (current)
 
-**v1.0 — NVIDIA NIM + Full Multi-Cloud Provider Gateway**
-- NVIDIA NIM routing — `nim/<org>/<model>` prefix routes to `integrate.api.nvidia.com` (Nemotron, Llama, Mistral, Phi)
-- Full provider catalogue: OpenAI · Azure OpenAI · Amazon Bedrock · Google Vertex AI · Google Gemini · Perplexity · NVIDIA NIM
-- `/v1/embeddings` NIM-aware — `nim/<org>/<model>` embeddings routed to NIM, `nim/` prefix stripped before forwarding
-- `NVIDIA_API_KEY` env var; zero-config for air-gapped or key-less deployments (routes silently skipped)
-- Backend contact form `/api/contact` — SMTP delivery via configurable `SMTP_HOST/USER/PASS`; fail-open logging fallback
-- 3 new routing tests; all 1,314 existing tests still green
+- Entity Risk Scoring (ERS) — Redis sliding-window reputation, shadow ban at critical threshold
+- Shadow Ban — fake `allowed=true` responses, real LLM never called, no adversarial feedback
+- Zero-Trust Agent Sandbox — capability manifests, `authorize_tool_call()`, kill-switch API
+- Evidence Vault — SHA-256 sign-last bundles, live compliance score `Cs`, SOC 2 / litigation ready
+- Multimodal Guard — CLIP (image) + Whisper+FFT (audio, ultrasonic steganography)
+- ThreatVault 1,300+ — upgraded signature library with Evolution Engine auto-growth
+- WardenDoctor — production diagnostics CLI with P50/P99 benchmarks and CI/CD JSON output
+- 30/30 pre-release integration suite (SMOKE → Compliance)
+- Log rotation — Docker json-file driver, 10MB / 3 files per service
+- Startup MOTD — live system status on every `docker compose up`
 
-**v0.9 — Cryptographic Audit Trail (SOC 2 Type II)**
-- `AuditTrail` — SHA-256 hash-chain tamper-evident log (SQLite + WAL); each filter decision chains off the previous entry's hash
-- `GET /admin/audit/verify` — walk the entire chain and confirm integrity in O(N); returns `{"valid": true, "entries": N}`
-- `GET /admin/audit/export?start=&end=&limit=` — export entries for auditors, with inline `valid` field
-- GDPR-safe: risk_level / action / reason / flags only — content is never stored
-- SOC 2 controls: CC6.1 (logical access), CC6.7 (data protection), CC7.2 (security monitoring)
-- `AUDIT_TRAIL_ENABLED=true` (default); thread-safe; fail-open on any DB error
+### v1.0
 
-**v0.8 — Prompt Shield (Indirect Injection Detection)**
-- `PromptShield` — dedicated OWASP LLM01/02 indirect injection detector with six labeled attack types: `role_override`, `hierarchy_inversion`, `persona_switch`, `exfil_trigger`, `chain_break`, `unicode_override`
-- Wired into `/v1/chat/completions` proxy — every tool result is scanned before it reaches the LLM (primary indirect injection surface)
-- `PROMPT_SHIELD_ENABLED=true` (default) / configurable block threshold
-- 12 high-precision regex patterns; fail-open (never raises)
+- NVIDIA NIM routing — `nim/<org>/<model>` prefix
+- Full multi-cloud provider catalogue
+- Backend contact form (`/api/contact`)
 
-**v0.7 — Vertex AI + Bedrock Streaming + Embeddings Proxy**
-- Google Cloud Vertex AI provider — OpenAI-compatible endpoint, OAuth2/ADC auth, `vertex/<model>` routing
-- Amazon Bedrock streaming — binary AWS EventStream (ConverseStream API) decoded and re-emitted as SSE
-- `/v1/embeddings` proxy endpoint — Warden input filtering + Azure/Vertex/OpenAI routing
-- Unified streaming path — all providers (OpenAI, Azure, Gemini, Perplexity, Bedrock, Vertex) share the same OutputGuard + masking logic
+### v0.9
 
-**v0.6 — Agentic Security + Multi-Cloud Providers**
-- ToolCallGuard — inspect tool calls and results in agentic pipelines
-- AgentMonitor — session-level agentic safety monitoring
-- WalletShield — per-tenant/user token budget enforcement
-- Reversible PII masking — `MASKING_MODE=auto` transparent masking/unmasking
-- Amazon Bedrock routing — Converse API with SigV4 signing (nova, claude, llama, mistral)
-- Azure OpenAI routing — `azure/<deployment>` model prefix
-- Threat Intelligence feeds — live external threat data → auto-generated rules
-- RBAC + SAML SSO — enterprise auth (per-tenant role-based access)
-- Data Poisoning detection — Evolution Engine corpus health monitoring
+- Cryptographic audit trail (SHA-256 hash chain, SQLite + WAL)
+- SOC 2 Type II controls (CC6.1, CC6.7, CC7.2)
 
-**v0.5 — Streaming & Output Guard**
-- OutputGuard v2 — 10 risk types with per-tenant `TenantOutputConfig`
-- SSE streaming in `/v1/chat/completions` — full buffer + OutputGuard before re-emit
-- Multi-provider routing — Perplexity and Google Gemini auto-detected from model name
-- Real-time WebSocket event feed — `/ws/events` with exponential-backoff reconnect
+### v0.8
 
-**v0.4 — Security Hardening**
-- Obfuscation decoder pre-filter (Base64 · hex · ROT13 · homoglyphs)
-- Per-tenant API keys with SHA-256 hash lookup
-- Batch filter endpoint (`POST /filter/batch`, up to 50 items)
-- Per-stage timing in every `/filter` response
-- Redis content-hash cache (5-min TTL, fail-open)
-- Business Threat Neutralizer + ThreatVault (54 signatures)
+- PromptShield — indirect injection detection (OWASP LLM01/02), six labeled attack types
 
-**v0.3 — Intelligence**
-- OWASP LLM Top-10 (2025) full LLM01–LLM10 coverage
-- Evolution Loop (Claude Opus) with corpus poisoning protection
-- Compound risk escalation: 3+ MEDIUM → HIGH
+### v0.7
 
-**v0.2 — Platform**
-- OpenAI-compatible proxy
-- Prometheus metrics + Grafana dashboard
-- SIEM integration (Splunk HEC + Elastic ECS)
-- LangChain `WardenCallback`
-- GDPR export + purge endpoints
+- Google Cloud Vertex AI provider
+- Amazon Bedrock streaming (binary AWS EventStream → SSE)
+- `/v1/embeddings` proxy
+
+### v0.6
+
+- ToolCallGuard + AgentMonitor
+- WalletShield (token budget enforcement)
+- Reversible PII masking
+- Amazon Bedrock + Azure OpenAI routing
+
+### v0.5
+
+- OutputGuard v2 (10 risk types, per-tenant config)
+- SSE streaming in `/v1/chat/completions`
+- Real-time WebSocket event feed
+
+### v0.4
+
+- Obfuscation decoder pre-filter
+- Per-tenant API keys (SHA-256 hash lookup)
+- Batch filter endpoint
+- Redis content-hash cache
 
 ### Planned
 
 - [ ] Kubernetes Helm chart (EKS / GKE / AKS)
-- [ ] OpenShell compatibility layer (NVIDIA Agent Toolkit)
 - [ ] Browser extension — real-time protection for ChatGPT, Claude.ai, Copilot
 - [ ] Threat intelligence sharing (STIX/TAXII feed export)
-- [ ] Vertex AI multimodal (image/video content blocks)
-- [ ] SOC 2 Type II certification audit (controls in codebase via v0.9)
+- [ ] SOC 2 Type II certification audit
 - [ ] SaaS hosted option (no Docker, single API key)
+
+---
+
+## Documentation
+
+| Doc | Audience |
+|-----|----------|
+| [docs/pipeline-anatomy.md](docs/pipeline-anatomy.md) | Security architects, platform engineers |
+| [docs/sop.md](docs/sop.md) | Blue Team, Security Operations, DevOps |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributors |
+| `.env.example` | Everyone — all env vars with descriptions |
 
 ---
 
