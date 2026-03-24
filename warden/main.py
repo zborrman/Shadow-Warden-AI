@@ -622,11 +622,13 @@ async def lifespan(app: FastAPI):
     except Exception as _honey_err:
         log.warning("HoneyEngine failed to initialise: %s", _honey_err)
 
-    # ── Multi-Modal Guard pre-warm (CLIP + Whisper) ───────────────────
+    # ── Multi-Modal Guard pre-warm (CLIP + Whisper + Haar cascade) ───
     try:
         from warden import image_guard as _ig, audio_guard as _ag  # noqa: PLC0415
+        from warden import image_redactor as _ir                   # noqa: PLC0415
         _ig.prewarm()
         _ag.prewarm()
+        _ir.prewarm()
     except Exception as _mm_err:
         log.warning("MultiModal guard pre-warm failed (non-fatal): %s", _mm_err)
 
@@ -1885,23 +1887,39 @@ async def filter_batch(
 # ── /filter/multimodal ────────────────────────────────────────────────────────
 
 class _MultimodalRequest(BaseModel):
-    content:   str | None = Field(default=None, max_length=32_000,
-                                   description="Text payload (optional — submit image/audio alone).")
-    image_b64: str | None = Field(default=None, description="Base64-encoded image (PNG/JPEG/WebP).")
-    audio_b64: str | None = Field(default=None, description="Base64-encoded audio (WAV/MP3/OGG).")
-    tenant_id: str        = Field(default="default")
-    strict:    bool       = Field(default=False)
-    context:   dict       = Field(default_factory=dict)
+    content:    str | None = Field(default=None, max_length=32_000,
+                                    description="Text payload (optional — submit image/audio alone).")
+    image_b64:  str | None = Field(default=None, description="Base64-encoded image (PNG/JPEG/WebP).")
+    audio_b64:  str | None = Field(default=None, description="Base64-encoded audio (WAV/MP3/OGG).")
+    tenant_id:  str        = Field(default="default")
+    strict:     bool       = Field(default=False)
+    context:    dict       = Field(default_factory=dict)
+    redact_pii: bool       = Field(
+        default=True,
+        description=(
+            "Auto-blur PII regions in the image before returning. "
+            "When True, redacted_image_b64 is populated if PII is detected. "
+            "Set False to receive the detection verdict only without redaction."
+        ),
+    )
 
 
 class _MultimodalResponse(BaseModel):
-    allowed:        bool
-    risk_level:     str
-    flags:          list[dict]      = Field(default_factory=list)
-    modalities:     dict            = Field(default_factory=dict)
-    processing_ms:  dict[str, float] = Field(default_factory=dict)
-    pii_redacted:   bool            = False
-    text_result:    FilterResponse | None = None
+    allowed:             bool
+    risk_level:          str
+    flags:               list[dict]       = Field(default_factory=list)
+    modalities:          dict             = Field(default_factory=dict)
+    processing_ms:       dict[str, float] = Field(default_factory=dict)
+    pii_redacted:        bool             = False
+    redacted_image_b64:  str | None       = Field(
+        default=None,
+        description=(
+            "Blurred version of the input image (base64 PNG). "
+            "Populated when ImageGuard detects PII and redaction is enabled. "
+            "Safe to forward to the LLM instead of the original."
+        ),
+    )
+    text_result:         FilterResponse | None = None
 
 
 @app.post(
@@ -1962,6 +1980,7 @@ async def filter_multimodal(
         text_flags     = text_flags,
         semantic_guard = tenant_guard,
         strict         = payload.strict,
+        redact_pii     = payload.redact_pii,
     )
 
     # ── Modalities label for Prometheus ──────────────────────────────
@@ -1983,19 +2002,20 @@ async def filter_multimodal(
             AUDIO_GUARD_BLOCKS_TOTAL.labels(reason=reason).inc()
 
     return _MultimodalResponse(
-        allowed       = mm_result.allowed,
-        risk_level    = mm_result.risk_level.value,
-        flags         = [
+        allowed            = mm_result.allowed,
+        risk_level         = mm_result.risk_level.value,
+        flags              = [
             {"flag": f.flag.value, "score": f.score, "detail": f.detail}
             for f in mm_result.flags
         ],
-        modalities    = mm_result.modalities,
-        processing_ms = {
+        modalities         = mm_result.modalities,
+        processing_ms      = {
             **(text_resp.processing_ms if text_resp else {}),
             **mm_result.processing_ms,
         },
-        pii_redacted  = mm_result.pii_redacted,
-        text_result   = text_resp,
+        pii_redacted       = mm_result.pii_redacted,
+        redacted_image_b64 = mm_result.redacted_image_b64,
+        text_result        = text_resp,
     )
 
 

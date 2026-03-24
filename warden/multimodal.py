@@ -53,12 +53,13 @@ def _max_risk(*levels: RiskLevel) -> RiskLevel:
 
 @dataclass
 class MultimodalResult:
-    risk_level:     RiskLevel          = RiskLevel.LOW
-    allowed:        bool               = True
-    flags:          list[SemanticFlag] = field(default_factory=list)
-    modalities:     dict[str, Any]     = field(default_factory=dict)
-    processing_ms:  dict[str, float]   = field(default_factory=dict)
-    pii_redacted:   bool               = False
+    risk_level:          RiskLevel          = RiskLevel.LOW
+    allowed:             bool               = True
+    flags:               list[SemanticFlag] = field(default_factory=list)
+    modalities:          dict[str, Any]     = field(default_factory=dict)
+    processing_ms:       dict[str, float]   = field(default_factory=dict)
+    pii_redacted:        bool               = False
+    redacted_image_b64:  str | None         = None   # blurred PNG, base64 (set when PII found)
 
 
 # ── Unified scoring ───────────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ async def run_multimodal(
     text_flags:     list[SemanticFlag] | None = None,
     semantic_guard  = None,
     strict:         bool = False,
+    redact_pii:     bool = True,   # auto-blur PII regions before returning image
 ) -> MultimodalResult:
     """
     Run image + audio guards in parallel, merge with existing text result.
@@ -158,6 +160,25 @@ async def run_multimodal(
                 detail = "PII detected in image (passport/ID/card) — GDPR: image not forwarded.",
             ))
 
+    # ── Image PII redaction (v1.5) ────────────────────────────────────────────
+    redacted_image_b64: str | None = None
+    if has_image and pii_found and redact_pii and not isinstance(image_result, Exception):
+        try:
+            from warden.image_redactor import redact_image_b64 as _redact_b64  # noqa: PLC0415
+            redacted_image_b64, _rr = await _redact_b64(image_b64, is_pii=True)
+            modalities["image"]["redaction"] = {
+                "regions_blurred": len(_rr.regions_blurred),
+                "faces_found":     _rr.faces_found,
+                "elapsed_ms":      _rr.elapsed_ms,
+                "error":           _rr.error,
+            }
+            log.info(
+                "ImageRedactor: %d region(s) blurred faces=%d elapsed=%.1fms",
+                len(_rr.regions_blurred), _rr.faces_found, _rr.elapsed_ms,
+            )
+        except Exception as _re:
+            log.debug("ImageRedactor: skipped (non-fatal): %s", _re)
+
     # ── Audio result ──────────────────────────────────────────────────────────
     aud_risk = RiskLevel.LOW
     if has_audio and not isinstance(audio_result, Exception):
@@ -197,12 +218,13 @@ async def run_multimodal(
     )
 
     return MultimodalResult(
-        risk_level    = final_risk,
-        allowed       = allowed,
-        flags         = all_flags,
-        modalities    = modalities,
-        processing_ms = {"multimodal_total": elapsed},
-        pii_redacted  = pii_found,
+        risk_level         = final_risk,
+        allowed            = allowed,
+        flags              = all_flags,
+        modalities         = modalities,
+        processing_ms      = {"multimodal_total": elapsed},
+        pii_redacted       = pii_found,
+        redacted_image_b64 = redacted_image_b64,
     )
 
 
