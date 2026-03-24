@@ -101,7 +101,7 @@ def _get_client():
                 url,
                 decode_responses=True,
                 socket_connect_timeout=3,
-                socket_timeout=2,
+                socket_timeout=BLOCK_MS / 1000 + 3,  # must exceed xreadgroup block timeout
             )
             c.ping()
             _client = c
@@ -301,7 +301,7 @@ def _poll_once(r, semantic_guard) -> int:
             block      = BLOCK_MS,
         )
     except Exception as exc:
-        log.warning("ThreatSync: xreadgroup error: %s", exc)
+        log.debug("ThreatSync: xreadgroup error: %s", exc)
         return 0
 
     if not results:

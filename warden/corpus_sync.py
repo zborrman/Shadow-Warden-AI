@@ -116,7 +116,8 @@ def _get_redis():
         try:
             import redis as _redis  # noqa: PLC0415
             c = _redis.from_url(url, decode_responses=True,
-                                socket_connect_timeout=3, socket_timeout=2)
+                                socket_connect_timeout=3,
+                                socket_timeout=_BLOCK_MS / 1000 + 3)  # must exceed xreadgroup block
             c.ping()
             _redis_client = c
         except Exception as exc:
@@ -289,7 +290,7 @@ def _poll_invalidations(r, poison_guard) -> int:
             block        = _BLOCK_MS,
         )
     except Exception as exc:
-        log.warning("CorpusSync: xreadgroup error: %s", exc)
+        log.debug("CorpusSync: xreadgroup error: %s", exc)
         return 0
 
     if not results:

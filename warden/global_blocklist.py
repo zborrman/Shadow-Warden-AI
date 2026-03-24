@@ -99,7 +99,8 @@ def _get_redis():
         try:
             import redis as _redis  # noqa: PLC0415
             c = _redis.from_url(url, decode_responses=True,
-                                socket_connect_timeout=3, socket_timeout=1)
+                                socket_connect_timeout=3,
+                                socket_timeout=_BLOCK_MS / 1000 + 3)  # must exceed xreadgroup block
             c.ping()
             _client = c
         except Exception as exc:
@@ -397,7 +398,7 @@ def _poll_events(r, threat_store) -> int:
             block        = _BLOCK_MS,
         )
     except Exception as exc:
-        log.warning("GlobalBlocklist: xreadgroup error: %s", exc)
+        log.debug("GlobalBlocklist: xreadgroup error: %s", exc)
         return 0
 
     if not results:
