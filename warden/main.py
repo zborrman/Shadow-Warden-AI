@@ -2672,6 +2672,51 @@ async def verify_session_attestation(session_id: str):
     return result
 
 
+@app.get(
+    "/api/agent/session/{session_id}",
+    tags=["agent-sandbox"],
+    summary="Get metadata and events for an agent session",
+    dependencies=[Depends(require_api_key)],
+)
+async def get_agent_session(session_id: str):
+    """Return full session metadata + tool event list for *session_id*."""
+    if _agent_monitor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AgentMonitor not available.",
+        )
+    sess = await asyncio.to_thread(_agent_monitor.get_session, session_id)
+    if sess is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id!r} not found.")
+    return sess
+
+
+@app.delete(
+    "/api/agent/session/{session_id}",
+    tags=["agent-sandbox"],
+    summary="Kill-switch: immediately revoke an agent session",
+    dependencies=[Depends(require_api_key)],
+)
+async def revoke_agent_session(
+    session_id: str,
+    reason: str = "admin_kill_switch",
+):
+    """
+    Terminate an agent session immediately.
+
+    Any subsequent ``/v1/chat/completions`` request carrying
+    ``X-Session-ID: {session_id}`` will receive HTTP 403 until the session TTL
+    expires.  The revocation is also recorded in session metadata for audit.
+    """
+    if _agent_monitor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AgentMonitor not available.",
+        )
+    result = await asyncio.to_thread(_agent_monitor.revoke_session, session_id, reason)
+    return result
+
+
 # ── Threat Intelligence endpoints ────────────────────────────────────────────
 
 

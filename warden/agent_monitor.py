@@ -449,6 +449,85 @@ class AgentMonitor:
         except Exception:
             return []
 
+    # ── Kill-Switch ───────────────────────────────────────────────────────────
+
+    def _r_revoke_key(self, session_id: str) -> str:
+        return f"warden:session:{session_id}:revoked"
+
+    def revoke_session(self, session_id: str, reason: str = "") -> dict:
+        """
+        Immediately revoke a session.
+
+        Sets a dedicated ``warden:session:{id}:revoked`` key in Redis (TTL =
+        SESSION_TTL_SECONDS) so ``is_revoked()`` is an O(1) GET with no event
+        parsing.  Also marks the session metadata for the audit trail.
+
+        Returns a status dict suitable for the HTTP response body.
+        Fail-open: any storage error is logged and the dict is still returned.
+        """
+        now = _now_iso()
+        revocation = {"revoked_at": now, "reason": reason or "admin_kill_switch"}
+
+        # ── Fast revocation key (O(1) lookup path) ────────────────────
+        r = self._get_redis()
+        if r is not None:
+            try:
+                r.set(
+                    self._r_revoke_key(session_id),
+                    json.dumps(revocation, separators=(",", ":")),
+                    ex=SESSION_TTL_SECONDS,
+                )
+            except Exception as exc:
+                log.warning("revoke_session: Redis write failed: %s", exc)
+        else:
+            with self._fallback_lock:
+                if session_id not in self._fallback:
+                    self._fallback[session_id] = {"meta": {}, "events": []}
+                self._fallback[session_id]["revoked"] = revocation
+
+        # ── Mark meta for audit trail ─────────────────────────────────
+        try:
+            meta = self._r_get_meta(session_id) or self._new_meta(session_id, "default")
+            meta["revoked"]    = True
+            meta["revoked_at"] = now
+            meta["revoke_reason"] = reason or "admin_kill_switch"
+            self._r_set_meta(session_id, meta)
+            _flush_session_summary(session_id, meta)
+        except Exception as exc:
+            log.debug("revoke_session: meta update failed (non-fatal): %s", exc)
+
+        log.warning(
+            "SESSION_REVOKED session=%s reason=%r revoked_at=%s",
+            session_id, reason or "admin_kill_switch", now,
+        )
+
+        try:
+            from warden.metrics import AGENT_SESSIONS_REVOKED_TOTAL  # noqa: PLC0415
+            AGENT_SESSIONS_REVOKED_TOTAL.inc()
+        except Exception:
+            pass
+
+        return {"session_id": session_id, "revoked": True, "revoked_at": now,
+                "reason": reason or "admin_kill_switch"}
+
+    def is_revoked(self, session_id: str) -> bool:
+        """
+        Fast O(1) revocation check.  Called on every proxied request.
+        Fail-open: returns False on any storage error so legitimate traffic
+        is never blocked by a Redis hiccup.
+        """
+        if not session_id:
+            return False
+        r = self._get_redis()
+        if r is not None:
+            try:
+                return r.exists(self._r_revoke_key(session_id)) > 0
+            except Exception:
+                return False
+        with self._fallback_lock:
+            entry = self._fallback.get(session_id)
+        return bool(entry and entry.get("revoked"))
+
     def verify_attestation(self, session_id: str) -> dict:
         """
         Verify the cryptographic attestation chain for a session.

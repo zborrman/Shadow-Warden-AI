@@ -87,6 +87,16 @@ try:
             "warden_agent_session_blocks_total"
         )
 
+    try:
+        AGENT_SESSIONS_REVOKED_TOTAL = Counter(
+            "warden_agent_sessions_revoked_total",
+            "Agent sessions terminated via kill-switch (DELETE /api/agent/session)",
+        )
+    except ValueError:
+        AGENT_SESSIONS_REVOKED_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_agent_sessions_revoked_total"
+        )
+
     # ── Resilience event counters ─────────────────────────────────────────────
     # Incremented by main.py inside _run_filter_pipeline().
     #
@@ -365,7 +375,8 @@ except ImportError:
         def set(self, _value: float) -> None:
             pass
 
-    SANDBOX_VIOLATIONS_TOTAL    = _Noop()  # type: ignore[assignment]
+    SANDBOX_VIOLATIONS_TOTAL        = _Noop()  # type: ignore[assignment]
+    AGENT_SESSIONS_REVOKED_TOTAL    = _Noop()  # type: ignore[assignment]
     TOOL_BLOCKS                 = _Noop()  # type: ignore[assignment]
     AGENT_SESSIONS_ACTIVE       = _Noop()  # type: ignore[assignment]
     AGENT_ANOMALIES_TOTAL       = _Noop()  # type: ignore[assignment]

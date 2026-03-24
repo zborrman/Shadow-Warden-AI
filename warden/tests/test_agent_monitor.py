@@ -392,6 +392,54 @@ def test_verify_attestation_detects_tamper(monitor):
     assert result["computed_token"] != "deadbeefdeadbeef0000000000000000"
 
 
+# ── Kill-Switch ───────────────────────────────────────────────────────────────
+
+
+def test_revoke_session_returns_revoked_true(monitor):
+    result = monitor.revoke_session("ks1", "test_reason")
+    assert result["revoked"] is True
+    assert result["session_id"] == "ks1"
+    assert result["reason"] == "test_reason"
+    assert "revoked_at" in result
+
+
+def test_is_revoked_false_before_revocation(monitor):
+    monitor.record_tool_event("ks2", "read_file", "call", False, None)
+    assert monitor.is_revoked("ks2") is False
+
+
+def test_is_revoked_true_after_revocation(monitor):
+    monitor.revoke_session("ks3", "suspicious_behaviour")
+    assert monitor.is_revoked("ks3") is True
+
+
+def test_is_revoked_false_for_unknown_session(monitor):
+    assert monitor.is_revoked("no-such-session-ks-xyz") is False
+
+
+def test_is_revoked_false_for_empty_session_id(monitor):
+    assert monitor.is_revoked("") is False
+
+
+def test_revoke_session_marks_meta(monitor):
+    monitor.record_tool_event("ks4", "read_file", "call", False, None)
+    monitor.revoke_session("ks4", "kill_chain_detected")
+    sess = monitor.get_session("ks4")
+    assert sess["revoked"] is True
+    assert sess["revoke_reason"] == "kill_chain_detected"
+
+
+def test_revoke_session_default_reason(monitor):
+    result = monitor.revoke_session("ks5")
+    assert result["reason"] == "admin_kill_switch"
+
+
+def test_revoke_then_re_revoke_is_idempotent(monitor):
+    monitor.revoke_session("ks6", "first")
+    monitor.revoke_session("ks6", "second")
+    assert monitor.is_revoked("ks6") is True
+
+
 # ── Analytics endpoints ───────────────────────────────────────────────────────
 
 

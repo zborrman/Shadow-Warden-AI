@@ -205,6 +205,22 @@ async def proxy_chat(
     )
     agent_id: str = request.headers.get("X-Agent-Id", "")
 
+    # ── Kill-switch: reject revoked sessions immediately ──────────────────
+    if session_id and _agent_monitor is not None:
+        if _agent_monitor.is_revoked(session_id):
+            log.warning(
+                "kill_switch_enforced session_id=%r agent_id=%r tenant=%r",
+                session_id, agent_id, auth.tenant_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "session_revoked",
+                    "message": "This agent session has been terminated by an administrator.",
+                    "session_id": session_id,
+                },
+            )
+
     # Attach sandbox registry to tool guard if available
     if _sandbox_registry is not None:
         _tool_guard._sandbox = _sandbox_registry
