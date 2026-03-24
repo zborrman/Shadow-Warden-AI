@@ -2645,6 +2645,33 @@ async def reload_agent_manifests():
     return {"loaded": count, "message": f"Reloaded {count} manifest(s) from disk."}
 
 
+# ── Behavioral Attestation ────────────────────────────────────────────────────
+
+
+@app.get(
+    "/api/agent/session/{session_id}/verify",
+    tags=["agent-sandbox"],
+    summary="Verify cryptographic attestation chain for an agent session",
+    dependencies=[Depends(require_api_key)],
+)
+async def verify_session_attestation(session_id: str):
+    """
+    Replay stored tool events and recompute the SHA-256 attestation chain.
+
+    Returns ``valid=true`` when the stored token matches the computed token —
+    confirming the session history has not been tampered with.
+    """
+    if _agent_monitor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AgentMonitor not available.",
+        )
+    result = await asyncio.to_thread(_agent_monitor.verify_attestation, session_id)
+    if result.get("error") == "session_not_found":
+        raise HTTPException(status_code=404, detail=f"Session {session_id!r} not found.")
+    return result
+
+
 # ── Threat Intelligence endpoints ────────────────────────────────────────────
 
 

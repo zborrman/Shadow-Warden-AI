@@ -27,6 +27,7 @@ Storage:
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import logging
 import os
@@ -60,6 +61,7 @@ PATTERN_PRIVILEGE_ESCALATION = "PRIVILEGE_ESCALATION"
 PATTERN_EVASION_ATTEMPT      = "EVASION_ATTEMPT"
 PATTERN_EXFIL_CHAIN          = "EXFIL_CHAIN"
 PATTERN_RAPID_BLOCK          = "RAPID_BLOCK"
+PATTERN_ROGUE_AGENT          = "ROGUE_AGENT"
 
 # ── Tool category sets ────────────────────────────────────────────────────────
 #
@@ -150,6 +152,33 @@ def _is_expired(last_seen: str, ttl: int = SESSION_TTL_SECONDS) -> bool:
         return (datetime.now(UTC) - ts).total_seconds() > ttl
     except (ValueError, TypeError):
         return True
+
+
+# ── Attestation chain helpers ─────────────────────────────────────────────────
+#
+# Each tool event advances a running SHA-256 hash chain stored in session meta.
+# This creates a tamper-evident audit trail: if Redis session data is modified
+# (e.g. to erase evidence of blocked calls), verify_attestation() will detect
+# the discrepancy by replaying the stored events and comparing the final token.
+#
+# Chain formula:
+#   initial_token = sha256("warden:attest:{session_id}")[:32]
+#   next_token    = sha256("{prev}:{tool_name}:{direction}:{0|1}:{ts}")[:32]
+
+_ATTEST_PREFIX = "warden:attest:"
+
+
+def _initial_token(session_id: str) -> str:
+    """Seed token derived from session_id."""
+    return hashlib.sha256(
+        f"{_ATTEST_PREFIX}{session_id}".encode()
+    ).hexdigest()[:32]
+
+
+def _step_token(prev: str, tool_name: str, direction: str, blocked: bool, ts: str) -> str:
+    """Advance the attestation chain by one tool event."""
+    raw = f"{prev}:{tool_name}:{direction}:{int(blocked)}:{ts}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
 
 # ── AgentMonitor ──────────────────────────────────────────────────────────────
@@ -277,15 +306,16 @@ class AgentMonitor:
     def _new_meta(self, session_id: str, tenant_id: str) -> dict:
         now = _now_iso()
         return {
-            "session_id":       session_id,
-            "tenant_id":        tenant_id,
-            "first_seen":       now,
-            "last_seen":        now,
-            "request_count":    0,
-            "block_count":      0,
-            "risk_score":       0.0,
-            "tool_names_seen":  [],
-            "threats_detected": [],
+            "session_id":        session_id,
+            "tenant_id":         tenant_id,
+            "first_seen":        now,
+            "last_seen":         now,
+            "request_count":     0,
+            "block_count":       0,
+            "risk_score":        0.0,
+            "tool_names_seen":   [],
+            "threats_detected":  [],
+            "attestation_token": _initial_token(session_id),
         }
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -366,14 +396,22 @@ class AgentMonitor:
                     round(float(meta.get("risk_score", 0.0)) + 0.1, 4),
                 )
 
+            ts_now = _now_iso()
             event = {
-                "ts":          _now_iso(),
+                "ts":          ts_now,
                 "event_type":  "tool",
                 "tool_name":   tool_name,
                 "direction":   direction,
                 "blocked":     blocked,
                 "threat_kind": threat_kind,
             }
+
+            # ── Advance attestation chain ──────────────────────────────
+            prev_token = str(meta.get("attestation_token") or _initial_token(session_id))
+            meta["attestation_token"] = _step_token(
+                prev_token, tool_name, direction, blocked, ts_now
+            )
+
             self._r_set_meta(session_id, meta, ttl=policy.session_ttl)
             self._r_append_event(session_id, event, ttl=policy.session_ttl)
             self._r_touch_ttl(session_id, ttl=policy.session_ttl)
@@ -411,6 +449,75 @@ class AgentMonitor:
         except Exception:
             return []
 
+    def verify_attestation(self, session_id: str) -> dict:
+        """
+        Verify the cryptographic attestation chain for a session.
+
+        Replays all stored tool events in order and recomputes the SHA-256
+        chain from scratch.  If the recomputed final token matches the stored
+        ``attestation_token`` in metadata, the session history is intact.
+
+        Returns::
+
+            {
+                "session_id":   str,
+                "valid":        bool,   # True = chain matches stored events
+                "stored_token": str,    # token currently in meta
+                "computed_token": str,  # token derived from replaying events
+                "event_count":  int,    # number of tool events replayed
+                "error":        str,    # non-empty if session not found / exception
+            }
+        """
+        try:
+            meta = self._r_get_meta(session_id)
+            if meta is None:
+                return {
+                    "session_id": session_id, "valid": False,
+                    "stored_token": "", "computed_token": "",
+                    "event_count": 0, "error": "session_not_found",
+                }
+
+            events = self._r_get_events(session_id)
+            tool_events = [
+                e for e in events if e.get("event_type") == "tool"
+            ]
+
+            token = _initial_token(session_id)
+            for e in tool_events:
+                token = _step_token(
+                    token,
+                    str(e.get("tool_name", "")),
+                    str(e.get("direction", "")),
+                    bool(e.get("blocked", False)),
+                    str(e.get("ts", "")),
+                )
+
+            stored = str(meta.get("attestation_token", ""))
+            valid  = stored == token
+
+            if not valid:
+                log.warning(
+                    "ATTESTATION_MISMATCH session=%s stored=%s computed=%s events=%d",
+                    session_id, stored, token, len(tool_events),
+                )
+
+            return {
+                "session_id":     session_id,
+                "valid":          valid,
+                "stored_token":   stored,
+                "computed_token": token,
+                "event_count":    len(tool_events),
+                "error":          "",
+            }
+
+        except Exception as exc:
+            log.debug("verify_attestation error (ignored): %s", exc)
+            return {
+                "session_id": session_id, "valid": False,
+                "stored_token": "", "computed_token": "",
+                "event_count": 0, "error": str(exc),
+            }
+
     # ── Pattern detection ─────────────────────────────────────────────────────
 
     def _analyze_patterns(
@@ -429,6 +536,7 @@ class AgentMonitor:
             self._check_privilege_escalation,
             self._check_evasion_attempt,
             self._check_exfil_chain,
+            self._check_rogue_agent,
         ):
             try:
                 threat = check(meta, events, policy)  # type: ignore[call-arg]
@@ -540,6 +648,40 @@ class AgentMonitor:
                         f"Read tool followed by network/write tool: {e.get('tool_name')}"
                     ),
                 )
+        return None
+
+    def _check_rogue_agent(
+        self, _meta: dict, events: list[dict], policy: TenantPolicy | None = None,
+    ) -> SessionThreat | None:
+        """
+        ROGUE_AGENT — full kill-chain: session has issued tool calls from
+        all three privilege categories (read + network/write + destructive).
+
+        This goes beyond EXFIL_CHAIN (read→write only) by requiring the
+        destructive tier to be present, indicating a full autonomous attack
+        sequence rather than a simple data-grab.
+        """
+        tool_calls = [
+            e for e in events
+            if e.get("event_type") == "tool" and e.get("direction") == "call"
+        ]
+        categories_seen: set[int] = set()
+        last_destructive: str = ""
+        for e in tool_calls:
+            cat = _tool_category(e.get("tool_name", ""), e.get("threat_kind"))
+            if cat >= 0:
+                categories_seen.add(cat)
+                if cat == 2:
+                    last_destructive = e.get("tool_name", "unknown")
+        if categories_seen >= {0, 1, 2}:
+            return SessionThreat(
+                pattern=PATTERN_ROGUE_AGENT,
+                severity="HIGH",
+                detail=(
+                    f"Full kill-chain detected: read + network/write + destructive tools "
+                    f"all used in session (last destructive: {last_destructive!r})"
+                ),
+            )
         return None
 
     # ── Threat finalization ───────────────────────────────────────────────────

@@ -276,6 +276,122 @@ def test_sessions_json_upsert_no_duplicate(monitor):
     assert session_ids.count("jsn2") == 1, "session_id must appear exactly once"
 
 
+# ── ROGUE_AGENT pattern ───────────────────────────────────────────────────────
+
+
+def test_rogue_agent_not_triggered_read_only(monitor):
+    monitor.record_tool_event("rg1", "read_file", "call", False, None)
+    monitor.record_tool_event("rg1", "web_search", "call", False, None)
+    sess = monitor.get_session("rg1")
+    patterns = [t["pattern"] for t in sess.get("threats_detected", [])]
+    assert "ROGUE_AGENT" not in patterns
+
+
+def test_rogue_agent_not_triggered_without_destructive(monitor):
+    monitor.record_tool_event("rg2", "read_file", "call", False, None)   # cat 0
+    monitor.record_tool_event("rg2", "http_post", "call", False, None)   # cat 1
+    sess = monitor.get_session("rg2")
+    patterns = [t["pattern"] for t in sess.get("threats_detected", [])]
+    assert "ROGUE_AGENT" not in patterns
+
+
+def test_rogue_agent_triggered_on_full_kill_chain(monitor):
+    monitor.record_tool_event("rg3", "read_file", "call", False, None)   # cat 0
+    monitor.record_tool_event("rg3", "http_post", "call", False, None)   # cat 1
+    monitor.record_tool_event("rg3", "bash", "call", False, None)        # cat 2
+    sess = monitor.get_session("rg3")
+    patterns = [t["pattern"] for t in sess.get("threats_detected", [])]
+    assert "ROGUE_AGENT" in patterns
+
+
+def test_rogue_agent_detail_includes_last_destructive(monitor):
+    monitor.record_tool_event("rg4", "web_search", "call", False, None)
+    monitor.record_tool_event("rg4", "http_put", "call", False, None)
+    monitor.record_tool_event("rg4", "python_repl", "call", False, None)
+    sess = monitor.get_session("rg4")
+    threat = next(t for t in sess["threats_detected"] if t["pattern"] == "ROGUE_AGENT")
+    assert "python_repl" in threat["detail"]
+
+
+def test_rogue_agent_severity_is_high(monitor):
+    monitor.record_tool_event("rg5", "query_db", "call", False, None)
+    monitor.record_tool_event("rg5", "write_file", "call", False, None)
+    monitor.record_tool_event("rg5", "eval_code", "call", False, None)
+    sess = monitor.get_session("rg5")
+    threat = next(t for t in sess["threats_detected"] if t["pattern"] == "ROGUE_AGENT")
+    assert threat["severity"] == "HIGH"
+
+
+# ── Attestation chain ─────────────────────────────────────────────────────────
+
+
+def test_attestation_token_set_on_first_tool_event(monitor):
+    monitor.record_tool_event("at1", "read_file", "call", False, None)
+    sess = monitor.get_session("at1")
+    assert "attestation_token" in sess
+    assert len(sess["attestation_token"]) == 32
+
+
+def test_attestation_token_changes_with_each_event(monitor):
+    monitor.record_tool_event("at2", "read_file", "call", False, None)
+    token_after_1 = monitor.get_session("at2")["attestation_token"]
+    monitor.record_tool_event("at2", "http_post", "call", False, None)
+    token_after_2 = monitor.get_session("at2")["attestation_token"]
+    assert token_after_1 != token_after_2
+
+
+def test_attestation_token_is_deterministic(monitor):
+    from warden.agent_monitor import _initial_token, _step_token
+
+    session_id = "at3-det"
+    monitor.record_tool_event(session_id, "read_file", "call", False, None)
+    events = monitor.get_session(session_id)["events"]
+    tool_events = [e for e in events if e["event_type"] == "tool"]
+
+    # Replay manually
+    token = _initial_token(session_id)
+    for e in tool_events:
+        token = _step_token(
+            token,
+            e["tool_name"],
+            e["direction"],
+            e["blocked"],
+            e["ts"],
+        )
+    assert token == monitor.get_session(session_id)["attestation_token"]
+
+
+def test_verify_attestation_valid_on_untampered_session(monitor):
+    monitor.record_tool_event("at4", "read_file", "call", False, None)
+    monitor.record_tool_event("at4", "http_post", "call", True, "ssrf")
+    result = monitor.verify_attestation("at4")
+    assert result["valid"] is True
+    assert result["error"] == ""
+    assert result["event_count"] == 2
+
+
+def test_verify_attestation_session_not_found(monitor):
+    result = monitor.verify_attestation("no-such-session-xyz-987")
+    assert result["valid"] is False
+    assert result["error"] == "session_not_found"
+
+
+def test_verify_attestation_detects_tamper(monitor):
+    from warden.agent_monitor import _initial_token
+
+    session_id = "at5-tamper"
+    monitor.record_tool_event(session_id, "read_file", "call", False, None)
+
+    # Tamper: overwrite attestation_token in meta
+    with monitor._fallback_lock:
+        monitor._fallback[session_id]["meta"]["attestation_token"] = "deadbeefdeadbeef0000000000000000"
+
+    result = monitor.verify_attestation(session_id)
+    assert result["valid"] is False
+    assert result["stored_token"] == "deadbeefdeadbeef0000000000000000"
+    assert result["computed_token"] != "deadbeefdeadbeef0000000000000000"
+
+
 # ── Analytics endpoints ───────────────────────────────────────────────────────
 
 
