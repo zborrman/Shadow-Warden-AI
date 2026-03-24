@@ -296,6 +296,7 @@ _saml:           SAMLProvider      | None = None
 _webhook_store:  WebhookStore      | None = None
 _poison_guard:   DataPoisoningGuard | None = None  # type: ignore[assignment]
 _audit_trail = None  # AuditTrail | None — imported lazily in lifespan
+_threat_sync = None  # ThreatSyncClient | None — cross-region sync
 
 try:
     from warden.agent_monitor import AgentMonitor
@@ -549,6 +550,15 @@ async def lifespan(app: FastAPI):
     _webhook_store = WebhookStore()
     log.info("WebhookStore ready.")
 
+    # ── Global Threat Sync (cross-region Redis Streams) ───────────────
+    global _threat_sync
+    try:
+        from warden.threat_sync import ThreatSyncClient  # noqa: PLC0415
+        _threat_sync = ThreatSyncClient(semantic_guard=_brain_guard)
+        _threat_sync.start()
+    except Exception as _ts_err:
+        log.warning("ThreatSync init failed (non-fatal): %s", _ts_err)
+
     # ── SAML 2.0 SSO (optional — only if env vars are set) ───────────
     _saml = _get_saml_provider()
     if _saml is not None:
@@ -625,6 +635,8 @@ async def lifespan(app: FastAPI):
         _billing.close()
     if _policy is not None:
         _policy.close()
+    if _threat_sync is not None:
+        _threat_sync.stop()
 
     log.info("Warden gateway shutting down.")
 

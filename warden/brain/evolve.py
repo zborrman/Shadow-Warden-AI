@@ -465,6 +465,13 @@ class EvolutionEngine:
             except Exception:
                 log.debug("EvolutionEngine: feed submission skipped (non-fatal).")
 
+        # ── Global threat sync — publish to other regions ────────────────────
+        try:
+            from warden.threat_sync import ThreatSyncClient  # noqa: PLC0415
+            ThreatSyncClient.publish(rule)
+        except Exception:
+            log.debug("EvolutionEngine: threat sync publish skipped (non-fatal).")
+
         return EvolutionResult(rule=rule, corpus_updated=corpus_updated)
 
     # ── Claude API call ───────────────────────────────────────────────────────
