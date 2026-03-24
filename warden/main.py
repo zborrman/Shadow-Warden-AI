@@ -381,6 +381,50 @@ async def _threat_feed_sync_loop() -> None:
         await asyncio.sleep(_FEED_SYNC_SECS)
 
 
+def _print_motd(
+    evolution:      bool,
+    multimodal:     bool,
+    audit_ok:       bool,
+    agent_monitor:  bool,
+    vault_sigs:     int,
+    fail_strategy:  str,
+) -> None:
+    """Print the Shadow Warden MOTD to stdout on startup."""
+    import sys  # noqa: PLC0415
+    tty = sys.stdout.isatty()
+    C = "[1;36m" if tty else ""
+    G = "[1;32m" if tty else ""
+    Y = "[1;33m" if tty else ""
+    R = "[1;31m" if tty else ""
+    D = "[2m"    if tty else ""
+    N = "[0m"    if tty else ""
+    def _flag(ok: bool, on: str, off: str) -> str:
+        return f"{G}[{on}]{N}" if ok else f"{R}[{off}]{N}"
+    ev = _flag(evolution,     'ACTIVE',       'AIR-GAPPED' )
+    mm = _flag(multimodal,    'CLIP+WHISPER', 'UNAVAILABLE')
+    au = _flag(audit_ok,      'VERIFIED',     'DEGRADED'   )
+    ag = _flag(agent_monitor, 'ENFORCED',     'DISABLED'   )
+    fs = f"{Y}[{fail_strategy.upper()}]{N}"
+    vs = f"{G}[{vault_sigs:,} sigs]{N}"
+    p = print
+    p(f"{C}")
+    p("###########################################################################")
+    p("#                                                                         #")
+    p("#              SHADOW WARDEN AI  |  AI SECURITY GATEWAY                  #")
+    p("#                           VERSION 1.8                                  #")
+    p("#                                                                         #")
+    p(f"###########################################################################{N}")
+    p(f"  {D}[SYSTEM STATUS]{N}")
+    p(f"  Integrity Chain  {au}   Threat Vault    {vs}")
+    p(f"  Multi-Modal      {mm}   Zero-Trust      {ag}")
+    p(f"  Evolution Engine {ev}   Fail Strategy   {fs}")
+    p("")
+    p(f"  {D}\"The best firewall is the one the attacker thinks they've already bypassed.\"  {N}")
+    p(f"  {D}                                       -- Shadow Warden v1.8{N}")
+    p("###########################################################################")
+    p("")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy, _feed, _saml, _session_guard, _honey_engine
@@ -664,6 +708,15 @@ async def lifespan(app: FastAPI):
         log.info("AuditTrail online (SOC 2 tamper-evident chain).")
     except Exception as _audit_err:
         log.warning("AuditTrail init failed (non-fatal): %s", _audit_err)
+
+    _print_motd(
+        evolution     = _evolve is not None,
+        multimodal    = True,  # pre-warm attempted; fails-open on missing HF token
+        audit_ok      = _audit_trail is not None,
+        agent_monitor = _agent_monitor is not None,
+        vault_sigs    = _threat_vault.stats()["total"] if _threat_vault else 0,
+        fail_strategy = os.getenv("WARDEN_FAIL_STRATEGY", "open"),
+    )
 
     yield
 
