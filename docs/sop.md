@@ -74,7 +74,7 @@ docker compose exec postgres psql -U warden -c "SELECT pg_size_pretty(pg_databas
 curl -X POST http://localhost:80/gdpr/purge \
      -H "X-API-Key: $WARDEN_API_KEY" \
      -H "Content-Type: application/json" \
-     -d '{"before_days": 30}'
+     -d "{\"before\": \"$(date -u -d '30 days ago' '+%Y-%m-%dT%H:%M:%SZ')\"}"
 ```
 
 ---
@@ -261,7 +261,8 @@ Logs must not be retained beyond 30 days.  Automate purge via cron or the compli
 0 2 * * * curl -s -X POST http://localhost:80/gdpr/purge \
     -H "X-API-Key: $WARDEN_API_KEY" \
     -H "Content-Type: application/json" \
-    -d '{"before_days": 30}' >> /var/log/warden-purge.log 2>&1
+    -d "{\"before\": \"$(date -u -d '30 days ago' '+%Y-%m-%dT%H:%M:%SZ')\"}"
+    >> /var/log/warden-purge.log 2>&1
 ```
 
 Content is **never** stored (GDPR Art. 5(1)(c) data minimisation — enforced in code).  The purge endpoint removes metadata records only.
