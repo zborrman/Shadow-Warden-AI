@@ -40,7 +40,17 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer, util
 
+from warden.brain.hyperbolic import max_hyperbolic_similarity
+
 log = logging.getLogger("warden.brain.semantic")
+
+# ── Hyperbolic blending weight ─────────────────────────────────────────────────
+# Final score = (1 - w) * cosine_score + w * hyperbolic_similarity
+# Hyperbolic space better separates hierarchically-nested multi-layer attacks;
+# cosine handles surface-level pattern matching well.
+# Set HYPERBOLIC_WEIGHT=0 to disable hyperbolic blending entirely.
+
+_HYPERBOLIC_WEIGHT = float(os.getenv("HYPERBOLIC_WEIGHT", "0.30"))
 
 # One thread pool shared across all SemanticGuard instances.
 # Two workers is sufficient: MiniLM is single-threaded internally and
@@ -293,12 +303,21 @@ class SemanticGuard:
 
         # ── ONNX path ─────────────────────────────────────────────────────
         if self._onnx is not None:
-            query_vec = self._onnx.encode(text)          # (384,) float32
-            corpus    = self._corpus_embeddings          # (N, 384) float32
+            query_vec  = self._onnx.encode(text)         # (384,) float32
+            corpus_np  = self._corpus_embeddings         # (N, 384) float32
             # Dot product == cosine sim (both are L2-normalised)
-            sims    = corpus @ query_vec                 # (N,)
-            max_idx   = int(np.argmax(sims))
-            max_score = float(sims[max_idx])
+            sims       = corpus_np @ query_vec           # (N,)
+            max_idx    = int(np.argmax(sims))
+            cosine_score = float(sims[max_idx])
+            # Hyperbolic blend
+            if _HYPERBOLIC_WEIGHT > 0:
+                hyp_sim, hyp_idx = max_hyperbolic_similarity(query_vec, corpus_np)
+                max_score = (1.0 - _HYPERBOLIC_WEIGHT) * cosine_score + _HYPERBOLIC_WEIGHT * hyp_sim
+                # Use hyperbolic closest if it scores higher
+                if hyp_sim > cosine_score and hyp_idx != max_idx:
+                    max_idx = hyp_idx
+            else:
+                max_score = cosine_score
 
         # ── PyTorch path ───────────────────────────────────────────────────
         else:
@@ -312,17 +331,36 @@ class SemanticGuard:
 
             # FAISS path: O(log n) ANN search when corpus is large
             if self._faiss_index is not None:
-                max_score = self._faiss_index.max_similarity(query_embedding)
-                _, idxs   = self._faiss_index.search(query_embedding, k=1)
-                max_idx   = int(idxs[0][0]) if idxs[0][0] >= 0 else 0
+                cosine_score = self._faiss_index.max_similarity(query_embedding)
+                _, idxs      = self._faiss_index.search(query_embedding, k=1)
+                max_idx      = int(idxs[0][0]) if idxs[0][0] >= 0 else 0
             else:
                 # Shape: (1, corpus_size) — brute-force O(n) scan
                 similarities: torch.Tensor = util.cos_sim(
                     query_embedding, self._corpus_embeddings
                 )
-                flat      = similarities[0]
-                max_idx   = int(flat.argmax())
-                max_score = float(flat[max_idx])
+                flat         = similarities[0]
+                max_idx      = int(flat.argmax())
+                cosine_score = float(flat[max_idx])
+
+            # Hyperbolic blend (convert tensor corpus to numpy for distance calc)
+            if _HYPERBOLIC_WEIGHT > 0:
+                corpus_np = (
+                    self._corpus_embeddings.numpy()
+                    if isinstance(self._corpus_embeddings, torch.Tensor)
+                    else self._corpus_embeddings
+                )
+                query_np = (
+                    query_embedding.numpy()
+                    if isinstance(query_embedding, torch.Tensor)
+                    else query_embedding
+                )
+                hyp_sim, hyp_idx = max_hyperbolic_similarity(query_np, corpus_np)
+                max_score = (1.0 - _HYPERBOLIC_WEIGHT) * cosine_score + _HYPERBOLIC_WEIGHT * hyp_sim
+                if hyp_sim > cosine_score and hyp_idx != max_idx:
+                    max_idx = hyp_idx
+            else:
+                max_score = cosine_score
 
         flagged = max_score >= self.threshold
 

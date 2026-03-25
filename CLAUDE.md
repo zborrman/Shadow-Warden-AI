@@ -4,15 +4,17 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 1.9 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.0 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
 ```
-POST /filter → ObfuscationDecoder (base64/hex/ROT13/Caesar/word-split/UUencode/homoglyphs, depth-3 recursive)
+POST /filter → TopologicalGatekeeper (n-gram point cloud → β₀/β₁ Betti numbers, < 2ms)
+                → ObfuscationDecoder (base64/hex/ROT13/Caesar/word-split/UUencode/homoglyphs, depth-3 recursive)
                 → SecretRedactor (15 regex patterns + Shannon entropy scan for unknown secrets)
                 → SemanticGuard (rules, compound risk escalation)
-                → SemanticBrain (MiniLM ML, adversarial suffix stripping)
+                → HyperbolicBrain (MiniLM → Poincaré ball, 70% cosine + 30% hyperbolic blend)
+                → CausalArbiter (gray-zone: Bayesian DAG P(HIGH_RISK|evidence) via do-calculus)
                 → ERS (Redis sliding window, shadow ban at score ≥ 0.75)
                 → Decision
                     ↓
@@ -44,7 +46,10 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | File | Role |
 |------|------|
 | `warden/main.py` | FastAPI gateway — auth, rate-limit, cache, multi-tenant, Prometheus, GDPR, alerting, batch |
-| `warden/brain/semantic.py` | ML jailbreak detector (all-MiniLM-L6-v2, `@lru_cache` singleton, ThreadPoolExecutor) |
+| `warden/topology_guard.py` | TDA Gatekeeper — n-gram point cloud, Betti numbers (β₀/β₁), ripser optional |
+| `warden/brain/hyperbolic.py` | Poincaré ball projection + vectorized hyperbolic distance (pure numpy) |
+| `warden/causal_arbiter.py` | Bayesian DAG causal inference — 5 nodes, Pearl do-calculus, backdoor correction |
+| `warden/brain/semantic.py` | ML jailbreak detector — MiniLM + hyperbolic blend, adversarial suffix stripping |
 | `warden/brain/evolve.py` | Claude Opus auto-rule generation (streaming + adaptive thinking + corpus poisoning protection) |
 | `warden/obfuscation.py` | Obfuscation decoder pre-filter (base64, hex, ROT13, unicode homoglyphs) |
 | `warden/secret_redactor.py` | 15 PII/secret regex patterns + Shannon entropy scan for unknown secrets |

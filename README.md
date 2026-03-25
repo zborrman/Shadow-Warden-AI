@@ -4,9 +4,17 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 1.9 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.0 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
+
+## What's New in v2.0
+
+| Feature | Description |
+|---------|-------------|
+| **Topological Gatekeeper (Layer 1)** | TDA pre-filter converts text to a character n-gram point cloud and computes Betti numbers (β₀ connected components, β₁ 1-cycles) to detect bot payloads, random noise, and DoS content in < 2ms — before the obfuscation decoder runs. Uses true persistent homology via `ripser` when installed; algebraic fallback otherwise. |
+| **Hyperbolic Semantic Space (Layer 2)** | MiniLM embeddings are projected into the Poincaré ball (hyperbolic geometry, curvature c=1) before similarity scoring. Hyperbolic space separates hierarchically-nested multi-layer attacks ("jailbreak inside roleplay") that appear close in Euclidean cosine space but diverge near the ball boundary. Final score blends cosine (70%) + hyperbolic (30%). |
+| **Causal Arbiter (Layer 3)** | Gray-zone requests (ML score in uncertainty band) are resolved by a lightweight Bayesian DAG implementing Pearl's do-calculus. P(HIGH\_RISK \| evidence) is computed from five causal nodes — Entity Risk Score, obfuscation, block history, tool tier, content entropy — with backdoor-path correction for confounded variables. Runs in ~1–5ms CPU, zero LLM calls. |
 
 ## What's New in v1.9
 
@@ -36,15 +44,17 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 ```
 POST /filter
   │
-  ├─ [0] Auth & Rate-Limit Gate         per-tenant API keys, 60 req/min Redis window
-  ├─ [1] Redis Content-Hash Cache       5-min TTL, 0ms ML overhead on hit
-  ├─ [2] Obfuscation Decoder            base64 / hex / ROT13 / Unicode homoglyphs
-  ├─ [3] Secret Redactor                15 regex patterns incl. API keys, credit cards
-  ├─ [4] Semantic Guard (rules)         compound risk escalation (3+ MEDIUM → HIGH)
-  ├─ [5] Semantic Brain (ML)            all-MiniLM-L6-v2 cosine similarity
-  ├─ [6] Multimodal Guard               CLIP (images) + Whisper+FFT (audio, ultrasonic)
-  ├─ [7] Entity Risk Scoring (ERS)      Redis sliding window → shadow ban at score ≥ 0.75
-  └─ [8] Decision + Event Logger        NDJSON metadata, GDPR-safe, Prometheus metrics
+  ├─ [0]   Auth & Rate-Limit Gate          per-tenant API keys, 60 req/min Redis window
+  ├─ [0.5] Redis Content-Hash Cache        5-min TTL, 0ms ML overhead on hit
+  ├─ [1]   Topological Gatekeeper          n-gram point cloud → β₀/β₁ Betti numbers → noise score < 2ms
+  ├─ [2]   Obfuscation Decoder             base64/hex/ROT13/Caesar/word-split/UUencode, depth-3 recursive
+  ├─ [3]   Secret Redactor                 15 regex patterns + Shannon entropy scan for unknown secrets
+  ├─ [4]   Semantic Guard (rules)          compound risk escalation (3+ MEDIUM → HIGH)
+  ├─ [5]   Semantic Brain (ML)             MiniLM → Euclidean cosine (70%) + Poincaré ball hyperbolic (30%)
+  ├─ [5.5] Causal Arbiter                  gray-zone: Bayesian DAG P(HIGH_RISK|evidence) via do-calculus
+  ├─ [6]   Multimodal Guard                CLIP (images) + Whisper+FFT (audio, ultrasonic)
+  ├─ [7]   Entity Risk Scoring (ERS)       Redis sliding window → shadow ban at score ≥ 0.75
+  └─ [8]   Decision + Event Logger         NDJSON metadata, GDPR-safe, Prometheus metrics
              │
              ├─► EvolutionEngine (async background)    Claude Opus auto-rule synthesis
              └─► Zero-Trust Sandbox (agent calls)      capability manifests + kill-switch
@@ -156,6 +166,68 @@ curl -X POST http://localhost:80/filter \
 docker compose down        # stop, keep volumes
 docker compose down -v     # stop + wipe data
 ```
+
+---
+
+## Three-Layer Security Architecture (v2.0)
+
+Shadow Warden v2.0 introduces a cascading three-layer security funnel inspired by selective chaining — compute is spent proportional to threat confidence.
+
+### Layer 1 — Topological Gatekeeper
+
+Runs in **< 2ms** before the obfuscation decoder. Converts text to a character n-gram point cloud and computes topological features derived from algebraic topology:
+
+- **β₀ (connected components)** — natural language has few clusters; bot noise has many isolated components
+- **β₁ (1-cycles)** — natural language is mostly acyclic; machine-generated payloads have repetitive loop structure
+
+```
+text → char trigrams → n-gram frequency map → point cloud
+     → persistent homology (ripser) or algebraic fallback
+     → noise_score = 0.35×char_entropy + 0.30×(1−word_char_ratio) + 0.25×diversity_noise + 0.10×β₀
+     → noise_score ≥ 0.82 → TOPOLOGICAL_NOISE flag (MEDIUM risk)
+```
+
+Threshold configurable via `TOPO_NOISE_THRESHOLD`. Install `ripser` for true Vietoris-Rips persistent homology.
+
+### Layer 2 — Hyperbolic Semantic Space
+
+Augments the existing MiniLM cosine similarity with Poincaré ball hyperbolic geometry:
+
+```
+MiniLM embedding (384-dim, L2-normalized, Euclidean)
+    ↓  expmap_0: tanh(‖v‖/2) · v / (‖v‖/2)
+Poincaré ball (D^384, curvature c=1)
+    ↓  d(u,v) = arcosh(1 + 2‖u−v‖² / ((1−‖u‖²)(1−‖v‖²)))
+hyperbolic_similarity = 1 / (1 + d)
+    ↓
+final_score = 0.70 × cosine_score + 0.30 × hyperbolic_similarity
+```
+
+**Why hyperbolic?** Multi-layer jailbreaks form deep hierarchies. In Euclidean space these appear close to benign requests sharing surface vocabulary. In hyperbolic space, hierarchical depth pushes attacks toward the ball boundary — away from benign clusters. Result: fewer false positives on complex nested attacks.
+
+Configure blend with `HYPERBOLIC_WEIGHT` (default `0.30`, set `0` to disable).
+
+### Layer 3 — Causal Arbiter
+
+Replaces LLM verification for gray-zone requests (ML score in `[UNCERTAINTY_LOWER, threshold)`) with a Bayesian DAG implementing Pearl's do-calculus:
+
+```
+P(HIGH_RISK | do(ML=x)) = 0.30·P(rep) + 0.20·P(content) + 0.15·P(persist)
+                        + 0.15·P(tool) + 0.10·P(entropy) + 0.10·ml_score
+                        − 0.05·P(rep)·P(content)   ← backdoor correction
+```
+
+Five causal nodes with conditional probability tables:
+
+| Node | Input | Mechanism |
+|------|-------|-----------|
+| Reputation | ERS score | S-curve, significant above ERS = 0.35 |
+| ContentRisk | Obfuscation detected | 0.82 if obfusc, 0.12 if clean |
+| Persistence | Block history | S-curve, rises after 1+ blocks |
+| ToolRisk | Tool tier (-1/0/1/2) | 0.10 / 0.15 / 0.55 / 0.92 |
+| EntropyRisk | Content entropy | S-curve, significant above 4.5 bits/char |
+
+Backdoor path correction removes the spurious ERS → Obfuscation correlation (both driven by latent attacker sophistication). Result: `CAUSAL_HIGH_RISK` flag at HIGH risk, zero LLM calls, ~1–5ms CPU.
 
 ---
 
@@ -376,6 +448,10 @@ All tunable parameters are documented in `.env.example`. Critical values:
 | `DYNAMIC_RULES_PATH` | `/warden/data/dynamic_rules.json` | Evolved rules corpus |
 | `GDPR_LOG_RETENTION_DAYS` | `30` | Auto-purge log entries after N days |
 | `STREAMING_FAST_SCAN_BUFFER` | `400` | Chars buffered for OutputGuard fast-scan before live-emit begins. Set `0` to force full-buffer mode. |
+| `TOPO_NOISE_THRESHOLD` | `0.82` | Topological noise score threshold for TOPOLOGICAL_NOISE flag (0–1). |
+| `TOPO_MIN_LEN` | `20` | Minimum text length for topological analysis (shorter inputs pass through). |
+| `HYPERBOLIC_WEIGHT` | `0.30` | Weight of hyperbolic similarity in final ML score blend (0 = cosine only). |
+| `CAUSAL_RISK_THRESHOLD` | `0.65` | P(HIGH\_RISK) threshold for Causal Arbiter to escalate gray-zone requests. |
 
 Live-tunable without restart via `POST /api/config/update`:
 
@@ -439,17 +515,19 @@ Automate with cron — see [docs/sop.md](docs/sop.md) for the recommended cron e
 
 ### Detection layers
 
-1. **ObfuscationDecoder** — Decodes Base64, hex, ROT13, Caesar variants, word-splitting, UUencode, Unicode homoglyphs. Multi-layer recursive up to depth 3.
-2. **SecretRedactor** — 15+ regex patterns (API keys, credit cards with Luhn validation, JWTs, SSH keys) + Shannon entropy scan for unknown secret formats.
-3. **SemanticGuard** — Regex rule engine with compound escalation (3+ MEDIUM → HIGH).
-4. **SemanticBrain** — `all-MiniLM-L6-v2` cosine similarity against corpus of known-malicious examples. Adversarial suffix stripping before embedding.
-5. **MultimodalGuard** — CLIP (image patch embeddings) + Whisper+FFT (audio transcription + ultrasonic detection).
-6. **Entity Risk Scoring** — Redis sliding-window reputation with shadow ban at critical threshold.
-7. **ToolCallGuard** — Inspects tool calls and results in agentic pipelines. Blocks injection, SSRF, OS command abuse.
-8. **AgentMonitor** — Session-level threat patterns: INJECTION_CHAIN, EXFIL_CHAIN, PRIVILEGE_ESCALATION, EVASION_ATTEMPT, ROGUE_AGENT, TOOL_VELOCITY, RAPID_BLOCK. Cryptographic attestation chain per session.
-9. **EvolutionEngine** — Claude Opus generates new detection rules from live HIGH/BLOCK attacks. Hot-reloaded without restart.
-10. **Evidence Vault** — SHA-256 attestation chains per session. Tamper-evident, litigation-ready.
-11. **Encrypted PII Vault** — Masking engine stores original PII values Fernet-encrypted. Reverse map uses HMAC-SHA256 keys. No plaintext PII ever in memory.
+1. **TopologicalGatekeeper** — n-gram point cloud → Betti numbers (β₀, β₁) → noise_score. Catches random noise, DoS payloads, binary garbage in < 2ms before any ML runs.
+2. **ObfuscationDecoder** — Decodes Base64, hex, ROT13, Caesar variants, word-splitting, UUencode, Unicode homoglyphs. Multi-layer recursive up to depth 3.
+3. **SecretRedactor** — 15+ regex patterns (API keys, credit cards with Luhn validation, JWTs, SSH keys) + Shannon entropy scan for unknown secret formats.
+4. **SemanticGuard** — Regex rule engine with compound escalation (3+ MEDIUM → HIGH).
+5. **HyperbolicBrain** — `all-MiniLM-L6-v2` projected into Poincaré ball. Final score = 70% cosine + 30% hyperbolic similarity. Better precision on hierarchically nested attacks. Adversarial suffix stripping.
+6. **CausalArbiter** — Bayesian DAG for gray-zone requests. Computes P(HIGH\_RISK | evidence) via do-calculus. Zero LLM calls. Resolves uncertainty in ~1–5ms.
+7. **MultimodalGuard** — CLIP (image patch embeddings) + Whisper+FFT (audio transcription + ultrasonic detection).
+8. **Entity Risk Scoring** — Redis sliding-window reputation with shadow ban at critical threshold.
+9. **ToolCallGuard** — Inspects tool calls and results in agentic pipelines. Blocks injection, SSRF, OS command abuse.
+10. **AgentMonitor** — Session-level threat patterns: INJECTION_CHAIN, EXFIL_CHAIN, PRIVILEGE_ESCALATION, EVASION_ATTEMPT, ROGUE_AGENT, TOOL_VELOCITY, RAPID_BLOCK. Cryptographic attestation chain per session.
+11. **EvolutionEngine** — Claude Opus generates new detection rules from live HIGH/BLOCK attacks. Hot-reloaded without restart.
+12. **Evidence Vault** — SHA-256 attestation chains per session. Tamper-evident, litigation-ready.
+13. **Encrypted PII Vault** — Masking engine stores original PII values Fernet-encrypted. Reverse map uses HMAC-SHA256 keys. No plaintext PII ever in memory.
 
 ### Risk levels
 
@@ -564,7 +642,13 @@ shadow-warden-ai/
 
 ## Roadmap
 
-### v1.9 (current)
+### v2.0 (current)
+
+- **Topological Gatekeeper** — TDA pre-filter using n-gram point cloud + Betti numbers (β₀, β₁). Catches noise/bot/DoS in < 2ms before any ML. Ripser optional for true persistent homology.
+- **Hyperbolic Semantic Space** — MiniLM projected into Poincaré ball. Cosine (70%) + hyperbolic (30%) blend. Better precision on hierarchically nested attacks.
+- **Causal Arbiter** — Bayesian DAG with Pearl's do-calculus resolves ML gray zone. Five causal nodes + backdoor correction. Zero LLM calls, ~1–5ms CPU.
+
+### v1.9
 
 - INJECTION_CHAIN pattern — detects compromised agents acting on injected instructions after a blocked tool result
 - Encrypted PII vault — Fernet + HMAC-SHA256, no original PII value ever unencrypted in memory

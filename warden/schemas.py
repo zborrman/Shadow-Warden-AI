@@ -36,6 +36,8 @@ class FlagType(StrEnum):
     ML_UNCERTAIN         = "ml_uncertain"          # ML score in gray zone — below block threshold but suspicious
     VISUAL_JAILBREAK     = "visual_jailbreak"      # LLM01 variant — jailbreak text hidden in image (CLIP detected)
     AUDIO_INJECTION      = "audio_injection"        # LLM01 variant — hidden command in audio (Whisper + ultrasound)
+    TOPOLOGICAL_NOISE    = "topological_noise"     # TDA gatekeeper — text lacks natural-language topological structure
+    CAUSAL_HIGH_RISK     = "causal_high_risk"      # Causal Arbiter — Bayesian DAG resolved gray-zone ML score to HIGH
 
 
 class RedactionPolicy(StrEnum):

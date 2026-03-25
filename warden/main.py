@@ -86,6 +86,8 @@ from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
+from warden.topology_guard import scan as _topo_scan
+from warden.causal_arbiter import arbitrate as _causal_arbitrate
 from warden.onboarding import OnboardingEngine
 from warden.output_sanitizer import get_sanitizer as _get_output_sanitizer
 from warden.review_queue import ReviewQueue
@@ -246,6 +248,18 @@ _RISK_ORDER = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.BLOCK]
 
 def _max_risk(a: RiskLevel, b: RiskLevel) -> RiskLevel:
     return a if _RISK_ORDER.index(a) >= _RISK_ORDER.index(b) else b
+
+
+def _content_entropy(text: str) -> float:
+    """Shannon entropy of the text in bits per character."""
+    import math  # noqa: PLC0415
+    if not text:
+        return 0.0
+    freq: dict[str, int] = {}
+    for c in text:
+        freq[c] = freq.get(c, 0) + 1
+    n = len(text)
+    return -sum((cnt / n) * math.log2(cnt / n) for cnt in freq.values())
 
 
 # ── Dynamic evolution rule registry ───────────────────────────────────────────
@@ -1227,6 +1241,25 @@ async def _run_filter_pipeline(
 
     from warden.telemetry import trace_stage as _trace_stage  # noqa: PLC0415
 
+    # ── Stage 0a.5: Topological Gatekeeper ────────────────────────────
+    # TDA pre-filter — detects bot payloads, random noise, and repetitive
+    # DoS content via n-gram point cloud + Betti number approximation.
+    # Runs in < 2ms; result is stored and applied to guard_result after Stage 2.
+    t0 = time.perf_counter()
+    _topo_result = _topo_scan(payload.content)
+    timings["topology"] = round((time.perf_counter() - t0) * 1000, 2)
+    if _topo_result.is_noise:
+        log.warning(
+            json.dumps({
+                "event":       "topological_noise",
+                "request_id":  rid,
+                "noise_score": _topo_result.noise_score,
+                "beta0":       _topo_result.beta0,
+                "beta1":       _topo_result.beta1,
+                "tenant_id":   tenant_id,
+            })
+        )
+
     # ── Stage 0b: Obfuscation decoding ────────────────────────────────
     t0 = time.perf_counter()
     with _trace_stage("obfuscation", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
@@ -1328,6 +1361,15 @@ async def _run_filter_pipeline(
                 ),
             ))
         guard_result.risk_level = _max_risk(guard_result.risk_level, vault_risk)
+
+    # ── Apply Topological Gatekeeper result ───────────────────────────
+    if _topo_result.is_noise:
+        guard_result.flags.append(SemanticFlag(
+            flag=FlagType.TOPOLOGICAL_NOISE,
+            score=round(_topo_result.noise_score, 4),
+            detail=_topo_result.detail,
+        ))
+        guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.MEDIUM)
 
     if guard_result.flags:
         log.warning(
@@ -1432,6 +1474,50 @@ async def _run_filter_pipeline(
             })
         )
         FILTER_UNCERTAIN_TOTAL.labels(tenant_id=tenant_id).inc()
+
+    # ── Stage 2b-iii: Causal Arbiter (gray-zone resolution) ───────────
+    # Runs only when ML score is in the uncertainty band [LOWER, threshold).
+    # Replaces an LLM verification call with a lightweight Bayesian DAG
+    # that computes P(HIGH_RISK | evidence) via Pearl's do-calculus.
+    if (
+        _UNCERTAINTY_LOWER > 0
+        and not brain_result.is_jailbreak
+        and brain_result.score >= _UNCERTAINTY_LOWER
+    ):
+        t0 = time.perf_counter()
+        _session_blocks = 0
+        if session_id and _agent_monitor is not None:
+            with suppress(Exception):
+                _sess = _agent_monitor.get_session(session_id)
+                if _sess:
+                    _session_blocks = int(_sess.get("block_count", 0))
+        _causal_result = _causal_arbitrate(
+            ml_score             = brain_result.score,
+            ers_score            = float(getattr(auth, "ers_score", 0.0) or 0.0),
+            obfuscation_detected = obfuscation_result.has_obfuscation,
+            block_history        = _session_blocks,
+            tool_tier            = -1,
+            content_entropy      = _content_entropy(analysis_text),
+        )
+        timings["causal"] = round((time.perf_counter() - t0) * 1000, 2)
+        if _causal_result.is_high_risk:
+            guard_result.flags.append(SemanticFlag(
+                flag=FlagType.CAUSAL_HIGH_RISK,
+                score=round(_causal_result.risk_probability, 4),
+                detail=_causal_result.detail,
+            ))
+            guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.HIGH)
+            log.warning(
+                json.dumps({
+                    "event":        "causal_high_risk",
+                    "request_id":   rid,
+                    "causal_p":     _causal_result.risk_probability,
+                    "ml_score":     brain_result.score,
+                    "ers_score":    getattr(auth, "ers_score", 0.0),
+                    "obfusc":       obfuscation_result.has_obfuscation,
+                    "tenant_id":    tenant_id,
+                })
+            )
 
     # ── Stage 2c: Data Poisoning Detection ───────────────────────────
     if _poison_guard is not None:
