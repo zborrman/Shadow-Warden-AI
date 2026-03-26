@@ -736,17 +736,43 @@
     <!-- Pipeline flow - horizontal on desktop, stacked on mobile -->
     <div class="hidden lg:flex items-start gap-2 reveal" style="overflow:visible;">
 
-      <!-- ── Stage 1: Obfuscation Decoder ── -->
+      <!-- ── Stage 1: Topological Gatekeeper ── -->
+      <div class="pipe-step flex-1" style="border-color:rgba(249,115,22,0.25);background:rgba(5,19,31,0.9);">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.28);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        </div>
+        <div class="text-xs font-bold mb-1" style="color:#fb923c;">Stage 1</div>
+        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Topological Gatekeeper</div>
+        <div class="text-xs leading-relaxed" style="color:var(--t2);">TDA · β₀/β₁ Betti numbers · n-gram point cloud</div>
+        <!-- popup -->
+        <div class="pipe-popup" style="border-color:rgba(249,115,22,0.25);">
+          <div class="pp-title" style="color:#fb923c;">Stage 1 — Topological Gatekeeper</div>
+          <div class="pp-desc">Topological Data Analysis pre-filter runs in &lt;2ms before any ML or regex. Converts text into an n-gram point cloud and computes β₀/β₁ Betti numbers to detect structural noise characteristic of obfuscated payloads.</div>
+          <ul class="pp-list">
+            <li>N-gram point cloud construction</li>
+            <li>β₀ connected components · β₁ 1-cycles</li>
+            <li>Noise score: 0.33×char + 0.27×wc + 0.22×diversity + 0.10×β₀ + 0.08×β₁</li>
+            <li>Adaptive thresholds: code (0.65) vs natural language (0.82)</li>
+            <li>Ripser optional — algebraic fallback for CPU-only</li>
+          </ul>
+          <div class="pp-example"><span style="color:var(--t3);">noise_score: 0.91</span> → <span style="color:#f87171;">BLOCK (topological noise)</span><br><span style="color:var(--t3);">noise_score: 0.23</span> → <span style="color:#34d399;">pass to Stage 2</span></div>
+          <span class="pp-badge" style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.2);color:#fb923c;">⚡ &lt; 2ms · pure numpy · zero ML inference</span>
+        </div>
+      </div>
+
+      <div class="pipe-arrow">→</div>
+
+      <!-- ── Stage 2: Obfuscation Decoder ── -->
       <div class="pipe-step bento-glow-cyan flex-1">
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#fbbf24;">Stage 1</div>
+        <div class="text-xs font-bold mb-1" style="color:#fbbf24;">Stage 2</div>
         <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Obfuscation Decoder</div>
         <div class="text-xs leading-relaxed" style="color:var(--t2);">base64 · hex · ROT13 · unicode homoglyphs</div>
         <!-- popup -->
         <div class="pipe-popup" style="border-color:rgba(245,158,11,0.25);">
-          <div class="pp-title" style="color:#fbbf24;">Stage 1 — Obfuscation Decoder</div>
+          <div class="pp-title" style="color:#fbbf24;">Stage 2 — Obfuscation Decoder</div>
           <div class="pp-desc">Decodes hidden attacks <em>before</em> any rule or ML model sees them. Attackers encode payloads to bypass keyword filters — this stage strips the disguise first.</div>
           <ul class="pp-list">
             <li style="color:var(--t2);">Base64 / Hex / URL encoding</li>
@@ -767,12 +793,12 @@
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.25);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#fb7185;">Stage 2</div>
+        <div class="text-xs font-bold mb-1" style="color:#fb7185;">Stage 3</div>
         <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Secret Redactor</div>
         <div class="text-xs leading-relaxed" style="color:var(--t2);">15 PII/secret patterns · API keys · Anthropic · HuggingFace</div>
         <!-- popup -->
         <div class="pipe-popup" style="border-color:rgba(244,63,94,0.25);">
-          <div class="pp-title" style="color:#fb7185;">Stage 2 — Secret Redactor</div>
+          <div class="pp-title" style="color:#fb7185;">Stage 3 — Secret Redactor</div>
           <div class="pp-desc">Strips credentials and PII before the prompt reaches any LLM. Protects against accidental secret exfiltration — GDPR Article 32 compliant.</div>
           <ul class="pp-list">
             <li>OpenAI <span class="mono" style="color:#fb7185;">sk-*</span> · Anthropic · HuggingFace tokens</li>
@@ -793,12 +819,12 @@
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.28);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#f87171;">Stage 3</div>
+        <div class="text-xs font-bold mb-1" style="color:#f87171;">Stage 4</div>
         <div class="text-sm font-semibold mb-2" style="color:var(--t1);">ThreatVault</div>
         <div class="text-xs leading-relaxed" style="color:var(--t2);">50 signatures · DAN · roleplay · RAG · encoding attacks</div>
         <!-- popup -->
         <div class="pipe-popup" style="border-color:rgba(239,68,68,0.25);">
-          <div class="pp-title" style="color:#f87171;">Stage 3 — ThreatVault</div>
+          <div class="pp-title" style="color:#f87171;">Stage 4 — ThreatVault</div>
           <div class="pp-desc">50+ named attack signature families matched against the decoded, redacted content. Covers the full OWASP LLM Top 10 attack surface.</div>
           <ul class="pp-list">
             <li>DAN / jailbreak persona variants</li>
@@ -820,12 +846,12 @@
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.25);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#22d3ee;">Stage 4</div>
+        <div class="text-xs font-bold mb-1" style="color:#22d3ee;">Stage 5</div>
         <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Semantic Rules</div>
         <div class="text-xs leading-relaxed" style="color:var(--t2);">42+ regex patterns · compound risk escalation · 3× MEDIUM → HIGH</div>
         <!-- popup -->
         <div class="pipe-popup" style="border-color:rgba(34,211,238,0.2);">
-          <div class="pp-title" style="color:#22d3ee;">Stage 4 — Semantic Rules</div>
+          <div class="pp-title" style="color:#22d3ee;">Stage 5 — Semantic Rules</div>
           <div class="pp-desc">42+ intent-aware regex patterns catch paraphrased attacks that exact signatures miss. Compound escalation detects slow-burn multi-signal attacks.</div>
           <ul class="pp-list">
             <li>Privilege escalation language</li>
@@ -846,38 +872,90 @@
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#c4b5fd;">Stage 5</div>
-        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">ML Brain</div>
-        <div class="text-xs leading-relaxed" style="color:var(--t2);">all-MiniLM-L6-v2 · cosine similarity · async ThreadPoolExecutor</div>
+        <div class="text-xs font-bold mb-1" style="color:#c4b5fd;">Stage 6</div>
+        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Hyperbolic Brain</div>
+        <div class="text-xs leading-relaxed" style="color:var(--t2);">MiniLM-L6-v2 · Poincaré ball · 70% cosine + 30% hyperbolic</div>
         <!-- popup -->
         <div class="pipe-popup" style="border-color:rgba(139,92,246,0.25);">
-          <div class="pp-title" style="color:#c4b5fd;">Stage 5 — ML Brain</div>
-          <div class="pp-desc">Semantic similarity engine: encodes each request into a 384-dim vector and compares against 800+ known attack embeddings using cosine distance.</div>
+          <div class="pp-title" style="color:#c4b5fd;">Stage 6 — Hyperbolic Brain</div>
+          <div class="pp-desc">MiniLM encodes requests into 384-dim vectors, then projects into Poincaré ball (hyperbolic space) for a blended similarity score. Hyperbolic geometry better captures hierarchical attack structure than flat cosine alone.</div>
           <ul class="pp-list">
-            <li>Model: <span class="mono" style="color:#c4b5fd;">all-MiniLM-L6-v2</span> (22M params)</li>
-            <li>CPU-only — no GPU required</li>
-            <li>Threshold: 0.72 (configurable)</li>
-            <li>Async via <span class="mono">ThreadPoolExecutor</span> — never blocks event loop</li>
+            <li>Model: <span class="mono" style="color:#c4b5fd;">all-MiniLM-L6-v2</span> (22M params, CPU-only)</li>
+            <li>Final score: 70% cosine + 30% hyperbolic distance</li>
+            <li>Poincaré ball projection via <span class="mono">expmap_0</span> (pure numpy)</li>
+            <li>Adversarial suffix stripping before embedding</li>
             <li>Hot-reloads new attack embeddings via Evolution Engine</li>
           </ul>
-          <div class="pp-example"><span style="color:#c4b5fd;">similarity: 0.97</span> → <span style="color:#f43f5e;">BLOCK</span><br><span style="color:#c4b5fd;">similarity: 0.88</span> → <span style="color:#f59e0b;">HIGH</span><br><span style="color:#c4b5fd;">similarity: 0.06</span> → <span style="color:#34d399;">ALLOW</span></div>
+          <div class="pp-example"><span style="color:#c4b5fd;">blended score: 0.97</span> → <span style="color:#f43f5e;">BLOCK</span><br><span style="color:#c4b5fd;">blended score: 0.88</span> → <span style="color:#f59e0b;">HIGH</span><br><span style="color:#c4b5fd;">blended score: 0.06</span> → <span style="color:#34d399;">pass to Stage 7</span></div>
           <span class="pp-badge" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);color:#c4b5fd;">⚡ &lt; 5ms · self-improving corpus · air-gap safe</span>
         </div>
       </div>
 
       <div class="pipe-arrow">→</div>
 
-      <!-- ── Stage 6: Decision + Evolution ── -->
+      <!-- ── Stage 7: Causal Arbiter ── -->
+      <div class="pipe-step flex-1" style="border-color:rgba(99,102,241,0.25);background:rgba(5,19,31,0.9);">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.28);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg>
+        </div>
+        <div class="text-xs font-bold mb-1" style="color:#818cf8;">Stage 7</div>
+        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Causal Arbiter</div>
+        <div class="text-xs leading-relaxed" style="color:var(--t2);">Bayesian DAG · Pearl do-calculus · gray-zone resolution</div>
+        <!-- popup -->
+        <div class="pipe-popup" style="border-color:rgba(99,102,241,0.25);">
+          <div class="pp-title" style="color:#818cf8;">Stage 7 — Causal Arbiter</div>
+          <div class="pp-desc">Gray-zone resolver for borderline cases. A 5-node Bayesian DAG applies Pearl's do-calculus and backdoor correction to compute P(HIGH_RISK | evidence), turning ambiguous signals into decisive verdicts in ~1–5ms.</div>
+          <ul class="pp-list">
+            <li>5 causal nodes: intent, context, history, payload, risk</li>
+            <li>Pearl do-calculus backdoor adjustment</li>
+            <li>Only activates on gray-zone scores (0.5–0.72)</li>
+            <li>Produces calibrated P(HIGH_RISK) probability</li>
+            <li>Threshold: 0.65 (configurable via <span class="mono">CAUSAL_RISK_THRESHOLD</span>)</li>
+          </ul>
+          <div class="pp-example"><span style="color:var(--t3);">gray-zone score: 0.61</span><br><span style="color:#818cf8;">P(HIGH_RISK|evidence) = 0.83</span><br><span style="color:var(--t3);">→ upgrade to</span> <span style="color:#f87171;">HIGH</span></div>
+          <span class="pp-badge" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#818cf8;">⚡ 1–5ms CPU · no ML inference · pure probability</span>
+        </div>
+      </div>
+
+      <div class="pipe-arrow">→</div>
+
+      <!-- ── Stage 8: ERS / Shadow Ban ── -->
+      <div class="pipe-step flex-1" style="border-color:rgba(239,68,68,0.2);background:rgba(10,5,20,0.9);">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.28);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        </div>
+        <div class="text-xs font-bold mb-1" style="color:#f87171;">Stage 8</div>
+        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">ERS + Shadow Ban</div>
+        <div class="text-xs leading-relaxed" style="color:var(--t2);">Redis sliding window · entity risk score · gaslight · delay · standard</div>
+        <!-- popup -->
+        <div class="pipe-popup" style="border-color:rgba(239,68,68,0.25);">
+          <div class="pp-title" style="color:#f87171;">Stage 8 — Entity Risk Score + Shadow Ban</div>
+          <div class="pp-desc">Redis sliding-window tracks risk per entity across sessions. At score ≥ 0.75 activates differentiated shadow ban: attackers experience lifelike friction instead of seeing a 403 that confirms detection.</div>
+          <ul class="pp-list">
+            <li><span style="color:#f87171;font-weight:700;">gaslight</span> — returns plausible-but-wrong answers (prompt injection)</li>
+            <li><span style="color:#f59e0b;font-weight:700;">delay</span> — artificial 3s async delay (bot/stuffing attacks)</li>
+            <li><span style="color:#22d3ee;font-weight:700;">standard</span> — silent block, no feedback to attacker</li>
+            <li>HMAC-SHA256 attestation chain per session</li>
+            <li>Saves avg $0.003/blocked token (Prometheus metric)</li>
+          </ul>
+          <div class="pp-example"><span style="color:var(--t3);">ERS score: 0.81</span> → <span style="color:#f87171;">shadow ban: gaslight</span><br><span style="color:var(--t3);">ERS score: 0.91</span> → <span style="color:#f59e0b;">shadow ban: delay</span><br><span style="color:var(--t3);">ERS score: 0.40</span> → <span style="color:#34d399;">pass to Stage 9</span></div>
+          <span class="pp-badge" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;">⚡ Redis O(1) · fail-open on Redis outage</span>
+        </div>
+      </div>
+
+      <div class="pipe-arrow">→</div>
+
+      <!-- ── Stage 9: Decision + Evolution ── -->
       <div class="pipe-step flex-1" style="border-color:rgba(16,185,129,0.25);background:rgba(5,22,36,0.95);">
         <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         </div>
-        <div class="text-xs font-bold mb-1" style="color:#34d399;">Stage 6</div>
+        <div class="text-xs font-bold mb-1" style="color:#34d399;">Stage 9</div>
         <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Decision</div>
         <div class="text-xs leading-relaxed" style="color:var(--t2);">ALLOW · REDACT · HIGH · BLOCK · Evolution Engine feedback</div>
         <!-- popup -->
         <div class="pipe-popup" style="border-color:rgba(16,185,129,0.25);">
-          <div class="pp-title" style="color:#34d399;">Stage 6 — Decision + Evolution</div>
+          <div class="pp-title" style="color:#34d399;">Stage 9 — Decision + Evolution</div>
           <div class="pp-desc">Aggregates all stage signals into a final verdict. HIGH and BLOCK events asynchronously trigger Claude Opus to generate new rules — hot-reloaded without restart.</div>
           <ul class="pp-list">
             <li><span style="color:#34d399;font-weight:700;">ALLOW</span> — clean, forward to upstream LLM</li>
@@ -893,29 +971,41 @@
 
     <!-- Mobile pipeline -->
     <div class="lg:hidden space-y-3 reveal">
+      <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,19,31,0.85);border:1px solid rgba(249,115,22,0.2);">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(249,115,22,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
+        <div><div class="text-xs font-bold" style="color:#fb923c;">Stage 1 — Topological Gatekeeper</div><div class="text-xs" style="color:var(--t2);">TDA · β₀/β₁ Betti · n-gram point cloud · &lt;2ms</div></div>
+      </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,19,31,0.85);border:1px solid var(--border);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(245,158,11,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#fbbf24;">Stage 1 — Obfuscation Decoder</div><div class="text-xs" style="color:var(--t2);">base64 · hex · ROT13 · homoglyphs</div></div>
+        <div><div class="text-xs font-bold" style="color:#fbbf24;">Stage 2 — Obfuscation Decoder</div><div class="text-xs" style="color:var(--t2);">base64 · hex · ROT13 · homoglyphs</div></div>
       </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,19,31,0.85);border:1px solid var(--border);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(244,63,94,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#fb7185;">Stage 2 — Secret Redactor</div><div class="text-xs" style="color:var(--t2);">15 PII/secret patterns · API keys</div></div>
+        <div><div class="text-xs font-bold" style="color:#fb7185;">Stage 3 — Secret Redactor</div><div class="text-xs" style="color:var(--t2);">15 PII/secret patterns · API keys</div></div>
       </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(10,5,20,0.9);border:1px solid rgba(239,68,68,0.2);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#f87171;">Stage 3 — ThreatVault</div><div class="text-xs" style="color:var(--t2);">50 signatures · DAN · roleplay · RAG attacks</div></div>
+        <div><div class="text-xs font-bold" style="color:#f87171;">Stage 4 — ThreatVault</div><div class="text-xs" style="color:var(--t2);">50 signatures · DAN · roleplay · RAG attacks</div></div>
       </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,19,31,0.85);border:1px solid var(--border);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(34,211,238,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#22d3ee;">Stage 4 — Semantic Rules</div><div class="text-xs" style="color:var(--t2);">42+ patterns · compound escalation</div></div>
+        <div><div class="text-xs font-bold" style="color:#22d3ee;">Stage 5 — Semantic Rules</div><div class="text-xs" style="color:var(--t2);">42+ patterns · compound escalation</div></div>
       </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,19,31,0.85);border:1px solid var(--border);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(139,92,246,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#c4b5fd;">Stage 5 — ML Brain (MiniLM)</div><div class="text-xs" style="color:var(--t2);">Cosine similarity · self-improving</div></div>
+        <div><div class="text-xs font-bold" style="color:#c4b5fd;">Stage 6 — Hyperbolic Brain</div><div class="text-xs" style="color:var(--t2);">MiniLM · Poincaré ball · 70% cosine + 30% hyperbolic</div></div>
+      </div>
+      <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,19,31,0.85);border:1px solid rgba(99,102,241,0.2);">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(99,102,241,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg></div>
+        <div><div class="text-xs font-bold" style="color:#818cf8;">Stage 7 — Causal Arbiter</div><div class="text-xs" style="color:var(--t2);">Bayesian DAG · Pearl do-calculus · gray-zone resolution</div></div>
+      </div>
+      <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(10,5,20,0.9);border:1px solid rgba(239,68,68,0.2);">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(239,68,68,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+        <div><div class="text-xs font-bold" style="color:#f87171;">Stage 8 — ERS + Shadow Ban</div><div class="text-xs" style="color:var(--t2);">Redis sliding window · gaslight · delay · standard</div></div>
       </div>
       <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(5,22,36,0.95);border:1px solid rgba(16,185,129,0.2);">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(16,185,129,0.12);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <div><div class="text-xs font-bold" style="color:#34d399;">Stage 6 — Decision + Evolution</div><div class="text-xs" style="color:var(--t2);">ALLOW / REDACT / HIGH / BLOCK</div></div>
+        <div><div class="text-xs font-bold" style="color:#34d399;">Stage 9 — Decision + Evolution</div><div class="text-xs" style="color:var(--t2);">ALLOW / REDACT / HIGH / BLOCK · Claude Opus loop</div></div>
       </div>
     </div>
 
