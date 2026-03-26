@@ -865,6 +865,13 @@ except ImportError:
 app.include_router(_neutralizer_router)
 log.info("Business Threat Neutralizer mounted at /threat/neutralizer")
 
+try:
+    from warden.api.financial import router as _financial_router
+    app.include_router(_financial_router)
+    log.info("Dollar Impact Calculator mounted at /financial")
+except ImportError:
+    log.warning("financial router not available — /financial routes skipped.")
+
 
 # ── HTTP middleware (request-ID + security headers) ───────────────────────────
 

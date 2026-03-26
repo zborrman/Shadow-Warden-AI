@@ -39,6 +39,10 @@ import numpy as np
 _CURVATURE: float = 1.0
 # Clip radius: keep all points strictly inside ball to avoid log(0) / arcosh(x < 1)
 _BALL_RADIUS: float = 1.0 - 1e-5
+# Pre-projection input norm clamp — prevents tanh saturation for unnormalized vectors.
+# MiniLM outputs are L2-normalized (‖v‖ = 1) so this only fires if raw embeddings
+# are passed without prior normalization; still guards against future callers.
+_MAX_INPUT_NORM: float = 10.0
 
 
 # ── Projection ────────────────────────────────────────────────────────────────
@@ -60,6 +64,10 @@ def to_poincare_ball(v: np.ndarray, c: float = _CURVATURE) -> np.ndarray:
     norm = float(np.linalg.norm(v))
     if norm < 1e-9:
         return v.copy()
+    # Clamp large-norm inputs before expmap to avoid tanh saturation
+    if norm > _MAX_INPUT_NORM:
+        v = v * (_MAX_INPUT_NORM / norm)
+        norm = _MAX_INPUT_NORM
     sqrt_c = math.sqrt(c)
     half_arg = sqrt_c * norm / 2.0
     scale = math.tanh(half_arg) / half_arg
@@ -74,6 +82,10 @@ def to_poincare_ball(v: np.ndarray, c: float = _CURVATURE) -> np.ndarray:
 def _to_poincare_ball_batch(corpus: np.ndarray, c: float = _CURVATURE) -> np.ndarray:
     """Vectorized projection of (N, D) corpus matrix into the Poincaré ball."""
     norms = np.linalg.norm(corpus, axis=1, keepdims=True)          # (N, 1)
+    # Clamp large-norm inputs (vectorized) before expmap
+    too_large = norms > _MAX_INPUT_NORM
+    corpus = np.where(too_large, corpus * (_MAX_INPUT_NORM / np.maximum(norms, 1e-9)), corpus)
+    norms  = np.minimum(norms, _MAX_INPUT_NORM)
     sqrt_c = math.sqrt(c)
     half_args = sqrt_c * norms / 2.0                               # (N, 1)
     # Avoid division by zero for zero vectors

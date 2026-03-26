@@ -4,9 +4,40 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 2.0 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.3 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
+
+## What's New in v2.3
+
+| Feature | Description |
+|---------|-------------|
+| **Dollar Impact Calculator** | Multi-layer ROI model quantifying the concrete financial value of deploying Shadow Warden: LLM inference savings (shadow ban), prevented incident costs (IBM Cost of Data Breach 2024 benchmarks with industry multipliers), compliance automation savings (Evidence Vault vs. manual audit), SecOps efficiency gains (automated triage + MTTR reduction), and reputational value. |
+| **Live Metrics Integration** | `MetricsReader` reads real production data from logs.json (NDJSON), Redis ERS (shadow-banned entity count), and Prometheus (`warden_shadow_ban_cost_saved_usd_total`). All sources fail-open. |
+| **Financial API Endpoints** | Four new REST endpoints: `GET /financial/impact` (full report), `GET /financial/cost-saved` (quick Prometheus read), `GET /financial/roi` (single-tier ROI), `POST /financial/generate-proposal` (sales deck JSON). All require standard API key auth. |
+| **Industry Risk Multipliers** | 7 industry profiles (fintech, healthcare, ecommerce, saas, government, education, legal) with per-threat-category IBM-benchmark multipliers (e.g. healthcare PII = 3.5×, fintech compliance = 3.5×). |
+| **CLI Impact Tool** | `scripts/impact_analysis.py` — standalone CLI with `--live`, `--industry`, `--requests`, `--cost`, `--export`, `--interactive`, `--json` flags. |
+
+## What's New in v2.2
+
+| Feature | Description |
+|---------|-------------|
+| **Differentiated Shadow Ban** | Shadow ban now selects response strategy by attack type: `gaslight` (prompt injection — returns subtly wrong output that breaks attacker feedback loop), `delay` (credential stuffing / bot noise — adds real async delay to slow automated tools), `standard` (default). New `_GASLIGHT_POOL` of 6 contradictory responses. |
+| **β₁ Integration in Topology Guard** | 1-cycles (repetitive loop patterns) now contribute 8% to the noise score formula. Previously β₁ was computed but unused. Weights rebalanced: `0.33×char_entropy + 0.27×wc_ratio + 0.22×diversity + 0.10×β₀ + 0.08×β₁`. |
+| **Adaptive Topological Thresholds** | Content-type detection (code vs. natural language) now adjusts the noise threshold dynamically. Code payloads use threshold 0.65; natural language 0.82. Eliminates false positives on legitimate code submissions. New env vars: `TOPO_NOISE_THRESHOLD_CODE`, `TOPO_NOISE_THRESHOLD_NATURAL`. |
+| **Hyperbolic Numerical Stability** | Pre-projection input norm clamping added to `to_poincare_ball()` and `_to_poincare_ball_batch()`. Prevents tanh saturation for unnormalized vectors. `_MAX_INPUT_NORM = 10.0` guards against future callers passing raw (non-L2-normalized) embeddings. |
+| **Business Metrics (Dollar Impact)** | Two new Prometheus counters: `warden_shadow_ban_total{strategy, last_flag}` and `warden_shadow_ban_cost_saved_usd_total`. Enables Grafana dashboards showing cumulative LLM inference cost saved by shadow-banning attackers. |
+| **Availability SLO Alert** | New Grafana alert fires when success rate < 99.9% over 1 hour. Fulfills SOC 2 Type II CC7.2 / A1.2 continuous monitoring requirements. |
+| **Shadow Ban Rate Alert** | New Grafana alert fires when shadow ban rate exceeds 0.2/s (12/min) for 3 minutes — signals active attack campaign. |
+| **Compliance Docs** | Three new docs: `docs/security-model.md` (9-layer defense, threat model, OWASP LLM Top 10 coverage), `docs/dpia.md` (GDPR Art. 35 DPIA), `docs/soc2-evidence.md` (SOC 2 Type II evidence guide with auditor-ready collection procedures). |
+
+## What's New in v2.1
+
+| Feature | Description |
+|---------|-------------|
+| **Data-Gravity Hybrid Hub** | Evidence Vault bundles and analytics logs are persisted to on-prem MinIO (S3-compatible object storage) — not cloud. All security metadata stays inside your infrastructure. Only clean filtered tokens reach the upstream LLM. Background-threaded, fail-open, zero latency impact. |
+| **MinIO in Docker Compose** | MinIO and a bucket-init sidecar are now included in `docker-compose.yml`. Enable with `S3_ENABLED=true`. Console at `:9001`. Supports AWS S3, Equinix colocation, or bare-metal via `S3_ENDPOINT`. |
+| **`warden/storage/s3.py`** | New S3 storage backend module. `save_bundle(session_id, bundle)` + `ship_log_entry(entry)` — both background-threaded. Lazy boto3 import — no startup cost if disabled. Auto-creates buckets on first connect. |
 
 ## What's New in v2.0
 
@@ -60,7 +91,7 @@ POST /filter
              └─► Zero-Trust Sandbox (agent calls)      capability manifests + kill-switch
 ```
 
-Nine Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000).
+Eleven Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
 
 For the full stage-by-stage breakdown with latency budgets, see [docs/pipeline-anatomy.md](docs/pipeline-anatomy.md).
 
@@ -452,6 +483,10 @@ All tunable parameters are documented in `.env.example`. Critical values:
 | `TOPO_MIN_LEN` | `20` | Minimum text length for topological analysis (shorter inputs pass through). |
 | `HYPERBOLIC_WEIGHT` | `0.30` | Weight of hyperbolic similarity in final ML score blend (0 = cosine only). |
 | `CAUSAL_RISK_THRESHOLD` | `0.65` | P(HIGH\_RISK) threshold for Causal Arbiter to escalate gray-zone requests. |
+| `S3_ENABLED` | `false` | Master switch for on-prem S3 object storage (MinIO). |
+| `S3_ENDPOINT` | `http://minio:9000` | MinIO or S3-compatible endpoint. Leave empty for AWS S3. |
+| `S3_BUCKET_EVIDENCE` | `warden-evidence` | Bucket for Evidence Vault bundles. |
+| `S3_BUCKET_LOGS` | `warden-logs` | Bucket for GDPR-safe analytics log entries. |
 
 Live-tunable without restart via `POST /api/config/update`:
 
@@ -528,6 +563,7 @@ Automate with cron — see [docs/sop.md](docs/sop.md) for the recommended cron e
 11. **EvolutionEngine** — Claude Opus generates new detection rules from live HIGH/BLOCK attacks. Hot-reloaded without restart.
 12. **Evidence Vault** — SHA-256 attestation chains per session. Tamper-evident, litigation-ready.
 13. **Encrypted PII Vault** — Masking engine stores original PII values Fernet-encrypted. Reverse map uses HMAC-SHA256 keys. No plaintext PII ever in memory.
+14. **Data-Gravity Hybrid Hub** — Evidence Vault bundles and analytics logs persisted to on-prem MinIO (S3-compatible). All security metadata stays inside your infrastructure; zero egress cost.
 
 ### Risk levels
 
@@ -642,7 +678,13 @@ shadow-warden-ai/
 
 ## Roadmap
 
-### v2.0 (current)
+### v2.1 (current)
+
+- **Data-Gravity Hybrid Hub** — MinIO on-prem S3 storage for Evidence Vault + analytics logs. Data sovereignty: security metadata stays inside your infrastructure.
+- `warden/storage/s3.py` — S3 backend with lazy boto3 import, background threads, auto-bucket creation, fail-open.
+- `minio` + `minio-init` services added to `docker-compose.yml`. Enable with `S3_ENABLED=true`.
+
+### v2.0
 
 - **Topological Gatekeeper** — TDA pre-filter using n-gram point cloud + Betti numbers (β₀, β₁). Catches noise/bot/DoS in < 2ms before any ML. Ripser optional for true persistent homology.
 - **Hyperbolic Semantic Space** — MiniLM projected into Poincaré ball. Cosine (70%) + hyperbolic (30%) blend. Better precision on hierarchically nested attacks.

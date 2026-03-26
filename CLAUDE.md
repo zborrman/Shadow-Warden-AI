@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 2.0 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.3 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
@@ -23,6 +23,10 @@ POST /filter → TopologicalGatekeeper (n-gram point cloud → β₀/β₁ Betti
     _brain_guard corpus
                 ↓
     event_logger → data/logs.json → Streamlit dashboard (:8501)
+                ↓ background S3 ship (fail-open)
+    MinIO on-prem object store (S3_ENABLED=true)
+        warden-evidence/bundles/<session_id>.json   ← Evidence Vault
+        warden-logs/logs/<date>/<request_id>.json   ← analytics
 
 Agent pipeline:
     AgentMonitor.record_tool_event() → _check_injection_chain() (+ 6 other patterns)
@@ -30,7 +34,7 @@ Agent pipeline:
     openai_proxy._stream_gen()       → 400-char fast-scan → live-emit (progressive streaming)
 ```
 
-9 Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000).
+11 Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
 
 ## Two Distinct Guard Classes (critical distinction)
 
@@ -67,8 +71,19 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/integrations/langchain_callback.py` | LangChain duck-typed callback (`WardenCallback`) |
 | `warden/tools/browser.py` | Playwright headless Chromium sandbox (`Context7Manager`) |
 | `warden/Dockerfile` | Playwright MCR base + CPU-only torch (non-root user UID/GID 10001) |
-| `docker-compose.yml` | Full orchestration with healthchecks + resource limits |
-| `grafana/provisioning/alerting/warden_alerts.yml` | P99 latency + 5xx error rate Grafana alerts |
+| `warden/storage/s3.py` | S3-compatible object storage backend — MinIO / AWS S3 (lazy boto3, background threads, fail-open) |
+| `warden/storage/__init__.py` | Package init for storage backends |
+| `docker-compose.yml` | Full orchestration with healthchecks + resource limits (includes minio + minio-init) |
+| `warden/shadow_ban.py` | Shadow Ban Engine — differentiated strategies: gaslight (prompt injection), delay (bot/stuffing), standard |
+| `warden/metrics.py` | Prometheus metric singletons — incl. `SHADOW_BAN_TOTAL`, `SHADOW_BAN_COST_SAVED_USD` (v2.2) |
+| `grafana/provisioning/alerting/warden_alerts.yml` | SLO alerts: P99 latency + 5xx rate + availability + shadow ban rate + corpus drift |
+| `docs/security-model.md` | 9-layer defense model, OWASP LLM Top 10 coverage, threat model, crypto controls |
+| `docs/dpia.md` | GDPR Art. 35 Data Protection Impact Assessment |
+| `docs/soc2-evidence.md` | SOC 2 Type II evidence guide — control mapping + auditor collection procedures |
+| `warden/financial/impact_calculator.py` | Dollar Impact Calculator — IBM 2024 benchmarks, industry multipliers, ROI tiers, ASCII report |
+| `warden/financial/metrics_reader.py` | Live data adapter — reads logs.json, Redis ERS, Prometheus for real impact numbers |
+| `warden/api/financial.py` | FastAPI router `/financial/*` — impact, cost-saved, roi, generate-proposal endpoints |
+| `scripts/impact_analysis.py` | CLI entry point — `--live`, `--industry`, `--requests`, `--export`, `--interactive` |
 | `.github/workflows/ci.yml` | Test matrix (3.11/3.12) + lint + Docker smoke + mutation testing |
 
 ## Build & Test Commands

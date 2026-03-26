@@ -27,6 +27,7 @@ volumes:
   postgres-data:
   redis-data:
   warden-logs:
+  minio-data:
 
 services:
 
@@ -150,6 +151,14 @@ services:
       - VERTEX_PROJECT_ID=${VERTEX_PROJECT_ID:-}
       - VERTEX_LOCATION=${VERTEX_LOCATION:-us-central1}
       - VERTEX_ACCESS_TOKEN=${VERTEX_ACCESS_TOKEN:-}
+      # v2.1 — Data-Gravity Hybrid Hub (S3-compatible on-prem object storage)
+      - S3_ENABLED=${S3_ENABLED:-false}
+      - S3_ENDPOINT=${S3_ENDPOINT:-http://minio:9000}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-minioadmin}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-minioadmin}
+      - S3_BUCKET_EVIDENCE=${S3_BUCKET_EVIDENCE:-warden-evidence}
+      - S3_BUCKET_LOGS=${S3_BUCKET_LOGS:-warden-logs}
+      - S3_REGION=${S3_REGION:-us-east-1}
       # v0.8 — Prompt Shield (indirect injection detection)
       - PROMPT_SHIELD_ENABLED=${PROMPT_SHIELD_ENABLED:-true}
       # v0.9 — Cryptographic Audit Trail (SOC 2 Type II)
@@ -179,6 +188,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     networks:
       - warden-net
@@ -212,6 +223,53 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── MINIO (S3-compatible on-prem object storage) ────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: warden-minio
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${S3_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${S3_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"   # S3 API (internal + optional external access)
+      - "9001:9001"   # MinIO Console UI
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── MINIO INIT (create buckets on first start) ────────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    container_name: warden-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - warden-net
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-minioadmin} ${S3_SECRET_KEY:-minioadmin};
+        mc mb --ignore-existing local/${S3_BUCKET_EVIDENCE:-warden-evidence};
+        mc mb --ignore-existing local/${S3_BUCKET_LOGS:-warden-logs};
+        mc anonymous set none local/${S3_BUCKET_EVIDENCE:-warden-evidence};
+        mc anonymous set none local/${S3_BUCKET_LOGS:-warden-logs};
+        echo 'MinIO buckets ready.';
+      "
+    restart: on-failure
 
   # ── REDIS ───────────────────────────────────────────────────────────────────
   redis:

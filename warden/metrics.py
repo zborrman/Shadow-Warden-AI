@@ -359,6 +359,35 @@ try:
             "warden_sync_blocks_applied_total"
         )
 
+    # ── Business metrics (v2.2) ───────────────────────────────────────────────
+    # These metrics translate security actions into Dollar Impact — answering
+    # "what ROI is Warden delivering?" for CISOs and enterprise customers.
+    #
+    # SHADOW_BAN_TOTAL        — shadow ban events by strategy and attack type
+    # SHADOW_BAN_COST_SAVED_USD — cumulative LLM inference cost saved (shadow
+    #                            banned requests never reach the upstream LLM)
+
+    try:
+        SHADOW_BAN_TOTAL = Counter(
+            "warden_shadow_ban_total",
+            "Shadow ban events served to confirmed attackers",
+            ["strategy", "last_flag"],
+        )
+    except ValueError:
+        SHADOW_BAN_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_shadow_ban_total"
+        )
+
+    try:
+        SHADOW_BAN_COST_SAVED_USD = Counter(
+            "warden_shadow_ban_cost_saved_usd_total",
+            "Cumulative LLM inference cost saved (USD) by shadow-banning attackers",
+        )
+    except ValueError:
+        SHADOW_BAN_COST_SAVED_USD = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_shadow_ban_cost_saved_usd_total"
+        )
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -402,3 +431,5 @@ except ImportError:
     SYNC_CORPUS_DOWNLOADS_TOTAL     = _Noop()  # type: ignore[assignment]
     SYNC_BLOCKS_PROPAGATED_TOTAL    = _Noop()  # type: ignore[assignment]
     SYNC_BLOCKS_APPLIED_TOTAL       = _Noop()  # type: ignore[assignment]
+    SHADOW_BAN_TOTAL                = _Noop()  # type: ignore[assignment]
+    SHADOW_BAN_COST_SAVED_USD       = _Noop()  # type: ignore[assignment]

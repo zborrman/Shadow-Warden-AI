@@ -28,6 +28,7 @@
 20. [Troubleshooting](#20-troubleshooting)
 21. [Air-Gapped / Offline Deployments](#21-air-gapped--offline-deployments)
 22. [VPS / Single-Server Deployment (Docker Compose)](#22-vps--single-server-deployment-docker-compose)
+23. [Data-Gravity Hybrid Hub — On-Prem S3 Object Storage](#23-data-gravity-hybrid-hub--on-prem-s3-object-storage)
 
 ---
 
@@ -1872,3 +1873,165 @@ docker compose up -d --force-recreate --no-deps warden
 > **Rate limiting during tests:** `RATE_LIMIT_PER_MINUTE` is now live-tunable
 > via `POST /api/config` (no restart needed since v1.1). Alternatively set it
 > in `.env` before starting the container.
+
+---
+
+## 23. Data-Gravity Hybrid Hub — On-Prem S3 Object Storage
+
+**Version:** 2.1 · **Component:** `warden/storage/s3.py`
+
+Shadow Warden AI implements a **Data-Gravity Hybrid Hub** strategy: heavy,
+unstructured security data (Evidence Vault bundles, GDPR-safe analytics logs)
+is stored on local or colocation infrastructure using MinIO — an S3-compatible
+object store. Only clean, filtered tokens are forwarded to the upstream LLM
+cloud provider.
+
+```
+┌─────────────────── On-Premises / Colocation (Equinix / Hetzner) ──────────────┐
+│                                                                                  │
+│  POST /filter ──► Warden Gateway ──► Filter Pipeline (all 9 stages)            │
+│                          │                                                       │
+│                          ├──► Evidence Vault (SHA-256 bundles)                  │
+│                          │         └──► MinIO  s3://warden-evidence/bundles/    │
+│                          │                                                       │
+│                          └──► Analytics Logger (GDPR-safe NDJSON)              │
+│                                    └──► MinIO  s3://warden-logs/logs/YYYY-MM-DD/│
+│                                                                                  │
+│  MinIO Console ──► http://localhost:9001                                        │
+│                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+                              │
+                    Clean filtered token
+                              │
+                              ▼
+          ┌───────────────────────────────────────┐
+          │   Cloud LLM (OpenAI / Anthropic /      │
+          │   Bedrock / Vertex / NVIDIA NIM)        │
+          └───────────────────────────────────────┘
+```
+
+### 23.1 Why Data-Gravity?
+
+| Concern | Cloud-only | Data-Gravity Hybrid Hub |
+|---------|-----------|------------------------|
+| Data sovereignty | Evidence bundles leave your network | All security metadata stays on-prem |
+| Egress cost | Every bundle shipped to S3 costs money | Zero egress — MinIO is co-located |
+| GDPR / audit | Cloud provider sees audit trail | Regulator sees on-prem storage only |
+| Latency | Round-trip to cloud on every save | Local disk → zero added latency |
+| Air-gap support | Requires internet | MinIO works fully offline |
+
+### 23.2 Architecture
+
+| Storage Layer | What is stored | Location | Key format |
+|---------------|---------------|----------|------------|
+| Evidence Vault | SHA-256 signed compliance bundles | `warden-evidence` bucket | `bundles/<session_id>.json` |
+| Analytics Logs | GDPR-safe request metadata | `warden-logs` bucket | `logs/<YYYY-MM-DD>/<request_id>.json` |
+
+Both operations are **background-threaded** (ThreadPoolExecutor, max 2 workers)
+and **fail-open**: if MinIO is unreachable, local storage continues without error.
+
+### 23.3 Enabling MinIO in Docker Compose
+
+MinIO and its bucket-init sidecar are already defined in `docker-compose.yml`.
+Enable the storage backend by setting `S3_ENABLED=true` in your `.env`:
+
+```bash
+# .env
+S3_ENABLED=true
+S3_ENDPOINT=http://minio:9000      # internal docker network
+S3_ACCESS_KEY=minioadmin           # change in production!
+S3_SECRET_KEY=minioadmin           # change in production!
+S3_BUCKET_EVIDENCE=warden-evidence
+S3_BUCKET_LOGS=warden-logs
+S3_REGION=us-east-1
+```
+
+Then restart the stack:
+
+```bash
+docker compose up -d --force-recreate --no-deps warden
+```
+
+MinIO Console is available at **http://your-server:9001** (login with
+`S3_ACCESS_KEY` / `S3_SECRET_KEY`).
+
+### 23.4 Colocation / Bare-Metal Setup
+
+For production colocation, run MinIO on a dedicated storage node and point
+`S3_ENDPOINT` to its internal IP:
+
+```bash
+# On the storage node — start MinIO as a system service
+MINIO_ROOT_USER=warden MINIO_ROOT_PASSWORD=<strong-secret> \
+  minio server /mnt/data --console-address :9001
+
+# In .env on the application node
+S3_ENABLED=true
+S3_ENDPOINT=http://10.0.0.5:9000   # storage node internal IP
+S3_ACCESS_KEY=warden
+S3_SECRET_KEY=<strong-secret>
+```
+
+### 23.5 Production Hardening
+
+```bash
+# Generate strong credentials
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# TLS termination: put nginx in front of MinIO on port 9000
+# then set S3_ENDPOINT=https://minio.internal
+
+# Lifecycle policy: auto-delete logs older than 30 days (GDPR)
+mc alias set prod http://minio:9000 $S3_ACCESS_KEY $S3_SECRET_KEY
+mc ilm rule add prod/warden-logs --expire-days 30
+
+# Restrict bucket access (private — no anonymous reads)
+mc anonymous set none prod/warden-evidence
+mc anonymous set none prod/warden-logs
+```
+
+### 23.6 Using Real AWS S3
+
+To use AWS S3 instead of MinIO (cloud deployment without data sovereignty needs):
+
+```bash
+S3_ENABLED=true
+S3_ENDPOINT=                        # leave empty for AWS S3
+S3_ACCESS_KEY=<aws-access-key-id>
+S3_SECRET_KEY=<aws-secret-access-key>
+S3_BUCKET_EVIDENCE=my-warden-evidence
+S3_BUCKET_LOGS=my-warden-logs
+S3_REGION=eu-west-1                 # use a region in your jurisdiction
+```
+
+> **GDPR note:** If `S3_ENDPOINT` points to AWS `eu-west-1` or `eu-central-1`,
+> data does not leave the EU. For full on-prem data sovereignty, always use
+> MinIO with `S3_ENDPOINT` pointing to your local server.
+
+### 23.7 Verifying S3 Storage
+
+```bash
+# Tail warden logs to confirm uploads
+docker compose logs -f warden | grep "S3 bundle saved\|S3 log shipped\|S3 storage active"
+
+# List stored bundles via MinIO Console or CLI
+mc ls prod/warden-evidence/bundles/
+
+# Retrieve a specific bundle
+mc cat prod/warden-evidence/bundles/<session_id>.json | python -m json.tool
+
+# Programmatically via the Warden API
+curl -H "X-API-Key: $WARDEN_API_KEY" \
+  http://localhost:8001/agent/bundle/<session_id>
+```
+
+### 23.8 Egress Cost Analysis
+
+| Scenario | Monthly traffic | AWS S3 egress | MinIO (colocation) |
+|----------|----------------|--------------|-------------------|
+| 10M requests/month | ~50 GB bundles + logs | ~$4.50/mo | $0 |
+| 100M requests/month | ~500 GB | ~$45/mo | $0 |
+| Enterprise (1B req) | ~5 TB | ~$450/mo | $0 |
+
+MinIO colocation typically costs $50–200/month for a dedicated storage node
+with 10 TB NVMe — breaking even at ~40M requests/month vs AWS S3.

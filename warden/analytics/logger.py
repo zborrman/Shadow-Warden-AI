@@ -21,6 +21,8 @@ import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from warden.storage import s3 as _s3_storage
+
 log = logging.getLogger("warden.analytics.logger")
 
 LOGS_PATH = Path(os.getenv("LOGS_PATH", "/warden/data/logs.json"))
@@ -106,6 +108,8 @@ def append(entry: dict) -> None:
     line = json.dumps(entry, separators=(",", ":")) + "\n"
     with _lock, LOGS_PATH.open("a", encoding="utf-8") as f:
         f.write(line)
+    # Ship to S3-compatible object storage in background (fail-open, GDPR-safe)
+    _s3_storage.ship_log_entry(entry)
 
 
 # ── Reader (used by the dashboard) ───────────────────────────────────────────

@@ -41,6 +41,20 @@ _TOPO_MIN_LEN         = int(os.getenv("TOPO_MIN_LEN", "20"))
 _NGRAM_N              = 3
 _POINT_DIM            = 32   # embedding dimension for each n-gram point
 
+# ── Adaptive threshold by content type ────────────────────────────────────────
+# Code has higher n-gram diversity and lower word-char ratio than prose, so the
+# generic threshold (0.82) would over-fire on legitimate code payloads.
+# The env var overrides still apply when set explicitly.
+_TOPO_THRESHOLD_CODE   = float(os.getenv("TOPO_NOISE_THRESHOLD_CODE",    "0.65"))
+_TOPO_THRESHOLD_NATURAL = float(os.getenv("TOPO_NOISE_THRESHOLD_NATURAL", "0.82"))
+
+# Code detection heuristics — keyword density in the first 300 chars
+_CODE_KEYWORDS = frozenset({
+    "def ", "class ", "import ", "return ", "if __", "function ", "const ",
+    "var ", "let ", "fn ", "pub ", "use ", "from ", "=>", "->", "#!/",
+    "{", "}", "();", "();", "!=", "==", "&&", "||",
+})
+
 # ── Result ────────────────────────────────────────────────────────────────────
 
 
@@ -140,15 +154,34 @@ def _compute_fallback(
     # Random noise: ≈ 1.0.  Repetitive DoS: ≈ 0.0–0.10.
     diversity_noise = min(1.0, abs(diversity - 0.77) * 2.5)
 
+    # β₁ contribution: repetitive-loop patterns (high β₁ = cyclic/repetitive noise)
+    # Weights rebalanced to incorporate β₁ (previously unused in score).
     noise_score = (
-        0.35 * char_ratio
-        + 0.30 * (1.0 - wc_ratio)
-        + 0.25 * diversity_noise
+        0.33 * char_ratio
+        + 0.27 * (1.0 - wc_ratio)
+        + 0.22 * diversity_noise
         + 0.10 * beta0_approx
+        + 0.08 * beta1_approx
     )
     noise_score = max(0.0, min(1.0, noise_score))
 
     return noise_score, beta0_approx, beta1_approx
+
+
+# ── Content-type detection ────────────────────────────────────────────────────
+
+
+def _detect_content_type(text: str) -> str:
+    """
+    Heuristically classify text as 'code' or 'natural'.
+
+    Uses keyword density in the first 300 characters — fast enough for pre-filter.
+    Returns 'code' only when multiple programming indicators are present to avoid
+    false-positives on prose that mentions programming terms.
+    """
+    sample = text[:300]
+    hits = sum(1 for kw in _CODE_KEYWORDS if kw in sample)
+    return "code" if hits >= 3 else "natural"
 
 
 # ── Optional ripser path ──────────────────────────────────────────────────────
@@ -239,20 +272,28 @@ def scan(text: str) -> TopoResult:
         else:
             noise_score, beta0, beta1 = _compute_fallback(text, freq)
 
-        is_noise = noise_score >= _TOPO_NOISE_THRESHOLD
+        # Adaptive threshold: code payloads have structurally different n-gram
+        # distributions; use a lower threshold to avoid false positives.
+        content_type = _detect_content_type(text)
+        threshold = (
+            _TOPO_THRESHOLD_CODE if content_type == "code" else _TOPO_THRESHOLD_NATURAL
+        )
+
+        is_noise = noise_score >= threshold
         elapsed  = round((time.perf_counter() - t_start) * 1000, 2)
 
         if is_noise:
             log.warning(
-                "Topological noise detected: score=%.3f β₀=%.3f β₁=%.3f len=%d",
-                noise_score, beta0, beta1, len(text),
+                "Topological noise detected: score=%.3f β₀=%.3f β₁=%.3f "
+                "len=%d content_type=%s threshold=%.2f",
+                noise_score, beta0, beta1, len(text), content_type, threshold,
             )
 
         detail = (
             f"Topological noise score {noise_score:.3f} "
-            f"(β₀={beta0:.3f}, β₁={beta1:.3f}) ≥ threshold {_TOPO_NOISE_THRESHOLD}"
+            f"(β₀={beta0:.3f}, β₁={beta1:.3f}) ≥ threshold {threshold} [{content_type}]"
             if is_noise else
-            f"Structured text (noise={noise_score:.3f} < threshold {_TOPO_NOISE_THRESHOLD})"
+            f"Structured text (noise={noise_score:.3f} < threshold {threshold} [{content_type}])"
         )
 
         return TopoResult(

@@ -129,6 +129,13 @@ soundfile>=0.12.0
 # detection for ImageRedactor.  Headless variant has no GUI deps (~15 MB).
 opencv-python-headless>=4.9.0
 
+# ── v2.1 Data-Gravity Hybrid Hub — S3-compatible on-prem object storage ──────
+# boto3 — AWS SDK; used by warden/storage/s3.py for MinIO + real S3.
+# botocore is pulled in automatically by boto3.
+# Import is lazy (only used when S3_ENABLED=true) — does NOT initialise unless
+# the env var is set.  Safe to install in all deployments.
+boto3>=1.34.0
+
 # ── v2.0 Three-Layer Security Architecture ────────────────────────────────────
 # ripser — persistent homology for TopologyGuard (Layer 1).
 # OPTIONAL: when installed, TopologyGuard uses true Vietoris-Rips persistent

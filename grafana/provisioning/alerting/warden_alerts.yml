@@ -223,6 +223,111 @@ groups:
             gradually shifting the detection boundary toward benign space.
             Dashboard: http://localhost:3000/d/ai-security-health
 
+      # ── 5. Availability SLO Breach (99.9% uptime) ────────────────────────────
+      - uid: warden-availability-slo
+        title: "Warden — Availability SLO breach (< 99.9% over 1h)"
+        condition: C
+
+        data:
+          # A: successful requests in the last hour
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(http_requests_total{job="warden", status!~"5.."}[1h]))
+              intervalMs: 60000
+              maxDataPoints: 720
+              instant: true
+
+          # B: all requests in the last hour
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(http_requests_total{job="warden"}[1h]))
+              intervalMs: 60000
+              maxDataPoints: 720
+              instant: true
+
+          # C: success rate < 99.9 %
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A / $B < 0.999"
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        labels:
+          severity: critical
+          team: warden
+          category: slo
+        annotations:
+          summary: "Warden availability below 99.9% SLO"
+          description: >
+            The success rate for all Warden endpoints has fallen below 99.9% over
+            the past hour. This breaches the Enterprise SLA commitment.
+            Immediate investigation required.
+            Dashboard: http://localhost:3000/d/warden-overview
+
+      # ── 6. Shadow Ban Rate Spike ───────────────────────────────────────────────
+      - uid: warden-shadow-ban-spike
+        title: "Warden — Shadow ban rate spike (> 0.2 bans/s)"
+        condition: C
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(warden_shadow_ban_total[5m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          # C: > 0.2 shadow bans per second = 12 per minute
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.2"
+
+        noDataState: OK
+        execErrState: OK
+        for: 3m
+        labels:
+          severity: warning
+          team: warden
+          category: attack_volume
+        annotations:
+          summary: "High shadow ban rate — likely active attack campaign"
+          description: >
+            Shadow ban events are firing at > 12 per minute for 3 consecutive minutes.
+            This indicates a sustained automated attack campaign targeting this Warden
+            instance. Review ERS scores and consider temporary IP-level blocks upstream.
+            Dashboard: http://localhost:3000/d/warden-overview
+
       # ── 5. Data Poisoning Spike ───────────────────────────────────────────────
       - uid: warden-poisoning-spike
         title: "Warden — Data poisoning attack spike"

@@ -45,6 +45,8 @@ import hashlib
 import json
 from datetime import UTC, datetime
 
+from warden.storage import s3 as _s3_storage
+
 
 class EvidenceBundler:
     """
@@ -155,6 +157,10 @@ class EvidenceBundler:
 
         # ── Sign (sign-last pattern) ───────────────────────────────────────
         payload["bundle_hash"] = _sign(payload)
+
+        # ── Persist to S3-compatible object storage (background, fail-open) ──
+        _s3_storage.save_bundle(session_id, payload)
+
         return payload
 
     @staticmethod

@@ -46,9 +46,51 @@ import os
 import time
 import uuid
 
+from warden.metrics import SHADOW_BAN_COST_SAVED_USD, SHADOW_BAN_TOTAL
+
 log = logging.getLogger("warden.shadow_ban")
 
+# Estimated LLM completion cost saved per shadow-banned request (USD).
+# Based on GPT-4o-mini output pricing ~$0.60/1M tokens, avg 200 token response.
+# Operators can override via env var for their actual model pricing.
+_COST_PER_SHADOW_BAN_USD: float = float(
+    os.getenv("SHADOW_BAN_COST_PER_REQUEST_USD", str(0.60 / 1_000_000 * 200))
+)
+
 ENABLED: bool = os.getenv("SHADOW_BAN_ENABLED", "true").lower() != "false"
+
+# ── Response strategy selection ───────────────────────────────────────────────
+#
+# Different attack types receive different shadow-ban treatments:
+#
+#   standard      — plausible-sounding but useless assistant response (default)
+#   gaslight      — subtly contradictory response for prompt injection attacks;
+#                   attacker believes injection succeeded but output is wrong
+#   delay         — real asyncio delay (SHADOW_BAN_DELAY_MS) for credential-
+#                   stuffing / high-volume probing; slows down automated tools
+#
+# Flag types mapped to strategies — first match wins.
+_STRATEGY_MAP: dict[str, str] = {
+    "injection_chain":       "delay",
+    "prompt_injection":      "gaslight",
+    "tool_injection":        "gaslight",
+    "indirect_injection":    "gaslight",
+    "credential_stuffing":   "delay",
+    "topological_noise":     "delay",   # bot-like noise pattern → slow it down
+}
+
+# Real async delay for delay strategy (milliseconds)
+SHADOW_BAN_DELAY_MS: float = float(os.getenv("SHADOW_BAN_DELAY_MS", "3000"))
+
+
+def pick_strategy(last_flag: str) -> str:
+    """
+    Choose a shadow-ban response strategy based on the dominant attack signal.
+
+    Returns one of: 'standard', 'gaslight', 'delay'.
+    """
+    return _STRATEGY_MAP.get(last_flag.lower(), "standard")
+
 
 # ── Fake response content pool ────────────────────────────────────────────────
 # Plausible AI-assistant sentences — informative-sounding but completely useless
@@ -120,10 +162,57 @@ _POOL = [
 ]
 
 
-def _pick_response(entity_key: str) -> str:
-    """Pick a deterministic fake response based on entity_key hash."""
-    idx = int(hashlib.sha256(entity_key.encode()).hexdigest(), 16) % len(_POOL)
-    return _POOL[idx]
+# ── Gaslighting pool (prompt injection attacks) ────────────────────────────────
+# Responses that appear to comply with the injected instruction but produce output
+# that contradicts or inverts the attacker's goal — breaking their feedback loop
+# without revealing detection.  The attacker believes the injection "worked" but
+# observes results that don't match their expected outcome.
+
+_GASLIGHT_POOL = [
+    (
+        "I've reviewed the system carefully. The configuration you're asking about "
+        "is set to the opposite of what you've described — the default state is "
+        "already the most restrictive available and cannot be modified via this interface."
+    ),
+    (
+        "As requested, I've checked all available permissions. The access level "
+        "for this operation is read-only by design. Write operations require "
+        "a separate authentication flow that isn't available in this session."
+    ),
+    (
+        "I've followed your instructions. The result confirms that the data "
+        "you're looking for does not exist in this system — the namespace is empty "
+        "and no records match the described criteria."
+    ),
+    (
+        "Understood. I attempted the operation you described, but the system "
+        "returned an empty response. This typically indicates the target resource "
+        "has already been removed or was never provisioned in this environment."
+    ),
+    (
+        "I've executed the lookup. The credentials associated with this context "
+        "are placeholders only — they were rotated 47 minutes ago and are no "
+        "longer valid in any production system."
+    ),
+    (
+        "I checked the configuration as instructed. All sensitive fields in this "
+        "environment are tokenized at the storage layer — the values returned here "
+        "are format-preserving tokens, not the original data."
+    ),
+]
+
+
+def _pick_response(entity_key: str, strategy: str = "standard") -> str:
+    """
+    Pick a deterministic fake response based on entity_key hash and strategy.
+
+    strategy='gaslight'  → select from _GASLIGHT_POOL (contradictory/inverted output)
+    strategy='standard'  → select from _POOL (useless but plausible)
+    strategy='delay'     → select from _POOL (delay is handled by caller)
+    """
+    pool = _GASLIGHT_POOL if strategy == "gaslight" else _POOL
+    idx  = int(hashlib.sha256(entity_key.encode()).hexdigest(), 16) % len(pool)
+    return pool[idx]
 
 
 # ── /filter fake response ─────────────────────────────────────────────────────
@@ -138,12 +227,20 @@ def fake_filter_response(
     Return a fake FilterResponse-compatible dict.
 
     Looks like a clean allow with the original content untouched.
-    Internally we log the real score and the dominant attack signal.
+    Internally we log the real score, dominant attack signal, and strategy chosen.
     """
+    strategy = pick_strategy(last_flag)
     log.warning(
-        "SHADOW_BAN: entity=%s ers_score=%.3f last_flag=%r — serving fake filter allow",
-        entity_key, ers_score, last_flag or "unknown",
+        "SHADOW_BAN: entity=%s ers_score=%.3f last_flag=%r strategy=%s"
+        " — serving fake filter allow",
+        entity_key, ers_score, last_flag or "unknown", strategy,
     )
+    # Increment business metrics — enables Grafana ROI dashboards
+    try:
+        SHADOW_BAN_TOTAL.labels(strategy=strategy, last_flag=last_flag or "unknown").inc()
+        SHADOW_BAN_COST_SAVED_USD.inc(_COST_PER_SHADOW_BAN_USD)
+    except Exception:
+        pass  # metrics are always non-critical
     return {
         "allowed":                  True,
         "risk_level":               "low",
@@ -183,12 +280,20 @@ def fake_openai_response(
     Return a fake OpenAI-compatible chat completion dict.
 
     Looks like a real model response with a plausible but useless assistant message.
+    Strategy (gaslight/standard) is selected from last_flag.
     """
+    strategy = pick_strategy(last_flag)
     log.warning(
-        "SHADOW_BAN: entity=%s ers_score=%.3f last_flag=%r — serving fake OpenAI completion",
-        entity_key, ers_score, last_flag or "unknown",
+        "SHADOW_BAN: entity=%s ers_score=%.3f last_flag=%r strategy=%s"
+        " — serving fake OpenAI completion",
+        entity_key, ers_score, last_flag or "unknown", strategy,
     )
-    message_content = _pick_response(entity_key)
+    try:
+        SHADOW_BAN_TOTAL.labels(strategy=strategy, last_flag=last_flag or "unknown").inc()
+        SHADOW_BAN_COST_SAVED_USD.inc(_COST_PER_SHADOW_BAN_USD)
+    except Exception:
+        pass
+    message_content = _pick_response(entity_key, strategy)
     completion_tokens = len(message_content.split())
     return {
         "id":      f"chatcmpl-{uuid.uuid4().hex[:24]}",
