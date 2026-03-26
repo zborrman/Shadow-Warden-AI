@@ -391,8 +391,8 @@ class SecretRedactor:
             if policy is RedactionPolicy.MASKED:
                 replacement = _mask_value(matched_text, finding.kind)
             else:
-                # FULL (default)
-                replacement = _TOKEN[finding.kind]
+                # FULL (default) — fall back to pre-set redacted_to for unknown kinds
+                replacement = _TOKEN.get(finding.kind, finding.redacted_to)
 
             finding.redacted_to = replacement
             text = text[: finding.start] + replacement + text[finding.end :]
