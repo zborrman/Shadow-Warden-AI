@@ -77,10 +77,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.5"
-          memory: 1800M
+          cpus: "4.0"
+          memory: 4096M
         reservations:
-          memory: 512M
+          memory: 1024M
     environment:
       - ENV=${ENV:-development}
       - SECRET_KEY=${SECRET_KEY:-change-me-generate-a-strong-random-key}
@@ -90,6 +90,7 @@ services:
       - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
       - MODEL_CACHE_DIR=/warden/models
       - HF_HOME=/warden/models
+      - UVICORN_WORKERS=${UVICORN_WORKERS:-4}
       - SEMANTIC_THRESHOLD=${SEMANTIC_THRESHOLD:-0.72}
       - STRICT_MODE=${STRICT_MODE:-false}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
