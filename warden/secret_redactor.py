@@ -374,6 +374,7 @@ class SecretRedactor:
                 end=end,
                 redacted_to="[REDACTED:high_entropy_secret]",
             ))
+            _matched[(start, end)] = text[start:end]
             covered_spans.add((start, end))
 
         # Apply replacements right-to-left so earlier offsets stay valid

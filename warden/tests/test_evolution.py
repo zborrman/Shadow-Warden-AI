@@ -86,7 +86,7 @@ async def test_process_blocked_calls_add_examples(
     with patch.object(
         evolution_engine, "_call_claude",
         new_callable=AsyncMock,
-        return_value=mock_evolution,
+        return_value=(mock_evolution, "mock user prompt"),
     ):
         await evolution_engine.process_blocked(
             content="novel jailbreak payload xyz",
@@ -127,7 +127,7 @@ async def test_process_blocked_writes_dynamic_rules(
     with patch.object(
         evolution_engine, "_call_claude",
         new_callable=AsyncMock,
-        return_value=mock_evolution,
+        return_value=(mock_evolution, "mock user prompt"),
     ):
         await evolution_engine.process_blocked(
             content="unique attack payload abc",
@@ -341,7 +341,7 @@ async def test_process_blocked_proceeds_when_not_rate_limited(
         patch.object(
             evolution_engine, "_call_claude",
             new_callable=AsyncMock,
-            return_value=mock_evolution,
+            return_value=(mock_evolution, "mock user prompt"),
         ),
     ):
         result = await evolution_engine.process_blocked(
