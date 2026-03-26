@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -64,4 +65,42 @@ class FilterResult:
             secrets_found    = [SecretFinding.from_dict(s) for s in d.get("secrets_found", [])],
             semantic_flags   = [SemanticFlag.from_dict(f)  for f in d.get("semantic_flags",  [])],
             processing_ms    = d.get("processing_ms", {}),
+        )
+
+
+@dataclass
+class ImpactReport:
+    """Financial impact report from ``GET /financial/impact`` (v2.3+)."""
+
+    total_annual_value:   float
+    inference_savings:    float
+    incident_prevention:  float
+    compliance_value:     float
+    secops_efficiency:    float
+    reputational_value:   float
+    roi_multiple:         float
+    payback_months:       float
+    industry:             str
+    requests_per_day:     int
+    raw:                  dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def total_monthly_value(self) -> float:
+        return self.total_annual_value / 12
+
+    @classmethod
+    def from_dict(cls, d: dict) -> ImpactReport:
+        sub = d.get("sub_models", {})
+        return cls(
+            total_annual_value  = d.get("total_annual_value", 0.0),
+            inference_savings   = sub.get("inference_savings", 0.0),
+            incident_prevention = sub.get("incident_prevention", 0.0),
+            compliance_value    = sub.get("compliance_automation", 0.0),
+            secops_efficiency   = sub.get("secops_efficiency", 0.0),
+            reputational_value  = sub.get("reputational_value", 0.0),
+            roi_multiple        = d.get("roi_multiple", 0.0),
+            payback_months      = d.get("payback_months", 0.0),
+            industry            = d.get("industry", "technology"),
+            requests_per_day    = d.get("requests_per_day", 0),
+            raw                 = d,
         )

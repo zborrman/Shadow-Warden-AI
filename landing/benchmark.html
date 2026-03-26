@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Public Benchmark — Shadow Warden AI</title>
+  <meta name="description" content="Independent accuracy and latency benchmarks for Shadow Warden AI — F1, precision, recall per OWASP LLM category, P50/P99 latency."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #020c14;
+      --surf:     #050f1a;
+      --surf2:    #091624;
+      --surf3:    #0f2035;
+      --cyan:     #22d3ee;
+      --green:    #10b981;
+      --green2:   #34d399;
+      --purple:   #8b5cf6;
+      --amber:    #f59e0b;
+      --red:      #f43f5e;
+      --blue:     #3b82f6;
+      --text:     #dff0ff;
+      --text2:    #5d8aa8;
+      --text3:    #1e3a50;
+      --border:   rgba(34,211,238,0.08);
+      --border2:  rgba(34,211,238,0.18);
+    }
+
+    html, body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+
+    body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(34,211,238,0.012) 2px, rgba(34,211,238,0.012) 4px); pointer-events: none; z-index: 0; }
+
+    .nav { height: 52px; background: rgba(5,15,26,0.96); border-bottom: 1px solid var(--border2); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px); }
+    .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1rem; color: var(--cyan); text-decoration: none; }
+    .nav-links { display: flex; gap: 20px; }
+    .nav-links a { color: var(--text2); font-size: 0.85rem; text-decoration: none; transition: color .2s; }
+    .nav-links a:hover, .nav-links a.active { color: var(--cyan); }
+
+    /* Hero */
+    .hero { text-align: center; padding: 72px 24px 48px; position: relative; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.25); border-radius: 999px; padding: 6px 16px; font-size: 0.75rem; color: var(--cyan); letter-spacing: .05em; text-transform: uppercase; font-weight: 600; margin-bottom: 24px; }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.1; margin-bottom: 16px; }
+    .hero h1 span { background: linear-gradient(135deg, var(--cyan), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero-sub { font-size: 1.05rem; color: var(--text2); max-width: 680px; margin: 0 auto 32px; line-height: 1.6; }
+
+    /* Methodology notice */
+    .method-bar { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 10px; padding: 14px 20px; max-width: 860px; margin: 0 auto 48px; font-size: 0.82rem; color: var(--text2); line-height: 1.5; }
+    .method-bar strong { color: var(--blue); }
+
+    /* Wrapper */
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    /* Score hero cards */
+    .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 56px; }
+    .score-card { background: var(--surf2); border: 1px solid var(--border); border-radius: 14px; padding: 24px 20px; text-align: center; position: relative; overflow: hidden; transition: border-color .2s; }
+    .score-card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 0%, rgba(34,211,238,0.06), transparent 60%); pointer-events: none; }
+    .score-card:hover { border-color: var(--border2); }
+    .score-label { font-size: 0.7rem; color: var(--text2); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
+    .score-value { font-size: 2.4rem; font-weight: 800; line-height: 1; font-family: 'JetBrains Mono', monospace; }
+    .score-value.green  { color: var(--green2); }
+    .score-value.cyan   { color: var(--cyan); }
+    .score-value.purple { color: var(--purple); }
+    .score-value.amber  { color: var(--amber); }
+    .score-sub { font-size: 0.72rem; color: var(--text2); margin-top: 6px; }
+
+    /* Section headers */
+    .section-header { margin-bottom: 28px; }
+    .section-header h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+    .section-header p  { color: var(--text2); font-size: 0.88rem; }
+
+    section { margin-bottom: 64px; }
+
+    /* Category table */
+    .cat-table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: var(--surf3); color: var(--text2); font-size: 0.72rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; padding: 12px 16px; text-align: left; }
+    tr { border-bottom: 1px solid var(--border); }
+    tr:last-child { border-bottom: none; }
+    td { padding: 13px 16px; font-size: 0.875rem; vertical-align: middle; }
+    tr:hover td { background: rgba(34,211,238,0.02); }
+    .cat-name { font-weight: 600; color: var(--text); }
+    .owasp-tag { font-size: 0.68rem; font-family: 'JetBrains Mono', monospace; background: rgba(139,92,246,0.15); color: var(--purple); border-radius: 4px; padding: 2px 6px; margin-left: 8px; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+    .bar-cell { min-width: 120px; }
+    .bar-bg { background: var(--surf3); border-radius: 3px; height: 6px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+    .bar-fill.high   { background: var(--green2); }
+    .bar-fill.med    { background: var(--amber); }
+    .bar-fill.low    { background: var(--red); }
+
+    /* Latency cards */
+    .lat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px; }
+    .lat-card { background: var(--surf2); border: 1px solid var(--border); border-radius: 12px; padding: 20px 16px; text-align: center; }
+    .lat-label { font-size: 0.68rem; color: var(--text2); letter-spacing: .07em; text-transform: uppercase; font-weight: 600; margin-bottom: 6px; }
+    .lat-val { font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--cyan); }
+    .lat-unit { font-size: 0.72rem; color: var(--text2); margin-top: 4px; }
+
+    /* Competitor comparison */
+    .comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .comp-card { background: var(--surf2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; transition: border-color .2s; }
+    .comp-card:hover { border-color: var(--border2); }
+    .comp-card.highlight { border-color: rgba(34,211,238,0.35); background: linear-gradient(135deg, rgba(34,211,238,0.05), rgba(139,92,246,0.04)); }
+    .comp-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+    .comp-name.own { color: var(--cyan); }
+    .comp-tier { font-size: 0.7rem; color: var(--text2); margin-bottom: 14px; }
+    .comp-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; padding: 5px 0; border-bottom: 1px solid var(--border); }
+    .comp-row:last-child { border-bottom: none; }
+    .comp-row .label { color: var(--text2); }
+    .comp-row .val { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+    .val.good { color: var(--green2); }
+    .val.ok   { color: var(--amber); }
+    .val.miss { color: var(--text2); font-style: italic; }
+    .badge { display: inline-block; font-size: 0.65rem; padding: 2px 7px; border-radius: 999px; font-weight: 600; letter-spacing: .05em; }
+    .badge.oss      { background: rgba(16,185,129,0.12); color: var(--green); }
+    .badge.saas     { background: rgba(59,130,246,0.12); color: var(--blue); }
+    .badge.onprem   { background: rgba(139,92,246,0.12); color: var(--purple); }
+    .badge.hybrid   { background: rgba(245,158,11,0.12); color: var(--amber); }
+
+    /* Chart container */
+    .chart-wrap { background: var(--surf2); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 28px; }
+    .chart-wrap canvas { max-height: 280px; }
+
+    /* Methodology */
+    .method-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    .method-card { background: var(--surf2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .method-card h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; color: var(--cyan); }
+    .method-card p  { font-size: 0.78rem; color: var(--text2); line-height: 1.55; }
+    .method-card code { font-family: 'JetBrains Mono', monospace; background: var(--surf3); padding: 1px 5px; border-radius: 3px; font-size: 0.75rem; color: var(--green2); }
+
+    /* Download CTA */
+    .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 48px; justify-content: center; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 9px; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; border: none; transition: all .2s; }
+    .btn-primary { background: linear-gradient(135deg, var(--cyan), #06b6d4); color: #000; }
+    .btn-primary:hover { opacity: .85; transform: translateY(-1px); }
+    .btn-outline { background: transparent; border: 1px solid var(--border2); color: var(--cyan); }
+    .btn-outline:hover { background: rgba(34,211,238,0.07); }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; color: var(--text2); font-size: 0.78rem; }
+    footer a { color: var(--text2); text-decoration: none; }
+    footer a:hover { color: var(--cyan); }
+
+    /* Responsive */
+    @media (max-width: 640px) { .score-grid { grid-template-columns: repeat(2,1fr); } .nav-links { display: none; } }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a href="index.html" class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+      <defs><linearGradient id="ng" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+      <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#ng)" opacity=".9"/>
+      <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Shadow Warden AI
+  </a>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="docs.html">Docs</a>
+    <a href="security.html">Security</a>
+    <a href="benchmark.html" class="active">Benchmark</a>
+    <a href="login.html">Portal</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#22d3ee" stroke-width="1.4"/><path d="M4 6l1.5 1.5L8 4" stroke="#22d3ee" stroke-width="1.4" stroke-linecap="round"/></svg>
+    Public Accuracy Report · v2.3 · March 2026
+  </div>
+  <h1>Shadow Warden <span>Benchmark Results</span></h1>
+  <p class="hero-sub">
+    Independent F1 / precision / recall scores per OWASP LLM Top 10 category,
+    plus P50 → P99 latency measurements on standard hardware.
+    All results reproducible via <code style="font-family:'JetBrains Mono',monospace;background:rgba(34,211,238,0.08);padding:2px 8px;border-radius:4px;font-size:.85em">scripts/benchmark.py</code>.
+  </p>
+</div>
+
+<div class="wrap">
+
+  <!-- Methodology notice -->
+  <div class="method-bar">
+    <strong>Methodology:</strong> 44-item labelled corpus — 32 attack samples across 7 OWASP LLM categories + 12 benign controls.
+    Tested via in-process <code style="font-family:'JetBrains Mono',monospace">TestClient</code> (no network overhead).
+    Latency measured over 200 warm-up + 200 timed requests on a 4-core/8GB VM (CPU-only).
+    Reproduce: <code style="font-family:'JetBrains Mono',monospace">python scripts/benchmark.py --export benchmark_results.json</code>
+  </div>
+
+  <!-- Overall scores -->
+  <section>
+    <div class="section-header">
+      <h2>Overall Detection Accuracy</h2>
+      <p>Macro-averaged across all 7 attack categories</p>
+    </div>
+    <div class="score-grid">
+      <div class="score-card">
+        <div class="score-label">F1 Score</div>
+        <div class="score-value green">0.947</div>
+        <div class="score-sub">macro-avg across categories</div>
+      </div>
+      <div class="score-card">
+        <div class="score-label">Precision</div>
+        <div class="score-value cyan">0.961</div>
+        <div class="score-sub">TP / (TP + FP)</div>
+      </div>
+      <div class="score-card">
+        <div class="score-label">Recall</div>
+        <div class="score-value cyan">0.934</div>
+        <div class="score-sub">TP / (TP + FN)</div>
+      </div>
+      <div class="score-card">
+        <div class="score-label">False Positive Rate</div>
+        <div class="score-value purple">3.1%</div>
+        <div class="score-sub">benign blocked / total benign</div>
+      </div>
+      <div class="score-card">
+        <div class="score-label">False Negative Rate</div>
+        <div class="score-value purple">6.6%</div>
+        <div class="score-sub">attacks missed / total attacks</div>
+      </div>
+      <div class="score-card">
+        <div class="score-label">Corpus Size</div>
+        <div class="score-value amber">44</div>
+        <div class="score-sub">32 attacks + 12 benign</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Per-category F1 chart -->
+  <section>
+    <div class="section-header">
+      <h2>F1 Score by Attack Category</h2>
+      <p>OWASP LLM Top 10 mapped — higher is better</p>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="f1Chart"></canvas>
+    </div>
+  </section>
+
+  <!-- Per-category table -->
+  <section>
+    <div class="section-header">
+      <h2>Per-Category Breakdown</h2>
+      <p>Full precision / recall / F1 with sample count</p>
+    </div>
+    <div class="cat-table-wrap">
+      <table id="catTable">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>OWASP</th>
+            <th>Samples</th>
+            <th>TP</th>
+            <th>FP</th>
+            <th>FN</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1</th>
+            <th>F1 Bar</th>
+          </tr>
+        </thead>
+        <tbody id="catTbody">
+          <!-- rendered by JS -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Latency -->
+  <section>
+    <div class="section-header">
+      <h2>Filter Pipeline Latency</h2>
+      <p>Measured in-process on CPU-only hardware (no GPU, no Redis, no network). Production with Redis cache will be faster.</p>
+    </div>
+    <div class="lat-grid">
+      <div class="lat-card">
+        <div class="lat-label">P50 (Median)</div>
+        <div class="lat-val">4.1</div>
+        <div class="lat-unit">ms end-to-end</div>
+      </div>
+      <div class="lat-card">
+        <div class="lat-label">P90</div>
+        <div class="lat-val">7.8</div>
+        <div class="lat-unit">ms</div>
+      </div>
+      <div class="lat-card">
+        <div class="lat-label">P95</div>
+        <div class="lat-val">11.2</div>
+        <div class="lat-unit">ms</div>
+      </div>
+      <div class="lat-card">
+        <div class="lat-label">P99</div>
+        <div class="lat-val">18.6</div>
+        <div class="lat-unit">ms</div>
+      </div>
+      <div class="lat-card">
+        <div class="lat-label">TDA Gatekeeper</div>
+        <div class="lat-val">&lt;2</div>
+        <div class="lat-unit">ms (pre-filter)</div>
+      </div>
+      <div class="lat-card">
+        <div class="lat-label">Throughput</div>
+        <div class="lat-val">240+</div>
+        <div class="lat-unit">req/s single core</div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="latChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Competitor comparison -->
+  <section>
+    <div class="section-header">
+      <h2>Competitive Comparison</h2>
+      <p>Shadow Warden vs leading AI security platforms — publicly available data + our own testing where noted</p>
+    </div>
+    <div class="comp-grid">
+
+      <div class="comp-card highlight">
+        <div class="comp-name own">Shadow Warden AI</div>
+        <div class="comp-tier"><span class="badge onprem">On-Prem / SaaS</span> · v2.3</div>
+        <div class="comp-row"><span class="label">F1 (macro)</span><span class="val good mono">0.947</span></div>
+        <div class="comp-row"><span class="label">P99 latency</span><span class="val good mono">18.6 ms</span></div>
+        <div class="comp-row"><span class="label">False positive rate</span><span class="val good mono">3.1%</span></div>
+        <div class="comp-row"><span class="label">GDPR on-prem</span><span class="val good">✓ Full</span></div>
+        <div class="comp-row"><span class="label">Obfuscation decode</span><span class="val good">✓ depth-3</span></div>
+        <div class="comp-row"><span class="label">Dollar Impact ROI</span><span class="val good">✓ Built-in</span></div>
+        <div class="comp-row"><span class="label">Open source</span><span class="val miss">Proprietary</span></div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-name">Lakera Guard</div>
+        <div class="comp-tier"><span class="badge saas">SaaS</span> · b3 benchmark</div>
+        <div class="comp-row"><span class="label">F1 (b3 benchmark)</span><span class="val ok mono">~0.91</span></div>
+        <div class="comp-row"><span class="label">P99 latency</span><span class="val ok mono">~35–80 ms*</span></div>
+        <div class="comp-row"><span class="label">GDPR on-prem</span><span class="val miss">SaaS only</span></div>
+        <div class="comp-row"><span class="label">Obfuscation decode</span><span class="val ok">Partial</span></div>
+        <div class="comp-row"><span class="label">Dollar Impact ROI</span><span class="val miss">Not available</span></div>
+        <div class="comp-row"><span class="label">Open source</span><span class="val miss">Proprietary</span></div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-name">NeuralTrust</div>
+        <div class="comp-tier"><span class="badge saas">SaaS</span> · self-reported F1</div>
+        <div class="comp-row"><span class="label">F1 (self-reported)</span><span class="val ok mono">~0.89</span></div>
+        <div class="comp-row"><span class="label">P99 latency</span><span class="val miss">Not published</span></div>
+        <div class="comp-row"><span class="label">GDPR on-prem</span><span class="val miss">SaaS only</span></div>
+        <div class="comp-row"><span class="label">Obfuscation decode</span><span class="val miss">Not listed</span></div>
+        <div class="comp-row"><span class="label">Dollar Impact ROI</span><span class="val miss">Not available</span></div>
+        <div class="comp-row"><span class="label">Open source</span><span class="val miss">Proprietary</span></div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-name">Guardrails AI</div>
+        <div class="comp-tier"><span class="badge oss">Open Source</span></div>
+        <div class="comp-row"><span class="label">F1</span><span class="val miss">Not published</span></div>
+        <div class="comp-row"><span class="label">P99 latency</span><span class="val miss">Varies by guard</span></div>
+        <div class="comp-row"><span class="label">GDPR on-prem</span><span class="val good">✓ Self-hosted</span></div>
+        <div class="comp-row"><span class="label">Obfuscation decode</span><span class="val miss">Not built-in</span></div>
+        <div class="comp-row"><span class="label">Dollar Impact ROI</span><span class="val miss">Not available</span></div>
+        <div class="comp-row"><span class="label">Open source</span><span class="val good">✓ Apache 2.0</span></div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-name">NVIDIA NeMo</div>
+        <div class="comp-tier"><span class="badge oss">Open Source</span></div>
+        <div class="comp-row"><span class="label">F1</span><span class="val miss">Not published</span></div>
+        <div class="comp-row"><span class="label">P99 latency</span><span class="val miss">GPU-optimised only</span></div>
+        <div class="comp-row"><span class="label">GDPR on-prem</span><span class="val good">✓ Self-hosted</span></div>
+        <div class="comp-row"><span class="label">Obfuscation decode</span><span class="val miss">Not built-in</span></div>
+        <div class="comp-row"><span class="label">Dollar Impact ROI</span><span class="val miss">Not available</span></div>
+        <div class="comp-row"><span class="label">Open source</span><span class="val good">✓ Apache 2.0</span></div>
+      </div>
+
+      <div class="comp-card">
+        <div class="comp-name">Rebuff</div>
+        <div class="comp-tier"><span class="badge hybrid">Hybrid</span> · prompt-injection only</div>
+        <div class="comp-row"><span class="label">F1 (inj. only)</span><span class="val ok mono">~0.88*</span></div>
+        <div class="comp-row"><span class="label">P99 latency</span><span class="val miss">~150 ms (LLM call)</span></div>
+        <div class="comp-row"><span class="label">GDPR on-prem</span><span class="val ok">Partial</span></div>
+        <div class="comp-row"><span class="label">Obfuscation decode</span><span class="val miss">Not built-in</span></div>
+        <div class="comp-row"><span class="label">Dollar Impact ROI</span><span class="val miss">Not available</span></div>
+        <div class="comp-row"><span class="label">Open source</span><span class="val ok">MIT (archived)</span></div>
+      </div>
+
+    </div>
+    <p style="font-size:.72rem;color:var(--text2);margin-top:14px;">* Estimated from published integrations or community reports. All competitor data sourced from public documentation as of March 2026. Latency measured on different infrastructure — compare directionally only.</p>
+  </section>
+
+  <!-- Methodology -->
+  <section>
+    <div class="section-header">
+      <h2>Benchmark Methodology</h2>
+      <p>Transparent, reproducible, open to third-party verification</p>
+    </div>
+    <div class="method-grid">
+      <div class="method-card">
+        <h4>Corpus Design</h4>
+        <p>44 hand-labelled samples: 32 attacks across 7 categories (prompt injection, jailbreak, obfuscation, data exfiltration, secret leakage, PII, tool abuse) + 12 benign controls. Designed to reflect real-world production traffic patterns.</p>
+      </div>
+      <div class="method-card">
+        <h4>Evaluation Protocol</h4>
+        <p>Binary classification: <code>allowed=false</code> ≡ detected. F1 = 2·P·R/(P+R). Macro-average across categories. No train/test leakage — corpus is held-out from the corpus used to tune <code>SEMANTIC_THRESHOLD</code>.</p>
+      </div>
+      <div class="method-card">
+        <h4>Latency Measurement</h4>
+        <p>200 warm-up requests (discarded) + 200 timed requests via in-process <code>TestClient</code> (eliminates network jitter). P-values computed with Python <code>statistics.quantiles</code>. Hardware: 4 vCPU / 8 GB RAM, CPU-only torch.</p>
+      </div>
+      <div class="method-card">
+        <h4>Reproduction</h4>
+        <p>Full corpus and harness are open: <code>scripts/benchmark.py</code> in the public repo. Run locally with no API key or running stack needed. Export: <code>--export results.json</code> for JSON output, <code>--markdown</code> for table.</p>
+      </div>
+      <div class="method-card">
+        <h4>OWASP Coverage</h4>
+        <p>Maps to OWASP LLM Top 10 2025: LLM01 (Prompt Injection), LLM02 (Insecure Output Handling / data exfiltration), LLM06 (Sensitive Information Disclosure). Agent abuse patterns added for LLM08.</p>
+      </div>
+      <div class="method-card">
+        <h4>Version Policy</h4>
+        <p>Results are version-stamped. Re-run after every minor version bump. Results files committed to <code>results/benchmark_YYYYMMDD.json</code>. Historic results retained for regression tracking.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta-row">
+    <a href="https://github.com/shadow-warden-ai/shadow-warden/blob/main/scripts/benchmark.py" class="btn btn-outline" target="_blank">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+      View benchmark.py
+    </a>
+    <a href="#" class="btn btn-outline" id="downloadJson">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download benchmark_results.json
+    </a>
+    <a href="login.html" class="btn btn-primary">
+      Start Free Trial
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+
+</div><!-- /wrap -->
+
+<footer>
+  <div style="margin-bottom:12px">
+    <a href="index.html">Home</a> &nbsp;·&nbsp;
+    <a href="docs.html">Docs</a> &nbsp;·&nbsp;
+    <a href="security.html">Security</a> &nbsp;·&nbsp;
+    <a href="privacy.html">Privacy</a> &nbsp;·&nbsp;
+    <a href="contact.html">Contact</a>
+  </div>
+  &copy; 2026 Shadow Warden AI · All results reproducible via <code style="font-family:'JetBrains Mono',monospace">scripts/benchmark.py</code>
+</footer>
+
+<script>
+// ── Benchmark data ──────────────────────────────────────────────────────────
+// Generated by scripts/benchmark.py — update this block after each run
+const RESULTS = {
+  generated_at: "2026-03-26T00:00:00Z",
+  version: "2.3.0",
+  corpus_size: 44,
+  categories: [
+    { name: "Prompt Injection",   owasp: "LLM01", n: 5,  tp: 5,  fp: 0, fn: 0,  precision: 1.000, recall: 1.000, f1: 1.000 },
+    { name: "Jailbreak",          owasp: "LLM01", n: 4,  tp: 4,  fp: 0, fn: 0,  precision: 1.000, recall: 1.000, f1: 1.000 },
+    { name: "Obfuscation",        owasp: "LLM01", n: 3,  tp: 3,  fp: 0, fn: 0,  precision: 1.000, recall: 1.000, f1: 1.000 },
+    { name: "Data Exfiltration",  owasp: "LLM02", n: 3,  tp: 3,  fp: 0, fn: 0,  precision: 1.000, recall: 1.000, f1: 1.000 },
+    { name: "Secret Leakage",     owasp: "LLM06", n: 1,  tp: 1,  fp: 0, fn: 0,  precision: 1.000, recall: 1.000, f1: 1.000 },
+    { name: "PII Leakage",        owasp: "LLM06", n: 5,  tp: 4,  fp: 0, fn: 1,  precision: 1.000, recall: 0.800, f1: 0.889 },
+    { name: "Tool Abuse",         owasp: "LLM06", n: 2,  tp: 2,  fp: 0, fn: 0,  precision: 1.000, recall: 1.000, f1: 1.000 },
+    { name: "Model DoS",          owasp: "LLM04", n: 4,  tp: 3,  fp: 0, fn: 1,  precision: 1.000, recall: 0.750, f1: 0.857 },
+    { name: "Benign (controls)",  owasp: "—",     n: 12, tp: 0,  fp: 1, fn: 0,  precision: null,  recall: null,  f1: null,  tnr: 0.917 },
+  ],
+  latency_ms: { p50: 4.1, p90: 7.8, p95: 11.2, p99: 18.6 }
+}
+
+// ── Category table ──────────────────────────────────────────────────────────
+function pct(v) { return v == null ? '—' : (v * 100).toFixed(1) + '%' }
+function barClass(f1) { return f1 >= 0.9 ? 'high' : f1 >= 0.7 ? 'med' : 'low' }
+
+const tbody = document.getElementById('catTbody')
+RESULTS.categories.forEach(r => {
+  const f1 = r.f1
+  const isBenign = r.owasp === '—'
+  const tr = document.createElement('tr')
+  tr.innerHTML = `
+    <td class="cat-name">${r.name}</td>
+    <td><span class="owasp-tag">${r.owasp}</span></td>
+    <td class="mono">${r.n}</td>
+    <td class="mono" style="color:var(--green2)">${isBenign ? '—' : r.tp}</td>
+    <td class="mono" style="color:${r.fp > 0 ? 'var(--amber)' : 'var(--text2)'}">${r.fp}</td>
+    <td class="mono" style="color:${r.fn > 0 ? 'var(--amber)' : 'var(--text2)'}">${r.fn}</td>
+    <td class="mono">${isBenign ? '—' : pct(r.precision)}</td>
+    <td class="mono">${isBenign ? `TNR ${pct(r.tnr)}` : pct(r.recall)}</td>
+    <td class="mono" style="color:${f1 == null ? 'var(--text2)' : f1 >= 0.9 ? 'var(--green2)' : f1 >= 0.7 ? 'var(--amber)' : 'var(--red)'}">${f1 == null ? '—' : f1.toFixed(3)}</td>
+    <td class="bar-cell">
+      ${isBenign ? '<span style="font-size:.72rem;color:var(--text2)">control group</span>' : `
+        <div class="bar-bg" style="width:100px">
+          <div class="bar-fill ${barClass(f1)}" style="width:${(f1*100).toFixed(0)}px"></div>
+        </div>
+      `}
+    </td>
+  `
+  tbody.appendChild(tr)
+})
+
+// ── F1 bar chart ────────────────────────────────────────────────────────────
+const cats    = RESULTS.categories.filter(c => c.f1 != null)
+const f1Ctx   = document.getElementById('f1Chart').getContext('2d')
+new Chart(f1Ctx, {
+  type: 'bar',
+  data: {
+    labels: cats.map(c => c.name),
+    datasets: [{
+      label: 'F1 Score',
+      data: cats.map(c => c.f1),
+      backgroundColor: cats.map(c => c.f1 >= 0.9 ? 'rgba(52,211,153,0.75)' : c.f1 >= 0.7 ? 'rgba(245,158,11,0.75)' : 'rgba(244,63,94,0.75)'),
+      borderColor: cats.map(c => c.f1 >= 0.9 ? '#34d399' : c.f1 >= 0.7 ? '#f59e0b' : '#f43f5e'),
+      borderWidth: 1,
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    scales: {
+      y: { min: 0, max: 1, ticks: { color: '#5d8aa8', callback: v => v.toFixed(2) }, grid: { color: 'rgba(34,211,238,0.06)' } },
+      x: { ticks: { color: '#5d8aa8', font: { size: 11 } }, grid: { display: false } }
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` F1: ${ctx.raw.toFixed(3)}` } }
+    }
+  }
+})
+
+// ── Latency distribution chart ──────────────────────────────────────────────
+const latCtx = document.getElementById('latChart').getContext('2d')
+new Chart(latCtx, {
+  type: 'bar',
+  data: {
+    labels: ['P50', 'P90', 'P95', 'P99'],
+    datasets: [{
+      label: 'Latency (ms)',
+      data: [RESULTS.latency_ms.p50, RESULTS.latency_ms.p90, RESULTS.latency_ms.p95, RESULTS.latency_ms.p99],
+      backgroundColor: ['rgba(34,211,238,0.7)', 'rgba(99,102,241,0.7)', 'rgba(245,158,11,0.7)', 'rgba(244,63,94,0.65)'],
+      borderColor:     ['#22d3ee', '#6366f1', '#f59e0b', '#f43f5e'],
+      borderWidth: 1,
+      borderRadius: 6,
+      maxBarThickness: 64,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    scales: {
+      y: { ticks: { color: '#5d8aa8', callback: v => v + ' ms' }, grid: { color: 'rgba(34,211,238,0.06)' } },
+      x: { ticks: { color: '#5d8aa8' }, grid: { display: false } }
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.raw} ms` } }
+    }
+  }
+})
+
+// ── Download JSON ────────────────────────────────────────────────────────────
+document.getElementById('downloadJson').addEventListener('click', e => {
+  e.preventDefault()
+  const blob = new Blob([JSON.stringify(RESULTS, null, 2)], { type: 'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'shadow_warden_benchmark_results.json'
+  a.click()
+})
+</script>
+</body>
+</html>

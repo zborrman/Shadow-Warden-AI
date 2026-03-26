@@ -26,9 +26,9 @@ from shadow_warden.errors import (
     WardenGatewayError,
     WardenTimeoutError,
 )
-from shadow_warden.models import FilterResult, SecretFinding, SemanticFlag
+from shadow_warden.models import FilterResult, ImpactReport, SecretFinding, SemanticFlag
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     # Clients
@@ -36,6 +36,7 @@ __all__ = [
     "AsyncWardenClient",
     # Models
     "FilterResult",
+    "ImpactReport",
     "SecretFinding",
     "SemanticFlag",
     # Errors

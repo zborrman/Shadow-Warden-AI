@@ -30,7 +30,7 @@ from typing import Any
 import httpx
 
 from shadow_warden.errors import WardenBlockedError, WardenGatewayError, WardenTimeoutError
-from shadow_warden.models import FilterResult
+from shadow_warden.models import FilterResult, ImpactReport
 
 __all__ = ["WardenClient", "AsyncWardenClient"]
 
@@ -197,6 +197,37 @@ class WardenClient:
             raise WardenGatewayError(resp.status_code, resp.text)
         return resp.json()
 
+    # ── Dollar Impact (v2.3) ──────────────────────────────────────────────
+
+    def impact(
+        self,
+        *,
+        industry:         str = "technology",
+        requests_per_day: int = 10_000,
+        annual_cost_usd:  float = 50_000.0,
+    ) -> ImpactReport:
+        """
+        Fetch the Dollar Impact report from ``GET /financial/impact``.
+
+        Requires v2.3+ gateway.  Returns an :class:`ImpactReport` with
+        IBM-2024-benchmarked ROI sub-models.
+
+        Args:
+            industry:         One of ``technology``, ``financial``, ``healthcare``,
+                              ``retail``, ``manufacturing``, ``education``, ``government``.
+            requests_per_day: Estimated daily AI requests through the gateway.
+            annual_cost_usd:  Annual Shadow Warden licence cost (for ROI calculation).
+        """
+        params = {
+            "industry":         industry,
+            "requests_per_day": requests_per_day,
+            "annual_cost_usd":  annual_cost_usd,
+        }
+        resp = self._http.get(f"{self._base}/financial/impact", params=params)
+        if resp.status_code != 200:
+            raise WardenGatewayError(resp.status_code, resp.text)
+        return ImpactReport.from_dict(resp.json())
+
     # ── OpenAI wrapper ────────────────────────────────────────────────────
 
     def wrap_openai(self, openai_client: Any) -> _WardenOpenAIWrapper:
@@ -328,6 +359,24 @@ class AsyncWardenClient:
         if resp.status_code != 200:
             raise WardenGatewayError(resp.status_code, resp.text)
         return resp.json()
+
+    async def impact(
+        self,
+        *,
+        industry:         str = "technology",
+        requests_per_day: int = 10_000,
+        annual_cost_usd:  float = 50_000.0,
+    ) -> ImpactReport:
+        """Async version of :meth:`WardenClient.impact` (v2.3+)."""
+        params = {
+            "industry":         industry,
+            "requests_per_day": requests_per_day,
+            "annual_cost_usd":  annual_cost_usd,
+        }
+        resp = await self._http.get(f"{self._base}/financial/impact", params=params)
+        if resp.status_code != 200:
+            raise WardenGatewayError(resp.status_code, resp.text)
+        return ImpactReport.from_dict(resp.json())
 
     def wrap_openai(self, openai_client: Any) -> _AsyncWardenOpenAIWrapper:
         return _AsyncWardenOpenAIWrapper(self, openai_client)
