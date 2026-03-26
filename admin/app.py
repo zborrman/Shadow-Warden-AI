@@ -111,7 +111,7 @@ st.sidebar.title("Shadow Warden")
 st.sidebar.caption("Admin Panel")
 page = st.sidebar.radio(
     "Navigate",
-    ["Dynamic Rules", "Tenant Management", "Rule Ledger", "Threat Intel", "Event Log", "System Health"],
+    ["Dynamic Rules", "Tenant Management", "Rule Ledger", "Threat Intel", "Event Log", "Dollar Impact", "System Health"],
     label_visibility="collapsed",
 )
 
@@ -760,6 +760,137 @@ elif page == "Event Log":
         m1.metric("Total events", len(events))
         m2.metric("Allowed", allowed)
         m3.metric("Blocked", blocked)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE: Dollar Impact
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "Dollar Impact":
+    st.title("💰 Dollar Impact Calculator")
+    st.caption(
+        "Quantify the financial value Shadow Warden delivers — "
+        "IBM 2024 breach cost benchmarks + industry multipliers + live production metrics."
+    )
+
+    # ── Controls ──────────────────────────────────────────────────────────────
+    c1, c2, c3 = st.columns(3)
+    industry = c1.selectbox(
+        "Industry",
+        ["generic", "finance", "healthcare", "tech", "retail", "government", "legal"],
+        format_func=lambda x: {
+            "generic":    "Generic (1.0×)",
+            "finance":    "Finance / Banking (2.4×)",
+            "healthcare": "Healthcare (3.2×)",
+            "tech":       "Technology (1.8×)",
+            "retail":     "Retail / E-Commerce (1.5×)",
+            "government": "Government (1.9×)",
+            "legal":      "Legal / Professional (2.1×)",
+        }[x],
+    )
+    monthly_requests = c2.number_input(
+        "Monthly requests (estimate)", min_value=100, max_value=10_000_000,
+        value=100_000, step=10_000,
+    )
+    use_live = c3.checkbox(
+        "Use live data (logs.json + Redis)",
+        value=True,
+        help="Reads real metrics from your production instance. Falls back to estimates if unavailable.",
+    )
+
+    run_col, _ = st.columns([1, 3])
+    run_report = run_col.button("📊 Generate Report", type="primary", use_container_width=True)
+
+    # ── Live API call ─────────────────────────────────────────────────────────
+    if run_report:
+        params: dict = {"industry": industry, "monthly_requests": monthly_requests}
+        if not use_live:
+            params["live"] = "false"
+
+        with st.spinner("Calling /financial/impact …"):
+            resp = _api("GET", "/financial/impact", params=params)
+
+        if resp is None:
+            st.error("Could not reach warden. Is the service running?")
+        elif resp.status_code == 200:
+            data = resp.json()
+            st.success(f"Report generated — industry: **{industry}** · {monthly_requests:,} req/mo")
+            st.divider()
+
+            # ── Key metrics ───────────────────────────────────────────────────
+            totals = data.get("totals", {})
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Annual Value Delivered",
+                       f"${totals.get('annual_value_usd', 0):,.0f}",
+                       help="Sum of all five ROI sub-models")
+            m2.metric("Incident Prevention",
+                       f"${totals.get('incident_prevention_usd', 0):,.0f}",
+                       help="IBM 2024 breach cost × industry multiplier × threat rate")
+            m3.metric("Inference Savings",
+                       f"${totals.get('inference_savings_usd', 0):,.0f}",
+                       help="LLM cost avoided via shadow banning")
+            m4.metric("3-Year ROI",
+                       f"{totals.get('roi_3yr_pct', 0):.0f}%",
+                       help="(3-year value − cost) / cost × 100")
+
+            st.divider()
+
+            # ── Sub-model breakdown ────────────────────────────────────────────
+            st.subheader("Sub-model breakdown")
+            breakdown = data.get("breakdown", {})
+            if breakdown:
+                import pandas as pd
+                rows_b = [
+                    {"Sub-model": k.replace("_", " ").title(),
+                     "Annual USD": f"${v:,.0f}"}
+                    for k, v in breakdown.items()
+                ]
+                st.dataframe(pd.DataFrame(rows_b), use_container_width=True, hide_index=True)
+
+            # ── Live metrics used ──────────────────────────────────────────────
+            live_metrics = data.get("live_metrics", {})
+            if live_metrics:
+                st.divider()
+                st.subheader("Live metrics (from logs.json + Redis + Prometheus)")
+                lm1, lm2, lm3 = st.columns(3)
+                lm1.metric("Monthly requests (live)", f"{live_metrics.get('monthly_requests', 0):,}")
+                lm2.metric("Shadow banned entities",  f"{live_metrics.get('shadow_banned_entities', 0):,}")
+                lm3.metric("PII redactions",          f"{live_metrics.get('pii_redactions', 0):,}")
+
+                threats = live_metrics.get("threats_blocked", {})
+                if threats:
+                    st.subheader("Threats blocked by category")
+                    import pandas as pd
+                    t_rows = [{"Category": k, "Count": v} for k, v in threats.items() if v > 0]
+                    if t_rows:
+                        t_df = pd.DataFrame(t_rows).set_index("Category")
+                        st.bar_chart(t_df)
+
+            # ── Full JSON ──────────────────────────────────────────────────────
+            with st.expander("Full JSON response"):
+                st.json(data)
+
+            # ── Export ────────────────────────────────────────────────────────
+            st.download_button(
+                "⬇ Download JSON",
+                data=resp.text,
+                file_name=f"impact_report_{industry}.json",
+                mime="application/json",
+            )
+
+        elif resp.status_code == 404:
+            st.warning(
+                "Financial endpoints not mounted. "
+                "Ensure `warden/api/financial.py` is present and warden was restarted after the v2.3 upgrade."
+            )
+        else:
+            st.error(f"Error {resp.status_code}: {resp.text[:400]}")
+    else:
+        st.info(
+            "Configure the parameters above and click **Generate Report** to calculate "
+            "the annual dollar value delivered by Shadow Warden.\n\n"
+            "With **Use live data** enabled, real metrics are pulled from your production "
+            "instance (logs.json, Redis ERS, Prometheus) and combined with IBM 2024 benchmarks."
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════

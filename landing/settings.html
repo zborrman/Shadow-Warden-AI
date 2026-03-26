@@ -403,7 +403,27 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
       Cache &amp; Redis
     </a>
+    <a class="sidebar-item" onclick="return showSection('topo', this)" href="#topo">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><line x1="12" y1="22" x2="12" y2="15.5"/><line x1="22" y1="8.5" x2="12" y2="15.5"/><line x1="2" y1="8.5" x2="12" y2="15.5"/></svg>
+      Topological Gatekeeper
+    </a>
+    <a class="sidebar-item" onclick="return showSection('hyperbolic', this)" href="#hyperbolic">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 018 0"/><path d="M8 12a4 4 0 000-8"/><path d="M16 12a4 4 0 000 8"/></svg>
+      Hyperbolic Brain
+    </a>
+    <a class="sidebar-item" onclick="return showSection('causal', this)" href="#causal">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h6m4-5.5L13 12l6 5.5"/></svg>
+      Causal Arbiter
+    </a>
+    <a class="sidebar-item" onclick="return showSection('shadowban', this)" href="#shadowban">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="3" x2="1" y2="21"/></svg>
+      Shadow Ban
+    </a>
     <div class="sidebar-group">Integrations</div>
+    <a class="sidebar-item" onclick="return showSection('storage', this)" href="#storage">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      Object Storage
+    </a>
     <a class="sidebar-item" onclick="return showSection('nvidia', this)" href="#nvidia">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16V8l4-2 4 2 4-2 4 2v8l-4 2-4-2-4 2-4-2z"/><path d="M12 6v12"/></svg>
       NVIDIA
@@ -415,6 +435,11 @@
     <a class="sidebar-item" onclick="return showSection('resilience', this)" href="#resilience">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
       Enterprise Resilience
+    </a>
+    <div class="sidebar-group">Financial</div>
+    <a class="sidebar-item" onclick="return showSection('impact', this)" href="#impact">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      Dollar Impact
     </a>
     <div class="sidebar-group">Compliance</div>
     <a class="sidebar-item" onclick="return showSection('gdpr', this)" href="#gdpr">
@@ -1134,6 +1159,537 @@ result = <span class="code-key">await</span> rails.generate_async(messages=[...]
 
     </section>
 
+    <!-- ── Topological Gatekeeper ──────────────────────────────────── -->
+    <section class="section" id="section-topo">
+      <div class="section-title">Topological Gatekeeper</div>
+      <div class="section-sub">TDA pre-filter — n-gram point cloud → β₀/β₁ Betti numbers (&lt; 2ms before any ML)</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Noise Score Thresholds</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Natural Language Threshold</div>
+            <div class="setting-desc">Noise score above which a natural-language payload is flagged by TDA. Higher = less strict. Default: 0.82</div>
+            <div class="restart-notice">⚠ Set TOPO_NOISE_THRESHOLD_NATURAL env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <div class="slider-wrap">
+              <input type="range" class="ctrl-range" id="topo-nat-range" min="0.4" max="0.99" step="0.01" value="0.82" oninput="document.getElementById('topo-nat-val').textContent=parseFloat(this.value).toFixed(2)" />
+              <span class="range-val" id="topo-nat-val">0.82</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Code / Technical Threshold</div>
+            <div class="setting-desc">Lower threshold for code payloads (detected by keyword heuristic). Code has high structural entropy by nature, so a tighter threshold is applied. Default: 0.65</div>
+            <div class="restart-notice">⚠ Set TOPO_NOISE_THRESHOLD_CODE env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <div class="slider-wrap">
+              <input type="range" class="ctrl-range" id="topo-code-range" min="0.3" max="0.99" step="0.01" value="0.65" oninput="document.getElementById('topo-code-val').textContent=parseFloat(this.value).toFixed(2)" />
+              <span class="range-val" id="topo-code-val">0.65</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Minimum Text Length</div>
+            <div class="setting-desc">Payloads shorter than this skip TDA (insufficient signal). Default: 20 characters.</div>
+            <div class="restart-notice">⚠ Set TOPO_MIN_LEN env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="topo-min-len" min="5" max="200" value="20" />
+            <span style="font-size:0.75rem;color:var(--text3)">chars</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Betti Number Weights</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Noise Score Formula</div>
+            <div class="setting-desc">Final noise score = <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">0.33×char + 0.27×word + 0.22×diversity + 0.10×β₀ + 0.08×β₁</code>. β₀ = connected components (0-cycles), β₁ = 1-cycles. Weights are fixed.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Fixed Weights</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Ripser (True Persistent Homology)</div>
+            <div class="setting-desc">When <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--indigo)">ripser</code> is installed, exact Betti numbers are computed. Otherwise algebraic approximations are used (&lt; 0.1% accuracy difference, 3× faster).</div>
+          </div>
+          <div class="setting-control" id="ripser-status">
+            <span class="badge badge-gray">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <span class="save-bar-text">Threshold changes require a service restart. Current thresholds are shown above.</span>
+        <button class="btn btn-primary btn-sm" style="cursor:default;opacity:0.5" disabled>Configured via .env</button>
+      </div>
+    </section>
+
+    <!-- ── Hyperbolic Brain ──────────────────────────────────────── -->
+    <section class="section" id="section-hyperbolic">
+      <div class="section-title">Hyperbolic Brain</div>
+      <div class="section-sub">Poincaré ball projection blended with cosine similarity for richer semantic geometry</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Blend Weight</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Hyperbolic Weight</div>
+            <div class="setting-desc">Final score = <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">(1 − w) × cosine + w × hyperbolic</code>. Higher weight gives more influence to the Poincaré ball geometry. Default: 0.30</div>
+            <div class="restart-notice">⚠ Set HYPERBOLIC_WEIGHT env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <div class="slider-wrap">
+              <input type="range" class="ctrl-range" id="hyperbolic-weight-range" min="0" max="1" step="0.05" value="0.30" oninput="document.getElementById('hyperbolic-weight-val').textContent=parseFloat(this.value).toFixed(2)" />
+              <span class="range-val" id="hyperbolic-weight-val">0.30</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Input Norm Clamp</div>
+            <div class="setting-desc">Vectors with L2-norm &gt; 10.0 are pre-clamped before Poincaré projection (<code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--indigo)">_MAX_INPUT_NORM = 10.0</code>). Prevents tanh saturation for unnormalised embeddings.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Always Active</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Curvature (c)</div>
+            <div class="setting-desc">Poincaré ball curvature constant. Fixed at <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">c = 1.0</code>. Changing this requires re-training the corpus embeddings.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-gray">c = 1.0 (fixed)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Adversarial Suffix Stripping</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Suffix Strip Length</div>
+            <div class="setting-desc">Trailing GCG-style adversarial suffixes (high-entropy token sequences) are stripped before embedding. Prevents embedding poisoning attacks.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Active</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <span class="save-bar-text">HYPERBOLIC_WEIGHT applies on restart. No re-training required for weight changes.</span>
+        <button class="btn btn-primary btn-sm" style="cursor:default;opacity:0.5" disabled>Configured via .env</button>
+      </div>
+    </section>
+
+    <!-- ── Causal Arbiter ────────────────────────────────────────── -->
+    <section class="section" id="section-causal">
+      <div class="section-title">Causal Arbiter</div>
+      <div class="section-sub">Bayesian DAG causal inference for gray-zone decisions — Pearl do-calculus, ~1–5ms CPU</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Threshold</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Causal Risk Threshold</div>
+            <div class="setting-desc">Posterior probability P(HIGH_RISK | evidence) above which the arbiter escalates to HIGH risk. Gray-zone only: only activates when the ML layer returns MEDIUM. Default: 0.65</div>
+            <div class="restart-notice">⚠ Set CAUSAL_RISK_THRESHOLD env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <div class="slider-wrap">
+              <input type="range" class="ctrl-range" id="causal-threshold-range" min="0.3" max="0.99" step="0.01" value="0.65" oninput="document.getElementById('causal-threshold-val').textContent=parseFloat(this.value).toFixed(2)" />
+              <span class="range-val" id="causal-threshold-val">0.65</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">DAG Structure</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Causal Nodes</div>
+            <div class="setting-desc">The Bayesian DAG has 5 nodes: <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">ObfuscationAttempt → PayloadComplexity → SemanticRisk → ContextualThreat → HighRisk</code>. Backdoor correction applied via do-calculus.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">5 Nodes</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Scope</div>
+            <div class="setting-desc">The Causal Arbiter only runs in the <span class="badge badge-amber" style="font-size:0.65rem">Gray Zone</span> — when ML score is between uncertainty lower threshold and semantic threshold. Never slows down clear-cut decisions.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-amber">Gray Zone Only</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Latency Budget</div>
+            <div class="setting-desc">Pure Python / numpy implementation, no external calls. P99 latency &lt; 5ms on standard CPU hardware.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">&lt; 5ms P99</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <span class="save-bar-text">Threshold changes require a service restart. DAG structure is fixed in causal_arbiter.py.</span>
+        <button class="btn btn-primary btn-sm" style="cursor:default;opacity:0.5" disabled>Configured via .env</button>
+      </div>
+    </section>
+
+    <!-- ── Shadow Ban ────────────────────────────────────────────── -->
+    <section class="section" id="section-shadowban">
+      <div class="section-title">Shadow Ban</div>
+      <div class="section-sub">Differentiated ban strategies — entity risk scoring via Redis sliding window</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Ban Strategy</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Strategy Selection</div>
+            <div class="setting-desc">Strategy is auto-selected based on the last flag type: <strong>gaslight</strong> (prompt injection), <strong>delay</strong> (bot / credential stuffing / topological noise), <strong>standard</strong> (all others).</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Auto (per flag)</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Gaslight Strategy</div>
+            <div class="setting-desc">For prompt injection: returns a convincing fake "allowed" response from a curated pool (6 entries). The attacker believes they succeeded — useful for honeypot intelligence gathering.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-amber">Prompt Injection</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Delay Strategy</div>
+            <div class="setting-desc">For bot / credential stuffing / topological noise: introduces a configurable async delay before returning the block response. Increases cost for automated attacks.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-amber">Bot / Stuffing</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Standard Strategy</div>
+            <div class="setting-desc">Immediate block response. Used for jailbreaks, data exfiltration, compliance violations, and all other flag types not covered by gaslight or delay.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-gray">Default</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Configuration</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Delay Duration</div>
+            <div class="setting-desc">Async delay (ms) for the <em>delay</em> strategy. Set to 0 to disable delays. Default: 3000ms</div>
+            <div class="restart-notice">⚠ Set SHADOW_BAN_DELAY_MS env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="shadow-ban-delay" min="0" max="30000" step="500" value="3000" />
+            <span style="font-size:0.75rem;color:var(--text3)">ms</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Ban Score Threshold</div>
+            <div class="setting-desc">Entity Risk Score at or above which shadow ban activates. Computed via Redis sliding window of HIGH/BLOCK events. Default: 0.75</div>
+          </div>
+          <div class="setting-control">
+            <div class="slider-wrap">
+              <input type="range" class="ctrl-range" id="shadow-ban-threshold" min="0.3" max="1.0" step="0.05" value="0.75" oninput="document.getElementById('shadow-ban-threshold-val').textContent=parseFloat(this.value).toFixed(2)" />
+              <span class="range-val" id="shadow-ban-threshold-val">0.75</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Prometheus Metrics</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">SHADOW_BAN_TOTAL</div>
+            <div class="setting-desc"><code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">warden_shadow_ban_total{strategy, last_flag}</code> — counter incremented on each shadow ban event. Used in Grafana ROI dashboards.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Emitting</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">SHADOW_BAN_COST_SAVED_USD</div>
+            <div class="setting-desc"><code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">warden_shadow_ban_cost_saved_usd_total</code> — LLM token cost saved by not processing shadow-banned requests. Feeds Dollar Impact Calculator.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Emitting</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <span class="save-bar-text">SHADOW_BAN_DELAY_MS changes require a service restart. Ban score threshold is fixed in entity_risk.py.</span>
+        <button class="btn btn-primary btn-sm" style="cursor:default;opacity:0.5" disabled>Configured via .env</button>
+      </div>
+    </section>
+
+    <!-- ── Object Storage (MinIO / S3) ──────────────────────────── -->
+    <section class="section" id="section-storage">
+      <div class="section-title">Object Storage</div>
+      <div class="section-sub">On-prem MinIO or AWS S3 — evidence vault + analytics log shipping (Data-Gravity Hybrid Hub)</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Master Switch</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Enable S3 Storage</div>
+            <div class="setting-desc">When enabled, evidence bundles and analytics logs are shipped to object storage in the background. Fail-open: storage errors never block the filter pipeline.</div>
+            <div class="restart-notice">⚠ Set S3_ENABLED=true env var + restart</div>
+          </div>
+          <div class="setting-control" id="s3-enabled-badge">
+            <span class="badge badge-gray">Disabled</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Connection</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">S3 Endpoint</div>
+            <div class="setting-desc">MinIO URL for on-prem. Leave empty for AWS S3 (uses standard endpoint). Docker default: <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">http://minio:9000</code></div>
+            <div class="restart-notice">⚠ Set S3_ENDPOINT env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input wide mono" placeholder="http://minio:9000" id="s3-endpoint" value="http://minio:9000" disabled />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Region</div>
+            <div class="setting-desc">AWS region (ignored for MinIO). Default: <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">us-east-1</code></div>
+            <div class="restart-notice">⚠ Set S3_REGION env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input mono" value="us-east-1" disabled />
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Buckets</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Evidence Vault Bucket</div>
+            <div class="setting-desc">SHA-256 signed evidence bundles per session. Key: <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">warden-evidence/bundles/&lt;session_id&gt;.json</code></div>
+            <div class="restart-notice">⚠ Set S3_BUCKET_EVIDENCE env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input mono" value="warden-evidence" disabled />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Analytics Logs Bucket</div>
+            <div class="setting-desc">NDJSON log entries. Key: <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">warden-logs/logs/&lt;date&gt;/&lt;request_id&gt;.json</code></div>
+            <div class="restart-notice">⚠ Set S3_BUCKET_LOGS env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input mono" value="warden-logs" disabled />
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Data-Gravity Principle</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">All Security Metadata On-Prem</div>
+            <div class="setting-desc">Evidence bundles, session identifiers, and analytics stay inside your MinIO instance. Only anonymised semantic attack patterns are sent to the Anthropic API via the Evolution Engine.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">On-Prem First</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Background Threading</div>
+            <div class="setting-desc">Uploads run in a <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--indigo)">ThreadPoolExecutor(max_workers=2)</code>. Storage latency is never added to the filter pipeline P99.</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Non-blocking</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Dollar Impact Calculator ─────────────────────────────── -->
+    <section class="section" id="section-impact">
+      <div class="section-title">Dollar Impact Calculator</div>
+      <div class="section-sub">IBM 2024 benchmark-based ROI model — quantify the financial value of Shadow Warden for your organisation</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Organisation Profile</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Industry</div>
+            <div class="setting-desc">Industry multiplier applied to IBM breach cost benchmarks. Healthcare and Finance carry the highest regulatory and reputational exposure.</div>
+          </div>
+          <div class="setting-control">
+            <select class="ctrl-input" id="impact-industry">
+              <option value="generic">Generic (1.0×)</option>
+              <option value="finance">Finance / Banking (2.4×)</option>
+              <option value="healthcare">Healthcare (3.2×)</option>
+              <option value="tech">Technology (1.8×)</option>
+              <option value="retail">Retail / E-Commerce (1.5×)</option>
+              <option value="government">Government (1.9×)</option>
+              <option value="legal">Legal / Professional (2.1×)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Monthly Requests</div>
+            <div class="setting-desc">Estimated or live request volume per month. Drives inference savings and incident probability scaling.</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="impact-requests" min="100" max="100000000" step="1000" value="100000" />
+            <span style="font-size:0.75rem;color:var(--text3)">req/mo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Live Impact Summary</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Annual Value Delivered</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green" id="impact-annual-val">—</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Incident Prevention Savings</div>
+            <div class="setting-desc">IBM 2024: avg data breach cost $4.88M × industry multiplier × estimated incident probability.</div>
+          </div>
+          <div class="setting-control">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:0.8125rem;color:var(--green)" id="impact-incident">—</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Inference Cost Savings</div>
+            <div class="setting-desc">Shadow-banned requests never reach the LLM. Saved at avg token cost per request.</div>
+          </div>
+          <div class="setting-control">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:0.8125rem;color:var(--green)" id="impact-inference">—</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">SecOps Efficiency</div>
+            <div class="setting-desc">Hours saved from automated detection vs manual triage. Based on 2.5 SOC analyst hours per incident.</div>
+          </div>
+          <div class="setting-control">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:0.8125rem;color:var(--green)" id="impact-secops">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">API Endpoints</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Full Impact Report</div>
+            <div class="setting-desc"><code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">GET /financial/impact?industry=finance&amp;monthly_requests=100000</code></div>
+          </div>
+          <div class="setting-control">
+            <button class="btn btn-outline btn-sm" onclick="fetchImpact()">Run Report</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">ROI Summary</div>
+            <div class="setting-desc"><code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">GET /financial/roi</code> — returns payback period and 3-year ROI %</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Available</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Sales Proposal Generator</div>
+            <div class="setting-desc"><code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">POST /financial/generate-proposal</code> — generates a client-ready ROI proposal document</div>
+          </div>
+          <div class="setting-control">
+            <span class="badge badge-green">Available</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="impact-report-box" style="display:none;margin-top:16px">
+        <div class="setting-group-title" style="padding:12px 0 8px;font-size:0.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em">Report Output</div>
+        <pre id="impact-report-pre" class="code-block" style="white-space:pre-wrap;max-height:400px;overflow-y:auto"></pre>
+      </div>
+    </section>
+
   </div><!-- /content -->
 </div><!-- /layout -->
 
@@ -1359,8 +1915,116 @@ result = <span class="code-key">await</span> rails.generate_async(messages=[...]
     }
   }
 
+  // ── Dollar Impact Calculator ──────────────────────────────────────────────────
+  const INDUSTRY_MULTIPLIERS = {
+    generic: 1.0, finance: 2.4, healthcare: 3.2, tech: 1.8,
+    retail: 1.5, government: 1.9, legal: 2.1,
+  };
+  const IBM_BREACH_COST = 4_880_000;
+  const INCIDENT_BASE_RATE = 0.012;
+  const COST_PER_REQUEST  = 0.0008;
+  const SHADOW_BAN_RATE   = 0.015;
+  const SOC_HOURLY_RATE   = 85;
+  const TRIAGE_HOURS      = 2.5;
+
+  function recalcImpact() {
+    const ind  = document.getElementById('impact-industry').value;
+    const reqs = parseInt(document.getElementById('impact-requests').value, 10) || 0;
+    const mul  = INDUSTRY_MULTIPLIERS[ind] || 1.0;
+
+    const incident  = IBM_BREACH_COST * mul * INCIDENT_BASE_RATE;
+    const inference = reqs * SHADOW_BAN_RATE * COST_PER_REQUEST * 12;
+    const incidentsPerYear = Math.max(1, Math.round(reqs / 50000));
+    const secops    = incidentsPerYear * TRIAGE_HOURS * SOC_HOURLY_RATE * 12;
+    const annual    = incident + inference + secops;
+
+    const fmt = v => '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    document.getElementById('impact-annual-val').textContent = fmt(annual) + ' / yr';
+    document.getElementById('impact-incident').textContent   = fmt(incident);
+    document.getElementById('impact-inference').textContent  = fmt(inference);
+    document.getElementById('impact-secops').textContent     = fmt(secops);
+  }
+
+  document.getElementById('impact-industry').addEventListener('change', recalcImpact);
+  document.getElementById('impact-requests').addEventListener('input',  recalcImpact);
+  recalcImpact();
+
+  async function fetchImpact() {
+    const ind  = document.getElementById('impact-industry').value;
+    const reqs = document.getElementById('impact-requests').value;
+    const box  = document.getElementById('impact-report-box');
+    const pre  = document.getElementById('impact-report-pre');
+    pre.textContent = 'Loading…';
+    box.style.display = 'block';
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const res = await fetch(`/financial/impact?industry=${ind}&monthly_requests=${reqs}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        pre.textContent = JSON.stringify(data, null, 2);
+      } else {
+        pre.textContent = `Error ${res.status} — is the warden service running?`;
+      }
+    } catch (e) {
+      pre.textContent = 'Connection error: ' + e.message;
+    }
+  }
+
+  // ── Load config (extended for new fields) ────────────────────────────────────
+  async function loadConfigExtended() {
+    await loadConfig();
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const res = await fetch('/api/config', { headers });
+      if (!res.ok) return;
+      const cfg = await res.json();
+
+      // Topological
+      if (cfg.topo_noise_threshold_natural !== undefined) {
+        document.getElementById('topo-nat-range').value  = cfg.topo_noise_threshold_natural;
+        document.getElementById('topo-nat-val').textContent = cfg.topo_noise_threshold_natural.toFixed(2);
+      }
+      if (cfg.topo_noise_threshold_code !== undefined) {
+        document.getElementById('topo-code-range').value = cfg.topo_noise_threshold_code;
+        document.getElementById('topo-code-val').textContent = cfg.topo_noise_threshold_code.toFixed(2);
+      }
+      if (cfg.topo_min_len !== undefined) {
+        document.getElementById('topo-min-len').value = cfg.topo_min_len;
+      }
+      if (cfg.ripser_available !== undefined) {
+        document.getElementById('ripser-status').innerHTML = cfg.ripser_available
+          ? '<span class="badge badge-green">ripser installed</span>'
+          : '<span class="badge badge-gray">Algebraic fallback</span>';
+      }
+
+      // Hyperbolic
+      if (cfg.hyperbolic_weight !== undefined) {
+        document.getElementById('hyperbolic-weight-range').value = cfg.hyperbolic_weight;
+        document.getElementById('hyperbolic-weight-val').textContent = cfg.hyperbolic_weight.toFixed(2);
+      }
+
+      // Causal
+      if (cfg.causal_risk_threshold !== undefined) {
+        document.getElementById('causal-threshold-range').value = cfg.causal_risk_threshold;
+        document.getElementById('causal-threshold-val').textContent = cfg.causal_risk_threshold.toFixed(2);
+      }
+
+      // Shadow Ban
+      if (cfg.shadow_ban_delay_ms !== undefined) {
+        document.getElementById('shadow-ban-delay').value = cfg.shadow_ban_delay_ms;
+      }
+
+      // S3 / MinIO
+      if (cfg.s3_enabled) {
+        document.getElementById('s3-enabled-badge').innerHTML = '<span class="badge badge-green">Enabled</span>';
+      }
+    } catch (e) {
+      console.warn('Extended config load failed:', e);
+    }
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────────
-  loadConfig();
+  loadConfigExtended();
 
   // Default purge date to today
   document.getElementById('purge-date').value = new Date().toISOString().slice(0, 10);
