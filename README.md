@@ -317,6 +317,98 @@ curl -X POST http://localhost:80/ers/reset \
 
 ---
 
+## Dollar Impact Calculator (v2.3)
+
+Shadow Warden quantifies its own financial value in real time — across five cost layers, seven industry profiles, and three-year projections.
+
+### Cost Layers
+
+| Layer | What It Measures |
+|-------|-----------------|
+| **Inference Savings** | LLM calls avoided because shadow-banned attackers never reach the upstream model |
+| **Incident Prevention** | Weighted probability of prevented breaches × IBM Cost of Data Breach 2024 benchmarks |
+| **Compliance Automation** | Evidence Vault vs. manual audit hours + GDPR fine risk reduction |
+| **SecOps Efficiency** | Automated triage (95% reduction) + MTTR reduction 240h → 48h |
+| **Reputational Value** | Customer churn prevention + trust premium LTV uplift |
+
+### Industry Risk Multipliers
+
+| Industry | PII Multiplier | Compliance Multiplier | Notes |
+|----------|---------------|----------------------|-------|
+| Fintech | 2.2× | 3.5× | GDPR €20M, PCI-DSS |
+| Healthcare | 3.5× | 4.0× | HIPAA $100K–$1.9M per violation |
+| Government | — | 2.5× | State secrets, critical infrastructure |
+| E-Commerce | 1.8× | — | High API abuse rate (12%) |
+| Legal | 2.5× | 3.0× | Privilege + confidentiality exposure |
+
+### REST API
+
+```bash
+# Full ROI report (live data from logs/Redis/Prometheus)
+curl -H "X-API-Key: $WARDEN_API_KEY" \
+     "http://localhost:80/financial/impact?industry=fintech&live=true"
+
+# Quick shadow-ban cost saved (reads Prometheus counter directly)
+curl -H "X-API-Key: $WARDEN_API_KEY" \
+     http://localhost:80/financial/cost-saved
+
+# ROI for a specific pricing tier
+curl -H "X-API-Key: $WARDEN_API_KEY" \
+     "http://localhost:80/financial/roi?industry=healthcare&tier=professional"
+
+# Generate a customer-facing sales proposal
+curl -X POST http://localhost:80/financial/generate-proposal \
+     -H "X-API-Key: $WARDEN_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"industry": "fintech", "monthly_requests": 5000000,
+          "target_tier": "enterprise", "customer_name": "Acme Bank"}'
+```
+
+### CLI
+
+```bash
+# Estimate from traffic volume (no live data needed)
+python scripts/impact_analysis.py --industry fintech --requests 5000000
+
+# Use live data from logs.json + Redis + Prometheus
+python scripts/impact_analysis.py --live
+
+# Export JSON report to file
+python scripts/impact_analysis.py --industry healthcare --export report.json
+
+# Interactive mode — prompts for all parameters
+python scripts/impact_analysis.py --interactive
+```
+
+### Sample Report Output
+
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║               SHADOW WARDEN AI — DOLLAR IMPACT ANALYSIS                     ║
+║                 Industry: FINTECH | 2026-03-26                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─ MONTHLY IMPACT BREAKDOWN ───────────────────────────────────────────────────┐
+│  Inference Cost Savings (Shadow Ban)                       $        1,440    │
+│  Prevented Incident Costs                                  $      312,000    │
+│  Compliance Automation Savings                             $       18,750    │
+│  SecOps Efficiency Gains                                   $       45,600    │
+│  Reputational Value Protection                             $       41,666    │
+│──────────────────────────────────────────────────────────────────────────────│
+│  TOTAL MONTHLY IMPACT                                      $      419,456    │
+│  TOTAL ANNUAL IMPACT                                       $    5,033,472    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ ROI BY PRICING TIER ────────────────────────────────────────────────────────┐
+│  Tier               Annual Cost    Net Benefit      ROI   Payback            │
+│  Startup               $5,000      $5,028,472  100569%    0.0 mo             │
+│  Professional         $20,000      $5,013,472   25067%    0.0 mo             │
+│  Enterprise           $80,000      $4,953,472    6191%    0.2 mo             │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Zero-Trust Agent Sandbox
 
 Every agent registers an `AgentManifest` declaring its allowed `ToolCapability` list. `SandboxRegistry.authorize_tool_call()` returns a `SandboxDecision` before any tool invocation. Violations are logged and fed into the attestation chain.
