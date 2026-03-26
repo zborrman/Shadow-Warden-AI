@@ -129,6 +129,7 @@ def _classify_sync(image_bytes: bytes) -> SynthResult:
     t0 = time.time()
     try:
         from PIL import Image  # noqa: PLC0415
+
         from warden.image_guard import _load_model  # noqa: PLC0415
 
         model, processor = _load_model()
@@ -226,7 +227,7 @@ async def synthesize(image_bytes: bytes) -> SynthResult:
             loop.run_in_executor(_executor, _classify_sync, image_bytes),
             timeout=TIMEOUT_MS / 1000,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning("ImageSynth: timed out after %d ms — using fallback", TIMEOUT_MS)
         return SynthResult(
             description = _FALLBACK,

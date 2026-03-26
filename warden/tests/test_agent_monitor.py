@@ -377,7 +377,6 @@ def test_verify_attestation_session_not_found(monitor):
 
 
 def test_verify_attestation_detects_tamper(monitor):
-    from warden.agent_monitor import _initial_token
 
     session_id = "at5-tamper"
     monitor.record_tool_event(session_id, "read_file", "call", False, None)

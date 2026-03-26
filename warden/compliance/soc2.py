@@ -28,7 +28,7 @@ import json
 import os
 import zipfile
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -113,7 +113,7 @@ PI1.3  Processing integrity — atomic log writes, audit hash chain, GDPR erasur
 
     @staticmethod
     def _config_snapshot(now: datetime) -> bytes:
-        _SECRET_KEYS = {
+        _secret_keys = {
             "ANTHROPIC_API_KEY", "WARDEN_API_KEY", "SLACK_WEBHOOK_URL",
             "PAGERDUTY_ROUTING_KEY", "ELASTIC_API_KEY", "SPLUNK_HEC_TOKEN",
             "POSTGRES_PASSWORD", "DB_PASSWORD", "SECRET_KEY", "AWS_SECRET_ACCESS_KEY",
@@ -122,7 +122,7 @@ PI1.3  Processing integrity — atomic log writes, audit hash chain, GDPR erasur
         config = {
             "snapshot_at": now.isoformat(),
             "security_settings": {
-                k: ("[REDACTED]" if k in _SECRET_KEYS else os.getenv(k, "(not set)"))
+                k: ("[REDACTED]" if k in _secret_keys else os.getenv(k, "(not set)"))
                 for k in sorted([
                     "ANTHROPIC_API_KEY", "WARDEN_API_KEY", "WARDEN_API_KEYS_PATH",
                     "AGENT_SANDBOX_PATH", "AGENT_SANDBOX_STRICT",

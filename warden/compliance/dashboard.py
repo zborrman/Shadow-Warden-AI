@@ -35,7 +35,6 @@ from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
-
 # ── ROI model constants ───────────────────────────────────────────────────────
 
 _LLM_COST_PER_TOKEN = float(os.getenv(

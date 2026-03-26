@@ -69,25 +69,26 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+import warden.circuit_breaker as _cb
+from warden import entity_risk as _ers
+from warden import shadow_ban as _sban
 from warden.analytics import logger as event_logger
 from warden.analytics.report import get_engine as _get_report_engine
 from warden.auth.saml_provider import SAMLProvider, SamlSession
 from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import AuthResult, get_rate_limit, require_api_key, set_default_rate_limit
-from warden import entity_risk as _ers
-from warden import shadow_ban as _sban
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
+from warden.causal_arbiter import arbitrate as _causal_arbitrate
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
+from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
-from warden.topology_guard import scan as _topo_scan
-from warden.causal_arbiter import arbitrate as _causal_arbitrate
 from warden.onboarding import OnboardingEngine
 from warden.output_sanitizer import get_sanitizer as _get_output_sanitizer
 from warden.review_queue import ReviewQueue
@@ -117,8 +118,7 @@ from warden.threat_feed import ThreatFeedClient
 from warden.threat_neutralizer_router import router as _neutralizer_router
 from warden.threat_store import ThreatStore
 from warden.threat_vault import SEVERITY_RANK, ThreatVault
-import warden.circuit_breaker as _cb
-from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
+from warden.topology_guard import scan as _topo_scan
 from warden.webhook_dispatch import WebhookStore
 from warden.webhook_dispatch import dispatch_bypass_event as _dispatch_bypass_webhook
 from warden.webhook_dispatch import dispatch_event as _dispatch_webhook
@@ -406,12 +406,12 @@ def _print_motd(
     """Print the Shadow Warden MOTD to stdout on startup."""
     import sys  # noqa: PLC0415
     tty = sys.stdout.isatty()
-    C = "[1;36m" if tty else ""
-    G = "[1;32m" if tty else ""
-    Y = "[1;33m" if tty else ""
-    R = "[1;31m" if tty else ""
-    D = "[2m"    if tty else ""
-    N = "[0m"    if tty else ""
+    C = "[1;36m" if tty else ""  # noqa: N806
+    G = "[1;32m" if tty else ""  # noqa: N806
+    Y = "[1;33m" if tty else ""  # noqa: N806
+    R = "[1;31m" if tty else ""  # noqa: N806
+    D = "[2m"    if tty else ""  # noqa: N806
+    N = "[0m"    if tty else ""  # noqa: N806
     def _flag(ok: bool, on: str, off: str) -> str:
         return f"{G}[{on}]{N}" if ok else f"{R}[{off}]{N}"
     ev = _flag(evolution,     'ACTIVE',       'AIR-GAPPED' )
@@ -699,8 +699,9 @@ async def lifespan(app: FastAPI):
 
     # ── Multi-Modal Guard pre-warm (CLIP + Whisper + Haar cascade) ───
     try:
-        from warden import image_guard as _ig, audio_guard as _ag  # noqa: PLC0415
-        from warden import image_redactor as _ir                   # noqa: PLC0415
+        from warden import audio_guard as _ag
+        from warden import image_guard as _ig  # noqa: PLC0415
+        from warden import image_redactor as _ir  # noqa: PLC0415
         _ig.prewarm()
         _ag.prewarm()
         _ir.prewarm()
@@ -1919,7 +1920,8 @@ def _enforce_tenant_rate_limit(auth: AuthResult, rid: str) -> None:
 
 # ── ERS enrichment helper ─────────────────────────────────────────────────────
 
-import dataclasses as _dc
+import dataclasses as _dc  # noqa: E402
+
 
 def _ers_dominant_flag(counts: dict, total: int) -> str:
     """Return the ERS event type with the highest weighted contribution to the score."""
@@ -2011,7 +2013,7 @@ async def filter_content(
     if _PIPELINE_TIMEOUT_MS > 0:
         try:
             return await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             log.warning(
                 json.dumps({
                     "event":      "pipeline_timeout",
@@ -2229,12 +2231,12 @@ async def filter_multimodal(
     background_tasks: BackgroundTasks,
     auth:             AuthResult = Depends(require_api_key),
 ) -> _MultimodalResponse:
-    from warden.multimodal import run_multimodal  # noqa: PLC0415
     from warden.metrics import (  # noqa: PLC0415
-        IMAGE_GUARD_BLOCKS_TOTAL,
         AUDIO_GUARD_BLOCKS_TOTAL,
+        IMAGE_GUARD_BLOCKS_TOTAL,
         MULTIMODAL_REQUESTS_TOTAL,
     )
+    from warden.multimodal import run_multimodal  # noqa: PLC0415
 
     if not payload.content and not payload.image_b64 and not payload.audio_b64:
         raise HTTPException(
@@ -2648,7 +2650,7 @@ async def block_ip(body: _BlockIpRequest):
         expires_at = body.expires_at,
     )
     # Mirror to global Redis blocklist so all regions enforce immediately
-    _global_blocklist_is_blocked  # import side-effect; actual call:
+    _ = _global_blocklist_is_blocked  # import side-effect; actual call:
     try:
         from warden.global_blocklist import block_ip as _gbl_block  # noqa: PLC0415
         expires_s = 0
@@ -2882,8 +2884,9 @@ async def compliance_art30(
     Set ``format=html`` to receive a styled HTML document ready for DPO sign-off
     (print to PDF from the browser).  Default is ``json``.
     """
+    from fastapi.responses import HTMLResponse  # noqa: PLC0415
+
     from warden.compliance.art30 import Art30Generator  # noqa: PLC0415
-    from fastapi.responses import HTMLResponse           # noqa: PLC0415
 
     gen    = Art30Generator()
     record = await asyncio.to_thread(gen.generate, days)
@@ -2907,9 +2910,11 @@ async def compliance_soc2_export(days: float = 30):
 
     Safe to share with external auditors — no prompt content or PII values included.
     """
+    from datetime import UTC, datetime  # noqa: PLC0415
+
     from fastapi.responses import StreamingResponse  # noqa: PLC0415
+
     from warden.compliance.soc2 import SOC2Exporter  # noqa: PLC0415
-    from datetime import UTC, datetime                # noqa: PLC0415
 
     exporter = SOC2Exporter(audit_trail=_audit_trail)
     buf      = await asyncio.to_thread(exporter.export_bundle, days)
@@ -2941,8 +2946,9 @@ async def compliance_incident_report(
 
     Set ``format=html`` for a printable HTML document.
     """
+    from fastapi.responses import HTMLResponse  # noqa: PLC0415
+
     from warden.compliance.incident import IncidentReporter  # noqa: PLC0415
-    from fastapi.responses import HTMLResponse               # noqa: PLC0415
 
     reporter = IncidentReporter(agent_monitor=_agent_monitor)
     report   = await asyncio.to_thread(reporter.generate, session_id, entity_key)

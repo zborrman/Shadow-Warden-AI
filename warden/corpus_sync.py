@@ -54,8 +54,7 @@ Environment variables
 """
 from __future__ import annotations
 
-import io
-import json
+import contextlib
 import logging
 import os
 import threading
@@ -274,10 +273,8 @@ def _download_and_reload(entry: dict, poison_guard) -> None:
 
 def _cleanup(*paths) -> None:
     for p in paths:
-        try:
+        with contextlib.suppress(OSError):
             Path(p).unlink(missing_ok=True)
-        except OSError:
-            pass
 
 
 def _poll_invalidations(r, poison_guard) -> int:

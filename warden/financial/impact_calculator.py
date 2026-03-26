@@ -34,19 +34,17 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import os
-from dataclasses import dataclass, field
-from datetime import datetime, UTC
-from enum import Enum
-from typing import Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import StrEnum
 
 log = logging.getLogger("warden.financial.impact_calculator")
 
 
 # ── Industry profiles ──────────────────────────────────────────────────────────
 
-class Industry(str, Enum):
+class Industry(StrEnum):
     FINTECH     = "fintech"
     HEALTHCARE  = "healthcare"
     ECOMMERCE   = "ecommerce"
@@ -56,7 +54,7 @@ class Industry(str, Enum):
     LEGAL       = "legal"
 
 
-class ThreatCategory(str, Enum):
+class ThreatCategory(StrEnum):
     PROMPT_INJECTION    = "prompt_injection"
     JAILBREAK           = "jailbreak"
     PII_LEAKAGE         = "pii_leakage"
@@ -463,7 +461,7 @@ class DollarImpactCalculator:
         tiers  = impact["tier_roi"]
         det    = impact["detail"]
 
-        W = 74
+        W = 74  # noqa: N806
         border = "═" * W
 
         lines = [
@@ -499,7 +497,7 @@ class DollarImpactCalculator:
             f"│  {'Tier':<18}  {'Annual Cost':>12}  {'Net Benefit':>12}  {'ROI':>7}  {'Payback':>8}  │",
             "│" + "─" * W + "│",
         ]
-        for tier_name, t in tiers.items():
+        for _tier_name, t in tiers.items():
             lines.append(
                 f"│  {t['label']:<18}  "
                 f"${t['annual_cost_usd']:>11,.0f}  "
@@ -532,7 +530,6 @@ class DollarImpactCalculator:
     def export_json(self, path: str = "impact_report.json") -> None:
         """Write full impact report to a JSON file."""
         data = self.to_dict()
-        import tempfile, os  # noqa: PLC0415
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)

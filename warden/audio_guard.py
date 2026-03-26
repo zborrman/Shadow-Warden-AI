@@ -151,9 +151,9 @@ def _check_ultrasound(audio_array, sample_rate: int) -> tuple[bool, float]:
 def _decode_audio(audio_bytes: bytes) -> tuple:
     """Decode audio bytes to numpy float32 array at 16 kHz mono."""
     try:
-        import numpy as np  # noqa: PLC0415
         # Try librosa first (best format support)
         import librosa  # noqa: PLC0415
+        import numpy as np  # noqa: PLC0415
         audio_array, _ = librosa.load(io.BytesIO(audio_bytes), sr=_SAMPLE_RATE, mono=True)
         return audio_array, _SAMPLE_RATE
     except ImportError:
@@ -161,8 +161,8 @@ def _decode_audio(audio_bytes: bytes) -> tuple:
 
     try:
         # Fallback: soundfile (handles WAV/FLAC/OGG)
-        import soundfile as sf  # noqa: PLC0415
         import numpy as np  # noqa: PLC0415
+        import soundfile as sf  # noqa: PLC0415
         audio_array, sr = sf.read(io.BytesIO(audio_bytes), dtype="float32", always_2d=False)
         if sr != _SAMPLE_RATE:
             # Simple linear resample (crude but dependency-free)
@@ -247,7 +247,7 @@ async def check_audio(audio_bytes: bytes, semantic_guard=None) -> AudioGuardResu
             loop.run_in_executor(_executor, _transcribe_sync, audio_bytes),
             timeout=TIMEOUT_MS / 1000,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning("AudioGuard: transcription timed out after %d ms — fail-open", TIMEOUT_MS)
         return AudioGuardResult(error="timeout", elapsed_ms=float(TIMEOUT_MS))
 

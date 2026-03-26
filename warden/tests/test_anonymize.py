@@ -14,7 +14,6 @@ import pytest
 
 from warden.brain.evolve import _anonymize_for_evolution
 
-
 # ── UUID (dashed, v1–v5) ──────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("uuid_str", [

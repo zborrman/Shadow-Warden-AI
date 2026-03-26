@@ -54,7 +54,7 @@ Environment variables
 """
 from __future__ import annotations
 
-import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -128,7 +128,7 @@ def _is_seen(source_hash: str) -> bool:
 
 # ── Producer ──────────────────────────────────────────────────────────────────
 
-def publish_rule(rule: "RuleRecord") -> bool:
+def publish_rule(rule: RuleRecord) -> bool:
     """
     Publish a newly generated rule to the global threat stream.
 
@@ -233,7 +233,7 @@ def _apply_rule(entry: dict, semantic_guard) -> None:
 
     # Persist to dynamic_rules.json
     try:
-        from warden.brain.evolve import NewRule, RuleRecord, DYNAMIC_RULES_PATH  # noqa: PLC0415
+        from warden.brain.evolve import DYNAMIC_RULES_PATH, NewRule, RuleRecord  # noqa: PLC0415
         evasion = json.loads(entry.get("evasion_json", "[]"))
         rec = RuleRecord(
             id               = rule_id,
@@ -254,7 +254,7 @@ def _apply_rule(entry: dict, semantic_guard) -> None:
         log.warning("ThreatSync: rule persistence failed: %s", exc)
 
 
-def _persist_synced_rule(rule: "RuleRecord", rules_path) -> None:
+def _persist_synced_rule(rule: RuleRecord, rules_path) -> None:
     """Atomic append of a synced rule to dynamic_rules.json."""
     import tempfile  # noqa: PLC0415
     from pathlib import Path  # noqa: PLC0415
@@ -282,10 +282,8 @@ def _persist_synced_rule(rule: "RuleRecord", rules_path) -> None:
             json.dump(data, f, indent=2)
         os.replace(tmp, p)
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp)
-        except OSError:
-            pass
         raise
 
 
@@ -383,6 +381,6 @@ class ThreatSyncClient:
     # ── Convenience: publish after evolution ──────────────────────────────────
 
     @staticmethod
-    def publish(rule: "RuleRecord") -> bool:
+    def publish(rule: RuleRecord) -> bool:
         """Static shortcut — call from EvolutionEngine without holding a reference."""
         return publish_rule(rule)

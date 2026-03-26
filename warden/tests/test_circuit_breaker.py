@@ -9,12 +9,10 @@ a live server.  Falls back to a dict-based stub if fakeredis is not installed.
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 import warden.circuit_breaker as cb
-
 
 # ── Minimal Redis stub (no external deps required) ────────────────────────────
 

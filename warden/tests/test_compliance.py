@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -29,8 +28,9 @@ def empty_logs(monkeypatch, tmp_path):
 @pytest.fixture()
 def populated_logs(monkeypatch, tmp_path):
     """Write a small NDJSON log and patch LOGS_PATH."""
-    import warden.analytics.logger as lg
     from datetime import UTC, datetime
+
+    import warden.analytics.logger as lg
 
     log_file = tmp_path / "logs.json"
     entries = [
@@ -107,8 +107,9 @@ class TestArt30Generator:
 
     def test_html_escapes_special_chars(self, empty_logs, monkeypatch):
         monkeypatch.setenv("CONTROLLER_NAME", "<Acme & Co>")
-        from warden.compliance.art30 import Art30Generator
-        import importlib, warden.compliance.art30 as m30  # noqa: E401
+        import importlib  # noqa: E401
+
+        import warden.compliance.art30 as m30
         importlib.reload(m30)
         html = m30.Art30Generator().to_html(m30.Art30Generator().generate())
         assert "<Acme" not in html
@@ -132,7 +133,7 @@ class TestSOC2Exporter:
     def test_export_contains_all_expected_files(self, empty_logs):
         from warden.compliance.soc2 import SOC2Exporter
         buf   = SOC2Exporter().export_bundle(days=1)
-        names = set(Path(n).name for n in zipfile.ZipFile(buf).namelist())
+        names = {Path(n).name for n in zipfile.ZipFile(buf).namelist()}
         for expected in [
             "README.txt",
             "01_config_snapshot.json",

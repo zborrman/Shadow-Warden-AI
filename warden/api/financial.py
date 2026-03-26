@@ -15,13 +15,12 @@ All endpoints require the standard Warden API key (require_api_key dependency).
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from warden.auth_guard import require_api_key
-from warden.financial.impact_calculator import DollarImpactCalculator, Industry, PRICING
+from warden.financial.impact_calculator import PRICING, DollarImpactCalculator, Industry
 from warden.financial.metrics_reader import MetricsReader
 
 log = logging.getLogger("warden.api.financial")
@@ -33,7 +32,7 @@ router = APIRouter(prefix="/financial", tags=["Financial Impact"])
 
 def _build_calculator(
     industry: str,
-    requests: Optional[int],
+    requests: int | None,
     cost_per_req: float,
     use_live: bool,
 ) -> DollarImpactCalculator:
@@ -68,7 +67,7 @@ def _build_calculator(
 @router.get("/impact")
 async def get_impact(
     industry:     str   = Query("saas",  description="Industry sector (fintech, healthcare, ecommerce, saas, government, education, legal)"),
-    requests:     Optional[int]   = Query(None,  description="Monthly request volume (auto-detected from logs if omitted)"),
+    requests:     int | None   = Query(None,  description="Monthly request volume (auto-detected from logs if omitted)"),
     cost_per_req: float = Query(0.002,   description="Average LLM cost per request (USD)"),
     live:         bool  = Query(True,    description="Use live data from logs/Redis (false = traffic estimate only)"),
     _auth: None = Depends(require_api_key),
@@ -105,7 +104,7 @@ async def get_cost_saved(
 async def get_roi(
     industry:     str   = Query("saas"),
     tier:         str   = Query("professional", description="Pricing tier: startup, professional, enterprise"),
-    requests:     Optional[int]   = Query(None),
+    requests:     int | None   = Query(None),
     cost_per_req: float = Query(0.002),
     _auth: None = Depends(require_api_key),
 ):

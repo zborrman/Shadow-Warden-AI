@@ -49,7 +49,7 @@ import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import lru_cache
 
 log = logging.getLogger("warden.image_guard")
@@ -220,7 +220,7 @@ async def check_image(image_bytes: bytes) -> ImageGuardResult:
             loop.run_in_executor(_executor, _run_clip, image_bytes),
             timeout=TIMEOUT_MS / 1000,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning(
             "ImageGuard: inference timed out after %d ms — fail-open", TIMEOUT_MS
         )

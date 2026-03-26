@@ -11,7 +11,6 @@ Report can be returned as JSON (always) or as styled HTML (browser → Print →
 """
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 
 _RECOMMENDATIONS: dict[str, str] = {

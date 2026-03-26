@@ -13,12 +13,11 @@ All sources fail-open: missing data returns 0/empty instead of raising.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
-import re
 from collections import Counter
 from datetime import UTC, datetime, timedelta
-from typing import Optional
 
 log = logging.getLogger("warden.financial.metrics_reader")
 
@@ -136,10 +135,8 @@ class MetricsReader:
 
         result: dict[ThreatCategory, int] = {}
         for cat_val, count in tally.items():
-            try:
+            with contextlib.suppress(ValueError):
                 result[ThreatCategory(cat_val)] = count
-            except ValueError:
-                pass
         return result
 
     def shadow_banned_count(self) -> int:

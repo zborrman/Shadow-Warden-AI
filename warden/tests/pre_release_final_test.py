@@ -31,7 +31,6 @@ Run against live stack:
 from __future__ import annotations
 
 import base64
-import hashlib
 import io
 import json
 import math
@@ -117,7 +116,7 @@ def _make_ultrasound_wav(freq_hz: int = 21_000, duration_s: float = 0.2,
 class _FakePipeline:
     """Minimal Redis pipeline that buffers commands and executes in-memory."""
 
-    def __init__(self, redis: "_FakeRedis"):
+    def __init__(self, redis: _FakeRedis):
         self._r    = redis
         self._cmds: list = []
 

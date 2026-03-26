@@ -16,16 +16,11 @@ Covers:
 """
 from __future__ import annotations
 
-import os
-import pytest
-
 from warden.agent_sandbox import (
     AgentManifest,
     SandboxRegistry,
     ToolCapability,
-    get_registry,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

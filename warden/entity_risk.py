@@ -110,7 +110,7 @@ class ERSResult:
 
     def __post_init__(self):
         if self.counts is None:
-            self.counts = {e: 0 for e in _EVENTS}
+            self.counts = dict.fromkeys(_EVENTS, 0)
 
 
 # ── Redis operations ──────────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ def score(entity_key: str) -> ERSResult:
         pipe.zcount(f"warden:ers:{entity_key}:total", cutoff, now)
         counts_raw = pipe.execute()
 
-        counts   = dict(zip(_EVENTS, counts_raw[:len(_EVENTS)]))
+        counts   = dict(zip(_EVENTS, counts_raw[:len(_EVENTS)], strict=False))
         total_1h = int(counts_raw[-1]) or 0
 
         result.counts   = counts

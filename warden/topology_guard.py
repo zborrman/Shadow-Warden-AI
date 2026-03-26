@@ -52,7 +52,7 @@ _TOPO_THRESHOLD_NATURAL = float(os.getenv("TOPO_NOISE_THRESHOLD_NATURAL", "0.82"
 _CODE_KEYWORDS = frozenset({
     "def ", "class ", "import ", "return ", "if __", "function ", "const ",
     "var ", "let ", "fn ", "pub ", "use ", "from ", "=>", "->", "#!/",
-    "{", "}", "();", "();", "!=", "==", "&&", "||",
+    "{", "}", "();", "!=", "==", "&&", "||",
 })
 
 # ── Result ────────────────────────────────────────────────────────────────────

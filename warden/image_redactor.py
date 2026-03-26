@@ -193,8 +193,8 @@ def _blur_regions(pil_image, boxes: list[tuple[int, int, int, int]], radius: int
 def _redact_sync(image_bytes: bytes, is_pii: bool) -> ImageRedactorResult:
     t0 = time.time()
     try:
+        import numpy as np  # noqa: PLC0415
         from PIL import Image, ImageFilter  # noqa: PLC0415
-        import numpy as np                  # noqa: PLC0415
 
         # ── Decode + EXIF strip ───────────────────────────────────────────
         src = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -295,7 +295,7 @@ async def redact_image(image_bytes: bytes, is_pii: bool = True) -> ImageRedactor
             loop.run_in_executor(_executor, _redact_sync, image_bytes, is_pii),
             timeout=TIMEOUT_MS / 1000,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning("ImageRedactor: timed out after %d ms — returning original", TIMEOUT_MS)
         return ImageRedactorResult(
             redacted_bytes = image_bytes,

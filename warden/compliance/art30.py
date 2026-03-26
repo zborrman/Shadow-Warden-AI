@@ -25,7 +25,6 @@ import os
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 
-
 # ── Controller identity (from env — never hardcoded) ─────────────────────────
 
 def _ctrl(key: str, fallback: str = "") -> str:
@@ -72,7 +71,11 @@ class Art30Generator:
         The record structure itself covers the controller's processing operations
         regardless of the window size.
         """
-        from warden.analytics.logger import LOGS_PATH, LOG_RETENTION_DAYS, load_entries  # noqa: PLC0415
+        from warden.analytics.logger import (  # noqa: PLC0415
+            LOG_RETENTION_DAYS,
+            LOGS_PATH,
+            load_entries,
+        )
 
         now       = datetime.now(UTC)
         start_iso = (now - timedelta(days=days)).isoformat()

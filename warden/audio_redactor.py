@@ -47,6 +47,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 if TYPE_CHECKING:
     from warden.audio_guard import AudioGuardResult
 
@@ -84,10 +86,10 @@ class AudioRedactorResult:
 # ── Silence / ultrasound replacement ─────────────────────────────────────────
 
 def _bleep_segments(
-    audio: "np.ndarray",
+    audio: np.ndarray,
     sample_rate: int,
     flagged_segs: list[dict],
-) -> "np.ndarray":
+) -> np.ndarray:
     """
     Replace flagged time ranges with silence (zeros).
 
@@ -98,7 +100,6 @@ def _bleep_segments(
 
     Returns modified copy of the array.
     """
-    import numpy as np  # noqa: PLC0415
 
     out = audio.copy()
     for seg in flagged_segs:
@@ -111,7 +112,7 @@ def _bleep_segments(
     return out
 
 
-def _filter_ultrasound(audio: "np.ndarray", sample_rate: int) -> "np.ndarray":
+def _filter_ultrasound(audio: np.ndarray, sample_rate: int) -> np.ndarray:
     """
     Zero out FFT components above 16 kHz (inaudible ultrasound band).
 
@@ -128,7 +129,7 @@ def _filter_ultrasound(audio: "np.ndarray", sample_rate: int) -> "np.ndarray":
 
 # ── WAV encoding ──────────────────────────────────────────────────────────────
 
-def _encode_wav(audio: "np.ndarray", sample_rate: int) -> bytes:
+def _encode_wav(audio: np.ndarray, sample_rate: int) -> bytes:
     """Encode float32 numpy array as WAV bytes using soundfile."""
     import soundfile as sf  # noqa: PLC0415
 
@@ -139,13 +140,14 @@ def _encode_wav(audio: "np.ndarray", sample_rate: int) -> bytes:
 
 # ── Core redaction (synchronous — runs in ThreadPoolExecutor) ─────────────────
 
-def _redact_sync(audio_bytes: bytes, guard_result: "AudioGuardResult") -> AudioRedactorResult:
+def _redact_sync(audio_bytes: bytes, guard_result: AudioGuardResult) -> AudioRedactorResult:
     t0 = time.time()
     try:
-        from warden.audio_guard import _decode_audio  # noqa: PLC0415
         import numpy as np  # noqa: PLC0415
 
-        sample_rate = getattr(guard_result, "sample_rate", _SAMPLE_RATE)
+        from warden.audio_guard import _decode_audio  # noqa: PLC0415
+
+        getattr(guard_result, "sample_rate", _SAMPLE_RATE)
         audio, sr   = _decode_audio(audio_bytes)
 
         bleeped:    list[RedactedSegment] = []
@@ -219,7 +221,7 @@ def _redact_sync(audio_bytes: bytes, guard_result: "AudioGuardResult") -> AudioR
 
 async def redact_audio(
     audio_bytes: bytes,
-    guard_result: "AudioGuardResult",
+    guard_result: AudioGuardResult,
 ) -> AudioRedactorResult:
     """
     Async entry point: silence injected segments + strip ultrasound band.
@@ -246,7 +248,7 @@ async def redact_audio(
             loop.run_in_executor(_executor, _redact_sync, audio_bytes, guard_result),
             timeout=TIMEOUT_MS / 1000,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning("AudioRedactor: timed out after %d ms — returning original", TIMEOUT_MS)
         return AudioRedactorResult(
             redacted_bytes = audio_bytes,
@@ -257,7 +259,7 @@ async def redact_audio(
 
 async def redact_audio_b64(
     b64_string: str,
-    guard_result: "AudioGuardResult",
+    guard_result: AudioGuardResult,
 ) -> tuple[str, AudioRedactorResult]:
     """
     Convenience wrapper: decode base64 → redact → re-encode.

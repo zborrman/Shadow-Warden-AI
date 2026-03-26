@@ -67,7 +67,6 @@ class MultimodalResult:
 # ── Unified scoring ───────────────────────────────────────────────────────────
 
 def _image_risk(image_result) -> RiskLevel:
-    from warden.image_guard import ImageGuardResult  # noqa: PLC0415
     if image_result.error or not hasattr(image_result, "is_jailbreak"):
         return RiskLevel.LOW
     if image_result.is_jailbreak:
@@ -78,7 +77,6 @@ def _image_risk(image_result) -> RiskLevel:
 
 
 def _audio_risk(audio_result) -> RiskLevel:
-    from warden.audio_guard import AudioGuardResult  # noqa: PLC0415
     if audio_result.error or not hasattr(audio_result, "is_injection"):
         return RiskLevel.LOW
     if audio_result.is_injection or audio_result.ultrasound_detected:
