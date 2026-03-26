@@ -161,8 +161,8 @@ class MetricsReader:
         try:
             import redis  # type: ignore
             r = redis.from_url(self._redis_url, socket_connect_timeout=1, socket_timeout=1)
-            keys = r.keys("warden:ers:shadow_ban:*")
-            return len(keys)
+            keys = r.keys("warden:ers:shadow_ban:*")  # type: ignore[union-attr]
+            return len(keys)  # type: ignore[arg-type]
         except Exception as exc:
             log.debug("Redis shadow ban count failed: %s", exc)
             return 0

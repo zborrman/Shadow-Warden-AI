@@ -481,7 +481,7 @@ class EvolutionEngine:
         content:    str,
         flags:      list[SemanticFlag],
         risk_level: RiskLevel,
-    ) -> EvolutionResponse:
+    ) -> tuple[EvolutionResponse, str]:
         """
         Stream a response from Claude Opus with:
           • adaptive thinking   — deep reasoning on novel attack patterns

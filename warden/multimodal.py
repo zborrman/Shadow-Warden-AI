@@ -130,7 +130,7 @@ async def run_multimodal(
 
     if has_audio:
         from warden.audio_guard import check_audio_b64  # noqa: PLC0415
-        tasks.append(check_audio_b64(audio_b64, semantic_guard))
+        tasks.append(check_audio_b64(audio_b64, semantic_guard))  # type: ignore[arg-type]
     else:
         tasks.append(_noop())
 
@@ -247,7 +247,7 @@ async def run_multimodal(
     ):
         try:
             from warden.audio_redactor import redact_audio_b64 as _redact_aud  # noqa: PLC0415
-            redacted_audio_b64, _ar = await _redact_aud(audio_b64, audio_result)
+            redacted_audio_b64, _ar = await _redact_aud(audio_b64, audio_result)  # type: ignore[arg-type]
             modalities["audio"]["redaction"] = {
                 "segments_bleeped":    len(_ar.segments_bleeped),
                 "ultrasound_filtered": _ar.ultrasound_filtered,

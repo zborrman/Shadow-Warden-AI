@@ -2034,7 +2034,7 @@ async def filter_content(
             _r2 = _get_redis()
             _cb.record_bypass(_r2)
             _cb.check_and_trip(_r2, len(_filter_window))
-            _to_entry = {
+            _to_entry: dict = {
                 "ts":         datetime.now(UTC).isoformat(),
                 "request_id": rid,
                 "tenant_id":  _tid,

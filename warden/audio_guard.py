@@ -282,7 +282,7 @@ async def check_audio(audio_bytes: bytes, semantic_guard=None) -> AudioGuardResu
                             continue
                         chk = checks[idx]
                         idx += 1
-                        if not isinstance(chk, Exception) and chk.is_jailbreak:
+                        if not isinstance(chk, (Exception, BaseException)) and chk.is_jailbreak:
                             seg["flagged"] = True
                             any_flagged = True
                     # Conservative fallback: if no individual segment triggered,

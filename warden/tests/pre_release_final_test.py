@@ -206,7 +206,7 @@ class _Client:
 
     def post(self, path: str, **kw) -> Any:
         if _LIVE_URL:
-            import requests
+            import requests  # type: ignore[import-untyped]
             kw.setdefault("headers", {}).update(self._h())
             kw.setdefault("timeout", 30)
             return requests.post(_LIVE_URL + path, **kw)

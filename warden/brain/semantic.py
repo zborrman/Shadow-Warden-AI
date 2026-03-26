@@ -311,7 +311,7 @@ class SemanticGuard:
             cosine_score = float(sims[max_idx])
             # Hyperbolic blend
             if _HYPERBOLIC_WEIGHT > 0:
-                hyp_sim, hyp_idx = max_hyperbolic_similarity(query_vec, corpus_np)
+                hyp_sim, hyp_idx = max_hyperbolic_similarity(query_vec, corpus_np)  # type: ignore[arg-type]
                 max_score = (1.0 - _HYPERBOLIC_WEIGHT) * cosine_score + _HYPERBOLIC_WEIGHT * hyp_sim
                 # Use hyperbolic closest if it scores higher
                 if hyp_sim > cosine_score and hyp_idx != max_idx:

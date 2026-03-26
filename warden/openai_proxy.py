@@ -465,7 +465,7 @@ async def proxy_chat(
                     if _live_mode:
                         # Already in live mode — emit immediately
                         yield_chunk = (f"data: {json.dumps(chunk)}\n\n").encode()
-                        return yield_chunk  # signal: caller must yield this
+                        return yield_chunk  # type: ignore[return-value]  # signal: caller must yield this
 
                     # Check if we've accumulated enough for fast-scan
                     if _buf_len >= _STREAM_FAST_SCAN_BUFFER or _piece_len == 0:
