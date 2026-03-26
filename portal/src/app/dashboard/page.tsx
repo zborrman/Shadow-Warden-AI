@@ -5,15 +5,16 @@ import { TopBar } from '@/components/layout/TopBar'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { Shield, ShieldOff, Activity, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Shield, ShieldOff, Activity, AlertTriangle, TrendingUp, DollarSign } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Summary {
   total: number; blocked: number; allowed: number
   risk_dist: { low: number; medium: number; high: number; block: number }
 }
-interface DailyPoint { date: string; total: number; blocked: number; allowed: number }
-interface FlagRow    { flag: string; count: number }
+interface DailyPoint  { date: string; total: number; blocked: number; allowed: number }
+interface FlagRow     { flag: string; count: number }
+interface ImpactSummary { total_annual_value: number; roi_multiple: number; payback_months: number }
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({
@@ -100,6 +101,12 @@ export default function DashboardPage() {
     queryKey: ['stats-flags'],
     queryFn:  () => api.get('/stats/flags').then(r => r.data),
   })
+  const { data: impact } = useQuery<ImpactSummary>({
+    queryKey: ['financial-impact'],
+    queryFn:  () => api.get('/financial/impact').then(r => r.data),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  })
 
   const blockRate = summary && summary.total > 0
     ? Math.round((summary.blocked / summary.total) * 100)
@@ -172,20 +179,64 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Top flags */}
-        {flags.length > 0 && (
-          <div className="card p-5">
-            <h2 className="font-semibold text-white mb-4">Top Threat Signals</h2>
-            <div className="space-y-2">
-              {flags.map(f => (
-                <div key={f.flag} className="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
-                  <span className="text-sm text-slate-300 font-mono">{f.flag}</span>
-                  <span className="badge badge-medium">{f.count}</span>
-                </div>
-              ))}
+        {/* Top flags + Dollar Impact */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          {flags.length > 0 && (
+            <div className="xl:col-span-2 card p-5">
+              <h2 className="font-semibold text-white mb-4">Top Threat Signals</h2>
+              <div className="space-y-2">
+                {flags.map(f => (
+                  <div key={f.flag} className="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
+                    <span className="text-sm text-slate-300 font-mono">{f.flag}</span>
+                    <span className="badge badge-medium">{f.count}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* Dollar Impact widget — v2.3 */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-white">Dollar Impact</h2>
+              <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-green-400" />
+              </div>
+            </div>
+            {impact ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Annual Value Delivered</p>
+                  <p className="text-2xl font-bold text-green-400">
+                    ${impact.total_annual_value.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white/[0.03] rounded-lg p-3">
+                    <p className="text-xs text-slate-500 mb-1">ROI Multiple</p>
+                    <p className="text-lg font-bold text-brand-400">{impact.roi_multiple.toFixed(1)}×</p>
+                  </div>
+                  <div className="bg-white/[0.03] rounded-lg p-3">
+                    <p className="text-xs text-slate-500 mb-1">Payback</p>
+                    <p className="text-lg font-bold text-brand-400">{impact.payback_months.toFixed(1)}mo</p>
+                  </div>
+                </div>
+                <a href="/settings#financial" className="text-xs text-brand-400 hover:text-brand-300 transition-colors">
+                  Configure calculator →
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="h-8 bg-white/[0.04] rounded animate-pulse" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="h-14 bg-white/[0.04] rounded animate-pulse" />
+                  <div className="h-14 bg-white/[0.04] rounded animate-pulse" />
+                </div>
+                <p className="text-xs text-slate-600">Requires v2.3 gateway</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </>
   )

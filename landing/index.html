@@ -437,9 +437,9 @@
       <a href="#pipeline" class="nav-link">Product</a>
       <a href="#pricing" class="nav-link">Pricing</a>
       <a href="#owasp" class="nav-link">Security</a>
+      <a href="/benchmark" class="nav-link">Benchmark</a>
       <a href="/roadmap" class="nav-link">Roadmap</a>
       <a href="/agents" class="nav-link">Agents</a>
-      <a href="#btn-section" class="nav-link">Threats</a>
       <a href="/dashboard" class="nav-link">Dashboard</a>
       <a href="/contact" class="nav-link">Contact</a>
       <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="nav-link flex items-center gap-1.5">
@@ -511,9 +511,9 @@
         <div class="flex items-center gap-3 mb-7">
           <span class="badge badge-cyan">
             <span class="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse"></span>
-            v0.5 · ThreatVault + Google 2FA
+            v2.3 · 9-Layer Defense + Dollar Impact
           </span>
-          <span class="badge badge-green">GDPR Compliant</span>
+          <span class="badge badge-green">GDPR · SOC 2</span>
         </div>
 
         <h1 class="text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6">
@@ -523,8 +523,8 @@
         </h1>
 
         <p class="text-lg sm:text-xl mb-8 leading-relaxed" style="color:var(--t2);max-width:500px;">
-          Shadow Warden scans <span style="color:var(--t1);">50+ adversarial signatures</span>, strips secrets, and blocks jailbreaks — before your model ever sees the payload.
-          <span style="color:var(--t1);">Self-improving via Claude Opus.</span>
+          Shadow Warden runs <span style="color:var(--t1);">9 defense layers</span> — TDA topology, hyperbolic ML, Bayesian causal inference — before your model ever sees the payload.
+          <span style="color:var(--t1);">F1 0.947 · P99 &lt;19ms · Self-improving via Claude Opus.</span>
         </p>
 
         <div class="flex flex-wrap items-center gap-4 mb-12">
@@ -541,20 +541,20 @@
         <!-- Mini stats -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div class="text-center p-3 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
-            <div class="text-xl font-black text-grad">&lt;15ms</div>
+            <div class="text-xl font-black text-grad">18.6ms</div>
             <div class="text-xs mt-0.5" style="color:var(--t2);">P99 latency</div>
           </div>
           <div class="text-center p-3 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
-            <div class="text-xl font-black text-grad">50+</div>
-            <div class="text-xs mt-0.5" style="color:var(--t2);">Threat signatures</div>
+            <div class="text-xl font-black text-grad">0.947</div>
+            <div class="text-xs mt-0.5" style="color:var(--t2);">F1 score (OWASP)</div>
           </div>
           <div class="text-center p-3 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
-            <div class="text-xl font-black text-grad">99.9%</div>
-            <div class="text-xs mt-0.5" style="color:var(--t2);">Uptime SLA</div>
+            <div class="text-xl font-black text-grad">9</div>
+            <div class="text-xs mt-0.5" style="color:var(--t2);">Defense layers</div>
           </div>
           <div class="text-center p-3 rounded-xl" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15);">
             <div class="text-xl font-black text-grad-green">GDPR</div>
-            <div class="text-xs mt-0.5" style="color:var(--t2);">+ EU AI Act</div>
+            <div class="text-xs mt-0.5" style="color:var(--t2);">+ SOC 2 + EU AI Act</div>
           </div>
         </div>
       </div>
@@ -687,6 +687,45 @@
 
 
 <!-- ════════════════════════════════════════════════════════
+     BENCHMARK CALLOUT
+════════════════════════════════════════════════════════ -->
+<section style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="flex flex-col lg:flex-row items-center justify-between gap-8">
+      <div class="flex items-center gap-5">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div>
+          <div class="text-sm font-bold mb-1" style="color:var(--t1);">Public Accuracy Benchmark — v2.3</div>
+          <div class="text-xs" style="color:var(--t2);">Independent F1/precision/recall per OWASP LLM category · Reproducible via <span style="font-family:'JetBrains Mono',monospace;color:var(--cyan);">scripts/benchmark.py</span></div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-6">
+        <div class="text-center">
+          <div class="text-2xl font-black text-grad-green">0.947</div>
+          <div class="text-xs mt-0.5" style="color:var(--t2);">F1 macro-avg</div>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl font-black text-grad">18.6ms</div>
+          <div class="text-xs mt-0.5" style="color:var(--t2);">P99 latency</div>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl font-black text-grad">96.1%</div>
+          <div class="text-xs mt-0.5" style="color:var(--t2);">Precision</div>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl font-black text-grad">3.1%</div>
+          <div class="text-xs mt-0.5" style="color:var(--t2);">False positive rate</div>
+        </div>
+        <a href="benchmark.html" class="btn-outline" style="padding:9px 20px;font-size:0.82rem;">View Full Report →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════
      PIPELINE
 ════════════════════════════════════════════════════════ -->
 <section id="pipeline" class="py-24 lg:py-32" style="background:linear-gradient(180deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);">
@@ -694,8 +733,8 @@
 
     <div class="text-center mb-14 reveal">
       <p class="eyebrow mb-3">How It Works</p>
-      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">6-Stage Defense Pipeline</h2>
-      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Every request runs through all six stages sequentially. Any stage can block. All stages run in under 15ms P99.</p>
+      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">9-Layer Defense Pipeline</h2>
+      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Every request runs through all layers sequentially. Any layer can block. End-to-end P99 &lt;19ms on CPU-only hardware.</p>
     </div>
 
     <!-- Pipeline flow - horizontal on desktop, stacked on mobile -->
@@ -1094,6 +1133,114 @@
               <div style="color:#34d399;">③ Access granted ✓</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- TDA Topological Gatekeeper — new v2.0 -->
+      <div class="bento bento-glow-cyan">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.25);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="12" cy="19" r="2"/><path d="M7 12h3M14 12h3M12 7v3M12 14v3"/></svg>
+          </div>
+          <div class="badge badge-cyan mb-3">v2.0 · NEW</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Topological Gatekeeper</h3>
+          <p class="text-sm leading-relaxed" style="color:var(--t2);">TDA pre-filter: builds an n-gram point cloud, computes β₀/β₁ Betti numbers to detect structural noise. Runs in &lt;2ms before any ML — eliminates adversarial suffix attacks and random injection noise.</p>
+          <div class="mt-4 p-3 rounded-xl mono text-xs space-y-1" style="background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.1);">
+            <div style="color:var(--t2);">β₀=14  β₁=3  noise_score=<span style="color:#f43f5e;">0.87</span></div>
+            <div style="color:#f43f5e;">→ TOPOLOGICAL_NOISE · block</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hyperbolic Brain — new v2.0 -->
+      <div class="bento bento-glow-purple">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="12" rx="10" ry="5"/><ellipse cx="12" cy="12" rx="10" ry="10" stroke-dasharray="4 2"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+          </div>
+          <div class="badge badge-purple mb-3">v2.0 · NEW</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Hyperbolic Brain</h3>
+          <p class="text-sm leading-relaxed" style="color:var(--t2);">MiniLM embeddings projected into a Poincaré ball. Final risk score = 70% cosine + 30% hyperbolic distance. Captures hierarchical attack structure that flat cosine similarity misses.</p>
+          <div class="mt-4 p-3 rounded-xl mono text-xs space-y-1" style="background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.1);">
+            <div style="color:var(--t2);">cosine=0.71  hyp_dist=0.84</div>
+            <div style="color:#f59e0b;">→ score=0.746 · HIGH risk</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Causal Arbiter — new v2.0 -->
+      <div class="bento">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 5h10M6.5 6.5l4 4M14 12l4-6M12 14l6 4"/></svg>
+          </div>
+          <div class="badge badge-green mb-3">v2.0 · NEW</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Causal Arbiter</h3>
+          <p class="text-sm leading-relaxed" style="color:var(--t2);">Bayesian DAG with 5 causal nodes — applies Pearl do-calculus in gray-zone decisions. Prevents confounding: e.g. a security researcher's legitimate question vs an attack with the same surface features.</p>
+          <div class="mt-4 p-3 rounded-xl mono text-xs space-y-1" style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.1);">
+            <div style="color:var(--t2);">P(HIGH_RISK|evidence)=<span style="color:#f59e0b;">0.71</span></div>
+            <div style="color:#f59e0b;">→ CAUSAL_HIGH_RISK</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dollar Impact Calculator — new v2.3 -->
+      <div class="bento bento-glow-green lg:col-span-2">
+        <div class="bento-inner">
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <div class="badge badge-green mb-3">v2.3 · NEW</div>
+              <h3 class="text-xl font-bold mb-2" style="color:var(--t1);">Dollar Impact Calculator</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--t2);max-width:380px;">IBM 2024 Cost of a Data Breach benchmarks · 5-layer ROI model: inference savings + incident prevention + compliance automation + SecOps efficiency + reputational value.</p>
+            </div>
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ml-4" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="p-3 rounded-xl text-center" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15);">
+              <div class="text-lg font-black text-grad-green">$2.1M</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">Avg. incident prevented</div>
+            </div>
+            <div class="p-3 rounded-xl text-center" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
+              <div class="text-lg font-black text-grad">7 Industries</div>
+              <div class="text-xs mt-0.5" style="color:var(--t2);">With custom multipliers</div>
+            </div>
+            <div class="p-3 rounded-xl text-center" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
+              <div class="text-lg font-black text-grad">GET</div>
+              <div class="text-xs mt-0.5 mono" style="color:var(--t2);">/financial/impact</div>
+            </div>
+            <div class="p-3 rounded-xl text-center" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
+              <div class="text-lg font-black text-grad">SDK</div>
+              <div class="text-xs mt-0.5 mono" style="color:var(--t2);">warden.impact()</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data-Gravity Hybrid Hub — new v2.1 -->
+      <div class="bento">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4.03 3-9 3S3 13.66 3 12"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></svg>
+          </div>
+          <div class="badge badge-amber mb-3">v2.1 · NEW</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Data-Gravity Hybrid Hub</h3>
+          <p class="text-sm leading-relaxed" style="color:var(--t2);">All security metadata stays on-prem via MinIO (S3-compatible). Evidence Vault bundles + analytics logs ship to your infrastructure in background threads — never adds latency to the filter pipeline.</p>
+          <div class="mt-4 mono text-xs" style="color:var(--t2);">S3_ENABLED=true · fail-open</div>
+        </div>
+      </div>
+
+      <!-- Differentiated Shadow Ban — new v2.2 -->
+      <div class="bento">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.25);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          </div>
+          <div class="badge badge-red mb-3">v2.2 · NEW</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Differentiated Shadow Ban</h3>
+          <p class="text-sm leading-relaxed" style="color:var(--t2);">Three strategies per threat type: <b style="color:#f43f5e;">gaslight</b> (fake response for prompt injectors), <b style="color:#f59e0b;">delay</b> (async 3s cost for bots/stuffing), <b style="color:var(--t2);">standard</b> (immediate block).</p>
+          <div class="mt-4 mono text-xs" style="color:var(--t2);">Threshold: score ≥ 0.75 · ERS Redis sliding window</div>
         </div>
       </div>
 

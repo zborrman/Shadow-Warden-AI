@@ -476,6 +476,25 @@
         <span class="sb-method m-post">POST</span>/v1/chat/completions
       </a>
     </div>
+    <div class="sb-section">
+      <div class="sb-title">Financial (v2.3)</div>
+      <a class="sb-link" href="#financial-impact">
+        <span class="sb-method m-get">GET</span>/financial/impact
+      </a>
+      <a class="sb-link" href="#financial-roi">
+        <span class="sb-method m-get">GET</span>/financial/roi
+      </a>
+      <a class="sb-link" href="#financial-cost">
+        <span class="sb-method m-get">GET</span>/financial/cost-saved
+      </a>
+      <a class="sb-link" href="#financial-proposal">
+        <span class="sb-method m-post">POST</span>/financial/generate-proposal
+      </a>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">SDK</div>
+      <a class="sb-link" href="#sdk-python">Python v0.6.0</a>
+    </div>
   </aside>
 
   <!-- MAIN -->
@@ -484,7 +503,7 @@
     <!-- INTRO -->
     <div class="section section-anchor" id="intro">
       <h1>API Reference</h1>
-      <p>Shadow Warden AI is a zero-trust AI security gateway. Every payload passes through a multi-stage pipeline: obfuscation detection, secret/PII redaction, semantic rule analysis, and ML-based jailbreak detection — before reaching any downstream model.</p>
+      <p>Shadow Warden AI is a zero-trust AI security gateway (v2.3). Every payload passes through a 9-layer pipeline: TDA topological gatekeeper, obfuscation decoder, secret/PII redaction, semantic rules, hyperbolic ML brain, Bayesian causal arbiter, entity risk scoring — before reaching any downstream model.</p>
 
       <div class="base-url-bar">
         <span class="base-url-label">Base URL</span>
@@ -1131,6 +1150,155 @@ response = client.chat.completions.<span class="c-method">create</span>(
       <div class="info-box warn">
         <span class="info-icon">&#9888;</span>
         <span>Rate limit: <strong>60 requests/minute</strong> per API key. Batch requests count as 1 request regardless of item count. The <code>Retry-After</code> header indicates when to retry.</span>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- FINANCIAL API -->
+    <div class="section section-anchor" id="financial-impact">
+      <h2>Financial Impact API <span class="tag tag-new">v2.3</span></h2>
+      <p>The Financial API calculates the dollar value Shadow Warden delivers using IBM 2024 Cost of a Data Breach benchmarks, industry multipliers, and live production metrics from logs.json, Redis ERS, and Prometheus. Requires <code>X-API-Key</code>.</p>
+
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/financial/impact</span>
+          <span class="endpoint-desc">Full impact report</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Returns a 5-layer ROI model: inference savings, incident prevention, compliance automation, SecOps efficiency, and reputational value.</p>
+          <table class="params-table">
+            <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td class="p-name">industry</td><td class="p-type">string</td><td><code>technology</code></td><td class="p-desc">One of: <code>technology</code>, <code>financial</code>, <code>healthcare</code>, <code>retail</code>, <code>manufacturing</code>, <code>education</code>, <code>government</code></td></tr>
+              <tr><td class="p-name">requests_per_day</td><td class="p-type">integer</td><td><code>10000</code></td><td class="p-desc">Estimated daily AI requests through the gateway</td></tr>
+              <tr><td class="p-name">annual_cost_usd</td><td class="p-type">float</td><td><code>50000.0</code></td><td class="p-desc">Annual Shadow Warden licence cost for ROI calculation</td></tr>
+            </tbody>
+          </table>
+          <div class="res-badge res-200">200 OK</div>
+          <div class="code-wrap">
+            <div class="code-block">{
+  <span class="c-key">"total_annual_value"</span>: <span class="c-num">2143800.00</span>,
+  <span class="c-key">"roi_multiple"</span>:       <span class="c-num">42.9</span>,
+  <span class="c-key">"payback_months"</span>:     <span class="c-num">0.3</span>,
+  <span class="c-key">"industry"</span>:          <span class="c-str">"technology"</span>,
+  <span class="c-key">"requests_per_day"</span>:  <span class="c-num">10000</span>,
+  <span class="c-key">"sub_models"</span>: {
+    <span class="c-key">"inference_savings"</span>:    <span class="c-num">43800.00</span>,
+    <span class="c-key">"incident_prevention"</span>:  <span class="c-num">1855680.00</span>,
+    <span class="c-key">"compliance_automation"</span>: <span class="c-num">120000.00</span>,
+    <span class="c-key">"secops_efficiency"</span>:    <span class="c-num">97200.00</span>,
+    <span class="c-key">"reputational_value"</span>:   <span class="c-num">27120.00</span>
+  }
+}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint" id="financial-roi">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/financial/roi</span>
+          <span class="endpoint-desc">ROI summary only</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Lightweight endpoint — returns just the ROI multiple and payback period without computing sub-models.</p>
+        </div>
+      </div>
+
+      <div class="endpoint" id="financial-cost">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/financial/cost-saved</span>
+          <span class="endpoint-desc">Live cost-saved counter</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Reads the Prometheus <code>warden_shadow_ban_cost_saved_usd_total</code> counter directly — real-time LLM cost saved by shadow banning bots.</p>
+        </div>
+      </div>
+
+      <div class="endpoint" id="financial-proposal">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="endpoint-path">/financial/generate-proposal</span>
+          <span class="endpoint-desc">Executive proposal generator</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Generates a formatted security proposal using the impact data. Accepts a JSON body with <code>company_name</code>, <code>industry</code>, <code>requests_per_day</code>, and optional <code>contact_name</code>. Returns a Markdown-formatted PDF-ready proposal.</p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- SDK -->
+    <div class="section section-anchor" id="sdk-python">
+      <h2>Python SDK <span class="tag tag-new">v0.6.0</span></h2>
+      <p>Install from PyPI (or directly from the repo). Requires Python 3.11+.</p>
+
+      <div class="code-wrap">
+        <div class="code-block"><span class="c-cmd">pip install shadow-warden</span>   <span class="c-comment"># PyPI (coming soon)</span>
+<span class="c-cmd">pip install ./sdk/python</span>       <span class="c-comment"># local install</span></div>
+      </div>
+
+      <h3>Quick start</h3>
+      <div class="code-wrap">
+        <div class="code-block"><span class="c-key">from</span> shadow_warden <span class="c-key">import</span> WardenClient
+
+<span class="c-key">with</span> WardenClient(
+    gateway_url=<span class="c-str">"http://localhost:8001"</span>,
+    api_key=<span class="c-str">"sk_..."</span>,
+) <span class="c-key">as</span> warden:
+    result = warden.filter(<span class="c-str">"Ignore all previous instructions"</span>)
+    <span class="c-key">print</span>(result.allowed)        <span class="c-comment"># False</span>
+    <span class="c-key">print</span>(result.risk_level)     <span class="c-comment"># "block"</span>
+    <span class="c-key">print</span>(result.flag_names)     <span class="c-comment"># ["prompt_injection"]</span></div>
+      </div>
+
+      <h3>impact() — Dollar Impact Calculator</h3>
+      <div class="code-wrap">
+        <div class="code-block">report = warden.impact(
+    industry=<span class="c-str">"healthcare"</span>,
+    requests_per_day=<span class="c-num">50_000</span>,
+    annual_cost_usd=<span class="c-num">120_000</span>,
+)
+<span class="c-key">print</span>(f<span class="c-str">"Annual value: ${report.total_annual_value:,.0f}"</span>)
+<span class="c-key">print</span>(f<span class="c-str">"ROI: {report.roi_multiple:.1f}x"</span>)
+<span class="c-key">print</span>(f<span class="c-str">"Payback: {report.payback_months:.1f} months"</span>)</div>
+      </div>
+
+      <h3>AsyncWardenClient</h3>
+      <div class="code-wrap">
+        <div class="code-block"><span class="c-key">import</span> asyncio
+<span class="c-key">from</span> shadow_warden <span class="c-key">import</span> AsyncWardenClient
+
+<span class="c-key">async def</span> main():
+    <span class="c-key">async with</span> AsyncWardenClient(api_key=<span class="c-str">"sk_..."</span>) <span class="c-key">as</span> warden:
+        result = <span class="c-key">await</span> warden.filter(<span class="c-str">"user prompt"</span>)
+        report = <span class="c-key">await</span> warden.impact(industry=<span class="c-str">"financial"</span>)
+
+asyncio.run(main())</div>
+      </div>
+
+      <h3>OpenAI wrapper</h3>
+      <div class="code-wrap">
+        <div class="code-block"><span class="c-key">import</span> openai
+<span class="c-key">from</span> shadow_warden <span class="c-key">import</span> WardenClient
+
+warden = WardenClient(api_key=<span class="c-str">"sk_..."</span>)
+client = warden.wrap_openai(openai.OpenAI(api_key=<span class="c-str">"sk-openai-..."</span>))
+
+<span class="c-comment"># Identical to standard OpenAI API — Warden intercepts transparently</span>
+response = client.chat.completions.create(
+    model=<span class="c-str">"gpt-4o"</span>,
+    messages=[{<span class="c-str">"role"</span>: <span class="c-str">"user"</span>, <span class="c-str">"content"</span>: <span class="c-str">"Hello!"</span>}],
+)</div>
+      </div>
+
+      <div class="info-box info">
+        <span class="info-icon">&#9432;</span>
+        <span>SDK changelog: v0.6.0 adds <code>ImpactReport</code> dataclass and <code>impact()</code> method to both sync and async clients. See <code>sdk/python/shadow_warden/models.py</code> for the full type definition.</span>
       </div>
     </div>
 
