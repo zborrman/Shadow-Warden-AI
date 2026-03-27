@@ -1502,7 +1502,7 @@
       <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Shadow Warden maps directly to every risk category. Click any card for full threat detail and how we neutralise it.</p>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 reveal" id="owaspGrid">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 reveal" id="owaspGrid" style="align-items:start;">
 
       <!-- LLM01 -->
       <div class="owasp-card active" onclick="toggleOwasp(this)">
@@ -1918,7 +1918,10 @@
 <script>
 function toggleOwasp(card) {
   const isActive = card.classList.contains('active');
-  card.classList.toggle('active', !isActive);
+  // Close all cards first (accordion behaviour)
+  document.querySelectorAll('#owaspGrid .owasp-card').forEach(c => c.classList.remove('active'));
+  // Re-open if it wasn't active before
+  if (!isActive) card.classList.add('active');
 }
 
 function openPdfModal() {
