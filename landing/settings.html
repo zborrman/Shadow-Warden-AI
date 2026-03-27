@@ -1116,6 +1116,117 @@
         </div>
       </div>
 
+      <!-- NeMo Guardrails — Geometric Threat Bridge -->
+      <div class="setting-group">
+        <div class="setting-group-title">NeMo Guardrails — Geometric Threat Bridge <span class="badge badge-green" style="font-size:0.65rem;padding:2px 8px;margin-left:8px;">v2.4</span></div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Enable Geometric Threat Bridge</div>
+            <div class="setting-desc">Translates Shadow Warden's hyperbolic distance, Betti scores, and causal P(HIGH_RISK) into NeMo Colang context variables for geometry-driven flow selection.</div>
+            <div class="restart-notice">⚠ Restart required after enabling</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap">
+              <input type="checkbox" class="toggle-input" id="nemo-bridge-enabled" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Colang Flows Directory</div>
+            <div class="setting-desc">Path to NeMo Guardrails config directory containing <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">config.yml</code> and <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">.co</code> flow files.</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input wide mono" id="nemo-colang-dir" value="./warden/integrations/nemo_colang" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Topology Threshold <code style="font-family:JetBrains Mono;font-size:0.72rem;color:var(--indigo)">BRIDGE_TOPOLOGY_THRESHOLD</code></div>
+            <div class="setting-desc">Betti noise score above which a request is classified as <strong>TOPOLOGY</strong> class (structural obfuscation). Lower = more sensitive.</div>
+          </div>
+          <div class="setting-control" style="min-width:180px">
+            <input type="range" class="ctrl-range" id="bridge-topo-threshold" min="0.5" max="0.99" step="0.01" value="0.75" oninput="document.getElementById('bridge-topo-val').textContent=this.value" />
+            <div class="text-xs mono text-center mt-1" style="color:var(--cyan)" id="bridge-topo-val">0.75</div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Hyperbolic HIGH Threshold <code style="font-family:JetBrains Mono;font-size:0.72rem;color:var(--indigo)">BRIDGE_HYPERBOLIC_HIGH</code></div>
+            <div class="setting-desc">Poincaré ball distance above which threat class → <strong>HIGH_RISK</strong>. Paired with causal threshold for dual-condition escalation.</div>
+          </div>
+          <div class="setting-control" style="min-width:180px">
+            <input type="range" class="ctrl-range" id="bridge-hyp-high" min="0.5" max="0.99" step="0.01" value="0.80" oninput="document.getElementById('bridge-hyp-high-val').textContent=this.value" />
+            <div class="text-xs mono text-center mt-1" style="color:var(--cyan)" id="bridge-hyp-high-val">0.80</div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Hyperbolic GRAY Threshold <code style="font-family:JetBrains Mono;font-size:0.72rem;color:var(--indigo)">BRIDGE_HYPERBOLIC_GRAY</code></div>
+            <div class="setting-desc">Poincaré ball distance above which threat class → <strong>GRAY_ZONE</strong> (cautious Colang flow). Below this = CLEAN.</div>
+          </div>
+          <div class="setting-control" style="min-width:180px">
+            <input type="range" class="ctrl-range" id="bridge-hyp-gray" min="0.3" max="0.79" step="0.01" value="0.55" oninput="document.getElementById('bridge-hyp-gray-val').textContent=this.value" />
+            <div class="text-xs mono text-center mt-1" style="color:var(--cyan)" id="bridge-hyp-gray-val">0.55</div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Causal HIGH Threshold <code style="font-family:JetBrains Mono;font-size:0.72rem;color:var(--indigo)">BRIDGE_CAUSAL_HIGH</code></div>
+            <div class="setting-desc">P(HIGH_RISK | evidence) from Bayesian DAG above which → HIGH_RISK class, independent of hyperbolic score.</div>
+          </div>
+          <div class="setting-control" style="min-width:180px">
+            <input type="range" class="ctrl-range" id="bridge-causal-high" min="0.4" max="0.99" step="0.01" value="0.65" oninput="document.getElementById('bridge-causal-val').textContent=this.value" />
+            <div class="text-xs mono text-center mt-1" style="color:var(--cyan)" id="bridge-causal-val">0.65</div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">ERS Restrict Threshold <code style="font-family:JetBrains Mono;font-size:0.72rem;color:var(--indigo)">BRIDGE_ERS_RESTRICT</code></div>
+            <div class="setting-desc">Entity Risk Score above which <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">$warden_restricted = true</code> is injected into Colang context, activating restricted flow.</div>
+          </div>
+          <div class="setting-control" style="min-width:180px">
+            <input type="range" class="ctrl-range" id="bridge-ers" min="0.4" max="0.99" step="0.01" value="0.70" oninput="document.getElementById('bridge-ers-val').textContent=this.value" />
+            <div class="text-xs mono text-center mt-1" style="color:var(--cyan)" id="bridge-ers-val">0.70</div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Colang Evolution Synthesizer</div>
+            <div class="setting-desc">When enabled, Claude Opus automatically generates new <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">.co</code> flow files on novel attack patterns and hot-reloads them into NeMo Guardrails. Requires <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--indigo)">ANTHROPIC_API_KEY</code>.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap">
+              <input type="checkbox" class="toggle-input" id="nemo-evolution-enabled" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Dual Output Guard</div>
+            <div class="setting-desc">Runs a second Shadow Warden scan on LLM output after NeMo rails — catches PII and secrets that slipped through. Fast scan on first 400 chars before full check.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap">
+              <input type="checkbox" class="toggle-input" id="nemo-dual-output" checked />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
       <!-- Quick-start -->
       <div class="setting-group">
         <div class="setting-group-title">Quick-Start</div>
@@ -1135,17 +1246,32 @@ models:<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;api_key: <span class="code-val">${WARDEN_API_KEY}</span>
           </div>
 
-          <div style="font-size:0.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">3 — Python</div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">3 — Python (with Geometric Threat Bridge)</div>
           <div class="code-block" style="margin-top:0">
 <span class="code-key">from</span> nemoguardrails <span class="code-key">import</span> RailsConfig, LLMRails<br/>
-rails = LLMRails(RailsConfig.from_path(<span class="code-str">"./config"</span>))<br/>
-result = <span class="code-key">await</span> rails.generate_async(messages=[...])</div>
+<span class="code-key">from</span> warden.integrations.nemo_bridge <span class="code-key">import</span> create_nemo_integration, DualOutputGuard<br/>
+<br/>
+bridge, synthesizer = create_nemo_integration()<br/>
+rails = LLMRails(RailsConfig.from_path(<span class="code-str">"./warden/integrations/nemo_colang"</span>))<br/>
+synthesizer.register_rails(rails)<br/>
+<br/>
+<span class="code-key">async def</span> handle(user_msg):<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;result = <span class="code-key">await</span> warden.filter_async(user_msg)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-key">if not</span> result.allowed: <span class="code-key">return</span> <span class="code-str">"Blocked."</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;ctx = bridge.to_colang_context(result)  <span style="color:var(--text3);"># geometry → Colang vars</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;resp = <span class="code-key">await</span> rails.generate_async(messages=[{<span class="code-str">"role"</span>:<span class="code-str">"user"</span>,<span class="code-str">"content"</span>:user_msg}], context=ctx)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-key">return await</span> DualOutputGuard(bridge).check_output(user_msg, resp, warden)</div>
 
           <div style="font-size:0.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">4 — .env</div>
           <div class="code-block" style="margin-top:0">
 <span class="code-key">NVIDIA_API_KEY</span>=<span class="code-val">nvapi-…</span><br/>
 <span class="code-key">PROMPT_SHIELD_ENABLED</span>=<span class="code-val">true</span><br/>
-<span class="code-key">AUDIT_TRAIL_ENABLED</span>=<span class="code-val">true</span></div>
+<span class="code-key">AUDIT_TRAIL_ENABLED</span>=<span class="code-val">true</span><br/>
+<span class="code-key">BRIDGE_TOPOLOGY_THRESHOLD</span>=<span class="code-val">0.75</span><br/>
+<span class="code-key">BRIDGE_HYPERBOLIC_HIGH</span>=<span class="code-val">0.80</span><br/>
+<span class="code-key">BRIDGE_HYPERBOLIC_GRAY</span>=<span class="code-val">0.55</span><br/>
+<span class="code-key">BRIDGE_CAUSAL_HIGH</span>=<span class="code-val">0.65</span><br/>
+<span class="code-key">BRIDGE_ERS_RESTRICT</span>=<span class="code-val">0.70</span></div>
         </div>
       </div>
 

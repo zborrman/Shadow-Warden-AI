@@ -507,7 +507,7 @@
         <div class="flex items-center gap-3 mb-7">
           <span class="badge badge-cyan">
             <span class="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse"></span>
-            v2.3 · 9-Layer Defense + Dollar Impact
+            v2.4 · NeMo Bridge + Geometric Threat Engine
           </span>
           <span class="badge badge-green">GDPR · SOC 2</span>
         </div>
@@ -519,7 +519,7 @@
         </h1>
 
         <p class="text-lg sm:text-xl mb-8 leading-relaxed" style="color:var(--t2);max-width:500px;">
-          Shadow Warden runs <span style="color:var(--t1);">9 defense layers</span> — TDA topology, hyperbolic ML, Bayesian causal inference — before your model ever sees the payload.
+          Shadow Warden runs <span style="color:var(--t1);">9 defense layers</span> — TDA topology, hyperbolic ML, Bayesian causal inference — before your model ever sees the payload. Now with <span style="color:var(--t1);">NVIDIA NeMo Guardrails integration</span>: geometric threat coordinates drive Colang flow selection in real time.
           <span style="color:var(--t1);">F1 0.947 · P99 &lt;19ms · Self-improving via Claude Opus.</span>
         </p>
 
@@ -1014,6 +1014,131 @@
 
 
 <!-- ════════════════════════════════════════════════════════
+     WHO IS THIS FOR
+════════════════════════════════════════════════════════ -->
+<section id="for-whom" class="py-24 lg:py-28" style="background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%);">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="text-center mb-14 reveal">
+      <p class="eyebrow mb-3">Built For</p>
+      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">Who uses Shadow Warden</h2>
+      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">One gateway, purpose-built for every team that ships AI in production.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 reveal">
+
+      <!-- Enterprise Security Teams -->
+      <div class="bento bento-glow-cyan">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="badge badge-cyan mb-3">Enterprise Security</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">SecOps & AI Red Teams</h3>
+          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Block jailbreaks, prompt injection, and data exfiltration across every LLM endpoint. SOC 2 Type II evidence bundles generated automatically for auditors.</p>
+          <ul class="space-y-2 text-xs" style="color:var(--t2);">
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>OWASP LLM Top 10 full coverage</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>SHA-256 cryptographic evidence vault</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Slack + PagerDuty real-time alerts</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Splunk/Elastic SIEM integration</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- NVIDIA / NeMo Teams -->
+      <div class="bento" style="border-color:rgba(118,185,0,0.25);background:linear-gradient(135deg,rgba(5,19,31,0.95) 0%,rgba(8,28,12,0.95) 100%);">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.25);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </div>
+          <div class="badge mb-3" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.25);color:#76b900;">NVIDIA Ecosystem</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">NeMo Guardrails Teams</h3>
+          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">GeometricThreatBridge translates Shadow Warden's hyperbolic ML scores and Betti numbers into NeMo Colang context variables — geometry-driven flow selection at runtime.</p>
+          <ul class="space-y-2 text-xs" style="color:var(--t2);">
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>CPU pre-filter → GPU Colang guardrails</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Betti numbers → Colang flow routing</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Claude Opus generates new Colang flows</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>NIM model routing with dual-layer guard</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- AI Product Teams -->
+      <div class="bento bento-glow-purple">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <div class="badge badge-purple mb-3">Product Teams</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">SaaS & AI Startups</h3>
+          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Drop Shadow Warden in front of your OpenAI/Anthropic calls in 5 minutes. One endpoint, zero code changes — PII redaction, jailbreak blocking, and ROI reporting out of the box.</p>
+          <ul class="space-y-2 text-xs" style="color:var(--t2);">
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>OpenAI-compatible /v1/chat/completions</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Python SDK: pip install shadow-warden</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Dollar Impact Calculator — ROI in <1min</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Self-improves — zero ongoing maintenance</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Financial & Healthcare -->
+      <div class="bento lg:col-span-2" style="border-color:rgba(251,191,36,0.2);">
+        <div class="bento-inner">
+          <div class="flex items-start gap-6">
+            <div class="flex-1">
+              <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+              </div>
+              <div class="badge mb-3" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);color:#fbbf24;">Regulated Industries</div>
+              <h3 class="text-xl font-bold mb-2" style="color:var(--t1);">Financial Services & Healthcare</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--t2);max-width:420px;">GDPR Art. 35 DPIA included. All sensitive data stays on-prem via Data-Gravity Hybrid Hub (MinIO). Shannon entropy scan catches novel credential patterns before they reach cloud LLMs. IBM 2024 breach cost benchmarks power the Dollar Impact ROI model.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 shrink-0">
+              <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
+                <div class="text-2xl font-black" style="color:#fbbf24;">$4.9M</div>
+                <div class="text-xs mt-1" style="color:var(--t2);">avg breach cost (IBM 2024)</div>
+              </div>
+              <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
+                <div class="text-2xl font-black" style="color:#fbbf24;">GDPR</div>
+                <div class="text-xs mt-1" style="color:var(--t2);">Art. 35 DPIA included</div>
+              </div>
+              <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
+                <div class="text-2xl font-black" style="color:#fbbf24;">0</div>
+                <div class="text-xs mt-1" style="color:var(--t2);">content logged (by design)</div>
+              </div>
+              <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
+                <div class="text-2xl font-black" style="color:#fbbf24;">On-prem</div>
+                <div class="text-xs mt-1" style="color:var(--t2);">Data-Gravity MinIO vault</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DevOps / Platform Eng -->
+      <div class="bento bento-glow-green">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <div class="badge badge-green mb-3">Platform Engineering</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">DevOps & MLOps Teams</h3>
+          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Docker Compose, Helm charts, Terraform ready. 11 services with healthchecks. Prometheus metrics, Grafana dashboards, MinIO on-prem S3 — production-grade from day one.</p>
+          <ul class="space-y-2 text-xs" style="color:var(--t2);">
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>docker compose up — 11 services, <5min</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Prometheus + Grafana SLO alerts</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>CPU-only — no GPU required</li>
+            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Air-gap mode (no ANTHROPIC_API_KEY)</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════
      FEATURES BENTO
 ════════════════════════════════════════════════════════ -->
 <section id="features" class="py-24 lg:py-32" style="margin-top:3cm;">
@@ -1027,6 +1152,36 @@
 
     <!-- Bento grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 reveal">
+
+      <!-- NeMo Bridge — new v2.4 large card -->
+      <div class="bento lg:col-span-2" style="border-color:rgba(118,185,0,0.3);background:linear-gradient(135deg,rgba(5,19,31,0.97) 0%,rgba(6,22,10,0.97) 100%);">
+        <div class="bento-inner">
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <div class="badge mb-3" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.3);color:#76b900;">v2.4 · NEW</div>
+              <h3 class="text-xl font-bold mb-2" style="color:var(--t1);">NVIDIA NeMo — Geometric Threat Bridge</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--t2);max-width:380px;">First integration to translate Shadow Warden's mathematical threat coordinates — hyperbolic distance, Betti numbers, causal P(HIGH_RISK) — into NeMo Colang context variables for geometry-driven flow selection at runtime. Claude Opus auto-generates new Colang flows on novel attacks.</p>
+            </div>
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ml-4" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.3);">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 mt-4">
+            <div class="p-3 rounded-xl" style="background:rgba(118,185,0,0.06);border:1px solid rgba(118,185,0,0.12);">
+              <div class="text-xs font-bold mb-1" style="color:#76b900;">GeometricThreatBridge</div>
+              <div class="text-xs" style="color:var(--t2);">Betti + hyperbolic + causal → Colang vars</div>
+            </div>
+            <div class="p-3 rounded-xl" style="background:rgba(118,185,0,0.06);border:1px solid rgba(118,185,0,0.12);">
+              <div class="text-xs font-bold mb-1" style="color:#76b900;">DualOutputGuard</div>
+              <div class="text-xs" style="color:var(--t2);">NeMo rails + Shadow Warden second pass</div>
+            </div>
+            <div class="p-3 rounded-xl" style="background:rgba(118,185,0,0.06);border:1px solid rgba(118,185,0,0.12);">
+              <div class="text-xs font-bold mb-1" style="color:#76b900;">ColangEvolutionSynthesizer</div>
+              <div class="text-xs" style="color:var(--t2);">Claude Opus → new .co flows → hot-reload</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- ML Jailbreak Detection — large card -->
       <div class="bento bento-glow-purple lg:col-span-2">
