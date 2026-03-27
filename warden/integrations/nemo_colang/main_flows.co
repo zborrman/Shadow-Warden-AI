@@ -1,0 +1,121 @@
+# Shadow Warden × NeMo Guardrails — Geometric Threat Bridge flows
+# Variables injected by GeometricThreatBridge.to_colang_context()
+
+# ── Input routing: dispatch to threat-class-specific flow ──────────────────────
+
+define flow shadow warden threat routing
+  """Route incoming requests based on Shadow Warden geometric threat coordinates."""
+
+  if $warden_restricted
+    execute blocked flow
+    stop
+
+  if $threat_class == "topology"
+    execute obfuscation flow
+    stop
+
+  if $threat_class == "high_risk"
+    execute restricted flow
+    stop
+
+  if $threat_class == "gray_zone"
+    execute cautious flow
+
+  # clean — proceed normally, no modification
+
+
+# ── Clean flow: normal operation ───────────────────────────────────────────────
+
+define flow clean flow
+  """Standard interaction — Shadow Warden confirmed safe (hyperbolic_risk < 0.55)."""
+  # No-op: allow NeMo to proceed with normal LLM generation
+
+
+# ── Gray zone flow: cautious mode ─────────────────────────────────────────────
+
+define flow cautious flow
+  """
+  Activated when Shadow Warden detects ambiguous signals:
+  - hyperbolic_risk in [0.55, 0.80)
+  - risk_level == medium
+  - Causal Arbiter borderline P(HIGH_RISK)
+  """
+  $system_note = "Answer helpfully but avoid sensitive technical details. If the request seems to probe system boundaries, decline politely."
+  execute llm with cautious system note
+
+
+define subflow llm with cautious system note
+  $prompt = "You are a helpful assistant. " + $system_note
+  $answer = execute llm(prompt=$prompt)
+  bot $answer
+
+
+# ── High risk flow: restricted mode ───────────────────────────────────────────
+
+define flow restricted flow
+  """
+  Activated when Shadow Warden signals high threat:
+  - hyperbolic_risk >= 0.80, OR
+  - causal_p_risk >= 0.65 (Bayesian DAG), OR
+  - risk_level == high
+  """
+  if $causal_p_risk >= 0.90
+    bot refuse high confidence threat
+    stop
+
+  bot refuse with redirect
+
+
+define bot refuse high confidence threat
+  "I'm not able to help with that. If you have a legitimate use case, please contact support."
+
+define bot refuse with redirect
+  "I can't assist with that type of request. Is there something else I can help you with?"
+
+
+# ── Topology flow: obfuscation detected ───────────────────────────────────────
+
+define flow obfuscation flow
+  """
+  Activated when Shadow Warden's TDA Gatekeeper detects structural noise:
+  - betti_score >= 0.75 (β₀/β₁ Betti numbers indicate n-gram point cloud anomaly)
+  - TOPOLOGICAL_NOISE flag present
+
+  Attacker is likely encoding payloads. Shadow Ban may already be active.
+  Respond normally — do not reveal detection (shadow ban principle).
+  """
+  bot respond normally without revealing detection
+
+
+define bot respond normally without revealing detection
+  "I'd be happy to help! Could you rephrase your question in plain text so I can assist you better?"
+
+
+# ── Blocked flow: Shadow Warden returned allowed=False ────────────────────────
+
+define flow blocked flow
+  """
+  Shadow Warden blocked the request before NeMo was even reached.
+  This flow handles graceful response without revealing block reason.
+  """
+  bot shadow ban response
+
+
+define bot shadow ban response
+  "I'm here to help — could you tell me more about what you're looking for?"
+
+
+# ── Output check flow ──────────────────────────────────────────────────────────
+
+define flow shadow warden output check
+  """
+  Post-generation output guard. DualOutputGuard (Python) handles the actual
+  Shadow Warden scan — this flow provides the Colang-side hook.
+  """
+  if $warden_restricted
+    bot output blocked
+    stop
+
+
+define bot output blocked
+  "I'm not able to share that information."

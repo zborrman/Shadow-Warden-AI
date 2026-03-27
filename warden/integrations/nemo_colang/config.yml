@@ -1,0 +1,27 @@
+# NeMo Guardrails config for Shadow Warden Geometric Threat Bridge
+# Place this directory path in LLMRails.from_path()
+
+models:
+  - type: main
+    engine: openai          # or nvidia-nim, anthropic, etc.
+    model: gpt-4o
+
+# Shadow Warden injects these context variables before flow selection:
+#   $threat_class      : clean | gray_zone | high_risk | topology | blocked
+#   $colang_flow       : suggested flow name
+#   $hyperbolic_risk   : float 0.0–1.0 (Poincaré ball distance)
+#   $topology_noise    : float 0.0–1.0 (TDA Betti score)
+#   $causal_p_risk     : float 0.0–1.0 (Bayesian DAG P(HIGH_RISK))
+#   $entity_risk       : float 0.0–1.0 (Redis ERS score)
+#   $warden_risk       : low | medium | high | block
+#   $warden_flags      : list of flag names
+#   $warden_safe       : bool
+#   $warden_restricted : bool
+
+rails:
+  input:
+    flows:
+      - shadow warden threat routing
+  output:
+    flows:
+      - shadow warden output check
