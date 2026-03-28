@@ -37,7 +37,7 @@ numpy==1.26.4
 anthropic==0.42.0
 
 # Browser automation
-playwright==1.49.0
+playwright==1.58.0
 
 # Analytics dashboard
 streamlit==1.41.1
