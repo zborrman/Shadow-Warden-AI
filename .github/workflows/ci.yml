@@ -154,7 +154,7 @@ jobs:
 
       # ── Build warden image ────────────────────────────────────────────────────
       - name: Build warden image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: warden/
           push: false
@@ -166,7 +166,7 @@ jobs:
 
       # ── Build analytics image ─────────────────────────────────────────────────
       - name: Build analytics image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: analytics/
           push: false
