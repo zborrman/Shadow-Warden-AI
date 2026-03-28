@@ -9,7 +9,7 @@
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 
 # Web framework
-fastapi==0.115.6
+fastapi==0.135.2
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 starlette==0.41.3
