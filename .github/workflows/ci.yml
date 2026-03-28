@@ -315,7 +315,7 @@ jobs:
           # it won't clear a same-named container created outside compose.
           docker compose ps -q --status exited --status created 2>/dev/null \
             | xargs -r docker rm -f 2>/dev/null || true
-          docker compose up -d --remove-orphans
+          docker compose up -d --build --remove-orphans
 
           echo "── [4/4] Verify warden health ──────────────────────────────"
           for i in \$(seq 1 24); do
