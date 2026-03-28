@@ -8,6 +8,8 @@
   <meta property="og:title" content="Shadow Warden AI — Zero-Trust AI Security Gateway"/>
   <meta property="og:description" content="Block jailbreaks, strip secrets, enforce AP2 payment mandates. Self-improving via Claude Opus. GDPR-compliant."/>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
@@ -404,14 +406,172 @@
       transition: all 0.15s; text-decoration: none;
     }
     .nim-btn-outline:hover { border-color: rgba(118,185,0,0.45); color: #76b900; background: rgba(118,185,0,0.06); }
+
+    /* ══ PRO MAX additions ══════════════════════════════════════════════ */
+
+    /* Animated gradient text */
+    @keyframes grad-shift {
+      0%   { background-position: 0%   50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0%   50%; }
+    }
+    .text-grad {
+      background: linear-gradient(135deg, #67e8f9, #22d3ee, #a78bfa, #22d3ee, #67e8f9);
+      background-size: 400% 400%;
+      animation: grad-shift 7s ease infinite;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* Page loader */
+    #page-loader {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #020c14;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 18px;
+      transition: opacity 0.6s ease;
+    }
+    #page-loader.done { opacity: 0; pointer-events: none; }
+    .loader-ring {
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 2px solid rgba(34,211,238,0.12);
+      border-top-color: #22d3ee;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem; color: rgba(34,211,238,0.5);
+      letter-spacing: 0.12em;
+    }
+
+    /* Scroll progress bar */
+    #scroll-progress {
+      position: absolute; bottom: -1px; left: 0;
+      height: 2px; width: 0%;
+      background: linear-gradient(90deg, #22d3ee, #a78bfa);
+      transition: width 0.1s linear;
+      z-index: 10;
+    }
+
+    /* Hero canvas */
+    #hero-canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* Aurora blobs */
+    @keyframes aurora {
+      0%,100% { transform: translate(0,0) scale(1);   opacity: 0.7; }
+      33%      { transform: translate(4%,3%) scale(1.08); opacity: 1; }
+      66%      { transform: translate(-3%,2%) scale(0.95); opacity: 0.6; }
+    }
+    .aurora-blob {
+      position: absolute; border-radius: 50%;
+      pointer-events: none; filter: blur(80px);
+    }
+    .aurora-1 {
+      width: 700px; height: 400px; top: -10%; left: -5%;
+      background: radial-gradient(ellipse, rgba(34,211,238,0.12), transparent 70%);
+      animation: aurora 10s ease-in-out infinite;
+    }
+    .aurora-2 {
+      width: 500px; height: 500px; top: 5%; right: -5%;
+      background: radial-gradient(ellipse, rgba(139,92,246,0.10), transparent 70%);
+      animation: aurora 14s ease-in-out infinite reverse;
+    }
+    .aurora-3 {
+      width: 400px; height: 300px; bottom: 0; left: 30%;
+      background: radial-gradient(ellipse, rgba(16,185,129,0.07), transparent 70%);
+      animation: aurora 18s ease-in-out infinite 2s;
+    }
+
+    /* Shimmer on primary buttons */
+    .btn-cyan { position: relative; overflow: hidden; }
+    .btn-cyan::after {
+      content: '';
+      position: absolute; top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      transform: skewX(-20deg);
+      animation: shimmer-btn 3.5s ease infinite;
+    }
+    @keyframes shimmer-btn {
+      0%   { left: -100%; }
+      40%,100% { left: 140%; }
+    }
+
+    /* Floating badge */
+    @keyframes float-badge {
+      0%,100% { transform: translateY(0); }
+      50%     { transform: translateY(-4px); }
+    }
+    .float-anim { animation: float-badge 3s ease-in-out infinite; }
+
+    /* Glow card on hover */
+    .card:hover {
+      box-shadow: 0 0 0 1px rgba(34,211,238,0.18), 0 8px 40px rgba(34,211,238,0.07);
+    }
+    .bento:hover {
+      box-shadow: 0 0 0 1px rgba(34,211,238,0.18), 0 8px 40px rgba(34,211,238,0.06);
+    }
+
+    /* Stagger helpers */
+    .stagger-children > * { opacity: 0; transform: translateY(28px); }
+    .stagger-children.animated > * {
+      animation: stagger-in 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+    }
+    @keyframes stagger-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .stagger-children.animated > *:nth-child(1)  { animation-delay: 0.05s; }
+    .stagger-children.animated > *:nth-child(2)  { animation-delay: 0.12s; }
+    .stagger-children.animated > *:nth-child(3)  { animation-delay: 0.19s; }
+    .stagger-children.animated > *:nth-child(4)  { animation-delay: 0.26s; }
+    .stagger-children.animated > *:nth-child(5)  { animation-delay: 0.33s; }
+    .stagger-children.animated > *:nth-child(6)  { animation-delay: 0.40s; }
+    .stagger-children.animated > *:nth-child(7)  { animation-delay: 0.47s; }
+    .stagger-children.animated > *:nth-child(8)  { animation-delay: 0.54s; }
+    .stagger-children.animated > *:nth-child(9)  { animation-delay: 0.61s; }
+    .stagger-children.animated > *:nth-child(10) { animation-delay: 0.68s; }
+
+    /* Noise grain overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9998; opacity: 0.4;
+    }
+
+    /* Number counter */
+    .count-val { display: inline-block; }
+
+    /* Hero entrance classes */
+    .hero-enter { opacity: 0; }
   </style>
 </head>
 <body>
 
+<!-- Page Loader -->
+<div id="page-loader">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <svg width="28" height="28" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+      <rect x="4" y="30" width="20" height="49" fill="#1a3355" rx="2"/><rect x="4" y="21" width="7" height="11" fill="#1a3355" rx="1"/><rect x="14" y="21" width="7" height="11" fill="#1a3355" rx="1"/>
+      <rect x="56" y="30" width="20" height="49" fill="#1a3355" rx="2"/><rect x="56" y="21" width="7" height="11" fill="#1a3355" rx="1"/><rect x="66" y="21" width="7" height="11" fill="#1a3355" rx="1"/>
+      <rect x="24" y="40" width="32" height="39" fill="#1a3355" rx="1"/><rect x="29" y="18" width="22" height="24" fill="#1a3355" rx="1"/>
+      <polyline points="31,24 23,24 23,34 13,34" stroke="#22d3ee" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="12" cy="34" r="2.2" fill="#22d3ee"/>
+    </svg>
+    <span style="font-family:'Inter',sans-serif;font-weight:800;font-size:1rem;color:#dff0ff;">Shadow Warden</span>
+  </div>
+  <div class="loader-ring"></div>
+  <div class="loader-text">INITIALIZING SECURITY GATEWAY</div>
+</div>
+
 <!-- ════════════════════════════════════════════════════════
      NAVBAR
 ════════════════════════════════════════════════════════ -->
-<header id="nav" class="fixed top-0 inset-x-0 z-50 transition-all duration-300" style="background:rgba(2,12,20,0.8);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);">
+<header id="nav" class="fixed top-0 inset-x-0 z-50 transition-all duration-300" style="position:fixed;background:rgba(2,12,20,0.8);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);">
+  <div id="scroll-progress"></div>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
 
     <!-- Logo -->
@@ -494,6 +654,14 @@
 ════════════════════════════════════════════════════════ -->
 <section class="relative min-h-screen flex items-center pt-16 grid-bg overflow-hidden">
 
+  <!-- Particle canvas -->
+  <canvas id="hero-canvas"></canvas>
+
+  <!-- Aurora blobs -->
+  <div class="aurora-blob aurora-1"></div>
+  <div class="aurora-blob aurora-2"></div>
+  <div class="aurora-blob aurora-3"></div>
+
   <!-- Radial glow behind headline -->
   <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 70% 55% at 50% 0%, rgba(34,211,238,0.1) 0%, transparent 65%);"></div>
   <!-- Bottom fade -->
@@ -504,7 +672,7 @@
 
       <!-- Left: Copy -->
       <div>
-        <div class="flex items-center gap-3 mb-7">
+        <div class="flex items-center gap-3 mb-7 float-anim hero-enter" id="hero-badge">
           <span class="badge badge-cyan">
             <span class="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse"></span>
             v2.4 · NeMo Bridge + Geometric Threat Engine
@@ -512,18 +680,18 @@
           <span class="badge badge-green">GDPR · SOC 2</span>
         </div>
 
-        <h1 class="text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6">
+        <h1 class="text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6 hero-enter" id="hero-headline">
           <span class="text-grad">Zero-Trust</span><br/>
           <span style="color:var(--t1);">AI Security</span><br/>
           <span style="color:var(--t1);">Gateway</span>
         </h1>
 
-        <p class="text-lg sm:text-xl mb-8 leading-relaxed" style="color:var(--t2);max-width:500px;">
+        <p class="text-lg sm:text-xl mb-8 leading-relaxed hero-enter" id="hero-sub" style="color:var(--t2);max-width:500px;">
           Shadow Warden runs <span style="color:var(--t1);">9 defense layers</span> — TDA topology, hyperbolic ML, Bayesian causal inference — before your model ever sees the payload. Now with <span style="color:var(--t1);">NVIDIA NeMo Guardrails integration</span>: geometric threat coordinates drive Colang flow selection in real time.
           <span style="color:var(--t1);">F1 0.947 · P99 &lt;19ms · Self-improving via Claude Opus.</span>
         </p>
 
-        <div class="flex flex-wrap items-center gap-4 mb-12">
+        <div class="flex flex-wrap items-center gap-4 mb-12 hero-enter" id="hero-ctas">
           <a href="/login" class="btn-cyan">
             Start Free
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -537,15 +705,15 @@
         <!-- Mini stats -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div class="text-center p-3 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
-            <div class="text-xl font-black text-grad">18.6ms</div>
+            <div class="text-xl font-black text-grad"><span class="count-val" data-count="18.6" data-suffix="ms">18.6ms</span></div>
             <div class="text-xs mt-0.5" style="color:var(--t2);">P99 latency</div>
           </div>
           <div class="text-center p-3 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
-            <div class="text-xl font-black text-grad">0.947</div>
+            <div class="text-xl font-black text-grad"><span class="count-val" data-count="0.947" data-suffix="">0.947</span></div>
             <div class="text-xs mt-0.5" style="color:var(--t2);">F1 score (OWASP)</div>
           </div>
           <div class="text-center p-3 rounded-xl" style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);">
-            <div class="text-xl font-black text-grad">9</div>
+            <div class="text-xl font-black text-grad"><span class="count-val" data-count="9" data-suffix="">9</span></div>
             <div class="text-xs mt-0.5" style="color:var(--t2);">Defense layers</div>
           </div>
           <div class="text-center p-3 rounded-xl" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15);">
@@ -556,7 +724,7 @@
       </div>
 
       <!-- Right: Terminal demo -->
-      <div class="terminal ring-cyan reveal">
+      <div class="terminal ring-cyan reveal hero-enter" id="hero-terminal">
         <div class="term-bar">
           <div class="dot" style="background:#f43f5e;"></div>
           <div class="dot" style="background:#f59e0b;"></div>
@@ -3337,6 +3505,7 @@ response = <span class="k">await</span> rails.generate_async(<br/>
 </div>
 
 <script>
+  /* ── NIM Modal ─────────────────────────────────────────────────────── */
   function openNimModal() {
     document.getElementById('nimModalOverlay').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -3349,6 +3518,251 @@ response = <span class="k">await</span> rails.generate_async(<br/>
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { document.getElementById('nimModalOverlay').classList.remove('open'); document.body.style.overflow = ''; }
   });
+
+  /* ── Page Loader ───────────────────────────────────────────────────── */
+  function hideLoader() {
+    const loader = document.getElementById('page-loader');
+    if (!loader) return;
+    loader.classList.add('done');
+    setTimeout(() => { loader.style.display = 'none'; }, 700);
+  }
+  if (document.readyState === 'complete') {
+    setTimeout(hideLoader, 400);
+  } else {
+    window.addEventListener('load', () => setTimeout(hideLoader, 400));
+  }
+
+  /* ── Particle Canvas ───────────────────────────────────────────────── */
+  (function() {
+    const canvas = document.getElementById('hero-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W, H, particles = [], mouse = { x: -9999, y: -9999 };
+
+    function resize() {
+      W = canvas.width  = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+    }
+    resize();
+    window.addEventListener('resize', () => { resize(); initParticles(); });
+
+    canvas.closest('section').addEventListener('mousemove', e => {
+      const r = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - r.left;
+      mouse.y = e.clientY - r.top;
+    });
+    canvas.closest('section').addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+
+    const COLORS = ['34,211,238','139,92,246','16,185,129'];
+    function initParticles() {
+      particles = [];
+      const count = Math.min(90, Math.floor(W * H / 12000));
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * W, y: Math.random() * H,
+          vx: (Math.random() - 0.5) * 0.25,
+          vy: (Math.random() - 0.5) * 0.25,
+          r: Math.random() * 1.4 + 0.4,
+          alpha: Math.random() * 0.45 + 0.08,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)]
+        });
+      }
+    }
+    initParticles();
+
+    function drawLines() {
+      for (let i = 0; i < particles.length; i++) {
+        const dx = particles[i].x - mouse.x;
+        const dy = particles[i].y - mouse.y;
+        const dm = Math.sqrt(dx*dx + dy*dy);
+        if (dm < 150) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(mouse.x, mouse.y);
+          ctx.strokeStyle = `rgba(34,211,238,${0.12 * (1 - dm/150)})`;
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx2 = particles[i].x - particles[j].x;
+          const dy2 = particles[i].y - particles[j].y;
+          const d = Math.sqrt(dx2*dx2 + dy2*dy2);
+          if (d < 110) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(34,211,238,${0.05 * (1 - d/110)})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    let raf;
+    function animate() {
+      ctx.clearRect(0, 0, W, H);
+      drawLines();
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+        if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color},${p.alpha})`;
+        ctx.fill();
+      });
+      raf = requestAnimationFrame(animate);
+    }
+    animate();
+  })();
+
+  /* ── Scroll Progress Bar ───────────────────────────────────────────── */
+  (function() {
+    const bar = document.getElementById('scroll-progress');
+    if (!bar) return;
+    function update() {
+      const scrolled = window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      bar.style.width = (scrolled * 100) + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+  })();
+
+  /* ── Hero Entrance (GSAP or CSS fallback) ──────────────────────────── */
+  (function() {
+    const items = [
+      { id: 'hero-badge',    delay: 0.1,  x: 0,  y: 20 },
+      { id: 'hero-headline', delay: 0.25, x: 0,  y: 40 },
+      { id: 'hero-sub',      delay: 0.45, x: 0,  y: 30 },
+      { id: 'hero-ctas',     delay: 0.62, x: 0,  y: 24 },
+      { id: 'hero-terminal', delay: 0.3,  x: 50, y: 0  },
+    ];
+
+    if (window.gsap) {
+      gsap.registerPlugin(ScrollTrigger);
+      items.forEach(({ id, delay, x, y }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        gsap.fromTo(el,
+          { opacity: 0, x, y },
+          { opacity: 1, x: 0, y: 0, duration: 0.9, ease: 'power3.out', delay }
+        );
+      });
+
+      /* Scroll-triggered reveals */
+      document.querySelectorAll('.reveal').forEach(el => {
+        gsap.fromTo(el,
+          { opacity: 0, y: 30 },
+          { opacity: 1, y: 0, duration: 0.7, ease: 'power2.out',
+            scrollTrigger: { trigger: el, start: 'top 88%', toggleActions: 'play none none none' }
+          }
+        );
+      });
+
+      /* Stagger grids */
+      document.querySelectorAll('.stagger-children').forEach(grid => {
+        const children = Array.from(grid.children);
+        gsap.fromTo(children,
+          { opacity: 0, y: 35 },
+          { opacity: 1, y: 0, duration: 0.6, stagger: 0.09, ease: 'power2.out',
+            scrollTrigger: { trigger: grid, start: 'top 85%', toggleActions: 'play none none none' }
+          }
+        );
+      });
+
+    } else {
+      /* CSS fallback if GSAP hasn't loaded */
+      setTimeout(() => {
+        items.forEach(({ id, delay }) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          setTimeout(() => {
+            el.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+            el.style.opacity = '1';
+            el.style.transform = 'none';
+          }, delay * 1000);
+        });
+        document.querySelectorAll('.reveal').forEach(el => {
+          el.classList.add('in');
+        });
+      }, 100);
+    }
+  })();
+
+  /* ── Counter Animations ────────────────────────────────────────────── */
+  (function() {
+    function animateCounter(el) {
+      const target = parseFloat(el.dataset.count);
+      const suffix = el.dataset.suffix || '';
+      const isDecimal = target % 1 !== 0;
+      const decimals = isDecimal ? (String(target).split('.')[1] || '').length : 0;
+      const duration = 1800;
+      const start = performance.now();
+      function step(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        const val = target * ease;
+        el.textContent = val.toFixed(decimals) + suffix;
+        if (progress < 1) requestAnimationFrame(step);
+        else el.textContent = target.toFixed(decimals) + suffix;
+      }
+      requestAnimationFrame(step);
+    }
+
+    if (window.gsap && window.ScrollTrigger) {
+      document.querySelectorAll('.count-val[data-count]').forEach(el => {
+        ScrollTrigger.create({
+          trigger: el, start: 'top 90%', once: true,
+          onEnter: () => animateCounter(el)
+        });
+      });
+    } else {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) { animateCounter(entry.target); io.unobserve(entry.target); }
+        });
+      }, { threshold: 0.3 });
+      document.querySelectorAll('.count-val[data-count]').forEach(el => io.observe(el));
+    }
+  })();
+
+  /* ── Stagger fallback (IntersectionObserver) ───────────────────────── */
+  (function() {
+    if (window.gsap) return;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('animated');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.stagger-children').forEach(el => io.observe(el));
+  })();
+
+  /* ── Magnetic Buttons ──────────────────────────────────────────────── */
+  (function() {
+    document.querySelectorAll('.btn-cyan, .btn-outline').forEach(btn => {
+      btn.addEventListener('mousemove', e => {
+        const r = btn.getBoundingClientRect();
+        const x = (e.clientX - r.left - r.width  / 2) * 0.12;
+        const y = (e.clientY - r.top  - r.height / 2) * 0.12;
+        btn.style.transform = `translate(${x}px,${y}px)`;
+      });
+      btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+    });
+  })();
+
+  /* ── Reveal fallback (IntersectionObserver, no GSAP) ──────────────── */
+  (function() {
+    if (window.gsap) return;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) { entry.target.classList.add('in'); io.unobserve(entry.target); }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+  })();
 </script>
 
 </body>
