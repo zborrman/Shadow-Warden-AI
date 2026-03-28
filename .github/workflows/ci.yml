@@ -275,7 +275,7 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: [test, lint]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
     steps:
       - name: Deploy via SSH
