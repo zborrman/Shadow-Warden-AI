@@ -9,6 +9,10 @@ updates:
     labels:
       - "dependencies"
       - "security"
+    ignore:
+      # Playwright is pinned — browser sandbox is disabled (BROWSER_ENABLED=false).
+      # Upgrading requires re-enabling MCR base image + playwright install chromium.
+      - dependency-name: "playwright"
 
   - package-ecosystem: "docker"
     directory: "/"
