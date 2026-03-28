@@ -9,5 +9,24 @@
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     }
+  ],
+  "rewrites": [
+    { "source": "/agents",            "destination": "/agents.html" },
+    { "source": "/dashboard",         "destination": "/dashboard.html" },
+    { "source": "/roadmap",           "destination": "/roadmap.html" },
+    { "source": "/login",             "destination": "/login.html" },
+    { "source": "/contact",           "destination": "/contact.html" },
+    { "source": "/settings",          "destination": "/settings.html" },
+    { "source": "/docs",              "destination": "/docs.html" },
+    { "source": "/security",          "destination": "/security.html" },
+    { "source": "/benchmark",         "destination": "/benchmark.html" },
+    { "source": "/integration-guide", "destination": "/integration-guide.html" },
+    { "source": "/pricing",           "destination": "/index.html" },
+    { "source": "/privacy",           "destination": "/privacy.html" },
+    { "source": "/terms",             "destination": "/terms.html" },
+    { "source": "/refund",            "destination": "/refund.html" },
+    { "source": "/billing",           "destination": "/billing.html" },
+    { "source": "/checkout",          "destination": "/checkout.html" },
+    { "source": "/qa",                "destination": "/qa.html" }
   ]
 }
