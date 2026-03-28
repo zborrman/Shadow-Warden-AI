@@ -8,8 +8,8 @@
   <meta property="og:title" content="Shadow Warden AI — Zero-Trust AI Security Gateway"/>
   <meta property="og:description" content="Block jailbreaks, strip secrets, enforce AP2 payment mandates. Self-improving via Claude Opus. GDPR-compliant."/>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
@@ -546,8 +546,8 @@
     /* Number counter */
     .count-val { display: inline-block; }
 
-    /* Hero entrance classes */
-    .hero-enter { opacity: 0; }
+    /* Hero entrance classes — GSAP overrides these */
+    .hero-enter { opacity: 0; transform: translateY(24px); transition: none; }
   </style>
 </head>
 <body>
@@ -3671,17 +3671,15 @@ response = <span class="k">await</span> rails.generate_async(<br/>
       });
 
     } else {
-      /* CSS fallback if GSAP hasn't loaded */
+      /* CSS fallback — GSAP not available, show everything immediately */
+      items.forEach(({ id, delay }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.transition = `opacity 0.8s ease ${delay}s, transform 0.8s ease ${delay}s`;
+        el.style.transform = 'translateY(0)';
+        requestAnimationFrame(() => { el.style.opacity = '1'; });
+      });
       setTimeout(() => {
-        items.forEach(({ id, delay }) => {
-          const el = document.getElementById(id);
-          if (!el) return;
-          setTimeout(() => {
-            el.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
-            el.style.opacity = '1';
-            el.style.transform = 'none';
-          }, delay * 1000);
-        });
         document.querySelectorAll('.reveal').forEach(el => {
           el.classList.add('in');
         });
