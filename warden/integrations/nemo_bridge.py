@@ -40,13 +40,12 @@ Usage::
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import re
 import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -54,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 # ── Threat classification ──────────────────────────────────────────────────────
 
-class ThreatClass(str, Enum):
+class ThreatClass(StrEnum):
     CLEAN      = "clean"        # pass normally
     GRAY_ZONE  = "gray_zone"    # cautious — Causal Arbiter activated
     HIGH_RISK  = "high_risk"    # restricted — ML + Causal both flagged
