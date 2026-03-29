@@ -548,7 +548,7 @@
           <div class="field">
             <div class="field-row">
               <label for="si-password" style="margin:0">Password</label>
-              <a href="#" class="label-link">Forgot password?</a>
+              <a href="#" class="label-link" onclick="openForgot();return false;">Forgot password?</a>
             </div>
             <div class="input-wrap">
               <input id="si-password" type="password" placeholder="••••••••" autocomplete="current-password" class="has-toggle" required />
@@ -894,6 +894,69 @@
     hideAlert('si-error');
   });
 
+  // ── Forgot Password ────────────────────────────────────────────────────
+  function openForgot() {
+    document.getElementById('forgot-modal').style.display = 'flex';
+    document.getElementById('fp-step1').style.display = '';
+    document.getElementById('fp-step2').style.display = 'none';
+    document.getElementById('fp-email').value = document.getElementById('si-email').value || '';
+    hideAlert('fp-error'); hideAlert('fp-success');
+  }
+  function closeForgot() {
+    document.getElementById('forgot-modal').style.display = 'none';
+  }
+
+  async function handleForgotRequest(e) {
+    e.preventDefault();
+    const email = document.getElementById('fp-email').value.trim();
+    hideAlert('fp-error'); hideAlert('fp-success');
+    const btn = document.getElementById('fp-btn1');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      const res  = await fetch('/portal/auth/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.reset_token) {
+        document.getElementById('fp-token-display').textContent = data.reset_token;
+        document.getElementById('fp-step1').style.display = 'none';
+        document.getElementById('fp-step2').style.display = '';
+        document.getElementById('fp-token').value = data.reset_token;
+      } else {
+        showAlert('fp-error', data.detail || 'Email not found.');
+      }
+    } catch { showAlert('fp-error', 'Connection error.'); }
+    finally { btn.disabled = false; btn.textContent = 'Send Reset Token'; }
+  }
+
+  async function handleForgotReset(e) {
+    e.preventDefault();
+    const token   = document.getElementById('fp-token').value.trim();
+    const pw      = document.getElementById('fp-newpw').value;
+    const confirm = document.getElementById('fp-confirmpw').value;
+    hideAlert('fp-error2');
+    if (pw !== confirm) { showAlert('fp-error2', 'Passwords do not match.'); return; }
+    if (pw.length < 8)  { showAlert('fp-error2', 'Password must be at least 8 characters.'); return; }
+    const btn = document.getElementById('fp-btn2');
+    btn.disabled = true; btn.textContent = 'Resetting…';
+    try {
+      const res  = await fetch('/portal/auth/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password: pw }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        closeForgot();
+        document.getElementById('si-email').value = document.getElementById('fp-email').value;
+        showAlert('si-error', '✓ Password reset successfully. Please sign in.', true);
+      } else {
+        showAlert('fp-error2', data.detail || 'Reset failed. Try again.');
+      }
+    } catch { showAlert('fp-error2', 'Connection error.'); }
+    finally { btn.disabled = false; btn.textContent = 'Set New Password'; }
+  }
+
   // ── TOTP digit-box keyboard UX ─────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const boxes = document.querySelectorAll('.totp-box');
@@ -935,5 +998,47 @@
     });
   });
 </script>
+
+<!-- ── Forgot Password Modal ─────────────────────────────────────────── -->
+<div id="forgot-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(3,7,18,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.25);border-radius:18px;width:100%;max-width:420px;padding:32px;position:relative;">
+    <button onclick="closeForgot()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.2rem;line-height:1;">✕</button>
+
+    <!-- Step 1: Enter email -->
+    <div id="fp-step1">
+      <div style="font-size:1.25rem;font-weight:700;color:#f1f5f9;margin-bottom:6px;">Reset Password</div>
+      <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:24px;">Enter your email to receive a reset token.</div>
+      <div id="fp-error" class="alert alert-error" style="display:none;margin-bottom:16px;"></div>
+      <form onsubmit="handleForgotRequest(event)">
+        <div class="field" style="margin-bottom:20px;">
+          <label for="fp-email">Email address</label>
+          <input id="fp-email" type="email" class="input" placeholder="you@company.com" required autocomplete="email" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);background:#0f172a;color:#f1f5f9;font-size:0.9rem;outline:none;" />
+        </div>
+        <button id="fp-btn1" type="submit" class="btn-primary" style="width:100%;">Send Reset Token</button>
+      </form>
+    </div>
+
+    <!-- Step 2: Enter token + new password -->
+    <div id="fp-step2" style="display:none;">
+      <div style="font-size:1.25rem;font-weight:700;color:#f1f5f9;margin-bottom:6px;">Set New Password</div>
+      <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:16px;">Your reset token (copy it or it's pre-filled):</div>
+      <div id="fp-token-display" style="font-family:monospace;font-size:0.72rem;background:#0f172a;border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px 12px;color:#6366f1;word-break:break-all;margin-bottom:20px;"></div>
+      <div id="fp-error2" class="alert alert-error" style="display:none;margin-bottom:16px;"></div>
+      <form onsubmit="handleForgotReset(event)">
+        <input id="fp-token" type="hidden" />
+        <div class="field" style="margin-bottom:16px;">
+          <label for="fp-newpw" style="color:#94a3b8;font-size:0.82rem;margin-bottom:6px;display:block;">New Password</label>
+          <input id="fp-newpw" type="password" placeholder="Min. 8 characters" required minlength="8" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);background:#0f172a;color:#f1f5f9;font-size:0.9rem;outline:none;" />
+        </div>
+        <div class="field" style="margin-bottom:20px;">
+          <label for="fp-confirmpw" style="color:#94a3b8;font-size:0.82rem;margin-bottom:6px;display:block;">Confirm Password</label>
+          <input id="fp-confirmpw" type="password" placeholder="Repeat password" required style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);background:#0f172a;color:#f1f5f9;font-size:0.9rem;outline:none;" />
+        </div>
+        <button id="fp-btn2" type="submit" class="btn-primary" style="width:100%;">Set New Password</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
