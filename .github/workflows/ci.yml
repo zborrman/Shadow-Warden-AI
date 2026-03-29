@@ -41,7 +41,7 @@ jobs:
       # Cache the ~80 MB MiniLM model so slow/integration tests don't re-download it.
       # Key is fixed per model name — weights never change.
       - name: Cache ML model (all-MiniLM-L6-v2)
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/warden-model-cache
           key: warden-model-all-minilm-l6-v2-v1
