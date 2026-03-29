@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Red Team Certification — Shadow Warden AI</title>
+  <meta name="description" content="Professional AI Red Team Certification. Learn to identify, exploit and remediate AI security vulnerabilities. Pilot cohort — 15 seats only."/>
+  <meta property="og:title" content="AI Red Team Certification — Shadow Warden AI"/>
+  <meta property="og:description" content="The first hands-on certification for AI Red Teaming. OWASP LLM Top 10, jailbreaks, adversarial ML, live lab environment."/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --bg:      #020c14;
+      --bg2:     #05131f;
+      --bg3:     #0a2035;
+      --cyan:    #22d3ee;
+      --green:   #10b981;
+      --purple:  #8b5cf6;
+      --red:     #f43f5e;
+      --amber:   #f59e0b;
+      --t1:      #dff0ff;
+      --t2:      #5d8aa8;
+      --t3:      #1e3a50;
+      --border:  rgba(34,211,238,0.09);
+      --border2: rgba(34,211,238,0.22);
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    html { scroll-behavior:smooth; }
+    body {
+      background: var(--bg);
+      color: var(--t1);
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    .mono { font-family:'JetBrains Mono', monospace; }
+
+    /* Grid */
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(34,211,238,0.02) 1px, transparent 1px),
+        linear-gradient(90deg,rgba(34,211,238,0.02) 1px, transparent 1px);
+      background-size: 56px 56px;
+    }
+
+    /* Gradients */
+    .text-grad {
+      background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 40%, #a78bfa 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+    .text-grad-red {
+      background: linear-gradient(135deg, #fca5a5 0%, #f43f5e 50%, #fb923c 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+    .text-grad-gold {
+      background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+
+    /* Aurora */
+    .aurora-wrap { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+    .aurora-blob { position:absolute; border-radius:50%; filter:blur(90px); opacity:0.1; animation:aurora-drift 20s ease-in-out infinite alternate; }
+    .a1 { width:600px; height:600px; background:radial-gradient(circle,#f43f5e,transparent 70%); top:-200px; right:-100px; animation-duration:22s; }
+    .a2 { width:450px; height:450px; background:radial-gradient(circle,#8b5cf6,transparent 70%); bottom:-100px; left:-80px; animation-duration:28s; animation-delay:-10s; }
+    .a3 { width:350px; height:350px; background:radial-gradient(circle,#22d3ee,transparent 70%); top:40%; left:55%; animation-duration:34s; animation-delay:-6s; }
+    @keyframes aurora-drift { 0%{transform:translate(0,0) scale(1);} 100%{transform:translate(50px,40px) scale(1.1);} }
+
+    /* Scroll progress */
+    #scroll-progress { position:fixed; top:64px; left:0; height:2px; background:linear-gradient(90deg,#f43f5e,#8b5cf6,#22d3ee); width:0%; z-index:100; transition:width 0.1s; }
+
+    /* Navbar */
+    nav { position:fixed; top:0; left:0; right:0; z-index:50; padding:0 24px; height:64px; display:flex; align-items:center; justify-content:space-between; background:rgba(2,12,20,0.88); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
+    .nav-logo { font-size:1.05rem; font-weight:800; letter-spacing:-0.02em; color:var(--t1); text-decoration:none; display:flex; align-items:center; gap:8px; }
+
+    /* Sections */
+    section { position:relative; z-index:10; }
+
+    /* Eyebrow */
+    .eyebrow { font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--t2); }
+
+    /* Cards */
+    .card { background:rgba(5,19,31,0.88); border:1px solid var(--border); border-radius:20px; backdrop-filter:blur(10px); }
+    .card-red { border-color:rgba(244,63,94,0.18); background:rgba(244,63,94,0.04); }
+    .card-purple { border-color:rgba(139,92,246,0.18); background:rgba(139,92,246,0.04); }
+    .card-glow { box-shadow:0 0 60px rgba(244,63,94,0.05), 0 0 0 1px rgba(244,63,94,0.06) inset; }
+
+    /* Badge */
+    .badge { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
+    .badge-red    { background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.25); color:#f87171; }
+    .badge-cyan   { background:rgba(34,211,238,0.08); border:1px solid rgba(34,211,238,0.2); color:var(--cyan); }
+    .badge-gold   { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); color:#fbbf24; }
+    .badge-green  { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); color:#34d399; }
+    .badge-purple { background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.25); color:#a78bfa; }
+
+    /* Pulse dot */
+    .dot-live { width:7px; height:7px; border-radius:50%; background:#f43f5e; animation:pulse-dot 1.8s infinite; flex-shrink:0; }
+    .dot-green { background:#10b981; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.35;transform:scale(1.6);} }
+
+    /* Seat counter */
+    .seat-bar { height:6px; border-radius:3px; background:rgba(244,63,94,0.15); overflow:hidden; }
+    .seat-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,#f43f5e,#fb923c); transition:width 1s ease; }
+
+    /* Timeline */
+    .tl-line { position:absolute; left:19px; top:0; bottom:0; width:2px; background:linear-gradient(180deg, rgba(244,63,94,0.5), rgba(139,92,246,0.5), rgba(34,211,238,0.3)); }
+    .tl-dot { width:40px; height:40px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; position:relative; z-index:2; }
+
+    /* Module accordion */
+    .mod-header { cursor:pointer; display:flex; align-items:center; justify-content:space-between; padding:18px 20px; user-select:none; }
+    .mod-body { display:none; padding:0 20px 20px; }
+    .mod-card.open .mod-body { display:block; }
+    .mod-card.open .mod-chevron { transform:rotate(180deg); color:var(--cyan); }
+    .mod-chevron { transition:transform 0.25s, color 0.2s; color:var(--t3); }
+    .mod-num { font-size:11px; font-weight:800; letter-spacing:0.08em; color:var(--cyan); font-family:'JetBrains Mono',monospace; }
+
+    /* Skill tags */
+    .skill-tag { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:7px; font-size:11.5px; font-weight:600; background:rgba(10,32,53,0.9); border:1px solid var(--border); color:var(--t2); }
+
+    /* Buttons */
+    .btn-red {
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:14px 28px; border-radius:14px; font-size:15px; font-weight:700;
+      background:linear-gradient(135deg,#f43f5e 0%,#fb923c 100%);
+      color:#fff; border:none; cursor:pointer;
+      box-shadow:0 4px 24px rgba(244,63,94,0.3);
+      transition:opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      position:relative; overflow:hidden; text-decoration:none;
+    }
+    .btn-red:hover { opacity:0.92; transform:translateY(-2px); box-shadow:0 8px 32px rgba(244,63,94,0.35); }
+    .btn-red:active { transform:translateY(0); }
+    .btn-red:disabled { opacity:0.45; cursor:not-allowed; transform:none; }
+    .btn-outline { display:inline-flex; align-items:center; gap:7px; padding:12px 22px; border-radius:12px; font-size:14px; font-weight:600; border:1px solid var(--border2); color:var(--t1); background:transparent; cursor:pointer; text-decoration:none; transition:border-color 0.2s, background 0.2s; }
+    .btn-outline:hover { border-color:rgba(34,211,238,0.4); background:rgba(34,211,238,0.04); }
+
+    /* Shimmer */
+    .shimmer-layer { position:absolute; inset:0; background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.15) 50%,transparent 100%); transform:translateX(-100%); }
+    .btn-red:not(:disabled):hover .shimmer-layer { animation:shimmer 0.65s ease forwards; }
+    @keyframes shimmer { to{transform:translateX(100%);} }
+
+    /* Form */
+    .form-label { display:block; font-size:11.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--t2); margin-bottom:7px; }
+    .form-input  { width:100%; background:rgba(10,32,53,0.8); border:1px solid rgba(34,211,238,0.13); border-radius:11px; color:var(--t1); font-size:14px; padding:11px 14px; outline:none; transition:border-color 0.2s, box-shadow 0.2s; font-family:'Inter',sans-serif; }
+    .form-input::placeholder { color:var(--t3); }
+    .form-input:focus { border-color:rgba(244,63,94,0.45); box-shadow:0 0 0 3px rgba(244,63,94,0.07); }
+    textarea.form-input { resize:vertical; min-height:110px; }
+    .err-msg { font-size:11.5px; color:#f87171; margin-top:4px; display:none; }
+
+    /* Select */
+    select.form-input { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235d8aa8' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:36px; cursor:pointer; }
+    select.form-input option { background:#0a2035; }
+
+    /* Consent */
+    .consent-row { display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
+    .consent-box { width:18px; height:18px; border-radius:5px; flex-shrink:0; margin-top:1px; border:1.5px solid rgba(244,63,94,0.3); background:rgba(2,12,20,0.6); display:flex; align-items:center; justify-content:center; transition:background 0.2s, border-color 0.2s; }
+    .consent-row.checked .consent-box { background:var(--red); border-color:var(--red); }
+    .consent-box svg { opacity:0; transition:opacity 0.15s; }
+    .consent-row.checked .consent-box svg { opacity:1; }
+
+    /* Success */
+    #success-block { display:none; }
+    .cert-badge-visual {
+      width:140px; height:140px; border-radius:50%; margin:0 auto 24px;
+      background:conic-gradient(from 0deg, #f43f5e, #fb923c, #f59e0b, #8b5cf6, #22d3ee, #f43f5e);
+      display:flex; align-items:center; justify-content:center;
+      animation:spin-slow 8s linear infinite;
+      box-shadow:0 0 60px rgba(244,63,94,0.25);
+    }
+    .cert-badge-inner { width:116px; height:116px; border-radius:50%; background:var(--bg); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:2px; }
+    @keyframes spin-slow { to{transform:rotate(360deg);} }
+
+    /* Entrance */
+    .fade-up { opacity:0; transform:translateY(30px); }
+    .reveal  { opacity:0; transform:translateY(24px); }
+
+    /* Scroll reveal done in JS */
+  </style>
+</head>
+<body class="grid-bg">
+
+<!-- Aurora -->
+<div class="aurora-wrap">
+  <div class="aurora-blob a1"></div>
+  <div class="aurora-blob a2"></div>
+  <div class="aurora-blob a3"></div>
+</div>
+
+<!-- Scroll progress -->
+<div id="scroll-progress"></div>
+
+<!-- Navbar -->
+<nav>
+  <a href="/" class="nav-logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    <span style="color:var(--t1);">Shadow</span><span style="color:var(--cyan);">Warden</span>
+  </a>
+  <div class="flex items-center gap-3">
+    <a href="#apply" class="btn-red" style="padding:8px 18px;font-size:13px;">
+      <span class="shimmer-layer"></span>
+      Apply Now
+    </a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="pt-28 pb-20 px-4" id="hero">
+  <div class="max-w-5xl mx-auto">
+
+    <div class="text-center mb-16 fade-up" id="hero-head">
+
+      <!-- Badges row -->
+      <div class="flex flex-wrap items-center justify-center gap-2 mb-7">
+        <span class="badge badge-red"><span class="dot-live"></span>Pilot Cohort 2025</span>
+        <span class="badge badge-gold">15 Seats Only</span>
+        <span class="badge badge-cyan">Hands-On Lab</span>
+        <span class="badge badge-green">Certificate Issued</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl font-black leading-none mb-6" style="letter-spacing:-0.04em;">
+        <span class="text-grad-red">AI Red Team</span><br/>
+        Certification
+      </h1>
+      <p class="text-lg sm:text-xl mb-2" style="color:var(--t2);max-width:560px;margin-left:auto;margin-right:auto;line-height:1.65;">
+        The first professional certification for <strong style="color:var(--t1);">AI security red teaming</strong>.
+        Learn to attack, break, and harden production AI systems using the same tools used by the Shadow Warden engine.
+      </p>
+      <p class="text-sm mb-10" style="color:var(--t3);">8 weeks · Live labs · OWASP LLM Top 10 · Real AI pipelines · Certificate of Completion</p>
+
+      <!-- Seat counter -->
+      <div class="max-w-xs mx-auto mb-10">
+        <div class="flex justify-between mb-2">
+          <span style="font-size:12px;color:var(--t2);">Pilot seats filled</span>
+          <span style="font-size:12px;font-weight:700;color:#f87171;" id="seats-text">3 / 15 seats</span>
+        </div>
+        <div class="seat-bar">
+          <div class="seat-fill" id="seat-fill" style="width:20%"></div>
+        </div>
+        <p style="font-size:11px;color:var(--t3);margin-top:6px;text-align:right;">Applications reviewed within 48 h</p>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-center gap-4">
+        <a href="#apply" class="btn-red">
+          <span class="shimmer-layer"></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Apply for Pilot Cohort
+        </a>
+        <a href="#curriculum" class="btn-outline">View Curriculum ↓</a>
+      </div>
+    </div>
+
+    <!-- Stats strip -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 fade-up" id="hero-stats">
+      <div class="card text-center p-5">
+        <div class="text-3xl font-black mb-1 text-grad-red">8</div>
+        <div style="font-size:12px;color:var(--t2);">Weeks Intensive</div>
+      </div>
+      <div class="card text-center p-5">
+        <div class="text-3xl font-black mb-1 text-grad">10+</div>
+        <div style="font-size:12px;color:var(--t2);">Live Lab Modules</div>
+      </div>
+      <div class="card text-center p-5">
+        <div class="text-3xl font-black mb-1" style="background:linear-gradient(135deg,#fcd34d,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">15</div>
+        <div style="font-size:12px;color:var(--t2);">Pilot Seats</div>
+      </div>
+      <div class="card text-center p-5">
+        <div class="text-3xl font-black mb-1" style="background:linear-gradient(135deg,#34d399,#10b981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">100%</div>
+        <div style="font-size:12px;color:var(--t2);">Hands-On</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- WHAT YOU WILL LEARN -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4" id="learn">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-12 reveal">
+      <p class="eyebrow mb-3">Program Overview</p>
+      <h2 class="text-3xl sm:text-4xl font-black" style="letter-spacing:-0.03em;">
+        What you'll <span class="text-grad">master</span>
+      </h2>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+      <div class="card p-6 reveal">
+        <div class="text-3xl mb-4">🎯</div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;">Prompt Injection Mastery</h3>
+        <p style="font-size:13px;color:var(--t2);line-height:1.6;">Direct & indirect prompt injection, system prompt exfiltration, goal hijacking, and context manipulation at scale.</p>
+      </div>
+
+      <div class="card p-6 reveal">
+        <div class="text-3xl mb-4">🔓</div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;">Jailbreak Engineering</h3>
+        <p style="font-size:13px;color:var(--t2);line-height:1.6;">Role-play bypasses, DAN variants, token smuggling, adversarial suffix generation, and multi-turn evasion chains.</p>
+      </div>
+
+      <div class="card p-6 reveal">
+        <div class="text-3xl mb-4">🕵️</div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;">Model Recon & Fingerprinting</h3>
+        <p style="font-size:13px;color:var(--t2);line-height:1.6;">Training data extraction, model inversion, membership inference, and capability probing techniques.</p>
+      </div>
+
+      <div class="card p-6 reveal">
+        <div class="text-3xl mb-4">🧬</div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;">Adversarial ML Attacks</h3>
+        <p style="font-size:13px;color:var(--t2);line-height:1.6;">FGSM, PGD, C&W attacks on embeddings. Transferability, black-box probing, and adversarial patch construction.</p>
+      </div>
+
+      <div class="card p-6 reveal">
+        <div class="text-3xl mb-4">🔗</div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;">Agent Pipeline Exploitation</h3>
+        <p style="font-size:13px;color:var(--t2);line-height:1.6;">Tool-calling abuse, injection chains, memory poisoning, orchestrator hijacking, and multi-agent trust boundary attacks.</p>
+      </div>
+
+      <div class="card p-6 reveal">
+        <div class="text-3xl mb-4">🛡️</div>
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;">Defense & Remediation</h3>
+        <p style="font-size:13px;color:var(--t2);line-height:1.6;">Building semantic guards, deploying Shadow Warden layers, writing Red Team reports, and operationalising findings.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- CURRICULUM -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4" id="curriculum">
+  <div class="max-w-3xl mx-auto">
+    <div class="text-center mb-12 reveal">
+      <p class="eyebrow mb-3">Full Curriculum</p>
+      <h2 class="text-3xl sm:text-4xl font-black" style="letter-spacing:-0.03em;">
+        8-week <span class="text-grad-red">program</span>
+      </h2>
+      <p style="font-size:14px;color:var(--t2);margin-top:10px;">Click any module to expand. Each module includes theory, live demo, and hands-on lab.</p>
+    </div>
+
+    <div class="flex flex-col gap-3" id="mod-list">
+
+      <!-- M1 -->
+      <div class="card mod-card open" data-mod="1">
+        <div class="mod-header" onclick="toggleMod(this.parentElement)">
+          <div class="flex items-center gap-3">
+            <div class="tl-dot" style="background:rgba(244,63,94,0.15);border:1.5px solid rgba(244,63,94,0.4);color:#f87171;">01</div>
+            <div>
+              <div class="mod-num">WEEK 1–2</div>
+              <div style="font-size:15px;font-weight:700;">AI Threat Landscape & OWASP LLM Top 10</div>
+            </div>
+          </div>
+          <svg class="mod-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13px;color:var(--t2);line-height:1.65;margin-bottom:14px;">
+            Master the full OWASP LLM Top 10 (2024 edition). Understand the attack surface of modern AI stacks: LLMs, embeddings, vector DBs, tool-calling agents, and RAG pipelines.
+          </p>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <span class="skill-tag">Prompt Injection (LLM01)</span>
+            <span class="skill-tag">Insecure Output Handling</span>
+            <span class="skill-tag">Training Data Poisoning</span>
+            <span class="skill-tag">Supply Chain</span>
+            <span class="skill-tag">Sensitive Info Disclosure</span>
+          </div>
+          <div style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.15);border-radius:10px;padding:12px 14px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#f87171;text-transform:uppercase;margin-bottom:8px;">🧪 Lab: OWASP LLM Juice Box</p>
+            <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Deploy a deliberately vulnerable LLM app (our custom Shadow Warden Lab environment). Exploit all 10 OWASP categories with guided walkthroughs.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- M2 -->
+      <div class="card mod-card" data-mod="2">
+        <div class="mod-header" onclick="toggleMod(this.parentElement)">
+          <div class="flex items-center gap-3">
+            <div class="tl-dot" style="background:rgba(251,146,60,0.1);border:1.5px solid rgba(251,146,60,0.35);color:#fb923c;">02</div>
+            <div>
+              <div class="mod-num">WEEK 2–3</div>
+              <div style="font-size:15px;font-weight:700;">Prompt Injection — Attack & Bypass</div>
+            </div>
+          </div>
+          <svg class="mod-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13px;color:var(--t2);line-height:1.65;margin-bottom:14px;">
+            Deep-dive into every prompt injection variant. Build automated attack pipelines that test for injection vulnerabilities across GPT, Claude, Gemini, and open-source models.
+          </p>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <span class="skill-tag">Direct Injection</span>
+            <span class="skill-tag">Indirect / RAG Injection</span>
+            <span class="skill-tag">System Prompt Exfiltration</span>
+            <span class="skill-tag">Goal Hijacking</span>
+            <span class="skill-tag">Context Window Overflow</span>
+            <span class="skill-tag">Multi-Turn Evasion</span>
+          </div>
+          <div style="background:rgba(251,146,60,0.06);border:1px solid rgba(251,146,60,0.15);border-radius:10px;padding:12px 14px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#fb923c;text-transform:uppercase;margin-bottom:8px;">🧪 Lab: Injection Hunter</p>
+            <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Build a Python scanner that automatically finds injection endpoints in REST APIs backed by LLMs. Test against 3 live target environments.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- M3 -->
+      <div class="card mod-card" data-mod="3">
+        <div class="mod-header" onclick="toggleMod(this.parentElement)">
+          <div class="flex items-center gap-3">
+            <div class="tl-dot" style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.35);color:#fbbf24;">03</div>
+            <div>
+              <div class="mod-num">WEEK 3–4</div>
+              <div style="font-size:15px;font-weight:700;">Jailbreak Engineering & Obfuscation</div>
+            </div>
+          </div>
+          <svg class="mod-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13px;color:var(--t2);line-height:1.65;margin-bottom:14px;">
+            Systematic jailbreak methodology. Obfuscation techniques: base64, hex, ROT13, Unicode homoglyphs, word-splitting, Caesar cipher. Adversarial suffix generation using gradient-guided search.
+          </p>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <span class="skill-tag">DAN & Role-Play Bypasses</span>
+            <span class="skill-tag">Token Smuggling</span>
+            <span class="skill-tag">Base64 / Hex Encoding</span>
+            <span class="skill-tag">Unicode Homoglyphs</span>
+            <span class="skill-tag">GCG Adversarial Suffix</span>
+            <span class="skill-tag">Nested Jailbreaks</span>
+          </div>
+          <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:12px 14px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#fbbf24;text-transform:uppercase;margin-bottom:8px;">🧪 Lab: Jailbreak Corpus Builder</p>
+            <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Build your own adversarial test corpus of 200+ jailbreak variants. Run them through Shadow Warden to measure detection rates and find bypass windows.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- M4 -->
+      <div class="card mod-card" data-mod="4">
+        <div class="mod-header" onclick="toggleMod(this.parentElement)">
+          <div class="flex items-center gap-3">
+            <div class="tl-dot" style="background:rgba(139,92,246,0.1);border:1.5px solid rgba(139,92,246,0.35);color:#a78bfa;">04</div>
+            <div>
+              <div class="mod-num">WEEK 4–5</div>
+              <div style="font-size:15px;font-weight:700;">Adversarial ML & Embedding Attacks</div>
+            </div>
+          </div>
+          <svg class="mod-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13px;color:var(--t2);line-height:1.65;margin-bottom:14px;">
+            Gradient-based attacks on neural classifiers. Understand how Shadow Warden's hyperbolic embedding space resists adversarial perturbations — and where it doesn't.
+          </p>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <span class="skill-tag">FGSM / PGD Attacks</span>
+            <span class="skill-tag">C&W Attack</span>
+            <span class="skill-tag">Black-Box Probing</span>
+            <span class="skill-tag">Embedding Inversion</span>
+            <span class="skill-tag">Transfer Attacks</span>
+            <span class="skill-tag">Membership Inference</span>
+          </div>
+          <div style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:10px;padding:12px 14px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#a78bfa;text-transform:uppercase;margin-bottom:8px;">🧪 Lab: Embedding Attack Suite</p>
+            <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Use PyTorch + CleverHans to craft adversarial examples that fool MiniLM-based classifiers. Measure cosine distance shifts in the Poincaré ball.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- M5 -->
+      <div class="card mod-card" data-mod="5">
+        <div class="mod-header" onclick="toggleMod(this.parentElement)">
+          <div class="flex items-center gap-3">
+            <div class="tl-dot" style="background:rgba(34,211,238,0.1);border:1.5px solid rgba(34,211,238,0.35);color:var(--cyan);">05</div>
+            <div>
+              <div class="mod-num">WEEK 5–6</div>
+              <div style="font-size:15px;font-weight:700;">Agent & Agentic Pipeline Exploitation</div>
+            </div>
+          </div>
+          <svg class="mod-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13px;color:var(--t2);line-height:1.65;margin-bottom:14px;">
+            Attack multi-agent architectures. Exploit tool-calling, memory poisoning, orchestrator trust boundaries, and injection chains — the same patterns Shadow Warden's AgentMonitor detects.
+          </p>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <span class="skill-tag">Tool-Call Abuse</span>
+            <span class="skill-tag">Injection Chains</span>
+            <span class="skill-tag">Memory Poisoning</span>
+            <span class="skill-tag">Orchestrator Hijack</span>
+            <span class="skill-tag">Multi-Agent Trust</span>
+            <span class="skill-tag">LangChain Exploits</span>
+          </div>
+          <div style="background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.14);border-radius:10px;padding:12px 14px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:var(--cyan);text-transform:uppercase;margin-bottom:8px;">🧪 Lab: Agent Pwn Challenge</p>
+            <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Capture-the-flag style challenge: extract a secret from a production-like LangChain agent with 5 layered defenses. Compete with cohort members on the leaderboard.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- M6 -->
+      <div class="card mod-card" data-mod="6">
+        <div class="mod-header" onclick="toggleMod(this.parentElement)">
+          <div class="flex items-center gap-3">
+            <div class="tl-dot" style="background:rgba(16,185,129,0.1);border:1.5px solid rgba(16,185,129,0.35);color:#34d399;">06</div>
+            <div>
+              <div class="mod-num">WEEK 6–7</div>
+              <div style="font-size:15px;font-weight:700;">Data Exfiltration & Secret Harvesting</div>
+            </div>
+          </div>
+          <svg class="mod-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13px;color:var(--t2);line-height:1.65;margin-bottom:14px;">
+            Extract API keys, PII, training data fragments, and system configurations from LLMs via targeted prompting. Understand Shannon entropy-based detection and how to evade it.
+          </p>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <span class="skill-tag">Training Data Extraction</span>
+            <span class="skill-tag">PII Harvesting</span>
+            <span class="skill-tag">API Key Fishing</span>
+            <span class="skill-tag">Entropy Evasion</span>
+            <span class="skill-tag">RAG Poisoning</span>
+            <span class="skill-tag">Vector DB Injection</span>
+          </div>
+          <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:10px;padding:12px 14px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#34d399;text-transform:uppercase;margin-bottom:8px;">🧪 Lab: Data Harvest Challenge</p>
+            <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Target a RAG-backed customer support bot containing synthetic PII. Extract as many data points as possible while evading Shadow Warden's SecretRedactor.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- M7 -->
+      <div class="card mod-card" data-mod="7">
+        <div class="mod-header" onclick="toggleMod(this.parentElement)">
+          <div class="flex items-center gap-3">
+            <div class="tl-dot" style="background:rgba(244,63,94,0.1);border:1.5px solid rgba(244,63,94,0.4);color:#f87171;">07</div>
+            <div>
+              <div class="mod-num">WEEK 7–8</div>
+              <div style="font-size:15px;font-weight:700;">Red Team Operations & Final Assessment</div>
+            </div>
+          </div>
+          <svg class="mod-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13px;color:var(--t2);line-height:1.65;margin-bottom:14px;">
+            End-to-end Red Team engagement simulation. Attack a full AI product (our staging environment), write a professional Red Team report, present findings, and remediate using Shadow Warden.
+          </p>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <span class="skill-tag">Engagement Scoping</span>
+            <span class="skill-tag">Threat Modelling</span>
+            <span class="skill-tag">Attack Execution</span>
+            <span class="skill-tag">Report Writing</span>
+            <span class="skill-tag">CVSS for AI</span>
+            <span class="skill-tag">Executive Presentation</span>
+          </div>
+          <div style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.15);border-radius:10px;padding:12px 14px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#f87171;text-transform:uppercase;margin-bottom:8px;">🎓 Final: Full Red Team Engagement</p>
+            <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">72-hour capstone Red Team operation on a production-grade AI application. Submit a full report. Top performers receive the <strong style="color:var(--t1);">Shadow Warden Certified Red Team Operator</strong> certificate.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- WHO IS THIS FOR -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4" style="background:rgba(5,19,31,0.5);">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-12 reveal">
+      <p class="eyebrow mb-3">Who it's for</p>
+      <h2 class="text-3xl sm:text-4xl font-black" style="letter-spacing:-0.03em;">
+        Built for <span class="text-grad">security professionals</span>
+      </h2>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="card p-5 reveal">
+        <div class="text-2xl mb-3">🔴</div>
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:6px;">Red Teamers</h3>
+        <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Expand your offensive toolkit from traditional pen testing to AI-specific attack chains and LLM exploitation.</p>
+      </div>
+      <div class="card p-5 reveal">
+        <div class="text-2xl mb-3">🛡️</div>
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:6px;">AppSec Engineers</h3>
+        <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Learn the attacker mindset to build better AI defenses and integrate security guardrails into CI/CD pipelines.</p>
+      </div>
+      <div class="card p-5 reveal">
+        <div class="text-2xl mb-3">🤖</div>
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:6px;">ML Engineers</h3>
+        <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Understand the security implications of the models you build. Learn adversarial robustness and threat modelling.</p>
+      </div>
+      <div class="card p-5 reveal">
+        <div class="text-2xl mb-3">📋</div>
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:6px;">Security Leads</h3>
+        <p style="font-size:12.5px;color:var(--t2);line-height:1.55;">Build the case for AI security investment. Get hands-on experience to lead AI Red Team engagements at your org.</p>
+      </div>
+    </div>
+
+    <!-- Prerequisites -->
+    <div class="card p-6 mt-8 reveal">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--t2);text-transform:uppercase;letter-spacing:0.06em;font-size:11px;">Prerequisites</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="flex items-start gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:13px;color:var(--t2);">Basic Python (can write/read scripts)</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:13px;color:var(--t2);">Familiarity with REST APIs & HTTP</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:13px;color:var(--t2);">Basic security concepts (no ML PhD needed)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- SCHEDULE -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4">
+  <div class="max-w-3xl mx-auto">
+    <div class="text-center mb-12 reveal">
+      <p class="eyebrow mb-3">Schedule</p>
+      <h2 class="text-3xl sm:text-4xl font-black" style="letter-spacing:-0.03em;">
+        Pilot cohort <span class="text-grad-red">timeline</span>
+      </h2>
+    </div>
+
+    <div class="relative pl-14">
+      <div class="tl-line"></div>
+
+      <div class="flex flex-col gap-8">
+
+        <div class="relative reveal">
+          <div class="tl-dot absolute -left-14" style="background:rgba(34,211,238,0.1);border:1.5px solid rgba(34,211,238,0.4);color:var(--cyan);font-size:13px;">📋</div>
+          <div class="card p-5">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:var(--cyan);text-transform:uppercase;margin-bottom:4px;">Applications Open</div>
+            <div style="font-size:16px;font-weight:800;margin-bottom:4px;">Now → April 20, 2025</div>
+            <p style="font-size:13px;color:var(--t2);">Submit your application. 15 seats. Reviewed within 48 hours on a rolling basis.</p>
+          </div>
+        </div>
+
+        <div class="relative reveal">
+          <div class="tl-dot absolute -left-14" style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.35);color:#fbbf24;font-size:13px;">✉️</div>
+          <div class="card p-5">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#fbbf24;text-transform:uppercase;margin-bottom:4px;">Acceptance Notifications</div>
+            <div style="font-size:16px;font-weight:800;margin-bottom:4px;">April 21–25, 2025</div>
+            <p style="font-size:13px;color:var(--t2);">All accepted candidates receive onboarding instructions, lab credentials, and pre-work materials.</p>
+          </div>
+        </div>
+
+        <div class="relative reveal">
+          <div class="tl-dot absolute -left-14" style="background:rgba(244,63,94,0.1);border:1.5px solid rgba(244,63,94,0.4);color:#f87171;font-size:13px;">🚀</div>
+          <div class="card p-5">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#f87171;text-transform:uppercase;margin-bottom:4px;">Cohort Kick-Off</div>
+            <div style="font-size:16px;font-weight:800;margin-bottom:4px;">May 1, 2025</div>
+            <p style="font-size:13px;color:var(--t2);">Live kick-off session. Meet the cohort, tour the lab environment, and get your first module assignment.</p>
+          </div>
+        </div>
+
+        <div class="relative reveal">
+          <div class="tl-dot absolute -left-14" style="background:rgba(139,92,246,0.1);border:1.5px solid rgba(139,92,246,0.35);color:#a78bfa;font-size:13px;">⚡</div>
+          <div class="card p-5">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#a78bfa;text-transform:uppercase;margin-bottom:4px;">8 Weeks Intensive</div>
+            <div style="font-size:16px;font-weight:800;margin-bottom:4px;">May 1 → June 26, 2025</div>
+            <p style="font-size:13px;color:var(--t2);">2 modules per week. Live Q&A sessions every Thursday 18:00 UTC. Async labs accessible 24/7. Slack community for cohort collaboration.</p>
+          </div>
+        </div>
+
+        <div class="relative reveal">
+          <div class="tl-dot absolute -left-14" style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.35);color:#fbbf24;font-size:13px;">🎓</div>
+          <div class="card p-5" style="border-color:rgba(245,158,11,0.25);background:rgba(245,158,11,0.04);">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#fbbf24;text-transform:uppercase;margin-bottom:4px;">Capstone & Certification</div>
+            <div style="font-size:16px;font-weight:800;margin-bottom:4px;">June 27–29, 2025</div>
+            <p style="font-size:13px;color:var(--t2);">72-hour final Red Team exercise. Report submission. Certificate issued to all who complete. Top performer award announced.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- WHAT YOU GET -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4" style="background:rgba(5,19,31,0.5);">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-12 reveal">
+      <p class="eyebrow mb-3">Included in pilot</p>
+      <h2 class="text-3xl sm:text-4xl font-black" style="letter-spacing:-0.03em;">
+        Everything you need to <span class="text-grad">become certified</span>
+      </h2>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+      <div class="flex items-start gap-4 card p-5 reveal">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🧪</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Live Lab Environment</div>
+          <div style="font-size:12.5px;color:var(--t2);">Dedicated Shadow Warden instance, vulnerable AI targets, CTF challenges, and a private Slack channel — all included for the full 8 weeks.</div>
+        </div>
+      </div>
+
+      <div class="flex items-start gap-4 card p-5 reveal">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">📚</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Full Course Materials</div>
+          <div style="font-size:12.5px;color:var(--t2);">7 module guides (PDF + interactive Jupyter notebooks), attack cheat sheets, OWASP LLM reference cards, and a Red Team report template.</div>
+        </div>
+      </div>
+
+      <div class="flex items-start gap-4 card p-5 reveal">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🎙️</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Weekly Live Q&A</div>
+          <div style="font-size:12.5px;color:var(--t2);">Every Thursday 18:00 UTC. Ask the Shadow Warden team anything. Sessions recorded and available for replay.</div>
+        </div>
+      </div>
+
+      <div class="flex items-start gap-4 card p-5 reveal">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🏆</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Certificate of Completion</div>
+          <div style="font-size:12.5px;color:var(--t2);">Issued to all graduates. Verifiable digital badge (Credly). <strong style="color:var(--t1);">Shadow Warden Certified Red Team Operator</strong> credential for LinkedIn.</div>
+        </div>
+      </div>
+
+      <div class="flex items-start gap-4 card p-5 reveal">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🎁</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Free Starter Plan (12 months)</div>
+          <div style="font-size:12.5px;color:var(--t2);">Every graduate gets a 12-month Shadow Warden Starter plan (10K requests/month) to keep running labs and testing your own AI products.</div>
+        </div>
+      </div>
+
+      <div class="flex items-start gap-4 card p-5 reveal">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🌐</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Alumni Network</div>
+          <div style="font-size:12.5px;color:var(--t2);">Lifetime access to the Shadow Warden Alumni Slack. Job board, peer review requests, and early access to future cohorts and products.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- PRICING -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4">
+  <div class="max-w-xl mx-auto text-center reveal">
+    <p class="eyebrow mb-3">Pilot Pricing</p>
+    <h2 class="text-3xl sm:text-4xl font-black mb-6" style="letter-spacing:-0.03em;">
+      <span class="text-grad-gold">Free</span> for the pilot cohort
+    </h2>
+    <div class="card card-glow p-8 mb-6">
+      <div style="font-size:64px;font-weight:900;line-height:1;margin-bottom:4px;background:linear-gradient(135deg,#fcd34d,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">$0</div>
+      <div style="font-size:14px;color:var(--t2);margin-bottom:24px;">for the pilot cohort of 15 people</div>
+      <div style="text-align:left;" class="flex flex-col gap-3 mb-8">
+        <div class="flex items-start gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:13.5px;">Full 8-week program + all 7 lab modules</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:13.5px;">Certificate of Completion + LinkedIn badge</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:13.5px;">12-month Shadow Warden Starter (worth $480)</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:13.5px;">Lifetime alumni network access</span>
+        </div>
+        <div class="flex items-start gap-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;margin-top:2px;"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="font-size:13.5px;">In return: feedback on curriculum + testimonial</span>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--t3);font-style:italic;">Future cohorts will be priced at $1,200. Pilot participants lock in a 40% alumni discount forever.</p>
+    </div>
+    <a href="#apply" class="btn-red" style="width:100%;justify-content:center;">
+      <span class="shimmer-layer"></span>
+      Apply for the Free Pilot →
+    </a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- FAQ -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4" style="background:rgba(5,19,31,0.5);">
+  <div class="max-w-3xl mx-auto">
+    <div class="text-center mb-12 reveal">
+      <p class="eyebrow mb-3">FAQ</p>
+      <h2 class="text-3xl font-black" style="letter-spacing:-0.03em;">Common <span class="text-grad">questions</span></h2>
+    </div>
+
+    <div class="flex flex-col gap-3" id="faq-list">
+
+      <div class="card faq-card">
+        <div class="mod-header" onclick="toggleFaq(this.parentElement)" style="padding:16px 20px;">
+          <span style="font-size:14px;font-weight:600;">How much time commitment per week?</span>
+          <svg class="mod-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13.5px;color:var(--t2);line-height:1.65;">Expect 6–8 hours per week: ~2h theory, ~3h lab, ~1h live Q&A. The capstone week is more intensive (~15h for the 72h exercise). All content is async except Thursday live sessions.</p>
+        </div>
+      </div>
+
+      <div class="card faq-card">
+        <div class="mod-header" onclick="toggleFaq(this.parentElement)" style="padding:16px 20px;">
+          <span style="font-size:14px;font-weight:600;">Do I need GPU or special hardware?</span>
+          <svg class="mod-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13.5px;color:var(--t2);line-height:1.65;">No. All compute-heavy labs run in our cloud lab environment (pre-configured Docker containers). You only need a browser and Python installed. Shadow Warden itself runs CPU-only.</p>
+        </div>
+      </div>
+
+      <div class="card faq-card">
+        <div class="mod-header" onclick="toggleFaq(this.parentElement)" style="padding:16px 20px;">
+          <span style="font-size:14px;font-weight:600;">Is this ethical / legal?</span>
+          <svg class="mod-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13.5px;color:var(--t2);line-height:1.65;">100% yes. All labs target systems we own and operate exclusively for this purpose. The program teaches offensive techniques exclusively in authorized, isolated environments — the same way CEH, OSCP, and PNPT do. No real systems are ever targeted without explicit authorization.</p>
+        </div>
+      </div>
+
+      <div class="card faq-card">
+        <div class="mod-header" onclick="toggleFaq(this.parentElement)" style="padding:16px 20px;">
+          <span style="font-size:14px;font-weight:600;">Will this count toward OSCP / CEH CPE credits?</span>
+          <svg class="mod-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13.5px;color:var(--t2);line-height:1.65;">We're working toward formal accreditation. The Shadow Warden certificate won't count for CPE automatically in the pilot phase, but we'll provide a detailed completion letter with learning objectives for manual CPE submission.</p>
+        </div>
+      </div>
+
+      <div class="card faq-card">
+        <div class="mod-header" onclick="toggleFaq(this.parentElement)" style="padding:16px 20px;">
+          <span style="font-size:14px;font-weight:600;">What if I miss a live session?</span>
+          <svg class="mod-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="mod-body">
+          <p style="font-size:13.5px;color:var(--t2);line-height:1.65;">All live Q&A sessions are recorded and posted to the cohort portal within 2 hours. You can submit questions in advance via Slack. Missing up to 3 sessions won't affect certification eligibility.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- APPLICATION FORM -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<section class="py-20 px-4" id="apply">
+  <div class="max-w-2xl mx-auto">
+
+    <!-- Block — form -->
+    <div id="apply-form-block">
+
+      <div class="text-center mb-10 reveal">
+        <span class="badge badge-red mb-4"><span class="dot-live"></span>Applications Open</span>
+        <h2 class="text-3xl sm:text-4xl font-black mb-4" style="letter-spacing:-0.03em;">
+          Apply for <span class="text-grad-red">Pilot Cohort</span>
+        </h2>
+        <p style="font-size:14px;color:var(--t2);max-width:440px;margin:0 auto;">15 seats. Rolling review. We aim to build a diverse cohort of motivated security professionals.</p>
+      </div>
+
+      <!-- Seat counter (duplicate for context) -->
+      <div class="card p-4 mb-6 reveal">
+        <div class="flex items-center justify-between mb-2">
+          <span style="font-size:13px;color:var(--t2);">Pilot cohort seats</span>
+          <span style="font-size:13px;font-weight:700;" class="text-grad-red" id="seats2">3 / 15 filled</span>
+        </div>
+        <div class="seat-bar">
+          <div class="seat-fill" style="width:20%"></div>
+        </div>
+      </div>
+
+      <div class="card card-glow p-6 sm:p-8 reveal">
+
+        <div id="apply-inner">
+          <form id="apply-form" novalidate>
+
+            <!-- Name + Email -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="form-label" for="a-name">Full Name <span style="color:var(--red);">*</span></label>
+                <input class="form-input" type="text" id="a-name" placeholder="Jane Smith" required autocomplete="name"/>
+                <div class="err-msg" id="err-a-name">Required.</div>
+              </div>
+              <div>
+                <label class="form-label" for="a-email">Work Email <span style="color:var(--red);">*</span></label>
+                <input class="form-input" type="email" id="a-email" placeholder="jane@company.com" required autocomplete="email"/>
+                <div class="err-msg" id="err-a-email">Valid email required.</div>
+              </div>
+            </div>
+
+            <!-- Company + Role -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="form-label" for="a-company">Company <span style="color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                <input class="form-input" type="text" id="a-company" placeholder="Acme Corp" autocomplete="organization"/>
+              </div>
+              <div>
+                <label class="form-label" for="a-role">Current Role <span style="color:var(--red);">*</span></label>
+                <input class="form-input" type="text" id="a-role" placeholder="e.g. Senior Pen Tester" required/>
+                <div class="err-msg" id="err-a-role">Required.</div>
+              </div>
+            </div>
+
+            <!-- Experience -->
+            <div class="mb-4">
+              <label class="form-label" for="a-exp">Security Experience Level <span style="color:var(--red);">*</span></label>
+              <select class="form-input" id="a-exp" required>
+                <option value="" disabled selected style="color:var(--t3);">Select your level</option>
+                <option value="junior">Junior (0–2 years)</option>
+                <option value="mid">Mid-level (2–5 years)</option>
+                <option value="senior">Senior (5–10 years)</option>
+                <option value="lead">Lead / Principal (10+ years)</option>
+              </select>
+              <div class="err-msg" id="err-a-exp">Please select your experience level.</div>
+            </div>
+
+            <!-- Motivation -->
+            <div class="mb-4">
+              <label class="form-label" for="a-motivation">
+                Why do you want to join? <span style="color:var(--red);">*</span>
+                <span style="font-weight:400;color:var(--t3);text-transform:none;letter-spacing:0;">(min 30 chars)</span>
+              </label>
+              <textarea class="form-input" id="a-motivation" placeholder="Tell us about your background, what you hope to learn, and how you plan to apply AI Red Teaming in your work..." required style="min-height:120px;"></textarea>
+              <div class="flex justify-between mt-1">
+                <div class="err-msg" id="err-a-motivation">Min 30 characters.</div>
+                <span style="font-size:11px;color:var(--t3);" id="mot-count">0 / 2000</span>
+              </div>
+            </div>
+
+            <!-- LinkedIn + GitHub -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label class="form-label" for="a-linkedin">LinkedIn <span style="color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                <input class="form-input" type="url" id="a-linkedin" placeholder="linkedin.com/in/…"/>
+              </div>
+              <div>
+                <label class="form-label" for="a-github">GitHub <span style="color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                <input class="form-input" type="url" id="a-github" placeholder="github.com/…"/>
+              </div>
+            </div>
+
+            <!-- Consent -->
+            <div class="mb-6">
+              <div class="consent-row" id="app-consent" onclick="toggleAppConsent()">
+                <div class="consent-box">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#020c14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <span style="font-size:12.5px;color:var(--t2);line-height:1.5;">
+                  I agree to Shadow Warden's <a href="/privacy" style="color:var(--cyan);" onclick="event.stopPropagation()">Privacy Policy</a> and confirm the information I've provided is accurate.
+                </span>
+              </div>
+              <div class="err-msg" id="err-a-consent">You must agree to continue.</div>
+            </div>
+
+            <!-- Error banner -->
+            <div id="apply-error" style="display:none;background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.25);border-radius:10px;padding:10px 14px;font-size:13px;color:#f87171;margin-bottom:16px;"></div>
+
+            <button type="submit" class="btn-red" id="apply-btn" style="width:100%;justify-content:center;">
+              <span class="shimmer-layer"></span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span id="apply-btn-text">Submit Application</span>
+            </button>
+
+            <p style="font-size:11.5px;color:var(--t3);text-align:center;margin-top:12px;">Applications reviewed within 48 hours. We'll email you either way.</p>
+
+          </form>
+        </div>
+
+        <!-- Success -->
+        <div id="success-block">
+          <div class="text-center py-4">
+            <div class="cert-badge-visual mb-6">
+              <div class="cert-badge-inner">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <div style="font-size:8px;font-weight:800;letter-spacing:0.08em;color:var(--cyan);text-align:center;margin-top:2px;">APPLIED</div>
+              </div>
+            </div>
+
+            <h3 class="text-2xl font-black mb-3" style="letter-spacing:-0.02em;">
+              Application Submitted!<br/>
+              <span class="text-grad-red">You're in the queue.</span>
+            </h3>
+            <p style="font-size:14px;color:var(--t2);max-width:360px;margin:0 auto 24px;" id="success-msg">
+              Our team will review your application and email you within 48 hours.
+            </p>
+
+            <div style="background:rgba(10,32,53,0.7);border:1px solid var(--border);border-radius:14px;padding:18px;text-align:left;max-width:360px;margin:0 auto 24px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:var(--t2);text-transform:uppercase;margin-bottom:12px;">What happens next</p>
+              <div class="flex flex-col gap-3">
+                <div class="flex items-start gap-3">
+                  <span style="font-size:16px;">📧</span>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--t1);">Email within 48h</div>
+                    <div style="font-size:12px;color:var(--t2);">Acceptance or waitlist notification.</div>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span style="font-size:16px;">📋</span>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--t1);">If accepted: onboarding pack</div>
+                    <div style="font-size:12px;color:var(--t2);">Lab credentials, pre-reading, Slack invite.</div>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span style="font-size:16px;">🚀</span>
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--t1);">Kick-off May 1, 2025</div>
+                    <div style="font-size:12px;color:var(--t2);">Meet the cohort. Start breaking AI.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-3">
+              <a href="/" style="font-size:13px;font-weight:600;color:var(--t1);text-decoration:none;padding:9px 18px;border:1px solid var(--border);border-radius:10px;background:rgba(10,32,53,0.5);">← Back to Home</a>
+              <a href="/docs" style="font-size:13px;font-weight:600;color:var(--cyan);text-decoration:none;padding:9px 18px;border:1px solid rgba(34,211,238,0.25);border-radius:10px;">View Docs →</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Footer -->
+<footer style="padding:28px 24px;text-align:center;border-top:1px solid var(--border);position:relative;z-index:10;">
+  <p style="font-size:11.5px;color:var(--t3);">© 2025 Shadow Warden AI — AI Red Team Certification · <a href="/privacy" style="color:var(--t2);">Privacy</a> · <a href="/terms" style="color:var(--t2);">Terms</a></p>
+</footer>
+
+<script>
+  gsap.registerPlugin(ScrollTrigger);
+
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8001'
+    : 'https://api.shadowwarden.ai';
+
+  // ── Scroll progress ────────────────────────────────────────────────────────
+  window.addEventListener('scroll', () => {
+    const p = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+    document.getElementById('scroll-progress').style.width = (p * 100) + '%';
+  });
+
+  // ── Entrance animations ────────────────────────────────────────────────────
+  gsap.to('#hero-head',  { opacity:1, y:0, duration:0.8, ease:'power3.out', delay:0.1 });
+  gsap.to('#hero-stats', { opacity:1, y:0, duration:0.8, ease:'power3.out', delay:0.3 });
+
+  document.querySelectorAll('.reveal').forEach(el => {
+    gsap.to(el, {
+      scrollTrigger: { trigger:el, start:'top 88%', toggleActions:'play none none none' },
+      opacity:1, y:0, duration:0.65, ease:'power3.out',
+    });
+  });
+
+  // ── Animated seat bar ──────────────────────────────────────────────────────
+  const SEATS_TAKEN = 3;
+  const SEATS_TOTAL = 15;
+  setTimeout(() => {
+    const pct = (SEATS_TAKEN / SEATS_TOTAL * 100).toFixed(0);
+    document.querySelectorAll('.seat-fill').forEach(el => el.style.width = pct + '%');
+  }, 600);
+
+  // ── Module accordion ───────────────────────────────────────────────────────
+  function toggleMod(el) {
+    const wasOpen = el.classList.contains('open');
+    document.querySelectorAll('.mod-card').forEach(c => c.classList.remove('open'));
+    if (!wasOpen) el.classList.add('open');
+  }
+
+  // ── FAQ accordion ──────────────────────────────────────────────────────────
+  function toggleFaq(el) {
+    el.classList.toggle('open');
+  }
+
+  // ── Consent ───────────────────────────────────────────────────────────────
+  function toggleAppConsent() {
+    document.getElementById('app-consent').classList.toggle('checked');
+    document.getElementById('err-a-consent').style.display = 'none';
+  }
+
+  // ── Motivation counter ────────────────────────────────────────────────────
+  document.getElementById('a-motivation').addEventListener('input', function() {
+    document.getElementById('mot-count').textContent = this.value.length + ' / 2000';
+  });
+
+  // ── Form submit ───────────────────────────────────────────────────────────
+  document.getElementById('apply-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name       = document.getElementById('a-name').value.trim();
+    const email      = document.getElementById('a-email').value.trim();
+    const company    = document.getElementById('a-company').value.trim();
+    const role       = document.getElementById('a-role').value.trim();
+    const exp        = document.getElementById('a-exp').value;
+    const motivation = document.getElementById('a-motivation').value.trim();
+    const linkedin   = document.getElementById('a-linkedin').value.trim();
+    const github     = document.getElementById('a-github').value.trim();
+    const consented  = document.getElementById('app-consent').classList.contains('checked');
+
+    let ok = true;
+    const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const fields = [
+      ['err-a-name',       !name,                          'Required.'],
+      ['err-a-email',      !email || !emailRx.test(email), 'Valid email required.'],
+      ['err-a-role',       !role,                          'Required.'],
+      ['err-a-exp',        !exp,                           'Please select your experience level.'],
+      ['err-a-motivation', motivation.length < 30,         'Min 30 characters.'],
+      ['err-a-consent',    !consented,                     'You must agree to continue.'],
+    ];
+
+    fields.forEach(([id, hasError, msg]) => {
+      const el = document.getElementById(id);
+      if (hasError) { el.textContent = msg; el.style.display = 'block'; ok = false; }
+      else          { el.style.display = 'none'; }
+    });
+
+    if (!ok) return;
+
+    const btn    = document.getElementById('apply-btn');
+    const btnTxt = document.getElementById('apply-btn-text');
+    const errDiv = document.getElementById('apply-error');
+    btn.disabled = true;
+    btnTxt.textContent = 'Submitting…';
+    errDiv.style.display = 'none';
+
+    try {
+      const resp = await fetch(`${API_BASE}/portal/cert/apply`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name:    name,
+          email,
+          company,
+          role,
+          experience:   exp,
+          motivation,
+          linkedin_url: linkedin,
+          github_url:   github,
+        }),
+      });
+
+      const data = await resp.json().catch(() => ({}));
+
+      if (!resp.ok) throw new Error(data.detail || `Server error (${resp.status})`);
+
+      // Show success
+      if (data.status === 'waitlist') {
+        document.getElementById('success-msg').textContent =
+          'The pilot cohort is full — you\'ve been added to the waitlist. We\'ll notify you the moment a seat opens.';
+      }
+      document.getElementById('apply-inner').style.display = 'none';
+      const sb = document.getElementById('success-block');
+      sb.style.display = 'block';
+      gsap.fromTo(sb, { opacity:0, y:20 }, { opacity:1, y:0, duration:0.5, ease:'power3.out' });
+
+    } catch (err) {
+      errDiv.textContent = err.message || 'Something went wrong. Please try again.';
+      errDiv.style.display = 'block';
+      btn.disabled = false;
+      btnTxt.textContent = 'Submit Application';
+    }
+  });
+</script>
+
+</body>
+</html>

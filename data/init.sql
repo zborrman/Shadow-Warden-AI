@@ -129,6 +129,51 @@ CREATE TABLE IF NOT EXISTS warden_core.billing_usage (
 
 CREATE INDEX IF NOT EXISTS billing_tenant_idx ON warden_core.billing_usage(tenant_id);
 
+-- ── warden_core: Red Team Certification Applications ─────────────────────────
+
+CREATE TABLE IF NOT EXISTS warden_core.cert_applications (
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name       TEXT        NOT NULL,
+    email           TEXT        NOT NULL UNIQUE,
+    company         TEXT,
+    role            TEXT        NOT NULL,
+    experience      TEXT        NOT NULL,   -- junior | mid | senior | lead
+    motivation      TEXT        NOT NULL,
+    linkedin_url    TEXT,
+    github_url      TEXT,
+    cohort          TEXT        NOT NULL DEFAULT 'pilot-2025',
+    status          TEXT        NOT NULL DEFAULT 'pending',  -- pending | reviewed | accepted | rejected | waitlist
+    score           INTEGER,                -- internal review score 0-100
+    reviewer_notes  TEXT,
+    applied_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    reviewed_at     TIMESTAMPTZ,
+    notified_at     TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS cert_app_email_idx   ON warden_core.cert_applications (email);
+CREATE INDEX IF NOT EXISTS cert_app_status_idx  ON warden_core.cert_applications (status);
+CREATE INDEX IF NOT EXISTS cert_app_cohort_idx  ON warden_core.cert_applications (cohort);
+CREATE INDEX IF NOT EXISTS cert_app_applied_idx ON warden_core.cert_applications (applied_at DESC);
+
+-- ── warden_core: Waitlist (early-access / free module registrations) ─────────
+
+CREATE TABLE IF NOT EXISTS warden_core.waitlist (
+    id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    email        TEXT        NOT NULL UNIQUE,
+    full_name    TEXT        NOT NULL,
+    company      TEXT,
+    modules      TEXT[]      NOT NULL DEFAULT '{}',   -- selected free module IDs
+    source       TEXT        NOT NULL DEFAULT 'early-access',
+    ip_hash      TEXT,                                 -- SHA-256 of IP (GDPR)
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    confirmed_at TIMESTAMPTZ,
+    status       TEXT        NOT NULL DEFAULT 'pending'  -- pending | confirmed | invited
+);
+
+CREATE INDEX IF NOT EXISTS waitlist_email_idx  ON warden_core.waitlist (email);
+CREATE INDEX IF NOT EXISTS waitlist_status_idx ON warden_core.waitlist (status);
+CREATE INDEX IF NOT EXISTS waitlist_created_idx ON warden_core.waitlist (created_at DESC);
+
 -- ── TOTP / Google Authenticator (MFA) ───────────────────────────────────────
 -- Added to portal_users via ALTER TABLE so existing DBs are patched automatically.
 ALTER TABLE IF EXISTS warden_core.portal_users

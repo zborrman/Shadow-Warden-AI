@@ -171,6 +171,24 @@ class _TotpDisableIn(BaseModel):
     code: str = Field(..., min_length=6, max_length=6)
 
 
+class _WaitlistIn(BaseModel):
+    email:      EmailStr
+    full_name:  str   = Field(..., min_length=1, max_length=120)
+    company:    str   = Field("", max_length=120)
+    modules:    list[str] = Field(default_factory=list)
+
+
+class _CertApplyIn(BaseModel):
+    full_name:    str      = Field(..., min_length=1, max_length=120)
+    email:        EmailStr
+    company:      str      = Field("", max_length=120)
+    role:         str      = Field(..., min_length=2, max_length=120)
+    experience:   str      = Field(..., pattern=r"^(junior|mid|senior|lead)$")
+    motivation:   str      = Field(..., min_length=30, max_length=2000)
+    linkedin_url: str      = Field("", max_length=300)
+    github_url:   str      = Field("", max_length=300)
+
+
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
 async def _get_user_by_email(db: AsyncSession, email: str) -> dict | None:
@@ -759,4 +777,126 @@ async def billing(
         "requests_quota":    10000,
         "cost_usd":          float(usage["cost_usd"]) if usage else 0.0,
         "stripe_portal_url": None,  # wire in when Stripe is added
+    }
+
+
+# ── /waitlist (public — no auth) ──────────────────────────────────────────────
+
+_ALLOWED_MODULES = {
+    "secret-redactor",
+    "semantic-guard",
+    "obfuscation-decoder",
+    "gdpr-tools",
+    "impact-calculator",
+}
+
+
+@router.post("/waitlist", status_code=201)
+async def waitlist_signup(
+    body: _WaitlistIn,
+    db:   AsyncSession = Depends(get_db),
+):
+    """Public endpoint — no auth required.  Stores early-access signups."""
+    modules = [m for m in body.modules if m in _ALLOWED_MODULES]
+
+    try:
+        await db.execute(
+            text("""
+                INSERT INTO warden_core.waitlist (email, full_name, company, modules)
+                VALUES (:email, :name, :company, :modules)
+                ON CONFLICT (email) DO UPDATE
+                    SET full_name = EXCLUDED.full_name,
+                        company   = EXCLUDED.company,
+                        modules   = EXCLUDED.modules
+            """),
+            {
+                "email":   body.email.lower(),
+                "name":    body.full_name,
+                "company": body.company or None,
+                "modules": modules,
+            },
+        )
+        await db.commit()
+    except Exception as exc:
+        log.warning("waitlist insert failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Registration failed, please try again.") from exc
+
+    log.info("waitlist signup: %s modules=%s", body.email, modules)
+    return {"status": "ok", "message": "You're on the list! We'll be in touch soon."}
+
+
+# ── /cert/apply (public — no auth) ────────────────────────────────────────────
+
+_PILOT_COHORT   = "pilot-2025"
+_PILOT_CAPACITY = 15
+
+
+@router.post("/cert/apply", status_code=201)
+async def cert_apply(
+    body: _CertApplyIn,
+    db:   AsyncSession = Depends(get_db),
+):
+    """Public endpoint — no auth required.  Accepts Red Team Certification applications."""
+    # Check cohort capacity
+    row = await db.execute(
+        text("""
+            SELECT COUNT(*) AS cnt
+            FROM warden_core.cert_applications
+            WHERE cohort = :c AND status NOT IN ('rejected')
+        """),
+        {"c": _PILOT_COHORT},
+    )
+    count = (row.mappings().first() or {}).get("cnt", 0)
+    if count >= _PILOT_CAPACITY:
+        # Still store as waitlist, don't error
+        status_val = "waitlist"
+    else:
+        status_val = "pending"
+
+    try:
+        await db.execute(
+            text("""
+                INSERT INTO warden_core.cert_applications
+                    (full_name, email, company, role, experience, motivation,
+                     linkedin_url, github_url, cohort, status)
+                VALUES
+                    (:name, :email, :company, :role, :exp, :motivation,
+                     :linkedin, :github, :cohort, :status)
+                ON CONFLICT (email) DO UPDATE
+                    SET full_name    = EXCLUDED.full_name,
+                        company      = EXCLUDED.company,
+                        role         = EXCLUDED.role,
+                        experience   = EXCLUDED.experience,
+                        motivation   = EXCLUDED.motivation,
+                        linkedin_url = EXCLUDED.linkedin_url,
+                        github_url   = EXCLUDED.github_url,
+                        applied_at   = NOW()
+            """),
+            {
+                "name":       body.full_name,
+                "email":      body.email.lower(),
+                "company":    body.company or None,
+                "role":       body.role,
+                "exp":        body.experience,
+                "motivation": body.motivation,
+                "linkedin":   body.linkedin_url or None,
+                "github":     body.github_url or None,
+                "cohort":     _PILOT_COHORT,
+                "status":     status_val,
+            },
+        )
+        await db.commit()
+    except Exception as exc:
+        log.warning("cert apply failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Application failed, please try again.") from exc
+
+    log.info("cert application: %s status=%s cohort=%s", body.email, status_val, _PILOT_COHORT)
+    if status_val == "waitlist":
+        return {
+            "status":   "waitlist",
+            "message":  "Pilot cohort is full — you're on the waitlist. We'll notify you when a seat opens.",
+        }
+    return {
+        "status":  "ok",
+        "message": "Application received! Our team will review it within 48 hours.",
     }
