@@ -159,6 +159,24 @@ try:
             "warden_evolution_skipped_total"
         )
 
+    # ── Nemotron Evolution Engine counter ────────────────────────────────────
+    # Tracks which backend (nemotron | claude) is active at startup via
+    # build_evolution_engine() and how many rules were generated per engine.
+    #
+    # Label:
+    #   engine  "nemotron" — NVIDIA NIM (Nemotron Super)
+    #           "claude"   — Anthropic Claude Opus
+    try:
+        NEMOTRON_EVOLUTION_TOTAL = Counter(
+            "warden_nemotron_evolution_total",
+            "Evolution Engine rule generation calls, labelled by backend",
+            ["engine"],
+        )
+    except ValueError:
+        NEMOTRON_EVOLUTION_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_nemotron_evolution_total"
+        )
+
     # ── Filter-stage latency (optional extension point) ───────────────────────
     # Already covered by prometheus-fastapi-instrumentator for HTTP-level
     # latency.  No extra histogram needed here yet.
@@ -433,3 +451,4 @@ except ImportError:
     SYNC_BLOCKS_APPLIED_TOTAL       = _Noop()  # type: ignore[assignment]
     SHADOW_BAN_TOTAL                = _Noop()  # type: ignore[assignment]
     SHADOW_BAN_COST_SAVED_USD       = _Noop()  # type: ignore[assignment]
+    NEMOTRON_EVOLUTION_TOTAL        = _Noop()  # type: ignore[assignment]

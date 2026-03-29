@@ -586,3 +586,74 @@ class EvolutionEngine:
             "EvolutionEngine: dynamic_rules.json updated — total rules: %d",
             len(data["rules"]),
         )
+
+
+# ── Factory ───────────────────────────────────────────────────────────────────
+
+def build_evolution_engine(
+    semantic_guard=None,
+    ledger=None,
+    review_queue=None,
+    feed_client=None,
+) -> "EvolutionEngine | None":
+    """
+    Return the best available EvolutionEngine based on environment config.
+
+    Selection logic (EVOLUTION_ENGINE env var):
+      ``nemotron`` — always NemotronEvolutionEngine (fails loudly if no key)
+      ``claude``   — always EvolutionEngine (existing Claude Opus behavior)
+      ``auto``     — Nemotron if NVIDIA_API_KEY is set, else Claude if
+                     ANTHROPIC_API_KEY is set, else None (disabled)
+
+    Returns None when no API key is configured so callers can log a clear
+    warning rather than failing at request time.
+    """
+    from warden.metrics import NEMOTRON_EVOLUTION_TOTAL  # noqa: PLC0415 (avoid circular)
+
+    kwargs: dict = dict(
+        semantic_guard=semantic_guard,
+        ledger=ledger,
+        review_queue=review_queue,
+        feed_client=feed_client,
+    )
+
+    choice = os.getenv("EVOLUTION_ENGINE", "auto").lower().strip()
+
+    if choice == "nemotron":
+        from warden.brain.evolve_nemotron import NemotronEvolutionEngine  # noqa: PLC0415
+        NEMOTRON_EVOLUTION_TOTAL.labels(engine="nemotron").inc(0)  # register label
+        log.info("EvolutionEngine: EVOLUTION_ENGINE=nemotron — using Nemotron Super (NIM)")
+        return NemotronEvolutionEngine(**kwargs)
+
+    if choice == "claude":
+        NEMOTRON_EVOLUTION_TOTAL.labels(engine="claude").inc(0)
+        log.info("EvolutionEngine: EVOLUTION_ENGINE=claude — using Claude Opus")
+        return EvolutionEngine(**kwargs)
+
+    # auto — prefer Nemotron, fall back to Claude
+    nvidia_key = os.getenv("NVIDIA_API_KEY", "").strip()
+    if nvidia_key:
+        try:
+            from warden.brain.evolve_nemotron import NemotronEvolutionEngine  # noqa: PLC0415
+            NEMOTRON_EVOLUTION_TOTAL.labels(engine="nemotron").inc(0)
+            log.info(
+                "EvolutionEngine: NVIDIA_API_KEY detected — "
+                "using NemotronEvolutionEngine (auto mode)"
+            )
+            return NemotronEvolutionEngine(**kwargs)
+        except Exception as exc:  # noqa: BLE001
+            log.warning(
+                "EvolutionEngine: Nemotron init failed (%s) — falling back to Claude", exc
+            )
+
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if anthropic_key:
+        NEMOTRON_EVOLUTION_TOTAL.labels(engine="claude").inc(0)
+        log.info("EvolutionEngine: ANTHROPIC_API_KEY detected — using Claude Opus (auto mode)")
+        return EvolutionEngine(**kwargs)
+
+    log.warning(
+        "EvolutionEngine: no API keys found (NVIDIA_API_KEY / ANTHROPIC_API_KEY). "
+        "Set EVOLUTION_ENGINE=nemotron + NVIDIA_API_KEY to enable self-improvement."
+    )
+    return None

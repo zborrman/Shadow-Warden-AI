@@ -78,7 +78,7 @@ from warden.auth.saml_provider import SAMLProvider, SamlSession
 from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import AuthResult, get_rate_limit, require_api_key, set_default_rate_limit
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
-from warden.brain.evolve import EvolutionEngine
+from warden.brain.evolve import EvolutionEngine, build_evolution_engine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
@@ -557,18 +557,24 @@ async def lifespan(app: FastAPI):
         log.info("ThreatFeed: disabled (set THREAT_FEED_ENABLED=true to opt in).")
 
     # ── Evolution Engine ──────────────────────────────────────────────
-    if os.getenv("ANTHROPIC_API_KEY"):
-        _evolve = EvolutionEngine(
-            semantic_guard = _brain_guard,
-            ledger         = _ledger,
-            review_queue   = _review_queue,
-            feed_client    = _feed,
-        )
-        log.info("EvolutionEngine online.")
+    # build_evolution_engine() selects the backend automatically:
+    #   EVOLUTION_ENGINE=auto (default) → Nemotron if NVIDIA_API_KEY set,
+    #                                      else Claude if ANTHROPIC_API_KEY set
+    #   EVOLUTION_ENGINE=nemotron       → always Nemotron Super (NIM)
+    #   EVOLUTION_ENGINE=claude         → always Claude Opus (legacy)
+    _evolve = build_evolution_engine(
+        semantic_guard = _brain_guard,
+        ledger         = _ledger,
+        review_queue   = _review_queue,
+        feed_client    = _feed,
+    )
+    if _evolve is not None:
+        engine_name = type(_evolve).__name__
+        log.info("EvolutionEngine online (%s).", engine_name)
     else:
         log.warning(
-            "ANTHROPIC_API_KEY not set — EvolutionEngine disabled. "
-            "Set the key to enable automated rule generation."
+            "EvolutionEngine disabled — set NVIDIA_API_KEY (Nemotron) "
+            "or ANTHROPIC_API_KEY (Claude) to enable automated rule generation."
         )
 
     # ── Agent Monitor ─────────────────────────────────────────────────
