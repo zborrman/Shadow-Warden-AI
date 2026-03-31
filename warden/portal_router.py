@@ -46,6 +46,56 @@ from warden.db.connection import get_db
 
 log = logging.getLogger("warden.portal")
 
+# ── Email helper ──────────────────────────────────────────────────────────────
+
+_SMTP_HOST     = os.getenv("SMTP_HOST", "")
+_SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
+_SMTP_USER     = os.getenv("SMTP_USER", "")
+_SMTP_PASS     = os.getenv("SMTP_PASS", "")
+_PORTAL_FROM   = os.getenv("PORTAL_FROM_EMAIL", _SMTP_USER)
+_PORTAL_URL    = os.getenv("PORTAL_URL", "https://app.shadow-warden-ai.com")
+
+
+def _send_email_sync(to: str, subject: str, body: str) -> None:
+    """Send a plain-text email via SMTP (synchronous — run in executor)."""
+    import smtplib
+    from email.mime.text import MIMEText
+
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"]    = _PORTAL_FROM
+    msg["To"]      = to
+    with smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=10) as srv:
+        srv.starttls()
+        srv.login(_SMTP_USER, _SMTP_PASS)
+        srv.sendmail(_PORTAL_FROM, [to], msg.as_string())
+
+
+async def _send_password_reset_email(to: str, token: str) -> None:
+    """Send a password-reset link.  Falls back to logging when SMTP is unconfigured."""
+    if not _SMTP_HOST or not _SMTP_USER:
+        log.warning(
+            "portal: SMTP not configured — reset token for %s: %s (set SMTP_HOST/USER in .env)",
+            to, token,
+        )
+        return
+
+    reset_link = f"{_PORTAL_URL}/reset-password?token={token}"
+    body = (
+        "You requested a password reset for your Shadow Warden account.\n\n"
+        f"Click the link below to set a new password (expires in 1 hour):\n\n"
+        f"  {reset_link}\n\n"
+        "If you did not request this, you can safely ignore this email.\n"
+    )
+    import asyncio
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, _send_email_sync, to, "[Shadow Warden] Password reset", body)
+        log.info("portal: password reset email sent to %s", to)
+    except Exception as exc:
+        log.error("portal: failed to send reset email to %s: %s", to, exc)
+
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
 _JWT_SECRET      = os.getenv("PORTAL_JWT_SECRET", "change-me-" + secrets.token_hex(16))
@@ -473,9 +523,8 @@ async def forgot_password(body: _ForgotPasswordIn, db: AsyncSession = Depends(ge
         {"t": token, "e": expires, "id": str(user["id"])},
     )
     await db.commit()
-    # TODO: send email. For now return token directly (dev mode).
-    log.warning("portal: password reset token for %s (deliver via email in prod)", body.email)
-    return {"detail": "Reset token issued.", "reset_token": token}
+    await _send_password_reset_email(body.email.lower(), token)
+    return {"detail": "If the email exists, a reset link has been sent."}
 
 
 @router.post("/auth/reset-password", status_code=200)

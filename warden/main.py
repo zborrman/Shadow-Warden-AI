@@ -739,6 +739,22 @@ async def lifespan(app: FastAPI):
         fail_strategy = os.getenv("WARDEN_FAIL_STRATEGY", "open"),
     )
 
+    # ── Production-mode security warnings ────────────────────────────────────
+    _env = os.getenv("ENV", "development").lower()
+    if _env != "production":
+        log.warning(
+            "SECURITY: ENV=%s — set ENV=production in .env before public deployment",
+            _env,
+        )
+    if not os.getenv("WARDEN_API_KEY") and not os.getenv("WARDEN_API_KEYS_PATH"):
+        log.warning(
+            "SECURITY: WARDEN_API_KEY is not set — POST /filter is open to unauthenticated requests"
+        )
+    if not os.getenv("DOCS_PASSWORD"):
+        log.warning(
+            "SECURITY: DOCS_PASSWORD is not set — /docs and /redoc are publicly accessible"
+        )
+
     yield
 
     _retirement_task.cancel()
