@@ -76,7 +76,7 @@ class SOC2Exporter:
 ==========================================
 Generated:      {now.isoformat()}
 Period covered: last {days:.0f} days
-Generator:      Shadow Warden AI Compliance Module v1.8
+Generator:      Shadow Warden AI Compliance Module v2.3
 
 Contents
 --------

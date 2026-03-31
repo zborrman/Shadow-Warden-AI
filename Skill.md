@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 0.2.0 · Proprietary · All rights reserved**
+**Version 2.3.0 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration

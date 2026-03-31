@@ -445,7 +445,7 @@ Rule: **the highest risk from any layer is the final risk.**
 
 ---
 
-*Last updated: 2026-03 — Shadow Warden AI v0.2.0*
+*Last updated: 2026-03 — Shadow Warden AI v2.3.0*
 
 ---
 

@@ -1,1 +1,1 @@
-# warden/compliance — Compliance Reporting & Evidence Bundles (v1.8)
+# warden/compliance — Compliance Reporting & Evidence Bundles (v2.3))

@@ -1,6 +1,6 @@
 [project]
 name = "shadow-warden-ai"
-version = "1.0.0"
+version = "2.3.0"
 description = "AI security gateway — jailbreak detection, indirect injection shield, SOC 2 audit trail, secret redaction, agentic safety, multi-cloud routing (Azure/Bedrock/Vertex/NVIDIA NIM), and self-improving rules powered by Claude Opus"
 readme = "README.md"
 requires-python = ">=3.11,<4.0"
