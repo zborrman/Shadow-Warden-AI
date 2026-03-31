@@ -40,8 +40,8 @@ import os
 
 from warden.brain.evolve import (
     EVOLUTION_SYSTEM_PROMPT,
-    EvolutionResponse,
     EvolutionEngine,
+    EvolutionResponse,
 )
 from warden.brain.nemotron_client import NimClient, extract_json
 from warden.schemas import RiskLevel, SemanticFlag
@@ -197,8 +197,8 @@ class NemotronEvolutionEngine(EvolutionEngine):
             s3 = get_s3_storage()
             if s3 and s3.enabled:
                 import json as _json  # noqa: PLC0415
-                from datetime import UTC, datetime  # noqa: PLC0415
                 import uuid as _uuid  # noqa: PLC0415
+                from datetime import UTC, datetime  # noqa: PLC0415
                 bundle = {
                     "type":             "nemotron_thinking_trace",
                     "timestamp":        datetime.now(UTC).isoformat(),

@@ -17,6 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from warden.schemas import FlagType, RiskLevel, SemanticFlag
+
 # ─────────────────────────────────────────────────────────────────────────────
 # NimClient unit tests
 # ─────────────────────────────────────────────────────────────────────────────
@@ -232,8 +234,6 @@ def _fake_nim_chat(answer: str = _VALID_EVOLUTION_JSON, reasoning: str = "test r
 @pytest.mark.asyncio
 async def test_nemotron_engine_generates_rule(nemotron_engine, tmp_rules_path, mock_guard):
     """process_blocked() writes a rule file and hot-reloads the corpus."""
-    from warden.schemas import RiskLevel, SemanticFlag, FlagType
-
     flags = [SemanticFlag(flag=FlagType.PROMPT_INJECTION, score=0.95)]
 
     nemotron_engine._nim.chat = _fake_nim_chat()
@@ -258,8 +258,6 @@ async def test_nemotron_engine_generates_rule(nemotron_engine, tmp_rules_path, m
 @pytest.mark.asyncio
 async def test_nemotron_engine_deduplicates(nemotron_engine):
     """Identical content is processed only once (dedup by SHA-256)."""
-    from warden.schemas import RiskLevel, SemanticFlag, FlagType
-
     flags   = [SemanticFlag(flag=FlagType.PROMPT_INJECTION, score=0.9)]
     content = "Duplicate attack content for dedup test"
 
@@ -275,8 +273,6 @@ async def test_nemotron_engine_deduplicates(nemotron_engine):
 @pytest.mark.asyncio
 async def test_nemotron_engine_skips_low_risk(nemotron_engine):
     """LOW / MEDIUM risk attacks are not sent to NIM."""
-    from warden.schemas import RiskLevel, SemanticFlag, FlagType
-
     nemotron_engine._nim.chat = _fake_nim_chat()
 
     result = await nemotron_engine.process_blocked(
@@ -292,8 +288,6 @@ async def test_nemotron_engine_skips_low_risk(nemotron_engine):
 @pytest.mark.asyncio
 async def test_nemotron_engine_handles_nim_error(nemotron_engine):
     """NIM API errors are caught and return None — never raise to the caller."""
-    from warden.schemas import RiskLevel, SemanticFlag, FlagType
-
     flags = [SemanticFlag(flag=FlagType.PROMPT_INJECTION, score=0.95)]
     nemotron_engine._nim.chat = AsyncMock(side_effect=RuntimeError("NIM unreachable"))
 
@@ -309,8 +303,6 @@ async def test_nemotron_engine_handles_nim_error(nemotron_engine):
 @pytest.mark.asyncio
 async def test_nemotron_engine_invalid_json_returns_none(nemotron_engine):
     """Malformed JSON from NIM is handled gracefully."""
-    from warden.schemas import RiskLevel, SemanticFlag, FlagType
-
     flags = [SemanticFlag(flag=FlagType.PROMPT_INJECTION, score=0.95)]
     nemotron_engine._nim.chat = _fake_nim_chat(answer="not valid json at all")
 
@@ -333,9 +325,9 @@ class TestBuildEvolutionEngine:
         os.environ["EVOLUTION_ENGINE"]  = engine_env
         os.environ["NVIDIA_API_KEY"]    = nvidia_key
         os.environ["ANTHROPIC_API_KEY"] = anthropic_key
-        from warden.brain import evolve as _m
-        # Force reimport so env vars are re-read
-        import importlib
+        import importlib  # noqa: PLC0415
+
+        from warden.brain import evolve as _m  # noqa: PLC0415
         importlib.reload(_m)
         return _m.build_evolution_engine()
 

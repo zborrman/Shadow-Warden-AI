@@ -896,11 +896,7 @@ async def cert_apply(
         {"c": _PILOT_COHORT},
     )
     count = (row.mappings().first() or {}).get("cnt", 0)
-    if count >= _PILOT_CAPACITY:
-        # Still store as waitlist, don't error
-        status_val = "waitlist"
-    else:
-        status_val = "pending"
+    status_val = "waitlist" if count >= _PILOT_CAPACITY else "pending"
 
     try:
         await db.execute(

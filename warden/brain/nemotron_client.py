@@ -205,9 +205,6 @@ class NimClient:
         did not emit a <think> block (e.g. thinking mode was disabled).
         """
         think_match = _THINK_RE.search(raw)
-        if think_match:
-            reasoning = think_match.group(0)[7:-8].strip()  # strip <think> tags
-        else:
-            reasoning = ""
+        reasoning = think_match.group(0)[7:-8].strip() if think_match else ""
         answer = _THINK_RE.sub("", raw).strip()
         return answer, reasoning

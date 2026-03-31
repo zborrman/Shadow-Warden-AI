@@ -595,7 +595,7 @@ def build_evolution_engine(
     ledger=None,
     review_queue=None,
     feed_client=None,
-) -> "EvolutionEngine | None":
+) -> EvolutionEngine | None:
     """
     Return the best available EvolutionEngine based on environment config.
 
@@ -610,12 +610,12 @@ def build_evolution_engine(
     """
     from warden.metrics import NEMOTRON_EVOLUTION_TOTAL  # noqa: PLC0415 (avoid circular)
 
-    kwargs: dict = dict(
-        semantic_guard=semantic_guard,
-        ledger=ledger,
-        review_queue=review_queue,
-        feed_client=feed_client,
-    )
+    kwargs: dict = {
+        "semantic_guard": semantic_guard,
+        "ledger": ledger,
+        "review_queue": review_queue,
+        "feed_client": feed_client,
+    }
 
     choice = os.getenv("EVOLUTION_ENGINE", "auto").lower().strip()
 
