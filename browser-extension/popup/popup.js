@@ -140,7 +140,7 @@ async function _testConnection() {
   testBtn.disabled    = true;
 
   try {
-    const resp = await fetch(`${gatewayUrl}/health`, {
+    const resp = await fetch(`${gatewayUrl}/ext/health`, {
       method: "GET",
       headers: { "X-API-Key": apiKey },
     });

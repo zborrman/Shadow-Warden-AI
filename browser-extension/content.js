@@ -124,7 +124,7 @@
     let wardenStatus = 200;
 
     try {
-      const wardenResp = await _origFetch(`${_cfg.gatewayUrl}/filter`, {
+      const wardenResp = await _origFetch(`${_cfg.gatewayUrl}/ext/filter`, {
         method:  "POST",
         headers: {
           "Content-Type": "application/json",

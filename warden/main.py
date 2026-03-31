@@ -62,7 +62,8 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -833,6 +834,39 @@ app.add_middleware(
 # Disabled by default (MTLS_ENABLED=false); enable in production after running
 # scripts/gen_certs.sh and mounting certs/ into each container.
 app.add_middleware(MTLSMiddleware)
+
+
+class _ExtensionCORSMiddleware(BaseHTTPMiddleware):
+    """
+    Wildcard CORS for /ext/* routes used by the Shadow Warden browser extension.
+
+    chrome-extension:// and moz-extension:// origins cannot be whitelisted
+    statically because the extension ID is unknown at build time.  Routes under
+    /ext/ accept any origin; the X-API-Key header provides the actual auth.
+
+    This middleware runs outermost (registered last), so it:
+      • Short-circuits OPTIONS preflight for /ext/* — bypasses CORSMiddleware
+      • Overwrites any CORS headers on the final response for /ext/* routes
+    """
+    _HEADERS: dict[str, str] = {
+        "Access-Control-Allow-Origin":  "*",
+        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Request-ID",
+        "Access-Control-Max-Age":       "600",
+    }
+
+    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+        if not request.url.path.startswith("/ext/"):
+            return await call_next(request)
+        if request.method == "OPTIONS":
+            return Response(status_code=204, headers=self._HEADERS)
+        response = await call_next(request)
+        for key, val in self._HEADERS.items():
+            response.headers[key] = val
+        return response
+
+
+app.add_middleware(_ExtensionCORSMiddleware)
 
 # ── Prometheus instrumentation ────────────────────────────────────────────────
 if _PROMETHEUS_ENABLED:
@@ -2111,6 +2145,57 @@ async def demo_filter(
     rid = getattr(request.state, "request_id", str(uuid.uuid4()))
     client_ip = request.client.host if request.client else ""
     return await _run_filter_pipeline(payload, rid, _DEMO_AUTH, background_tasks, client_ip)
+
+
+# ── /ext/filter — browser extension endpoint ─────────────────────────────────
+# Identical to /filter but served under /ext/ which has wildcard CORS applied
+# by _ExtensionCORSMiddleware.  This lets the popup and background service worker
+# call the API from chrome-extension:// or moz-extension:// origins.
+
+@app.post(
+    "/ext/filter",
+    response_model=FilterResponse,
+    tags=["extension"],
+    summary="Browser-extension filter endpoint (wildcard CORS, API-key authenticated)",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit(_tenant_limit)
+async def ext_filter_content(
+    payload:          FilterRequest,
+    request:          Request,
+    background_tasks: BackgroundTasks,
+    auth:             AuthResult = Depends(require_api_key),
+) -> FilterResponse:
+    rid = getattr(request.state, "request_id", "-")
+    _enforce_tenant_rate_limit(auth, rid)
+    client_ip = request.client.host if request.client else ""
+    auth = _ers_enrich(auth, client_ip)
+    if auth.shadow_ban:
+        return FilterResponse(
+            **_sban.fake_filter_response(
+                payload.content, auth.entity_key, auth.ers_score, auth.last_flag
+            )
+        )
+    coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
+    if _PIPELINE_TIMEOUT_MS > 0:
+        try:
+            return await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
+        except TimeoutError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Filter pipeline timeout.",
+            ) from None
+    return await coro
+
+
+@app.get(
+    "/ext/health",
+    tags=["extension"],
+    summary="Extension health check — wildcard CORS for popup 'Test Connection' button",
+)
+async def ext_health() -> dict:
+    """Lightweight liveness probe called by the browser extension popup."""
+    return {"status": "ok", "version": app.version}
 
 
 # ── /filter/batch ─────────────────────────────────────────────────────────────
