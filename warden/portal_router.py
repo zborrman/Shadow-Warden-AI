@@ -880,7 +880,7 @@ _PILOT_COHORT   = "pilot-2025"
 _PILOT_CAPACITY = 15
 
 
-@router.post("/cert/apply", status_code=201)
+@router.post("/cert/apply", status_code=201, include_in_schema=False)
 async def cert_apply(
     body: _CertApplyIn,
     db:   AsyncSession = Depends(get_db),

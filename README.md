@@ -4,9 +4,18 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 2.3 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.4 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
+
+## What's New in v2.4
+
+| Feature | Description |
+|---------|-------------|
+| **Browser Extension** | MV3 extension for Chrome, Firefox, and Edge. Intercepts every prompt on ChatGPT, Claude.ai, Gemini, and Copilot before it reaches the cloud. RED/YELLOW/GREEN risk zones — hard block, local-AI redirect (Ollama/LM Studio), or pass-through. Content script runs in `world: "MAIN"` so fetch requests appear from the AI site origin; popup/background use the new `/ext/*` routes with wildcard CORS. GPO/MDM support via Windows Registry or Intune/Jamf for managed enterprise deployments. |
+| **`/ext/filter` + `/ext/health` routes** | Dedicated browser-extension endpoints on the gateway. `_ExtensionCORSMiddleware` returns `Access-Control-Allow-Origin: *` on all `/ext/*` responses and handles OPTIONS preflight with 204 — required because `chrome-extension://` and `moz-extension://` origins are not in the standard CORS whitelist. |
+| **Extension page in portal** | New `/extension/` page in the management portal: install buttons (Chrome/Firefox/Edge), 4-step setup wizard, live API-key display with copy button, behaviour guide, protected-sites list, and GPO deployment link. |
+| **CI/CD hardening** | Switched from manual SSH key writing (`printf '%s\n'`) to `webfactory/ssh-agent@v0.9.0` to eliminate `error in libcrypto` failures caused by CRLF line endings or missing final newlines in deploy keys. |
 
 ## What's New in v2.3
 
