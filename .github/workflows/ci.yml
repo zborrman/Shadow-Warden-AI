@@ -224,27 +224,28 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
     steps:
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          SSH_HOST=$(printf '%s' "${{ secrets.DEPLOY_HOST }}" | tr -d '[:space:]')
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
       - name: Deploy via SSH
         env:
-          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          # Strip whitespace/newlines from secrets to prevent SSH errors
           SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
-          # Write key preserving exact newlines
-          printf '%s\n' "$DEPLOY_KEY" > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-
           # $SSH_PATH expands on runner side; \$ variables run on server
-          ssh -i /tmp/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -o BatchMode=yes \
-            "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
+          ssh -o BatchMode=yes "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
           set -euo pipefail
           cd "$SSH_PATH"
 
@@ -279,5 +280,3 @@ jobs:
           docker compose logs --tail 50 warden
           exit 1
           ENDSSH
-
-          rm -f /tmp/deploy_key
