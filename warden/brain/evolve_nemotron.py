@@ -195,7 +195,6 @@ class NemotronEvolutionEngine(EvolutionEngine):
         try:
             from warden.storage import s3 as _s3  # noqa: PLC0415
             if _s3.S3_ENABLED:
-                import json as _json  # noqa: PLC0415
                 import uuid as _uuid  # noqa: PLC0415
                 from datetime import UTC, datetime  # noqa: PLC0415
                 bundle = {
@@ -205,6 +204,6 @@ class NemotronEvolutionEngine(EvolutionEngine):
                     "content_snippet":  content_snippet,
                     "reasoning":        reasoning,
                 }
-                _s3.ship_log_entry(_json.dumps(bundle))
+                _s3.ship_log_entry(bundle)
         except Exception as exc:  # noqa: BLE001
             log.debug("Nemotron thinking trace ship failed (non-fatal): %s", exc)
