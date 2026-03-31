@@ -12,10 +12,7 @@ Key assertions:
   4. POST /ext/filter with jailbreak content → allowed=False
   5. /ext/* routes add Access-Control-Allow-Origin: * on every response
 """
-from __future__ import annotations
-
 import pytest
-
 
 # ── CORS preflight ─────────────────────────────────────────────────────────────
 
