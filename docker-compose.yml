@@ -175,6 +175,8 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - CONTACT_TO_EMAIL=${CONTACT_TO_EMAIL:-vz@shadow-warden-ai.com}
+      - PORTAL_FROM_EMAIL=${PORTAL_FROM_EMAIL:-}
+      - PORTAL_URL=${PORTAL_URL:-https://app.shadow-warden-ai.com}
       # Dashboard auth
       - DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
       - DASHBOARD_PASSWORD_HASH=${DASHBOARD_PASSWORD_HASH:-}

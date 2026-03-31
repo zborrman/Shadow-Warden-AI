@@ -88,7 +88,7 @@ async def _send_password_reset_email(to: str, token: str) -> None:
         "If you did not request this, you can safely ignore this email.\n"
     )
     import asyncio
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         await loop.run_in_executor(None, _send_email_sync, to, "[Shadow Warden] Password reset", body)
         log.info("portal: password reset email sent to %s", to)
