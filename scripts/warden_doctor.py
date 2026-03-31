@@ -2,7 +2,7 @@
 """
 scripts/warden_doctor.py
 ════════════════════════
-WardenDoctor — Diagnostics & Benchmarking Suite for Shadow Warden AI v1.8
+WardenDoctor — Diagnostics & Benchmarking Suite for Shadow Warden AI v2.3
 
 Runs a structured health check + latency benchmark against any live Warden
 instance.  Exits with code 0 only when all checks pass.
@@ -502,7 +502,7 @@ class WardenDoctor:
     async def run(self, output_json: bool = False) -> bool:
         if not output_json:
             self._print(
-                f"\n[bold yellow]WardenDoctor v1.8"
+                f"\n[bold yellow]WardenDoctor v2.3"
                 f" — {self.base_url}[/bold yellow]"
             )
 

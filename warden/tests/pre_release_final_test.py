@@ -1,7 +1,7 @@
 """
 warden/tests/pre_release_final_test.py
 ══════════════════════════════════════
-Shadow Warden AI v1.8 — Master Integration Suite
+Shadow Warden AI v2.3 — Master Integration Suite
 
 Production-readiness validation across 5 attack surfaces.  Uses the real
 FastAPI app via TestClient (no live server needed), with an automatic fallback
