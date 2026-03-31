@@ -217,12 +217,18 @@ def mock_guard():
 
 @pytest.fixture
 def nemotron_engine(tmp_rules_path, mock_guard):
-    os.environ["DYNAMIC_RULES_PATH"]   = str(tmp_rules_path)
-    os.environ["NVIDIA_API_KEY"]        = "nvapi-test-key"
-    os.environ["EVOLUTION_RATE_MAX"]    = "100"
+    os.environ["DYNAMIC_RULES_PATH"]     = str(tmp_rules_path)
+    os.environ["NVIDIA_API_KEY"]          = "nvapi-test-key"
+    os.environ["EVOLUTION_RATE_MAX"]      = "100"
     os.environ["NEMOTRON_STORE_THINKING"] = "false"
     from warden.brain.evolve_nemotron import NemotronEvolutionEngine
-    return NemotronEvolutionEngine(semantic_guard=mock_guard)
+    engine = NemotronEvolutionEngine(semantic_guard=mock_guard)
+    # DYNAMIC_RULES_PATH is captured at module-import time, so the env-var change
+    # above has no effect on the already-loaded constant.  Override the instance
+    # attribute directly so process_blocked() writes to the pytest tmp directory.
+    engine._rules_path = tmp_rules_path
+    engine._rules_path.parent.mkdir(parents=True, exist_ok=True)
+    return engine
 
 
 def _fake_nim_chat(answer: str = _VALID_EVOLUTION_JSON, reasoning: str = "test reasoning"):
@@ -337,9 +343,10 @@ class TestBuildEvolutionEngine:
         assert isinstance(engine, NemotronEvolutionEngine)
 
     def test_auto_falls_back_to_claude_without_nvidia_key(self):
-        from warden.brain.evolve import EvolutionEngine
-        from warden.brain.evolve_nemotron import NemotronEvolutionEngine
         engine = self._build("auto", nvidia_key="", anthropic_key="sk-test")
+        # Import AFTER reload so the class identity matches the reloaded module
+        from warden.brain.evolve import EvolutionEngine  # noqa: PLC0415
+        from warden.brain.evolve_nemotron import NemotronEvolutionEngine  # noqa: PLC0415
         assert isinstance(engine, EvolutionEngine)
         assert not isinstance(engine, NemotronEvolutionEngine)
 
@@ -353,8 +360,9 @@ class TestBuildEvolutionEngine:
         assert isinstance(engine, NemotronEvolutionEngine)
 
     def test_explicit_claude(self):
-        from warden.brain.evolve import EvolutionEngine
-        from warden.brain.evolve_nemotron import NemotronEvolutionEngine
         engine = self._build("claude", anthropic_key="sk-test")
+        # Import AFTER reload so the class identity matches the reloaded module
+        from warden.brain.evolve import EvolutionEngine  # noqa: PLC0415
+        from warden.brain.evolve_nemotron import NemotronEvolutionEngine  # noqa: PLC0415
         assert isinstance(engine, EvolutionEngine)
         assert not isinstance(engine, NemotronEvolutionEngine)
