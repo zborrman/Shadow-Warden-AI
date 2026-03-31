@@ -230,8 +230,15 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          # Normalize key: strip CR, ensure exactly one trailing newline
-          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_deploy
+          # Use Python to write the key — handles \r\n, collapsed newlines,
+          # and missing trailing newline regardless of how GitHub stored the secret
+          python3 -c "
+import os
+key = os.environ['SSH_PRIVATE_KEY']
+key = key.replace('\r\n', '\n').replace('\r', '\n').strip() + '\n'
+with open(os.path.expanduser('~/.ssh/id_deploy'), 'w') as f:
+    f.write(key)
+"
           chmod 600 ~/.ssh/id_deploy
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_deploy
