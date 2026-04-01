@@ -1189,123 +1189,239 @@
 <section id="for-whom" class="py-24 lg:py-28" style="background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%);">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-    <div class="text-center mb-14 reveal">
-      <p class="eyebrow mb-3">Built For</p>
+    <div class="text-center mb-16 reveal">
+      <p class="eyebrow mb-3">Two Editions · One Mission</p>
       <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">Who uses Shadow Warden</h2>
-      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">One gateway, purpose-built for every team that ships AI in production.</p>
+      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Two products. Same threat intelligence engine. Designed for radically different buyers.</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 reveal">
+    <!-- ── Edition selector tabs ── -->
+    <div class="flex justify-center mb-12 reveal">
+      <div class="inline-flex rounded-2xl p-1 gap-1" style="background:var(--bg3);border:1px solid var(--border);">
+        <button id="tab-teams" onclick="switchEdition('teams')" class="px-6 py-2.5 rounded-xl text-sm font-700 transition-all" style="font-weight:700;background:linear-gradient(135deg,rgba(34,211,238,0.15),rgba(139,92,246,0.15));color:var(--cyan);border:1px solid rgba(34,211,238,0.3);">
+          Teams Edition &nbsp;<span style="font-size:10px;opacity:0.7;">SMB · $50–200/mo</span>
+        </button>
+        <button id="tab-enterprise" onclick="switchEdition('enterprise')" class="px-6 py-2.5 rounded-xl text-sm font-700 transition-all" style="font-weight:700;color:var(--t2);border:1px solid transparent;">
+          Enterprise Edition &nbsp;<span style="font-size:10px;opacity:0.7;">$25k+/yr</span>
+        </button>
+      </div>
+    </div>
 
-      <!-- Enterprise Security Teams -->
-      <div class="bento bento-glow-cyan">
-        <div class="bento-inner">
-          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <div class="badge badge-cyan mb-3">Enterprise Security</div>
-          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">SecOps & AI Red Teams</h3>
-          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Block jailbreaks, prompt injection, and data exfiltration across every LLM endpoint. SOC 2 Type II evidence bundles generated automatically for auditors.</p>
-          <ul class="space-y-2 text-xs" style="color:var(--t2);">
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>OWASP LLM Top 10 full coverage</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>SHA-256 cryptographic evidence vault</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Slack + PagerDuty real-time alerts</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Splunk/Elastic SIEM integration</li>
-          </ul>
+    <!-- ══ TEAMS EDITION ══ -->
+    <div id="edition-teams" class="reveal">
+
+      <!-- Problem banner -->
+      <div class="mb-8 p-5 rounded-2xl" style="background:rgba(244,63,94,0.05);border:1px solid rgba(244,63,94,0.15);">
+        <div class="flex items-center gap-3 mb-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#f87171;text-transform:uppercase;">The Problem</span>
         </div>
+        <p style="font-size:14px;color:var(--t2);line-height:1.6;">Your employees don't build AI apps — they <strong style="color:var(--t1);">use public ChatGPT, Claude, and Gemini directly</strong>, leaking client PII, AWS keys, source code, and contracts every day. Shadow Warden Teams stops this with a browser extension that requires zero IT infrastructure.</p>
       </div>
 
-      <!-- NVIDIA / NeMo Teams -->
-      <div class="bento" style="border-color:rgba(118,185,0,0.25);background:linear-gradient(135deg,rgba(5,19,31,0.95) 0%,rgba(8,28,12,0.95) 100%);">
-        <div class="bento-inner">
-          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.25);">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-          </div>
-          <div class="badge mb-3" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.25);color:#76b900;">NVIDIA Ecosystem</div>
-          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">NeMo Guardrails Teams</h3>
-          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">GeometricThreatBridge translates Shadow Warden's hyperbolic ML scores and Betti numbers into NeMo Colang context variables — geometry-driven flow selection at runtime.</p>
-          <ul class="space-y-2 text-xs" style="color:var(--t2);">
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>CPU pre-filter → GPU Colang guardrails</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Betti numbers → Colang flow routing</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Claude Opus generates new Colang flows</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>NIM model routing with dual-layer guard</li>
-          </ul>
-        </div>
-      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
-      <!-- AI Product Teams -->
-      <div class="bento bento-glow-purple">
-        <div class="bento-inner">
-          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          </div>
-          <div class="badge badge-purple mb-3">Product Teams</div>
-          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">SaaS & AI Startups</h3>
-          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Drop Shadow Warden in front of your OpenAI/Anthropic calls in 5 minutes. One endpoint, zero code changes — PII redaction, jailbreak blocking, and ROI reporting out of the box.</p>
-          <ul class="space-y-2 text-xs" style="color:var(--t2);">
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>OpenAI-compatible /v1/chat/completions</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Python SDK: pip install shadow-warden</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Dollar Impact Calculator — ROI in <1min</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Self-improves — zero ongoing maintenance</li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Financial & Healthcare -->
-      <div class="bento lg:col-span-2" style="border-color:rgba(251,191,36,0.2);">
-        <div class="bento-inner">
-          <div class="flex items-start gap-6">
-            <div class="flex-1">
-              <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
-              </div>
-              <div class="badge mb-3" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);color:#fbbf24;">Regulated Industries</div>
-              <h3 class="text-xl font-bold mb-2" style="color:var(--t1);">Financial Services & Healthcare</h3>
-              <p class="text-sm leading-relaxed" style="color:var(--t2);max-width:420px;">GDPR Art. 35 DPIA included. All sensitive data stays on-prem via Data-Gravity Hybrid Hub (MinIO). Shannon entropy scan catches novel credential patterns before they reach cloud LLMs. IBM 2024 breach cost benchmarks power the Dollar Impact ROI model.</p>
+        <!-- Agencies & Consultancies -->
+        <div class="bento bento-glow-cyan">
+          <div class="bento-inner">
+            <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
             </div>
-            <div class="grid grid-cols-2 gap-3 shrink-0">
-              <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
-                <div class="text-2xl font-black" style="color:#fbbf24;">$4.9M</div>
-                <div class="text-xs mt-1" style="color:var(--t2);">avg breach cost (IBM 2024)</div>
-              </div>
-              <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
-                <div class="text-2xl font-black" style="color:#fbbf24;">GDPR</div>
-                <div class="text-xs mt-1" style="color:var(--t2);">Art. 35 DPIA included</div>
-              </div>
-              <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
-                <div class="text-2xl font-black" style="color:#fbbf24;">0</div>
-                <div class="text-xs mt-1" style="color:var(--t2);">content logged (by design)</div>
-              </div>
-              <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
-                <div class="text-2xl font-black" style="color:#fbbf24;">On-prem</div>
-                <div class="text-xs mt-1" style="color:var(--t2);">Data-Gravity MinIO vault</div>
-              </div>
+            <div class="badge badge-cyan mb-3">Teams Edition</div>
+            <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Agencies & Consultancies</h3>
+            <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Client contracts, NDA documents, financial models. One link to Chrome Web Store — every employee's browser is protected in 60 seconds. No IT ticket, no VPN, no server.</p>
+            <ul class="space-y-2 text-xs" style="color:var(--t2);">
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>PII masked before reaching ChatGPT</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Client name redaction (RED zone)</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Owner dashboard: incidents this month</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Stripe self-serve, cancel anytime</li>
+            </ul>
+            <div class="mt-5 pt-4" style="border-top:1px solid var(--border);">
+              <span style="font-size:11px;color:var(--t3);">From</span>
+              <span class="text-xl font-black ml-1" style="color:var(--cyan);">$50</span>
+              <span style="font-size:11px;color:var(--t3);">/month · up to 10 seats</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- DevOps / Platform Eng -->
-      <div class="bento bento-glow-green">
-        <div class="bento-inner">
-          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <!-- SaaS Startups -->
+        <div class="bento bento-glow-purple">
+          <div class="bento-inner">
+            <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div class="badge badge-purple mb-3">Teams Edition</div>
+            <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">SaaS & AI Startups</h3>
+            <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Ship AI features fast without a security team. Drop the gateway in front of your OpenAI calls in 5 minutes — PII redaction, jailbreak blocking, and ROI dashboard out of the box.</p>
+            <ul class="space-y-2 text-xs" style="color:var(--t2);">
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>OpenAI-compatible /v1/chat/completions</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Dollar Impact Calculator — ROI in &lt;1 min</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Self-improves — zero ongoing maintenance</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Managed cloud — you host nothing</li>
+            </ul>
+            <div class="mt-5 pt-4" style="border-top:1px solid var(--border);">
+              <span style="font-size:11px;color:var(--t3);">From</span>
+              <span class="text-xl font-black ml-1" style="color:#a78bfa;">$99</span>
+              <span style="font-size:11px;color:var(--t3);">/month · unlimited API calls</span>
+            </div>
           </div>
-          <div class="badge badge-green mb-3">Platform Engineering</div>
-          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">DevOps & MLOps Teams</h3>
-          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Docker Compose, Helm charts, Terraform ready. 11 services with healthchecks. Prometheus metrics, Grafana dashboards, MinIO on-prem S3 — production-grade from day one.</p>
-          <ul class="space-y-2 text-xs" style="color:var(--t2);">
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>docker compose up — 11 services, <5min</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Prometheus + Grafana SLO alerts</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>CPU-only — no GPU required</li>
-            <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Air-gap mode (no ANTHROPIC_API_KEY)</li>
-          </ul>
         </div>
+
+        <!-- Marketing & Ops Teams -->
+        <div class="bento bento-glow-green">
+          <div class="bento-inner">
+            <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+            </div>
+            <div class="badge badge-green mb-3">Teams Edition</div>
+            <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Marketing & Ops Teams</h3>
+            <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Your marketing team pastes customer lists into Claude. Your ops team emails contracts to ChatGPT for summarization. Shadow Warden intercepts before the data leaves Chrome.</p>
+            <ul class="space-y-2 text-xs" style="color:var(--t2);">
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Works on ChatGPT, Claude, Gemini, Copilot</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>YELLOW: redirect to local Ollama model</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Monthly leak report for management</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>No employee training required</li>
+            </ul>
+            <div class="mt-5 pt-4" style="border-top:1px solid var(--border);">
+              <span style="font-size:11px;color:var(--t3);">From</span>
+              <span class="text-xl font-black ml-1" style="color:#10b981;">$199</span>
+              <span style="font-size:11px;color:var(--t3);">/month · up to 50 seats</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /edition-teams -->
+
+    <!-- ══ ENTERPRISE EDITION ══ -->
+    <div id="edition-enterprise" class="reveal" style="display:none;">
+
+      <!-- Problem banner -->
+      <div class="mb-8 p-5 rounded-2xl" style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.15);">
+        <div class="flex items-center gap-3 mb-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#a78bfa;text-transform:uppercase;">Enterprise Requirement</span>
+        </div>
+        <p style="font-size:14px;color:var(--t2);line-height:1.6;">Banks, fintech, and government require <strong style="color:var(--t1);">data sovereignty</strong> — no bytes leave the security perimeter, no black-box cloud APIs, full audit trail, and forced deployment to every device. Shadow Warden Enterprise deploys inside your infrastructure.</p>
       </div>
 
-    </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <!-- Financial Services & Banking -->
+        <div class="bento lg:col-span-2" style="border-color:rgba(251,191,36,0.25);background:linear-gradient(135deg,rgba(5,19,31,0.98) 0%,rgba(20,14,4,0.98) 100%);">
+          <div class="bento-inner">
+            <div class="flex items-start gap-6 flex-wrap">
+              <div class="flex-1" style="min-width:220px;">
+                <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25);">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+                </div>
+                <div class="badge mb-3" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);color:#fbbf24;">Enterprise · Regulated</div>
+                <h3 class="text-xl font-bold mb-2" style="color:var(--t1);">Financial Services & Banking</h3>
+                <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);max-width:400px;">Air-gapped deployment. NVIDIA Nemotron 49B runs inside your VPC — no token leaves your perimeter. Evidence Vault feeds Splunk. IBM 2024 breach benchmarks built into the ROI model.</p>
+                <ul class="space-y-2 text-xs" style="color:var(--t2);">
+                  <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>GDPR Art. 35 DPIA + SOC 2 Type II evidence</li>
+                  <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>SHA-256 audit chain → Splunk / Elastic SIEM</li>
+                  <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Zero data egress — MinIO on-prem vault</li>
+                  <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Forced browser extension via GPO / Intune</li>
+                </ul>
+              </div>
+              <div class="grid grid-cols-2 gap-3 shrink-0">
+                <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
+                  <div class="text-2xl font-black" style="color:#fbbf24;">$4.9M</div>
+                  <div class="text-xs mt-1" style="color:var(--t2);">avg breach cost (IBM 2024)</div>
+                </div>
+                <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
+                  <div class="text-2xl font-black" style="color:#fbbf24;">0 bytes</div>
+                  <div class="text-xs mt-1" style="color:var(--t2);">leave your perimeter</div>
+                </div>
+                <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
+                  <div class="text-2xl font-black" style="color:#fbbf24;">GDPR</div>
+                  <div class="text-xs mt-1" style="color:var(--t2);">Art. 35 DPIA included</div>
+                </div>
+                <div class="p-4 rounded-xl text-center" style="background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.12);">
+                  <div class="text-2xl font-black" style="color:#fbbf24;">Air-gap</div>
+                  <div class="text-xs mt-1" style="color:var(--t2);">NVIDIA NIM on-prem</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Government & Defense -->
+        <div class="bento" style="border-color:rgba(244,63,94,0.2);background:linear-gradient(135deg,rgba(5,19,31,0.98) 0%,rgba(20,4,8,0.98) 100%);">
+          <div class="bento-inner">
+            <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.2);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <div class="badge mb-3" style="background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.2);color:#f87171;">Enterprise · Sovereign</div>
+            <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">Government & Defense</h3>
+            <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Classified workloads demand full air-gap. No Anthropic API, no external model calls — NVIDIA Nemotron 49B runs entirely on your GPU nodes. Every prompt classified before inference.</p>
+            <ul class="space-y-2 text-xs" style="color:var(--t2);">
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>True air-gap — no external API calls</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Kubernetes + Helm for secure clusters</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>MDM forced extension on all endpoints</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Tamper-evident SHA-256 audit trail</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- SecOps & AI Red Teams -->
+        <div class="bento bento-glow-cyan">
+          <div class="bento-inner">
+            <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="badge badge-cyan mb-3">Enterprise · Security</div>
+            <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">SecOps & AI Red Teams</h3>
+            <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Block jailbreaks, indirect injection, and data exfiltration across every LLM endpoint. SOC 2 evidence bundles generated automatically for auditors.</p>
+            <ul class="space-y-2 text-xs" style="color:var(--t2);">
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>OWASP LLM Top 10 full coverage</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Slack + PagerDuty real-time alerts</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Prometheus / Grafana SLO monitoring</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>7 agentic threat patterns (AgentMonitor)</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- NVIDIA Ecosystem -->
+        <div class="bento" style="border-color:rgba(118,185,0,0.25);background:linear-gradient(135deg,rgba(5,19,31,0.95) 0%,rgba(8,28,12,0.95) 100%);">
+          <div class="bento-inner">
+            <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.25);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            </div>
+            <div class="badge mb-3" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.25);color:#76b900;">Enterprise · NVIDIA</div>
+            <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">NVIDIA NIM & NeMo Teams</h3>
+            <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Run Nemotron Super 49B as the Evolution Engine inside your NIM cluster. GeometricThreatBridge maps hyperbolic ML scores into NeMo Colang variables for GPU-accelerated guardrails.</p>
+            <ul class="space-y-2 text-xs" style="color:var(--t2);">
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Nemotron 49B — reasoning traces in Vault</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>OpenShield alignment (4 primitives)</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>CPU filter → GPU Colang guardrails</li>
+              <li class="flex items-center gap-2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>K8s HPA scales GPU workers independently</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /edition-enterprise -->
+
   </div>
 </section>
+
+<script>
+function switchEdition(ed) {
+  document.getElementById('edition-teams').style.display     = ed === 'teams'      ? '' : 'none';
+  document.getElementById('edition-enterprise').style.display = ed === 'enterprise' ? '' : 'none';
+  var tBtn = document.getElementById('tab-teams');
+  var eBtn = document.getElementById('tab-enterprise');
+  if (ed === 'teams') {
+    tBtn.style.cssText = 'font-weight:700;background:linear-gradient(135deg,rgba(34,211,238,0.15),rgba(139,92,246,0.15));color:var(--cyan);border:1px solid rgba(34,211,238,0.3);padding:10px 24px;border-radius:12px;font-size:14px;transition:all 0.2s;';
+    eBtn.style.cssText = 'font-weight:700;color:var(--t2);border:1px solid transparent;padding:10px 24px;border-radius:12px;font-size:14px;transition:all 0.2s;';
+  } else {
+    eBtn.style.cssText = 'font-weight:700;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(244,63,94,0.1));color:#a78bfa;border:1px solid rgba(139,92,246,0.3);padding:10px 24px;border-radius:12px;font-size:14px;transition:all 0.2s;';
+    tBtn.style.cssText = 'font-weight:700;color:var(--t2);border:1px solid transparent;padding:10px 24px;border-radius:12px;font-size:14px;transition:all 0.2s;';
+  }
+}
+</script>
 
 
 <!-- ════════════════════════════════════════════════════════
