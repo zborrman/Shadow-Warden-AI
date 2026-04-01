@@ -358,6 +358,7 @@
       margin-top: 4px;
     }
   </style>
+  <script src="/landing/session.js"></script>
 </head>
 <body>
 
@@ -1864,13 +1865,11 @@ synthesizer.register_rails(rails)<br/>
 
 <script>
   // ── Auth ────────────────────────────────────────────────────────────────────
-  const token = localStorage.getItem('warden_token');
+  Session.requireAuth();
   const authLink = document.getElementById('auth-link');
-  if (token) {
-    authLink.textContent = 'Sign Out';
-    authLink.href = '#';
-    authLink.onclick = () => { localStorage.removeItem('warden_token'); location.href = '/'; };
-  }
+  authLink.textContent = 'Sign Out';
+  authLink.href = '#';
+  authLink.onclick = (e) => { e.preventDefault(); Session.logout(); };
 
   // ── Sidebar navigation ──────────────────────────────────────────────────────
   function showSection(id, el) {
@@ -1895,10 +1894,9 @@ synthesizer.register_rails(rails)<br/>
     const btn = document.getElementById('cpw-btn');
     btn.disabled = true; btn.textContent = 'Updating…';
     try {
-      const token = localStorage.getItem('warden_token') || '';
-      const res = await fetch('/portal/me/change-password', {
+      const res = await Session.authFetch('/portal/me/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ current_password: current, new_password: newPw }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1926,8 +1924,7 @@ synthesizer.register_rails(rails)<br/>
   // ── Load config ─────────────────────────────────────────────────────────────
   async function loadConfig() {
     try {
-      const headers = token ? { Authorization: 'Bearer ' + token } : {};
-      const res  = await fetch('/api/config', { headers });
+      const res  = await Session.authFetch('/api/config');
       if (!res.ok) return;
       const cfg  = await res.json();
 
@@ -1988,12 +1985,9 @@ synthesizer.register_rails(rails)<br/>
     const strict    = document.getElementById('strict-mode').checked;
 
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = 'Bearer ' + token;
-
-      const res = await fetch('/api/config', {
+      const res = await Session.authFetch('/api/config', {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ semantic_threshold: threshold, strict_mode: strict }),
       });
 
@@ -2013,10 +2007,9 @@ synthesizer.register_rails(rails)<br/>
     if (!rid) { showToast('Enter a request ID', 'error'); return; }
 
     try {
-      const headers = token ? { Authorization: 'Bearer ' + token } : {};
-      const res  = await fetch('/gdpr/export', {
+      const res  = await Session.authFetch('/gdpr/export', {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ request_id: rid }),
       });
       const data = await res.json();
@@ -2042,10 +2035,9 @@ synthesizer.register_rails(rails)<br/>
     if (!confirm('Permanently delete all log entries before ' + date + '? This cannot be undone.')) return;
 
     try {
-      const headers = token ? { Authorization: 'Bearer ' + token } : {};
-      const res  = await fetch('/gdpr/purge', {
+      const res  = await Session.authFetch('/gdpr/purge', {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ before: date + 'T00:00:00Z' }),
       });
       const data = await res.json();
@@ -2075,9 +2067,11 @@ synthesizer.register_rails(rails)<br/>
     if (key) payload.nvidia_api_key = key;
 
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = 'Bearer ' + token;
-      const res = await fetch('/api/config', { method: 'POST', headers, body: JSON.stringify(payload) });
+      const res = await Session.authFetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       if (res.ok) {
         showToast('NVIDIA settings saved — restart required for key/endpoint changes', 'success');
         if (key) document.getElementById('nvidia-api-key').value = '';
@@ -2097,9 +2091,11 @@ synthesizer.register_rails(rails)<br/>
       uncertainty_lower_threshold: parseFloat(document.getElementById('uncertainty-lower').value),
     };
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = 'Bearer ' + token;
-      const res = await fetch('/api/config', { method: 'POST', headers, body: JSON.stringify(payload) });
+      const res = await Session.authFetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       if (res.ok) {
         showToast('Resilience settings saved — restart required for strategy/timeout changes', 'success');
         // Update status badge to reflect new strategy
@@ -2157,8 +2153,7 @@ synthesizer.register_rails(rails)<br/>
     pre.textContent = 'Loading…';
     box.style.display = 'block';
     try {
-      const headers = token ? { Authorization: 'Bearer ' + token } : {};
-      const res = await fetch(`/financial/impact?industry=${ind}&monthly_requests=${reqs}`, { headers });
+      const res = await Session.authFetch(`/financial/impact?industry=${ind}&monthly_requests=${reqs}`);
       if (res.ok) {
         const data = await res.json();
         pre.textContent = JSON.stringify(data, null, 2);
@@ -2174,8 +2169,7 @@ synthesizer.register_rails(rails)<br/>
   async function loadConfigExtended() {
     await loadConfig();
     try {
-      const headers = token ? { Authorization: 'Bearer ' + token } : {};
-      const res = await fetch('/api/config', { headers });
+      const res = await Session.authFetch('/api/config');
       if (!res.ok) return;
       const cfg = await res.json();
 

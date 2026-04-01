@@ -507,9 +507,37 @@
       pointer-events: none;
     }
     .toast.show { opacity: 1; transform: none; }
+
+    /* Session expiry warning banner */
+    #session-warn {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+      background: linear-gradient(90deg, rgba(251,146,60,0.96), rgba(245,101,0,0.96));
+      backdrop-filter: blur(8px);
+      padding: 10px 24px;
+      font-size: 13px; font-weight: 600; color: #fff;
+      align-items: center; justify-content: center; gap: 16px;
+    }
+    #session-warn.visible { display: flex; }
+    #session-warn-renew {
+      padding: 4px 14px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.6);
+      background: transparent; color: #fff; font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: background 0.2s;
+    }
+    #session-warn-renew:hover { background: rgba(255,255,255,0.15); }
   </style>
+  <script src="/landing/session.js"></script>
 </head>
 <body>
+
+<!-- Session expiry warning banner (hidden until ~5 min before token expires) -->
+<div id="session-warn">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  <span id="session-warn-text">Your session expires soon.</span>
+  <button id="session-warn-renew" onclick="Session.authFetch('/portal/me').then(() => document.getElementById('session-warn').classList.remove('visible'))">Renew session</button>
+  <button onclick="Session.logout()" style="padding:4px 14px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.35);background:transparent;color:rgba(255,255,255,0.75);font-size:12px;cursor:pointer;">Sign out</button>
+</div>
+
 
 <!-- ── Navigation ──────────────────────────────────────────────────────────── -->
 <nav class="nav">
@@ -539,7 +567,7 @@
       Live
     </div>
     <span id="user-email" style="font-size:0.8125rem;color:var(--text3);"></span>
-    <a href="#" id="auth-link" onclick="doSignOut()" style="font-size:0.8125rem;color:var(--text2);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid var(--border);transition:all 0.15s">Sign Out</a>
+    <a href="#" id="auth-link" onclick="Session.logout()" style="font-size:0.8125rem;color:var(--text2);text-decoration:none;padding:5px 12px;border-radius:7px;border:1px solid var(--border);transition:all 0.15s">Sign Out</a>
   </div>
 </nav>
 
@@ -1122,14 +1150,17 @@ response = client.chat.completions.create(
 
 <script>
   // ── Auth guard ──────────────────────────────────────────────────────────────
-  const token = localStorage.getItem('warden_token');
-  if (!token) { window.location.href = '/login'; }
+  // Session.requireAuth() checks the token, schedules proactive refresh, and
+  // redirects to /login if the token is missing or cannot be renewed.
+  Session.requireAuth();
 
-  function doSignOut() {
-    localStorage.removeItem('warden_token');
-    fetch('/portal/auth/logout', { method: 'POST' }).catch(() => {});
-    window.location.href = '/login';
-  }
+  // Show expiry warning banner ~5 min before token expires
+  Session.onExpiry((remainingSecs) => {
+    const mins = Math.ceil(remainingSecs / 60);
+    document.getElementById('session-warn-text').textContent =
+      `Your session expires in ${mins} minute${mins !== 1 ? 's' : ''}. Unsaved changes may be lost.`;
+    document.getElementById('session-warn').classList.add('visible');
+  });
 
   function showToast(msg, duration = 2000) {
     const t = document.getElementById('toast');
@@ -1141,8 +1172,8 @@ response = client.chat.completions.create(
   // ── Load user info ──────────────────────────────────────────────────────────
   async function loadMe() {
     try {
-      const res = await fetch('/portal/me', { headers: { Authorization: 'Bearer ' + token } });
-      if (res.status === 401) { doSignOut(); return; }
+      const res = await Session.authFetch('/portal/me');
+      if (!res.ok) return;
       const data = await res.json();
       document.getElementById('user-email').textContent = data.email || '';
     } catch {}
@@ -1154,7 +1185,7 @@ response = client.chat.completions.create(
 
   async function loadKeys() {
     try {
-      const res = await fetch('/portal/keys', { headers: { Authorization: 'Bearer ' + token } });
+      const res = await Session.authFetch('/portal/keys');
       if (!res.ok) return;
       _keys = await res.json();
       renderKeys();
@@ -1205,10 +1236,7 @@ response = client.chat.completions.create(
   async function revokeKey(id) {
     if (!confirm('Revoke this API key? This cannot be undone.')) return;
     try {
-      await fetch('/portal/keys/' + id, {
-        method: 'DELETE',
-        headers: { Authorization: 'Bearer ' + token },
-      });
+      await Session.authFetch('/portal/keys/' + id, { method: 'DELETE' });
       await loadKeys();
       showToast('Key revoked');
     } catch { showToast('Failed to revoke key'); }
@@ -1260,9 +1288,9 @@ response = client.chat.completions.create(
     btn.disabled = true;
     btn.textContent = 'Creating…';
     try {
-      const res  = await fetch('/portal/keys', {
+      const res  = await Session.authFetch('/portal/keys', {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ label, rate_limit: rl }),
       });
       const data = await res.json();
@@ -1515,10 +1543,9 @@ services:
 
   async function fetchStats() {
     try {
-      const headers = { Authorization: 'Bearer ' + token };
       // Try portal stats first, fallback to public analytics API
       let data = null;
-      const portalRes = await fetch('/portal/stats/summary', { headers });
+      const portalRes = await Session.authFetch('/portal/stats/summary');
       if (portalRes.ok) {
         const summary = await portalRes.json();
         data = {
@@ -1534,7 +1561,7 @@ services:
           recent: [],
         };
         // Also fetch daily for timeline
-        const dailyRes = await fetch('/portal/stats/daily?days=7', { headers });
+        const dailyRes = await Session.authFetch('/portal/stats/daily?days=7');
         if (dailyRes.ok) {
           const daily = await dailyRes.json();
           data.time_series = daily.map(d => ({ ts: d.date, total: d.total, blocked: d.blocked }));
@@ -1671,7 +1698,8 @@ services:
   }
 
   function initLiveFeed() {
-    if (!token) return; // no auth token yet
+    const token = Session.getToken();
+    if (!token) return;
     _wsSetStatus('connecting');
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${proto}//${location.host}/ws/events?key=${encodeURIComponent(token)}`;
@@ -1723,8 +1751,7 @@ services:
   fetchStats();
   setInterval(fetchStats, 10000);
 
-  // Start WebSocket after token is available (loadMe sets `token`)
-  // We wait a tick so loadMe's fetch can complete if token is in localStorage
+  // Small delay so loadMe can render user info before WS connects
   setTimeout(() => initLiveFeed(), 300);
 
   // Close modal on backdrop click

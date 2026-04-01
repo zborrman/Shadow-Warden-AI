@@ -425,6 +425,7 @@
     .form-footer a { color: var(--text-3); text-decoration: none; transition: color 0.15s; }
     .form-footer a:hover { color: var(--text-2); }
   </style>
+  <script src="/landing/session.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -773,7 +774,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.access_token) {
-        localStorage.setItem('warden_token', data.access_token);
+        Session.setToken(data.access_token);
         window.location.href = '/dashboard';
       } else if (res.ok && data.requires_totp && data.totp_session) {
         // Password OK — TOTP required next
@@ -813,7 +814,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.access_token) {
-        localStorage.setItem('warden_token', data.access_token);
+        Session.setToken(data.access_token);
         window.location.href = '/dashboard';
       } else {
         showTotpError(data.detail || 'Invalid code. Try again.');
