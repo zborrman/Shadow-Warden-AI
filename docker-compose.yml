@@ -1,22 +1,17 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Shadow Warden AI — Minimal Production Stack  (2 CPU / 4 GB RAM / 40 GB disk)
+#  Shadow Warden AI — Full Production Stack  (8 vCPU / 16 GB RAM / 40 GB disk)
 #
-#  ACTIVE (4 services):
-#    proxy    — nginx reverse proxy  (port 80)
-#    warden   — FastAPI security gateway  (internal :8001)
-#    postgres — persistent storage
-#    redis    — cache + rate limiting
-#
-#  DEFERRED (re-enable when server is upgraded to ≥80 GB disk):
-#    dashboard  — Streamlit analytics UI
-#    analytics  — FastAPI analytics API
-#    prometheus — metrics collection
-#    grafana    — metrics visualization
-#    jaeger     — distributed tracing
-#    portal     — customer portal
-#    app        — demo application
-#    admin      — MSP admin UI
-#    feed       — threat intelligence feed
+#  ACTIVE SERVICES:
+#    proxy      — nginx reverse proxy          (80 / 443)
+#    warden     — FastAPI security gateway     (internal :8001)
+#    postgres   — persistent storage
+#    redis      — cache + rate limiting
+#    minio      — S3-compatible object storage (9000 / 9001 console)
+#    analytics  — FastAPI analytics API        (internal :8002)
+#    admin      — Streamlit MSP admin UI       (internal :8502)
+#    prometheus — metrics scraper              (internal :9090)
+#    grafana    — metrics dashboard            (3001 external)
+#    jaeger     — distributed tracing          (16686 UI / OTLP 4317/4318)
 # ─────────────────────────────────────────────────────────────────────────────
 
 networks:
@@ -28,6 +23,8 @@ volumes:
   redis-data:
   warden-logs:
   minio-data:
+  prometheus-data:
+  grafana-data:
 
 services:
 
@@ -78,9 +75,9 @@ services:
       resources:
         limits:
           cpus: "4.0"
-          memory: 4096M
+          memory: 8192M
         reservations:
-          memory: 1024M
+          memory: 2048M
     environment:
       - ENV=${ENV:-development}
       - SECRET_KEY=${SECRET_KEY:-change-me-generate-a-strong-random-key}
@@ -90,7 +87,7 @@ services:
       - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
       - MODEL_CACHE_DIR=/warden/models
       - HF_HOME=/warden/models
-      - UVICORN_WORKERS=${UVICORN_WORKERS:-2}
+      - UVICORN_WORKERS=${UVICORN_WORKERS:-4}
       - SEMANTIC_THRESHOLD=${SEMANTIC_THRESHOLD:-0.72}
       - STRICT_MODE=${STRICT_MODE:-false}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -103,8 +100,9 @@ services:
       - BROWSER_ENABLED=false
       # mTLS disabled — plain HTTP between nginx and warden
       - MTLS_ENABLED=false
-      # OpenTelemetry disabled (no Jaeger)
-      - OTEL_ENABLED=false
+      # OpenTelemetry — enable by setting OTEL_ENABLED=true in .env
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
       # Security features
       - SESSION_GUARD_ENABLED=${SESSION_GUARD_ENABLED:-true}
       - HONEY_MODE=${HONEY_MODE:-false}
@@ -198,6 +196,7 @@ services:
       - warden-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+
       interval: 20s
       timeout: 10s
       retries: 15
@@ -295,3 +294,188 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # ── ANALYTICS ──────────────────────────────────────────────────────────────
+  analytics:
+    build:
+      context: ./analytics
+      dockerfile: Dockerfile
+    container_name: warden-analytics
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    expose:
+      - "8002"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      - LOGS_PATH=/data/logs.json
+      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      warden:
+        condition: service_started
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # ── ADMIN UI ────────────────────────────────────────────────────────────────
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: warden-admin
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    expose:
+      - "8502"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      - WARDEN_URL=http://warden:8001
+      - WARDEN_API_KEY=${WARDEN_API_KEY:-}
+      - LOGS_PATH=/data/logs.json
+      - DYNAMIC_RULES_PATH=/data/dynamic_rules.json
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      warden:
+        condition: service_started
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8502/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ── PROMETHEUS ──────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: warden-prometheus
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    expose:
+      - "9090"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./grafana/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      warden:
+        condition: service_started
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── GRAFANA ─────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: warden-grafana
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "3001:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-warden-grafana}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:3001
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ── JAEGER (distributed tracing) ────────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: warden-jaeger
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "16686:16686"    # Jaeger UI
+    expose:
+      - "4317"           # OTLP gRPC
+      - "4318"           # OTLP HTTP
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+      - MEMORY_MAX_TRACES=${JAEGER_MAX_TRACES:-50000}
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:14269/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
