@@ -233,6 +233,8 @@ jobs:
           # Decode base64 key — single-line secret, immune to line-ending corruption
           echo "$SSH_PRIVATE_KEY" | tr -d '[:space:]' | base64 -d > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
+          # Verify decoded key is parseable (prints fingerprint, never the key itself)
+          ssh-keygen -l -f ~/.ssh/id_deploy
           # Add server to known hosts
           SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
