@@ -51,7 +51,7 @@ services:
       - warden-logs:/var/log/nginx
     depends_on:
       warden:
-        condition: service_healthy
+        condition: service_started
     networks:
       - warden-net
     healthcheck:
@@ -90,7 +90,7 @@ services:
       - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
       - MODEL_CACHE_DIR=/warden/models
       - HF_HOME=/warden/models
-      - UVICORN_WORKERS=${UVICORN_WORKERS:-4}
+      - UVICORN_WORKERS=${UVICORN_WORKERS:-2}
       - SEMANTIC_THRESHOLD=${SEMANTIC_THRESHOLD:-0.72}
       - STRICT_MODE=${STRICT_MODE:-false}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

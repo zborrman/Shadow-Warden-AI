@@ -274,14 +274,27 @@ jobs:
           # it won't clear a same-named container created outside compose.
           docker compose ps -q --status exited --status created 2>/dev/null \
             | xargs -r docker rm -f 2>/dev/null || true
-          docker compose up -d --build --remove-orphans
+
+          # Use || true: proxy depends_on warden with service_started so compose
+          # never fails here — but guard against any other compose error.
+          docker compose up -d --build --remove-orphans || {
+            echo "── docker compose up failed — gateway logs ─────────────────"
+            docker compose logs --tail 100 warden || true
+            exit 1
+          }
 
           echo "── [4/4] Verify warden health ──────────────────────────────"
-          # Poll for up to 5 min (60 × 5 s). The ML model load takes ~2-3 min on
-          # cold start; start_period: 180s means docker won't mark it unhealthy
-          # until that window passes, but /health itself responds as soon as
-          # uvicorn is up — so we poll directly rather than relying on docker.
+          # Poll for up to 5 min (60 × 5 s). The ML model load takes ~2-3 min
+          # on cold start. Proxy uses service_started so compose never blocks
+          # on health here — we validate directly instead.
           for i in \$(seq 1 60); do
+            # Check container is still running before polling /health
+            STATE=\$(docker inspect --format='{{.State.Status}}' warden-gateway 2>/dev/null || echo missing)
+            if [ "\$STATE" != "running" ]; then
+              echo "  warden-gateway exited (state=\$STATE) — printing logs:"
+              docker compose logs --tail 100 warden || true
+              exit 1
+            fi
             STATUS=\$(docker exec warden-gateway curl -s -o /dev/null -w "%{http_code}" \
               http://localhost:8001/health 2>/dev/null || echo 000)
             if [ "\$STATUS" = "200" ]; then
@@ -289,10 +302,10 @@ jobs:
               echo "  Warden healthy after \${i}x5 s  ->  \$BODY"
               exit 0
             fi
-            echo "  attempt \$i/60 -- HTTP \$STATUS -- waiting 5 s"
+            echo "  attempt \$i/60 -- HTTP \$STATUS (state=\$STATE) -- waiting 5 s"
             sleep 5
           done
           echo "ERROR: /health did not return 200 within 5 minutes after deploy"
-          docker compose logs --tail 80 warden
+          docker compose logs --tail 100 warden
           exit 1
           ENDSSH
