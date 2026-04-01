@@ -230,14 +230,13 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          # Use Python to write the key — handles \r\n, collapsed newlines,
-          # and missing trailing newline regardless of how GitHub stored the secret
+          # Write key via Python — handles \r\n, collapsed newlines, missing trailing newline
           python3 -c "import os; k=os.environ['SSH_PRIVATE_KEY']; k=k.replace('\r\n','\n').replace('\r','\n').strip()+'\n'; open(os.path.expanduser('~/.ssh/id_deploy'),'w').write(k)"
           chmod 600 ~/.ssh/id_deploy
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/id_deploy
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
-          echo "SSH_AGENT_PID=$SSH_AGENT_PID"  >> "$GITHUB_ENV"
+          # Debug: verify structure without exposing key content
+          echo "Key first line : $(head -1 ~/.ssh/id_deploy)"
+          echo "Key last line  : $(tail -1 ~/.ssh/id_deploy)"
+          echo "Key line count : $(wc -l < ~/.ssh/id_deploy)"
           # Add server to known hosts
           SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
@@ -252,8 +251,8 @@ jobs:
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
-          # $SSH_PATH expands on runner side; \$ variables run on server
-          ssh -o BatchMode=yes "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
+          # Use -i directly — no ssh-agent needed
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
           set -euo pipefail
           cd "$SSH_PATH"
 
