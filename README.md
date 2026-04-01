@@ -8,6 +8,66 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 
 ---
 
+## Product Strategy — Two Editions
+
+Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fundamentally different buyers.
+
+### Shadow Warden Teams — SMB Edition
+
+**Problem:** Small and mid-size businesses don't build AI applications — their employees use public ChatGPT, Claude, and Gemini directly, leaking client PII, AWS keys, source code, and commercial secrets every day.
+
+**Solution:** The browser extension (v2.4) + a managed cloud gateway. No infrastructure for the customer to operate.
+
+**How it works (Plug & Play):**
+1. Owner buys a subscription, sends employees a Chrome Web Store link
+2. Extension intercepts prompts (`world: "MAIN"`) before they reach ChatGPT
+3. PII/secrets are masked (fake data substitution) or blocked (RED zone) before the cloud model ever sees them
+4. Owner's dashboard shows a Dollar Impact feed: *"This month: 14 AWS key leaks blocked, 45 PII incidents prevented, $X in risk avoided"*
+
+**Architecture:**
+- Multi-tenant cloud cluster — you operate the gateway, customers operate nothing
+- Employee extensions authenticate via company API key
+- SQLite / NDJSON logs; lightweight Stripe subscription billing ($50–200/month)
+- OAuth (Google / Microsoft) planned to replace bare API-key storage in the extension
+
+---
+
+### Shadow Warden Enterprise — Corporate Edition
+
+**Problem:** Banks, fintech, and government require data sovereignty — no bytes leave the security perimeter, no black-box cloud APIs, full audit trail, forced deployment to every device.
+
+**Solution:** A sovereign on-premise gateway with NVIDIA NIM inference and air-gapped Evolution Engine.
+
+**How it works (Zero-Trust & Air-Gapped):**
+1. Gateway deploys on-premise or in customer's private VPC via Helm charts
+2. **NVIDIA NIM** handles all LLM inference locally — no token ever reaches OpenAI or Anthropic
+3. **Nemotron Super 49B** (Evolution Engine) synthesises new defense rules inside the security perimeter — reasoning traces stored in the local Evidence Vault, never in the cloud
+4. IT department pushes the browser extension to all 10,000 laptops via **GPO / Microsoft Intune** — employees cannot disable it
+5. SHA-256 signed audit logs stream from MinIO Evidence Vault into Splunk / Elasticsearch
+
+**Architecture:**
+- Kubernetes with Helm charts (replaces `docker-compose.yml` for enterprise deployments)
+- ML workers (Whisper, CLIP, MiniLM) separated from the API gateway — GPU nodes scale independently via HPA
+- NVIDIA GPU nodes handle heavy ML workloads; lightweight gateway handles thousands of RPS on CPU
+- Annual node/traffic licensing ($25k+/year)
+
+---
+
+### Edition Comparison
+
+| | **Teams (SMB)** | **Enterprise** |
+|---|---|---|
+| **Primary threat** | Employees leaking data into public AI chatbots | Compromised AI agents, LLM pipelines, internal chatbots |
+| **Infrastructure** | Your managed SaaS | Customer's self-hosted Kubernetes |
+| **Browser extension** | Voluntary install (Chrome Store) | Forced rollout via GPO / MDM |
+| **Evolution Engine** | Claude Opus (cloud, lower cost) | NVIDIA Nemotron 49B (air-gapped, local) |
+| **Audit logs** | SQLite / NDJSON in cloud | MinIO Evidence Vault → Splunk / Elastic |
+| **Local LLM fallback** | Ollama / LM Studio (extension) | NVIDIA NIM (on-prem) |
+| **GTM motion** | Self-serve, Stripe card ($50–200/mo) | Sales-led, annual contract ($25k+/yr) |
+| **Data sovereignty** | Shared cloud (GDPR-compliant) | Full — no data leaves customer perimeter |
+
+---
+
 ## What's New in v2.4
 
 | Feature | Description |
