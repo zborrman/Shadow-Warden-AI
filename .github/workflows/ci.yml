@@ -230,13 +230,9 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          # Write key via Python — handles \r\n, collapsed newlines, missing trailing newline
-          python3 -c "import os; k=os.environ['SSH_PRIVATE_KEY']; k=k.replace('\r\n','\n').replace('\r','\n').strip()+'\n'; open(os.path.expanduser('~/.ssh/id_deploy'),'w').write(k)"
+          # Decode base64 key — single-line secret, immune to line-ending corruption
+          echo "$SSH_PRIVATE_KEY" | tr -d '[:space:]' | base64 -d > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          # Debug: verify structure without exposing key content
-          echo "Key first line : $(head -1 ~/.ssh/id_deploy)"
-          echo "Key last line  : $(tail -1 ~/.ssh/id_deploy)"
-          echo "Key line count : $(wc -l < ~/.ssh/id_deploy)"
           # Add server to known hosts
           SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
