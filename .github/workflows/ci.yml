@@ -250,7 +250,14 @@ jobs:
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
           # Use -i directly — no ssh-agent needed
-          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
+          # ServerAliveInterval/CountMax keep the TCP session alive while we wait
+          # for the model to load (up to ~3 min on cold start).
+          ssh -i ~/.ssh/id_deploy \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=no \
+              -o ServerAliveInterval=20 \
+              -o ServerAliveCountMax=15 \
+              "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
           set -euo pipefail
           cd "$SSH_PATH"
 
@@ -270,7 +277,11 @@ jobs:
           docker compose up -d --build --remove-orphans
 
           echo "── [4/4] Verify warden health ──────────────────────────────"
-          for i in \$(seq 1 24); do
+          # Poll for up to 5 min (60 × 5 s). The ML model load takes ~2-3 min on
+          # cold start; start_period: 180s means docker won't mark it unhealthy
+          # until that window passes, but /health itself responds as soon as
+          # uvicorn is up — so we poll directly rather than relying on docker.
+          for i in \$(seq 1 60); do
             STATUS=\$(docker exec warden-gateway curl -s -o /dev/null -w "%{http_code}" \
               http://localhost:8001/health 2>/dev/null || echo 000)
             if [ "\$STATUS" = "200" ]; then
@@ -278,10 +289,10 @@ jobs:
               echo "  Warden healthy after \${i}x5 s  ->  \$BODY"
               exit 0
             fi
-            echo "  attempt \$i/24 -- HTTP \$STATUS -- waiting 5 s"
+            echo "  attempt \$i/60 -- HTTP \$STATUS -- waiting 5 s"
             sleep 5
           done
-          echo "ERROR: /health did not return 200 within 2 minutes after deploy"
-          docker compose logs --tail 50 warden
+          echo "ERROR: /health did not return 200 within 5 minutes after deploy"
+          docker compose logs --tail 80 warden
           exit 1
           ENDSSH
