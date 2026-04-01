@@ -517,6 +517,61 @@ For troubleshooting procedures, see [docs/sop.md](docs/sop.md).
 
 ---
 
+## NVIDIA Integration
+
+Shadow Warden AI integrates with NVIDIA's AI security stack at two independent layers, aligned with the [*How Autonomous AI Agents Become Secure by Design*](https://developer.nvidia.com/blog/how-autonomous-ai-agents-become-secure-by-design-with-nvidia-openshield/) OpenShield framework — **defense before inference** and **self-improving threat intelligence**.
+
+### Layer 1 — NVIDIA NIM as a Secure LLM Backend
+
+Every request routed through Shadow Warden is filtered *before* it reaches the model. NVIDIA NIM endpoints are first-class citizens in the multi-provider proxy:
+
+```
+POST /v1/chat/completions
+  model: "nim/nvidia/llama-3.1-nemotron-ultra-253b-v1"
+```
+
+Shadow Warden's full 9-stage pipeline (topological gatekeeper → obfuscation decoder → secret redactor → semantic guard → causal arbiter → ERS → output guard) executes on every request **before** the token is forwarded to NIM — making every NIM deployment secure by design without touching the model or its hosting infrastructure.
+
+```
+Client → Shadow Warden (filter) → NVIDIA NIM → Shadow Warden (OutputGuard) → Client
+```
+
+**What this gives you:**
+- Jailbreak, prompt-injection, and indirect-injection attempts blocked before NIM sees them
+- PII/secrets stripped before they enter the NVIDIA inference infrastructure
+- OutputGuard scans NIM responses for policy violations, competitor mentions, and price manipulation before they reach users
+- Zero changes to your existing NIM deployment
+
+### Layer 2 — Nemotron Super 49B as the Evolution Engine Brain
+
+Shadow Warden's Evolution Engine autonomously synthesises new defense rules from observed attack patterns. By default it uses Claude Opus; with `NVIDIA_API_KEY` set it switches to **Nemotron Super 49B via NIM** — NVIDIA's most capable reasoning model:
+
+```bash
+EVOLUTION_ENGINE=nemotron   # force Nemotron
+EVOLUTION_ENGINE=auto        # Nemotron if NVIDIA_API_KEY is set, else Claude (default)
+EVOLUTION_ENGINE=claude      # force Claude
+```
+
+Nemotron's **thinking mode** (`<think>…</think>` reasoning trace) is captured and optionally stored in the Evidence Vault (`NEMOTRON_STORE_THINKING=true`) — providing an auditable chain-of-thought for every new defense rule.
+
+**What this gives you:**
+- New attack signatures synthesised automatically from blocked requests — no human analyst required
+- Reasoning traces stored in the tamper-evident Evidence Vault for SOC 2 / litigation review
+- Nemotron's 49B parameter reasoning applied to the specific domain of adversarial AI attack patterns
+
+### Alignment with NVIDIA OpenShield
+
+NVIDIA OpenShield defines four security primitives for autonomous agents: **Input Validation**, **Output Inspection**, **Agent Authorization**, and **Runtime Monitoring**. Shadow Warden implements all four:
+
+| OpenShield Primitive | Shadow Warden Implementation |
+|---|---|
+| Input Validation | 9-stage filter pipeline (topo → semantic → causal arbiter) |
+| Output Inspection | OutputGuard v2 — 10 risk types across business + security layers |
+| Agent Authorization | Zero-Trust Agent Sandbox — capability manifests + kill-switch API |
+| Runtime Monitoring | Prometheus metrics, ERS sliding-window reputation, Evidence Vault audit trail |
+
+---
+
 ## Multi-Provider Proxy
 
 Shadow Warden proxies `/v1/chat/completions` with filter-before-forward. Provider is auto-detected from the model name:
