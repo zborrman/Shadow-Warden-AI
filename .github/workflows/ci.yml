@@ -262,7 +262,8 @@ jobs:
           cd "$SSH_PATH"
 
           echo "── [1/4] Pull latest code ──────────────────────────────────"
-          git pull origin main
+          git fetch origin main
+          git reset --hard origin/main
 
           echo "── [2/4] Pull updated images ───────────────────────────────"
           docker compose pull --quiet
