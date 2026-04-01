@@ -792,6 +792,60 @@ Automate with cron — see [docs/sop.md](docs/sop.md) for the recommended cron e
 
 ---
 
+## Full OWASP LLM Top 10 Coverage
+
+```
+OWASP LLM Top 10 (2025)
+  │
+  ├─ LLM01  Prompt Injection              → PromptShield (6 labeled patterns) + SemanticBrain
+  │                                          + CausalArbiter (gray-zone do-calculus)
+  │                                          + ObfuscationDecoder (depth-3 recursive decode)
+  │
+  ├─ LLM02  Sensitive Information Disclosure
+  │         ├─ Input side                 → SecretRedactor (15+ patterns, Shannon entropy scan)
+  │         │                               + Encrypted PII Vault (Fernet at-rest, HMAC reverse map)
+  │         └─ Output side                → OutputGuard v2 (PII leakage + sensitive data exposure)
+  │
+  ├─ LLM03  Supply Chain Vulnerabilities  → Evidence Vault (SHA-256 attestation chain per session)
+  │                                          + Data-Gravity Hybrid Hub (MinIO on-prem, zero egress)
+  │
+  ├─ LLM04  Data and Model Poisoning      → EvolutionEngine poison guard (dedup + adversarial
+  │                                          corpus validation before rule hot-reload)
+  │                                          + SemanticGuard compound escalation
+  │
+  ├─ LLM05  Improper Output Handling      → OutputGuard v2 (business layer: price manipulation,
+  │                                          unauthorized commitments, competitor mentions,
+  │                                          policy violations + security layer: hallucinated URLs,
+  │                                          hallucinated stats, toxic content, system prompt echo)
+  │
+  ├─ LLM06  Excessive Agency              → Zero-Trust Agent Sandbox (capability manifests,
+  │                                          authorize_tool_call(), session kill-switch API)
+  │                                          + AgentMonitor (TOOL_VELOCITY, PRIVILEGE_ESCALATION,
+  │                                          ROGUE_AGENT, INJECTION_CHAIN, EVASION_ATTEMPT)
+  │
+  ├─ LLM07  System Prompt Leakage         → OutputGuard v2 (system prompt echo detector)
+  │                                          + SecretRedactor strips secrets before any LLM call
+  │
+  ├─ LLM08  Vector and Embedding Weaknesses
+  │                                       → HyperbolicBrain (Poincaré ball projection separates
+  │                                          hierarchically nested adversarial embeddings that
+  │                                          appear close in Euclidean cosine space)
+  │                                          + TopologicalGatekeeper (β₀/β₁ Betti numbers catch
+  │                                          adversarial n-gram distributions < 2ms)
+  │
+  ├─ LLM09  Misinformation                → OutputGuard v2 (hallucinated URLs, hallucinated stats,
+  │                                          price manipulation, unauthorized commitments)
+  │
+  └─ LLM10  Unbounded Consumption         → Auth & Rate-Limit Gate (60 req/min per tenant,
+                                             Redis sliding window)
+                                             + Entity Risk Scoring (shadow ban at ERS ≥ 0.75,
+                                             progressive penalty: gaslight → delay → ban)
+                                             + Redis Content-Hash Cache (5-min TTL,
+                                             0ms ML overhead on repeated payloads)
+```
+
+---
+
 ## Service Level Objectives
 
 Measured production values on 4 vCPU / 4 GB RAM (Ubuntu 22.04, CPU-only):
