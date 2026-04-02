@@ -477,7 +477,7 @@ def analyse(text: str) -> PhishResult:
         for m in _DATA_URI_RE.finditer(text):
             data_uri = m.group(0)
             url_findings.append(URLFinding(
-                url=data_uri, defanged=f"[data-URI blocked]",
+                url=data_uri, defanged="[data-URI blocked]",
                 score=0.92, reasons=["data-URI"],
             ))
             max_url_score = max(max_url_score, 0.92)

@@ -171,8 +171,8 @@ def _run_clip(image_bytes: bytes) -> ImageGuardResult:
 
         # PhishGuard v3 — phishing visual prompts are the last 8 entries of
         # _JAILBREAK_PROMPTS (added after the original 10 jailbreak prompts).
-        _N_ORIG_JB   = 10   # original jailbreak prompt count
-        _N_PHISH_VIS = len(_JAILBREAK_PROMPTS) - _N_ORIG_JB
+        n_orig_jb   = 10   # original jailbreak prompt count
+        n_phish_vis = len(_JAILBREAK_PROMPTS) - n_orig_jb
 
         all_prompts = _JAILBREAK_PROMPTS + _SAFE_PROMPTS + _PII_PROMPTS
         inputs = processor(
@@ -192,10 +192,10 @@ def _run_clip(image_bytes: bytes) -> ImageGuardResult:
         n_safe = len(_SAFE_PROMPTS)
         n_pii  = len(_PII_PROMPTS)
 
-        # Original jailbreak prompts (indices 0.._N_ORIG_JB)
-        jb_score      = sum(probs[:_N_ORIG_JB])
-        # Phishing visual prompts (_N_ORIG_JB..n_jb)
-        phish_score   = sum(probs[_N_ORIG_JB:n_jb]) if _N_PHISH_VIS > 0 else 0.0
+        # Original jailbreak prompts (indices 0..n_orig_jb)
+        jb_score      = sum(probs[:n_orig_jb])
+        # Phishing visual prompts (n_orig_jb..n_jb)
+        phish_score   = sum(probs[n_orig_jb:n_jb]) if n_phish_vis > 0 else 0.0
         # PII prompts
         pii_score     = sum(probs[n_jb + n_safe: n_jb + n_safe + n_pii])
 

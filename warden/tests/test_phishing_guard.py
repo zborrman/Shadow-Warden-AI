@@ -19,27 +19,25 @@ Coverage:
 """
 from __future__ import annotations
 
-import pytest
-
 from warden.phishing_guard import (
-    PhishResult,
-    URLFinding,
-    _extract_domain,
-    _levenshtein,
-    _normalize_to_ascii,
-    _typosquat_score,
-    _analyse_url,
-    _score_vector,
-    _known_context_score,
-    _defang_url,
-    defang_suspicious_urls,
-    analyse,
-    SE_RISK_THRESHOLD,
     PHISH_URL_THRESHOLD,
-    _URGENCY_PATTERNS,
+    SE_RISK_THRESHOLD,
+    URLFinding,
     _AUTHORITY_PATTERNS,
     _FEAR_PATTERNS,
     _GREED_PATTERNS,
+    _URGENCY_PATTERNS,
+    PhishResult,
+    _analyse_url,
+    _defang_url,
+    _extract_domain,
+    _known_context_score,
+    _levenshtein,
+    _normalize_to_ascii,
+    _score_vector,
+    _typosquat_score,
+    analyse,
+    defang_suspicious_urls,
 )
 
 
@@ -427,7 +425,7 @@ class TestOutputGuardIntegration:
         assert BusinessRisk.SOCIAL_ENGINEERING == "social_engineering"
 
     def test_scan_defangs_phishing_url_in_output(self):
-        from warden.output_guard import BusinessRisk, OutputGuard, TenantOutputConfig
+        from warden.output_guard import OutputGuard, TenantOutputConfig
         guard = OutputGuard()
         cfg = TenantOutputConfig(
             block_hallucinated_urls=False,   # disable generic URL removal
