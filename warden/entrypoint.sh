@@ -9,15 +9,30 @@
 #
 # Mode A / plaintext — nginx terminates and forwards CN header:
 #   MTLS_ENABLED=false (default)  →  plain HTTP on 8001
+#
+# WHY this runs as root before dropping to wardenuser via gosu:
+#   Docker bind-mounts (./warden/models:/warden/models) arrive owned by
+#   whatever user created the host directory — often root from a prior
+#   `docker compose up` or git checkout. The Dockerfile chown in the image
+#   layer is completely overridden by the bind-mount at runtime. Running as
+#   root here lets us fix ownership once at startup, then exec as wardenuser
+#   via gosu — the same pattern used by the official postgres / redis images.
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
 WORKERS="${UVICORN_WORKERS:-2}"
 PORT="${PORT:-8001}"
 
+# ── Fix model cache & data directory ownership ────────────────────────────────
+echo "[entrypoint] fixing /warden/models and /warden/data ownership → wardenuser"
+mkdir -p /warden/models /warden/data
+chown -R wardenuser:warden /warden/models /warden/data
+chmod -R 755 /warden/models /warden/data
+
+# ── Start uvicorn as wardenuser via gosu ──────────────────────────────────────
 if [ "${MTLS_ENABLED:-false}" = "true" ] && [ -f /certs/warden.crt ]; then
     echo "[entrypoint] mTLS enabled — starting uvicorn with TLS (CERT_REQUIRED)"
-    exec uvicorn warden.main:app \
+    exec gosu wardenuser uvicorn warden.main:app \
         --host 0.0.0.0 \
         --port "$PORT" \
         --workers "$WORKERS" \
@@ -27,7 +42,7 @@ if [ "${MTLS_ENABLED:-false}" = "true" ] && [ -f /certs/warden.crt ]; then
         --ssl-cert-reqs 2
 else
     echo "[entrypoint] mTLS disabled — starting uvicorn plain HTTP"
-    exec uvicorn warden.main:app \
+    exec gosu wardenuser uvicorn warden.main:app \
         --host 0.0.0.0 \
         --port "$PORT" \
         --workers "$WORKERS"

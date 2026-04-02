@@ -17,8 +17,9 @@ WORKDIR /warden
 #   gcc / g++   — compile C extensions in pip packages
 #   libgomp1    — OpenMP required by torch CPU
 #   curl        — healthcheck
+#   gosu        — privilege drop in entrypoint (root → wardenuser after perm fix)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        gcc g++ libgomp1 curl \
+        gcc g++ libgomp1 curl gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python deps (two-step to guarantee CPU-only torch) ───────────────────────
@@ -40,7 +41,8 @@ ARG GIT_SHA=dev
 COPY --chown=wardenuser:warden . .
 
 RUN mkdir -p /warden/models /warden/data \
-    && chown -R wardenuser:warden /warden/models /warden/data
+    && chown -R wardenuser:warden /warden/models /warden/data \
+    && chmod -R 755 /warden/models /warden/data
 
 # ── Runtime environment ───────────────────────────────────────────────────────
 ENV MODEL_CACHE_DIR=/warden/models
@@ -49,7 +51,10 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/
 ENV BROWSER_ENABLED=false
 
-USER wardenuser
+# NOTE: We do NOT set USER here. The entrypoint runs as root so it can fix
+# bind-mount directory ownership (Docker volumes arrive owned by root when
+# the host directory was created outside the container). After fixing perms
+# it execs uvicorn as wardenuser via gosu — same pattern as postgres/redis.
 
 EXPOSE 8001
 
