@@ -116,6 +116,40 @@ EVOLUTION_SYSTEM_PROMPT = (
 )
 EVOLUTION_MIN_RISK = RiskLevel.HIGH     # evolve only on HIGH or BLOCK
 
+# PhishGuard v3 — specialised system prompt for SE / phishing attack evolution.
+# Used instead of EVOLUTION_SYSTEM_PROMPT when the blocked content carries
+# PHISHING_URL or SOCIAL_ENGINEERING flags from PhishGuard.
+SE_EVOLUTION_SYSTEM_PROMPT = (
+    "You are an expert social engineering and phishing analyst embedded in the "
+    "Shadow Warden AI gateway. Your role is to analyse blocked phishing or "
+    "social engineering (SE) attempts and generate precise detection signatures "
+    "that will catch future semantic variants without false-positiving on "
+    "legitimate content.\n\n"
+    "Social Engineering Taxonomy (MITRE ATT&CK for Enterprise — Initial Access):\n"
+    "• Phishing               — credential harvesting via spoofed URLs / fake login portals\n"
+    "• Spear Phishing         — targeted impersonation of a known authority figure\n"
+    "• CEO / BEC Fraud        — executive wire-transfer or credential request\n"
+    "• IT Helpdesk Spoofing   — fake IT support urgency (account suspended, MFA reset)\n"
+    "• Prize / Refund Lure    — greed-trigger with fabricated eligibility claim\n"
+    "• Fear / Compliance Hook — legal action or account termination threat\n\n"
+    "Rules:\n"
+    "• Identify the *SE tactic* used (one of the taxonomy labels above).\n"
+    "• For 'semantic_example': write one canonical sentence capturing the *manipulation "
+    "  intent* — not the exact wording. Include the psychological trigger (urgency / "
+    "  authority / fear / greed).\n"
+    "• For 'regex_pattern': target the *structural pattern* of manipulation language "
+    "  (e.g. urgency + authority combo), not just keyword matching.\n"
+    "• Evasion variants must cover language, authority figure, and urgency frame "
+    "  variations — not just synonym swaps.\n"
+    "• Never reproduce real domain names, credentials, PII, or working phishing URLs.\n"
+    "• Respond only with the JSON object — no preamble or commentary."
+)
+
+# Flag types that route to the SE-specialised prompt
+_SE_FLAG_TYPES: frozenset[str] = frozenset({
+    "phishing_url", "social_engineering",
+})
+
 DYNAMIC_RULES_PATH = Path(
     os.getenv("DYNAMIC_RULES_PATH", "/warden/data/dynamic_rules.json")
 )
@@ -499,17 +533,34 @@ class EvolutionEngine:
         # before the content leaves the perimeter via the Anthropic API.
         safe_content = _anonymize_for_evolution(content[:2_000])
 
-        system = EVOLUTION_SYSTEM_PROMPT
+        # PhishGuard v3 — route SE / phishing attacks to the specialised analyst prompt.
+        flag_values = {f.flag.value for f in flags}
+        is_se_attack = bool(flag_values & _SE_FLAG_TYPES)
+        system = SE_EVOLUTION_SYSTEM_PROMPT if is_se_attack else EVOLUTION_SYSTEM_PROMPT
 
-        user = (
-            f"A request was blocked by the Warden gateway.\n\n"
-            f"**Risk level:** {risk_level.value}\n"
-            f"**Detection flags:** {flag_summary}\n\n"
-            f"**Blocked content (already redacted):**\n"
-            f"```\n{safe_content}\n```\n\n"
-            f"Analyse this attack. Explain how it works, list evasion variants, "
-            f"and propose exactly one new detection rule to catch future variants."
-        )
+        if is_se_attack:
+            user = (
+                f"A social engineering or phishing attempt was blocked by Shadow Warden.\n\n"
+                f"**Risk level:** {risk_level.value}\n"
+                f"**Detection flags:** {flag_summary}\n\n"
+                f"**Blocked content (already redacted):**\n"
+                f"```\n{safe_content}\n```\n\n"
+                f"Identify the SE tactic (CEO Fraud / IT Helpdesk / Prize Lure / etc.). "
+                f"Explain how the psychological manipulation works, list evasion variants "
+                f"(different authority figures, urgency frames, or communication channels), "
+                f"and propose exactly one new detection rule (semantic_example or regex_pattern) "
+                f"that catches the *manipulation pattern*, not just the surface keywords."
+            )
+        else:
+            user = (
+                f"A request was blocked by the Warden gateway.\n\n"
+                f"**Risk level:** {risk_level.value}\n"
+                f"**Detection flags:** {flag_summary}\n\n"
+                f"**Blocked content (already redacted):**\n"
+                f"```\n{safe_content}\n```\n\n"
+                f"Analyse this attack. Explain how it works, list evasion variants, "
+                f"and propose exactly one new detection rule to catch future variants."
+            )
 
         # Stream to avoid HTTP timeouts on long adaptive-thinking chains.
         # get_final_message() accumulates the full response for us.

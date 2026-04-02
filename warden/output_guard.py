@@ -17,6 +17,12 @@ v2 risks (safety + data protection):
   ⑨ System Prompt Echo      — AI leaking its own instructions/context
   ⑩ Sensitive Data Exposure — API keys / passwords / tokens in output
 
+v3 risks (PhishGuard integration):
+  ⑪ Phishing URL            — suspicious URL in LLM output (typosquat/homoglyph/structural)
+                               → defang (hxxps:// + [.] notation) + inline warning
+  ⑫ Social Engineering      — SE manipulation markers in LLM output (urgency/authority/fear/greed)
+                               → annotate with risk classification label
+
 Per-tenant config:
   Pass a TenantOutputConfig to scan() to override defaults per request.
   Use OutputGuard.from_env_config(overrides) to build a tenant config dict.
@@ -29,6 +35,8 @@ OWASP mapping:
   ⑧         →  LLM01 — Safety (content moderation)
   ⑨         →  LLM07 — System Prompt Leakage
   ⑩         →  LLM02 — Sensitive Information Disclosure
+  ⑪         →  LLM01 — Phishing URL (PhishGuard — defanged, not blocked)
+  ⑫         →  LLM01 — Social Engineering markers in output
 """
 from __future__ import annotations
 
@@ -73,6 +81,9 @@ class BusinessRisk(StrEnum):
     TOXIC_CONTENT         = "toxic_content"
     PROMPT_ECHO           = "prompt_echo"
     SENSITIVE_DATA        = "sensitive_data_exposure"
+    # v3 — PhishGuard integration
+    PHISHING_URL          = "phishing_url"
+    SOCIAL_ENGINEERING    = "social_engineering"
 
 
 OWASP_LABEL: dict[BusinessRisk, str] = {
@@ -86,6 +97,8 @@ OWASP_LABEL: dict[BusinessRisk, str] = {
     BusinessRisk.TOXIC_CONTENT:       "LLM01 — Safety (toxic / harmful content)",
     BusinessRisk.PROMPT_ECHO:         "LLM07 — System Prompt Leakage",
     BusinessRisk.SENSITIVE_DATA:      "LLM02 — Sensitive Information Disclosure (credentials)",
+    BusinessRisk.PHISHING_URL:        "LLM01 — Phishing URL in output (PhishGuard defanged)",
+    BusinessRisk.SOCIAL_ENGINEERING:  "LLM01 — Social Engineering markers in AI output",
 }
 
 _REPLACEMENT: dict[BusinessRisk, str] = {
@@ -99,6 +112,10 @@ _REPLACEMENT: dict[BusinessRisk, str] = {
     BusinessRisk.TOXIC_CONTENT:       "[content removed]",
     BusinessRisk.PROMPT_ECHO:         "[system context hidden]",
     BusinessRisk.SENSITIVE_DATA:      "[CREDENTIAL REDACTED]",
+    # PhishGuard v3 — URLs are defanged in-place by phishing_guard.defang_suspicious_urls();
+    # this replacement is used only when defanging is bypassed (e.g. no PhishResult available).
+    BusinessRisk.PHISHING_URL:        "[suspicious link defanged by Shadow Warden]",
+    BusinessRisk.SOCIAL_ENGINEERING:  "[Shadow Warden: response contains psychological manipulation markers]",
 }
 
 
@@ -121,6 +138,9 @@ class TenantOutputConfig:
     block_toxic_content:      bool       = True
     block_prompt_echo:        bool       = True
     block_sensitive_data:     bool       = True
+    # PhishGuard v3 — enabled by default; defangs URLs, annotates SE markers
+    defang_phishing_urls:     bool       = True
+    annotate_se_output:       bool       = True
     # Extra regex strings added by the tenant (compiled on first use)
     custom_patterns:          list[str]  = field(default_factory=list)
 
@@ -490,6 +510,65 @@ class OutputGuard:
                     ))
                     sanitized = pat.sub(_REPLACEMENT[BusinessRisk.SENSITIVE_DATA], sanitized)
                     break
+
+        # ── ⑪ Phishing URL defanging (PhishGuard v3) ─────────────────────────
+        # Run PhishGuard on the current (post-sanitization) text and defang any
+        # suspicious URLs found.  Unlike the hallucinated-URL check above which
+        # removes ALL links, this check is targeted: only phishing-scored URLs
+        # are defanged; legitimate URLs are left intact.
+
+        if cfg.defang_phishing_urls:
+            try:
+                from warden.phishing_guard import analyse as _phish_analyse  # noqa: PLC0415
+                _phish = _phish_analyse(sanitized)
+                if _phish.is_phishing:
+                    for _uf in _phish.url_findings:
+                        if _uf.score >= 0.60:
+                            reason_str = "; ".join(_uf.reasons[:2])
+                            _defanged_with_warn = (
+                                f"{_uf.defanged}"
+                                f" ⚠️ [Shadow Warden: suspicious URL — {reason_str}]"
+                            )
+                            sanitized = sanitized.replace(_uf.url, _defanged_with_warn)
+                    snippet = _phish.url_findings[0].url[:80] if _phish.url_findings else ""
+                    findings.append(BusinessFinding(
+                        risk    = BusinessRisk.PHISHING_URL,
+                        snippet = snippet[:120],
+                        owasp   = OWASP_LABEL[BusinessRisk.PHISHING_URL],
+                        detail  = (
+                            f"max_score={_phish.max_url_score:.2f} "
+                            f"urls={len(_phish.url_findings)}"
+                        ),
+                    ))
+            except Exception as _exc:  # fail-open
+                log.debug("output_guard: PhishGuard check failed (non-fatal): %s", _exc)
+
+        # ── ⑫ Social engineering annotation (PhishGuard v3) ──────────────────
+        # When PhishGuard detects SE markers in the LLM output, prepend an
+        # inline warning annotation so users can see the classification without
+        # the response being blocked.  The SE markers are NOT removed (context
+        # may be legitimate), only labelled.
+
+        if cfg.annotate_se_output:
+            try:
+                from warden.phishing_guard import analyse as _phish_analyse  # noqa: PLC0415
+                _se = _phish_analyse(sanitized)
+                if _se.is_social_engineering:
+                    labels_str = ", ".join(_se.se_labels[:3])
+                    annotation = (
+                        f"\n\n⚠️ [Shadow Warden: This response contains psychological "
+                        f"manipulation markers ({labels_str}). "
+                        f"SE risk score: {_se.se_risk:.0%}. Verify before acting.]"
+                    )
+                    sanitized = sanitized + annotation
+                    findings.append(BusinessFinding(
+                        risk    = BusinessRisk.SOCIAL_ENGINEERING,
+                        snippet = labels_str[:120],
+                        owasp   = OWASP_LABEL[BusinessRisk.SOCIAL_ENGINEERING],
+                        detail  = f"se_risk={_se.se_risk:.3f} labels={_se.se_labels[:4]}",
+                    ))
+            except Exception as _exc:  # fail-open
+                log.debug("output_guard: SE annotation check failed (non-fatal): %s", _exc)
 
         # ── Custom tenant patterns ────────────────────────────────────────────
 

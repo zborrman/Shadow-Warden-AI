@@ -469,4 +469,231 @@
       .replace(/"/g, "&quot;");
   }
 
+  // ── PhishGuard v3 — SE Highlighter + Sandboxed Redirect ───────────────────
+  //
+  // Scans the AI chat DOM for rendered responses that contain:
+  //   • SE manipulation markers annotated by OutputGuard (⚠️ Shadow Warden prefix)
+  //   • Defanged URLs (hxxps:// format) that OutputGuard neutralised
+  //   • Raw suspicious URLs that may have bypassed the inbound filter
+  //
+  // When found:
+  //   • Wraps the offending text block in an orange YELLOW-zone highlight box
+  //   • Adds a dismissable warning badge explaining which SE vectors fired
+  //   • Intercepts onclick on any hxxps:// / suspicious links → sandboxed warning page
+
+  const _SE_OBSERVER_SITES = [
+    "chatgpt.com", "chat.openai.com", "claude.ai",
+    "gemini.google.com", "copilot.microsoft.com",
+  ];
+
+  // Regex patterns matching OutputGuard's SE annotations injected into responses
+  const _SE_ANNOTATION_RE = /⚠️\s*\[Shadow Warden:[^\]]{10,}\]/g;
+  const _DEFANG_URL_RE     = /hxxps?:\/\/[^\s<>"]{6,}/gi;
+
+  // Lightweight SE keyword scanner for unmarked responses (client-side only)
+  const _SE_CLIENT_PATTERNS = [
+    { re: /\b(?:urgent|immediately|account (?:will be|is being) (?:suspended|locked|terminated))\b/i,   label: "Urgency" },
+    { re: /\b(?:IT support|system administrator|Microsoft support|security team)\b/i,                   label: "Authority" },
+    { re: /\b(?:unauthorized access|security breach|failure to comply|legal action)\b/i,                label: "Fear" },
+    { re: /\b(?:you (?:have been|are) (?:selected|eligible)|claim your (?:prize|reward|refund))\b/i,   label: "Greed" },
+  ];
+
+  function _scanForSEMarkers(text) {
+    const labels = [];
+    for (const { re, label } of _SE_CLIENT_PATTERNS) {
+      if (re.test(text)) labels.push(label);
+    }
+    return labels;
+  }
+
+  function _injectSEWarningBadge(el, labels, source) {
+    if (el.dataset.swSeMarked) return;
+    el.dataset.swSeMarked = "1";
+
+    const labelStr = labels.join(" + ");
+    const badge = document.createElement("div");
+    badge.className = "sw-se-badge";
+    badge.style.cssText = `
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #fff3cd; border: 1.5px solid #e6ac00;
+      border-radius: 6px; padding: 6px 10px; margin: 6px 0;
+      font-size: 12px; font-family: system-ui, sans-serif;
+      color: #7a5c00; max-width: 100%; box-sizing: border-box;
+    `;
+    badge.innerHTML = `
+      <span style="font-size:16px">⚠️</span>
+      <span>
+        <strong>Shadow Warden:</strong> This response contains
+        psychological manipulation markers
+        (<em>${_escapeHtml(labelStr)}</em>).
+        Source: <code style="font-size:11px">${_escapeHtml(source)}</code>.
+        Verify before acting.
+      </span>
+      <button onclick="this.parentElement.remove()" style="
+        margin-left:auto; background:none; border:none;
+        cursor:pointer; font-size:14px; color:#7a5c00; padding:0 4px;
+      " title="Dismiss">✕</button>
+    `;
+
+    // Highlight the parent container in orange
+    el.style.outline = "2px solid #e6ac00";
+    el.style.outlineOffset = "2px";
+    el.style.borderRadius = "4px";
+
+    el.insertAdjacentElement("beforebegin", badge);
+  }
+
+  function _showSandboxedRedirectWarning(defangedUrl) {
+    document.getElementById("sw-phish-redirect")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "sw-phish-redirect";
+    overlay.style.cssText = `
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.75); z-index: 2147483647;
+      display: flex; align-items: center; justify-content: center;
+      font-family: system-ui, sans-serif;
+    `;
+    overlay.innerHTML = `
+      <div style="
+        background: #fff; border-radius: 12px; padding: 32px 36px;
+        max-width: 520px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+      ">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px">
+          <span style="font-size:36px">🛡️</span>
+          <div>
+            <div style="font-size:18px; font-weight:700; color:#c0392b">Shadow Warden: Phishing Link Intercepted</div>
+            <div style="font-size:12px; color:#888; margin-top:2px">AI output security check</div>
+          </div>
+        </div>
+
+        <div style="background:#fff5f5; border-radius:8px; padding:12px 14px; margin-bottom:18px; border:1px solid #f5c6c6">
+          <div style="font-size:11px; color:#888; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px">Suspicious URL (defanged)</div>
+          <code style="font-size:13px; word-break:break-all; color:#c0392b">${_escapeHtml(defangedUrl)}</code>
+        </div>
+
+        <div style="font-size:14px; color:#444; margin-bottom:20px; line-height:1.55">
+          The AI assistant generated a link that matches known phishing patterns
+          (typosquatting, brand spoofing, or structural anomaly).
+          Shadow Warden has neutralised it — the link will <strong>not</strong> open.
+        </div>
+
+        <div style="font-size:13px; color:#555; background:#f8f8f8; border-radius:6px; padding:10px 12px; margin-bottom:20px">
+          <strong>Why was this flagged?</strong><br>
+          LLM outputs can contain phishing links due to:<br>
+          • <em>Indirect prompt injection</em> — a malicious document embedded in RAG context<br>
+          • <em>Model hallucination</em> — confident but incorrect URL generation<br>
+          • <em>Compromised fine-tune</em> — adversarial training data poisoning
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end">
+          <button id="sw-phish-copy" style="
+            padding: 9px 16px; border-radius: 6px; border: 1px solid #ddd;
+            background: #f5f5f5; cursor: pointer; font-size: 13px;
+          ">Copy defanged URL</button>
+          <button id="sw-phish-close" style="
+            padding: 9px 20px; border-radius: 6px; border: none;
+            background: #c0392b; color: #fff; cursor: pointer; font-size: 13px; font-weight: 600;
+          ">Dismiss</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    overlay.querySelector("#sw-phish-close").onclick = () => overlay.remove();
+    overlay.querySelector("#sw-phish-copy").onclick  = () => {
+      navigator.clipboard.writeText(defangedUrl).catch(() => {});
+    };
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  }
+
+  function _interceptDefangedLinks(root) {
+    // Intercept clicks on any <a> tag whose href or text looks defanged / phishy
+    root.querySelectorAll("a[href]").forEach((anchor) => {
+      if (anchor.dataset.swPhishWatched) return;
+      anchor.dataset.swPhishWatched = "1";
+
+      const href = anchor.getAttribute("href") || "";
+      const text = anchor.textContent || "";
+
+      const isDefanged  = /hxxps?:\/\//i.test(href) || /hxxps?:\/\//i.test(text);
+      const isSuspected = /\bxn--|\bpaypa[l1]|\bapp[l1]e|\bgoog[l1]e\b/i.test(href);
+
+      if (isDefanged || isSuspected) {
+        anchor.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          _showSandboxedRedirectWarning(isDefanged ? (text || href) : href);
+        }, true);
+        anchor.style.color = "#e67e22";
+        anchor.title = "Shadow Warden: suspicious link — click for details";
+      }
+    });
+  }
+
+  function _processResponseNode(node) {
+    if (!node || !node.textContent) return;
+    const text = node.textContent;
+
+    // 1. OutputGuard-annotated SE markers (from server-side scan)
+    const serverAnnotations = [...(text.matchAll(_SE_ANNOTATION_RE) || [])];
+    if (serverAnnotations.length > 0) {
+      _injectSEWarningBadge(node, ["OutputGuard annotation"], "server");
+    }
+
+    // 2. Defanged URLs in text (OutputGuard already neutralised them)
+    const defangedUrls = text.match(_DEFANG_URL_RE);
+    if (defangedUrls) {
+      _injectSEWarningBadge(node, ["Defanged phishing URL"], "server");
+      _interceptDefangedLinks(node.closest ? node.closest("[data-message-id], article, [class*='message']") || document.body : document.body);
+    }
+
+    // 3. Client-side lightweight SE scan (catches responses that bypassed server scan)
+    const clientLabels = _scanForSEMarkers(text);
+    if (clientLabels.length >= 2) {
+      // Require ≥2 vectors to fire client-side (reduces false positives)
+      _injectSEWarningBadge(node, clientLabels, "client-heuristic");
+    }
+  }
+
+  function _startSEObserver() {
+    if (!_SE_OBSERVER_SITES.some(s => location.hostname.includes(s))) return;
+
+    // Selectors for rendered AI response containers on each platform
+    const _RESPONSE_SELECTORS = [
+      "[data-message-author-role='assistant']",   // ChatGPT
+      ".claude-message .message-content",          // Claude.ai
+      "[data-testid='chat-message'] .response",    // Gemini (approximate)
+      "[class*='bot-message']",                     // Copilot
+      "article[data-testid]",                       // ChatGPT fallback
+    ].join(", ");
+
+    // Observe DOM mutations — scan newly added response nodes
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
+          // Check if the node itself matches, or contains matching children
+          if (node.matches && node.matches(_RESPONSE_SELECTORS)) {
+            _processResponseNode(node);
+          } else {
+            node.querySelectorAll?.(_RESPONSE_SELECTORS)?.forEach(_processResponseNode);
+          }
+        }
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Scan any already-rendered responses (page loaded with history)
+    document.querySelectorAll(_RESPONSE_SELECTORS).forEach(_processResponseNode);
+  }
+
+  // Start SE observer after DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _startSEObserver);
+  } else {
+    _startSEObserver();
+  }
+
 })();

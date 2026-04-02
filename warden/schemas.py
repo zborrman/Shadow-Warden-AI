@@ -38,6 +38,8 @@ class FlagType(StrEnum):
     AUDIO_INJECTION      = "audio_injection"        # LLM01 variant — hidden command in audio (Whisper + ultrasound)
     TOPOLOGICAL_NOISE    = "topological_noise"     # TDA gatekeeper — text lacks natural-language topological structure
     CAUSAL_HIGH_RISK     = "causal_high_risk"      # Causal Arbiter — Bayesian DAG resolved gray-zone ML score to HIGH
+    PHISHING_URL         = "phishing_url"          # PhishGuard — homoglyph/typosquat URL or structural phishing pattern
+    SOCIAL_ENGINEERING   = "social_engineering"    # SE-Arbiter — psychological manipulation vector (urgency/authority/fear/greed)
 
 
 class RedactionPolicy(StrEnum):

@@ -13,7 +13,8 @@ DAG structure
     ObfuscDetected ─────────────────────► [ContentRisk] ─────────────────┤
     BlockHistory ───────────────────────► [Persistence] ──► P(HIGH_RISK) │
     ToolTier ────────────────────────────────────────────────────────────┤
-    ContentEntropy ──────────────────────────────────────────────────────┘
+    ContentEntropy ──────────────────────────────────────────────────────┤
+    se_risk ────────────────────────────► [SE_Risk]  ────────────────────┘
 
 Do-calculus intervention P(HIGH_RISK | do(ML=x))
 ─────────────────────────────────────────────────
@@ -55,6 +56,7 @@ class CausalResult:
     p_persistence:    float
     p_tool_risk:      float
     p_entropy_risk:   float
+    p_se_risk:        float = 0.0   # SE-Arbiter: P(SE_RISK | do(content))
 
 
 # ── Sigmoid helper ────────────────────────────────────────────────────────────
@@ -78,6 +80,7 @@ def arbitrate(
     block_history:        int,
     tool_tier:            int,
     content_entropy:      float,
+    se_risk:              float = 0.0,
 ) -> CausalResult:
     """
     Compute P(HIGH_RISK | evidence) via causal DAG + do-calculus.
@@ -90,6 +93,8 @@ def arbitrate(
     block_history        : number of blocks seen in the current session
     tool_tier            : tool privilege level (-1=unknown, 0=read, 1=write, 2=destructive)
     content_entropy      : Shannon entropy of the request content in bits/char
+    se_risk              : P(SE_RISK | do(content)) from PhishGuard SE-Arbiter (0–1).
+                           When 0 (default) the SE node is dormant — backward-compatible.
 
     Returns
     -------
@@ -118,8 +123,15 @@ def arbitrate(
         # Natural language: 3.8–4.8 bits/char.  Suspicious above 4.5.
         p_entropy_risk: float = _sigmoid((content_entropy - 4.5) * 3.0)
 
+        # P(SE_Risk = high | se_risk)
+        # Direct pass-through from PhishGuard SE-Arbiter formula.
+        # When se_risk=0 (not provided) this node is dormant — zero contribution.
+        p_se_risk: float = float(se_risk)
+
         # ── Do-calculus intervention: P(HIGH_RISK | do(ML = ml_score)) ─
-        # Structural causal equation — weighted combination of parent nodes
+        # Structural causal equation — weighted combination of parent nodes.
+        # SE_Risk node adds up to +0.15 when social engineering is detected;
+        # existing node weights are unchanged so se_risk=0 is fully backward-compatible.
         causal_score: float = (
             0.30 * p_reputation      # strongest prior: known bad entity
             + 0.20 * p_content_risk  # obfuscation is a strong evasion signal
@@ -127,6 +139,7 @@ def arbitrate(
             + 0.15 * p_tool_risk     # tool privilege escalation context
             + 0.10 * p_entropy_risk  # near-random content entropy anomaly
             + 0.10 * ml_score        # direct ML evidence in the gray zone
+            + 0.15 * p_se_risk       # SE-Arbiter: phishing / manipulation signal
         )
 
         # ── Backdoor correction (Pearl backdoor criterion) ─────────────
@@ -143,13 +156,13 @@ def arbitrate(
             f"Causal P(HIGH_RISK)={causal_score:.3f} threshold={_CAUSAL_THRESHOLD} "
             f"[rep={p_reputation:.2f} content={p_content_risk:.2f} "
             f"persist={p_persistence:.2f} tool={p_tool_risk:.2f} "
-            f"entropy={p_entropy_risk:.2f} ml={ml_score:.3f}]"
+            f"entropy={p_entropy_risk:.2f} ml={ml_score:.3f} se={p_se_risk:.2f}]"
         )
 
         if is_high_risk:
             log.warning(
-                "CausalArbiter HIGH_RISK: P=%.3f ml=%.3f ers=%.3f obfusc=%s blocks=%d",
-                causal_score, ml_score, ers_score, obfuscation_detected, block_history,
+                "CausalArbiter HIGH_RISK: P=%.3f ml=%.3f ers=%.3f obfusc=%s blocks=%d se=%.2f",
+                causal_score, ml_score, ers_score, obfuscation_detected, block_history, p_se_risk,
             )
 
         return CausalResult(
@@ -161,6 +174,7 @@ def arbitrate(
             p_persistence=round(p_persistence, 4),
             p_tool_risk=round(p_tool_risk, 4),
             p_entropy_risk=round(p_entropy_risk, 4),
+            p_se_risk=round(p_se_risk, 4),
         )
 
     except Exception as exc:
@@ -174,4 +188,5 @@ def arbitrate(
             p_persistence=0.0,
             p_tool_risk=0.0,
             p_entropy_risk=0.0,
+            p_se_risk=0.0,
         )

@@ -1555,6 +1555,15 @@ async def _run_filter_pipeline(
                 _sess = _agent_monitor.get_session(session_id)
                 if _sess:
                     _session_blocks = int(_sess.get("block_count", 0))
+        # PhishGuard se_risk: run a lightweight pre-check here so the Causal
+        # Arbiter can incorporate the SE signal in the same pass (avoids a
+        # second arbitrate() call later).
+        try:
+            from warden.phishing_guard import analyse as _phish_pre  # noqa: PLC0415
+            _pre_se = _phish_pre(analysis_text).se_risk
+        except Exception:
+            _pre_se = 0.0
+
         _causal_result = _causal_arbitrate(
             ml_score             = brain_result.score,
             ers_score            = float(getattr(auth, "ers_score", 0.0) or 0.0),
@@ -1562,6 +1571,7 @@ async def _run_filter_pipeline(
             block_history        = _session_blocks,
             tool_tier            = -1,
             content_entropy      = _content_entropy(analysis_text),
+            se_risk              = _pre_se,
         )
         timings["causal"] = round((time.perf_counter() - t0) * 1000, 2)
         if _causal_result.is_high_risk:
@@ -1633,6 +1643,60 @@ async def _run_filter_pipeline(
                     )
         except Exception as _pe:
             log.debug("Poison detection error (non-fatal): %s", _pe)
+
+    # ── Stage 2d: PhishGuard & SE-Arbiter ────────────────────────────
+    # Runs on the decoded/redacted text (analysis_text) for inbound scanning.
+    # Integrates se_risk into the Causal Arbiter score retroactively via a
+    # second arbitrate() call when SE is detected.
+    try:
+        from warden.phishing_guard import analyse as _phish_analyse  # noqa: PLC0415
+        t0 = time.perf_counter()
+        _phish_result = _phish_analyse(analysis_text)
+        timings["phishguard"] = round((time.perf_counter() - t0) * 1000, 2)
+
+        if _phish_result.is_phishing:
+            guard_result.flags.append(SemanticFlag(
+                flag   = FlagType.PHISHING_URL,
+                score  = round(_phish_result.max_url_score, 4),
+                detail = (
+                    f"urls={len(_phish_result.url_findings)} "
+                    f"max_score={_phish_result.max_url_score:.3f} "
+                    + ("; ".join(_phish_result.url_findings[0].reasons[:2])
+                       if _phish_result.url_findings else "")
+                ),
+            ))
+            guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.HIGH)
+            log.warning(json.dumps({
+                "event":      "phishing_url_detected",
+                "request_id": rid,
+                "tenant_id":  tenant_id,
+                "max_score":  _phish_result.max_url_score,
+                "urls":       len(_phish_result.url_findings),
+            }))
+
+        if _phish_result.is_social_engineering:
+            guard_result.flags.append(SemanticFlag(
+                flag   = FlagType.SOCIAL_ENGINEERING,
+                score  = round(_phish_result.se_risk, 4),
+                detail = (
+                    f"se_risk={_phish_result.se_risk:.3f} "
+                    f"urgency={_phish_result.p_urgency:.2f} "
+                    f"authority={_phish_result.p_authority:.2f} "
+                    f"fear={_phish_result.p_fear:.2f} "
+                    f"greed={_phish_result.p_greed:.2f}"
+                ),
+            ))
+            guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.HIGH)
+            log.warning(json.dumps({
+                "event":      "social_engineering_detected",
+                "request_id": rid,
+                "tenant_id":  tenant_id,
+                "se_risk":    _phish_result.se_risk,
+                "labels":     _phish_result.se_labels[:4],
+            }))
+
+    except Exception as _phish_exc:
+        log.debug("PhishGuard error (fail-open): %s", _phish_exc)
 
     # ── Stage 3: Decision ─────────────────────────────────────────────
     with _trace_stage("decision", {"request_id": rid, "tenant_id": tenant_id}) as _sp:

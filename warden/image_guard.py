@@ -76,6 +76,15 @@ _JAILBREAK_PROMPTS = [
     "adversarial prompt injection",
     "bypass content filter",
     "forget your instructions",
+    # PhishGuard v3 — visual phishing / fake login portals
+    "fake login portal with Microsoft logo",
+    "phishing page imitating bank website login",
+    "spoofed website with password input field",
+    "counterfeit PayPal or Apple ID login screen",
+    "brand impersonation credential harvesting form",
+    "social engineering page requesting username and password",
+    "fake security alert requiring immediate action",
+    "urgent account verification popup overlay",
 ]
 
 _SAFE_PROMPTS = [
@@ -137,13 +146,15 @@ def prewarm() -> bool:
 
 @dataclass
 class ImageGuardResult:
-    is_jailbreak: bool       = False
-    jailbreak_score: float   = 0.0
-    is_pii: bool             = False
-    pii_score: float         = 0.0
-    method: str              = "clip_zero_shot"
-    elapsed_ms: float        = 0.0
-    error: str               = ""
+    is_jailbreak: bool        = False
+    jailbreak_score: float    = 0.0
+    is_pii: bool              = False
+    pii_score: float          = 0.0
+    is_phishing_visual: bool  = False   # PhishGuard v3 — fake login portal / brand spoof
+    phishing_score: float     = 0.0
+    method: str               = "clip_zero_shot"
+    elapsed_ms: float         = 0.0
+    error: str                = ""
 
 
 # ── Core inference ────────────────────────────────────────────────────────────
@@ -157,6 +168,11 @@ def _run_clip(image_bytes: bytes) -> ImageGuardResult:
 
         model, processor = _load_model()
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+        # PhishGuard v3 — phishing visual prompts are the last 8 entries of
+        # _JAILBREAK_PROMPTS (added after the original 10 jailbreak prompts).
+        _N_ORIG_JB   = 10   # original jailbreak prompt count
+        _N_PHISH_VIS = len(_JAILBREAK_PROMPTS) - _N_ORIG_JB
 
         all_prompts = _JAILBREAK_PROMPTS + _SAFE_PROMPTS + _PII_PROMPTS
         inputs = processor(
@@ -176,17 +192,22 @@ def _run_clip(image_bytes: bytes) -> ImageGuardResult:
         n_safe = len(_SAFE_PROMPTS)
         n_pii  = len(_PII_PROMPTS)
 
-        jb_score  = sum(probs[:n_jb])
-        # safe_score unused directly — jb_score already normalized against it
-        pii_score = sum(probs[n_jb + n_safe: n_jb + n_safe + n_pii])
+        # Original jailbreak prompts (indices 0.._N_ORIG_JB)
+        jb_score      = sum(probs[:_N_ORIG_JB])
+        # Phishing visual prompts (_N_ORIG_JB..n_jb)
+        phish_score   = sum(probs[_N_ORIG_JB:n_jb]) if _N_PHISH_VIS > 0 else 0.0
+        # PII prompts
+        pii_score     = sum(probs[n_jb + n_safe: n_jb + n_safe + n_pii])
 
         elapsed = (time.time() - t0) * 1000
         return ImageGuardResult(
-            is_jailbreak   = jb_score >= THRESHOLD,
-            jailbreak_score = round(jb_score, 4),
-            is_pii          = pii_score >= THRESHOLD,
-            pii_score       = round(pii_score, 4),
-            elapsed_ms      = round(elapsed, 2),
+            is_jailbreak        = jb_score >= THRESHOLD,
+            jailbreak_score     = round(jb_score, 4),
+            is_pii              = pii_score >= THRESHOLD,
+            pii_score           = round(pii_score, 4),
+            is_phishing_visual  = phish_score >= THRESHOLD,
+            phishing_score      = round(phish_score, 4),
+            elapsed_ms          = round(elapsed, 2),
         )
 
     except ImportError as exc:
@@ -235,6 +256,11 @@ async def check_image(image_bytes: bytes) -> ImageGuardResult:
         log.info(
             "ImageGuard: PII_IN_IMAGE detected score=%.3f elapsed=%.1fms",
             result.pii_score, result.elapsed_ms,
+        )
+    if result.is_phishing_visual:
+        log.warning(
+            "ImageGuard: PHISHING_VISUAL detected score=%.3f elapsed=%.1fms",
+            result.phishing_score, result.elapsed_ms,
         )
     return result
 
