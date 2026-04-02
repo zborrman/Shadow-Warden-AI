@@ -20,14 +20,14 @@ Coverage:
 from __future__ import annotations
 
 from warden.phishing_guard import (
-    PHISH_URL_THRESHOLD,
-    SE_RISK_THRESHOLD,
-    URLFinding,
     _AUTHORITY_PATTERNS,
     _FEAR_PATTERNS,
     _GREED_PATTERNS,
     _URGENCY_PATTERNS,
+    PHISH_URL_THRESHOLD,
+    SE_RISK_THRESHOLD,
     PhishResult,
+    URLFinding,
     _analyse_url,
     _defang_url,
     _extract_domain,
@@ -39,7 +39,6 @@ from warden.phishing_guard import (
     analyse,
     defang_suspicious_urls,
 )
-
 
 # ── Normalisation ──────────────────────────────────────────────────────────────
 
