@@ -84,7 +84,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-warden}
       - REDIS_URL=redis://redis:6379/0
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
+      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-7}
       - MODEL_CACHE_DIR=/warden/models
       - HF_HOME=/warden/models
       - UVICORN_WORKERS=${UVICORN_WORKERS:-4}
@@ -316,7 +316,7 @@ services:
           memory: 512M
     environment:
       - LOGS_PATH=/data/logs.json
-      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-30}
+      - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-7}
     volumes:
       - ./data:/data:ro
     depends_on:
@@ -389,7 +389,7 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.time=15d'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-lifecycle'

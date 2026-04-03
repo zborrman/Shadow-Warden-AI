@@ -291,6 +291,14 @@ jobs:
             exit 1
           }
 
+          echo "── [3b/4] Prune build cache ────────────────────────────────"
+          # On a 40 GB disk the Docker build cache accumulates ~4-5 GB per week
+          # (every --build pass creates new layers; old ones are not auto-removed).
+          # Prune everything older than 1 h — all layers used by running containers
+          # are retained regardless of this filter.
+          docker builder prune -af --filter until=1h 2>/dev/null || true
+          docker image prune -f 2>/dev/null || true
+
           echo "── [4/4] Verify warden health ──────────────────────────────"
           # Poll for up to 5 min (60 × 5 s). The ML model load takes ~2-3 min
           # on cold start. Proxy uses service_started so compose never blocks
