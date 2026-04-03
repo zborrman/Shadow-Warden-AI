@@ -64,9 +64,21 @@ warden:
     rateLimitPerMinute: "60"
     maxBatchSize: "50"
     cacheТtlSeconds: "300"
-    gdprLogRetentionDays: "30"
+    gdprLogRetentionDays: "7"      # v2.5: reduced from 30 to limit disk growth
     alertMinRiskLevel: high
     elasticIndex: shadow-warden-events
+
+    # ── ONNX INT8 inference (v2.5) ────────────────────────────────────────────
+    # onnxThreads: parallel intra-op threads per worker.
+    # Rule: onnxIntraThreads = vCPU / uvicornWorkers (e.g. 8 vCPU / 4 workers = 2)
+    onnxEnabled: "true"
+    onnxThreads: "1"
+    onnxIntraThreads: "2"
+
+    # ── Browser extension — Reversible PII Vault (v2.5) ─────────────────────
+    # Set extMaskEnabled=false to disable auto-masking and revert to legacy
+    # YELLOW-block behaviour for tenants that require it (e.g. legal hold).
+    extMaskEnabled: "true"
 
   # Warden-managed mTLS (between nginx proxy → warden)
   mtls:
@@ -87,6 +99,8 @@ warden:
     splunkHecToken: ""
     elasticUrl: ""            # Elastic ECS
     elasticApiKey: ""
+    nvidiaApiKey: ""          # Nemotron Super chairman model (v2.5)
+    openrouterApiKey: ""      # LLM Council via OpenRouter (v2.5)
 
   # Multi-tenant API keys JSON file (mounted as ConfigMap/Secret)
   apiKeysJson: ""             # inline JSON — set via --set-file warden.apiKeysJson=keys.json
@@ -317,3 +331,122 @@ feed:
 # ── XAI (Explainable AI, v1.3+) ───────────────────────────────────────────────
 xai:
   useClause: false            # set true + provide anthropicApiKey to enable Claude Haiku explanations
+
+# ── Warden Identity — OIDC Zero-Friction Onboarding (v2.5) ───────────────────
+#
+# Replaces manual API-key distribution for SMB browser-extension users.
+# Employees sign in with their corporate Google / Microsoft account once;
+# the Service Worker holds the OIDC id_token; no key is ever exposed to the
+# LLM page's JavaScript context.
+#
+# Domain → tenant_id mapping:
+#   Format: "domain1:tenant_id1,domain2:tenant_id2"
+#   Example: "acme.com:tenant_acme,contoso.com:tenant_contoso"
+#   Live updates: POST /admin/oidc/domains  (stores in Redis)
+#
+# Instant offboarding: when IT revokes the employee's Google account,
+# the next id_token fetch fails → extension goes dark automatically.
+identity:
+  enabled: false              # enable when OAuth client is configured
+  oidcAllowedDomains: ""      # "acme.com:t_acme,contoso.com:t_contoso"
+  oidcJwksTtlSeconds: "86400" # JWKS public-key cache TTL (1 day)
+  # oauth2 client ID baked into the Chrome extension manifest.json
+  # (must match the client configured in Google Cloud Console)
+  googleClientId: ""          # REPLACE_WITH_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com
+
+# ── WormGuard + Warden Nexus (v2.5) ──────────────────────────────────────────
+#
+# WormGuard: 3-layer Morris-II self-replicating AI worm defence
+#   L1 — Anti-Replication: bigram Jaccard overlap on LLM prompts
+#   L2 — RAG Firewall: blocks worm fingerprints from entering vector store
+#   L3 — Redis Quarantine: SHA-256 worm hash stored in warden:worm:hashes
+#
+# Warden Nexus: global federated threat intelligence
+#   - Submits worm fingerprints as STIX 2.1 Indicator bundles
+#   - Downloads peer hashes (Bayesian consensus gate ≥ 0.80)
+#   - Enterprise air-gap mode: receive-only (no submissions)
+wormGuard:
+  enabled: true
+  redosTimeoutSeconds: "0.5"  # max regex eval time before pattern rejection
+
+nexus:
+  enabled: false              # enable to join Warden Nexus federation
+  feedUrl: ""                 # e.g. https://nexus.shadow-warden.io/v1
+  receiveOnly: "false"        # "true" for enterprise air-gap (subscribe only)
+  consensusThreshold: "0.80"  # Bayesian trust gate: 1 − ∏(1−P(Tᵢ|H)) ≥ this
+  maxWormHashes: "10000"      # per-instance worm hash cap
+  maxRules: "5000"            # threat rule import cap
+  secret:
+    apiKey: ""                # write-key for submitting worm hashes
+
+# ── ONNX INT8 Quantised Inference (v2.5) ─────────────────────────────────────
+#
+# 2-4× CPU speedup over FP32 by quantising all-MiniLM-L6-v2 MatMul weights
+# to INT8.  Model export runs as an init container on first deploy.
+#
+# Thread tuning rule:
+#   onnxIntraThreads = ceil(node_vcpus / warden.replicaCount)
+#   Example: 8 vCPU node, 4 replicas → 2 intra-op threads per pod
+#
+# The quantised model is stored in the model PVC alongside FP32 weights.
+# Set quantized=false to fall back to FP32 (larger pods may prefer it).
+onnx:
+  quantized: true
+  exportOnFirstDeploy: true   # run init container to export + quantize model
+  fp32Dir: "/warden/models/minilm-onnx"
+  int8Dir: "/warden/models/minilm-onnx-int8"
+  cacheDir: "/warden/models/.cache"
+
+# ── Async Task Queue — ARQ + Redis (v2.5) ────────────────────────────────────
+#
+# Offloads long-running tasks (email delivery, geo-webhook dispatch,
+# STIX bundle assembly) from request handlers to background workers.
+#
+# Workers run as a separate Deployment (arq-worker) that shares the
+# same Redis instance as the gateway.
+arq:
+  enabled: false              # enable when async email / geo-webhooks are needed
+  workers: 1
+  image:
+    repository: shadow-warden/gateway   # same image, different entrypoint
+    tag: "2.5.0"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+  config:
+    emailSmtpUrl: ""          # smtp://user:pass@host:587
+    emailFromAddr: ""         # noreply@shadow-warden.io
+    geoWebhookUrl: ""         # POST endpoint for geo-block events
+
+# ── SAML 2.0 SSO — Enterprise IdP Integration (v2.0+) ────────────────────────
+#
+# Enables SAML 2.0 SP for the admin dashboard / customer portal.
+# Supports Okta, Microsoft Entra ID, Google Workspace, and any SAML 2.0 IdP.
+# Leave enabled=false for deployments using API-key or OIDC auth only.
+saml:
+  enabled: false
+  secret:
+    spEntityId: ""            # e.g. https://warden.example.com
+    spAcsUrl: ""              # e.g. https://warden.example.com/auth/saml/acs
+    idpMetadataUrl: ""        # IdP metadata XML URL (Okta / Entra)
+    idpX509Cert: ""           # IdP signing cert (PEM, no headers)
+
+# ── Prometheus / Grafana Observability (v2.0+) ───────────────────────────────
+monitoring:
+  # Scrape warden /metrics via ServiceMonitor (requires kube-prometheus-stack)
+  serviceMonitor:
+    enabled: false
+    interval: "30s"
+    namespace: ""             # "" = same namespace as warden
+    labels: {}                # additional labels for ServiceMonitor
+  # Pre-built Grafana dashboard (loaded via ConfigMap + sidecar)
+  grafanaDashboard:
+    enabled: false
+    namespace: ""             # "" = same namespace
+    labels:
+      grafana_dashboard: "1"  # matches Grafana sidecar label selector

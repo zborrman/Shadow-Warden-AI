@@ -265,54 +265,75 @@
    * Tokens like [PERSON_1] are restored inline in each SSE data chunk.
    */
   function _unmaskStreamingResponse(originalResp, piiSessionId) {
-    // Collect token-to-replacement map lazily by calling WARDEN_UNMASK
-    // on each accumulated chunk.  We use a sliding buffer so partial tokens
-    // spanning two chunks are handled correctly.
-    let buffer = "";
-    const TOKEN_RE = /\[(?:PERSON|MONEY|DATE|ORG|EMAIL|PHONE|ID)_\d+\]/g;
+    // Sliding-window TransformStream that handles two edge cases:
+    //
+    // Edge case 1 — Token fragmentation across SSE chunks:
+    //   LLMs stream token-by-token; "[PERSON_1]" may arrive as two chunks:
+    //   "[PER" + "SON_1]".  We hold back any incomplete "[..." suffix in a
+    //   carry buffer and only flush it when the closing "]" arrives or at
+    //   stream end.  This guarantees full-token replacement without buffering
+    //   the entire response.
+    //
+    // Edge case 2 — LLM-hallucinated tokens ([PERSON_99] etc.):
+    //   MaskingEngine.unmask() already returns unknown tokens unchanged
+    //   (fail-open by design).  The extension trusts that and renders them
+    //   as-is — no 500 error, no broken stream.
+
+    let carry       = "";   // bytes held back waiting for "]"
+    const enc       = new TextEncoder();
+    const dec       = new TextDecoder();
+    // Matches a complete warden token or an open bracket that may be the
+    // start of one (used to detect whether to hold back the carry).
+    const FULL_TOKEN_RE  = /\[(?:PERSON|MONEY|DATE|ORG|EMAIL|PHONE|ID)_\d+\]/g;
+    const OPEN_BRACKET_RE = /\[(?:PERSON|MONEY|DATE|ORG|EMAIL|PHONE|ID)(?:_\d*)?$|\[$/;
+
+    async function _unmaskText(text) {
+      if (!FULL_TOKEN_RE.test(text)) return text;
+      FULL_TOKEN_RE.lastIndex = 0;
+      try {
+        return await new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage(
+            { type: "WARDEN_UNMASK", payload: { text, sessionId: piiSessionId } },
+            (r) => chrome.runtime.lastError
+              ? reject(new Error(chrome.runtime.lastError.message))
+              : resolve(r?.unmasked ?? text)
+          );
+        });
+      } catch (_) {
+        return text;   // fail-open — return with tokens intact
+      }
+    }
 
     const { readable, writable } = new TransformStream({
       async transform(chunk, controller) {
-        const text = new TextDecoder().decode(chunk);
-        buffer += text;
+        const incoming = carry + dec.decode(chunk, { stream: true });
 
-        // Only unmask when we have a complete token in the buffer
-        if (!TOKEN_RE.test(buffer)) {
-          controller.enqueue(chunk);
-          buffer = "";
-          return;
+        // Detect if the tail of `incoming` is an incomplete token start.
+        // If so, hold back the suspicious suffix in `carry`.
+        const openMatch = OPEN_BRACKET_RE.exec(incoming);
+        let toProcess = incoming;
+        carry = "";
+
+        if (openMatch) {
+          // Only carry back if the open bracket is NOT preceded by a "]"
+          // (i.e. not already closed by a previous full token in this chunk)
+          const lastClose = incoming.lastIndexOf("]");
+          if (openMatch.index > lastClose) {
+            carry     = incoming.slice(openMatch.index);
+            toProcess = incoming.slice(0, openMatch.index);
+          }
         }
 
-        // Request unmask from background (non-blocking; auth stays in Service Worker)
-        try {
-          const unmasked = await new Promise((resolve, reject) => {
-            chrome.runtime.sendMessage(
-              { type: "WARDEN_UNMASK", payload: { text: buffer, sessionId: piiSessionId } },
-              (r) => chrome.runtime.lastError ? reject(new Error(chrome.runtime.lastError.message)) : resolve(r)
-            );
-          });
-          const restoredText = unmasked?.unmasked ?? buffer;
-          controller.enqueue(new TextEncoder().encode(restoredText));
-        } catch (_) {
-          controller.enqueue(new TextEncoder().encode(buffer));  // fail-open
+        if (toProcess) {
+          controller.enqueue(enc.encode(await _unmaskText(toProcess)));
         }
-        buffer = "";
-        TOKEN_RE.lastIndex = 0;
       },
 
       async flush(controller) {
-        if (!buffer) return;
-        // Final flush — unmask any remaining buffered text
-        try {
-          const unmasked = await new Promise((resolve, reject) => {
-            chrome.runtime.sendMessage(
-              { type: "WARDEN_UNMASK", payload: { text: buffer, sessionId: piiSessionId } },
-              (r) => chrome.runtime.lastError ? reject(new Error(chrome.runtime.lastError.message)) : resolve(r)
-            );
-          });
-          controller.enqueue(new TextEncoder().encode(unmasked?.unmasked ?? buffer));
-        } catch (_) {
-          controller.enqueue(new TextEncoder().encode(buffer));
+        // Emit whatever is left in carry — including partial / hallucinated tokens.
+        // Unknown tokens pass through as-is (MaskingEngine fail-open contract).
+        if (carry) {
+          controller.enqueue(enc.encode(await _unmaskText(carry)));
         }
       },
     });

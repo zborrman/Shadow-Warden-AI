@@ -24,5 +24,35 @@ data:
   {{- if .Values.warden.apiKeysJson }}
   WARDEN_API_KEYS_PATH:     "/etc/warden/keys.json"
   {{- end }}
+  # ── ONNX INT8 (v2.5) ──────────────────────────────────────────────────────
+  ONNX_ENABLED:             {{ .Values.warden.config.onnxEnabled | default "true" | quote }}
+  ONNX_THREADS:             {{ .Values.warden.config.onnxThreads | default "1" | quote }}
+  ONNX_INTRA_THREADS:       {{ .Values.warden.config.onnxIntraThreads | default "2" | quote }}
+  # ── Reversible PII Vault (v2.5) ──────────────────────────────────────────
+  EXT_MASK_ENABLED:         {{ .Values.warden.config.extMaskEnabled | default "true" | quote }}
+  # ── Warden Identity — OIDC (v2.5) ────────────────────────────────────────
+  {{- if .Values.identity.enabled }}
+  OIDC_ALLOWED_DOMAINS:     {{ .Values.identity.oidcAllowedDomains | quote }}
+  OIDC_JWKS_TTL_S:          {{ .Values.identity.oidcJwksTtlSeconds | quote }}
+  {{- end }}
+  # ── WormGuard (v2.5) ─────────────────────────────────────────────────────
+  {{- if .Values.wormGuard.enabled }}
+  RAG_EVOLVER_REDOS_TIMEOUT_S: {{ .Values.wormGuard.redosTimeoutSeconds | quote }}
+  {{- end }}
+  # ── Warden Nexus (v2.5) ──────────────────────────────────────────────────
+  {{- if .Values.nexus.enabled }}
+  THREAT_FEED_ENABLED:      "true"
+  THREAT_FEED_URL:          {{ .Values.nexus.feedUrl | quote }}
+  THREAT_FEED_RECEIVE_ONLY: {{ .Values.nexus.receiveOnly | quote }}
+  NEXUS_CONSENSUS_THRESHOLD:{{ .Values.nexus.consensusThreshold | quote }}
+  NEXUS_MAX_WORM_HASHES:    {{ .Values.nexus.maxWormHashes | quote }}
+  THREAT_FEED_MAX_RULES:    {{ .Values.nexus.maxRules | quote }}
+  {{- end }}
+  # ── SAML SSO (v2.0+) ─────────────────────────────────────────────────────
+  {{- if .Values.saml.enabled }}
+  SAML_SP_ENTITY_ID:        {{ .Values.saml.secret.spEntityId | quote }}
+  SAML_SP_ACS_URL:          {{ .Values.saml.secret.spAcsUrl | quote }}
+  SAML_IDP_METADATA_URL:    {{ .Values.saml.secret.idpMetadataUrl | quote }}
+  {{- end }}
   # DATABASE_URL and REDIS_URL are set as env[] in the Deployment so that
   # Kubernetes performs $(POSTGRES_PASSWORD) / $(REDIS_PASSWORD) substitution.
