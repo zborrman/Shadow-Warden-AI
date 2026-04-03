@@ -148,6 +148,21 @@ async function _oidcSignOut() {
 }
 
 /**
+ * Build authenticated headers for Shadow Warden API calls.
+ * OIDC Bearer > X-API-Key > dev mode (no header).
+ */
+async function _authHeaders(cfg) {
+  const headers = { "Content-Type": "application/json" };
+  const oidcToken = await _getOidcToken(false);
+  if (oidcToken) {
+    headers["Authorization"] = `Bearer ${oidcToken}`;
+  } else if (cfg.apiKey) {
+    headers["X-API-Key"] = cfg.apiKey;
+  }
+  return headers;
+}
+
+/**
  * Call POST /ext/filter from the isolated Service Worker context.
  * Authenticates with OIDC Bearer token if available; falls back to X-API-Key.
  * The Authorization header is never exposed to the page's JS context.
@@ -156,19 +171,10 @@ async function _wardenFilter({ content, tenantId, context }) {
   const cfg = await _resolveConfig();
 
   if (!cfg.enabled) {
-    return { allowed: true, risk_level: "low", flags: [], reason: "Warden disabled" };
+    return { allowed: true, risk_level: "low", flags: [], reason: "Warden disabled", pii_action: "pass" };
   }
 
-  const headers = { "Content-Type": "application/json" };
-
-  // Auth resolution: OIDC Bearer > X-API-Key > dev mode
-  const oidcToken = await _getOidcToken(false);
-  if (oidcToken) {
-    headers["Authorization"] = `Bearer ${oidcToken}`;
-  } else if (cfg.apiKey) {
-    headers["X-API-Key"] = cfg.apiKey;
-  }
-  // else: dev mode / no auth configured — gateway will pass-through
+  const headers = await _authHeaders(cfg);
 
   try {
     const resp = await fetch(`${cfg.gatewayUrl}/ext/filter`, {
@@ -183,7 +189,7 @@ async function _wardenFilter({ content, tenantId, context }) {
 
     if (resp.status === 401 || resp.status === 402) {
       console.warn("[Shadow Warden] Gateway auth error:", resp.status);
-      return { allowed: true, risk_level: "low", flags: [], reason: "Auth error — fail open" };
+      return { allowed: true, risk_level: "low", flags: [], reason: "Auth error — fail open", pii_action: "pass" };
     }
 
     if (resp.status === 403) {
@@ -196,19 +202,51 @@ async function _wardenFilter({ content, tenantId, context }) {
         suggestion: detail?.suggestion || "",
         risk_level: "block",
         flags:      [],
+        pii_action: "block",
       };
     }
 
     if (!resp.ok) {
       console.warn("[Shadow Warden] Gateway error:", resp.status);
-      return { allowed: true, risk_level: "low", flags: [], reason: "Gateway error — fail open" };
+      return { allowed: true, risk_level: "low", flags: [], reason: "Gateway error — fail open", pii_action: "pass" };
     }
 
     return await resp.json();
 
   } catch (err) {
     console.warn("[Shadow Warden] Gateway unreachable:", err.message);
-    return { allowed: true, risk_level: "low", flags: [], reason: "Unreachable — fail open" };
+    return { allowed: true, risk_level: "low", flags: [], reason: "Unreachable — fail open", pii_action: "pass" };
+  }
+}
+
+// ── Reversible PII Vault — unmask LLM response ─────────────────────────────
+//
+// After the LLM generates a response (SSE stream complete), content.js sends
+// WARDEN_UNMASK with the buffered response text + pii_session_id.
+// We call /ext/unmask in the Service Worker (auth header included) and return
+// the restored text with [PERSON_1] → "John Doe" etc.
+
+async function _wardenUnmask({ text, sessionId }) {
+  const cfg = await _resolveConfig();
+  const headers = await _authHeaders(cfg);
+
+  try {
+    const resp = await fetch(`${cfg.gatewayUrl}/ext/unmask`, {
+      method:  "POST",
+      headers,
+      body: JSON.stringify({ text, session_id: sessionId }),
+    });
+
+    if (!resp.ok) {
+      console.warn("[Shadow Warden] /ext/unmask returned", resp.status, "— returning original");
+      return { unmasked: text, session_id: sessionId };
+    }
+
+    return await resp.json();   // { unmasked: "...", session_id: "..." }
+
+  } catch (err) {
+    console.warn("[Shadow Warden] /ext/unmask unreachable:", err.message);
+    return { unmasked: text, session_id: sessionId };   // fail-open
   }
 }
 
@@ -270,6 +308,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // originate here in the Service Worker's isolated context.
   if (message.type === "WARDEN_FILTER") {
     _wardenFilter(message.payload).then(sendResponse);
+    return true;
+  }
+
+  // ── Reversible PII: unmask LLM response after stream completes ──────────
+  //
+  // content.js buffers the full SSE stream response, then sends WARDEN_UNMASK.
+  // We call /ext/unmask here (auth included) and return the de-tokenised text.
+  if (message.type === "WARDEN_UNMASK") {
+    _wardenUnmask(message.payload).then(sendResponse);
     return true;
   }
 });

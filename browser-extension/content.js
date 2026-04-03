@@ -96,7 +96,10 @@
   const _origFetch = window.fetch.bind(window);
 
   window.fetch = async function (...args) {
-    if (!_cfg.enabled || !_cfg.apiKey) return _origFetch(...args);
+    // Pass-through when disabled. Do NOT gate on !_cfg.apiKey —
+    // OIDC-authenticated users have no apiKey but are still authorised
+    // (the background Service Worker holds the Bearer token).
+    if (!_cfg.enabled) return _origFetch(...args);
 
     const [resource, init] = args;
     const url = typeof resource === "string" ? resource
@@ -158,35 +161,170 @@
     if (!wardenResult) return _origFetch(...args);
 
     // ── Decision routing ───────────────────────────────────────────────────
+    //
+    // pii_action values (new Reversible PII Vault path):
+    //   "block"         → hard stop (same as before)
+    //   "mask_and_send" → replace prompt with masked_content, unmask response
+    //   "warn"          → advisory toast, pass original through
+    //   "pass" / null   → GREEN, pass-through
 
-    if (!wardenResult.allowed) {
-      const site      = new URL(url).hostname;
-      const dataClass = wardenResult.data_class || "red";
-      const riskLevel = wardenResult.risk_level || "high";
-      const reason    = wardenResult.reason     || "Confidential data detected.";
+    const piiAction = wardenResult.pii_action;
+
+    // ── BLOCK (RED / HIGH risk / hard policy) ─────────────────────────────
+    if (!wardenResult.allowed || piiAction === "block") {
+      const site       = new URL(url).hostname;
+      const dataClass  = wardenResult.data_class || "red";
+      const riskLevel  = wardenResult.risk_level || "high";
+      const reason     = wardenResult.reason     || "Confidential data detected.";
       const suggestion = wardenResult.suggestion || "";
 
-      if (dataClass === "yellow") {
-        // ── YELLOW: advisory overlay — user chooses ──────────────────────
+      if (dataClass === "yellow" && !piiAction) {
+        // Legacy yellow path (no Reversible PII Vault): advisory overlay
         return _handleYellow({ promptText, reason, suggestion, site, args });
-      } else {
-        // ── RED / PII / HIGH: hard block ─────────────────────────────────
-        _showBlockOverlay({ riskLevel, dataClass, reason, suggestion, site });
-        _notifyBackground({ tenantId: _cfg.tenantId, riskLevel, dataClass, reason, site });
-        return new Response(
-          JSON.stringify({ error: "Shadow Warden AI: Request blocked.", reason }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
-        );
       }
+
+      _showBlockOverlay({ riskLevel, dataClass, reason, suggestion, site });
+      _notifyBackground({ tenantId: _cfg.tenantId, riskLevel, dataClass, reason, site });
+      return new Response(
+        JSON.stringify({ error: "Shadow Warden AI: Request blocked.", reason }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    // ── Advisory toast for YELLOW-but-allowed (block_cloud_yellow=false) ──
-    if (wardenResult.data_class === "yellow") {
+    // ── MASK AND SEND (Reversible PII Vault) ─────────────────────────────
+    //
+    // PII detected but no hard block policy — replace prompt with tokenised
+    // version before sending to ChatGPT/Claude, then unmask the response.
+    if (piiAction === "mask_and_send" && wardenResult.masked_content) {
+      const maskedContent = wardenResult.masked_content;
+      const piiSessionId  = wardenResult.pii_session_id;
+      const entityCount   = wardenResult.masking?.entity_count || 0;
+
+      // Rebuild the request body with the masked prompt
+      const maskedBody = _substitutePrompt(bodyObj, maskedContent, matcher);
+      const maskedArgs = [
+        resource,
+        { ...init, body: JSON.stringify(maskedBody) },
+      ];
+
+      // Show a non-intrusive toast confirming PII was masked
+      _showAdvisoryToast(
+        `🔒 Shadow Warden masked ${entityCount} PII value${entityCount !== 1 ? "s" : ""} — response will be restored automatically.`,
+        "#1e3a5f",
+        4000
+      );
+
+      // Send masked prompt to the LLM, then unmask the response
+      const llmResp = await _origFetch(...maskedArgs);
+      if (!piiSessionId || !llmResp.ok) return llmResp;
+
+      return _unmaskStreamingResponse(llmResp, piiSessionId);
+    }
+
+    // ── WARN (advisory toast, pass-through) ──────────────────────────────
+    if (piiAction === "warn" || wardenResult.data_class === "yellow") {
       _showAdvisoryToast(wardenResult.reason || "Internal data detected — consider using local AI.");
     }
 
     return _origFetch(...args);
   };
+
+  // ── Helpers for Reversible PII Vault ─────────────────────────────────────
+
+  /**
+   * Rebuild a request body JSON with the prompt replaced by maskedText.
+   * Handles OpenAI message array format and simple {prompt: "..."} format.
+   */
+  function _substitutePrompt(bodyObj, maskedText, matcher) {
+    if (!bodyObj) return bodyObj;
+
+    // OpenAI format: messages array — replace last user message content
+    if (Array.isArray(bodyObj.messages)) {
+      const msgs = bodyObj.messages.map((m, i) => {
+        if (i !== bodyObj.messages.length - 1) return m;
+        if (typeof m.content === "string") return { ...m, content: maskedText };
+        if (Array.isArray(m.content)) {
+          return { ...m, content: m.content.map(c => c.text ? { ...c, text: maskedText } : c) };
+        }
+        return m;
+      });
+      return { ...bodyObj, messages: msgs };
+    }
+
+    // Simple prompt field
+    if (bodyObj.prompt) return { ...bodyObj, prompt: maskedText };
+
+    return bodyObj;
+  }
+
+  /**
+   * Intercept a streaming (SSE) response from the LLM, buffer the full text,
+   * call WARDEN_UNMASK to restore PII tokens, then re-stream to the page.
+   *
+   * Uses TransformStream to avoid breaking the ReadableStream contract.
+   * Tokens like [PERSON_1] are restored inline in each SSE data chunk.
+   */
+  function _unmaskStreamingResponse(originalResp, piiSessionId) {
+    // Collect token-to-replacement map lazily by calling WARDEN_UNMASK
+    // on each accumulated chunk.  We use a sliding buffer so partial tokens
+    // spanning two chunks are handled correctly.
+    let buffer = "";
+    const TOKEN_RE = /\[(?:PERSON|MONEY|DATE|ORG|EMAIL|PHONE|ID)_\d+\]/g;
+
+    const { readable, writable } = new TransformStream({
+      async transform(chunk, controller) {
+        const text = new TextDecoder().decode(chunk);
+        buffer += text;
+
+        // Only unmask when we have a complete token in the buffer
+        if (!TOKEN_RE.test(buffer)) {
+          controller.enqueue(chunk);
+          buffer = "";
+          return;
+        }
+
+        // Request unmask from background (non-blocking; auth stays in Service Worker)
+        try {
+          const unmasked = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage(
+              { type: "WARDEN_UNMASK", payload: { text: buffer, sessionId: piiSessionId } },
+              (r) => chrome.runtime.lastError ? reject(new Error(chrome.runtime.lastError.message)) : resolve(r)
+            );
+          });
+          const restoredText = unmasked?.unmasked ?? buffer;
+          controller.enqueue(new TextEncoder().encode(restoredText));
+        } catch (_) {
+          controller.enqueue(new TextEncoder().encode(buffer));  // fail-open
+        }
+        buffer = "";
+        TOKEN_RE.lastIndex = 0;
+      },
+
+      async flush(controller) {
+        if (!buffer) return;
+        // Final flush — unmask any remaining buffered text
+        try {
+          const unmasked = await new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage(
+              { type: "WARDEN_UNMASK", payload: { text: buffer, sessionId: piiSessionId } },
+              (r) => chrome.runtime.lastError ? reject(new Error(chrome.runtime.lastError.message)) : resolve(r)
+            );
+          });
+          controller.enqueue(new TextEncoder().encode(unmasked?.unmasked ?? buffer));
+        } catch (_) {
+          controller.enqueue(new TextEncoder().encode(buffer));
+        }
+      },
+    });
+
+    originalResp.body.pipeTo(writable).catch(() => {});
+
+    return new Response(readable, {
+      status:     originalResp.status,
+      statusText: originalResp.statusText,
+      headers:    originalResp.headers,
+    });
+  }
 
   // ── YELLOW handler — advisory overlay with Ollama redirect ────────────────
 

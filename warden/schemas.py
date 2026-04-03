@@ -197,6 +197,37 @@ class FilterResponse(BaseModel):
         ),
     )
 
+    # ── Reversible PII Masking (Yellow Zone, browser extension) ──────────────
+    # Populated by /ext/filter when PII is detected and masking is enabled.
+    # The extension replaces the original prompt with `masked_content` before
+    # sending to the LLM, then calls /ext/unmask on the response.
+    pii_action:               str | None        = Field(
+        default=None,
+        description=(
+            "Action the browser extension should take: "
+            "'block' — hard stop (RED); "
+            "'mask_and_send' — replace prompt with masked_content, unmask response; "
+            "'warn' — advisory toast, original prompt forwarded; "
+            "null — pass-through (GREEN, no PII)."
+        ),
+    )
+    masked_content:           str | None        = Field(
+        default=None,
+        description=(
+            "PII-replaced version of the original prompt. "
+            "Only present when pii_action='mask_and_send'. "
+            "Forward this to the LLM instead of the original."
+        ),
+    )
+    pii_session_id:           str | None        = Field(
+        default=None,
+        description=(
+            "Vault session ID for reversible unmasking. "
+            "Pass to POST /ext/unmask with the LLM response text to restore "
+            "original values ([PERSON_1] → 'John Doe')."
+        ),
+    )
+
 
 # ── Output scanning (LLM02 / LLM06 / LLM08) ──────────────────────────────────
 

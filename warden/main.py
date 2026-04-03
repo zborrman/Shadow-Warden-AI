@@ -2243,13 +2243,88 @@ async def ext_filter_content(
     coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
     if _PIPELINE_TIMEOUT_MS > 0:
         try:
-            return await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
+            result = await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
         except TimeoutError:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Filter pipeline timeout.",
             ) from None
-    return await coro
+    else:
+        result = await coro
+
+    # ── Reversible PII Masking for browser extension ──────────────────────────
+    #
+    # When the filter passes (allowed=True) but PII entities were detected
+    # (masking.entity_count > 0), we upgrade the response with masked_content
+    # and a vault session_id so the extension can:
+    #   1. Forward the masked prompt (no PII) to the LLM
+    #   2. Call /ext/unmask on the LLM response to restore [PERSON_1] → real name
+    #
+    # When the filter blocks (allowed=False) we annotate pii_action="block" so
+    # the extension can skip calling /ext/unmask.
+    #
+    # EXT_MASK_ENABLED (default true) — set to false to disable auto-masking
+    # and fall back to legacy red-overlay behaviour.
+    if os.getenv("EXT_MASK_ENABLED", "true").lower() not in ("false", "0", "no"):
+        if not result.allowed:
+            result = result.model_copy(update={"pii_action": "block"})
+        elif result.masking.entity_count > 0:
+            # Run real masking (not detect-only) with a persistent session
+            loop = asyncio.get_running_loop()
+            _me = _get_masking_engine()
+            _mask_res = await loop.run_in_executor(
+                None, lambda: _me.mask(payload.content)
+            )
+            result = result.model_copy(update={
+                "pii_action":     "mask_and_send",
+                "masked_content": _mask_res.masked,
+                "pii_session_id": _mask_res.session_id,
+                "masking": MaskingReport(
+                    masked       = True,
+                    session_id   = _mask_res.session_id,
+                    entities     = [
+                        MaskedEntityInfo(entity_type=k, token=f"[{k}_N]", count=v)
+                        for k, v in _mask_res.summary().items()
+                    ],
+                    entity_count = _mask_res.entity_count,
+                ),
+            })
+        else:
+            result = result.model_copy(update={"pii_action": "pass"})
+
+    return result
+
+
+@app.post(
+    "/ext/unmask",
+    response_model=UnmaskResponse,
+    tags=["extension"],
+    summary="Reversible PII — restore original values in LLM response (wildcard CORS)",
+    status_code=status.HTTP_200_OK,
+)
+@_limiter.limit(_tenant_limit)
+async def ext_unmask(
+    payload: UnmaskRequest,
+    request: Request,
+    auth:    AuthResult = Depends(require_ext_auth),
+) -> UnmaskResponse:
+    """
+    Replace all [TYPE_N] tokens in an LLM response with the original PII values
+    stored in the ephemeral vault session created by POST /ext/filter.
+
+    Call this from the background Service Worker after buffering the LLM SSE stream.
+    The session vault expires 2 hours after the corresponding /ext/filter call.
+
+    Example:
+        Input:  "The contract for [PERSON_1] totalling [MONEY_1] is ready."
+        Output: "The contract for John Doe totalling $5,000,000 is ready."
+    """
+    engine   = _get_masking_engine()
+    loop     = asyncio.get_running_loop()
+    unmasked = await loop.run_in_executor(
+        None, lambda: engine.unmask(payload.text, payload.session_id)
+    )
+    return UnmaskResponse(unmasked=unmasked, session_id=payload.session_id)
 
 
 @app.get(
