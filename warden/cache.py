@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import time
+
+from warden.config import settings
 
 log = logging.getLogger("warden.cache")
 
@@ -29,8 +30,8 @@ log = logging.getLogger("warden.cache")
 # We import redis lazily so the rest of the codebase is not broken if
 # redis-py is not installed or Redis is unavailable.
 
-_REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-_TTL = int(os.getenv("CACHE_TTL_SECONDS", "300"))
+_REDIS_URL = settings.redis_url
+_TTL = settings.cache_ttl_seconds
 _PREFIX = "warden:filter:"
 
 _client = None

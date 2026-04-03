@@ -23,6 +23,10 @@ v3 risks (PhishGuard integration):
   ⑫ Social Engineering      — SE manipulation markers in LLM output (urgency/authority/fear/greed)
                                → annotate with risk classification label
 
+v4 risks (Zero-Click AI Worm Defense):
+  ⑬ AI Worm Replication     — LLM output Jaccard-overlaps untrusted input AND propagation tool called
+                               → block output, quarantine fingerprint, flag AI_WORM_REPLICATION
+
 Per-tenant config:
   Pass a TenantOutputConfig to scan() to override defaults per request.
   Use OutputGuard.from_env_config(overrides) to build a tenant config dict.
@@ -37,6 +41,7 @@ OWASP mapping:
   ⑩         →  LLM02 — Sensitive Information Disclosure
   ⑪         →  LLM01 — Phishing URL (PhishGuard — defanged, not blocked)
   ⑫         →  LLM01 — Social Engineering markers in output
+  ⑬         →  LLM01 — AI Worm Self-Replication (WormGuard — blocked + quarantined)
 """
 from __future__ import annotations
 
@@ -84,6 +89,8 @@ class BusinessRisk(StrEnum):
     # v3 — PhishGuard integration
     PHISHING_URL          = "phishing_url"
     SOCIAL_ENGINEERING    = "social_engineering"
+    # v4 — Zero-Click AI Worm Defense
+    AI_WORM_REPLICATION   = "ai_worm_replication"
 
 
 OWASP_LABEL: dict[BusinessRisk, str] = {
@@ -99,6 +106,7 @@ OWASP_LABEL: dict[BusinessRisk, str] = {
     BusinessRisk.SENSITIVE_DATA:      "LLM02 — Sensitive Information Disclosure (credentials)",
     BusinessRisk.PHISHING_URL:        "LLM01 — Phishing URL in output (PhishGuard defanged)",
     BusinessRisk.SOCIAL_ENGINEERING:  "LLM01 — Social Engineering markers in AI output",
+    BusinessRisk.AI_WORM_REPLICATION: "LLM01 — AI Worm Self-Replication (WormGuard blocked + quarantined)",
 }
 
 _REPLACEMENT: dict[BusinessRisk, str] = {
@@ -116,6 +124,7 @@ _REPLACEMENT: dict[BusinessRisk, str] = {
     # this replacement is used only when defanging is bypassed (e.g. no PhishResult available).
     BusinessRisk.PHISHING_URL:        "[suspicious link defanged by Shadow Warden]",
     BusinessRisk.SOCIAL_ENGINEERING:  "[Shadow Warden: response contains psychological manipulation markers]",
+    BusinessRisk.AI_WORM_REPLICATION: "[Shadow Warden: AI worm self-replication blocked — output suppressed]",
 }
 
 
@@ -141,6 +150,13 @@ class TenantOutputConfig:
     # PhishGuard v3 — enabled by default; defangs URLs, annotates SE markers
     defang_phishing_urls:     bool       = True
     annotate_se_output:       bool       = True
+    # WormGuard v4 — Anti-Replication check (enabled by default)
+    # untrusted_input_context: supply the raw external text the agent ingested
+    # (email body / webpage / tool result) so overlap can be computed.
+    # When empty, step ⑬ is skipped (no false positives without a reference).
+    block_worm_replication:   bool       = True
+    untrusted_input_context:  str        = ""          # filled by caller per-request
+    requested_propagation_tool: str      = ""          # tool the agent wants to call next
     # Extra regex strings added by the tenant (compiled on first use)
     custom_patterns:          list[str]  = field(default_factory=list)
 
@@ -569,6 +585,39 @@ class OutputGuard:
                     ))
             except Exception as _exc:  # fail-open
                 log.debug("output_guard: SE annotation check failed (non-fatal): %s", _exc)
+
+        # ── ⑬ AI Worm Anti-Replication (WormGuard v4) ────────────────────────
+        # Compare the LLM output against the untrusted input the agent ingested.
+        # Only fires when the caller supplies `untrusted_input_context` (i.e. the
+        # agent pipeline explicitly flagged the data as external).  Fail-open.
+
+        if cfg.block_worm_replication and cfg.untrusted_input_context:
+            try:
+                from warden.worm_guard import check_pipeline as _worm_check  # noqa: PLC0415
+                _worm = _worm_check(
+                    untrusted_input      = cfg.untrusted_input_context,
+                    llm_output           = sanitized,
+                    requested_tool       = cfg.requested_propagation_tool,
+                    quarantine_on_detect = True,
+                )
+                if _worm.is_worm:
+                    findings.append(BusinessFinding(
+                        risk    = BusinessRisk.AI_WORM_REPLICATION,
+                        snippet = sanitized[:80],
+                        owasp   = OWASP_LABEL[BusinessRisk.AI_WORM_REPLICATION],
+                        detail  = (
+                            f"overlap={_worm.overlap_score:.3f} "
+                            f"tool={_worm.propagation_tool or 'none'} "
+                            f"fp={_worm.fingerprint[:12]}…"
+                        ),
+                    ))
+                    sanitized = _REPLACEMENT[BusinessRisk.AI_WORM_REPLICATION]
+                    log.warning(
+                        "output_guard ⑬: AI_WORM_REPLICATION blocked overlap=%.3f tool=%s",
+                        _worm.overlap_score, _worm.propagation_tool or "none",
+                    )
+            except Exception as _exc:  # fail-open
+                log.debug("output_guard: WormGuard check failed (non-fatal): %s", _exc)
 
         # ── Custom tenant patterns ────────────────────────────────────────────
 

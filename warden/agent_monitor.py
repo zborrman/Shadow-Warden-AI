@@ -64,6 +64,7 @@ PATTERN_EXFIL_CHAIN          = "EXFIL_CHAIN"
 PATTERN_RAPID_BLOCK          = "RAPID_BLOCK"
 PATTERN_ROGUE_AGENT          = "ROGUE_AGENT"
 PATTERN_INJECTION_CHAIN      = "INJECTION_CHAIN"
+PATTERN_WORM_PROPAGATION     = "WORM_PROPAGATION_CHAIN"   # v2.5 — Zero-Click AI Worm
 
 # ── Injection threat kinds that trigger INJECTION_CHAIN ───────────────────────
 # These are the threat_kind values emitted by ToolCallGuard / OutputGuard when
@@ -75,6 +76,13 @@ _INJECTION_THREAT_KINDS: frozenset[str] = frozenset({
     "tool_injection",
     "instruction_injection",
     "context_injection",
+})
+
+# Threat kinds and flag types emitted when a worm is detected by WormGuard
+_WORM_FLAG_KINDS: frozenset[str] = frozenset({
+    "ai_worm_replication",
+    "rag_poisoning",
+    "taint_revocation",
 })
 
 # ── Tool category sets ────────────────────────────────────────────────────────
@@ -631,6 +639,7 @@ class AgentMonitor:
             self._check_exfil_chain,
             self._check_rogue_agent,
             self._check_injection_chain,
+            self._check_worm_propagation,
         ):
             try:
                 threat = check(meta, events, policy)  # type: ignore[call-arg]
@@ -811,6 +820,80 @@ class AgentMonitor:
                             f"{len(subsequent_calls)} subsequent tool call(s) detected"
                         ),
                     )
+        return None
+
+    def _check_worm_propagation(
+        self, meta: dict, events: list[dict], policy: TenantPolicy | None = None,
+    ) -> SessionThreat | None:
+        """
+        WORM_PROPAGATION_CHAIN (v2.5) — Zero-Click AI Worm detection.
+
+        Fires when the session has recorded at least one event with a
+        worm-family flag (ai_worm_replication / rag_poisoning / taint_revocation)
+        AND the agent subsequently issued a network-egress or destructive tool
+        call — indicating the worm payload may be attempting to propagate.
+
+        Severity: HIGH.  The session should be immediately revoked and the
+        worm fingerprint quarantined (via WormGuard Layer 3).
+        """
+        worm_flags_seen = False
+        worm_detail     = ""
+
+        # Check request events for worm flags
+        for e in events:
+            if e.get("event_type") == "request":
+                flags = e.get("flags") or []
+                worm_hits = [f for f in flags if f in _WORM_FLAG_KINDS]
+                if worm_hits:
+                    worm_flags_seen = True
+                    worm_detail = f"flags={worm_hits}"
+                    break
+
+        if not worm_flags_seen:
+            return None
+
+        # Check for any subsequent egress/destructive tool call after the worm event
+        worm_event_ts: str | None = None
+        for e in events:
+            if e.get("event_type") == "request":
+                flags = e.get("flags") or []
+                if any(f in _WORM_FLAG_KINDS for f in flags):
+                    worm_event_ts = e.get("ts", "")
+                    break
+
+        propagation_tool: str | None = None
+        for e in events:
+            if (
+                e.get("event_type") == "tool"
+                and e.get("direction") == "call"
+                and worm_event_ts is not None
+                and e.get("ts", "") >= worm_event_ts
+            ):
+                cat = _tool_category(e.get("tool_name", ""))
+                if cat in (1, 2):  # network/write or destructive
+                    propagation_tool = e.get("tool_name")
+                    break
+
+        if propagation_tool:
+            log.warning(
+                "AgentMonitor: WORM_PROPAGATION_CHAIN session=%s worm=%s propagation_tool=%r",
+                meta.get("session_id", "?"), worm_detail, propagation_tool,
+            )
+            return SessionThreat(
+                pattern  = PATTERN_WORM_PROPAGATION,
+                severity = "HIGH",
+                detail   = (
+                    f"Zero-Click AI Worm propagation chain detected: "
+                    f"{worm_detail} followed by egress/destructive tool "
+                    f"'{propagation_tool}' — session quarantine recommended"
+                ),
+            )
+
+        # Worm detected but no propagation tool call yet — do NOT emit the
+        # pattern here. Emitting it now would cause _analyze_patterns to mark
+        # WORM_PROPAGATION_CHAIN as "already seen" and suppress the real alert
+        # when a propagation tool call does arrive.  The worm flag alone is
+        # captured via the request-level AI_WORM_REPLICATION FlagType.
         return None
 
     # ── Threat finalization ───────────────────────────────────────────────────

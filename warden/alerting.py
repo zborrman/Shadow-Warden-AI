@@ -42,21 +42,22 @@ Usage — called from main.py after a block decision::
 from __future__ import annotations
 
 import logging
-import os
 
 import httpx
 
+from warden.config import settings
+from warden.retry import ALERT_RETRY, async_retry
+
 log = logging.getLogger("warden.alerting")
 
-_SLACK_WEBHOOK       = os.getenv("SLACK_WEBHOOK_URL", "")
-_PAGERDUTY_KEY       = os.getenv("PAGERDUTY_ROUTING_KEY", "")
-_ALERT_MIN_RISK      = os.getenv("ALERT_MIN_RISK_LEVEL", "high").lower()
-_TELEGRAM_TOKEN      = os.getenv("TELEGRAM_BOT_TOKEN", "")
-_TELEGRAM_CHAT_ID    = os.getenv("TELEGRAM_CHAT_ID", "")
+_SLACK_WEBHOOK    = settings.slack_webhook_url
+_PAGERDUTY_KEY    = settings.pagerduty_routing_key
+_TELEGRAM_TOKEN   = settings.telegram_bot_token
+_TELEGRAM_CHAT_ID = settings.telegram_chat_id
 
 # Risk level numeric order — only alert if risk >= threshold
 _RISK_NUM = {"low": 0, "medium": 1, "high": 2, "block": 3}
-_ALERT_THRESHOLD = _RISK_NUM.get(_ALERT_MIN_RISK, 2)  # default: high
+_ALERT_THRESHOLD = _RISK_NUM.get(settings.alert_min_risk_level, 2)  # default: high
 
 
 async def alert_block_event(
@@ -152,6 +153,7 @@ async def alert_corpus_rollback(
             log.warning("Slack rollback alert failed: %s", exc)
 
 
+@async_retry(ALERT_RETRY)
 async def _slack_alert(
     attack_type: str,
     risk_level: str,
@@ -173,6 +175,7 @@ async def _slack_alert(
     log.debug("Slack alert sent for %s %s", risk_level, attack_type)
 
 
+@async_retry(ALERT_RETRY)
 async def _pagerduty_trigger(
     attack_type: str,
     summary: str,
@@ -247,6 +250,7 @@ async def _telegram_rollback_alert(
     await _send_telegram(text)
 
 
+@async_retry(ALERT_RETRY)
 async def _send_telegram(text: str) -> None:
     """POST a message to the Telegram Bot API."""
     if not _TELEGRAM_TOKEN or not _TELEGRAM_CHAT_ID:

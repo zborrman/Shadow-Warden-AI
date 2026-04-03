@@ -38,7 +38,6 @@ Environment variables
 """
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import hmac
 import json
@@ -50,11 +49,14 @@ from datetime import UTC, datetime
 
 import httpx
 
+from warden.config import settings
+from warden.retry import WEBHOOK_RETRY, async_retry
+
 log = logging.getLogger("warden.webhook_dispatch")
 
-_DB_PATH     = os.getenv("WEBHOOK_DB_PATH", "data/webhooks.db")
-_TIMEOUT     = float(os.getenv("WEBHOOK_TIMEOUT_S", "10"))
-_MAX_RETRIES = int(os.getenv("WEBHOOK_MAX_RETRIES", "3"))
+_DB_PATH  = settings.webhook_db_path
+_TIMEOUT  = settings.webhook_timeout_s
+_MAX_RETRIES = settings.webhook_max_retries
 
 _RISK_ORDER: dict[str, int] = {"low": 0, "medium": 1, "high": 2, "block": 3}
 
@@ -226,24 +228,22 @@ def _sign(body: bytes, secret: str) -> str:
     return f"sha256={mac.hexdigest()}"
 
 
+def _is_webhook_retryable(exc: Exception) -> bool:
+    """Retry on network errors and 5xx; accept 2xx–4xx (don't retry 404, 401, etc.)."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code >= 500
+    return True
+
+
+@async_retry(WEBHOOK_RETRY)
 async def _deliver(url: str, body: bytes, signature: str) -> None:
     headers = {
         "Content-Type":        "application/json",
         "X-Warden-Signature":  signature,
         "User-Agent":          "ShadowWardenAI/1.1",
     }
-    for attempt in range(1, _MAX_RETRIES + 1):
-        try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                resp = await client.post(url, content=body, headers=headers)
-            if resp.status_code < 500:
-                log.debug("Webhook delivered to %s — HTTP %d", url, resp.status_code)
-                return
-            log.warning(
-                "Webhook %s returned %d (attempt %d/%d)", url, resp.status_code, attempt, _MAX_RETRIES
-            )
-        except Exception as exc:
-            log.warning("Webhook error (attempt %d/%d): %s", attempt, _MAX_RETRIES, exc)
-        if attempt < _MAX_RETRIES:
-            await asyncio.sleep(2 ** (attempt - 1))   # 1 s, 2 s, 4 s
-    log.error("Webhook delivery failed after %d attempts to %s", _MAX_RETRIES, url)
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        resp = await client.post(url, content=body, headers=headers)
+    if resp.status_code >= 500:
+        resp.raise_for_status()  # triggers WEBHOOK_RETRY
+    log.debug("Webhook delivered to %s — HTTP %d", url, resp.status_code)

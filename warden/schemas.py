@@ -40,6 +40,10 @@ class FlagType(StrEnum):
     CAUSAL_HIGH_RISK     = "causal_high_risk"      # Causal Arbiter — Bayesian DAG resolved gray-zone ML score to HIGH
     PHISHING_URL         = "phishing_url"          # PhishGuard — homoglyph/typosquat URL or structural phishing pattern
     SOCIAL_ENGINEERING   = "social_engineering"    # SE-Arbiter — psychological manipulation vector (urgency/authority/fear/greed)
+    # Zero-Click AI Worm Defense (v2.5)
+    AI_WORM_REPLICATION  = "ai_worm_replication"  # WormGuard L1 — LLM output replicates untrusted input + propagation tool
+    RAG_POISONING        = "rag_poisoning"         # WormGuard L2 — document blocked at RAG ingestion (hidden instruction/quine/delimiter spoof)
+    TAINT_REVOCATION     = "taint_revocation"      # TaintTracker — tool call denied due to EXTERNAL/HOSTILE session context
 
 
 class RedactionPolicy(StrEnum):

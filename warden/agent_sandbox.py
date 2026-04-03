@@ -50,7 +50,8 @@ Decision flow
     3. params ⊆ allowed_params?   → NO  → DENY  (reason: param_not_allowed)
     4. session quota reached?     → YES → DENY  (reason: quota_exceeded)
     5. network egress check?      → FAIL→ DENY  (reason: network_egress_denied)
-    6.                                  → ALLOW
+    6. taint revocation check?    → FAIL→ DENY  (reason: taint:external / taint:hostile)
+    7.                                  → ALLOW
 
 Redis storage (call counts)
 ────────────────────────────
@@ -201,10 +202,11 @@ class SandboxRegistry:
 
     def authorize_tool_call(
         self,
-        agent_id:   str,
-        tool_name:  str,
-        params:     dict,
-        session_id: str = "",
+        agent_id:    str,
+        tool_name:   str,
+        params:      dict,
+        session_id:  str = "",
+        target_host: str = "",
     ) -> SandboxDecision:
         """
         The Zero-Trust check.  Returns SandboxDecision with allowed=True/False.
@@ -283,6 +285,25 @@ class SandboxRegistry:
                 allowed=False,
                 reason="network_egress_denied",
             )
+
+        # ── 6. Dynamic Taint Revocation (WormGuard v2.5) ─────────────────
+        # Overrides the static manifest when the session has EXTERNAL or
+        # HOSTILE tainted context (e.g. agent read a poisoned email).
+        try:
+            from warden.taint_tracker import check_tool_taint  # noqa: PLC0415
+            _taint = check_tool_taint(session_id, tool_name, target_host)
+            if _taint.revoked:
+                log.warning(
+                    "SandboxRegistry: DENY (taint) agent_id=%r tool=%r — %s",
+                    agent_id, tool_name, _taint.reason[:120],
+                )
+                return SandboxDecision(
+                    allowed           = False,
+                    reason            = _taint.reason,
+                    requires_approval = _taint.hitl_required,
+                )
+        except Exception as _te:
+            log.debug("SandboxRegistry: taint check error (non-fatal): %s", _te)
 
         # ── ALLOW ─────────────────────────────────────────────────────────
         if cap.required_approval:

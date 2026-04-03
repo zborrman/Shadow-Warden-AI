@@ -25,21 +25,21 @@ Retry strategy
 """
 from __future__ import annotations
 
-import asyncio
 import logging
-import os
 import re
 from typing import Any
 
 import httpx
 
+from warden.config import settings
+
 log = logging.getLogger("warden.brain.nemotron")
 
-# ── Defaults (overridable via env) ────────────────────────────────────────────
-NIM_BASE_URL             = os.getenv("NIM_BASE_URL",            "https://integrate.api.nvidia.com/v1")
-NEMOTRON_MODEL           = os.getenv("NEMOTRON_MODEL",          "meta/llama-3.3-nemotron-super-49b-instruct")
-NEMOTRON_THINKING_BUDGET = int(os.getenv("NEMOTRON_THINKING_BUDGET", "4096"))
-_NIM_TIMEOUT             = float(os.getenv("NIM_TIMEOUT_SECONDS", "120"))
+# ── Defaults (from centralised config) ───────────────────────────────────────
+NIM_BASE_URL             = settings.nim_base_url
+NEMOTRON_MODEL           = settings.nemotron_model
+NEMOTRON_THINKING_BUDGET = settings.nemotron_thinking_budget
+_NIM_TIMEOUT             = settings.nim_timeout_seconds
 
 # Strips <think>…</think> blocks (including nested whitespace)
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
@@ -91,7 +91,7 @@ class NimClient:
         model:    str | None = None,
         timeout:  float      = _NIM_TIMEOUT,
     ) -> None:
-        self._api_key  = api_key  or os.getenv("NVIDIA_API_KEY", "")
+        self._api_key  = api_key  or settings.nvidia_api_key
         self._base_url = (base_url or NIM_BASE_URL).rstrip("/")
         self._model    = model    or NEMOTRON_MODEL
         self._timeout  = timeout
@@ -152,49 +152,44 @@ class NimClient:
             "Accept":        "application/json",
         }
 
-        last_exc: Exception | None = None
-        for attempt in range(3):
-            try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
-                    resp = await client.post(
-                        f"{self._base_url}/chat/completions",
-                        headers=headers,
-                        json=body,
-                    )
-                resp.raise_for_status()
-                data = resp.json()
-                raw: str = (data["choices"][0]["message"]["content"] or "").strip()
-                return self._split_thinking(raw)
+        return await self._chat_with_retry(headers, body)
 
-            except httpx.HTTPStatusError as exc:
-                status = exc.response.status_code
-                if status < 500:
-                    # 4xx — bad request / auth — don't retry, surface immediately
+    async def _chat_with_retry(
+        self,
+        headers: dict[str, str],
+        body: dict[str, Any],
+    ) -> tuple[str, str]:
+        """Inner call wrapped by NIM_RETRY — isolated so the decorator applies cleanly."""
+        from warden.retry import NIM_RETRY, async_retry  # noqa: PLC0415
+
+        @async_retry(NIM_RETRY)
+        async def _call() -> tuple[str, str]:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(
+                    f"{self._base_url}/chat/completions",
+                    headers=headers,
+                    json=body,
+                )
+            if resp.status_code < 500:
+                # 4xx — bad request / auth — log and surface; NIM_RETRY won't retry
+                if resp.status_code >= 400:
                     log.error(
                         "NimClient: HTTP %d from NIM — %s",
-                        status, exc.response.text[:400],
+                        resp.status_code, resp.text[:400],
                     )
-                    raise
-                last_exc = exc
-                wait = 2 ** attempt
-                log.warning(
-                    "NimClient: HTTP %d (attempt %d/3) — retrying in %ds",
-                    status, attempt + 1, wait,
-                )
-                await asyncio.sleep(wait)
+                resp.raise_for_status()
+            else:
+                resp.raise_for_status()  # 5xx — NIM_RETRY will retry
+            data = resp.json()
+            raw: str = (data["choices"][0]["message"]["content"] or "").strip()
+            return self._split_thinking(raw)
 
-            except (httpx.TimeoutException, httpx.ConnectError) as exc:
-                last_exc = exc
-                wait = 2 ** attempt
-                log.warning(
-                    "NimClient: %s (attempt %d/3) — retrying in %ds",
-                    type(exc).__name__, attempt + 1, wait,
-                )
-                await asyncio.sleep(wait)
-
-        raise RuntimeError(
-            f"NIM API unreachable after 3 attempts: {last_exc}"
-        ) from last_exc
+        try:
+            return await _call()
+        except Exception as exc:
+            raise RuntimeError(
+                f"NIM API unreachable after {NIM_RETRY.max_attempts} attempts: {exc}"
+            ) from exc
 
     @staticmethod
     def _split_thinking(raw: str) -> tuple[str, str]:

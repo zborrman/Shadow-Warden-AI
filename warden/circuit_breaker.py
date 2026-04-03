@@ -44,25 +44,26 @@ All public functions return safe defaults on Redis errors (fail-open):
 from __future__ import annotations
 
 import logging
-import os
 import time
+
+from warden.config import settings
 
 log = logging.getLogger("warden.circuit_breaker")
 
-# ── Tunables (env-configurable) ───────────────────────────────────────────────
+# ── Tunables (from centralised config) ────────────────────────────────────────
 
 # Sliding window duration in seconds.
-WINDOW_SECS: int   = int(os.getenv("CB_WINDOW_SECS",    "60"))
+WINDOW_SECS: int   = settings.cb_window_secs
 
 # Fraction of /filter requests in the window that must be bypasses to trip.
-THRESHOLD:   float = float(os.getenv("CB_BYPASS_THRESHOLD", "0.10"))
+THRESHOLD:   float = settings.cb_bypass_threshold
 
 # Minimum requests in the window before the circuit can trip.
 # Prevents cold-start false trips (e.g. 1 bypass out of 2 requests = 50%).
-MIN_REQUESTS: int  = int(os.getenv("CB_MIN_REQUESTS",   "10"))
+MIN_REQUESTS: int  = settings.cb_min_requests
 
 # How long (seconds) the circuit stays OPEN before auto-resetting.
-COOLDOWN_SECS: int = int(os.getenv("CB_COOLDOWN_SECS",  "30"))
+COOLDOWN_SECS: int = settings.cb_cooldown_secs
 
 # ── Redis keys ────────────────────────────────────────────────────────────────
 
