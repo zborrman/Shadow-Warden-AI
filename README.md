@@ -77,6 +77,7 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 | **ReDoS-Safe Pattern Validation** | AI-generated regexes pass a 3-stage gate before entering production: (1) syntax check via `re.compile()`, (2) false-positive check against 8 diverse legit-document phrases, (3) ReDoS stress test — the pattern runs against a ~105 KB corpus in a `ThreadPoolExecutor` future with a 0.5 s wall-clock timeout. Patterns that don't complete are rejected with a warning. Optional `re2` (Google) fast-path eliminates super-linear patterns at compile time. |
 | **TaintTracker** | Session-level taint propagation for agentic pipelines. Tracks four taint levels (`CLEAN → TAINTED → COMPROMISED → CRITICAL`) as the agent ingests untrusted content. Privilege revocation fires automatically when taint crosses the `COMPROMISED` threshold — high-blast-radius tools (`delete_file`, `deploy_code`, `send_email`) are blocked for the remainder of the session. |
 | **1688 Tests** | Test suite expanded from 1684 to 1688. `TestValidatePatternReDoS` adds 4 tests covering: timeout rejection via mocked future (avoiding the CPython GIL issue that prevents `concurrent.futures.TimeoutError` from firing during C-level regex matching), false-positive gate ordering, safe pattern acceptance, and wall-clock hang regression guard. |
+| **Warden Nexus — Global Threat Intelligence Network** | Federated worm fingerprint sharing across the entire Shadow Warden fleet. When `worm_guard.quarantine_worm()` confirms a worm, it spawns a fire-and-forget daemon thread that submits a **STIX 2.1 Indicator bundle** to the central Nexus feed — containing only the SHA-256 fingerprint, attack class label, and Betti topology numbers (β₀/β₁) as `x_warden_*` extension properties for polymorphic clustering. No payload text or PII ever leaves the node. The sync loop downloads globally-confirmed hashes and injects them into the local **L3 Redis quarantine** for O(1) blocking. **Bayesian consensus gate** (server-side): `Trust_Score = 1 − ∏ᵢ(1 − P(Tᵢ\|H))` — a lone attacker submitting their own SHA-256 cannot reach `Trust_Score ≥ 0.80` without corroboration from 3+ independent high-reputation nodes, preventing network poisoning DoS. **Enterprise air-gap mode**: `THREAT_FEED_RECEIVE_ONLY=true` — consume the global feed without contributing (sold as $10k/yr Intelligence Feed add-on). |
 
 ## What's New in v2.4
 
@@ -1034,7 +1035,7 @@ shadow-warden-ai/
 
 - [ ] Kubernetes Helm chart (EKS / GKE / AKS)
 - [ ] Browser extension — real-time protection for ChatGPT, Claude.ai, Copilot
-- [ ] Threat intelligence sharing (STIX/TAXII feed export)
+- [x] Threat intelligence sharing (STIX 2.1 / Warden Nexus federated feed) ✓ v2.5
 - [ ] SOC 2 Type II certification audit
 - [ ] SaaS hosted option (no Docker, single API key)
 
