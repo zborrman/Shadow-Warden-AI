@@ -262,6 +262,13 @@ jobs:
           cd "$SSH_PATH"
 
           echo "── [1/4] Pull latest code ──────────────────────────────────"
+          # Docker containers run as wardenuser (UID 10001) and may have
+          # written to git-tracked files in data/ (e.g. init.sql, threat_feed.json),
+          # causing "unable to unlink" errors in git reset.  Reclaim ownership
+          # before the reset so git can overwrite them.  The find is targeted to
+          # only .sql/.json files to avoid touching live runtime data volumes.
+          find data -maxdepth 4 \( -name "*.sql" -o -name "*.json" \) \
+            -exec chown "$(id -u):$(id -g)" {} + 2>/dev/null || true
           git fetch origin main
           git reset --hard origin/main
 
