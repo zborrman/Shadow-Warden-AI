@@ -675,7 +675,7 @@
         <div class="flex items-center gap-3 mb-7 float-anim hero-enter" id="hero-badge">
           <span class="badge badge-cyan">
             <span class="w-1.5 h-1.5 rounded-full bg-[#22d3ee] animate-pulse"></span>
-            v2.4 · NeMo Bridge + Geometric Threat Engine
+            v2.5 · WormGuard + Adaptive RAG Firewall
           </span>
           <span class="badge badge-green">GDPR · SOC 2</span>
         </div>
@@ -687,7 +687,7 @@
         </h1>
 
         <p class="text-lg sm:text-xl mb-8 leading-relaxed hero-enter" id="hero-sub" style="color:var(--t2);max-width:500px;">
-          Shadow Warden runs <span style="color:var(--t1);">9 defense layers</span> — TDA topology, hyperbolic ML, Bayesian causal inference — before your model ever sees the payload. Now with <span style="color:var(--t1);">NVIDIA NeMo Guardrails integration</span>: geometric threat coordinates drive Colang flow selection in real time.
+          Shadow Warden runs <span style="color:var(--t1);">9 defense layers</span> — TDA topology, hyperbolic ML, Bayesian causal inference — before your model ever sees the payload. v2.5 adds <span style="color:var(--t1);">WormGuard</span>: three independent layers blocking Morris-II self-replicating AI worms, plus an adaptive RAG firewall that evolves its own regex signatures in real time.
           <span style="color:var(--t1);">F1 0.947 · P99 &lt;19ms · Self-improving via Claude Opus.</span>
         </p>
 
@@ -1439,14 +1439,61 @@ function switchEdition(ed) {
     <!-- Bento grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 reveal">
 
-      <!-- NeMo Bridge — new v2.4 large card -->
+      <!-- WormGuard — new v2.5 large card -->
+      <div class="bento lg:col-span-2" style="border-color:rgba(244,63,94,0.35);background:linear-gradient(135deg,rgba(20,5,10,0.98) 0%,rgba(15,5,20,0.98) 100%);">
+        <div class="bento-inner">
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <div class="badge mb-3" style="background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.35);color:#f87171;">v2.5 · NEW</div>
+              <h3 class="text-xl font-bold mb-2" style="color:var(--t1);">WormGuard — Zero-Click AI Worm Defense</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--t2);max-width:400px;">Three independent layers stopping Morris-II-class self-replicating prompt-injection attacks — worms that force LLMs to copy and forward themselves. Bigram Jaccard anti-replication + RAG ingestion firewall with 6 Unicode obfuscation detectors + Redis fingerprint quarantine broadcast across all nodes.</p>
+            </div>
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ml-4" style="background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.3);">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 mt-4">
+            <div class="p-3 rounded-xl" style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.12);">
+              <div class="text-xs font-bold mb-1" style="color:#f87171;">L1 · Anti-Replication</div>
+              <div class="text-xs" style="color:var(--t2);">Bigram Jaccard overlap ≥ 0.65 + propagation tool → BLOCK</div>
+            </div>
+            <div class="p-3 rounded-xl" style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.12);">
+              <div class="text-xs font-bold mb-1" style="color:#f87171;">L2 · RAG Firewall</div>
+              <div class="text-xs" style="color:var(--t2);">8 attack classes · hidden text · quine directives · Unicode obfuscation</div>
+            </div>
+            <div class="p-3 rounded-xl" style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.12);">
+              <div class="text-xs font-bold mb-1" style="color:#f87171;">L3 · Redis Quarantine</div>
+              <div class="text-xs" style="color:var(--t2);">SHA-256 fingerprint broadcast · O(1) hit check · 24 h TTL</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Adaptive RAG Evolution Engine — v2.5 card -->
+      <div class="bento" style="border-color:rgba(251,146,60,0.3);background:linear-gradient(135deg,rgba(20,10,5,0.98) 0%,rgba(15,8,3,0.98) 100%);">
+        <div class="bento-inner">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style="background:rgba(251,146,60,0.12);border:1px solid rgba(251,146,60,0.3);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          </div>
+          <div class="badge mb-3" style="background:rgba(251,146,60,0.1);border:1px solid rgba(251,146,60,0.3);color:#fb923c;">Adaptive · Self-Improving</div>
+          <h3 class="text-lg font-bold mb-2" style="color:var(--t1);">RAG Evolution Engine</h3>
+          <p class="text-sm leading-relaxed mb-4" style="color:var(--t2);">Blocked RAG injections feed Nemotron 49B or Claude Opus, which generates new regex patterns — ReDoS-validated (105 KB stress corpus, 0.5 s timeout) — and hot-patches worm_guard with no restart.</p>
+          <div class="p-3 rounded-xl mono text-xs" style="background:rgba(251,146,60,0.04);border:1px solid rgba(251,146,60,0.1);">
+            <div style="color:#fb923c;">+ pattern accepted <span style="color:#34d399;">✓</span></div>
+            <div style="color:var(--t2);">  "soft_hyphen_keyword_split"</div>
+            <div style="color:var(--t2);">  ReDoS test: 0.003 s / 105 KB</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NeMo Bridge — v2.4 card -->
       <div class="bento lg:col-span-2" style="border-color:rgba(118,185,0,0.3);background:linear-gradient(135deg,rgba(5,19,31,0.97) 0%,rgba(6,22,10,0.97) 100%);">
         <div class="bento-inner">
           <div class="flex items-start justify-between mb-5">
             <div>
-              <div class="badge mb-3" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.3);color:#76b900;">v2.4 · NEW</div>
+              <div class="badge mb-3" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.3);color:#76b900;">v2.4</div>
               <h3 class="text-xl font-bold mb-2" style="color:var(--t1);">NVIDIA NeMo — Geometric Threat Bridge</h3>
-              <p class="text-sm leading-relaxed" style="color:var(--t2);max-width:380px;">First integration to translate Shadow Warden's mathematical threat coordinates — hyperbolic distance, Betti numbers, causal P(HIGH_RISK) — into NeMo Colang context variables for geometry-driven flow selection at runtime. Claude Opus auto-generates new Colang flows on novel attacks.</p>
+              <p class="text-sm leading-relaxed" style="color:var(--t2);max-width:380px;">Translates Shadow Warden's mathematical threat coordinates — hyperbolic distance, Betti numbers, causal P(HIGH_RISK) — into NeMo Colang context variables for geometry-driven flow selection at runtime. Claude Opus auto-generates new Colang flows on novel attacks.</p>
             </div>
             <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ml-4" style="background:rgba(118,185,0,0.1);border:1px solid rgba(118,185,0,0.3);">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#76b900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>

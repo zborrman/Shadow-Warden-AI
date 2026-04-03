@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 2.4 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.5 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
@@ -67,6 +67,16 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 | **Data sovereignty** | Shared cloud (GDPR-compliant) | Full — no data leaves customer perimeter |
 
 ---
+
+## What's New in v2.5
+
+| Feature | Description |
+|---------|-------------|
+| **WormGuard — Zero-Click AI Worm Defense** | Three independent detection layers against Morris-II-class self-replicating prompt-injection attacks. **Layer 1** (Anti-Replication Guard): computes bigram Jaccard overlap between untrusted input and LLM output — fires when similarity ≥ 0.65 and a propagation tool (`send_email`, `http_post`, `slack_post` …) is being invoked, catching worms that force the model to copy themselves verbatim. **Layer 2** (RAG Ingestion Firewall): scans documents _before_ vectorisation — detects hidden-instruction text, self-copy quine directives, prompt-delimiter spoofing, and 6 Unicode obfuscation classes (Tag block U+E0000–U+E007F, BiDi override, fullwidth ASCII homoglyphs, HTML comment injection, Markdown invisible sections, soft-hyphen keyword splitting). **Layer 3** (Redis Quarantine): confirmed worm fingerprints (SHA-256) are broadcast via Redis stream to every Warden node; O(1) quarantine hit check short-circuits the full pipeline on repeat payloads. |
+| **RAG Evolution Engine (Adaptive L2 Firewall)** | Closed feedback loop that keeps the RAG Ingestion Firewall current against novel obfuscation: blocked documents are anonymised (GDPR) and logged to a JSONL dataset → Nemotron Super 49B or Claude Opus analyses batches and generates new Python regex patterns → patterns are hot-patched into `worm_guard` at runtime with no restart. Rate-gated (4 LLM calls/hour via Redis counter). Works air-gapped without API keys. |
+| **ReDoS-Safe Pattern Validation** | AI-generated regexes pass a 3-stage gate before entering production: (1) syntax check via `re.compile()`, (2) false-positive check against 8 diverse legit-document phrases, (3) ReDoS stress test — the pattern runs against a ~105 KB corpus in a `ThreadPoolExecutor` future with a 0.5 s wall-clock timeout. Patterns that don't complete are rejected with a warning. Optional `re2` (Google) fast-path eliminates super-linear patterns at compile time. |
+| **TaintTracker** | Session-level taint propagation for agentic pipelines. Tracks four taint levels (`CLEAN → TAINTED → COMPROMISED → CRITICAL`) as the agent ingests untrusted content. Privilege revocation fires automatically when taint crosses the `COMPROMISED` threshold — high-blast-radius tools (`delete_file`, `deploy_code`, `send_email`) are blocked for the remainder of the session. |
+| **1688 Tests** | Test suite expanded from 1684 to 1688. `TestValidatePatternReDoS` adds 4 tests covering: timeout rejection via mocked future (avoiding the CPython GIL issue that prevents `concurrent.futures.TimeoutError` from firing during C-level regex matching), false-positive gate ordering, safe pattern acceptance, and wall-clock hang regression guard. |
 
 ## What's New in v2.4
 
