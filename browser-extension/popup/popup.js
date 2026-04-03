@@ -13,6 +13,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
   await _loadConfig();
   await _loadStats();
+  await _loadAuthState();
 });
 
 // ── Config (managed > sync > defaults) ───────────────────────────────────────
@@ -39,6 +40,82 @@ async function _loadConfig() {
   if (cfg.managed) {
     _applyManagedLock();
   }
+}
+
+// ── Warden Identity — OIDC auth state ────────────────────────────────────────
+
+async function _loadAuthState() {
+  const state = await new Promise(resolve =>
+    chrome.runtime.sendMessage({ type: "GET_AUTH_STATE" }, resolve)
+  );
+
+  if (state?.signedIn) {
+    _showOidcSignedIn(state.email);
+  } else {
+    _showOidcSignedOut();
+  }
+}
+
+function _showOidcSignedIn(email) {
+  document.getElementById("oidc-signout-view").style.display = "none";
+  document.getElementById("oidc-signin-view").style.display  = "block";
+  document.getElementById("oidc-email-display").textContent  = email || "Signed in";
+
+  // When signed in via OIDC, collapse the manual API key section (still accessible)
+  const configSection = document.getElementById("config-section");
+  if (configSection) configSection.style.opacity = "0.5";
+
+  // Update status bar — OIDC auth counts as "configured"
+  const dot  = document.getElementById("status-dot");
+  const text = document.getElementById("status-text");
+  if (dot)  dot.className   = "dot active";
+  if (text) text.textContent = "Protected · Warden Identity";
+
+  const tenantDisplay = document.getElementById("tenant-display");
+  if (tenantDisplay) tenantDisplay.textContent = email || "OIDC";
+}
+
+function _showOidcSignedOut() {
+  document.getElementById("oidc-signout-view").style.display = "block";
+  document.getElementById("oidc-signin-view").style.display  = "none";
+
+  const configSection = document.getElementById("config-section");
+  if (configSection) configSection.style.opacity = "1";
+}
+
+async function _handleGoogleSignIn() {
+  const btn = document.getElementById("signin-google-btn");
+  btn.disabled    = true;
+  btn.textContent = "Signing in…";
+
+  const result = await new Promise(resolve =>
+    chrome.runtime.sendMessage({ type: "WARDEN_SIGNIN" }, resolve)
+  );
+
+  btn.disabled    = false;
+  btn.innerHTML   = `<svg width="15" height="15" viewBox="0 0 48 48" style="vertical-align:middle;margin-right:7px;flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Sign in with Google Workspace`;
+
+  if (result?.ok) {
+    _showOidcSignedIn(result.email);
+    _showToast(`✅ Signed in as ${result.email}`, "success");
+  } else {
+    _showToast(result?.error || "Sign-in failed — try again.", "error");
+  }
+}
+
+async function _handleSignOut() {
+  const btn = document.getElementById("signout-btn");
+  btn.disabled    = true;
+  btn.textContent = "Signing out…";
+
+  await new Promise(resolve =>
+    chrome.runtime.sendMessage({ type: "WARDEN_SIGNOUT" }, resolve)
+  );
+
+  btn.disabled    = false;
+  btn.textContent = "Sign out";
+  _showOidcSignedOut();
+  _showToast("Signed out of Warden Identity.", "success");
 }
 
 /**
@@ -97,8 +174,12 @@ async function _saveConfig() {
   const tenantId   = document.getElementById("tenant-id").value.trim() || "default";
   const ollamaUrl  = document.getElementById("ollama-url").value.trim() || "http://localhost:3000";
 
-  if (!gatewayUrl || !apiKey) {
-    _showToast("Gateway URL and API Key are required.", "error");
+  // Allow save without API key when signed in via OIDC
+  const authState = await new Promise(resolve =>
+    chrome.runtime.sendMessage({ type: "GET_AUTH_STATE" }, resolve)
+  );
+  if (!gatewayUrl || (!apiKey && !authState?.signedIn)) {
+    _showToast("Gateway URL required. Sign in with Google or enter an API key.", "error");
     return;
   }
 
@@ -210,6 +291,8 @@ function _showToast(message, type) {
 
 // ── Event listeners ───────────────────────────────────────────────────────────
 
-document.getElementById("save-btn").addEventListener("click",   _saveConfig);
-document.getElementById("test-btn").addEventListener("click",   _testConnection);
-document.getElementById("toggle-btn").addEventListener("click", _toggleEnabled);
+document.getElementById("save-btn").addEventListener("click",        _saveConfig);
+document.getElementById("test-btn").addEventListener("click",        _testConnection);
+document.getElementById("toggle-btn").addEventListener("click",      _toggleEnabled);
+document.getElementById("signin-google-btn").addEventListener("click", _handleGoogleSignIn);
+document.getElementById("signout-btn").addEventListener("click",      _handleSignOut);

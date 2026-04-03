@@ -77,7 +77,7 @@ from warden.analytics import logger as event_logger
 from warden.analytics.report import get_engine as _get_report_engine
 from warden.auth.saml_provider import SAMLProvider, SamlSession
 from warden.auth.saml_provider import get_provider as _get_saml_provider
-from warden.auth_guard import AuthResult, get_rate_limit, require_api_key, set_default_rate_limit
+from warden.auth_guard import AuthResult, get_rate_limit, require_api_key, require_ext_auth, set_default_rate_limit
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine, build_evolution_engine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
@@ -851,7 +851,7 @@ class _ExtensionCORSMiddleware(BaseHTTPMiddleware):
     _HEADERS: dict[str, str] = {
         "Access-Control-Allow-Origin":  "*",
         "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Request-ID",
+        "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Request-ID, Authorization",
         "Access-Control-Max-Age":       "600",
     }
 
@@ -2220,7 +2220,7 @@ async def demo_filter(
     "/ext/filter",
     response_model=FilterResponse,
     tags=["extension"],
-    summary="Browser-extension filter endpoint (wildcard CORS, API-key authenticated)",
+    summary="Browser-extension filter endpoint (wildcard CORS; OIDC Bearer or API-key auth)",
     status_code=status.HTTP_200_OK,
 )
 @_limiter.limit(_tenant_limit)
@@ -2228,7 +2228,7 @@ async def ext_filter_content(
     payload:          FilterRequest,
     request:          Request,
     background_tasks: BackgroundTasks,
-    auth:             AuthResult = Depends(require_api_key),
+    auth:             AuthResult = Depends(require_ext_auth),
 ) -> FilterResponse:
     rid = getattr(request.state, "request_id", "-")
     _enforce_tenant_rate_limit(auth, rid)

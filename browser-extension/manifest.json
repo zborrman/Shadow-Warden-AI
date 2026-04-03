@@ -8,8 +8,18 @@
   "permissions": [
     "storage",
     "scripting",
-    "notifications"
+    "notifications",
+    "identity"
   ],
+
+  "oauth2": {
+    "client_id": "REPLACE_WITH_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
+  },
 
   "storage": {
     "managed_schema": "managed_storage_schema.json"

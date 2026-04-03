@@ -47,7 +47,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastapi import HTTPException, Security, status
+from fastapi import Header, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 
 log = logging.getLogger("warden.auth")
@@ -210,3 +210,40 @@ def reload_keys() -> int:
     _key_store_loaded = False
     _load_key_store()
     return len(_key_store)
+
+
+# ── Warden Identity — hybrid auth for /ext/* routes ──────────────────────────
+#
+# Browser-extension requests can authenticate via either:
+#   • Authorization: Bearer <OIDC id_token>   (Google Workspace / Entra ID)
+#   • X-API-Key: <key>                         (enterprise agents / air-gap)
+#
+# The OIDC path performs RS256 signature verification against cached JWKS keys
+# (<1 ms per request after the first daily fetch).  The X-API-Key path falls
+# through to the existing require_api_key logic unchanged.
+
+def require_ext_auth(
+    x_api_key:     str | None = Security(_API_KEY_HEADER),
+    authorization: str | None = Header(None, alias="Authorization"),
+) -> AuthResult:
+    """
+    Hybrid FastAPI dependency for /ext/* routes.
+
+    Resolution order:
+      1. Authorization: Bearer <oidc_token>  → Warden Identity (OIDC)
+      2. X-API-Key: <key>                   → classic API-key auth
+      3. Dev mode (no key configured)       → pass-through as tenant 'default'
+    """
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):]
+        from warden.auth.oidc_guard import verify_oidc_token  # lazy import — avoids loading JWKS at startup
+        tenant_id, email = verify_oidc_token(token)
+        log.info("OIDC auth: email=%s tenant=%s", email, tenant_id)
+        return AuthResult(
+            api_key   = "",
+            tenant_id = tenant_id,
+            rate_limit= _DEFAULT_KEY_RATE,
+            entity_key= hashlib.sha256(f"{tenant_id}:oidc:{email}".encode()).hexdigest()[:16],
+        )
+
+    return require_api_key(x_api_key)

@@ -119,56 +119,43 @@
     const promptText = matcher.extract(bodyObj)?.trim();
     if (!promptText || promptText.length < 5) return _origFetch(...args);
 
-    // ── Call Shadow Warden /filter ─────────────────────────────────────────
+    // ── Call Shadow Warden via the background Service Worker ──────────────
+    //
+    // MV3 security: the filter request (including any auth token) is made
+    // from the isolated Service Worker context — never from this MAIN world
+    // script where ChatGPT/Claude page JS could read the Authorization header.
     let wardenResult = null;
-    let wardenStatus = 200;
 
     try {
-      const wardenResp = await _origFetch(`${_cfg.gatewayUrl}/ext/filter`, {
-        method:  "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key":    _cfg.apiKey,
-        },
-        body: JSON.stringify({
-          content:   promptText,
-          tenant_id: _cfg.tenantId,
-          context: {
-            source:   "browser_extension",
-            site:     new URL(url).hostname,
-            provider: _siteToProvider(url),
+      wardenResult = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          {
+            type:    "WARDEN_FILTER",
+            payload: {
+              content:  promptText,
+              tenantId: _cfg.tenantId,
+              context: {
+                source:   "browser_extension",
+                site:     new URL(url).hostname,
+                provider: _siteToProvider(url),
+              },
+            },
           },
-        }),
+          (result) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve(result);
+            }
+          }
+        );
       });
-
-      wardenStatus = wardenResp.status;
-      const body = await wardenResp.json().catch(() => ({}));
-
-      if (wardenStatus === 403) {
-        // Data policy block — detail contains data_class + reason + suggestion
-        const detail = body?.detail || body;
-        wardenResult = {
-          allowed:    false,
-          data_class: detail?.data_class || "red",
-          reason:     detail?.reason     || "Content blocked by policy.",
-          suggestion: detail?.suggestion || "",
-          risk_level: "block",
-          flags:      [],
-        };
-      } else if (wardenStatus === 401 || wardenStatus === 402) {
-        // Auth or quota — fail-open (don't break the user's work)
-        console.warn("[Shadow Warden] Gateway returned", wardenStatus);
-        return _origFetch(...args);
-      } else if (!wardenResp.ok) {
-        console.warn("[Shadow Warden] Server error", wardenStatus);
-        return _origFetch(...args);
-      } else {
-        wardenResult = body;
-      }
     } catch (err) {
-      console.warn("[Shadow Warden] Gateway unreachable:", err.message);
+      console.warn("[Shadow Warden] Service Worker unreachable:", err.message);
       return _origFetch(...args);   // fail-open
     }
+
+    if (!wardenResult) return _origFetch(...args);
 
     // ── Decision routing ───────────────────────────────────────────────────
 

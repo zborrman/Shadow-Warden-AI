@@ -64,6 +64,154 @@ chrome.runtime.onInstalled.addListener(async () => {
   console.log("[Shadow Warden] Extension installed.");
 });
 
+// ── Warden Identity — OIDC token management ───────────────────────────────────
+//
+// The Service Worker is the only place where the OIDC token is held.
+// content.js (world: MAIN) never touches the token — it sends WARDEN_FILTER
+// messages and gets back a filter result.  This prevents ChatGPT/Claude JS
+// from ever seeing the Authorization header or the token value.
+//
+// Token storage: chrome.storage.local  ("oidcToken", "oidcEmail", "oidcExpiry")
+// Token refresh: handled transparently by chrome.identity before each request.
+
+/**
+ * Get a valid OIDC id_token from the Chrome identity service.
+ * Uses launchWebAuthFlow with response_type=id_token for a proper JWT.
+ * Returns null if the user is not signed in or declined consent.
+ */
+async function _getOidcToken(interactive = false) {
+  // Try cached token first (check expiry with 60 s buffer)
+  const stored = await chrome.storage.local.get(["oidcToken", "oidcExpiry"]);
+  if (stored.oidcToken && stored.oidcExpiry && Date.now() < (stored.oidcExpiry - 60_000)) {
+    return stored.oidcToken;
+  }
+
+  // Get fresh token via chrome.identity
+  try {
+    const cfg = await _resolveConfig();
+
+    // Build OIDC auth URL for Google
+    const nonce = crypto.randomUUID();
+    const redirectUrl = chrome.identity.getRedirectURL();
+    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authUrl.searchParams.set("client_id", cfg.oidcClientId || "");
+    authUrl.searchParams.set("redirect_uri", redirectUrl);
+    authUrl.searchParams.set("response_type", "id_token");
+    authUrl.searchParams.set("scope", "openid email profile");
+    authUrl.searchParams.set("nonce", nonce);
+    authUrl.searchParams.set("prompt", interactive ? "select_account" : "none");
+
+    const resultUrl = await chrome.identity.launchWebAuthFlow({
+      url: authUrl.toString(),
+      interactive,
+    });
+
+    if (!resultUrl) return null;
+
+    // Extract id_token from URL fragment
+    const fragment = new URL(resultUrl).hash.substring(1);
+    const params = new URLSearchParams(fragment);
+    const idToken = params.get("id_token");
+    if (!idToken) return null;
+
+    // Parse expiry from JWT payload (no signature needed — just for caching)
+    const payloadB64 = idToken.split(".")[1];
+    const payload    = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")));
+    const expiry     = (payload.exp || 0) * 1000;  // ms
+    const email      = payload.email || "";
+
+    await chrome.storage.local.set({ oidcToken: idToken, oidcExpiry: expiry, oidcEmail: email });
+    console.log("[Shadow Warden] OIDC signed in:", email);
+    return idToken;
+
+  } catch (err) {
+    // User not signed in or cancelled — not an error
+    if (!String(err).includes("canceled") && !String(err).includes("not signed in")) {
+      console.warn("[Shadow Warden] OIDC token fetch failed:", err.message);
+    }
+    return null;
+  }
+}
+
+/**
+ * Sign out: clear stored OIDC token + revoke with Google.
+ */
+async function _oidcSignOut() {
+  const stored = await chrome.storage.local.get("oidcToken");
+  if (stored.oidcToken) {
+    // Revoke token via Google endpoint (best-effort, non-fatal)
+    fetch(`https://oauth2.googleapis.com/revoke?token=${stored.oidcToken}`, { method: "POST" })
+      .catch(() => {});
+  }
+  await chrome.storage.local.remove(["oidcToken", "oidcExpiry", "oidcEmail"]);
+  console.log("[Shadow Warden] OIDC signed out.");
+}
+
+/**
+ * Call POST /ext/filter from the isolated Service Worker context.
+ * Authenticates with OIDC Bearer token if available; falls back to X-API-Key.
+ * The Authorization header is never exposed to the page's JS context.
+ */
+async function _wardenFilter({ content, tenantId, context }) {
+  const cfg = await _resolveConfig();
+
+  if (!cfg.enabled) {
+    return { allowed: true, risk_level: "low", flags: [], reason: "Warden disabled" };
+  }
+
+  const headers = { "Content-Type": "application/json" };
+
+  // Auth resolution: OIDC Bearer > X-API-Key > dev mode
+  const oidcToken = await _getOidcToken(false);
+  if (oidcToken) {
+    headers["Authorization"] = `Bearer ${oidcToken}`;
+  } else if (cfg.apiKey) {
+    headers["X-API-Key"] = cfg.apiKey;
+  }
+  // else: dev mode / no auth configured — gateway will pass-through
+
+  try {
+    const resp = await fetch(`${cfg.gatewayUrl}/ext/filter`, {
+      method:  "POST",
+      headers,
+      body: JSON.stringify({
+        content,
+        tenant_id: tenantId || cfg.tenantId,
+        context,
+      }),
+    });
+
+    if (resp.status === 401 || resp.status === 402) {
+      console.warn("[Shadow Warden] Gateway auth error:", resp.status);
+      return { allowed: true, risk_level: "low", flags: [], reason: "Auth error — fail open" };
+    }
+
+    if (resp.status === 403) {
+      const body = await resp.json().catch(() => ({}));
+      const detail = body?.detail || body;
+      return {
+        allowed:    false,
+        data_class: detail?.data_class || "red",
+        reason:     detail?.reason     || "Content blocked by policy.",
+        suggestion: detail?.suggestion || "",
+        risk_level: "block",
+        flags:      [],
+      };
+    }
+
+    if (!resp.ok) {
+      console.warn("[Shadow Warden] Gateway error:", resp.status);
+      return { allowed: true, risk_level: "low", flags: [], reason: "Gateway error — fail open" };
+    }
+
+    return await resp.json();
+
+  } catch (err) {
+    console.warn("[Shadow Warden] Gateway unreachable:", err.message);
+    return { allowed: true, risk_level: "low", flags: [], reason: "Unreachable — fail open" };
+  }
+}
+
 // ── Message handler (from content.js) ────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -71,16 +219,57 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     _handleBlockEvent(message.data);
     sendResponse({ ok: true });
   }
+
   if (message.type === "GET_CONFIG") {
     _resolveConfig().then(sendResponse);
     return true;   // keep channel open for async response
   }
+
   if (message.type === "GET_STATS") {
     chrome.storage.local.get(["blocksToday", "requestsToday"]).then(sendResponse);
     return true;
   }
+
   if (message.type === "IS_MANAGED") {
     _resolveConfig().then(cfg => sendResponse({ managed: !!cfg.managed }));
+    return true;
+  }
+
+  // ── Warden Identity: sign in (interactive — user must approve) ────────────
+  if (message.type === "WARDEN_SIGNIN") {
+    _getOidcToken(true).then(async (token) => {
+      if (token) {
+        const stored = await chrome.storage.local.get("oidcEmail");
+        sendResponse({ ok: true, email: stored.oidcEmail || "" });
+      } else {
+        sendResponse({ ok: false, error: "Sign-in cancelled or failed." });
+      }
+    });
+    return true;
+  }
+
+  // ── Warden Identity: sign out ─────────────────────────────────────────────
+  if (message.type === "WARDEN_SIGNOUT") {
+    _oidcSignOut().then(() => sendResponse({ ok: true }));
+    return true;
+  }
+
+  // ── Warden Identity: get current auth state ───────────────────────────────
+  if (message.type === "GET_AUTH_STATE") {
+    chrome.storage.local.get(["oidcEmail", "oidcToken", "oidcExpiry"]).then((s) => {
+      const signedIn = !!(s.oidcToken && s.oidcExpiry && Date.now() < s.oidcExpiry);
+      sendResponse({ signedIn, email: s.oidcEmail || "" });
+    });
+    return true;
+  }
+
+  // ── Relay filter call from content.js through the isolated Service Worker ──
+  //
+  // This is the MV3 security pattern: content.js (world:MAIN) never touches
+  // the auth token or makes authenticated HTTP calls. All gateway requests
+  // originate here in the Service Worker's isolated context.
+  if (message.type === "WARDEN_FILTER") {
+    _wardenFilter(message.payload).then(sendResponse);
     return true;
   }
 });
