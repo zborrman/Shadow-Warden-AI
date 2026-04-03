@@ -179,12 +179,14 @@ class TestSync:
         guard2.add_examples.assert_not_called()
 
     def test_sync_fail_open_on_network_error(self, tmp_path):
+        # sync() now makes two GET requests: one for rules (/feed.json) and one
+        # for worm hashes (/worm-hashes).  Both fail → 2 errors logged, result=0.
         client = self._client(tmp_path)
         with patch("httpx.get", side_effect=Exception("connection refused")):
             result = client.sync()
         assert result == 0
         s = client.status()
-        assert len(s.errors) == 1
+        assert len(s.errors) == 2  # rule sync + worm hash sync both fail
 
     def test_sync_updates_last_sync_timestamp(self, tmp_path):
         client = self._client(tmp_path)

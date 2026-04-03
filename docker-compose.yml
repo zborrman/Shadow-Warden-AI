@@ -165,6 +165,16 @@ services:
       - S3_BUCKET_LOGS=${S3_BUCKET_LOGS:-warden-logs}
       - S3_REGION=${S3_REGION:-us-east-1}
       # v0.8 — Prompt Shield (indirect injection detection)
+      # Warden Nexus — Global Threat Intelligence Feed (opt-in)
+      # Set THREAT_FEED_ENABLED=true and THREAT_FEED_URL after signing up.
+      # SMB nodes: contribute + receive (default).
+      # Enterprise air-gapped: set THREAT_FEED_RECEIVE_ONLY=true.
+      - THREAT_FEED_ENABLED=${THREAT_FEED_ENABLED:-false}
+      - THREAT_FEED_URL=${THREAT_FEED_URL:-}
+      - THREAT_FEED_API_KEY=${THREAT_FEED_API_KEY:-}
+      - THREAT_FEED_SYNC_HRS=${THREAT_FEED_SYNC_HRS:-6}
+      - THREAT_FEED_RECEIVE_ONLY=${THREAT_FEED_RECEIVE_ONLY:-false}
+      - THREAT_FEED_CONSENSUS_THRESHOLD=${THREAT_FEED_CONSENSUS_THRESHOLD:-0.80}
       - PROMPT_SHIELD_ENABLED=${PROMPT_SHIELD_ENABLED:-true}
       # v0.9 — Cryptographic Audit Trail (SOC 2 Type II)
       - AUDIT_TRAIL_ENABLED=${AUDIT_TRAIL_ENABLED:-true}

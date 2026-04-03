@@ -461,13 +461,31 @@ def inspect_for_ingestion(document_text: str) -> RAGInspectionResult:
 
 # ── Layer 3 — Worm Signature Quarantine (Redis broadcast) ────────────────────
 
-def quarantine_worm(fingerprint: str, detail: str = "") -> bool:
+def quarantine_worm(
+    fingerprint:  str,
+    detail:       str = "",
+    attack_class: str = "ai_worm_replication",
+    betti_0:      float | None = None,
+    betti_1:      float | None = None,
+) -> bool:
     """
-    Layer 3: broadcast a worm fingerprint to all Warden nodes via Redis.
+    Layer 3: broadcast a worm fingerprint to all Warden nodes via Redis,
+    and optionally report it to the Warden Nexus global threat feed.
 
     Stores the hash in:
       • QUARANTINE_SET  (Redis Set)  — fast O(1) lookup by `is_quarantined()`
       • QUARANTINE_STREAM            — ordered audit log for SIEM / alerting
+
+    Global reporting (Warden Nexus):
+      When THREAT_FEED_ENABLED=true, the fingerprint is submitted to the
+      central Nexus feed as a STIX 2.1 Indicator bundle.  The Nexus server
+      applies a Bayesian consensus gate (Trust_Score ≥ 0.80) — requiring
+      corroboration from multiple independent nodes — before promoting the hash
+      to the global quarantine feed.  This prevents a single attacker from
+      poisoning the global network by submitting their own hashes.
+
+      Optional Betti numbers (β₀, β₁) from TopologicalGatekeeper are included
+      in the STIX extension properties for polymorphic worm clustering.
 
     Returns True on success, False on Redis unavailability (non-fatal).
     Designed to be called from a BackgroundTask after a worm is confirmed.
@@ -483,18 +501,39 @@ def quarantine_worm(fingerprint: str, detail: str = "") -> bool:
         r.xadd(
             QUARANTINE_STREAM,
             {
-                "fingerprint": fingerprint,
-                "detail":      detail[:200],
-                "timestamp":   str(time.time()),
+                "fingerprint":  fingerprint,
+                "attack_class": attack_class,
+                "detail":       detail[:200],
+                "timestamp":    str(time.time()),
             },
             maxlen=10_000,
             approximate=True,
         )
         log.info("WormGuard L3: quarantined worm fingerprint=%s…", fingerprint[:16])
-        return True
     except Exception as exc:
         log.debug("WormGuard L3: quarantine_worm error (non-fatal): %s", exc)
         return False
+
+    # ── Nexus global reporting (non-blocking, fire-and-forget) ────────────────
+    # Runs in a daemon thread so it never delays the calling BackgroundTask.
+    # Fails silently — local quarantine is already in Redis regardless.
+    def _nexus_report() -> None:
+        try:
+            from warden.threat_feed import _ENABLED, ThreatFeedClient  # noqa: PLC0415
+            if not _ENABLED:
+                return
+            client = ThreatFeedClient()
+            client.submit_worm_hash(
+                fingerprint  = fingerprint,
+                attack_class = attack_class,
+                betti_0      = betti_0,
+                betti_1      = betti_1,
+            )
+        except Exception as _nex_exc:
+            log.debug("WormGuard L3: Nexus report failed (non-fatal): %s", _nex_exc)
+
+    _threading.Thread(target=_nexus_report, daemon=True, name="nexus-worm-report").start()
+    return True
 
 
 def is_quarantined(fingerprint: str) -> bool:

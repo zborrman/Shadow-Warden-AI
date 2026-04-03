@@ -1,11 +1,11 @@
 """
 warden/threat_feed.py
 ─────────────────────
-Shadow Warden AI — Threat Intelligence Feed Client.
+Shadow Warden AI — Threat Intelligence Feed Client (Warden Nexus).
 
 Opt-in, privacy-first feed that lets Shadow Warden instances share
-anonymised attack rules and benefit from the collective intelligence
-of the entire fleet.
+anonymised attack rules AND worm fingerprints with the collective fleet,
+protected by a Bayesian consensus engine that prevents network poisoning.
 
 How it works
 ────────────
@@ -13,34 +13,61 @@ How it works
     ``ThreatFeedClient.submit_rule()`` anonymises it and POSTs it to the
     central feed server (your SaaS or self-hosted instance).
 
-2.  A background loop calls ``ThreatFeedClient.sync()`` every N hours.
-    It downloads ``/v1/feed.json`` and loads any new examples into the
-    local ``BrainSemanticGuard`` corpus via ``add_examples()``.
+2.  When WormGuard L1 confirms a worm (``worm_guard.quarantine_worm()``),
+    ``submit_worm_hash()`` sends only the SHA-256 fingerprint + STIX 2.1
+    Indicator envelope + Betti topology features.  No payload text ever leaves.
 
-3.  Anonymisation: only the rule text (pattern / semantic example) is
-    submitted.  No content, no tenant identity, no IP addresses.  Each
-    submission is tagged with a random ``source_id`` that rotates daily.
+3.  A background loop calls ``ThreatFeedClient.sync()`` every N hours.
+    It downloads ``/v1/feed.json`` (rules) and ``/v1/worm-hashes`` (hashes).
+    New rules enter the local corpus; confirmed worm hashes enter L3 Redis
+    quarantine (``warden:worm:hashes``) for O(1) blocking on subsequent requests.
+
+Bayesian Consensus (anti-poisoning)
+────────────────────────────────────
+The central server only promotes a worm hash to "global" status after it
+reaches Trust_Score ≥ THREAT_FEED_CONSENSUS_THRESHOLD (default 0.80).
+
+    Trust_Score = 1 − ∏ᵢ (1 − P(Tᵢ | H))
+
+where n is the number of distinct reporting nodes and P(Tᵢ|H) is that
+node's historical precision (false-positive rate tracked server-side).
+A lone attacker submitting their own SHA-256 cannot reach the threshold
+without corroboration from independent high-reputation nodes.
+
+Topology fingerprint (STIX extension)
+──────────────────────────────────────
+WormGuard adds Betti numbers (β₀, β₁) from the TopologicalGatekeeper
+as custom STIX properties ``x_warden_betti_0`` / ``x_warden_betti_1``.
+These allow the central server to cluster structurally similar worms even
+when SHA-256 differs (payload mutation / polymorphism).
 
 Privacy guarantees
 ──────────────────
   • Opt-in only (``THREAT_FEED_ENABLED=true`` in .env)
-  • No original payload content is ever submitted
-  • Submitted rules are vetted by the feed server before publication
+  • No original payload content or PII is ever submitted
+  • Worm reports carry only SHA-256 + attack_class + Betti numbers
+  • Rules carry only the anonymised detection pattern
   • ``source_id`` is a daily-rotating random hex — unlinked to tenant_id
+  • Enterprise nodes can set ``THREAT_FEED_RECEIVE_ONLY=true`` to consume
+    the global feed without contributing (air-gapped intelligence)
 
 Pricing tiers (for the hosted SaaS feed at shadowwarden.ai)
 ────────────────────────────────────────────────────────────
   Free  — read-only, daily refresh, up to 500 rules
   Pro   — read-write, hourly refresh, unlimited rules   ($49/mo)
   MSP   — priority feed + SLA + SOC report             ($199/mo)
+  Enterprise Intelligence Feed — receive-only, global worm hashes ($10k/yr)
 
 Environment variables
 ─────────────────────
-  THREAT_FEED_ENABLED    true/false           (default: false)
-  THREAT_FEED_URL        https://…/v1         (default: disabled)
-  THREAT_FEED_API_KEY    hex key for write     (default: "")
-  THREAT_FEED_SYNC_HRS   hours between sync    (default: 6)
-  THREAT_FEED_MAX_RULES  cap on imported rules (default: 500)
+  THREAT_FEED_ENABLED             true/false            (default: false)
+  THREAT_FEED_URL                 https://…/v1          (default: disabled)
+  THREAT_FEED_API_KEY             hex key for write      (default: "")
+  THREAT_FEED_SYNC_HRS            hours between sync     (default: 6)
+  THREAT_FEED_MAX_RULES           cap on imported rules  (default: 500)
+  THREAT_FEED_RECEIVE_ONLY        true = consume only, never submit (default: false)
+  THREAT_FEED_CONSENSUS_THRESHOLD min Trust_Score to accept global hash (default: 0.80)
+  THREAT_FEED_MAX_WORM_HASHES     cap on imported worm hashes (default: 10000)
 """
 from __future__ import annotations
 
@@ -64,12 +91,16 @@ log = logging.getLogger("warden.threat_feed")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-_ENABLED        = os.getenv("THREAT_FEED_ENABLED", "false").lower() == "true"
-_FEED_URL       = os.getenv("THREAT_FEED_URL", "").rstrip("/")
-_FEED_API_KEY   = os.getenv("THREAT_FEED_API_KEY", "")
-_SYNC_HRS       = float(os.getenv("THREAT_FEED_SYNC_HRS", "6"))
-_MAX_RULES      = int(os.getenv("THREAT_FEED_MAX_RULES", "500"))
-_CACHE_PATH     = Path(os.getenv("THREAT_FEED_CACHE_PATH", "/warden/data/threat_feed_cache.json"))
+_ENABLED          = os.getenv("THREAT_FEED_ENABLED",    "false").lower() == "true"
+_FEED_URL         = os.getenv("THREAT_FEED_URL",         "").rstrip("/")
+_FEED_API_KEY     = os.getenv("THREAT_FEED_API_KEY",     "")
+_SYNC_HRS         = float(os.getenv("THREAT_FEED_SYNC_HRS",              "6"))
+_MAX_RULES        = int(os.getenv("THREAT_FEED_MAX_RULES",               "500"))
+_RECEIVE_ONLY     = os.getenv("THREAT_FEED_RECEIVE_ONLY",  "false").lower() == "true"
+_CONSENSUS_THRESH = float(os.getenv("THREAT_FEED_CONSENSUS_THRESHOLD",   "0.80"))
+_MAX_WORM_HASHES  = int(os.getenv("THREAT_FEED_MAX_WORM_HASHES",        "10000"))
+_CACHE_PATH       = Path(os.getenv("THREAT_FEED_CACHE_PATH",
+                                   "/warden/data/threat_feed_cache.json"))
 
 # Rotating daily source_id — unlinked to tenant identity
 def _daily_source_id() -> str:
@@ -135,26 +166,34 @@ class ThreatFeedClient:
 
     def __init__(
         self,
-        guard:       BrainSemanticGuard | None = None,
-        feed_url:    str = _FEED_URL,
-        api_key:     str = _FEED_API_KEY,
-        enabled:     bool = _ENABLED,
-        max_rules:   int = _MAX_RULES,
-        cache_path:  Path = _CACHE_PATH,
+        guard:              BrainSemanticGuard | None = None,
+        feed_url:           str   = _FEED_URL,
+        api_key:            str   = _FEED_API_KEY,
+        enabled:            bool  = _ENABLED,
+        max_rules:          int   = _MAX_RULES,
+        cache_path:         Path  = _CACHE_PATH,
+        receive_only:       bool  = _RECEIVE_ONLY,
+        consensus_threshold: float = _CONSENSUS_THRESH,
+        max_worm_hashes:    int   = _MAX_WORM_HASHES,
     ) -> None:
-        self._guard       = guard
-        self._feed_url    = feed_url.rstrip("/")
-        self._api_key     = api_key
-        self._enabled     = enabled and bool(feed_url)
-        self._max_rules   = max_rules
-        self._cache_path  = cache_path
-        self._lock        = threading.Lock()
+        self._guard               = guard
+        self._feed_url            = feed_url.rstrip("/")
+        self._api_key             = api_key
+        self._enabled             = enabled and bool(feed_url)
+        self._max_rules           = max_rules
+        self._cache_path          = cache_path
+        self._receive_only        = receive_only
+        self._consensus_threshold = consensus_threshold
+        self._max_worm_hashes     = max_worm_hashes
+        self._lock                = threading.Lock()
 
         # Persisted state
-        self._imported:   set[str] = set()   # rule_ids already in corpus
-        self._submitted:  int      = 0
-        self._last_sync:  str | None = None
-        self._errors:     list[str] = []
+        self._imported:       set[str] = set()   # rule_ids already in corpus
+        self._worm_imported:  set[str] = set()   # worm SHA-256s already in L3
+        self._submitted:      int      = 0
+        self._worms_submitted: int     = 0
+        self._last_sync:      str | None = None
+        self._errors:         list[str] = []
 
         self._load_cache()
 
@@ -163,23 +202,73 @@ class ThreatFeedClient:
     def is_enabled(self) -> bool:
         return self._enabled
 
+    def submit_worm_hash(
+        self,
+        fingerprint:  str,
+        attack_class: str = "ai_worm_replication",
+        betti_0:      float | None = None,
+        betti_1:      float | None = None,
+    ) -> bool:
+        """
+        Report a confirmed worm SHA-256 fingerprint to the Warden Nexus feed.
+
+        Sends a STIX 2.1 Indicator bundle containing:
+          • SHA-256 fingerprint (no payload text)
+          • attack_class label (e.g. "ai_worm_replication", "rag_quine_directive")
+          • Optional Betti numbers (β₀, β₁) from TopologicalGatekeeper
+
+        The central server applies Bayesian consensus:
+          Trust_Score = 1 − ∏ᵢ (1 − P(Tᵢ|H))
+        A hash is promoted to the global quarantine only when Trust_Score ≥
+        THREAT_FEED_CONSENSUS_THRESHOLD (default 0.80) — typically requires
+        3+ independent high-reputation nodes to report the same fingerprint.
+
+        Returns True on successful submission, False if disabled, receive-only,
+        or a network error occurs (always fail-open).
+        """
+        if not self._enabled or not self._api_key or self._receive_only:
+            return False
+        if not fingerprint or len(fingerprint) != 64:
+            return False
+        try:
+            return self._do_submit_worm(fingerprint, attack_class, betti_0, betti_1)
+        except Exception as exc:
+            log.warning("ThreatFeed: worm submit failed — %s", exc)
+            return False
+
     def sync(self) -> int:
         """
-        Download the feed and load new rules into the guard corpus.
-        Returns the number of new rules imported (0 on error or if disabled).
+        Download feed rules + globally-confirmed worm hashes.
+
+        Rule sync: loads new semantic/regex rules into the guard corpus.
+        Worm sync: injects global worm SHA-256s into the local L3 Redis
+                   quarantine (``warden:worm:hashes``) so they are blocked
+                   at O(1) before the full filter pipeline runs.
+
+        Returns the total number of new items imported (rules + worm hashes).
         """
         if not self._enabled:
             return 0
+        total = 0
         try:
-            return self._do_sync()
+            total += self._do_sync()
         except Exception as exc:
-            msg = f"sync failed: {exc}"
+            msg = f"rule sync failed: {exc}"
             log.warning("ThreatFeed: %s", msg)
             with self._lock:
                 self._errors.append(msg)
                 if len(self._errors) > 20:
                     self._errors = self._errors[-20:]
-            return 0
+        try:
+            total += self._do_sync_worm_hashes()
+        except Exception as exc:
+            msg = f"worm hash sync failed: {exc}"
+            log.warning("ThreatFeed: %s", msg)
+            with self._lock:
+                self._errors.append(msg)
+                if len(self._errors) > 20:
+                    self._errors = self._errors[-20:]
+        return total
 
     def submit_rule(
         self,
@@ -204,6 +293,16 @@ class ThreatFeedClient:
         except Exception as exc:
             log.warning("ThreatFeed: submit failed — %s", exc)
             return False
+
+    @property
+    def worms_imported(self) -> int:
+        with self._lock:
+            return len(self._worm_imported)
+
+    @property
+    def worms_submitted(self) -> int:
+        with self._lock:
+            return self._worms_submitted
 
     def status(self) -> FeedStatus:
         with self._lock:
@@ -298,26 +397,164 @@ class ThreatFeedClient:
         log.info("ThreatFeed: submitted rule (attack_type=%s).", attack_type)
         return True
 
+    def _do_submit_worm(
+        self,
+        fingerprint:  str,
+        attack_class: str,
+        betti_0:      float | None,
+        betti_1:      float | None,
+    ) -> bool:
+        """
+        Build a STIX 2.1 Indicator bundle and POST it to /worm-reports.
+
+        STIX envelope contains only the SHA-256 fingerprint and structural
+        metadata — no payload text, no customer data.  The ``x_warden_*``
+        extension properties carry Betti numbers for polymorphic clustering.
+
+        The central Nexus server applies the Bayesian consensus gate:
+            Trust_Score = 1 − ∏ᵢ (1 − P(Tᵢ|H))
+        before promoting the hash to the global quarantine feed.
+        """
+        import uuid as _uuid
+        now_iso = datetime.now(UTC).isoformat()
+        stix_bundle = {
+            "type":    "bundle",
+            "id":      f"bundle--{_uuid.uuid4()}",
+            "objects": [
+                {
+                    "type":         "indicator",
+                    "spec_version": "2.1",
+                    "id":           f"indicator--{_uuid.uuid4()}",
+                    "created":      now_iso,
+                    "modified":     now_iso,
+                    "name":         f"Warden AI Worm: {attack_class}",
+                    "description":  (
+                        "SHA-256 fingerprint of a confirmed AI self-replicating "
+                        "prompt-injection payload detected by WormGuard L1."
+                    ),
+                    "indicator_types": ["malicious-activity"],
+                    "pattern":         f"[file:hashes.'SHA-256' = '{fingerprint}']",
+                    "pattern_type":    "stix",
+                    "valid_from":      now_iso,
+                    "labels":          ["ai-worm", "prompt-injection", attack_class],
+                    # Custom Warden extension — structural topology features
+                    # allow the Nexus server to cluster polymorphic worm variants
+                    # even when SHA-256 differs (payload mutation).
+                    "x_warden_betti_0":    betti_0,
+                    "x_warden_betti_1":    betti_1,
+                    "x_warden_source_id":  _daily_source_id(),
+                    "x_warden_version":    "2.5",
+                },
+            ],
+        }
+        r = httpx.post(
+            f"{self._feed_url}/worm-reports",
+            json    = stix_bundle,
+            headers = {
+                "X-Feed-Key":   self._api_key,
+                "Content-Type": "application/taxii+json;version=2.1",
+            },
+            timeout = 10,
+        )
+        r.raise_for_status()
+        with self._lock:
+            self._worms_submitted += 1
+        log.info(
+            "ThreatFeed: worm fingerprint reported fp=%.16s… attack=%s",
+            fingerprint, attack_class,
+        )
+        return True
+
+    def _do_sync_worm_hashes(self) -> int:
+        """
+        Download globally-confirmed worm hashes from /worm-hashes and inject
+        them into the local WormGuard L3 Redis quarantine set.
+
+        The endpoint returns only hashes that have passed the Bayesian consensus
+        gate (Trust_Score ≥ threshold) on the central Nexus server — typically
+        confirmed by 3+ independent high-reputation nodes.
+
+        Each hash is added to ``warden:worm:hashes`` (the same Redis Set used
+        by ``worm_guard.is_quarantined()``) so that repeat payloads are blocked
+        in O(1) before the full filter pipeline runs.
+        """
+        from warden.worm_guard import QUARANTINE_SET, QUARANTINE_TTL  # noqa: PLC0415
+
+        headers: dict[str, str] = {"Accept": "application/json"}
+        if self._api_key:
+            headers["X-Feed-Key"] = self._api_key
+
+        r = httpx.get(
+            f"{self._feed_url}/worm-hashes",
+            headers = headers,
+            params  = {"min_trust": str(self._consensus_threshold)},
+            timeout = 15,
+            follow_redirects = True,
+        )
+        r.raise_for_status()
+        data: dict = r.json()
+
+        global_hashes: list[str] = data.get("hashes", [])
+        new_count = 0
+
+        with self._lock:
+            if len(self._worm_imported) >= self._max_worm_hashes:
+                log.info("ThreatFeed: worm hash import cap (%d) reached.", self._max_worm_hashes)
+                return 0
+            to_add = [
+                h for h in global_hashes
+                if isinstance(h, str) and len(h) == 64 and h not in self._worm_imported
+            ]
+
+        if not to_add:
+            return 0
+
+        # Push confirmed hashes into local L3 Redis quarantine
+        try:
+            from warden.cache import _get_client  # noqa: PLC0415
+            redis = _get_client()
+            if redis is not None:
+                redis.sadd(QUARANTINE_SET, *to_add)
+                redis.expire(QUARANTINE_SET, QUARANTINE_TTL)
+        except Exception as _re:
+            log.warning("ThreatFeed: Redis write for worm hashes failed — %s", _re)
+
+        with self._lock:
+            for h in to_add:
+                self._worm_imported.add(h)
+            new_count = len(to_add)
+
+        self._save_cache()
+        log.info(
+            "ThreatFeed: injected %d global worm hash(es) into L3 quarantine.",
+            new_count,
+        )
+        return new_count
+
     def _load_cache(self) -> None:
-        """Restore previously imported rule_ids from disk (survive restarts)."""
+        """Restore previously imported rule_ids and worm hashes from disk."""
         if not self._cache_path.exists():
             return
         try:
             data = json.loads(self._cache_path.read_text(encoding="utf-8"))
-            self._imported   = set(data.get("imported", []))
-            self._submitted  = int(data.get("submitted", 0))
-            self._last_sync  = data.get("last_sync")
+            self._imported        = set(data.get("imported", []))
+            self._worm_imported   = set(data.get("worm_imported", []))
+            self._submitted       = int(data.get("submitted", 0))
+            self._worms_submitted = int(data.get("worms_submitted", 0))
+            self._last_sync       = data.get("last_sync")
         except Exception as exc:
             log.warning("ThreatFeed: could not load cache — %s", exc)
 
     def _save_cache(self) -> None:
-        """Persist imported rule_ids so we don't re-import after restart."""
+        """Persist imported rule_ids and worm hashes so we don't re-import after restart."""
         self._cache_path.parent.mkdir(parents=True, exist_ok=True)
         data = {
-            "imported":   list(self._imported),
-            "submitted":  self._submitted,
-            "last_sync":  self._last_sync,
-            "saved_at":   datetime.now(UTC).isoformat(),
+            "imported":        list(self._imported),
+            "worm_imported":   list(self._worm_imported),
+            "submitted":       self._submitted,
+            "worms_submitted": self._worms_submitted,
+            "last_sync":       self._last_sync,
+            "saved_at":        datetime.now(UTC).isoformat(),
         }
         tmp = self._cache_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
