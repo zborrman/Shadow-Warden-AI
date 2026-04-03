@@ -267,8 +267,14 @@ jobs:
           # causing "unable to unlink" errors in git reset.  Reclaim ownership
           # before the reset so git can overwrite them.  The find is targeted to
           # only .sql/.json files to avoid touching live runtime data volumes.
+          # Reclaim ownership of files Docker wrote as wardenuser (UID 10001).
+          # \$(id -u) is intentionally escaped — must expand on the SERVER, not
+          # the GitHub Actions runner (where id -u is the runner UID, not root).
           find data -maxdepth 4 \( -name "*.sql" -o -name "*.json" \) \
-            -exec chown "$(id -u):$(id -g)" {} + 2>/dev/null || true
+            -exec chown "\$(id -u):\$(id -g)" {} + 2>/dev/null || true
+          # Also ensure files are writable by the owner (guards against 444 mode)
+          find data -maxdepth 4 \( -name "*.sql" -o -name "*.json" \) \
+            -exec chmod u+w {} + 2>/dev/null || true
           git fetch origin main
           git reset --hard origin/main
 
