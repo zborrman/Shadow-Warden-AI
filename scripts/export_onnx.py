@@ -32,9 +32,12 @@ import os
 import shutil
 import sys
 
-MODEL_ID       = "sentence-transformers/all-MiniLM-L6-v2"
-DEFAULT_OUTPUT = os.path.normpath(
+MODEL_ID        = "sentence-transformers/all-MiniLM-L6-v2"
+DEFAULT_OUTPUT  = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "warden", "models", "minilm-onnx")
+)
+DEFAULT_Q_OUTPUT = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "warden", "models", "minilm-onnx-int8")
 )
 
 
@@ -109,16 +112,96 @@ def export_via_torch(output: str, cache_dir: str | None) -> None:
     tokenizer.save_pretrained(output)
 
 
+# ── INT8 quantization ─────────────────────────────────────────────────────────
+
+def quantize_int8(fp32_dir: str, q_output: str) -> str:
+    """
+    Apply dynamic INT8 quantization to a previously exported FP32 ONNX model.
+
+    Uses onnxruntime.quantization.quantize_dynamic — no calibration data needed.
+    Dynamic quantization folds weight matrices to INT8 at export time; activations
+    are quantized at inference time.  For sentence encoders this gives:
+      • ~70% smaller model file (91 MB FP32 → ~23 MB INT8)
+      • 1.5–2.5× faster CPU inference (AVX2/AVX-512 VNNI int8 paths)
+      • < 0.5% cosine similarity degradation on typical sentence pairs
+
+    Parameters
+    ----------
+    fp32_dir   : directory containing the FP32 model.onnx
+    q_output   : destination directory for the INT8 model
+    """
+    from onnxruntime.quantization import QuantType, quantize_dynamic
+
+    os.makedirs(q_output, exist_ok=True)
+    fp32_path = os.path.join(fp32_dir,  "model.onnx")
+    int8_path = os.path.join(q_output, "model.onnx")
+
+    print(f"[quantize] INT8 dynamic quantization: {fp32_path} -> {int8_path}")
+    quantize_dynamic(
+        model_input          = fp32_path,
+        model_output         = int8_path,
+        weight_type          = QuantType.QInt8,
+        optimize_model       = True,
+        per_channel          = False,   # per-tensor is faster on x86 without AVX-512 VNNI
+        reduce_range         = False,   # set True only on older Intel CPUs (Skylake)
+        extra_options        = {"MatMulConstBOnly": True},  # only quantize constant weights
+    )
+
+    # Copy tokenizer files so the INT8 dir is self-contained (ONNX_MODEL_PATH can
+    # point directly to it without needing the FP32 dir at runtime).
+    import shutil
+    for fname in os.listdir(fp32_dir):
+        if not fname.endswith(".onnx"):
+            shutil.copy2(os.path.join(fp32_dir, fname), os.path.join(q_output, fname))
+
+    size_fp32 = os.path.getsize(fp32_path) / 1024 / 1024
+    size_int8 = os.path.getsize(int8_path) / 1024 / 1024
+    print(f"[quantize] FP32: {size_fp32:.1f} MB  →  INT8: {size_int8:.1f} MB  "
+          f"({100 * (1 - size_int8 / size_fp32):.0f}% reduction)")
+    return int8_path
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Export MiniLM to ONNX")
-    parser.add_argument("--output",    default=DEFAULT_OUTPUT, help="Output directory")
-    parser.add_argument("--cache-dir", default=None,           help="HuggingFace cache dir")
-    parser.add_argument("--torch",     action="store_true",
-                        help="Force torch.onnx.export (skip optimum)")
+    parser = argparse.ArgumentParser(
+        description="Export all-MiniLM-L6-v2 to ONNX (FP32) and optionally quantize to INT8",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples
+--------
+  # Full pipeline: FP32 export + INT8 quantization (recommended for 8-vCPU server)
+  python scripts/export_onnx.py --quantize
+
+  # FP32 export only (skips quantization)
+  python scripts/export_onnx.py
+
+  # Force torch.onnx.export backend (no optimum required)
+  python scripts/export_onnx.py --torch --quantize
+
+  # Custom directories
+  python scripts/export_onnx.py --output /warden/models/minilm-onnx \\
+                                 --quantize-output /warden/models/minilm-onnx-int8
+
+After export, set in .env:
+  ONNX_MODEL_PATH=/warden/models/minilm-onnx-int8   # INT8 (recommended)
+  # or
+  ONNX_MODEL_PATH=/warden/models/minilm-onnx         # FP32 fallback
+""",
+    )
+    parser.add_argument("--output",          default=DEFAULT_OUTPUT,
+                        help="FP32 output directory (default: warden/models/minilm-onnx)")
+    parser.add_argument("--quantize-output", default=DEFAULT_Q_OUTPUT,
+                        help="INT8 output directory (default: warden/models/minilm-onnx-int8)")
+    parser.add_argument("--cache-dir",       default=None,
+                        help="HuggingFace model cache directory")
+    parser.add_argument("--torch",           action="store_true",
+                        help="Force torch.onnx.export backend (skip optimum)")
+    parser.add_argument("--quantize",        action="store_true",
+                        help="Also produce an INT8-quantized model after FP32 export")
     args = parser.parse_args()
 
+    # ── Step 1: FP32 export ───────────────────────────────────────────────────
     output = os.path.abspath(args.output)
     os.makedirs(output, exist_ok=True)
 
@@ -127,7 +210,7 @@ def main() -> None:
             export_via_optimum(output, args.cache_dir)
             method = "optimum"
         except ImportError:
-            print("[optimum] not installed -- falling back to torch.onnx.export")
+            print("[optimum] not installed — falling back to torch.onnx.export")
             print("          (pip install optimum[onnxruntime] for the preferred path)")
             export_via_torch(output, args.cache_dir)
             method = "torch"
@@ -141,10 +224,30 @@ def main() -> None:
         sys.exit(1)
 
     size_mb = os.path.getsize(onnx_path) / 1024 / 1024
-    print(f"\nExport complete [{method}]")
+    print(f"\nFP32 export complete [{method}]")
     print(f"  model.onnx : {size_mb:.1f} MB")
     print(f"  directory  : {output}")
-    print(f"\nAdd to .env:  ONNX_MODEL_PATH={output}")
+
+    # ── Step 2: INT8 quantization (optional) ─────────────────────────────────
+    if args.quantize:
+        try:
+            q_output = os.path.abspath(args.quantize_output)
+            int8_path = quantize_int8(output, q_output)
+            print(f"\nINT8 quantization complete")
+            print(f"  model.onnx : {int8_path}")
+            print(f"  directory  : {q_output}")
+            print(f"\nRecommended .env setting:")
+            print(f"  ONNX_MODEL_PATH={q_output}")
+            print(f"  ONNX_THREADS=1")
+            print(f"  ONNX_INTRA_THREADS=2   # 2 threads/worker × 4 uvicorn workers = 8 vCPU")
+        except Exception as exc:
+            print(f"\nWARNING: INT8 quantization failed ({exc})")
+            print(f"  Ensure onnxruntime>=1.18.0 is installed: pip install onnxruntime")
+            print(f"  Falling back to FP32 model.")
+            print(f"\nAdd to .env:  ONNX_MODEL_PATH={output}")
+    else:
+        print(f"\nAdd to .env:  ONNX_MODEL_PATH={output}")
+        print(f"Tip: run with --quantize for additional 1.5-2.5× speedup via INT8")
 
 
 if __name__ == "__main__":

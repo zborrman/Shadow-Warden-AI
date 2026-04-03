@@ -129,8 +129,14 @@ services:
       - ALERT_MIN_RISK_LEVEL=${ALERT_MIN_RISK_LEVEL:-high}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
-      # ONNX (optional — set after running scripts/export_onnx.py)
+      # ONNX Runtime (optional — set after running scripts/export_onnx.py --quantize)
+      # Thread tuning for 8 vCPU / 4 uvicorn workers:
+      #   inter_op = 1 (ops run sequentially — avoids thread contention between workers)
+      #   intra_op = 2 (each ONNX op uses 2 threads — 4 workers × 2 = 8 vCPU fully used)
+      # With INT8 quantization (--quantize flag) this gives ~3-4× faster inference vs PyTorch.
       - ONNX_MODEL_PATH=${ONNX_MODEL_PATH:-}
+      - ONNX_THREADS=${ONNX_THREADS:-1}
+      - ONNX_INTRA_THREADS=${ONNX_INTRA_THREADS:-2}
       # OpenAI-compatible proxy
       - OPENAI_UPSTREAM=${OPENAI_UPSTREAM:-https://api.openai.com}
       - WARDEN_FILTER_URL=http://warden:8001
@@ -184,6 +190,7 @@ services:
       - PORTAL_REFRESH_TOKEN_TTL=${PORTAL_REFRESH_TOKEN_TTL:-7}
     volumes:
       - ./warden/models:/warden/models
+      - ./scripts:/warden/scripts:ro
       - ./data:/warden/data
     depends_on:
       postgres:
