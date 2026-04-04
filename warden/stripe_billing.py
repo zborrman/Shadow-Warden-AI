@@ -136,6 +136,7 @@ class StripeBilling:
                     plan                   TEXT NOT NULL DEFAULT 'free',
                     status                 TEXT NOT NULL DEFAULT 'active',
                     current_period_end     TEXT,
+                    admin_email            TEXT,
                     updated_at             TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_subs_customer
@@ -148,6 +149,14 @@ class StripeBilling:
                 );
             """)
             self._conn.commit()
+
+        # Migrate existing DBs: add admin_email column if missing (SQLite
+        # doesn't support IF NOT EXISTS on ALTER TABLE)
+        try:
+            self._conn.execute("ALTER TABLE subscriptions ADD COLUMN admin_email TEXT")
+            self._conn.commit()
+        except Exception:
+            pass  # column already exists — ignore
 
     # ── Plan / quota queries ──────────────────────────────────────────────────
 
@@ -353,12 +362,18 @@ class StripeBilling:
             log.warning("Stripe: checkout.session.completed missing tenant_id in metadata.")
             return
 
+        # Capture billing admin email from checkout session
+        admin_email: str | None = (
+            session.get("customer_email")
+            or (session.get("customer_details") or {}).get("email")
+        ) or None
+
         import stripe as _stripe  # noqa: PLC0415
 
         sub = _stripe.Subscription.retrieve(sub_id) if sub_id else None
         plan, period_end, status = self._extract_sub_fields(sub)
-        self._upsert(tenant_id, customer_id, sub_id, plan, status, period_end)
-        log.info("Stripe: tenant %s activated plan=%s.", tenant_id, plan)
+        self._upsert(tenant_id, customer_id, sub_id, plan, status, period_end, admin_email)
+        log.info("Stripe: tenant %s activated plan=%s email=%s.", tenant_id, plan, admin_email)
 
     def _on_subscription_updated(self, sub: dict) -> None:
         tenant_id = (sub.get("metadata") or {}).get("tenant_id", "")
@@ -471,6 +486,7 @@ class StripeBilling:
         plan:        str,
         status:      str,
         period_end:  str | None,
+        admin_email: str | None = None,
     ) -> None:
         now = datetime.now(UTC).isoformat()
         with self._lock:
@@ -478,17 +494,18 @@ class StripeBilling:
                 """
                 INSERT INTO subscriptions
                     (tenant_id, stripe_customer_id, stripe_subscription_id,
-                     plan, status, current_period_end, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                     plan, status, current_period_end, admin_email, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(tenant_id) DO UPDATE SET
                     stripe_customer_id     = excluded.stripe_customer_id,
                     stripe_subscription_id = excluded.stripe_subscription_id,
                     plan                   = excluded.plan,
                     status                 = excluded.status,
                     current_period_end     = excluded.current_period_end,
+                    admin_email            = COALESCE(excluded.admin_email, subscriptions.admin_email),
                     updated_at             = excluded.updated_at
                 """,
-                (tenant_id, customer_id, sub_id, plan, status, period_end, now),
+                (tenant_id, customer_id, sub_id, plan, status, period_end, admin_email, now),
             )
             self._conn.commit()
 

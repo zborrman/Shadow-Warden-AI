@@ -937,6 +937,33 @@ except ImportError:
     log.warning("tenant_impact router not available — /tenant/impact skipped.")
 
 
+# ── Admin: manual weekly report trigger ──────────────────────────────────────
+# POST /admin/weekly-report   — fire off weekly reports immediately (testing /
+# ad-hoc re-sends).  Runs synchronously in a thread executor so it doesn't
+# block the event loop.  Requires super-admin key.
+
+@app.post("/admin/weekly-report", tags=["Admin"], summary="Trigger weekly ROI email reports now")
+async def trigger_weekly_report(request: Request):
+    """Manually trigger the weekly ROI report for all active paid tenants."""
+    _key = request.headers.get("X-Super-Admin-Key", "")
+    _expected = os.getenv("SUPER_ADMIN_KEY", "")
+    if not _expected or _key != _expected:
+        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415
+        return _JR({"detail": "Forbidden"}, status_code=403)
+
+    import asyncio  # noqa: PLC0415
+    loop = asyncio.get_event_loop()
+    try:
+        from warden.workers.weekly_report import send_weekly_reports as _swr  # noqa: PLC0415
+        result = await loop.run_in_executor(None, lambda: asyncio.run(_swr({})))
+    except Exception as exc:
+        log.error("admin/weekly-report: failed: %s", exc)
+        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415
+        return _JR({"detail": str(exc)}, status_code=500)
+
+    return result
+
+
 # ── HTTP middleware (request-ID + security headers) ───────────────────────────
 
 @app.middleware("http")

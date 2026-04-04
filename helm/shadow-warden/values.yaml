@@ -405,7 +405,7 @@ onnx:
 # Workers run as a separate Deployment (arq-worker) that shares the
 # same Redis instance as the gateway.
 arq:
-  enabled: false              # enable when async email / geo-webhooks are needed
+  enabled: true               # set true to enable weekly ROI email reports + geo-webhooks
   workers: 1
   image:
     repository: shadow-warden/gateway   # same image, different entrypoint
@@ -419,8 +419,10 @@ arq:
       cpu: "100m"
       memory: "128Mi"
   config:
-    emailSmtpUrl: ""          # smtp://user:pass@host:587
-    emailFromAddr: ""         # noreply@shadow-warden.io
+    emailSmtpUrl: ""          # smtp://user:pass@host:587  (SendGrid / SES / Postmark)
+    emailFromAddr: ""         # "Shadow Warden <noreply@shadow-warden.io>"
+    weeklyReportReplyTo: ""   # optional reply-to for weekly reports
+    portalUrl: ""             # https://app.shadow-warden.io — used in CTA buttons
     geoWebhookUrl: ""         # POST endpoint for geo-block events
 
 # ── SAML 2.0 SSO — Enterprise IdP Integration (v2.0+) ────────────────────────
