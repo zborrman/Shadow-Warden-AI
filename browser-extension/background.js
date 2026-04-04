@@ -335,7 +335,62 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     _wardenUnmask(message.payload).then(sendResponse);
     return true;
   }
+
+  // ── Dollar Impact: fetch /tenant/impact for the Impact popup tab ─────────
+  //
+  // Popup sends GET_TENANT_IMPACT; we call the gateway with auth headers here
+  // in the Service Worker (token never exposed to the popup's page context).
+  if (message.type === "GET_TENANT_IMPACT") {
+    _wardenTenantImpact(message.period || 30).then(sendResponse);
+    return true;
+  }
 });
+
+// ── Dollar Impact Calculator — fetch /tenant/impact ──────────────────────────
+
+/**
+ * Call GET /tenant/impact on the gateway with the current auth headers.
+ * Returns the parsed JSON payload, or { error: "..." } on failure.
+ * Cached for 5 minutes in chrome.storage.local to keep popup snappy.
+ */
+async function _wardenTenantImpact(period = 30) {
+  const cfg         = await _resolveConfig();
+  const cacheKey    = "impactCache";
+  const cacheAgeKey = "impactCacheTs";
+  const CACHE_TTL   = 5 * 60 * 1000; // 5 minutes
+
+  // Return cached data if still fresh
+  const cached = await chrome.storage.local.get([cacheKey, cacheAgeKey]);
+  if (cached[cacheKey] && cached[cacheAgeKey] && (Date.now() - cached[cacheAgeKey]) < CACHE_TTL) {
+    return cached[cacheKey];
+  }
+
+  const url = `${cfg.gatewayUrl}/tenant/impact?period=${period}`;
+  try {
+    const headers = await _authHeaders(cfg);
+    const resp    = await fetch(url, { method: "GET", headers });
+
+    if (resp.status === 402) {
+      return { error: "Subscription lapsed — contact your IT administrator." };
+    }
+    if (resp.status === 401 || resp.status === 403) {
+      return { error: "Not authorised — sign in with Google Workspace first." };
+    }
+    if (!resp.ok) {
+      return { error: `Gateway returned ${resp.status}` };
+    }
+
+    const data = await resp.json();
+    await chrome.storage.local.set({ [cacheKey]: data, [cacheAgeKey]: Date.now() });
+    return data;
+
+  } catch (err) {
+    console.warn("[Shadow Warden] Impact fetch failed:", err.message);
+    // Return stale cache if available rather than a hard error
+    if (cached[cacheKey]) return cached[cacheKey];
+    return { error: `Cannot reach ${cfg.gatewayUrl} — check your connection.` };
+  }
+}
 
 // ── Block event handler ───────────────────────────────────────────────────────
 

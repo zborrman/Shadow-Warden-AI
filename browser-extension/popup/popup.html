@@ -49,7 +49,7 @@
       border-radius: 50%;
       animation: pulse 2s infinite;
     }
-    .dot.active  { background: #22c55e; }
+    .dot.active   { background: #22c55e; }
     .dot.inactive { background: #ef4444; animation: none; }
     .dot.warning  { background: #f59e0b; }
     @keyframes pulse {
@@ -61,6 +61,25 @@
       border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer;
     }
     .toggle-btn:hover { border-color: #6b7280; color: #e5e7eb; }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex;
+      background: #111827;
+      border-bottom: 1px solid #1e293b;
+    }
+    .tab-btn {
+      flex: 1; padding: 9px 0; font-size: 12px; font-weight: 600;
+      background: none; border: none; color: #6b7280; cursor: pointer;
+      border-bottom: 2px solid transparent; letter-spacing: 0.04em;
+      text-transform: uppercase; transition: color 0.15s;
+    }
+    .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+    .tab-btn:hover:not(.active) { color: #9ca3af; }
+
+    /* Tab panels */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
     /* Stats row */
     .stats {
@@ -83,8 +102,10 @@
 
     /* Form section */
     .section { padding: 16px 20px; border-bottom: 1px solid #1e293b; }
-    .section-title { font-size: 11px; color: #6b7280; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+    .section-title {
+      font-size: 11px; color: #6b7280; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;
+    }
 
     label { font-size: 12px; color: #9ca3af; display: block; margin-bottom: 4px; }
     input[type="text"], input[type="password"] {
@@ -141,6 +162,134 @@
     }
     .btn-google:hover { background: #f8f9fa; }
 
+    /* ── Impact tab ── */
+
+    .impact-kpis {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .kpi {
+      background: #1f2937;
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+    }
+    .kpi-value {
+      font-size: 18px; font-weight: 700; color: #fff;
+      line-height: 1.2;
+    }
+    .kpi-value.green  { color: #22c55e; }
+    .kpi-value.red    { color: #ef4444; }
+    .kpi-value.yellow { color: #fbbf24; }
+    .kpi-value.blue   { color: #60a5fa; }
+    .kpi-label {
+      font-size: 9px; color: #6b7280; margin-top: 3px;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+
+    /* Sparkline section */
+    .sparkline-wrap {
+      padding: 12px 16px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .sparkline-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
+    }
+    .sparkline-title { font-size: 11px; color: #6b7280; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em; }
+    #impact-refresh-btn {
+      background: none; border: none; color: #4b5563; font-size: 12px;
+      cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    }
+    #impact-refresh-btn:hover { color: #9ca3af; background: #1f2937; }
+    #sparkline-svg { width: 100%; height: 44px; display: block; }
+
+    /* Top threats */
+    .threats-section {
+      padding: 12px 16px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .threat-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 7px;
+    }
+    .threat-row:last-child { margin-bottom: 0; }
+    .threat-label { flex: 1; font-size: 12px; color: #d1d5db; }
+    .threat-bar-wrap {
+      width: 80px; height: 5px; background: #1f2937;
+      border-radius: 3px; overflow: hidden;
+    }
+    .threat-bar { height: 100%; background: #ef4444; border-radius: 3px; }
+    .threat-count { font-size: 11px; color: #6b7280; min-width: 26px; text-align: right; }
+
+    /* Quota bar */
+    .quota-section {
+      padding: 10px 16px 12px;
+    }
+    .quota-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 6px;
+    }
+    .quota-label { font-size: 11px; color: #6b7280; text-transform: uppercase;
+      letter-spacing: 0.07em; font-weight: 600; }
+    .quota-badges { display: flex; gap: 6px; }
+    .badge {
+      font-size: 10px; font-weight: 700; border-radius: 4px;
+      padding: 2px 7px; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .badge-plan  { background: #1e3a5f; color: #60a5fa; }
+    .badge-rate  { background: #1c2f1e; color: #4ade80; }
+    .quota-bar-wrap {
+      height: 6px; background: #1f2937; border-radius: 3px; overflow: hidden;
+    }
+    .quota-bar { height: 100%; background: #3b82f6; border-radius: 3px;
+      transition: width 0.4s ease; }
+    .quota-bar.warn   { background: #f59e0b; }
+    .quota-bar.danger { background: #ef4444; }
+    .quota-meta {
+      margin-top: 5px; font-size: 10px; color: #4b5563;
+      display: flex; justify-content: space-between;
+    }
+
+    /* Impact annual projection banner */
+    .projection-banner {
+      margin: 0 16px 12px;
+      background: linear-gradient(135deg, #052e16 0%, #0c1a2e 100%);
+      border: 1px solid #166534;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .projection-icon { font-size: 22px; }
+    .projection-text { flex: 1; }
+    .projection-amount {
+      font-size: 20px; font-weight: 700; color: #4ade80;
+    }
+    .projection-caption {
+      font-size: 10px; color: #6b7280; margin-top: 1px;
+    }
+
+    /* Loading / error states */
+    .impact-loading {
+      padding: 32px 20px;
+      text-align: center; color: #4b5563; font-size: 12px;
+    }
+    .impact-error {
+      margin: 12px 16px; background: #2d0a0a; color: #f87171;
+      border: 1px solid #7f1d1d; border-radius: 8px;
+      padding: 10px 12px; font-size: 12px; display: none;
+    }
+
+    /* Last updated */
+    #impact-last-updated {
+      text-align: center; font-size: 10px; color: #374151;
+      padding: 6px 0 10px;
+    }
+
     /* Footer */
     .footer { padding: 10px 20px; text-align: center; color: #374151; font-size: 11px; }
   </style>
@@ -165,88 +314,191 @@
     <button class="toggle-btn" id="toggle-btn">Disable</button>
   </div>
 
-  <!-- Stats -->
-  <div class="stats">
-    <div class="stat-card red">
-      <div class="num" id="blocks-today">0</div>
-      <div class="lbl">Blocked today</div>
-    </div>
-    <div class="stat-card green">
-      <div class="num" id="requests-today">0</div>
-      <div class="lbl">Requests checked</div>
-    </div>
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-settings" data-tab="settings">Settings</button>
+    <button class="tab-btn"        id="tab-impact"   data-tab="impact">Impact</button>
   </div>
 
-  <!-- Warden Identity — Google Sign-In (SMB zero-friction onboarding) -->
-  <div class="section" id="identity-section">
-    <div class="section-title">Sign In</div>
+  <!-- ══════════════════════════════════════════════════════════
+       SETTINGS TAB
+  ══════════════════════════════════════════════════════════ -->
+  <div class="tab-panel active" id="panel-settings">
 
-    <!-- Signed-out state -->
-    <div id="oidc-signout-view">
-      <p style="font-size:12px;color:#9ca3af;margin-bottom:12px;line-height:1.5">
-        Sign in with your work Google account — no API keys needed.
-      </p>
-      <button class="btn-google" id="signin-google-btn">
-        <svg width="15" height="15" viewBox="0 0 48 48" style="vertical-align:middle;margin-right:7px;flex-shrink:0">
-          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-        </svg>
-        Sign in with Google Workspace
-      </button>
-      <p style="font-size:11px;color:#4b5563;margin-top:10px;text-align:center">
-        Or enter an API key below for enterprise / air-gap deployments.
-      </p>
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card red">
+        <div class="num" id="blocks-today">0</div>
+        <div class="lbl">Blocked today</div>
+      </div>
+      <div class="stat-card green">
+        <div class="num" id="requests-today">0</div>
+        <div class="lbl">Requests checked</div>
+      </div>
     </div>
 
-    <!-- Signed-in state (shown after OIDC auth) -->
-    <div id="oidc-signin-view" style="display:none">
-      <div style="display:flex;align-items:center;gap:10px;background:#052e16;border:1px solid #166534;border-radius:8px;padding:10px 12px;margin-bottom:10px">
-        <span style="font-size:20px">✅</span>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:#4ade80">Warden Identity Active</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:2px" id="oidc-email-display">—</div>
+    <!-- Warden Identity — Google Sign-In -->
+    <div class="section" id="identity-section">
+      <div class="section-title">Sign In</div>
+
+      <!-- Signed-out state -->
+      <div id="oidc-signout-view">
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:12px;line-height:1.5">
+          Sign in with your work Google account — no API keys needed.
+        </p>
+        <button class="btn-google" id="signin-google-btn">
+          <svg width="15" height="15" viewBox="0 0 48 48" style="vertical-align:middle;margin-right:7px;flex-shrink:0">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          Sign in with Google Workspace
+        </button>
+        <p style="font-size:11px;color:#4b5563;margin-top:10px;text-align:center">
+          Or enter an API key below for enterprise / air-gap deployments.
+        </p>
+      </div>
+
+      <!-- Signed-in state -->
+      <div id="oidc-signin-view" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;background:#052e16;border:1px solid #166534;border-radius:8px;padding:10px 12px;margin-bottom:10px">
+          <span style="font-size:20px">✅</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#4ade80">Warden Identity Active</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px" id="oidc-email-display">—</div>
+          </div>
+        </div>
+        <button class="btn-test" id="signout-btn">Sign out</button>
+      </div>
+    </div>
+
+    <!-- Config section -->
+    <div class="section" id="config-section">
+      <div class="section-title">Gateway Configuration</div>
+
+      <label for="gateway-url">Shadow Warden URL</label>
+      <input type="text" id="gateway-url" placeholder="https://your-hetzner.com" />
+
+      <label for="api-key">API Key <span style="color:#4b5563;font-weight:400">(enterprise / air-gap only)</span></label>
+      <input type="password" id="api-key" placeholder="••••••••••••••••" />
+
+      <label for="tenant-id">Tenant ID</label>
+      <input type="text" id="tenant-id" placeholder="your-company" />
+
+      <label for="ollama-url">Local AI URL (for YELLOW zone redirect)</label>
+      <input type="text" id="ollama-url" placeholder="http://localhost:3000" />
+
+      <button class="btn-save" id="save-btn">Save & Connect</button>
+      <button class="btn-test" id="test-btn">Test Connection</button>
+
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <!-- Protected sites -->
+    <div class="section">
+      <div class="section-title">Protected Sites</div>
+      <div class="site-list">
+        <div class="site-pill active" id="site-chatgpt">ChatGPT</div>
+        <div class="site-pill active" id="site-claude">Claude.ai</div>
+        <div class="site-pill active" id="site-gemini">Gemini</div>
+        <div class="site-pill active" id="site-copilot">Copilot</div>
+      </div>
+    </div>
+
+  </div><!-- /panel-settings -->
+
+  <!-- ══════════════════════════════════════════════════════════
+       IMPACT TAB
+  ══════════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="panel-impact">
+
+    <!-- Loading state (shown while fetching) -->
+    <div class="impact-loading" id="impact-loading">
+      Fetching your impact data…
+    </div>
+
+    <!-- Error state -->
+    <div class="impact-error" id="impact-error"></div>
+
+    <!-- Content (hidden until data loaded) -->
+    <div id="impact-content" style="display:none">
+
+      <!-- Annual projection banner -->
+      <div class="projection-banner" id="projection-banner">
+        <div class="projection-icon">💰</div>
+        <div class="projection-text">
+          <div class="projection-amount" id="impact-annual">$0</div>
+          <div class="projection-caption">Projected annual value protected</div>
         </div>
       </div>
-      <button class="btn-test" id="signout-btn">Sign out</button>
-    </div>
-  </div>
 
-  <!-- Config section -->
-  <div class="section" id="config-section">
-    <div class="section-title">Gateway Configuration</div>
+      <!-- KPI cards -->
+      <div class="impact-kpis">
+        <div class="kpi">
+          <div class="kpi-value green" id="impact-dollar-saved">$0</div>
+          <div class="kpi-label">Saved (30d)</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value red" id="impact-blocked">0</div>
+          <div class="kpi-label">Blocked</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value yellow" id="impact-pii">0</div>
+          <div class="kpi-label">PII Masked</div>
+        </div>
+      </div>
 
-    <label for="gateway-url">Shadow Warden URL</label>
-    <input type="text" id="gateway-url" placeholder="https://your-hetzner.com" />
+      <!-- Sparkline -->
+      <div class="sparkline-wrap">
+        <div class="sparkline-header">
+          <span class="sparkline-title">Daily Blocks (14d)</span>
+          <button id="impact-refresh-btn" title="Refresh">⟳ Refresh</button>
+        </div>
+        <svg id="sparkline-svg" viewBox="0 0 308 44" preserveAspectRatio="none">
+          <polyline id="sparkline-line" fill="none" stroke="#ef4444" stroke-width="1.5"
+            stroke-linejoin="round" stroke-linecap="round" points=""/>
+          <polyline id="sparkline-fill" fill="url(#sparkGrad)" stroke="none" points=""/>
+          <defs>
+            <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stop-color="#ef4444" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
 
-    <label for="api-key">API Key <span style="color:#4b5563;font-weight:400">(enterprise / air-gap only)</span></label>
-    <input type="password" id="api-key" placeholder="••••••••••••••••" />
+      <!-- Top threats -->
+      <div class="threats-section" id="threats-section">
+        <div class="section-title">Top Threats Blocked</div>
+        <div id="threats-list"><!-- populated by JS --></div>
+      </div>
 
-    <label for="tenant-id">Tenant ID</label>
-    <input type="text" id="tenant-id" placeholder="your-company" />
+      <!-- Quota + plan -->
+      <div class="quota-section">
+        <div class="quota-header">
+          <span class="quota-label">Monthly Quota</span>
+          <div class="quota-badges">
+            <span class="badge badge-plan" id="badge-plan">free</span>
+            <span class="badge badge-rate" id="badge-rate">10/min</span>
+          </div>
+        </div>
+        <div class="quota-bar-wrap">
+          <div class="quota-bar" id="quota-bar" style="width:0%"></div>
+        </div>
+        <div class="quota-meta">
+          <span id="quota-used-label">0 / 1,000 requests</span>
+          <span id="quota-pct-label">0%</span>
+        </div>
+      </div>
 
-    <label for="ollama-url">Local AI URL (for YELLOW zone redirect)</label>
-    <input type="text" id="ollama-url" placeholder="http://localhost:3000" />
+      <div id="impact-last-updated"></div>
 
-    <button class="btn-save" id="save-btn">Save & Connect</button>
-    <button class="btn-test" id="test-btn">Test Connection</button>
+    </div><!-- /impact-content -->
 
-    <div class="toast" id="toast"></div>
-  </div>
+  </div><!-- /panel-impact -->
 
-  <!-- Protected sites -->
-  <div class="section">
-    <div class="section-title">Protected Sites</div>
-    <div class="site-list">
-      <div class="site-pill active" id="site-chatgpt">ChatGPT</div>
-      <div class="site-pill active" id="site-claude">Claude.ai</div>
-      <div class="site-pill active" id="site-gemini">Gemini</div>
-      <div class="site-pill active" id="site-copilot">Copilot</div>
-    </div>
-  </div>
-
-  <div class="footer">Shadow Warden AI v1.0 · <span id="tenant-display">Not configured</span></div>
+  <div class="footer">Shadow Warden AI v2.5 · <span id="tenant-display">Not configured</span></div>
 
   <script src="popup.js"></script>
 </body>

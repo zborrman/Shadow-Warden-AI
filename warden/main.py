@@ -929,6 +929,13 @@ try:
 except ImportError:
     log.warning("financial router not available — /financial routes skipped.")
 
+try:
+    from warden.api.tenant_impact import router as _tenant_impact_router
+    app.include_router(_tenant_impact_router)
+    log.info("Tenant Impact Calculator mounted at /tenant/impact")
+except ImportError:
+    log.warning("tenant_impact router not available — /tenant/impact skipped.")
+
 
 # ── HTTP middleware (request-ID + security headers) ───────────────────────────
 
