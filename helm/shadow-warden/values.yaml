@@ -436,6 +436,25 @@ saml:
     idpMetadataUrl: ""        # IdP metadata XML URL (Okta / Entra)
     idpX509Cert: ""           # IdP signing cert (PEM, no headers)
 
+# ── Stripe Billing — SMB Teams Edition (v2.5) ────────────────────────────────
+#
+# Plan tiers:
+#   free    —  1 000 req/month  / domain,   $0/month  (default, trial)
+#   startup — 50 000 req/month  / domain,  $99/month  (≤ 50 employees)
+#   growth  — 250 000 req/month / domain, $299/month  (≤ 250 employees)
+#   msp     — Unlimited req/month / domain, custom    (MSP / reseller)
+#
+# Per-minute burst caps: free=10, startup=60, growth=200, msp=500 req/min
+#
+# Set price IDs from the Stripe Dashboard (Products → Prices).
+stripe:
+  secret:
+    secretKey: ""       # sk_live_… or sk_test_…  (set via --set)
+    webhookSecret: ""   # whsec_…  (Stripe Dashboard → Webhooks)
+    priceStartup: ""    # price_… recurring, $99/mo
+    priceGrowth: ""     # price_… recurring, $299/mo
+    priceMsp: ""        # price_… custom / enterprise
+
 # ── Prometheus / Grafana Observability (v2.0+) ───────────────────────────────
 monitoring:
   # Scrape warden /metrics via ServiceMonitor (requires kube-prometheus-stack)

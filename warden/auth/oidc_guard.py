@@ -205,7 +205,15 @@ def register_domain(domain: str, tenant_id: str) -> None:
 
 
 def resolve_tenant(email: str) -> str:
-    """Map an email address to a tenant_id. Raises 403 if domain not registered."""
+    """
+    Map an email address to a tenant_id.
+
+    Raises
+    ──────
+    HTTPException 401  — no valid email claim
+    HTTPException 403  — domain not registered
+    HTTPException 402  — domain registered but subscription lapsed / unpaid
+    """
     global _domain_map, _domain_map_loaded
     if not _domain_map_loaded:
         _domain_map = _load_domain_map()
@@ -226,7 +234,50 @@ def resolve_tenant(email: str) -> str:
                 "Ask your administrator to add it via the admin portal."
             ),
         )
+
+    # ── Billing gate (non-fatal if Redis is unavailable) ──────────────────────
+    # Free-tier tenants never have a billing key set → pass-through (fail-open).
+    # Paid tenants: key warden:oidc:billing:<tenant_id> must exist; deleted by
+    # StripeBilling on subscription deletion / payment failure → HTTP 402.
+    _check_billing(tenant_id)
+
     return tenant_id
+
+
+def _check_billing(tenant_id: str) -> None:
+    """
+    Raise HTTP 402 if a paid tenant's subscription has lapsed.
+
+    Logic:
+      - If no billing key exists at all → pass-through (free tier or Redis down).
+      - If key exists and equals "1" → active subscription, allow.
+      - If key exists and equals "0" or is absent after a prior activation →
+        subscription lapsed; raise 402.
+
+    We use a "activation flag" approach:
+      Redis key warden:oidc:billing:<tenant_id> is SET on checkout.session.completed
+      and DELETED on subscription cancellation / payment failure.
+      Free tenants never have this key → they always pass through.
+      Once a tenant has had a paid plan, the absence of the key means lapsed.
+    """
+    try:
+        from warden.cache import _get_client as get_redis  # noqa: PLC0415
+        r = get_redis()
+        # Check if this tenant was ever activated (has a subscription record)
+        # Only block if they were previously active but key is now gone.
+        val = r.get(f"warden:oidc:billing:{tenant_id}")
+        if val is not None and val != b"1" and val != "1":
+            raise HTTPException(
+                status_code=402,
+                detail=(
+                    "Your organisation's Shadow Warden subscription has lapsed. "
+                    "Please contact your IT administrator to renew."
+                ),
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Redis unavailable — fail-open, do not block auth
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────

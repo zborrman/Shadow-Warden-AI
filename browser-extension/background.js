@@ -187,9 +187,25 @@ async function _wardenFilter({ content, tenantId, context }) {
       }),
     });
 
-    if (resp.status === 401 || resp.status === 402) {
-      console.warn("[Shadow Warden] Gateway auth error:", resp.status);
+    if (resp.status === 401) {
+      console.warn("[Shadow Warden] Gateway auth error: 401");
       return { allowed: true, risk_level: "low", flags: [], reason: "Auth error — fail open", pii_action: "pass" };
+    }
+
+    if (resp.status === 402) {
+      // Subscription lapsed — block the prompt and prompt the user to renew
+      const body = await resp.json().catch(() => ({}));
+      const msg  = (body?.detail) || "Your organisation's Shadow Warden subscription has lapsed.";
+      console.warn("[Shadow Warden] Subscription lapsed (402):", msg);
+      return {
+        allowed:    false,
+        data_class: "subscription",
+        reason:     msg,
+        suggestion: "Contact your IT administrator to renew the Shadow Warden subscription.",
+        risk_level: "block",
+        flags:      ["subscription_lapsed"],
+        pii_action: "block",
+      };
     }
 
     if (resp.status === 403) {
