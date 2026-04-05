@@ -280,6 +280,66 @@ def create_schema() -> None:
         "CREATE INDEX IF NOT EXISTS portal_users_tenant_idx ON warden_core.portal_users(tenant_id)",
         "CREATE INDEX IF NOT EXISTS portal_keys_tenant_idx  ON warden_core.portal_api_keys(tenant_id)",
         "CREATE INDEX IF NOT EXISTS portal_keys_hash_idx    ON warden_core.portal_api_keys(key_hash)",
+
+        # ── Warden Syndicates (Federated AI Security Network) ──────────────────
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.syndicates (
+            syndicate_id    TEXT        PRIMARY KEY,
+            tenant_id       TEXT        UNIQUE NOT NULL,
+            display_name    TEXT        NOT NULL DEFAULT '',
+            public_key_b64  TEXT        NOT NULL,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.syndicate_links (
+            link_id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            initiator_sid       TEXT        NOT NULL
+                                REFERENCES warden_core.syndicates(syndicate_id),
+            responder_sid       TEXT,
+            status              TEXT        NOT NULL DEFAULT 'PENDING',
+            is_ephemeral        BOOLEAN     NOT NULL DEFAULT TRUE,
+            ttl_hours           INTEGER     NOT NULL DEFAULT 24,
+            expires_at          TIMESTAMPTZ NOT NULL
+                                DEFAULT (NOW() + INTERVAL '24 hours'),
+            last_notified_at    TIMESTAMPTZ,
+            safety_number       TEXT,
+            permissions         JSONB       NOT NULL DEFAULT '{}',
+            created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            established_at      TIMESTAMPTZ
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.syndicate_members (
+            wid             TEXT        PRIMARY KEY,
+            syndicate_id    TEXT        NOT NULL
+                            REFERENCES warden_core.syndicates(syndicate_id),
+            internal_email  TEXT        NOT NULL,
+            role            TEXT        NOT NULL DEFAULT 'MEMBER',
+            expires_at      TIMESTAMPTZ,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.syndicate_invitations (
+            invite_code     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+            invite_type     TEXT        NOT NULL,
+            creator_sid     TEXT        NOT NULL
+                            REFERENCES warden_core.syndicates(syndicate_id),
+            target_email    TEXT,
+            target_group    TEXT,
+            metadata        JSONB       NOT NULL DEFAULT '{}',
+            is_used         BOOLEAN     NOT NULL DEFAULT FALSE,
+            expires_at      TIMESTAMPTZ NOT NULL
+                            DEFAULT (NOW() + INTERVAL '24 hours'),
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS syndicate_links_initiator_idx  ON warden_core.syndicate_links(initiator_sid)",
+        "CREATE INDEX IF NOT EXISTS syndicate_links_status_idx      ON warden_core.syndicate_links(status)",
+        "CREATE INDEX IF NOT EXISTS syndicate_links_expires_idx     ON warden_core.syndicate_links(expires_at) WHERE status = 'ACTIVE'",
+        "CREATE INDEX IF NOT EXISTS syndicate_members_sid_idx       ON warden_core.syndicate_members(syndicate_id)",
+        "CREATE INDEX IF NOT EXISTS syndicate_invitations_code_idx  ON warden_core.syndicate_invitations(invite_code) WHERE is_used = FALSE",
     ]
 
     with engine.begin() as conn:

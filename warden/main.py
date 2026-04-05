@@ -936,6 +936,15 @@ try:
 except ImportError:
     log.warning("tenant_impact router not available — /tenant/impact skipped.")
 
+try:
+    from warden.syndicates.router import router as _syndicates_router
+    from warden.syndicates.router import tunnels_router as _tunnels_router
+    app.include_router(_syndicates_router)
+    app.include_router(_tunnels_router)
+    log.info("Warden Syndicates mounted at /syndicates and /tunnels")
+except ImportError:
+    log.warning("syndicates router not available — /syndicates and /tunnels skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /

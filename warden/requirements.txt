@@ -52,6 +52,12 @@ sentence-transformers>=3.0.0
 # Numerics (pulled in by torch/transformers anyway, pinned for clarity)
 numpy>=1.26.0
 
+# ── Warden Syndicates — Zero-Trust Tunnel cryptography ───────────────────────
+# X25519 ECDH key exchange + HKDF-SHA256 + AES-256-GCM
+# The cryptography package is already pulled in by python-jose[cryptography],
+# but we pin it explicitly here so the version is visible and enforced.
+cryptography>=42.0.0
+
 # ── Claude API (Evolution Loop) ──────────────────────────────────────────────
 # anthropic SDK — used by EvolutionEngine to call Claude Opus for auto rule
 # generation when a high-severity attack is blocked.
