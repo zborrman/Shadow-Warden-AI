@@ -47,7 +47,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from warden.syndicates.crypto import DecryptionError, TunnelCrypto
@@ -64,6 +64,7 @@ def _get_redis():
     """Lazy Redis client (same pattern as warden.cache)."""
     try:
         import redis as _redis
+
         from warden.config import settings
         client = _redis.from_url(
             settings.redis_url,
@@ -202,6 +203,7 @@ async def register_syndicate(
 
     # Upsert syndicate record in Postgres
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().begin() as conn:
         await conn.execute(text("""
@@ -244,6 +246,7 @@ async def handshake_init(
 
     # Look up initiator SID
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().connect() as conn:
         row = await conn.execute(
@@ -316,6 +319,7 @@ async def handshake_accept(
 
     # Look up responder SID
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().connect() as conn:
         row = await conn.execute(
@@ -374,8 +378,8 @@ async def handshake_accept(
         responder_pub_key=pub_b_b64,
         safety_number=safety_num,
         message=(
-            f"Send your responder_pub_key and safety_number to Platform A's admin. "
-            f"They must verify the safety number matches before activating the tunnel."
+            "Send your responder_pub_key and safety_number to Platform A's admin. "
+            "They must verify the safety number matches before activating the tunnel."
         ),
     )
 
@@ -431,6 +435,7 @@ async def handshake_complete(
 
     # Get TTL from Postgres
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().connect() as conn:
         row = await conn.execute(
@@ -491,6 +496,7 @@ async def revoke_tunnel(
     deleted = redis.delete(f"warden:tunnels:active:{tunnel_id}")
 
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().begin() as conn:
         result = await conn.execute(text("""
@@ -518,6 +524,7 @@ async def list_tunnels(request: Request):
     tenant_id = request.headers.get("X-Warden-Tenant-ID") or request.headers.get("X-Tenant-ID", "")
 
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().connect() as conn:
         rows = await conn.execute(text("""
@@ -645,13 +652,12 @@ async def transmit_document(body: TransmitRequest, request: Request):
             file_size_bytes=content_bytes,
         )
     except Exception as quota_exc:
-        from fastapi import HTTPException as _H
         if hasattr(quota_exc, "status_code"):
             raise
         log.warning("Quota check error (fail-open): %s", quota_exc)
 
     # ── 2 & 3. WormGuard + PII masking ───────────────────────────────────────
-    from warden.syndicates.ingestion import prepare_for_tunnel, TunnelIngestionError
+    from warden.syndicates.ingestion import TunnelIngestionError, prepare_for_tunnel
     try:
         masked_text, session_id = prepare_for_tunnel(
             content=content,
@@ -659,7 +665,7 @@ async def transmit_document(body: TransmitRequest, request: Request):
             session_id=body.session_id or None,
         )
     except TunnelIngestionError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Count masked entities for response metadata
     masked_entities = masked_text.count("[") if masked_text != content else 0
@@ -681,6 +687,7 @@ async def transmit_document(body: TransmitRequest, request: Request):
     if body.peer_endpoint:
         # Look up initiator SID for the sender metadata
         from sqlalchemy import text
+
         from warden.db.connection import get_async_engine
         async with get_async_engine().connect() as conn:
             row = await conn.execute(
@@ -711,7 +718,7 @@ async def transmit_document(body: TransmitRequest, request: Request):
             raise HTTPException(
                 status_code=502,
                 detail=f"Encrypted payload prepared but delivery to peer failed: {exc}",
-            )
+            ) from exc
 
     return TransmitResponse(
         tunnel_id=tunnel_id,
@@ -739,6 +746,7 @@ async def receive_document(body: ReceiveRequest, request: Request):
 
     # ── Verify tunnel is ACTIVE ───────────────────────────────────────────────
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().connect() as conn:
         row = await conn.execute(
@@ -764,7 +772,6 @@ async def receive_document(body: ReceiveRequest, request: Request):
             detail="Tunnel key not found in Redis — tunnel may have expired.",
         )
 
-    from warden.syndicates.crypto import DecryptionError
     try:
         plaintext = TunnelCrypto.decrypt(body.envelope, bytes(aes_key_bytes))
     except DecryptionError as exc:
@@ -772,13 +779,13 @@ async def receive_document(body: ReceiveRequest, request: Request):
         raise HTTPException(
             status_code=400,
             detail=f"Decryption failed — possible tampering or key mismatch: {exc}",
-        )
+        ) from exc
 
     # ── Receiver-side WormGuard scan ─────────────────────────────────────────
-    from warden.syndicates.ingestion import scan_received_document, TunnelIngestionError
+    from warden.syndicates.ingestion import TunnelIngestionError, scan_received_document
     try:
         scan_received_document(plaintext, tunnel_id)
-    except TunnelIngestionError as exc:
+    except TunnelIngestionError:
         # WORM DETECTED — revoke tunnel immediately (crypto-shredding)
         redis.delete(f"warden:tunnels:active:{tunnel_id}")
         async with get_async_engine().begin() as conn:
@@ -790,13 +797,14 @@ async def receive_document(body: ReceiveRequest, request: Request):
         raise HTTPException(
             status_code=403,
             detail=f"AI worm detected in payload — tunnel {tunnel_id} has been revoked.",
-        )
+        ) from None
 
     # ── Store in evidence vault ───────────────────────────────────────────────
     stored_key: str | None = None
     try:
-        from warden.storage.s3 import save_bundle
         import hashlib as _hl
+
+        from warden.storage.s3 import save_bundle
         doc_id = _hl.sha256(f"{tunnel_id}:{body.file_name}:{len(plaintext)}".encode()).hexdigest()[:16]
         stored_key = f"tunnels/{tunnel_id}/{doc_id}-{body.file_name}"
         save_bundle(

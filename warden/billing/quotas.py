@@ -37,7 +37,7 @@ Usage
 from __future__ import annotations
 
 import os
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 
@@ -60,6 +60,7 @@ _HARD_BLOCK: bool = os.getenv("TUNNEL_HARD_BLOCK", "false").lower() == "true"
 def _redis():
     """Sync Redis client (fast, O(1) counter ops)."""
     import redis as _r
+
     from warden.config import settings
     return _r.from_url(
         settings.redis_url,

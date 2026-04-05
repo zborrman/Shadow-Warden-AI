@@ -77,7 +77,13 @@ from warden.analytics import logger as event_logger
 from warden.analytics.report import get_engine as _get_report_engine
 from warden.auth.saml_provider import SAMLProvider, SamlSession
 from warden.auth.saml_provider import get_provider as _get_saml_provider
-from warden.auth_guard import AuthResult, get_rate_limit, require_api_key, require_ext_auth, set_default_rate_limit
+from warden.auth_guard import (
+    AuthResult,
+    get_rate_limit,
+    require_api_key,
+    require_ext_auth,
+    set_default_rate_limit,
+)
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine, build_evolution_engine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
@@ -964,7 +970,7 @@ async def trigger_weekly_report(request: Request):
     _key = request.headers.get("X-Super-Admin-Key", "")
     _expected = os.getenv("SUPER_ADMIN_KEY", "")
     if not _expected or _key != _expected:
-        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415
+        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415, N814
         return _JR({"detail": "Forbidden"}, status_code=403)
 
     import asyncio  # noqa: PLC0415
@@ -974,7 +980,7 @@ async def trigger_weekly_report(request: Request):
         result = await loop.run_in_executor(None, lambda: asyncio.run(_swr({})))
     except Exception as exc:
         log.error("admin/weekly-report: failed: %s", exc)
-        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415
+        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415, N814
         return _JR({"detail": str(exc)}, status_code=500)
 
     return result

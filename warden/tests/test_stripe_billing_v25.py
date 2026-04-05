@@ -12,19 +12,17 @@ from __future__ import annotations
 
 import json
 import os
-import sqlite3
-import tempfile
-import time
 import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from warden.stripe_billing import StripeBilling
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _make_billing(tmp_path: Path) -> "StripeBilling":
+def _make_billing(tmp_path: Path) -> StripeBilling:
     """Create a StripeBilling instance with a temp SQLite DB (no Stripe creds)."""
     from warden.stripe_billing import StripeBilling
     return StripeBilling(db_path=tmp_path / "stripe_test.db")
@@ -222,8 +220,10 @@ class TestWebhookIdempotency:
 
         t1 = threading.Thread(target=deliver)
         t2 = threading.Thread(target=deliver)
-        t1.start(); t2.start()
-        t1.join();  t2.join()
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
 
         rows = b._conn.execute(
             "SELECT * FROM webhook_events WHERE event_id='evt_CONCURRENT'"
@@ -337,16 +337,14 @@ class TestCheckoutSession:
         b = _make_billing(tmp_path)
         b._enabled = True
         # STRIPE_PRICE_STARTUP is empty (not set in test env)
-        with patch("warden.stripe_billing._STRIPE_PRICE_STARTUP", ""):
-            with pytest.raises(RuntimeError, match="STRIPE_PRICE_STARTUP"):
-                b.create_checkout_session("t", "startup", "http://ok", "http://cancel")
+        with patch("warden.stripe_billing._STRIPE_PRICE_STARTUP", ""), pytest.raises(RuntimeError, match="STRIPE_PRICE_STARTUP"):
+            b.create_checkout_session("t", "startup", "http://ok", "http://cancel")
 
 
 # ── Price → plan mapping ──────────────────────────────────────────────────────
 
 class TestPriceToplanMapping:
     def test_startup_price_maps_to_startup(self):
-        from warden.stripe_billing import _build_price_map, _PRICE_TO_PLAN
 
         with patch.dict(os.environ, {
             "STRIPE_PRICE_STARTUP": "price_startup_test",
@@ -355,6 +353,7 @@ class TestPriceToplanMapping:
         }):
             # Re-import to pick up patched env
             import importlib
+
             import warden.stripe_billing as sb
             importlib.reload(sb)
             # After reload the module-level map is rebuilt
@@ -367,6 +366,7 @@ class TestPriceToplanMapping:
             "STRIPE_PRICE_MSP":     "",
         }):
             import importlib
+
             import warden.stripe_billing as sb
             importlib.reload(sb)
             assert sb._PRICE_TO_PLAN.get("price_growth_test") == "growth"

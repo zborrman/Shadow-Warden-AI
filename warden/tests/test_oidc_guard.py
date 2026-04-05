@@ -16,8 +16,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -82,6 +81,7 @@ class TestResolveTenant:
     def test_unknown_domain_raises_403(self, monkeypatch):
         monkeypatch.setenv("OIDC_ALLOWED_DOMAINS", "acme.com:tenant_acme")
         from fastapi import HTTPException
+
         from warden.auth.oidc_guard import invalidate_domain_map, resolve_tenant
         invalidate_domain_map()
 
@@ -100,6 +100,7 @@ class TestResolveTenant:
     def test_register_domain_runtime(self, monkeypatch):
         monkeypatch.setenv("OIDC_ALLOWED_DOMAINS", "")
         from fastapi import HTTPException
+
         from warden.auth.oidc_guard import invalidate_domain_map, register_domain, resolve_tenant
         invalidate_domain_map()
 
@@ -111,6 +112,7 @@ class TestResolveTenant:
 
     def test_missing_at_sign_raises_401(self, monkeypatch):
         from fastapi import HTTPException
+
         from warden.auth.oidc_guard import resolve_tenant
         with pytest.raises(HTTPException) as exc_info:
             resolve_tenant("not-an-email")
@@ -195,6 +197,7 @@ class TestVerifyOidcTokenFailure:
     def test_unknown_issuer_raises_401(self, monkeypatch):
         monkeypatch.setenv("OIDC_ALLOWED_DOMAINS", "acme.com:t_a")
         from fastapi import HTTPException
+
         from warden.auth import oidc_guard
         oidc_guard.invalidate_domain_map()
 
@@ -207,7 +210,6 @@ class TestVerifyOidcTokenFailure:
     def test_expired_token_raises_401(self, monkeypatch):
         import jwt as pyjwt
         monkeypatch.setenv("OIDC_ALLOWED_DOMAINS", "acme.com:t_a")
-        from fastapi import HTTPException
         from warden.auth import oidc_guard
         oidc_guard.invalidate_domain_map()
 
@@ -222,17 +224,17 @@ class TestVerifyOidcTokenFailure:
             pass
 
         # Simulate expiry: _verify_rs256 raises HTTPException(401)
-        from fastapi import HTTPException as _HE
-        exp_exc = _HE(status_code=401, detail="OIDC token has expired — please sign in again.")
-        with patch.object(oidc_guard, "_verify_rs256", side_effect=exp_exc):
-            with pytest.raises(_HE) as exc_info:
-                oidc_guard.verify_oidc_token(token)
+        from fastapi import HTTPException  # noqa: PLC0415
+        exp_exc = HTTPException(status_code=401, detail="OIDC token has expired — please sign in again.")
+        with patch.object(oidc_guard, "_verify_rs256", side_effect=exp_exc), pytest.raises(HTTPException) as exc_info:
+            oidc_guard.verify_oidc_token(token)
         assert exc_info.value.status_code == 401
         assert "expired" in exc_info.value.detail
 
     def test_unknown_domain_raises_403(self, monkeypatch):
         monkeypatch.setenv("OIDC_ALLOWED_DOMAINS", "")
         from fastapi import HTTPException
+
         from warden.auth import oidc_guard
         oidc_guard.invalidate_domain_map()
 
@@ -240,13 +242,13 @@ class TestVerifyOidcTokenFailure:
         mock_claims = {"iss": "https://accounts.google.com", "email": "x@unknown.org",
                        "exp": int(time.time()) + 3600}
 
-        with patch.object(oidc_guard, "_verify_rs256", return_value=mock_claims):
-            with pytest.raises(HTTPException) as exc_info:
-                oidc_guard.verify_oidc_token(token)
+        with patch.object(oidc_guard, "_verify_rs256", return_value=mock_claims), pytest.raises(HTTPException) as exc_info:
+            oidc_guard.verify_oidc_token(token)
         assert exc_info.value.status_code == 403
 
     def test_malformed_jwt_raises_401(self, monkeypatch):
         from fastapi import HTTPException
+
         from warden.auth.oidc_guard import verify_oidc_token
         with pytest.raises(HTTPException) as exc_info:
             verify_oidc_token("not.a.jwt.at.all")
@@ -259,14 +261,14 @@ class TestVerifyRs256:
     def test_unknown_kid_forces_refresh_then_raises(self):
         """If kid not found, cache is cleared and re-fetched once; 401 if still absent."""
         from fastapi import HTTPException
+
         from warden.auth import oidc_guard
 
         token = _make_id_token(kid="unknown-kid")
 
         # JWKS always returns empty key set
-        with patch.object(oidc_guard, "_get_jwks", return_value={}):
-            with pytest.raises(HTTPException) as exc_info:
-                oidc_guard._verify_rs256(token, "https://jwks.example.com")
+        with patch.object(oidc_guard, "_get_jwks", return_value={}), pytest.raises(HTTPException) as exc_info:
+            oidc_guard._verify_rs256(token, "https://jwks.example.com")
         assert exc_info.value.status_code == 401
         assert "Unknown JWKS key ID" in exc_info.value.detail
 
@@ -280,6 +282,7 @@ class TestVerifyRs256:
         hs256_token = f"{_b64({'alg':'HS256','typ':'JWT'})}.{_b64({'iss':'x','sub':'y'})}.sig"
 
         from fastapi import HTTPException
+
         from warden.auth.oidc_guard import _verify_rs256
         with pytest.raises(HTTPException) as exc_info:
             _verify_rs256(hs256_token, "https://jwks.example.com")
@@ -335,6 +338,7 @@ class TestRequireExtAuth:
     def test_missing_auth_with_key_configured_raises_401(self, monkeypatch):
         monkeypatch.setenv("WARDEN_API_KEY", "required-key")
         from fastapi import HTTPException
+
         from warden import auth_guard
         auth_guard._VALID_KEY = "required-key"
 

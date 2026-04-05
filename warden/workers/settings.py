@@ -35,11 +35,11 @@ import os
 from arq import cron
 from arq.connections import RedisSettings
 
-from warden.workers.weekly_report import send_weekly_reports
 from warden.workers.reaper import (
-    reap_expired_tunnels,
     notify_impending_expiration,
+    reap_expired_tunnels,
 )
+from warden.workers.weekly_report import send_weekly_reports
 
 logging.basicConfig(
     level=logging.INFO,

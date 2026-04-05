@@ -103,7 +103,7 @@ def _verify_rs256(token: str, jwks_url: str) -> dict[str, Any]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Cannot parse JWT header: {exc}",
-        )
+        ) from exc
 
     alg = header.get("alg", "")
     if alg not in ("RS256", "RS384", "RS512"):
@@ -137,16 +137,16 @@ def _verify_rs256(token: str, jwks_url: str) -> dict[str, Any]:
             # extension's own OAuth client; the gateway only needs email + issuer.
             options={"verify_aud": False},
         )
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="OIDC token has expired — please sign in again.",
-        )
+        ) from exc
     except jwt.InvalidTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid OIDC token: {exc}",
-        )
+        ) from exc
 
 
 # ── Domain → tenant_id mapping ────────────────────────────────────────────────
@@ -302,7 +302,7 @@ def verify_oidc_token(token: str) -> tuple[str, str]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Cannot decode JWT claims: {exc}",
-        )
+        ) from exc
 
     issuer = unverified.get("iss", "")
 

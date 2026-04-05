@@ -24,7 +24,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 def _make_log_entry(
@@ -60,6 +59,7 @@ def _write_logs(tmp_path: Path, entries: list[dict]) -> str:
 def _make_client(log_path: str, billing_mock=None) -> TestClient:
     """Create a TestClient for the tenant_impact router with patched deps."""
     from fastapi import FastAPI
+
     from warden.api.tenant_impact import router
 
     app = FastAPI()

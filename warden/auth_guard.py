@@ -236,7 +236,9 @@ def require_ext_auth(
     """
     if authorization and authorization.startswith("Bearer "):
         token = authorization[len("Bearer "):]
-        from warden.auth.oidc_guard import verify_oidc_token  # lazy import — avoids loading JWKS at startup
+        from warden.auth.oidc_guard import (
+            verify_oidc_token,  # lazy import — avoids loading JWKS at startup
+        )
         tenant_id, email = verify_oidc_token(token)
         log.info("OIDC auth: email=%s tenant=%s", email, tenant_id)
         return AuthResult(

@@ -16,14 +16,11 @@ Integration tests for the Reversible PII Vault:
 """
 from __future__ import annotations
 
-import os
-import time
 import uuid
 
 import pytest
 
-from warden.masking.engine import MaskingEngine, _vault as _global_vault
-
+from warden.masking.engine import MaskingEngine
 
 # ── 1-2. MaskingEngine unit tests ─────────────────────────────────────────────
 
@@ -179,7 +176,7 @@ class TestExtUnmask:
         # Step 2: simulate LLM response containing a masked token
         # (LLM echoes the token back in its reply)
         simulated_llm_response = (
-            f"The invoice addressed to [EMAIL_1] for [MONEY_1] has been prepared."
+            "The invoice addressed to [EMAIL_1] for [MONEY_1] has been prepared."
         )
 
         # Step 3: unmask

@@ -14,15 +14,11 @@ Covers:
 """
 from __future__ import annotations
 
-import json
-import sqlite3
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -158,13 +154,14 @@ class TestBuildReportForTenant:
     def test_dry_run_when_smtp_not_configured(self, caplog):
         """No SMTP → logs warning but returns True (non-fatal)."""
         import logging
-        with patch("warden.api.tenant_impact._build_impact", return_value=_make_impact_data()):
-            with patch.dict("os.environ", {"SMTP_HOST": "", "SMTP_USER": ""}):
-                from importlib import reload
-                import warden.workers.weekly_report as wr
-                reload(wr)  # pick up cleared env
-                with caplog.at_level(logging.INFO, logger="warden.workers.weekly_report"):
-                    result = wr.build_report_for_tenant("acme", "admin@acme.com")
+        with patch("warden.api.tenant_impact._build_impact", return_value=_make_impact_data()), \
+             patch.dict("os.environ", {"SMTP_HOST": "", "SMTP_USER": ""}):
+            from importlib import reload
+
+            import warden.workers.weekly_report as wr
+            reload(wr)  # pick up cleared env
+            with caplog.at_level(logging.INFO, logger="warden.workers.weekly_report"):
+                result = wr.build_report_for_tenant("acme", "admin@acme.com")
 
         assert result is True
         assert any("DRY RUN" in r.message or "would send" in r.message.lower()
@@ -174,6 +171,7 @@ class TestBuildReportForTenant:
         with patch("warden.api.tenant_impact._build_impact", return_value=_make_impact_data()), \
              patch.dict("os.environ", {"SMTP_HOST": "smtp.test.com", "SMTP_USER": "u", "SMTP_PASS": "p"}):
             from importlib import reload
+
             import warden.workers.weekly_report as wr
             reload(wr)
 
@@ -190,6 +188,7 @@ class TestBuildReportForTenant:
         with patch("warden.api.tenant_impact._build_impact", return_value=_make_impact_data()), \
              patch.dict("os.environ", {"SMTP_HOST": "smtp.test.com", "SMTP_USER": "u", "SMTP_PASS": "p"}):
             from importlib import reload
+
             import warden.workers.weekly_report as wr
             reload(wr)
 
@@ -234,7 +233,7 @@ class TestSendWeeklyReports:
         billing = self._make_billing(rows)
 
         with patch("warden.stripe_billing.get_stripe_billing", return_value=billing), \
-             patch("warden.workers.weekly_report.build_report_for_tenant", return_value=True) as mock_build:
+             patch("warden.workers.weekly_report.build_report_for_tenant", return_value=True):
             from warden.workers.weekly_report import send_weekly_reports
             result = await send_weekly_reports({})
 

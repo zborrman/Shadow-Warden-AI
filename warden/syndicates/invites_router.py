@@ -81,11 +81,11 @@ def _sign_invite(payload: dict) -> str:
 
 
 def _verify_invite(token: str) -> dict:
-    from jose import jwt, JWTError
+    from jose import JWTError, jwt
     try:
         return jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
     except JWTError as exc:
-        raise HTTPException(status_code=401, detail=f"Invalid or expired invite token: {exc}")
+        raise HTTPException(status_code=401, detail=f"Invalid or expired invite token: {exc}") from exc
 
 
 def _require_super_admin(request: Request) -> None:
@@ -107,6 +107,7 @@ async def _db_insert_invite(
     expires_at: datetime,
 ) -> None:
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().begin() as conn:
         await conn.execute(text("""
@@ -129,6 +130,7 @@ async def _db_insert_invite(
 async def _db_redeem_invite(invite_code: str) -> dict:
     """Mark invite as used (atomic). Returns the invite row or raises 409/410."""
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
 
     async with get_async_engine().begin() as conn:
@@ -169,6 +171,7 @@ async def _db_redeem_invite(invite_code: str) -> dict:
 
 async def _db_get_syndicate_for_tenant(tenant_id: str) -> str | None:
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().connect() as conn:
         row = await conn.execute(
@@ -326,6 +329,7 @@ async def accept_user_invite(body: UserAcceptRequest, request: Request):
         member_expires = datetime.now(UTC) + timedelta(hours=ttl_hours)
 
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().begin() as conn:
         await conn.execute(text("""
@@ -458,15 +462,17 @@ async def platform_invite_init(body: PlatformInviteRequest, request: Request):
     # Store private key + tunnel_id in Redis (10-min handshake window)
     try:
         import redis as _redis
+
         from warden.config import settings
         r = _redis.from_url(settings.redis_url, decode_responses=False)
         r.setex(f"warden:handshake:priv:{tunnel_id}", 600, priv_b64.encode())
         r.setex(f"warden:manifest:otc:{invite_code}", 600, one_time_code.encode())
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"Redis unavailable: {exc}")
+        raise HTTPException(status_code=503, detail=f"Redis unavailable: {exc}") from exc
 
     # Pre-create PENDING tunnel link
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().begin() as conn:
         await conn.execute(text("""
@@ -543,11 +549,12 @@ async def platform_invite_join(body: PlatformJoinRequest, request: Request):
     # ── 1. Verify HMAC one-time code ───────────────────────────────────────��─
     try:
         import redis as _redis
+
         from warden.config import settings
         r = _redis.from_url(settings.redis_url, decode_responses=False)
         stored_otc = r.get(f"warden:manifest:otc:{invite_code}")
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"Redis unavailable: {exc}")
+        raise HTTPException(status_code=503, detail=f"Redis unavailable: {exc}") from exc
 
     if not stored_otc:
         raise HTTPException(
@@ -573,11 +580,12 @@ async def platform_invite_join(body: PlatformJoinRequest, request: Request):
     responder_sid = await _db_get_syndicate_for_tenant(tenant_id)
 
     if not responder_sid:
-        from warden.syndicates.crypto import TunnelCrypto as _TC
+        from warden.syndicates.crypto import TunnelCrypto as _TC  # noqa: N814
         _, b_identity_pub = _TC.generate_keypair()
         responder_sid = f"SID-{hashlib.sha256(tenant_id.encode()).hexdigest()[:12].upper()}"
 
         from sqlalchemy import text
+
         from warden.db.connection import get_async_engine
         async with get_async_engine().begin() as conn:
             await conn.execute(text("""
@@ -605,6 +613,7 @@ async def platform_invite_join(body: PlatformJoinRequest, request: Request):
 
     # Update tunnel record with responder SID
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().begin() as conn:
         await conn.execute(text("""
@@ -649,6 +658,7 @@ async def platform_invite_join(body: PlatformJoinRequest, request: Request):
     # Mark ACTIVE locally regardless (A will also mark it when it receives the callback)
     if a_completed:
         from sqlalchemy import text as _t
+
         from warden.db.connection import get_async_engine as _eng
         async with _eng().begin() as conn:
             await conn.execute(_t("""
@@ -687,6 +697,7 @@ async def list_invites(request: Request):
         return {"invites": []}
 
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().connect() as conn:
         rows = await conn.execute(text("""

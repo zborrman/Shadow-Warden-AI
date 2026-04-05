@@ -39,7 +39,6 @@ import smtplib
 from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pathlib import Path
 
 log = logging.getLogger("warden.workers.weekly_report")
 

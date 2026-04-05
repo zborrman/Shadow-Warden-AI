@@ -64,6 +64,7 @@ def _get_sync_redis():
 
 async def _fetch_all(sql: str, params: dict) -> list:
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().connect() as conn:
         result = await conn.execute(text(sql), params)
@@ -72,6 +73,7 @@ async def _fetch_all(sql: str, params: dict) -> list:
 
 async def _execute(sql: str, params: dict) -> None:
     from sqlalchemy import text
+
     from warden.db.connection import get_async_engine
     async with get_async_engine().begin() as conn:
         await conn.execute(text(sql), params)
