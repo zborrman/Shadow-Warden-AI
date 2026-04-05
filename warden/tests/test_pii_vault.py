@@ -111,7 +111,7 @@ class TestExtFilterPiiVault:
         """
         resp = client.post(
             "/ext/filter",
-            json={"content": "Send the $50,000 invoice to john.doe@acme.com"},
+            json={"content": "Send the $50,000 payment to john.doe@acme.com"},
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -159,7 +159,7 @@ class TestExtUnmask:
         Full round-trip: mask via /ext/filter, unmask via /ext/unmask.
         The final text must contain the original email address.
         """
-        original = "Send the $50,000 invoice to billing@contoso.com"
+        original = "Send the $50,000 payment to billing@contoso.com"
 
         # Step 1: filter (mask)
         filter_resp = client.post("/ext/filter", json={"content": original})
