@@ -7,14 +7,26 @@ RUN npm install
 
 COPY . .
 
-# API URL baked at build time
+# API URL baked at build time (public — safe for browser)
 ARG NEXT_PUBLIC_API_URL=https://api.shadow-warden-ai.com
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
 
-# ── Stage 2: static files only ────────────────────────────────────────────────
-FROM nginx:1.27-alpine AS runtime
-COPY --from=builder /app/out /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+# ── Stage 2: standalone Node.js server ────────────────────────────────────────
+# output: 'standalone' produces .next/standalone — a minimal self-contained
+# Node server that supports API routes (required for /api/hub/* proxy).
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3001
+
+# Copy standalone bundle + static assets
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+EXPOSE 3001
+
+CMD ["node", "server.js"]

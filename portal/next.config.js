@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',       // static export — served by nginx as plain files
+  output: 'standalone',   // Node.js server — required for /api/hub/* server-side proxy
   trailingSlash: true,    // /dashboard → /dashboard/index.html
   images: { unoptimized: true },
   env: {

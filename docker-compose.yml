@@ -12,6 +12,7 @@
 #    prometheus — metrics scraper              (internal :9090)
 #    grafana    — metrics dashboard            (3001 external)
 #    jaeger     — distributed tracing          (16686 UI / OTLP 4317/4318)
+#    portal     — Next.js tenant UI            (internal :3001, via nginx)
 # ─────────────────────────────────────────────────────────────────────────────
 
 networks:
@@ -509,6 +510,46 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  # ── PORTAL (Next.js tenant UI) ──────────────────────────────────────────────
+  portal:
+    build:
+      context: ./portal
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.shadow-warden-ai.com}
+    container_name: warden-portal
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    expose:
+      - "3001"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - WARDEN_INTERNAL_URL=http://warden:8001
+      - WARDEN_SUPER_ADMIN_KEY=${SUPER_ADMIN_KEY:-}
+      - PORTAL_JWT_SECRET=${PORTAL_JWT_SECRET:-}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.shadow-warden-ai.com}
+    depends_on:
+      warden:
+        condition: service_started
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/login/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   # ── JAEGER (distributed tracing) ────────────────────────────────────────────
   jaeger:
