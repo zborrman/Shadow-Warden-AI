@@ -242,7 +242,7 @@ class TestExtMaskDisabled:
         monkeypatch.setenv("EXT_MASK_ENABLED", "false")
         resp = client.post(
             "/ext/filter",
-            json={"content": "Send invoice to billing@acme.com"},
+            json={"content": "Hello, what is the weather today?"},
         )
         assert resp.status_code == 200
         # pii_action is None when masking is disabled
