@@ -341,6 +341,58 @@ def create_schema() -> None:
         "CREATE INDEX IF NOT EXISTS syndicate_links_expires_idx     ON warden_core.syndicate_links(expires_at) WHERE status = 'ACTIVE'",
         "CREATE INDEX IF NOT EXISTS syndicate_members_sid_idx       ON warden_core.syndicate_members(syndicate_id)",
         "CREATE INDEX IF NOT EXISTS syndicate_invitations_code_idx  ON warden_core.syndicate_invitations(invite_code) WHERE is_used = FALSE",
+
+        # ── Business Communities (v2.8) ────────────────────────────────────────
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.communities (
+            community_id    TEXT        PRIMARY KEY,
+            tenant_id       TEXT        NOT NULL,
+            display_name    TEXT        NOT NULL DEFAULT '',
+            description     TEXT        NOT NULL DEFAULT '',
+            tier            TEXT        NOT NULL DEFAULT 'business',
+            active_kid      TEXT        NOT NULL DEFAULT 'v1',
+            status          TEXT        NOT NULL DEFAULT 'ACTIVE',
+            created_by      TEXT        NOT NULL,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.community_members (
+            member_id       TEXT        PRIMARY KEY,
+            community_id    TEXT        NOT NULL
+                            REFERENCES warden_core.communities(community_id),
+            tenant_id       TEXT        NOT NULL,
+            external_id     TEXT        NOT NULL,
+            display_name    TEXT        NOT NULL DEFAULT '',
+            clearance       TEXT        NOT NULL DEFAULT 'PUBLIC',
+            role            TEXT        NOT NULL DEFAULT 'MEMBER',
+            status          TEXT        NOT NULL DEFAULT 'ACTIVE',
+            invited_by      TEXT,
+            joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS warden_core.community_key_archive (
+            community_id    TEXT        NOT NULL,
+            kid             TEXT        NOT NULL,
+            status          TEXT        NOT NULL DEFAULT 'ACTIVE',
+            ed25519_pub_b64 TEXT        NOT NULL,
+            x25519_pub_b64  TEXT        NOT NULL,
+            ed_priv_enc_b64 TEXT,
+            x_priv_enc_b64  TEXT,
+            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            shredded_at     TIMESTAMPTZ,
+            PRIMARY KEY (community_id, kid)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS communities_tenant_idx        ON warden_core.communities(tenant_id)",
+        "CREATE INDEX IF NOT EXISTS communities_status_idx        ON warden_core.communities(status)",
+        "CREATE INDEX IF NOT EXISTS cm_community_idx              ON warden_core.community_members(community_id)",
+        "CREATE INDEX IF NOT EXISTS cm_external_idx               ON warden_core.community_members(community_id, external_id)",
+        "CREATE INDEX IF NOT EXISTS cm_tenant_idx                 ON warden_core.community_members(tenant_id)",
+        "CREATE INDEX IF NOT EXISTS cka_community_status_idx      ON warden_core.community_key_archive(community_id, status)",
     ]
 
     with engine.begin() as conn:

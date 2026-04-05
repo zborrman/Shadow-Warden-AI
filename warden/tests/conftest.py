@@ -39,6 +39,10 @@ os.environ.setdefault("MANDATE_SECRET",       "test-mandate-secret-ci")
 os.environ.setdefault("THREAT_INTEL_DB_PATH", "/tmp/warden_test_threat_intel.db")
 os.environ.setdefault("THREAT_INTEL_ENABLED", "false")
 os.environ.setdefault("AUTO_BLOCK_THRESHOLD",  "0")    # disable auto-IP-block in tests (testclient accumulates block events across session)
+os.environ.setdefault("COMMUNITY_REGISTRY_PATH",  "/tmp/warden_test_community_registry.db")
+os.environ.setdefault("COMMUNITY_KEY_ARCHIVE_PATH", "/tmp/warden_test_community_key_archive.db")
+os.environ.setdefault("BREAK_GLASS_AUDIT_PATH",   "/tmp/warden_test_break_glass_audit.jsonl")
+os.environ.setdefault("VAULT_MASTER_KEY",          "i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA=")  # valid Fernet key for tests
 
 
 @pytest.fixture(scope="session", autouse=True)

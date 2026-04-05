@@ -958,6 +958,13 @@ try:
 except ImportError:
     log.warning("invites router not available — /invites skipped.")
 
+try:
+    from warden.communities.router import router as _communities_router
+    app.include_router(_communities_router)
+    log.info("Business Communities mounted at /communities")
+except ImportError:
+    log.warning("communities router not available — /communities skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
