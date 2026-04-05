@@ -304,6 +304,7 @@ def create_schema() -> None:
                                 DEFAULT (NOW() + INTERVAL '24 hours'),
             last_notified_at    TIMESTAMPTZ,
             safety_number       TEXT,
+            peer_endpoint       TEXT,
             permissions         JSONB       NOT NULL DEFAULT '{}',
             created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             established_at      TIMESTAMPTZ

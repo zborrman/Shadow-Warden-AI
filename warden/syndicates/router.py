@@ -1,7 +1,7 @@
 """
 warden/syndicates/router.py
 ───────────────────────────
-Warden Syndicates API — Zero-Trust Tunnel handshake endpoints.
+Warden Syndicates API — Zero-Trust Tunnel handshake + data transfer endpoints.
 
 Endpoints
 ─────────
@@ -547,3 +547,309 @@ async def list_tunnels(request: Request):
             for r in links
         ]
     }
+
+
+# ── Document / prompt transmission ────────────────────────────────────────────
+#
+# Flow:
+#   Platform A  →  POST /tunnels/transmit
+#       1. Quota check (bandwidth)
+#       2. WormGuard scan + PII masking  (ingestion.prepare_for_tunnel)
+#       3. AES-256-GCM encrypt
+#       4. If peer_endpoint provided → POST to peer /tunnels/receive
+#       5. Return encrypted envelope + session_id for future unmask
+#
+#   Platform B  ←  POST /tunnels/receive
+#       1. Verify tunnel is ACTIVE
+#       2. AES-256-GCM decrypt
+#       3. Receiver-side WormGuard scan  (ingestion.scan_received_document)
+#          → on worm: instant tunnel revocation + HTTP 403
+#       4. Store content in evidence vault (S3/MinIO)
+#       5. Return decrypted (masked) content to caller
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TransmitRequest(BaseModel):
+    tunnel_id: str
+    content: str = Field(..., description="Raw document text or prompt to send")
+    file_name: str = Field("document.txt", description="Human-readable name for evidence vault")
+    peer_endpoint: str = Field(
+        "",
+        description=(
+            "Optional: full URL of the peer gateway's receive endpoint "
+            "(e.g. https://partner.example.com/tunnels/receive). "
+            "If provided, the gateway auto-delivers the payload. "
+            "If omitted, the encrypted envelope is returned for manual delivery."
+        ),
+    )
+    session_id: str = Field(
+        "",
+        description="Optional: reuse an existing masking session for unmasking the response.",
+    )
+    tenant_plan: str = Field("business", description="Caller's billing plan (individual/business/mcp)")
+
+
+class TransmitResponse(BaseModel):
+    tunnel_id: str
+    session_id: str
+    file_name: str
+    original_bytes: int
+    masked_entities: int
+    delivered: bool
+    envelope: dict | None = None  # returned when peer_endpoint is empty
+
+
+class ReceiveRequest(BaseModel):
+    tunnel_id: str
+    sender_sid: str
+    file_name: str = "document.txt"
+    envelope: dict  # {"nonce": "...", "ciphertext": "..."}
+
+
+class ReceiveResponse(BaseModel):
+    tunnel_id: str
+    sender_sid: str
+    file_name: str
+    content: str
+    bytes_received: int
+    stored_key: str | None = None
+
+
+@tunnels_router.post("/transmit", response_model=TransmitResponse)
+async def transmit_document(body: TransmitRequest, request: Request):
+    """
+    Sanitise, mask, encrypt, and transmit a document through an active tunnel.
+
+    Security pipeline (Sanitize-at-Source):
+      1. Quota check  — rejects if monthly bandwidth exceeded (hard block mode)
+      2. WormGuard    — blocks AI-worm / RAG-poisoning payloads before they leave
+      3. PII Masking  — replaces PII tokens; original values stay on this gateway
+      4. AES-256-GCM  — encrypts masked text with the tunnel's shared key
+      5. Delivery     — auto-POSTs to peer_endpoint if provided
+
+    The returned session_id must be kept by the caller to unmask the response
+    from Platform B via POST /tunnels/unmask.
+    """
+    _require_super_admin(request)
+
+    tunnel_id = body.tunnel_id
+    content   = body.content
+
+    # ── 1. Quota check ────────────────────────────────────────────────────────
+    content_bytes = len(content.encode("utf-8"))
+    try:
+        from warden.billing.quotas import check_bandwidth
+        check_bandwidth(
+            tenant_id=request.headers.get("X-Warden-Tenant-ID") or request.headers.get("X-Tenant-ID", "unknown"),
+            plan=body.tenant_plan,
+            file_size_bytes=content_bytes,
+        )
+    except Exception as quota_exc:
+        from fastapi import HTTPException as _H
+        if hasattr(quota_exc, "status_code"):
+            raise
+        log.warning("Quota check error (fail-open): %s", quota_exc)
+
+    # ── 2 & 3. WormGuard + PII masking ───────────────────────────────────────
+    from warden.syndicates.ingestion import prepare_for_tunnel, TunnelIngestionError
+    try:
+        masked_text, session_id = prepare_for_tunnel(
+            content=content,
+            tunnel_id=tunnel_id,
+            session_id=body.session_id or None,
+        )
+    except TunnelIngestionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    # Count masked entities for response metadata
+    masked_entities = masked_text.count("[") if masked_text != content else 0
+
+    # ── 4. Fetch AES key + encrypt ────────────────────────────────────────────
+    redis = _get_redis()
+    aes_key_bytes = redis.get(f"warden:tunnels:active:{tunnel_id}")
+    if not aes_key_bytes:
+        raise HTTPException(
+            status_code=410,
+            detail="Tunnel key not found — tunnel may be expired or revoked.",
+        )
+    aes_key = bytes(aes_key_bytes)
+
+    envelope = TunnelCrypto.encrypt(masked_text, aes_key)
+
+    # ── 5. Optional auto-delivery to peer ────────────────────────────────────
+    delivered = False
+    if body.peer_endpoint:
+        # Look up initiator SID for the sender metadata
+        from sqlalchemy import text
+        from warden.db.connection import get_async_engine
+        async with get_async_engine().connect() as conn:
+            row = await conn.execute(
+                text("SELECT initiator_sid FROM warden_core.syndicate_links WHERE link_id = :lid"),
+                {"lid": tunnel_id},
+            )
+            link = row.fetchone()
+        sender_sid = link[0] if link else "unknown"
+
+        payload = {
+            "tunnel_id": tunnel_id,
+            "sender_sid": sender_sid,
+            "file_name": body.file_name,
+            "envelope": envelope,
+        }
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(body.peer_endpoint, json=payload)
+                resp.raise_for_status()
+                delivered = True
+                log.info(
+                    "Tunnel transmit delivered: tunnel=%s dest=%s bytes=%d",
+                    tunnel_id, body.peer_endpoint, content_bytes,
+                )
+        except Exception as exc:
+            log.error("Tunnel delivery failed: tunnel=%s dest=%s error=%s", tunnel_id, body.peer_endpoint, exc)
+            raise HTTPException(
+                status_code=502,
+                detail=f"Encrypted payload prepared but delivery to peer failed: {exc}",
+            )
+
+    return TransmitResponse(
+        tunnel_id=tunnel_id,
+        session_id=session_id,
+        file_name=body.file_name,
+        original_bytes=content_bytes,
+        masked_entities=masked_entities,
+        delivered=delivered,
+        envelope=None if delivered else envelope,
+    )
+
+
+@tunnels_router.post("/receive", response_model=ReceiveResponse)
+async def receive_document(body: ReceiveRequest, request: Request):
+    """
+    Receive, decrypt, and WormGuard-scan an incoming tunnel payload.
+
+    Called by the peer gateway (or directly by Platform A in loopback tests).
+    Applies the receiver-side WormGuard scan — if a worm is detected the tunnel
+    is immediately revoked (crypto-shredded) and HTTP 403 is returned.
+    """
+    _require_super_admin(request)
+
+    tunnel_id = body.tunnel_id
+
+    # ── Verify tunnel is ACTIVE ───────────────────────────────────────────────
+    from sqlalchemy import text
+    from warden.db.connection import get_async_engine
+    async with get_async_engine().connect() as conn:
+        row = await conn.execute(
+            text("SELECT status FROM warden_core.syndicate_links WHERE link_id = :lid"),
+            {"lid": tunnel_id},
+        )
+        link = row.fetchone()
+
+    if not link:
+        raise HTTPException(status_code=404, detail="Tunnel not found.")
+    if link[0] != "ACTIVE":
+        raise HTTPException(
+            status_code=410,
+            detail=f"Tunnel is not active (status: {link[0]}).",
+        )
+
+    # ── Decrypt ───────────────────────────────────────────────────────────────
+    redis = _get_redis()
+    aes_key_bytes = redis.get(f"warden:tunnels:active:{tunnel_id}")
+    if not aes_key_bytes:
+        raise HTTPException(
+            status_code=410,
+            detail="Tunnel key not found in Redis — tunnel may have expired.",
+        )
+
+    from warden.syndicates.crypto import DecryptionError
+    try:
+        plaintext = TunnelCrypto.decrypt(body.envelope, bytes(aes_key_bytes))
+    except DecryptionError as exc:
+        log.warning("Decryption failed: tunnel=%s error=%s", tunnel_id, exc)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Decryption failed — possible tampering or key mismatch: {exc}",
+        )
+
+    # ── Receiver-side WormGuard scan ─────────────────────────────────────────
+    from warden.syndicates.ingestion import scan_received_document, TunnelIngestionError
+    try:
+        scan_received_document(plaintext, tunnel_id)
+    except TunnelIngestionError as exc:
+        # WORM DETECTED — revoke tunnel immediately (crypto-shredding)
+        redis.delete(f"warden:tunnels:active:{tunnel_id}")
+        async with get_async_engine().begin() as conn:
+            await conn.execute(
+                text("UPDATE warden_core.syndicate_links SET status='REVOKED' WHERE link_id=:lid"),
+                {"lid": tunnel_id},
+            )
+        log.critical("TUNNEL REVOKED (worm): tunnel=%s sender=%s", tunnel_id, body.sender_sid)
+        raise HTTPException(
+            status_code=403,
+            detail=f"AI worm detected in payload — tunnel {tunnel_id} has been revoked.",
+        )
+
+    # ── Store in evidence vault ───────────────────────────────────────────────
+    stored_key: str | None = None
+    try:
+        from warden.storage.s3 import save_bundle
+        import hashlib as _hl
+        doc_id = _hl.sha256(f"{tunnel_id}:{body.file_name}:{len(plaintext)}".encode()).hexdigest()[:16]
+        stored_key = f"tunnels/{tunnel_id}/{doc_id}-{body.file_name}"
+        save_bundle(
+            session_id=stored_key,
+            bundle={
+                "tunnel_id": tunnel_id,
+                "sender_sid": body.sender_sid,
+                "file_name": body.file_name,
+                "content": plaintext,
+                "received_at": datetime.now(UTC).isoformat(),
+            },
+        )
+    except Exception as exc:
+        log.warning("Evidence vault storage failed (non-fatal): tunnel=%s error=%s", tunnel_id, exc)
+
+    log.info(
+        "Tunnel receive: tunnel=%s sender=%s bytes=%d stored=%s",
+        tunnel_id, body.sender_sid, len(plaintext.encode()), stored_key,
+    )
+
+    return ReceiveResponse(
+        tunnel_id=tunnel_id,
+        sender_sid=body.sender_sid,
+        file_name=body.file_name,
+        content=plaintext,
+        bytes_received=len(plaintext.encode("utf-8")),
+        stored_key=stored_key,
+    )
+
+
+@tunnels_router.post("/{tunnel_id}/unmask")
+async def unmask_tunnel_response(
+    tunnel_id: str,
+    request: Request,
+):
+    """
+    Reverse PII tokens in a response received from the peer gateway.
+
+    Body: {"session_id": "...", "response_text": "..."}
+    Returns: {"unmasked_text": "..."}
+
+    The session_id was returned by POST /tunnels/transmit.
+    """
+    _require_super_admin(request)
+
+    body = await request.json()
+    session_id    = body.get("session_id", "")
+    response_text = body.get("response_text", "")
+
+    if not session_id or not response_text:
+        raise HTTPException(status_code=400, detail="session_id and response_text are required.")
+
+    from warden.syndicates.ingestion import unmask_response
+    unmasked = unmask_response(response_text, session_id, tunnel_id)
+
+    return {"tunnel_id": tunnel_id, "session_id": session_id, "unmasked_text": unmasked}
