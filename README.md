@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 2.5 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.6 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
@@ -67,6 +67,17 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 | **Data sovereignty** | Shared cloud (GDPR-compliant) | Full — no data leaves customer perimeter |
 
 ---
+
+## What's New in v2.6
+
+| Feature | Description |
+|---------|-------------|
+| **Reversible PII Vault (`/ext/filter` + `/ext/unmask`)** | End-to-end PII masking loop for the browser extension. When `/ext/filter` detects PII (email, money, date, person, org), it masks tokens (`[EMAIL_1]`, `[MONEY_1]`, `[PERSON_1]` …) before the prompt reaches the LLM, stores the original values in an ephemeral per-session vault (2-hour TTL), and returns `pii_action="mask_and_send"` + `pii_session_id`. After the LLM replies, the extension calls `/ext/unmask` with the session ID — all `[TYPE_N]` tokens are replaced with the originals. Same entity value always maps to the same token within a session. Fail-open: unknown session IDs return text unchanged. |
+| **OIDC Identity Guard** | Hybrid auth dependency (`require_ext_auth`) for the `/ext/*` routes: Bearer JWT → OIDC verification (Google & Microsoft Azure AD); `X-API-Key` header → existing key-based auth; no credentials → dev-mode pass-through. `verify_oidc_token` validates RS256 JWT, resolves tenant from email domain via `OIDC_ALLOWED_DOMAINS` env var (`domain:tenant_id` pairs), force-refreshes JWKS cache on key-ID miss. `resolve_tenant` is case-insensitive and supports runtime domain registration. |
+| **Data Policy Engine** | Three-tier traffic-light classification (`GREEN / YELLOW / RED`) applied before the semantic pipeline. RED categories (financial, legal, HR, medical) are blocked from all AI providers. YELLOW categories (internal data) are restricted to local models only. Per-tenant policy overrides via `POLICY_DB_PATH` SQLite store. Blocks return HTTP 403 with `data_class` + `suggestion` detail. |
+| **ARQ Async Message Queue** | Decoupled async workers via `arq` (Redis-backed). Geo-block webhook delivery and outbound email notifications run in background `arq-worker` container — the main gateway returns HTTP 200 without waiting for slow external HTTP calls. Dead-letter logging on failure. |
+| **CI Test Isolation Hardening** | Fixed three classes of cross-test pollution: (1) `_clear_threat_store` session fixture deletes `blocked_ips` rows from the ThreatStore SQLite DB before each test session — prevents `testclient` IP auto-block accumulation across runs. (2) `AUTO_BLOCK_THRESHOLD=0` env var disables new auto-blocks during the test session. (3) `is_quarantined` patched to `False` in the safe-worm Jaccard test — eliminates Redis quarantine state leakage from the worm-detection test that runs first. |
+| **1800 Tests** | Test suite expanded from 1688 to 1800. New coverage: OIDC guard (26 tests), PII vault round-trips and endpoint tests (14 tests), data policy classification, ARQ queue integration, and deploy workflow smoke tests. Coverage gate raised to ≥ 75% (current: ~78%). |
 
 ## What's New in v2.5
 
