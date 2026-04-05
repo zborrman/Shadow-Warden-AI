@@ -147,7 +147,7 @@ def _build_impact(
             }
             for flag, count in flag_counts.items()
         ],
-        key=lambda x: -x["count"],
+        key=lambda x: -(x["count"] or 0),  # type: ignore[operator]
     )[:8]
 
     # ── Timeline (daily buckets) ──────────────────────────────────────────────

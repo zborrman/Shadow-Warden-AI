@@ -172,13 +172,13 @@ def _load_domain_map() -> dict[str, str]:
 
     # Merge Redis overrides if available (non-fatal if Redis is down)
     try:
-        from warden.cache import get_redis_client  # type: ignore[import]
+        from warden.cache import _get_client as get_redis_client  # noqa: PLC0415
         r = get_redis_client()
         if r is not None:
             redis_map = r.hgetall("warden:oidc:domains")
-            for domain, tenant in (redis_map or {}).items():
-                d = domain.decode() if isinstance(domain, bytes) else domain
-                t = tenant.decode() if isinstance(tenant, bytes) else tenant
+            for _dk, _tv in (redis_map or {}).items():
+                d = _dk.decode("utf-8") if isinstance(_dk, (bytes, bytearray)) else str(_dk or "")  # type: ignore[attr-defined]
+                t = _tv.decode("utf-8") if isinstance(_tv, (bytes, bytearray)) else str(_tv or "")  # type: ignore[attr-defined]
                 result[d.lower()] = t
     except Exception:
         pass  # Redis unavailable — env var map is sufficient
@@ -196,7 +196,7 @@ def register_domain(domain: str, tenant_id: str) -> None:
 
     # Persist to Redis if available
     try:
-        from warden.cache import get_redis_client  # type: ignore[import]
+        from warden.cache import _get_client as get_redis_client  # noqa: PLC0415
         r = get_redis_client()
         if r is not None:
             r.hset("warden:oidc:domains", domain.lower(), tenant_id)
