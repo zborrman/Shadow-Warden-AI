@@ -315,8 +315,7 @@ class TestRequireExtAuth:
     def test_api_key_fallback(self, monkeypatch):
         monkeypatch.setenv("WARDEN_API_KEY", "test-secret-key")
         from warden import auth_guard
-        # Reset single-key state
-        auth_guard._VALID_KEY = "test-secret-key"
+        monkeypatch.setattr(auth_guard, "_VALID_KEY", "test-secret-key")
 
         from warden.auth_guard import require_ext_auth
         result = require_ext_auth(x_api_key="test-secret-key", authorization=None)
@@ -328,8 +327,8 @@ class TestRequireExtAuth:
         monkeypatch.setenv("WARDEN_API_KEY", "")
         monkeypatch.setenv("WARDEN_API_KEYS_PATH", "")
         from warden import auth_guard
-        auth_guard._VALID_KEY = ""
-        auth_guard._KEYS_PATH = ""
+        monkeypatch.setattr(auth_guard, "_VALID_KEY", "")
+        monkeypatch.setattr(auth_guard, "_KEYS_PATH", "")
 
         from warden.auth_guard import require_ext_auth
         result = require_ext_auth(x_api_key=None, authorization=None)
@@ -340,7 +339,7 @@ class TestRequireExtAuth:
         from fastapi import HTTPException
 
         from warden import auth_guard
-        auth_guard._VALID_KEY = "required-key"
+        monkeypatch.setattr(auth_guard, "_VALID_KEY", "required-key")
 
         from warden.auth_guard import require_ext_auth
         with pytest.raises(HTTPException) as exc_info:
