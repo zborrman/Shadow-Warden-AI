@@ -1,13 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ShieldCheck, LayoutDashboard, Key, Settings, LogOut, ExternalLink, Puzzle } from 'lucide-react'
+import { ShieldCheck, LayoutDashboard, Key, Settings, LogOut, ExternalLink, Puzzle, Globe } from 'lucide-react'
 import { logout } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import clsx from 'clsx'
 
 const nav = [
   { href: '/dashboard/', label: 'Dashboard',  icon: LayoutDashboard },
+  { href: '/hub/',       label: 'Warden Hub', icon: Globe },
   { href: '/api-keys/',  label: 'API Keys',   icon: Key },
   { href: '/extension/', label: 'Extension',  icon: Puzzle },
   { href: '/settings/',  label: 'Settings',   icon: Settings },
