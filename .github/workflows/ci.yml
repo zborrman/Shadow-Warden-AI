@@ -262,19 +262,16 @@ jobs:
           cd "$SSH_PATH"
 
           echo "── [1/4] Pull latest code ──────────────────────────────────"
-          # Docker containers run as wardenuser (UID 10001) and may have
-          # written to git-tracked files in data/ (e.g. init.sql, threat_feed.json),
-          # causing "unable to unlink" errors in git reset.  Reclaim ownership
-          # before the reset so git can overwrite them.  The find is targeted to
-          # only .sql/.json files to avoid touching live runtime data volumes.
-          # Reclaim ownership of files Docker wrote as wardenuser (UID 10001).
+          # Docker containers run as root or wardenuser (UID 10001) and may have
+          # written to git-tracked files (data/*.sql, data/*.json, warden/**/*.py, etc.),
+          # causing "unable to unlink" errors in git reset.  Reclaim ownership of
+          # the entire repo directory before the reset so git can overwrite any file.
           # \$(id -u) is intentionally escaped — must expand on the SERVER, not
           # the GitHub Actions runner (where id -u is the runner UID, not root).
-          find data -maxdepth 4 \( -name "*.sql" -o -name "*.json" \) \
-            -exec chown "\$(id -u):\$(id -g)" {} + 2>/dev/null || true
-          # Also ensure files are writable by the owner (guards against 444 mode)
-          find data -maxdepth 4 \( -name "*.sql" -o -name "*.json" \) \
-            -exec chmod u+w {} + 2>/dev/null || true
+          sudo chown -R "\$(id -u):\$(id -g)" . 2>/dev/null || true
+          # Also ensure all tracked files are writable by the owner
+          find . -maxdepth 6 -not -path './.git/*' -not -path './node_modules/*' \
+            -exec chmod u+rw {} + 2>/dev/null || true
           git fetch origin main
           git reset --hard origin/main
 
