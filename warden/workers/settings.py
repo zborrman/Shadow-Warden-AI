@@ -11,13 +11,21 @@ Or via the Helm chart (arq-worker Deployment), which sets:
 
 Cron schedule
 ─────────────
-  weekly_reports  — every Friday at 08:00 UTC
+  weekly_reports              — every Friday at 08:00 UTC
     Sends the Weekly ROI Impact Report email to all active paid tenants.
+
+  reap_expired_tunnels        — every 5 minutes
+    Crypto-shreds AES keys for expired Syndicate tunnels and marks them
+    EXPIRED in Postgres (double safety — Redis EXPIRE also fires at TTL).
+
+  notify_impending_expiration — every 15 minutes
+    Sends Slack warnings for tunnels expiring within the next hour.
 
 Environment variables
 ─────────────────────
-  REDIS_URL  — Redis connection string (default redis://localhost:6379/0)
-               ARQ uses Redis as its job queue backend.
+  REDIS_URL          — Redis connection string (default redis://localhost:6379/0)
+  DATABASE_URL       — PostgreSQL for reaper DB queries
+  SLACK_WEBHOOK_URL  — optional; reaper expiration alerts
 """
 from __future__ import annotations
 
@@ -28,6 +36,10 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from warden.workers.weekly_report import send_weekly_reports
+from warden.workers.reaper import (
+    reap_expired_tunnels,
+    notify_impending_expiration,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,6 +52,7 @@ _REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 async def startup(ctx: dict) -> None:
     logging.getLogger("warden.workers").setLevel(logging.INFO)
     logging.getLogger("arq").setLevel(logging.INFO)
+    logging.getLogger("warden.workers.reaper").setLevel(logging.INFO)
 
 
 class WorkerSettings:
@@ -47,11 +60,29 @@ class WorkerSettings:
 
     redis_settings = RedisSettings.from_dsn(_REDIS_URL)
 
-    functions = [send_weekly_reports]
+    functions = [
+        send_weekly_reports,
+        reap_expired_tunnels,
+        notify_impending_expiration,
+    ]
 
     cron_jobs = [
-        # Every Friday at 08:00 UTC
+        # ── Weekly ROI email — every Friday 08:00 UTC ─────────────────────────
         cron(send_weekly_reports, weekday=4, hour=8, minute=0, timeout=600),
+
+        # ── Syndicate Reaper — every 5 minutes ───────────────────────────────
+        cron(
+            reap_expired_tunnels,
+            minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
+            timeout=120,
+        ),
+
+        # ── Expiration warnings — every 15 minutes ────────────────────────────
+        cron(
+            notify_impending_expiration,
+            minute={0, 15, 30, 45},
+            timeout=60,
+        ),
     ]
 
     on_startup  = startup

@@ -242,6 +242,7 @@ services:
     environment:
       - ARQ_MODE=1
       - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-warden}
       - LOGS_PATH=/warden/data/logs.json
       - STRIPE_DB_PATH=/warden/data/stripe.db
       - SMTP_HOST=${SMTP_HOST:-}
@@ -253,10 +254,13 @@ services:
       - PORTAL_URL=${PORTAL_URL:-https://app.shadow-warden-ai.com}
       - IMPACT_COST_PER_BLOCK_USD=${IMPACT_COST_PER_BLOCK_USD:-100.0}
       - GEO_WEBHOOK_URL=${GEO_WEBHOOK_URL:-}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
     volumes:
       - ./data:/warden/data
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - warden-net
