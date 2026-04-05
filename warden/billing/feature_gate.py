@@ -3,13 +3,29 @@ warden/billing/feature_gate.py
 ────────────────────────────────
 Tier-based Feature Gating for v2.8 Business Communities.
 
-Tiers
-─────
-  individual  $5/mo   — personal use; no Communities, no Multi-Sig
-  business    $49/mo  — teams; Communities, Rotation, Multi-Sig (M=2)
-  mcp         $199/mo — enterprise; everything + Break Glass, Bot_ID, BYOK
+Tiers (v2.9 monetization update)
+──────────────────────────────────
+  individual  $5/mo   — freelancers, solo sellers; filter-only + file relay
+  business    $49/mo  — e-commerce brands, agencies; Communities + Bridges
+  mcp         $199/mo — enterprise, fulfilment, B2B platforms; everything
 
-TIER_LIMITS
+Data limits (Gemini recommendation — key upsell levers)
+──────────────────────────────────────────────────────────
+  Note: E2EE prevents server-side deduplication — each encrypted entity
+  occupies unique storage regardless of content similarity.
+
+  Metric                     individual   business      mcp
+  ─────────────────────────────────────────────────────────────────────
+  storage_bytes              10 GB        100 GB        1 TB
+  bandwidth_bytes_per_month  50 GB        500 GB        5 TB
+  max_entity_bytes           100 MB       1 GB          5 GB
+  retention_days             90           365           unlimited (-1)
+  overage_enabled            false        true          true
+  overage_storage_per_gb     N/A          $0.10/GB      $0.04/GB
+  overage_bandwidth_per_gb   N/A          $0.10/GB      $0.04/GB
+  expansion_pack_storage_tb  N/A          N/A           $40/TB/mo
+
+Feature limits
 ──────────────────────────────────────────────────────────────────
   Feature                     individual  business    mcp
   ─────────────────────────────────────────────────────────────────
@@ -23,6 +39,9 @@ TIER_LIMITS
   ratchet_interval            N/A         10          50
   key_rotation_enabled        false       true        true
   byok_enabled                false       false       true
+  guest_tunnel_enabled        true        true        true
+  guest_daily_upload_bytes    10 MB       10 MB       unlimited
+  referral_bonus_bytes        2 GB/ref    2 GB/ref    N/A
 
 FeatureGate FastAPI Middleware
 ──────────────────────────────
@@ -56,10 +75,35 @@ log = logging.getLogger("warden.billing.feature_gate")
 
 # ── Tier limits definition ────────────────────────────────────────────────────
 
-_UNLIMITED = 2 ** 31  # sentinel for "no hard cap"
+_UNLIMITED = 2 ** 63  # sentinel for "no hard cap"
+_GB  = 1024 ** 3
+_TB  = 1024 ** 4
+
+# ── Overage pricing (USD cents per GB) ────────────────────────────────────────
+OVERAGE_PRICES: dict[str, dict[str, int]] = {
+    "business": {
+        "storage_cents_per_gb":   10,   # $0.10/GB
+        "bandwidth_cents_per_gb": 10,
+        "pack_cents":             500,  # $5.00 per 50 GB pack
+        "pack_bytes":             50 * _GB,
+    },
+    "mcp": {
+        "storage_cents_per_gb":   4,    # $0.04/GB
+        "bandwidth_cents_per_gb": 4,
+        "pack_cents":             4000, # $40.00 per 1 TB expansion pack
+        "pack_bytes":             1 * _TB,
+    },
+}
 
 TIER_LIMITS: dict[str, dict[str, Any]] = {
     "individual": {
+        # ── Data quotas ────────────────────────────────────────────────────────
+        "storage_bytes":              10 * _GB,
+        "bandwidth_bytes_per_month":  50 * _GB,
+        "max_entity_bytes":           100 * 1024 * 1024,  # 100 MB
+        "retention_days":             90,
+        "overage_enabled":            False,
+        # ── Feature flags ──────────────────────────────────────────────────────
         "max_communities":            0,
         "max_members_per_community":  0,
         "max_bots_per_community":     0,
@@ -70,8 +114,18 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "ratchet_interval":           None,
         "key_rotation_enabled":       False,
         "byok_enabled":               False,
+        "guest_tunnel_enabled":       True,
+        "guest_daily_upload_bytes":   10 * 1024 * 1024,   # 10 MB — viral upsell
+        "referral_bonus_bytes":       2 * _GB,
     },
     "business": {
+        # ── Data quotas ────────────────────────────────────────────────────────
+        "storage_bytes":              100 * _GB,
+        "bandwidth_bytes_per_month":  500 * _GB,
+        "max_entity_bytes":           1 * _GB,
+        "retention_days":             365,
+        "overage_enabled":            True,
+        # ── Feature flags ──────────────────────────────────────────────────────
         "max_communities":            5,
         "max_members_per_community":  100,
         "max_bots_per_community":     5,
@@ -82,8 +136,18 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "ratchet_interval":           10,
         "key_rotation_enabled":       True,
         "byok_enabled":               False,
+        "guest_tunnel_enabled":       True,
+        "guest_daily_upload_bytes":   10 * 1024 * 1024,
+        "referral_bonus_bytes":       2 * _GB,
     },
     "mcp": {
+        # ── Data quotas ────────────────────────────────────────────────────────
+        "storage_bytes":              1 * _TB,
+        "bandwidth_bytes_per_month":  5 * _TB,
+        "max_entity_bytes":           5 * _GB,
+        "retention_days":             -1,              # unlimited
+        "overage_enabled":            True,
+        # ── Feature flags ──────────────────────────────────────────────────────
         "max_communities":            _UNLIMITED,
         "max_members_per_community":  _UNLIMITED,
         "max_bots_per_community":     25,
@@ -94,6 +158,9 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "ratchet_interval":           50,
         "key_rotation_enabled":       True,
         "byok_enabled":               True,
+        "guest_tunnel_enabled":       True,
+        "guest_daily_upload_bytes":   _UNLIMITED,
+        "referral_bonus_bytes":       0,              # MCP pays, no referral program
     },
 }
 

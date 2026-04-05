@@ -68,6 +68,20 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 
 ---
 
+## What's New in v2.9
+
+| Feature | Description |
+|---------|-------------|
+| **Three-Tier Monetization** | Individual ($5/mo): 10 GB storage, 50 GB/mo bandwidth, 100 MB max file, 90-day retention, hard quota (no overage). Business ($49/mo): 100 GB, 500 GB/mo, 1 GB max file, 1-year retention, overage at $0.10/GB. MCP ($199/mo): 1 TB, 5 TB/mo, 5 GB max file, unlimited retention, overage at $0.04/GB with $40/TB expansion packs. |
+| **Storage/Bandwidth Quota Enforcement** | `warden/communities/quota.py` — Redis counters (`warden:quota:{cid}:storage_bytes`, `warden:quota:{cid}:bw:{YYYY-MM}`) with SQLite fallback. `check_entity_size()` (HTTP 413), `check_storage_quota()`, `check_bandwidth_quota()`. `QuotaExceeded` (hard stop) and `OverageRequired` (soft stop, triggers billing) exceptions. Monthly bandwidth counter auto-resets via 31-day Redis TTL. |
+| **Overage Billing** | `warden/billing/overage.py` — `resolve_overage()` tries Stripe invoice item → Paddle one-time charge → external webhook → log-only (dev). Per-GB pricing from `OVERAGE_PRICES` dict. Business 50 GB pack ($5), MCP 1 TB expansion pack ($40). `get_upgrade_url()` / `get_overage_pack_url()` provide CTA links for HTTP 402 responses. |
+| **Referral Growth Mechanics** | Dropbox-style referral: `generate_referral_code()` produces `REF-{8hex}` stored in Redis with 90-day TTL. `apply_referral()` atomically consumes one-time code and awards +2 GB bonus to both referrer and referee via `apply_referral_bonus()`. Bonus tracked separately in `bonus_bytes` counter for auditability. |
+| **S3-Backed Encrypted Entity Storage** | `warden/communities/entity_store.py` — S3/MinIO for raw AES-256-GCM ciphertext blobs; PostgreSQL/SQLite for metadata (kid, clearance, cek_wrapped_b64, nonce, sig, s3_key, byte_size). E2EE prevents server-side deduplication — each encrypted entity is unique regardless of content. Key format `communities/{cid}/{eid}.enc` contains no PII. Pre-signed GET URLs for zero-server-bandwidth client downloads. |
+| **Retention Reaper** | `expire_entities()` soft-deletes rows past `expires_at` and releases storage quota. S3 lifecycle rules on `communities/{cid}/` prefix enforce retention at the object level (90d Individual, 365d Business, no lifecycle for MCP). `COMMUNITY_S3_BUCKET` env var. |
+| **Compliance Upsell Copy** | GDPR Art. 32 "appropriate technical measures" required for personal data. CCPA up to $7,500/intentional violation. WhatsApp Business API sends PII to Meta servers — non-compliant. Pitch: "E2EE Business tunnel for $49/mo vs. €20M GDPR fine." |
+
+---
+
 ## What's New in v2.8
 
 | Feature | Description |
