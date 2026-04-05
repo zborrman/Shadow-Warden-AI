@@ -68,6 +68,23 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 
 ---
 
+## What's New in v2.8
+
+| Feature | Description |
+|---------|-------------|
+| **Business Communities — Cryptographic Identity** | Per-community Ed25519 + X25519 keypair with `kid` versioning (`warden/communities/keypair.py`). Community_ID = UUIDv7 (time-ordered, B-tree-friendly). Member_ID = UUIDv7 scoped under community namespace (XOR + re-assert version/variant bits). Entity_ID = 64-bit Snowflake (41-bit ms timestamp + 10-bit shard + 12-bit sequence). |
+| **Security Clearance Levels** | Four-tier content access model: `PUBLIC=0 / INTERNAL=1 / CONFIDENTIAL=2 / RESTRICTED=3`. Each level has an independent 32-byte AES-256-GCM key derived via HKDF-SHA256 from the X25519 private key with `info = community_id:kid:clearance:level`. Envelope encryption: random CEK per entity → wrapped with Clearance Level Key → AES-256-GCM payload. Ed25519 signature over canonical JSON (Non-repudiation). Member clearance downgrade from CONFIDENTIAL/RESTRICTED triggers mandatory Root Key Rollover. |
+| **Root Key Rollover** | 4-phase lifecycle: Initiate → ARQ background CEK re-wrap → Multi-Sig confirm → Crypto Shred. ARQ worker re-wraps entity CEK ciphertext (payload bytes never touched). `ROTATION_ONLY` key stays available for re-wrap until 100% done. `crypto_shred()` NULLs private key bytes; tombstone record retained for SOC 2 audit. |
+| **Break Glass Emergency Access (MCP only)** | M-of-N Multi-Sig (default 3-of-5) activates temporary key restoration. Auto-shredded after `BREAK_GLASS_TTL_S` (1h default) via `threading.Timer`. Immutable JSONL audit log satisfying SOC 2 CC7.2 and GDPR Art. 30. `PermissionError` for non-MCP tenants. BYOK/HSM path noted for standard-tier shredded keys. |
+| **Multi-Sig Bridge Consensus** | SHA-256 `config_hash` is computed at proposal creation time and locked in — all signers sign `b"warden:multisig:v1:" + config_hash_bytes`. Gemini audit fix: prevents condition-substitution where signers are presented with different documents. Single-admin veto via `reject_proposal()`. 24h TTL, duplicate-signer guard, `verify_proposal_hash()` payload integrity check. |
+| **Signal Double Ratchet** | HKDF-SHA256 symmetric-key ratchet with Message Keys Cache for out-of-order delivery (Gemini rec). Tier-based DH ratchet interval: individual=1 message (max forward secrecy), business=10, mcp=50 (max throughput). Both peers apply symmetric DH ratchet at the same step boundaries to stay in sync. `RatchetSession.to_dict/from_dict` for Redis state persistence. |
+| **Bot_ID — Virtual Members for Integrations** | External systems (Shopify webhook, Zapier, CI) get a scoped JWT with `allowed_ips` claim (Gemini rec). IP whitelist enforced on every request — exact IP or CIDR. JTI stored in Redis; `revoke_bot_token()` invalidates immediately. Short TTL default (1h). Separate `BOT_JWT_SECRET` limits blast radius. |
+| **Feature Gating** | `TIER_LIMITS` dict enforces capabilities per tier: Individual ($5) gets no Communities; Business ($49) gets Communities + Multi-Sig + Ratchet; MCP ($199) gets Break Glass + Bot_ID + BYOK. `FeatureGate.require()` / `require_capacity()` raise `PermissionError` in route handlers. `FeatureGateMiddleware` ASGI returns HTTP 403 before routes execute. |
+| **REST API `/communities`** | `POST /communities` (Business+ tier), `GET /communities`, `GET /communities/{id}`, `POST /{id}/members` (generates scoped Member_ID), `PATCH /{id}/members/{mid}/clearance` (returns `rotation_required`), `DELETE /{id}/members/{mid}`, `POST /{id}/rotate` (ARQ enqueue), `GET /{id}/rotation` (progress query). |
+| **PostgreSQL DDL** | `warden_core.communities`, `community_members`, `community_key_archive` tables added to `create_schema()` with 6 composite indexes. SQLite fallback for dev/test via `COMMUNITY_REGISTRY_PATH` + `COMMUNITY_KEY_ARCHIVE_PATH` env vars. |
+
+---
+
 ## What's New in v2.7
 
 | Feature | Description |
