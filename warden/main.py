@@ -945,6 +945,13 @@ try:
 except ImportError:
     log.warning("syndicates router not available — /syndicates and /tunnels skipped.")
 
+try:
+    from warden.syndicates.invites_router import invites_router as _invites_router
+    app.include_router(_invites_router)
+    log.info("Warden Gatekeeper (invites) mounted at /invites")
+except ImportError:
+    log.warning("invites router not available — /invites skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
