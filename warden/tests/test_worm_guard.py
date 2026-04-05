@@ -452,6 +452,18 @@ class TestOutputGuardWormStep(unittest.TestCase):
 
     def test_safe_output_not_flagged_as_worm(self):
         from warden.output_guard import BusinessRisk, OutputGuard, TenantOutputConfig
+        from warden.worm_guard import QUARANTINE_SET
+
+        # Clear the in-memory quarantine set so _WORM_PAYLOAD fingerprint
+        # from the previous test does not trigger the fast-path quarantine hit.
+        try:
+            from warden.cache import _get_client as _rc
+            r = _rc()
+            if r is not None:
+                r.delete(QUARANTINE_SET)
+        except Exception:
+            pass
+
         guard = OutputGuard()
         cfg = TenantOutputConfig(
             block_hallucinated_urls    = False,

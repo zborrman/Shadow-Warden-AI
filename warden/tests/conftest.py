@@ -38,6 +38,30 @@ os.environ.setdefault("AGENT_REGISTRY_DB_PATH", "/tmp/warden_test_agent_registry
 os.environ.setdefault("MANDATE_SECRET",       "test-mandate-secret-ci")
 os.environ.setdefault("THREAT_INTEL_DB_PATH", "/tmp/warden_test_threat_intel.db")
 os.environ.setdefault("THREAT_INTEL_ENABLED", "false")
+os.environ.setdefault("AUTO_BLOCK_THRESHOLD",  "0")    # disable auto-IP-block in tests (testclient accumulates block events across session)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _clear_threat_store():
+    """
+    Clear blocked_ips from the persistent ThreatStore SQLite DB at session start.
+
+    The testclient always uses the same IP ("testclient") which accumulates
+    block events across test runs.  With AUTO_BLOCK_THRESHOLD=0 new blocks
+    won't be added, but *existing* rows from prior sessions would still cause
+    403s.  Wiping the table once per session prevents that.
+    """
+    import sqlite3
+
+    db_path = os.environ.get("THREAT_DB_PATH", "/tmp/warden_test_threat_store.db")
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.execute("DELETE FROM blocked_ips")
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+    yield
 
 
 @pytest.fixture(scope="session")
