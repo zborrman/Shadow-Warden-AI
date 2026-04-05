@@ -29,6 +29,12 @@ mkdir -p /warden/models /warden/data
 chown -R wardenuser:warden /warden/models /warden/data
 chmod -R 755 /warden/models /warden/data
 
+# ── ARQ worker mode (set ARQ_MODE=1 in docker-compose to run background tasks) ─
+if [ "${ARQ_MODE:-0}" = "1" ]; then
+    echo "[entrypoint] ARQ_MODE=1 — starting arq worker"
+    exec gosu wardenuser arq warden.workers.settings.WorkerSettings
+fi
+
 # ── Start uvicorn as wardenuser via gosu ──────────────────────────────────────
 if [ "${MTLS_ENABLED:-false}" = "true" ] && [ -f /certs/warden.crt ]; then
     echo "[entrypoint] mTLS enabled — starting uvicorn with TLS (CERT_REQUIRED)"

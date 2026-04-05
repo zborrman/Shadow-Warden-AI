@@ -226,7 +226,6 @@ services:
       dockerfile: Dockerfile
     container_name: warden-arq-worker
     restart: unless-stopped
-    command: ["arq", "warden.workers.settings.WorkerSettings"]
     logging:
       driver: "json-file"
       options:
@@ -240,6 +239,7 @@ services:
         reservations:
           memory: 128M
     environment:
+      - ARQ_MODE=1
       - REDIS_URL=redis://redis:6379/0
       - LOGS_PATH=/warden/data/logs.json
       - STRIPE_DB_PATH=/warden/data/stripe.db
