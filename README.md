@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 2.7 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.9 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
@@ -938,7 +938,20 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -e ".[dev]"
 pip install -r warden/requirements.txt
 
+# Core
 export WARDEN_API_KEY="" REDIS_URL="memory://" LOGS_PATH="/tmp/warden_test.json"
+
+# v2.8 Communities (SQLite dev paths — no S3/PostgreSQL needed locally)
+export COMMUNITY_REGISTRY_PATH="/tmp/warden_community_registry.db"
+export COMMUNITY_KEY_ARCHIVE_PATH="/tmp/warden_community_key_archive.db"
+export BREAK_GLASS_AUDIT_PATH="/tmp/warden_break_glass_audit.jsonl"
+export VAULT_MASTER_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+
+# v2.9 Monetization (SQLite fallback, S3 optional)
+export QUOTA_DB_PATH="/tmp/warden_quota.db"
+export ENTITY_DB_PATH="/tmp/warden_entity_store.db"
+export COMMUNITY_S3_BUCKET="warden-communities"  # set S3_ENDPOINT for MinIO
+
 uvicorn warden.main:app --reload --port 8001
 ```
 
