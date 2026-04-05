@@ -219,6 +219,47 @@ services:
       retries: 15
       start_period: 180s
 
+  # ── ARQ WORKER (background tasks: weekly ROI emails, geo-webhooks) ─────────
+  arq-worker:
+    build:
+      context: ./warden
+      dockerfile: Dockerfile
+    container_name: warden-arq-worker
+    restart: unless-stopped
+    command: ["arq", "warden.workers.settings.WorkerSettings"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          memory: 128M
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - LOGS_PATH=/warden/data/logs.json
+      - STRIPE_DB_PATH=/warden/data/stripe.db
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - WEEKLY_REPORT_FROM=${WEEKLY_REPORT_FROM:-}
+      - WEEKLY_REPORT_REPLY_TO=${WEEKLY_REPORT_REPLY_TO:-}
+      - PORTAL_URL=${PORTAL_URL:-https://app.shadow-warden-ai.com}
+      - IMPACT_COST_PER_BLOCK_USD=${IMPACT_COST_PER_BLOCK_USD:-100.0}
+      - GEO_WEBHOOK_URL=${GEO_WEBHOOK_URL:-}
+    volumes:
+      - ./data:/warden/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - warden-net
+
   # ── POSTGRES ────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
