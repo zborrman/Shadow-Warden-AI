@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 2.6 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 2.7 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
@@ -67,6 +67,21 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 | **Data sovereignty** | Shared cloud (GDPR-compliant) | Full — no data leaves customer perimeter |
 
 ---
+
+## What's New in v2.7
+
+| Feature | Description |
+|---------|-------------|
+| **Warden Syndicates — Zero-Trust Tunnel Network** | Encrypted peer-to-peer document exchange between independent Warden gateways. Three-step X25519 ECDH handshake (`/tunnels/handshake/init` → `/accept` → `/complete`) derives a shared AES-256 session key — never transmitted, only the public halves cross the wire. Safety number (BLAKE2b of both pubkeys) displayed in the Hub UI for out-of-band verification (Signal-style). Kill-switch (`DELETE /tunnels/{id}`) crypto-shreds the Redis key in < 1 ms, instantly revoking all future decryption. TTL Reaper ARQ worker auto-expires stale tunnels. Bandwidth quota enforcement per tunnel link. |
+| **Double Shield for Tunnel Documents** | Two-stage pre-flight pipeline runs before any document enters the encrypted tunnel. **Stage 1 (Security):** WormGuard `inspect_for_ingestion()` scans for hidden RAG-poisoning instructions, prompt-injection chains, and AI-worm quine directives — poisoned documents are rejected before encryption. **Stage 2 (Privacy):** PII Masking replaces all entities with `[PERSON_1]` / `[EMAIL_1]` / `[MONEY_1]` tokens; session vault ID is returned so the receiving side can unmask LLM responses. **Stage 3 (Receiving):** Receiving gateway re-runs WormGuard on the decrypted payload — "Trust, but Verify" — and triggers kill-switch if worm is detected. |
+| **Warden Syndicate Invitation System** | Cryptographically-signed invite links for onboarding new Syndicate peers. Gatekeeper generates a one-time invite token (HMAC-SHA256 scoped to tenant + expiry); accepting node redeems it to initiate the tunnel handshake. Replay protection via Redis SETNX. |
+| **Warden Hub UI** | Management portal page (`/hub`) for Syndicate operators. Lists all tunnel links with status, bandwidth consumed, peer identity, and safety number. One-click kill-switch and invite-link generation. Real-time tunnel health polling. |
+| **Threat Intelligence Engine** | Automated ingestion and analysis of external threat feeds (`warden/threat_intel/`). Collector fetches CVE/NVD and AI-specific threat sources on a configurable schedule. Analyzer sends each new item to Claude Haiku for structured OWASP classification, relevance scoring (threshold ≥ 0.65), and detection hint generation. Rule Factory synthesises the hint directly into the live detection pipeline — new regex patterns go through the same `ReviewQueue → RuleLedger` gate used by the Evolution Engine, new semantic examples are vetted and added to the ML corpus. No restart required. |
+| **Explainable AI (XAI)** | `warden/xai/explainer.py` converts every filter decision and OutputGuard finding into a plain-English 1–3 sentence summary safe for display to business users or inclusion in PDF reports. Template mode (fast, offline, deterministic) covers all OWASP flag types. Claude Haiku mode (`XAI_USE_CLAUDE=true`) generates richer context-aware explanations; falls back to templates on error. Used by RBAC auditor dashboards and incident detail views. |
+| **Agentic Mandate Validator** | AP2-style signed payment-instruction validator for AI agent pipelines (`warden/agentic/mandate.py`). Enforces six sequential security checks: agent active status → invoice hash freshness (anti-replay via one-time consumption) → HMAC-SHA256 signature → amount ≤ invoice price (anti-hallucination) → per-item spend cap → monthly budget cap. Integrates with `/mcp/quote` + `/mcp/mandate/execute` endpoints. GDPR-safe: invoice store holds only SKU, price, expiry, agent ID — no PII. |
+| **Wallet Shield — Financial DoS Protection** | Token-budget enforcement per `(tenant_id, user_id)` pair (`warden/wallet_shield.py`). Pre-flight heuristic check (bytes ÷ 4) blocks oversized requests before they reach the upstream LLM. Post-call accounting records actual token counts from API usage fields. Redis sliding-window counters with configurable TTL. Protects SMB clients from LLM10 Financial DoS — a single flood attack can no longer exhaust a tenant's monthly budget overnight. Alert fires at configurable threshold (default 80% consumed). |
+| **RBAC for MSP Dashboard** | Three built-in roles: `admin` (full access), `auditor` (read-only compliance — can view raw logs, download PDF reports, see XAI explanations), `viewer` (aggregated charts only). Role resolution: SAML group claim → `DASHBOARD_ROLE` env var. Auditor role designed for SOC 2 Type II evidence collection workflows. |
+| **Paddle Billing** | Second payment processor alongside Stripe (`warden/paddle_billing.py`). Enables EU/UK-first billing (Paddle handles VAT/GST as Merchant of Record). Webhook signature verification, subscription lifecycle hooks, and SQLite-backed event store matching the Stripe integration pattern. |
 
 ## What's New in v2.6
 
