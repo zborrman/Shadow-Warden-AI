@@ -63,7 +63,7 @@ services:
     build:
       context: ./warden
       dockerfile: Dockerfile
-    container_name: warden-gateway
+    # container_name removed — allows docker compose up --scale warden=N
     restart: unless-stopped
     logging:
       driver: "json-file"
