@@ -1,0 +1,16 @@
+name = "shadow-warden-installer"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Route: get.shadowwarden.ai/install
+# (configure in Cloudflare dashboard: Workers & Pages → installer → Triggers → Custom Domains)
+
+[[kv_namespaces]]
+binding = "INSTALL_STATS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"          # fill after: wrangler kv:namespace create INSTALL_STATS
+preview_id = "REPLACE_WITH_KV_PREVIEW_ID"   # fill after: wrangler kv:namespace create INSTALL_STATS --preview
+
+[vars]
+SCRIPT_VERSION = "2.9"
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/zborrman/Shadow-Warden-AI/main/scripts/install.sh"
+ALLOWED_PATHS   = "/install,/install.sh"
