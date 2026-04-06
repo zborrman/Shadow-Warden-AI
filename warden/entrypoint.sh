@@ -29,6 +29,14 @@ mkdir -p /warden/models /warden/data
 chown -R wardenuser:warden /warden/models /warden/data
 chmod -R 755 /warden/models /warden/data
 
+# ── Database migrations (run once per startup, idempotent) ───────────────────
+if [ -n "${DATABASE_URL:-}" ]; then
+    echo "[entrypoint] running alembic migrations..."
+    cd /warden
+    alembic -c warden/alembic.ini upgrade head && echo "[entrypoint] migrations complete" \
+        || echo "[entrypoint] WARNING: migrations failed (continuing anyway)"
+fi
+
 # ── ARQ worker mode (set ARQ_MODE=1 in docker-compose to run background tasks) ─
 if [ "${ARQ_MODE:-0}" = "1" ]; then
     echo "[entrypoint] ARQ_MODE=1 — starting arq worker"
