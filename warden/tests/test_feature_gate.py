@@ -35,7 +35,7 @@ class TestTierLimits(unittest.TestCase):
         self.assertFalse(limits["break_glass_enabled"])
 
     def test_mcp_all_enabled(self):
-        from warden.billing.feature_gate import TIER_LIMITS, _UNLIMITED
+        from warden.billing.feature_gate import _UNLIMITED, TIER_LIMITS
         limits = TIER_LIMITS["mcp"]
         self.assertTrue(limits["communities_enabled"])
         self.assertTrue(limits["break_glass_enabled"])
@@ -99,7 +99,7 @@ class TestFeatureGateCapacity(unittest.TestCase):
             gate.require_capacity("max_communities", 0)
 
     def test_unlimited_never_raises(self):
-        from warden.billing.feature_gate import FeatureGate, _UNLIMITED
+        from warden.billing.feature_gate import _UNLIMITED, FeatureGate
         gate = FeatureGate.for_tier("mcp")
         gate.require_capacity("max_communities", _UNLIMITED - 1)   # no raise
 

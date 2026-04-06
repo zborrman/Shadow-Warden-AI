@@ -19,9 +19,7 @@ from __future__ import annotations
 
 import base64
 import os
-import time
 import unittest
-import uuid
 
 os.environ.setdefault("VAULT_MASTER_KEY", "i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA=")
 os.environ.setdefault("MULTISIG_PROPOSAL_TTL_S", "300")

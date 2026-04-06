@@ -23,15 +23,13 @@ Root Key Rollover flow (see rotation.py for the ARQ worker):
 """
 from __future__ import annotations
 
-import base64
-import json
 import logging
 import os
 import threading
 import time
 from dataclasses import dataclass
+from datetime import UTC
 from enum import StrEnum
-from typing import Optional
 
 log = logging.getLogger("warden.communities.key_archive")
 
@@ -50,10 +48,10 @@ class ArchiveEntry:
     status:          KeyStatus
     ed25519_pub_b64: str
     x25519_pub_b64:  str
-    ed_priv_enc_b64: Optional[str]   # None when SHREDDED
-    x_priv_enc_b64:  Optional[str]   # None when SHREDDED
+    ed_priv_enc_b64: str | None   # None when SHREDDED
+    x_priv_enc_b64:  str | None   # None when SHREDDED
     created_at:      str
-    shredded_at:     Optional[str]
+    shredded_at:     str | None
 
 
 # ── In-memory cache ───────────────────────────────────────────────────────────
@@ -72,7 +70,7 @@ def _set_cache(entry: ArchiveEntry) -> None:
         _cache[_cache_key(entry.community_id, entry.kid)] = (entry, time.monotonic())
 
 
-def _get_cache(community_id: str, kid: str) -> Optional[ArchiveEntry]:
+def _get_cache(community_id: str, kid: str) -> ArchiveEntry | None:
     with _cache_lock:
         item = _cache.get(_cache_key(community_id, kid))
         if item and (time.monotonic() - item[1]) < _CACHE_TTL:
@@ -123,8 +121,8 @@ def store_keypair(keypair, status: KeyStatus = KeyStatus.ACTIVE) -> None:
     keypair   CommunityKeypair instance (from keypair.py)
     status    Initial status (ACTIVE for new keys, ROTATION_ONLY when superseded)
     """
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc).isoformat()
+    from datetime import datetime
+    now = datetime.now(UTC).isoformat()
 
     d = keypair.to_dict()
     entry = ArchiveEntry(
@@ -156,7 +154,7 @@ def store_keypair(keypair, status: KeyStatus = KeyStatus.ACTIVE) -> None:
              keypair.kid, keypair.community_id[:8], status)
 
 
-def get_entry(community_id: str, kid: str) -> Optional[ArchiveEntry]:
+def get_entry(community_id: str, kid: str) -> ArchiveEntry | None:
     """Return the archive entry for (community_id, kid), or None if not found."""
     cached = _get_cache(community_id, kid)
     if cached:
@@ -175,7 +173,7 @@ def get_entry(community_id: str, kid: str) -> Optional[ArchiveEntry]:
     return entry
 
 
-def get_active_entry(community_id: str) -> Optional[ArchiveEntry]:
+def get_active_entry(community_id: str) -> ArchiveEntry | None:
     """Return the currently ACTIVE keypair entry for a community."""
     conn = _get_sqlite()
     row = conn.execute(
@@ -216,8 +214,8 @@ def crypto_shred(community_id: str, kid: str) -> bool:
 
     Returns True if a row was modified, False if entry not found.
     """
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc).isoformat()
+    from datetime import datetime
+    now = datetime.now(UTC).isoformat()
 
     conn = _get_sqlite()
     cur = conn.execute("""

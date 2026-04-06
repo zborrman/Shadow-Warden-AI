@@ -23,7 +23,6 @@ import unittest
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Optional
 
 # Isolate DB paths
 os.environ.setdefault("ENTITY_DB_PATH", "/tmp/warden_test_entity_store.db")
@@ -65,21 +64,24 @@ def _make_envelope(clearance: str = "PUBLIC", size_bytes: int = 128) -> _Envelop
 class _StoreBase(unittest.TestCase):
 
     def setUp(self):
-        self._entity_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-        self._quota_db  = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-        os.environ["ENTITY_DB_PATH"] = self._entity_db.name
-        os.environ["QUOTA_DB_PATH"]  = self._quota_db.name
+        import contextlib
+
         import warden.communities.entity_store as es
         import warden.communities.quota as q
+        with contextlib.suppress(Exception):
+            pass  # suppress unused import warning
+        self._entity_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
+        self._quota_db  = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
+        os.environ["ENTITY_DB_PATH"] = self._entity_db.name
+        os.environ["QUOTA_DB_PATH"]  = self._quota_db.name
         es._ENTITY_DB_PATH = self._entity_db.name
         q._QUOTA_DB_PATH   = self._quota_db.name
 
     def tearDown(self):
+        import contextlib
         for path in (self._entity_db.name, self._quota_db.name):
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(path)
-            except OSError:
-                pass
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -148,9 +150,8 @@ class TestStoreAndGetMeta(_StoreBase):
         self.assertIsNone(meta.expires_at)
 
     def test_quota_recorded_after_store(self):
-        from warden.communities.quota import get_storage_used
-
         from warden.communities.entity_store import store_entity
+        from warden.communities.quota import get_storage_used
         cid = "cid-quota-check"
         env = _make_envelope(size_bytes=256)
         store_entity(env, cid, "business")
@@ -210,9 +211,8 @@ class TestDeleteEntity(_StoreBase):
         self.assertIsNone(get_entity_meta(meta.entity_id, cid))
 
     def test_delete_releases_storage_quota(self):
-        from warden.communities.quota import get_storage_used
-
         from warden.communities.entity_store import delete_entity, store_entity
+        from warden.communities.quota import get_storage_used
         cid = "cid-del-quota"
         env = _make_envelope(size_bytes=1024)
         meta = store_entity(env, cid, "business")

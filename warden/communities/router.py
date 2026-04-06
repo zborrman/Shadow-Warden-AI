@@ -44,7 +44,6 @@ Auth
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -55,7 +54,6 @@ from warden.communities.registry import (
     MemberRecord,
     create_community,
     get_community,
-    get_member,
     invite_member,
     list_communities,
     list_members,
@@ -125,7 +123,7 @@ class CommunityResponse(BaseModel):
     created_at:    str
 
     @classmethod
-    def from_record(cls, r: CommunityRecord) -> "CommunityResponse":
+    def from_record(cls, r: CommunityRecord) -> CommunityResponse:
         return cls(
             community_id = r.community_id,
             tenant_id    = r.tenant_id,
@@ -144,7 +142,7 @@ class InviteMemberRequest(BaseModel):
     display_name: str = Field("", max_length=120)
     clearance:    str = Field("PUBLIC", description="PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED")
     role:         str = Field("MEMBER", description="MEMBER | MODERATOR | ADMIN")
-    invited_by:   Optional[str] = None
+    invited_by:   str | None = None
 
 
 class MemberResponse(BaseModel):
@@ -158,7 +156,7 @@ class MemberResponse(BaseModel):
     joined_at:    str
 
     @classmethod
-    def from_record(cls, r: MemberRecord) -> "MemberResponse":
+    def from_record(cls, r: MemberRecord) -> MemberResponse:
         return cls(
             member_id    = r.member_id,
             community_id = r.community_id,
@@ -251,7 +249,7 @@ async def invite_member_endpoint(
             status_code=422,
             detail=f"Invalid clearance level: {body.clearance!r}. "
                    "Use PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED.",
-        )
+        ) from None
 
     try:
         member = invite_member(
@@ -313,7 +311,7 @@ async def update_clearance_endpoint(
         raise HTTPException(
             status_code=422,
             detail=f"Invalid clearance level: {body.clearance!r}.",
-        )
+        ) from None
 
     try:
         updated, rotation_required = update_clearance(community_id, member_id, new_clearance)

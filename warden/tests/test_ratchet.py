@@ -12,7 +12,6 @@ Coverage
 from __future__ import annotations
 
 import os
-import time
 import unittest
 
 os.environ.setdefault("RATCHET_CACHE_SIZE", "100")
@@ -96,7 +95,7 @@ class TestRatchetEncryptDecrypt(unittest.TestCase):
         alice, bob, cache = _make_sessions()
         messages = [f"Message {i}".encode() for i in range(20)]
         envelopes = [alice.encrypt(m) for m in messages]
-        for env, expected in zip(envelopes, messages):
+        for env, expected in zip(envelopes, messages, strict=True):
             self.assertEqual(bob.decrypt(env, cache=cache), expected)
 
     def test_step_increments(self):
@@ -126,6 +125,7 @@ class TestRatchetEncryptDecrypt(unittest.TestCase):
 
     def test_tampered_ciphertext_raises(self):
         import base64 as b64
+
         from cryptography.exceptions import InvalidTag
         alice, bob, cache = _make_sessions()
         env = alice.encrypt(b"secret")
@@ -161,9 +161,9 @@ class TestRatchetTierInterval(unittest.TestCase):
         """Root key should change at send_step = ratchet_interval."""
         alice, bob, cache = _make_sessions(tier="business")  # interval=10
         root_before = bytes(alice.root_key)
-        # Send 10 messages (step 0..9)
-        envelopes = [alice.encrypt(f"msg{i}".encode()) for i in range(10)]
-        # At step 10, the DH ratchet should have advanced
+        # Send 10 messages (step 0..9), then trigger DH ratchet at step 10
+        for i in range(10):
+            alice.encrypt(f"msg{i}".encode())
         alice.encrypt(b"trigger")  # step 10
         root_after = bytes(alice.root_key)
         self.assertNotEqual(root_before, root_after, "Root key should advance at ratchet interval")
@@ -177,8 +177,8 @@ class TestRatchetSerialization(unittest.TestCase):
         sid    = "ser-test"
         s1     = RatchetSession.from_shared_secret(secret, sid)
         # Encrypt some messages to advance state
-        e1 = s1.encrypt(b"hello")
-        e2 = s1.encrypt(b"world")
+        s1.encrypt(b"hello")
+        s1.encrypt(b"world")
 
         d  = s1.to_dict()
         s2 = RatchetSession.from_dict(d)

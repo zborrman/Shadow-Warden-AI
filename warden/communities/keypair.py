@@ -46,7 +46,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 )
 from cryptography.hazmat.primitives.asymmetric.x25519 import (
     X25519PrivateKey,
-    X25519PublicKey,
 )
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -130,7 +129,7 @@ class CommunityKeypair:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "CommunityKeypair":
+    def from_dict(cls, d: dict) -> CommunityKeypair:
         return cls(
             kid             = d["kid"],
             community_id    = d["community_id"],

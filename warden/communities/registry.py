@@ -29,13 +29,11 @@ import logging
 import os
 import sqlite3
 import threading
-import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Optional
 
 from warden.communities.clearance import ClearanceLevel, check_downgrade_requires_rotation
-from warden.communities.id_generator import new_community_id, new_entity_id, new_member_id
+from warden.communities.id_generator import new_community_id, new_member_id
 from warden.communities.key_archive import KeyStatus, store_keypair
 from warden.communities.keypair import generate_community_keypair
 
@@ -127,7 +125,7 @@ class MemberRecord:
     clearance:    str   # ClearanceLevel name
     role:         str   # MEMBER | MODERATOR | ADMIN
     status:       str   # ACTIVE | REMOVED
-    invited_by:   Optional[str]
+    invited_by:   str | None
     joined_at:    str
     updated_at:   str
 
@@ -219,7 +217,7 @@ def create_community(
     )
 
 
-def get_community(community_id: str) -> Optional[CommunityRecord]:
+def get_community(community_id: str) -> CommunityRecord | None:
     """Return CommunityRecord or None."""
     with _db_lock:
         conn = _get_conn()
@@ -262,7 +260,7 @@ def invite_member(
     display_name: str = "",
     clearance:    ClearanceLevel = ClearanceLevel.PUBLIC,
     role:         str = "MEMBER",
-    invited_by:   Optional[str] = None,
+    invited_by:   str | None = None,
 ) -> MemberRecord:
     """
     Invite a member to a community.
@@ -317,7 +315,7 @@ def invite_member(
     )
 
 
-def get_member(community_id: str, member_id: str) -> Optional[MemberRecord]:
+def get_member(community_id: str, member_id: str) -> MemberRecord | None:
     """Return MemberRecord or None."""
     with _db_lock:
         conn = _get_conn()
@@ -328,7 +326,7 @@ def get_member(community_id: str, member_id: str) -> Optional[MemberRecord]:
     return _row_to_member(row) if row else None
 
 
-def get_member_by_external(community_id: str, external_id: str) -> Optional[MemberRecord]:
+def get_member_by_external(community_id: str, external_id: str) -> MemberRecord | None:
     """Look up a membership by the caller's own user ID."""
     with _db_lock:
         conn = _get_conn()

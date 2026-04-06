@@ -44,10 +44,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-import time
 import uuid
 from datetime import UTC, datetime
-from typing import Optional
 
 log = logging.getLogger("warden.billing.overage")
 
@@ -88,8 +86,8 @@ def resolve_overage(
     metric:       str,
     used_bytes:   int,
     limit_bytes:  int,
-    stripe_customer_id: Optional[str] = None,
-    paddle_subscription_id: Optional[str] = None,
+    stripe_customer_id: str | None = None,
+    paddle_subscription_id: str | None = None,
 ) -> dict:
     """
     Handle a quota overage event.
@@ -127,7 +125,7 @@ def resolve_overage(
 
     _log_overage_event(community_id, tenant_id, tier, metric, used_bytes, limit_bytes, "charge")
 
-    billing_ref: Optional[str] = None
+    billing_ref: str | None = None
 
     # ── Stripe ────────────────────────────────────────────────────────────────
     if stripe_customer_id and STRIPE_SECRET_KEY:
@@ -285,7 +283,7 @@ def _create_stripe_invoice_item(
     customer_id:  str,
     amount_cents: int,
     description:  str,
-) -> Optional[str]:
+) -> str | None:
     """Create a Stripe invoice item. Returns invoice_item.id or None on error."""
     try:
         import stripe
@@ -306,7 +304,7 @@ def _create_paddle_charge(
     subscription_id: str,
     amount_cents:    int,
     description:     str,
-) -> Optional[str]:
+) -> str | None:
     """Create a Paddle one-time charge. Returns transaction_id or None on error."""
     try:
         import httpx

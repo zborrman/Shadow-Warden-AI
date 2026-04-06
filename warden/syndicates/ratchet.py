@@ -64,15 +64,12 @@ Usage
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import logging
 import os
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Optional
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.hashes import SHA256
@@ -158,7 +155,7 @@ class MessageKeysCache:
                 del self._keys[oldest]
             self._keys[(session_id, step)] = _CachedKey(msg_key=msg_key)
 
-    def pop(self, session_id: str, step: int) -> Optional[bytes]:
+    def pop(self, session_id: str, step: int) -> bytes | None:
         """Retrieve and remove a cached key (returns None if not found/expired)."""
         with self._lock:
             entry = self._keys.pop((session_id, step), None)
@@ -196,7 +193,7 @@ class RatchetEnvelope:
         return json.dumps(self.__dict__)
 
     @classmethod
-    def from_json(cls, s: str) -> "RatchetEnvelope":
+    def from_json(cls, s: str) -> RatchetEnvelope:
         return cls(**json.loads(s))
 
 
@@ -257,7 +254,7 @@ class RatchetSession:
         remote_public_b64:  str,
         session_id:         str,
         tier:               str = "business",
-    ) -> "RatchetSession":
+    ) -> RatchetSession:
         """
         Initialise a new ratchet session from an X25519 key exchange.
 
@@ -270,7 +267,6 @@ class RatchetSession:
         the same HKDF derivation for simplicity — a full asymmetric setup
         would swap send/recv for the remote peer.
         """
-        from cryptography.hazmat.primitives import serialization
         from cryptography.hazmat.primitives.asymmetric.x25519 import (
             X25519PrivateKey,
             X25519PublicKey,
@@ -300,7 +296,7 @@ class RatchetSession:
         shared_secret: bytes,
         session_id:    str,
         tier:          str = "business",
-    ) -> "RatchetSession":
+    ) -> RatchetSession:
         """Initialise from a pre-computed shared secret (for testing)."""
         root_key   = _hkdf(shared_secret, f"warden:ratchet:root:{session_id}")
         send_chain = _hkdf(root_key, f"warden:ratchet:send:{session_id}")
@@ -447,7 +443,7 @@ class RatchetSession:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "RatchetSession":
+    def from_dict(cls, d: dict) -> RatchetSession:
         return cls(
             session_id  = d["session_id"],
             root_key    = base64.b64decode(d["root_key"]),

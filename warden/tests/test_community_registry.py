@@ -123,7 +123,7 @@ class TestKeypair(unittest.TestCase):
             self.assertEqual(len(key), 32, f"Key for {level} should be 32 bytes")
 
     def test_clearance_keys_are_distinct(self):
-        keys = [self.kp.derive_clearance_key(l) for l in ("PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED")]
+        keys = [self.kp.derive_clearance_key(lvl) for lvl in ("PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED")]
         self.assertEqual(len(set(keys)), 4)
 
     def test_clearance_key_deterministic(self):
@@ -301,6 +301,7 @@ class TestEnvelope(unittest.TestCase):
 
     def test_open_envelope_tampered_sig(self):
         import copy
+
         from warden.communities.clearance import ClearanceLevel, open_envelope
         tampered = copy.copy(self.envelope)
         tampered.sig_b64 = base64.b64encode(b"bad" * 21 + b"x").decode()
@@ -468,7 +469,6 @@ class TestCommunityRegistry(unittest.TestCase):
     def test_remove_member(self):
         from warden.communities.clearance import ClearanceLevel
         from warden.communities.registry import (
-            get_member,
             invite_member,
             list_members,
             remove_member,
@@ -522,8 +522,8 @@ class TestRotation(unittest.TestCase):
     def test_rotation_progress_stored(self):
         from warden.communities.rotation import get_rotation_progress, initiate_rotation
         initiate_rotation(self.community.community_id, initiated_by="admin")
-        progress = get_rotation_progress(self.community.community_id)
-        # progress may be None if Redis is unavailable (fine in unit tests)
+        get_rotation_progress(self.community.community_id)
+        # result may be None if Redis is unavailable (fine in unit tests)
         # just ensure no exception was raised
 
     def test_complete_rotation_no_failures(self):
@@ -561,9 +561,9 @@ class TestRotation(unittest.TestCase):
 class TestBreakGlass(unittest.TestCase):
 
     def setUp(self):
+        from warden.communities.id_generator import new_community_id
         from warden.communities.key_archive import KeyStatus, store_keypair
         from warden.communities.keypair import generate_community_keypair
-        from warden.communities.id_generator import new_community_id
         self.cid = new_community_id()
         kp = generate_community_keypair(self.cid, kid="v1")
         store_keypair(kp, status=KeyStatus.ACTIVE)

@@ -36,7 +36,6 @@ import threading
 import time
 import uuid
 
-
 # ── UUIDv7 ────────────────────────────────────────────────────────────────────
 
 def new_community_id() -> str:

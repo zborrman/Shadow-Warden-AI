@@ -62,11 +62,9 @@ import json
 import logging
 import os
 import threading
-import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Optional
 
 log = logging.getLogger("warden.communities.multisig")
 
@@ -111,8 +109,8 @@ class MultiSigProposal:
     created_at:    str
     expires_at:    str
     signatures:    dict[str, str] = field(default_factory=dict)  # signer_id → sig_b64
-    rejected_by:   Optional[str]  = None
-    finalized_at:  Optional[str]  = None
+    rejected_by:   str | None  = None
+    finalized_at:  str | None  = None
 
 
 # ── In-memory store (Redis-backed in production) ──────────────────────────────
@@ -130,7 +128,7 @@ def _persist(proposal: MultiSigProposal) -> None:
         r = _get_client()
         if r:
             key = f"warden:multisig:{proposal.proposal_id}"
-            d = {k: v for k, v in proposal.__dict__.items()}
+            d = dict(proposal.__dict__.items())
             ttl = max(1, int((datetime.fromisoformat(proposal.expires_at) -
                               datetime.now(UTC)).total_seconds()))
             r.setex(key, ttl, json.dumps(d))
@@ -138,7 +136,7 @@ def _persist(proposal: MultiSigProposal) -> None:
         log.debug("multisig: Redis persist error: %s", exc)
 
 
-def _load(proposal_id: str) -> Optional[MultiSigProposal]:
+def _load(proposal_id: str) -> MultiSigProposal | None:
     """Load proposal from memory, then Redis."""
     with _store_lock:
         p = _proposals.get(proposal_id)
@@ -234,13 +232,12 @@ def create_proposal(
     return proposal
 
 
-def get_proposal(proposal_id: str) -> Optional[MultiSigProposal]:
+def get_proposal(proposal_id: str) -> MultiSigProposal | None:
     """Return proposal or None.  Auto-marks EXPIRED proposals."""
     p = _load(proposal_id)
-    if p and p.status == ProposalStatus.PENDING:
-        if datetime.fromisoformat(p.expires_at) < datetime.now(UTC):
-            p.status = ProposalStatus.EXPIRED
-            _persist(p)
+    if p and p.status == ProposalStatus.PENDING and datetime.fromisoformat(p.expires_at) < datetime.now(UTC):
+        p.status = ProposalStatus.EXPIRED
+        _persist(p)
     return p
 
 
@@ -340,7 +337,7 @@ def reject_proposal(
 
 def list_proposals(
     community_id: str,
-    status_filter: Optional[str] = None,
+    status_filter: str | None = None,
 ) -> list[MultiSigProposal]:
     """
     List proposals for a community.

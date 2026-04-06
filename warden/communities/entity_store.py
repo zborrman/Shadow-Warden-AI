@@ -59,7 +59,6 @@ import threading
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Optional
 
 log = logging.getLogger("warden.communities.entity_store")
 
@@ -115,12 +114,12 @@ class EntityMeta:
     pay_nonce_b64:   str
     sig_b64:         str
     sender_mid:      str
-    s3_key:          Optional[str]
+    s3_key:          str | None
     byte_size:       int
     content_type:    str
     status:          str
     created_at:      str
-    expires_at:      Optional[str]
+    expires_at:      str | None
 
 
 def _row_to_meta(row) -> EntityMeta:
@@ -184,7 +183,7 @@ def _s3_put(key: str, payload_bytes: bytes) -> bool:
         return False
 
 
-def _s3_get(key: str) -> Optional[bytes]:
+def _s3_get(key: str) -> bytes | None:
     """Download bytes from S3. Returns None on error."""
     try:
         s3       = _get_s3()
@@ -206,7 +205,7 @@ def _s3_delete(key: str) -> bool:
         return False
 
 
-def _s3_presign(key: str, expires_in: int = 3600) -> Optional[str]:
+def _s3_presign(key: str, expires_in: int = 3600) -> str | None:
     """Generate a pre-signed GET URL for direct client download."""
     try:
         s3 = _get_s3()
@@ -227,7 +226,7 @@ def store_entity(
     community_id: str,
     tier:         str,
     content_type: str = "application/octet-stream",
-    retention_days: Optional[int] = None,
+    retention_days: int | None = None,
 ) -> EntityMeta:
     """
     Store an encrypted entity.
@@ -246,8 +245,8 @@ def store_entity(
     NOTE: The caller is responsible for calling overage.resolve_overage()
     if OverageRequired is raised (allows billing before proceeding).
     """
-    from warden.communities.quota import check_entity_size, check_storage_quota, record_upload
     from warden.billing.feature_gate import TIER_LIMITS, _normalize_tier
+    from warden.communities.quota import check_entity_size, check_storage_quota, record_upload
 
     # Decode payload bytes (what actually gets stored in S3)
     payload_bytes = base64.b64decode(envelope.payload_b64)
@@ -321,7 +320,7 @@ def store_entity(
     )
 
 
-def get_entity_meta(entity_id: str, community_id: str) -> Optional[EntityMeta]:
+def get_entity_meta(entity_id: str, community_id: str) -> EntityMeta | None:
     """Return entity metadata without downloading the payload."""
     with _db_lock:
         conn = _get_conn()
@@ -332,7 +331,7 @@ def get_entity_meta(entity_id: str, community_id: str) -> Optional[EntityMeta]:
     return _row_to_meta(row) if row else None
 
 
-def get_entity_payload(entity_id: str, community_id: str) -> Optional[bytes]:
+def get_entity_payload(entity_id: str, community_id: str) -> bytes | None:
     """
     Download raw encrypted payload bytes from S3.
 
@@ -344,10 +343,7 @@ def get_entity_payload(entity_id: str, community_id: str) -> Optional[bytes]:
     if not meta:
         return None
 
-    if meta.s3_key:
-        payload = _s3_get(meta.s3_key)
-    else:
-        payload = None  # inline storage not implemented for reads in this path
+    payload = _s3_get(meta.s3_key) if meta.s3_key else None
 
     if payload:
         record_download(community_id, len(payload))
@@ -355,7 +351,7 @@ def get_entity_payload(entity_id: str, community_id: str) -> Optional[bytes]:
     return payload
 
 
-def get_entity_presigned_url(entity_id: str, community_id: str, expires_in: int = 3600) -> Optional[str]:
+def get_entity_presigned_url(entity_id: str, community_id: str, expires_in: int = 3600) -> str | None:
     """
     Return a pre-signed S3 URL for direct client download.
 
@@ -405,7 +401,7 @@ def delete_entity(entity_id: str, community_id: str) -> bool:
 
 def list_entities(
     community_id: str,
-    clearance_filter: Optional[str] = None,
+    clearance_filter: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[EntityMeta]:

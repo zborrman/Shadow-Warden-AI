@@ -16,7 +16,6 @@ Coverage
 from __future__ import annotations
 
 import os
-import time
 import unittest
 
 os.environ.setdefault("VAULT_MASTER_KEY",   "i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA=")
@@ -35,8 +34,8 @@ def _new_community():
 class TestCreateBot(unittest.TestCase):
 
     def setUp(self):
-        from warden.communities.clearance import ClearanceLevel
         from warden.api.bot_entity import create_bot
+        from warden.communities.clearance import ClearanceLevel
         self.cid = _new_community()
         self.bot = create_bot(
             community_id = self.cid,
@@ -77,8 +76,8 @@ class TestCreateBot(unittest.TestCase):
 class TestBotToken(unittest.TestCase):
 
     def setUp(self):
-        from warden.communities.clearance import ClearanceLevel
         from warden.api.bot_entity import create_bot
+        from warden.communities.clearance import ClearanceLevel
         self.cid = _new_community()
         self.bot = create_bot(
             community_id = self.cid,
@@ -96,6 +95,7 @@ class TestBotToken(unittest.TestCase):
 
     def test_token_claims(self):
         import jwt as pyjwt
+
         from warden.api.bot_entity import issue_bot_token
         token  = issue_bot_token(self.bot.bot_id)
         claims = pyjwt.decode(token, os.environ["BOT_JWT_SECRET"], algorithms=["HS256"])
@@ -118,8 +118,8 @@ class TestBotToken(unittest.TestCase):
             verify_bot_token(token, caller_ip="8.8.8.8")
 
     def test_verify_empty_whitelist_allows_any_ip(self):
-        from warden.communities.clearance import ClearanceLevel
         from warden.api.bot_entity import create_bot, issue_bot_token, verify_bot_token
+        from warden.communities.clearance import ClearanceLevel
         bot = create_bot(
             community_id = _new_community(),
             tenant_id    = "t",
@@ -132,8 +132,8 @@ class TestBotToken(unittest.TestCase):
         self.assertEqual(claims["sub"], bot.bot_id)
 
     def test_verify_cidr_match(self):
-        from warden.communities.clearance import ClearanceLevel
         from warden.api.bot_entity import create_bot, issue_bot_token, verify_bot_token
+        from warden.communities.clearance import ClearanceLevel
         bot = create_bot(
             community_id = _new_community(),
             tenant_id    = "t",
@@ -147,6 +147,7 @@ class TestBotToken(unittest.TestCase):
 
     def test_invalid_secret_raises(self):
         import jwt as pyjwt
+
         from warden.api.bot_entity import issue_bot_token
         token = issue_bot_token(self.bot.bot_id)
         with self.assertRaises(pyjwt.InvalidSignatureError):
@@ -156,8 +157,8 @@ class TestBotToken(unittest.TestCase):
 class TestBotDeactivate(unittest.TestCase):
 
     def test_deactivated_bot_cannot_issue_token(self):
-        from warden.communities.clearance import ClearanceLevel
         from warden.api.bot_entity import create_bot, deactivate_bot, issue_bot_token
+        from warden.communities.clearance import ClearanceLevel
         bot = create_bot(
             community_id = _new_community(),
             tenant_id    = "t",

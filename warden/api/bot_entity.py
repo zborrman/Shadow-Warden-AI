@@ -73,9 +73,8 @@ import sqlite3
 import threading
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Optional
 
 import jwt as pyjwt
 
@@ -130,7 +129,7 @@ class BotEntity:
     allowed_ips:  list[str]   # CIDR or exact IPs
     scopes:       list[str]   # ["read"] | ["read", "write"] | ["read", "write", "admin"]
     status:       str
-    created_by:   Optional[str]
+    created_by:   str | None
     created_at:   str
     updated_at:   str
 
@@ -191,9 +190,9 @@ def create_bot(
     tenant_id:    str,
     display_name: str,
     clearance:    ClearanceLevel = ClearanceLevel.PUBLIC,
-    allowed_ips:  Optional[list[str]] = None,
-    scopes:       Optional[list[str]] = None,
-    created_by:   Optional[str] = None,
+    allowed_ips:  list[str] | None = None,
+    scopes:       list[str] | None = None,
+    created_by:   str | None = None,
 ) -> BotEntity:
     """
     Register a new Bot entity in a community.
@@ -242,7 +241,7 @@ def create_bot(
     )
 
 
-def get_bot(bot_id: str) -> Optional[BotEntity]:
+def get_bot(bot_id: str) -> BotEntity | None:
     """Return BotEntity or None."""
     with _db_lock:
         conn = _get_conn()

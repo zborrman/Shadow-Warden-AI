@@ -27,18 +27,21 @@ class _QuotaBase(unittest.TestCase):
     """Base class: reset counters between tests via fresh SQLite DB per test."""
 
     def setUp(self):
+        import contextlib
+
+        import warden.communities.quota as q
+        with contextlib.suppress(Exception):
+            pass  # ensure import
         # Use a unique DB per test to avoid cross-test counter pollution
-        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)  # noqa: SIM115
         os.environ["QUOTA_DB_PATH"] = self._tmp.name
         # Patch module-level path that was already imported
-        import warden.communities.quota as q
         q._QUOTA_DB_PATH = self._tmp.name
 
     def tearDown(self):
-        try:
+        import contextlib
+        with contextlib.suppress(OSError):
             os.unlink(self._tmp.name)
-        except OSError:
-            pass
 
 
 _MB = 1024 * 1024
@@ -85,7 +88,9 @@ class TestCheckStorageQuota(_QuotaBase):
 
     def test_individual_at_limit_raises_quota_exceeded(self):
         from warden.communities.quota import (
-            QuotaExceeded, _incr_counter, check_storage_quota,
+            QuotaExceeded,
+            _incr_counter,
+            check_storage_quota,
         )
         cid = "cid-ind-full"
         # Fill storage to limit
@@ -97,7 +102,9 @@ class TestCheckStorageQuota(_QuotaBase):
 
     def test_business_overage_raises_overage_required(self):
         from warden.communities.quota import (
-            OverageRequired, _incr_counter, check_storage_quota,
+            OverageRequired,
+            _incr_counter,
+            check_storage_quota,
         )
         cid = "cid-biz-full"
         _incr_counter(cid, "storage_bytes", 100 * _GB)
@@ -107,7 +114,9 @@ class TestCheckStorageQuota(_QuotaBase):
 
     def test_bonus_bytes_expand_effective_quota(self):
         from warden.communities.quota import (
-            QuotaExceeded, _incr_counter, check_storage_quota,
+            QuotaExceeded,
+            _incr_counter,
+            check_storage_quota,
         )
         cid = "cid-bonus"
         # Fill to exactly the base 10 GB limit
@@ -131,7 +140,10 @@ class TestCheckBandwidthQuota(_QuotaBase):
 
     def test_individual_bw_exceeded_raises_quota_exceeded(self):
         from warden.communities.quota import (
-            QuotaExceeded, _bw_metric, _incr_counter, check_bandwidth_quota,
+            QuotaExceeded,
+            _bw_metric,
+            _incr_counter,
+            check_bandwidth_quota,
         )
         cid = "bw-cid-full"
         _incr_counter(cid, _bw_metric(), 50 * _GB)
@@ -140,7 +152,10 @@ class TestCheckBandwidthQuota(_QuotaBase):
 
     def test_business_bw_exceeded_raises_overage_required(self):
         from warden.communities.quota import (
-            OverageRequired, _bw_metric, _incr_counter, check_bandwidth_quota,
+            OverageRequired,
+            _bw_metric,
+            _incr_counter,
+            check_bandwidth_quota,
         )
         cid = "bw-biz-full"
         _incr_counter(cid, _bw_metric(), 500 * _GB)
@@ -164,7 +179,9 @@ class TestRecordAndRelease(_QuotaBase):
 
     def test_record_download_increments_bandwidth_only(self):
         from warden.communities.quota import (
-            get_bandwidth_used, get_storage_used, record_download,
+            get_bandwidth_used,
+            get_storage_used,
+            record_download,
         )
         cid = "dl-cid"
         record_download(cid, 3 * _MB)
@@ -173,7 +190,9 @@ class TestRecordAndRelease(_QuotaBase):
 
     def test_release_storage_decrements_counter(self):
         from warden.communities.quota import (
-            get_storage_used, record_upload, release_storage,
+            get_storage_used,
+            record_upload,
+            release_storage,
         )
         cid = "rel-cid"
         record_upload(cid, 20 * _MB)

@@ -49,17 +49,13 @@ Usage
 """
 from __future__ import annotations
 
-import base64
-import hashlib
 import json
 import logging
 import os
 import threading
-import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Optional
 
 log = logging.getLogger("warden.communities.break_glass")
 
@@ -79,7 +75,7 @@ class BreakGlassRequest:
     expires_at:   str
     status:       str                          # PENDING / ACTIVE / CLOSED / EXPIRED
     signatures:   dict[str, str] = field(default_factory=dict)   # signer_id → sig_b64
-    activated_at: Optional[str]  = None
+    activated_at: str | None  = None
 
 
 # ── In-memory store (Redis-backed in production) ──────────────────────────────
@@ -103,7 +99,7 @@ def _persist(req: BreakGlassRequest) -> None:
         log.debug("break_glass: Redis persist error: %s", exc)
 
 
-def _load(request_id: str) -> Optional[BreakGlassRequest]:
+def _load(request_id: str) -> BreakGlassRequest | None:
     with _store_lock:
         req = _requests.get(request_id)
         if req:

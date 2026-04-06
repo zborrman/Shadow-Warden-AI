@@ -51,13 +51,11 @@ Envelope format
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import logging
 import os
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Optional
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -73,10 +71,10 @@ class ClearanceLevel(IntEnum):
     RESTRICTED   = 3
 
     @classmethod
-    def from_str(cls, s: str) -> "ClearanceLevel":
+    def from_str(cls, s: str) -> ClearanceLevel:
         return cls[s.upper()]
 
-    def can_access(self, required: "ClearanceLevel") -> bool:
+    def can_access(self, required: ClearanceLevel) -> bool:
         """True if this level satisfies *required* (higher int = higher privilege)."""
         return self >= required
 
@@ -138,7 +136,7 @@ class ClearanceEnvelope:
         return json.dumps(self.__dict__, separators=(",", ":"))
 
     @classmethod
-    def from_json(cls, s: str) -> "ClearanceEnvelope":
+    def from_json(cls, s: str) -> ClearanceEnvelope:
         return cls(**json.loads(s))
 
     def canonical_bytes(self) -> bytes:
@@ -292,5 +290,5 @@ def check_downgrade_requires_rotation(
       whenever a member loses access to CONFIDENTIAL or RESTRICTED level.
     """
     sensitive_levels = {ClearanceLevel.CONFIDENTIAL, ClearanceLevel.RESTRICTED}
-    lost_levels = {l for l in sensitive_levels if old_clearance >= l > new_clearance}
+    lost_levels = {lvl for lvl in sensitive_levels if old_clearance >= lvl > new_clearance}
     return bool(lost_levels)

@@ -45,9 +45,7 @@ import logging
 import os
 import sqlite3
 import threading
-import time
 from datetime import UTC, datetime
-from typing import Optional
 
 log = logging.getLogger("warden.communities.quota")
 
@@ -89,7 +87,7 @@ def _bw_metric() -> str:
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────
 
-def _redis_incr(key: str, delta: int, ttl_s: Optional[int] = None) -> int:
+def _redis_incr(key: str, delta: int, ttl_s: int | None = None) -> int:
     """Increment Redis counter, return new value. Falls back to 0 on error."""
     try:
         from warden.cache import _get_client
@@ -116,7 +114,7 @@ def _redis_get(key: str) -> int:
     return 0
 
 
-def _redis_set(key: str, value: int, ttl_s: Optional[int] = None) -> None:
+def _redis_set(key: str, value: int, ttl_s: int | None = None) -> None:
     try:
         from warden.cache import _get_client
         r = _get_client()
@@ -182,7 +180,7 @@ def _get_counter(community_id: str, metric: str) -> int:
     return _sqlite_get(community_id, metric)
 
 
-def _incr_counter(community_id: str, metric: str, delta: int, ttl_s: Optional[int] = None) -> int:
+def _incr_counter(community_id: str, metric: str, delta: int, ttl_s: int | None = None) -> int:
     """Increment counter in Redis + SQLite."""
     key = f"warden:quota:{community_id}:{metric}"
     redis_val = _redis_incr(key, delta, ttl_s)
@@ -192,7 +190,7 @@ def _incr_counter(community_id: str, metric: str, delta: int, ttl_s: Optional[in
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-class QuotaExceeded(Exception):
+class QuotaExceeded(Exception):  # noqa: N818
     """Raised when a hard quota is hit (no overage for this tier)."""
     def __init__(self, metric: str, used: int, limit: int, upgrade_tier: str):
         self.metric       = metric
@@ -205,7 +203,7 @@ class QuotaExceeded(Exception):
         )
 
 
-class OverageRequired(Exception):
+class OverageRequired(Exception):  # noqa: N818
     """Raised when overage billing must be triggered (soft quota exceeded)."""
     def __init__(self, metric: str, used: int, limit: int):
         self.metric = metric

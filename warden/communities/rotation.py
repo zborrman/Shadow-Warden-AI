@@ -32,9 +32,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-import time
+import threading as _threading
 from datetime import UTC, datetime
-from typing import Optional
 
 log = logging.getLogger("warden.communities.rotation")
 
@@ -42,7 +41,7 @@ ROTATION_BATCH_SIZE: int = int(os.getenv("ROTATION_BATCH_SIZE", "500"))
 ROTATION_LOCK_TTL:   int = int(os.getenv("ROTATION_LOCK_TTL_S", "3600"))   # 1 hour
 
 # In-memory fallback when Redis is unavailable (dev/test)
-import threading as _threading
+
 _mem_progress: dict[str, dict] = {}
 _mem_lock = _threading.RLock()
 
@@ -57,7 +56,7 @@ def _lock_key(community_id: str) -> str:
     return f"warden:rotation:{community_id}:lock"
 
 
-def get_rotation_progress(community_id: str) -> Optional[dict]:
+def get_rotation_progress(community_id: str) -> dict | None:
     """Return rotation progress dict or None if no rotation is active."""
     try:
         from warden.cache import _get_client
@@ -168,7 +167,7 @@ def initiate_rotation(community_id: str, initiated_by: str = "system") -> dict:
     # Enqueue ARQ worker (fire-and-forget; fails silently if ARQ not configured)
     try:
         import asyncio
-        from arq import ArqRedis
+
         asyncio.get_event_loop().create_task(
             _enqueue_arq_worker(community_id, new_kid)
         )
@@ -181,10 +180,10 @@ def initiate_rotation(community_id: str, initiated_by: str = "system") -> dict:
 async def _enqueue_arq_worker(community_id: str, new_kid: str) -> None:
     """Enqueue the ARQ rotation job."""
     try:
+        import os
+
         from arq import create_pool
         from arq.connections import RedisSettings
-
-        import os
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         pool = await create_pool(RedisSettings.from_dsn(redis_url))
         await pool.enqueue_job("rotate_community_key", community_id, new_kid)
@@ -212,7 +211,6 @@ async def rotate_community_key(ctx: dict, community_id: str, new_kid: str) -> di
 
     try:
         from warden.communities import key_archive as ka
-        from warden.communities.clearance import rewrap_envelope_cek, ClearanceEnvelope
 
         old_entry = ka.get_entry(community_id, old_kid)
         new_entry = ka.get_active_entry(community_id)

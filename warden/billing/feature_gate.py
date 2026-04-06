@@ -68,8 +68,7 @@ Usage
 from __future__ import annotations
 
 import logging
-import os
-from typing import Any, Optional
+from typing import Any
 
 log = logging.getLogger("warden.billing.feature_gate")
 
@@ -188,7 +187,7 @@ class FeatureGate:
         self.limits = TIER_LIMITS[self.tier]
 
     @classmethod
-    def for_tier(cls, tier: str) -> "FeatureGate":
+    def for_tier(cls, tier: str) -> FeatureGate:
         return cls(tier)
 
     def get(self, feature: str) -> Any:
@@ -302,17 +301,15 @@ class FeatureGateMiddleware:
 
             # Check MCP-gated routes
             for mcp_route in _MCP_ROUTES:
-                if path.startswith(mcp_route):
-                    if not gate.meets_minimum("mcp"):
-                        await _send_403(send, f"Route {path} requires MCP tier.")
-                        return
+                if path.startswith(mcp_route) and not gate.meets_minimum("mcp"):
+                    await _send_403(send, f"Route {path} requires MCP tier.")
+                    return
 
             # Check Business-gated routes
             for biz_route in _BUSINESS_ROUTES:
-                if path.startswith(biz_route):
-                    if not gate.meets_minimum("business"):
-                        await _send_403(send, f"Route {path} requires Business tier.")
-                        return
+                if path.startswith(biz_route) and not gate.meets_minimum("business"):
+                    await _send_403(send, f"Route {path} requires Business tier.")
+                    return
 
         await self.app(scope, receive, send)
 
