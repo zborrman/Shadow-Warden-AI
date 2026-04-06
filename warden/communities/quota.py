@@ -215,7 +215,7 @@ class OverageRequired(Exception):  # noqa: N818
         )
 
 
-def _fmt(b: int) -> str:
+def _fmt(b: float) -> str:
     """Human-readable byte size."""
     for unit in ("B", "KB", "MB", "GB", "TB"):
         if b < 1024 or unit == "TB":
