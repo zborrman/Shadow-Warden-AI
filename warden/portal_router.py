@@ -93,7 +93,7 @@ async def _send_password_reset_email(to: str, token: str) -> None:
         await loop.run_in_executor(None, _send_email_sync, to, "[Shadow Warden] Password reset", body)
         log.info("portal: password reset email sent to %s", to)
     except Exception as exc:
-        log.error("portal: failed to send reset email to %s: %s", to, exc)
+        log.error("portal: failed to send reset email to %s: %s", to, exc, exc_info=True)
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
