@@ -262,6 +262,9 @@ jobs:
           cd "$SSH_PATH"
 
           echo "── [1/4] Pull latest code ──────────────────────────────────"
+          # Git 2.35.2+ rejects repos owned by a different user (safe.directory check).
+          # Register the repo path globally so git trusts it regardless of owner.
+          git config --global --add safe.directory "$SSH_PATH"
           # Docker containers run as root or wardenuser (UID 10001) and may have
           # written to git-tracked files (data/*.sql, data/*.json, warden/**/*.py, etc.),
           # causing "unable to unlink" errors in git reset.  Reclaim ownership of
