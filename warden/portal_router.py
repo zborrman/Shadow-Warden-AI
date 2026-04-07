@@ -80,7 +80,7 @@ async def _send_password_reset_email(to: str, token: str) -> None:
         )
         return
 
-    reset_link = f"{_PORTAL_URL}/reset-password?token={token}"
+    reset_link = f"{_PORTAL_URL}/reset-password/?token={token}"
     body = (
         "You requested a password reset for your Shadow Warden account.\n\n"
         f"Click the link below to set a new password (expires in 1 hour):\n\n"
