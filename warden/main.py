@@ -432,7 +432,7 @@ def _print_motd(
     p("###########################################################################")
     p("#                                                                         #")
     p("#              SHADOW WARDEN AI  |  AI SECURITY GATEWAY                  #")
-    p("#                           VERSION 2.3                                  #")
+    p("#                           VERSION 2.9                                  #")
     p("#                                                                         #")
     p(f"###########################################################################{N}")
     p(f"  {D}[SYSTEM STATUS]{N}")
@@ -441,7 +441,7 @@ def _print_motd(
     p(f"  Evolution Engine {ev}   Fail Strategy   {fs}")
     p("")
     p(f"  {D}\"The best firewall is the one the attacker thinks they've already bypassed.\"  {N}")
-    p(f"  {D}                                       -- Shadow Warden v2.3{N}")
+    p(f"  {D}                                       -- Shadow Warden v2.9{N}")
     p("###########################################################################")
     p("")
 
@@ -807,7 +807,7 @@ app = FastAPI(
         "Blocked HIGH/BLOCK attacks trigger the Evolution Loop: Claude Opus "
         "analyses the attack and auto-generates a new detection rule."
     ),
-    version="2.3.0",
+    version="2.9.0",
     lifespan=lifespan,
     # Disable FastAPI's built-in docs routes — we serve protected versions below.
     docs_url=None,

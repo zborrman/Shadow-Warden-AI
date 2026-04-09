@@ -220,7 +220,7 @@
 <div class="hero">
   <div class="hero-badge">
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#22d3ee" stroke-width="1.4"/><path d="M4 6l1.5 1.5L8 4" stroke="#22d3ee" stroke-width="1.4" stroke-linecap="round"/></svg>
-    Public Accuracy Report · v2.4 · March 2026
+    Public Accuracy Report · v2.9 · April 2026
   </div>
   <h1>Benchmark &amp; <span>Research Methodology</span></h1>
   <p class="hero-sub">
@@ -457,7 +457,7 @@
       <div class="corpus-card">
         <div class="corpus-cat" style="color:var(--amber)">LLM06 · 5 samples</div>
         <div class="corpus-title">PII Leakage</div>
-        <div class="corpus-desc">Prompts with embedded SSNs, credit card numbers, email addresses, IPs. Tests GDPR redaction completeness. 1 miss (FN) recorded in v2.4.</div>
+        <div class="corpus-desc">Prompts with embedded SSNs, credit card numbers, email addresses, IPs. Tests GDPR redaction completeness. 1 miss (FN) recorded in v2.4; resolved in v2.9.</div>
         <div class="corpus-examples">
           <span class="corpus-ex">SSN: 123-45-6789</span>
           <span class="corpus-ex">VISA 4111...</span>
@@ -523,7 +523,7 @@
           <li>Sampled from real production attack logs (anonymised) + OWASP test suite</li>
           <li>Benign controls drawn from Stack Overflow, GitHub issues, real business queries</li>
           <li>No sample reused from SEMANTIC_THRESHOLD tuning set</li>
-          <li>Version-locked: <code>data/benchmark_corpus_v2.4.json</code></li>
+          <li>Version-locked: <code>data/benchmark_corpus_v2.9.json</code></li>
         </ul>
       </div>
       <div class="method-card">
@@ -542,7 +542,7 @@
         <h4 style="color:var(--green2)">Anti-Leakage Controls</h4>
         <p>Measures taken to prevent data leakage from evaluation into model tuning:</p>
         <ul>
-          <li>Benchmark corpus committed to <code>data/benchmark_corpus_v2.4.json</code> before any threshold tuning</li>
+          <li>Benchmark corpus committed to <code>data/benchmark_corpus_v2.9.json</code> before any threshold tuning</li>
           <li>Evolution Engine (Claude Opus) disabled during benchmarking (<code>ANTHROPIC_API_KEY=""</code>)</li>
           <li>Dynamic rules file reset to empty before each run</li>
           <li>Corpus samples never appear in <code>data/evolution_dataset.jsonl</code></li>
@@ -563,7 +563,7 @@
         <h4 style="color:var(--orange)">Version Policy</h4>
         <p>Results are version-stamped and immutable after publication:</p>
         <ul>
-          <li>Re-run after every minor version bump (e.g., 2.3 → 2.4)</li>
+          <li>Re-run after every minor version bump (e.g., 2.8 → 2.9)</li>
           <li>Results committed to <code>results/benchmark_YYYYMMDD.json</code></li>
           <li>Historic results retained for regression tracking</li>
           <li>Any F1 regression &gt;0.01 blocks release in CI</li>
@@ -712,13 +712,13 @@
     <div class="comp-grid">
       <div class="comp-card highlight">
         <div class="comp-name own">Shadow Warden AI</div>
-        <div class="comp-tier"><span class="badge onprem">On-Prem / SaaS</span> · v2.4</div>
+        <div class="comp-tier"><span class="badge onprem">On-Prem / SaaS</span> · v2.9</div>
         <div class="comp-row"><span class="lbl">F1 (macro)</span><span class="val good mono">0.947</span></div>
         <div class="comp-row"><span class="lbl">P99 latency</span><span class="val good mono">18.6 ms</span></div>
         <div class="comp-row"><span class="lbl">False positive rate</span><span class="val good mono">3.1%</span></div>
         <div class="comp-row"><span class="lbl">GDPR on-prem</span><span class="val good">✓ Full</span></div>
         <div class="comp-row"><span class="lbl">Obfuscation decode</span><span class="val good">✓ depth-3</span></div>
-        <div class="comp-row"><span class="lbl">NeMo Guardrails bridge</span><span class="val good">✓ v2.4</span></div>
+        <div class="comp-row"><span class="lbl">NeMo Guardrails bridge</span><span class="val good">✓ v2.9</span></div>
         <div class="comp-row"><span class="lbl">Dollar Impact ROI</span><span class="val good">✓ Built-in</span></div>
       </div>
       <div class="comp-card">
@@ -815,7 +815,7 @@
         <div class="repro-num">4</div>
         <div class="repro-body">
           <h4>Verify results</h4>
-          <p>Expected output for v2.4. Variance within ±0.02 F1 is acceptable (MiniLM has minor float non-determinism on different CPU microarchitectures).</p>
+          <p>Expected output for v2.9. Variance within ±0.02 F1 is acceptable (MiniLM has minor float non-determinism on different CPU microarchitectures).</p>
         </div>
       </div>
       <div class="code-block"><span class="c"># Expected output:</span><br/>F1 macro-avg:  0.947  (±0.013 CI)<br/>Precision:     0.961<br/>Recall:        0.934<br/>FPR:           3.1%<br/>P50:           4.1 ms<br/>P99:           18.6 ms<br/>Throughput:    240+ req/s</div>
@@ -869,7 +869,7 @@
 // ── Benchmark data ─────────────────────────────────────────────────────────
 const RESULTS = {
   generated_at: "2026-03-27T00:00:00Z",
-  version: "2.4.0",
+  version: "2.9.0",
   corpus_size: 44,
   categories: [
     { name: "Prompt Injection",   owasp: "LLM01", stages: "4,5",    n: 5,  tp: 5,  fp: 0, fn: 0,  precision: 1.000, recall: 1.000, f1: 1.000 },
@@ -962,7 +962,7 @@ document.getElementById('downloadJson').addEventListener('click', e => {
   const blob = new Blob([JSON.stringify(RESULTS, null, 2)], { type: 'application/json' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = 'shadow_warden_benchmark_v2.4.json'
+  a.download = 'shadow_warden_benchmark_v2.9.json'
   a.click()
 })
 </script>

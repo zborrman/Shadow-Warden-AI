@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shadow Warden AI — Enterprise Integration Guide v2.4</title>
+<title>Shadow Warden AI — Enterprise Integration Guide v2.9</title>
 <style>
   /* ── Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -424,7 +424,7 @@
     <a href="#s4" class="toc-item"><span class="toc-num">4</span> Integration Patterns</a>
     <a href="#s5" class="toc-item"><span class="toc-num">5</span> Hybrid Server Architecture</a>
     <a href="#s6" class="toc-item"><span class="toc-num">6</span> Dollar Impact Calculator</a>
-    <a href="#s7" class="toc-item"><span class="toc-num">7</span> NVIDIA NeMo Bridge (v2.4)</a>
+    <a href="#s7" class="toc-item"><span class="toc-num">7</span> NVIDIA NeMo Bridge (v2.9)</a>
     <a href="#s8" class="toc-item"><span class="toc-num">8</span> Deployment Sizing Guide</a>
     <a href="#s9" class="toc-item"><span class="toc-num">9</span> GDPR & Compliance Checklist</a>
     <a href="#s10" class="toc-item"><span class="toc-num">10</span> Configuration Reference</a>
@@ -514,7 +514,7 @@
   </div>
   <div class="arch-stage">
     <div class="arch-num">6</div>
-    <div class="arch-name">NeMo Bridge (v2.4)</div>
+    <div class="arch-name">NeMo Bridge (v2.9)</div>
     <div class="arch-desc">GeometricThreatBridge translates threat coordinates into Colang context variables. Routes to 5 Colang flows: clean / cautious / restricted / obfuscation / blocked.</div>
     <div class="arch-time">&lt;1ms</div>
   </div>
@@ -962,7 +962,7 @@ attestation = monitor.get_attestation_chain()  # SHA-256 verified chain</code></
       <td>NVIDIA NeMo teams</td>
       <td>2–4 hrs</td>
       <td>D, F</td>
-      <td><code>GeometricThreatBridge</code> + Colang flows. v2.4+</td>
+      <td><code>GeometricThreatBridge</code> + Colang flows. v2.9+</td>
     </tr>
     <tr>
       <td><strong>F — REST API Direct</strong></td>
@@ -1266,7 +1266,7 @@ python scripts/impact_analysis.py --interactive
 <div class="page-break"></div>
 <div class="section-head" id="s7">
   <div class="section-num">7</div>
-  <h2>NVIDIA NeMo Guardrails Bridge (v2.4)</h2>
+  <h2>NVIDIA NeMo Guardrails Bridge (v2.9)</h2>
 </div>
 
 <p>The <strong>GeometricThreatBridge</strong> is the world's first integration that translates <em>mathematical threat geometry</em> — Poincaré ball hyperbolic distances, TDA Betti numbers, and Bayesian causal probabilities — into Colang symbolic flow variables.</p>
@@ -1421,7 +1421,7 @@ CAUSAL_RISK_THRESHOLD=0.65              # P(HIGH_RISK) above this → HIGH
 # ── ERS + Shadow Ban (Layer 8) ────────────────────────────────
 SHADOW_BAN_DELAY_MS=3000                # delay strategy: async wait (ms)
 
-# ── NeMo Bridge (v2.4, Layer 6) ───────────────────────────────
+# ── NeMo Bridge (v2.9, Layer 6) ───────────────────────────────
 BRIDGE_TOPOLOGY_THRESHOLD=0.75         # β-score above → topology_noise=true
 BRIDGE_HYPERBOLIC_HIGH=0.80            # hyperbolic_dist above → high_risk route
 BRIDGE_HYPERBOLIC_GRAY=0.55            # hyperbolic_dist above → cautious route
@@ -1487,7 +1487,7 @@ ELASTIC_URL=https://elastic.internal:9200</code></pre>
 </div>
 
 <footer class="doc-footer">
-  <span>Shadow Warden AI — Enterprise Integration Guide v2.4</span>
+  <span>Shadow Warden AI — Enterprise Integration Guide v2.9</span>
   <span>© 2026 Shadow Warden AI. Confidential — Client Distribution Only.</span>
   <span>security@shadowwarden.ai</span>
 </footer>
