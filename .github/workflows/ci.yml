@@ -249,6 +249,14 @@ jobs:
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
+          # Fix .git permissions BEFORE the main deploy script runs.
+          # Docker containers write files as root/wardenuser which locks .git/FETCH_HEAD.
+          ssh -i ~/.ssh/id_deploy \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=no \
+              "${SSH_USER}@${SSH_HOST}" \
+              "find ${SSH_PATH}/.git -exec chown root:root {} + 2>/dev/null; chmod -R u+rw ${SSH_PATH}/.git 2>/dev/null; true"
+
           # Use -i directly — no ssh-agent needed
           # ServerAliveInterval/CountMax keep the TCP session alive while we wait
           # for the model to load (up to ~3 min on cold start).
