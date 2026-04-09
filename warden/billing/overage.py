@@ -12,12 +12,12 @@ Strategy per tier
   Business ($49/mo)
     Soft limit — overage enabled. No service interruption.
     Charges: +$5.00 per 50 GB storage OR bandwidth pack (auto-charged).
-    Stripe invoice line item: "Storage Overage — {N} GB" / "Bandwidth Overage".
+    Lemon Squeezy: redirect to upgrade checkout or fire overage webhook.
 
   MCP ($199/mo)
     Soft limit — overage enabled at lower unit price ($0.04/GB).
     Expansion pack: +$40.00 per 1 TB storage block (purchasable in advance).
-    Stripe invoice line item metered billing via usage records.
+    Lemon Squeezy: redirect to expansion pack checkout URL.
 
 Referral Growth Mechanics
 ──────────────────────────
@@ -34,8 +34,7 @@ Compliance upsell copy (EU/US market)
 
 Integration points
 ──────────────────
-  Stripe:  create_overage_invoice_item(tenant_id, metric, gb, stripe_customer_id)
-  Paddle:  create_paddle_charge(tenant_id, amount_cents, description)
+  Lemon Squeezy: redirect to upgrade/overage-pack checkout URL
   Webhook: fire_overage_webhook(community_id, metric, used, limit) — for portals
            that handle billing outside Warden (e.g. resellers).
 """
@@ -52,11 +51,8 @@ log = logging.getLogger("warden.billing.overage")
 # Overage webhook URL (optional — for external billing systems)
 OVERAGE_WEBHOOK_URL: str = os.getenv("OVERAGE_WEBHOOK_URL", "")
 
-# Stripe secret key (reuses existing STRIPE_SECRET_KEY env var)
-STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
-
-# Paddle API key (reuses existing PADDLE_API_KEY env var)
-PADDLE_API_KEY: str = os.getenv("PADDLE_API_KEY", "")
+# Lemon Squeezy API key (reuses existing env var)
+_LS_API_KEY: str = os.getenv("LEMONSQUEEZY_API_KEY", "")
 
 
 # ── Overage event record ──────────────────────────────────────────────────────
@@ -86,8 +82,8 @@ def resolve_overage(
     metric:       str,
     used_bytes:   int,
     limit_bytes:  int,
-    stripe_customer_id: str | None = None,
-    paddle_subscription_id: str | None = None,
+    ls_customer_id: str | None = None,
+    ls_subscription_id: str | None = None,
 ) -> dict:
     """
     Handle a quota overage event.
@@ -95,18 +91,16 @@ def resolve_overage(
     Flow:
       1. Log the event.
       2. Fire webhook if configured (external billing systems).
-      3. Create Stripe invoice item if customer ID provided.
-      4. Create Paddle charge if subscription ID provided.
-      5. Return resolution dict with billing_ref for the caller.
+      3. Return upgrade_url pointing to Lemon Squeezy checkout.
 
     Returns
     ──────
     {
-      "action":      "overage_charged" | "webhook_fired" | "logged_only",
-      "metric":      "storage" | "bandwidth",
-      "overage_gb":  float,
+      "action":       "webhook_fired" | "logged_only",
+      "metric":       "storage" | "bandwidth",
+      "overage_gb":   float,
       "amount_cents": int,
-      "billing_ref": str | None,
+      "upgrade_url":  str,
     }
     """
     from warden.billing.feature_gate import OVERAGE_PRICES, _normalize_tier
@@ -114,58 +108,23 @@ def resolve_overage(
     overage_b = max(0, used_bytes - limit_bytes)
     overage_gb = overage_b / (1024 ** 3)
 
-    price_key   = f"{metric}_cents_per_gb"
+    price_key    = f"{metric}_cents_per_gb"
     cents_per_gb = prices.get(price_key, 10)
     amount_cents = max(1, int(overage_gb * cents_per_gb))
 
-    description = (
-        f"Warden {tier.upper()} Overage — {metric} {overage_gb:.2f} GB "
-        f"@ ${cents_per_gb/100:.2f}/GB"
-    )
+    _log_overage_event(community_id, tenant_id, tier, metric, used_bytes, limit_bytes, "overage")
 
-    _log_overage_event(community_id, tenant_id, tier, metric, used_bytes, limit_bytes, "charge")
+    upgrade_url = get_upgrade_url(tier, metric)
 
-    billing_ref: str | None = None
-
-    # ── Stripe ────────────────────────────────────────────────────────────────
-    if stripe_customer_id and STRIPE_SECRET_KEY:
-        billing_ref = _create_stripe_invoice_item(
-            stripe_customer_id, amount_cents, description
-        )
-        if billing_ref:
-            _fire_overage_webhook(community_id, metric, overage_gb, amount_cents, "stripe")
-            return {
-                "action":       "overage_charged",
-                "metric":       metric,
-                "overage_gb":   round(overage_gb, 3),
-                "amount_cents": amount_cents,
-                "billing_ref":  billing_ref,
-            }
-
-    # ── Paddle ────────────────────────────────────────────────────────────────
-    if paddle_subscription_id and PADDLE_API_KEY:
-        billing_ref = _create_paddle_charge(
-            paddle_subscription_id, amount_cents, description
-        )
-        if billing_ref:
-            _fire_overage_webhook(community_id, metric, overage_gb, amount_cents, "paddle")
-            return {
-                "action":       "overage_charged",
-                "metric":       metric,
-                "overage_gb":   round(overage_gb, 3),
-                "amount_cents": amount_cents,
-                "billing_ref":  billing_ref,
-            }
-
-    # ── Webhook only ──────────────────────────────────────────────────────────
+    # ── Webhook ───────────────────────────────────────────────────────────────
     if OVERAGE_WEBHOOK_URL:
-        _fire_overage_webhook(community_id, metric, overage_gb, amount_cents, "webhook")
+        _fire_overage_webhook(community_id, metric, overage_gb, amount_cents, "lemonsqueezy")
         return {
             "action":       "webhook_fired",
             "metric":       metric,
             "overage_gb":   round(overage_gb, 3),
             "amount_cents": amount_cents,
-            "billing_ref":  None,
+            "upgrade_url":  upgrade_url,
         }
 
     # ── Log only (dev/test) ───────────────────────────────────────────────────
@@ -174,16 +133,14 @@ def resolve_overage(
         "metric":       metric,
         "overage_gb":   round(overage_gb, 3),
         "amount_cents": amount_cents,
-        "billing_ref":  None,
+        "upgrade_url":  upgrade_url,
     }
 
 
 def get_upgrade_url(tier: str, metric: str) -> str:
     """
     Return upgrade CTA URL for hard-quota 402 responses.
-
-    In production this would link to the Stripe/Paddle checkout for the
-    next tier. Returns a portal-relative URL by default.
+    Links to Lemon Squeezy checkout for the next tier.
     """
     next_tier = "business" if tier == "individual" else "mcp"
     base_url  = os.getenv("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
@@ -278,57 +235,6 @@ def apply_referral(
 
 
 # ── Internal billing helpers ──────────────────────────────────────────────────
-
-def _create_stripe_invoice_item(
-    customer_id:  str,
-    amount_cents: int,
-    description:  str,
-) -> str | None:
-    """Create a Stripe invoice item. Returns invoice_item.id or None on error."""
-    try:
-        import stripe
-        stripe.api_key = STRIPE_SECRET_KEY
-        item = stripe.InvoiceItem.create(
-            customer    = customer_id,
-            amount      = amount_cents,
-            currency    = "usd",
-            description = description,
-        )
-        return item.id
-    except Exception as exc:
-        log.warning("overage: Stripe invoice item error: %s", exc)
-        return None
-
-
-def _create_paddle_charge(
-    subscription_id: str,
-    amount_cents:    int,
-    description:     str,
-) -> str | None:
-    """Create a Paddle one-time charge. Returns transaction_id or None on error."""
-    try:
-        import httpx
-        resp = httpx.post(
-            "https://api.paddle.com/adjustments",
-            headers={"Authorization": f"Bearer {PADDLE_API_KEY}"},
-            json={
-                "action":          "credit",
-                "subscription_id": subscription_id,
-                "reason":          description,
-                "items": [{
-                    "type":          "custom",
-                    "amount":        str(amount_cents),
-                    "description":   description,
-                }],
-            },
-            timeout=10,
-        )
-        if resp.status_code == 201:
-            return resp.json().get("data", {}).get("id")
-    except Exception as exc:
-        log.warning("overage: Paddle charge error: %s", exc)
-    return None
-
 
 def _fire_overage_webhook(
     community_id: str,

@@ -825,7 +825,7 @@ async def billing(
         "requests_used":     usage["requests"] if usage else 0,
         "requests_quota":    10000,
         "cost_usd":          float(usage["cost_usd"]) if usage else 0.0,
-        "stripe_portal_url": None,  # wire in when Stripe is added
+        "billing_portal_url": None,  # use /subscription/portal for Lemon Squeezy
     }
 
 

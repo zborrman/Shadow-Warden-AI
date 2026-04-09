@@ -438,24 +438,23 @@ saml:
     idpMetadataUrl: ""        # IdP metadata XML URL (Okta / Entra)
     idpX509Cert: ""           # IdP signing cert (PEM, no headers)
 
-# ── Stripe Billing — SMB Teams Edition (v2.5) ────────────────────────────────
+# ── Lemon Squeezy Billing ────────────────────────────────────────────────────
 #
-# Plan tiers:
-#   free    —  1 000 req/month  / domain,   $0/month  (default, trial)
-#   startup — 50 000 req/month  / domain,  $99/month  (≤ 50 employees)
-#   growth  — 250 000 req/month / domain, $299/month  (≤ 250 employees)
-#   msp     — Unlimited req/month / domain, custom    (MSP / reseller)
+# Plan tiers (monthly subscriptions):
+#   starter    —  1 000 req/month,  $0/month   (default, no key required)
+#   individual —  5 000 req/month,  $5/month
+#   pro        — 50 000 req/month, $49/month   (up to 50 tenants)
+#   enterprise — Unlimited req/month, $199/month (on-prem, custom ML)
 #
-# Per-minute burst caps: free=10, startup=60, growth=200, msp=500 req/min
-#
-# Set price IDs from the Stripe Dashboard (Products → Prices).
-stripe:
+# Get variant IDs from: Lemon Squeezy Dashboard → Products → Variants
+lemonsqueezy:
   secret:
-    secretKey: ""       # sk_live_… or sk_test_…  (set via --set)
-    webhookSecret: ""   # whsec_…  (Stripe Dashboard → Webhooks)
-    priceStartup: ""    # price_… recurring, $99/mo
-    priceGrowth: ""     # price_… recurring, $299/mo
-    priceMsp: ""        # price_… custom / enterprise
+    apiKey: ""              # from LS dashboard → API
+    storeId: ""             # your store ID
+    webhookSecret: ""       # LS Dashboard → Webhooks → Signing Secret
+    variantIndividual: ""   # variant_id for $5/mo plan
+    variantPro: ""          # variant_id for $49/mo plan
+    variantEnterprise: ""   # variant_id for $199/mo plan
 
 # ── Prometheus / Grafana Observability (v2.0+) ───────────────────────────────
 monitoring:

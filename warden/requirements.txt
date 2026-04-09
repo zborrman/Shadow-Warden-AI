@@ -20,11 +20,9 @@ arq>=0.25.0
 # Used by: OpenAI proxy, LangChain callback, SIEM integration, alerting.
 httpx>=0.27.0
 
-# ── Stripe billing ────────────────────────────────────────────────────────────
-# Subscription management: checkout sessions, webhooks, billing portal.
-# Import is lazy (inside methods) so Stripe is only initialised when
-# STRIPE_SECRET_KEY is configured — air-gapped deployments are unaffected.
-stripe>=8.0.0
+# ── Lemon Squeezy billing ─────────────────────────────────────────────────────
+# Pure-stdlib implementation (urllib + hmac) — no extra package needed.
+# Set LEMONSQUEEZY_API_KEY + LEMONSQUEEZY_WEBHOOK_SECRET in .env to enable.
 
 # ── Prometheus metrics ────────────────────────────────────────────────────────
 # Auto-instruments all FastAPI routes and exposes /metrics in Prometheus format.

@@ -1,7 +1,10 @@
 """
-warden/stripe_billing.py
-────────────────────────
-Stripe subscription billing for Shadow Warden AI — SMB Teams edition.
+warden/stripe_billing.py — REMOVED
+────────────────────────────────────
+Stripe has been replaced by Lemon Squeezy.
+All billing is now handled by warden/lemon_billing.py.
+THIS FILE IS DEPRECATED — do not import it directly.
+
 
 Plan tiers (Warden Identity domain-based billing)
 ──────────────────────────────────────────────────

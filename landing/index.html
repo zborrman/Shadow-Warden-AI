@@ -595,6 +595,8 @@
     <!-- Desktop nav -->
     <nav class="hidden md:flex items-center gap-7">
       <a href="#pipeline" class="nav-link">Product</a>
+      <a href="#pillars" class="nav-link">Platform</a>
+      <a href="#roi" class="nav-link">ROI</a>
       <a href="#pricing" class="nav-link">Pricing</a>
       <a href="#owasp" class="nav-link">Security</a>
       <a href="benchmark.html" class="nav-link">Benchmark</a>
@@ -2684,112 +2686,481 @@ function switchSector(s) {
 </section>
 
 <!-- ════════════════════════════════════════════════════════
-     PRICING
+     TWO PILLARS
 ════════════════════════════════════════════════════════ -->
-<section id="pricing" class="py-24 lg:py-32">
+<section id="pillars" class="py-24 lg:py-32" style="background:var(--bg2);">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-    <div class="text-center mb-14 reveal">
-      <p class="eyebrow mb-3">Pricing</p>
-      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">Simple, transparent pricing</h2>
-      <p class="text-lg max-w-xl mx-auto" style="color:var(--t2);">Start free. Scale as you grow. Cancel any time — no lock-in.</p>
+    <div class="text-center mb-16 reveal">
+      <p class="eyebrow mb-3">Business Architecture</p>
+      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">Two pillars. One platform.</h2>
+      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Shadow Warden AI converges secure enterprise communication with mathematically-provable AI defense — the only platform built for both.</p>
     </div>
 
-    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto reveal">
+    <div class="grid lg:grid-cols-2 gap-8 mb-20 reveal">
 
-      <!-- Free -->
-      <div class="price-card">
-        <div class="mb-6">
-          <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--t2);">Starter</div>
-          <div class="flex items-end gap-2 mb-1">
-            <span class="text-4xl font-black" style="color:var(--t1);">Free</span>
+      <!-- Pillar A: Communities -->
+      <div class="bento bento-glow-cyan" style="border-color:rgba(34,211,238,0.18);">
+        <div class="bento-inner">
+          <div class="flex items-center gap-3 mb-5">
+            <div style="width:44px;height:44px;border-radius:12px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);display:flex;align-items:center;justify-content:center;font-size:1.3rem;">🔐</div>
+            <div>
+              <div class="badge badge-cyan mb-1">Pillar A · 50%</div>
+              <div class="text-lg font-bold" style="color:var(--t1);">Secure Internal Communities</div>
+            </div>
           </div>
-          <div class="text-sm" style="color:var(--t2);">Forever free · no card required</div>
+          <p class="text-sm mb-6" style="color:var(--t2);line-height:1.7;">End-to-end encrypted workspaces where departments share data without exposure. Every message passes through Warden before storage — toxic payloads are blocked at the cryptographic layer.</p>
+          <div class="grid grid-cols-2 gap-3 mb-6">
+            <div style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);border-radius:12px;padding:14px;">
+              <div class="text-xs font-bold mb-1" style="color:var(--cyan);">X25519 + E2EE</div>
+              <div class="text-xs" style="color:var(--t2);">Perfect Forward Secrecy. Keys live on-device, never on server.</div>
+            </div>
+            <div style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);border-radius:12px;padding:14px;">
+              <div class="text-xs font-bold mb-1" style="color:var(--cyan);">mTLS Tunnels</div>
+              <div class="text-xs" style="color:var(--t2);">Both sides present certs. Man-in-the-middle is structurally impossible.</div>
+            </div>
+            <div style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);border-radius:12px;padding:14px;">
+              <div class="text-xs font-bold mb-1" style="color:var(--cyan);">Data Clean Rooms</div>
+              <div class="text-xs" style="color:var(--t2);">Differential privacy + pseudonymization. Trends visible, PII hidden.</div>
+            </div>
+            <div style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.1);border-radius:12px;padding:14px;">
+              <div class="text-xs font-bold mb-1" style="color:var(--cyan);">Shadow AI Shield</div>
+              <div class="text-xs" style="color:var(--t2);">Browser extension intercepts ChatGPT, Gemini, Copilot inputs before send.</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-xs" style="color:var(--t2);">
+            <span style="width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0;"></span>
+            Suitable for: Legal, Finance, HR, Healthcare, Government
+          </div>
         </div>
-        <ul class="space-y-3 mb-8 text-sm">
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">1,000 requests / month</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">All 6 detection stages</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">ThreatVault signatures</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Google Authenticator 2FA</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">OpenAI / Perplexity / Gemini proxy</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Docker self-host</span></li>
-          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">Slack / PagerDuty alerts</span></li>
-          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">GDPR export API</span></li>
-        </ul>
-        <a href="/early-access" class="block text-center py-3 rounded-xl text-sm font-semibold transition-all" style="border:1px solid rgba(34,211,238,0.2);color:#22d3ee;">Get Free Access →</a>
       </div>
 
-      <!-- Individual -->
-      <div class="price-card">
-        <div class="mb-6">
-          <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--t2);">Individual</div>
-          <div class="flex items-end gap-2 mb-1">
-            <span class="text-4xl font-black" style="color:var(--t1);">$5</span>
-            <span class="pb-1.5 text-sm" style="color:var(--t2);">/ month</span>
+      <!-- Pillar B: Topological Gatekeeper -->
+      <div class="bento bento-glow-purple" style="border-color:rgba(139,92,246,0.18);">
+        <div class="bento-inner">
+          <div class="flex items-center gap-3 mb-5">
+            <div style="width:44px;height:44px;border-radius:12px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);display:flex;align-items:center;justify-content:center;font-size:1.3rem;">🧮</div>
+            <div>
+              <div class="badge badge-purple mb-1">Pillar B · 50%</div>
+              <div class="text-lg font-bold" style="color:var(--t1);">Topological Gatekeeper</div>
+            </div>
           </div>
-          <div class="text-sm" style="color:var(--t2);">For solo developers &amp; hobbyists</div>
+          <p class="text-sm mb-6" style="color:var(--t2);line-height:1.7;">A mathematical pre-filter that detects adversarial intent from the structural <em>shape</em> of data — before semantic analysis even begins. Obfuscated attacks, Base64 payloads, and machine-generated noise are blocked in under 2ms.</p>
+          <div class="grid grid-cols-2 gap-3 mb-6">
+            <div style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.1);border-radius:12px;padding:14px;">
+              <div class="text-xs font-bold mb-1" style="color:#c4b5fd;">Betti Numbers β₀β₁</div>
+              <div class="text-xs" style="color:var(--t2);">Topological signatures catch structural anomalies semantic models miss.</div>
+            </div>
+            <div style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.1);border-radius:12px;padding:14px;">
+              <div class="text-xs font-bold mb-1" style="color:#c4b5fd;">&lt; 2ms Pre-filter</div>
+              <div class="text-xs" style="color:var(--t2);">TDA runs before ML — zero inference cost on blocked structural noise.</div>
+            </div>
+            <div style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.1);border-radius:12px;padding:14px;">
+              <div class="text-xs font-bold mb-1" style="color:#c4b5fd;">NVIDIA NIM</div>
+              <div class="text-xs" style="color:var(--t2);">GPU-accelerated inference. 600× faster than CPU. Sovereign in-VPC deployment.</div>
+            </div>
+            <div style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.1);border-radius:12px;padding:14px;">
+              <div class="text-xs font-bold mb-1" style="color:#c4b5fd;">Shadow Ban</div>
+              <div class="text-xs" style="color:var(--t2);">Degrades attacker experience instead of hard-blocking — breaks feedback loops.</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-xs" style="color:var(--t2);">
+            <span style="width:7px;height:7px;border-radius:50%;background:#8b5cf6;flex-shrink:0;"></span>
+            Suitable for: Fintech, Defense, Insurance, Cloud Providers, MSPs
+          </div>
         </div>
-        <ul class="space-y-3 mb-8 text-sm">
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t1);"><strong>5,000</strong> requests / month</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">All 6 detection stages</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">ThreatVault signatures</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Google Authenticator 2FA</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">OpenAI / Perplexity / Gemini proxy</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Prompt Shield + Audit Trail</span></li>
-          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">Multi-tenant</span></li>
-          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">Slack / PagerDuty alerts</span></li>
-        </ul>
-        <a href="/checkout?plan=individual" class="block text-center py-3 rounded-xl text-sm font-semibold transition-all" style="border:1px solid rgba(34,211,238,0.2);color:#22d3ee;">Get Started →</a>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 reveal">
+      <div class="text-center">
+        <div class="stat-val mb-1">3,000%</div>
+        <div class="text-xs" style="color:var(--t2);">YoY growth in enterprise AI transactions</div>
+      </div>
+      <div class="text-center">
+        <div style="font-size:2.8rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#a78bfa,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" class="mb-1">320+</div>
+        <div class="text-xs" style="color:var(--t2);">Avg. unapproved AI apps per large enterprise</div>
+      </div>
+      <div class="text-center">
+        <div style="font-size:2.8rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#34d399,#10b981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" class="mb-1">72%</div>
+        <div class="text-xs" style="color:var(--t2);">S&amp;P 500 companies citing AI as material risk</div>
+      </div>
+      <div class="text-center">
+        <div style="font-size:2.8rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#fb923c,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;" class="mb-1">$4.4M</div>
+        <div class="text-xs" style="color:var(--t2);">Average enterprise data breach cost (2025)</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════
+     ROI CALCULATOR
+════════════════════════════════════════════════════════ -->
+<section id="roi" class="py-24 lg:py-32">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="text-center mb-14 reveal">
+      <p class="eyebrow mb-3">Value Justification</p>
+      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">The cost of <span class="text-grad">not</span> protecting your AI</h2>
+      <p class="text-lg max-w-xl mx-auto" style="color:var(--t2);">One prevented breach. One avoided fine. Shadow Warden Enterprise pays for itself in the first month.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6 mb-12 reveal">
+      <div class="card p-6 text-center">
+        <div style="font-size:2.5rem;font-weight:900;color:#f43f5e;margin-bottom:8px;">$4.44M</div>
+        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Average Data Breach Cost</div>
+        <div class="text-xs" style="color:var(--t2);">IBM Cost of Data Breach Report 2024. One prevented breach = &gt;100,000% ROI on Enterprise plan.</div>
+      </div>
+      <div class="card p-6 text-center">
+        <div style="font-size:2.5rem;font-weight:900;color:#f59e0b;margin-bottom:8px;">€35M</div>
+        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">Max EU AI Act Fine</div>
+        <div class="text-xs" style="color:var(--t2);">Article 99: up to €35M or 7% of global revenue for high-risk AI violations. Shadow Warden automates Article 9 &amp; 15 compliance.</div>
+      </div>
+      <div class="card p-6 text-center">
+        <div style="font-size:2.5rem;font-weight:900;color:#10b981;margin-bottom:8px;">600×</div>
+        <div class="text-sm font-semibold mb-2" style="color:var(--t1);">NVIDIA NIM Speed Gain</div>
+        <div class="text-xs" style="color:var(--t2);">GPU-accelerated classification vs CPU-only servers. Sub-50ms decisions at enterprise scale with full data sovereignty.</div>
+      </div>
+    </div>
+
+    <!-- ROI table -->
+    <div class="card reveal" style="overflow:hidden;">
+      <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+        <div class="text-sm font-semibold" style="color:var(--t1);">Dollar Impact Calculator — v2.3</div>
+        <div class="text-xs" style="color:var(--t2);">Annual risk avoidance for a 500-person organization</div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.8125rem;">
+          <thead>
+            <tr style="background:rgba(34,211,238,0.04);">
+              <th style="padding:12px 20px;text-align:left;color:var(--t2);font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Risk Category</th>
+              <th style="padding:12px 20px;text-align:right;color:var(--t2);font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Annual Exposure</th>
+              <th style="padding:12px 20px;text-align:right;color:var(--t2);font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Mitigation</th>
+              <th style="padding:12px 20px;text-align:right;color:#10b981;font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-bottom:1px solid var(--border);">Value Saved</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(34,211,238,0.04);">
+              <td style="padding:14px 20px;color:var(--t1);">Prompt injection breach</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--t2);">$4,440,000</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--cyan);">97% block rate</td>
+              <td style="padding:14px 20px;text-align:right;color:#10b981;font-weight:700;">$4,306,800</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(34,211,238,0.04);">
+              <td style="padding:14px 20px;color:var(--t1);">EU AI Act penalty (high-risk)</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--t2);">€35,000,000</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--cyan);">Art. 9 + 15 auto-docs</td>
+              <td style="padding:14px 20px;text-align:right;color:#10b981;font-weight:700;">€35,000,000</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(34,211,238,0.04);">
+              <td style="padding:14px 20px;color:var(--t1);">Shadow AI data leakage (DLP)</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--t2);">$280,000</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--cyan);">Secret Redactor</td>
+              <td style="padding:14px 20px;text-align:right;color:#10b981;font-weight:700;">$266,000</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(34,211,238,0.04);">
+              <td style="padding:14px 20px;color:var(--t1);">Manual compliance audit hours</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--t2);">$48,000</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--cyan);">Automated evidence</td>
+              <td style="padding:14px 20px;text-align:right;color:#10b981;font-weight:700;">$48,000</td>
+            </tr>
+            <tr style="background:rgba(16,185,129,0.04);">
+              <td style="padding:14px 20px;color:var(--t1);font-weight:700;">Shadow Warden Enterprise annual cost</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--t2);">—</td>
+              <td style="padding:14px 20px;text-align:right;color:var(--t2);">—</td>
+              <td style="padding:14px 20px;text-align:right;color:#f43f5e;font-weight:700;">$2,388/yr</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════
+     REFERRAL FLYWHEEL
+════════════════════════════════════════════════════════ -->
+<section id="referral" class="py-24 lg:py-32" style="background:var(--bg2);">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="grid lg:grid-cols-2 gap-12 items-center reveal">
+
+      <div>
+        <p class="eyebrow mb-3">Growth Mechanics</p>
+        <h2 class="text-3xl sm:text-4xl font-black mb-5" style="color:var(--t1);">Earn while you<br/><span class="text-grad-green">protect your team</span></h2>
+        <p class="text-lg mb-8" style="color:var(--t2);">Shadow Warden's B2B referral program compounds trust. Every security event is an <em>Aha! Moment</em> — share your link at peak satisfaction and earn real rewards.</p>
+
+        <div class="space-y-4 mb-8">
+          <div class="flex items-start gap-4">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0;">1</div>
+            <div>
+              <div class="text-sm font-semibold mb-1" style="color:var(--t1);">Block an attack → share your link</div>
+              <div class="text-xs" style="color:var(--t2);">In-app nudge appears after every significant security event. One click copies your referral URL.</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0;">2</div>
+            <div>
+              <div class="text-sm font-semibold mb-1" style="color:var(--t1);">Your contact signs up</div>
+              <div class="text-xs" style="color:var(--t2);">They get a 30-day extended trial. You get +1 month free or a discount credit — applied automatically.</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-4">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0;">3</div>
+            <div>
+              <div class="text-sm font-semibold mb-1" style="color:var(--t1);">Compounding flywheel</div>
+              <div class="text-xs" style="color:var(--t2);">Each referral reduces your CAC by up to 10×. Leaderboard visibility drives friendly competition inside syndicates.</div>
+            </div>
+          </div>
+        </div>
+
+        <a href="/login" class="btn-cyan">Get My Referral Link →</a>
       </div>
 
-      <!-- Pro — featured -->
-      <div class="price-card featured relative">
-        <div class="mb-6">
-          <div class="text-xs font-bold uppercase tracking-wider mb-3 text-grad">Pro</div>
-          <div class="flex items-end gap-2 mb-1">
-            <span class="text-4xl font-black" style="color:var(--t1);">$49</span>
-            <span class="pb-1.5 text-sm" style="color:var(--t2);">/ month</span>
+      <div class="card p-8" style="border-color:rgba(16,185,129,0.2);">
+        <div class="text-xs font-bold uppercase tracking-wider mb-4" style="color:#10b981;">Referral Dashboard Preview</div>
+        <div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.1);border-radius:12px;padding:16px;margin-bottom:12px;">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs" style="color:var(--t2);">Your code</span>
+            <span class="mono text-sm font-bold" style="color:#10b981;">SW-ACME-2026</span>
           </div>
-          <div class="text-sm" style="color:var(--t2);">14-day money-back guarantee</div>
-        </div>
-        <ul class="space-y-3 mb-8 text-sm">
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t1);"><strong>50,000</strong> requests / month</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Multi-tenant (up to 50)</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Slack + PagerDuty alerts</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">GDPR export + purge API</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Prometheus + Grafana</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">SIEM (Splunk / Elastic)</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Google Authenticator 2FA portal</span></li>
-        </ul>
-        <a href="/login" class="btn-cyan block text-center" style="padding:12px 24px;">Start 14-Day Free Trial →</a>
-        <p class="text-center text-xs mt-3" style="color:var(--t2);">Secured by Paddle · Cancel any time</p>
-      </div>
-
-      <!-- MSP -->
-      <div class="price-card">
-        <div class="mb-6">
-          <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--t2);">Enterprise / MSP</div>
-          <div class="flex items-end gap-2 mb-1">
-            <span class="text-4xl font-black" style="color:var(--t1);">$199</span>
-            <span class="pb-1.5 text-sm" style="color:var(--t2);">/ month</span>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs" style="color:var(--t2);">Total signups</span>
+            <span class="text-sm font-bold" style="color:var(--t1);">7</span>
           </div>
-          <div class="text-sm" style="color:var(--t2);">Unlimited usage · white-label ready</div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs" style="color:var(--t2);">Months earned free</span>
+            <span class="text-sm font-bold" style="color:#10b981;">7</span>
+          </div>
         </div>
-        <ul class="space-y-3 mb-8 text-sm">
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t1);">Everything in Pro</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);"><strong style="color:var(--t1);">Unlimited</strong> requests</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Unlimited tenants</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">On-premise deployment</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Custom ML corpus training</span></li>
-          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Dedicated support engineer</span></li>
-        </ul>
-        <a href="/checkout?plan=msp" class="btn-cyan block text-center mb-3" style="padding:12px 24px;">Upgrade to MSP →</a>
-        <a href="/contact" class="block text-center py-3 rounded-xl text-sm font-semibold transition-all" style="border:1px solid rgba(34,211,238,0.2);color:#22d3ee;">Contact Sales</a>
+        <div class="text-xs font-bold uppercase tracking-wider mb-3" style="color:var(--t2);">Recent Referrals</div>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--border);">
+            <span class="text-xs" style="color:var(--t2);">fintech-startup.io</span>
+            <span class="badge badge-green" style="font-size:10px;">Pro · Active</span>
+          </div>
+          <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--border);">
+            <span class="text-xs" style="color:var(--t2);">lawfirm-berlin.de</span>
+            <span class="badge badge-cyan" style="font-size:10px;">Enterprise · Trial</span>
+          </div>
+          <div class="flex items-center justify-between py-2">
+            <span class="text-xs" style="color:var(--t2);">healthtech-oslo.no</span>
+            <span class="badge badge-green" style="font-size:10px;">Pro · Active</span>
+          </div>
+        </div>
+        <div class="mt-4 text-center text-xs" style="color:var(--t2);">Available inside your <strong style="color:var(--t1);">Hub → Referrals</strong></div>
       </div>
 
     </div>
   </div>
 </section>
+
+
+<!-- ════════════════════════════════════════════════════════
+     PRICING
+════════════════════════════════════════════════════════ -->
+<section id="pricing" class="py-24 lg:py-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="text-center mb-10 reveal">
+      <p class="eyebrow mb-3">Pricing</p>
+      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">Simple, transparent pricing</h2>
+      <p class="text-lg max-w-xl mx-auto mb-8" style="color:var(--t2);">Start free. Scale as you grow. Cancel any time — no lock-in.</p>
+
+      <!-- Monthly / Annual toggle -->
+      <div class="inline-flex items-center gap-3 px-4 py-2 rounded-2xl" style="background:var(--bg2);border:1px solid var(--border);">
+        <button id="btn-monthly" onclick="setBilling('monthly')"
+          class="px-4 py-1.5 rounded-xl text-sm font-semibold transition-all"
+          style="background:var(--bg3);color:var(--t1);">Monthly</button>
+        <button id="btn-annual" onclick="setBilling('annual')"
+          class="px-4 py-1.5 rounded-xl text-sm font-semibold transition-all"
+          style="color:var(--t2);">Annual
+          <span class="ml-1.5 px-1.5 py-0.5 rounded text-xs font-bold" style="background:rgba(34,197,94,0.15);color:#4ade80;">–17%</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto reveal">
+
+      <!-- ── Starter (Free) ───────────────────────────────────── -->
+      <div class="price-card" style="position:relative;">
+        <div class="mb-5">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider" style="color:var(--t2);">Starter</span>
+          </div>
+          <div class="flex items-end gap-2 mb-1">
+            <span class="text-4xl font-black" style="color:var(--t1);">Free</span>
+          </div>
+          <div class="text-sm" style="color:var(--t2);">Forever free · no card required</div>
+        </div>
+
+        <!-- Referral pill -->
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg mb-5 text-xs font-semibold" style="background:rgba(34,211,238,0.07);border:1px solid rgba(34,211,238,0.15);color:#67e8f9;width:fit-content;">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          +500 req per referral
+        </div>
+
+        <ul class="space-y-3 mb-8 text-sm">
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">1,000 requests / month</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">All 9 detection layers</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">ThreatVault signatures</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">TOTP 2FA</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">OpenAI / Perplexity / Gemini proxy</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Docker self-host</span></li>
+          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">Audit Trail</span></li>
+          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">Slack / PagerDuty alerts</span></li>
+        </ul>
+        <a href="/early-access" class="block text-center py-3 rounded-xl text-sm font-semibold transition-all" style="border:1px solid rgba(34,211,238,0.2);color:#22d3ee;">Get Free Access →</a>
+        <p class="text-center text-xs mt-3" style="color:var(--t3);">No credit card required</p>
+      </div>
+
+      <!-- ── Individual ($5) ─────────────────────────────────── -->
+      <div class="price-card" style="position:relative;">
+        <div class="mb-5">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider" style="color:var(--t2);">Individual</span>
+          </div>
+          <div class="flex items-end gap-2 mb-1">
+            <span class="price-monthly text-4xl font-black" style="color:var(--t1);">$5</span>
+            <span class="price-annual text-4xl font-black" style="color:var(--t1);display:none;">$4</span>
+            <span class="pb-1.5 text-sm" style="color:var(--t2);">/ month</span>
+          </div>
+          <div class="text-sm" style="color:var(--t2);">For solo developers &amp; hobbyists</div>
+        </div>
+
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg mb-5 text-xs font-semibold" style="background:rgba(34,211,238,0.07);border:1px solid rgba(34,211,238,0.15);color:#67e8f9;width:fit-content;">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          +500 req per referral
+        </div>
+
+        <ul class="space-y-3 mb-8 text-sm">
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t1);"><strong>5,000</strong> requests / month</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Everything in Starter</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);"><strong style="color:var(--t1);">Prompt Shield</strong> + Audit Trail</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">10 GB storage · 50 GB bandwidth</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">90-day log retention</span></li>
+          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">Multi-tenant</span></li>
+          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">SIEM / Prometheus</span></li>
+          <li class="flex items-start gap-2.5"><svg class="cross" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t3);">Secure Communities</span></li>
+        </ul>
+        <a href="/checkout?plan=individual" class="block text-center py-3 rounded-xl text-sm font-semibold transition-all" style="border:1px solid rgba(34,211,238,0.2);color:#22d3ee;">Get Started →</a>
+        <p class="text-center text-xs mt-3" style="color:var(--t3);">Secured by Lemon Squeezy</p>
+      </div>
+
+      <!-- ── Pro ($49) — featured ────────────────────────────── -->
+      <div class="price-card featured relative">
+        <!-- Most Popular badge -->
+        <div class="absolute -top-3.5 left-1/2 -translate-x-1/2">
+          <span class="px-3 py-1 rounded-full text-xs font-bold" style="background:linear-gradient(135deg,#22d3ee,#a78bfa);color:#0a0a0a;white-space:nowrap;">Most Popular</span>
+        </div>
+
+        <div class="mb-5 mt-2">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-grad">Pro</span>
+          </div>
+          <div class="flex items-end gap-2 mb-1">
+            <span class="price-monthly text-4xl font-black" style="color:var(--t1);">$49</span>
+            <span class="price-annual text-4xl font-black" style="color:var(--t1);display:none;">$39</span>
+            <span class="pb-1.5 text-sm" style="color:var(--t2);">/ month</span>
+          </div>
+          <div class="text-sm" style="color:var(--t2);">14-day money-back guarantee</div>
+        </div>
+
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg mb-5 text-xs font-semibold" style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);color:#c4b5fd;width:fit-content;">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          +2,000 req per referral
+        </div>
+
+        <ul class="space-y-3 mb-8 text-sm">
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t1);"><strong>50,000</strong> requests / month</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Everything in Individual</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Multi-tenant <span class="mono text-xs" style="color:var(--cyan);">≤ 50</span></span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);"><strong style="color:var(--t1);">SIEM</strong> — Splunk / Elastic</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);"><strong style="color:var(--t1);">Prometheus</strong> + Grafana dashboards</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Secure Communities (10 · 25 members)</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Slack + PagerDuty alerts</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">GDPR export + purge API</span></li>
+          <li class="flex items-start gap-2.5">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px;color:#f59e0b;"><path d="M8 2l1.5 4.5H14l-3.8 2.8 1.5 4.5L8 11l-3.7 2.8 1.5-4.5L2 6.5h4.5z" fill="currentColor"/></svg>
+            <span style="color:var(--t3);font-size:11px;">Overage: $0.50 / 1k extra requests</span>
+          </li>
+        </ul>
+        <a href="/login" class="btn-cyan block text-center" style="padding:12px 24px;">Start 14-Day Free Trial →</a>
+        <p class="text-center text-xs mt-3" style="color:var(--t2);">Secured by Lemon Squeezy · Cancel any time</p>
+      </div>
+
+      <!-- ── Enterprise ($199) ───────────────────────────────── -->
+      <div class="price-card" style="position:relative;">
+        <!-- Best Value badge -->
+        <div class="absolute -top-3.5 left-1/2 -translate-x-1/2">
+          <span class="px-3 py-1 rounded-full text-xs font-bold" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;white-space:nowrap;">Best Value</span>
+        </div>
+
+        <div class="mb-5 mt-2">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider" style="color:var(--t2);">Enterprise / MSP</span>
+          </div>
+          <div class="flex items-end gap-2 mb-1">
+            <span class="price-monthly text-4xl font-black" style="color:var(--t1);">$199</span>
+            <span class="price-annual text-4xl font-black" style="color:var(--t1);display:none;">$165</span>
+            <span class="pb-1.5 text-sm" style="color:var(--t2);">/ month</span>
+          </div>
+          <div class="text-sm" style="color:var(--t2);">Unlimited usage · white-label ready</div>
+        </div>
+
+        <ul class="space-y-3 mb-8 text-sm">
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t1);">Everything in Pro</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);"><strong style="color:var(--t1);">Unlimited</strong> requests + tenants</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">On-prem + <strong style="color:var(--t1);">NVIDIA NIM</strong> (600× GPU)</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Custom ML corpus training</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">White-label + custom domain</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Break Glass + <strong style="color:var(--t1);">BYOK</strong></span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">EU AI Act Art. 9+15 compliance docs</span></li>
+          <li class="flex items-start gap-2.5"><svg class="check" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span style="color:var(--t2);">Dedicated support engineer (SLA)</span></li>
+          <li class="flex items-start gap-2.5">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px;color:#f59e0b;"><path d="M8 2l1.5 4.5H14l-3.8 2.8 1.5 4.5L8 11l-3.7 2.8 1.5-4.5L2 6.5h4.5z" fill="currentColor"/></svg>
+            <span style="color:var(--t3);font-size:11px;">Overage: $0.10 / 1k extra requests</span>
+          </li>
+        </ul>
+        <a href="/checkout?plan=enterprise" class="btn-cyan block text-center mb-3" style="padding:12px 24px;">Upgrade to Enterprise →</a>
+        <a href="/contact" class="block text-center py-3 rounded-xl text-sm font-semibold transition-all" style="border:1px solid rgba(34,211,238,0.2);color:#22d3ee;">Contact Sales</a>
+        <p class="text-center text-xs mt-3" style="color:var(--t3);">Secured by Lemon Squeezy</p>
+      </div>
+
+    </div><!-- /grid -->
+
+    <!-- Referral flywheel note -->
+    <div class="mt-10 reveal">
+      <div class="max-w-2xl mx-auto rounded-2xl px-6 py-5 flex items-start gap-4" style="background:var(--bg2);border:1px solid var(--border);">
+        <div class="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(34,211,238,0.1);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div>
+          <p class="text-sm font-semibold mb-1" style="color:var(--t1);">Referral Flywheel — grow your quota for free</p>
+          <p class="text-sm" style="color:var(--t2);">Share your referral link. Every verified signup credits <strong style="color:#22d3ee;">+500 req</strong> (Starter/Individual) or <strong style="color:#a78bfa;">+2,000 req</strong> (Pro) to both you and the new user — automatically, every month they stay.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+function setBilling(mode) {
+  var isAnnual = mode === 'annual';
+  document.getElementById('btn-monthly').style.background = isAnnual ? '' : 'var(--bg3)';
+  document.getElementById('btn-monthly').style.color      = isAnnual ? 'var(--t2)' : 'var(--t1)';
+  document.getElementById('btn-annual').style.background  = isAnnual ? 'var(--bg3)' : '';
+  document.getElementById('btn-annual').style.color       = isAnnual ? 'var(--t1)' : 'var(--t2)';
+  document.querySelectorAll('.price-monthly').forEach(function(el){ el.style.display = isAnnual ? 'none' : ''; });
+  document.querySelectorAll('.price-annual').forEach(function(el){ el.style.display = isAnnual ? '' : 'none'; });
+}
+</script>
 
 
 <!-- ════════════════════════════════════════════════════════

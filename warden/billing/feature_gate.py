@@ -1,185 +1,276 @@
 """
 warden/billing/feature_gate.py
 ────────────────────────────────
-Tier-based Feature Gating for v2.8 Business Communities.
+Tier-based Feature Gating for Shadow Warden AI.
 
-Tiers (v2.9 monetization update)
-──────────────────────────────────
-  individual  $5/mo   — freelancers, solo sellers; filter-only + file relay
-  business    $49/mo  — e-commerce brands, agencies; Communities + Bridges
-  mcp         $199/mo — enterprise, fulfilment, B2B platforms; everything
+Tiers (aligned with Lemon Squeezy monetization)
+────────────────────────────────────────────────
+  starter    $0/mo   — Developers / Testing        1 000 req/mo
+  individual $5/mo   — Solo Devs / Hobbyists       5 000 req/mo
+  pro        $49/mo  — Mid-market / SMBs           50 000 req/mo, SIEM, Prometheus
+  enterprise $199/mo — MSPs / Corporations         Unlimited, on-prem, custom ML
 
-Data limits (Gemini recommendation — key upsell levers)
-──────────────────────────────────────────────────────────
-  Note: E2EE prevents server-side deduplication — each encrypted entity
-  occupies unique storage regardless of content similarity.
+Feature matrix
+──────────────
+  Feature                    starter   individual  pro       enterprise
+  ─────────────────────────────────────────────────────────────────────────
+  req_per_month              1 000     5 000       50 000    unlimited
+  prompt_shield              ✓         ✓           ✓         ✓
+  audit_trail                ✗         ✓           ✓         ✓
+  secret_redactor            ✓         ✓           ✓         ✓
+  multi_tenant               ✗         ✗           ✓ (≤50)   unlimited
+  siem_integration           ✗         ✗           ✓         ✓
+  prometheus_grafana         ✗         ✗           ✓         ✓
+  gdpr_purge_api             ✗         ✗           ✓         ✓
+  slack_pagerduty            ✗         ✗           ✓         ✓
+  on_prem_deployment         ✗         ✗           ✗         ✓
+  custom_ml_training         ✗         ✗           ✗         ✓
+  white_label                ✗         ✗           ✗         ✓
+  dedicated_support          ✗         ✗           ✗         ✓
+  break_glass                ✗         ✗           ✗         ✓
+  byok_enabled               ✗         ✗           ✗         ✓
+  overage_enabled            ✗         ✗           ✓         ✓
+  referral_program           ✓         ✓           ✓         ✗
+  communities_enabled        ✗         ✗           ✓         ✓
+  max_communities            0         0           10        unlimited
+  max_members_per_community  0         0           25        unlimited
 
-  Metric                     individual   business      mcp
-  ─────────────────────────────────────────────────────────────────────
-  storage_bytes              10 GB        100 GB        1 TB
-  bandwidth_bytes_per_month  50 GB        500 GB        5 TB
-  max_entity_bytes           100 MB       1 GB          5 GB
-  retention_days             90           365           unlimited (-1)
-  overage_enabled            false        true          true
-  overage_storage_per_gb     N/A          $0.10/GB      $0.04/GB
-  overage_bandwidth_per_gb   N/A          $0.10/GB      $0.04/GB
-  expansion_pack_storage_tb  N/A          N/A           $40/TB/mo
-
-Feature limits
-──────────────────────────────────────────────────────────────────
-  Feature                     individual  business    mcp
-  ─────────────────────────────────────────────────────────────────
-  max_communities             0           5           unlimited
-  max_members_per_community   0           100         unlimited
-  max_bots_per_community      0           5           25
-  communities_enabled         false       true        true
-  multisig_enabled            false       true        true
-  break_glass_enabled         false       false       true
-  signal_ratchet_enabled      false       true        true
-  ratchet_interval            N/A         10          50
-  key_rotation_enabled        false       true        true
-  byok_enabled                false       false       true
-  guest_tunnel_enabled        true        true        true
-  guest_daily_upload_bytes    10 MB       10 MB       unlimited
-  referral_bonus_bytes        2 GB/ref    2 GB/ref    N/A
-
-FeatureGate FastAPI Middleware
-──────────────────────────────
-  Intercepts requests to tier-gated routes (/communities/*, /bots/*) and
-  returns HTTP 403 if the tenant's tier is insufficient.
-
-  Tier is extracted from:
-    1. request.state.tenant["tier"] (set by portal auth middleware)
-    2. X-Tenant-Tier header (fallback for direct API calls)
-    3. Default: "individual" (most restrictive)
+Overage pricing (cents per 1 000 excess requests)
+───────────────────────────────────────────────────
+  pro:        $0.50 per 1k requests over 50k
+  enterprise: $0.10 per 1k requests over limit (custom SLA)
 
 Usage
 ─────
-  # Direct gate check (in route handlers)
-  from warden.billing.feature_gate import FeatureGate, TierLimit
-  gate = FeatureGate.for_tier("business")
-  gate.require("communities_enabled")           # raises PermissionError if False
-  gate.require_capacity("max_communities", 3)   # raises PermissionError if 3 >= limit
+  from warden.billing.feature_gate import FeatureGate, require_plan
 
-  # Middleware (in app factory)
-  from warden.billing.feature_gate import FeatureGateMiddleware
-  app.add_middleware(FeatureGateMiddleware)
+  # In a route handler:
+  gate = FeatureGate.for_tier("pro")
+  gate.require("siem_integration")           # raises HTTP 403 if missing
+  gate.require_capacity("max_communities", 3)
+
+  # FastAPI Depends:
+  @router.get("/siem/export")
+  async def export(gate=Depends(require_plan("pro"))):
+      ...
 """
 from __future__ import annotations
 
 import logging
 from typing import Any
 
+from fastapi import Depends, HTTPException, Request
+
 log = logging.getLogger("warden.billing.feature_gate")
 
-# ── Tier limits definition ────────────────────────────────────────────────────
+# ── Constants ─────────────────────────────────────────────────────────────────
 
-_UNLIMITED = 2 ** 63  # sentinel for "no hard cap"
-_GB  = 1024 ** 3
-_TB  = 1024 ** 4
+_UNLIMITED = 2 ** 63
+_K         = 1_000
+_GB        = 1024 ** 3
+_TB        = 1024 ** 4
 
-# ── Overage pricing (USD cents per GB) ────────────────────────────────────────
-OVERAGE_PRICES: dict[str, dict[str, int]] = {
+# ── Overage pricing ───────────────────────────────────────────────────────────
+
+OVERAGE_PRICES: dict[str, dict[str, Any]] = {
+    "pro": {
+        "cents_per_1k_requests":      50,   # $0.50 per 1k over limit
+        "storage_cents_per_gb":        10,   # $0.10/GB
+        "bandwidth_cents_per_gb":      10,
+    },
+    "enterprise": {
+        "cents_per_1k_requests":      10,   # $0.10 per 1k (custom SLA)
+        "storage_cents_per_gb":        4,
+        "bandwidth_cents_per_gb":      4,
+    },
+    # Legacy aliases
     "business": {
-        "storage_cents_per_gb":   10,   # $0.10/GB
-        "bandwidth_cents_per_gb": 10,
-        "pack_cents":             500,  # $5.00 per 50 GB pack
-        "pack_bytes":             50 * _GB,
+        "cents_per_1k_requests":      50,
+        "storage_cents_per_gb":       10,
+        "bandwidth_cents_per_gb":     10,
+        "pack_cents":                 500,
+        "pack_bytes":                 50 * _GB,
     },
     "mcp": {
-        "storage_cents_per_gb":   4,    # $0.04/GB
-        "bandwidth_cents_per_gb": 4,
-        "pack_cents":             4000, # $40.00 per 1 TB expansion pack
-        "pack_bytes":             1 * _TB,
+        "cents_per_1k_requests":      10,
+        "storage_cents_per_gb":       4,
+        "bandwidth_cents_per_gb":     4,
+        "pack_cents":                 4000,
+        "pack_bytes":                 1 * _TB,
     },
 }
+
+# ── Tier feature matrix ───────────────────────────────────────────────────────
 
 TIER_LIMITS: dict[str, dict[str, Any]] = {
+
+    "starter": {
+        # ── Request quota ──────────────────────────────────────────────────────
+        "req_per_month":               1_000,
+        "overage_enabled":             False,
+        # ── Core detection (always-on) ─────────────────────────────────────────
+        "prompt_shield":               True,
+        "secret_redactor":             True,
+        "threat_vault":                True,
+        "docker_self_host":            True,
+        "totp_2fa":                    True,
+        "openai_proxy":                True,
+        # ── Gated features ─────────────────────────────────────────────────────
+        "audit_trail":                 False,
+        "multi_tenant":                False,
+        "max_tenants":                 0,
+        "siem_integration":            False,
+        "prometheus_grafana":          False,
+        "gdpr_purge_api":              False,
+        "slack_pagerduty":             False,
+        "on_prem_deployment":          False,
+        "custom_ml_training":          False,
+        "white_label":                 False,
+        "dedicated_support":           False,
+        "break_glass_enabled":         False,
+        "byok_enabled":                False,
+        "communities_enabled":         False,
+        "max_communities":             0,
+        "max_members_per_community":   0,
+        # ── Referral ───────────────────────────────────────────────────────────
+        "referral_program":            True,
+        "referral_bonus_requests":     500,   # +500 req per referred signup
+        # ── Storage (tunnel) ───────────────────────────────────────────────────
+        "storage_bytes":               0,
+        "bandwidth_bytes_per_month":   0,
+        "max_entity_bytes":            0,
+        "retention_days":              30,
+    },
+
     "individual": {
-        # ── Data quotas ────────────────────────────────────────────────────────
-        "storage_bytes":              10 * _GB,
-        "bandwidth_bytes_per_month":  50 * _GB,
-        "max_entity_bytes":           100 * 1024 * 1024,  # 100 MB
-        "retention_days":             90,
-        "overage_enabled":            False,
-        # ── Feature flags ──────────────────────────────────────────────────────
-        "max_communities":            0,
-        "max_members_per_community":  0,
-        "max_bots_per_community":     0,
-        "communities_enabled":        False,
-        "multisig_enabled":           False,
-        "break_glass_enabled":        False,
-        "signal_ratchet_enabled":     False,
-        "ratchet_interval":           None,
-        "key_rotation_enabled":       False,
-        "byok_enabled":               False,
-        "guest_tunnel_enabled":       True,
-        "guest_daily_upload_bytes":   10 * 1024 * 1024,   # 10 MB — viral upsell
-        "referral_bonus_bytes":       2 * _GB,
+        "req_per_month":               5_000,
+        "overage_enabled":             False,
+        "prompt_shield":               True,
+        "secret_redactor":             True,
+        "threat_vault":                True,
+        "docker_self_host":            True,
+        "totp_2fa":                    True,
+        "openai_proxy":                True,
+        "audit_trail":                 True,    # ← unlocked at Individual
+        "multi_tenant":                False,
+        "max_tenants":                 1,
+        "siem_integration":            False,
+        "prometheus_grafana":          False,
+        "gdpr_purge_api":              False,
+        "slack_pagerduty":             False,
+        "on_prem_deployment":          False,
+        "custom_ml_training":          False,
+        "white_label":                 False,
+        "dedicated_support":           False,
+        "break_glass_enabled":         False,
+        "byok_enabled":                False,
+        "communities_enabled":         False,
+        "max_communities":             0,
+        "max_members_per_community":   0,
+        "referral_program":            True,
+        "referral_bonus_requests":     500,
+        "storage_bytes":               10 * _GB,
+        "bandwidth_bytes_per_month":   50 * _GB,
+        "max_entity_bytes":            100 * 1024 * 1024,
+        "retention_days":              90,
     },
-    "business": {
-        # ── Data quotas ────────────────────────────────────────────────────────
-        "storage_bytes":              100 * _GB,
-        "bandwidth_bytes_per_month":  500 * _GB,
-        "max_entity_bytes":           1 * _GB,
-        "retention_days":             365,
-        "overage_enabled":            True,
-        # ── Feature flags ──────────────────────────────────────────────────────
-        "max_communities":            5,
-        "max_members_per_community":  100,
-        "max_bots_per_community":     5,
-        "communities_enabled":        True,
-        "multisig_enabled":           True,
-        "break_glass_enabled":        False,
-        "signal_ratchet_enabled":     True,
-        "ratchet_interval":           10,
-        "key_rotation_enabled":       True,
-        "byok_enabled":               False,
-        "guest_tunnel_enabled":       True,
-        "guest_daily_upload_bytes":   10 * 1024 * 1024,
-        "referral_bonus_bytes":       2 * _GB,
+
+    "pro": {
+        "req_per_month":               50_000,
+        "overage_enabled":             True,    # soft stop + charge
+        "prompt_shield":               True,
+        "secret_redactor":             True,
+        "threat_vault":                True,
+        "docker_self_host":            True,
+        "totp_2fa":                    True,
+        "openai_proxy":                True,
+        "audit_trail":                 True,
+        "multi_tenant":                True,    # ← unlocked at Pro
+        "max_tenants":                 50,
+        "siem_integration":            True,    # ← Splunk + Elastic
+        "prometheus_grafana":          True,    # ← /metrics + Grafana dashboards
+        "gdpr_purge_api":              True,    # ← DELETE /gdpr/purge
+        "slack_pagerduty":             True,    # ← alert webhooks
+        "on_prem_deployment":          False,
+        "custom_ml_training":          False,
+        "white_label":                 False,
+        "dedicated_support":           False,
+        "break_glass_enabled":         False,
+        "byok_enabled":                False,
+        "communities_enabled":         True,    # ← Secure Communities
+        "max_communities":             10,
+        "max_members_per_community":   25,
+        "referral_program":            True,
+        "referral_bonus_requests":     2_000,
+        "storage_bytes":               100 * _GB,
+        "bandwidth_bytes_per_month":   500 * _GB,
+        "max_entity_bytes":            1 * _GB,
+        "retention_days":              365,
     },
-    "mcp": {
-        # ── Data quotas ────────────────────────────────────────────────────────
-        "storage_bytes":              1 * _TB,
-        "bandwidth_bytes_per_month":  5 * _TB,
-        "max_entity_bytes":           5 * _GB,
-        "retention_days":             -1,              # unlimited
-        "overage_enabled":            True,
-        # ── Feature flags ──────────────────────────────────────────────────────
-        "max_communities":            _UNLIMITED,
-        "max_members_per_community":  _UNLIMITED,
-        "max_bots_per_community":     25,
-        "communities_enabled":        True,
-        "multisig_enabled":           True,
-        "break_glass_enabled":        True,
-        "signal_ratchet_enabled":     True,
-        "ratchet_interval":           50,
-        "key_rotation_enabled":       True,
-        "byok_enabled":               True,
-        "guest_tunnel_enabled":       True,
-        "guest_daily_upload_bytes":   _UNLIMITED,
-        "referral_bonus_bytes":       0,              # MCP pays, no referral program
+
+    "enterprise": {
+        "req_per_month":               None,    # unlimited
+        "overage_enabled":             True,
+        "prompt_shield":               True,
+        "secret_redactor":             True,
+        "threat_vault":                True,
+        "docker_self_host":            True,
+        "totp_2fa":                    True,
+        "openai_proxy":                True,
+        "audit_trail":                 True,
+        "multi_tenant":                True,
+        "max_tenants":                 _UNLIMITED,
+        "siem_integration":            True,
+        "prometheus_grafana":          True,
+        "gdpr_purge_api":              True,
+        "slack_pagerduty":             True,
+        "on_prem_deployment":          True,    # ← Enterprise-only
+        "custom_ml_training":          True,    # ← fine-tune threat corpus
+        "white_label":                 True,    # ← rebrand + custom domain
+        "dedicated_support":           True,    # ← SLA + named engineer
+        "break_glass_enabled":         True,
+        "byok_enabled":                True,    # ← Bring Your Own Key
+        "communities_enabled":         True,
+        "max_communities":             _UNLIMITED,
+        "max_members_per_community":   _UNLIMITED,
+        "referral_program":            False,   # Enterprise pays full price
+        "referral_bonus_requests":     0,
+        "storage_bytes":               1 * _TB,
+        "bandwidth_bytes_per_month":   5 * _TB,
+        "max_entity_bytes":            5 * _GB,
+        "retention_days":              -1,      # unlimited
     },
 }
 
-# Tier ordering for inequality comparisons
-_TIER_ORDER: dict[str, int] = {"individual": 0, "business": 1, "mcp": 2}
+# ── Legacy aliases ─────────────────────────────────────────────────────────────
+TIER_LIMITS["free"]     = TIER_LIMITS["starter"]
+TIER_LIMITS["business"] = TIER_LIMITS["pro"]
+TIER_LIMITS["msp"]      = TIER_LIMITS["enterprise"]
+
+_TIER_ORDER: dict[str, int] = {
+    "starter": 0, "free": 0,
+    "individual": 1,
+    "pro": 2, "business": 2,
+    "enterprise": 3, "msp": 3,
+}
 
 
 def _normalize_tier(tier: str) -> str:
     t = tier.lower().strip()
-    return t if t in TIER_LIMITS else "individual"
+    # Resolve legacy names to canonical names
+    aliases = {"free": "starter", "business": "pro", "msp": "enterprise"}
+    t = aliases.get(t, t)
+    return t if t in TIER_LIMITS else "starter"
 
 
-# ── FeatureGate ────────────────────────────────────────────────────────────────
+# ── FeatureGate ───────────────────────────────────────────────────────────────
 
 class FeatureGate:
     """
     Thin wrapper around TIER_LIMITS for a specific tenant tier.
 
-    All methods raise PermissionError when a gate fails, so they can be
-    used as guard clauses in route handlers without extra boilerplate.
+    All guard methods raise PermissionError on failure — use them as
+    guard clauses in route handlers or as FastAPI dependencies.
     """
 
     def __init__(self, tier: str) -> None:
@@ -187,7 +278,7 @@ class FeatureGate:
         self.limits = TIER_LIMITS[self.tier]
 
     @classmethod
-    def for_tier(cls, tier: str) -> FeatureGate:
+    def for_tier(cls, tier: str) -> "FeatureGate":
         return cls(tier)
 
     def get(self, feature: str) -> Any:
@@ -205,86 +296,151 @@ class FeatureGate:
 
     def require(self, feature: str) -> None:
         """
-        Assert boolean *feature* is enabled.
-
-        Raises PermissionError with a descriptive message if disabled.
+        Assert boolean *feature* is enabled for this tier.
+        Raises PermissionError with upgrade hint if not.
         """
         if not self.is_enabled(feature):
-            # Determine minimum tier that enables this feature
             min_tier = _min_tier_for(feature)
             raise PermissionError(
-                f"Feature '{feature}' requires at least {min_tier.upper()} tier. "
-                f"Current tier: {self.tier.upper()}."
+                f"Feature '{feature}' requires {min_tier.upper()} plan or higher. "
+                f"Current plan: {self.tier.upper()}. "
+                f"Upgrade at: /subscription/checkout?plan={min_tier}"
             )
 
     def require_capacity(self, feature: str, current_count: int) -> None:
         """
-        Assert that *current_count* < limit for *feature*.
-
-        Raises PermissionError when the limit is reached (>= limit) or the
-        feature is disabled (limit == 0).
+        Assert current_count < limit for *feature*.
+        Raises PermissionError at capacity or when feature is disabled.
         """
         limit = self.get(feature)
         if limit == 0:
             min_tier = _min_tier_for_capacity(feature)
             raise PermissionError(
-                f"Feature '{feature}' is not available on {self.tier.upper()} tier. "
+                f"Feature '{feature}' is not available on {self.tier.upper()} plan. "
                 f"Upgrade to {min_tier.upper()} or higher."
             )
-        if limit != _UNLIMITED and current_count >= limit:
+        if limit is not None and limit != _UNLIMITED and current_count >= limit:
             raise PermissionError(
                 f"Capacity limit reached for '{feature}': "
-                f"{current_count}/{limit} on {self.tier.upper()} tier."
+                f"{current_count}/{limit} on {self.tier.upper()} plan. "
+                f"Upgrade to Enterprise for unlimited capacity."
             )
 
     def meets_minimum(self, minimum_tier: str) -> bool:
-        """Return True if this tier is >= *minimum_tier*."""
+        """Return True if this tier >= *minimum_tier*."""
         return _TIER_ORDER.get(self.tier, 0) >= _TIER_ORDER.get(
             _normalize_tier(minimum_tier), 0
         )
 
+    def quota_req_per_month(self) -> int | None:
+        """Return monthly request quota (None = unlimited)."""
+        return self.limits.get("req_per_month")
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return all limits as a serializable dict (for /billing/tiers endpoint)."""
+        d = dict(self.limits)
+        d["tier"] = self.tier
+        d["overage_prices"] = OVERAGE_PRICES.get(self.tier, {})
+        return d
+
 
 def _min_tier_for(feature: str) -> str:
-    """Return the minimum tier string that enables a boolean feature."""
-    for tier in ("individual", "business", "mcp"):
-        limits = TIER_LIMITS[tier]
-        val = limits.get(feature)
+    """Return canonical tier name that first enables a boolean feature."""
+    for tier in ("starter", "individual", "pro", "enterprise"):
+        val = TIER_LIMITS[tier].get(feature)
         if isinstance(val, bool) and val:
             return tier
-    return "mcp"
+    return "enterprise"
 
 
 def _min_tier_for_capacity(feature: str) -> str:
-    """Return the minimum tier that has non-zero capacity for *feature*."""
-    for tier in ("individual", "business", "mcp"):
-        if TIER_LIMITS[tier].get(feature, 0) > 0:
+    """Return canonical tier that has non-zero capacity for *feature*."""
+    for tier in ("starter", "individual", "pro", "enterprise"):
+        val = TIER_LIMITS[tier].get(feature, 0)
+        if val and val > 0:
             return tier
-    return "mcp"
+    return "enterprise"
+
+
+# ── FastAPI dependencies ───────────────────────────────────────────────────────
+
+def _get_tenant_tier(request: Request) -> str:
+    """Extract plan tier from request state (set by auth middleware) or header."""
+    state  = getattr(request, "state", None)
+    tenant = getattr(state, "tenant", None)
+    if isinstance(tenant, dict) and "tier" in tenant:
+        return tenant["tier"]
+    if isinstance(tenant, dict) and "plan" in tenant:
+        return tenant["plan"]
+    return request.headers.get("X-Tenant-Tier", "starter")
+
+
+def require_plan(*plans: str):
+    """
+    FastAPI Depends factory: raise HTTP 403 if tenant plan is not in *plans*.
+
+    Usage:
+        @router.get("/siem/export", dependencies=[Depends(require_plan("pro", "enterprise"))])
+    """
+    canonical = {_normalize_tier(p) for p in plans}
+
+    def dependency(request: Request) -> FeatureGate:
+        tier = _normalize_tier(_get_tenant_tier(request))
+        gate = FeatureGate.for_tier(tier)
+        # Accept if tier meets any specified plan level
+        if not any(gate.meets_minimum(p) for p in canonical):
+            required = " or ".join(p.upper() for p in sorted(canonical))
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error":        "plan_required",
+                    "message":      f"This feature requires {required} plan.",
+                    "current_plan": tier,
+                    "upgrade_url":  f"/subscription/checkout?plan={min(canonical, key=lambda p: _TIER_ORDER.get(p, 0))}",
+                },
+            )
+        return gate
+
+    return Depends(dependency)
+
+
+def require_feature(feature: str):
+    """
+    FastAPI Depends factory: raise HTTP 403 if *feature* is not enabled for tenant.
+
+    Usage:
+        @router.get("/gdpr/purge", dependencies=[Depends(require_feature("gdpr_purge_api"))])
+    """
+    def dependency(request: Request) -> FeatureGate:
+        tier = _normalize_tier(_get_tenant_tier(request))
+        gate = FeatureGate.for_tier(tier)
+        try:
+            gate.require(feature)
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail={"error": "feature_gated", "message": str(exc)}) from exc
+        return gate
+
+    return Depends(dependency)
 
 
 # ── FastAPI Middleware ─────────────────────────────────────────────────────────
 
-# Routes that require at minimum BUSINESS tier
-_BUSINESS_ROUTES = (
-    "/communities",
-    "/bots",
-)
-
-# Routes that require MCP tier
-_MCP_ROUTES = (
-    "/communities/break-glass",
-    "/communities/break_glass",
-    "/byok",
-)
+_PLAN_ROUTES: dict[str, str] = {
+    # route prefix → minimum plan required
+    "/communities":       "pro",
+    "/bots":              "pro",
+    "/siem":              "pro",
+    "/gdpr/purge":        "pro",
+    "/communities/break": "enterprise",
+    "/byok":              "enterprise",
+    "/admin/ml-train":    "enterprise",
+}
 
 
 class FeatureGateMiddleware:
     """
-    Starlette/FastAPI ASGI middleware that enforces tier gates on
-    Business Communities routes.
-
-    Mount before route handlers:
-        app.add_middleware(FeatureGateMiddleware)
+    Starlette ASGI middleware enforcing plan gates on gated routes.
+    Mount before route handlers: app.add_middleware(FeatureGateMiddleware)
     """
 
     def __init__(self, app) -> None:
@@ -292,49 +448,40 @@ class FeatureGateMiddleware:
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] == "http":
-            path = scope.get("path", "")
+            path    = scope.get("path", "")
             headers = dict(scope.get("headers", []))
+            tier    = _extract_tier_from_scope(scope, headers)
+            gate    = FeatureGate.for_tier(tier)
 
-            # Determine tier from request state or headers
-            tier = _extract_tier_from_scope(scope, headers)
-            gate = FeatureGate.for_tier(tier)
-
-            # Check MCP-gated routes
-            for mcp_route in _MCP_ROUTES:
-                if path.startswith(mcp_route) and not gate.meets_minimum("mcp"):
-                    await _send_403(send, f"Route {path} requires MCP tier.")
-                    return
-
-            # Check Business-gated routes
-            for biz_route in _BUSINESS_ROUTES:
-                if path.startswith(biz_route) and not gate.meets_minimum("business"):
-                    await _send_403(send, f"Route {path} requires Business tier.")
+            for prefix, min_plan in _PLAN_ROUTES.items():
+                if path.startswith(prefix) and not gate.meets_minimum(min_plan):
+                    await _send_403(
+                        send,
+                        f"Route {path!r} requires {min_plan.upper()} plan. "
+                        f"Current plan: {tier.upper()}.",
+                    )
                     return
 
         await self.app(scope, receive, send)
 
 
 def _extract_tier_from_scope(scope: dict, headers: dict) -> str:
-    """Extract tier from request.state or X-Tenant-Tier header."""
-    # FastAPI sets state as an object in scope["state"]
-    state = scope.get("state", {})
+    state  = scope.get("state", {})
     tenant = getattr(state, "tenant", None) or (state if isinstance(state, dict) else {})
-    if isinstance(tenant, dict) and "tier" in tenant:
-        return tenant["tier"]
-    # Fallback to raw header
-    tier_header = headers.get(b"x-tenant-tier", b"individual").decode("utf-8", errors="ignore")
-    return tier_header or "individual"
+    if isinstance(tenant, dict):
+        return tenant.get("tier") or tenant.get("plan") or "starter"
+    raw = headers.get(b"x-tenant-tier", b"starter").decode("utf-8", errors="ignore")
+    return raw or "starter"
 
 
 async def _send_403(send, detail: str) -> None:
-    """Send a minimal HTTP 403 JSON response."""
     import json as _json
-    body = _json.dumps({"detail": detail}).encode()
+    body = _json.dumps({"detail": detail, "error": "plan_required"}).encode()
     await send({
         "type":    "http.response.start",
         "status":  403,
         "headers": [
-            (b"content-type", b"application/json"),
+            (b"content-type",   b"application/json"),
             (b"content-length", str(len(body)).encode()),
         ],
     })

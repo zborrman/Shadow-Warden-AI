@@ -26,7 +26,7 @@ Overage (Business / MCP)
   When overage_enabled=True, hard quota is not enforced — instead a flag
   overage_active is set in Redis and the billing webhook fires.
   The caller receives HTTP 202 with {"overage": true} in the response body.
-  The Stripe/Paddle overage billing is handled by warden/billing/overage.py.
+  The Lemon Squeezy overage billing is handled by warden/billing/overage.py.
 
 Referral bonus
 ──────────────

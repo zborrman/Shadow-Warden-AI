@@ -3,19 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Billing — Shadow Warden AI</title>
+  <title>Billing &amp; Subscription — Shadow Warden AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #030712; --surf: #0a0f1e; --surf2: #0f172a; --surf3: #1e293b;
-      --border: rgba(99,102,241,0.14); --indigo: #6366f1; --violet: #8b5cf6;
-      --cyan: #06b6d4; --green: #34d399; --amber: #fbbf24; --red: #f87171;
-      --text: #f1f5f9; --text2: #94a3b8; --text3: #475569;
+      --bg:     #030712;
+      --surf:   #0a0f1e;
+      --surf2:  #0f172a;
+      --surf3:  #1e293b;
+      --border: rgba(99,102,241,0.14);
+      --indigo: #6366f1;
+      --violet: #8b5cf6;
+      --cyan:   #06b6d4;
+      --green:  #34d399;
+      --amber:  #fbbf24;
+      --red:    #f87171;
+      --text:   #f1f5f9;
+      --text2:  #94a3b8;
+      --text3:  #475569;
     }
     html, body { min-height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
 
+    /* ── Nav ── */
     .nav { height: 56px; background: rgba(10,15,30,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 4px; position: sticky; top: 0; z-index: 100; }
     .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font-weight: 700; font-size: 0.9375rem; }
     .nav-logo span { background: linear-gradient(135deg, var(--indigo), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -24,79 +35,98 @@
     .nav-link.active { background: rgba(99,102,241,0.12); color: var(--indigo); }
     .nav-right { margin-left: auto; }
 
-    .main { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
-    .page-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+    /* ── Layout ── */
+    .main { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+    .page-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
     .page-sub { font-size: 0.875rem; color: var(--text2); margin-bottom: 36px; }
 
+    /* ── Card ── */
     .card { background: var(--surf); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
-    .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .card-title { font-size: 0.9375rem; font-weight: 600; }
-    .card-body { padding: 24px; }
+    .card-body  { padding: 24px; }
 
-    .plan-card { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
-    .plan-info {}
-    .plan-name-big { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 4px; }
-    .plan-meta { font-size: 0.8125rem; color: var(--text2); }
-
+    /* ── Badges ── */
     .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 100px; font-size: 0.6875rem; font-weight: 600; }
     .badge-active   { background: rgba(52,211,153,0.1);   color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
     .badge-trial    { background: rgba(251,191,36,0.1);   color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
     .badge-free     { background: rgba(148,163,184,0.08); color: var(--text3); border: 1px solid var(--border); }
     .badge-canceled { background: rgba(248,113,113,0.1);  color: var(--red);   border: 1px solid rgba(248,113,113,0.2); }
+    .badge-overage  { background: rgba(251,191,36,0.08);  color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
 
-    .plan-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
-
+    /* ── Buttons ── */
     .btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: all 0.15s; text-decoration: none; }
     .btn-primary { background: linear-gradient(135deg, var(--indigo), var(--violet)); color: #fff; }
-    .btn-primary:hover { opacity: 0.88; }
+    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
     .btn-outline { background: transparent; color: var(--text2); border: 1px solid var(--border); }
     .btn-outline:hover { border-color: rgba(99,102,241,0.35); color: var(--text); background: var(--surf2); }
     .btn-danger { background: rgba(248,113,113,0.08); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
     .btn-danger:hover { background: rgba(248,113,113,0.15); }
+    .btn-cyan { background: linear-gradient(135deg, var(--cyan), var(--indigo)); color: #fff; }
+    .btn-cyan:hover { opacity: 0.88; transform: translateY(-1px); }
     .btn-sm { padding: 6px 12px; font-size: 0.75rem; }
 
-    /* Usage meter */
-    .usage-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-    .usage-label { font-size: 0.8125rem; color: var(--text2); min-width: 120px; }
+    /* ── Plan hero ── */
+    .plan-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+    .plan-name-big { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 4px; }
+    .plan-meta     { font-size: 0.8125rem; color: var(--text2); }
+    .plan-actions  { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+
+    /* ── Usage meter ── */
+    .usage-row { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+    .usage-label { font-size: 0.8125rem; color: var(--text2); min-width: 140px; }
     .usage-bar-wrap { flex: 1; height: 6px; background: var(--surf3); border-radius: 3px; overflow: hidden; }
     .usage-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--indigo), var(--cyan)); transition: width 0.6s ease; }
     .usage-bar.warn { background: linear-gradient(90deg, var(--amber), #f97316); }
     .usage-bar.crit { background: linear-gradient(90deg, var(--red), #dc2626); }
-    .usage-val { font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; color: var(--text3); min-width: 80px; text-align: right; }
+    .usage-val { font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; color: var(--text3); min-width: 90px; text-align: right; }
 
-    /* Invoice table */
+    /* ── Plan tiles ── */
+    .plan-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 860px) { .plan-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .plan-grid { grid-template-columns: 1fr; } }
+
+    .plan-tile { background: var(--surf2); border: 2px solid var(--border); border-radius: 12px; padding: 18px; transition: border-color 0.2s, box-shadow 0.2s; position: relative; }
+    .plan-tile.current { border-color: var(--indigo); box-shadow: 0 0 0 1px rgba(99,102,241,0.15); }
+    .plan-tile.featured-tile { border-color: rgba(99,102,241,0.4); }
+    .plan-tile:not(.current):hover { border-color: rgba(99,102,241,0.3); }
+    .plan-tile-badge { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); padding: 2px 10px; border-radius: 100px; font-size: 0.625rem; font-weight: 700; white-space: nowrap; }
+    .plan-tile-name { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .plan-tile-price { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 3px; }
+    .plan-tile-sub { font-size: 0.6875rem; color: var(--text3); margin-bottom: 12px; }
+    .plan-tile-features { font-size: 0.75rem; color: var(--text2); line-height: 1.85; }
+    .plan-tile-features .hi { color: var(--text); font-weight: 600; }
+
+    /* ── Referral card ── */
+    .ref-code-box { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--surf2); border: 1px solid rgba(34,211,238,0.2); border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.9375rem; color: var(--cyan); letter-spacing: 0.06em; }
+    .ref-code-box button { margin-left: auto; flex-shrink: 0; }
+
+    /* ── Invoice table ── */
     .invoice-table { width: 100%; border-collapse: collapse; }
     .invoice-table th { text-align: left; padding: 8px 12px; font-size: 0.6875rem; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
     .invoice-table td { padding: 12px; font-size: 0.8125rem; color: var(--text2); border-bottom: 1px solid rgba(99,102,241,0.06); }
     .invoice-table tr:last-child td { border-bottom: none; }
     .invoice-table tr:hover td { background: rgba(255,255,255,0.015); }
-
     .status-paid   { color: var(--green); font-weight: 600; font-size: 0.75rem; }
     .status-open   { color: var(--amber); font-weight: 600; font-size: 0.75rem; }
     .status-failed { color: var(--red);   font-weight: 600; font-size: 0.75rem; }
 
-    /* Plan comparison */
-    .plan-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    @media (max-width: 900px) { .plan-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 480px) { .plan-grid { grid-template-columns: 1fr; } }
-    .plan-tile { background: var(--surf2); border: 2px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
-    .plan-tile.current { border-color: var(--indigo); }
-    .plan-tile:not(.current):hover { border-color: rgba(99,102,241,0.3); }
-    .plan-tile-name { font-size: 0.8125rem; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-    .plan-tile-price { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 4px; }
-    .plan-tile-sub { font-size: 0.6875rem; color: var(--text3); margin-bottom: 14px; }
-    .plan-tile-features { font-size: 0.75rem; color: var(--text2); line-height: 1.8; }
-
-    /* Alert banner */
-    .alert-banner { display: none; align-items: center; gap: 12px; padding: 14px 20px; border-radius: 10px; font-size: 0.8125rem; margin-bottom: 24px; }
+    /* ── Alert banners ── */
+    .alert-banner { display: none; align-items: center; gap: 12px; padding: 14px 20px; border-radius: 10px; font-size: 0.8125rem; margin-bottom: 20px; }
     .alert-banner.success { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); color: #6ee7b7; }
-    .alert-banner svg { flex-shrink: 0; }
+    .alert-banner.warn    { background: rgba(251,191,36,0.08);  border: 1px solid rgba(251,191,36,0.2);  color: #fde68a; }
 
-    /* Skeleton */
+    /* ── Stat chips ── */
+    .stat-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+    .stat-chip { flex: 1; min-width: 110px; background: var(--surf2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .stat-chip-val  { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 2px; }
+    .stat-chip-lbl  { font-size: 0.6875rem; color: var(--text3); }
+
+    /* ── Overage note ── */
+    .overage-note { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.15); border-radius: 8px; font-size: 0.75rem; color: #fde68a; margin-top: 16px; }
+
     @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
     .skeleton { background: linear-gradient(90deg, var(--surf2) 25%, var(--surf3) 50%, var(--surf2) 75%); background-size: 800px; animation: shimmer 1.5s infinite; border-radius: 6px; height: 16px; }
-
-    .payoneer-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; background: rgba(255,102,0,0.1); border: 1px solid rgba(255,102,0,0.2); border-radius: 100px; font-size: 0.6875rem; color: #fdba74; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -104,14 +134,15 @@
 <nav class="nav">
   <a href="/" class="nav-logo">
     <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
-      <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#bl)" opacity=".9"/>
-      <defs><linearGradient id="bl" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+      <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#bl2)" opacity=".9"/>
+      <defs><linearGradient id="bl2" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
       <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     <span>Shadow</span> Warden
   </a>
   <a href="/dashboard" class="nav-link">Dashboard</a>
-  <a href="/settings" class="nav-link">Settings</a>
+  <a href="/settings"  class="nav-link">Settings</a>
+  <a href="/billing"   class="nav-link active">Billing</a>
   <div class="nav-right">
     <a href="#" id="auth-link" class="nav-link">Sign Out</a>
   </div>
@@ -121,10 +152,14 @@
   <div class="page-title">Billing &amp; Subscription</div>
   <div class="page-sub" id="tenant-sub">Managing subscription for your account</div>
 
-  <!-- Success banner -->
+  <!-- ── Success / warning banners ── -->
   <div class="alert-banner success" id="success-banner">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
     <span id="success-text">Payment successful! Your subscription is now active.</span>
+  </div>
+  <div class="alert-banner warn" id="quota-warn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span id="quota-warn-text">You have used over 80% of your monthly quota. Consider upgrading.</span>
   </div>
 
   <!-- ── Current plan ── -->
@@ -134,12 +169,12 @@
       <span id="plan-status-badge" class="badge badge-free">Free</span>
     </div>
     <div class="card-body">
-      <div class="plan-card">
-        <div class="plan-info">
-          <div class="plan-name-big" id="plan-name">Free</div>
-          <div class="plan-meta" id="plan-meta">10,000 requests / month</div>
-          <div style="margin-top:8px;font-size:0.8125rem;color:var(--text3)" id="plan-period"></div>
-          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap" id="payment-method-row"></div>
+      <div class="plan-hero">
+        <div>
+          <div class="plan-name-big" id="plan-name">Starter</div>
+          <div class="plan-meta" id="plan-meta">1,000 requests / month</div>
+          <div style="margin-top:6px;font-size:0.8125rem;color:var(--text3)" id="plan-period"></div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center" id="plan-chips"></div>
         </div>
         <div class="plan-actions" id="plan-actions">
           <a href="/checkout?plan=pro" class="btn btn-primary btn-sm">
@@ -158,120 +193,268 @@
       <span style="font-size:0.75rem;color:var(--text3)" id="usage-period">—</span>
     </div>
     <div class="card-body">
+      <!-- stat chips -->
+      <div class="stat-row" id="stat-row">
+        <div class="stat-chip">
+          <div class="stat-chip-val" id="stat-used">—</div>
+          <div class="stat-chip-lbl">Requests used</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-val" id="stat-limit">—</div>
+          <div class="stat-chip-lbl">Monthly limit</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-val" id="stat-bonus">—</div>
+          <div class="stat-chip-lbl">Referral bonus</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-val" id="stat-pct">—</div>
+          <div class="stat-chip-lbl">Quota used</div>
+        </div>
+      </div>
+
+      <!-- request bar -->
       <div class="usage-row">
         <div class="usage-label">Filter requests</div>
         <div class="usage-bar-wrap"><div class="usage-bar" id="req-bar" style="width:0%"></div></div>
         <div class="usage-val" id="req-val">— / —</div>
       </div>
+      <!-- blocked bar -->
       <div class="usage-row">
         <div class="usage-label">Blocked requests</div>
         <div class="usage-bar-wrap"><div class="usage-bar" id="block-bar" style="width:0%;background:linear-gradient(90deg,var(--red),#dc2626)"></div></div>
         <div class="usage-val" id="block-val">—</div>
       </div>
-      <div class="usage-row">
+      <!-- latency bar -->
+      <div class="usage-row" style="margin-bottom:0">
         <div class="usage-label">Avg latency</div>
         <div class="usage-bar-wrap"><div class="usage-bar" id="lat-bar" style="width:0%"></div></div>
         <div class="usage-val" id="lat-val">—</div>
       </div>
-      <div style="margin-top:16px;padding:12px 16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;font-size:0.75rem;color:var(--text3)">
-        Usage data is pulled from the live filter pipeline. Content is never stored — only metadata counts.
+
+      <!-- overage note (shown for pro/enterprise) -->
+      <div class="overage-note" id="overage-note" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="overage-note-text">Requests over quota are billed as overage — no service interruption.</span>
+      </div>
+
+      <div style="margin-top:16px;padding:10px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;font-size:0.75rem;color:var(--text3)">
+        Only request counts are tracked — content is never stored on our servers. GDPR Art. 32 compliant.
       </div>
     </div>
   </div>
 
-  <!-- ── Upgrade plans ── -->
+  <!-- ── Referral Flywheel ── -->
+  <div class="card" id="referral-card">
+    <div class="card-header">
+      <div class="card-title">Referral Flywheel</div>
+      <span id="ref-stats-badge" class="badge badge-active" style="display:none">— referrals</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:0.875rem;color:var(--text2);margin-bottom:20px">
+        Share your link. Every verified signup credits bonus requests to both you and the new user — automatically, every month.
+      </p>
+
+      <div class="stat-row">
+        <div class="stat-chip">
+          <div class="stat-chip-val" style="color:var(--cyan)" id="ref-total">—</div>
+          <div class="stat-chip-lbl">Total referrals</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-val" style="color:var(--violet)" id="ref-bonus-month">—</div>
+          <div class="stat-chip-lbl">Bonus req this month</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-val" style="color:var(--green)" id="ref-per-referral">—</div>
+          <div class="stat-chip-lbl">Bonus per referral</div>
+        </div>
+      </div>
+
+      <div style="font-size:0.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Your referral link</div>
+      <div class="ref-code-box" id="ref-code-box">
+        <span id="ref-code-display" style="flex:1">—</span>
+        <button class="btn btn-outline btn-sm" onclick="copyRefCode()" id="copy-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+        <button class="btn btn-cyan btn-sm" onclick="generateRefCode()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          Generate
+        </button>
+      </div>
+
+      <!-- Redeem section -->
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+        <div style="font-size:0.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Redeem a referral code</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="redeem-input" type="text" placeholder="REF-XXXXXXXX"
+            style="flex:1;min-width:160px;padding:8px 14px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:0.875rem;color:var(--text);outline:none;"
+            oninput="this.value=this.value.toUpperCase()"
+            onfocus="this.style.borderColor='rgba(99,102,241,0.4)'"
+            onblur="this.style.borderColor=''" />
+          <button class="btn btn-outline btn-sm" onclick="redeemCode()" style="white-space:nowrap">Redeem Code</button>
+        </div>
+        <div id="redeem-msg" style="margin-top:8px;font-size:0.75rem;display:none"></div>
+      </div>
+
+      <div id="enterprise-no-ref" style="display:none;margin-top:16px;padding:12px 16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;font-size:0.8125rem;color:var(--text3)">
+        Enterprise plan subscribers are not eligible for the referral program — your pricing already reflects maximum value.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Available plans ── -->
   <div class="card" id="upgrade-section">
     <div class="card-header">
       <div class="card-title">Available Plans</div>
+      <div style="display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:3px 4px;">
+        <button id="tog-monthly" onclick="setTog('monthly')"
+          style="padding:4px 10px;border-radius:6px;border:none;font-size:0.6875rem;font-weight:600;font-family:inherit;cursor:pointer;background:var(--indigo);color:#fff;transition:all 0.15s;">Monthly</button>
+        <button id="tog-annual" onclick="setTog('annual')"
+          style="padding:4px 10px;border-radius:6px;border:none;font-size:0.6875rem;font-weight:600;font-family:inherit;cursor:pointer;background:transparent;color:var(--text2);transition:all 0.15s;">Annual
+          <span style="margin-left:4px;padding:1px 5px;border-radius:4px;font-size:0.5625rem;background:rgba(52,211,153,0.12);color:#6ee7b7;">–17%</span>
+        </button>
+      </div>
     </div>
     <div class="card-body">
       <div class="plan-grid">
-        <div class="plan-tile" id="tile-free">
-          <div class="plan-tile-name">Starter</div>
+
+        <!-- Starter -->
+        <div class="plan-tile" id="tile-starter">
+          <div class="plan-tile-name" style="color:var(--text3)">Starter</div>
           <div class="plan-tile-price">Free</div>
-          <div class="plan-tile-sub">Forever, no credit card</div>
-          <div class="plan-tile-features">10,000 requests/mo<br/>Single tenant<br/>9-layer defense pipeline<br/>Community support</div>
-          <div style="margin-top:14px">
-            <span class="badge badge-free" style="font-size:0.6875rem" id="tile-free-action">Current plan</span>
+          <div class="plan-tile-sub">Forever · no card needed</div>
+          <div class="plan-tile-features">
+            <span class="hi">1,000</span> req / month<br/>
+            All 9 detection layers<br/>
+            TOTP 2FA<br/>
+            Docker self-host<br/>
+            +500 req / referral
+          </div>
+          <div style="margin-top:14px" id="tile-starter-action">
+            <span class="badge badge-free">Current plan</span>
           </div>
         </div>
+
+        <!-- Individual -->
         <div class="plan-tile" id="tile-individual">
           <div class="plan-tile-name" style="color:var(--cyan)">Individual</div>
-          <div class="plan-tile-price">$5<span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span></div>
-          <div class="plan-tile-sub">Solo developers &amp; hobbyists</div>
-          <div class="plan-tile-features">5,000 requests/mo<br/>9-layer defense pipeline<br/>Prompt Shield + Audit Trail<br/>OpenAI / Gemini proxy<br/>2FA (Google Auth)</div>
-          <div style="margin-top:14px">
-            <a href="/checkout?plan=individual" class="btn btn-outline btn-sm" style="width:100%;justify-content:center" id="tile-individual-action">Upgrade</a>
+          <div class="plan-tile-price">
+            <span class="tog-monthly">$5</span><span class="tog-annual" style="display:none">$4</span><span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span>
+          </div>
+          <div class="plan-tile-sub">Solo devs &amp; hobbyists</div>
+          <div class="plan-tile-features">
+            <span class="hi">5,000</span> req / month<br/>
+            Prompt Shield + Audit Trail<br/>
+            10 GB storage<br/>
+            90-day retention<br/>
+            +500 req / referral
+          </div>
+          <div style="margin-top:14px" id="tile-individual-action">
+            <a href="/checkout?plan=individual" class="btn btn-outline btn-sm" style="width:100%;justify-content:center">Upgrade</a>
           </div>
         </div>
-        <div class="plan-tile" id="tile-pro" style="border-color:rgba(99,102,241,0.4)">
-          <div class="plan-tile-name" style="color:var(--indigo)">Business</div>
-          <div class="plan-tile-price">$49<span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span></div>
-          <div class="plan-tile-sub">14-day free trial</div>
-          <div class="plan-tile-features">Unlimited requests<br/>Multi-tenant (50)<br/>Slack + PagerDuty<br/>GDPR API<br/>Email support 48h</div>
-          <div style="margin-top:14px">
-            <a href="/checkout?plan=pro" class="btn btn-primary btn-sm" style="width:100%;justify-content:center">Upgrade</a>
+
+        <!-- Pro -->
+        <div class="plan-tile featured-tile" id="tile-pro" style="position:relative;">
+          <div class="plan-tile-badge" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;">Most Popular</div>
+          <div class="plan-tile-name" style="color:var(--indigo);margin-top:4px">Pro</div>
+          <div class="plan-tile-price">
+            <span class="tog-monthly">$49</span><span class="tog-annual" style="display:none">$39</span><span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span>
+          </div>
+          <div class="plan-tile-sub">14-day money-back</div>
+          <div class="plan-tile-features">
+            <span class="hi">50,000</span> req / month<br/>
+            SIEM (Splunk / Elastic)<br/>
+            Prometheus + Grafana<br/>
+            Multi-tenant ≤ 50<br/>
+            Secure Communities<br/>
+            GDPR purge API<br/>
+            +2,000 req / referral<br/>
+            <span style="color:var(--amber)">Overage $0.50 / 1k</span>
+          </div>
+          <div style="margin-top:14px" id="tile-pro-action">
+            <a href="/checkout?plan=pro" class="btn btn-primary btn-sm" style="width:100%;justify-content:center">Upgrade to Pro</a>
           </div>
         </div>
-        <div class="plan-tile" id="tile-msp">
-          <div class="plan-tile-name">MSP</div>
-          <div class="plan-tile-price">$199<span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span></div>
-          <div class="plan-tile-sub">For managed service providers</div>
-          <div class="plan-tile-features">Everything in Business<br/>Unlimited tenants<br/>White-label dashboard<br/>Dedicated engineer<br/>SLA 99.9%</div>
-          <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
-            <a href="/checkout?plan=msp" class="btn btn-outline btn-sm" style="justify-content:center">Upgrade to MSP</a>
-            <a href="/checkout?plan=msp" class="btn btn-sm" style="justify-content:center;background:rgba(255,102,0,0.1);color:#fdba74;border:1px solid rgba(255,102,0,0.2)">Pay with Payoneer</a>
+
+        <!-- Enterprise -->
+        <div class="plan-tile" id="tile-enterprise" style="position:relative;">
+          <div class="plan-tile-badge" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;">Best Value</div>
+          <div class="plan-tile-name" style="color:var(--green);margin-top:4px">Enterprise</div>
+          <div class="plan-tile-price">
+            <span class="tog-monthly">$199</span><span class="tog-annual" style="display:none">$165</span><span style="font-size:0.875rem;color:var(--text3);font-weight:400">/mo</span>
+          </div>
+          <div class="plan-tile-sub">Unlimited · white-label</div>
+          <div class="plan-tile-features">
+            Everything in Pro<br/>
+            <span class="hi">Unlimited</span> req + tenants<br/>
+            NVIDIA NIM on-prem (600×)<br/>
+            Custom ML training<br/>
+            White-label + BYOK<br/>
+            Break Glass access<br/>
+            EU AI Act Art. 9+15<br/>
+            Dedicated SLA engineer<br/>
+            <span style="color:var(--amber)">Overage $0.10 / 1k</span>
+          </div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px" id="tile-enterprise-action">
+            <a href="/checkout?plan=enterprise" class="btn btn-outline btn-sm" style="justify-content:center">Upgrade to Enterprise</a>
+            <a href="/contact" class="btn btn-sm" style="justify-content:center;background:rgba(52,211,153,0.08);color:var(--green);border:1px solid rgba(52,211,153,0.2)">Contact Sales</a>
           </div>
         </div>
-      </div>
+
+      </div><!-- /plan-grid -->
     </div>
   </div>
 
   <!-- ── Billing management ── -->
-  <div class="card" id="stripe-portal-card" style="display:none">
+  <div class="card" id="billing-portal-card" style="display:none">
     <div class="card-header">
       <div class="card-title">Billing Management</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:0.6875rem;color:var(--text3);">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Powered by Lemon Squeezy
+      </div>
     </div>
     <div class="card-body">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px">
         <div>
           <div style="font-size:0.875rem;color:var(--text2);margin-bottom:4px">Update payment method, download invoices, or cancel your subscription.</div>
-          <div style="font-size:0.75rem;color:var(--text3)">Powered by Paddle — your card details are never stored on our servers.</div>
+          <div style="font-size:0.75rem;color:var(--text3)">Your card details are never stored on our servers — handled entirely by Lemon Squeezy.</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" onclick="openStripePortal()">
+          <button class="btn btn-outline btn-sm" onclick="openBillingPortal()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            Manage Payment Method
+            Manage Payment
           </button>
-          <button class="btn btn-outline btn-sm" onclick="openStripePortal()">
+          <button class="btn btn-outline btn-sm" onclick="openBillingPortal()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
             Download Invoices
           </button>
-          <button class="btn btn-danger btn-sm" onclick="openStripePortal()">Cancel Subscription</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmCancel()">Cancel Subscription</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── Invoices (mock) ── -->
+  <!-- ── Invoice history ── -->
   <div class="card">
     <div class="card-header">
       <div class="card-title">Invoice History</div>
     </div>
-    <div class="card-body" style="padding:0" id="invoice-body">
+    <div class="card-body" style="padding:0">
       <table class="invoice-table">
         <thead>
           <tr>
             <th>Date</th>
             <th>Description</th>
             <th>Amount</th>
-            <th>Method</th>
             <th>Status</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="invoice-rows">
-          <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text3);font-size:0.8125rem">No invoices yet — subscribe to a paid plan to see billing history.</td></tr>
+          <tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text3);font-size:0.8125rem">No invoices yet — subscribe to a paid plan to see billing history.</td></tr>
         </tbody>
       </table>
     </div>
@@ -280,160 +463,314 @@
 </main>
 
 <script>
-  // ── Auth ────────────────────────────────────────────────────────────────────
-  const token  = localStorage.getItem('warden_token');
-  const authLink = document.getElementById('auth-link');
-  if (token) {
-    authLink.onclick = () => { localStorage.removeItem('warden_token'); location.href = '/'; };
-  } else {
-    authLink.textContent = 'Sign In';
-    authLink.href = '/login';
-  }
+// ── Auth ─────────────────────────────────────────────────────────────────────
+const token    = localStorage.getItem('warden_token');
+const authLink = document.getElementById('auth-link');
+if (token) {
+  authLink.onclick = () => { localStorage.removeItem('warden_token'); location.href = '/'; };
+} else {
+  authLink.textContent = 'Sign In';
+  authLink.href = '/login';
+}
 
-  // Get tenant from JWT
-  let tenantId = 'default';
-  if (token) {
-    try {
-      const p = JSON.parse(atob(token.split('.')[1]));
-      tenantId = p.tenant_id || p.sub || 'default';
-    } catch {}
-  }
-  document.getElementById('tenant-sub').textContent = 'Managing subscription for ' + tenantId;
+// Extract tenantId from JWT
+let tenantId = localStorage.getItem('warden_tenant') || 'default';
+if (token) {
+  try {
+    const p = JSON.parse(atob(token.split('.')[1]));
+    tenantId = p.tenant_id || p.sub || tenantId;
+  } catch {}
+}
+document.getElementById('tenant-sub').textContent = 'Managing subscription for ' + tenantId;
 
-  // ── Success banner ──────────────────────────────────────────────────────────
-  const params = new URLSearchParams(location.search);
-  if (params.get('success')) {
-    const banner = document.getElementById('success-banner');
-    banner.style.display = 'flex';
-    const plan = params.get('plan') || 'pro';
-    const planLabel = { individual: 'Individual', pro: 'Business', msp: 'MSP' }[plan] || 'Business';
-    document.getElementById('success-text').textContent =
-      'Payment successful! Your ' + planLabel + ' plan is now active.';
-    history.replaceState({}, '', '/billing');
-  }
+// ── Success banner ────────────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+if (params.get('success')) {
+  const banner = document.getElementById('success-banner');
+  banner.style.display = 'flex';
+  const plan = params.get('plan') || 'pro';
+  const labels = { starter: 'Starter', individual: 'Individual', pro: 'Pro', enterprise: 'Enterprise' };
+  document.getElementById('success-text').textContent =
+    'Payment successful! Your ' + (labels[plan] || 'Pro') + ' plan is now active.';
+  history.replaceState({}, '', '/billing');
+}
 
-  // ── Load subscription status ────────────────────────────────────────────────
-  async function loadStatus() {
-    try {
-      const headers = token ? { Authorization: 'Bearer ' + token } : {};
-      const res  = await fetch('/subscription/status?tenant_id=' + encodeURIComponent(tenantId), { headers });
-      if (!res.ok) return;
-      const s = await res.json();
+// ── Headers helper ────────────────────────────────────────────────────────────
+function apiHeaders() {
+  const h = { 'X-Tenant-ID': tenantId };
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return h;
+}
 
-      const planMap = { free: 'Free', individual: 'Individual', pro: 'Business', msp: 'MSP' };
-      const quotaMap = { free: '10,000 req/mo', individual: '5,000 req/mo', pro: '50,000 req/mo', msp: 'Unlimited requests' };
+// ── Plan metadata ─────────────────────────────────────────────────────────────
+const PLAN_LABELS  = { starter: 'Starter', free: 'Starter', individual: 'Individual', pro: 'Pro', business: 'Pro', enterprise: 'Enterprise', msp: 'Enterprise' };
+const PLAN_QUOTAS  = { starter: '1,000 req / month', individual: '5,000 req / month', pro: '50,000 req / month', enterprise: 'Unlimited requests' };
+const PLAN_COLORS  = { starter: 'var(--text3)', individual: 'var(--cyan)', pro: 'var(--indigo)', enterprise: 'var(--green)' };
+const OVERAGE_PLANS = { pro: '$0.50 / 1k extra requests', business: '$0.50 / 1k extra requests', enterprise: '$0.10 / 1k extra requests', msp: '$0.10 / 1k extra requests' };
 
-      document.getElementById('plan-name').textContent = planMap[s.plan] || s.plan;
-      document.getElementById('plan-meta').textContent = quotaMap[s.plan] || '';
+// ── Load subscription status ──────────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const res = await fetch('/billing/status', { headers: apiHeaders() });
+    if (!res.ok) return;
+    const s = await res.json();
+    const plan = s.plan || 'starter';
 
-      // Status badge
-      const badge = document.getElementById('plan-status-badge');
-      if (s.status === 'trialing') {
-        badge.textContent = 'Trial'; badge.className = 'badge badge-trial';
-      } else if (s.status === 'active' && s.plan !== 'free') {
-        badge.textContent = 'Active'; badge.className = 'badge badge-active';
-      } else if (s.status === 'cancelled') {
-        badge.textContent = 'Cancelled'; badge.className = 'badge badge-canceled';
-      }
+    document.getElementById('plan-name').textContent = PLAN_LABELS[plan] || plan;
+    document.getElementById('plan-name').style.color = PLAN_COLORS[plan] || 'var(--text)';
+    document.getElementById('plan-meta').textContent = PLAN_QUOTAS[plan] || '';
 
-      if (s.period_end) {
-        const d = new Date(s.period_end);
-        document.getElementById('plan-period').textContent =
-          'Next billing: ' + d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      }
+    // Status badge
+    const badge = document.getElementById('plan-status-badge');
+    const statusMap = {
+      active:   ['badge-active',   'Active'],
+      on_trial: ['badge-trial',    'Trial'],
+      trialing: ['badge-trial',    'Trial'],
+      cancelled:['badge-canceled', 'Cancelled'],
+      past_due: ['badge-overage',  'Past Due'],
+      starter:  ['badge-free',     'Free'],
+    };
+    const [cls, lbl] = statusMap[s.status] || statusMap[plan] || ['badge-free', 'Free'];
+    badge.className = 'badge ' + cls;
+    badge.textContent = plan === 'starter' ? 'Free' : lbl;
 
-      // Show Paddle portal for paid plans
-      if (!['free'].includes(s.plan) && s.customer_id) {
-        document.getElementById('stripe-portal-card').style.display = '';
-      }
-
-      // Update plan tiles
-      if (s.plan === 'individual') {
-        document.getElementById('tile-individual').classList.add('current');
-        document.getElementById('tile-individual-action').outerHTML =
-          '<span class="badge badge-active">Current plan</span>';
-        document.getElementById('tile-free-action').outerHTML = '';
-      } else if (s.plan === 'pro') {
-        document.getElementById('tile-pro').classList.add('current');
-        document.getElementById('tile-pro').querySelector('a').outerHTML =
-          '<span class="badge badge-active">Current plan</span>';
-        document.getElementById('tile-free-action').outerHTML = '';
-      } else if (s.plan === 'msp') {
-        document.getElementById('tile-msp').classList.add('current');
-        document.getElementById('tile-free-action').outerHTML = '';
-      }
-
-      // Actions
-      if (!['free'].includes(s.plan)) {
-        document.getElementById('plan-actions').innerHTML = `
-          <button class="btn btn-outline btn-sm" onclick="openBillingPortal()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            Manage Billing
-          </button>`;
-      }
-
-    } catch (e) {
-      console.warn('Status load failed:', e);
+    // Renewal date
+    if (s.renews_at) {
+      const d = new Date(s.renews_at);
+      document.getElementById('plan-period').textContent =
+        'Next billing: ' + d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
     }
-  }
 
-  // ── Load usage stats ────────────────────────────────────────────────────────
-  async function loadUsage() {
-    try {
-      const headers = token ? { Authorization: 'Bearer ' + token } : {};
-      const res  = await fetch('/api/stats?hours=720', { headers }); // ~30 days
-      if (!res.ok) return;
-      const d = await res.json();
-
-      const now = new Date();
-      document.getElementById('usage-period').textContent =
-        'as of ' + now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-      // Requests
-      const quota = 10000;
-      const pct   = Math.min(100, Math.round((d.total / quota) * 100));
-      document.getElementById('req-val').textContent = d.total.toLocaleString() + ' / ' + quota.toLocaleString();
-      const reqBar = document.getElementById('req-bar');
-      reqBar.style.width = pct + '%';
-      if (pct > 90) reqBar.classList.add('crit');
-      else if (pct > 70) reqBar.classList.add('warn');
-
-      // Blocked
-      const blockPct = d.total > 0 ? Math.round((d.blocked / d.total) * 100) : 0;
-      document.getElementById('block-val').textContent = d.blocked.toLocaleString() + ' (' + blockPct + '%)';
-      document.getElementById('block-bar').style.width = blockPct + '%';
-
-      // Latency (max 20ms for 100%)
-      const latPct = Math.min(100, Math.round((d.avg_latency_ms / 20) * 100));
-      document.getElementById('lat-val').textContent = d.avg_latency_ms + 'ms avg';
-      document.getElementById('lat-bar').style.width = latPct + '%';
-    } catch (e) {
-      console.warn('Usage load failed:', e);
+    // Plan chips
+    const chips = document.getElementById('plan-chips');
+    if (OVERAGE_PLANS[plan]) {
+      chips.innerHTML = '<span class="badge badge-overage"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>Overage: ' + OVERAGE_PLANS[plan] + '</span>';
     }
-  }
 
-  // ── Paddle billing portal ────────────────────────────────────────────────────
-  async function openBillingPortal() {
-    try {
-      const headers = {};
-      if (token) headers.Authorization = 'Bearer ' + token;
-      const res  = await fetch('/subscription/portal?tenant_id=' + encodeURIComponent(tenantId), { headers });
-      const data = await res.json();
-      if (res.ok && data.portal_url) {
-        window.open(data.portal_url, '_blank');
-      } else {
-        alert(data.detail || 'Billing portal not available. Configure PADDLE_API_KEY.');
-      }
-    } catch {
-      alert('Connection error. Please try again.');
+    // Billing portal (only for paid plans with customer)
+    if (plan !== 'starter' && plan !== 'free' && s.customer_id) {
+      document.getElementById('billing-portal-card').style.display = '';
     }
-  }
-  // Keep alias for any inline onclick references
-  const openStripePortal = openBillingPortal;
 
-  // ── Init ────────────────────────────────────────────────────────────────────
-  loadStatus();
-  loadUsage();
+    // Plan actions
+    const actions = document.getElementById('plan-actions');
+    if (plan !== 'starter' && plan !== 'free') {
+      actions.innerHTML = `
+        <button class="btn btn-outline btn-sm" onclick="openBillingPortal()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          Manage Billing
+        </button>`;
+    }
+
+    // Highlight current plan tile
+    const tileMap = { starter:'starter', free:'starter', individual:'individual', pro:'pro', business:'pro', enterprise:'enterprise', msp:'enterprise' };
+    const cur = tileMap[plan];
+    if (cur) {
+      const tile = document.getElementById('tile-' + cur);
+      if (tile) tile.classList.add('current');
+      const actionEl = document.getElementById('tile-' + cur + '-action');
+      if (actionEl) actionEl.innerHTML = '<span class="badge badge-active">Current plan</span>';
+    }
+
+    // Overage note
+    if (OVERAGE_PLANS[plan]) {
+      const note = document.getElementById('overage-note');
+      document.getElementById('overage-note-text').textContent =
+        'Overage pricing: ' + OVERAGE_PLANS[plan] + ' over your monthly quota — no service interruption.';
+      note.style.display = 'flex';
+    }
+
+    // Enterprise: hide referral generate section
+    if (plan === 'enterprise' || plan === 'msp') {
+      document.getElementById('enterprise-no-ref').style.display = '';
+    }
+
+  } catch(e) {
+    console.warn('Status load failed:', e);
+  }
+}
+
+// ── Load quota usage ──────────────────────────────────────────────────────────
+async function loadQuota() {
+  try {
+    const res = await fetch('/billing/quota', { headers: apiHeaders() });
+    if (!res.ok) return;
+    const d = await res.json();
+
+    const now = new Date();
+    document.getElementById('usage-period').textContent =
+      'as of ' + now.toLocaleDateString('en-US', { month:'long', year:'numeric' });
+
+    const used  = d.used || 0;
+    const limit = d.effective_limit;
+    const pct   = d.pct_used || 0;
+
+    document.getElementById('stat-used').textContent   = used.toLocaleString();
+    document.getElementById('stat-limit').textContent  = limit != null ? limit.toLocaleString() : '∞';
+    document.getElementById('stat-bonus').textContent  = '+' + (d.bonus_req || 0).toLocaleString();
+    document.getElementById('stat-pct').textContent    = limit != null ? pct + '%' : '—';
+
+    const reqBar = document.getElementById('req-bar');
+    reqBar.style.width = Math.min(100, pct) + '%';
+    if (pct > 90) reqBar.classList.add('crit');
+    else if (pct > 70) reqBar.classList.add('warn');
+
+    document.getElementById('req-val').textContent =
+      used.toLocaleString() + ' / ' + (limit != null ? limit.toLocaleString() : '∞');
+
+    // Quota warning
+    if (pct >= 80 && limit != null) {
+      const warn = document.getElementById('quota-warn');
+      document.getElementById('quota-warn-text').textContent =
+        'You have used ' + pct + '% of your ' + limit.toLocaleString() + ' monthly requests. Upgrade to avoid a hard stop.';
+      warn.style.display = 'flex';
+    }
+
+  } catch(e) {
+    console.warn('Quota load failed:', e);
+  }
+}
+
+// ── Load stats (blocked / latency) ───────────────────────────────────────────
+async function loadStats() {
+  try {
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const res = await fetch('/api/stats?hours=720', { headers });
+    if (!res.ok) return;
+    const d = await res.json();
+    const blockPct = d.total > 0 ? Math.round((d.blocked / d.total) * 100) : 0;
+    document.getElementById('block-val').textContent = (d.blocked || 0).toLocaleString() + ' (' + blockPct + '%)';
+    document.getElementById('block-bar').style.width = blockPct + '%';
+    const latPct = Math.min(100, Math.round(((d.avg_latency_ms || 0) / 20) * 100));
+    document.getElementById('lat-val').textContent = (d.avg_latency_ms || 0) + 'ms avg';
+    document.getElementById('lat-bar').style.width = latPct + '%';
+  } catch {}
+}
+
+// ── Referral ──────────────────────────────────────────────────────────────────
+let _refCode = '';
+
+async function loadReferralStats() {
+  try {
+    const res = await fetch('/billing/referral/stats', { headers: apiHeaders() });
+    if (!res.ok) return;
+    const d = await res.json();
+
+    document.getElementById('ref-total').textContent       = d.total_referrals || 0;
+    document.getElementById('ref-bonus-month').textContent = '+' + (d.bonus_req_this_month || 0).toLocaleString();
+    document.getElementById('ref-per-referral').textContent = '+' + (d.bonus_per_referral || 500).toLocaleString();
+
+    const badge = document.getElementById('ref-stats-badge');
+    badge.textContent = d.total_referrals + ' referral' + (d.total_referrals !== 1 ? 's' : '');
+    badge.style.display = '';
+  } catch {}
+}
+
+async function generateRefCode() {
+  try {
+    const res = await fetch('/billing/referral/generate', {
+      method: 'POST',
+      headers: apiHeaders(),
+    });
+    const d = await res.json();
+    if (!res.ok) {
+      alert(d.detail || 'Could not generate code.');
+      return;
+    }
+    _refCode = d.share_url || d.code;
+    document.getElementById('ref-code-display').textContent = d.share_url || d.code;
+    loadReferralStats();
+  } catch {
+    alert('Connection error. Please try again.');
+  }
+}
+
+async function redeemCode() {
+  const code = document.getElementById('redeem-input').value.trim();
+  const msgEl = document.getElementById('redeem-msg');
+  if (!code) { showRedeemMsg('Enter a referral code.', 'var(--amber)'); return; }
+
+  try {
+    const res = await fetch('/billing/referral/redeem', {
+      method: 'POST',
+      headers: { ...apiHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, new_tenant_id: tenantId }),
+    });
+    const d = await res.json();
+    if (!res.ok) {
+      showRedeemMsg(d.detail || 'Invalid or expired code.', 'var(--red)');
+      return;
+    }
+    showRedeemMsg(
+      '✓ Code redeemed! +' + d.new_tenant_bonus_req + ' bonus requests credited to your account.',
+      'var(--green)'
+    );
+    document.getElementById('redeem-input').value = '';
+    loadQuota();
+    loadReferralStats();
+  } catch {
+    showRedeemMsg('Connection error. Please try again.', 'var(--red)');
+  }
+}
+
+function showRedeemMsg(msg, color) {
+  const el = document.getElementById('redeem-msg');
+  el.textContent = msg;
+  el.style.color = color;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+function copyRefCode() {
+  const code = document.getElementById('ref-code-display').textContent;
+  if (!code || code === '—') { generateRefCode(); return; }
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById('copy-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ Copied!';
+    setTimeout(() => { btn.innerHTML = orig; }, 1500);
+  });
+}
+
+// ── Billing portal ────────────────────────────────────────────────────────────
+async function openBillingPortal() {
+  try {
+    const res = await fetch('/subscription/portal?tenant_id=' + encodeURIComponent(tenantId), { headers: apiHeaders() });
+    const d = await res.json();
+    if (res.ok && d.portal_url) {
+      window.open(d.portal_url, '_blank');
+    } else {
+      alert(d.detail || 'Billing portal unavailable. Check LEMONSQUEEZY_API_KEY.');
+    }
+  } catch {
+    alert('Connection error. Please try again.');
+  }
+}
+
+function confirmCancel() {
+  if (confirm('Cancel your subscription? Access continues until the current period ends.')) {
+    openBillingPortal();
+  }
+}
+
+// ── Plan toggle ───────────────────────────────────────────────────────────────
+function setTog(mode) {
+  const isAnnual = mode === 'annual';
+  const bm = document.getElementById('tog-monthly');
+  const ba = document.getElementById('tog-annual');
+  bm.style.background = isAnnual ? 'transparent' : 'var(--indigo)';
+  bm.style.color      = isAnnual ? 'var(--text2)' : '#fff';
+  ba.style.background = isAnnual ? 'var(--indigo)' : 'transparent';
+  ba.style.color      = isAnnual ? '#fff' : 'var(--text2)';
+  document.querySelectorAll('.tog-monthly').forEach(el => el.style.display = isAnnual ? 'none' : '');
+  document.querySelectorAll('.tog-annual').forEach(el  => el.style.display = isAnnual ? '' : 'none');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStatus();
+loadQuota();
+loadStats();
+loadReferralStats();
 </script>
 </body>
 </html>

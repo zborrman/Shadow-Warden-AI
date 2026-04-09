@@ -250,12 +250,16 @@ jobs:
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
           # Fix .git permissions BEFORE the main deploy script runs.
-          # Docker containers write files as root/wardenuser which locks .git/FETCH_HEAD.
+          # Docker containers write files as root/wardenuser (UID 10001) which
+          # locks .git/FETCH_HEAD.  Strategy:
+          #   1. sudo chown → works when deploy user has passwordless sudo (most VPS)
+          #   2. chmod a+rwX → fallback if chown fails (user already owns the files)
+          # Both are gated with || true so a failure here never blocks the deploy.
           ssh -i ~/.ssh/id_deploy \
               -o BatchMode=yes \
               -o StrictHostKeyChecking=no \
               "${SSH_USER}@${SSH_HOST}" \
-              "find ${SSH_PATH}/.git -exec chown root:root {} + 2>/dev/null; chmod -R u+rw ${SSH_PATH}/.git 2>/dev/null; true"
+              "sudo chown -R ${SSH_USER}: ${SSH_PATH}/.git 2>/dev/null || sudo chmod -R a+rwX ${SSH_PATH}/.git 2>/dev/null || chmod -R a+rwX ${SSH_PATH}/.git 2>/dev/null || true"
 
           # Use -i directly — no ssh-agent needed
           # ServerAliveInterval/CountMax keep the TCP session alive while we wait
@@ -270,13 +274,16 @@ jobs:
           cd "$SSH_PATH"
 
           echo "── [1/4] Pull latest code ──────────────────────────────────"
-          # Git 2.35.2+ rejects repos owned by a different user (safe.directory check).
-          # Register the repo path globally so git trusts it regardless of owner.
+          # Git 2.35.2+ rejects repos owned by a different user (safe.directory).
           git config --global --add safe.directory "$SSH_PATH"
-          # Fix ownership of entire repo including .git/ — Docker containers
-          # write files as root or wardenuser (UID 10001) which blocks git fetch.
-          chown -R "\$(id -u):\$(id -g)" . 2>/dev/null || true
-          chmod -R u+rw .git 2>/dev/null || true
+
+          # Reclaim .git ownership — try sudo first (passwordless sudo is standard
+          # on most VPS providers), fall back to plain chmod if unavailable.
+          # Never chown to root — that was the original bug (locked out non-root user).
+          sudo chown -R "\$(id -u):\$(id -g)" .git 2>/dev/null \
+            || chmod -R u+rw .git 2>/dev/null \
+            || true
+
           git fetch origin main
           git reset --hard origin/main
 

@@ -874,6 +874,14 @@ class _ExtensionCORSMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(_ExtensionCORSMiddleware)
 
+# ── Per-request quota enforcement (counts POST /filter requests per tenant) ───
+try:
+    from warden.billing.quota_middleware import QuotaMiddleware
+    app.add_middleware(QuotaMiddleware)
+    log.info("QuotaMiddleware registered — monthly request limits enforced.")
+except ImportError:
+    log.warning("QuotaMiddleware not available — quota enforcement skipped.")
+
 # ── Prometheus instrumentation ────────────────────────────────────────────────
 if _PROMETHEUS_ENABLED:
     _Instrumentator().instrument(app).expose(app, endpoint="/metrics")
@@ -964,6 +972,13 @@ try:
     log.info("Business Communities mounted at /communities")
 except ImportError:
     log.warning("communities router not available — /communities skipped.")
+
+try:
+    from warden.billing.router import router as _billing_router
+    app.include_router(_billing_router)
+    log.info("Billing API mounted at /billing")
+except ImportError:
+    log.warning("billing router not available — /billing routes skipped.")
 
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
@@ -4668,11 +4683,11 @@ async def unmask_text(
     return UnmaskResponse(unmasked=unmasked, session_id=payload.session_id)
 
 
-# ── Stripe Billing ────────────────────────────────────────────────────────────
+# ── Lemon Squeezy Billing ─────────────────────────────────────────────────────
 
 class _CheckoutRequest(BaseModel):
     tenant_id:      str
-    plan:           str            # "pro" | "msp"
+    plan:           str            # "individual" | "pro" | "enterprise"
     success_url:    str
     cancel_url:     str
     customer_email: str | None = None
@@ -4684,22 +4699,22 @@ class _CheckoutRequest(BaseModel):
     summary="Current subscription plan and quota for a tenant",
 )
 async def billing_status(tenant_id: str):
-    from warden.paddle_billing import get_paddle_billing
-    return get_paddle_billing().get_status(tenant_id)
+    from warden.lemon_billing import get_lemon_billing
+    return get_lemon_billing().get_status(tenant_id)
 
 
 @app.post(
     "/subscription/checkout",
     tags=["subscription"],
-    summary="Create a Paddle checkout session — returns hosted payment URL",
+    summary="Create a Lemon Squeezy checkout session — returns hosted payment URL",
 )
 async def billing_checkout(body: _CheckoutRequest):
-    from warden.paddle_billing import get_paddle_billing
-    pb = get_paddle_billing()
-    if not pb._enabled:
-        raise HTTPException(503, "Paddle billing not configured on this instance.")
+    from warden.lemon_billing import get_lemon_billing
+    lb = get_lemon_billing()
+    if not lb._enabled:
+        raise HTTPException(503, "Lemon Squeezy billing not configured on this instance.")
     try:
-        url = pb.create_checkout_session(
+        url = lb.create_checkout_session(
             body.tenant_id, body.plan,
             body.success_url, body.cancel_url,
             body.customer_email,
@@ -4712,12 +4727,12 @@ async def billing_checkout(body: _CheckoutRequest):
 @app.get(
     "/subscription/portal",
     tags=["subscription"],
-    summary="Return Paddle customer portal URL for self-serve plan management",
+    summary="Return Lemon Squeezy customer portal URL for self-serve plan management",
 )
 async def billing_portal(tenant_id: str):
-    from warden.paddle_billing import get_paddle_billing
+    from warden.lemon_billing import get_lemon_billing
     try:
-        url = get_paddle_billing().get_portal_url(tenant_id)
+        url = get_lemon_billing().get_portal_url(tenant_id)
     except RuntimeError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"portal_url": url}
@@ -4726,16 +4741,16 @@ async def billing_portal(tenant_id: str):
 @app.post(
     "/subscription/webhook",
     tags=["subscription"],
-    summary="Paddle webhook receiver — validates signature and updates subscription state",
+    summary="Lemon Squeezy webhook receiver — validates signature and updates subscription state",
     include_in_schema=False,
 )
 async def billing_webhook(request: Request):
-    from warden.paddle_billing import get_paddle_billing
-    pb         = get_paddle_billing()
+    from warden.lemon_billing import get_lemon_billing
+    lb         = get_lemon_billing()
     payload    = await request.body()
-    sig_header = request.headers.get("Paddle-Signature", "")
+    sig_header = request.headers.get("X-Signature", "")
     try:
-        etype = pb.handle_webhook(payload, sig_header)
+        etype = lb.handle_webhook(payload, sig_header)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"received": True, "event_type": etype}

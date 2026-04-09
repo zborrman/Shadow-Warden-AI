@@ -30,10 +30,9 @@ os.environ.setdefault("THREAT_FEED_CACHE_PATH", "/tmp/warden_test_threat_feed_ca
 os.environ.setdefault("TENANT_POLICIES_PATH", "/tmp/warden_test_tenant_policies.json")
 os.environ.setdefault("WARDEN_API_KEYS_PATH", "")        # multi-tenant keys disabled in tests
 os.environ.setdefault("FEED_DB_PATH",         "/tmp/warden_test_feed_server.db")
-os.environ.setdefault("STRIPE_DB_PATH",       "/tmp/warden_test_stripe.db")
-os.environ.setdefault("STRIPE_SECRET_KEY",    "")   # Stripe disabled in tests
-os.environ.setdefault("PADDLE_DB_PATH",       "/tmp/warden_test_paddle.db")
-os.environ.setdefault("PADDLE_API_KEY",       "")   # Paddle disabled in tests
+os.environ.setdefault("LEMONSQUEEZY_DB_PATH",       "/tmp/warden_test_lemon.db")
+os.environ.setdefault("LEMONSQUEEZY_API_KEY",       "")   # Lemon Squeezy disabled in tests
+os.environ.setdefault("LEMONSQUEEZY_WEBHOOK_SECRET", "test-ls-webhook-secret")
 os.environ.setdefault("AGENT_REGISTRY_DB_PATH", "/tmp/warden_test_agent_registry.db")
 os.environ.setdefault("MANDATE_SECRET",       "test-mandate-secret-ci")
 os.environ.setdefault("THREAT_INTEL_DB_PATH", "/tmp/warden_test_threat_intel.db")
