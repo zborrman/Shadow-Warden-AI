@@ -249,18 +249,6 @@ jobs:
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
-          # Fix .git permissions BEFORE the main deploy script runs.
-          # Docker containers write files as root/wardenuser (UID 10001) which
-          # locks .git/FETCH_HEAD.  Strategy:
-          #   1. sudo chown → works when deploy user has passwordless sudo (most VPS)
-          #   2. chmod a+rwX → fallback if chown fails (user already owns the files)
-          # Both are gated with || true so a failure here never blocks the deploy.
-          ssh -i ~/.ssh/id_deploy \
-              -o BatchMode=yes \
-              -o StrictHostKeyChecking=no \
-              "${SSH_USER}@${SSH_HOST}" \
-              "sudo chown -R ${SSH_USER}: ${SSH_PATH}/.git 2>/dev/null || sudo chmod -R a+rwX ${SSH_PATH}/.git 2>/dev/null || chmod -R a+rwX ${SSH_PATH}/.git 2>/dev/null || true"
-
           # Use -i directly — no ssh-agent needed
           # ServerAliveInterval/CountMax keep the TCP session alive while we wait
           # for the model to load (up to ~3 min on cold start).
@@ -277,12 +265,11 @@ jobs:
           # Git 2.35.2+ rejects repos owned by a different user (safe.directory).
           git config --global --add safe.directory "$SSH_PATH"
 
-          # Reclaim .git ownership — try sudo first (passwordless sudo is standard
-          # on most VPS providers), fall back to plain chmod if unavailable.
-          # Never chown to root — that was the original bug (locked out non-root user).
-          sudo chown -R "\$(id -u):\$(id -g)" .git 2>/dev/null \
-            || chmod -R u+rw .git 2>/dev/null \
-            || true
+          # Docker containers (running as root or UID 10001) write files into the
+          # mounted repo dir, including .git/FETCH_HEAD.  The safest fix is to
+          # delete the locked files outright — git recreates them on the next fetch.
+          # We also remove index.lock in case a previous git was interrupted.
+          rm -f .git/FETCH_HEAD .git/index.lock 2>/dev/null || true
 
           git fetch origin main
           git reset --hard origin/main
