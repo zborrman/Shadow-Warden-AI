@@ -278,7 +278,7 @@ class FeatureGate:
         self.limits = TIER_LIMITS[self.tier]
 
     @classmethod
-    def for_tier(cls, tier: str) -> "FeatureGate":
+    def for_tier(cls, tier: str) -> FeatureGate:
         return cls(tier)
 
     def get(self, feature: str) -> Any:

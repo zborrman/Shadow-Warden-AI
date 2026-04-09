@@ -67,9 +67,9 @@ async def get_billing_tiers():
     Returns the full feature matrix for all 4 plan tiers.
     No authentication required — used by the landing page pricing section.
     """
-    from warden.billing.feature_gate import FeatureGate, OVERAGE_PRICES
+    from warden.billing.feature_gate import OVERAGE_PRICES, FeatureGate
 
-    _PRICES = {
+    prices = {
         "starter":    {"usd_per_month": 0,   "label": "Free"},
         "individual": {"usd_per_month": 5,   "label": "Individual"},
         "pro":        {"usd_per_month": 49,  "label": "Pro"},
@@ -80,7 +80,7 @@ async def get_billing_tiers():
     for tier_name in ("starter", "individual", "pro", "enterprise"):
         gate = FeatureGate.for_tier(tier_name)
         d    = gate.as_dict()
-        d["pricing"]        = _PRICES[tier_name]
+        d["pricing"]        = prices[tier_name]
         d["overage_prices"] = OVERAGE_PRICES.get(tier_name, {})
         tiers.append(d)
 
@@ -115,7 +115,7 @@ async def get_billing_status(
     from warden.billing.feature_gate import FeatureGate
     gate = FeatureGate.for_tier(status.get("plan", "starter"))
     status["features"]      = gate.as_dict()
-    status["billing_portal"] = f"https://app.lemonsqueezy.com/my-orders"
+    status["billing_portal"] = "https://app.lemonsqueezy.com/my-orders"
     return status
 
 

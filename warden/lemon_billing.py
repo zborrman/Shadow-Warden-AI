@@ -252,7 +252,7 @@ class LemonBilling:
 
         if self._enabled and row and row["ls_customer_id"]:
             # Lemon Squeezy customer portal is at my.lemonsqueezy.com
-            return f"https://app.lemonsqueezy.com/my-orders"
+            return "https://app.lemonsqueezy.com/my-orders"
 
         return "https://app.lemonsqueezy.com/my-orders"
 

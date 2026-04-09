@@ -48,6 +48,7 @@ def _redis():
     """Return a sync Redis client (None on failure)."""
     try:
         import redis as _r
+
         from warden.config import settings
         return _r.from_url(
             settings.redis_url,
@@ -199,11 +200,10 @@ class QuotaMiddleware:
                 await self.app(scope, receive, send)
                 return
 
-            # Hard stop
-            try:
-                r.decr(key)  # roll back — request was not served
-            except Exception:
-                pass
+            # Hard stop — roll back the counter (request was not served)
+            import contextlib
+            with contextlib.suppress(Exception):
+                r.decr(key)
 
             await _send_429(
                 send,

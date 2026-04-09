@@ -48,6 +48,7 @@ def _redis():
     """Return a sync Redis client (None if unavailable)."""
     try:
         import redis as _r
+
         from warden.config import settings
         return _r.from_url(
             settings.redis_url,
@@ -154,10 +155,9 @@ def redeem_referral_code(code: str, new_tenant_id: str) -> dict:
     if referrer_id == new_tenant_id:
         # Put code back so it's not consumed
         if r is not None:
-            try:
+            import contextlib
+            with contextlib.suppress(Exception):
                 r.setex(raw_key, _CODE_TTL, raw)
-            except Exception:
-                pass
         else:
             _CODE_STORE[code] = raw
         raise ValueError("Self-referral is not allowed.")
