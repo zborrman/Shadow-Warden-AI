@@ -563,7 +563,7 @@ async def platform_invite_join(body: PlatformJoinRequest, request: Request):
         )
 
     expected_otc = stored_otc.decode() if isinstance(stored_otc, bytes) else stored_otc
-    if not hmac.compare_digest(manifest.one_time_code, expected_otc):
+    if not hmac.compare_digest(str(manifest.one_time_code), str(expected_otc)):
         raise HTTPException(status_code=401, detail="Invalid one-time code — possible replay attack.")
 
     # ── 2. Mark invite as used ────────────────────────────────────────────────

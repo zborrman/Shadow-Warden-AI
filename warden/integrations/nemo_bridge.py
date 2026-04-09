@@ -362,7 +362,7 @@ Return ONLY valid Colang code, no markdown fencing."""
                 messages=[{"role": "user", "content": prompt}],
                 system=self._COLANG_SYSTEM_PROMPT,
             )
-            colang_code = message.content[0].text.strip()
+            colang_code = message.content[0].text.strip()  # type: ignore[union-attr]
             colang_code = re.sub(r"^```.*\n", "", colang_code, flags=re.MULTILINE)
             colang_code = colang_code.replace("```", "").strip()
         except Exception:

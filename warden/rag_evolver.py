@@ -543,7 +543,7 @@ async def _call_claude(user_prompt: str) -> list[dict]:
             system     = _RAG_EVOLUTION_SYSTEM_PROMPT,
             messages   = [{"role": "user", "content": user_prompt}],
         )
-        raw = msg.content[0].text if msg.content else ""
+        raw = msg.content[0].text if msg.content else ""  # type: ignore[union-attr]
         return _parse_llm_response(raw)
     except Exception as exc:
         log.warning("RAGEvolver: Claude call failed: %s", exc)
