@@ -9,7 +9,7 @@
 #    2. Add after pip installs: RUN playwright install chromium
 #    3. Set BROWSER_ENABLED=true in docker-compose.yml
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /warden
 
