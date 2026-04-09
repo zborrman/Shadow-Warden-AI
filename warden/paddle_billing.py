@@ -8,6 +8,4 @@ All billing is now handled by warden/lemon_billing.py.
 """
 from warden.lemon_billing import (  # noqa: F401  re-export
     LemonBilling as PaddleBilling,
-    get_lemon_billing as get_paddle_billing,
-    PLAN_QUOTAS,
 )
