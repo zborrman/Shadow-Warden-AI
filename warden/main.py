@@ -821,6 +821,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty
 
 _DEFAULT_CORS = ",".join([
     "http://localhost:3000",
+    "http://localhost:3001",
+    # Portal (customer-facing SPA)
+    "https://app.shadow-warden-ai.com",
+    "https://shadow-warden-ai.com",
+    "https://www.shadow-warden-ai.com",
     # Browser extension origins — required for Shadow Warden browser extension
     "https://chatgpt.com",
     "https://chat.openai.com",

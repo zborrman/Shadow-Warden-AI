@@ -344,7 +344,7 @@ async def login(body: _LoginIn, response: Response, db: AsyncSession = Depends(g
 
     response.set_cookie(
         key=_COOKIE_NAME, value=refresh,
-        httponly=True, secure=True, samesite="strict",
+        httponly=True, secure=True, samesite="lax",
         max_age=_REFRESH_TTL_DAY * 86400,
     )
     return _TokenOut(access_token=access, expires_in=_ACCESS_TTL_MIN * 60)
@@ -382,7 +382,7 @@ async def totp_complete(body: _TotpCompleteIn, response: Response, db: AsyncSess
 
     response.set_cookie(
         key=_COOKIE_NAME, value=refresh,
-        httponly=True, secure=True, samesite="strict",
+        httponly=True, secure=True, samesite="lax",
         max_age=_REFRESH_TTL_DAY * 86400,
     )
     return _TokenOut(access_token=access, expires_in=_ACCESS_TTL_MIN * 60)
@@ -499,7 +499,7 @@ async def refresh_token(
     new_refresh = _issue_refresh_token(str(user["id"]))
     response.set_cookie(
         key=_COOKIE_NAME, value=new_refresh,
-        httponly=True, secure=True, samesite="strict",
+        httponly=True, secure=True, samesite="lax",
         max_age=_REFRESH_TTL_DAY * 86400,
     )
     return _TokenOut(access_token=access, expires_in=_ACCESS_TTL_MIN * 60)

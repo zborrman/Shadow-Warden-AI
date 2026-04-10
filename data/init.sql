@@ -177,8 +177,14 @@ CREATE INDEX IF NOT EXISTS waitlist_created_idx ON warden_core.waitlist (created
 -- ── TOTP / Google Authenticator (MFA) ───────────────────────────────────────
 -- Added to portal_users via ALTER TABLE so existing DBs are patched automatically.
 ALTER TABLE IF EXISTS warden_core.portal_users
-    ADD COLUMN IF NOT EXISTS totp_secret  TEXT,
-    ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+    ADD COLUMN IF NOT EXISTS totp_secret   TEXT,
+    ADD COLUMN IF NOT EXISTS totp_enabled  BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ── Password reset ────────────────────────────────────────────────────────────
+-- Patch existing portal_users tables that pre-date the reset-token columns.
+ALTER TABLE IF EXISTS warden_core.portal_users
+    ADD COLUMN IF NOT EXISTS reset_token   TEXT,
+    ADD COLUMN IF NOT EXISTS reset_expires TIMESTAMPTZ;
 
 -- ── Grants ────────────────────────────────────────────────────────────────────
 -- The docker-compose POSTGRES_USER gets full access to both schemas.
