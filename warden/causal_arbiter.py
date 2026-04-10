@@ -33,9 +33,8 @@ import json
 import logging
 import math
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 log = logging.getLogger("warden.causal_arbiter")
 
@@ -151,18 +150,18 @@ def calibrate_from_logs(
         n_blocked = 0
         n_total   = len(entries)
 
-        _OBFUSC_FLAGS = frozenset({
+        obfusc_flags = frozenset({
             "OBFUSCATION", "BASE64_ENCODED", "HEX_ENCODED",
             "ROT13_ENCODED", "HOMOGLYPH_SUBSTITUTION",
         })
-        _HIGH_RISK = frozenset({"HIGH", "BLOCK"})
+        high_risk_levels = frozenset({"HIGH", "BLOCK"})
 
         for entry in entries:
             flags      = set(entry.get("flags") or [])
             risk       = (entry.get("risk_level") or "LOW").upper()
             payload_len = int(entry.get("payload_len") or 0)
-            is_high    = risk in _HIGH_RISK
-            has_obfusc = bool(flags & _OBFUSC_FLAGS)
+            is_high    = risk in high_risk_levels
+            has_obfusc = bool(flags & obfusc_flags)
 
             if has_obfusc:
                 obfusc_hits_total += 1

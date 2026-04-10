@@ -54,10 +54,9 @@ from typing import NamedTuple
 
 from cryptography.fernet import Fernet
 
-
 # ── mlock helper ──────────────────────────────────────────────────────────────
 
-def _try_mlock(buf: "ctypes.Array[ctypes.c_ubyte]") -> None:
+def _try_mlock(buf: ctypes.Array[ctypes.c_ubyte]) -> None:
     """
     Lock a ctypes buffer into physical RAM so its contents cannot be swapped
     to disk.  Best-effort: silently no-ops on platforms where mlock is
@@ -91,10 +90,10 @@ def _try_mlock(buf: "ctypes.Array[ctypes.c_ubyte]") -> None:
 _fernet_raw = Fernet.generate_key()   # bytes(44)
 _hmac_raw   = _os.urandom(32)         # bytes(32)
 
-_FERNET_KEY_BUF: "ctypes.Array[ctypes.c_ubyte]" = (
+_FERNET_KEY_BUF: ctypes.Array[ctypes.c_ubyte] = (
     ctypes.c_ubyte * len(_fernet_raw)
 )(*_fernet_raw)
-_HMAC_KEY_BUF: "ctypes.Array[ctypes.c_ubyte]" = (
+_HMAC_KEY_BUF: ctypes.Array[ctypes.c_ubyte] = (
     ctypes.c_ubyte * len(_hmac_raw)
 )(*_hmac_raw)
 
