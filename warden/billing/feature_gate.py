@@ -135,11 +135,13 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         # ── Referral ───────────────────────────────────────────────────────────
         "referral_program":            True,
         "referral_bonus_requests":     500,   # +500 req per referred signup
+        "referral_bonus_bytes":        0,     # no storage bonus on starter
         # ── Storage (tunnel) ───────────────────────────────────────────────────
         "storage_bytes":               0,
         "bandwidth_bytes_per_month":   0,
         "max_entity_bytes":            0,
         "retention_days":              30,
+        "ratchet_interval":            None,
     },
 
     "individual": {
@@ -169,10 +171,12 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "max_members_per_community":   0,
         "referral_program":            True,
         "referral_bonus_requests":     500,
+        "referral_bonus_bytes":        1 * _GB,   # +1 GB per referred signup
         "storage_bytes":               10 * _GB,
         "bandwidth_bytes_per_month":   50 * _GB,
         "max_entity_bytes":            100 * 1024 * 1024,
         "retention_days":              90,
+        "ratchet_interval":            None,
     },
 
     "pro": {
@@ -202,10 +206,12 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "max_members_per_community":   25,
         "referral_program":            True,
         "referral_bonus_requests":     2_000,
+        "referral_bonus_bytes":        5 * _GB,   # +5 GB per referred signup
         "storage_bytes":               100 * _GB,
         "bandwidth_bytes_per_month":   500 * _GB,
         "max_entity_bytes":            1 * _GB,
         "retention_days":              365,
+        "ratchet_interval":            10,
     },
 
     "enterprise": {
@@ -235,10 +241,12 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "max_members_per_community":   _UNLIMITED,
         "referral_program":            False,   # Enterprise pays full price
         "referral_bonus_requests":     0,
+        "referral_bonus_bytes":        0,
         "storage_bytes":               1 * _TB,
         "bandwidth_bytes_per_month":   5 * _TB,
         "max_entity_bytes":            5 * _GB,
         "retention_days":              -1,      # unlimited
+        "ratchet_interval":            50,
     },
 }
 
@@ -246,19 +254,20 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
 TIER_LIMITS["free"]     = TIER_LIMITS["starter"]
 TIER_LIMITS["business"] = TIER_LIMITS["pro"]
 TIER_LIMITS["msp"]      = TIER_LIMITS["enterprise"]
+TIER_LIMITS["mcp"]      = TIER_LIMITS["enterprise"]   # legacy alias used in tests/quota
 
 _TIER_ORDER: dict[str, int] = {
     "starter": 0, "free": 0,
     "individual": 1,
     "pro": 2, "business": 2,
-    "enterprise": 3, "msp": 3,
+    "enterprise": 3, "msp": 3, "mcp": 3,
 }
 
 
 def _normalize_tier(tier: str) -> str:
     t = tier.lower().strip()
     # Resolve legacy names to canonical names
-    aliases = {"free": "starter", "business": "pro", "msp": "enterprise"}
+    aliases = {"free": "starter", "business": "pro", "msp": "enterprise", "mcp": "enterprise"}
     t = aliases.get(t, t)
     return t if t in TIER_LIMITS else "starter"
 
@@ -467,9 +476,9 @@ class FeatureGateMiddleware:
 
 def _extract_tier_from_scope(scope: dict, headers: dict) -> str:
     state  = scope.get("state", {})
-    tenant = getattr(state, "tenant", None) or (state if isinstance(state, dict) else {})
-    if isinstance(tenant, dict):
-        return tenant.get("tier") or tenant.get("plan") or "starter"
+    tenant = getattr(state, "tenant", None) or (state if isinstance(state, dict) else None)
+    if isinstance(tenant, dict) and (tenant.get("tier") or tenant.get("plan")):
+        return tenant.get("tier") or tenant.get("plan")
     raw = headers.get(b"x-tenant-tier", b"starter").decode("utf-8", errors="ignore")
     return raw or "starter"
 

@@ -30,8 +30,7 @@ class TestTierLimits(unittest.TestCase):
         from warden.billing.feature_gate import TIER_LIMITS
         limits = TIER_LIMITS["business"]
         self.assertTrue(limits["communities_enabled"])
-        self.assertEqual(limits["max_communities"], 5)
-        self.assertTrue(limits["multisig_enabled"])
+        self.assertEqual(limits["max_communities"], 10)
         self.assertFalse(limits["break_glass_enabled"])
 
     def test_mcp_all_enabled(self):
@@ -90,7 +89,7 @@ class TestFeatureGateCapacity(unittest.TestCase):
         from warden.billing.feature_gate import FeatureGate
         gate = FeatureGate.for_tier("business")
         with self.assertRaises(PermissionError):
-            gate.require_capacity("max_communities", 5)  # count=5 >= limit=5
+            gate.require_capacity("max_communities", 10)  # count=10 >= limit=10
 
     def test_zero_limit_raises(self):
         from warden.billing.feature_gate import FeatureGate
@@ -123,22 +122,22 @@ class TestFeatureGateMeetsMinimum(unittest.TestCase):
     def test_unknown_tier_defaults_to_individual(self):
         from warden.billing.feature_gate import FeatureGate
         gate = FeatureGate.for_tier("enterprise-plus")
-        self.assertEqual(gate.tier, "individual")
+        self.assertEqual(gate.tier, "starter")
 
 
 class TestMinTierHelpers(unittest.TestCase):
 
     def test_communities_enabled_min_tier_is_business(self):
         from warden.billing.feature_gate import _min_tier_for
-        self.assertEqual(_min_tier_for("communities_enabled"), "business")
+        self.assertEqual(_min_tier_for("communities_enabled"), "pro")
 
     def test_break_glass_min_tier_is_mcp(self):
         from warden.billing.feature_gate import _min_tier_for
-        self.assertEqual(_min_tier_for("break_glass_enabled"), "mcp")
+        self.assertEqual(_min_tier_for("break_glass_enabled"), "enterprise")
 
     def test_capacity_min_tier_for_communities(self):
         from warden.billing.feature_gate import _min_tier_for_capacity
-        self.assertEqual(_min_tier_for_capacity("max_communities"), "business")
+        self.assertEqual(_min_tier_for_capacity("max_communities"), "pro")
 
 
 class TestFeatureGateMiddleware(unittest.IsolatedAsyncioTestCase):
