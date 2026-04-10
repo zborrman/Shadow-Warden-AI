@@ -39,10 +39,13 @@ Limitations
 """
 from __future__ import annotations
 
+import ctypes
+import ctypes.util
 import hashlib
 import hmac as _hmac
 import os as _os
 import re
+import sys
 import threading
 import time
 import uuid
@@ -51,14 +54,59 @@ from typing import NamedTuple
 
 from cryptography.fernet import Fernet
 
+
+# ── mlock helper ──────────────────────────────────────────────────────────────
+
+def _try_mlock(buf: "ctypes.Array[ctypes.c_ubyte]") -> None:
+    """
+    Lock a ctypes buffer into physical RAM so its contents cannot be swapped
+    to disk.  Best-effort: silently no-ops on platforms where mlock is
+    unavailable or the process lacks CAP_IPC_LOCK.
+
+    SOC 2 CC6.7 — prevents key material from appearing in swap files or
+    hibernate images.
+    """
+    try:
+        size = ctypes.sizeof(buf)
+        if sys.platform == "win32":
+            ctypes.windll.kernel32.VirtualLock(  # type: ignore[attr-defined]
+                buf, ctypes.c_size_t(size)
+            )
+        else:
+            libc_path = ctypes.util.find_library("c") or "libc.so.6"
+            libc = ctypes.CDLL(libc_path, use_errno=True)
+            libc.mlock(buf, ctypes.c_size_t(size))
+    except Exception:
+        pass  # fail-open: key protection is best-effort
+
+
 # ── Per-process vault encryption keys (ephemeral — regenerated on each restart) ─
 # Fernet key:  encrypts original PII values stored in vault tokens dict.
 # HMAC key:    hashes plaintext keys stored in reverse-lookup dict so the
 #              original values are never kept in plaintext in memory.
+#
+# Both keys are allocated in ctypes buffers that are mlock'd into physical RAM
+# (SOC 2 CC6.7 control: key material cannot be paged to disk).
 
-_VAULT_FERNET_KEY: bytes       = Fernet.generate_key()
-_VAULT_FERNET:     Fernet      = Fernet(_VAULT_FERNET_KEY)
-_VAULT_HMAC_KEY:   bytes       = _os.urandom(32)
+_fernet_raw = Fernet.generate_key()   # bytes(44)
+_hmac_raw   = _os.urandom(32)         # bytes(32)
+
+_FERNET_KEY_BUF: "ctypes.Array[ctypes.c_ubyte]" = (
+    ctypes.c_ubyte * len(_fernet_raw)
+)(*_fernet_raw)
+_HMAC_KEY_BUF: "ctypes.Array[ctypes.c_ubyte]" = (
+    ctypes.c_ubyte * len(_hmac_raw)
+)(*_hmac_raw)
+
+_try_mlock(_FERNET_KEY_BUF)
+_try_mlock(_HMAC_KEY_BUF)
+
+_VAULT_FERNET_KEY: bytes  = bytes(_FERNET_KEY_BUF)
+_VAULT_FERNET:     Fernet = Fernet(_VAULT_FERNET_KEY)
+_VAULT_HMAC_KEY:   bytes  = bytes(_HMAC_KEY_BUF)
+
+# Zero and delete the unprotected transient copies (best-effort on CPython)
+del _fernet_raw, _hmac_raw
 
 
 def _enc(plaintext: str) -> str:

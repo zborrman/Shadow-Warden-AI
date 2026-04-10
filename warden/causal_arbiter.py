@@ -29,16 +29,208 @@ Fails open: any error returns is_high_risk=False.
 """
 from __future__ import annotations
 
+import json
 import logging
 import math
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 log = logging.getLogger("warden.causal_arbiter")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
 _CAUSAL_THRESHOLD = float(os.getenv("CAUSAL_RISK_THRESHOLD", "0.65"))
+
+
+# ── CPT: Conditional Probability Table parameters ─────────────────────────────
+# Defaults are hand-tuned priors.  Call calibrate_from_logs() to update via MLE.
+
+
+@dataclass
+class _CPT:
+    """Tunable parameters for every causal node in the DAG."""
+
+    # Reputation node — ERS → P(Reputation=high)
+    ers_center: float = 0.35    # sigmoid centre
+    ers_slope:  float = 12.0    # sigmoid steepness
+
+    # ContentRisk node — ObfuscDetected → P(ContentRisk=high)
+    obfusc_pos: float = 0.82    # P(high | obfusc=True)
+    obfusc_neg: float = 0.12    # P(high | obfusc=False)
+
+    # Persistence node — BlockHistory → P(Persistence=high)
+    persist_slope:  float = 2.5
+    persist_offset: float = 1.5
+
+    # EntropyRisk node — ContentEntropy → P(EntropyRisk=high)
+    entropy_center: float = 4.5
+    entropy_slope:  float = 3.0
+
+    # Structural equation weights (must sum ≈ 1.05 after SE addend)
+    w_reputation:  float = 0.30
+    w_content:     float = 0.20
+    w_persistence: float = 0.15
+    w_tool:        float = 0.15
+    w_entropy:     float = 0.10
+    w_ml:          float = 0.10
+    w_se:          float = 0.15   # SE-Arbiter addend — backward-compatible (0 if absent)
+
+    # Backdoor correction weight
+    backdoor_w: float = 0.05
+
+    # Calibration metadata
+    calibrated_from: str = ""     # logs path used for calibration
+    calibration_n:   int = 0      # number of samples used
+
+
+_cpt = _CPT()   # module-level singleton; updated by calibrate_from_logs()
+
+
+def calibrate_from_logs(
+    logs_path: str | Path | None = None,
+    min_samples: int = 100,
+) -> bool:
+    """
+    Update CPT parameters via Maximum Likelihood Estimation from production
+    filter audit logs (NDJSON at logs_path).
+
+    Calibrates:
+      - obfusc_pos / obfusc_neg  — empirical P(HIGH|BLOCK | obfuscation flag)
+      - ers_center                — median ERS implied by block rate (proxy)
+      - entropy_center            — median payload length as entropy proxy
+
+    Returns True if calibration succeeded (>= min_samples); False otherwise.
+    Updates the global _cpt in-place only on success.
+
+    Safe to call at startup without blocking — reads the log file once and
+    returns immediately.  Any read/parse error is silently ignored (fail-open).
+    """
+    global _cpt
+
+    if logs_path is None:
+        logs_path = os.getenv("LOGS_PATH", "/warden/data/logs.json")
+    path = Path(logs_path)
+
+    if not path.exists():
+        log.debug("calibrate_from_logs: %s not found — using prior CPT", path)
+        return False
+
+    try:
+        entries: list[dict] = []
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line:
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+
+        if len(entries) < min_samples:
+            log.debug(
+                "calibrate_from_logs: only %d samples (need %d) — using prior CPT",
+                len(entries), min_samples,
+            )
+            return False
+
+        # ── Obfuscation CPT ───────────────────────────────────────────────────
+        obfusc_hits_high   = 0
+        obfusc_hits_total  = 0
+        clean_hits_high    = 0
+        clean_hits_total   = 0
+
+        # ── Entropy proxy via payload length ─────────────────────────────────
+        # Approximate Shannon entropy h ≈ a + b*log(len) for English/code text.
+        # We collect len distribution for blocked vs allowed to shift the centre.
+        blocked_lens: list[int] = []
+        allowed_lens: list[int] = []
+
+        # ── Block rate for ERS centre proxy ──────────────────────────────────
+        n_blocked = 0
+        n_total   = len(entries)
+
+        _OBFUSC_FLAGS = frozenset({
+            "OBFUSCATION", "BASE64_ENCODED", "HEX_ENCODED",
+            "ROT13_ENCODED", "HOMOGLYPH_SUBSTITUTION",
+        })
+        _HIGH_RISK = frozenset({"HIGH", "BLOCK"})
+
+        for entry in entries:
+            flags      = set(entry.get("flags") or [])
+            risk       = (entry.get("risk_level") or "LOW").upper()
+            payload_len = int(entry.get("payload_len") or 0)
+            is_high    = risk in _HIGH_RISK
+            has_obfusc = bool(flags & _OBFUSC_FLAGS)
+
+            if has_obfusc:
+                obfusc_hits_total += 1
+                if is_high:
+                    obfusc_hits_high += 1
+            else:
+                clean_hits_total += 1
+                if is_high:
+                    clean_hits_high += 1
+
+            if is_high:
+                n_blocked += 1
+                blocked_lens.append(payload_len)
+            else:
+                allowed_lens.append(payload_len)
+
+        # ── MLE estimates ─────────────────────────────────────────────────────
+        # Laplace smoothing (α=1) prevents zero probabilities on sparse data.
+        new_obfusc_pos = (obfusc_hits_high + 1) / (obfusc_hits_total + 2)
+        new_obfusc_neg = (clean_hits_high  + 1) / (clean_hits_total  + 2)
+
+        # ERS centre proxy: if overall block rate is higher than expected,
+        # the effective ERS threshold is lower — shift centre down.
+        block_rate = n_blocked / n_total if n_total else 0.0
+        # Prior block rate is assumed ~5%; normalise deviation to shift centre.
+        prior_block_rate = 0.05
+        centre_shift = (block_rate - prior_block_rate) * 0.5   # ±0.25 max shift
+        new_ers_center = max(0.15, min(0.55, _cpt.ers_center - centre_shift))
+
+        # Entropy centre proxy: blocked payloads tend to be longer/more random.
+        # Map median blocked length to an entropy estimate shift.
+        if blocked_lens:
+            median_blocked = sorted(blocked_lens)[len(blocked_lens) // 2]
+            # Typical 4.5 bits/char corresponds to ~200-char payloads
+            # Shift entropy centre proportionally (clamped ±0.5)
+            len_ratio = math.log1p(median_blocked) / math.log1p(200)
+            entropy_shift = (len_ratio - 1.0) * 0.3
+            new_entropy_center = max(3.5, min(5.5, _cpt.entropy_center + entropy_shift))
+        else:
+            new_entropy_center = _cpt.entropy_center
+
+        # ── Apply only if estimates look sane ─────────────────────────────────
+        if new_obfusc_pos <= new_obfusc_neg:
+            log.warning(
+                "calibrate_from_logs: obfusc_pos (%.3f) ≤ obfusc_neg (%.3f) — "
+                "data quality issue; keeping prior",
+                new_obfusc_pos, new_obfusc_neg,
+            )
+            return False
+
+        _cpt.obfusc_pos     = round(new_obfusc_pos,   4)
+        _cpt.obfusc_neg     = round(new_obfusc_neg,   4)
+        _cpt.ers_center     = round(new_ers_center,   4)
+        _cpt.entropy_center = round(new_entropy_center, 4)
+        _cpt.calibrated_from = str(path)
+        _cpt.calibration_n   = n_total
+
+        log.info(
+            "CausalArbiter CPT calibrated from %d samples: "
+            "obfusc_pos=%.3f obfusc_neg=%.3f ers_center=%.3f entropy_center=%.3f",
+            n_total, _cpt.obfusc_pos, _cpt.obfusc_neg,
+            _cpt.ers_center, _cpt.entropy_center,
+        )
+        return True
+
+    except Exception as exc:
+        log.debug("calibrate_from_logs error (ignored): %s", exc)
+        return False
 
 # ── Result ────────────────────────────────────────────────────────────────────
 
@@ -102,26 +294,36 @@ def arbitrate(
     """
     try:
         # ── Causal node mechanisms (conditional probability tables) ────
+        # Parameters are sourced from the module-level _cpt, which may have
+        # been updated via calibrate_from_logs() at startup.
 
         # P(Reputation = high | ERS_score)
-        # S-curve centred at ERS = 0.35 — significant above typical noise floor
-        p_reputation: float = _sigmoid((ers_score - 0.35) * 12.0)
+        # S-curve centred at _cpt.ers_center — significant above typical noise floor
+        p_reputation: float = _sigmoid(
+            (ers_score - _cpt.ers_center) * _cpt.ers_slope
+        )
 
         # P(ContentRisk = high | ObfuscDetected)
         # Obfuscation is a near-certain signal of intentional evasion
-        p_content_risk: float = 0.82 if obfuscation_detected else 0.12
+        p_content_risk: float = (
+            _cpt.obfusc_pos if obfuscation_detected else _cpt.obfusc_neg
+        )
 
         # P(Persistence = high | BlockHistory)
         # Rises steeply after the first block — repeat offenders
-        p_persistence: float = _sigmoid(float(block_history) * 2.5 - 1.5)
+        p_persistence: float = _sigmoid(
+            float(block_history) * _cpt.persist_slope - _cpt.persist_offset
+        )
 
         # P(ToolRisk = high | ToolTier)
         _tool_map: dict[int, float] = {-1: 0.10, 0: 0.15, 1: 0.55, 2: 0.92}
         p_tool_risk: float = _tool_map.get(tool_tier, 0.10)
 
         # P(EntropyRisk = high | ContentEntropy)
-        # Natural language: 3.8–4.8 bits/char.  Suspicious above 4.5.
-        p_entropy_risk: float = _sigmoid((content_entropy - 4.5) * 3.0)
+        # Natural language: 3.8–4.8 bits/char.  Suspicious above _cpt.entropy_center.
+        p_entropy_risk: float = _sigmoid(
+            (content_entropy - _cpt.entropy_center) * _cpt.entropy_slope
+        )
 
         # P(SE_Risk = high | se_risk)
         # Direct pass-through from PhishGuard SE-Arbiter formula.
@@ -133,13 +335,13 @@ def arbitrate(
         # SE_Risk node adds up to +0.15 when social engineering is detected;
         # existing node weights are unchanged so se_risk=0 is fully backward-compatible.
         causal_score: float = (
-            0.30 * p_reputation      # strongest prior: known bad entity
-            + 0.20 * p_content_risk  # obfuscation is a strong evasion signal
-            + 0.15 * p_persistence   # repeated blocking in this session
-            + 0.15 * p_tool_risk     # tool privilege escalation context
-            + 0.10 * p_entropy_risk  # near-random content entropy anomaly
-            + 0.10 * ml_score        # direct ML evidence in the gray zone
-            + 0.15 * p_se_risk       # SE-Arbiter: phishing / manipulation signal
+            _cpt.w_reputation  * p_reputation   # strongest prior: known bad entity
+            + _cpt.w_content   * p_content_risk # obfuscation is a strong evasion signal
+            + _cpt.w_persistence * p_persistence # repeated blocking in this session
+            + _cpt.w_tool      * p_tool_risk     # tool privilege escalation context
+            + _cpt.w_entropy   * p_entropy_risk  # near-random content entropy anomaly
+            + _cpt.w_ml        * ml_score        # direct ML evidence in the gray zone
+            + _cpt.w_se        * p_se_risk       # SE-Arbiter: phishing / manipulation signal
         )
 
         # ── Backdoor correction (Pearl backdoor criterion) ─────────────
@@ -147,7 +349,7 @@ def arbitrate(
         # Sophisticated attackers score high on ERS *and* use obfuscation.
         # Subtracting their joint influence removes the spurious back-door path
         # so we measure the direct causal effect, not the confounded association.
-        backdoor_correction: float = 0.05 * p_reputation * p_content_risk
+        backdoor_correction: float = _cpt.backdoor_w * p_reputation * p_content_risk
         causal_score = max(0.0, min(1.0, causal_score - backdoor_correction))
 
         is_high_risk = causal_score >= _CAUSAL_THRESHOLD

@@ -224,6 +224,8 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
     steps:
+      - uses: actions/checkout@v4.2.2
+
       - name: Set up SSH key
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -238,6 +240,28 @@ jobs:
           # Add server to known hosts
           SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync code to server
+        # rsync the checked-out code directly from the runner — no git on the server.
+        # This permanently avoids the .git/FETCH_HEAD permission problem caused by
+        # root-owned files written by Docker containers into the repo directory.
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
+          SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
+          SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='data/' \
+            --exclude='.env' \
+            --exclude='warden/models/' \
+            --exclude='**/__pycache__/' \
+            --exclude='**/*.pyc' \
+            -e "ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=no" \
+            "./" "${SSH_USER}@${SSH_HOST}:${SSH_PATH}/"
 
       - name: Deploy via SSH
         env:
@@ -261,18 +285,7 @@ jobs:
           set -euo pipefail
           cd "$SSH_PATH"
 
-          echo "── [1/4] Pull latest code ──────────────────────────────────"
-          # Git 2.35.2+ rejects repos owned by a different user (safe.directory).
-          git config --global --add safe.directory "$SSH_PATH"
-
-          # Docker containers (running as root or UID 10001) write files into the
-          # mounted repo dir, including .git/FETCH_HEAD.  The safest fix is to
-          # delete the locked files outright — git recreates them on the next fetch.
-          # We also remove index.lock in case a previous git was interrupted.
-          rm -f .git/FETCH_HEAD .git/index.lock 2>/dev/null || true
-
-          git fetch origin main
-          git reset --hard origin/main
+          echo "── [1/4] Code already synced via rsync ────────────────────"
 
           echo "── [1b/4] ONNX model — build if missing ────────────────────"
           # The quantized INT8 ONNX model lives in warden/models/minilm-onnx-int8/

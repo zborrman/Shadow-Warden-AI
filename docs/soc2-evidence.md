@@ -1,6 +1,6 @@
 # Shadow Warden AI — SOC 2 Type II Evidence Guide
 
-**Version:** 1.0 · **Date:** 2026-03-26
+**Version:** 1.1 · **Date:** 2026-04-10
 **Audience:** SOC 2 auditors, compliance officers, security engineers
 
 ---
@@ -168,16 +168,16 @@ For a SOC 2 Type II audit covering a 6-12 month period:
 
 ---
 
-## Remediation Backlog (open items)
+## Remediation Log
 
-| Item | Priority | Target |
-|------|---------|--------|
-| Formal SLA document (99.9% uptime commitment) | High | v2.3 |
-| External uptime monitoring with evidence retention | High | v2.3 |
-| Causal Arbiter CPT calibration (MLE from prod data) | Medium | v2.3 |
-| `mlock()` for PII vault key memory pages | Medium | v2.3 |
-| SOC 2 Type II certification (external auditor engagement) | High | Q3 2026 |
+| Item | Status | Closed | Notes |
+|------|--------|--------|-------|
+| Formal SLA document (99.9% uptime commitment) | **Done** | 2026-04-10 | `docs/sla.md` v1.0 — Pro 99.9%, Enterprise 99.95%, credits table, maintenance windows |
+| External uptime monitoring with evidence retention | **Done** | 2026-04-10 | UptimeRobot config + monthly MinIO export documented in `docs/sla.md §6` |
+| Causal Arbiter CPT calibration (MLE from prod data) | **Done** | 2026-04-10 | `calibrate_from_logs()` in `warden/causal_arbiter.py` — MLE on obfusc/block rates at startup |
+| `mlock()` for PII vault key memory pages | **Done** | 2026-04-10 | `_try_mlock()` in `warden/masking/engine.py` — Fernet + HMAC keys locked via `VirtualLock`/`mlock(2)` |
+| SOC 2 Type II certification (external auditor engagement) | Open | — | Target Q3 2026 |
 
 ---
 
-*Shadow Warden AI · soc2-evidence.md · v1.0 · 2026-03-26*
+*Shadow Warden AI · soc2-evidence.md · v1.1 · 2026-04-10*

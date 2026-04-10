@@ -506,6 +506,17 @@ async def lifespan(app: FastAPI):
     except Exception as _pe:
         log.warning("DataPoisoningGuard unavailable (non-fatal): %s", _pe)
 
+    # ── Causal Arbiter CPT calibration (MLE from prod logs) ─────────────
+    try:
+        from warden.causal_arbiter import calibrate_from_logs as _calibrate_cpt
+        calibrated = await asyncio.to_thread(_calibrate_cpt)
+        if calibrated:
+            log.info("CausalArbiter: CPT calibrated from production logs.")
+        else:
+            log.debug("CausalArbiter: using prior CPT (insufficient log samples).")
+    except Exception as _cpt_err:
+        log.debug("CausalArbiter: CPT calibration skipped: %s", _cpt_err)
+
     # ── Rule Ledger ────────────────────────────────────────────────────
     _ledger = RuleLedger()
     stale = _ledger.retire_stale()
