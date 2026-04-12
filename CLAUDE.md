@@ -1,5 +1,9 @@
 # CLAUDE.md — Shadow Warden AI
 
+## Response Style
+- **Keep responses under 100 words.** Code and tool calls don't count — only prose.
+- No summaries after completing tasks. No filler phrases.
+
 ## Project Overview
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
