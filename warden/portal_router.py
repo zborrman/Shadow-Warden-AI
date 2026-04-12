@@ -52,7 +52,7 @@ _SMTP_HOST     = os.getenv("SMTP_HOST", "")
 _SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
 _SMTP_USER     = os.getenv("SMTP_USER", "")
 _SMTP_PASS     = os.getenv("SMTP_PASS", "")
-_PORTAL_FROM   = os.getenv("PORTAL_FROM_EMAIL", _SMTP_USER)
+_PORTAL_FROM   = os.getenv("PORTAL_FROM_EMAIL") or os.getenv("PORTAL_FROM") or _SMTP_USER
 _PORTAL_URL    = os.getenv("PORTAL_URL", "https://app.shadow-warden-ai.com")
 
 
