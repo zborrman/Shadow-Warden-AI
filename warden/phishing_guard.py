@@ -361,6 +361,37 @@ _KNOWN_CONTEXT_PATTERNS: list[re.Pattern[str]] = [
 ]
 
 
+# ── AI filter/safety bypass — direct attempts to override LLM guardrails ─────
+# These patterns target AI systems specifically, not human users.
+# A single match scores 1.0 (deterministic indicator of malicious intent).
+_FILTER_BYPASS_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(
+        r'\b(?:disable|turn\s+off|remove|bypass|circumvent|deactivate|override)\s+'
+        r'(?:your\s+)?(?:safety|security|content|all|the)\s*(?:filter|filters|'
+        r'restriction|restrictions|guardrail|guardrails|protection|protections|'
+        r'limit|limits|constraint|constraints|rule|rules)\b',
+        re.IGNORECASE,
+    ), "AI filter bypass attempt"),
+    (re.compile(
+        r'\b(?:developer|maintenance|admin|root|debug|god|sudo|system)\s+'
+        r'(?:mode|override|access|bypass|key|command|directive|protocol)\b',
+        re.IGNORECASE,
+    ), "privileged mode override"),
+    (re.compile(
+        r'\b(?:I\s+am|this\s+is)\s+(?:your\s+)?(?:developer|creator|owner|'
+        r'administrator|admin|operator|manufacturer|trainer|OpenAI|Anthropic|'
+        r'the\s+(?:company|team)\s+(?:that|who))\b',
+        re.IGNORECASE,
+    ), "AI creator impersonation"),
+    (re.compile(
+        r'\b(?:act\s+as\s+if|pretend\s+(?:you\s+have\s+no|there\s+are\s+no)|'
+        r'(?:no|without\s+(?:any)?)\s+(?:restrictions|filters|guidelines|rules|'
+        r'safety|constraints|limits)|unfiltered|unrestricted|uncensored\s+mode)\b',
+        re.IGNORECASE,
+    ), "unrestricted mode request"),
+]
+
+
 def _score_vector(patterns: list[tuple[re.Pattern[str], str]], text: str) -> tuple[float, list[str]]:
     """
     Score a single psychological pressure vector.
@@ -407,6 +438,7 @@ class PhishResult:
     p_greed:              float   = 0.0
     p_url_anomaly:        float   = 0.0
     p_known_context:      float   = 0.0
+    p_filter_bypass:      float   = 0.0
     se_labels:            list[str] = field(default_factory=list)
 
     # ── Defanged text (for output scanning mode) ───────────────────────────────
@@ -505,28 +537,32 @@ def analyse(text: str) -> PhishResult:
         is_phishing = max_url_score >= PHISH_URL_THRESHOLD
 
         # ── 2. SE psychological vector scoring ────────────────────────────────
-        p_urgency,   urgency_labels   = _score_vector(_URGENCY_PATTERNS,   text)
-        p_authority, authority_labels = _score_vector(_AUTHORITY_PATTERNS, text)
-        p_fear,      fear_labels      = _score_vector(_FEAR_PATTERNS,      text)
-        p_greed,     greed_labels     = _score_vector(_GREED_PATTERNS,     text)
-        p_known_ctx                   = _known_context_score(text)
+        p_urgency,       urgency_labels  = _score_vector(_URGENCY_PATTERNS,       text)
+        p_authority,     auth_labels     = _score_vector(_AUTHORITY_PATTERNS,     text)
+        p_fear,          fear_labels     = _score_vector(_FEAR_PATTERNS,          text)
+        p_greed,         greed_labels    = _score_vector(_GREED_PATTERNS,         text)
+        p_filter_bypass, bypass_labels   = _score_vector(_FILTER_BYPASS_PATTERNS, text)
+        p_known_ctx                      = _known_context_score(text)
 
         # URL anomaly signal for SE formula
         p_url_anomaly = max_url_score if url_findings else 0.0
 
         # ── 3. P(SE_RISK | do(content)) — spec formula ────────────────────────
+        # filter_bypass is a strong independent signal: a single match (score 1.0)
+        # pushes se_risk well above the 0.75 threshold on its own.
         se_risk = (
             0.40 * p_urgency
             + 0.30 * p_authority
             + 0.30 * p_url_anomaly
             - 0.10 * p_known_ctx
-            + 0.10 * p_fear        # secondary booster
-            + 0.05 * p_greed       # secondary booster
+            + 0.10 * p_fear            # secondary booster
+            + 0.05 * p_greed           # secondary booster
+            + 0.70 * p_filter_bypass   # AI safety bypass — strong independent signal
         )
         se_risk = round(max(0.0, min(se_risk, 1.0)), 4)
         is_se   = se_risk >= SE_RISK_THRESHOLD
 
-        se_labels = urgency_labels + authority_labels + fear_labels + greed_labels
+        se_labels = urgency_labels + auth_labels + fear_labels + greed_labels + bypass_labels
 
         # ── 4. Defanged text ──────────────────────────────────────────────────
         defanged_text = text
@@ -548,6 +584,7 @@ def analyse(text: str) -> PhishResult:
             p_greed               = round(p_greed, 4),
             p_url_anomaly         = round(p_url_anomaly, 4),
             p_known_context       = round(p_known_ctx, 4),
+            p_filter_bypass       = round(p_filter_bypass, 4),
             se_labels             = se_labels,
             defanged_text         = defanged_text,
             elapsed_ms            = elapsed,

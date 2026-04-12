@@ -1787,7 +1787,8 @@ async def _run_filter_pipeline(
                     f"urgency={_phish_result.p_urgency:.2f} "
                     f"authority={_phish_result.p_authority:.2f} "
                     f"fear={_phish_result.p_fear:.2f} "
-                    f"greed={_phish_result.p_greed:.2f}"
+                    f"greed={_phish_result.p_greed:.2f} "
+                    f"filter_bypass={_phish_result.p_filter_bypass:.2f}"
                 ),
             ))
             guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.HIGH)
