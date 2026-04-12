@@ -1426,8 +1426,18 @@ async def _run_filter_pipeline(
         _sp.set_attribute("obfuscation.layers",   str(obfuscation_result.layers_found))
     timings["obfuscation"] = round((time.perf_counter() - t0) * 1000, 2)
 
-    # Use decoded+original combined text for downstream analysis
+    # Use decoded+original combined text for downstream analysis.
+    # Append string-serialised context values so injection via context fields
+    # (e.g. context.system_override) is visible to every downstream stage.
     analysis_text = obfuscation_result.combined
+    if payload.context:
+        ctx_blob = " ".join(
+            str(v) for v in payload.context.values()
+            if isinstance(v, (str, int, float, bool))
+        )
+        if ctx_blob:
+            analysis_text = f"{analysis_text}\n\n[CONTEXT]{ctx_blob}[/CONTEXT]"
+
     if obfuscation_result.has_obfuscation:
         log.warning(
             json.dumps({
@@ -3971,6 +3981,13 @@ async def ws_filter_stream(websocket: WebSocket):
     obfuscation_result = decode_obfuscation(payload.content)
     timings["obfuscation"] = round((time.perf_counter() - t0) * 1000, 2)
     analysis_text = obfuscation_result.combined
+    if payload.context:
+        ctx_blob = " ".join(
+            str(v) for v in payload.context.values()
+            if isinstance(v, (str, int, float, bool))
+        )
+        if ctx_blob:
+            analysis_text = f"{analysis_text}\n\n[CONTEXT]{ctx_blob}[/CONTEXT]"
     await _ws_send(websocket, {
         "type": "stage", "stage": "obfuscation",
         "detected": obfuscation_result.has_obfuscation,
