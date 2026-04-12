@@ -657,13 +657,20 @@ async def lifespan(app: FastAPI):
     _billing_task     = asyncio.create_task(_billing_aggregation_loop())
     _feed_sync_task   = asyncio.create_task(_threat_feed_sync_loop())
 
-    # ── Uptime probe scheduler ────────────────────────────────────────
-    try:
-        from warden.workers.probe_worker import probe_scheduler as _probe_scheduler  # noqa: PLC0415
-        asyncio.create_task(_probe_scheduler())
-        log.info("Uptime probe scheduler started.")
-    except Exception as _probe_err:
-        log.warning("probe_scheduler failed to start: %s", _probe_err)
+    # ── Uptime probe scheduler (PostgreSQL only) ──────────────────────
+    # Skipped when DATABASE_URL is SQLite (tests / air-gapped mode) because
+    # TimescaleDB hypertables don't exist on SQLite and the background task
+    # would hit a closed DB connection on test teardown.
+    from warden.db.connection import is_postgres as _is_postgres  # noqa: PLC0415
+    if _is_postgres():
+        try:
+            from warden.workers.probe_worker import probe_scheduler as _probe_scheduler  # noqa: PLC0415
+            asyncio.create_task(_probe_scheduler())
+            log.info("Uptime probe scheduler started.")
+        except Exception as _probe_err:
+            log.warning("probe_scheduler failed to start: %s", _probe_err)
+    else:
+        log.info("Uptime probe scheduler skipped (no PostgreSQL).")
 
     # ── Webhook store ─────────────────────────────────────────────────
     _webhook_store = WebhookStore()
