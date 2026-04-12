@@ -269,7 +269,7 @@ services:
 
   # ── POSTGRES ────────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg16
     container_name: warden-postgres
     restart: unless-stopped
     logging:

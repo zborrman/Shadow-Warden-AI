@@ -45,6 +45,7 @@ import secrets
 import time
 import uuid
 from collections import Counter, defaultdict, deque
+import contextlib
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -656,6 +657,14 @@ async def lifespan(app: FastAPI):
     _billing_task     = asyncio.create_task(_billing_aggregation_loop())
     _feed_sync_task   = asyncio.create_task(_threat_feed_sync_loop())
 
+    # ── Uptime probe scheduler ────────────────────────────────────────
+    try:
+        from warden.workers.probe_worker import probe_scheduler as _probe_scheduler  # noqa: PLC0415
+        asyncio.create_task(_probe_scheduler())
+        log.info("Uptime probe scheduler started.")
+    except Exception as _probe_err:
+        log.warning("probe_scheduler failed to start: %s", _probe_err)
+
     # ── Webhook store ─────────────────────────────────────────────────
     _webhook_store = WebhookStore()
     log.info("WebhookStore ready.")
@@ -995,6 +1004,13 @@ try:
     log.info("Billing API mounted at /billing")
 except ImportError:
     log.warning("billing router not available — /billing routes skipped.")
+
+try:
+    from warden.api.monitor import router as _monitor_router
+    app.include_router(_monitor_router)
+    log.info("Uptime Monitor API mounted at /monitors")
+except ImportError:
+    log.warning("monitor router not available — /monitors routes skipped.")
 
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
@@ -3883,6 +3899,58 @@ async def ws_stream(websocket: WebSocket):
 
     await _ws_send(websocket, {"type": "done", "request_id": rid})
     await websocket.close()
+
+
+# ── WebSocket /ws/monitor/{id} — real-time probe results ─────────────────────
+
+@app.websocket("/ws/monitor/{monitor_id}")
+async def ws_monitor_stream(websocket: WebSocket, monitor_id: str):
+    """
+    Subscribe to real-time probe results for a monitor.
+
+    Connect:  ws://host/ws/monitor/<uuid>
+    Receives: {"is_up": bool, "latency_ms": float, "status_code": int,
+               "error": str|null, "ts": "ISO8601"}
+
+    Uses a queue bridge: sync Redis pubsub runs in a thread executor,
+    forwarding messages to an asyncio.Queue consumed by the WebSocket sender.
+    """
+    await websocket.accept()
+    r = _get_redis()
+    if r is None:
+        await websocket.send_json({"error": "Redis unavailable"})
+        await websocket.close()
+        return
+
+    queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+    channel = f"monitor:{monitor_id}:result"
+    loop = asyncio.get_running_loop()
+
+    def _listen() -> None:
+        pubsub = r.pubsub()
+        pubsub.subscribe(channel)
+        try:
+            for msg in pubsub.listen():
+                if msg["type"] == "message":
+                    loop.call_soon_threadsafe(queue.put_nowait, msg["data"])
+        except Exception:
+            pass
+        finally:
+            with contextlib.suppress(Exception):
+                pubsub.unsubscribe(channel)
+
+    import threading
+    _t = threading.Thread(target=_listen, daemon=True)
+    _t.start()
+
+    try:
+        while True:
+            data = await asyncio.wait_for(queue.get(), timeout=30)
+            await websocket.send_text(data)
+    except (WebSocketDisconnect, asyncio.TimeoutError):
+        pass
+    except Exception as exc:
+        log.debug("ws_monitor: error — %s", exc)
 
 
 # ── WebSocket /ws/filter — per-stage streaming ───────────────────────────────
