@@ -224,27 +224,21 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
     steps:
-      - uses: actions/checkout@v4.2.2
-
       - name: Set up SSH key
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          # Decode base64 key — single-line secret, immune to line-ending corruption
           echo "$SSH_PRIVATE_KEY" | tr -d '[:space:]' | base64 -d > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          # Verify decoded key is parseable (prints fingerprint, never the key itself)
           ssh-keygen -l -f ~/.ssh/id_deploy
-          # Add server to known hosts
           SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
-      - name: Sync code to server
-        # rsync the checked-out code directly from the runner — no git on the server.
-        # This permanently avoids the .git/FETCH_HEAD permission problem caused by
-        # root-owned files written by Docker containers into the repo directory.
+      - name: Pull latest code on server
+        # Docker containers run as root and can leave .git/ files owned by root,
+        # blocking git fetch for the deploy user. Fix ownership first, then pull.
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -254,22 +248,17 @@ jobs:
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
-          # Docker containers (root) write into the repo directory, leaving
-          # subdirectories owned by root that rsync cannot create temp files in.
-          # Fix all permissions in one shot via a root alpine container before sync.
           ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=no \
-            "${SSH_USER}@${SSH_HOST}" \
-            "docker run --rm -v '${SSH_PATH}:/r' alpine chmod -R a+rwX /r"
+            "${SSH_USER}@${SSH_HOST}" bash -s << EOF
+          set -euo pipefail
+          # Fix any root-owned files left by Docker (including .git/FETCH_HEAD)
+          docker run --rm -v "${SSH_PATH}:/r" alpine chmod -R a+rwX /r
 
-          rsync -az --delete \
-            --exclude='.git/' \
-            --exclude='data/' \
-            --exclude='.env' \
-            --exclude='warden/models/' \
-            --exclude='**/__pycache__/' \
-            --exclude='**/*.pyc' \
-            -e "ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=no" \
-            "./" "${SSH_USER}@${SSH_HOST}:${SSH_PATH}/"
+          cd "${SSH_PATH}"
+          git fetch origin main
+          git reset --hard origin/main
+          echo "── Code updated to: \$(git log --oneline -1)"
+          EOF
 
       - name: Deploy via SSH
         env:
@@ -293,7 +282,7 @@ jobs:
           set -euo pipefail
           cd "$SSH_PATH"
 
-          echo "── [1/4] Code already synced via rsync ────────────────────"
+          echo "── [1/4] Code already pulled via git ──────────────────────"
 
           echo "── [1b/4] ONNX model — build if missing ────────────────────"
           # The quantized INT8 ONNX model lives in warden/models/minilm-onnx-int8/
