@@ -134,7 +134,7 @@ jobs:
       # runs.  A requirements.txt or Dockerfile change busts only the affected
       # layers, keeping cold-start time reasonable.
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # ── Build warden image ────────────────────────────────────────────────────
       - name: Build warden image
