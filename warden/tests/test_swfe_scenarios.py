@@ -19,7 +19,6 @@ from __future__ import annotations
 import textwrap
 
 import pytest
-from fastapi.testclient import TestClient
 
 from warden.testing.context import FakeContext
 from warden.testing.fakes.evolution_fake import FakeEvolutionEngine
@@ -35,12 +34,15 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+# Use the session-scoped `client` from conftest.py rather than creating a new
+# TestClient here.  Two TestClient instances on the same `app` object run the
+# lifespan twice; the second shutdown closes SQLite connections that the first
+# client still needs, causing sqlite3.ProgrammingError in later tests.
 
-@pytest.fixture(scope="module")
-def app_client():
-    from warden.main import app
-    with TestClient(app) as c:
-        yield c
+@pytest.fixture(scope="session")
+def app_client(client):
+    """Alias the session-scoped TestClient from conftest."""
+    return client
 
 
 # ══════════════════════════════════════════════════════════════════════════════
