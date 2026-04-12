@@ -226,7 +226,7 @@ class TestFakeContextIntegration:
                 assert ctx1.s3 is not ctx2.s3
                 assert ctx1.evolution is not ctx2.evolution
 
-    def test_s3_no_writes_on_benign_request(self, app_client):
+    def test_s3_no_evidence_bundle_on_benign_request(self, app_client):
         with FakeContext(enable_s3=True) as ctx:
             resp = app_client.post(
                 "/filter",
@@ -234,14 +234,21 @@ class TestFakeContextIntegration:
                 headers=ctx.simulation_header(),
             )
             assert resp.status_code == 200
-            # Benign requests don't create evidence bundles
-            ctx.assert_no_s3_writes()
+            # Benign requests don't create tamper-evident compliance bundles.
+            # Analytics log entries (log_count) ARE expected for every request.
+            ctx.assert_no_evidence_bundles()
 
     def test_assert_no_s3_writes_fails_on_write(self):
         with FakeContext() as ctx:
             ctx.s3.save_bundle("sid", {"data": "x"})
             with pytest.raises(AssertionError, match="Expected no S3 writes"):
                 ctx.assert_no_s3_writes()
+
+    def test_assert_no_evidence_bundles_fails_on_bundle(self):
+        with FakeContext() as ctx:
+            ctx.s3.save_bundle("sid", {"data": "x"})
+            with pytest.raises(AssertionError, match="Expected no S3 evidence bundles"):
+                ctx.assert_no_evidence_bundles()
 
     def test_evolution_not_triggered_for_benign(self, app_client):
         with FakeContext() as ctx:
@@ -271,7 +278,7 @@ class TestFakeContextIntegration:
             )
             result = runner.run(benign_scenario)
             assert result.passed, result.summary()
-            ctx.assert_no_s3_writes()
+            ctx.assert_no_evidence_bundles()
 
     def test_selective_fake_activation(self, app_client):
         """FakeContext lets you activate only the fakes you need."""

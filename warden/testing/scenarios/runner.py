@@ -158,23 +158,34 @@ class ScenarioRunner:
 
         if step.expected_risk is not None:
             actual_risk = body.get("risk_level", "")
-            if actual_risk != step.expected_risk:
+            # API returns lowercase ("low", "high"); scenarios may use uppercase
+            if actual_risk.lower() != step.expected_risk.lower():
                 return f"risk_level={actual_risk!r}, expected={step.expected_risk!r}"
 
-        actual_flags = set(body.get("flags") or [])
+        # Flags response format: list of dicts {flag, score, detail} or plain strings.
+        # Normalise to a set of flag name strings for comparison.
+        raw_flags = body.get("flags") or body.get("semantic_flags") or []
+        actual_flags = {
+            (item["flag"] if isinstance(item, dict) else str(item)).upper()
+            for item in raw_flags
+        }
 
         if step.expected_flags:
-            missing = set(step.expected_flags) - actual_flags
+            expected_upper = {f.upper() for f in step.expected_flags}
+            missing = expected_upper - actual_flags
             if missing:
                 return f"Missing expected flags: {missing} (got {actual_flags})"
 
         if step.forbidden_flags:
-            present = set(step.forbidden_flags) & actual_flags
+            forbidden_upper = {f.upper() for f in step.forbidden_flags}
+            present = forbidden_upper & actual_flags
             if present:
                 return f"Forbidden flags present: {present}"
 
         if step.max_latency_ms is not None:
-            actual_ms = body.get("processing_ms", 0)
+            raw = body.get("processing_ms", 0)
+            # API returns processing_ms as a dict {"total": ms, "ml": ms, ...}
+            actual_ms = raw.get("total", 0) if isinstance(raw, dict) else float(raw or 0)
             if actual_ms > step.max_latency_ms:
                 return f"Latency {actual_ms:.1f}ms > limit {step.max_latency_ms}ms"
 

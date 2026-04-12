@@ -31,10 +31,11 @@
 - id: SLO-004
   name: "Secret detection latency — P99 < 100ms"
   category: latency_slo
-  description: "SecretRedactor operates early in pipeline — should not add latency"
+  description: "SecretRedactor strips secrets and passes sanitised request; verifies latency SLO"
   tags: [slo, latency, secrets]
   steps:
     - name: secret_detection_fast
       content: "My key is sk-proj-abc123DEFGHIJKLMNOPQRSTUVWXYZabcdefghij"
-      expected_allowed: false
+      # SecretRedactor redacts the secret but allows the sanitised content (by design)
+      expected_allowed: true
       max_latency_ms: 100

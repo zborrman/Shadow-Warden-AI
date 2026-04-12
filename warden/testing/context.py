@@ -128,7 +128,19 @@ class FakeContext:
             f"Expected {expected} S3 bundles, got {self.s3.bundle_count}"
         )
 
+    def assert_no_evidence_bundles(self) -> None:
+        """Assert no tamper-evident evidence bundles were written (e.g. for benign requests)."""
+        assert self.s3.bundle_count == 0, (
+            f"Expected no S3 evidence bundles, got bundle_count={self.s3.bundle_count}"
+        )
+
     def assert_no_s3_writes(self) -> None:
+        """Assert neither evidence bundles nor analytics logs were written.
+
+        NOTE: analytics logger ships a log entry for every /filter request (by design).
+        Use assert_no_evidence_bundles() when testing benign requests that produce log
+        entries but should not produce compliance evidence bundles.
+        """
         assert self.s3.bundle_count == 0 and self.s3.log_count == 0, (
             f"Expected no S3 writes, got bundles={self.s3.bundle_count} logs={self.s3.log_count}"
         )
