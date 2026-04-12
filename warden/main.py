@@ -664,7 +664,9 @@ async def lifespan(app: FastAPI):
     from warden.db.connection import is_postgres as _is_postgres  # noqa: PLC0415
     if _is_postgres():
         try:
-            from warden.workers.probe_worker import probe_scheduler as _probe_scheduler  # noqa: PLC0415
+            from warden.workers.probe_worker import (
+                probe_scheduler as _probe_scheduler,  # noqa: PLC0415
+            )
             asyncio.create_task(_probe_scheduler())
             log.info("Uptime probe scheduler started.")
         except Exception as _probe_err:
