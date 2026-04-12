@@ -50,7 +50,7 @@ class FakeNvidiaClient:
     """
 
     def __init__(self) -> None:
-        self._queue: deque[str] = deque()
+        self._queue: deque[str | Exception] = deque()
         self._calls: list[dict] = []
         self.chat = self
         self.completions = self

@@ -30,7 +30,7 @@ def load_scenarios(path: str | Path) -> list[Scenario]:
     Возвращает список Scenario.
     """
     try:
-        import yaml
+        import yaml  # type: ignore[import-untyped]
     except ImportError as e:
         raise ImportError("PyYAML required for scenario loading: pip install pyyaml") from e
 

@@ -68,7 +68,7 @@ async def _probe_ssl(host: str, port: int = 443) -> dict:
             with socket.create_connection((host, port), timeout=_PROBE_TIMEOUT_S) as sock, \
                  ctx.wrap_socket(sock, server_hostname=host) as ssock:
                 cert = ssock.getpeercert()
-            expiry = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(tzinfo=UTC)
+            expiry = datetime.strptime(str(cert["notAfter"]), "%b %d %H:%M:%S %Y %Z").replace(tzinfo=UTC)
             return (expiry - datetime.now(UTC)).days
 
         days_left = await loop.run_in_executor(None, _connect)

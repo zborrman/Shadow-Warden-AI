@@ -50,7 +50,7 @@ class FakeAnthropicClient:
     """
 
     def __init__(self) -> None:
-        self._queue: deque[str] = deque()
+        self._queue: deque[str | Exception] = deque()
         self._calls: list[dict] = []   # audit: все вызовы для проверки в тестах
         self.messages = self        # совместимость: client.messages.create(...)
 
