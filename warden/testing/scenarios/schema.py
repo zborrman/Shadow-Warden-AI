@@ -12,18 +12,18 @@ Dataclasses для описания тест-сценариев (Scenario DSL).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     LOW    = "LOW"
     MEDIUM = "MEDIUM"
     HIGH   = "HIGH"
     BLOCK  = "BLOCK"
 
 
-class ScenarioCategory(str, Enum):
+class ScenarioCategory(StrEnum):
     # Атакующие сценарии — должны блокироваться
     JAILBREAK         = "jailbreak"
     PROMPT_INJECTION  = "prompt_injection"
@@ -70,7 +70,7 @@ class Scenario:
     tags:        list[str]               = field(default_factory=list)
     fail_fast:   bool                    = True   # стоп при первом провале
 
-    def add_step(self, **kwargs) -> "Scenario":
+    def add_step(self, **kwargs) -> Scenario:
         self.steps.append(ScenarioStep(**kwargs))
         return self
 

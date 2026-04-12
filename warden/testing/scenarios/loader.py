@@ -19,7 +19,6 @@ YAML-загрузчик сценариев — внешние файлы как 
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from warden.testing.scenarios.schema import Scenario, ScenarioCategory, ScenarioStep

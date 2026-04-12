@@ -16,7 +16,6 @@ Test classes:
 """
 from __future__ import annotations
 
-import os
 import textwrap
 
 import pytest
@@ -220,11 +219,10 @@ class TestFakeContextIntegration:
             assert len(header["X-Simulation-ID"]) == 8
 
     def test_two_fake_contexts_are_isolated(self):
-        with FakeContext() as ctx1:
-            with FakeContext() as ctx2:
-                assert ctx1.simulation_id != ctx2.simulation_id
-                assert ctx1.s3 is not ctx2.s3
-                assert ctx1.evolution is not ctx2.evolution
+        with FakeContext() as ctx1, FakeContext() as ctx2:
+            assert ctx1.simulation_id != ctx2.simulation_id
+            assert ctx1.s3 is not ctx2.s3
+            assert ctx1.evolution is not ctx2.evolution
 
     def test_s3_no_evidence_bundle_on_benign_request(self, app_client):
         with FakeContext(enable_s3=True) as ctx:
@@ -260,9 +258,8 @@ class TestFakeContextIntegration:
             assert not ctx.evolution.was_called()
 
     def test_assert_evolution_triggered_raises_if_not_called(self):
-        with FakeContext() as ctx:
-            with pytest.raises(AssertionError, match="Evolution Engine"):
-                ctx.assert_evolution_triggered()
+        with FakeContext() as ctx, pytest.raises(AssertionError, match="Evolution Engine"):
+            ctx.assert_evolution_triggered()
 
     def test_fake_context_can_be_used_with_scenario_runner(self, app_client):
         with FakeContext() as ctx:

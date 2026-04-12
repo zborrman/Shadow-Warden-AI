@@ -13,9 +13,9 @@ from __future__ import annotations
 import asyncio
 import json
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 
 @dataclass

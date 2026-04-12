@@ -15,7 +15,7 @@ from typing import Any
 
 @dataclass
 class _NimChoice:
-    message: "_NimMessage"
+    message: _NimMessage
     finish_reason: str = "stop"
     index: int = 0
 

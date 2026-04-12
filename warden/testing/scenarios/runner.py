@@ -77,7 +77,7 @@ class ScenarioRunner:
         self._client = client
         self._headers = {"X-API-Key": api_key} if api_key else {}
 
-    def run(self, scenario: "Scenario") -> ScenarioResult:  # noqa: F821
+    def run(self, scenario: Scenario) -> ScenarioResult:  # noqa: F821
         result = ScenarioResult(
             scenario_id=scenario.id,
             scenario_name=scenario.name,
@@ -94,10 +94,10 @@ class ScenarioRunner:
         result.total_ms = (time.monotonic() - t_start) * 1000
         return result
 
-    def run_all(self, scenarios: list["Scenario"]) -> list[ScenarioResult]:  # noqa: F821
+    def run_all(self, scenarios: list[Scenario]) -> list[ScenarioResult]:  # noqa: F821
         return [self.run(s) for s in scenarios]
 
-    def _run_step(self, step: "ScenarioStep") -> StepResult:  # noqa: F821
+    def _run_step(self, step: ScenarioStep) -> StepResult:  # noqa: F821
         payload: dict[str, Any] = {"content": step.content}
         if step.tenant_id:
             payload["tenant_id"] = step.tenant_id
@@ -140,7 +140,7 @@ class ScenarioRunner:
 
     @staticmethod
     def _check_step(
-        step: "ScenarioStep",  # noqa: F821
+        step: ScenarioStep,  # noqa: F821
         status_code: int,
         body: dict,
     ) -> str | None:
