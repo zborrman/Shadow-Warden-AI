@@ -311,10 +311,13 @@ class EvolutionEngine:
     # ── Corpus protection ────────────────────────────────────────────────────
 
     def _count_existing_rules(self) -> int:
-        """Count rules already in dynamic_rules.json."""
+        """Count rules and restore seen_hashes from dynamic_rules.json (survive restarts)."""
         if self._rules_path.exists():
             try:
                 data = json.loads(self._rules_path.read_text())
+                # Restore persisted content hashes so we don't re-evolve on restart
+                for h in data.get("seen_hashes", []):
+                    self._seen_hashes.add(h)
                 return len(data.get("rules", []))
             except Exception:
                 pass
@@ -620,6 +623,10 @@ class EvolutionEngine:
 
         data["last_updated"] = datetime.now(UTC).isoformat()
         data["rules"].append(json.loads(rule.model_dump_json()))
+        # Persist seen_hashes so dedup survives process restarts (capped to 10k)
+        existing = set(data.get("seen_hashes", []))
+        existing.update(self._seen_hashes)
+        data["seen_hashes"] = list(existing)[:_SEEN_HASHES_CAP]
 
         self._rules_path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(

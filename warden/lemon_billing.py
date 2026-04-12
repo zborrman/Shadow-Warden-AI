@@ -143,6 +143,11 @@ class LemonBilling:
                 );
                 CREATE INDEX IF NOT EXISTS idx_subs_ls_sub
                     ON subscriptions(ls_sub_id);
+                CREATE TABLE IF NOT EXISTS webhook_events (
+                    event_id        TEXT PRIMARY KEY,
+                    event_name      TEXT NOT NULL,
+                    processed_at    TEXT NOT NULL
+                );
             """)
             self._conn.commit()
 
@@ -278,7 +283,23 @@ class LemonBilling:
         event      = json.loads(payload)
         meta       = event.get("meta", {})
         event_name = meta.get("event_name", "")
+        event_id   = str(meta.get("event_id") or meta.get("uuid") or "")
         data       = event.get("data", {})
+
+        # Idempotency: skip events already processed (Lemon Squeezy retries on timeout)
+        if event_id:
+            with self._lock:
+                row = self._conn.execute(
+                    "SELECT event_id FROM webhook_events WHERE event_id=?", (event_id,)
+                ).fetchone()
+                if row:
+                    log.info("LemonSqueezy: duplicate event_id=%s (%s) — skipped.", event_id, event_name)
+                    return event_name
+                self._conn.execute(
+                    "INSERT INTO webhook_events(event_id, event_name, processed_at) VALUES(?,?,?)",
+                    (event_id, event_name, datetime.now(UTC).isoformat()),
+                )
+                self._conn.commit()
 
         if event_name in ("subscription_created", "subscription_updated", "subscription_resumed"):
             self._on_subscription_active(data, meta)

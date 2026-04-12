@@ -99,15 +99,28 @@ def build_entry(
 
 # ── Writer ────────────────────────────────────────────────────────────────────
 
+_SEEN_REQUEST_IDS: set[str] = set()   # in-process dedup (bounded, O(1) lookup)
+_SEEN_REQUEST_IDS_CAP = 50_000        # ~4 MB RAM; covers ~14h at 1 req/s
+
+
 def append(entry: dict) -> None:
     """
     Append one JSON line to LOGS_PATH.
     Thread-safe; creates the file and parent directories on first write.
+    Idempotent: duplicate request_ids within the same process lifetime are dropped.
     """
     LOGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(entry, separators=(",", ":")) + "\n"
-    with _lock, LOGS_PATH.open("a", encoding="utf-8") as f:
-        f.write(line)
+    with _lock:
+        rid = entry.get("request_id")
+        if rid:
+            if rid in _SEEN_REQUEST_IDS:
+                return
+            _SEEN_REQUEST_IDS.add(rid)
+            if len(_SEEN_REQUEST_IDS) > _SEEN_REQUEST_IDS_CAP:
+                _SEEN_REQUEST_IDS.clear()
+        with LOGS_PATH.open("a", encoding="utf-8") as f:
+            f.write(line)
     # Ship to S3-compatible object storage in background (fail-open, GDPR-safe)
     _s3_storage.ship_log_entry(entry)
 
