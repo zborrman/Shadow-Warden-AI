@@ -903,7 +903,7 @@
     document.getElementById('fp-step1').style.display = '';
     document.getElementById('fp-step2').style.display = 'none';
     document.getElementById('fp-email').value = document.getElementById('si-email').value || '';
-    hideAlert('fp-error'); hideAlert('fp-success');
+    hideAlert('fp-error');
   }
   function closeForgot() {
     document.getElementById('forgot-modal').style.display = 'none';
@@ -916,17 +916,19 @@
     const btn = document.getElementById('fp-btn1');
     btn.disabled = true; btn.textContent = 'Sending…';
     try {
-      await fetch('https://api.shadow-warden-ai.com/portal/auth/forgot-password', {
+      const res  = await fetch('https://api.shadow-warden-ai.com/portal/auth/forgot-password', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Request failed');
       // Close modal and pre-fill email in sign-in form
       closeForgot();
       document.getElementById('si-email').value = email;
       showAlert('si-error',
         '✉ Check your inbox — a password reset link has been sent to ' + email,
         true);
-    } catch { showAlert('fp-error', 'Connection error. Please try again.'); }
+    } catch (err) { showAlert('fp-error', err.message || 'Connection error. Please try again.'); }
     finally { btn.disabled = false; btn.textContent = 'Send Reset Token'; }
   }
 
@@ -941,7 +943,7 @@
     const btn = document.getElementById('fp-btn2');
     btn.disabled = true; btn.textContent = 'Resetting…';
     try {
-      const res  = await fetch('/portal/auth/reset-password', {
+      const res  = await fetch('https://api.shadow-warden-ai.com/portal/auth/reset-password', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, new_password: pw }),
       });
@@ -1008,7 +1010,7 @@
     <div id="fp-step1">
       <div style="font-size:1.25rem;font-weight:700;color:#f1f5f9;margin-bottom:6px;">Reset Password</div>
       <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:24px;">Enter your email to receive a reset token.</div>
-      <div id="fp-error" class="alert alert-error" style="display:none;margin-bottom:16px;"></div>
+      <div id="fp-error" class="alert error" style="display:none;margin-bottom:16px;"><span></span></div>
       <form onsubmit="handleForgotRequest(event)">
         <div class="field" style="margin-bottom:20px;">
           <label for="fp-email">Email address</label>
@@ -1023,7 +1025,7 @@
       <div style="font-size:1.25rem;font-weight:700;color:#f1f5f9;margin-bottom:6px;">Set New Password</div>
       <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:16px;">Your reset token (copy it or it's pre-filled):</div>
       <div id="fp-token-display" style="font-family:monospace;font-size:0.72rem;background:#0f172a;border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px 12px;color:#6366f1;word-break:break-all;margin-bottom:20px;"></div>
-      <div id="fp-error2" class="alert alert-error" style="display:none;margin-bottom:16px;"></div>
+      <div id="fp-error2" class="alert error" style="display:none;margin-bottom:16px;"><span></span></div>
       <form onsubmit="handleForgotReset(event)">
         <input id="fp-token" type="hidden" />
         <div class="field" style="margin-bottom:16px;">
