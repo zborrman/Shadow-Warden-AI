@@ -1,0 +1,181 @@
+"""
+warden/testing/scenarios/runner.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ScenarioRunner — координатор выполнения сценариев.
+
+Аналог "координатора" из системы фейков Avito:
+  • Получает сценарий (описание пути пользователя через пайплайн)
+  • Выполняет шаги через реальный FastAPI TestClient
+  • Проверяет ожидаемые результаты на каждом шаге
+  • Собирает метрики (время, флаги, решения)
+
+Ключевой принцип: РЕАЛЬНЫЙ КОД, ФЕЙКОВЫЕ ЗАВИСИМОСТИ.
+"""
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+from fastapi.testclient import TestClient
+
+
+@dataclass
+class StepResult:
+    step_name:   str
+    content:     str
+    status_code: int
+    response:    dict
+    elapsed_ms:  float
+    passed:      bool
+    failure_msg: str = ""
+
+
+@dataclass
+class ScenarioResult:
+    scenario_id:   str
+    scenario_name: str
+    steps:         list[StepResult] = field(default_factory=list)
+    total_ms:      float = 0.0
+
+    @property
+    def passed(self) -> bool:
+        return all(s.passed for s in self.steps)
+
+    @property
+    def failed_steps(self) -> list[StepResult]:
+        return [s for s in self.steps if not s.passed]
+
+    def summary(self) -> str:
+        status = "PASS" if self.passed else "FAIL"
+        lines = [f"[{status}] {self.scenario_name} ({self.total_ms:.1f}ms)"]
+        for step in self.steps:
+            icon = "✓" if step.passed else "✗"
+            lines.append(f"  {icon} {step.step_name}: {step.elapsed_ms:.1f}ms")
+            if not step.passed:
+                lines.append(f"    → {step.failure_msg}")
+        return "\n".join(lines)
+
+
+class ScenarioRunner:
+    """
+    Запускает сценарии верификации пайплайна Shadow Warden.
+
+    Использование:
+        runner = ScenarioRunner(client)
+        result = runner.run(scenario)
+        assert result.passed, result.summary()
+
+    Каждый шаг сценария — это один запрос к /filter с ожиданиями:
+      - expected_allowed: True/False
+      - expected_risk:    "LOW" | "MEDIUM" | "HIGH" | "BLOCK"
+      - expected_flags:   список флагов, которые должны присутствовать
+      - forbidden_flags:  список флагов, которых быть не должно
+    """
+
+    def __init__(self, client: TestClient, api_key: str = "") -> None:
+        self._client = client
+        self._headers = {"X-API-Key": api_key} if api_key else {}
+
+    def run(self, scenario: "Scenario") -> ScenarioResult:  # noqa: F821
+        result = ScenarioResult(
+            scenario_id=scenario.id,
+            scenario_name=scenario.name,
+        )
+        t_start = time.monotonic()
+
+        for step in scenario.steps:
+            step_result = self._run_step(step)
+            result.steps.append(step_result)
+            # Стоп при первом провале (fail-fast режим)
+            if not step_result.passed and scenario.fail_fast:
+                break
+
+        result.total_ms = (time.monotonic() - t_start) * 1000
+        return result
+
+    def run_all(self, scenarios: list["Scenario"]) -> list[ScenarioResult]:  # noqa: F821
+        return [self.run(s) for s in scenarios]
+
+    def _run_step(self, step: "ScenarioStep") -> StepResult:  # noqa: F821
+        payload: dict[str, Any] = {"content": step.content}
+        if step.tenant_id:
+            payload["tenant_id"] = step.tenant_id
+        if step.strict is not None:
+            payload["strict"] = step.strict
+        if step.context:
+            payload["context"] = step.context
+
+        t0 = time.monotonic()
+        try:
+            resp = self._client.post(
+                "/filter",
+                json=payload,
+                headers={**self._headers, **step.extra_headers},
+            )
+            elapsed = (time.monotonic() - t0) * 1000
+            body = resp.json() if resp.status_code < 500 else {}
+        except Exception as exc:
+            elapsed = (time.monotonic() - t0) * 1000
+            return StepResult(
+                step_name=step.name,
+                content=step.content[:60],
+                status_code=0,
+                response={},
+                elapsed_ms=elapsed,
+                passed=False,
+                failure_msg=f"Request exception: {exc}",
+            )
+
+        failure = self._check_step(step, resp.status_code, body)
+        return StepResult(
+            step_name=step.name,
+            content=step.content[:60],
+            status_code=resp.status_code,
+            response=body,
+            elapsed_ms=elapsed,
+            passed=failure is None,
+            failure_msg=failure or "",
+        )
+
+    @staticmethod
+    def _check_step(
+        step: "ScenarioStep",  # noqa: F821
+        status_code: int,
+        body: dict,
+    ) -> str | None:
+        """Возвращает None если шаг прошёл, иначе — описание провала."""
+        if status_code not in (200, 422):
+            return f"Unexpected HTTP {status_code}"
+
+        if step.expected_allowed is not None:
+            actual = body.get("allowed")
+            if actual != step.expected_allowed:
+                return (
+                    f"allowed={actual}, expected={step.expected_allowed} "
+                    f"(risk={body.get('risk_level')}, flags={body.get('flags')})"
+                )
+
+        if step.expected_risk is not None:
+            actual_risk = body.get("risk_level", "")
+            if actual_risk != step.expected_risk:
+                return f"risk_level={actual_risk!r}, expected={step.expected_risk!r}"
+
+        actual_flags = set(body.get("flags") or [])
+
+        if step.expected_flags:
+            missing = set(step.expected_flags) - actual_flags
+            if missing:
+                return f"Missing expected flags: {missing} (got {actual_flags})"
+
+        if step.forbidden_flags:
+            present = set(step.forbidden_flags) & actual_flags
+            if present:
+                return f"Forbidden flags present: {present}"
+
+        if step.max_latency_ms is not None:
+            actual_ms = body.get("processing_ms", 0)
+            if actual_ms > step.max_latency_ms:
+                return f"Latency {actual_ms:.1f}ms > limit {step.max_latency_ms}ms"
+
+        return None
