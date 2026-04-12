@@ -727,9 +727,11 @@
       : (prefix === 'si' ? 'Sign In' : 'Create Account');
   }
 
-  function showAlert(id, msg) {
+  function showAlert(id, msg, isSuccess) {
     const el = document.getElementById(id);
-    el.querySelector('span').textContent = msg;
+    if (el.querySelector('span')) el.querySelector('span').textContent = msg;
+    else el.textContent = msg;
+    el.className = 'alert ' + (isSuccess ? 'success' : 'error');
     el.style.display = 'flex';
   }
 
