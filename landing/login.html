@@ -910,24 +910,21 @@
   async function handleForgotRequest(e) {
     e.preventDefault();
     const email = document.getElementById('fp-email').value.trim();
-    hideAlert('fp-error'); hideAlert('fp-success');
+    hideAlert('fp-error');
     const btn = document.getElementById('fp-btn1');
     btn.disabled = true; btn.textContent = 'Sending…';
     try {
-      const res  = await fetch('/portal/auth/forgot-password', {
+      await fetch('https://api.shadow-warden-ai.com/portal/auth/forgot-password', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (data.reset_token) {
-        document.getElementById('fp-token-display').textContent = data.reset_token;
-        document.getElementById('fp-step1').style.display = 'none';
-        document.getElementById('fp-step2').style.display = '';
-        document.getElementById('fp-token').value = data.reset_token;
-      } else {
-        showAlert('fp-error', data.detail || 'Email not found.');
-      }
-    } catch { showAlert('fp-error', 'Connection error.'); }
+      // Close modal and pre-fill email in sign-in form
+      closeForgot();
+      document.getElementById('si-email').value = email;
+      showAlert('si-error',
+        '✉ Check your inbox — a password reset link has been sent to ' + email,
+        true);
+    } catch { showAlert('fp-error', 'Connection error. Please try again.'); }
     finally { btn.disabled = false; btn.textContent = 'Send Reset Token'; }
   }
 
