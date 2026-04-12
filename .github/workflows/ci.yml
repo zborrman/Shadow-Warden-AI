@@ -253,6 +253,14 @@ jobs:
           SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
+
+          # Docker containers (root) write into the repo directory, leaving
+          # subdirectories owned by root that rsync cannot create temp files in.
+          # Fix all permissions in one shot via a root alpine container before sync.
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=no \
+            "${SSH_USER}@${SSH_HOST}" \
+            "docker run --rm -v '${SSH_PATH}:/r' alpine chmod -R a+rwX /r"
+
           rsync -az --delete \
             --exclude='.git/' \
             --exclude='data/' \
