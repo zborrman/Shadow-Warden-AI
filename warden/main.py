@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from warden.session_guard import SessionGuard
     from warden.threat_intel.scheduler import ThreatIntelScheduler as _TISchedulerT
     from warden.threat_intel.store import ThreatIntelStore as _TIStoreT
+import contextlib
 import json
 import logging
 import logging.handlers
@@ -45,7 +46,6 @@ import secrets
 import time
 import uuid
 from collections import Counter, defaultdict, deque
-import contextlib
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -3947,7 +3947,7 @@ async def ws_monitor_stream(websocket: WebSocket, monitor_id: str):
         while True:
             data = await asyncio.wait_for(queue.get(), timeout=30)
             await websocket.send_text(data)
-    except (WebSocketDisconnect, asyncio.TimeoutError):
+    except (TimeoutError, WebSocketDisconnect):
         pass
     except Exception as exc:
         log.debug("ws_monitor: error — %s", exc)
