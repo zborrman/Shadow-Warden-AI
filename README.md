@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 2.9 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 3.0 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
@@ -65,6 +65,24 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 | **Local LLM fallback** | Ollama / LM Studio (extension) | NVIDIA NIM (on-prem) |
 | **GTM motion** | Self-serve, Stripe card ($50–200/mo) | Sales-led, annual contract ($25k+/yr) |
 | **Data sovereignty** | Shared cloud (GDPR-compliant) | Full — no data leaves customer perimeter |
+
+---
+
+## What's New in v3.0
+
+| Feature | Description |
+|---------|-------------|
+| **SaaS Uptime Monitor** | Built-in website/service monitoring. `POST /monitors/` creates HTTP, SSL, DNS, or TCP checks at configurable intervals (10s–1h). Background `probe_scheduler` runs all active monitors as asyncio tasks. Results stored in TimescaleDB hypertable with 1-day chunks, BRIN + composite indexes, automatic columnar compression after 7 days (~90% ratio), 30-day raw retention and 2-year aggregate retention. |
+| **TimescaleDB** | Replaced `postgres:16-alpine` with `timescale/timescaledb:latest-pg16` (fully PostgreSQL-compatible). Continuous aggregate `probe_hourly` refreshes every 30 minutes and powers uptime % / avg latency dashboards with no per-query fan-out. |
+| **Uptime REST API** | 8 new endpoints under `/monitors/*`: create, list, get, patch, delete, `/status` (latest probe), `/uptime?hours=N` (aggregate), `/history?limit=N` (raw probes). All tenant-scoped via standard `X-API-Key`. |
+| **Real-time WebSocket Push** | `/ws/monitor/{id}` streams probe results as they land via Redis Pub/Sub → asyncio.Queue bridge → WebSocket. Compatible with existing Redis instance — no new infrastructure. |
+| **SEC-GAP-001 Fixed** | Context field injection bypass closed. `payload.context` string values are now appended to `analysis_text` before all detection stages so ThreatVault, SemanticGuard, ML brain, and PhishGuard scan context content. ATK-005/ATK-009 now correctly return `allowed=false`. |
+| **SEC-GAP-002 Fixed** | Social engineering / AI filter bypass detection added to PhishGuard SE-Arbiter. New `_FILTER_BYPASS_PATTERNS` (4 groups): AI filter bypass (`"disable safety filters"`), privileged mode override (`"developer mode"`), AI creator impersonation (`"I am your Anthropic"`), unrestricted mode request (`"no restrictions"`). Weight 0.70 in SE formula — single match pushes se_risk above 0.75 threshold. ATK-006/ATK-011 now correctly blocked. |
+| **Idempotency Hardening** | Three gaps fixed: (1) LemonSqueezy webhooks — `webhook_events` dedup table prevents replay of subscription activation/cancellation events. (2) Analytics logger — in-memory `_SEEN_REQUEST_IDS` set (50k cap, O(1)) prevents duplicate NDJSON entries on retry bursts. (3) Evolution Engine — `seen_hashes` persisted into `dynamic_rules.json` so content dedup survives process restarts. |
+| **Shadow Warden Fake Engine (SWFE)** | 3-level testing architecture adapted from Avito's fake system. Level 1: `FakeAnthropicClient`, `FakeNvidiaClient`, `FakeS3Storage`, `FakeEvolutionEngine` — full fake layer activated via `unittest.mock.patch`. Level 2: Scenario DSL — `ScenarioRunner` + `ScenarioStep/Scenario` dataclasses + 8 built-in scenarios (ATK-001..006, BEN-001, SLO-001) + YAML loader for QA-authored scenarios. Level 3: `FakeContext` — unified context manager with `X-Simulation-ID` request-level isolation and assertion helpers. 29 SWFE tests. |
+| **Formal SLA** | `docs/sla.md` — Pro tier 99.9% monthly uptime / Enterprise 99.95%, P99 < 50ms on `/filter`, incident response P1 = 15min, credit schedule (10%/25%/50%), UptimeRobot config (1-min keyword monitor). |
+| **SOC 2 Remediation (4 items)** | (1) Formal SLA documented. (2) UptimeRobot external uptime monitoring configured. (3) Causal Arbiter CPT calibration via MLE from production NDJSON logs (`calibrate_from_logs()`). (4) mlock/VirtualLock for Fernet + HMAC keys in `masking/engine.py` — SOC 2 CC6.7 key material never swaps to disk. |
+| **Deploy Pipeline** | Replaced rsync (excluded `.git/`) with `git fetch + git reset --hard` on server — server git log now stays in sync with GitHub. chmod fix via Alpine container runs before git fetch to resolve Docker root-owned `.git/FETCH_HEAD`. |
 
 ---
 
@@ -228,7 +246,24 @@ POST /filter
              └─► Zero-Trust Sandbox (agent calls)      capability manifests + kill-switch
 ```
 
-Eleven Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
+Eleven Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres` (TimescaleDB), `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
+
+### Uptime Monitor (v3.0)
+
+```
+probe_scheduler (asyncio background task)
+  ├─ HTTP probe  — httpx.AsyncClient, status_code < 500
+  ├─ SSL probe   — TLS handshake, days until certificate expiry
+  ├─ DNS probe   — getaddrinfo() latency
+  └─ TCP probe   — asyncio.open_connection() round-trip
+
+Results → TimescaleDB warden_core.probe_results (hypertable)
+        → Redis Pub/Sub monitor:{id}:result
+        → WebSocket /ws/monitor/{id} (real-time push)
+        → Continuous aggregate probe_hourly (1h buckets, 30-min refresh)
+
+REST API /monitors/*  — CRUD + /status + /uptime + /history
+```
 
 For the full stage-by-stage breakdown with latency budgets, see [docs/pipeline-anatomy.md](docs/pipeline-anatomy.md).
 
