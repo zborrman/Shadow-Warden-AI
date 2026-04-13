@@ -1,6 +1,6 @@
 {
-  "version": "2026.03.20",
-  "updated_at": "2026-03-20T00:00:00Z",
+  "version": "2026.04.13",
+  "updated_at": "2026-04-13T00:00:00Z",
   "source": "Shadow Warden AI Threat Research Team",
   "description": "Adversarial prompt signature library — known jailbreak templates, prompt injection patterns, and AI attack vectors curated from MITRE ATLAS, OWASP LLM Top 10, and academic red-team research.",
   "threats": [
@@ -597,6 +597,83 @@
       "description": "Attempts to extract model weights or internal parameters.",
       "neutralization": "Block. Model internals are proprietary and cannot be extracted via prompts.",
       "owasp": "LLM02"
+    },
+    {
+      "id": "ics_cve_exploit_request",
+      "name": "ICS CVE Exploit — Rockwell / Siemens / Schneider",
+      "category": "ics_recon",
+      "severity": "critical",
+      "pattern_type": "regex",
+      "pattern": "(?i)(CVE-202[0-9]-\\d{4,7}).{0,200}(logix|studio.?5000|rslinx|factorytalk|simatic|step.?7|tia.?portal|modicon|schneider|vijeo|unity.?pro|scada|plc|hmi|ics|scadapack|easergy|pcvue)",
+      "description": "Request referencing a known CVE alongside an ICS vendor product — consistent with exploit research targeting OT infrastructure.",
+      "neutralization": "Block. Log as critical OT security incident. Escalate to ICS SOC team.",
+      "owasp": "LLM02"
+    },
+    {
+      "id": "ot_topology_recon",
+      "name": "OT Network Topology Extraction",
+      "category": "ics_recon",
+      "severity": "high",
+      "pattern_type": "regex",
+      "pattern": "(?i)(list|enumerate|map|identify|discover|show|find|provide|give me|extract).{0,80}(plc|hmi|rtu|ied|historian|scada|dcs|engineering.workstation|ot|ics|purdue).{0,40}(ip.address|network|subnet|topology|device|asset|inventory|architecture|segment)",
+      "description": "Reconnaissance attempt to extract OT network topology, device inventory, or IP address mapping — precursor to targeted ICS attack.",
+      "neutralization": "Block. OT network topology is sensitive operational security information.",
+      "owasp": "LLM02"
+    },
+    {
+      "id": "plc_programming_request",
+      "name": "PLC Programming / Ladder Logic Manipulation",
+      "category": "ics_recon",
+      "severity": "high",
+      "pattern_type": "regex",
+      "pattern": "(?i)(write|create|generate|modify|change|upload|download|push|flash|program).{0,80}(ladder.logic|function.block|structured.text|plc.program|rung|fbd|codesys|rslogix|step7.program|tia.project).{0,80}(to|for|on|into|onto).{0,60}(plc|controller|cpu|rack|slot)",
+      "description": "Request to write or modify PLC programs — potential Stuxnet-class attack vector targeting industrial process control logic.",
+      "neutralization": "Block. PLC programming requests via AI assistants are a critical OT risk.",
+      "owasp": "LLM06"
+    },
+    {
+      "id": "scada_credential_extraction",
+      "name": "SCADA / HMI Credential Extraction",
+      "category": "ot_credential_leak",
+      "severity": "critical",
+      "pattern_type": "regex",
+      "pattern": "(?i)(find|get|extract|retrieve|show|provide|what.is|tell.me).{0,80}(password|credential|login|username|api.key|auth).{0,80}(scada|hmi|historian|factorytalk|wonderware|ignition|intouch|wincc|aveva|osisoft|pi.server|opc.server|dcs|plc|rtu)",
+      "description": "Attempt to extract credentials for SCADA/HMI/historian systems — direct OT credential harvesting vector.",
+      "neutralization": "Block. Log as critical OT incident. Initiate credential rotation review.",
+      "owasp": "LLM02"
+    },
+    {
+      "id": "ics_protocol_exposure",
+      "name": "ICS Protocol Configuration Exposure",
+      "category": "ot_protocol_exposure",
+      "severity": "medium",
+      "pattern_type": "regex",
+      "pattern": "(?i)(modbus|dnp3|iec.61850|iec.60870|bacnet|profibus|profinet|ethernetip|cip.protocol|opc.ua|opc-ua|foundation.fieldbus|hart.protocol|devicenet).{0,120}(config|configuration|port|address|register|unit.id|slave.id|master|connection.string|endpoint|setup|parameter)",
+      "description": "ICS protocol configuration details in prompt — may leak network addressing, register maps, or device configuration to AI model.",
+      "neutralization": "Redact ICS protocol configuration. Warn operator.",
+      "owasp": "LLM02"
+    },
+    {
+      "id": "ics_rag_poisoning",
+      "name": "ICS Vendor Document RAG Poisoning",
+      "category": "ics_recon",
+      "severity": "critical",
+      "pattern_type": "regex",
+      "pattern": "(?i)(ignore|disregard|forget).{0,60}(above|previous|prior).{0,40}(instruction|content|document|text).{0,120}(instead|now|and).{0,60}(execute|run|perform|connect|send|upload|exfiltrate|pivot|access).{0,80}(plc|scada|hmi|ot.network|control.system|industrial|ics)",
+      "description": "Prompt injection embedded in ICS vendor documentation — RAG poisoning vector with hidden OT attack instruction.",
+      "neutralization": "Block. Document contains embedded adversarial instructions targeting OT infrastructure.",
+      "owasp": "LLM01"
+    },
+    {
+      "id": "ot_operator_social_engineering",
+      "name": "OT Operator Social Engineering — Credential Elicitation",
+      "category": "ot_credential_leak",
+      "severity": "high",
+      "pattern_type": "regex",
+      "pattern": "(?i)(urgent|immediately|right.now|emergency|critical.alarm|safety.incident|trip|shutdown).{0,200}(enter|type|provide|share|give|paste|input).{0,80}(password|credential|pin|access.code|login|auth).{0,80}(scada|hmi|plc|control.room|dcs|ems|bms|historian|plant)",
+      "description": "Social engineering targeting OT operators — urgency/emergency framing to elicit SCADA/HMI credentials.",
+      "neutralization": "Block. OT operators should never be prompted to share credentials via AI assistant.",
+      "owasp": "LLM01"
     }
   ]
 }

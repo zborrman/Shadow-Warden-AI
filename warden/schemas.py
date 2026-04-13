@@ -44,6 +44,10 @@ class FlagType(StrEnum):
     AI_WORM_REPLICATION  = "ai_worm_replication"  # WormGuard L1 — LLM output replicates untrusted input + propagation tool
     RAG_POISONING        = "rag_poisoning"         # WormGuard L2 — document blocked at RAG ingestion (hidden instruction/quine/delimiter spoof)
     TAINT_REVOCATION     = "taint_revocation"      # TaintTracker — tool call denied due to EXTERNAL/HOSTILE session context
+    # OT/ICS Critical Infrastructure (v3.1)
+    OT_CREDENTIAL_LEAK   = "ot_credential_leak"    # PLC/SCADA credential or config exposure
+    ICS_RECON            = "ics_recon"             # OT network topology or device enumeration attempt
+    OT_PROTOCOL_EXPOSURE = "ot_protocol_exposure"  # ICS protocol string leak (Modbus, DNP3, OPC-UA, etc.)
 
 
 class RedactionPolicy(StrEnum):

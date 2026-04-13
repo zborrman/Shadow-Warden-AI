@@ -51,7 +51,8 @@ class Industry(StrEnum):
     SAAS        = "saas"
     GOVERNMENT  = "government"
     EDUCATION   = "education"
-    LEGAL       = "legal"
+    LEGAL                   = "legal"
+    CRITICAL_INFRASTRUCTURE = "critical_infrastructure"
 
 
 class ThreatCategory(StrEnum):
@@ -147,17 +148,25 @@ _INDUSTRY_MULTIPLIERS: dict[Industry, dict[ThreatCategory, float]] = {
         ThreatCategory.PII_LEAKAGE:          2.5,
         ThreatCategory.COMPLIANCE_VIOLATION:  3.0,
     },
+    Industry.CRITICAL_INFRASTRUCTURE: {
+        ThreatCategory.DATA_EXFILTRATION:     3.5,  # NERC CIP / ICS-CERT incident costs
+        ThreatCategory.SERVICE_DENIAL:        3.5,  # Operational shutdown + safety incident
+        ThreatCategory.COMPLIANCE_VIOLATION:  3.5,  # NERC CIP fines up to $1M/day
+        ThreatCategory.PII_LEAKAGE:          2.5,  # Operator PII + OT network topology
+        ThreatCategory.PROMPT_INJECTION:      2.0,  # OT-targeted injection severity
+    },
 }
 
 # Attack rate as fraction of total requests (industry-specific)
 _INDUSTRY_ATTACK_RATES: dict[Industry, float] = {
-    Industry.FINTECH:    0.08,
-    Industry.HEALTHCARE: 0.07,
-    Industry.ECOMMERCE:  0.12,
-    Industry.SAAS:       0.05,
-    Industry.GOVERNMENT: 0.15,
-    Industry.EDUCATION:  0.03,
-    Industry.LEGAL:      0.06,
+    Industry.FINTECH:                   0.08,
+    Industry.HEALTHCARE:                0.07,
+    Industry.ECOMMERCE:                 0.12,
+    Industry.SAAS:                      0.05,
+    Industry.GOVERNMENT:                0.15,
+    Industry.EDUCATION:                 0.03,
+    Industry.LEGAL:                     0.06,
+    Industry.CRITICAL_INFRASTRUCTURE:   0.18,  # Highest — nation-state APT targeting
 }
 
 # How attacks distribute across threat categories

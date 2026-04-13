@@ -1541,11 +1541,17 @@ async def _run_filter_pipeline(
         _sp.set_attribute("rules.risk_level",  guard_result.risk_level.value)
     timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
 
-    # Merge ThreatVault hits into guard_result (now that guard_result exists)
+    # Merge ThreatVault hits into guard_result — category-aware flag mapping
+    ot_category_flag_map = {
+        "ics_recon":            FlagType.ICS_RECON,
+        "ot_credential_leak":   FlagType.OT_CREDENTIAL_LEAK,
+        "ot_protocol_exposure": FlagType.OT_PROTOCOL_EXPOSURE,
+    }
     if _vault_flags_pending:
         for hit in _vault_flags_pending:
+            flag = ot_category_flag_map.get(hit.category, FlagType.PROMPT_INJECTION)
             guard_result.flags.append(SemanticFlag(
-                flag=FlagType.PROMPT_INJECTION,
+                flag=flag,
                 score=1.0,
                 detail=(
                     f"[ThreatVault:{hit.threat_id}] {hit.name} "

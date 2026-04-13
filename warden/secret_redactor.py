@@ -159,6 +159,65 @@ _PATTERNS: list[_Pattern] = [
              "[REDACTED:us_passport]",
              pii=True,
              strict_only=True),
+
+    # ── OT/ICS Critical Infrastructure patterns (v3.1) ────────────────────
+    # OPC-UA endpoint URLs  (opc.tcp://host:port/UAServer)
+    _Pattern("opcua_endpoint",
+             re.compile(r"opc\.tcp://[A-Za-z0-9.\-_]+(:[0-9]{1,5})?(?:/[^\s]*)?",
+                        re.IGNORECASE),
+             "[REDACTED:opcua_endpoint]"),
+
+    # Siemens S7 DB address format (DB1.DBX0.0, DB42.DBD4)
+    _Pattern("siemens_db_address",
+             re.compile(r"\bDB\d{1,4}\.DB(?:X|B|W|D)\d{1,5}(?:\.\d)?\b"),
+             "[REDACTED:siemens_db_address]"),
+
+    # Modbus register/coil address in config context
+    _Pattern("modbus_register",
+             re.compile(
+                 r"(?:modbus[\s_](?:address|register|coil|holding|input)|"
+                 r"(?:holding|input)\s+register)\s*[=:]\s*[0-9]{1,5}\b",
+                 re.IGNORECASE),
+             "[REDACTED:modbus_register]"),
+
+    # DNP3 / IEC-101/104 station address in config context
+    _Pattern("ics_station_address",
+             re.compile(
+                 r"(?:dnp3?|iec[\s_-]?10[14])\s*(?:station|slave|master|address)\s*[=:]\s*[0-9]{1,5}\b",
+                 re.IGNORECASE),
+             "[REDACTED:ics_station_address]"),
+
+    # SCADA/ICS default credential patterns
+    _Pattern("ics_default_credential",
+             re.compile(
+                 r"(?:username|user|login|password|pass|passwd)\s*[=:]\s*"
+                 r"(?:1234|12345|password|admin|administrator|rockwell|siemens|schneider|"
+                 r"scada|plc|hmi|operator|control)\b",
+                 re.IGNORECASE),
+             "[REDACTED:ics_default_credential]"),
+
+    # EtherNet/IP CIP connection strings
+    _Pattern("ethernetip_connection",
+             re.compile(r"CIP\s+(?:connection|path|segment)\s*[=:][^\n]{4,80}",
+                        re.IGNORECASE),
+             "[REDACTED:ethernetip_connection]"),
+
+    # SCADA historian / software config file paths
+    _Pattern("scada_config_path",
+             re.compile(
+                 r"(?:C:\\(?:Program Files|Inductive Automation|Wonderware|OSIsoft)[^\s\"'<>|]{4,80}|"
+                 r"/(?:usr|opt|etc)/(?:ignition|wonderware|osisoft|aveva)[^\s\"'<>|]{4,80})",
+                 re.IGNORECASE),
+             "[REDACTED:scada_config_path]"),
+
+    # Rockwell / Allen-Bradley PLC tag addresses in config context (strict only to reduce FP)
+    _Pattern("plc_tag_address",
+             re.compile(
+                 r"(?:address|tag|register)\s*[=:]\s*"
+                 r"(?:Program:\w+\.\w+|[A-Z][0-9]+:[0-9]+(?:/[0-9]+)?)",
+                 re.IGNORECASE),
+             "[REDACTED:plc_tag_address]",
+             strict_only=True),
 ]
 
 # ── Token lookup (used by both FULL and MASKED helpers) ───────────────────────
