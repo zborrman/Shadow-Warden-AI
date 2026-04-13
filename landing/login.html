@@ -766,7 +766,7 @@
     setLoading('si', true);
 
     try {
-      const res  = await fetch('/portal/auth/login', {
+      const res  = await fetch('https://api.shadow-warden-ai.com/portal/auth/login', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
@@ -809,7 +809,7 @@
     btn.disabled = true; spin.style.display = ''; txt.textContent = 'Verifying…';
 
     try {
-      const res  = await fetch('/portal/auth/totp/complete', {
+      const res  = await fetch('https://api.shadow-warden-ai.com/portal/auth/totp/complete', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ totp_session: _totpSession, code }),
@@ -852,7 +852,7 @@
 
     setLoading('reg', true);
     try {
-      const regRes  = await fetch('/portal/auth/register', {
+      const regRes  = await fetch('https://api.shadow-warden-ai.com/portal/auth/register', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
@@ -870,7 +870,7 @@
 
       document.getElementById('reg-success').style.display = 'flex';
 
-      const loginRes  = await fetch('/portal/auth/login', {
+      const loginRes  = await fetch('https://api.shadow-warden-ai.com/portal/auth/login', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ email, password }),
