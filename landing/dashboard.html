@@ -1567,7 +1567,7 @@ services:
           data.time_series = daily.map(d => ({ ts: d.date, total: d.total, blocked: d.blocked }));
         }
         // Fetch top flags
-        const flagRes = await fetch('/portal/stats/flags', { headers });
+        const flagRes = await fetch('https://api.shadow-warden-ai.com/portal/stats/flags', { headers });
         if (flagRes.ok) {
           data.top_flags = await flagRes.json();
         }

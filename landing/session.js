@@ -12,9 +12,10 @@
  */
 const Session = (() => {
   const _KEY         = 'warden_token';
-  const _REFRESH_URL = '/portal/auth/refresh';
-  const _LOGOUT_URL  = '/portal/auth/logout';
-  const _LOGIN_URL   = '/login';
+  const _API_BASE    = 'https://api.shadow-warden-ai.com';
+  const _REFRESH_URL = _API_BASE + '/portal/auth/refresh';
+  const _LOGOUT_URL  = _API_BASE + '/portal/auth/logout';
+  const _LOGIN_URL   = '/login.html';
   const _WARN_BEFORE = 5 * 60;       // seconds before expiry to fire warning
   const _REFRESH_AT  = 0.80;         // refresh at 80% of token lifetime elapsed
 
@@ -168,13 +169,15 @@ const Session = (() => {
    */
   async function authFetch(url, options = {}) {
     let token = getToken();
+    // Prepend API base for relative paths (e.g. '/portal/me' → 'https://api..../portal/me')
+    const fullUrl = url.startsWith('/') ? _API_BASE + url : url;
 
     const _buildHeaders = (tok) => ({
       ...(options.headers || {}),
       ...(tok ? { Authorization: 'Bearer ' + tok } : {}),
     });
 
-    let resp = await fetch(url, {
+    let resp = await fetch(fullUrl, {
       ...options,
       headers: _buildHeaders(token),
       credentials: 'include',
@@ -184,7 +187,7 @@ const Session = (() => {
       const newToken = await _refresh();
       if (!newToken) return resp; // logout() already redirected
 
-      resp = await fetch(url, {
+      resp = await fetch(fullUrl, {
         ...options,
         headers: _buildHeaders(newToken),
         credentials: 'include',
