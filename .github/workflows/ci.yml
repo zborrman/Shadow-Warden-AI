@@ -342,16 +342,16 @@ jobs:
           # on health here — we validate directly instead.
           for i in \$(seq 1 60); do
             # Check container is still running before polling /health
-            STATE=\$(docker inspect --format='{{.State.Status}}' warden-gateway 2>/dev/null || echo missing)
-            if [ "\$STATE" != "running" ]; then
-              echo "  warden-gateway exited (state=\$STATE) — printing logs:"
+            STATE=\$(docker compose ps --format json warden 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['State'] if isinstance(d,list) else d.get('State','unknown'))" 2>/dev/null || echo unknown)
+            if [ "\$STATE" = "exited" ] || [ "\$STATE" = "dead" ]; then
+              echo "  warden exited (state=\$STATE) — printing logs:"
               docker compose logs --tail 100 warden || true
               exit 1
             fi
-            STATUS=\$(docker exec warden-gateway curl -s -o /dev/null -w "%{http_code}" \
+            STATUS=\$(docker compose exec -T warden curl -s -o /dev/null -w "%{http_code}" \
               http://localhost:8001/health 2>/dev/null || echo 000)
             if [ "\$STATUS" = "200" ]; then
-              BODY=\$(docker exec warden-gateway curl -sf http://localhost:8001/health)
+              BODY=\$(docker compose exec -T warden curl -sf http://localhost:8001/health)
               echo "  Warden healthy after \${i}x5 s  ->  \$BODY"
               exit 0
             fi
