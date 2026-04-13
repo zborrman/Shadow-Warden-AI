@@ -786,8 +786,8 @@
         showAlert('si-error', data.detail || 'Invalid email or password.');
         document.getElementById('si-password').classList.add('error');
       }
-    } catch {
-      showAlert('si-error', 'Connection error. Please try again.');
+    } catch (err) {
+      showAlert('si-error', 'Connection error: ' + (err?.message || String(err)));
     } finally {
       setLoading('si', false);
     }
