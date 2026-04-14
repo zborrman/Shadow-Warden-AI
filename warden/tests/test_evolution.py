@@ -343,6 +343,7 @@ async def test_process_blocked_proceeds_when_not_rate_limited(
             new_callable=AsyncMock,
             return_value=(mock_evolution, "mock user prompt"),
         ),
+        patch("warden.main._poison_guard", new=None),
     ):
         result = await evolution_engine.process_blocked(
             content="novel attack passes rate gate",
