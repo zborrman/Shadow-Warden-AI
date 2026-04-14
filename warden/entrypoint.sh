@@ -29,6 +29,12 @@ mkdir -p /warden/models /warden/data
 chown -R wardenuser:warden /warden/models /warden/data
 chmod -R 755 /warden/models /warden/data
 
+# ── Pass-through: if a command was given (e.g. docker run ... python3 foo.py),
+#    run it as wardenuser after fixing ownership — do NOT start uvicorn.
+if [ $# -gt 0 ]; then
+    exec gosu wardenuser "$@"
+fi
+
 # ── Database migrations (run once per startup, idempotent) ───────────────────
 if [ -n "${DATABASE_URL:-}" ]; then
     echo "[entrypoint] running alembic migrations..."

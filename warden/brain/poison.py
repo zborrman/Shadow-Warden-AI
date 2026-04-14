@@ -46,6 +46,7 @@ import json
 import logging
 import os
 import pathlib
+import tempfile
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -194,7 +195,8 @@ class DataPoisoningGuard:
 
     def _initialise_sync(self) -> None:
         try:
-            model = self._guard._model  # type: ignore[attr-defined]
+            from warden.brain.semantic import _load_model  # noqa: PLC0415
+            model = _load_model()
             # Canary embeddings
             self._canary_embeddings = torch.tensor(
                 model.encode(CANARY_EXAMPLES, convert_to_numpy=True,
@@ -251,7 +253,8 @@ class DataPoisoningGuard:
 
         # ② Adversarial Perturbation Detection
         try:
-            model = self._guard._model  # type: ignore[attr-defined]
+            from warden.brain.semantic import _load_model  # noqa: PLC0415
+            model = _load_model()
             emb   = torch.tensor(
                 model.encode([content], convert_to_numpy=True, show_progress_bar=False)
             )
@@ -300,7 +303,8 @@ class DataPoisoningGuard:
 
     def _vet_sync(self, candidate: str) -> tuple[bool, str]:
         try:
-            model = self._guard._model  # type: ignore[attr-defined]
+            from warden.brain.semantic import _load_model  # noqa: PLC0415
+            model = _load_model()
             cand_emb = torch.tensor(
                 model.encode([candidate], convert_to_numpy=True, show_progress_bar=False)
             )
@@ -417,18 +421,32 @@ class DataPoisoningGuard:
             arr      = emb.numpy()
             examples = list(getattr(self._guard, "_examples", []))
 
-            # Atomic write: write to .tmp then os.replace()
+            # Atomic write: write to unique tmp then os.replace()
+            # Unique temp names prevent race condition when two coroutines
+            # call save_snapshot_async() concurrently via run_in_executor.
             npz_path  = _SNAPSHOT_BASE.with_suffix(".npz")
             json_path = _SNAPSHOT_BASE.with_suffix(".json")
-            tmp_npz   = _SNAPSHOT_BASE.with_suffix(".tmp.npz")
-            tmp_json  = _SNAPSHOT_BASE.with_suffix(".tmp.json")
+            parent    = _SNAPSHOT_BASE.parent
+            parent.mkdir(parents=True, exist_ok=True)
 
-            _SNAPSHOT_BASE.parent.mkdir(parents=True, exist_ok=True)
-            np.savez_compressed(str(tmp_npz), embeddings=arr)
-            with open(tmp_json, "w", encoding="utf-8") as fh:
-                json.dump(examples, fh)
-            os.replace(str(tmp_npz),  str(npz_path))
-            os.replace(str(tmp_json), str(json_path))
+            tmp_npz_fd,  tmp_npz_str  = tempfile.mkstemp(suffix=".npz",  dir=parent)
+            tmp_json_fd, tmp_json_str = tempfile.mkstemp(suffix=".json", dir=parent)
+            os.close(tmp_npz_fd)
+            os.close(tmp_json_fd)
+            try:
+                np.savez_compressed(tmp_npz_str, embeddings=arr)
+                with open(tmp_json_str, "w", encoding="utf-8") as fh:
+                    json.dump(examples, fh)
+                os.replace(tmp_npz_str,  str(npz_path))
+                os.replace(tmp_json_str, str(json_path))
+            except Exception:
+                # Clean up orphaned tmp files on failure
+                for p in (tmp_npz_str, tmp_json_str):
+                    try:
+                        os.unlink(p)
+                    except OSError:
+                        pass
+                raise
             log.info(
                 "Self-Healing: corpus snapshot saved (%d embeddings, %d examples)",
                 len(arr), len(examples),
