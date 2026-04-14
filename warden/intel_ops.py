@@ -110,7 +110,7 @@ class WardenIntelOps:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for (pkg_name, pkg_version), result in zip(packages, results, strict=True):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 log.warning("IntelOps: OSV error for %s: %s", pkg_name, result)
                 continue
             for vuln in result:
