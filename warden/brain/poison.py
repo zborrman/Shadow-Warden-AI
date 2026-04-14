@@ -42,6 +42,7 @@ Environment variables
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -442,10 +443,8 @@ class DataPoisoningGuard:
             except Exception:
                 # Clean up orphaned tmp files on failure
                 for p in (tmp_npz_str, tmp_json_str):
-                    try:
+                    with contextlib.suppress(OSError):
                         os.unlink(p)
-                    except OSError:
-                        pass
                 raise
             log.info(
                 "Self-Healing: corpus snapshot saved (%d embeddings, %d examples)",
