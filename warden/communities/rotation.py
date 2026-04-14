@@ -248,22 +248,74 @@ def _rewrap_batch(
     new_kp,
 ) -> tuple[int, int]:
     """
-    Re-wrap one batch of entity envelopes.
+    Re-wrap one batch of entity CEKs from old_kid → new_kid.
 
-    In production this queries:
-      SELECT entity_id, envelope_json FROM community_entities
-       WHERE community_id = %s AND kid = %s
-       LIMIT %s
+    Queries community_entities for entities with kid=old_kid (ACTIVE),
+    calls rewrap_envelope_cek() on each, and updates cek_wrapped_b64,
+    nonce_b64, kid, and sig_b64 in-place.  Payload bytes are untouched.
 
-    For now returns (0, 0) — the interface is wired; DB integration
-    is completed in the community entity persistence layer (Phase 1b).
+    Returns (done, failed).
     """
-    # TODO(v2.8-phase1b): implement DB batch query and update
+    from warden.communities.clearance import ClearanceEnvelope, rewrap_envelope_cek
+    from warden.communities.entity_store import _db_lock, _get_conn
+
+    done = failed = 0
+
+    with _db_lock:
+        conn = _get_conn()
+        rows = conn.execute(
+            "SELECT entity_id, clearance, cek_wrapped_b64, nonce_b64, "
+            "pay_nonce_b64, sig_b64, sender_mid "
+            "FROM community_entities "
+            "WHERE community_id=? AND kid=? AND status='ACTIVE' "
+            "LIMIT ?",
+            (community_id, old_kid, ROTATION_BATCH_SIZE),
+        ).fetchall()
+
+    for row in rows:
+        try:
+            env = ClearanceEnvelope(
+                entity_id       = row["entity_id"],
+                community_id    = community_id,
+                kid             = old_kid,
+                clearance       = row["clearance"],
+                cek_wrapped_b64 = row["cek_wrapped_b64"],
+                nonce_b64       = row["nonce_b64"],
+                payload_b64     = "",   # payload lives in S3; not needed for CEK rewrap
+                pay_nonce_b64   = row["pay_nonce_b64"],
+                sender_mid      = row["sender_mid"],
+                sig_b64         = row["sig_b64"],
+            )
+            updated = rewrap_envelope_cek(env, old_kp, new_kp)
+            with _db_lock:
+                c = _get_conn()
+                c.execute(
+                    "UPDATE community_entities "
+                    "SET kid=?, cek_wrapped_b64=?, nonce_b64=?, sig_b64=? "
+                    "WHERE entity_id=? AND community_id=?",
+                    (
+                        new_kid,
+                        updated.cek_wrapped_b64,
+                        updated.nonce_b64,
+                        updated.sig_b64,
+                        row["entity_id"],
+                        community_id,
+                    ),
+                )
+                c.commit()
+            done += 1
+        except Exception as exc:
+            log.error(
+                "rotation: rewrap failed entity=%s community=%s: %s",
+                row["entity_id"][:8], community_id[:8], exc,
+            )
+            failed += 1
+
     log.debug(
-        "rotation: _rewrap_batch stub community=%s %s→%s",
-        community_id[:8], old_kid, new_kid,
+        "rotation: _rewrap_batch community=%s %s→%s done=%d failed=%d",
+        community_id[:8], old_kid, new_kid, done, failed,
     )
-    return 0, 0
+    return done, failed
 
 
 def complete_rotation(community_id: str, confirmed_by: list[str]) -> dict:

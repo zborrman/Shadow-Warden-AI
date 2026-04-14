@@ -596,6 +596,7 @@
     <nav class="hidden lg:flex items-center gap-5">
       <a href="#pipeline" class="nav-link">Product</a>
       <a href="#pillars" class="nav-link">Platform</a>
+      <a href="#communities" class="nav-link">Communities</a>
       <a href="#pricing" class="nav-link">Pricing</a>
       <a href="#owasp" class="nav-link">Security</a>
       <a href="/soc" class="nav-link" style="color:var(--cyan);font-weight:600;">SOC 2</a>
@@ -631,6 +632,7 @@
   <div id="mobile-menu" class="hidden md:hidden border-t" style="border-color:var(--border);">
     <div class="px-4 py-4 space-y-1">
       <a href="#pipeline" class="block px-3 py-2.5 text-sm nav-link rounded-lg hover:bg-[rgba(34,211,238,0.05)]">Product</a>
+      <a href="#communities" class="block px-3 py-2.5 text-sm nav-link rounded-lg hover:bg-[rgba(34,211,238,0.05)]">Communities</a>
       <a href="#pricing" class="block px-3 py-2.5 text-sm nav-link rounded-lg hover:bg-[rgba(34,211,238,0.05)]">Pricing</a>
       <a href="#owasp" class="block px-3 py-2.5 text-sm nav-link rounded-lg hover:bg-[rgba(34,211,238,0.05)]">Security</a>
       <a href="/soc" class="block px-3 py-2.5 text-sm rounded-lg hover:bg-[rgba(34,211,238,0.05)]" style="color:var(--cyan);font-weight:600;">SOC 2</a>
@@ -2794,6 +2796,132 @@ function switchSector(s) {
   </div>
 </section>
 
+
+<!-- ════════════════════════════════════════════════════════
+     BUSINESS COMMUNITIES
+════════════════════════════════════════════════════════ -->
+<section id="communities" class="py-24 lg:py-32" style="background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 60%,var(--bg) 100%);">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="text-center mb-16 reveal">
+      <p class="eyebrow mb-3">Business Communities</p>
+      <h2 class="text-3xl sm:text-4xl font-black mb-4" style="color:var(--t1);">Encrypted vaults for every team.<br/>Access by clearance. Rotated on demand.</h2>
+      <p class="text-lg max-w-2xl mx-auto" style="color:var(--t2);">Shadow Warden Communities give enterprises a private content vault where every file is encrypted client-side, clearance-gated, and key-rotated on membership change — with zero server-side plaintext.</p>
+    </div>
+
+    <!-- How it works: 4-step flow -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16 reveal">
+      <div style="background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.12);border-radius:16px;padding:24px;position:relative;">
+        <div style="font-size:1.4rem;margin-bottom:12px;">🔑</div>
+        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;color:var(--cyan);text-transform:uppercase;margin-bottom:6px;">Step 1</div>
+        <div class="font-bold mb-2" style="color:var(--t1);font-size:0.95rem;">Create Community</div>
+        <p style="color:var(--t2);font-size:0.8rem;line-height:1.6;">Generates an Ed25519 + X25519 keypair (kid=v1). Public key shared with members; private key Fernet-encrypted in vault.</p>
+      </div>
+      <div style="background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.12);border-radius:16px;padding:24px;">
+        <div style="font-size:1.4rem;margin-bottom:12px;">🛡️</div>
+        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;color:var(--cyan);text-transform:uppercase;margin-bottom:6px;">Step 2</div>
+        <div class="font-bold mb-2" style="color:var(--t1);font-size:0.95rem;">Assign Clearance</div>
+        <p style="color:var(--t2);font-size:0.8rem;line-height:1.6;">Members get PUBLIC / INTERNAL / CONFIDENTIAL / RESTRICTED. Each level derives its own AES-256-GCM key via HKDF — invisible to lower tiers.</p>
+      </div>
+      <div style="background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.12);border-radius:16px;padding:24px;">
+        <div style="font-size:1.4rem;margin-bottom:12px;">📦</div>
+        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;color:var(--cyan);text-transform:uppercase;margin-bottom:6px;">Step 3</div>
+        <div class="font-bold mb-2" style="color:var(--t1);font-size:0.95rem;">Upload to Vault</div>
+        <p style="color:var(--t2);font-size:0.8rem;line-height:1.6;">Files are AES-256-GCM encrypted with a random CEK before leaving the browser. CEK is wrapped with the clearance-level key. Ciphertext stored in MinIO/S3.</p>
+      </div>
+      <div style="background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.12);border-radius:16px;padding:24px;">
+        <div style="font-size:1.4rem;margin-bottom:12px;">🔄</div>
+        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;color:var(--cyan);text-transform:uppercase;margin-bottom:6px;">Step 4</div>
+        <div class="font-bold mb-2" style="color:var(--t1);font-size:0.95rem;">Rotate on Change</div>
+        <p style="color:var(--t2);font-size:0.8rem;line-height:1.6;">Member downgraded? New kid generated in background. All CEKs re-wrapped to new key in batches. Old key crypto-shredded after M-of-N admin sign-off.</p>
+      </div>
+    </div>
+
+    <!-- Feature grid -->
+    <div class="grid lg:grid-cols-3 gap-8 mb-16 reveal">
+
+      <!-- Clearance model -->
+      <div class="bento" style="border-color:rgba(34,211,238,0.15);">
+        <div class="bento-inner">
+          <div style="font-size:1.5rem;margin-bottom:12px;">🔐</div>
+          <div class="font-bold mb-2" style="color:var(--t1);">4-Level Clearance Model</div>
+          <p style="color:var(--t2);font-size:0.83rem;line-height:1.7;margin-bottom:16px;">Bell-LaPadula access control, enforced cryptographically — not just by permission check.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="width:72px;font-size:0.7rem;font-weight:700;color:#94a3b8;background:rgba(100,116,139,0.15);border-radius:6px;padding:3px 8px;text-align:center;">PUBLIC</span>
+              <span style="font-size:0.78rem;color:var(--t2);">All members — general announcements</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="width:72px;font-size:0.7rem;font-weight:700;color:#60a5fa;background:rgba(59,130,246,0.12);border-radius:6px;padding:3px 8px;text-align:center;">INTERNAL</span>
+              <span style="font-size:0.78rem;color:var(--t2);">Operational content, cross-team</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="width:72px;font-size:0.7rem;font-weight:700;color:#fbbf24;background:rgba(251,191,36,0.1);border-radius:6px;padding:3px 8px;text-align:center;">CONFID.</span>
+              <span style="font-size:0.78rem;color:var(--t2);">M&amp;A, financials, legal docs</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="width:72px;font-size:0.7rem;font-weight:700;color:#f87171;background:rgba(248,113,113,0.1);border-radius:6px;padding:3px 8px;text-align:center;">RESTR.</span>
+              <span style="font-size:0.78rem;color:var(--t2);">Board, executive — explicit grant only</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Root Key Rotation -->
+      <div class="bento" style="border-color:rgba(139,92,246,0.15);">
+        <div class="bento-inner">
+          <div style="font-size:1.5rem;margin-bottom:12px;">⚙️</div>
+          <div class="font-bold mb-2" style="color:var(--t1);">Root Key Rotation</div>
+          <p style="color:var(--t2);font-size:0.83rem;line-height:1.7;margin-bottom:16px;">Background ARQ worker re-wraps every entity CEK to the new key in configurable batch sizes. Zero downtime. Idempotent — safe to restart.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <span style="color:var(--cyan);font-weight:700;font-size:0.75rem;flex-shrink:0;">01</span>
+              <span style="font-size:0.78rem;color:var(--t2);">New keypair generated (kid increments v1→v2)</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <span style="color:var(--cyan);font-weight:700;font-size:0.75rem;flex-shrink:0;">02</span>
+              <span style="font-size:0.78rem;color:var(--t2);">Old key demoted to ROTATION_ONLY; new traffic uses v2 immediately</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <span style="color:var(--cyan);font-weight:700;font-size:0.75rem;flex-shrink:0;">03</span>
+              <span style="font-size:0.78rem;color:var(--t2);">CEKs re-wrapped batch-by-batch; progress checkpointed in Redis</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <span style="color:var(--cyan);font-weight:700;font-size:0.75rem;flex-shrink:0;">04</span>
+              <span style="font-size:0.78rem;color:var(--t2);">M-of-N admin sign-off triggers crypto_shred() — key gone permanently</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Break Glass -->
+      <div class="bento" style="border-color:rgba(244,63,94,0.15);">
+        <div class="bento-inner">
+          <div style="font-size:1.5rem;margin-bottom:12px;">🚨</div>
+          <div class="font-bold mb-2" style="color:var(--t1);">Break Glass <span style="font-size:0.7rem;font-weight:600;color:#f43f5e;background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.25);border-radius:6px;padding:2px 8px;vertical-align:middle;">MCP Only</span></div>
+          <p style="color:var(--t2);font-size:0.83rem;line-height:1.7;margin-bottom:16px;">Emergency access to ROTATION_ONLY keys. 3-of-5 super-admin multi-sig. Auto-expires after 1 hour. Immutable audit trail (SOC 2 CC7.2).</p>
+          <div style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.15);border-radius:10px;padding:12px;">
+            <div style="font-size:0.7rem;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Security controls</div>
+            <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:5px;">
+              <li style="font-size:0.78rem;color:var(--t2);">✓ Ed25519 multi-sig (3-of-5 default)</li>
+              <li style="font-size:0.78rem;color:var(--t2);">✓ TTL-bound session (1hr, auto-close)</li>
+              <li style="font-size:0.78rem;color:var(--t2);">✓ All-admin notification on activate</li>
+              <li style="font-size:0.78rem;color:var(--t2);">✓ Append-only audit JSONL log</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CTA bar -->
+    <div class="text-center reveal">
+      <a href="/register" class="btn-cyan" style="font-size:1rem;padding:14px 36px;">Start with Communities →</a>
+      <p style="color:var(--t2);font-size:0.82rem;margin-top:14px;">Available on Business and MCP tiers. Break Glass requires MCP.</p>
+    </div>
+
+  </div>
+</section>
 
 <!-- ════════════════════════════════════════════════════════
      ROI CALCULATOR

@@ -561,6 +561,121 @@ async def delete_entity_endpoint(
         raise HTTPException(status_code=404, detail="Entity not found or already deleted.")
 
 
+# ── Break Glass schemas ───────────────────────────────────────────────────────
+
+class InitiateBreakGlassRequest(BaseModel):
+    kid:          str = Field(..., description="Key ID (kid) to recover, e.g. 'v1'")
+    reason:       str = Field(..., min_length=10, max_length=1000)
+    requested_by: str = Field(..., description="User / admin ID initiating the request")
+
+
+class SignBreakGlassRequest(BaseModel):
+    signer_id: str = Field(..., description="Admin user ID of the co-signer")
+    sig_b64:   str = Field(..., description="Ed25519 signature over SHA-256(request_id+community_id+kid+reason)")
+
+
+# ── Break Glass endpoints (MCP tier only) ─────────────────────────────────────
+
+@router.post("/{community_id}/break-glass", status_code=201)
+async def initiate_break_glass_endpoint(
+    community_id: str,
+    body:         InitiateBreakGlassRequest,
+    request:      Request,
+) -> dict:
+    """
+    Initiate a Break Glass emergency access procedure (MCP tier only).
+
+    Returns a BreakGlassRequest dict with request_id for co-signers.
+    Requires M-of-N signatures (default 3) before activation.
+    """
+    from warden.communities.break_glass import initiate_break_glass
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "mcp")
+
+    community = get_community(community_id)
+    if not community or community.tenant_id != ctx["tenant_id"]:
+        raise HTTPException(status_code=404, detail="Community not found.")
+
+    try:
+        bg_req = initiate_break_glass(
+            community_id = community_id,
+            kid          = body.kid,
+            reason       = body.reason,
+            requested_by = body.requested_by,
+            tenant_tier  = ctx["tier"],
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return bg_req.__dict__
+
+
+@router.post("/break-glass/{request_id}/sign")
+async def sign_break_glass_endpoint(
+    request_id: str,
+    body:       SignBreakGlassRequest,
+    request:    Request,
+) -> dict:
+    """
+    Add a co-signer's approval to a Break Glass request.
+
+    Returns {status, sigs, required}.
+    """
+    from warden.communities.break_glass import sign_break_glass
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "mcp")
+
+    try:
+        return sign_break_glass(request_id, body.signer_id, body.sig_b64)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/break-glass/{request_id}/activate")
+async def activate_break_glass_endpoint(
+    request_id: str,
+    request:    Request,
+) -> dict:
+    """
+    Activate the Break Glass session after M signatures are collected.
+
+    Returns {status, kid, community_id}.  The keypair is accessible
+    for BREAK_GLASS_TTL_S seconds (default 3600); it is auto-closed after.
+    """
+    from warden.communities.break_glass import activate_break_glass
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "mcp")
+
+    try:
+        kp = activate_break_glass(request_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return {"status": "ACTIVE", "kid": kp.kid, "community_id": kp.community_id}
+
+
+@router.delete("/break-glass/{request_id}", status_code=204)
+async def close_break_glass_endpoint(
+    request_id: str,
+    request:    Request,
+) -> None:
+    """Manually close a Break Glass session before TTL expires."""
+    from warden.communities.break_glass import close_break_glass
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "mcp")
+    close_break_glass(request_id)
+
+
 @router.get("/{community_id}/rotation")
 async def rotation_progress_endpoint(
     community_id: str,
