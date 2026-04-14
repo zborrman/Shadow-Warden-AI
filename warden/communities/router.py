@@ -375,6 +375,192 @@ async def initiate_rotation_endpoint(
     return result
 
 
+# ── Entity schemas ────────────────────────────────────────────────────────────
+
+class UploadEntityRequest(BaseModel):
+    content_b64:  str = Field(..., description="Base64-encoded plaintext content")
+    clearance:    str = Field("PUBLIC", description="PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED")
+    content_type: str = Field("application/octet-stream")
+    sender_mid:   str = Field(..., description="Member_ID of the uploader")
+
+
+class EntityMetaResponse(BaseModel):
+    entity_id:    str
+    community_id: str
+    kid:          str
+    clearance:    str
+    sender_mid:   str
+    byte_size:    int
+    content_type: str
+    status:       str
+    created_at:   str
+    expires_at:   str | None
+
+
+# ── Entity endpoints ──────────────────────────────────────────────────────────
+
+@router.post("/{community_id}/entities", status_code=201)
+async def upload_entity_endpoint(
+    community_id: str,
+    body:         UploadEntityRequest,
+    request:      Request,
+) -> EntityMetaResponse:
+    """Encrypt and store an entity in the community vault."""
+    import base64
+    import uuid as _uuid
+
+    from warden.communities.clearance import create_envelope as _create_envelope
+    from warden.communities.entity_store import store_entity
+    from warden.communities.key_archive import get_active_entry, load_keypair_from_entry
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "business")
+
+    community = get_community(community_id)
+    if not community or community.tenant_id != ctx["tenant_id"]:
+        raise HTTPException(status_code=404, detail="Community not found.")
+
+    try:
+        clearance_level = ClearanceLevel.from_str(body.clearance)
+    except KeyError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid clearance: {body.clearance!r}. Use PUBLIC | INTERNAL | CONFIDENTIAL | RESTRICTED.",
+        ) from None
+
+    entry = get_active_entry(community_id)
+    if not entry:
+        raise HTTPException(status_code=409, detail="Community has no active keypair.")
+
+    try:
+        keypair = load_keypair_from_entry(entry)
+    except Exception as exc:
+        log.error("upload_entity: keypair load failed community=%s: %s", community_id[:8], exc)
+        raise HTTPException(status_code=500, detail="Keypair unavailable.") from exc
+
+    try:
+        plaintext = base64.b64decode(body.content_b64)
+    except Exception:
+        raise HTTPException(status_code=422, detail="content_b64 is not valid base64.") from None
+
+    entity_id = str(_uuid.uuid4())
+    envelope  = _create_envelope(entity_id, community_id, plaintext, clearance_level, keypair, body.sender_mid)
+
+    try:
+        meta = store_entity(envelope, community_id, ctx["tier"], body.content_type)
+    except Exception as exc:
+        log.error("upload_entity: store failed community=%s: %s", community_id[:8], exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return EntityMetaResponse(
+        entity_id    = meta.entity_id,
+        community_id = meta.community_id,
+        kid          = meta.kid,
+        clearance    = meta.clearance,
+        sender_mid   = meta.sender_mid,
+        byte_size    = meta.byte_size,
+        content_type = meta.content_type,
+        status       = meta.status,
+        created_at   = meta.created_at,
+        expires_at   = meta.expires_at,
+    )
+
+
+@router.get("/{community_id}/entities")
+async def list_entities_endpoint(
+    community_id:     str,
+    request:          Request,
+    clearance_filter: str | None = None,
+    limit:            int = 50,
+    offset:           int = 0,
+) -> list[EntityMetaResponse]:
+    """List encrypted entities in a community (metadata only, no payload)."""
+    from warden.communities.entity_store import list_entities
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "business")
+
+    community = get_community(community_id)
+    if not community or community.tenant_id != ctx["tenant_id"]:
+        raise HTTPException(status_code=404, detail="Community not found.")
+
+    entities = list_entities(community_id, clearance_filter=clearance_filter, limit=limit, offset=offset)
+    return [
+        EntityMetaResponse(
+            entity_id    = e.entity_id,
+            community_id = e.community_id,
+            kid          = e.kid,
+            clearance    = e.clearance,
+            sender_mid   = e.sender_mid,
+            byte_size    = e.byte_size,
+            content_type = e.content_type,
+            status       = e.status,
+            created_at   = e.created_at,
+            expires_at   = e.expires_at,
+        )
+        for e in entities
+    ]
+
+
+@router.get("/{community_id}/entities/{entity_id}")
+async def get_entity_endpoint(
+    community_id: str,
+    entity_id:    str,
+    request:      Request,
+) -> dict:
+    """Get entity metadata and a 1-hour pre-signed download URL."""
+    from warden.communities.entity_store import get_entity_meta, get_entity_presigned_url
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "business")
+
+    community = get_community(community_id)
+    if not community or community.tenant_id != ctx["tenant_id"]:
+        raise HTTPException(status_code=404, detail="Community not found.")
+
+    meta = get_entity_meta(entity_id, community_id)
+    if not meta or meta.status != "ACTIVE":
+        raise HTTPException(status_code=404, detail="Entity not found.")
+
+    download_url = get_entity_presigned_url(entity_id, community_id, expires_in=3600)
+    return {
+        "entity": EntityMetaResponse(
+            entity_id    = meta.entity_id,
+            community_id = meta.community_id,
+            kid          = meta.kid,
+            clearance    = meta.clearance,
+            sender_mid   = meta.sender_mid,
+            byte_size    = meta.byte_size,
+            content_type = meta.content_type,
+            status       = meta.status,
+            created_at   = meta.created_at,
+            expires_at   = meta.expires_at,
+        ).model_dump(),
+        "download_url": download_url,
+    }
+
+
+@router.delete("/{community_id}/entities/{entity_id}", status_code=204)
+async def delete_entity_endpoint(
+    community_id: str,
+    entity_id:    str,
+    request:      Request,
+) -> None:
+    """Crypto-shred and permanently delete an entity."""
+    from warden.communities.entity_store import delete_entity
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "business")
+
+    community = get_community(community_id)
+    if not community or community.tenant_id != ctx["tenant_id"]:
+        raise HTTPException(status_code=404, detail="Community not found.")
+
+    deleted = delete_entity(entity_id, community_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Entity not found or already deleted.")
+
+
 @router.get("/{community_id}/rotation")
 async def rotation_progress_endpoint(
     community_id: str,
