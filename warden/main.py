@@ -652,6 +652,25 @@ async def lifespan(app: FastAPI):
     else:
         log.info("ThreatIntelEngine disabled (set THREAT_INTEL_ENABLED=true to opt in).")
 
+    # ── Intel Ops Bridge (opt-in) ─────────────────────────────────────
+    _intel_bridge_task = None
+    if os.getenv("INTEL_OPS_ENABLED", "false").lower() == "true":
+        try:
+            from warden.intel_bridge import WardenIntelBridge  # noqa: PLC0415
+            _intel_bridge = WardenIntelBridge(
+                evolve_engine  = _evolve,
+                semantic_guard = _brain_guard,
+            )
+            _intel_bridge_task = asyncio.create_task(_intel_bridge.run_loop())
+            log.info(
+                "IntelBridge online (interval=%.0fh).",
+                float(os.getenv("INTEL_BRIDGE_INTERVAL_HRS", "6")),
+            )
+        except Exception as _ib_err:
+            log.warning("IntelBridge failed to start (non-fatal): %s", _ib_err)
+    else:
+        log.info("IntelBridge disabled (set INTEL_OPS_ENABLED=true to opt in).")
+
     # ── Background tasks ──────────────────────────────────────────────
     _retirement_task  = asyncio.create_task(_nightly_rule_retirement())
     _billing_task     = asyncio.create_task(_billing_aggregation_loop())
@@ -798,6 +817,8 @@ async def lifespan(app: FastAPI):
     _feed_sync_task.cancel()
     if _ti_task is not None:
         _ti_task.cancel()
+    if _intel_bridge_task is not None:
+        _intel_bridge_task.cancel()
     with suppress(asyncio.CancelledError):
         await _retirement_task
     with suppress(asyncio.CancelledError):
@@ -807,6 +828,9 @@ async def lifespan(app: FastAPI):
     if _ti_task is not None:
         with suppress(asyncio.CancelledError):
             await _ti_task
+    if _intel_bridge_task is not None:
+        with suppress(asyncio.CancelledError):
+            await _intel_bridge_task
 
     if _ledger is not None:
         _ledger.close()

@@ -511,6 +511,72 @@ class EvolutionEngine:
 
         return EvolutionResult(rule=rule, corpus_updated=corpus_updated)
 
+    # ── Intel Bridge: synthesize examples from ArXiv paper metadata ──────────
+
+    async def synthesize_from_intel(
+        self,
+        source: str,
+        title:  str,
+        link:   str,
+    ) -> list[str]:
+        """
+        Given an ArXiv paper title (from WardenIntelOps.hunt_ai_threats), ask
+        Claude Opus to synthesise 3-5 concrete attack prompt examples that the
+        research describes or implies.
+
+        Returns a list of example strings ready for SemanticGuard.add_examples().
+        Returns [] when the API is unavailable or the engine is not initialised.
+        """
+        if self._client is None:
+            log.debug("synthesize_from_intel: no Anthropic client — skipped.")
+            return []
+        if _is_rate_limited():
+            log.warning("synthesize_from_intel: rate-limited — skipped.")
+            return []
+
+        system = (
+            "You are an expert AI red-teamer working for Shadow Warden AI. "
+            "Your task: given the title of an academic paper about LLM attack techniques, "
+            "produce exactly 5 concrete attacker prompt examples that represent the "
+            "attack surface the paper describes. Each example must be a realistic "
+            "prompt that a real attacker would submit to an LLM gateway. "
+            "Respond ONLY with a JSON array of 5 strings — no commentary, no preamble."
+        )
+        user = (
+            f"Paper source: {source}\n"
+            f"Paper title: {title}\n"
+            f"Paper URL: {link}\n\n"
+            "Generate 5 adversarial prompt examples that this research likely covers. "
+            "Respond with a JSON array of strings only."
+        )
+
+        try:
+            resp = await self._client.messages.create(
+                model      = EVOLUTION_MODEL,
+                max_tokens = 1024,
+                system     = system,
+                messages   = [{"role": "user", "content": user}],
+            )
+            raw = resp.content[0].text.strip()
+            # Strip markdown code fences if present
+            raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.DOTALL).strip()
+            examples: list[str] = json.loads(raw)
+            if not isinstance(examples, list):
+                return []
+            vetted = [
+                e for raw_ex in examples
+                if isinstance(raw_ex, str)
+                and (e := self._vet_example(raw_ex)) is not None
+            ]
+            log.info(
+                "synthesize_from_intel: %d/%d examples passed vetting for '%s'",
+                len(vetted), len(examples), title[:60],
+            )
+            return vetted
+        except Exception as exc:
+            log.warning("synthesize_from_intel: Claude API error — %s", exc)
+            return []
+
     # ── Claude API call ───────────────────────────────────────────────────────
 
     async def _call_claude(
