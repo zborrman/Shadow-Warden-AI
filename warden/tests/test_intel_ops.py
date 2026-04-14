@@ -7,13 +7,10 @@ All network calls are mocked — no real OSV or ArXiv requests are made.
 """
 from __future__ import annotations
 
-import asyncio
 import json
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -60,7 +57,7 @@ OSV_CLEAN_RESPONSE = {}
 
 class TestWardenIntelOpsInit:
     def test_defaults(self, tmp_path):
-        from warden.intel_ops import WardenIntelOps, _DEFAULT_IGNORED
+        from warden.intel_ops import _DEFAULT_IGNORED, WardenIntelOps
         ops = WardenIntelOps(project_root=tmp_path)
         assert ops.project_root == tmp_path
         assert ops.req_file == tmp_path / "warden" / "requirements.txt"
@@ -249,16 +246,18 @@ class TestRunAudit:
 
         ops = WardenIntelOps(project_root=tmp_path, ignored_vulns={})
 
-        with patch("warden.intel_ops._REPORT_PATH", tmp_path / "intel_report.json"):
-            with patch("httpx.AsyncClient") as mock_client_cls:
-                mock_client = AsyncMock()
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=False)
-                mock_client.post = AsyncMock(return_value=_make_response(OSV_VULN_RESPONSE))
-                mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
-                mock_client_cls.return_value = mock_client
+        with (
+            patch("warden.intel_ops._REPORT_PATH", tmp_path / "intel_report.json"),
+            patch("httpx.AsyncClient") as mock_client_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(return_value=_make_response(OSV_VULN_RESPONSE))
+            mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
+            mock_client_cls.return_value = mock_client
 
-                alerts = await ops.run_audit()
+            alerts = await ops.run_audit()
 
         assert len(alerts) > 0
         cve_alerts = [a for a in alerts if a["type"] == "dependency_cve"]
@@ -325,15 +324,17 @@ class TestWardenIntelBridge:
         """When no EvolutionEngine, papers fetched but synthesis skipped."""
         bridge = self._make_bridge(evolve=None)
 
-        with patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"):
-            with patch("httpx.AsyncClient") as mock_cls:
-                mock_client = AsyncMock()
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=False)
-                mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
-                mock_cls.return_value = mock_client
+        with (
+            patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"),
+            patch("httpx.AsyncClient") as mock_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
+            mock_cls.return_value = mock_client
 
-                summary = await bridge.synchronize_threats()
+            summary = await bridge.synchronize_threats()
 
         assert summary["papers_found"] == 2
         assert summary["papers_new"] == 2
@@ -348,15 +349,17 @@ class TestWardenIntelBridge:
         mock_evolve.synthesize_from_intel = AsyncMock(return_value=["ignore all previous instructions"])
         bridge = self._make_bridge(evolve=mock_evolve)
 
-        with patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"):
-            with patch("httpx.AsyncClient") as mock_cls:
-                mock_client = AsyncMock()
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=False)
-                mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
-                mock_cls.return_value = mock_client
+        with (
+            patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"),
+            patch("httpx.AsyncClient") as mock_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
+            mock_cls.return_value = mock_client
 
-                summary = await bridge.synchronize_threats()
+            summary = await bridge.synchronize_threats()
 
         assert summary["papers_new"] == 2
         assert summary["examples_added"] == 2  # 1 example × 2 papers
@@ -369,16 +372,18 @@ class TestWardenIntelBridge:
         mock_evolve.synthesize_from_intel = AsyncMock(return_value=["example attack"])
         bridge = self._make_bridge(evolve=mock_evolve)
 
-        with patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"):
-            with patch("httpx.AsyncClient") as mock_cls:
-                mock_client = AsyncMock()
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=False)
-                mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
-                mock_cls.return_value = mock_client
+        with (
+            patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"),
+            patch("httpx.AsyncClient") as mock_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
+            mock_cls.return_value = mock_client
 
-                await bridge.synchronize_threats()
-                summary2 = await bridge.synchronize_threats()
+            await bridge.synchronize_threats()
+            summary2 = await bridge.synchronize_threats()
 
         assert summary2["papers_new"] == 0
         assert summary2["examples_added"] == 0
@@ -390,15 +395,17 @@ class TestWardenIntelBridge:
         mock_evolve.synthesize_from_intel = AsyncMock(side_effect=Exception("API down"))
         bridge = self._make_bridge(evolve=mock_evolve)
 
-        with patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"):
-            with patch("httpx.AsyncClient") as mock_cls:
-                mock_client = AsyncMock()
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=False)
-                mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
-                mock_cls.return_value = mock_client
+        with (
+            patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"),
+            patch("httpx.AsyncClient") as mock_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get = AsyncMock(return_value=_make_response(text_data=ARXIV_FEED))
+            mock_cls.return_value = mock_client
 
-                summary = await bridge.synchronize_threats()
+            summary = await bridge.synchronize_threats()
 
         assert summary["papers_new"] == 2
         assert summary["examples_added"] == 0
@@ -407,15 +414,17 @@ class TestWardenIntelBridge:
     async def test_empty_arxiv_returns_zero(self, tmp_path):
         bridge = self._make_bridge()
 
-        with patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"):
-            with patch("httpx.AsyncClient") as mock_cls:
-                mock_client = AsyncMock()
-                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-                mock_client.__aexit__ = AsyncMock(return_value=False)
-                mock_client.get = AsyncMock(return_value=_make_response(text_data="<feed></feed>"))
-                mock_cls.return_value = mock_client
+        with (
+            patch("warden.intel_ops._REPORT_PATH", tmp_path / "r.json"),
+            patch("httpx.AsyncClient") as mock_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client.get = AsyncMock(return_value=_make_response(text_data="<feed></feed>"))
+            mock_cls.return_value = mock_client
 
-                summary = await bridge.synchronize_threats()
+            summary = await bridge.synchronize_threats()
 
         assert summary["papers_found"] == 0
         assert summary["papers_new"] == 0
