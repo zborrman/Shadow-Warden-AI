@@ -58,7 +58,7 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/brain/hyperbolic.py` | Poincaré ball projection + vectorized hyperbolic distance (pure numpy) |
 | `warden/causal_arbiter.py` | Bayesian DAG causal inference — 5 nodes, Pearl do-calculus, backdoor correction |
 | `warden/brain/semantic.py` | ML jailbreak detector — MiniLM + hyperbolic blend, adversarial suffix stripping |
-| `warden/brain/evolve.py` | Claude Opus auto-rule generation (streaming + adaptive thinking + corpus poisoning protection) |
+| `warden/brain/evolve.py` | Claude Opus auto-rule generation + `synthesize_from_intel()` (ArXiv paper → attack examples) |
 | `warden/obfuscation.py` | Obfuscation decoder pre-filter (base64, hex, ROT13, unicode homoglyphs) |
 | `warden/secret_redactor.py` | 15 PII/secret regex patterns + Shannon entropy scan for unknown secrets |
 | `warden/semantic_guard.py` | Rule-based semantic analyser, compound risk escalation (3+ MEDIUM → HIGH) |
@@ -71,6 +71,9 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/alerting.py` | Slack + PagerDuty real-time alerts on HIGH/BLOCK |
 | `warden/analytics/logger.py` | NDJSON logger + GDPR helpers (`purge_before`, `read_by_request_id`) |
 | `warden/analytics/dashboard.py` | Streamlit security dashboard (reads logs.json directly) |
+| `warden/analytics/pages/2_Settings.py` | Streamlit Settings page — Threat Radar tab + Intel Bridge tab + Causal Arbiter interactive visualizer |
+| `warden/intel_ops.py` | Threat Radar — OSV API dependency CVE scanner + ArXiv LLM-attack paper hunter; saves `data/intel_report.json` |
+| `warden/intel_bridge.py` | Auto-Evolution Bridge — ArXiv papers → `synthesize_from_intel()` → `SemanticGuard.add_examples()` hot-reload |
 | `warden/analytics/siem.py` | Splunk HEC + Elastic ECS SIEM integration |
 | `warden/integrations/langchain_callback.py` | LangChain duck-typed callback (`WardenCallback`) |
 | `warden/tools/browser.py` | Playwright headless Chromium sandbox (`Context7Manager`) |
@@ -144,6 +147,10 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 - **Atomic writes**: `tempfile` + `os.replace()` for `logs.json` and `dynamic_rules.json` to prevent corruption.
 - **Evolution Loop optional**: Runs without `ANTHROPIC_API_KEY` (air-gapped mode). All detection still works.
 - **Model loading**: `@lru_cache(maxsize=1)` singleton in `brain/semantic.py`. Pre-warmed in FastAPI `lifespan()`. Uses `asyncio.get_running_loop()` (not deprecated `get_event_loop()`).
+- **Entrypoint pass-through**: `entrypoint.sh` checks `$# > 0` — if args are passed (e.g. `docker run ... python3 script.py`), exec them as wardenuser instead of starting uvicorn. Required for `[1b/4]` ONNX export step in CI deploy.
+- **DataPoisoningGuard model access**: uses `_load_model()` from `warden.brain.semantic` (module-level `@lru_cache` singleton) — NOT `self._guard._model` (SemanticGuard has no such attribute).
+- **Corpus snapshot atomicity**: `tempfile.mkstemp()` per call in `_save_snapshot_sync()` — prevents ENOENT race when two uvicorn workers call `save_snapshot_async()` concurrently.
+- **Intel Bridge optional**: `INTEL_OPS_ENABLED=true` activates background ArXiv → Evolution sync. `INTEL_BRIDGE_INTERVAL_HRS` (default 6). Requires `ANTHROPIC_API_KEY` for synthesis; fail-open otherwise.
 
 ## Code Style
 
@@ -157,7 +164,7 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 
 Three jobs: `test` (matrix 3.11/3.12), `lint`, `docker-build`.
 
-- **Coverage gate**: ≥75% (`--cov-fail-under=75`), currently ~86%
+- **Coverage gate**: ≥75% (`--cov-fail-under=75`), currently ~75.2%
 - **Adversarial tests**: informational (`|| true`), don't block merges
 - **Mutation testing**: mutmut on `secret_redactor.py` + `semantic_guard.py`, threshold 20 surviving mutants
 - **Docker smoke**: Phase 1 (import test, no model) + Phase 2 (runtime /health check with model cache)
