@@ -50,7 +50,7 @@ OSV_VULN_RESPONSE = {
     ]
 }
 
-OSV_CLEAN_RESPONSE = {}
+OSV_CLEAN_RESPONSE: dict[str, list] = {}
 
 
 # ── WardenIntelOps tests ──────────────────────────────────────────────────────
