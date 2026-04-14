@@ -1,8 +1,42 @@
+@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* v4 CSS-first theme — replaces tailwind.config.js */
+@theme {
+  /* Dark background palette */
+  --color-dark-950: #020509;
+  --color-dark-900: #050a13;
+  --color-dark-800: #0b1220;
+  --color-dark-700: #111b2e;
+  --color-dark-600: #1a2540;
+
+  /* Brand accent — sky/cyan */
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+
+  /* Secondary accent — violet */
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #818cf8;
+  --color-violet-500: #6366f1;
+
+  /* Risk level colours */
+  --color-risk-low: #22c55e;
+  --color-risk-medium: #f59e0b;
+  --color-risk-high: #ef4444;
+  --color-risk-block: #dc2626;
+
+  /* Fonts */
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Menlo, monospace;
+
+  /* Background images */
+  --background-image-brand-gradient: linear-gradient(135deg, #38bdf8, #818cf8);
+  --background-image-card-gradient: linear-gradient(135deg, rgba(56,189,248,0.05), rgba(129,140,248,0.05));
+}
+
+@source "../**/*.{js,ts,jsx,tsx,mdx}";
 
 @layer base {
   * { box-sizing: border-box; }
@@ -26,7 +60,7 @@
     @apply bg-dark-800 border border-white/[0.06] rounded-2xl;
   }
   .card-glow {
-    @apply card bg-card-gradient;
+    @apply bg-dark-800 border border-white/[0.06] rounded-2xl bg-card-gradient;
   }
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2
@@ -69,10 +103,10 @@
   .badge {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
   }
-  .badge-low    { @apply badge bg-green-500/15 text-green-400; }
-  .badge-medium { @apply badge bg-amber-500/15 text-amber-400; }
-  .badge-high   { @apply badge bg-red-500/15 text-red-400; }
-  .badge-block  { @apply badge bg-red-700/20 text-red-300; }
-  .badge-active { @apply badge bg-brand-400/15 text-brand-400; }
-  .badge-revoked{ @apply badge bg-slate-500/15 text-slate-400; }
+  .badge-low    { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-500/15 text-green-400; }
+  .badge-medium { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400; }
+  .badge-high   { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/15 text-red-400; }
+  .badge-block  { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-700/20 text-red-300; }
+  .badge-active { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-400/15 text-brand-400; }
+  .badge-revoked{ @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/15 text-slate-400; }
 }
