@@ -73,6 +73,7 @@ opentelemetry-instrumentation-fastapi>=0.48b0
 # 2-4x faster MiniLM CPU inference vs. PyTorch.
 # Export model once with: python scripts/export_onnx.py
 onnxruntime>=1.18.0
+onnxscript>=0.1.0            # required by torch.onnx.export in PyTorch 2.x
 
 # ── PostgreSQL support (optional, DATABASE_URL=postgresql+asyncpg://...) ─────
 # Required when DATABASE_URL points to PostgreSQL instead of SQLite.
