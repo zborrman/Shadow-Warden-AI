@@ -303,6 +303,7 @@ jobs:
               docker run --rm --name warden-onnx-export \
                 -e HF_HOME=/warden/models/.cache \
                 -v warden-models:/warden/models \
+                -v "\$(pwd)/scripts:/warden/scripts:ro" \
                 shadow-warden-warden:latest \
                 python3 /warden/scripts/export_onnx.py --quantize \
                   --output /warden/models/minilm-onnx \
