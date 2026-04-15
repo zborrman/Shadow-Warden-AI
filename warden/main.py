@@ -1045,6 +1045,13 @@ try:
 except ImportError:
     log.warning("monitor router not available — /monitors routes skipped.")
 
+try:
+    from warden.api.agent import router as _agent_router
+    app.include_router(_agent_router)
+    log.info("SOVA Agent mounted at /agent/sova")
+except ImportError:
+    log.warning("agent router not available — /agent/sova skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /

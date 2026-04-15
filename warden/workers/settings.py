@@ -35,6 +35,14 @@ import os
 from arq import cron
 from arq.connections import RedisSettings
 
+from warden.agent.scheduler import (
+    sova_corpus_watchdog,
+    sova_morning_brief,
+    sova_rotation_check,
+    sova_sla_report,
+    sova_threat_sync,
+    sova_upgrade_scan,
+)
 from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
@@ -64,6 +72,13 @@ class WorkerSettings:
         send_weekly_reports,
         reap_expired_tunnels,
         notify_impending_expiration,
+        # SOVA Agent jobs
+        sova_morning_brief,
+        sova_threat_sync,
+        sova_rotation_check,
+        sova_sla_report,
+        sova_upgrade_scan,
+        sova_corpus_watchdog,
     ]
 
     cron_jobs = [
@@ -83,6 +98,24 @@ class WorkerSettings:
             minute={0, 15, 30, 45},
             timeout=60,
         ),
+
+        # ── SOVA Agent — daily morning brief 08:00 UTC ────────────────────────
+        cron(sova_morning_brief, hour=8, minute=0, timeout=300),
+
+        # ── SOVA Agent — threat intel sync every 6 hours ──────────────────────
+        cron(sova_threat_sync, hour={0, 6, 12, 18}, minute=5, timeout=300),
+
+        # ── SOVA Agent — key rotation check 02:00 UTC daily ──────────────────
+        cron(sova_rotation_check, hour=2, minute=0, timeout=180),
+
+        # ── SOVA Agent — SLA report every Monday 09:00 UTC ───────────────────
+        cron(sova_sla_report, weekday=0, hour=9, minute=0, timeout=300),
+
+        # ── SOVA Agent — upgrade scan every Sunday 10:00 UTC ─────────────────
+        cron(sova_upgrade_scan, weekday=6, hour=10, minute=0, timeout=300),
+
+        # ── SOVA Agent — corpus watchdog every 30 minutes ────────────────────
+        cron(sova_corpus_watchdog, minute={0, 30}, timeout=30),
     ]
 
     on_startup  = startup
