@@ -285,30 +285,32 @@ jobs:
           echo "── [1/4] Code already pulled via git ──────────────────────"
 
           echo "── [1b/4] ONNX model — build if missing ────────────────────"
-          # The quantized INT8 ONNX model lives in the named Docker volume
-          # warden-models at /warden/models/minilm-onnx-int8/model.onnx.
-          # Named volume survives rebuilds and git operations (unlike bind mount).
+          # The quantized INT8 ONNX model lives in the named Docker volume.
+          # docker compose prefixes the volume with the project name, so the
+          # actual volume on the server is shadow-warden_warden-models (not
+          # warden-models which is the bare name in docker-compose.yml).
           # A fixed container name (warden-onnx-export) prevents parallel deploys
           # from spawning duplicate export jobs — if one is already running, skip.
+          COMPOSE_VOLUME="shadow-warden_warden-models"
           MODEL_CHECK=\$(docker run --rm \
-            -v warden-models:/warden/models \
+            -v "\${COMPOSE_VOLUME}:/warden/models" \
             alpine test -f /warden/models/minilm-onnx-int8/model.onnx && echo yes || echo no)
           if [ "\${MODEL_CHECK}" = "no" ]; then
             if docker ps -q --filter "name=warden-onnx-export" | grep -q .; then
               echo "  Export already running — skipping duplicate."
             else
               echo "  INT8 model not found — running export_onnx.py --quantize ..."
-              # Kill any exited export container with the same name before starting
               docker rm -f warden-onnx-export 2>/dev/null || true
               docker run --rm --name warden-onnx-export \
-                -e HF_HOME=/warden/models/.cache \
-                -v warden-models:/warden/models \
+                --entrypoint sh -e HOME=/tmp \
+                -v "\${COMPOSE_VOLUME}:/warden/models" \
                 -v "\$(pwd)/scripts:/warden/scripts:ro" \
                 shadow-warden-warden:latest \
-                python3 /warden/scripts/export_onnx.py --quantize \
-                  --output /warden/models/minilm-onnx \
-                  --quantize-output /warden/models/minilm-onnx-int8 \
-                  --cache-dir /warden/models/.cache \
+                -c "pip install -q 'optimum[onnxruntime]' && \
+                    python3 /warden/scripts/export_onnx.py --quantize \
+                      --output /warden/models/minilm-onnx \
+                      --quantize-output /warden/models/minilm-onnx-int8 \
+                      --cache-dir /warden/models/.cache" \
                 && echo "  ONNX INT8 model ready."
             fi
           else
