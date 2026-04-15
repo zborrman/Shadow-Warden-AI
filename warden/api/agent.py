@@ -14,10 +14,11 @@ Auth: standard X-API-Key (same as all other warden routes).
 from __future__ import annotations
 
 import time
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+
+from warden.auth_guard import AuthResult, require_api_key
 
 router = APIRouter(prefix="/agent", tags=["SOVA Agent"])
 
@@ -42,27 +43,18 @@ class SovaResponse(BaseModel):
 
 
 class TaskResponse(BaseModel):
-    job:     str
-    status:  str
+    job:        str
+    status:     str
     latency_ms: float
 
 
-# ── Auth dependency (reuses existing warden auth) ─────────────────────────────
-
-async def _require_auth(request: Request) -> None:
-    from warden.auth_guard import verify_api_key
-    api_key = request.headers.get("X-API-Key", "")
-    if not verify_api_key(api_key):
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-
-AuthDep = Annotated[None, Depends(_require_auth)]
+AuthDep = Depends(require_api_key)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/sova", response_model=SovaResponse, summary="Query SOVA agent")
-async def query_sova(_auth: AuthDep, body: SovaRequest) -> SovaResponse:
+async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaResponse:
     """
     Send a natural-language query or command to SOVA.
 
@@ -102,7 +94,7 @@ async def query_sova(_auth: AuthDep, body: SovaRequest) -> SovaResponse:
     status_code=204,
     summary="Clear SOVA conversation history",
 )
-async def clear_session(_auth: AuthDep, session_id: str) -> None:
+async def clear_session(session_id: str, auth: AuthResult = AuthDep) -> None:
     from warden.agent.memory import clear_history
     clear_history(session_id)
 
@@ -122,7 +114,7 @@ _MANUAL_TASKS = {
     response_model=TaskResponse,
     summary="Manually trigger a SOVA scheduled task",
 )
-async def trigger_task(_auth: AuthDep, job: str) -> TaskResponse:
+async def trigger_task(job: str, auth: AuthResult = AuthDep) -> TaskResponse:
     """
     Manually trigger one of SOVA's scheduled tasks without waiting for cron.
 

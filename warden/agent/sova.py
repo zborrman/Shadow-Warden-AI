@@ -119,8 +119,8 @@ async def run_query(
                     "cache_control": {"type": "ephemeral"},   # cache system prompt
                 }
             ],
-            tools=_tools.TOOLS,
-            messages=history,
+            tools=_tools.TOOLS,      # type: ignore[arg-type]
+            messages=history,         # type: ignore[arg-type]
         )
 
         # Accumulate token usage
@@ -198,7 +198,7 @@ async def run_query(
         model=_MODEL,
         max_tokens=1024,
         system=[{"type": "text", "text": _SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
-        messages=history + [{"role": "user", "content": "Summarize your findings so far in a concise response."}],
+        messages=history + [{"role": "user", "content": "Summarize your findings so far in a concise response."}],  # type: ignore[arg-type]
     )
     final_text = "".join(b.text for b in fallback.content if hasattr(b, "text"))
     history.append({"role": "assistant", "content": final_text})
