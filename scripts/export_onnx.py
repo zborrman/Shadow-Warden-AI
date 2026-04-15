@@ -104,8 +104,9 @@ def export_via_torch(output: str, cache_dir: str | None) -> None:
                 "attention_mask":    {0: "batch", 1: "seq_len"},
                 "last_hidden_state": {0: "batch", 1: "seq_len"},
             },
-            opset_version       = 17,
+            opset_version       = 14,   # 14 avoids dynamo path in PyTorch 2.x
             do_constant_folding = True,
+            dynamo              = False, # force legacy exporter (produces correct weights)
         )
     print(f"[torch] Saved {onnx_path}")
 
@@ -138,13 +139,12 @@ def quantize_int8(fp32_dir: str, q_output: str) -> str:
 
     print(f"[quantize] INT8 dynamic quantization: {fp32_path} -> {int8_path}")
     quantize_dynamic(
-        model_input          = fp32_path,
-        model_output         = int8_path,
-        weight_type          = QuantType.QInt8,
-        optimize_model       = True,
-        per_channel          = False,   # per-tensor is faster on x86 without AVX-512 VNNI
-        reduce_range         = False,   # set True only on older Intel CPUs (Skylake)
-        extra_options        = {"MatMulConstBOnly": True},  # only quantize constant weights
+        model_input  = fp32_path,
+        model_output = int8_path,
+        weight_type  = QuantType.QInt8,
+        per_channel  = False,   # per-tensor is faster on x86 without AVX-512 VNNI
+        reduce_range = False,   # set True only on older Intel CPUs (Skylake)
+        extra_options = {"MatMulConstBOnly": True},  # only quantize constant weights
     )
 
     # Copy tokenizer files so the INT8 dir is self-contained (ONNX_MODEL_PATH can
