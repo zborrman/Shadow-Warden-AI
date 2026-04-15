@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 3.0 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 3.2 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
@@ -36,6 +36,20 @@ Agent pipeline:
     AgentMonitor.record_tool_event() → _check_injection_chain() (+ 6 other patterns)
     MaskingEngine.mask/unmask()      → Fernet-encrypted vault (HMAC-SHA256 reverse map)
     openai_proxy._stream_gen()       → 400-char fast-scan → live-emit (progressive streaming)
+
+SOVA Agent (autonomous operator):
+    POST /agent/sova            → run_query() → Claude Opus 4.6 agentic loop (≤10 iter)
+    DELETE /agent/sova/{sid}    → clear_history()
+    POST /agent/sova/task/{job} → trigger scheduled job manually
+    ARQ cron:
+        sova_morning_brief  08:00 UTC daily
+        sova_threat_sync    every 6h (00:05, 06:05, 12:05, 18:05)
+        sova_rotation_check 02:00 UTC daily
+        sova_sla_report     Monday 09:00 UTC
+        sova_upgrade_scan   Sunday 10:00 UTC
+        sova_corpus_watchdog every 30 min (no LLM — direct health check)
+    Memory: Redis sova:conv:{session_id} JSON (6h TTL, 20-turn cap)
+    Tools: 27 tool handlers → http://localhost:8001 X-API-Key calls
 ```
 
 11 Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
@@ -96,6 +110,11 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/workers/probe_worker.py` | Async probe scheduler — HTTP/SSL/DNS/TCP checks, TimescaleDB write, Redis Pub/Sub publish |
 | `warden/db/migrations/versions/0010_uptime_monitors.py` | TimescaleDB migration — hypertable, continuous aggregate, retention + compression policies |
 | `warden/phishing_guard.py` | PhishGuard + SE-Arbiter — URL phishing + social engineering detection (SEC-GAP-002 fixed) |
+| `warden/agent/sova.py` | SOVA core — Claude Opus 4.6 agentic loop, prompt caching, tool dispatch, Redis memory |
+| `warden/agent/tools.py` | 27 tool handlers + Anthropic schema defs + TOOL_HANDLERS dispatch table |
+| `warden/agent/memory.py` | Redis-backed conversation memory (sova:conv:{sid}, 6h TTL, 20-turn cap) |
+| `warden/agent/scheduler.py` | 6 ARQ job functions for SOVA scheduled tasks |
+| `warden/api/agent.py` | FastAPI router `/agent/sova` — query, clear session, trigger task |
 | `warden/testing/context.py` | SWFE FakeContext — unified fake activation via mock.patch, X-Simulation-ID isolation |
 | `warden/testing/fakes/` | SWFE fake layer — FakeAnthropicClient, FakeNvidiaClient, FakeS3Storage, FakeEvolutionEngine |
 | `warden/testing/scenarios/` | SWFE Scenario DSL — ScenarioRunner, ScenarioStep, build_core_scenarios(), YAML loader |
@@ -151,6 +170,9 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 - **DataPoisoningGuard model access**: uses `_load_model()` from `warden.brain.semantic` (module-level `@lru_cache` singleton) — NOT `self._guard._model` (SemanticGuard has no such attribute).
 - **Corpus snapshot atomicity**: `tempfile.mkstemp()` per call in `_save_snapshot_sync()` — prevents ENOENT race when two uvicorn workers call `save_snapshot_async()` concurrently.
 - **Intel Bridge optional**: `INTEL_OPS_ENABLED=true` activates background ArXiv → Evolution sync. `INTEL_BRIDGE_INTERVAL_HRS` (default 6). Requires `ANTHROPIC_API_KEY` for synthesis; fail-open otherwise.
+- **SOVA agent optional**: requires `ANTHROPIC_API_KEY`. Router mounted at startup with try/except — missing anthropic package skips silently. Session memory fails open (no Redis = no history).
+- **Named Docker volume `warden-models`**: replaces bind-mount `./warden/models`. Persists ONNX model across rebuilds and git operations. ONNX export uses `--name warden-onnx-export` + skip-if-running guard to prevent OOM from duplicate containers.
+- **`warden-models` migration**: copy from host path via `docker run --rm -v warden-models:/warden/models alpine sh -c "cp -r /src/. /warden/models/"` before switching compose mount.
 
 ## Code Style
 

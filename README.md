@@ -68,6 +68,17 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 
 ---
 
+## What's New in v3.2
+
+| Feature | Description |
+|---------|-------------|
+| **SOVA Autonomous Agent** | Shadow Operations & Vigilance Agent — Claude Opus 4.6 agentic loop with 27 tool handlers covering all Shadow Warden subsystems. Interactive endpoint `POST /agent/sova` supports multi-turn conversations via `session_id`. Six ARQ cron jobs run autonomously: morning brief (08:00), threat sync (every 6h), key rotation check (02:00), SLA report (Monday), upgrade scan (Sunday), corpus watchdog (every 30min). Prompt caching on system prompt cuts repeated-call cost by ~70%. |
+| **27 SOVA Tool Suite** | `get_health`, `get_filter_stats`, `list_communities`, `rotate_community_key`, `break_glass_access`, `list_monitors`, `get_sla_report`, `get_financial_roi`, `get_upgrade_candidates`, `list_recent_threats`, `scan_arxiv_papers`, `get_corpus_health`, `trigger_corpus_rebuild`, `list_agent_sessions`, `get_session_risk`, `list_agentic_payments`, `flag_rogue_agent`, `get_gdpr_evidence`, `get_soc2_snapshot`, `send_slack_alert`, `list_syndicate_tunnels`, `create_monitor`, `get_monitor_status`, `list_budget_alerts`, `get_masking_stats`, `get_evolution_stats`, `get_causal_analysis`. |
+| **Redis Conversation Memory** | `sova:conv:{session_id}` — 6h TTL, 20-turn cap, fail-open when Redis unavailable. Persistent state via `sova:state:{key}` (30d TTL) for rotation timestamps, brief timestamps, etc. |
+| **Named Docker Volume** | `warden-models` named volume replaces bind-mount `./warden/models`. ONNX model persists across git operations and full container rebuilds. CI export step now checks model existence first and uses `--name warden-onnx-export` + skip-if-running guard to prevent OOM from duplicate export containers (root cause of 22-container RAM exhaustion). |
+
+---
+
 ## What's New in v3.0
 
 | Feature | Description |
