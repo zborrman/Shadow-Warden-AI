@@ -91,10 +91,21 @@ def export_via_torch(output: str, cache_dir: str | None) -> None:
     inp_ids = dummy["input_ids"]
     attn    = dummy["attention_mask"]
 
+    # Wrapper strips kwargs that confuse TorchScript tracer (use_cache clash in
+    # newer transformers versions where BertModel.forward() gets it twice).
+    class _BertWrapper(torch.nn.Module):
+        def __init__(self, m: torch.nn.Module) -> None:
+            super().__init__()
+            self.m = m
+        def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
+            return self.m(input_ids=input_ids, attention_mask=attention_mask)
+
+    wrapped = _BertWrapper(model)
+
     onnx_path = os.path.join(output, "model.onnx")
     with torch.no_grad():
         torch.onnx.export(
-            model,
+            wrapped,
             (inp_ids, attn),
             onnx_path,
             input_names   = ["input_ids", "attention_mask"],
@@ -104,9 +115,9 @@ def export_via_torch(output: str, cache_dir: str | None) -> None:
                 "attention_mask":    {0: "batch", 1: "seq_len"},
                 "last_hidden_state": {0: "batch", 1: "seq_len"},
             },
-            opset_version       = 14,   # 14 avoids dynamo path in PyTorch 2.x
+            opset_version       = 14,
             do_constant_folding = True,
-            dynamo              = False, # force legacy exporter (produces correct weights)
+            dynamo              = False,
         )
     print(f"[torch] Saved {onnx_path}")
 
