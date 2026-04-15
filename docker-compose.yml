@@ -26,6 +26,7 @@ volumes:
   minio-data:
   prometheus-data:
   grafana-data:
+  warden-models:
 
 services:
 
@@ -202,7 +203,7 @@ services:
       - PORTAL_ACCESS_TOKEN_TTL=${PORTAL_ACCESS_TOKEN_TTL:-60}
       - PORTAL_REFRESH_TOKEN_TTL=${PORTAL_REFRESH_TOKEN_TTL:-7}
     volumes:
-      - ./warden/models:/warden/models
+      - warden-models:/warden/models
       - ./scripts:/warden/scripts:ro
       - ./data:/warden/data
     depends_on:

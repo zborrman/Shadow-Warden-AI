@@ -285,26 +285,31 @@ jobs:
           echo "── [1/4] Code already pulled via git ──────────────────────"
 
           echo "── [1b/4] ONNX model — build if missing ────────────────────"
-          # The quantized INT8 ONNX model lives in warden/models/minilm-onnx-int8/
-          # (git-ignored binary files — not in the repo).  Run the export+quantize
-          # script the first time, skip on subsequent deploys (idempotent).
-          # The script requires optimum + onnxruntime which are in requirements.txt.
-          INT8_DIR="warden/models/minilm-onnx-int8"
-          if [ ! -f "\${INT8_DIR}/model.onnx" ]; then
-            echo "  INT8 model not found — running export_onnx.py --quantize ..."
-            # Run inside the warden container image so the exact same Python
-            # environment (torch, transformers, onnxruntime) is used.
-            docker run --rm \
-              -e HF_HOME=/warden/models/.cache \
-              -v "\$(pwd)/warden/models:/warden/models" \
-              shadow-warden-warden:latest \
-              python3 /warden/scripts/export_onnx.py --quantize \
-                --output /warden/models/minilm-onnx \
-                --quantize-output /warden/models/minilm-onnx-int8 \
-                --cache-dir /warden/models/.cache \
-              && echo "  ONNX INT8 model ready."
-            # Ensure the warden user can read the generated files
-            chown -R 10001:10001 "\${INT8_DIR}" 2>/dev/null || true
+          # The quantized INT8 ONNX model lives in the named Docker volume
+          # warden-models at /warden/models/minilm-onnx-int8/model.onnx.
+          # Named volume survives rebuilds and git operations (unlike bind mount).
+          # A fixed container name (warden-onnx-export) prevents parallel deploys
+          # from spawning duplicate export jobs — if one is already running, skip.
+          MODEL_CHECK=\$(docker run --rm \
+            -v warden-models:/warden/models \
+            alpine test -f /warden/models/minilm-onnx-int8/model.onnx && echo yes || echo no)
+          if [ "\${MODEL_CHECK}" = "no" ]; then
+            if docker ps -q --filter "name=warden-onnx-export" | grep -q .; then
+              echo "  Export already running — skipping duplicate."
+            else
+              echo "  INT8 model not found — running export_onnx.py --quantize ..."
+              # Kill any exited export container with the same name before starting
+              docker rm -f warden-onnx-export 2>/dev/null || true
+              docker run --rm --name warden-onnx-export \
+                -e HF_HOME=/warden/models/.cache \
+                -v warden-models:/warden/models \
+                shadow-warden-warden:latest \
+                python3 /warden/scripts/export_onnx.py --quantize \
+                  --output /warden/models/minilm-onnx \
+                  --quantize-output /warden/models/minilm-onnx-int8 \
+                  --cache-dir /warden/models/.cache \
+                && echo "  ONNX INT8 model ready."
+            fi
           else
             echo "  INT8 model already present — skipping export."
           fi
