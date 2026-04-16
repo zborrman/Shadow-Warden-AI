@@ -188,10 +188,17 @@ class LemonBilling:
         tenant_id:      str,
         plan:           str,
         success_url:    str,
-        cancel_url:     str,
+        cancel_url:     str,       # accepted for API compat; LS manages its own cancel flow
         customer_email: str | None = None,
     ) -> str:
-        """Create a Lemon Squeezy checkout and return the hosted URL."""
+        """
+        Create a Lemon Squeezy checkout and return the hosted URL.
+
+        Note: ``cancel_url`` is accepted for API compatibility with Stripe-style callers
+        but is not forwarded to LS — Lemon Squeezy handles checkout abandonment
+        internally and does not expose a cancel redirect URL in its Checkouts API.
+        Only ``success_url`` (mapped to ``redirect_url``) is sent.
+        """
         if not self._enabled:
             raise RuntimeError("Lemon Squeezy not configured (LEMONSQUEEZY_API_KEY missing).")
 
@@ -249,6 +256,10 @@ class LemonBilling:
     def get_portal_url(self, tenant_id: str) -> str:
         """
         Return a Lemon Squeezy customer portal URL for self-serve plan management.
+
+        When the tenant has an active LS subscription, returns the customer-scoped
+        billing portal URL (pre-filtered to their orders).  Falls back to the
+        generic orders page for tenants without a subscription record.
         """
         row = self._conn.execute(
             "SELECT ls_customer_id FROM subscriptions WHERE tenant_id=?",
@@ -256,8 +267,10 @@ class LemonBilling:
         ).fetchone()
 
         if self._enabled and row and row["ls_customer_id"]:
-            # Lemon Squeezy customer portal is at my.lemonsqueezy.com
-            return "https://app.lemonsqueezy.com/my-orders"
+            # Deep-link to this customer's order history in the LS portal.
+            # The customer_id is the numeric LS customer ID stored at webhook time.
+            cid = row["ls_customer_id"]
+            return f"https://app.lemonsqueezy.com/my-orders?customer_id={cid}"
 
         return "https://app.lemonsqueezy.com/my-orders"
 

@@ -113,6 +113,57 @@ class TestLemonBilling:
         lb_mod._LS_API_KEY = ""
         billing._enabled = False
 
+    def test_webhook_idempotency_duplicate_skipped(self, billing):
+        """Duplicate event_id must be silently skipped — subscription not updated twice."""
+        import warden.lemon_billing as lb_mod
+        secret  = "idem-secret"
+        payload = json.dumps({
+            "meta": {
+                "event_name":  "subscription_created",
+                "event_id":    "evt-idem-001",
+                "custom_data": {"tenant_id": "t-idem"},
+            },
+            "data": {
+                "id": "sub-idem",
+                "attributes": {
+                    "customer_id": "cust-idem",
+                    "variant_id":  "",
+                    "status":      "active",
+                    "renews_at":   None,
+                },
+            },
+        }).encode()
+        sig = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+
+        old = lb_mod._LS_WEBHOOK_SECRET
+        lb_mod._LS_WEBHOOK_SECRET = secret
+        try:
+            # First call — should process and upsert the subscription
+            result1 = billing.handle_webhook(payload, sig)
+            assert result1 == "subscription_created"
+            assert billing.get_plan("t-idem") == "individual"  # default from empty variant
+
+            # Manually downgrade to simulate a state change between retries
+            billing._upsert("t-idem", "cust-idem", "sub-idem", "starter", "active", None)
+            assert billing.get_plan("t-idem") == "starter"
+
+            # Second call with same event_id — must be skipped, plan stays "starter"
+            result2 = billing.handle_webhook(payload, sig)
+            assert result2 == "subscription_created"
+            assert billing.get_plan("t-idem") == "starter"  # NOT upgraded again
+        finally:
+            lb_mod._LS_WEBHOOK_SECRET = old
+
+    def test_portal_url_includes_customer_id(self, billing):
+        """get_portal_url must return customer-scoped URL when subscription exists."""
+        billing._upsert("t-portal", "cust-42", "sub-p", "pro", "active", None)
+        url = billing.get_portal_url("t-portal")
+        assert "customer_id=cust-42" in url
+
+    def test_portal_url_fallback_for_unknown_tenant(self, billing):
+        url = billing.get_portal_url("no-such-tenant")
+        assert url == "https://app.lemonsqueezy.com/my-orders"
+
 
 # ── FeatureGate ───────────────────────────────────────────────────────────────
 
