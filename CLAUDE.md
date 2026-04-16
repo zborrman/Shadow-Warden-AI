@@ -47,9 +47,11 @@ SOVA Agent (autonomous operator):
         sova_rotation_check 02:00 UTC daily
         sova_sla_report     Monday 09:00 UTC
         sova_upgrade_scan   Sunday 10:00 UTC
-        sova_corpus_watchdog every 30 min (no LLM — direct health check)
+        sova_corpus_watchdog every 30 min (delegates to WardenHealer — no LLM)
+        sova_visual_patrol  03:00 UTC daily (ScreencastRecorder + Claude Vision → MinIO)
     Memory: Redis sova:conv:{session_id} JSON (6h TTL, 20-turn cap)
     Tools: 28 tool handlers → http://localhost:8001 X-API-Key calls (tool #28: visual_assert_page uses BrowserSandbox + Claude Vision directly)
+    Healer: WardenHealer — autonomous anomaly detection (circuit breaker, bypass spike, corpus, canary probe)
 ```
 
 11 Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
@@ -114,7 +116,8 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/agent/tools.py` | 28 tool handlers + Anthropic schema defs + TOOL_HANDLERS dispatch table |
 | `warden/tools/browser.py` | BrowserSandbox (Playwright headless Chromium) + `ScreencastRecorder` (video → MinIO SOC 2 evidence) |
 | `warden/agent/memory.py` | Redis-backed conversation memory (sova:conv:{sid}, 6h TTL, 20-turn cap) |
-| `warden/agent/scheduler.py` | 6 ARQ job functions for SOVA scheduled tasks |
+| `warden/agent/scheduler.py` | 7 ARQ job functions for SOVA scheduled tasks |
+| `warden/agent/healer.py` | WardenHealer — autonomous anomaly detection (CB, bypass spike, corpus DEGRADED, canary probe) |
 | `warden/api/agent.py` | FastAPI router `/agent/sova` — query, clear session, trigger task |
 | `warden/testing/context.py` | SWFE FakeContext — unified fake activation via mock.patch, X-Simulation-ID isolation |
 | `warden/testing/fakes/` | SWFE fake layer — FakeAnthropicClient, FakeNvidiaClient, FakeS3Storage, FakeEvolutionEngine |

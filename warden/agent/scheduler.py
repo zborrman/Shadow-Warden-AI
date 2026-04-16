@@ -175,42 +175,107 @@ async def sova_corpus_watchdog(ctx: dict) -> dict:
     """
     Every 30 minutes — lightweight corpus and circuit breaker health check.
 
-    Does NOT use the full SOVA loop — reads health directly and alerts
-    on anomalies without LLM overhead. Falls back to SOVA only if
-    action is needed.
+    Delegates to WardenHealer for structured anomaly detection.  Healer runs
+    all checks directly via HTTP (no LLM) and sends targeted Slack alerts only
+    when issues are found.
     """
     log.info("sova: corpus watchdog [%s]", _ts())
 
-    from warden.agent.tools import get_health, send_slack_alert
+    import os
+    from warden.agent.healer import WardenHealer
+
+    api_key = os.getenv("WARDEN_API_KEY", "")
     try:
-        health = await get_health()
+        report = await WardenHealer(api_key=api_key).run()
     except Exception as exc:
-        log.warning("sova watchdog: health check failed: %s", exc)
+        log.error("sova watchdog: healer failed: %s", exc)
         return {"status": "error", "ts": _ts(), "error": str(exc)}
 
-    alerts = []
-
-    # Circuit breaker open?
-    cb = health.get("circuit_breaker", {})
-    if cb.get("status") == "open":
-        cooldown = cb.get("cooldown_remaining_s", 0)
-        alerts.append(f"🔴 *Circuit Breaker OPEN* — {cb.get('bypasses_in_window', 0)} bypasses, "
-                      f"cooldown {cooldown}s remaining")
-
-    # High bypass rate?
-    bypass_rate = health.get("bypass_rate_1m", 0)
-    if bypass_rate > 0.15:
-        alerts.append(f"⚠️ *High bypass rate* — {bypass_rate:.1%} in last minute")
-
-    if alerts:
-        msg = f"*SOVA Watchdog Alert* [{_ts()}]\n" + "\n".join(alerts)
-        await send_slack_alert(message=msg)
-        log.warning("sova watchdog: alerts sent: %s", alerts)
-
+    log.info("sova watchdog: %s", report.summary())
     return {
-        "status":      "ok" if not alerts else "alerted",
+        "status":      "alerted" if report.has_issues else "ok",
         "ts":          _ts(),
-        "alerts":      len(alerts),
-        "cb_status":   cb.get("status", "unknown"),
-        "bypass_rate": bypass_rate,
+        "issues":      [a.result for a in report.actions if not a.success],
+        "alerted":     report.alerted,
+        "action_count": len(report.actions),
+    }
+
+
+async def sova_visual_patrol(ctx: dict) -> dict:
+    """
+    Nightly 03:00 UTC — visual health patrol using Browser Bind + Claude Vision.
+
+    Uses ScreencastRecorder to bind a named browser session to this job run,
+    then calls visual_assert_page on key production endpoints.  Screenshots
+    and the full WebM screencast are shipped to MinIO as SOC 2 evidence.
+
+    Endpoints patrolled (configurable via PATROL_URLS env var):
+      • /health      — gateway liveness
+      • Dashboard    — Streamlit analytics (if DASHBOARD_URL is set)
+    """
+    log.info("sova: visual patrol starting [%s]", _ts())
+
+    import os
+    from datetime import datetime
+    from warden.agent.tools import visual_assert_page
+
+    session_id = f"patrol-{datetime.now(UTC).strftime('%Y%m%d-%H%M')}"
+
+    # Patrol targets — expand via PATROL_URLS="url1,url2" env var
+    base_url     = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
+    dashboard    = os.getenv("DASHBOARD_URL", "")
+    extra_urls   = [u.strip() for u in os.getenv("PATROL_URLS", "").split(",") if u.strip()]
+
+    targets: list[tuple[str, str]] = [
+        (f"{base_url}/health", "Verify gateway health page is reachable and shows status=ok"),
+    ]
+    if dashboard:
+        targets.append((dashboard, "Verify analytics dashboard loads without errors"))
+    for url in extra_urls:
+        targets.append((url, ""))
+
+    findings: list[dict] = []
+    issues:   list[str]  = []
+
+    # ── Run visual_assert_page for each target ────────────────────────────────
+    # ScreencastRecorder wraps the session so the full patrol is recorded as one
+    # WebM video and shipped to MinIO (screencasts/<session_id>.webm).
+    try:
+        from warden.tools.browser import ScreencastRecorder
+        async with ScreencastRecorder(session_id) as browser:
+            for url, assertion in targets:
+                result = await visual_assert_page(url=url, assertion=assertion)
+                findings.append(result)
+                if not result.get("ok"):
+                    issues.append(f"{url}: {result.get('error', 'unknown error')}")
+                elif "error" in result.get("analysis", "").lower():
+                    issues.append(f"{url}: Vision flagged: {result['analysis'][:120]}")
+                log.info("patrol: %s → ok=%s bytes=%s",
+                         url, result.get("ok"), result.get("screenshot_bytes"))
+    except ImportError:
+        # Playwright not installed — fall back to plain visual_assert_page without recording
+        log.warning("sova patrol: Playwright not available — skipping ScreencastRecorder")
+        for url, assertion in targets:
+            result = await visual_assert_page(url=url, assertion=assertion)
+            findings.append(result)
+            if not result.get("ok"):
+                issues.append(f"{url}: {result.get('error', 'unknown error')}")
+    except Exception as exc:
+        log.error("sova visual patrol: unexpected error: %s", exc)
+        return {"status": "error", "ts": _ts(), "error": str(exc)}
+
+    # ── Alert if issues found ─────────────────────────────────────────────────
+    if issues:
+        await _slack(
+            f"*SOVA Visual Patrol Alert* [{_ts()}] `{session_id}`\n"
+            + "\n".join(f"• {i}" for i in issues)
+        )
+
+    log.info("sova: visual patrol complete — %d targets, %d issues", len(targets), len(issues))
+    return {
+        "status":    "alerted" if issues else "ok",
+        "ts":        _ts(),
+        "session_id": session_id,
+        "targets":   len(targets),
+        "issues":    issues,
     }

@@ -32,6 +32,7 @@ class StepResult:
     elapsed_ms:  float
     passed:      bool
     failure_msg: str = ""
+    chapter:     str = ""  # chapter header (empty = same chapter as previous step)
 
 
 @dataclass
@@ -52,7 +53,11 @@ class ScenarioResult:
     def summary(self) -> str:
         status = "PASS" if self.passed else "FAIL"
         lines = [f"[{status}] {self.scenario_name} ({self.total_ms:.1f}ms)"]
+        current_chapter = ""
         for step in self.steps:
+            if step.chapter and step.chapter != current_chapter:
+                current_chapter = step.chapter
+                lines.append(f"  ── {current_chapter} ──")
             icon = "✓" if step.passed else "✗"
             lines.append(f"  {icon} {step.step_name}: {step.elapsed_ms:.1f}ms")
             if not step.passed:
@@ -139,6 +144,7 @@ class ScenarioRunner:
             elapsed_ms=elapsed,
             passed=failure is None,
             failure_msg=failure or "",
+            chapter=step.chapter,
         )
 
     @staticmethod

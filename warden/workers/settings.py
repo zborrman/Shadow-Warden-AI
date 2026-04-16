@@ -42,6 +42,7 @@ from warden.agent.scheduler import (
     sova_sla_report,
     sova_threat_sync,
     sova_upgrade_scan,
+    sova_visual_patrol,
 )
 from warden.workers.reaper import (
     notify_impending_expiration,
@@ -79,6 +80,7 @@ class WorkerSettings:
         sova_sla_report,
         sova_upgrade_scan,
         sova_corpus_watchdog,
+        sova_visual_patrol,
     ]
 
     cron_jobs = [
@@ -116,6 +118,9 @@ class WorkerSettings:
 
         # ── SOVA Agent — corpus watchdog every 30 minutes ────────────────────
         cron(sova_corpus_watchdog, minute={0, 30}, timeout=30),
+
+        # ── SOVA Agent — visual patrol nightly 03:00 UTC ─────────────────────
+        cron(sova_visual_patrol, hour=3, minute=0, timeout=300),
     ]
 
     on_startup  = startup

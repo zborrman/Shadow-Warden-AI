@@ -57,6 +57,8 @@ class ScenarioStep:
     strict:            bool | None        = None
     context:           dict[str, Any]     = field(default_factory=dict)
     extra_headers:     dict[str, str]     = field(default_factory=dict)
+    # Chapter marker — optional grouping label rendered as a header in summary()
+    chapter:           str                = ""
 
 
 @dataclass
@@ -73,6 +75,11 @@ class Scenario:
     def add_step(self, **kwargs) -> Scenario:
         self.steps.append(ScenarioStep(**kwargs))
         return self
+
+    def add_chapter(self, chapter: str, **kwargs) -> Scenario:
+        """Add a step that also opens a new chapter section in the summary."""
+        kwargs["chapter"] = chapter
+        return self.add_step(**kwargs)
 
 
 # ── Встроенные сценарии Shadow Warden ────────────────────────────────────────
