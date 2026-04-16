@@ -201,6 +201,37 @@ def _upload_bundle(session_id: str, bundle: dict) -> None:
         log.warning("S3 upload_bundle(%s) failed: %s", session_id, exc)
 
 
+def ship_screencast(session_id: str, video_path: str) -> str:
+    """
+    Upload a browser screencast (WebM) to the Evidence bucket in the background.
+
+    Key format: screencasts/<session_id>.webm
+    Used by ScreencastRecorder for SOC 2 audit evidence.
+    Returns the S3 key (upload may still be in-flight).
+    """
+    key = f"screencasts/{session_id}.webm"
+    _executor.submit(_upload_screencast, session_id, video_path, key)
+    return key
+
+
+def _upload_screencast(session_id: str, video_path: str, key: str) -> None:
+    client = _get_client()
+    if client is None:
+        return
+    try:
+        with open(video_path, "rb") as fh:
+            data = fh.read()
+        client.put_object(
+            Bucket      = S3_BUCKET_EVIDENCE,
+            Key         = key,
+            Body        = data,
+            ContentType = "video/webm",
+        )
+        log.info("S3 screencast saved: %s/%s (%d bytes)", S3_BUCKET_EVIDENCE, key, len(data))
+    except Exception as exc:
+        log.warning("S3 upload_screencast(%s) failed: %s", session_id, exc)
+
+
 def _upload_log(entry: dict) -> None:
     client = _get_client()
     if client is None:

@@ -49,7 +49,7 @@ SOVA Agent (autonomous operator):
         sova_upgrade_scan   Sunday 10:00 UTC
         sova_corpus_watchdog every 30 min (no LLM — direct health check)
     Memory: Redis sova:conv:{session_id} JSON (6h TTL, 20-turn cap)
-    Tools: 27 tool handlers → http://localhost:8001 X-API-Key calls
+    Tools: 28 tool handlers → http://localhost:8001 X-API-Key calls (tool #28: visual_assert_page uses BrowserSandbox + Claude Vision directly)
 ```
 
 11 Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
@@ -111,7 +111,8 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/db/migrations/versions/0010_uptime_monitors.py` | TimescaleDB migration — hypertable, continuous aggregate, retention + compression policies |
 | `warden/phishing_guard.py` | PhishGuard + SE-Arbiter — URL phishing + social engineering detection (SEC-GAP-002 fixed) |
 | `warden/agent/sova.py` | SOVA core — Claude Opus 4.6 agentic loop, prompt caching, tool dispatch, Redis memory |
-| `warden/agent/tools.py` | 27 tool handlers + Anthropic schema defs + TOOL_HANDLERS dispatch table |
+| `warden/agent/tools.py` | 28 tool handlers + Anthropic schema defs + TOOL_HANDLERS dispatch table |
+| `warden/tools/browser.py` | BrowserSandbox (Playwright headless Chromium) + `ScreencastRecorder` (video → MinIO SOC 2 evidence) |
 | `warden/agent/memory.py` | Redis-backed conversation memory (sova:conv:{sid}, 6h TTL, 20-turn cap) |
 | `warden/agent/scheduler.py` | 6 ARQ job functions for SOVA scheduled tasks |
 | `warden/api/agent.py` | FastAPI router `/agent/sova` — query, clear session, trigger task |

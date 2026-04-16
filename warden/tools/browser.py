@@ -33,10 +33,12 @@ from __future__ import annotations
 
 import base64
 import logging
+import tempfile
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
 from playwright.async_api import (
@@ -60,6 +62,7 @@ class ActionType(StrEnum):
     SUBMIT      = "Submit"
     INSPECT     = "Inspect"
     SCREENSHOT  = "Screenshot"
+    SCREENCAST  = "Screencast"
 
 
 # ── Interaction record ────────────────────────────────────────────────────────
@@ -192,17 +195,21 @@ class BrowserSandbox:
         slow_mo: int = 0,
         timeout: int = 30_000,          # ms
         viewport: dict | None = None,
+        record_video: bool = False,
     ) -> None:
-        self.headless  = headless
-        self.slow_mo   = slow_mo
-        self.timeout   = timeout
-        self.viewport  = viewport or {"width": 1280, "height": 800}
-        self.context7  = Context7Manager()
+        self.headless      = headless
+        self.slow_mo       = slow_mo
+        self.timeout       = timeout
+        self.viewport      = viewport or {"width": 1280, "height": 800}
+        self.record_video  = record_video
+        self.context7      = Context7Manager()
+        self.video_path: str | None = None   # set after __aexit__ when record_video=True
 
         self._playwright: Playwright    | None = None
         self._browser:    Browser       | None = None
         self._context:    BrowserContext| None = None
         self._page:       Page          | None = None
+        self._video_tmpdir: tempfile.TemporaryDirectory | None = None
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
@@ -221,20 +228,41 @@ class BrowserSandbox:
                 "--disable-extensions",
             ],
         )
-        self._context = await self._browser.new_context(
-            viewport=self.viewport,  # type: ignore[arg-type]
-            ignore_https_errors=True,         # intentional: audit self-signed certs
-            user_agent=(
+
+        ctx_kwargs: dict[str, Any] = {
+            "viewport":            self.viewport,  # type: ignore[assignment]
+            "ignore_https_errors": True,
+            "user_agent": (
                 "Mozilla/5.0 (compatible; WardenBot/1.0; "
                 "+https://shadowwarden.ai/bot)"
             ),
-        )
+        }
+        if self.record_video:
+            self._video_tmpdir = tempfile.TemporaryDirectory(prefix="warden-video-")
+            ctx_kwargs["record_video_dir"] = self._video_tmpdir.name
+            log.info("BrowserSandbox: video recording → %s", self._video_tmpdir.name)
+
+        self._context = await self._browser.new_context(**ctx_kwargs)
         self._context.set_default_timeout(self.timeout)
         self._page = await self._context.new_page()
         log.info("BrowserSandbox: Chromium ready.")
         return self
 
     async def __aexit__(self, *_) -> None:
+        # Capture video path before closing the page (Playwright finalises the
+        # WebM file after the page is closed, not when the browser closes).
+        if self.record_video and self._page is not None:
+            try:
+                await self._page.close()
+                if self._page.video is not None:
+                    self.video_path = await self._page.video.path()
+                    log.info("BrowserSandbox: video saved → %s", self.video_path)
+            except Exception as exc:
+                log.warning("BrowserSandbox: video path capture failed: %s", exc)
+            self._page = None   # already closed above
+
+        if self._context:
+            await self._context.close()
         if self._browser:
             await self._browser.close()
         if self._playwright:
@@ -397,3 +425,59 @@ class BrowserSandbox:
         )
         self.context7.record(record)
         return record
+
+
+# ── ScreencastRecorder ────────────────────────────────────────────────────────
+
+class ScreencastRecorder:
+    """
+    Context manager that records a full browser session as a WebM video and
+    ships it to MinIO as SOC 2 audit evidence on exit.
+
+    Wraps BrowserSandbox with ``record_video=True``; the caller interacts with
+    the returned BrowserSandbox exactly as normal.  When the ``async with``
+    block exits, Playwright finalises the WebM and the video is uploaded to
+    MinIO under ``screencasts/<session_id>.webm``.  The upload is background-
+    threaded and fail-open — a MinIO outage never blocks the caller.
+
+    Attributes
+    ----------
+    minio_key : str | None
+        S3 key of the uploaded screencast (set after exit; None if S3 disabled).
+    video_path : str | None
+        Local filesystem path to the WebM file (available after exit).
+
+    Usage::
+
+        async with ScreencastRecorder("audit-2025-01-15") as browser:
+            await browser.navigate("https://target.example.com")
+            await browser.inspect()
+        # screencast is now in MinIO: screencasts/audit-2025-01-15.webm
+    """
+
+    def __init__(self, session_id: str, *, headless: bool = True) -> None:
+        self.session_id = session_id
+        self._headless  = headless
+        self._sandbox: BrowserSandbox | None = None
+        self.minio_key: str | None  = None
+        self.video_path: str | None = None
+
+    async def __aenter__(self) -> BrowserSandbox:
+        self._sandbox = BrowserSandbox(headless=self._headless, record_video=True)
+        return await self._sandbox.__aenter__()
+
+    async def __aexit__(self, *exc_info) -> None:
+        if self._sandbox is None:
+            return
+        await self._sandbox.__aexit__(*exc_info)
+        self.video_path = self._sandbox.video_path
+        if self.video_path and Path(self.video_path).exists():
+            try:
+                from warden.storage import s3 as _s3
+                self.minio_key = _s3.ship_screencast(self.session_id, self.video_path)
+                log.info(
+                    "ScreencastRecorder: uploading %s → MinIO key=%s",
+                    self.video_path, self.minio_key,
+                )
+            except Exception as exc:
+                log.warning("ScreencastRecorder: MinIO upload skipped: %s", exc)

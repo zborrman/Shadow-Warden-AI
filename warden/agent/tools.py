@@ -184,6 +184,84 @@ async def get_compliance_art30(tenant_id: str = "default", **_) -> dict:
     return await _get("/compliance/art30", tenant=tenant_id)
 
 
+async def visual_assert_page(
+    url: str,
+    assertion: str = "",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Navigate to *url*, capture a full-page screenshot, then analyze it with
+    Claude Vision and return the result.
+
+    ``assertion`` is a free-text instruction sent to Claude Vision alongside
+    the screenshot.  If omitted, Claude is asked to note security issues,
+    errors, and unexpected content.
+
+    Requires ANTHROPIC_API_KEY in the environment.  Playwright must be
+    installed and the Chromium binary available (standard in the warden image).
+    Fail-open: if vision analysis fails the screenshot bytes are still returned.
+    """
+    # ── Screenshot ────────────────────────────────────────────────────────────
+    try:
+        from warden.tools.browser import BrowserSandbox
+        async with BrowserSandbox() as browser:
+            await browser.navigate(url)
+            rec = await browser.screenshot()
+        b64_png    = rec.result["screenshot_b64"]
+        size_bytes = rec.result["size_bytes"]
+    except Exception as exc:
+        return {"ok": False, "url": url, "error": f"Screenshot failed: {exc}"}
+
+    # ── Claude Vision ─────────────────────────────────────────────────────────
+    api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return {
+            "ok": True,
+            "url": url,
+            "screenshot_bytes": size_bytes,
+            "analysis": "ANTHROPIC_API_KEY not configured — screenshot captured, vision skipped.",
+        }
+
+    prompt = assertion or (
+        "Analyze this screenshot for security issues, unexpected content, "
+        "visible error messages, suspicious UI patterns, or anything else "
+        "that warrants security attention."
+    )
+
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.AsyncAnthropic(api_key=api_key)
+        msg = await client.messages.create(
+            model="claude-opus-4-6",
+            max_tokens=1024,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type":       "base64",
+                            "media_type": "image/png",
+                            "data":       b64_png,
+                        },
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        )
+        analysis: str = msg.content[0].text if msg.content else ""
+    except Exception as exc:
+        analysis = f"Vision analysis failed: {exc}"
+
+    return {
+        "ok":               True,
+        "url":              url,
+        "screenshot_bytes": size_bytes,
+        "analysis":         analysis,
+    }
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -463,6 +541,34 @@ TOOLS: list[dict] = [
             "properties": {"tenant_id": {"type": "string"}},
         },
     },
+    {
+        "name": "visual_assert_page",
+        "description": (
+            "Navigate to a URL, capture a full-page screenshot, and analyze it with "
+            "Claude Vision. Returns a security/UX analysis of what is visible on screen. "
+            "Use for automated visual regression, SOC 2 evidence capture, or verifying "
+            "that a deployed page looks correct. Requires Playwright + ANTHROPIC_API_KEY."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "Fully-qualified URL to navigate to (https://...)",
+                },
+                "assertion": {
+                    "type": "string",
+                    "description": (
+                        "Optional instruction for Claude Vision, e.g. "
+                        "'Confirm the login form is visible and there are no error banners'. "
+                        "If omitted, Claude performs a general security/UX review."
+                    ),
+                },
+                "tenant_id": {"type": "string"},
+            },
+            "required": ["url"],
+        },
+    },
 ]
 
 # ── Dispatch table ────────────────────────────────────────────────────────────
@@ -495,4 +601,5 @@ TOOL_HANDLERS: dict[str, Any] = {
     "send_slack_alert":       send_slack_alert,
     "filter_request":         filter_request,
     "get_compliance_art30":   get_compliance_art30,
+    "visual_assert_page":     visual_assert_page,
 }
