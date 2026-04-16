@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 3.2 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 3.3 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
@@ -177,6 +177,10 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 - **SOVA agent optional**: requires `ANTHROPIC_API_KEY`. Router mounted at startup with try/except — missing anthropic package skips silently. Session memory fails open (no Redis = no history).
 - **Named Docker volume `warden-models`**: replaces bind-mount `./warden/models`. Persists ONNX model across rebuilds and git operations. ONNX export uses `--name warden-onnx-export` + skip-if-running guard to prevent OOM from duplicate containers.
 - **`warden-models` migration**: copy from host path via `docker run --rm -v warden-models:/warden/models alpine sh -c "cp -r /src/. /warden/models/"` before switching compose mount.
+- **ScreencastRecorder video timing**: `page.video.path()` must be called AFTER `page.close()` and BEFORE `context.close()`. `BrowserSandbox.__aexit__` closes the page explicitly when `record_video=True` to finalise the WebM before the context is torn down.
+- **visual_assert_page is in-process**: unlike the other 27 SOVA tools (all HTTP), `visual_assert_page` imports `BrowserSandbox` directly and calls the Anthropic SDK in-process. No HTTP round-trip. Requires Playwright + `ANTHROPIC_API_KEY`.
+- **WardenHealer is LLM-free**: all 4 checks are direct httpx calls to localhost:8001. No SOVA loop invoked. `sova_corpus_watchdog` delegates to `WardenHealer` — do not call `_run(task, ...)` from the watchdog.
+- **PATROL_URLS env var**: comma-separated list of extra URLs for `sova_visual_patrol`. Parsed with split/strip — empty strings filtered out. `DASHBOARD_URL` is a separate single-URL convenience var.
 
 ## Code Style
 

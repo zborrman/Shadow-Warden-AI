@@ -13,7 +13,8 @@ Cron schedule (UTC)
   sova_rotation_check     — daily 02:00
   sova_sla_report         — every Monday 09:00
   sova_upgrade_scan       — every Sunday 10:00
-  sova_corpus_watchdog    — every 30 minutes
+  sova_corpus_watchdog    — every 30 minutes (delegates to WardenHealer)
+  sova_visual_patrol      — daily 03:00 (ScreencastRecorder + Claude Vision → MinIO)
 """
 from __future__ import annotations
 
