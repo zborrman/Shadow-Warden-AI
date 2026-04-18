@@ -1,24 +1,29 @@
 """
 warden/api/agent.py
 ────────────────────
-SOVA FastAPI router — interactive agent endpoint.
+SOVA + MasterAgent FastAPI router.
 
 Routes
 ──────
-  POST /agent/sova        — run a query through SOVA
-  DELETE /agent/sova/{session_id}  — clear conversation history
-  POST /agent/sova/task/{job}      — trigger a scheduled task manually
+  POST   /agent/sova                  — run a query through SOVA
+  DELETE /agent/sova/{session_id}     — clear conversation history
+  POST   /agent/sova/task/{job}       — trigger a scheduled task manually
+  POST   /agent/master                — run MasterAgent (multi-agent coordination)
+  POST   /agent/approve/{token}       — approve or reject a pending high-impact action
+  GET    /agent/approve/{token}       — get pending approval details
 
 Auth: standard X-API-Key (same as all other warden routes).
 """
 from __future__ import annotations
 
 import time
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/agent", tags=["SOVA Agent"])
 
@@ -46,6 +51,29 @@ class TaskResponse(BaseModel):
     job:        str
     status:     str
     latency_ms: float
+
+
+class MasterRequest(BaseModel):
+    task:         str  = Field(..., min_length=1, max_length=8000, description="High-level task for MasterAgent")
+    tenant_id:    str  = Field("default", description="Tenant context for all sub-agent tool calls")
+    auto_approve: bool = Field(False, description="Skip human-in-the-loop gate (trusted/scheduled callers only)")
+
+
+class MasterResponse(BaseModel):
+    synthesis:       str
+    sub_results:     list[dict]
+    tools_used:      list[str]
+    total_tokens:    int
+    latency_ms:      float
+    approval_tokens: list[str]
+    ts:              str
+
+
+class ApprovalResponse(BaseModel):
+    token:    str
+    resolved: bool
+    approved: bool | None = None
+    detail:   str = ""
 
 
 AuthDep = Depends(require_api_key)
@@ -106,6 +134,7 @@ _MANUAL_TASKS = {
     "sla-report":     "sova_sla_report",
     "upgrade-scan":   "sova_upgrade_scan",
     "corpus-watchdog": "sova_corpus_watchdog",
+    "visual-patrol":  "sova_visual_patrol",
 }
 
 
@@ -147,4 +176,109 @@ async def trigger_task(job: str, auth: AuthResult = AuthDep) -> TaskResponse:
         job        = job,
         status     = result.get("status", "ok"),
         latency_ms = latency,
+    )
+
+
+# ── MasterAgent endpoints ─────────────────────────────────────────────────────
+
+@router.post(
+    "/master",
+    response_model=MasterResponse,
+    summary="Run MasterAgent (multi-agent SOC coordination)",
+    dependencies=[require_feature("master_agent_enabled")],
+)
+async def run_master_agent(
+    body: MasterRequest,
+    auth: AuthResult = AuthDep,
+) -> MasterResponse:
+    """
+    Dispatch a high-level task to MasterAgent.
+
+    MasterAgent decomposes the task, spawns specialist sub-agents in parallel
+    (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent), then
+    synthesizes a unified executive report.
+
+    High-impact actions (key rotation, agent revocation, config changes) are
+    paused for human approval — `approval_tokens` lists pending tokens.
+    Resolve them via `POST /agent/approve/{token}?action=approve|reject`.
+
+    Example tasks:
+    - "Full SOC morning brief — health, threats, SLA, and rotation status"
+    - "Investigate why tenant acme-corp had 400% request spike at 03:00 UTC"
+    - "Check compliance posture for our Q2 SOC 2 audit"
+    """
+    from warden.agent.master import run_master
+
+    result = await run_master(
+        task         = body.task,
+        tenant_id    = body.tenant_id,
+        auto_approve = body.auto_approve,
+    )
+    return MasterResponse(
+        synthesis       = result.synthesis,
+        sub_results     = result.sub_results,
+        tools_used      = result.tools_used,
+        total_tokens    = result.total_tokens,
+        latency_ms      = result.latency_ms,
+        approval_tokens = result.approval_tokens,
+        ts              = result.ts,
+    )
+
+
+@router.post(
+    "/approve/{token}",
+    response_model=ApprovalResponse,
+    summary="Approve or reject a pending MasterAgent high-impact action",
+)
+async def approve_action(
+    token:  str,
+    action: Literal["approve", "reject"] = Query(..., description="approve or reject"),
+    auth:   AuthResult = AuthDep,
+) -> ApprovalResponse:
+    """
+    Resolve a human-in-the-loop approval gate.
+
+    The token is issued by MasterAgent when a sub-agent requests a
+    high-impact operation (key rotation, agent revocation, etc.).
+    Valid for 1 hour from issuance.
+
+    `action=approve` — allows the operation to proceed.
+    `action=reject`  — cancels the operation and logs the refusal.
+    """
+    from warden.agent.master import resolve_approval
+
+    approved = (action == "approve")
+    resolved = resolve_approval(token, approved)
+    if not resolved:
+        raise HTTPException(status_code=404, detail="Approval token not found or expired.")
+
+    return ApprovalResponse(
+        token    = token,
+        resolved = True,
+        approved = approved,
+        detail   = f"Action {'approved' if approved else 'rejected'} successfully.",
+    )
+
+
+@router.get(
+    "/approve/{token}",
+    response_model=ApprovalResponse,
+    summary="Check pending approval status",
+)
+async def get_approval(
+    token: str,
+    auth:  AuthResult = AuthDep,
+) -> ApprovalResponse:
+    """Return the current state of a pending approval token."""
+    from warden.agent.master import get_pending_approval
+
+    record = get_pending_approval(token)
+    if not record:
+        raise HTTPException(status_code=404, detail="Approval token not found or already resolved.")
+
+    return ApprovalResponse(
+        token    = token,
+        resolved = False,
+        approved = None,
+        detail   = f"Pending approval for agent={record.get('action')}. Context: {record.get('context', '')[:200]}",
     )

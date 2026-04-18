@@ -810,7 +810,18 @@ async def lifespan(app: FastAPI):
             "SECURITY: DOCS_PASSWORD is not set — /docs and /redoc are publicly accessible"
         )
 
+    # ── Shadow AI syslog sink (passive DNS telemetry, opt-in) ────────────────
+    _syslog_transport = None
+    try:
+        from warden.shadow_ai.syslog_sink import start_syslog_sink  # noqa: PLC0415
+        _syslog_transport = await start_syslog_sink()
+    except Exception as _sl_err:
+        log.warning("syslog_sink failed to start (non-fatal): %s", _sl_err)
+
     yield
+
+    if _syslog_transport is not None:
+        _syslog_transport.close()
 
     _retirement_task.cancel()
     _billing_task.cancel()
@@ -1051,6 +1062,34 @@ try:
     log.info("SOVA Agent mounted at /agent/sova")
 except ImportError:
     log.warning("agent router not available — /agent/sova skipped.")
+
+try:
+    from warden.api.shadow_ai import router as _shadow_ai_router
+    app.include_router(_shadow_ai_router)
+    log.info("Shadow AI Governance mounted at /shadow-ai")
+except ImportError:
+    log.warning("shadow_ai router not available — /shadow-ai routes skipped.")
+
+try:
+    from warden.api.xai import router as _xai_router
+    app.include_router(_xai_router)
+    log.info("Explainable AI 2.0 mounted at /xai")
+except ImportError:
+    log.warning("xai router not available — /xai routes skipped.")
+
+try:
+    from warden.api.sovereign import router as _sovereign_router
+    app.include_router(_sovereign_router)
+    log.info("Sovereign AI Cloud mounted at /sovereign")
+except ImportError:
+    log.warning("sovereign router not available — /sovereign routes skipped.")
+
+try:
+    from warden.api.sep import router as _sep_router
+    app.include_router(_sep_router)
+    log.info("Syndicate Exchange Protocol mounted at /sep")
+except ImportError:
+    log.warning("SEP router not available — /sep routes skipped.")
 
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────

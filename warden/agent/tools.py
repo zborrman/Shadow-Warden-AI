@@ -262,6 +262,107 @@ async def visual_assert_page(
     }
 
 
+async def scan_shadow_ai(
+    subnet: str = "",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #29 — Shadow AI Discovery.
+
+    Queries the Shadow AI Discovery engine for unauthorized AI tool usage
+    in the given subnet (CIDR notation, e.g. "10.0.0.0/24").
+    Falls back to all-tenants scan when subnet is omitted.
+
+    Returns ranked list of discovered AI tools with risk scores,
+    employee attribution (where available), and policy recommendations.
+    """
+    try:
+        from warden.shadow_ai.discovery import ShadowAIDetector
+        detector = ShadowAIDetector()
+        return await detector.scan(subnet=subnet, tenant_id=tenant_id)
+    except ImportError:
+        # v4.2 not yet deployed — return placeholder
+        return {
+            "status":  "unavailable",
+            "reason":  "Shadow AI Discovery engine not yet deployed (v4.2 roadmap)",
+            "subnet":  subnet or "all",
+            "results": [],
+        }
+    except Exception as exc:
+        log.warning("scan_shadow_ai: %s", exc)
+        return {"status": "error", "reason": str(exc)}
+
+
+async def explain_decision(
+    request_id: str,
+    tenant_id:  str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #30 — Causal Decision Explainer.
+
+    Retrieves the full causal chain for a specific filter decision:
+    Betti numbers, HyperbolicBrain distances, CausalArbiter DAG posteriors,
+    and a plain-English rationale.
+
+    Returns structured causal chain JSON suitable for the XAI dashboard.
+    """
+    try:
+        from warden.analytics.logger import read_by_request_id
+        record = read_by_request_id(request_id)
+        if not record:
+            return {"found": False, "request_id": request_id}
+
+        # Build causal chain from stored decision metadata
+        chain: dict = {
+            "found":      True,
+            "request_id": request_id,
+            "ts":         record.get("ts"),
+            "decision":   record.get("action", "unknown"),
+            "risk_level": record.get("risk_level", "unknown"),
+            "layers": {
+                "topology": {
+                    "beta0":       record.get("beta0"),
+                    "beta1":       record.get("beta1"),
+                    "noise_score": record.get("topology_noise"),
+                },
+                "semantic": {
+                    "score":            record.get("semantic_score"),
+                    "flags":            record.get("flags", []),
+                    "hyperbolic_dist":  record.get("hyperbolic_distance"),
+                },
+                "causal": {
+                    "p_high_risk":    record.get("causal_p_high_risk"),
+                    "intervention":   record.get("causal_do_operator"),
+                    "backdoor_nodes": record.get("causal_backdoor_nodes", []),
+                },
+                "shadow_ban": {
+                    "score":    record.get("ers_score"),
+                    "strategy": record.get("shadow_ban_strategy"),
+                },
+            },
+            "rationale": record.get("xai_rationale", ""),
+            "processing_ms": record.get("processing_ms"),
+        }
+
+        # Generate plain-English rationale if missing
+        if not chain["rationale"]:
+            flags    = record.get("flags", [])
+            decision = record.get("action", "blocked")
+            chain["rationale"] = (
+                f"Request {decision} after detection of: {', '.join(flags) if flags else 'anomalous pattern'}. "
+                f"Risk level: {record.get('risk_level', 'unknown')}. "
+                f"Processing time: {record.get('processing_ms', '?')}ms."
+            )
+
+        return chain
+
+    except Exception as exc:
+        log.warning("explain_decision request_id=%s error: %s", request_id, exc)
+        return {"found": False, "request_id": request_id, "error": str(exc)}
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -542,6 +643,41 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "scan_shadow_ai",
+        "description": (
+            "Scan for unauthorized AI tool usage (Shadow AI Discovery). "
+            "Detects employees or services calling external AI providers "
+            "(OpenAI, Anthropic, Gemini, Cohere, etc.) outside the authorized gateway. "
+            "Returns ranked risk list with tool names, source IPs, and policy recommendations. "
+            "Provide a CIDR subnet to scope the scan, or omit for tenant-wide scan."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "subnet":    {"type": "string", "description": "CIDR subnet to scan, e.g. '10.0.0.0/24'. Omit for all."},
+                "tenant_id": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "explain_decision",
+        "description": (
+            "Retrieve the full causal chain for a specific filter decision. "
+            "Returns Betti numbers (topology), HyperbolicBrain distances, "
+            "CausalArbiter DAG posteriors (P(HIGH_RISK|do(A))), shadow ban score, "
+            "and a plain-English rationale. Use this to explain why a request was blocked "
+            "or flagged — for SOC investigations, audit trails, or XAI dashboard linking."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "request_id": {"type": "string", "description": "The request_id from a filter log entry."},
+                "tenant_id":  {"type": "string"},
+            },
+            "required": ["request_id"],
+        },
+    },
+    {
         "name": "visual_assert_page",
         "description": (
             "Navigate to a URL, capture a full-page screenshot, and analyze it with "
@@ -601,5 +737,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     "send_slack_alert":       send_slack_alert,
     "filter_request":         filter_request,
     "get_compliance_art30":   get_compliance_art30,
+    "scan_shadow_ai":         scan_shadow_ai,
+    "explain_decision":       explain_decision,
     "visual_assert_page":     visual_assert_page,
 }

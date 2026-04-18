@@ -676,6 +676,90 @@ async def close_break_glass_endpoint(
     close_break_glass(request_id)
 
 
+@router.post("/{community_id}/upgrade-pqc", status_code=200)
+async def upgrade_pqc_endpoint(
+    community_id: str,
+    request:      Request,
+) -> dict:
+    """
+    Upgrade the active community keypair to hybrid Post-Quantum Cryptography.
+
+    Generates fresh ML-DSA-65 (FIPS 204) + ML-KEM-768 (FIPS 203) keys
+    alongside the existing Ed25519/X25519 keys and stores the new hybrid
+    keypair as the active entry.  The kid gains the suffix "-hybrid"
+    (e.g. "v1" → "v1-hybrid").
+
+    Enterprise tier only.  Requires liboqs-python on the server.
+
+    Returns:
+        kid                  New hybrid kid
+        algorithm            "Ed25519+ML-DSA-65 / X25519+ML-KEM-768"
+        mldsa_pub_b64        ML-DSA-65 public key (Base64)
+        mlkem_pub_b64        ML-KEM-768 public key (Base64)
+        hybrid_safety_number 20-hex-char fingerprint over all 4 public keys
+    """
+    from warden.billing.feature_gate import FeatureGate
+    from warden.communities.key_archive import get_active_entry, load_keypair_from_entry, store_keypair
+    from warden.communities.keypair import PQCUnavailableError, upgrade_to_hybrid
+
+    ctx = _get_tenant(request)
+    _require_tier(ctx["tier"], "mcp")   # Enterprise/MCP only
+
+    gate = FeatureGate.for_tier(ctx["tier"])
+    try:
+        gate.require("pqc_enabled")
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    community = get_community(community_id)
+    if not community or community.tenant_id != ctx["tenant_id"]:
+        raise HTTPException(status_code=404, detail="Community not found.")
+
+    entry = get_active_entry(community_id)
+    if not entry:
+        raise HTTPException(status_code=409, detail="Community has no active keypair.")
+
+    try:
+        current_kp = load_keypair_from_entry(entry)
+    except Exception as exc:
+        log.error("upgrade_pqc: keypair load failed community=%s: %s", community_id[:8], exc)
+        raise HTTPException(status_code=500, detail="Keypair load failed.") from exc
+
+    if current_kp.is_hybrid:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Community already has a hybrid PQC keypair (kid={current_kp.kid!r}).",
+        )
+
+    try:
+        hybrid_kp = upgrade_to_hybrid(current_kp)
+    except PQCUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="liboqs-python is not installed on this server. PQC upgrade unavailable.",
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    try:
+        store_keypair(community_id, hybrid_kp)
+    except Exception as exc:
+        log.error("upgrade_pqc: store failed community=%s: %s", community_id[:8], exc)
+        raise HTTPException(status_code=500, detail="Failed to persist hybrid keypair.") from exc
+
+    log.info(
+        "PQC upgrade complete community=%s old_kid=%s new_kid=%s",
+        community_id[:8], current_kp.kid, hybrid_kp.kid,
+    )
+    return {
+        "kid":                  hybrid_kp.kid,
+        "algorithm":            "Ed25519+ML-DSA-65 / X25519+ML-KEM-768",
+        "mldsa_pub_b64":        hybrid_kp.mldsa_pub_b64,
+        "mlkem_pub_b64":        hybrid_kp.mlkem_pub_b64,
+        "hybrid_safety_number": hybrid_kp.safety_number(),
+    }
+
+
 @router.get("/{community_id}/rotation")
 async def rotation_progress_endpoint(
     community_id: str,

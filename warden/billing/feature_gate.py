@@ -6,9 +6,15 @@ Tier-based Feature Gating for Shadow Warden AI.
 Tiers (aligned with Lemon Squeezy monetization)
 ────────────────────────────────────────────────
   starter    $0/mo   — Developers / Testing        1 000 req/mo
-  individual $5/mo   — Solo Devs / Hobbyists       5 000 req/mo
-  pro        $49/mo  — Mid-market / SMBs           50 000 req/mo, SIEM, Prometheus
-  enterprise $199/mo — MSPs / Corporations         Unlimited, on-prem, custom ML
+  individual $5/mo   — Solo Devs / Hobbyists       5 000 req/mo  (+$9/mo XAI add-on)
+  pro        $69/mo  — Mid-market / SMBs           50 000 req/mo, SIEM, Master Agent (+$15/mo Shadow AI add-on)
+  enterprise $249/mo — MSPs / Corporations         Unlimited, PQC, Sovereign AI Cloud, all add-ons included
+
+Add-on SKUs (Lemon Squeezy variant IDs)
+────────────────────────────────────────
+  shadow_ai_discovery  +$15/mo  Pro+Enterprise   Shadow AI subnet scan + DNS telemetry
+  xai_audit            +$9/mo   Individual+      Causal XAI HTML/PDF audit reports
+  master_agent         +$20/mo  Pro only         MasterAgent multi-agent SOC (Enterprise: included)
 
 Feature matrix
 ──────────────
@@ -29,6 +35,11 @@ Feature matrix
   dedicated_support          ✗         ✗           ✗         ✓
   break_glass                ✗         ✗           ✗         ✓
   byok_enabled               ✗         ✗           ✗         ✓
+  pqc_enabled                ✗         ✗           ✗         ✓
+  master_agent_enabled       ✗         ✗           ✓         ✓
+  shadow_ai_enabled          ✗         ✗           add-on    ✓
+  xai_reports_enabled        ✗         add-on      ✓         ✓
+  sovereign_enabled          ✗         ✗           ✗         ✓
   overage_enabled            ✗         ✗           ✓         ✓
   referral_program           ✓         ✓           ✓         ✗
   communities_enabled        ✗         ✗           ✓         ✓
@@ -129,6 +140,11 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "dedicated_support":           False,
         "break_glass_enabled":         False,
         "byok_enabled":                False,
+        "pqc_enabled":                 False,
+        "master_agent_enabled":        False,
+        "shadow_ai_enabled":           False,  # add-on only; not available at starter
+        "xai_reports_enabled":         False,  # add-on only; not available at starter
+        "sovereign_enabled":           False,
         "communities_enabled":         False,
         "max_communities":             0,
         "max_members_per_community":   0,
@@ -166,6 +182,11 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "dedicated_support":           False,
         "break_glass_enabled":         False,
         "byok_enabled":                False,
+        "pqc_enabled":                 False,
+        "master_agent_enabled":        False,
+        "shadow_ai_enabled":           False,  # add-on only at individual tier
+        "xai_reports_enabled":         False,  # add-on ($9/mo) unlocks at individual
+        "sovereign_enabled":           False,
         "communities_enabled":         False,
         "max_communities":             0,
         "max_members_per_community":   0,
@@ -201,6 +222,11 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "dedicated_support":           False,
         "break_glass_enabled":         False,
         "byok_enabled":                False,
+        "pqc_enabled":                 False,
+        "master_agent_enabled":        True,    # ← MasterAgent SOC (+$20/mo, included in $69 Pro)
+        "shadow_ai_enabled":           False,   # ← add-on: +$15/mo Shadow AI Discovery
+        "xai_reports_enabled":         True,    # ← Causal XAI + PDF reports included at Pro
+        "sovereign_enabled":           False,
         "communities_enabled":         True,    # ← Secure Communities
         "max_communities":             10,
         "max_members_per_community":   25,
@@ -236,6 +262,11 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "dedicated_support":           True,    # ← SLA + named engineer
         "break_glass_enabled":         True,
         "byok_enabled":                True,    # ← Bring Your Own Key
+        "pqc_enabled":                 True,    # ← Post-Quantum Cryptography (ML-DSA-65 + ML-KEM-768)
+        "master_agent_enabled":        True,    # ← MasterAgent SOC (included at $249/mo)
+        "shadow_ai_enabled":           True,    # ← Shadow AI Discovery (included at Enterprise)
+        "xai_reports_enabled":         True,    # ← Causal XAI + PDF reports (included)
+        "sovereign_enabled":           True,    # ← MASQUE Jurisdictional Tunnels (included)
         "communities_enabled":         True,
         "max_communities":             _UNLIMITED,
         "max_members_per_community":   _UNLIMITED,

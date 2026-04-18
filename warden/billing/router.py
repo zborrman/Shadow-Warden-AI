@@ -25,9 +25,11 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
+
+from warden.auth_guard import require_api_key
 
 log = logging.getLogger("warden.billing.router")
 
@@ -42,6 +44,12 @@ def _require_tenant(x_tenant_id: str | None) -> str:
     if not x_tenant_id or not x_tenant_id.strip():
         raise HTTPException(status_code=401, detail="X-Tenant-ID header is required.")
     return x_tenant_id.strip()
+
+
+def _require_admin(x_admin_key: str | None) -> None:
+    admin_key = os.getenv("ADMIN_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=403, detail="X-Admin-Key required.")
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
@@ -72,8 +80,8 @@ async def get_billing_tiers():
     prices = {
         "starter":    {"usd_per_month": 0,   "label": "Free"},
         "individual": {"usd_per_month": 5,   "label": "Individual"},
-        "pro":        {"usd_per_month": 49,  "label": "Pro"},
-        "enterprise": {"usd_per_month": 199, "label": "Enterprise"},
+        "pro":        {"usd_per_month": 69,  "label": "Pro"},
+        "enterprise": {"usd_per_month": 249, "label": "Enterprise"},
     }
 
     tiers = []
@@ -171,6 +179,134 @@ async def billing_upgrade(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+# ── Add-on catalog ────────────────────────────────────────────────────────────
+
+@router.get(
+    "/addons",
+    summary="Add-on SKU catalog",
+    response_model=None,
+)
+async def list_addons():
+    """
+    Return all purchasable add-on SKUs with display names, prices, and minimum tiers.
+    No authentication required — used by pricing pages and upgrade flows.
+    """
+    from warden.billing.addons import ADDON_CATALOG
+    return {"addons": list(ADDON_CATALOG.values())}
+
+
+@router.get(
+    "/addons/tenant",
+    summary="List add-ons purchased by a tenant",
+)
+async def get_tenant_addons(
+    x_tenant_id: str | None = Header(default=None),
+):
+    """Return the set of active add-on keys for the requesting tenant."""
+    tenant_id = _require_tenant(x_tenant_id)
+    from warden.billing.addons import ADDON_CATALOG, get_tenant_addons as _get_addons
+    active_keys = _get_addons(tenant_id)
+    return {
+        "tenant_id":  tenant_id,
+        "addons":     list(active_keys),
+        "details":    [ADDON_CATALOG[k] for k in active_keys if k in ADDON_CATALOG],
+    }
+
+
+@router.get(
+    "/addons/{addon_key}/checkout",
+    summary="Redirect to Lemon Squeezy checkout for an add-on",
+    response_class=RedirectResponse,
+    status_code=303,
+)
+async def addon_checkout(
+    addon_key:   str,
+    x_tenant_id: str | None = Header(default=None),
+    success_url: str | None = Query(default=None),
+    cancel_url:  str | None = Query(default=None),
+):
+    tenant_id = _require_tenant(x_tenant_id)
+    from warden.billing.addons import ADDON_CATALOG
+    addon = ADDON_CATALOG.get(addon_key)
+    if not addon:
+        raise HTTPException(status_code=404, detail=f"Unknown add-on: {addon_key!r}")
+
+    variant_id = addon.get("ls_variant_id", "")
+    if not variant_id:
+        # LS not configured — redirect to pricing page
+        return RedirectResponse(
+            url=f"{_PORTAL_BASE}/pricing?addon={addon_key}",
+            status_code=303,
+        )
+
+    _success = success_url or f"{_PORTAL_BASE}/billing/addons/{addon_key}/success"
+    _cancel  = cancel_url  or f"{_PORTAL_BASE}/billing/addons"
+
+    try:
+        from warden.lemon_billing import get_lemon_billing
+        url = get_lemon_billing().create_variant_checkout(
+            tenant_id  = tenant_id,
+            variant_id = variant_id,
+            success_url = _success,
+            cancel_url  = _cancel,
+        )
+        return RedirectResponse(url=url, status_code=303)
+    except Exception as exc:
+        log.warning("addon_checkout: lemon error addon=%s: %s", addon_key, exc)
+        return RedirectResponse(
+            url=f"{_PORTAL_BASE}/pricing?addon={addon_key}",
+            status_code=303,
+        )
+
+
+# ── Add-on admin (grant / revoke) ─────────────────────────────────────────────
+
+class AddonGrantRequest(BaseModel):
+    tenant_id: str
+    addon_key: str
+
+
+@router.post(
+    "/addons/grant",
+    status_code=200,
+    summary="[Admin] Grant an add-on to a tenant",
+)
+async def admin_grant_addon(
+    body:        AddonGrantRequest,
+    x_admin_key: str | None = Header(default=None),
+):
+    """
+    Called by the Lemon Squeezy subscription webhook on successful payment.
+    Requires X-Admin-Key header.
+    """
+    _require_admin(x_admin_key)
+    from warden.billing.addons import grant_addon
+    try:
+        grant_addon(body.tenant_id, body.addon_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"status": "granted", "tenant_id": body.tenant_id, "addon_key": body.addon_key}
+
+
+@router.delete(
+    "/addons/revoke",
+    status_code=200,
+    summary="[Admin] Revoke an add-on from a tenant",
+)
+async def admin_revoke_addon(
+    body:        AddonGrantRequest,
+    x_admin_key: str | None = Header(default=None),
+):
+    """
+    Called by the Lemon Squeezy subscription webhook on cancellation.
+    Requires X-Admin-Key header.
+    """
+    _require_admin(x_admin_key)
+    from warden.billing.addons import revoke_addon
+    revoke_addon(body.tenant_id, body.addon_key)
+    return {"status": "revoked", "tenant_id": body.tenant_id, "addon_key": body.addon_key}
 
 
 # ── Referral — generate ───────────────────────────────────────────────────────

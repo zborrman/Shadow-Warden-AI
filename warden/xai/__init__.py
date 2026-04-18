@@ -1,1 +1,1 @@
-"""warden.xai — Explainable AI for security incidents."""
+"""warden/xai — Explainable AI 2.0 (v4.3)."""

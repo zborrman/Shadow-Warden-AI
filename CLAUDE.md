@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 3.3 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.6 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
@@ -40,7 +40,7 @@ Agent pipeline:
 SOVA Agent (autonomous operator):
     POST /agent/sova            → run_query() → Claude Opus 4.6 agentic loop (≤10 iter)
     DELETE /agent/sova/{sid}    → clear_history()
-    POST /agent/sova/task/{job} → trigger scheduled job manually
+    POST /agent/sova/task/{job} → trigger scheduled job manually (incl. visual-patrol)
     ARQ cron:
         sova_morning_brief  08:00 UTC daily
         sova_threat_sync    every 6h (00:05, 06:05, 12:05, 18:05)
@@ -50,8 +50,23 @@ SOVA Agent (autonomous operator):
         sova_corpus_watchdog every 30 min (delegates to WardenHealer — no LLM)
         sova_visual_patrol  03:00 UTC daily (ScreencastRecorder + Claude Vision → MinIO)
     Memory: Redis sova:conv:{session_id} JSON (6h TTL, 20-turn cap)
-    Tools: 28 tool handlers → http://localhost:8001 X-API-Key calls (tool #28: visual_assert_page uses BrowserSandbox + Claude Vision directly)
+    Tools: 30 tool handlers → http://localhost:8001 X-API-Key calls
+        #28: visual_assert_page — BrowserSandbox + Claude Vision (in-process)
+        #29: scan_shadow_ai     — Shadow AI Discovery (ShadowAIDetector, 18 providers, subnet probe + DNS)
+        #30: explain_decision   — Causal chain retrieval from logs + XAI rationale
     Healer: WardenHealer — autonomous anomaly detection (circuit breaker, bypass spike, corpus, canary probe)
+
+MasterAgent (multi-agent SOC coordinator — v4.0):
+    POST /agent/master               → run_master() → decompose → parallel sub-agents → synthesis
+    POST /agent/approve/{token}      → approve or reject pending high-impact action
+    GET  /agent/approve/{token}      → check approval status
+    Sub-agents (each has specialized tool subset + system prompt):
+        SOVAOperator   — health, stats, billing, config, key rotation
+        ThreatHunter   — CVE triage, ArXiv intel, adversarial analysis
+        ForensicsAgent — agent activity, GDPR Art.30, Evidence Vault, visual patrol
+        ComplianceAgent— SLA monitors, SOC 2 controls, ROI proposals
+    Task tokens: HMAC-SHA256 binding (sub_agent, task_hash, issued_at) — cross-agent injection prevention
+    Human-in-the-Loop: REQUIRES_APPROVAL actions → Slack webhook → Redis pending (1h TTL) → /agent/approve/{token}
 ```
 
 11 Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
@@ -112,8 +127,34 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/workers/probe_worker.py` | Async probe scheduler — HTTP/SSL/DNS/TCP checks, TimescaleDB write, Redis Pub/Sub publish |
 | `warden/db/migrations/versions/0010_uptime_monitors.py` | TimescaleDB migration — hypertable, continuous aggregate, retention + compression policies |
 | `warden/phishing_guard.py` | PhishGuard + SE-Arbiter — URL phishing + social engineering detection (SEC-GAP-002 fixed) |
+| `warden/agent/master.py` | MasterAgent — supervisor loop, 4 sub-agents, HMAC task tokens, human-in-the-loop approval gate |
+| `warden/crypto/pqc.py` | Post-Quantum Cryptography — HybridSigner (Ed25519+ML-DSA-65), HybridKEM (X25519+ML-KEM-768), CryptoBackend, liboqs fail-open |
+| `warden/crypto/__init__.py` | Package init for crypto backends |
+| `warden/communities/keypair.py` | Community keypair — classical + hybrid PQC (`generate_community_keypair(pqc=True)`, `upgrade_to_hybrid()`) |
+| `warden/shadow_ai/signatures.py` | AI provider fingerprint DB — 18 providers, domains, URL patterns, local ports, risk levels |
+| `warden/shadow_ai/discovery.py` | `ShadowAIDetector` — async subnet probe + DNS telemetry classifier; Redis findings store |
+| `warden/shadow_ai/policy.py` | `ShadowAIPolicy` — per-tenant MONITOR/BLOCK_DENYLIST/ALLOWLIST_ONLY governance; Redis-backed |
+| `warden/api/shadow_ai.py` | FastAPI router `/shadow-ai/*` — scan, dns-event, findings, report, policy, providers |
+| `warden/xai/chain.py` | `CausalChain` + `build_chain()` — 9-stage pipeline graph, primary cause, counterfactuals |
+| `warden/xai/renderer.py` | HTML + PDF (reportlab optional) report renderer — self-contained, print-ready |
+| `warden/api/xai.py` | FastAPI router `/xai/*` — explain, batch, HTML report, PDF download, dashboard |
+| `warden/sovereign/jurisdictions.py` | 8-jurisdiction registry (EU/US/UK/CA/SG/AU/JP/CH) + transfer rules matrix |
+| `warden/sovereign/tunnel.py` | `MASQUETunnel` registry — MASQUE_H3/H2/CONNECT_TCP, TOFU pinning, health probing |
+| `warden/sovereign/policy.py` | Per-tenant routing policy — BLOCK/DIRECT fallback, data-class overrides, Redis |
+| `warden/sovereign/router.py` | Routing engine — picks best tunnel, compliance check, adequacy decisions |
+| `warden/sovereign/attestation.py` | `SovereigntyAttestation` — HMAC-SHA256 signed, Redis 7yr TTL, verify endpoint |
+| `warden/api/sovereign.py` | FastAPI router `/sovereign/*` — jurisdictions, tunnels, policy, route, attest, report |
+| `warden/billing/addons.py` | Add-on SKU registry — `ADDON_CATALOG`, grant/revoke/check (Redis), `require_addon_or_feature()` FastAPI dep (HTTP 403 tier too low / 402 not purchased) |
+| `warden/billing/router.py` | Billing API — tier catalog (Pro $69/Enterprise $249), addon catalog+checkout+grant+revoke endpoints |
+| `warden/communities/sep.py` | SEP core — UECIID codec (Snowflake→base-62 `SEP-{11}`) + UECIID index + Causal Transfer Proof (HMAC + optional ML-DSA-65 pqc_signature) + Sovereign Pod Tags |
+| `warden/communities/peering.py` | Inter-community peering — MIRROR_ONLY/REWRAP_ALLOWED/FULL_SYNC; HMAC handshake token; `transfer_entity()` → TransferGuard → CTP → STIX audit chain |
+| `warden/communities/knock.py` | Knock-and-Verify invitations — Redis-backed tokens (72h TTL); `issue_knock()`, `verify_and_accept_knock()` |
+| `warden/communities/transfer_guard.py` | Causal Transfer Guard — maps SEP context → CausalArbiter evidence; blocks exfiltration (P≥0.70) in <20ms; `TRANSFER_RISK_THRESHOLD` env var |
+| `warden/communities/data_pod.py` | Sovereign Data Pods — per-jurisdiction MinIO routing; `register_pod()`, `get_pod_for_entity()`, `probe_pod()`; Fernet-encrypted secret keys |
+| `warden/communities/stix_audit.py` | STIX 2.1 Tamper-Evident Audit Chain — SHA-256 prev_hash chain; `append_transfer()`, `verify_chain()`, `export_chain_jsonl()`; SQLite `sep_stix_chain` |
+| `warden/api/sep.py` | SEP REST API `/sep/*` — 24 endpoints: UECIID, pod tags, peerings, knock, pods CRUD+probe, audit-chain list/verify/export |
 | `warden/agent/sova.py` | SOVA core — Claude Opus 4.6 agentic loop, prompt caching, tool dispatch, Redis memory |
-| `warden/agent/tools.py` | 28 tool handlers + Anthropic schema defs + TOOL_HANDLERS dispatch table |
+| `warden/agent/tools.py` | 30 tool handlers + Anthropic schema defs + TOOL_HANDLERS dispatch table |
 | `warden/tools/browser.py` | BrowserSandbox (Playwright headless Chromium) + `ScreencastRecorder` (video → MinIO SOC 2 evidence) |
 | `warden/agent/memory.py` | Redis-backed conversation memory (sova:conv:{sid}, 6h TTL, 20-turn cap) |
 | `warden/agent/scheduler.py` | 7 ARQ job functions for SOVA scheduled tasks |
@@ -180,7 +221,40 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 - **ScreencastRecorder video timing**: `page.video.path()` must be called AFTER `page.close()` and BEFORE `context.close()`. `BrowserSandbox.__aexit__` closes the page explicitly when `record_video=True` to finalise the WebM before the context is torn down.
 - **visual_assert_page is in-process**: unlike the other 27 SOVA tools (all HTTP), `visual_assert_page` imports `BrowserSandbox` directly and calls the Anthropic SDK in-process. No HTTP round-trip. Requires Playwright + `ANTHROPIC_API_KEY`.
 - **WardenHealer is LLM-free**: all 4 checks are direct httpx calls to localhost:8001. No SOVA loop invoked. `sova_corpus_watchdog` delegates to `WardenHealer` — do not call `_run(task, ...)` from the watchdog.
-- **PATROL_URLS env var**: comma-separated list of extra URLs for `sova_visual_patrol`. Parsed with split/strip — empty strings filtered out. `DASHBOARD_URL` is a separate single-URL convenience var.
+- **PATROL_URLS env var**: comma-separated list of extra URLs for `sova_visual_patrol`.
+- **MasterAgent task tokens**: every delegated sub-task carries HMAC-SHA256 token `(sub_agent:task_hash:ts:sig)`. `_verify_token()` is called before each sub-agent run — prevents cross-agent injection if a sub-agent is compromised.
+- **MasterAgent approval**: `REQUIRES_APPROVAL` is a text flag the sub-agent includes in its response. Master scans for it, extracts context, issues approval token, stores in Redis `master:approval:{token}` (1h TTL), posts to Slack. `/agent/approve/{token}?action=approve|reject` resolves via `resolve_approval()` which sets `master:approval:callback:{cb_key}`. `auto_approve=True` skips the gate entirely (for scheduled jobs).
+- **MasterAgent sub-agent tools**: each sub-agent only gets its `_AGENT_TOOLS[SubAgent]` subset — principle of least privilege across agents. Parsed with split/strip — empty strings filtered out. `DASHBOARD_URL` is a separate single-URL convenience var.
+- **Shadow AI scan safety limits**: max subnet prefix /24 (256 hosts); max 50 concurrent probes (`SHADOW_AI_CONCURRENCY`); 3s per-host timeout (`SHADOW_AI_PROBE_TIMEOUT`); HTTP fingerprinting only (no raw TCP port scan). Rejects subnets larger than /24.
+- **Shadow AI findings cap**: 1 000 most-recent entries per tenant in Redis `shadow_ai:findings:{tenant_id}` (LPUSH + LTRIM).
+- **Shadow AI policy modes**: MONITOR (report only) | BLOCK_DENYLIST (enforce denylist) | ALLOWLIST_ONLY (flag unlisted). Stored in Redis `shadow_ai:policy:{tenant_id}` (no TTL). Falls back to in-process dict when Redis unavailable.
+- **`scan_shadow_ai` tool (SOVA #29)**: no longer a stub — calls `ShadowAIDetector().scan()` directly. Falls back to `{"status":"unavailable"}` only if `warden.shadow_ai.discovery` ImportError (package missing).
+- **XAI chain stages**: 9 nodes in fixed order — topology, obfuscation, secrets, semantic_rules, brain, causal, phish, ers, decision. Each node has `verdict` (PASS/FLAG/BLOCK/SKIP), `score`, `score_label`, `color`, `weight`. Primary cause = first BLOCK node, then highest-weight FLAG.
+- **XAI counterfactuals**: one `Counterfactual` per non-PASS stage with a plain-English remediation action. Severity = HIGH (BLOCK) or MEDIUM (FLAG).
+- **XAI PDF**: `render_pdf()` uses reportlab if installed → `application/pdf`; falls back to `render_html()` → `text/html`. `X-Report-Format: pdf|html` response header signals which was returned.
+- **XAI dashboard**: reads full `load_entries()` then calls `build_chain()` per record — CPU-only, no Redis. Filter by `hours` (1–168). Returns stage hit rates, top causes, flag distribution.
+- **MASQUE tunnel lifecycle**: PENDING → ACTIVE (first probe success) → DEGRADED (≥2 failures) → OFFLINE (≥TUNNEL_OFFLINE_AFTER_FAILS=5). TOFU pinning via `tls_fingerprint` (SHA-256 of server leaf cert or endpoint-derived placeholder).
+- **Sovereign routing algorithm**: load policy → allowed jurisdictions per data_class → ACTIVE tunnels in those jurisdictions → prefer `preferred_tunnel_id` → else min(home_jurisdiction_first, lowest_latency).
+- **Sovereignty attestation**: HMAC-SHA256 over `attest_id|request_id|tenant_id|jurisdiction|tunnel_id|data_class|compliant|issued_at`. Key: `SOVEREIGN_ATTEST_KEY` → fallback `VAULT_MASTER_KEY`. Redis TTL 7 years (220,752,000 s). Cap 10,000 per tenant.
+- **Transfer rules matrix**: CLASSIFIED → never; PHI → US/EU/UK/CA/CH only; PII/FINANCIAL/GENERAL → all jurisdictions (with adequacy check for cross_border_restricted sources).
+- **Add-on gate HTTP status codes**: 403 = tier below `min_tier` (plan upgrade CTA); 402 = eligible tier but add-on not purchased (checkout CTA). `require_addon_or_feature()` in `warden/billing/addons.py`.
+- **UECIID format**: `SEP-{11 base-62 chars}` encodes 64-bit Snowflake; alphabet `0-9A-Za-z` (case-sensitive); lexicographic order = chronological order.
+- **SEP SQLite DB**: `SEP_DB_PATH` env var (default `/tmp/warden_sep.db`); shared by sep.py + peering.py. Tables: `sep_ueciid_index`, `sep_pod_tags`, `sep_peerings`, `sep_transfers`.
+- **Peering handshake token**: only HMAC-SHA256 hash stored in DB; `_verify_handshake_token()` uses `hmac.compare_digest()`. One duplicate ACTIVE peering between same two communities is blocked.
+- **Knock token**: Redis `sep:knock:{hmac_hash}` (72h TTL). `verify_and_accept_knock()` asserts `invitee_tenant_id == claiming_tenant_id` before `invite_member()`. One-time use: status → ACCEPTED.
+- **Causal Transfer Proof**: HMAC-SHA256 canonical string stored as JSON in `sep_transfers`. `POST /sep/transfers/{id}/verify-proof` re-derives signature to detect post-issuance tampering. Optional `pqc_signature` field: base64-encoded ML-DSA-65 hybrid sig; populated only when source community keypair `is_hybrid=True`. Both HMAC and PQC must pass `verify_transfer_proof()`.
+- **Causal Transfer Guard**: `evaluate_transfer_risk()` runs before every `transfer_entity()`. Maps (data_class, transfer velocity, peering age/policy, burst pattern) → `arbitrate()` evidence nodes. Block threshold: `TRANSFER_RISK_THRESHOLD` (default 0.70). Redis sliding window keys: `sep:transfer_velocity:{community_id}` (sorted set, 1h window) + `sep:transfer_burst:{community_id}` (5min). Falls back to weighted sum if `causal_arbiter` unavailable. Status set to REJECTED (not raised as exception) so the transfer record is still written.
+- **Sovereign Data Pods**: SQLite `sep_data_pods` in `SEP_DB_PATH`. Secret keys are Fernet-encrypted with SHA-256 of `COMMUNITY_VAULT_KEY`. `get_pod_for_entity()` resolution order: jurisdiction match → data_class match → primary pod → first ACTIVE pod. `probe_pod()` calls `/minio/health/live` endpoint (5s timeout).
+- **STIX 2.1 Audit Chain**: `append_transfer()` is always called after `transfer_entity()` (including REJECTED transfers — full audit trail). Genesis block `prev_hash = "0" * 64`. `verify_chain()` re-hashes bundles from canonical JSON (sorted keys, no whitespace). STIX bundle extension `x-chain.prev_hash` links entries. `export_chain_jsonl()` produces OASIS STIX 2.1 compatible JSONL for SIEM import. `sep_stix_chain.seq` is per-community monotonic sequence.
+- **Sovereign Pod Tags**: per-entity data residency. No tag → allowed. PHI EU→US blocked by `is_transfer_allowed()` from sovereign/jurisdictions.py. Tags survive entity deletion.
+- **Add-on SKU prices**: Pro $69/mo (includes MasterAgent), Enterprise $249/mo (includes PQC + Sovereign). Add-ons: `shadow_ai_discovery` +$15/mo (Pro+), `xai_audit` +$9/mo (Individual+), `master_agent` +$20/mo (Pro — already in Pro base).
+- **Billing admin endpoints**: `POST /billing/addons/grant` and `DELETE /billing/addons/revoke` require `X-Admin-Key` header (`ADMIN_KEY` env var). Called by Lemon Squeezy webhook handler.
+- **Adequacy decisions**: EU↔UK, EU↔CA, EU↔JP, EU↔CH — used by `is_transfer_allowed()` and `check_compliance()`.
+- **PQC optional (liboqs-python)**: `warden/crypto/pqc.py` wraps liboqs with `_OQS_AVAILABLE` guard. All PQC code path raises `PQCUnavailableError(RuntimeError)` if not installed. Classical Ed25519/X25519 still work. `is_pqc_available()` / `pqc_status()` are health check helpers.
+- **Hybrid kid convention**: classical kids are "v1", "v2", …; hybrid PQC kids append "-hybrid" (e.g. "v1-hybrid"). `CommunityKeypair.is_hybrid` checks `kid.endswith("-hybrid") and mldsa_pub_b64 is not None`.
+- **PQC Enterprise-only**: `pqc_enabled: True` only in the `enterprise` TIER_LIMITS entry. `POST /communities/{id}/upgrade-pqc` requires `_require_tier(mcp)` + `gate.require("pqc_enabled")`. Raises HTTP 503 if liboqs not installed.
+- **Hybrid signature layout**: 3373 bytes = Ed25519 sig (64 B) + ML-DSA-65 sig (3309 B). `HybridSignature.pack()` / `unpack()` handle serialization. `hybrid_verify()` falls back to Ed25519-only if liboqs unavailable.
+- **Hybrid KEM shared secret**: `HKDF-SHA256(X25519_ss XOR mlkem_ss[:32])` — XOR-then-HKDF pattern; if one algorithm is broken the other provides full security. Ciphertext = ephem_pub (32 B) + ML-KEM-768 ct (1088 B).
 
 ## Code Style
 

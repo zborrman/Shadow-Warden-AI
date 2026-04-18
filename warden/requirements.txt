@@ -116,6 +116,23 @@ pyotp>=2.9.0
 python3-saml>=1.16.0
 PyJWT>=2.8.0
 
+# ── Shadow AI network-level discovery (optional) ─────────────────────────────
+# scapy — ARP/ICMP host pre-probe for ShadowAIDetector.scan().
+# Filters live hosts before HTTP fingerprinting → 60-80% faster on sparse nets.
+# Requires raw-socket privileges (root or CAP_NET_RAW).
+# Enable: pip install scapy>=2.5.0 AND set SHADOW_AI_USE_SCAPY=true.
+# NOT installed by default — most deployments don't need layer-2 access.
+# scapy>=2.5.0
+
+# ── Post-Quantum Cryptography (liboqs-python — NIST FIPS 203/204) ────────────
+# liboqs-python is built from the C source in the Dockerfile (cmake step 1).
+# It is NOT listed here because pip install liboqs-python requires cmake + gcc
+# which are Dockerfile system deps — not available on all local environments.
+# See Dockerfile Step 1 for the install command.
+# To install locally: apt-get install cmake ninja-build libssl-dev astyle
+#                     pip install liboqs-python
+# Falls back to classical Ed25519/X25519 if unavailable.
+
 # ── FAISS ANN index (optional — auto-activates when corpus > 500 entries) ─────
 # faiss-cpu provides approximate nearest neighbour search for the threat corpus.
 # Not required for standard deployments (corpus < 500 entries uses torch scan).

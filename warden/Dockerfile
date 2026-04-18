@@ -20,16 +20,24 @@ WORKDIR /warden
 #   gosu        — privilege drop in entrypoint (root → wardenuser after perm fix)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc g++ libgomp1 curl gosu \
+        cmake ninja-build libssl-dev astyle \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Python deps (two-step to guarantee CPU-only torch) ───────────────────────
+# ── Python deps (three-step: liboqs → torch CPU-only → everything else) ─────
 COPY requirements.txt .
 
-# Step 1 — torch from the CPU-only wheel index.
+# Step 1 — liboqs-python (Post-Quantum Cryptography — NIST FIPS 203/204).
+#   Builds liboqs C library from source via cmake (~60s).
+#   Fail-open: || true so the build continues even if liboqs is unavailable
+#   (warden/crypto/pqc.py falls back to classical Ed25519/X25519 automatically).
+RUN pip install --no-cache-dir liboqs-python || \
+    echo "⚠ liboqs-python build failed — PQC disabled (classical crypto still active)"
+
+# Step 2 — torch from the CPU-only wheel index.
 RUN pip install --no-cache-dir torch \
         --index-url https://download.pytorch.org/whl/cpu
 
-# Step 2 — everything else from PyPI.
+# Step 3 — everything else from PyPI.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Non-root runtime user ─────────────────────────────────────────────────────

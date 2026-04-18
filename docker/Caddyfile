@@ -1,0 +1,122 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Shadow Warden AI — Caddy v2.8+ reverse proxy
+#
+#  Features:
+#    • HTTP/3 (QUIC) enabled by default in Caddy 2.8+  — requires UDP 443
+#    • Automatic Alt-Svc: h3=":443" header advertised to browsers
+#    • TLS via bring-your-own certs in ./ssl/  (fullchain.pem + privkey.pem)
+#    • HSTS + security headers on all HTTPS responses
+#    • HTTP → HTTPS permanent redirect on port 80
+#
+#  Routing (by hostname):
+#    api.shadow-warden-ai.com       → warden:8001  (API gateway)
+#    app.shadow-warden-ai.com       → portal:3001   (Next.js tenant portal)
+#    analytics.shadow-warden-ai.com → analytics:8002
+#    shadow-warden-ai.com
+#    www.shadow-warden-ai.com       → /srv/landing  (static landing page)
+#
+#  TLS cert files (mount ./ssl → /etc/caddy/ssl):
+#    /etc/caddy/ssl/fullchain.pem   — certificate chain (Let's Encrypt standard)
+#    /etc/caddy/ssl/privkey.pem     — private key
+#
+#  To use Caddy's automatic HTTPS (ACME) instead of bring-your-own certs,
+#  remove the `tls` directives and set your email in the global block:
+#    { email you@example.com }
+# ─────────────────────────────────────────────────────────────────────────────
+
+{
+	# Global options
+	# HTTP/3 is on by default — no extra config needed.
+	# Caddy automatically adds Alt-Svc response headers when h3 is active.
+}
+
+# ── HTTP → HTTPS redirect ─────────────────────────────────────────────────────
+http:// {
+	redir https://{host}{uri} 301
+}
+
+# ── Security header snippet (reused across all HTTPS sites) ───────────────────
+(security_headers) {
+	header {
+		# HSTS — 2 years, include subdomains, preload-eligible
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		# Prevent MIME sniffing
+		X-Content-Type-Options    "nosniff"
+		# Clickjacking protection
+		X-Frame-Options           "SAMEORIGIN"
+		# HTTP/3 advertisement — browsers upgrade on the next request
+		Alt-Svc                   `h3=":443"; ma=2592000`
+		# Hide server identity
+		-Server
+	}
+}
+
+# ── API Gateway ───────────────────────────────────────────────────────────────
+api.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/fullchain.pem /etc/caddy/ssl/privkey.pem
+
+	import security_headers
+
+	# Health probe (used by Caddy's own healthcheck on port 80 via HTTP redirect)
+	handle /health {
+		reverse_proxy warden:8001
+	}
+
+	# All API traffic → Warden FastAPI gateway
+	handle {
+		reverse_proxy warden:8001 {
+			# Forward real client IP
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+}
+
+# ── Tenant Portal (Next.js) ───────────────────────────────────────────────────
+app.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/fullchain.pem /etc/caddy/ssl/privkey.pem
+
+	import security_headers
+
+	handle {
+		reverse_proxy portal:3001 {
+			header_up X-Real-IP        {remote_host}
+			header_up X-Forwarded-For  {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+}
+
+# ── Analytics Dashboard ───────────────────────────────────────────────────────
+analytics.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/fullchain.pem /etc/caddy/ssl/privkey.pem
+
+	import security_headers
+
+	handle {
+		reverse_proxy analytics:8002 {
+			header_up X-Real-IP        {remote_host}
+			header_up X-Forwarded-For  {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+}
+
+# ── Landing Page (static) ─────────────────────────────────────────────────────
+shadow-warden-ai.com, www.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/fullchain.pem /etc/caddy/ssl/privkey.pem
+
+	import security_headers
+
+	# Cache static assets aggressively
+	@static path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	root * /srv/landing
+
+	# SPA-style fallback: try file → try .html → index.html
+	try_files {path} {path}.html /index.html
+
+	file_server
+}
