@@ -61,12 +61,51 @@
   nav {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
     height: 64px;
-    background: rgba(3,5,15,0.85);
+    background: rgba(3,5,15,0.92);
     backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; padding: 0 40px;
-    gap: 40px;
+    display: flex; align-items: center; padding: 0 32px;
+    gap: 0;
   }
+
+  /* Mega-nav dropdown */
+  .nav-group { position: relative; }
+  .nav-group > a, .nav-group > span {
+    display: flex; align-items: center; gap: 4px; cursor: pointer;
+    padding: 0 14px; height: 64px;
+    font-size: 13px; font-weight: 500; color: var(--text-2);
+    text-decoration: none; transition: color 0.2s; white-space: nowrap;
+    border: none; background: none;
+  }
+  .nav-group > a:hover, .nav-group > span:hover { color: var(--text); }
+  .nav-group > a.active { color: var(--text); }
+  .nav-caret { font-size: 9px; opacity: 0.5; transition: transform 0.2s; }
+  .nav-group:hover .nav-caret { transform: rotate(180deg); }
+
+  .nav-dropdown {
+    display: none; position: absolute; top: 64px; left: 0;
+    background: rgba(8,13,30,0.97); backdrop-filter: blur(24px);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 8px; min-width: 200px; z-index: 200;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    animation: fadeIn 0.15s ease;
+  }
+  .nav-group:hover .nav-dropdown { display: block; }
+  .nav-dropdown a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 8px; text-decoration: none;
+    font-size: 13px; color: var(--text-2); transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .nav-dropdown a:hover { background: var(--surface2); color: var(--text); }
+  .nav-dropdown a .dd-icon { font-size: 15px; width: 20px; text-align: center; }
+  .nav-dropdown a .dd-badge {
+    margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    background: var(--red-dim); color: var(--red);
+    padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+  }
+  .nav-dropdown a .dd-badge.new { background: var(--blue-dim); color: var(--blue); }
+  .nav-divider { height: 1px; background: var(--border); margin: 6px 0; }
 
   .nav-logo {
     display: flex; align-items: center; gap: 10px;
@@ -88,12 +127,7 @@
     text-transform: uppercase;
   }
 
-  nav .links { display: flex; gap: 32px; flex: 1; margin-left: 24px; }
-  nav .links a {
-    font-size: 13px; font-weight: 500; color: var(--text-2);
-    text-decoration: none; transition: color 0.2s;
-  }
-  nav .links a:hover { color: var(--text); }
+  nav .links { display: flex; flex: 1; margin-left: 8px; align-items: center; }
 
   .nav-status {
     display: flex; align-items: center; gap: 6px;
@@ -562,8 +596,12 @@
   ::-webkit-scrollbar-thumb { background: rgba(99,117,255,0.2); border-radius: 4px; }
 
   /* ── Responsive ───────────────────────────────────────────────────── */
+  @media (max-width: 1200px) {
+    nav .links .nav-group > a,
+    nav .links .nav-group > span { padding: 0 10px; font-size: 12px; }
+  }
   @media (max-width: 1024px) {
-    nav { padding: 0 24px; gap: 20px; }
+    nav { padding: 0 20px; }
     nav .links { display: none; }
     .hero { padding: 100px 32px 60px; flex-direction: column; }
     .hero-content { max-width: 100%; }
@@ -589,31 +627,189 @@
 
 <!-- ── Navigation ──────────────────────────────────────────────────────── -->
 <nav>
-  <div class="nav-logo">
+  <!-- Logo -->
+  <div class="nav-logo" style="flex-shrink:0;">
     <div class="nav-logo-icon">🛡️</div>
-    <div>
-      <div class="nav-logo-text">Shadow Warden AI</div>
-    </div>
+    <div class="nav-logo-text">Shadow Warden</div>
     <div class="nav-badge">v4.7</div>
   </div>
 
+  <!-- Main links -->
   <div class="links">
-    <a href="#pipeline">Architecture</a>
-    <a href="#features">Features</a>
-    <a href="#zero-entry">Zero Entry</a>
-    <a href="#threats">Live Feed</a>
-    <a href="#pricing">Pricing</a>
+
+    <div class="nav-group">
+      <a href="#hero" class="active">Home</a>
+    </div>
+
+    <div class="nav-group">
+      <span>Product <span class="nav-caret">▾</span></span>
+      <div class="nav-dropdown">
+        <a href="#pipeline"><span class="dd-icon">🌀</span> Architecture</a>
+        <a href="#features"><span class="dd-icon">⚡</span> Features</a>
+        <a href="#zero-entry"><span class="dd-icon">🚪</span> Zero Entry</a>
+        <a href="#threats"><span class="dd-icon">📡</span> Live Threat Feed</a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <span>Communities <span class="nav-caret">▾</span></span>
+      <div class="nav-dropdown" style="min-width:240px;">
+        <a href="#"><span class="dd-icon">🏘️</span> Syndicate Exchange (SEP)<span class="dd-badge new">New</span></a>
+        <a href="#"><span class="dd-icon">🤝</span> Peering & Knock Invites</a>
+        <a href="#"><span class="dd-icon">🌍</span> Sovereign Data Pods</a>
+        <a href="#"><span class="dd-icon">🔗</span> STIX 2.1 Audit Chain</a>
+        <div class="nav-divider"></div>
+        <a href="#"><span class="dd-icon">📋</span> Community Directory</a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <span>Benchmark <span class="nav-caret">▾</span></span>
+      <div class="nav-dropdown">
+        <a href="#"><span class="dd-icon">📊</span> Latency vs. Competitors</a>
+        <a href="#"><span class="dd-icon">🎯</span> Detection Accuracy</a>
+        <a href="#"><span class="dd-icon">💰</span> ROI Calculator</a>
+        <a href="#"><span class="dd-icon">🧪</span> Red Team Results</a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <a href="#" id="agent-bot-btn">Agent Bot <span style="font-size:9px;background:var(--red-dim);color:var(--red);padding:2px 6px;border-radius:4px;font-weight:700;letter-spacing:1px;margin-left:4px;">LIVE</span></a>
+    </div>
+
+    <div class="nav-group">
+      <span>Docs <span class="nav-caret">▾</span></span>
+      <div class="nav-dropdown">
+        <a href="#"><span class="dd-icon">🚀</span> Quick Start</a>
+        <a href="#"><span class="dd-icon">📖</span> API Reference</a>
+        <a href="#"><span class="dd-icon">🔐</span> Security Model</a>
+        <a href="#"><span class="dd-icon">📋</span> DPIA / SOC 2</a>
+        <a href="#"><span class="dd-icon">📝</span> SLA</a>
+        <div class="nav-divider"></div>
+        <a href="#"><span class="dd-icon">🔄</span> Changelog v4.7</a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <a href="#" onclick="document.getElementById('contact-modal').classList.add('active');return false;">Contact</a>
+    </div>
+
+    <div class="nav-group">
+      <span>Settings <span class="nav-caret">▾</span></span>
+      <div class="nav-dropdown">
+        <a href="#"><span class="dd-icon">🔑</span> API Keys</a>
+        <a href="#"><span class="dd-icon">🏢</span> Tenants</a>
+        <a href="#"><span class="dd-icon">🔔</span> Alerts (Slack / PD)</a>
+        <a href="#"><span class="dd-icon">🧬</span> PQC Upgrade</a>
+        <a href="#"><span class="dd-icon">🌐</span> Sovereign Routing</a>
+        <a href="#"><span class="dd-icon">💳</span> Billing & Add-ons</a>
+      </div>
+    </div>
+
   </div>
 
-  <div style="display:flex;gap:12px;align-items:center;margin-left:auto;">
-    <div class="nav-status">
+  <!-- Right side -->
+  <div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">
+    <div class="nav-status" style="display:flex;">
       <span class="pulse-dot"></span>
-      All Systems Operational
+      Operational
     </div>
-    <button class="btn-ghost">Sign In</button>
-    <button class="btn-primary">Start Free Trial</button>
+
+    <!-- Auth buttons -->
+    <button class="btn-ghost" onclick="document.getElementById('auth-modal').dataset.mode='signin';document.getElementById('auth-modal').classList.add('active')">Sign In</button>
+    <button class="btn-primary" onclick="document.getElementById('auth-modal').dataset.mode='signup';document.getElementById('auth-modal').classList.add('active')">Sign Up →</button>
   </div>
 </nav>
+
+<!-- ── Auth Modal ───────────────────────────────────────────────────────── -->
+<div id="auth-modal" class="modal-overlay" style="position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="modal-card" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:48px;width:420px;max-width:90vw;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-size:32px;margin-bottom:12px;">🛡️</div>
+      <h2 id="auth-title" style="font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;">Welcome back</h2>
+      <p id="auth-sub" style="font-size:13px;color:var(--text-2);">Sign in to your Shadow Warden dashboard</p>
+    </div>
+    <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:28px;">
+      <button onclick="setAuthMode('signin')" id="tab-signin" style="flex:1;padding:8px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:white;color:#111;transition:all 0.2s;">Sign In</button>
+      <button onclick="setAuthMode('signup')" id="tab-signup" style="flex:1;padding:8px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-2);transition:all 0.2s;">Sign Up</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div id="auth-name-field" style="display:none;">
+        <label style="font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Full Name</label>
+        <input type="text" placeholder="Jane Smith" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Email</label>
+        <input type="email" placeholder="you@company.com" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Password</label>
+        <input type="password" placeholder="••••••••" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
+      </div>
+      <div id="auth-plan-field" style="display:none;">
+        <label style="font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Plan</label>
+        <select style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
+          <option>Individual — $29/mo</option>
+          <option>Pro — $69/mo</option>
+          <option>Enterprise — $249/mo</option>
+        </select>
+      </div>
+      <button style="width:100%;background:linear-gradient(135deg,var(--red) 0%,#CC1F42 100%);color:white;border:none;padding:14px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;box-shadow:0 8px 24px rgba(255,45,85,0.3);" id="auth-cta">Sign In →</button>
+      <div id="auth-footer-text" style="text-align:center;font-size:12px;color:var(--text-3);">Don't have an account? <a href="#" onclick="setAuthMode('signup');return false;" style="color:var(--blue);text-decoration:none;">Sign up free</a></div>
+    </div>
+    <button onclick="document.getElementById('auth-modal').classList.remove('active')" style="position:absolute;top:20px;right:20px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
+  </div>
+</div>
+
+<!-- ── Contact Modal ────────────────────────────────────────────────────── -->
+<div id="contact-modal" class="modal-overlay" style="position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.classList.remove('active')">
+  <div class="modal-card" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:48px;width:480px;max-width:90vw;position:relative;">
+    <button onclick="document.getElementById('contact-modal').classList.remove('active')" style="position:absolute;top:20px;right:20px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
+    <div style="font-size:32px;margin-bottom:12px;">✉️</div>
+    <h2 style="font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;">Get in touch</h2>
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:28px;">Sales, partnerships, or security disclosures — we respond within 24h.</p>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <input type="text" placeholder="Your name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
+      <input type="email" placeholder="you@company.com" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
+      <select style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
+        <option>Sales inquiry</option>
+        <option>Partnership</option>
+        <option>Security disclosure</option>
+        <option>Enterprise demo</option>
+        <option>Other</option>
+      </select>
+      <textarea rows="4" placeholder="Your message..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;resize:none;"></textarea>
+      <button style="width:100%;background:linear-gradient(135deg,var(--red) 0%,#CC1F42 100%);color:white;border:none;padding:14px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(255,45,85,0.3);">Send Message →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Agent Bot Widget ─────────────────────────────────────────────────── -->
+<div id="agent-widget" style="display:none;position:fixed;bottom:24px;right:24px;z-index:500;width:360px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.6);">
+    <div style="background:linear-gradient(135deg,#0D1428,#121A35);padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);">
+      <div style="width:36px;height:36px;background:linear-gradient(135deg,var(--blue),#5856D6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;">🤖</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;">SOVA Agent</div>
+        <div style="font-size:11px;color:var(--green);display:flex;align-items:center;gap:5px;"><span class="pulse-dot"></span> Online · Claude Opus 4.6</div>
+      </div>
+      <button onclick="toggleAgent()" style="background:none;border:none;color:var(--text-3);font-size:18px;cursor:pointer;">✕</button>
+    </div>
+    <div id="agent-messages" style="height:280px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;">
+      <div style="background:var(--surface2);border-radius:12px 12px 12px 4px;padding:12px 14px;font-size:13px;color:var(--text-2);line-height:1.6;max-width:85%;">
+        Hi! I'm SOVA, your autonomous SOC operator. Ask me about threat events, pipeline stats, or run any of the 30 available tools. What can I help with?
+      </div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;">
+      <input id="agent-input" type="text" placeholder="Ask SOVA anything..." onkeydown="if(event.key==='Enter')sendAgentMsg()"
+        style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text);outline:none;font-family:inherit;">
+      <button onclick="sendAgentMsg()" style="background:var(--blue);color:white;border:none;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">→</button>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Agent Button -->
+<button id="agent-fab" onclick="toggleAgent()" style="position:fixed;bottom:24px;right:24px;z-index:499;width:56px;height:56px;background:linear-gradient(135deg,var(--blue),#5856D6);border:none;border-radius:16px;font-size:24px;cursor:pointer;box-shadow:0 8px 32px rgba(10,132,255,0.4);display:flex;align-items:center;justify-content:center;transition:all 0.2s;" title="Open SOVA Agent">🤖</button>
 
 <!-- ── Hero ────────────────────────────────────────────────────────────── -->
 <section class="hero" id="hero">
@@ -1255,6 +1451,70 @@ function runQuery() {
   setTimeout(() => {
     output.innerHTML = (queryResponses[q] || queryResponses.default)(q);
   }, 800);
+}
+
+// ─── Auth Modal ─────────────────────────────────────────────────────────────
+function setAuthMode(mode) {
+  const isSignup = mode === 'signup';
+  document.getElementById('auth-title').textContent = isSignup ? 'Create your account' : 'Welcome back';
+  document.getElementById('auth-sub').textContent = isSignup ? 'Start your free trial — no credit card required' : 'Sign in to your Shadow Warden dashboard';
+  document.getElementById('auth-cta').textContent = isSignup ? 'Create Account →' : 'Sign In →';
+  document.getElementById('auth-name-field').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('auth-plan-field').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('auth-footer-text').innerHTML = isSignup
+    ? 'Already have an account? <a href="#" onclick="setAuthMode(\'signin\');return false;" style="color:var(--blue);text-decoration:none;">Sign in</a>'
+    : 'Don\'t have an account? <a href="#" onclick="setAuthMode(\'signup\');return false;" style="color:var(--blue);text-decoration:none;">Sign up free</a>';
+  document.getElementById('tab-signin').style.background = isSignup ? 'transparent' : 'white';
+  document.getElementById('tab-signin').style.color = isSignup ? 'var(--text-2)' : '#111';
+  document.getElementById('tab-signup').style.background = isSignup ? 'white' : 'transparent';
+  document.getElementById('tab-signup').style.color = isSignup ? '#111' : 'var(--text-2)';
+}
+document.getElementById('agent-bot-btn').addEventListener('click', (e) => { e.preventDefault(); toggleAgent(); });
+
+// ─── Agent Bot ───────────────────────────────────────────────────────────────
+let agentOpen = false;
+const agentResponses = [
+  'Analyzing your request via SOVA pipeline...',
+  'Found <strong>247 HIGH-risk events</strong> in the last 24h. Top stage: <code>brain</code> (causal compound). Recommend reviewing ERS patterns.',
+  'Running <code>health_check</code> tool... All 11 services healthy. P99 latency: <strong>1.8ms</strong>. Corpus freshness: OK.',
+  'GDPR Art.30 export queued for tenant <code>acme-corp</code>. Available in 30s at <code>/gdpr/export/{id}</code>.',
+  'Shadow AI scan complete: <strong>3 unauthorized providers detected</strong> on subnet 10.0.1.0/24. Ollama (port 11434) + 2 Gradio instances. Policy: MONITOR.',
+  'XAI causal chain for request <code>req_7f3a9b2</code>: Primary cause = <code>brain</code> (score 0.89). Counterfactual: remove system-prompt extraction pattern.',
+];
+let agentIdx = 0;
+
+function toggleAgent() {
+  agentOpen = !agentOpen;
+  document.getElementById('agent-widget').style.display = agentOpen ? 'block' : 'none';
+  document.getElementById('agent-fab').style.display = agentOpen ? 'none' : 'flex';
+}
+
+function sendAgentMsg() {
+  const input = document.getElementById('agent-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  const msgs = document.getElementById('agent-messages');
+
+  // User bubble
+  const userEl = document.createElement('div');
+  userEl.style.cssText = 'background:var(--blue-dim);border:1px solid rgba(10,132,255,0.2);border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:13px;color:var(--text);line-height:1.6;max-width:85%;align-self:flex-end;margin-left:auto;';
+  userEl.textContent = msg;
+  msgs.appendChild(userEl);
+
+  // Typing indicator
+  const typing = document.createElement('div');
+  typing.style.cssText = 'background:var(--surface2);border-radius:12px 12px 12px 4px;padding:12px 14px;font-size:13px;color:var(--text-3);max-width:85%;';
+  typing.textContent = '⠋ Analyzing...';
+  msgs.appendChild(typing);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  setTimeout(() => {
+    typing.style.color = 'var(--text-2)';
+    typing.innerHTML = agentResponses[agentIdx % agentResponses.length];
+    agentIdx++;
+    msgs.scrollTop = msgs.scrollHeight;
+  }, 1000);
 }
 
 // ─── Live Threat Feed ────────────────────────────────────────────────────────
