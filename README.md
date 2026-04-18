@@ -4,67 +4,106 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 3.3 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.7 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
-## Product Strategy — Two Editions
+## Product Tiers — v4.7
 
-Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fundamentally different buyers.
+| Tier | Price | Requests/mo | Key Features |
+|------|-------|-------------|--------------|
+| **Starter** | Free | 1,000 | Core filter pipeline, analytics dashboard |
+| **Individual** | $5/mo | 5,000 | + XAI audit add-on eligible (+$9/mo) |
+| **Pro** | $69/mo | 50,000 | + MasterAgent, Shadow AI Discovery add-on eligible (+$15/mo) |
+| **Enterprise** | $249/mo | Unlimited | + PQC (ML-DSA-65 + ML-KEM-768), Sovereign AI Cloud, all add-ons |
 
-### Shadow Warden Teams — SMB Edition
+**Add-ons** (billed via Lemon Squeezy):
 
-**Problem:** Small and mid-size businesses don't build AI applications — their employees use public ChatGPT, Claude, and Gemini directly, leaking client PII, AWS keys, source code, and commercial secrets every day.
+| Add-on | Price | Min Tier | Feature key |
+|--------|-------|----------|-------------|
+| XAI Audit Reports | +$9/mo | Individual | `xai_reports_enabled` |
+| Shadow AI Discovery | +$15/mo | Pro | `shadow_ai_enabled` |
+| MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
 
-**Solution:** The browser extension (v2.4) + a managed cloud gateway. No infrastructure for the customer to operate.
-
-**How it works (Plug & Play):**
-1. Owner buys a subscription, sends employees a Chrome Web Store link
-2. Extension intercepts prompts (`world: "MAIN"`) before they reach ChatGPT
-3. PII/secrets are masked (fake data substitution) or blocked (RED zone) before the cloud model ever sees them
-4. Owner's dashboard shows a Dollar Impact feed: *"This month: 14 AWS key leaks blocked, 45 PII incidents prevented, $X in risk avoided"*
-
-**Architecture:**
-- Multi-tenant cloud cluster — you operate the gateway, customers operate nothing
-- Employee extensions authenticate via company API key
-- SQLite / NDJSON logs; lightweight Stripe subscription billing ($50–200/month)
-- OAuth (Google / Microsoft) planned to replace bare API-key storage in the extension
+Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
 
 ---
 
-### Shadow Warden Enterprise — Corporate Edition
+## What's New in v4.7
 
-**Problem:** Banks, fintech, and government require data sovereignty — no bytes leave the security perimeter, no black-box cloud APIs, full audit trail, forced deployment to every device.
-
-**Solution:** A sovereign on-premise gateway with NVIDIA NIM inference and air-gapped Evolution Engine.
-
-**How it works (Zero-Trust & Air-Gapped):**
-1. Gateway deploys on-premise or in customer's private VPC via Helm charts
-2. **NVIDIA NIM** handles all LLM inference locally — no token ever reaches OpenAI or Anthropic
-3. **Nemotron Super 49B** (Evolution Engine) synthesises new defense rules inside the security perimeter — reasoning traces stored in the local Evidence Vault, never in the cloud
-4. IT department pushes the browser extension to all 10,000 laptops via **GPO / Microsoft Intune** — employees cannot disable it
-5. SHA-256 signed audit logs stream from MinIO Evidence Vault into Splunk / Elasticsearch
-
-**Architecture:**
-- Kubernetes with Helm charts (replaces `docker-compose.yml` for enterprise deployments)
-- ML workers (Whisper, CLIP, MiniLM) separated from the API gateway — GPU nodes scale independently via HPA
-- NVIDIA GPU nodes handle heavy ML workloads; lightweight gateway handles thousands of RPS on CPU
-- Annual node/traffic licensing ($25k+/year)
+| Feature | Description |
+|---------|-------------|
+| **Causal Transfer Guard** | `warden/communities/transfer_guard.py` — Bayesian DAG gates every SEP `transfer_entity()` call. Maps data class → `ml_score`, hourly velocity → `ers_score`, peering policy/age → `obfuscation_detected`, burst count → `se_risk`. Blocks exfiltration at P≥0.70 in <20ms. Redis velocity keys: `sep:transfer_velocity:{cid}` (1h sorted set) + `sep:transfer_burst:{cid}` (5min). REJECTED transfers are written to DB and audited — not silently dropped. `TRANSFER_RISK_THRESHOLD` env var (default 0.70). |
+| **ML-DSA-65 PQC on Causal Transfer Proofs** | `CausalTransferProof` gains `pqc_signature: str = ""`. `sign_transfer_proof(community_keypair=kp)` signs the canonical CTP bytes with ML-DSA-65 hybrid if `kp.is_hybrid=True` (base64-encoded). `verify_transfer_proof()` checks both HMAC-SHA256 and ML-DSA-65 — both must pass. Satisfies harvest-now-decrypt-later threat model for long-lived compliance records. |
+| **Sovereign Data Pods** | `warden/communities/data_pod.py` — per-jurisdiction MinIO routing. `register_pod()` stores Fernet-encrypted MinIO secret keys (SHA-256 of `COMMUNITY_VAULT_KEY`). `get_pod_for_entity()` resolution: jurisdiction match → data_class match → primary pod → first ACTIVE pod. `probe_pod()` calls `/minio/health/live` (5s timeout). SQLite `sep_data_pods` in `SEP_DB_PATH`. |
+| **STIX 2.1 Tamper-Evident Audit Chain** | `warden/communities/stix_audit.py` — every inter-community transfer (including REJECTED) is appended to a blockchain-style SHA-256 prev_hash chain of STIX 2.1 bundles. Genesis: `prev_hash = "0"×64`. Each bundle has 4 STIX objects: identity (source) + identity (target) + relationship with `x-sep-proof` extension (risk_score, pqc_signature, data_class) + note (CTP canonical). `verify_chain()` re-hashes all bundles. `export_chain_jsonl()` → SIEM-importable JSONL. Satisfies SOC 2 CC6.3 + GDPR Art. 30. |
+| **Caddy v2.8+ Reverse Proxy** | `docker/Caddyfile` replaces nginx. HTTP/3 (QUIC) on UDP 443 native. `Alt-Svc: h3=":443"` header auto-advertised. HSTS 2 years + `X-Frame-Options` + `-Server` on all HTTPS responses. Hostname-based virtual hosts: `api.` → warden:8001, `app.` → portal:3001, `analytics.` → analytics:8002, root → `/srv/landing`. `caddy-data` named volume for ACME state. |
+| **Scapy ARP Pre-probe (Shadow AI)** | `SHADOW_AI_USE_SCAPY=true` activates Layer-2 ARP broadcast before HTTP fingerprinting — discovers live hosts without TCP connections. 60–80% faster on sparse /24 subnets. Requires `CAP_NET_RAW`; falls back silently to full host list on `PermissionError`. |
+| **Async Syslog DNS Sink** | `warden/shadow_ai/syslog_sink.py` — UDP asyncio listener (port `SHADOW_AI_SYSLOG_PORT`, default 5514). Parses dnsmasq/BIND9/Zeek DNS query lines, feeds `classify_dns_event()` in real time. Started in FastAPI lifespan when `SHADOW_AI_SYSLOG_ENABLED=true`. Fail-open. |
+| **MasterAgent Batches API** | `run_master_batch()` uses `client.beta.messages.batches.create()` for decompose + synthesis steps — 50% input token discount on scheduled jobs. `_SUB_AGENT_MAX_ITER=5` (was 8) + `_SUB_AGENT_TOKEN_BUDGET=8192` early-halt on per-sub-agent token accumulation. |
+| **SEP API — 24 endpoints** | `POST /sep/pods`, `GET /sep/pods`, `POST /sep/pods/{id}/probe`, `DELETE /sep/pods/{id}` (Sovereign Data Pods), plus `GET /sep/audit-chain/{id}`, `GET /sep/audit-chain/{id}/verify`, `GET /sep/audit-chain/{id}/export` (STIX chain). Six new endpoints added to existing 18. |
 
 ---
 
-### Edition Comparison
+## What's New in v4.6
 
-| | **Teams (SMB)** | **Enterprise** |
-|---|---|---|
-| **Primary threat** | Employees leaking data into public AI chatbots | Compromised AI agents, LLM pipelines, internal chatbots |
-| **Infrastructure** | Your managed SaaS | Customer's self-hosted Kubernetes |
-| **Browser extension** | Voluntary install (Chrome Store) | Forced rollout via GPO / MDM |
-| **Evolution Engine** | Claude Opus (cloud, lower cost) | NVIDIA Nemotron 49B (air-gapped, local) |
-| **Audit logs** | SQLite / NDJSON in cloud | MinIO Evidence Vault → Splunk / Elastic |
-| **Local LLM fallback** | Ollama / LM Studio (extension) | NVIDIA NIM (on-prem) |
-| **GTM motion** | Self-serve, Stripe card ($50–200/mo) | Sales-led, annual contract ($25k+/yr) |
-| **Data sovereignty** | Shared cloud (GDPR-compliant) | Full — no data leaves customer perimeter |
+| Feature | Description |
+|---------|-------------|
+| **Syndicate Exchange Protocol (SEP)** | `warden/communities/sep.py` — UECIID codec (`SEP-{11 base-62}` from 64-bit Snowflake; lexicographic = chronological). UECIID index (SQLite `sep_ueciid_index`), `search_ueciids()` (prefix + display name LIKE). Causal Transfer Proof (HMAC-SHA256 signed canonical string, `verify_transfer_proof()`). Sovereign Pod Tags (jurisdiction + data_class per entity, blocks non-compliant transfers via `sovereign/jurisdictions.py`). |
+| **Inter-Community Peering** | `warden/communities/peering.py` — HMAC handshake token; policies `MIRROR_ONLY`/`REWRAP_ALLOWED`/`FULL_SYNC`; `transfer_entity()` → `TransferRecord` + new UECIID in target community + CTP. Duplicate ACTIVE peering guard. `sep_peerings` + `sep_transfers` SQLite tables. |
+| **Knock-and-Verify Invitations** | `warden/communities/knock.py` — one-time Redis tokens (72h TTL). `issue_knock()`, `verify_and_accept_knock()` asserts `invitee_tenant_id == claiming_tenant_id` → `invite_member()`. `revoke_knock()`, `list_pending_knocks()`. |
+| **SEP REST API — 18 endpoints** | `/sep/*`: UECIID resolve/search/list/register, pod-tag CRUD, peerings CRUD + accept + transfer + proof-verify, knock issue/accept/revoke/list. |
+
+---
+
+## What's New in v4.5
+
+| Feature | Description |
+|---------|-------------|
+| **Add-on Monetization** | `warden/billing/addons.py` — `ADDON_CATALOG` (3 SKUs); `grant_addon()`/`revoke_addon()`/`has_addon()` (Redis set + in-memory fallback); `require_addon_or_feature()` FastAPI dep (HTTP 403 = tier too low, HTTP 402 = add-on not purchased). |
+| **Pricing Update** | Pro: $49 → $69/mo. Enterprise: $199 → $249/mo. Shadow AI Discovery add-on (+$15/mo, Pro+). XAI Audit add-on (+$9/mo, Individual+). |
+| **Feature Gates** | `master_agent_enabled` (Pro+), `shadow_ai_enabled` (Enterprise or add-on), `xai_reports_enabled` (Pro+ or add-on), `sovereign_enabled` (Enterprise only), `pqc_enabled` (Enterprise only). |
+
+---
+
+## What's New in v4.4
+
+| Feature | Description |
+|---------|-------------|
+| **Sovereign AI Cloud** | `warden/sovereign/` — 8-jurisdiction registry (EU/US/UK/CA/SG/AU/JP/CH); MASQUE_H3/H2/CONNECT_TCP tunnels with TOFU TLS pinning; per-tenant routing policy (BLOCK/DIRECT fallback, data-class overrides); HMAC-SHA256 signed sovereignty attestations (7-year Redis TTL). 16 endpoints at `/sovereign/*`. Enterprise-only gate. |
+
+---
+
+## What's New in v4.3
+
+| Feature | Description |
+|---------|-------------|
+| **Explainable AI 2.0** | `warden/xai/` — 9-stage pipeline DAG (`build_chain()`); primary cause attribution + counterfactual remediations per non-PASS stage; self-contained HTML report with SVG risk gauge; reportlab PDF (fallback to HTML); `/xai/*` REST API (explain, batch, HTML, PDF, dashboard). |
+
+---
+
+## What's New in v4.2
+
+| Feature | Description |
+|---------|-------------|
+| **Shadow AI Governance** | `warden/shadow_ai/` — 18-provider AI fingerprint DB; async /24 subnet probe (max 50 concurrent, 3s timeout); DNS telemetry classifier; per-tenant MONITOR/BLOCK_DENYLIST/ALLOWLIST_ONLY policy; Redis findings store (1,000-entry cap). `/shadow-ai/*` REST API. SOVA tool #29 (`scan_shadow_ai`) fully implemented. |
+
+---
+
+## What's New in v4.1
+
+| Feature | Description |
+|---------|-------------|
+| **Post-Quantum Cryptography** | `warden/crypto/pqc.py` — `HybridSigner` (Ed25519 + ML-DSA-65 / FIPS 204) and `HybridKEM` (X25519 + ML-KEM-768 / FIPS 203) via liboqs-python (fail-open). Hybrid signature = Ed25519 (64B) + ML-DSA-65 (3309B). Hybrid KEM shared secret = HKDF-SHA256(X25519_ss XOR mlkem_ss[:32]). `upgrade_to_hybrid()` for existing community keypairs. Enterprise-only gate. |
+
+---
+
+## What's New in v4.0
+
+| Feature | Description |
+|---------|-------------|
+| **MasterAgent** | `warden/agent/master.py` — supervisor loop with 4 specialist sub-agents (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent). HMAC-SHA256 task tokens prevent cross-agent injection. Human-in-the-Loop: `REQUIRES_APPROVAL` actions → Slack webhook → Redis pending (1h TTL) → `POST /agent/approve/{token}`. `run_master_batch()` for 50%-discount scheduled jobs. |
+| **SOVA tools #29–30** | `scan_shadow_ai(subnet)` calls `ShadowAIDetector.scan()` directly. `explain_decision(request_id)` returns 9-stage causal chain + plain-English brief. |
 
 ---
 
@@ -77,6 +116,59 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 | **WardenHealer** | Autonomous self-healing agent (`warden/agent/healer.py`). Runs 4 checks per cycle: (1) circuit breaker state, (2) bypass spike >15%, (3) corpus DEGRADED detection with remediation instructions, (4) canary probe (safe request must always pass). `HealReport` + `HealAction` dataclasses with `summary()` rendering. `sova_corpus_watchdog` now delegates to `WardenHealer` — no LLM overhead on the happy path. |
 | **sova_visual_patrol** | New ARQ cron job, nightly 03:00 UTC. Uses `ScreencastRecorder` to bind a browser session to `patrol-<YYYYMMDD-HHmm>`, then calls `visual_assert_page` on configurable endpoints (`/health`, `DASHBOARD_URL`, `PATROL_URLS`). Sends targeted Slack alerts when vision analysis flags issues. Full WebM screencast shipped to MinIO as SOC 2 evidence. 7 SOVA cron jobs total. |
 | **Chapter Markers — SWFE ScenarioRunner** | `ScenarioStep.chapter` field groups steps under named sections. `Scenario.add_chapter(name, **kwargs)` opens a new chapter on the first step. `ScenarioResult.summary()` renders `── chapter ──` dividers between groups. `StepResult.chapter` carries the label for programmatic access. Backwards-compatible (empty chapter = no divider). |
+
+---
+
+## Roadmap 2026–2027
+
+### v4.0 — Master Agent Architecture _(Q1 2026)_
+
+| Feature | Description |
+|---------|-------------|
+| **MasterAgent Orchestrator** | `warden/agent/master.py` — supervisor agent (Claude Opus 4.6) that spawns and coordinates four specialist sub-agents: `SOVAOperator` (gateway health, quota, rotation), `ThreatHunter` (CVE triage, ArXiv synthesis, STIX export), `ForensicsAgent` (Evidence Vault reconstruction, timeline diff), `ComplianceAgent` (SOC 2 control mapping, SLA breach detection). Inter-agent tasks signed with HMAC-SHA256 to prevent cross-agent injection. |
+| **Human-in-the-Loop Gate** | Actions tagged `REQUIRES_APPROVAL` pause the agent loop and post to Slack with approve/reject webhook buttons (`POST /agent/approve/{token}`). Covers high-impact operations: key rotation, break glass, tenant suspension. |
+| **Agent Activity Dashboard** | Streamlit panel showing real-time agent coordination graph — nodes = agents, edges = delegated tasks, color = status (running / blocked / done). |
+| **SOVA tools #29–30** | `scan_shadow_ai(subnet)` — Shadow AI Discovery sweep; `explain_decision(request_id)` — returns causal chain + plain-English decision brief. |
+
+---
+
+### v4.1 — Post-Quantum Cryptography _(Q2 2026)_
+
+| Feature | Description |
+|---------|-------------|
+| **Hybrid PQC Stack** | `warden/crypto/pqc.py` — `HybridSigner` (Ed25519 + ML-DSA-65 / FIPS 204) and `HybridKEM` (X25519 + ML-KEM-768 / FIPS 203) via `liboqs-python`. Both signatures required for validation; shared secret = XOR-concatenation of X25519 and ML-KEM outputs. |
+| **Hybrid Syndicate Tunnels** | Warden Syndicate inter-gateway handshake upgraded to `X25519MLKEM768`. `kid` versioning bumped to `v2-hybrid`; classical `v1` keys remain valid during 90-day transition window. Enterprise-only gate via `FeatureGate.require("pqc")`. |
+| **NIST FIPS 203/204 Docs** | `docs/security-model.md` updated with PQC threat model, harvest-now-decrypt-later rationale, and migration runbook for existing communities. |
+
+---
+
+### v4.2 — Shadow AI Governance Engine _(Q3 2026)_
+
+| Feature | Description |
+|---------|-------------|
+| **Shadow AI Discovery** | `warden/shadow_ai/discovery.py` — passive DNS telemetry collector fingerprints 50+ AI provider endpoints (`*.openai.com`, `*.anthropic.com`, `*.gemini.google.com`, `*.cohere.ai` …). Resolves src IPs against DHCP leases for employee/service attribution. Risk-scored: personal ChatGPT = HIGH, authorized gateway = exempt. |
+| **Shadow AI Policy Engine** | `warden/shadow_ai/policy.py` — allowlist / greylist / blacklist per tool per department. Blacklisted tools answered with DNS sinkhole response. Extends existing `YELLOW/RED` Data Policy Engine. GDPR-safe: DNS metadata only, no payload capture. |
+| **Shadow AI Radar Dashboard** | Streamlit tab — heatmap by department, timeline of new AI tool adoption, CSV export for compliance officers. |
+
+---
+
+### v4.3 — Explainable AI 2.0 _(Q4 2026)_
+
+| Feature | Description |
+|---------|-------------|
+| **Causal Chain Visualizer** | `warden/xai/causal_graph.py` serializes `CausalArbiter` DAG to JSON-LD (nodes = evidence variables, edges = do-calculus interventions, weights = posterior probabilities). `warden/analytics/pages/4_CausalExplainer.py` — interactive Streamlit page with pyvis DAG render, frame-by-frame decision timeline replay, and what-if panel (toggle evidence nodes, watch score update live). |
+| **XAI Decision Brief (PDF)** | `generate_decision_brief(request_id)` — 1-page boardroom summary: DAG thumbnail, evidence list, recommended action. Every HIGH/BLOCK decision links to its brief at `/xai/{request_id}`. P99 generation < 500ms. |
+| **ROI Dashboard Integration** | Every HIGH/BLOCK card in the analytics dashboard links to its causal chain. Dollar Impact Calculator shows top-5 blocked attack types with causal rationale. |
+
+---
+
+### v4.4 — Sovereign AI Cloud / MASQUE Tunnels _(Q1 2027)_
+
+| Feature | Description |
+|---------|-------------|
+| **MASQUE Jurisdictional Tunnels** | `warden/tunnels/masque.py` — HTTP/3 CONNECT-UDP (RFC 9297) transport for Warden Syndicates. Each tunnel tagged `jurisdiction: {EU|US|UK|APAC}`. `JurisdictionalRouter` enforces data never transits a non-compliant jurisdiction at packet level. `MASQUEProxy` wraps existing ECDH handshake inside QUIC stream. Caddy v2.8+ provides H3 ingress (added to `docker-compose.yml`). |
+| **Jurisdictional Storage Policy** | `warden/storage/s3.py` — `jurisdiction_policy` field on bucket; writes forbidden if MinIO region ≠ declared jurisdiction. Every cross-tunnel byte logs `{src_jurisdiction, dst_jurisdiction, timestamp}` to Evidence Vault (GDPR Art. 46 transfer mechanism). |
+| **Enterprise Pricing Update** | PQC certificates + MASQUE tunnels bundled into Enterprise tier ($249/mo). Shadow AI Discovery available as Pro/Enterprise add-on (+$15/mo). XAI PDF reports as Individual+ add-on (+$9/mo). |
 
 ---
 
@@ -115,7 +207,7 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 |---------|-------------|
 | **Three-Tier Monetization** | Individual ($5/mo): 10 GB storage, 50 GB/mo bandwidth, 100 MB max file, 90-day retention, hard quota (no overage). Business ($49/mo): 100 GB, 500 GB/mo, 1 GB max file, 1-year retention, overage at $0.10/GB. MCP ($199/mo): 1 TB, 5 TB/mo, 5 GB max file, unlimited retention, overage at $0.04/GB with $40/TB expansion packs. |
 | **Storage/Bandwidth Quota Enforcement** | `warden/communities/quota.py` — Redis counters (`warden:quota:{cid}:storage_bytes`, `warden:quota:{cid}:bw:{YYYY-MM}`) with SQLite fallback. `check_entity_size()` (HTTP 413), `check_storage_quota()`, `check_bandwidth_quota()`. `QuotaExceeded` (hard stop) and `OverageRequired` (soft stop, triggers billing) exceptions. Monthly bandwidth counter auto-resets via 31-day Redis TTL. |
-| **Overage Billing** | `warden/billing/overage.py` — `resolve_overage()` tries Stripe invoice item → Paddle one-time charge → external webhook → log-only (dev). Per-GB pricing from `OVERAGE_PRICES` dict. Business 50 GB pack ($5), MCP 1 TB expansion pack ($40). `get_upgrade_url()` / `get_overage_pack_url()` provide CTA links for HTTP 402 responses. |
+| **Overage Billing** | `warden/billing/overage.py` — `resolve_overage()` tries Lemon Squeezy one-time charge → external webhook → log-only (dev). Per-GB pricing from `OVERAGE_PRICES` dict. Business 50 GB pack ($5), MCP 1 TB expansion pack ($40). `get_upgrade_url()` / `get_overage_pack_url()` provide CTA links for HTTP 402 responses. |
 | **Referral Growth Mechanics** | Dropbox-style referral: `generate_referral_code()` produces `REF-{8hex}` stored in Redis with 90-day TTL. `apply_referral()` atomically consumes one-time code and awards +2 GB bonus to both referrer and referee via `apply_referral_bonus()`. Bonus tracked separately in `bonus_bytes` counter for auditability. |
 | **S3-Backed Encrypted Entity Storage** | `warden/communities/entity_store.py` — S3/MinIO for raw AES-256-GCM ciphertext blobs; PostgreSQL/SQLite for metadata (kid, clearance, cek_wrapped_b64, nonce, sig, s3_key, byte_size). E2EE prevents server-side deduplication — each encrypted entity is unique regardless of content. Key format `communities/{cid}/{eid}.enc` contains no PII. Pre-signed GET URLs for zero-server-bandwidth client downloads. |
 | **Retention Reaper** | `expire_entities()` soft-deletes rows past `expires_at` and releases storage quota. S3 lifecycle rules on `communities/{cid}/` prefix enforce retention at the object level (90d Individual, 365d Business, no lifecycle for MCP). `COMMUNITY_S3_BUCKET` env var. |
@@ -153,7 +245,7 @@ Starting with v2.4, Shadow Warden AI ships as two distinct products targeting fu
 | **Agentic Mandate Validator** | AP2-style signed payment-instruction validator for AI agent pipelines (`warden/agentic/mandate.py`). Enforces six sequential security checks: agent active status → invoice hash freshness (anti-replay via one-time consumption) → HMAC-SHA256 signature → amount ≤ invoice price (anti-hallucination) → per-item spend cap → monthly budget cap. Integrates with `/mcp/quote` + `/mcp/mandate/execute` endpoints. GDPR-safe: invoice store holds only SKU, price, expiry, agent ID — no PII. |
 | **Wallet Shield — Financial DoS Protection** | Token-budget enforcement per `(tenant_id, user_id)` pair (`warden/wallet_shield.py`). Pre-flight heuristic check (bytes ÷ 4) blocks oversized requests before they reach the upstream LLM. Post-call accounting records actual token counts from API usage fields. Redis sliding-window counters with configurable TTL. Protects SMB clients from LLM10 Financial DoS — a single flood attack can no longer exhaust a tenant's monthly budget overnight. Alert fires at configurable threshold (default 80% consumed). |
 | **RBAC for MSP Dashboard** | Three built-in roles: `admin` (full access), `auditor` (read-only compliance — can view raw logs, download PDF reports, see XAI explanations), `viewer` (aggregated charts only). Role resolution: SAML group claim → `DASHBOARD_ROLE` env var. Auditor role designed for SOC 2 Type II evidence collection workflows. |
-| **Paddle Billing** | Second payment processor alongside Stripe (`warden/paddle_billing.py`). Enables EU/UK-first billing (Paddle handles VAT/GST as Merchant of Record). Webhook signature verification, subscription lifecycle hooks, and SQLite-backed event store matching the Stripe integration pattern. |
+| **Lemon Squeezy Billing** | Sole payment processor (`warden/lemon_billing.py`). Handles VAT/GST as Merchant of Record — EU/UK compliant out of the box. HMAC-SHA256 webhook verification, subscription lifecycle hooks (`subscription_created/updated/cancelled/expired/payment_failed`), SQLite-backed idempotent event store (`webhook_events` dedup table), customer portal deep-link via `get_portal_url()`. |
 
 ## What's New in v2.6
 
