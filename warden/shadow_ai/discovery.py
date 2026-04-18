@@ -406,7 +406,7 @@ class ShadowAIDetector:
         source:    str,
     ) -> dict:
         provider_key = raw["provider_key"]
-        sig          = AI_PROVIDERS.get(provider_key, {})
+        sig: dict[str, Any] = AI_PROVIDERS.get(provider_key, {})
         verdict      = get_verdict(provider_key, tenant_id)
 
         return {

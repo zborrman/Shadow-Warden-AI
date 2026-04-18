@@ -245,9 +245,9 @@ async def addon_checkout(
 
     try:
         from warden.lemon_billing import get_lemon_billing
-        url = get_lemon_billing().create_variant_checkout(
-            tenant_id  = tenant_id,
-            variant_id = variant_id,
+        url = get_lemon_billing().create_checkout_session(
+            tenant_id   = tenant_id,
+            plan        = addon_key,
             success_url = _success,
             cancel_url  = _cancel,
         )

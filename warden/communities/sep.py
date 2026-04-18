@@ -62,6 +62,7 @@ import string
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from warden.communities.id_generator import new_entity_id
 
@@ -309,7 +310,7 @@ def sign_transfer_proof(
     entity_ueciid:       str,
     initiator_mid:       str,
     purpose:             str = "sharing",
-    community_keypair:   object | None = None,  # CommunityKeypair — for PQC signing
+    community_keypair:   Any | None = None,  # CommunityKeypair — for PQC signing
 ) -> CausalTransferProof:
     """
     Issue a signed Causal Transfer Proof for an inter-community entity transfer.
@@ -350,7 +351,7 @@ def sign_transfer_proof(
 
 def verify_transfer_proof(
     p: CausalTransferProof,
-    community_keypair: object | None = None,
+    community_keypair: Any | None = None,
 ) -> bool:
     """
     Return True if the CTP HMAC signature is intact.

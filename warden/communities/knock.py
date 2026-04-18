@@ -46,6 +46,7 @@ import os
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 log = logging.getLogger("warden.communities.knock")
 
@@ -272,7 +273,7 @@ def get_knock_by_id(knock_id: str, community_id: str) -> KnockRecord | None:
 def verify_and_accept_knock(
     token:             str,
     claiming_tenant_id: str,
-) -> tuple[KnockRecord, object]:
+) -> tuple[KnockRecord, Any]:
     """
     Verify the token and accept the knock for *claiming_tenant_id*.
 

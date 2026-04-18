@@ -746,7 +746,7 @@ async def upgrade_pqc_endpoint(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     try:
-        store_keypair(community_id, hybrid_kp)
+        store_keypair(hybrid_kp)
     except Exception as exc:
         log.error("upgrade_pqc: store failed community=%s: %s", community_id[:8], exc)
         raise HTTPException(status_code=500, detail="Failed to persist hybrid keypair.") from exc
