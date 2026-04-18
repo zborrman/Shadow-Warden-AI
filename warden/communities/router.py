@@ -698,9 +698,13 @@ async def upgrade_pqc_endpoint(
         mlkem_pub_b64        ML-KEM-768 public key (Base64)
         hybrid_safety_number 20-hex-char fingerprint over all 4 public keys
     """
-    from warden.billing.feature_gate import FeatureGate
-    from warden.communities.key_archive import get_active_entry, load_keypair_from_entry, store_keypair
-    from warden.communities.keypair import PQCUnavailableError, upgrade_to_hybrid
+    from warden.billing.feature_gate import FeatureGate  # noqa: PLC0415
+    from warden.communities.key_archive import (  # noqa: PLC0415
+        get_active_entry,
+        load_keypair_from_entry,
+        store_keypair,
+    )
+    from warden.communities.keypair import PQCUnavailableError, upgrade_to_hybrid  # noqa: PLC0415
 
     ctx = _get_tenant(request)
     _require_tier(ctx["tier"], "mcp")   # Enterprise/MCP only

@@ -124,8 +124,8 @@ def _scapy_live_hosts(hosts: list[str]) -> set[str]:
     Must be called in a thread executor (scapy send/recv is synchronous).
     """
     try:
-        from scapy.layers.l2 import ARP, Ether  # type: ignore[import]
-        from scapy.sendrecv import srp           # type: ignore[import]
+        from scapy.layers.l2 import ARP, Ether  # type: ignore[import]  # noqa: PLC0415
+        from scapy.sendrecv import srp  # type: ignore[import]  # noqa: PLC0415
     except ImportError:
         log.debug("scapy not installed — skipping live-host pre-probe")
         return set(hosts)

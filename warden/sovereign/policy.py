@@ -47,8 +47,9 @@ _MEMORY_STORE: dict[str, dict] = {}
 
 def _redis():
     try:
-        import os
-        import redis as _r
+        import os  # noqa: PLC0415
+
+        import redis as _r  # noqa: PLC0415
         url = os.getenv("REDIS_URL", "redis://localhost:6379")
         if url.startswith("memory://"):
             return None

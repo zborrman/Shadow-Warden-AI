@@ -264,11 +264,16 @@ async def update_policy_endpoint(
     from warden.shadow_ai.policy import update_policy
 
     patch: dict[str, Any] = {}
-    if body.mode           is not None: patch["mode"]           = body.mode
-    if body.allowlist      is not None: patch["allowlist"]      = body.allowlist
-    if body.denylist       is not None: patch["denylist"]       = body.denylist
-    if body.risk_threshold is not None: patch["risk_threshold"] = body.risk_threshold
-    if body.notify_slack   is not None: patch["notify_slack"]   = body.notify_slack
+    if body.mode is not None:
+        patch["mode"] = body.mode
+    if body.allowlist is not None:
+        patch["allowlist"] = body.allowlist
+    if body.denylist is not None:
+        patch["denylist"] = body.denylist
+    if body.risk_threshold is not None:
+        patch["risk_threshold"] = body.risk_threshold
+    if body.notify_slack is not None:
+        patch["notify_slack"] = body.notify_slack
 
     try:
         updated = update_policy(tenant_id, patch)

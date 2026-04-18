@@ -26,6 +26,7 @@ Storage: Redis `sovereign:attest:{attest_id}` (TTL = 7 years / 220,752,000 s).
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import json
@@ -201,10 +202,8 @@ def list_attestations(tenant_id: str, limit: int = 100) -> list[SovereigntyAttes
     r = _redis()
     ids: list[str] = []
     if r:
-        try:
+        with contextlib.suppress(Exception):
             ids = r.lrange(f"sovereign:attests:{tenant_id}", 0, limit - 1)
-        except Exception:
-            pass
     if not ids:
         # In-memory fallback — filter by tenant
         ids = [

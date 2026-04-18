@@ -423,7 +423,6 @@ async def sovereignty_report(
     executive sovereignty dashboards.
     """
     import collections
-    from dataclasses import asdict
     from datetime import UTC, datetime
 
     from warden.sovereign.attestation import list_attestations as _list

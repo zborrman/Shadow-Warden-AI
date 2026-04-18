@@ -182,8 +182,9 @@ async def sova_corpus_watchdog(ctx: dict) -> dict:
     """
     log.info("sova: corpus watchdog [%s]", _ts())
 
-    import os
-    from warden.agent.healer import WardenHealer
+    import os  # noqa: PLC0415
+
+    from warden.agent.healer import WardenHealer  # noqa: PLC0415
 
     api_key = os.getenv("WARDEN_API_KEY", "")
     try:
@@ -216,9 +217,10 @@ async def sova_visual_patrol(ctx: dict) -> dict:
     """
     log.info("sova: visual patrol starting [%s]", _ts())
 
-    import os
-    from datetime import datetime
-    from warden.agent.tools import visual_assert_page
+    import os  # noqa: PLC0415
+    from datetime import datetime  # noqa: PLC0415
+
+    from warden.agent.tools import visual_assert_page  # noqa: PLC0415
 
     session_id = f"patrol-{datetime.now(UTC).strftime('%Y%m%d-%H%M')}"
 
@@ -243,7 +245,7 @@ async def sova_visual_patrol(ctx: dict) -> dict:
     # WebM video and shipped to MinIO (screencasts/<session_id>.webm).
     try:
         from warden.tools.browser import ScreencastRecorder
-        async with ScreencastRecorder(session_id) as browser:
+        async with ScreencastRecorder(session_id):
             for url, assertion in targets:
                 result = await visual_assert_page(url=url, assertion=assertion)
                 findings.append(result)

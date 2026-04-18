@@ -26,9 +26,8 @@ Pipeline stages in execution order:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 # ── Stage metadata ────────────────────────────────────────────────────────────
 
@@ -349,7 +348,7 @@ def _find_primary_cause(nodes: list[ChainNode], record: dict) -> str:
 
 def _build_counterfactuals(nodes: list[ChainNode], record: dict) -> list[Counterfactual]:
     """Generate actionable counterfactuals for each non-PASS, non-SKIP stage."""
-    _EXPLANATIONS: dict[str, str] = {
+    _explanations: dict[str, str] = {
         "topology":       "Reduce payload structural complexity — shorter, simpler content has lower Betti numbers.",
         "obfuscation":    "Remove encoding layers (base64, hex, ROT13) from the payload before submission.",
         "secrets":        "Strip API keys, passwords, and PII from the content — use placeholder tokens instead.",
@@ -365,7 +364,7 @@ def _build_counterfactuals(nodes: list[ChainNode], record: dict) -> list[Counter
             severity = "HIGH" if node.verdict == "BLOCK" else "MEDIUM"
             result.append(Counterfactual(
                 stage_id    = node.stage_id,
-                explanation = _EXPLANATIONS.get(node.stage_id, f"Address signal in stage: {node.stage_name}."),
+                explanation = _explanations.get(node.stage_id, f"Address signal in stage: {node.stage_name}."),
                 severity    = severity,
             ))
     return result

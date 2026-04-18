@@ -317,7 +317,7 @@ def _render_pdf_reportlab(chain: CausalChain) -> bytes:
 
     # Title
     story.append(Paragraph(
-        f"<b>Shadow Warden — XAI Decision Report</b>",
+        "<b>Shadow Warden — XAI Decision Report</b>",
         styles["Title"],
     ))
     story.append(Spacer(1, 4*mm))
@@ -354,7 +354,7 @@ def _render_pdf_reportlab(chain: CausalChain) -> bytes:
     # Pipeline table
     story.append(Paragraph("<b>Pipeline Analysis</b>", styles["Heading2"]))
     pipe_data = [["Stage", "Verdict", "Score", "Detail"]]
-    _VERDICT_PDF_COLOR = {
+    _verdict_pdf_color = {
         "BLOCK": colors.HexColor("#fecaca"),
         "FLAG":  colors.HexColor("#fef3c7"),
         "PASS":  colors.HexColor("#dcfce7"),
@@ -368,7 +368,7 @@ def _render_pdf_reportlab(chain: CausalChain) -> bytes:
             if v is not None
         )[:80]
         pipe_data.append([node.stage_name, node.verdict, node.score_label, detail_str])
-        row_colors.append(_VERDICT_PDF_COLOR.get(node.verdict, colors.white))
+        row_colors.append(_verdict_pdf_color.get(node.verdict, colors.white))
 
     pipe_tbl = Table(pipe_data, colWidths=[55*mm, 22*mm, 28*mm, None])
     pipe_tbl.setStyle(TableStyle([

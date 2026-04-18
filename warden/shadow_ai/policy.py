@@ -45,8 +45,9 @@ _MEMORY_STORE: dict[str, dict] = {}   # fallback when Redis unavailable
 def _redis():
     """Return a Redis client or None on failure."""
     try:
-        import redis as _redis_lib
-        import os
+        import os  # noqa: PLC0415
+
+        import redis as _redis_lib  # noqa: PLC0415
         url = os.getenv("REDIS_URL", "redis://localhost:6379")
         if url.startswith("memory://"):
             return None

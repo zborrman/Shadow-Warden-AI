@@ -475,8 +475,9 @@ async def verify_transfer_proof(transfer_id: str, auth: AuthResult = AuthDep) ->
     Use this to produce SOC 2 CC6.3 evidence that a data sharing event was
     authorised and has not been modified after issuance.
     """
-    from warden.communities.peering import get_transfer as _get
-    from warden.communities.sep import CausalTransferProof, verify_transfer_proof as _verify
+    from warden.communities.peering import get_transfer as _get  # noqa: PLC0415
+    from warden.communities.sep import CausalTransferProof  # noqa: PLC0415
+    from warden.communities.sep import verify_transfer_proof as _verify
     t = _get(transfer_id)
     if not t:
         raise HTTPException(status_code=404, detail=f"Transfer {transfer_id[:8]}… not found.")
@@ -594,7 +595,7 @@ async def list_pending_knocks(
     Use this to see outstanding invitations and detect tokens that have
     been issued but not yet accepted.
     """
-    from warden.communities.knock import list_pending_knocks as _list, _knock_to_dict
+    from warden.communities.knock import list_pending_knocks as _list  # noqa: PLC0415
     return [
         {
             "knock_id":          k.knock_id,
@@ -770,7 +771,8 @@ async def export_audit_chain(community_id: str, auth: AuthResult = AuthDep) -> A
     Content-Type: application/x-ndjson
     """
     from fastapi.responses import Response  # noqa: PLC0415
-    from warden.communities.stix_audit import export_chain_jsonl
+
+    from warden.communities.stix_audit import export_chain_jsonl  # noqa: PLC0415
     body = export_chain_jsonl(community_id)
     return Response(
         content    = body,

@@ -421,10 +421,8 @@ def transfer_entity(
     guard_reason      = "transfer_guard unavailable (allowed by default)"
     try:
         from warden.communities.transfer_guard import evaluate_transfer_risk  # noqa: PLC0415
-        import time as _time
         peering_age_days = 30.0
         if peering.accepted_at:
-            from datetime import timedelta  # noqa: PLC0415
             try:
                 accepted = datetime.fromisoformat(peering.accepted_at.replace("Z", "+00:00"))
                 peering_age_days = (datetime.now(UTC) - accepted).total_seconds() / 86400

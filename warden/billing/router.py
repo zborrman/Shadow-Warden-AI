@@ -25,11 +25,9 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-
-from warden.auth_guard import require_api_key
 
 log = logging.getLogger("warden.billing.router")
 
@@ -206,7 +204,8 @@ async def get_tenant_addons(
 ):
     """Return the set of active add-on keys for the requesting tenant."""
     tenant_id = _require_tenant(x_tenant_id)
-    from warden.billing.addons import ADDON_CATALOG, get_tenant_addons as _get_addons
+    from warden.billing.addons import ADDON_CATALOG  # noqa: PLC0415
+    from warden.billing.addons import get_tenant_addons as _get_addons
     active_keys = _get_addons(tenant_id)
     return {
         "tenant_id":  tenant_id,

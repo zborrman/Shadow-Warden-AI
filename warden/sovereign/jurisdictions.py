@@ -16,7 +16,7 @@ and generate compliance attestations.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -168,14 +168,14 @@ FRAMEWORK_DESCRIPTIONS: dict[str, str] = {
 DataClass = str   # "PII" | "PHI" | "FINANCIAL" | "GENERAL" | "CLASSIFIED"
 
 TRANSFER_RULES: dict[DataClass, dict[str, bool]] = {
-    "CLASSIFIED": {j: False for j in JURISDICTIONS},  # never cross-border
+    "CLASSIFIED": dict.fromkeys(JURISDICTIONS, False),  # never cross-border
     "PHI":        {
         "US": True, "EU": True, "UK": True, "CA": True,
         "APAC_SG": False, "AU": False, "JP": False, "CH": True,
     },
-    "PII": {j: True for j in JURISDICTIONS},    # allowed but requires attestation
-    "FINANCIAL": {j: True for j in JURISDICTIONS},
-    "GENERAL":   {j: True for j in JURISDICTIONS},
+    "PII":       dict.fromkeys(JURISDICTIONS, True),   # allowed but requires attestation
+    "FINANCIAL": dict.fromkeys(JURISDICTIONS, True),
+    "GENERAL":   dict.fromkeys(JURISDICTIONS, True),
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -214,8 +214,4 @@ def is_transfer_allowed(
         return False
 
     # Source jurisdiction with cross_border_restricted requires adequacy partner
-    if from_j.cross_border_restricted:
-        if to_jurisdiction not in from_j.adequacy_partners:
-            return False
-
-    return True
+    return not from_j.cross_border_restricted or to_jurisdiction in from_j.adequacy_partners

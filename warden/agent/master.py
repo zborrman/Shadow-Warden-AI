@@ -33,7 +33,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 log = logging.getLogger("warden.agent.master")
@@ -49,7 +49,7 @@ _TOKEN_SECRET = os.getenv("MASTER_AGENT_SECRET", "shadow-warden-master-v1")
 
 # ── Sub-agent definitions ─────────────────────────────────────────────────────
 
-class SubAgent(str, Enum):
+class SubAgent(StrEnum):
     SOVA_OPERATOR  = "sova_operator"
     THREAT_HUNTER  = "threat_hunter"
     FORENSICS      = "forensics"

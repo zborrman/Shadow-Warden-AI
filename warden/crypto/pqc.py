@@ -36,7 +36,6 @@ Key sizes (ML-DSA-65 / ML-KEM-768):
 """
 from __future__ import annotations
 
-import base64
 import hashlib
 import logging
 import os
@@ -333,7 +332,7 @@ class HybridKEM:
 
         # Hybrid shared secret: HKDF(X25519_ss XOR ML-KEM_ss)
         # XOR pads shorter secret with zeros if lengths differ
-        combined = bytes(a ^ b for a, b in zip(
+        combined = bytes(a ^ b for a, b in zip(  # noqa: B905
             x25519_ss.ljust(32, b"\x00"),
             mlkem_ss[:32],
         ))
@@ -377,7 +376,7 @@ class HybridKEM:
             mlkem_ss = kem.decap_secret(mlkem_ct)
 
         # Derive shared secret (identical construction as encapsulate)
-        combined = bytes(a ^ b for a, b in zip(
+        combined = bytes(a ^ b for a, b in zip(  # noqa: B905
             x25519_ss.ljust(32, b"\x00"),
             mlkem_ss[:32],
         ))

@@ -60,7 +60,7 @@ import os
 import sqlite3
 import string
 import threading
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from warden.communities.id_generator import new_entity_id
