@@ -632,7 +632,7 @@ class RegisterPodRequest(BaseModel):
     "/pods",
     status_code=201,
     summary="Register a Sovereign Data Pod (MinIO endpoint + jurisdiction)",
-    dependencies=[Depends(_ProGate)],
+    dependencies=[_ProGate],
 )
 async def register_pod(body: RegisterPodRequest, auth: AuthResult = AuthDep) -> dict:
     """
@@ -700,7 +700,7 @@ async def probe_pod(pod_id: str, auth: AuthResult = AuthDep) -> dict:
 async def decommission_pod(
     pod_id: str,
     auth: AuthResult = AuthDep,
-    _gate: Any = Depends(_ProGate),
+    _gate: Any = _ProGate,
 ) -> dict:
     from warden.communities.data_pod import decommission_pod as _decommission
     ok = _decommission(pod_id)
