@@ -42,6 +42,7 @@ from warden.shadow_ai.signatures import (
     DOMAIN_TO_PROVIDER,
     PROBE_PORTS,
     RISK_ORDER,
+    ProviderSignature,
 )
 
 log = logging.getLogger("warden.shadow_ai.discovery")
@@ -406,14 +407,14 @@ class ShadowAIDetector:
         source:    str,
     ) -> dict:
         provider_key = raw["provider_key"]
-        sig: dict[str, Any] = AI_PROVIDERS.get(provider_key, {})
+        _sig: ProviderSignature | None = AI_PROVIDERS.get(provider_key)
         verdict      = get_verdict(provider_key, tenant_id)
 
         return {
             "provider_key":   provider_key,
-            "display_name":   sig.get("display_name", provider_key),
-            "category":       sig.get("category", "UNKNOWN"),
-            "risk_level":     sig.get("risk_level", "UNKNOWN"),
+            "display_name":   _sig.get("display_name", provider_key) if _sig else provider_key,
+            "category":       _sig.get("category", "UNKNOWN") if _sig else "UNKNOWN",
+            "risk_level":     _sig.get("risk_level", "UNKNOWN") if _sig else "UNKNOWN",
             "verdict":        verdict,
             "ip":             raw.get("ip", ""),
             "port":           raw.get("port", 0),
