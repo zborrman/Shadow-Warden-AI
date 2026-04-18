@@ -53,7 +53,7 @@ http:// {
 
 # ── API Gateway ───────────────────────────────────────────────────────────────
 api.shadow-warden-ai.com {
-	tls /etc/caddy/ssl/fullchain.pem /etc/caddy/ssl/privkey.pem
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
 
 	import security_headers
 
@@ -75,7 +75,7 @@ api.shadow-warden-ai.com {
 
 # ── Tenant Portal (Next.js) ───────────────────────────────────────────────────
 app.shadow-warden-ai.com {
-	tls /etc/caddy/ssl/fullchain.pem /etc/caddy/ssl/privkey.pem
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
 
 	import security_headers
 
@@ -90,7 +90,7 @@ app.shadow-warden-ai.com {
 
 # ── Analytics Dashboard ───────────────────────────────────────────────────────
 analytics.shadow-warden-ai.com {
-	tls /etc/caddy/ssl/fullchain.pem /etc/caddy/ssl/privkey.pem
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
 
 	import security_headers
 
@@ -105,7 +105,7 @@ analytics.shadow-warden-ai.com {
 
 # ── Landing Page (static) ─────────────────────────────────────────────────────
 shadow-warden-ai.com, www.shadow-warden-ai.com {
-	tls /etc/caddy/ssl/fullchain.pem /etc/caddy/ssl/privkey.pem
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
 
 	import security_headers
 
