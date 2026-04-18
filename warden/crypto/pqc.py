@@ -63,7 +63,7 @@ try:
     import oqs  # type: ignore[import]
     _OQS_AVAILABLE = True
     log.info("pqc: liboqs available — ML-DSA-65 + ML-KEM-768 enabled")
-except (ImportError, RuntimeError, OSError):
+except (ImportError, RuntimeError, OSError, SystemExit):
     log.warning(
         "pqc: liboqs-python not installed — PQC features unavailable. "
         "Install with: pip install liboqs-python"
