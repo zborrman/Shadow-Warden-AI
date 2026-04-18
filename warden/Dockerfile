@@ -19,7 +19,7 @@ WORKDIR /warden
 #   curl        — healthcheck
 #   gosu        — privilege drop in entrypoint (root → wardenuser after perm fix)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        gcc g++ libgomp1 curl gosu \
+        gcc g++ libgomp1 curl gosu git \
         cmake ninja-build libssl-dev astyle \
     && rm -rf /var/lib/apt/lists/*
 
