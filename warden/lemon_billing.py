@@ -75,11 +75,15 @@ PLAN_QUOTAS["msp"]  = PLAN_QUOTAS["enterprise"]
 
 
 def _variant_to_plan(variant_id: str) -> str:
-    mapping = {
-        _LS_VARIANT_INDIVIDUAL: "individual",
-        _LS_VARIANT_PRO:        "pro",
-        _LS_VARIANT_ENTERPRISE: "enterprise",
-    }
+    # Build mapping only for configured (non-empty) variant IDs to avoid
+    # duplicate "" keys when env vars are unset (last key wins → wrong plan).
+    mapping: dict[str, str] = {}
+    if _LS_VARIANT_INDIVIDUAL:
+        mapping[_LS_VARIANT_INDIVIDUAL] = "individual"
+    if _LS_VARIANT_PRO:
+        mapping[_LS_VARIANT_PRO] = "pro"
+    if _LS_VARIANT_ENTERPRISE:
+        mapping[_LS_VARIANT_ENTERPRISE] = "enterprise"
     return mapping.get(variant_id, "individual")
 
 
@@ -266,7 +270,7 @@ class LemonBilling:
             (tenant_id,),
         ).fetchone()
 
-        if self._enabled and row and row["ls_customer_id"]:
+        if row and row["ls_customer_id"]:
             # Deep-link to this customer's order history in the LS portal.
             # The customer_id is the numeric LS customer ID stored at webhook time.
             cid = row["ls_customer_id"]

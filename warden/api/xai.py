@@ -32,7 +32,7 @@ _XaiReportGate = require_addon_or_feature(
 # ── Request models ────────────────────────────────────────────────────────────
 
 class BatchExplainRequest(BaseModel):
-    request_ids: list[str] = Field(..., min_length=1, max_items=20)
+    request_ids: list[str] = Field(..., min_length=1, max_length=20)
     tenant_id:   str       = Field("default")
 
 

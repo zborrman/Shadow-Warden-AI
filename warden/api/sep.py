@@ -39,6 +39,7 @@ from dataclasses import asdict
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from warden.auth_guard import AuthResult, require_api_key
@@ -696,11 +697,11 @@ async def probe_pod(pod_id: str, auth: AuthResult = AuthDep) -> dict:
     return _probe(pod_id)
 
 
-@router.delete("/pods/{pod_id}", summary="Decommission a Sovereign Data Pod")
+@router.delete("/pods/{pod_id}", summary="Decommission a Sovereign Data Pod",
+               dependencies=[_ProGate])
 async def decommission_pod(
     pod_id: str,
     auth: AuthResult = AuthDep,
-    _gate: Any = _ProGate,
 ) -> dict:
     from warden.communities.data_pod import decommission_pod as _decommission
     ok = _decommission(pod_id)
@@ -761,7 +762,7 @@ async def verify_audit_chain(community_id: str, auth: AuthResult = AuthDep) -> d
 @router.get(
     "/audit-chain/{community_id}/export",
     summary="Export audit chain as STIX 2.1 JSONL",
-    response_class=None,
+    response_class=Response,
 )
 async def export_audit_chain(community_id: str, auth: AuthResult = AuthDep) -> Any:
     """
@@ -770,8 +771,6 @@ async def export_audit_chain(community_id: str, auth: AuthResult = AuthDep) -> A
     Suitable for import into SIEM / SOAR platforms that accept STIX format.
     Content-Type: application/x-ndjson
     """
-    from fastapi.responses import Response  # noqa: PLC0415
-
     from warden.communities.stix_audit import export_chain_jsonl  # noqa: PLC0415
     body = export_chain_jsonl(community_id)
     return Response(
