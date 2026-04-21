@@ -170,15 +170,17 @@ async def scan_file(
     # ── Prompt-injection scan ─────────────────────────────────────────────────
     injection_found = False
     try:
-        from warden.semantic_guard import SemanticGuard
+        from warden.semantic_guard import RiskLevel, SemanticGuard
         guard = SemanticGuard()
         analysis = guard.analyse(sanitized[:5_000])  # fast scan on first 5k chars
-        if analysis.risk_level in ("HIGH", "CRITICAL") or analysis.blocked:
+        if analysis.risk_level in (RiskLevel.HIGH, RiskLevel.BLOCK):
             injection_found = True
+            top = analysis.top_flag
+            excerpt = (top.detail[:80] if top and top.detail else "suspicious pattern")
             findings.append(FileScanFinding(
                 kind    = "prompt_injection",
                 label   = "Potential Prompt Injection",
-                excerpt = (analysis.matched_rules or ["suspicious pattern"])[0][:80],
+                excerpt = excerpt,
                 line    = 0,
             ))
     except Exception as exc:
@@ -186,17 +188,17 @@ async def scan_file(
 
     # ── Obfuscation check (base64 blobs, hex, ROT13) ─────────────────────────
     try:
-        from warden.obfuscation import ObfuscationDecoder
-        decoder = ObfuscationDecoder()
-        decoded, layers = decoder.decode(sanitized[:10_000])
-        if layers >= 1 and decoded != sanitized[:10_000]:
+        from warden.obfuscation import decode as obfuscation_decode
+        result_ob = obfuscation_decode(sanitized[:10_000])
+        depth = len(result_ob.layers_found)
+        if depth >= 1 and result_ob.decoded_extra:
             findings.append(FileScanFinding(
                 kind    = "prompt_injection",
-                label   = f"Obfuscated Content (depth {layers})",
-                excerpt = decoded[:80],
+                label   = f"Obfuscated Content (depth {depth})",
+                excerpt = result_ob.decoded_extra[:80],
                 line    = 0,
             ))
-            if layers >= 2:
+            if depth >= 2:
                 injection_found = True
     except Exception as exc:
         log.debug("file_scan: obfuscation check skipped: %s", exc)
