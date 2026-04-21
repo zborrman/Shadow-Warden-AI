@@ -1085,6 +1085,13 @@ except ImportError:
     log.warning("sovereign router not available — /sovereign routes skipped.")
 
 try:
+    from warden.api.file_scan import router as _file_scan_router
+    app.include_router(_file_scan_router)
+    log.info("File Scanner mounted at /filter/file (Community Business SMB)")
+except ImportError:
+    log.warning("file_scan router not available — /filter/file skipped.")
+
+try:
     from warden.api.sep import router as _sep_router
     app.include_router(_sep_router)
     log.info("Syndicate Exchange Protocol mounted at /sep")

@@ -162,14 +162,52 @@ repos:
 
 | # | Task | Owner | Status |
 |---|------|-------|--------|
-| 1 | Audit all `Dockerfile*` files for single-stage builds | DevOps | ☐ |
-| 2 | Add `.dockerignore` to every service that lacks one | Dev | ☐ |
-| 3 | Pin all base image versions (no `:latest`) | DevOps | ☐ |
-| 4 | Add `USER appuser` + non-root group to every image | Dev | ☐ |
+| 1 | Audit all `Dockerfile*` files for single-stage builds | DevOps | ✅ |
+| 2 | Add `.dockerignore` to every service that lacks one | Dev | ✅ |
+| 3 | Pin all base image versions (no `:latest`) | DevOps | ✅ |
+| 4 | Add `USER appuser` + non-root group to every image | Dev | ✅ (UID/GID 10001) |
 | 5 | Enable `docker scout` / Trivy in CI pipeline | DevOps | ☐ |
-| 6 | Add `HEALTHCHECK` to every service Dockerfile | Dev | ☐ |
+| 6 | Add `HEALTHCHECK` to every service Dockerfile | Dev | ✅ |
 | 7 | Integrate `hadolint` as a GitHub Actions step | DevOps | ☐ |
 
 ---
 
-*Hook.md last updated: 2026-03 — Docker Desktop Pro alignment*
+## 7. SMB Compose Hook
+
+A lightweight hook for `docker-compose.smb.yml` — verifies the SMB stack before pushing.
+
+```bash
+#!/usr/bin/env bash
+# .hooks/check-smb-compose.sh
+set -euo pipefail
+
+COMPOSE="docker-compose.smb.yml"
+if [[ ! -f "$COMPOSE" ]]; then
+  echo "❌ $COMPOSE missing — required for Community Business deployment."
+  exit 1
+fi
+
+# Ensure no enterprise-only services (minio, prometheus, grafana) leak in
+for svc in minio prometheus grafana; do
+  if grep -q "^  ${svc}:" "$COMPOSE"; then
+    echo "❌ $COMPOSE contains enterprise service '${svc}' — remove from SMB stack."
+    exit 1
+  fi
+done
+
+echo "✅ $COMPOSE: SMB stack clean."
+```
+
+Add to `.pre-commit-config.yaml`:
+```yaml
+      - id: check-smb-compose
+        name: SMB Compose guard
+        language: script
+        entry: .hooks/check-smb-compose.sh
+        pass_filenames: false
+        files: docker-compose\.smb\.yml
+```
+
+---
+
+*Hook.md last updated: 2026-04 — Community Business (SMB) tier + Docker task audit*

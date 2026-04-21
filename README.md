@@ -14,6 +14,7 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 |------|-------|-------------|--------------|
 | **Starter** | Free | 1,000 | Core filter pipeline, analytics dashboard |
 | **Individual** | $5/mo | 5,000 | + XAI audit add-on eligible (+$9/mo) |
+| **Community Business** *(SMB)* | $19/mo | 10,000 | + File Scanner, Shadow AI Monitor, Communities (3×10), 180-day retention, one-click install |
 | **Pro** | $69/mo | 50,000 | + MasterAgent, Shadow AI Discovery add-on eligible (+$15/mo) |
 | **Enterprise** | $249/mo | Unlimited | + PQC (ML-DSA-65 + ML-KEM-768), Sovereign AI Cloud, all add-ons |
 
@@ -33,6 +34,7 @@ Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`soverei
 
 | Feature | Description |
 |---------|-------------|
+| **Community Business (SMB) Tier** | New `community_business` billing tier at $19/mo — positioned between Individual and Pro. Includes `POST /filter/file` file scanner (10 MB, text/JSON/PDF/code), Shadow AI Monitor (14-tool allowlist preset + 6-tool denylist), 3 communities × 10 members, 180-day retention, GDPR compliance report, SMB onboarding. One-click installers: `install-smb.sh` (Linux/macOS/WSL) + `install-smb.ps1` (Windows). `docker-compose.smb.yml` — 3 services (redis, warden, dashboard), no MinIO/Prometheus overhead. `warden/shadow_ai/smb_presets.py` — `apply_smb_preset()` with curated allowlist (OpenAI, Anthropic, GitHub Copilot, Notion, Grammarly, etc.) and denylist (Hugging Face inference, Replicate, LocalAI). Landing page: `/smb`. |
 | **Causal Transfer Guard** | `warden/communities/transfer_guard.py` — Bayesian DAG gates every SEP `transfer_entity()` call. Maps data class → `ml_score`, hourly velocity → `ers_score`, peering policy/age → `obfuscation_detected`, burst count → `se_risk`. Blocks exfiltration at P≥0.70 in <20ms. Redis velocity keys: `sep:transfer_velocity:{cid}` (1h sorted set) + `sep:transfer_burst:{cid}` (5min). REJECTED transfers are written to DB and audited — not silently dropped. `TRANSFER_RISK_THRESHOLD` env var (default 0.70). |
 | **ML-DSA-65 PQC on Causal Transfer Proofs** | `CausalTransferProof` gains `pqc_signature: str = ""`. `sign_transfer_proof(community_keypair=kp)` signs the canonical CTP bytes with ML-DSA-65 hybrid if `kp.is_hybrid=True` (base64-encoded). `verify_transfer_proof()` checks both HMAC-SHA256 and ML-DSA-65 — both must pass. Satisfies harvest-now-decrypt-later threat model for long-lived compliance records. |
 | **Sovereign Data Pods** | `warden/communities/data_pod.py` — per-jurisdiction MinIO routing. `register_pod()` stores Fernet-encrypted MinIO secret keys (SHA-256 of `COMMUNITY_VAULT_KEY`). `get_pod_for_entity()` resolution: jurisdiction match → data_class match → primary pod → first ACTIVE pod. `probe_pod()` calls `/minio/health/live` (5s timeout). SQLite `sep_data_pods` in `SEP_DB_PATH`. |

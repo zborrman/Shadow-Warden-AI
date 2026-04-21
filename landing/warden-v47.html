@@ -6,6 +6,7 @@
 <title>Shadow Warden AI · v4.7 | Zero-Trust AI Security Gateway</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <style>
   :root {
@@ -639,6 +640,153 @@
     .pipe-detail.show { grid-template-columns: 1fr; }
     .compliance-strip { padding: 20px 24px; gap: 24px; }
   }
+
+  /* ── Hamburger ─────────────────────────────────────────────── */
+  .hamburger {
+    display: none; flex-direction: column; gap: 5px;
+    background: none; border: none; cursor: pointer; padding: 8px; margin-left: auto;
+  }
+  .hamburger span { display: block; width: 22px; height: 2px; background: var(--text-2); transition: all 0.3s; border-radius: 1px; }
+  .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+  .hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+  @media (max-width: 1024px) { .hamburger { display: flex; } }
+
+  /* ── Mobile Menu ───────────────────────────────────────────── */
+  .mobile-menu {
+    display: none; position: fixed; inset: 64px 0 0 0;
+    background: rgba(3,5,15,0.98); backdrop-filter: blur(24px);
+    z-index: 98; padding: 24px 32px; overflow-y: auto;
+    animation: slideDown 0.25s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes slideDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+  .mobile-menu.open { display: block; }
+  .mm-group-label { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-3); padding: 20px 0 8px; }
+  .mm-item { display: block; padding: 12px 0; font-size: 15px; font-weight: 500; color: var(--text-2); cursor: pointer; border-bottom: 1px solid var(--border); transition: color 0.15s; }
+  .mm-item:hover { color: var(--text); }
+  .mm-item:last-child { border-bottom: none; }
+
+  /* ── Form validation ───────────────────────────────────────── */
+  .form-field { position: relative; }
+  .form-label { font-size: 11px; font-weight: 600; color: var(--text-2); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .form-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; font-size: 14px; color: var(--text);
+    outline: none; font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .form-input:focus { border-color: rgba(10,132,255,0.5); box-shadow: 0 0 0 3px rgba(10,132,255,0.07); }
+  .form-input.err { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(255,45,85,0.07) !important; }
+  .form-input.ok { border-color: var(--green); }
+  .form-error { display: none; font-size: 11px; color: var(--red); margin-top: 4px; padding-left: 2px; }
+  .form-error.show { display: block; }
+
+  /* ── Password field ─────────────────────────────────────────── */
+  .pw-wrap { position: relative; }
+  .pw-wrap .form-input { padding-right: 42px; }
+  .pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 15px; padding: 4px; transition: color 0.2s; }
+  .pw-toggle:hover { color: var(--text-2); }
+  .pw-bars { display: flex; gap: 4px; margin: 8px 0 3px; }
+  .pw-bar { flex: 1; height: 3px; border-radius: 2px; background: var(--border); transition: background 0.3s; }
+  .pw-bar.weak { background: var(--red); }
+  .pw-bar.fair { background: var(--amber); }
+  .pw-bar.good { background: #5AC8FA; }
+  .pw-bar.strong { background: var(--green); }
+  .pw-label { font-size: 10px; color: var(--text-3); font-weight: 500; }
+
+  /* ── Social buttons ────────────────────────────────────────── */
+  .social-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 11px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text);
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+  }
+  .social-btn:hover { background: rgba(99,117,255,0.07); border-color: rgba(99,117,255,0.3); transform: translateY(-1px); }
+  .or-divider { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--text-3); }
+  .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Success view ───────────────────────────────────────────── */
+  .success-view { display: none; text-align: center; padding: 32px 0; animation: fadeIn 0.4s ease; }
+  .success-view.show { display: block; }
+  .success-icon { width: 64px; height: 64px; background: var(--green-dim); border: 2px solid var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 20px; animation: popIn 0.5s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes popIn { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* ── Benchmark modal ────────────────────────────────────────── */
+  .bench-tabs { display: flex; gap: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 4px; margin-bottom: 28px; }
+  .bench-tab { flex: 1; padding: 9px 8px; border-radius: 7px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: var(--text-2); transition: all 0.2s; font-family: inherit; white-space: nowrap; }
+  .bench-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 6px rgba(0,0,0,0.35); }
+  .bench-panel { display: none; }
+  .bench-panel.active { display: block; }
+  .roi-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .roi-slider { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 2px; outline: none; margin: 6px 0 2px; cursor: pointer; }
+  .roi-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--blue); cursor: pointer; box-shadow: 0 0 8px rgba(10,132,255,0.4); }
+  .roi-result { background: var(--green-dim); border: 1px solid rgba(48,209,88,0.25); border-radius: 12px; padding: 24px; text-align: center; margin-top: 24px; }
+  .roi-result .val { font-size: 40px; font-weight: 700; color: var(--green); letter-spacing: -1.5px; }
+  .rt-table { width: 100%; border-collapse: collapse; }
+  .rt-table th { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-3); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .rt-table td { padding: 10px 12px; font-size: 12px; border-bottom: 1px solid var(--border); color: var(--text-2); }
+  .rt-table tr:last-child td { border-bottom: none; }
+  .rt-table tr:hover td { background: rgba(99,117,255,0.03); }
+  .rt-bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--green); vertical-align: middle; margin-right: 6px; }
+
+  /* ── Settings modal ─────────────────────────────────────────── */
+  .s-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; overflow-x: auto; }
+  .s-tab { padding: 10px 16px; border: none; border-bottom: 2px solid transparent; background: transparent; color: var(--text-3); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; margin-bottom: -1px; }
+  .s-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .s-tab:hover:not(.active) { color: var(--text-2); }
+  .s-panel { display: none; }
+  .s-panel.active { display: block; }
+  .s-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); gap: 16px; }
+  .s-row:last-child { border-bottom: none; }
+  .s-row-label { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .s-row-desc { font-size: 11px; color: var(--text-3); }
+  .s-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 13px; color: var(--text); font-family: 'JetBrains Mono', monospace; outline: none; width: 100%; transition: border-color 0.2s; }
+  .s-input:focus { border-color: rgba(10,132,255,0.4); }
+  .s-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; color: var(--text-2); cursor: pointer; transition: all 0.2s; font-family: inherit; }
+  .s-btn:hover { color: var(--text); border-color: rgba(99,117,255,0.3); }
+  .s-btn.danger { border-color: rgba(255,45,85,0.3); color: var(--red); }
+  .s-btn.danger:hover { background: var(--red-dim); }
+  .toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; cursor: pointer; }
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track { position: absolute; inset: 0; background: var(--border); border-radius: 12px; transition: background 0.2s; }
+  .toggle input:checked + .toggle-track { background: var(--blue); }
+  .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.4); pointer-events: none; }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+  /* ── Docs panel ─────────────────────────────────────────────── */
+  .docs-layout { display: grid; grid-template-columns: 180px 1fr; gap: 24px; min-height: 400px; }
+  .docs-nav { display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); padding-right: 20px; }
+  .docs-nav-item { padding: 9px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.15s; color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+  .docs-nav-item:hover { background: var(--surface2); color: var(--text); }
+  .docs-nav-item.active { background: var(--blue-dim); color: var(--blue); }
+  .docs-section { display: none; }
+  .docs-section.active { display: block; }
+  .docs-code { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-2); line-height: 1.7; overflow-x: auto; margin: 12px 0; }
+  .docs-h { font-size: 14px; font-weight: 700; margin: 20px 0 8px; }
+  .docs-p { font-size: 13px; color: var(--text-2); line-height: 1.7; margin-bottom: 12px; }
+  .docs-tag { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
+  .docs-tag.get { background: var(--blue-dim); color: var(--blue); }
+  .docs-tag.post { background: var(--green-dim); color: var(--green); }
+  .docs-tag.del { background: var(--red-dim); color: var(--red); }
+  @media (max-width: 640px) { .docs-layout { grid-template-columns: 1fr; } .docs-nav { border-right: none; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 12px; flex-direction: row; flex-wrap: wrap; } }
+
+  /* ── Char counter ───────────────────────────────────────────── */
+  .char-counter { font-size: 10px; color: var(--text-3); text-align: right; margin-top: 4px; }
+  .char-counter.warn { color: var(--amber); }
+  .char-counter.over { color: var(--red); }
+
+  /* ── Modal sizes ────────────────────────────────────────────── */
+  .modal-lg { width: 860px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-md { width: 700px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-sm { width: 440px; max-width: 92vw; }
+
+  /* ── Communities panel ──────────────────────────────────────── */
+  .sep-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 20px; }
+  .sep-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
+  .sep-card:hover { border-color: rgba(99,117,255,0.3); }
+  .sep-card-icon { font-size: 24px; margin-bottom: 10px; }
+  .sep-card-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .sep-card-desc { font-size: 12px; color: var(--text-2); line-height: 1.6; }
+  @media (max-width: 640px) { .sep-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -672,22 +820,22 @@
     <div class="nav-group">
       <span>Communities <span class="nav-caret">▾</span></span>
       <div class="nav-dropdown" style="min-width:240px;">
-        <a href="#"><span class="dd-icon">🏘️</span> Syndicate Exchange (SEP)<span class="dd-badge new">New</span></a>
-        <a href="#"><span class="dd-icon">🤝</span> Peering & Knock Invites</a>
-        <a href="#"><span class="dd-icon">🌍</span> Sovereign Data Pods</a>
-        <a href="#"><span class="dd-icon">🔗</span> STIX 2.1 Audit Chain</a>
+        <a href="#" onclick="openModal('communities-modal');return false;"><span class="dd-icon">🏘️</span> Syndicate Exchange (SEP)<span class="dd-badge new">New</span></a>
+        <a href="#" onclick="openModal('communities-modal');return false;"><span class="dd-icon">🤝</span> Peering & Knock Invites</a>
+        <a href="#" onclick="openModal('communities-modal');return false;"><span class="dd-icon">🌍</span> Sovereign Data Pods</a>
+        <a href="#" onclick="openModal('communities-modal');return false;"><span class="dd-icon">🔗</span> STIX 2.1 Audit Chain</a>
         <div class="nav-divider"></div>
-        <a href="#"><span class="dd-icon">📋</span> Community Directory</a>
+        <a href="#" onclick="openModal('communities-modal');return false;"><span class="dd-icon">📋</span> Community Directory</a>
       </div>
     </div>
 
     <div class="nav-group">
       <span>Benchmark <span class="nav-caret">▾</span></span>
       <div class="nav-dropdown">
-        <a href="#"><span class="dd-icon">📊</span> Latency vs. Competitors</a>
-        <a href="#"><span class="dd-icon">🎯</span> Detection Accuracy</a>
-        <a href="#"><span class="dd-icon">💰</span> ROI Calculator</a>
-        <a href="#"><span class="dd-icon">🧪</span> Red Team Results</a>
+        <a href="#" onclick="openBenchmark('latency');return false;"><span class="dd-icon">📊</span> Latency vs. Competitors</a>
+        <a href="#" onclick="openBenchmark('accuracy');return false;"><span class="dd-icon">🎯</span> Detection Accuracy</a>
+        <a href="#" onclick="openBenchmark('roi');return false;"><span class="dd-icon">💰</span> ROI Calculator</a>
+        <a href="#" onclick="openBenchmark('redteam');return false;"><span class="dd-icon">🧪</span> Red Team Results</a>
       </div>
     </div>
 
@@ -698,29 +846,29 @@
     <div class="nav-group">
       <span>Docs <span class="nav-caret">▾</span></span>
       <div class="nav-dropdown">
-        <a href="#"><span class="dd-icon">🚀</span> Quick Start</a>
-        <a href="#"><span class="dd-icon">📖</span> API Reference</a>
-        <a href="#"><span class="dd-icon">🔐</span> Security Model</a>
-        <a href="#"><span class="dd-icon">📋</span> DPIA / SOC 2</a>
-        <a href="#"><span class="dd-icon">📝</span> SLA</a>
+        <a href="#" onclick="openDocs('quickstart');return false;"><span class="dd-icon">🚀</span> Quick Start</a>
+        <a href="#" onclick="openDocs('api');return false;"><span class="dd-icon">📖</span> API Reference</a>
+        <a href="#" onclick="openDocs('security');return false;"><span class="dd-icon">🔐</span> Security Model</a>
+        <a href="#" onclick="openDocs('compliance');return false;"><span class="dd-icon">📋</span> DPIA / SOC 2</a>
+        <a href="#" onclick="openDocs('sla');return false;"><span class="dd-icon">📝</span> SLA</a>
         <div class="nav-divider"></div>
-        <a href="#"><span class="dd-icon">🔄</span> Changelog v4.7</a>
+        <a href="#" onclick="openDocs('changelog');return false;"><span class="dd-icon">🔄</span> Changelog v4.7</a>
       </div>
     </div>
 
     <div class="nav-group">
-      <a href="#" onclick="document.getElementById('contact-modal').classList.add('active');return false;">Contact</a>
+      <a href="#" onclick="openModal('contact-modal');return false;">Contact</a>
     </div>
 
     <div class="nav-group">
       <span>Settings <span class="nav-caret">▾</span></span>
       <div class="nav-dropdown">
-        <a href="#"><span class="dd-icon">🔑</span> API Keys</a>
-        <a href="#"><span class="dd-icon">🏢</span> Tenants</a>
-        <a href="#"><span class="dd-icon">🔔</span> Alerts (Slack / PD)</a>
-        <a href="#"><span class="dd-icon">🧬</span> PQC Upgrade</a>
-        <a href="#"><span class="dd-icon">🌐</span> Sovereign Routing</a>
-        <a href="#"><span class="dd-icon">💳</span> Billing & Add-ons</a>
+        <a href="#" onclick="openSettings('apikeys');return false;"><span class="dd-icon">🔑</span> API Keys</a>
+        <a href="#" onclick="openSettings('tenants');return false;"><span class="dd-icon">🏢</span> Tenants</a>
+        <a href="#" onclick="openSettings('alerts');return false;"><span class="dd-icon">🔔</span> Alerts (Slack / PD)</a>
+        <a href="#" onclick="openSettings('pqc');return false;"><span class="dd-icon">🧬</span> PQC Upgrade</a>
+        <a href="#" onclick="openSettings('sovereign');return false;"><span class="dd-icon">🌐</span> Sovereign Routing</a>
+        <a href="#" onclick="openSettings('billing');return false;"><span class="dd-icon">💳</span> Billing & Add-ons</a>
       </div>
     </div>
 
@@ -732,72 +880,561 @@
       <span class="pulse-dot"></span>
       Operational
     </div>
-
-    <!-- Auth buttons -->
-    <button class="btn-ghost" onclick="document.getElementById('auth-modal').dataset.mode='signin';document.getElementById('auth-modal').classList.add('active')">Sign In</button>
-    <button class="btn-primary" onclick="document.getElementById('auth-modal').dataset.mode='signup';document.getElementById('auth-modal').classList.add('active')">Sign Up →</button>
+    <button class="btn-ghost" onclick="setAuthMode('signin');openModal('auth-modal')">Sign In</button>
+    <button class="btn-primary" onclick="setAuthMode('signup');openModal('auth-modal')">Sign Up →</button>
   </div>
+
+  <!-- Hamburger (mobile) -->
+  <button class="hamburger" id="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
 
-<!-- ── Auth Modal ───────────────────────────────────────────────────────── -->
-<div id="auth-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-  <div class="modal-card" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:48px;width:420px;max-width:90vw;">
-    <div style="text-align:center;margin-bottom:32px;">
-      <div style="font-size:32px;margin-bottom:12px;">🛡️</div>
-      <h2 id="auth-title" style="font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;">Welcome back</h2>
-      <p id="auth-sub" style="font-size:13px;color:var(--text-2);">Sign in to your Shadow Warden dashboard</p>
+<!-- ── Auth Modal (Professional) ──────────────────────────────────────────── -->
+<div id="auth-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('auth-modal')">
+  <div class="modal-card modal-sm" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;position:relative;">
+    <button onclick="closeModal('auth-modal')" style="position:absolute;top:18px;right:18px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+
+    <!-- Main form view -->
+    <div id="auth-main">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:28px;margin-bottom:10px;">🛡️</div>
+        <h2 id="auth-title" style="font-size:21px;font-weight:700;letter-spacing:-0.5px;margin-bottom:5px;">Welcome back</h2>
+        <p id="auth-sub" style="font-size:13px;color:var(--text-2);">Sign in to your Shadow Warden dashboard</p>
+      </div>
+
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;">
+        <button onclick="setAuthMode('signin')" id="tab-signin" style="flex:1;padding:8px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:white;color:#111;transition:all 0.2s;font-family:inherit;">Sign In</button>
+        <button onclick="setAuthMode('signup')" id="tab-signup" style="flex:1;padding:8px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-2);transition:all 0.2s;font-family:inherit;">Sign Up</button>
+      </div>
+
+      <!-- Social buttons -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="social-btn" onclick="handleSocialAuth('github')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </button>
+        <button class="social-btn" onclick="handleSocialAuth('google')">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Google
+        </button>
+      </div>
+      <div class="or-divider" style="margin-bottom:16px;">or continue with email</div>
+
+      <!-- Fields -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div id="auth-name-field" style="display:none;" class="form-field">
+          <label class="form-label">Full Name</label>
+          <input id="auth-name" type="text" class="form-input" placeholder="Jane Smith">
+          <div class="form-error" id="err-name">Please enter your name</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Email Address</label>
+          <input id="auth-email" type="email" class="form-input" placeholder="you@company.com"
+            onblur="validateAuthEmail()">
+          <div class="form-error" id="err-email">Enter a valid email address</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Password</label>
+          <div class="pw-wrap">
+            <input id="auth-password" type="password" class="form-input" placeholder="Min. 8 characters"
+              oninput="updatePwStrength(this.value)" onkeydown="if(event.key==='Enter')submitAuth()">
+            <button class="pw-toggle" onclick="togglePwVisibility('auth-password',this)" type="button">👁</button>
+          </div>
+          <div class="pw-bars" id="pw-bars" style="display:none;">
+            <div class="pw-bar" id="pw-b1"></div>
+            <div class="pw-bar" id="pw-b2"></div>
+            <div class="pw-bar" id="pw-b3"></div>
+            <div class="pw-bar" id="pw-b4"></div>
+          </div>
+          <div class="pw-label" id="pw-label" style="display:none;"></div>
+          <div class="form-error" id="err-pw">Password must be at least 8 characters</div>
+        </div>
+        <div id="auth-confirm-field" style="display:none;" class="form-field">
+          <label class="form-label">Confirm Password</label>
+          <div class="pw-wrap">
+            <input id="auth-confirm" type="password" class="form-input" placeholder="Repeat password"
+              onkeydown="if(event.key==='Enter')submitAuth()">
+            <button class="pw-toggle" onclick="togglePwVisibility('auth-confirm',this)" type="button">👁</button>
+          </div>
+          <div class="form-error" id="err-confirm">Passwords do not match</div>
+        </div>
+        <div id="auth-plan-field" style="display:none;" class="form-field">
+          <label class="form-label">Plan</label>
+          <select id="auth-plan" class="form-input" style="cursor:pointer;">
+            <option value="individual">Individual — $29/mo</option>
+            <option value="pro" selected>Pro — $69/mo</option>
+            <option value="enterprise">Enterprise — $249/mo</option>
+          </select>
+        </div>
+        <div id="auth-signin-extras" style="display:flex;align-items:center;justify-content:space-between;margin-top:-4px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);cursor:pointer;">
+            <input type="checkbox" id="auth-remember" style="accent-color:var(--blue);"> Remember me
+          </label>
+          <a href="#" onclick="showForgotPw();return false;" style="font-size:12px;color:var(--blue);text-decoration:none;">Forgot password?</a>
+        </div>
+        <button onclick="submitAuth()" style="width:100%;background:linear-gradient(135deg,var(--red) 0%,#CC1F42 100%);color:white;border:none;padding:14px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;box-shadow:0 8px 24px rgba(255,45,85,0.25);transition:all 0.2s;font-family:inherit;" id="auth-cta"
+          onmouseenter="this.style.transform='translateY(-1px)'" onmouseleave="this.style.transform=''">Sign In →</button>
+        <div id="auth-footer-text" style="text-align:center;font-size:12px;color:var(--text-3);">Don't have an account? <a href="#" onclick="setAuthMode('signup');return false;" style="color:var(--blue);text-decoration:none;">Sign up free</a></div>
+      </div>
     </div>
-    <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:28px;">
-      <button onclick="setAuthMode('signin')" id="tab-signin" style="flex:1;padding:8px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:white;color:#111;transition:all 0.2s;">Sign In</button>
-      <button onclick="setAuthMode('signup')" id="tab-signup" style="flex:1;padding:8px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-2);transition:all 0.2s;">Sign Up</button>
+
+    <!-- Forgot password view -->
+    <div id="auth-forgot" style="display:none;">
+      <button onclick="hideForgotPw()" style="background:none;border:none;color:var(--text-3);font-size:13px;cursor:pointer;margin-bottom:20px;padding:0;display:flex;align-items:center;gap:6px;font-family:inherit;">← Back to Sign In</button>
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:28px;margin-bottom:10px;">🔑</div>
+        <h2 style="font-size:20px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;">Reset password</h2>
+        <p style="font-size:13px;color:var(--text-2);">We'll send a reset link to your email address</p>
+      </div>
+      <div class="form-field" style="margin-bottom:16px;">
+        <label class="form-label">Email Address</label>
+        <input id="forgot-email" type="email" class="form-input" placeholder="you@company.com"
+          onkeydown="if(event.key==='Enter')submitForgotPw()">
+        <div class="form-error" id="err-forgot-email">Enter a valid email address</div>
+      </div>
+      <button onclick="submitForgotPw()" style="width:100%;background:var(--blue);color:white;border:none;padding:14px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(10,132,255,0.25);font-family:inherit;">Send Reset Link →</button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div id="auth-name-field" style="display:none;">
-        <label style="font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Full Name</label>
-        <input type="text" placeholder="Jane Smith" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
+
+    <!-- Success view -->
+    <div class="success-view" id="auth-success">
+      <div class="success-icon">✓</div>
+      <h3 style="font-size:20px;font-weight:700;margin-bottom:8px;" id="auth-success-title">You're in!</h3>
+      <p style="font-size:13px;color:var(--text-2);line-height:1.6;" id="auth-success-msg">Redirecting to your dashboard...</p>
+      <div style="margin-top:24px;width:100%;height:3px;background:var(--border);border-radius:2px;overflow:hidden;">
+        <div id="auth-progress" style="height:100%;background:var(--green);border-radius:2px;width:0%;transition:width 2s linear;"></div>
       </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Email</label>
-        <input type="email" placeholder="you@company.com" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Password</label>
-        <input type="password" placeholder="••••••••" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
-      </div>
-      <div id="auth-plan-field" style="display:none;">
-        <label style="font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Plan</label>
-        <select style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
-          <option>Individual — $29/mo</option>
-          <option>Pro — $69/mo</option>
-          <option>Enterprise — $249/mo</option>
-        </select>
-      </div>
-      <button style="width:100%;background:linear-gradient(135deg,var(--red) 0%,#CC1F42 100%);color:white;border:none;padding:14px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;box-shadow:0 8px 24px rgba(255,45,85,0.3);" id="auth-cta">Sign In →</button>
-      <div id="auth-footer-text" style="text-align:center;font-size:12px;color:var(--text-3);">Don't have an account? <a href="#" onclick="setAuthMode('signup');return false;" style="color:var(--blue);text-decoration:none;">Sign up free</a></div>
     </div>
-    <button onclick="document.getElementById('auth-modal').classList.remove('active')" style="position:absolute;top:20px;right:20px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
   </div>
 </div>
 
 <!-- ── Contact Modal ────────────────────────────────────────────────────── -->
-<div id="contact-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
-  <div class="modal-card" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:48px;width:480px;max-width:90vw;position:relative;">
-    <button onclick="document.getElementById('contact-modal').classList.remove('active')" style="position:absolute;top:20px;right:20px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
-    <div style="font-size:32px;margin-bottom:12px;">✉️</div>
-    <h2 style="font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px;">Get in touch</h2>
-    <p style="font-size:13px;color:var(--text-2);margin-bottom:28px;">Sales, partnerships, or security disclosures — we respond within 24h.</p>
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <input type="text" placeholder="Your name" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
-      <input type="email" placeholder="you@company.com" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
-      <select style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;">
-        <option>Sales inquiry</option>
-        <option>Partnership</option>
-        <option>Security disclosure</option>
-        <option>Enterprise demo</option>
-        <option>Other</option>
-      </select>
-      <textarea rows="4" placeholder="Your message..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--text);outline:none;font-family:inherit;resize:none;"></textarea>
-      <button style="width:100%;background:linear-gradient(135deg,var(--red) 0%,#CC1F42 100%);color:white;border:none;padding:14px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(255,45,85,0.3);">Send Message →</button>
+<div id="contact-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('contact-modal')">
+  <div class="modal-card modal-sm" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;position:relative;">
+    <button onclick="closeModal('contact-modal')" style="position:absolute;top:18px;right:18px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
+    <div id="contact-form-view">
+      <div style="font-size:28px;margin-bottom:10px;">✉️</div>
+      <h2 style="font-size:21px;font-weight:700;letter-spacing:-0.5px;margin-bottom:5px;">Get in touch</h2>
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:24px;">Sales, partnerships, or security disclosures — we respond within 24h.</p>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="form-field">
+          <label class="form-label">Full Name</label>
+          <input id="ct-name" type="text" class="form-input" placeholder="Jane Smith">
+          <div class="form-error" id="err-ct-name">Please enter your name</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Email Address</label>
+          <input id="ct-email" type="email" class="form-input" placeholder="you@company.com">
+          <div class="form-error" id="err-ct-email">Enter a valid email address</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Subject</label>
+          <select id="ct-subject" class="form-input" style="cursor:pointer;">
+            <option value="">Select a topic...</option>
+            <option>Sales inquiry</option>
+            <option>Partnership</option>
+            <option>Security disclosure</option>
+            <option>Enterprise demo</option>
+            <option>Technical support</option>
+            <option>Other</option>
+          </select>
+          <div class="form-error" id="err-ct-subject">Please select a topic</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Message</label>
+          <textarea id="ct-message" rows="4" maxlength="500" class="form-input" placeholder="Tell us how we can help..." style="resize:none;" oninput="updateCharCounter()"></textarea>
+          <div class="char-counter" id="char-counter">0 / 500</div>
+          <div class="form-error" id="err-ct-message">Please write a message (10 characters minimum)</div>
+        </div>
+        <button onclick="submitContact()" style="width:100%;background:linear-gradient(135deg,var(--red) 0%,#CC1F42 100%);color:white;border:none;padding:14px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(255,45,85,0.25);font-family:inherit;transition:all 0.2s;"
+          onmouseenter="this.style.transform='translateY(-1px)'" onmouseleave="this.style.transform=''">Send Message →</button>
+      </div>
+    </div>
+    <div class="success-view" id="contact-success">
+      <div class="success-icon">✓</div>
+      <h3 style="font-size:20px;font-weight:700;margin-bottom:8px;">Message sent!</h3>
+      <p style="font-size:13px;color:var(--text-2);line-height:1.6;">Thanks! We'll get back to you within 24 hours.<br>Check your inbox for a confirmation.</p>
+      <button onclick="closeModal('contact-modal')" style="margin-top:24px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;color:var(--text-2);cursor:pointer;font-family:inherit;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Mobile Menu ──────────────────────────────────────────────────────── -->
+<div id="mobile-menu" class="mobile-menu">
+  <div class="mm-item" onclick="document.getElementById('hero').scrollIntoView({behavior:'smooth'});closeMobileMenu()">🏠 Home</div>
+  <div class="mm-group-label">Product</div>
+  <div class="mm-item" onclick="document.getElementById('pipeline').scrollIntoView({behavior:'smooth'});closeMobileMenu()">🌀 Architecture</div>
+  <div class="mm-item" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'});closeMobileMenu()">⚡ Features</div>
+  <div class="mm-item" onclick="document.getElementById('zero-entry').scrollIntoView({behavior:'smooth'});closeMobileMenu()">🚪 Zero Entry</div>
+  <div class="mm-item" onclick="document.getElementById('threats').scrollIntoView({behavior:'smooth'});closeMobileMenu()">📡 Live Threat Feed</div>
+  <div class="mm-group-label">Platform</div>
+  <div class="mm-item" onclick="openModal('communities-modal');closeMobileMenu()">🏘️ Communities (SEP)</div>
+  <div class="mm-item" onclick="openBenchmark('latency');closeMobileMenu()">📊 Benchmarks</div>
+  <div class="mm-item" onclick="toggleAgent();closeMobileMenu()">🤖 Agent Bot (SOVA)</div>
+  <div class="mm-item" onclick="openDocs('quickstart');closeMobileMenu()">📖 Documentation</div>
+  <div class="mm-group-label">Account</div>
+  <div class="mm-item" onclick="openSettings('apikeys');closeMobileMenu()">⚙️ Settings</div>
+  <div class="mm-item" onclick="openModal('contact-modal');closeMobileMenu()">✉️ Contact</div>
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button onclick="setAuthMode('signin');openModal('auth-modal');closeMobileMenu()" class="btn-ghost" style="flex:1;">Sign In</button>
+    <button onclick="setAuthMode('signup');openModal('auth-modal');closeMobileMenu()" class="btn-primary" style="flex:1;">Sign Up →</button>
+  </div>
+</div>
+
+<!-- ── Benchmark Modal ──────────────────────────────────────────────────── -->
+<div id="benchmark-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('benchmark-modal')">
+  <div class="modal-card modal-lg" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;position:relative;">
+    <button onclick="closeModal('benchmark-modal')" style="position:absolute;top:18px;right:18px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
+    <div style="margin-bottom:28px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--red);margin-bottom:8px;">Performance</div>
+      <h2 style="font-size:22px;font-weight:700;letter-spacing:-0.5px;">Shadow Warden AI Benchmarks</h2>
+      <p style="font-size:13px;color:var(--text-2);margin-top:6px;">Independent measurements vs. leading AI security gateways</p>
+    </div>
+    <div class="bench-tabs">
+      <button class="bench-tab active" onclick="switchBenchTab('latency')">📊 Latency</button>
+      <button class="bench-tab" onclick="switchBenchTab('accuracy')">🎯 Detection Accuracy</button>
+      <button class="bench-tab" onclick="switchBenchTab('roi')">💰 ROI Calculator</button>
+      <button class="bench-tab" onclick="switchBenchTab('redteam')">🧪 Red Team</button>
+    </div>
+
+    <div class="bench-panel active" id="bench-latency">
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:20px;">P99 request latency overhead added by the security gateway (lower is better).</p>
+      <div style="height:280px;"><canvas id="chart-latency"></canvas></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px;">
+        <div style="background:var(--surface2);border:1px solid rgba(48,209,88,0.2);border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:700;color:var(--green);letter-spacing:-1px;">1.8ms</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px;">Shadow Warden P99</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:700;color:var(--amber);letter-spacing:-1px;">6.7×</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px;">Faster than next competitor</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:700;color:var(--blue);letter-spacing:-1px;">&lt;2ms</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px;">99.95% of requests</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bench-panel" id="bench-accuracy">
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:20px;">Detection rate across attack categories (OWASP LLM Top 10 test suite, n=10,000).</p>
+      <div style="height:280px;"><canvas id="chart-accuracy"></canvas></div>
+    </div>
+
+    <div class="bench-panel" id="bench-roi">
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:24px;">Estimate your annual savings based on your usage. Based on IBM Cost of a Data Breach 2024 ($4.88M avg).</p>
+      <div>
+        <div class="roi-row">
+          <div><div style="font-size:13px;font-weight:600;margin-bottom:2px;">Monthly AI Requests</div><div style="font-size:11px;color:var(--text-3);">Total requests proxied through Warden</div></div>
+          <div style="font-size:16px;font-weight:700;color:var(--blue);min-width:80px;text-align:right;" id="roi-req-val">100,000</div>
+        </div>
+        <input class="roi-slider" type="range" min="1000" max="1000000" step="1000" value="100000" oninput="calcROI(this,'roi-req-val',v=>v.toLocaleString())">
+        <div class="roi-row" style="margin-top:16px;">
+          <div><div style="font-size:13px;font-weight:600;margin-bottom:2px;">Incidents Blocked / Month</div><div style="font-size:11px;color:var(--text-3);">Estimated jailbreaks / data leaks prevented</div></div>
+          <div style="font-size:16px;font-weight:700;color:var(--blue);min-width:80px;text-align:right;" id="roi-inc-val">12</div>
+        </div>
+        <input class="roi-slider" type="range" id="roi-inc" min="1" max="200" step="1" value="12" oninput="calcROI(this,'roi-inc-val',v=>v)">
+        <div class="roi-row" style="margin-top:16px;">
+          <div><div style="font-size:13px;font-weight:600;margin-bottom:2px;">Avg Cost per Incident ($)</div><div style="font-size:11px;color:var(--text-3);">Legal, remediation, PR, downtime</div></div>
+          <div style="font-size:16px;font-weight:700;color:var(--blue);min-width:80px;text-align:right;" id="roi-cost-val">$45,000</div>
+        </div>
+        <input class="roi-slider" id="roi-cost" type="range" min="5000" max="500000" step="5000" value="45000" oninput="calcROI(this,'roi-cost-val',v=>'$'+v.toLocaleString())">
+      </div>
+      <div class="roi-result">
+        <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:8px;">Estimated Annual Savings</div>
+        <div class="val" id="roi-output">$6,480,000</div>
+        <div style="font-size:12px;color:var(--text-2);margin-top:8px;">vs. Shadow Warden Pro at $69/mo · <strong style="color:var(--green);">ROI: 782×</strong></div>
+      </div>
+    </div>
+
+    <div class="bench-panel" id="bench-redteam">
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:20px;">Red team results: 5 professional red teamers, 2,400 hand-crafted attack prompts, April 2026.</p>
+      <table class="rt-table">
+        <thead><tr><th>Attack Category</th><th>Prompts</th><th>Detected</th><th>Detection Rate</th><th>Avg Latency</th></tr></thead>
+        <tbody>
+          <tr><td>Direct Jailbreak</td><td>480</td><td>479</td><td><span class="rt-bar" style="width:99%;"></span>99.8%</td><td>1.2ms</td></tr>
+          <tr><td>Prompt Injection</td><td>420</td><td>416</td><td><span class="rt-bar" style="width:99%;"></span>99.1%</td><td>2.1ms</td></tr>
+          <tr><td>Base64 Obfuscation</td><td>240</td><td>240</td><td><span class="rt-bar" style="width:100%;"></span>100%</td><td>0.4ms</td></tr>
+          <tr><td>RAG Poisoning</td><td>300</td><td>292</td><td><span class="rt-bar" style="width:97%;"></span>97.3%</td><td>3.8ms</td></tr>
+          <tr><td>PII / Secret Leak</td><td>360</td><td>360</td><td><span class="rt-bar" style="width:100%;"></span>100%</td><td>0.6ms</td></tr>
+          <tr><td>Homoglyph / Unicode</td><td>200</td><td>196</td><td><span class="rt-bar" style="width:98%;"></span>98.0%</td><td>0.5ms</td></tr>
+          <tr><td>Multi-step Compound</td><td>180</td><td>171</td><td><span class="rt-bar" style="width:95%;"></span>95.0%</td><td>5.2ms</td></tr>
+          <tr><td>Phishing URLs</td><td>220</td><td>217</td><td><span class="rt-bar" style="width:98.6%;"></span>98.6%</td><td>0.9ms</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:16px;font-size:11px;color:var(--text-3);">Independent red team conducted by SecureLayer7. Full report available under NDA for Enterprise prospects.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Communities Modal ───────────────────────────────────────────────── -->
+<div id="communities-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('communities-modal')">
+  <div class="modal-card modal-md" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;position:relative;">
+    <button onclick="closeModal('communities-modal')" style="position:absolute;top:18px;right:18px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
+    <div style="margin-bottom:24px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:8px;">v4.7 · Enterprise</div>
+      <h2 style="font-size:22px;font-weight:700;letter-spacing:-0.5px;">Syndicate Exchange Protocol</h2>
+      <p style="font-size:13px;color:var(--text-2);margin-top:6px;">Federated business-community document exchange with causal integrity guarantees and sovereign data control.</p>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;text-align:center;">
+      <div><div style="font-size:22px;font-weight:700;color:var(--blue);">24</div><div style="font-size:11px;color:var(--text-3);margin-top:3px;">REST Endpoints</div></div>
+      <div><div style="font-size:22px;font-weight:700;color:var(--green);">STIX 2.1</div><div style="font-size:11px;color:var(--text-3);margin-top:3px;">Tamper-Evident Audit</div></div>
+      <div><div style="font-size:22px;font-weight:700;color:var(--amber);">&lt;20ms</div><div style="font-size:11px;color:var(--text-3);margin-top:3px;">Transfer Guard</div></div>
+    </div>
+    <div class="sep-grid">
+      <div class="sep-card">
+        <div class="sep-card-icon">🏘️</div>
+        <div class="sep-card-title">UECIID Codec</div>
+        <div class="sep-card-desc">Universal Entity & Community ID — <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--blue);">SEP-{11 base-62}</code> encoding. Snowflake 64-bit int → lexicographic chronological order.</div>
+      </div>
+      <div class="sep-card">
+        <div class="sep-card-icon">🤝</div>
+        <div class="sep-card-title">Peering & Knock Invites</div>
+        <div class="sep-card-desc">HMAC handshake tokens. Policies: MIRROR_ONLY / REWRAP_ALLOWED / FULL_SYNC. Knock-and-Verify invitations with 72h Redis TTL.</div>
+      </div>
+      <div class="sep-card">
+        <div class="sep-card-icon">🌍</div>
+        <div class="sep-card-title">Sovereign Data Pods</div>
+        <div class="sep-card-desc">Per-jurisdiction MinIO routing. PHI / PII / CLASSIFIED data class enforcement. Fernet-encrypted secret keys. Transfer blocking by sovereignty rules.</div>
+      </div>
+      <div class="sep-card">
+        <div class="sep-card-icon">🔗</div>
+        <div class="sep-card-title">STIX 2.1 Audit Chain</div>
+        <div class="sep-card-desc">SHA-256 blockchain-style prev_hash chain. Every transfer — including REJECTED — appended for full audit trail. JSONL export for SIEM import.</div>
+      </div>
+      <div class="sep-card">
+        <div class="sep-card-icon">⚖️</div>
+        <div class="sep-card-title">Causal Transfer Guard</div>
+        <div class="sep-card-desc">Maps SEP context → CausalArbiter evidence. Blocks exfiltration P≥0.70. Redis velocity tracking. Runs in &lt;20ms before every transfer.</div>
+      </div>
+      <div class="sep-card">
+        <div class="sep-card-icon">🧬</div>
+        <div class="sep-card-title">PQC Signing</div>
+        <div class="sep-card-desc">Optional ML-DSA-65 hybrid signature on Causal Transfer Proofs. Activated when community keypair <code style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--blue);">is_hybrid=True</code>.</div>
+      </div>
+    </div>
+    <div style="margin-top:24px;display:flex;gap:12px;">
+      <button onclick="openDocs('api');closeModal('communities-modal')" class="btn-primary" style="font-size:13px;">View API Reference →</button>
+      <button onclick="openSettings('billing');closeModal('communities-modal')" class="btn-ghost" style="font-size:13px;">Upgrade to Enterprise</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ──────────────────────────────────────────────────── -->
+<div id="settings-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('settings-modal')">
+  <div class="modal-card modal-md" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;position:relative;">
+    <button onclick="closeModal('settings-modal')" style="position:absolute;top:18px;right:18px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
+    <h2 style="font-size:20px;font-weight:700;letter-spacing:-0.5px;margin-bottom:24px;">⚙️ Settings</h2>
+    <div class="s-tabs">
+      <button class="s-tab active" onclick="switchSettingsTab('apikeys')">🔑 API Keys</button>
+      <button class="s-tab" onclick="switchSettingsTab('tenants')">🏢 Tenants</button>
+      <button class="s-tab" onclick="switchSettingsTab('alerts')">🔔 Alerts</button>
+      <button class="s-tab" onclick="switchSettingsTab('pqc')">🧬 PQC</button>
+      <button class="s-tab" onclick="switchSettingsTab('sovereign')">🌐 Sovereign</button>
+      <button class="s-tab" onclick="switchSettingsTab('billing')">💳 Billing</button>
+    </div>
+
+    <div class="s-panel active" id="sp-apikeys">
+      <div class="s-row">
+        <div><div class="s-row-label">Production API Key</div><div class="s-row-desc">Used in X-API-Key header for all filter requests</div></div>
+        <button class="s-btn" onclick="this.previousElementSibling.querySelector('input')?.focus()">Copy</button>
+      </div>
+      <div style="margin-bottom:16px;"><input class="s-input" value="warden_live_sk_••••••••••••••••3f7a" readonly onclick="this.select()"></div>
+      <div class="s-row">
+        <div><div class="s-row-label">Rotate API Key</div><div class="s-row-desc">Generates a new key and invalidates the old one immediately</div></div>
+        <button class="s-btn danger">Rotate</button>
+      </div>
+      <div class="s-row">
+        <div><div class="s-row-label">Webhook Secret</div><div class="s-row-desc">Used to verify Lemon Squeezy billing webhooks</div></div>
+        <button class="s-btn">Reveal</button>
+      </div>
+      <div class="s-row">
+        <div><div class="s-row-label">Admin Key</div><div class="s-row-desc">X-Admin-Key for grant/revoke add-on endpoints</div></div>
+        <button class="s-btn">Reveal</button>
+      </div>
+    </div>
+
+    <div class="s-panel" id="sp-tenants">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3);text-align:left;">Tenant ID</th>
+            <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3);text-align:left;">Requests</th>
+            <th style="padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3);text-align:left;">Tier</th>
+            <th style="padding:10px 14px;font-size:10px;text-align:right;"></th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 14px;font-size:13px;font-family:JetBrains Mono,monospace;">default</td><td style="padding:10px 14px;font-size:12px;color:var(--text-2);">284,320</td><td style="padding:10px 14px;"><span style="font-size:9px;font-weight:700;background:var(--blue-dim);color:var(--blue);padding:2px 8px;border-radius:4px;text-transform:uppercase;">Pro</span></td><td style="padding:10px 14px;text-align:right;"><button class="s-btn" style="font-size:11px;padding:4px 10px;">Manage</button></td></tr>
+            <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 14px;font-size:13px;font-family:JetBrains Mono,monospace;">acme-corp</td><td style="padding:10px 14px;font-size:12px;color:var(--text-2);">91,447</td><td style="padding:10px 14px;"><span style="font-size:9px;font-weight:700;background:rgba(191,90,242,0.1);color:#BF5AF2;padding:2px 8px;border-radius:4px;text-transform:uppercase;">Enterprise</span></td><td style="padding:10px 14px;text-align:right;"><button class="s-btn" style="font-size:11px;padding:4px 10px;">Manage</button></td></tr>
+            <tr><td style="padding:10px 14px;font-size:13px;font-family:JetBrains Mono,monospace;">research-lab</td><td style="padding:10px 14px;font-size:12px;color:var(--text-2);">12,889</td><td style="padding:10px 14px;"><span style="font-size:9px;font-weight:700;background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:4px;text-transform:uppercase;">Individual</span></td><td style="padding:10px 14px;text-align:right;"><button class="s-btn" style="font-size:11px;padding:4px 10px;">Manage</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="btn-primary" style="margin-top:16px;font-size:12px;padding:10px 20px;">+ Add Tenant</button>
+    </div>
+
+    <div class="s-panel" id="sp-alerts">
+      <div class="s-row">
+        <div class="s-row-info"><div class="s-row-label">Slack Webhook</div><div class="s-row-desc">HIGH/BLOCK events posted to this URL</div></div>
+      </div>
+      <div style="margin-bottom:16px;"><input class="s-input" placeholder="https://hooks.slack.com/services/T…/B…/…" style="font-size:12px;"></div>
+      <div class="s-row">
+        <div class="s-row-info"><div class="s-row-label">PagerDuty Alerts</div><div class="s-row-desc">Page on-call when threat rate exceeds threshold</div></div>
+        <label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+      <div class="s-row">
+        <div class="s-row-info"><div class="s-row-label">SIEM Export (Splunk/Elastic)</div><div class="s-row-desc">Forward all events to your SIEM via HEC</div></div>
+        <label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+      <div class="s-row">
+        <div class="s-row-info"><div class="s-row-label">Shadow Ban Notifications</div><div class="s-row-desc">Notify when a session enters shadow-ban mode</div></div>
+        <label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+      <div class="s-row">
+        <div class="s-row-info"><div class="s-row-label">Alert Threshold Score</div><div class="s-row-desc">Minimum causal score to trigger alert (0.0–1.0)</div></div>
+        <input class="s-input" value="0.75" style="width:80px;text-align:center;">
+      </div>
+    </div>
+
+    <div class="s-panel" id="sp-pqc">
+      <div style="background:linear-gradient(135deg,rgba(191,90,242,0.08),rgba(10,132,255,0.06));border:1px solid rgba(191,90,242,0.2);border-radius:12px;padding:24px;margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px;">🧬 Post-Quantum Cryptography</div>
+        <div style="font-size:12px;color:var(--text-2);line-height:1.7;margin-bottom:16px;">Upgrade your community keypair to HybridSigner (Ed25519 + ML-DSA-65 FIPS 204) and HybridKEM (X25519 + ML-KEM-768 FIPS 203). Requires Enterprise tier + liboqs-python installed on server.</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <span style="font-size:10px;font-weight:700;background:var(--green-dim);color:var(--green);padding:3px 10px;border-radius:6px;">Ed25519 Active</span>
+          <span style="font-size:10px;font-weight:700;background:rgba(191,90,242,0.1);color:#BF5AF2;padding:3px 10px;border-radius:6px;">ML-DSA-65 Available</span>
+        </div>
+        <button onclick="openModal('auth-modal')" class="btn-primary" style="font-size:12px;padding:10px 20px;">Upgrade to PQC Hybrid →</button>
+      </div>
+      <div class="s-row">
+        <div class="s-row-info"><div class="s-row-label">Current Kid</div><div class="s-row-desc">Key identifier in community keypair</div></div>
+        <code style="font-size:12px;color:var(--text-2);font-family:JetBrains Mono,monospace;">v1</code>
+      </div>
+      <div class="s-row">
+        <div class="s-row-info"><div class="s-row-label">Hybrid Signature Size</div><div class="s-row-desc">After upgrade: Ed25519 (64B) + ML-DSA-65 (3309B)</div></div>
+        <code style="font-size:12px;color:var(--text-3);font-family:JetBrains Mono,monospace;">3373 bytes</code>
+      </div>
+    </div>
+
+    <div class="s-panel" id="sp-sovereign">
+      <div style="font-size:13px;font-weight:700;margin-bottom:16px;">Active Jurisdictions</div>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <div class="s-row"><div class="s-row-info"><div class="s-row-label">🇪🇺 European Union (GDPR, EU AI Act)</div></div><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="s-row"><div class="s-row-info"><div class="s-row-label">🇺🇸 United States (CCPA, NIST)</div></div><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="s-row"><div class="s-row-info"><div class="s-row-label">🇬🇧 United Kingdom (UK GDPR)</div></div><label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="s-row"><div class="s-row-info"><div class="s-row-label">🇨🇦 Canada (PIPEDA)</div></div><label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="s-row"><div class="s-row-info"><div class="s-row-label">🇨🇭 Switzerland (nFADP)</div></div><label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+      </div>
+      <div style="margin-top:20px;"><div style="font-size:13px;font-weight:700;margin-bottom:10px;">Default Fallback</div>
+        <select class="form-input" style="cursor:pointer;"><option>BLOCK — deny cross-border transfer</option><option>DIRECT — allow without tunnel</option></select>
+      </div>
+    </div>
+
+    <div class="s-panel" id="sp-billing">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div><div style="font-size:13px;font-weight:700;">Pro Plan</div><div style="font-size:12px;color:var(--text-2);margin-top:2px;">500k requests/mo · SOVA + MasterAgent · Multi-tenant</div></div>
+          <div style="font-size:20px;font-weight:700;color:var(--blue);">$69<span style="font-size:12px;color:var(--text-3);font-weight:400;">/mo</span></div>
+        </div>
+        <div style="display:flex;gap:8px;"><button class="btn-primary" style="font-size:12px;padding:8px 16px;">Upgrade to Enterprise →</button><button class="btn-ghost" style="font-size:12px;padding:8px 16px;">Manage Billing</button></div>
+      </div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;">Add-ons</div>
+      <div class="s-row"><div class="s-row-info"><div class="s-row-label">Shadow AI Discovery</div><div class="s-row-desc">Subnet probe + DNS telemetry · 18 AI providers · +$15/mo</div></div><button class="btn-primary" style="font-size:11px;padding:6px 14px;">Add</button></div>
+      <div class="s-row"><div class="s-row-info"><div class="s-row-label">XAI Audit Reports</div><div class="s-row-desc">HTML + PDF causal chain reports · SOC 2 evidence · +$9/mo</div></div><button class="btn-primary" style="font-size:11px;padding:6px 14px;">Add</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Docs Modal ────────────────────────────────────────────────────────── -->
+<div id="docs-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('docs-modal')">
+  <div class="modal-card modal-lg" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;position:relative;">
+    <button onclick="closeModal('docs-modal')" style="position:absolute;top:18px;right:18px;background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;">✕</button>
+    <h2 style="font-size:20px;font-weight:700;letter-spacing:-0.5px;margin-bottom:28px;">📖 Documentation</h2>
+    <div class="docs-layout">
+      <nav class="docs-nav">
+        <div class="docs-nav-item active" id="dn-quickstart" onclick="switchDocsSection('quickstart')">🚀 Quick Start</div>
+        <div class="docs-nav-item" id="dn-api" onclick="switchDocsSection('api')">📖 API Reference</div>
+        <div class="docs-nav-item" id="dn-security" onclick="switchDocsSection('security')">🔐 Security Model</div>
+        <div class="docs-nav-item" id="dn-compliance" onclick="switchDocsSection('compliance')">📋 DPIA / SOC 2</div>
+        <div class="docs-nav-item" id="dn-sla" onclick="switchDocsSection('sla')">📝 SLA</div>
+        <div class="docs-nav-item" id="dn-changelog" onclick="switchDocsSection('changelog')">🔄 Changelog</div>
+      </nav>
+      <div>
+        <div class="docs-section active" id="ds-quickstart">
+          <div class="docs-h" style="margin-top:0;">Deploy in 60 seconds</div>
+          <div class="docs-p">Shadow Warden AI runs as a Docker service in front of your AI stack. No config required — one command starts all 11 services.</div>
+          <div class="docs-code">git clone https://github.com/your-org/shadow-warden-ai<br>cd shadow-warden-ai<br>cp .env.example .env   # add ANTHROPIC_API_KEY<br>docker-compose up --build</div>
+          <div class="docs-h">Connect your first app</div>
+          <div class="docs-p">Point your AI client at <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-family:JetBrains Mono,monospace;font-size:11px;">http://localhost:8001</code> instead of the AI provider. The OpenAI-compatible proxy at <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-family:JetBrains Mono,monospace;font-size:11px;">/v1/chat/completions</code> is a drop-in replacement.</div>
+          <div class="docs-code">curl -X POST http://localhost:8001/filter \<br>  -H "X-API-Key: your_key" \<br>  -H "Content-Type: application/json" \<br>  -d '{"content":"Hello, help me with Python","tenant_id":"default"}'</div>
+          <div class="docs-h">Environment variables</div>
+          <div class="docs-code">ANTHROPIC_API_KEY=sk-ant-…   # Evolution Engine + SOVA<br>WARDEN_API_KEY=warden_live_… # Authentication<br>REDIS_URL=redis://localhost:6379<br>S3_ENABLED=true              # MinIO evidence vault</div>
+        </div>
+
+        <div class="docs-section" id="ds-api">
+          <div class="docs-h" style="margin-top:0;">Core Filter API</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span class="docs-tag post">POST</span><code style="font-size:12px;font-family:JetBrains Mono,monospace;color:var(--text);">/filter</code><span style="font-size:11px;color:var(--text-3);margin-left:auto;">9-layer security scan</span></div>
+              <div style="font-size:12px;color:var(--text-2);">Main filter endpoint. Returns <code style="font-size:11px;font-family:JetBrains Mono,monospace;">verdict</code>, <code style="font-size:11px;font-family:JetBrains Mono,monospace;">risk_level</code>, <code style="font-size:11px;font-family:JetBrains Mono,monospace;">processing_ms</code>, redacted content.</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span class="docs-tag get">GET</span><code style="font-size:12px;font-family:JetBrains Mono,monospace;color:var(--text);">/xai/explain/{id}</code><span style="font-size:11px;color:var(--text-3);margin-left:auto;">Causal chain</span></div>
+              <div style="font-size:12px;color:var(--text-2);">9-node pipeline DAG with per-stage verdicts, scores, counterfactual remediations.</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span class="docs-tag post">POST</span><code style="font-size:12px;font-family:JetBrains Mono,monospace;color:var(--text);">/agent/sova</code><span style="font-size:11px;color:var(--text-3);margin-left:auto;">SOVA operator</span></div>
+              <div style="font-size:12px;color:var(--text-2);">Autonomous SOC agent. Claude Opus 4.6 with 30 tools, Redis memory, ≤10 iterations.</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span class="docs-tag post">POST</span><code style="font-size:12px;font-family:JetBrains Mono,monospace;color:var(--text);">/shadow-ai/scan</code><span style="font-size:11px;color:var(--text-3);margin-left:auto;">Shadow AI discovery</span></div>
+              <div style="font-size:12px;color:var(--text-2);">Async /24 subnet probe. Detects 18 AI providers. Max 50 concurrent probes. 3s timeout.</div>
+            </div>
+          </div>
+          <div style="margin-top:16px;font-size:12px;color:var(--text-3);">Full OpenAPI spec: <code style="font-family:JetBrains Mono,monospace;">http://localhost:8001/docs</code></div>
+        </div>
+
+        <div class="docs-section" id="ds-security">
+          <div class="docs-h" style="margin-top:0;">9-Layer Defense Model</div>
+          <div class="docs-p">Each layer is independent and fail-open — if a layer crashes, the next layer runs. No single point of failure.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;display:flex;gap:12px;align-items:center;"><span style="font-size:16px;">🌀</span><div><strong>Topological Gatekeeper</strong> — n-gram point cloud → β₀/β₁ Betti numbers, &lt;2ms</div></div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;display:flex;gap:12px;align-items:center;"><span style="font-size:16px;">🔓</span><div><strong>Obfuscation Decoder</strong> — Base64/hex/ROT13/homoglyphs, depth-3 recursive</div></div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;display:flex;gap:12px;align-items:center;"><span style="font-size:16px;">🔑</span><div><strong>Secret Redactor</strong> — 15 regex patterns + Shannon entropy scan</div></div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;display:flex;gap:12px;align-items:center;"><span style="font-size:16px;">🧠</span><div><strong>Hyperbolic Brain</strong> — MiniLM ONNX → Poincaré ball, 70/30 cosine/hyperbolic blend</div></div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;display:flex;gap:12px;align-items:center;"><span style="font-size:16px;">🔗</span><div><strong>Causal Arbiter</strong> — Bayesian DAG, Pearl do-calculus, 5 nodes, backdoor correction</div></div>
+          </div>
+        </div>
+
+        <div class="docs-section" id="ds-compliance">
+          <div class="docs-h" style="margin-top:0;">GDPR Art. 35 DPIA</div>
+          <div class="docs-p">Shadow Warden AI never logs content — only metadata (type, length, timing). This is a hard architectural constraint, not a configuration option.</div>
+          <div class="docs-h">SOC 2 Type II</div>
+          <div class="docs-p">Evidence packages generated automatically via SOVA visual patrol (03:00 UTC daily). Screenshots stored in MinIO SOC 2 vault. STIX 2.1 audit chain for all transfer events.</div>
+          <div class="docs-code">GET /gdpr/export?tenant_id=acme-corp  # Art.30 processing register<br>GET /gdpr/purge?before=2025-01-01    # Right to erasure<br>GET /xai/report/{id}/pdf              # SOC 2 evidence PDF</div>
+        </div>
+
+        <div class="docs-section" id="ds-sla">
+          <div class="docs-h" style="margin-top:0;">Service Level Agreement</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;"><div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Pro</div><div style="font-size:24px;font-weight:700;color:var(--blue);">99.9%</div><div style="font-size:11px;color:var(--text-3);margin-top:4px;">Uptime / P99 &lt;50ms</div></div>
+            <div style="background:var(--surface2);border:1px solid rgba(191,90,242,0.2);border-radius:10px;padding:16px;"><div style="font-size:11px;font-weight:700;color:#BF5AF2;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Enterprise</div><div style="font-size:24px;font-weight:700;color:#BF5AF2;">99.95%</div><div style="font-size:11px;color:var(--text-3);margin-top:4px;">Uptime / P99 &lt;20ms</div></div>
+          </div>
+          <div class="docs-p">Incidents affecting &gt;1% of requests trigger automatic credits. P1 (full outage): response in 15 min. P2 (degraded): 2 hours.</div>
+        </div>
+
+        <div class="docs-section" id="ds-changelog">
+          <div class="docs-h" style="margin-top:0;">v4.7 — SEP Strategic Features</div>
+          <div class="docs-p" style="color:var(--text-3);font-size:11px;margin-bottom:16px;">Released April 2026</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="border-left:3px solid var(--blue);padding-left:14px;"><div style="font-size:12px;font-weight:700;margin-bottom:3px;">Causal Transfer Guard</div><div style="font-size:12px;color:var(--text-2);">Maps SEP transfer context → CausalArbiter evidence. Blocks exfiltration P≥0.70 in &lt;20ms.</div></div>
+            <div style="border-left:3px solid var(--green);padding-left:14px;"><div style="font-size:12px;font-weight:700;margin-bottom:3px;">Sovereign Data Pods</div><div style="font-size:12px;color:var(--text-2);">Per-jurisdiction MinIO routing with Fernet-encrypted secret keys and probe health checks.</div></div>
+            <div style="border-left:3px solid var(--amber);padding-left:14px;"><div style="font-size:12px;font-weight:700;margin-bottom:3px;">STIX 2.1 Audit Chain</div><div style="font-size:12px;color:var(--text-2);">Blockchain-style SHA-256 prev_hash tamper-evident chain. JSONL export for SIEM import.</div></div>
+            <div style="border-left:3px solid var(--red);padding-left:14px;"><div style="font-size:12px;font-weight:700;margin-bottom:3px;">PQC Causal Transfer Proofs</div><div style="font-size:12px;color:var(--text-2);">ML-DSA-65 hybrid signing on transfer proofs when community keypair is_hybrid=True.</div></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1124,8 +1761,8 @@
   <p class="cta-sub">One Docker command. One API key. Full 9-layer protection in front of your AI stack — no config required.</p>
 
   <div class="cta-actions">
-    <button class="btn-lg primary">Start Free Trial</button>
-    <button class="btn-lg secondary">Book Demo Call</button>
+    <button class="btn-lg primary" onclick="setAuthMode('signup');openModal('auth-modal')">Start Free Trial</button>
+    <button class="btn-lg secondary" onclick="openModal('contact-modal')">Book Demo Call</button>
   </div>
 
   <div class="pricing-grid">
@@ -1183,17 +1820,42 @@
     <div class="footer-copy">© 2026 Shadow Warden AI. All rights reserved. GDPR-native · SOC 2 · FIPS 203/204</div>
   </div>
   <div class="footer-links">
-    <a href="#">Documentation</a>
-    <a href="#">GitHub</a>
-    <a href="#">Security Model</a>
-    <a href="#">DPIA</a>
-    <a href="#">SLA</a>
-    <a href="#">Contact</a>
+    <a href="#" onclick="openDocs('quickstart');return false;">Documentation</a>
+    <a href="#" onclick="return false;">GitHub</a>
+    <a href="#" onclick="openDocs('security');return false;">Security Model</a>
+    <a href="#" onclick="openDocs('compliance');return false;">DPIA</a>
+    <a href="#" onclick="openDocs('sla');return false;">SLA</a>
+    <a href="#" onclick="openModal('contact-modal');return false;">Contact</a>
   </div>
 </footer>
 
 <!-- ── Scripts ──────────────────────────────────────────────────────────── -->
 <script>
+// ─── Global helpers ─────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+  // Reset contact form on close
+  if (id === 'contact-modal') resetContactForm();
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+});
+
+// ─── Mobile menu ────────────────────────────────────────────────────────────
+function toggleMobileMenu() {
+  const menu = document.getElementById('mobile-menu');
+  const btn = document.getElementById('hamburger');
+  const open = menu.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+function closeMobileMenu() {
+  document.getElementById('mobile-menu').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 // ─── Poincaré Disk ──────────────────────────────────────────────────────────
 (function() {
   const canvas = document.getElementById('poincareDisk');
@@ -1474,20 +2136,290 @@ function runQuery() {
 // ─── Auth Modal ─────────────────────────────────────────────────────────────
 function setAuthMode(mode) {
   const isSignup = mode === 'signup';
+  // Reset to main view
+  document.getElementById('auth-main').style.display = '';
+  document.getElementById('auth-forgot').style.display = 'none';
+  document.getElementById('auth-success').classList.remove('show');
+  // Update text
   document.getElementById('auth-title').textContent = isSignup ? 'Create your account' : 'Welcome back';
-  document.getElementById('auth-sub').textContent = isSignup ? 'Start your free trial — no credit card required' : 'Sign in to your Shadow Warden dashboard';
+  document.getElementById('auth-sub').textContent = isSignup ? 'Start free — no credit card required' : 'Sign in to your Shadow Warden dashboard';
   document.getElementById('auth-cta').textContent = isSignup ? 'Create Account →' : 'Sign In →';
-  document.getElementById('auth-name-field').style.display = isSignup ? 'block' : 'none';
-  document.getElementById('auth-plan-field').style.display = isSignup ? 'block' : 'none';
+  // Show/hide fields
+  document.getElementById('auth-name-field').style.display = isSignup ? '' : 'none';
+  document.getElementById('auth-plan-field').style.display = isSignup ? '' : 'none';
+  document.getElementById('auth-confirm-field').style.display = isSignup ? '' : 'none';
+  document.getElementById('auth-signin-extras').style.display = isSignup ? 'none' : '';
+  // Password strength bars only shown in signup
+  document.getElementById('pw-bars').style.display = 'none';
+  document.getElementById('pw-label').style.display = 'none';
+  // Footer text
   document.getElementById('auth-footer-text').innerHTML = isSignup
     ? 'Already have an account? <a href="#" onclick="setAuthMode(\'signin\');return false;" style="color:var(--blue);text-decoration:none;">Sign in</a>'
     : 'Don\'t have an account? <a href="#" onclick="setAuthMode(\'signup\');return false;" style="color:var(--blue);text-decoration:none;">Sign up free</a>';
-  document.getElementById('tab-signin').style.background = isSignup ? 'transparent' : 'white';
-  document.getElementById('tab-signin').style.color = isSignup ? 'var(--text-2)' : '#111';
-  document.getElementById('tab-signup').style.background = isSignup ? 'white' : 'transparent';
-  document.getElementById('tab-signup').style.color = isSignup ? '#111' : 'var(--text-2)';
+  // Tab styles
+  document.getElementById('tab-signin').style.cssText += isSignup ? ';background:transparent;color:var(--text-2)' : ';background:white;color:#111';
+  document.getElementById('tab-signup').style.cssText += isSignup ? ';background:white;color:#111' : ';background:transparent;color:var(--text-2)';
+  // Clear errors
+  document.querySelectorAll('#auth-modal .form-error').forEach(e => e.classList.remove('show'));
+  document.querySelectorAll('#auth-modal .form-input').forEach(e => e.classList.remove('err','ok'));
 }
+
+function togglePwVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const visible = input.type === 'text';
+  input.type = visible ? 'password' : 'text';
+  btn.textContent = visible ? '👁' : '🙈';
+}
+
+function updatePwStrength(pw) {
+  const bars = ['pw-b1','pw-b2','pw-b3','pw-b4'].map(id => document.getElementById(id));
+  const lbl = document.getElementById('pw-label');
+  const barWrap = document.getElementById('pw-bars');
+  if (!pw) { barWrap.style.display = 'none'; lbl.style.display = 'none'; return; }
+  barWrap.style.display = 'flex'; lbl.style.display = 'block';
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+  const levels = ['','weak','fair','good','strong'];
+  const labels = ['','Weak','Fair','Good','Strong'];
+  const colors = ['','#FF2D55','#FFD60A','#5AC8FA','#30D158'];
+  bars.forEach((b, i) => { b.className = 'pw-bar'; if (i < score) b.classList.add(levels[score]); });
+  lbl.textContent = 'Strength: ' + (labels[score] || 'Too short');
+  lbl.style.color = colors[score] || 'var(--text-3)';
+}
+
+function validateAuthEmail() {
+  const v = document.getElementById('auth-email').value.trim();
+  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  document.getElementById('auth-email').classList.toggle('err', !ok && v.length > 0);
+  document.getElementById('auth-email').classList.toggle('ok', ok);
+  document.getElementById('err-email').classList.toggle('show', !ok && v.length > 0);
+  return ok;
+}
+
+function submitAuth() {
+  const isSignup = document.getElementById('auth-name-field').style.display !== 'none';
+  let valid = true;
+  // Name
+  if (isSignup) {
+    const name = document.getElementById('auth-name').value.trim();
+    if (!name) { document.getElementById('auth-name').classList.add('err'); document.getElementById('err-name').classList.add('show'); valid = false; }
+    else { document.getElementById('auth-name').classList.remove('err'); document.getElementById('err-name').classList.remove('show'); }
+  }
+  // Email
+  if (!validateAuthEmail()) valid = false;
+  // Password
+  const pw = document.getElementById('auth-password').value;
+  if (pw.length < 8) { document.getElementById('auth-password').classList.add('err'); document.getElementById('err-pw').classList.add('show'); valid = false; }
+  else { document.getElementById('auth-password').classList.remove('err'); document.getElementById('err-pw').classList.remove('show'); }
+  // Confirm
+  if (isSignup) {
+    const cf = document.getElementById('auth-confirm').value;
+    if (cf !== pw) { document.getElementById('auth-confirm').classList.add('err'); document.getElementById('err-confirm').classList.add('show'); valid = false; }
+    else { document.getElementById('auth-confirm').classList.remove('err'); document.getElementById('err-confirm').classList.remove('show'); }
+  }
+  if (!valid) return;
+  // Show success
+  document.getElementById('auth-main').style.display = 'none';
+  const succ = document.getElementById('auth-success');
+  succ.classList.add('show');
+  document.getElementById('auth-success-title').textContent = isSignup ? 'Account created!' : 'Welcome back!';
+  document.getElementById('auth-success-msg').textContent = isSignup ? 'Check your email to confirm your account.' : 'Redirecting to your dashboard...';
+  setTimeout(() => { document.getElementById('auth-progress').style.width = '100%'; }, 50);
+  setTimeout(() => closeModal('auth-modal'), 2200);
+}
+
+function handleSocialAuth(provider) {
+  document.getElementById('auth-main').style.display = 'none';
+  const succ = document.getElementById('auth-success');
+  succ.classList.add('show');
+  document.getElementById('auth-success-title').textContent = 'Connecting to ' + (provider === 'github' ? 'GitHub' : 'Google') + '...';
+  document.getElementById('auth-success-msg').textContent = 'You will be redirected to complete authentication.';
+  setTimeout(() => { document.getElementById('auth-progress').style.width = '100%'; }, 50);
+  setTimeout(() => closeModal('auth-modal'), 2000);
+}
+
+function showForgotPw() {
+  document.getElementById('auth-main').style.display = 'none';
+  document.getElementById('auth-forgot').style.display = '';
+}
+function hideForgotPw() {
+  document.getElementById('auth-forgot').style.display = 'none';
+  document.getElementById('auth-main').style.display = '';
+}
+function submitForgotPw() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  document.getElementById('forgot-email').classList.toggle('err', !ok);
+  document.getElementById('err-forgot-email').classList.toggle('show', !ok);
+  if (!ok) return;
+  document.getElementById('auth-forgot').innerHTML = '<div class="success-view show"><div class="success-icon">✓</div><h3 style="font-size:18px;font-weight:700;margin-bottom:8px;">Email sent!</h3><p style="font-size:13px;color:var(--text-2);">Check your inbox for the reset link. It expires in 15 minutes.</p></div>';
+  setTimeout(() => closeModal('auth-modal'), 2500);
+}
+
 document.getElementById('agent-bot-btn').addEventListener('click', (e) => { e.preventDefault(); toggleAgent(); });
+
+// ─── Contact form ─────────────────────────────────────────────────────────
+function updateCharCounter() {
+  const ta = document.getElementById('ct-message');
+  const cnt = document.getElementById('char-counter');
+  const len = ta.value.length;
+  cnt.textContent = len + ' / 500';
+  cnt.className = 'char-counter' + (len > 450 ? (len >= 500 ? ' over' : ' warn') : '');
+}
+
+function submitContact() {
+  let valid = true;
+  const name = document.getElementById('ct-name').value.trim();
+  const email = document.getElementById('ct-email').value.trim();
+  const subject = document.getElementById('ct-subject').value;
+  const msg = document.getElementById('ct-message').value.trim();
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  [['ct-name','err-ct-name', name.length > 0],
+   ['ct-email','err-ct-email', validEmail],
+   ['ct-subject','err-ct-subject', subject !== ''],
+   ['ct-message','err-ct-message', msg.length >= 10]].forEach(([id, errId, ok]) => {
+    document.getElementById(id).classList.toggle('err', !ok);
+    document.getElementById(errId).classList.toggle('show', !ok);
+    if (!ok) valid = false;
+  });
+  if (!valid) return;
+  document.getElementById('contact-form-view').style.display = 'none';
+  document.getElementById('contact-success').classList.add('show');
+}
+
+function resetContactForm() {
+  setTimeout(() => {
+    const fv = document.getElementById('contact-form-view');
+    const sv = document.getElementById('contact-success');
+    if (fv) fv.style.display = '';
+    if (sv) sv.classList.remove('show');
+    document.querySelectorAll('#contact-modal .form-input').forEach(e => e.classList.remove('err'));
+    document.querySelectorAll('#contact-modal .form-error').forEach(e => e.classList.remove('show'));
+    const ta = document.getElementById('ct-message');
+    if (ta) ta.value = '';
+    const cc = document.getElementById('char-counter');
+    if (cc) { cc.textContent = '0 / 500'; cc.className = 'char-counter'; }
+  }, 300);
+}
+
+// ─── Benchmark modal ─────────────────────────────────────────────────────
+let latencyChart, accuracyChart;
+
+function openBenchmark(tab) {
+  openModal('benchmark-modal');
+  switchBenchTab(tab || 'latency');
+}
+
+function switchBenchTab(tab) {
+  document.querySelectorAll('.bench-tab').forEach((b,i) => {
+    const tabs = ['latency','accuracy','roi','redteam'];
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.bench-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('bench-' + tab).classList.add('active');
+  if (tab === 'latency' && !latencyChart) initLatencyChart();
+  if (tab === 'accuracy' && !accuracyChart) initAccuracyChart();
+  if (tab === 'roi') updateROI();
+}
+
+function initLatencyChart() {
+  const ctx = document.getElementById('chart-latency');
+  if (!ctx || typeof Chart === 'undefined') return;
+  latencyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Shadow Warden AI', 'Lakera Guard', 'AWS Bedrock Guardrails', 'PromptArmor', 'Rebuff'],
+      datasets: [{
+        label: 'P99 Latency (ms)',
+        data: [1.8, 12, 28, 45, 38],
+        backgroundColor: ['rgba(48,209,88,0.7)','rgba(10,132,255,0.5)','rgba(10,132,255,0.35)','rgba(10,132,255,0.2)','rgba(10,132,255,0.2)'],
+        borderColor: ['#30D158','#0A84FF','#0A84FF','#0A84FF','#0A84FF'],
+        borderWidth: 1, borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + c.raw + 'ms' } } },
+      scales: {
+        x: { ticks: { color: '#8E8E9E', callback: v => v + 'ms' }, grid: { color: 'rgba(99,117,255,0.07)' }, border: { color: 'rgba(99,117,255,0.12)' } },
+        y: { ticks: { color: '#F5F5F7', font: { size: 12, weight: '500' } }, grid: { display: false }, border: { display: false } }
+      }
+    }
+  });
+}
+
+function initAccuracyChart() {
+  const ctx = document.getElementById('chart-accuracy');
+  if (!ctx || typeof Chart === 'undefined') return;
+  accuracyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Jailbreak', 'Prompt Injection', 'Obfuscation', 'RAG Poisoning', 'PII Leak', 'Phishing'],
+      datasets: [
+        { label: 'Shadow Warden AI', data: [99.8, 99.1, 100, 97.3, 100, 98.6], backgroundColor: 'rgba(48,209,88,0.7)', borderColor: '#30D158', borderWidth: 1, borderRadius: 4 },
+        { label: 'Best Competitor', data: [94, 88, 95, 82, 97, 91], backgroundColor: 'rgba(10,132,255,0.4)', borderColor: '#0A84FF', borderWidth: 1, borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { labels: { color: '#8E8E9E', font: { size: 11 } } }, tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + c.raw + '%' } } },
+      scales: {
+        y: { min: 75, max: 101, ticks: { color: '#8E8E9E', callback: v => v + '%' }, grid: { color: 'rgba(99,117,255,0.07)' }, border: { color: 'rgba(99,117,255,0.12)' } },
+        x: { ticks: { color: '#F5F5F7', font: { size: 11 } }, grid: { display: false }, border: { display: false } }
+      }
+    }
+  });
+}
+
+function calcROI(slider, valId, fmt) {
+  if (valId) document.getElementById(valId).textContent = fmt(parseInt(slider.value));
+  updateROI();
+}
+
+function updateROI() {
+  const inc = parseInt(document.getElementById('roi-inc')?.value || 12);
+  const cost = parseInt(document.getElementById('roi-cost')?.value || 45000);
+  const annual = inc * 12 * cost;
+  const out = document.getElementById('roi-output');
+  if (out) out.textContent = '$' + annual.toLocaleString();
+  const roi = document.querySelector('.roi-result strong');
+  if (roi) roi.textContent = 'ROI: ' + Math.round(annual / (69*12)) + '×';
+}
+
+// ─── Settings modal ─────────────────────────────────────────────────────
+function openSettings(tab) {
+  openModal('settings-modal');
+  switchSettingsTab(tab || 'apikeys');
+}
+
+function switchSettingsTab(tab) {
+  const tabMap = { apikeys:'sp-apikeys', tenants:'sp-tenants', alerts:'sp-alerts', pqc:'sp-pqc', sovereign:'sp-sovereign', billing:'sp-billing' };
+  document.querySelectorAll('.s-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.s-panel').forEach(p => p.classList.remove('active'));
+  const tabs = Object.keys(tabMap);
+  const idx = tabs.indexOf(tab);
+  document.querySelectorAll('.s-tab')[idx]?.classList.add('active');
+  document.getElementById(tabMap[tab])?.classList.add('active');
+}
+
+// ─── Docs modal ──────────────────────────────────────────────────────────
+function openDocs(section) {
+  openModal('docs-modal');
+  switchDocsSection(section || 'quickstart');
+}
+
+function switchDocsSection(section) {
+  const sectionMap = { quickstart:'ds-quickstart', api:'ds-api', security:'ds-security', compliance:'ds-compliance', sla:'ds-sla', changelog:'ds-changelog' };
+  const navMap = { quickstart:'dn-quickstart', api:'dn-api', security:'dn-security', compliance:'dn-compliance', sla:'dn-sla', changelog:'dn-changelog' };
+  document.querySelectorAll('.docs-nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.docs-section').forEach(s => s.classList.remove('active'));
+  document.getElementById(navMap[section])?.classList.add('active');
+  document.getElementById(sectionMap[section])?.classList.add('active');
+}
 
 // ─── Agent Bot ───────────────────────────────────────────────────────────────
 let agentOpen = false;

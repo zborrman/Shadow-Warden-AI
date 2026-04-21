@@ -276,8 +276,10 @@ def activate_break_glass(request_id: str):
         auto_expires = req.expires_at,
     )
 
-    # Schedule auto-close
-    threading.Timer(BREAK_GLASS_TTL_S, _auto_close, args=(request_id,)).start()
+    # Schedule auto-close (daemon so it doesn't block interpreter exit)
+    t = threading.Timer(BREAK_GLASS_TTL_S, _auto_close, args=(request_id,))
+    t.daemon = True
+    t.start()
     return kp
 
 

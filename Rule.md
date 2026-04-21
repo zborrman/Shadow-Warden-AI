@@ -25,7 +25,8 @@
 14. [Dynamic Rules (Evolution Loop)](#14-dynamic-rules-evolution-loop)
 15. [Adding Custom Rules](#15-adding-custom-rules)
 16. [Rule Governance](#16-rule-governance)
-17. [Exemptions & Overrides](#17-exemptions--overrides)
+17. [File Scanner Rules (Community Business / SMB)](#17-file-scanner-rules-community-business--smb)
+18. [Exemptions & Overrides](#18-exemptions--overrides)
 
 ---
 
@@ -467,7 +468,51 @@ hardcoded BLOCK rule (S-03, S-04, S-05).
 
 ---
 
-## 17. Exemptions & Overrides
+## 17. File Scanner Rules (Community Business / SMB)
+
+**File:** `warden/api/file_scan.py`  
+**Endpoint:** `POST /filter/file` — multipart upload, max 10 MB
+
+The file scanner runs a subset of the main pipeline optimised for offline file
+triage before a file is uploaded to an external AI tool. It does **not** run
+the full 9-stage pipeline; instead it applies Stages 3, 4, and injection
+detection only.
+
+### Risk Aggregation
+
+| Condition | Risk Level |
+|---|---|
+| Prompt-injection patterns detected (SemanticGuard HIGH/BLOCK) | **CRITICAL** |
+| 3+ secret findings *or* 10+ total findings | **HIGH** |
+| 1+ secret finding *or* 4+ total findings | **MEDIUM** |
+| PII only (email, SSN, IBAN, credit card) | **LOW** |
+| No findings | **SAFE** |
+
+### Finding Kinds
+
+| Kind | Source | Examples |
+|---|---|---|
+| `secret` | SecretRedactor patterns R-01–R-15 | API keys, PEM certs, bearer tokens |
+| `pii` | SecretRedactor patterns (email/ssn/iban/credit_card) | Emails, SSNs, IBANs |
+| `prompt_injection` | SemanticGuard | DAN, role-override, CBRN patterns |
+| `high_entropy` | Shannon entropy scan (≥4.5 bits/char, 32+ chars) | Unknown secrets |
+
+### File Format Support
+
+| Group | Extensions / MIME types |
+|---|---|
+| Text | `.txt`, `.md`, `.csv`, `.html`, `.xml`, `text/*` |
+| Code | `.py`, `.js`, `.ts`, `application/javascript` |
+| Data | `.json`, `application/json` |
+| PDF | `.pdf`, `application/pdf` (pdfminer → pypdf → raw fallback) |
+
+**Maximum file size:** 10 MB (`FILE_SCAN_MAX_MB` env var).  
+**Safe for SMBs:** file content is **never logged or stored**. Only metadata
+(filename, size, risk level, finding count, timing) is returned.
+
+---
+
+## 18. Exemptions & Overrides
 
 | Override | Mechanism | Limits |
 |---|---|---|

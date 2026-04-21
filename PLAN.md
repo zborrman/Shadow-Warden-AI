@@ -1,30 +1,95 @@
 # Shadow Warden AI — Improvement & Opportunity Plan
 
-**Based on:** Project Quality Analysis (Overall Score: 72/100)
+**Based on:** Project Quality Analysis (Overall Score: 72/100 → current ~82/100)
 **Target:** 90+ overall · Production-grade · Market-ready
+**Last updated:** 2026-04-21
+
+---
+
+## Completed Milestones ✅
+
+| Version | Deliverable | Status |
+|---------|-------------|--------|
+| v4.0 | MasterAgent (multi-agent SOC) | ✅ |
+| v4.1 | Post-Quantum Cryptography (ML-DSA-65 + ML-KEM-768) | ✅ |
+| v4.2 | Shadow AI Governance (18-provider discovery + policy) | ✅ |
+| v4.3 | Explainable AI 2.0 (9-stage causal chain + HTML/PDF) | ✅ |
+| v4.4 | Sovereign AI Cloud (8 jurisdictions, MASQUE tunnels) | ✅ |
+| v4.5 | Add-on Monetization (Lemon Squeezy, Pro $69, Ent $249) | ✅ |
+| v4.6 | SEP — Syndicate Exchange Protocol (UECIID, Peering, Knock) | ✅ |
+| v4.7 | Causal Transfer Guard + STIX Audit Chain + Sovereign Data Pods | ✅ |
+| v4.7 | **Community Business (SMB) Tier** — $19/mo, one-click install | ✅ |
 
 ---
 
 ## Roadmap Overview
 
 ```
-Phase 1 · CRITICAL FIXES       Weeks 1–3    Testing · Security · Production
-Phase 2 · STRENGTH HARDENING   Weeks 4–6    Performance · Compliance · DX
-Phase 3 · NEW OPPORTUNITIES    Weeks 7–12   Market expansion · Revenue features
+Phase 1 · CRITICAL FIXES       ✅ DONE      Testing · Security · Production
+Phase 2 · STRENGTH HARDENING   ✅ DONE      Performance · Compliance · DX
+Phase 3 · NEW OPPORTUNITIES    In Progress  Market expansion · Revenue features
+Phase 4 · SMB GROWTH           Next         SMB ecosystem · Partner integrations
 ```
 
-Score projection after each phase:
+Score projection:
 
 ```
-Current  ██████████████████████████████████░░░░░░  72
-Phase 1  ████████████████████████████████████████░  82
-Phase 2  █████████████████████████████████████████  88
-Phase 3  ████████████████████████████████████████▓  95  (new capabilities)
+v4.0     ██████████████████████████████████░░░░░░  72
+v4.7     ████████████████████████████████████████░  82  ← current
+Target   ████████████████████████████████████████▓  95  (Phase 3/4 complete)
 ```
 
 ---
 
-# PHASE 1 — CRITICAL FIXES
+# PHASE 4 — SMB GROWTH  `[Next quarter]`
+### Target: SMB ecosystem · Partner integrations · $19/mo Community Business flywheel
+
+## Step 0 — SMB Tier v1 (DELIVERED ✅)
+
+| Deliverable | File | Status |
+|-------------|------|--------|
+| `community_business` billing tier | `warden/billing/feature_gate.py` | ✅ |
+| File Scanner endpoint | `warden/api/file_scan.py` | ✅ |
+| SMB Docker Compose | `docker-compose.smb.yml` | ✅ |
+| One-click installers (bash + PS1) | `install-smb.sh`, `install-smb.ps1` | ✅ |
+| Shadow AI allowlist preset | `warden/shadow_ai/smb_presets.py` | ✅ |
+| SMB landing page | `site/src/pages/smb.astro` | ✅ |
+| Test suite (42 tests) | `warden/tests/test_smb_community_business.py` | ✅ |
+
+## Step 1 — SMB Chrome Extension  `[Week 1–2]`
+
+Browser extension that intercepts file-upload requests and calls `POST /filter/file`
+before allowing the file to reach ChatGPT / Claude web UI.
+
+- Manifest V3, Chrome + Edge
+- Visual risk badge (SAFE / LOW / MEDIUM / HIGH / CRITICAL)
+- Settings: Warden URL + API key
+- Automatic preset apply via `apply_smb_preset()` on first run
+
+## Step 2 — SMB Dashboard  `[Week 3]`
+
+Streamlit SMB overview page:
+- File scans in last 30 days (count, risk distribution)
+- Shadow AI tool discovery per tenant
+- One-click "Apply SMB preset" button
+- GDPR compliance report download (PDF)
+
+## Step 3 — Billing Integration (Lemon Squeezy)  `[Week 4]`
+
+- `POST /billing/tiers/community_business/checkout` → Lemon Squeezy variant ID
+- Webhook handler → `grant_addon("community_business", tenant_id)`
+- Trial: 14 days free (no card) via `WARDEN_TIER=community_business_trial`
+
+## Step 4 — Partner API  `[Week 5–6]`
+
+MSP / reseller program:
+- `POST /partner/provision` — provision tenant + apply SMB preset
+- `GET /partner/tenants` — list managed tenants + risk summaries
+- White-label domain support (`WARDEN_BRAND` env var)
+
+---
+
+# PHASE 1 — CRITICAL FIXES  ✅ COMPLETE
 ### Targets: Testing (8→70) · Security Hardening (58→80) · Production Readiness (51→78)
 
 ---

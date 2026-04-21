@@ -240,6 +240,57 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "ratchet_interval":            10,
     },
 
+    # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
+    "community_business": {
+        "req_per_month":               10_000,
+        "overage_enabled":             False,
+        # Core (always on)
+        "prompt_shield":               True,
+        "secret_redactor":             True,
+        "threat_vault":                True,
+        "docker_self_host":            True,
+        "totp_2fa":                    True,
+        "openai_proxy":                True,
+        # SMB unlocks
+        "audit_trail":                 True,
+        "gdpr_purge_api":              True,
+        "file_scanner_enabled":        True,   # POST /filter/file — scan before AI upload
+        "shadow_ai_monitor":           True,   # MONITOR-only (no BLOCK_DENYLIST)
+        "shadow_ai_enabled":           False,  # full subnet scan is add-on
+        "xai_reports_enabled":         False,
+        # Communities
+        "communities_enabled":         True,
+        "max_communities":             3,
+        "max_members_per_community":   10,
+        # Not available on SMB
+        "multi_tenant":                False,
+        "max_tenants":                 1,
+        "siem_integration":            False,
+        "prometheus_grafana":          False,
+        "slack_pagerduty":             False,
+        "on_prem_deployment":          False,
+        "custom_ml_training":          False,
+        "white_label":                 False,
+        "dedicated_support":           False,
+        "break_glass_enabled":         False,
+        "byok_enabled":                False,
+        "pqc_enabled":                 False,
+        "master_agent_enabled":        False,
+        "sovereign_enabled":           False,
+        "referral_program":            True,
+        "referral_bonus_requests":     1_000,
+        "referral_bonus_bytes":        2 * _GB,
+        "storage_bytes":               20 * _GB,
+        "bandwidth_bytes_per_month":   100 * _GB,
+        "max_entity_bytes":            256 * 1024 * 1024,
+        "retention_days":              180,
+        "ratchet_interval":            None,
+        # SMB-specific
+        "smb_onboarding":              True,   # simplified setup wizard
+        "smb_allowlist_preset":        True,   # pre-approved AI tool list
+        "smb_compliance_report":       True,   # one-click GDPR/compliance PDF
+    },
+
     "enterprise": {
         "req_per_month":               None,    # unlimited
         "overage_enabled":             True,
@@ -284,21 +335,28 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
 # ── Legacy aliases ─────────────────────────────────────────────────────────────
 TIER_LIMITS["free"]     = TIER_LIMITS["starter"]
 TIER_LIMITS["business"] = TIER_LIMITS["pro"]
+TIER_LIMITS["smb"]      = TIER_LIMITS["community_business"]   # short alias
 TIER_LIMITS["msp"]      = TIER_LIMITS["enterprise"]
 TIER_LIMITS["mcp"]      = TIER_LIMITS["enterprise"]   # legacy alias used in tests/quota
 
 _TIER_ORDER: dict[str, int] = {
     "starter": 0, "free": 0,
     "individual": 1,
-    "pro": 2, "business": 2,
-    "enterprise": 3, "msp": 3, "mcp": 3,
+    "community_business": 2, "smb": 2,
+    "pro": 3, "business": 3,
+    "enterprise": 4, "msp": 4, "mcp": 4,
 }
 
 
 def _normalize_tier(tier: str) -> str:
     t = tier.lower().strip()
-    # Resolve legacy names to canonical names
-    aliases = {"free": "starter", "business": "pro", "msp": "enterprise", "mcp": "enterprise"}
+    aliases = {
+        "free": "starter",
+        "smb": "community_business",
+        "business": "pro",
+        "msp": "enterprise",
+        "mcp": "enterprise",
+    }
     t = aliases.get(t, t)
     return t if t in TIER_LIMITS else "starter"
 

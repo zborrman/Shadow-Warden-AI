@@ -1,0 +1,116 @@
+# Shadow Warden AI — Community Business (SMB) Edition
+# One-click setup for small & medium businesses.
+# Only 3 services. No Prometheus, no MinIO, no Grafana, no analytics server.
+#
+# USAGE:
+#   docker compose -f docker-compose.smb.yml up -d
+#
+# Then open: http://localhost:8001/health
+#            http://localhost:8501  (dashboard)
+
+version: "3.9"
+
+services:
+
+  # ── Redis (in-memory cache + rate limiting) ───────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save ""
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [smb-net]
+    volumes:
+      - smb-redis:/data
+
+  # ── Shadow Warden core API ────────────────────────────────────────────────
+  warden:
+    image: shadowwarden/warden:latest
+    build:
+      context: .
+      dockerfile: warden/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env.smb
+    environment:
+      # SMB tier defaults
+      WARDEN_TIER: "community_business"
+      REDIS_URL: "redis://redis:6379"
+      LOGS_PATH: "/data/logs.json"
+      DYNAMIC_RULES_PATH: "/data/dynamic_rules.json"
+      MODEL_CACHE_DIR: "/warden/models"
+      # Disable enterprise-only services
+      S3_ENABLED: "false"
+      INTEL_OPS_ENABLED: "false"
+      SHADOW_AI_SYSLOG_ENABLED: "false"
+      # SMB file scanner
+      FILE_SCAN_ENABLED: "true"
+      FILE_SCAN_MAX_MB: "10"
+      STRICT_MODE: "false"
+    volumes:
+      - smb-models:/warden/models
+      - smb-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [smb-net]
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: "2.0"
+
+  # ── Streamlit dashboard (simplified) ─────────────────────────────────────
+  dashboard:
+    image: shadowwarden/warden:latest
+    build:
+      context: .
+      dockerfile: warden/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      warden:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    command: >
+      streamlit run warden/analytics/dashboard.py
+      --server.port=8501
+      --server.address=0.0.0.0
+      --server.headless=true
+      --browser.gatherUsageStats=false
+    env_file:
+      - .env.smb
+    environment:
+      WARDEN_TIER: "community_business"
+      REDIS_URL: "redis://redis:6379"
+      LOGS_PATH: "/data/logs.json"
+      WARDEN_API_URL: "http://warden:8001"
+    volumes:
+      - smb-data:/data
+      - smb-models:/warden/models
+    networks: [smb-net]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+networks:
+  smb-net:
+    driver: bridge
+
+volumes:
+  smb-redis:
+  smb-models:
+  smb-data:
