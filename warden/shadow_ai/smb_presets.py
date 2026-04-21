@@ -99,8 +99,12 @@ def _categorize(key: str) -> str:
     productivity  = {"notion", "grammarly", "jasper"}
     search        = {"perplexity", "you"}
     automation    = {"zapier", "make"}
-    if key in code_tools:   return "code"
-    if key in productivity: return "productivity"
-    if key in search:       return "search"
-    if key in automation:   return "automation"
+    if key in code_tools:
+        return "code"
+    if key in productivity:
+        return "productivity"
+    if key in search:
+        return "search"
+    if key in automation:
+        return "automation"
     return "llm"

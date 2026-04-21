@@ -11,6 +11,7 @@ Tests for:
 """
 import os
 import uuid
+
 import pytest
 
 os.environ.setdefault("REDIS_URL", "memory://")
@@ -96,9 +97,9 @@ class TestJurisdictions:
 
 @pytest.fixture(autouse=True)
 def clear_tunnel_memory():
-    import warden.sovereign.tunnel as tmod
     import warden.sovereign.attestation as amod
     import warden.sovereign.policy as pmod
+    import warden.sovereign.tunnel as tmod
     tmod._MEMORY_TUNNELS.clear()
     amod._MEMORY_ATTESTS.clear()
     pmod._MEMORY_STORE.clear()
@@ -155,9 +156,9 @@ class TestTunnel:
 
     def test_list_tunnels_by_jurisdiction(self):
         from warden.sovereign.tunnel import list_tunnels, register_tunnel
-        t_eu = self._register_eu()
-        t_us = register_tunnel(jurisdiction="US", region="us-east-1",
-                               endpoint="masque-us.test:443")
+        self._register_eu()
+        register_tunnel(jurisdiction="US", region="us-east-1",
+                        endpoint="masque-us.test:443")
         eu_list = list_tunnels(jurisdiction="EU")
         assert all(x.jurisdiction == "EU" for x in eu_list)
 
@@ -169,7 +170,7 @@ class TestTunnel:
         assert any(x.tunnel_id == t.tunnel_id for x in active)
 
     def test_update_tunnel_status(self):
-        from warden.sovereign.tunnel import get_tunnel, update_tunnel_status
+        from warden.sovereign.tunnel import update_tunnel_status
         t = self._register_eu()
         updated = update_tunnel_status(t.tunnel_id, "ACTIVE", latency_ms=12.5)
         assert updated.status == "ACTIVE"
@@ -209,7 +210,7 @@ class TestTunnel:
     def test_register_all_protocols(self, protocol):
         from warden.sovereign.tunnel import register_tunnel
         t = register_tunnel(jurisdiction="US", region="us-east-1",
-                            endpoint=f"proxy.test:443",
+                            endpoint="proxy.test:443",
                             protocol=protocol)
         assert t.protocol == protocol
 
@@ -570,8 +571,8 @@ class TestXAIRenderer:
         assert "BLOCK" in html_str or chain.final_verdict in html_str
 
     def test_render_html_contains_stage_names(self):
-        from warden.xai.renderer import render_html
         from warden.xai.chain import STAGE_META
+        from warden.xai.renderer import render_html
         chain = self._chain()
         html_str = render_html(chain).decode("utf-8", errors="ignore")
         assert any(meta["name"] in html_str for meta in STAGE_META.values())

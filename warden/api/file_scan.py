@@ -149,8 +149,8 @@ async def scan_file(
         text = text[:_MAX_TEXT_CHARS]
 
     # ── Secret + PII scan ─────────────────────────────────────────────────────
-    from warden.secret_redactor import SecretRedactor
     from warden.schemas import RedactionPolicy
+    from warden.secret_redactor import SecretRedactor
 
     redactor = SecretRedactor(strict=strict)
     result   = redactor.redact(text, RedactionPolicy.FULL)

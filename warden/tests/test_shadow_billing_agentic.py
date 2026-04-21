@@ -185,9 +185,9 @@ class TestBillingAddons:
     def test_require_addon_or_feature_enterprise_passes(self):
         """Enterprise tier has shadow_ai_enabled natively — no add-on needed."""
         from unittest.mock import MagicMock
-        from warden.billing.addons import require_addon_or_feature
+
         import warden.billing.addons as addons_mod
-        import warden.billing.feature_gate as fg
+        from warden.billing.addons import require_addon_or_feature
 
         dep_factory = require_addon_or_feature(
             feature="shadow_ai_enabled",
@@ -213,9 +213,11 @@ class TestBillingAddons:
     def test_require_addon_or_feature_tier_too_low_403(self):
         """Starter tier should get 403."""
         from unittest.mock import MagicMock
+
         from fastapi import HTTPException
-        from warden.billing.addons import require_addon_or_feature
+
         import warden.billing.addons as addons_mod
+        from warden.billing.addons import require_addon_or_feature
 
         dep_factory = require_addon_or_feature(
             feature="shadow_ai_enabled",
@@ -238,9 +240,11 @@ class TestBillingAddons:
     def test_require_addon_or_feature_eligible_but_missing_402(self):
         """Pro tier + no add-on purchased → 402."""
         from unittest.mock import MagicMock
+
         from fastapi import HTTPException
-        from warden.billing.addons import require_addon_or_feature
+
         import warden.billing.addons as addons_mod
+        from warden.billing.addons import require_addon_or_feature
 
         dep_factory = require_addon_or_feature(
             feature="shadow_ai_enabled",
@@ -495,7 +499,7 @@ class TestAgentRegistry:
 
     def test_revoke_all_only_active(self, reg):
         a1 = reg.register_agent("t10", "A1")
-        a2 = reg.register_agent("t10", "A2")
+        reg.register_agent("t10", "A2")
         reg.revoke_agent(a1["agent_id"])
         count = reg.revoke_all("t10")
         assert count == 1

@@ -1,5 +1,4 @@
 """Tests for Community Business (SMB) tier, file scanner, and SMB presets."""
-import io
 import os
 
 import pytest
@@ -158,8 +157,8 @@ class TestSMBPresets:
         assert len(overlap) == 0, f"Allowlist/denylist overlap: {overlap}"
 
     def test_apply_preset_updates_policy_in_memory(self):
-        from warden.shadow_ai.smb_presets import apply_smb_preset
         from warden.shadow_ai.policy import get_policy
+        from warden.shadow_ai.smb_presets import apply_smb_preset
         apply_smb_preset("smb-t4", mode="MONITOR")
         policy = get_policy("smb-t4")
         assert policy["mode"] == "MONITOR"
@@ -184,7 +183,7 @@ class TestFileScanHelpers:
 
     def test_extract_text_utf8(self):
         from warden.api.file_scan import _extract_text
-        content = "Привет мир".encode("utf-8")
+        content = "Привет мир".encode()
         text = _extract_text(content, "text/plain", "test.txt")
         assert "Привет" in text
 
@@ -237,6 +236,7 @@ class TestFileScanEndpoint:
     def client(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from warden.api.file_scan import router
         app = FastAPI()
         app.include_router(router)

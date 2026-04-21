@@ -4,10 +4,9 @@ Tests for:
   warden/communities/stix_audit.py     — STIX 2.1 audit chain
   warden/communities/transfer_guard.py — Causal Transfer Guard
 """
-import os
 import uuid
-import pytest
 
+import pytest
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -37,7 +36,7 @@ def _cid():
 
 class TestDataPod:
     def test_register_and_list(self):
-        from warden.communities.data_pod import register_pod, list_pods
+        from warden.communities.data_pod import list_pods, register_pod
         cid = _cid()
         pod = register_pod(cid, jurisdiction="EU",
                            minio_endpoint="https://fsn1.example.com",
@@ -69,7 +68,7 @@ class TestDataPod:
         assert list_pods(_cid()) == []
 
     def test_get_pod(self):
-        from warden.communities.data_pod import register_pod, get_pod
+        from warden.communities.data_pod import get_pod, register_pod
         cid = _cid()
         pod = register_pod(cid, jurisdiction="UK",
                            minio_endpoint="https://uk.example.com")
@@ -82,7 +81,7 @@ class TestDataPod:
         assert get_pod("nonexistent-pod-id") is None
 
     def test_decommission_pod(self):
-        from warden.communities.data_pod import register_pod, decommission_pod, get_pod
+        from warden.communities.data_pod import decommission_pod, get_pod, register_pod
         cid = _cid()
         pod = register_pod(cid, jurisdiction="CA",
                            minio_endpoint="https://ca.example.com")
@@ -97,7 +96,7 @@ class TestDataPod:
         assert result is False
 
     def test_get_pod_for_entity_primary(self):
-        from warden.communities.data_pod import register_pod, get_pod_for_entity
+        from warden.communities.data_pod import get_pod_for_entity, register_pod
         cid = _cid()
         register_pod(cid, jurisdiction="EU",
                      minio_endpoint="https://eu.example.com",
@@ -112,7 +111,7 @@ class TestDataPod:
         assert result is None
 
     def test_get_pod_for_entity_fallback_to_primary(self):
-        from warden.communities.data_pod import register_pod, get_pod_for_entity
+        from warden.communities.data_pod import get_pod_for_entity, register_pod
         cid = _cid()
         # Only an EU primary pod, but asking for US
         register_pod(cid, jurisdiction="EU",
@@ -123,7 +122,7 @@ class TestDataPod:
         assert pod is not None
 
     def test_secret_key_encrypted(self):
-        from warden.communities.data_pod import register_pod, get_pod
+        from warden.communities.data_pod import get_pod, register_pod
         cid = _cid()
         pod = register_pod(cid, jurisdiction="JP",
                            minio_endpoint="https://jp.example.com",
@@ -134,7 +133,7 @@ class TestDataPod:
         assert fetched.secret_key_enc != ""
 
     def test_probe_pod_unreachable(self):
-        from warden.communities.data_pod import register_pod, probe_pod
+        from warden.communities.data_pod import probe_pod, register_pod
         cid = _cid()
         pod = register_pod(cid, jurisdiction="AU",
                            minio_endpoint="https://nonexistent.invalid")
@@ -144,7 +143,7 @@ class TestDataPod:
         # Should fail gracefully (not raise)
 
     def test_multiple_pods_same_community(self):
-        from warden.communities.data_pod import register_pod, list_pods
+        from warden.communities.data_pod import list_pods, register_pod
         cid = _cid()
         register_pod(cid, jurisdiction="EU",
                      minio_endpoint="https://eu1.example.com")
@@ -154,7 +153,7 @@ class TestDataPod:
         assert len(pods) == 2
 
     def test_get_pod_for_entity_data_class_match(self):
-        from warden.communities.data_pod import register_pod, get_pod_for_entity
+        from warden.communities.data_pod import get_pod_for_entity, register_pod
         cid = _cid()
         register_pod(cid, jurisdiction="EU",
                      minio_endpoint="https://eu.example.com",
@@ -170,18 +169,18 @@ class TestDataPod:
 
 class TestStixAudit:
     def _transfer_kwargs(self, src=None, tgt=None, tid=None):
-        return dict(
-            transfer_id         = tid or str(uuid.uuid4()),
-            source_community_id = src or _cid(),
-            target_community_id = tgt or _cid(),
-            entity_ueciid       = "SEP-abc123def45",
-            initiator_mid       = "member-001",
-            purpose             = "forensic audit",
-            ctp_hmac_signature  = "deadbeef" * 8,
-        )
+        return {
+            "transfer_id":         tid or str(uuid.uuid4()),
+            "source_community_id": src or _cid(),
+            "target_community_id": tgt or _cid(),
+            "entity_ueciid":       "SEP-abc123def45",
+            "initiator_mid":       "member-001",
+            "purpose":             "forensic audit",
+            "ctp_hmac_signature":  "deadbeef" * 8,
+        }
 
     def test_append_genesis(self):
-        from warden.communities.stix_audit import append_transfer, get_chain
+        from warden.communities.stix_audit import append_transfer
         kwargs = self._transfer_kwargs()
         entry = append_transfer(**kwargs)
         assert entry.seq == 0
@@ -229,8 +228,9 @@ class TestStixAudit:
         assert result["entries"] == 0
 
     def test_export_chain_jsonl(self):
-        from warden.communities.stix_audit import append_transfer, export_chain_jsonl
         import json
+
+        from warden.communities.stix_audit import append_transfer, export_chain_jsonl
         src = _cid()
         tgt = _cid()
         for _ in range(2):

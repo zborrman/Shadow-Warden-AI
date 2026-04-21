@@ -1,6 +1,6 @@
 """Tests for warden/communities/break_glass.py and key_archive.py."""
 import os
-import tempfile
+
 import pytest
 
 os.environ.setdefault("BREAK_GLASS_TTL_S", "3600")
@@ -241,7 +241,8 @@ def test_audit_file_written(bg_env, tmp_path):
         community_id="test-community-01", kid="v1",
         reason="audit-test", requested_by="a@b", tenant_tier="mcp",
     )
-    lines = open(bg_env._AUDIT_LOG_PATH).readlines()
+    with open(bg_env._AUDIT_LOG_PATH) as fh:
+        lines = fh.readlines()
     assert len(lines) >= 1
     entry = json.loads(lines[0])
     assert entry["event"] == "INITIATED"
