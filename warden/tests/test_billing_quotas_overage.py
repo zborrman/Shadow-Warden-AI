@@ -1,6 +1,5 @@
 """Tests for warden/billing/quotas.py and warden/billing/overage.py."""
 import os
-import uuid
 
 import pytest
 
@@ -25,18 +24,18 @@ class TestQuotasConstants:
 
     def test_individual_limit_1gb(self):
         from warden.billing.quotas import PLAN_BANDWIDTH_BYTES
-        _GB = 1024 ** 3
-        assert PLAN_BANDWIDTH_BYTES["individual"] == 1 * _GB
+        gb = 1024 ** 3
+        assert PLAN_BANDWIDTH_BYTES["individual"] == 1 * gb
 
     def test_business_limit_50gb(self):
         from warden.billing.quotas import PLAN_BANDWIDTH_BYTES
-        _GB = 1024 ** 3
-        assert PLAN_BANDWIDTH_BYTES["business"] == 50 * _GB
+        gb = 1024 ** 3
+        assert PLAN_BANDWIDTH_BYTES["business"] == 50 * gb
 
     def test_mcp_limit_500gb(self):
         from warden.billing.quotas import PLAN_BANDWIDTH_BYTES
-        _GB = 1024 ** 3
-        assert PLAN_BANDWIDTH_BYTES["mcp"] == 500 * _GB
+        gb = 1024 ** 3
+        assert PLAN_BANDWIDTH_BYTES["mcp"] == 500 * gb
 
     def test_free_limit_is_zero(self):
         from warden.billing.quotas import PLAN_BANDWIDTH_BYTES
@@ -52,6 +51,7 @@ class TestQuotasConstants:
 
     def test_month_key_current_month(self):
         from datetime import UTC, datetime
+
         from warden.billing.quotas import _month_key
         expected_month = datetime.now(UTC).strftime("%Y-%m")
         key = _month_key("t1")
@@ -61,6 +61,7 @@ class TestQuotasConstants:
 class TestCheckBandwidthFreeBlocked:
     def test_free_plan_raises_402(self):
         from fastapi import HTTPException
+
         from warden.billing.quotas import check_bandwidth
         with pytest.raises(HTTPException) as exc:
             check_bandwidth("t1", "free", 1024)

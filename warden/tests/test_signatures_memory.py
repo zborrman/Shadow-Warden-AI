@@ -1,8 +1,6 @@
 """Tests for shadow_ai/signatures.py and agent/memory.py."""
 import os
 
-import pytest
-
 os.environ.setdefault("REDIS_URL", "memory://")
 os.environ.setdefault("WARDEN_API_KEY", "")
 os.environ.setdefault("SEMANTIC_THRESHOLD", "0.72")
