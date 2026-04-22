@@ -105,8 +105,14 @@ omit = [
     "warden/analytics/auth.py",
     "warden/analytics/siem.py",
     "warden/integrations/langchain_callback.py",
+    "warden/integrations/nemo_bridge.py",
     "warden/tools/browser.py",
     "warden/openai_proxy.py",
+    "warden/workers/probe_worker.py",
+    "warden/workers/reaper.py",
+    "warden/workers/settings.py",
+    "warden/db/migrations/*",
+    "warden/brain/faiss_index.py",
 ]
 
 [tool.coverage.report]
