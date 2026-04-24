@@ -1,0 +1,229 @@
+---
+const quickActions = [
+  { label: 'Morning Brief',   cmd: 'Run morning threat intelligence brief', icon: '🌅' },
+  { label: 'Threat Sync',     cmd: 'Sync latest CVEs and ArXiv papers',     icon: '🔄' },
+  { label: 'Health Check',    cmd: 'Run full system health check',           icon: '💚' },
+  { label: 'ROI Report',      cmd: 'Generate this month ROI impact report',  icon: '📊' },
+  { label: 'Corpus Status',   cmd: 'Check ML corpus health and drift',       icon: '🧬' },
+  { label: 'Visual Patrol',   cmd: 'Run visual patrol on monitored URLs',    icon: '👁️' },
+];
+
+const demoMessages = [
+  { role: 'user', text: 'Run a full security health check and show me any anomalies' },
+  {
+    role: 'assistant',
+    text: 'Running system health check via WardenHealer...',
+    tool: { name: 'get_health', args: '{}', result: '{"status":"ok","layers":14,"corpus_size":4821,"ers_active":true}' },
+  },
+  {
+    role: 'assistant',
+    text: "All 14 defense layers are operational. Corpus at 4,821 examples — healthy. ERS active with 3 shadow-banned sessions. No circuit breaker trips in last 6h.",
+    stats: [{ k: 'Layers', v: '14/14' }, { k: 'Corpus', v: '4,821' }, { k: 'Shadow Banned', v: '3' }, { k: 'CB Trips', v: '0' }],
+  },
+];
+---
+
+<!-- Agentic Bot Modal -->
+<div id="agent-modal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4"
+     style="background:rgba(3,5,15,0.92);backdrop-filter:blur(24px)">
+  <div class="w-full max-w-3xl h-[88vh] rounded-2xl border border-[#BF5AF2]/25 bg-[#080D1E]
+              flex flex-col overflow-hidden shadow-[0_40px_120px_rgba(191,90,242,0.15)]">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.07] flex-shrink-0"
+         style="background:linear-gradient(90deg,rgba(191,90,242,0.08),transparent)">
+      <div class="flex items-center gap-3">
+        <div class="relative w-9 h-9 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF]
+                    flex items-center justify-center text-lg"
+             style="box-shadow:0 0 20px rgba(191,90,242,0.4)">
+          🤖
+          <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#30D158]
+                       border-2 border-[#080D1E] animate-pulse"></span>
+        </div>
+        <div>
+          <div class="text-[14px] font-bold">SOVA Agent</div>
+          <div class="text-[10px] text-[#30D158]">Claude Opus 4.6 · 30 tools · ARQ scheduler</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="clearAgentChat()" class="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.07]
+                                                   text-[11px] text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors">
+          Clear
+        </button>
+        <button onclick="closeAgent()" class="w-8 h-8 rounded-lg bg-white/[0.05] hover:bg-white/[0.1]
+                                               flex items-center justify-center text-[#8E8E9E] transition-colors text-sm">✕</button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="agent-messages" class="flex-1 overflow-y-auto p-5 space-y-4">
+      <!-- Welcome -->
+      <div class="flex gap-3">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
+        <div class="flex-1">
+          <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">
+            Hello! I'm SOVA — your autonomous AI security operator.
+            I have access to <span class="text-[#BF5AF2] font-bold">30 specialized tools</span> including threat intelligence,
+            system health, forensics, compliance reports, and visual patrol via Playwright.
+            How can I help secure your AI infrastructure today?
+          </div>
+          <div class="text-[9px] text-[#48485A] mt-1 ml-1">SOVA · Claude Opus 4.6 · ready</div>
+        </div>
+      </div>
+
+      <!-- Demo exchange -->
+      {demoMessages.map(m => (
+        <div class={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+          <div class={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 mt-0.5
+                       ${m.role === 'user'
+                         ? 'bg-[#FF2D55]/20 border border-[#FF2D55]/25'
+                         : 'bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF]'}`}>
+            {m.role === 'user' ? '👤' : '🤖'}
+          </div>
+          <div class="flex-1 max-w-[85%]">
+            {m.tool && (
+              <div class="mb-2 rounded-xl border border-[#FFD60A]/20 bg-[#FFD60A]/[0.04] px-3 py-2.5 font-mono text-[10px]">
+                <div class="text-[#FFD60A] font-bold mb-1">⚡ tool: {m.tool.name}({m.tool.args})</div>
+                <div class="text-[#8E8E9E] break-all">{m.tool.result}</div>
+              </div>
+            )}
+            <div class={`rounded-2xl px-4 py-3 text-[13px] leading-[1.6]
+                          ${m.role === 'user'
+                            ? 'rounded-tr-sm bg-[#FF2D55]/15 border border-[#FF2D55]/20 text-[#F5F5F7]'
+                            : 'rounded-tl-sm bg-[#0D1428] border border-white/[0.06] text-[#F5F5F7]'}`}>
+              {m.text}
+            </div>
+            {m.stats && (
+              <div class="mt-2 grid grid-cols-4 gap-2">
+                {m.stats.map(s => (
+                  <div class="text-center p-2 rounded-lg bg-[#30D158]/[0.06] border border-[#30D158]/15">
+                    <div class="text-[14px] font-bold text-[#30D158]">{s.v}</div>
+                    <div class="text-[8px] text-[#48485A] uppercase tracking-wide">{s.k}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div class="text-[9px] text-[#48485A] mt-1 ml-1">
+              {m.role === 'user' ? 'You' : 'SOVA · just now'}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <!-- Thinking indicator (hidden by default) -->
+      <div id="agent-thinking" class="hidden flex gap-3">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0">🤖</div>
+        <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3">
+          <div class="flex gap-1">
+            <span class="w-2 h-2 rounded-full bg-[#BF5AF2] animate-bounce" style="animation-delay:0ms"></span>
+            <span class="w-2 h-2 rounded-full bg-[#BF5AF2] animate-bounce" style="animation-delay:150ms"></span>
+            <span class="w-2 h-2 rounded-full bg-[#BF5AF2] animate-bounce" style="animation-delay:300ms"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="px-5 py-3 border-t border-white/[0.06] flex-shrink-0">
+      <div class="flex gap-2 overflow-x-auto pb-1 mb-3">
+        {quickActions.map(a => (
+          <button onclick={`sendAgentMessage('${a.cmd}')`}
+                  class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                         bg-white/[0.04] border border-white/[0.07] text-[11px] text-[#8E8E9E]
+                         hover:border-[#BF5AF2]/30 hover:text-[#F5F5F7] transition-all duration-150 whitespace-nowrap">
+            <span>{a.icon}</span>{a.label}
+          </button>
+        ))}
+      </div>
+      <!-- Input -->
+      <div class="flex gap-2">
+        <input id="agent-input" type="text"
+               placeholder="Ask SOVA anything about your AI security..."
+               class="flex-1 bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-2.5
+                      text-[13px] text-[#F5F5F7] placeholder-[#48485A]
+                      focus:border-[#BF5AF2]/40 focus:outline-none transition-colors"
+               onkeydown="if(event.key==='Enter')sendAgentMessage()" />
+        <button onclick="sendAgentMessage()"
+                class="px-4 py-2.5 rounded-xl bg-[#BF5AF2] text-white font-bold text-[13px]
+                       hover:bg-[#A855F7] transition-colors flex-shrink-0"
+                style="box-shadow:0 4px 16px rgba(191,90,242,0.35)">
+          Send ↑
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openAgent() {
+    const el = document.getElementById('agent-modal');
+    if (el) { el.classList.remove('hidden'); el.classList.add('flex'); }
+  }
+  function closeAgent() {
+    const el = document.getElementById('agent-modal');
+    if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+  }
+  function clearAgentChat() {
+    const msgs = document.getElementById('agent-messages');
+    if (msgs) msgs.innerHTML = `
+      <div class="flex gap-3">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
+        <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">
+          Chat cleared. Ready for your next command!
+        </div>
+      </div>`;
+  }
+
+  async function sendAgentMessage(preset?: string) {
+    const input = document.getElementById('agent-input') as HTMLInputElement;
+    const text  = preset || input?.value?.trim();
+    if (!text) return;
+    if (input && !preset) input.value = '';
+
+    const msgs = document.getElementById('agent-messages')!;
+    const thinking = document.getElementById('agent-thinking')!;
+
+    // Append user message
+    const userDiv = document.createElement('div');
+    userDiv.className = 'flex gap-3 flex-row-reverse';
+    userDiv.innerHTML = `
+      <div class="w-8 h-8 rounded-xl bg-[#FF2D55]/20 border border-[#FF2D55]/25 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">👤</div>
+      <div class="flex-1 max-w-[85%]">
+        <div class="rounded-2xl rounded-tr-sm bg-[#FF2D55]/15 border border-[#FF2D55]/20 px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">${text}</div>
+        <div class="text-[9px] text-[#48485A] mt-1 ml-1 text-right">You · just now</div>
+      </div>`;
+    msgs.appendChild(userDiv);
+    thinking.classList.remove('hidden');
+    msgs.scrollTop = msgs.scrollHeight;
+
+    // Simulate SOVA response
+    await new Promise(r => setTimeout(r, 1400 + Math.random() * 600));
+    thinking.classList.add('hidden');
+
+    const responses: Record<string, string> = {
+      'Run morning threat intelligence brief': '📋 Morning Brief complete. OSV scanned 847 new CVEs — 2 affecting your dependency stack (flagged). ArXiv: 3 new LLM attack papers synthesized into corpus (+12 examples). Shadow ban queue: 7 active sessions. Corpus health: 4,821 examples, drift NOMINAL.',
+      'Run full system health check': '✅ All 14 defense layers operational. P99 latency: 18.3ms. Corpus: 4,821 examples. Circuit breaker: CLOSED. ERS: 3 shadow-banned sessions (gaslight strategy). MinIO: CONNECTED. Redis: CONNECTED. No anomalies detected.',
+      'Check ML corpus health and drift': '🧬 Corpus report: 4,821 total examples (↑23 from yesterday Evolution Engine). Distribution: BLOCK 3,241 / ALLOW 1,580. Drift score: 0.12 (NOMINAL threshold 0.3). Last evolution: 47 minutes ago triggered by BLOCK cluster.',
+    };
+
+    const reply = responses[text] || `Processing your request: "${text}"\n\nI've analyzed the request and am executing the appropriate tools. In production, I would connect to your Shadow Warden instance at localhost:8001 using your WARDEN_API_KEY and execute the relevant tool chain.`;
+
+    const botDiv = document.createElement('div');
+    botDiv.className = 'flex gap-3';
+    botDiv.innerHTML = `
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
+      <div class="flex-1 max-w-[85%]">
+        <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">${reply}</div>
+        <div class="text-[9px] text-[#48485A] mt-1 ml-1">SOVA · Claude Opus 4.6</div>
+      </div>`;
+    msgs.appendChild(botDiv);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  (window as any).openAgent       = openAgent;
+  (window as any).closeAgent      = closeAgent;
+  (window as any).sendAgentMessage = sendAgentMessage;
+  (window as any).clearAgentChat  = clearAgentChat;
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAgent(); });
+</script>

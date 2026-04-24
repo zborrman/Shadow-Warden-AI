@@ -1,0 +1,146 @@
+---
+const layers = [
+  {
+    num: '01', icon: '🌀', color: 'red',
+    title: 'Topological Gatekeeper',
+    tag: 'TDA · Ripser · <2ms',
+    desc: 'n-gram point cloud analysis computes Betti numbers β₀/β₁ via persistent homology. Catches structural anomalies before semantic analysis begins.',
+  },
+  {
+    num: '02', icon: '🔓', color: 'blue',
+    title: 'Obfuscation Decoder',
+    tag: 'Depth-3 Recursive',
+    desc: 'Strips Base64, hex, ROT13, Caesar cipher, UUencode, and homoglyph substitutions — recursively, up to 3 layers deep. No encoding tricks get through.',
+  },
+  {
+    num: '03', icon: '🔑', color: 'amber',
+    title: 'PII & Secret Vault',
+    tag: '15 Patterns · Shannon Entropy',
+    desc: '15 regex patterns detect AWS keys, JWTs, SSH keys, credit cards, SSNs. Shannon entropy scan catches novel secrets not in any pattern library.',
+  },
+  {
+    num: '04', icon: '📏', color: 'green',
+    title: 'Semantic Rule Engine',
+    tag: '420 Rules · Compound Escalation',
+    desc: 'Regex rule engine with compound risk escalation: 3+ MEDIUM-severity flags auto-escalate to HIGH. Catches multi-vector attacks that evade single-rule systems.',
+  },
+  {
+    num: '05', icon: '🧠', color: 'blue',
+    title: 'Hyperbolic Brain',
+    tag: 'MiniLM · ONNX · Poincaré Ball',
+    desc: 'MiniLM embeddings projected to Poincaré ball geometry. 70% cosine + 30% hyperbolic distance blend captures hierarchical attack patterns invisible to flat metrics.',
+  },
+  {
+    num: '06', icon: '🔗', color: 'purple',
+    title: 'Causal Arbiter',
+    tag: 'Bayesian DAG · Pearl Do-Calculus',
+    desc: 'Gray-zone decisions via 5-node Bayesian DAG. Pearl do-calculus with backdoor adjustment — causal inference, not just correlation. Sub-3ms decision time.',
+  },
+  {
+    num: '07', icon: '🎣', color: 'red',
+    title: 'PhishGuard + SE-Arbiter',
+    tag: 'URL Analysis · Social Engineering',
+    desc: 'Dual-layer phishing defense: URL pattern matching for known phishing domains, plus semantic social-engineering detection for novel manipulation attempts.',
+  },
+  {
+    num: '08', icon: '📊', color: 'amber',
+    title: 'Entity Risk Scoring',
+    tag: 'Redis · Sliding Window · Shadow Ban',
+    desc: 'Per-session reputation scores via Redis sliding window. Score ≥0.75 triggers differentiated Shadow Ban strategies: gaslight, delay, or standard — attackers never know.',
+  },
+  {
+    num: '09', icon: '🤖', color: 'green',
+    title: 'Evolution Engine',
+    tag: 'Claude Opus · Self-Improving',
+    desc: 'Claude Opus autonomously generates new detection examples from every BLOCK event. Hot-reloads the corpus without restart. Gets smarter in production, daily.',
+  },
+  {
+    num: '10', icon: '🌐', color: 'blue',
+    title: 'Sovereign AI Cloud',
+    tag: '8 Jurisdictions · MASQUE Tunnels',
+    desc: 'Per-tenant routing policy across 8 jurisdictions (EU/US/UK/CA/SG/AU/JP/CH). MASQUE_H3 tunnels, TOFU TLS pinning, and cross-border transfer enforcement.',
+  },
+  {
+    num: '11', icon: '🧬', color: 'purple',
+    title: 'Post-Quantum Crypto',
+    tag: 'FIPS 203/204 · Ed25519 + ML-DSA-65',
+    desc: 'HybridSigner (Ed25519 + ML-DSA-65) and HybridKEM (X25519 + ML-KEM-768). liboqs fail-open — classical crypto always active even without liboqs.',
+  },
+  {
+    num: '12', icon: '🔍', color: 'red',
+    title: 'Shadow AI Discovery',
+    tag: '18 Providers · Async /24 Probe',
+    desc: 'Detects unauthorized AI deployments across your network. Async subnet probe (max /24, 50 concurrent), DNS telemetry classifier, Redis findings store.',
+  },
+  {
+    num: '13', icon: '📡', color: 'amber',
+    title: 'Explainable AI (XAI)',
+    tag: '9-Stage DAG · PDF Reports',
+    desc: '9-node pipeline DAG with per-stage verdicts, causal attribution, and counterfactual remediations. HTML + PDF reports for SOC 2 audit evidence packages.',
+  },
+  {
+    num: '14', icon: '⚖️', color: 'green',
+    title: 'MasterAgent SOC',
+    tag: '4 Sub-agents · HMAC Tokens',
+    desc: '4 specialized sub-agents (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent) running in parallel. HMAC task tokens prevent cross-agent injection.',
+  },
+];
+
+const colorMap: Record<string, { icon: string; tag: string; border: string }> = {
+  red:    { icon: 'bg-[#FF2D55]/15',          tag: 'bg-[#FF2D55]/10 text-[#FF2D55]',    border: 'hover:border-[#FF2D55]/40' },
+  blue:   { icon: 'bg-[#0A84FF]/15',          tag: 'bg-[#0A84FF]/10 text-[#0A84FF]',    border: 'hover:border-[#0A84FF]/40' },
+  green:  { icon: 'bg-[#30D158]/15',          tag: 'bg-[#30D158]/10 text-[#30D158]',    border: 'hover:border-[#30D158]/40' },
+  amber:  { icon: 'bg-[#FFD60A]/10',          tag: 'bg-[#FFD60A]/10 text-[#FFD60A]',    border: 'hover:border-[#FFD60A]/40' },
+  purple: { icon: 'bg-[#BF5AF2]/[0.12]',      tag: 'bg-[#BF5AF2]/10 text-[#BF5AF2]',   border: 'hover:border-[#BF5AF2]/40' },
+};
+---
+
+<section id="features" class="relative py-28 lg:py-36">
+  <!-- section glow -->
+  <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-16 lg:mb-20">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FF2D55] mb-3">
+        14-Layer Defense Stack
+      </p>
+      <h2 class="text-[42px] lg:text-[52px] font-bold tracking-[-2px] mb-4">
+        Built for adversarial AI.
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        Not a bolt-on filter. A self-improving, cryptographically-attested security
+        fabric that runs in front of every AI request.
+      </p>
+    </div>
+
+    <!-- Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-white/[0.05] rounded-2xl overflow-hidden border border-white/[0.05]">
+      {layers.map((l) => {
+        const c = colorMap[l.color];
+        return (
+          <div
+            class={`relative bg-[#080D1E] p-7 transition-all duration-200 hover:bg-[#0D1428] ${c.border} border border-transparent hover:-translate-y-0.5 group overflow-hidden`}
+          >
+            <!-- Background number -->
+            <span
+              class="absolute top-2 right-4 text-[72px] font-black leading-none
+                     text-white/[0.03] select-none font-mono"
+            >{l.num}</span>
+
+            <!-- Icon -->
+            <div class={`w-11 h-11 rounded-xl flex items-center justify-center text-xl mb-5 ${c.icon}`}>
+              {l.icon}
+            </div>
+
+            <h3 class="text-[15px] font-bold mb-2 tracking-[-0.2px]">{l.title}</h3>
+            <p class="text-[12px] text-[#8E8E9E] leading-[1.7] mb-4">{l.desc}</p>
+            <span class={`inline-block text-[9px] font-bold tracking-[1px] uppercase px-2.5 py-1 rounded-md ${c.tag}`}>
+              {l.tag}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>

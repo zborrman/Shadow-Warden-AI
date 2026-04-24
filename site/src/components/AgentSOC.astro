@@ -1,0 +1,171 @@
+---
+const subAgents = [
+  {
+    name: 'SOVAOperator',    icon: '⚙️', color: '#0A84FF',
+    role: 'Health · Stats · Billing · Config · Key Rotation',
+    tools: ['get_health', 'get_stats', 'rotate_keys', 'get_billing', 'update_config'],
+  },
+  {
+    name: 'ThreatHunter',   icon: '🎯', color: '#FF2D55',
+    role: 'CVE Triage · ArXiv Intel · Adversarial Analysis',
+    tools: ['scan_cve', 'fetch_arxiv', 'analyze_attack', 'threat_report'],
+  },
+  {
+    name: 'ForensicsAgent', icon: '🔬', color: '#FFD60A',
+    role: 'Agent Activity · GDPR Art.30 · Evidence Vault · Visual Patrol',
+    tools: ['get_agent_log', 'gdpr_export', 'vault_query', 'visual_patrol'],
+  },
+  {
+    name: 'ComplianceAgent', icon: '📋', color: '#30D158',
+    role: 'SLA Monitors · SOC 2 Controls · ROI Proposals',
+    tools: ['check_sla', 'soc2_controls', 'roi_calc', 'compliance_report'],
+  },
+];
+
+const cronJobs = [
+  { name: 'sova_morning_brief',  schedule: '08:00 UTC daily',    icon: '🌅' },
+  { name: 'sova_threat_sync',    schedule: 'Every 6h',           icon: '🔄' },
+  { name: 'sova_rotation_check', schedule: '02:00 UTC daily',    icon: '🔑' },
+  { name: 'sova_sla_report',     schedule: 'Monday 09:00 UTC',   icon: '📊' },
+  { name: 'sova_upgrade_scan',   schedule: 'Sunday 10:00 UTC',   icon: '⬆️' },
+  { name: 'sova_corpus_watchdog', schedule: 'Every 30 min',      icon: '🐕' },
+  { name: 'sova_visual_patrol',  schedule: '03:00 UTC daily',    icon: '👁️' },
+];
+---
+
+<section id="soc" class="relative py-24 lg:py-32">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(191,90,242,0.25),transparent)"></div>
+
+  <!-- Purple ambient -->
+  <div class="absolute top-0 right-0 w-[600px] h-[600px] pointer-events-none"
+       style="background:radial-gradient(ellipse at top right,rgba(191,90,242,0.06) 0%,transparent 70%)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="mb-16">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#BF5AF2] mb-3">
+        Agentic SOC · MasterAgent v4.0
+      </p>
+      <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
+        Your AI security team.<br />
+        <span style="background:linear-gradient(135deg,#BF5AF2,#0A84FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          Running 24/7.
+        </span>
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        MasterAgent decomposes complex SOC tasks into 4 specialized sub-agents
+        running in parallel with HMAC task tokens and human-in-the-loop approval.
+      </p>
+    </div>
+
+    <!-- Architecture diagram -->
+    <div class="mb-10 rounded-2xl border border-[#BF5AF2]/20 bg-[#080D1E] p-8 overflow-x-auto">
+
+      <!-- SOVA core -->
+      <div class="flex flex-col items-center mb-8">
+        <div class="text-[10px] font-mono text-[#48485A] mb-2">POST /agent/sova · POST /agent/master</div>
+        <div class="rounded-2xl border border-[#BF5AF2]/40 bg-[#BF5AF2]/[0.07] px-8 py-4 text-center"
+             style="box-shadow:0 0 40px rgba(191,90,242,0.15)">
+          <div class="text-2xl mb-1">🧬</div>
+          <div class="text-[16px] font-bold text-[#BF5AF2]">MasterAgent</div>
+          <div class="text-[11px] text-[#8E8E9E] mt-1">Claude Opus 4.6 · ≤10 iterations · 30 tools</div>
+          <div class="flex gap-2 justify-center mt-2 flex-wrap">
+            {['HMAC task tokens', 'Human-in-the-Loop', 'Batch API (50% discount)', 'asyncio.gather()'].map(t => (
+              <span class="text-[8px] font-bold uppercase tracking-wide px-2 py-0.5 rounded
+                           bg-[#BF5AF2]/15 text-[#BF5AF2]">{t}</span>
+            ))}
+          </div>
+        </div>
+        <!-- Vertical line -->
+        <div class="w-px h-8 bg-[#BF5AF2]/30"></div>
+        <div class="text-[9px] text-[#48485A] font-mono">decompose → parallel asyncio.gather()</div>
+        <div class="w-px h-4 bg-[#BF5AF2]/30"></div>
+      </div>
+
+      <!-- Sub-agents grid -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {subAgents.map(a => (
+          <div class="rounded-xl border p-4 hover:-translate-y-0.5 transition-all duration-200"
+               style={`border-color:${a.color}30;background:${a.color}08`}>
+            <div class="text-2xl mb-2">{a.icon}</div>
+            <div class="text-[13px] font-bold mb-1" style={`color:${a.color}`}>{a.name}</div>
+            <div class="text-[10px] text-[#8E8E9E] leading-[1.5] mb-3">{a.role}</div>
+            <div class="flex flex-wrap gap-1">
+              {a.tools.map(t => (
+                <span class="text-[8px] font-mono px-1.5 py-0.5 rounded"
+                      style={`color:${a.color};background:${a.color}15`}>{t}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- HMAC token flow -->
+      <div class="mt-6 flex items-center gap-3 justify-center flex-wrap text-[11px] text-[#8E8E9E]">
+        <span>Each task carries</span>
+        <code class="bg-[#BF5AF2]/10 text-[#BF5AF2] px-2 py-0.5 rounded font-mono text-[10px]">
+          HMAC-SHA256(sub_agent:task_hash:ts:sig)
+        </code>
+        <span>· prevents cross-agent injection</span>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-[1fr_340px] gap-6">
+
+      <!-- 30 tools preview -->
+      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+          30 SOVA Tool Handlers
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {[
+            ['get_health', '#30D158'], ['get_stats', '#30D158'], ['block_session', '#FF2D55'],
+            ['scan_cve', '#FF9F0A'], ['rotate_keys', '#FFD60A'], ['get_logs', '#0A84FF'],
+            ['run_filter', '#FF2D55'], ['get_billing', '#30D158'], ['gdpr_export', '#0A84FF'],
+            ['fetch_arxiv', '#BF5AF2'], ['visual_assert_page', '#FF9F0A'], ['scan_shadow_ai', '#FF2D55'],
+            ['explain_decision', '#0A84FF'], ['list_sessions', '#8E8E9E'], ['get_sla', '#30D158'],
+            ['rotate_tenant', '#FFD60A'], ['vault_query', '#BF5AF2'], ['list_rules', '#FF9F0A'],
+            ['add_rule', '#FF2D55'], ['delete_rule', '#FF2D55'], ['get_agent_log', '#0A84FF'],
+            ['check_corpus', '#30D158'], ['roi_calc', '#FFD60A'], ['soc2_controls', '#0A84FF'],
+            ['threat_report', '#FF2D55'], ['analyze_attack', '#FF9F0A'], ['update_config', '#8E8E9E'],
+            ['get_tunnels', '#5AC8FA'], ['set_policy', '#BF5AF2'], ['probe_pod', '#30D158'],
+          ].map(([t, c]) => (
+            <div class="text-[9px] font-mono px-2 py-1 rounded"
+                 style={`color:${c};background:${c}10;border:1px solid ${c}20`}>{t}</div>
+          ))}
+        </div>
+        <div class="mt-3 text-[10px] text-[#48485A]">
+          Tool #28: visual_assert_page — in-process BrowserSandbox + Claude Vision ·
+          Tool #29: scan_shadow_ai — real ShadowAIDetector ·
+          Tool #30: explain_decision — XAI causal chain
+        </div>
+      </div>
+
+      <!-- Cron scheduler -->
+      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+          7 ARQ Scheduled Jobs
+        </div>
+        <div class="flex flex-col gap-2">
+          {cronJobs.map(j => (
+            <div class="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+              <span class="text-lg flex-shrink-0">{j.icon}</span>
+              <div class="flex-1 min-w-0">
+                <div class="text-[11px] font-mono font-bold text-[#F5F5F7] truncate">{j.name}</div>
+                <div class="text-[9px] text-[#48485A]">{j.schedule}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div class="mt-4 pt-4 border-t border-white/[0.05]">
+          <div class="text-[10px] text-[#8E8E9E]">
+            <span class="text-[#30D158] font-bold">WardenHealer</span>: LLM-free watchdog —
+            circuit breaker, bypass spike, corpus check, canary probe
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,169 @@
+---
+const comparisons = [
+  { metric: 'Model',            claude: 'Claude Opus 4.6',    nemotron: 'Nemotron-3 8B',     winner: 'both' },
+  { metric: 'Provider',         claude: 'Anthropic API',      nemotron: 'NVIDIA API',         winner: 'both' },
+  { metric: 'Mode',             claude: 'Cloud API',           nemotron: 'Self-hosted option', winner: 'nemotron' },
+  { metric: 'Context window',   claude: '200K tokens',         nemotron: '4K tokens',          winner: 'claude' },
+  { metric: 'Evolution quality', claude: 'High (Opus)',        nemotron: 'Good (fine-tuned)',   winner: 'claude' },
+  { metric: 'Air-gapped',       claude: '✗ requires API key', nemotron: '✓ fully offline',    winner: 'nemotron' },
+  { metric: 'Cost per run',     claude: '$$$',                  nemotron: '$ (GPU only)',        winner: 'nemotron' },
+  { metric: 'Latency',          claude: '2–8s API call',       nemotron: '<1s local GPU',      winner: 'nemotron' },
+];
+
+const capabilities = [
+  { icon: '🧬', title: 'Nemotron Evolution Engine', file: 'brain/evolve_nemotron.py',
+    desc: 'Generates adversarial attack examples using NVIDIA Nemotron-3. Full drop-in replacement for Claude Opus evolution — same add_examples() interface, hot-reload corpus.' },
+  { icon: '🔌', title: 'NVIDIA API Client', file: 'brain/nemotron_client.py',
+    desc: 'Async HTTP client for NVIDIA AI Foundation Models endpoint. Handles auth, retries, streaming, and rate-limiting. Configurable via NEMOTRON_API_KEY + NEMOTRON_BASE_URL.' },
+  { icon: '🤖', title: 'RAG Evolver', file: 'rag_evolver.py',
+    desc: 'Retrieval-Augmented Generation evolution pipeline. Combines Nemotron generation with FAISS similarity search to ensure new examples are maximally diverse from existing corpus.' },
+  { icon: '⚡', title: 'Dual-Mode Operation', file: 'brain/evolve.py',
+    desc: 'NEMOTRON_ENABLED=true switches the Evolution Engine backend. Falls back to Claude Opus gracefully. Both modes produce identically-structured examples for hot-reload.' },
+];
+
+const models = [
+  { name: 'Nemotron-3 8B Instruct', ctx: '4K', use: 'Attack example generation', badge: 'PRIMARY' },
+  { name: 'Nemotron-3 43B Instruct', ctx: '4K', use: 'High-quality synthesis', badge: 'OPTIONAL' },
+  { name: 'Nemotron-3 8B SteerLM', ctx: '4K', use: 'Fine-tuned security focus', badge: 'PREVIEW' },
+];
+---
+
+<section id="nemotron" class="relative py-24 lg:py-32 bg-[#03050F]">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(118,185,0,0.3),transparent)"></div>
+  <div class="absolute inset-x-0 bottom-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(118,185,0,0.1),transparent)"></div>
+
+  <!-- NVIDIA green ambient -->
+  <div class="absolute top-1/2 right-0 w-[700px] h-[600px] pointer-events-none"
+       style="background:radial-gradient(ellipse at right,rgba(118,185,0,0.05) 0%,transparent 70%)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-end gap-8 mb-16">
+      <div class="flex-1">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-[1.5px]"
+               style="background:rgba(118,185,0,0.15);color:#76B900;border:1px solid rgba(118,185,0,0.3)">
+            NVIDIA NEMOTRON 3
+          </div>
+          <div class="text-[10px] text-[#48485A] font-mono">brain/evolve_nemotron.py · brain/nemotron_client.py</div>
+        </div>
+        <h2 class="text-[42px] lg:text-[52px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
+          GPU-accelerated<br />
+          <span style="background:linear-gradient(135deg,#76B900,#5AC8FA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+            self-improvement.
+          </span>
+        </h2>
+        <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+          Nemotron-3 as an air-gapped alternative to Claude Opus for the Evolution Engine.
+          Run the full self-improving ML loop on-premises — no external API calls required.
+          Same hot-reload interface, zero code changes.
+        </p>
+      </div>
+
+      <!-- NVIDIA badge -->
+      <div class="flex-shrink-0 rounded-2xl border p-6 text-center"
+           style="border-color:rgba(118,185,0,0.25);background:rgba(118,185,0,0.04);
+                  box-shadow:0 0 60px rgba(118,185,0,0.08)">
+        <div class="text-[48px] font-black leading-none mb-2" style="color:#76B900">⚡</div>
+        <div class="text-[14px] font-bold text-[#F5F5F7] mb-1">Nemotron-3 8B</div>
+        <div class="text-[11px] text-[#8E8E9E] mb-3">NVIDIA AI Foundation</div>
+        <div class="flex flex-col gap-1.5">
+          <div class="text-[10px] font-bold px-3 py-1 rounded-full"
+               style="background:rgba(118,185,0,0.15);color:#76B900">Air-Gap Ready</div>
+          <div class="text-[10px] font-bold px-3 py-1 rounded-full"
+               style="background:rgba(118,185,0,0.15);color:#76B900">Self-Hosted Option</div>
+          <div class="text-[10px] font-bold px-3 py-1 rounded-full"
+               style="background:rgba(118,185,0,0.15);color:#76B900">NEMOTRON_ENABLED=true</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-8 mb-10">
+
+      <!-- Capabilities -->
+      <div class="space-y-4">
+        {capabilities.map(c => (
+          <div class="rounded-xl border border-white/[0.06] bg-[#080D1E] p-5
+                      hover:border-[rgba(118,185,0,0.2)] hover:-translate-y-0.5 transition-all duration-200">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                   style="background:rgba(118,185,0,0.1)">{c.icon}</div>
+              <div>
+                <div class="text-[13px] font-bold mb-0.5">{c.title}</div>
+                <div class="text-[9px] font-mono text-[#48485A] mb-2">{c.file}</div>
+                <p class="text-[12px] text-[#8E8E9E] leading-[1.65]">{c.desc}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- Comparison table + models -->
+      <div class="flex flex-col gap-4">
+        <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+          <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+            Claude Opus vs Nemotron-3
+          </div>
+          <table class="w-full text-[11px]">
+            <thead>
+              <tr class="border-b border-white/[0.06]">
+                <th class="text-left py-2 text-[#48485A] font-semibold">Metric</th>
+                <th class="py-2 text-[#FF9F0A] font-semibold text-center">Claude Opus</th>
+                <th class="py-2 font-semibold text-center" style="color:#76B900">Nemotron-3</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisons.map(r => (
+                <tr class="border-b border-white/[0.04]">
+                  <td class="py-2.5 text-[#8E8E9E] font-medium">{r.metric}</td>
+                  <td class={`py-2.5 text-center ${r.winner === 'claude' ? 'text-[#30D158] font-bold' : 'text-[#8E8E9E]'}`}>{r.claude}</td>
+                  <td class={`py-2.5 text-center ${r.winner === 'nemotron' ? 'font-bold' : 'text-[#8E8E9E]'}`}
+                      style={r.winner === 'nemotron' ? 'color:#76B900' : ''}>{r.nemotron}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Models -->
+        <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-5">
+          <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-3">Available Models</div>
+          {models.map(m => (
+            <div class="flex items-center gap-3 py-2.5 border-b border-white/[0.04] last:border-0">
+              <div class="flex-1">
+                <div class="text-[12px] font-bold">{m.name}</div>
+                <div class="text-[10px] text-[#8E8E9E]">{m.use} · ctx {m.ctx}</div>
+              </div>
+              <span class="text-[8px] font-bold px-2 py-0.5 rounded flex-shrink-0"
+                    style={`color:#76B900;background:rgba(118,185,0,${m.badge === 'PRIMARY' ? '0.2' : '0.08'})`}>
+                {m.badge}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- Config snippet -->
+    <div class="rounded-2xl border border-[rgba(118,185,0,0.2)] bg-[#080D1E] p-6">
+      <div class="text-[12px] font-bold mb-4" style="color:#76B900">Quick Configuration</div>
+      <div class="grid sm:grid-cols-3 gap-4">
+        {[
+          { key: 'NEMOTRON_ENABLED', val: 'true', desc: 'Switch Evolution Engine to Nemotron' },
+          { key: 'NEMOTRON_API_KEY', val: 'nvapi-••••', desc: 'NVIDIA AI Foundation API key' },
+          { key: 'NEMOTRON_BASE_URL', val: 'https://integrate.api.nvidia.com/v1', desc: 'NVIDIA API endpoint' },
+        ].map(c => (
+          <div class="p-3.5 rounded-xl bg-[#03050F] border border-white/[0.06] font-mono">
+            <div class="text-[9px] font-bold mb-1.5" style="color:#76B900">{c.key}</div>
+            <div class="text-[11px] text-[#F5F5F7] mb-1">{c.val}</div>
+            <div class="text-[9px] text-[#48485A]">{c.desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+  </div>
+</section>

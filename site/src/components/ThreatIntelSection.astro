@@ -1,0 +1,156 @@
+---
+const sources = [
+  { name: 'OSV.dev CVE Scanner',   icon: '🔍', color: '#FF2D55', count: '200K+ vulns' },
+  { name: 'ArXiv LLM Papers',      icon: '📄', color: '#0A84FF', count: 'Daily sync'  },
+  { name: 'MITRE CVE Feed',        icon: '🗂️', color: '#FF9F0A', count: 'NVD index'   },
+  { name: 'STIX 2.1 Threat Feeds', icon: '🌐', color: '#BF5AF2', count: 'OASIS format'},
+  { name: 'Internal BLOCK events', icon: '🛡️', color: '#30D158', count: 'Real-time'   },
+  { name: 'Nemotron Synthesis',    icon: '🤖', color: '#5AC8FA', count: 'NVIDIA API'  },
+];
+
+const billingPlatforms = [
+  { name: 'Stripe',        icon: '💳', color: '#6772E5', file: 'stripe_billing.py' },
+  { name: 'Lemon Squeezy', icon: '🍋', color: '#FFD60A', file: 'lemon_billing.py'  },
+  { name: 'Paddle',        icon: '🏓', color: '#0A84FF', file: 'paddle_billing.py'  },
+];
+
+const integrations = [
+  { name: 'Splunk HEC',      icon: '📡', color: '#FF9F0A', file: 'analytics/siem.py' },
+  { name: 'Elastic ECS',     icon: '🔵', color: '#0A84FF', file: 'analytics/siem.py' },
+  { name: 'Prometheus',      icon: '🔥', color: '#FF2D55', file: 'metrics.py'        },
+  { name: 'Grafana',         icon: '📊', color: '#FF9F0A', file: 'docker-compose'    },
+  { name: 'Slack Alerts',    icon: '💬', color: '#4A154B', file: 'alerting.py'       },
+  { name: 'PagerDuty',       icon: '🚨', color: '#30D158', file: 'alerting.py'       },
+  { name: 'Telegram',        icon: '✈️', color: '#0A84FF', file: 'telegram_alert.py' },
+  { name: 'LangChain',       icon: '🦜', color: '#30D158', file: 'integrations/langchain_callback.py' },
+  { name: 'OIDC/OAuth2',     icon: '🔐', color: '#FF9F0A', file: 'auth/oidc_guard.py'},
+  { name: 'SAML 2.0',        icon: '🏛️', color: '#BF5AF2', file: 'auth/saml_provider.py'},
+  { name: 'MinIO / S3',      icon: '🗄️', color: '#FF2D55', file: 'storage/s3.py'    },
+  { name: 'TimescaleDB',     icon: '⏱️', color: '#5AC8FA', file: 'workers/probe_worker.py'},
+];
+---
+
+<section id="intel" class="relative py-24 lg:py-32">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(255,159,10,0.2),transparent)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="mb-16">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FF9F0A] mb-3">
+        Threat Intelligence · Integrations · Billing
+      </p>
+      <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
+        Connected to<br />
+        <span style="background:linear-gradient(135deg,#FF9F0A,#FFD60A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          everything.
+        </span>
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        Threat intelligence from 6+ sources. SIEM export to Splunk and Elastic.
+        3 payment processors. OIDC + SAML enterprise SSO. Real-time Slack alerts.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6 mb-8">
+
+      <!-- Intel sources -->
+      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+          Intel Sources
+        </div>
+        <div class="flex flex-col gap-2">
+          {sources.map(s => (
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]
+                        hover:border-white/[0.08] transition-colors duration-150">
+              <span class="text-xl flex-shrink-0">{s.icon}</span>
+              <div class="flex-1 min-w-0">
+                <div class="text-[12px] font-semibold truncate">{s.name}</div>
+                <div class="text-[10px]" style={`color:${s.color}`}>{s.count}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div class="mt-4 pt-4 border-t border-white/[0.05] text-[10px] text-[#8E8E9E]">
+          ArXiv papers → synthesize_from_intel() → SemanticGuard.add_examples() hot-reload.
+          Interval: INTEL_BRIDGE_INTERVAL_HRS (default 6h).
+        </div>
+      </div>
+
+      <!-- Integrations -->
+      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+          12 Integrations
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          {integrations.map(int => (
+            <div class="flex items-center gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+              <span class="text-base flex-shrink-0">{int.icon}</span>
+              <div class="min-w-0">
+                <div class="text-[11px] font-semibold truncate">{int.name}</div>
+                <div class="text-[8px] font-mono text-[#48485A] truncate">{int.file}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Billing + analytics -->
+      <div class="flex flex-col gap-4">
+        <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+          <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+            3 Payment Processors
+          </div>
+          {billingPlatforms.map(p => (
+            <div class="flex items-center gap-3 py-3 border-b border-white/[0.04] last:border-0">
+              <span class="text-xl">{p.icon}</span>
+              <div class="flex-1">
+                <div class="text-[13px] font-bold" style={`color:${p.color}`}>{p.name}</div>
+                <div class="text-[9px] font-mono text-[#48485A]">{p.file}</div>
+              </div>
+              <div class="text-[9px] text-[#30D158] font-bold">✓ Active</div>
+            </div>
+          ))}
+          <div class="mt-3 text-[10px] text-[#8E8E9E]">
+            Webhook handler → Admin grant/revoke via X-Admin-Key.
+            Referral program: billing/referral.py.
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+          <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-3">Analytics Stack</div>
+          <div class="space-y-2 text-[11px] text-[#8E8E9E]">
+            <div>📈 <span class="text-[#F5F5F7]">Streamlit</span> security dashboard (:8501)</div>
+            <div>📊 <span class="text-[#F5F5F7]">MSP Dashboard</span> — multi-tenant view</div>
+            <div>🔥 <span class="text-[#F5F5F7]">Prometheus</span> + Grafana (:3000)</div>
+            <div>🔍 <span class="text-[#F5F5F7]">TimescaleDB</span> uptime hypertable</div>
+            <div>📡 <span class="text-[#F5F5F7]">NDJSON logger</span> + GDPR purge helpers</div>
+            <div>📄 <span class="text-[#F5F5F7]">Weekly PDF report</span> via ARQ cron</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auth & RBAC bar -->
+    <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+      <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-5">
+        Auth, Identity & Access Control
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { title: 'API Key Auth', desc: 'Per-tenant SHA-256 hash lookup. Constant-time compare.', file: 'auth_guard.py', color: '#FFD60A' },
+          { title: 'OIDC / OAuth2', desc: 'SSO via OIDC. JWT validation. Provider-agnostic.', file: 'auth/oidc_guard.py', color: '#FF9F0A' },
+          { title: 'SAML 2.0', desc: 'Enterprise SSO. XML assertion verification.', file: 'auth/saml_provider.py', color: '#BF5AF2' },
+          { title: 'RBAC', desc: 'Role-based access. Per-tenant policy. Admin/User/Viewer.', file: 'rbac.py', color: '#0A84FF' },
+        ].map(a => (
+          <div class="p-4 rounded-xl border border-white/[0.05] bg-white/[0.02]">
+            <div class="text-[13px] font-bold mb-1" style={`color:${a.color}`}>{a.title}</div>
+            <div class="text-[11px] text-[#8E8E9E] mb-2 leading-[1.55]">{a.desc}</div>
+            <div class="text-[9px] font-mono text-[#48485A]">{a.file}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

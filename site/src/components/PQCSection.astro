@@ -1,0 +1,188 @@
+---
+const algorithms = [
+  {
+    name: 'ML-DSA-65', standard: 'FIPS 204', type: 'Signature',
+    keySize: '1952 B pub', sigSize: '3309 B', color: '#BF5AF2',
+    desc: 'Post-quantum digital signature. Module-Lattice based.',
+  },
+  {
+    name: 'Ed25519', standard: 'RFC 8032', type: 'Signature (classical)',
+    keySize: '32 B pub', sigSize: '64 B', color: '#0A84FF',
+    desc: 'Classical Edwards curve signature. Always active as fallback.',
+  },
+  {
+    name: 'ML-KEM-768', standard: 'FIPS 203', type: 'KEM',
+    keySize: '1184 B pub', sigSize: '1088 B ct', color: '#BF5AF2',
+    desc: 'Post-quantum key encapsulation. Kyber-based.',
+  },
+  {
+    name: 'X25519', standard: 'RFC 7748', type: 'KEM (classical)',
+    keySize: '32 B pub', sigSize: '32 B ephem', color: '#0A84FF',
+    desc: 'Classical Diffie-Hellman. Always active as fallback.',
+  },
+];
+
+const hybridDiagram = [
+  { step: 'Sign', left: 'Ed25519 (64B)', right: 'ML-DSA-65 (3309B)', combo: 'HybridSignature (3373B)', arrow: '→' },
+  { step: 'KEM',  left: 'X25519 ss',    right: 'ML-KEM-768 ss',      combo: 'HKDF-SHA256(X25519_ss ⊕ mlkem_ss[:32])', arrow: '⊕' },
+];
+
+const communities = [
+  { title: 'Classical Keypair', kid: 'v1', pqc: false, color: '#0A84FF' },
+  { title: 'Hybrid PQC Keypair', kid: 'v1-hybrid', pqc: true, color: '#BF5AF2' },
+];
+---
+
+<section id="pqc" class="relative py-24 lg:py-32">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(191,90,242,0.2),transparent)"></div>
+
+  <!-- Purple/blue ambient -->
+  <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] pointer-events-none"
+       style="background:radial-gradient(ellipse,rgba(191,90,242,0.05) 0%,transparent 70%)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="mb-16">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#BF5AF2] mb-3">
+        Post-Quantum Cryptography · FIPS 203/204
+      </p>
+      <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
+        Quantum-safe.<br />
+        <span style="background:linear-gradient(135deg,#BF5AF2,#5AC8FA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          Classically hardened.
+        </span>
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        HybridSigner and HybridKEM combine classical and post-quantum algorithms.
+        If one is broken, the other provides full security. liboqs fail-open — classical always active.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-8 mb-10">
+
+      <!-- Algorithm table -->
+      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-5">Algorithm Stack</div>
+        <div class="space-y-3">
+          {algorithms.map(a => (
+            <div class="flex items-start gap-4 p-3.5 rounded-xl border"
+                 style={`border-color:${a.color}20;background:${a.color}06`}>
+              <div class="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
+                   style={`background:${a.color}15`}>
+                <div class="text-[9px] font-bold uppercase tracking-wide" style={`color:${a.color}`}>{a.standard}</div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-[14px] font-bold" style={`color:${a.color}`}>{a.name}</span>
+                  <span class="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded"
+                        style={`color:${a.color};background:${a.color}20`}>{a.type}</span>
+                </div>
+                <div class="text-[11px] text-[#8E8E9E] mb-2">{a.desc}</div>
+                <div class="flex gap-3 text-[9px] font-mono text-[#48485A]">
+                  <span>pub: {a.keySize}</span>
+                  <span>sig/ct: {a.sigSize}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Hybrid construction -->
+      <div class="flex flex-col gap-4">
+        <div class="rounded-2xl border border-[#BF5AF2]/20 bg-[#080D1E] p-6">
+          <div class="text-[12px] font-bold text-[#BF5AF2] uppercase tracking-wider mb-5">
+            Hybrid Construction
+          </div>
+          {hybridDiagram.map(d => (
+            <div class="mb-5 last:mb-0">
+              <div class="text-[10px] font-bold uppercase tracking-wide text-[#48485A] mb-2">{d.step}</div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <div class="px-3 py-2 rounded-lg bg-[#0A84FF]/10 border border-[#0A84FF]/20 text-[11px] font-mono text-[#0A84FF]">
+                  {d.left}
+                </div>
+                <div class="text-[#48485A] font-bold">+</div>
+                <div class="px-3 py-2 rounded-lg bg-[#BF5AF2]/10 border border-[#BF5AF2]/20 text-[11px] font-mono text-[#BF5AF2]">
+                  {d.right}
+                </div>
+                <div class="text-[#48485A]">{d.arrow}</div>
+                <div class="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.1] text-[10px] font-mono text-[#F5F5F7]">
+                  {d.combo}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div class="mt-5 pt-4 border-t border-white/[0.05] text-[11px] text-[#8E8E9E]">
+            <span class="text-[#BF5AF2] font-bold">Security guarantee:</span> if either algorithm
+            is broken by quantum or classical attack, the combined scheme remains secure.
+          </div>
+        </div>
+
+        <!-- Kid convention -->
+        <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+          <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+            Community Keypair Types
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            {communities.map(c => (
+              <div class="rounded-xl border p-4 text-center"
+                   style={`border-color:${c.color}25;background:${c.color}06`}>
+                <div class="text-[10px] font-bold uppercase tracking-wide mb-2" style={`color:${c.color}`}>
+                  {c.pqc ? '🧬 HYBRID PQC' : '🔑 Classical'}
+                </div>
+                <div class="font-mono text-[13px] font-bold mb-2">{c.title}</div>
+                <div class="font-mono text-[10px] px-2 py-1 rounded"
+                     style={`color:${c.color};background:${c.color}18`}>kid: "{c.kid}"</div>
+                {c.pqc && (
+                  <div class="mt-2 text-[9px] text-[#8E8E9E]">Enterprise · POST /communities/&#123;id&#125;/upgrade-pqc</div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div class="mt-4 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+            <div class="text-[10px] font-mono text-[#8E8E9E]">
+              <span class="text-[#BF5AF2]">liboqs fail-open:</span> PQCUnavailableError raised if not installed.
+              Classical Ed25519/X25519 always active. <span class="text-[#FF9F0A]">is_pqc_available()</span> health check.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STIX + Evidence chain -->
+    <div class="rounded-2xl border border-[#BF5AF2]/15 bg-[#080D1E] p-6">
+      <div class="grid sm:grid-cols-3 gap-6">
+        <div>
+          <div class="text-[11px] font-bold text-[#BF5AF2] uppercase tracking-wider mb-3">Causal Transfer Proof</div>
+          <div class="space-y-1.5 text-[11px] text-[#8E8E9E]">
+            <div>HMAC-SHA256 canonical string</div>
+            <div>Optional ML-DSA-65 hybrid signature</div>
+            <div>base64-encoded pqc_signature field</div>
+            <div>POST /sep/transfers/&#123;id&#125;/verify-proof</div>
+          </div>
+        </div>
+        <div>
+          <div class="text-[11px] font-bold text-[#5AC8FA] uppercase tracking-wider mb-3">STIX 2.1 Audit Chain</div>
+          <div class="space-y-1.5 text-[11px] text-[#8E8E9E]">
+            <div>SHA-256 blockchain-style prev_hash</div>
+            <div>4 STIX objects per transfer bundle</div>
+            <div>REJECTED transfers still appended</div>
+            <div>OASIS-compatible JSONL export</div>
+          </div>
+        </div>
+        <div>
+          <div class="text-[11px] font-bold text-[#30D158] uppercase tracking-wider mb-3">Evidence Vault</div>
+          <div class="space-y-1.5 text-[11px] text-[#8E8E9E]">
+            <div>MinIO: warden-evidence/bundles/&#123;sid&#125;.json</div>
+            <div>SHA-256 attestation per decision</div>
+            <div>PDF + HTML report on demand</div>
+            <div>Litigation-ready SOC 2 package</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>

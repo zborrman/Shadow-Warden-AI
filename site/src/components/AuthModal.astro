@@ -1,0 +1,255 @@
+---
+---
+
+<!-- Auth Modal -->
+<div id="auth-modal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4"
+     style="background:rgba(3,5,15,0.92);backdrop-filter:blur(24px)">
+  <div class="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#080D1E] overflow-hidden
+              shadow-[0_40px_120px_rgba(0,0,0,0.8)]">
+
+    <!-- Logo -->
+    <div class="text-center pt-8 pb-6 px-8 border-b border-white/[0.06]">
+      <div class="inline-flex items-center gap-2.5 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF2D55] to-[#FF6B35]
+                    flex items-center justify-center text-xl"
+             style="box-shadow:0 0 24px rgba(255,45,85,0.45)">🛡️</div>
+        <div class="text-left">
+          <div class="text-[15px] font-black">Shadow Warden AI</div>
+          <div class="text-[9px] text-[#FF2D55] font-bold tracking-[1.5px] uppercase">v4.7 · Zero-Trust Gateway</div>
+        </div>
+      </div>
+      <!-- Tabs -->
+      <div class="flex rounded-xl bg-white/[0.04] border border-white/[0.06] p-1">
+        <button id="tab-signin" onclick="setAuthTab('signin')"
+                class="flex-1 py-2 rounded-lg text-[13px] font-bold transition-all duration-200
+                       bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]">
+          Sign In
+        </button>
+        <button id="tab-signup" onclick="setAuthTab('signup')"
+                class="flex-1 py-2 rounded-lg text-[13px] font-medium transition-all duration-200
+                       text-[#8E8E9E] hover:text-[#F5F5F7]">
+          Sign Up
+        </button>
+      </div>
+    </div>
+
+    <div class="p-8">
+
+      <!-- Sign In form -->
+      <div id="form-signin">
+        <!-- Social -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+          <button onclick="socialAuth('google')"
+                  class="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/[0.08]
+                         bg-white/[0.03] hover:bg-white/[0.07] transition-colors text-[12px] font-semibold">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Google
+          </button>
+          <button onclick="socialAuth('github')"
+                  class="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/[0.08]
+                         bg-white/[0.03] hover:bg-white/[0.07] transition-colors text-[12px] font-semibold">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#F5F5F7"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+            GitHub
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3 mb-6">
+          <div class="flex-1 h-px bg-white/[0.07]"></div>
+          <span class="text-[10px] text-[#48485A] font-semibold uppercase tracking-wider">or email</span>
+          <div class="flex-1 h-px bg-white/[0.07]"></div>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">Email</label>
+            <input id="si-email" type="email" placeholder="you@company.com"
+                   class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                          text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none
+                          transition-colors" />
+            <div id="si-email-err" class="text-[10px] text-[#FF2D55] mt-1 hidden">Enter a valid email</div>
+          </div>
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide">Password</label>
+              <button onclick="showForgot()" class="text-[11px] text-[#FF2D55] hover:underline">Forgot?</button>
+            </div>
+            <div class="relative">
+              <input id="si-pass" type="password" placeholder="••••••••••••"
+                     class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 pr-11 text-[13px]
+                            text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none
+                            transition-colors" />
+              <button onclick="togglePw('si-pass')"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-[#48485A] hover:text-[#8E8E9E] text-[14px]">
+                👁
+              </button>
+            </div>
+          </div>
+          <button onclick="submitAuth('signin')"
+                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-white bg-[#FF2D55]
+                         hover:bg-[#E8213A] transition-colors"
+                  style="box-shadow:0 8px 24px rgba(255,45,85,0.35)">
+            Sign In to Shadow Warden
+          </button>
+        </div>
+      </div>
+
+      <!-- Sign Up form -->
+      <div id="form-signup" class="hidden">
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">First Name</label>
+              <input type="text" placeholder="Alex"
+                     class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                            text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">Last Name</label>
+              <input type="text" placeholder="Smith"
+                     class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                            text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">Work Email</label>
+            <input id="su-email" type="email" placeholder="alex@company.com"
+                   class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                          text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">Plan</label>
+            <select class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                           text-[#F5F5F7] focus:border-[#FF2D55]/50 focus:outline-none transition-colors">
+              <option>Individual — $29/mo</option>
+              <option selected>Pro — $69/mo (Most Popular)</option>
+              <option>Enterprise — $249/mo</option>
+            </select>
+          </div>
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide">Password</label>
+              <div id="pw-strength-label" class="text-[10px] text-[#48485A]"></div>
+            </div>
+            <div class="relative">
+              <input id="su-pass" type="password" placeholder="Min 12 chars · mixed case · numbers"
+                     oninput="updatePwStrength(this.value)"
+                     class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 pr-11 text-[13px]
+                            text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+              <button onclick="togglePw('su-pass')"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-[#48485A] hover:text-[#8E8E9E] text-[14px]">👁</button>
+            </div>
+            <!-- Strength bars -->
+            <div class="flex gap-1 mt-2">
+              {Array.from({length: 4}).map((_, i) => (
+                <div id={`bar-${i}`} class="flex-1 h-1 rounded-full bg-white/[0.07] transition-colors duration-300"></div>
+              ))}
+            </div>
+          </div>
+          <button onclick="submitAuth('signup')"
+                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-white bg-[#FF2D55]
+                         hover:bg-[#E8213A] transition-colors"
+                  style="box-shadow:0 8px 24px rgba(255,45,85,0.35)">
+            Create Account — Free 14-Day Trial
+          </button>
+          <p class="text-center text-[10px] text-[#48485A]">
+            No credit card required · Cancel anytime · SOC 2 compliant
+          </p>
+        </div>
+      </div>
+
+      <!-- Forgot password -->
+      <div id="form-forgot" class="hidden">
+        <div class="text-center mb-5">
+          <div class="text-[28px] mb-2">🔑</div>
+          <div class="text-[15px] font-bold mb-1">Reset your password</div>
+          <div class="text-[12px] text-[#8E8E9E]">Enter your email and we'll send a reset link</div>
+        </div>
+        <div class="space-y-4">
+          <input type="email" placeholder="your@email.com"
+                 class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                        text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+          <button onclick="submitForgot()"
+                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-white bg-[#FF2D55] hover:bg-[#E8213A] transition-colors">
+            Send Reset Link
+          </button>
+          <button onclick="setAuthTab('signin')" class="w-full py-2.5 text-[12px] text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors">
+            ← Back to Sign In
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Close -->
+    <button onclick="closeAuth()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/[0.05]
+                                          hover:bg-white/[0.1] flex items-center justify-center text-[#8E8E9E] text-sm transition-colors">✕</button>
+  </div>
+</div>
+
+<script>
+  const STRENGTH_COLORS = ['#FF2D55', '#FF9F0A', '#FFD60A', '#30D158'];
+  const STRENGTH_LABELS = ['Weak', 'Fair', 'Good', 'Strong'];
+
+  function openAuth(tab = 'signin') { setAuthTab(tab); const el = document.getElementById('auth-modal'); el?.classList.remove('hidden'); el?.classList.add('flex'); }
+  function closeAuth() { const el = document.getElementById('auth-modal'); el?.classList.add('hidden'); el?.classList.remove('flex'); }
+
+  function setAuthTab(tab: string) {
+    ['signin','signup','forgot'].forEach(t => {
+      document.getElementById(`form-${t}`)?.classList.add('hidden');
+    });
+    document.getElementById(`form-${tab}`)?.classList.remove('hidden');
+    const signInBtn = document.getElementById('tab-signin')!;
+    const signUpBtn = document.getElementById('tab-signup')!;
+    if (tab === 'signin') {
+      signInBtn.className = signInBtn.className.replace('text-[#8E8E9E]','text-white').replace('hover:text-[#F5F5F7]','') + ' bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]';
+      signUpBtn.className = signUpBtn.className.replace('bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]','') + ' text-[#8E8E9E] hover:text-[#F5F5F7]';
+    } else if (tab === 'signup') {
+      signUpBtn.className = signUpBtn.className.replace('text-[#8E8E9E]','text-white').replace('hover:text-[#F5F5F7]','') + ' bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]';
+      signInBtn.className = signInBtn.className.replace('bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]','') + ' text-[#8E8E9E] hover:text-[#F5F5F7]';
+    }
+  }
+
+  function togglePw(id: string) {
+    const el = document.getElementById(id) as HTMLInputElement;
+    if (el) el.type = el.type === 'password' ? 'text' : 'password';
+  }
+
+  function updatePwStrength(val: string) {
+    let score = 0;
+    if (val.length >= 8)  score++;
+    if (val.length >= 12) score++;
+    if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+    if (/[0-9]/.test(val) && /[^A-Za-z0-9]/.test(val)) score++;
+    for (let i = 0; i < 4; i++) {
+      const bar = document.getElementById(`bar-${i}`);
+      if (bar) bar.style.background = i < score ? STRENGTH_COLORS[score - 1] : 'rgba(255,255,255,0.07)';
+    }
+    const label = document.getElementById('pw-strength-label');
+    if (label) { label.textContent = val ? STRENGTH_LABELS[score - 1] || '' : ''; label.style.color = score ? STRENGTH_COLORS[score - 1] : '#48485A'; }
+  }
+
+  function showForgot() { setAuthTab('forgot'); }
+
+  function submitAuth(mode: string) {
+    const email = (document.getElementById(mode === 'signin' ? 'si-email' : 'su-email') as HTMLInputElement)?.value;
+    if (!email || !email.includes('@')) { alert('Please enter a valid email address'); return; }
+    alert(`✅ ${mode === 'signin' ? 'Signed in successfully' : 'Account created'}! Redirecting to dashboard...`);
+    closeAuth();
+  }
+
+  function submitForgot() { alert('✅ Reset link sent! Check your email.'); setAuthTab('signin'); }
+
+  function socialAuth(provider: string) { alert(`Redirecting to ${provider} OAuth...`); }
+
+  (window as any).openAuth      = openAuth;
+  (window as any).closeAuth     = closeAuth;
+  (window as any).setAuthTab    = setAuthTab;
+  (window as any).togglePw      = togglePw;
+  (window as any).updatePwStrength = updatePwStrength;
+  (window as any).showForgot    = showForgot;
+  (window as any).submitAuth    = submitAuth;
+  (window as any).submitForgot  = submitForgot;
+  (window as any).socialAuth    = socialAuth;
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAuth(); });
+</script>

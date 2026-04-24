@@ -1,0 +1,151 @@
+---
+---
+
+<section id="roi" class="relative py-28 lg:py-36">
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-16 items-center">
+
+      <!-- Left: copy -->
+      <div>
+        <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FFD60A] mb-3">
+          Business Value
+        </p>
+        <h2 class="text-[42px] lg:text-[50px] font-bold tracking-[-2px] mb-6">
+          Calculate your<br />
+          <span class="bg-gradient-to-r from-[#FFD60A] to-[#FF9F0A] bg-clip-text text-transparent">
+            ROI in 30 seconds.
+          </span>
+        </h2>
+        <p class="text-[16px] text-[#8E8E9E] leading-relaxed mb-8">
+          Block attackers before they reach your upstream models.
+          Save 100% of LLM costs on malicious traffic.
+          IBM 2024 data: average breach costs $4.88M.
+        </p>
+
+        <!-- Value props -->
+        <div class="flex flex-col gap-4">
+          {[
+            ['Inference Cost Savings', 'Block malicious requests before hitting paid model endpoints. Attackers eat zero tokens.'],
+            ['Breach Prevention', 'Prevent PII leaks, data exfiltration, and prompt injection attacks that trigger regulatory fines.'],
+            ['Zero-Trust Agent Sandbox', 'Complete control over tool-calling and agent capabilities — no runaway automation costs.'],
+          ].map(([title, desc]) => (
+            <div class="flex gap-4 p-4 rounded-xl bg-[#080D1E] border border-white/[0.06]">
+              <span class="mt-0.5 text-[#FFD60A] font-bold text-lg flex-shrink-0">✦</span>
+              <div>
+                <div class="text-[14px] font-semibold mb-1">{title}</div>
+                <div class="text-[13px] text-[#8E8E9E] leading-relaxed">{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Right: calculator card -->
+      <div
+        class="rounded-2xl border border-white/[0.08] bg-[#080D1E] p-8
+               shadow-[0_32px_80px_rgba(0,0,0,0.5)]"
+      >
+        <h3 class="text-[16px] font-bold mb-6">Dollar Impact Calculator</h3>
+
+        <!-- Sliders -->
+        <div class="flex flex-col gap-6 mb-8" id="roi-inputs">
+
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-[12px] font-semibold text-[#8E8E9E] uppercase tracking-wide">
+                Monthly AI Requests
+              </label>
+              <span id="label-req" class="text-[13px] font-bold text-[#0A84FF]">100,000</span>
+            </div>
+            <input
+              id="slider-req" type="range"
+              min="1000" max="1000000" step="1000" value="100000"
+              class="w-full accent-[#0A84FF] cursor-pointer h-1 rounded-full bg-white/[0.08]"
+            />
+          </div>
+
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-[12px] font-semibold text-[#8E8E9E] uppercase tracking-wide">
+                Malicious Traffic Rate
+              </label>
+              <span id="label-mal" class="text-[13px] font-bold text-[#0A84FF]">3%</span>
+            </div>
+            <input
+              id="slider-mal" type="range"
+              min="1" max="20" step="1" value="3"
+              class="w-full accent-[#0A84FF] cursor-pointer h-1 rounded-full bg-white/[0.08]"
+            />
+          </div>
+
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-[12px] font-semibold text-[#8E8E9E] uppercase tracking-wide">
+                Avg. Cost per Incident ($)
+              </label>
+              <span id="label-cost" class="text-[13px] font-bold text-[#0A84FF]">$45,000</span>
+            </div>
+            <input
+              id="slider-cost" type="range"
+              min="5000" max="500000" step="5000" value="45000"
+              class="w-full accent-[#0A84FF] cursor-pointer h-1 rounded-full bg-white/[0.08]"
+            />
+          </div>
+
+          <div>
+            <div class="flex justify-between mb-2">
+              <label class="text-[12px] font-semibold text-[#8E8E9E] uppercase tracking-wide">
+                Incidents per Month
+              </label>
+              <span id="label-inc" class="text-[13px] font-bold text-[#0A84FF]">12</span>
+            </div>
+            <input
+              id="slider-inc" type="range"
+              min="1" max="200" step="1" value="12"
+              class="w-full accent-[#0A84FF] cursor-pointer h-1 rounded-full bg-white/[0.08]"
+            />
+          </div>
+        </div>
+
+        <!-- Result -->
+        <div class="rounded-xl border border-[#30D158]/25 bg-[#30D158]/[0.05] p-6 text-center">
+          <p class="text-[11px] font-bold tracking-[2px] uppercase text-[#30D158] mb-2">
+            Estimated Annual Savings
+          </p>
+          <p id="roi-result" class="text-[48px] font-bold tracking-[-2px] text-[#30D158]">
+            $6,480,000
+          </p>
+          <p id="roi-multiplier" class="text-[13px] text-[#8E8E9E] mt-2">
+            vs. Shadow Warden Pro at $69/mo · <strong class="text-[#30D158]">ROI: 782×</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  function fmt(n: number) { return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 }); }
+
+  function calc() {
+    const req  = parseInt((document.getElementById('slider-req')  as HTMLInputElement).value);
+    const mal  = parseInt((document.getElementById('slider-mal')  as HTMLInputElement).value);
+    const cost = parseInt((document.getElementById('slider-cost') as HTMLInputElement).value);
+    const inc  = parseInt((document.getElementById('slider-inc')  as HTMLInputElement).value);
+
+    (document.getElementById('label-req')!).textContent  = req.toLocaleString();
+    (document.getElementById('label-mal')!).textContent  = mal + '%';
+    (document.getElementById('label-cost')!).textContent = fmt(cost);
+    (document.getElementById('label-inc')!).textContent  = String(inc);
+
+    const annual = inc * 12 * cost;
+    const roi    = Math.round(annual / (69 * 12));
+    (document.getElementById('roi-result')!).textContent     = fmt(annual);
+    (document.getElementById('roi-multiplier')!).innerHTML   =
+      `vs. Shadow Warden Pro at $69/mo · <strong class="text-[#30D158]">ROI: ${roi}×</strong>`;
+  }
+
+  ['slider-req','slider-mal','slider-cost','slider-inc'].forEach(id => {
+    document.getElementById(id)!.addEventListener('input', calc);
+  });
+</script>

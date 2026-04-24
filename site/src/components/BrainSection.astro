@@ -1,0 +1,187 @@
+---
+const modules = [
+  {
+    icon: '🧠', color: '#0A84FF', title: 'Hyperbolic Brain',
+    file: 'brain/semantic.py + brain/hyperbolic.py',
+    points: ['MiniLM L6 embeddings → ONNX CPU runtime', 'Poincaré ball projection (curvature c=1)', '70% cosine + 30% hyperbolic distance blend', 'Adversarial suffix stripping pre-embed'],
+  },
+  {
+    icon: '🌀', color: '#BF5AF2', title: 'Poincaré Geometry',
+    file: 'brain/hyperbolic.py',
+    points: ['Möbius addition in hyperbolic space', 'Vectorized distance: d(x,y) = 2·arctanh(‖-x⊕y‖)', 'Hierarchical attack pattern detection', 'Pure NumPy — no GPU required'],
+  },
+  {
+    icon: '🤖', color: '#30D158', title: 'Evolution Engine',
+    file: 'brain/evolve.py + intel_bridge.py',
+    points: ['Claude Opus 4.6 auto-generates attack examples', 'Triggers on every BLOCK/HIGH event', 'Hot-reloads corpus without service restart', 'ArXiv → synthesize_from_intel() pipeline'],
+  },
+  {
+    icon: '🧬', color: '#FF9F0A', title: 'Data Poisoning Guard',
+    file: 'brain/poison.py',
+    points: ['Training data poisoning detection (LLM03)', 'Uses _load_model() lru_cache singleton', 'Integrates into filter pipeline stage 3b', 'OWASP LLM03 100% coverage'],
+  },
+  {
+    icon: '⚡', color: '#5AC8FA', title: 'ONNX Runtime',
+    file: 'brain/onnx_runner.py',
+    points: ['CPU-only torch — no CUDA required', 'Pre-warmed in FastAPI lifespan()', '@lru_cache maxsize=1 singleton', 'asyncio.get_running_loop() — non-deprecated'],
+  },
+  {
+    icon: '🔍', color: '#FF2D55', title: 'FAISS + RAG Evolver',
+    file: 'brain/faiss_index.py + rag_evolver.py',
+    points: ['FAISS vector index for fast similarity search', 'RAG-based corpus evolution pipeline', 'Nemotron alternative evolver (NVIDIA API)', 'Corpus snapshot atomicity via mkstemp()'],
+  },
+];
+
+const evolutionSteps = [
+  { label: 'BLOCK event', color: '#FF2D55' },
+  { label: 'Claude Opus processes', color: '#BF5AF2' },
+  { label: 'Generates examples', color: '#FFD60A' },
+  { label: 'add_examples()', color: '#0A84FF' },
+  { label: 'Hot-reload corpus', color: '#30D158' },
+  { label: 'Model smarter', color: '#30D158' },
+];
+---
+
+<section id="brain" class="relative py-24 lg:py-32 bg-[#03050F]">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(10,132,255,0.25),transparent)"></div>
+  <div class="absolute inset-x-0 bottom-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(10,132,255,0.12),transparent)"></div>
+
+  <!-- Blue ambient -->
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px]
+              pointer-events-none"
+       style="background:radial-gradient(ellipse,rgba(10,132,255,0.05) 0%,transparent 70%)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="mb-16">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#0A84FF] mb-3">
+        ML Detection · Brain Layer
+      </p>
+      <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
+        Intelligence that<br />
+        <span style="background:linear-gradient(135deg,#0A84FF,#BF5AF2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          evolves daily.
+        </span>
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        Not static signatures. A living ML system that learns from every blocked attack,
+        projected into hyperbolic geometry to capture threat hierarchies.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-[1fr_380px] gap-8 mb-10">
+      <!-- Module cards -->
+      <div class="grid sm:grid-cols-2 gap-3">
+        {modules.map(m => (
+          <div class="rounded-xl border border-white/[0.06] bg-[#080D1E] p-5
+                      hover:border-opacity-50 hover:-translate-y-0.5 transition-all duration-200">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+                   style={`background:${m.color}15`}>{m.icon}</div>
+              <div>
+                <div class="text-[13px] font-bold">{m.title}</div>
+                <div class="text-[9px] font-mono text-[#48485A] mt-0.5">{m.file}</div>
+              </div>
+            </div>
+            <ul class="space-y-1.5">
+              {m.points.map(p => (
+                <li class="flex items-start gap-2 text-[11px] text-[#8E8E9E]">
+                  <span class="mt-0.5 font-bold text-[9px]" style={`color:${m.color}`}>▸</span>
+                  {p}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <!-- Poincaré disk + Evolution flow -->
+      <div class="flex flex-col gap-4">
+
+        <!-- Poincaré disk visualization -->
+        <div class="rounded-2xl border border-[#0A84FF]/20 bg-[#080D1E] p-6">
+          <div class="text-[12px] font-bold text-[#0A84FF] uppercase tracking-wider mb-4">
+            Poincaré Ball Projection
+          </div>
+          <div class="flex justify-center mb-4">
+            <svg width="200" height="200" viewBox="-1.1 -1.1 2.2 2.2">
+              <!-- Outer circle -->
+              <circle cx="0" cy="0" r="1" fill="none" stroke="#0A84FF" stroke-width="0.02" opacity="0.3"/>
+              <!-- Geodesic arcs representing threat clusters -->
+              <path d="M -0.7,-0.4 Q 0.2,0.8 0.7,-0.2" fill="none" stroke="#FF2D55" stroke-width="0.025" opacity="0.5"/>
+              <path d="M -0.5,0.6 Q 0.1,-0.3 0.8,0.3" fill="none" stroke="#BF5AF2" stroke-width="0.025" opacity="0.5"/>
+              <path d="M 0.2,-0.8 Q -0.4,0.1 -0.6,0.5" fill="none" stroke="#FFD60A" stroke-width="0.025" opacity="0.4"/>
+              <!-- Threat cluster dots (dangerous zone near boundary) -->
+              <circle cx="-0.72" cy="-0.42" r="0.05" fill="#FF2D55" opacity="0.9"/>
+              <circle cx="-0.68" cy="-0.51" r="0.04" fill="#FF2D55" opacity="0.7"/>
+              <circle cx="-0.78" cy="-0.35" r="0.04" fill="#FF2D55" opacity="0.7"/>
+              <circle cx="0.71" cy="-0.22" r="0.05" fill="#FF9F0A" opacity="0.9"/>
+              <circle cx="0.65" cy="-0.32" r="0.04" fill="#FF9F0A" opacity="0.7"/>
+              <!-- Safe zone (center) -->
+              <circle cx="0.05" cy="0.08" r="0.07" fill="#30D158" opacity="0.8"/>
+              <circle cx="0.12" cy="-0.05" r="0.05" fill="#30D158" opacity="0.6"/>
+              <circle cx="-0.06" cy="0.12" r="0.05" fill="#30D158" opacity="0.6"/>
+              <!-- Gray zone -->
+              <circle cx="0.38" cy="0.42" r="0.05" fill="#FFD60A" opacity="0.8"/>
+              <circle cx="-0.3" cy="0.48" r="0.05" fill="#BF5AF2" opacity="0.7"/>
+              <!-- Center reference -->
+              <circle cx="0" cy="0" r="0.02" fill="#0A84FF" opacity="0.5"/>
+              <!-- Grid rings -->
+              <circle cx="0" cy="0" r="0.5" fill="none" stroke="#0A84FF" stroke-width="0.01" opacity="0.1" stroke-dasharray="0.04 0.04"/>
+              <circle cx="0" cy="0" r="0.75" fill="none" stroke="#0A84FF" stroke-width="0.01" opacity="0.1" stroke-dasharray="0.04 0.04"/>
+            </svg>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div><div class="w-3 h-3 rounded-full bg-[#FF2D55] mx-auto mb-1"></div><div class="text-[9px] text-[#8E8E9E]">BLOCK zone</div></div>
+            <div><div class="w-3 h-3 rounded-full bg-[#FFD60A] mx-auto mb-1"></div><div class="text-[9px] text-[#8E8E9E]">Gray zone</div></div>
+            <div><div class="w-3 h-3 rounded-full bg-[#30D158] mx-auto mb-1"></div><div class="text-[9px] text-[#8E8E9E]">Safe zone</div></div>
+          </div>
+        </div>
+
+        <!-- Evolution loop -->
+        <div class="rounded-2xl border border-[#30D158]/20 bg-[#080D1E] p-6">
+          <div class="text-[12px] font-bold text-[#30D158] uppercase tracking-wider mb-4">
+            Self-Improving Loop (Daily)
+          </div>
+          <div class="flex flex-col gap-2">
+            {evolutionSteps.map((step, i) => (
+              <div class="flex items-center gap-3">
+                <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                     style={`background:${step.color}20;color:${step.color}`}>
+                  {i + 1}
+                </div>
+                <div class="flex-1 text-[12px] text-[#F5F5F7]">{step.label}</div>
+                {i < evolutionSteps.length - 1 && (
+                  <div class="text-[#48485A] text-[10px]">↓</div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div class="mt-4 pt-4 border-t border-white/[0.05] text-center">
+            <span class="text-[11px] text-[#8E8E9E]">Corpus grows </span>
+            <span class="text-[11px] font-bold text-[#30D158]">automatically</span>
+            <span class="text-[11px] text-[#8E8E9E]"> · No restart required</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.04] rounded-2xl overflow-hidden border border-white/[0.06]">
+      {[
+        { val: '420', label: 'Semantic Rules', color: '#30D158' },
+        { val: '15',  label: 'PII Patterns',   color: '#FFD60A' },
+        { val: '384', label: 'Embed Dimensions', color: '#0A84FF' },
+        { val: 'Daily', label: 'Self-Improvement', color: '#BF5AF2' },
+      ].map(s => (
+        <div class="bg-[#080D1E] px-6 py-5">
+          <div class="text-[32px] font-black tracking-tight leading-none mb-1" style={`color:${s.color}`}>{s.val}</div>
+          <div class="text-[10px] text-[#48485A] font-semibold uppercase tracking-wider">{s.label}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

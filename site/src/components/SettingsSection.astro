@@ -1,0 +1,367 @@
+---
+const settingsTabs = [
+  { id: 'pipeline',   icon: '🔴', label: 'Filter Pipeline' },
+  { id: 'brain',      icon: '🧠', label: 'Brain / ML'      },
+  { id: 'soc',        icon: '🤖', label: 'Agentic SOC'     },
+  { id: 'sovereign',  icon: '🌐', label: 'Sovereign Cloud' },
+  { id: 'pqc',        icon: '🧬', label: 'Post-Quantum'    },
+  { id: 'sep',        icon: '🔗', label: 'SEP Communities' },
+  { id: 'shadowai',   icon: '👁️', label: 'Shadow AI'       },
+  { id: 'xai',        icon: '📊', label: 'XAI / Explainer' },
+  { id: 'auth',       icon: '🔐', label: 'Auth & Identity' },
+  { id: 'billing',    icon: '💳', label: 'Billing'         },
+  { id: 'alerts',     icon: '🔔', label: 'Alerts'          },
+  { id: 'infra',      icon: '⚙️', label: 'Infrastructure'  },
+];
+---
+
+<!-- Settings Modal Overlay -->
+<div id="settings-modal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4"
+     style="background:rgba(3,5,15,0.92);backdrop-filter:blur(24px)">
+  <div class="w-full max-w-6xl h-[90vh] rounded-2xl border border-white/[0.08] bg-[#080D1E]
+              flex overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.8)]">
+
+    <!-- Sidebar -->
+    <div class="w-56 flex-shrink-0 border-r border-white/[0.06] flex flex-col"
+         style="background:#03050F">
+      <div class="px-5 py-5 border-b border-white/[0.06]">
+        <div class="text-[11px] font-black uppercase tracking-[2px] text-[#FF2D55]">⚙ Settings</div>
+        <div class="text-[10px] text-[#48485A] mt-0.5">v4.7 · All Categories</div>
+      </div>
+      <nav class="flex-1 overflow-y-auto py-3">
+        {settingsTabs.map((t, i) => (
+          <button onclick={`showSettingsTab('${t.id}')`}
+                  id={`stab-${t.id}`}
+                  class={`settings-tab-btn w-full flex items-center gap-2.5 px-4 py-2.5
+                          text-[12px] font-medium text-left transition-all duration-150
+                          ${i === 0 ? 'bg-white/[0.06] text-[#F5F5F7]' : 'text-[#8E8E9E] hover:bg-white/[0.03] hover:text-[#F5F5F7]'}`}>
+            <span class="text-base flex-shrink-0">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      <div class="p-4 border-t border-white/[0.06]">
+        <button class="w-full py-2 rounded-lg bg-[#30D158]/15 text-[#30D158] text-[11px] font-bold
+                       hover:bg-[#30D158]/25 transition-colors">
+          Save All Changes
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Top bar -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
+        <div id="settings-title" class="text-[14px] font-bold">Filter Pipeline Settings</div>
+        <button onclick="closeSettings()" class="w-8 h-8 rounded-lg bg-white/[0.05] hover:bg-white/[0.1]
+                                                  flex items-center justify-center text-[#8E8E9E] transition-colors text-sm">✕</button>
+      </div>
+
+      <!-- Panels -->
+      <div class="flex-1 overflow-y-auto p-6">
+
+        <!-- PIPELINE -->
+        <div id="spanel-pipeline" class="settings-panel">
+          <div class="grid sm:grid-cols-2 gap-4 mb-6">
+            {[
+              { label: 'Semantic Threshold', key: 'SEMANTIC_THRESHOLD', val: '0.72', type: 'number', hint: 'MiniLM block threshold (0.0–1.0)' },
+              { label: 'Causal Risk Threshold', key: 'CAUSAL_RISK_THRESHOLD', val: '0.65', type: 'number', hint: 'Bayesian DAG block probability' },
+              { label: 'Shadow Ban Score', key: 'ERS_SHADOW_BAN_SCORE', val: '0.75', type: 'number', hint: 'ERS score to trigger shadow ban' },
+              { label: 'Obfuscation Depth', key: 'OBFUSCATION_MAX_DEPTH', val: '3', type: 'number', hint: 'Max recursive decode layers' },
+            ].map(f => (
+              <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+                <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">{f.label}</label>
+                <input type={f.type} value={f.val}
+                       class="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2
+                              text-[13px] font-mono text-[#F5F5F7] focus:border-[#0A84FF]/50 focus:outline-none
+                              transition-colors" />
+                <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.key} · {f.hint}</div>
+              </div>
+            ))}
+          </div>
+          <div class="space-y-3">
+            {[
+              { label: 'Strict Mode', key: 'STRICT_MODE', val: false, desc: 'Block on any FLAG verdict (default: only BLOCK)' },
+              { label: 'Cache Enabled', key: 'CACHE_ENABLED', val: true, desc: 'Redis SHA-256 content hash cache (5-min TTL)' },
+              { label: 'PII Vault Active', key: 'PII_VAULT_ENABLED', val: true, desc: 'Fernet-encrypted masking engine' },
+              { label: 'Topology Guard', key: 'TOPOLOGY_GUARD_ENABLED', val: true, desc: 'TDA Gatekeeper (Betti β₀/β₁, <2ms)' },
+              { label: 'Multimodal Shield', key: 'MULTIMODAL_ENABLED', val: false, desc: 'Image + audio content protection' },
+              { label: 'Worm Guard', key: 'WORM_GUARD_ENABLED', val: true, desc: 'Self-propagating prompt attack detection' },
+            ].map(s => (
+              <div class="flex items-center justify-between p-4 rounded-xl border border-white/[0.05] bg-[#03050F]">
+                <div>
+                  <div class="text-[13px] font-semibold">{s.label}</div>
+                  <div class="text-[10px] text-[#48485A] font-mono mt-0.5">{s.key} · {s.desc}</div>
+                </div>
+                <div class={`w-10 h-6 rounded-full relative cursor-pointer transition-colors duration-200 flex-shrink-0
+                             ${s.val ? 'bg-[#30D158]' : 'bg-white/[0.1]'}`}
+                     onclick="this.classList.toggle('bg-[#30D158]');this.classList.toggle('bg-white/[0.1]')">
+                  <div class={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200
+                               ${s.val ? 'left-4' : 'left-0.5'}`}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- BRAIN -->
+        <div id="spanel-brain" class="settings-panel hidden">
+          <div class="grid sm:grid-cols-2 gap-4 mb-5">
+            {[
+              { label: 'Cosine Weight', key: 'BRAIN_COSINE_WEIGHT', val: '0.70', hint: 'Euclidean cosine blend ratio' },
+              { label: 'Hyperbolic Weight', key: 'BRAIN_HYPERBOLIC_WEIGHT', val: '0.30', hint: 'Poincaré ball distance ratio' },
+              { label: 'Model Cache Dir', key: 'MODEL_CACHE_DIR', val: '/tmp/warden_models', hint: 'ONNX model storage path' },
+              { label: 'FAISS Index Path', key: 'FAISS_INDEX_PATH', val: '/data/faiss.index', hint: 'Vector similarity index' },
+            ].map(f => (
+              <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+                <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">{f.label}</label>
+                <input value={f.val} class="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] font-mono text-[#F5F5F7] focus:border-[#0A84FF]/50 focus:outline-none" />
+                <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.key} · {f.hint}</div>
+              </div>
+            ))}
+          </div>
+          <div class="p-4 rounded-xl border border-[#0A84FF]/20 bg-[#0A84FF]/[0.04] mb-4">
+            <div class="text-[12px] font-bold text-[#0A84FF] mb-3">Evolution Engine</div>
+            <div class="space-y-3">
+              {[
+                { label: 'Auto-Evolution', key: 'EVOLUTION_ENABLED', val: true },
+                { label: 'Intel Bridge', key: 'INTEL_OPS_ENABLED', val: false },
+                { label: 'Nemotron Mode', key: 'NEMOTRON_ENABLED', val: false },
+              ].map(s => (
+                <div class="flex items-center justify-between">
+                  <span class="text-[12px] text-[#F5F5F7]">{s.label} <span class="text-[9px] font-mono text-[#48485A]">{s.key}</span></span>
+                  <div class={`w-10 h-6 rounded-full relative cursor-pointer transition-colors duration-200 ${s.val ? 'bg-[#0A84FF]' : 'bg-white/[0.1]'}`}
+                       onclick="this.classList.toggle('bg-[#0A84FF]');this.classList.toggle('bg-white/[0.1]')">
+                    <div class={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${s.val ? 'left-4' : 'left-0.5'}`}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+            <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">Intel Bridge Interval (hrs)</label>
+            <input type="range" min="1" max="24" value="6" class="w-full accent-[#0A84FF]" />
+            <div class="flex justify-between text-[9px] text-[#48485A] mt-1"><span>1h</span><span>6h (default)</span><span>24h</span></div>
+          </div>
+        </div>
+
+        <!-- SOC -->
+        <div id="spanel-soc" class="settings-panel hidden">
+          <div class="grid sm:grid-cols-2 gap-4 mb-5">
+            {[
+              { label: 'Max Iterations', key: 'SOVA_MAX_ITER', val: '10', hint: 'SOVA agentic loop cap' },
+              { label: 'Token Budget', key: 'SUB_AGENT_TOKEN_BUDGET', val: '8192', hint: 'Per sub-agent token limit' },
+              { label: 'Memory TTL (sec)', key: 'SOVA_MEMORY_TTL', val: '21600', hint: 'Redis conversation TTL (6h)' },
+              { label: 'Approval Token TTL', key: 'APPROVAL_TTL', val: '3600', hint: 'Human-in-the-Loop Redis TTL' },
+            ].map(f => (
+              <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+                <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">{f.label}</label>
+                <input value={f.val} class="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] font-mono text-[#F5F5F7] focus:border-[#BF5AF2]/50 focus:outline-none" />
+                <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.key} · {f.hint}</div>
+              </div>
+            ))}
+          </div>
+          <div class="space-y-3">
+            {[
+              { label: 'SOVA Agent', key: 'SOVA_ENABLED', val: true, desc: 'Claude Opus 4.6 agentic loop' },
+              { label: 'MasterAgent', key: 'MASTER_AGENT_ENABLED', val: true, desc: '4 sub-agents + HMAC task tokens' },
+              { label: 'Auto-Approve Jobs', key: 'AUTO_APPROVE_CRON', val: true, desc: 'Skip HITL for scheduled tasks' },
+              { label: 'Visual Patrol', key: 'VISUAL_PATROL_ENABLED', val: false, desc: 'Playwright + Claude Vision (03:00 UTC)' },
+              { label: 'WardenHealer', key: 'HEALER_ENABLED', val: true, desc: 'LLM-free autonomous watchdog' },
+              { label: 'Batch API', key: 'MASTER_BATCH_API', val: true, desc: 'claude.beta.messages.batches (50% discount)' },
+            ].map(s => (
+              <div class="flex items-center justify-between p-4 rounded-xl border border-white/[0.05] bg-[#03050F]">
+                <div>
+                  <div class="text-[13px] font-semibold">{s.label}</div>
+                  <div class="text-[10px] text-[#48485A] font-mono mt-0.5">{s.key} · {s.desc}</div>
+                </div>
+                <div class={`w-10 h-6 rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${s.val ? 'bg-[#BF5AF2]' : 'bg-white/[0.1]'}`}
+                     onclick="this.classList.toggle('bg-[#BF5AF2]');this.classList.toggle('bg-white/[0.1]')">
+                  <div class={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${s.val ? 'left-4' : 'left-0.5'}`}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- SOVEREIGN -->
+        <div id="spanel-sovereign" class="settings-panel hidden">
+          <div class="mb-4">
+            <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">Default Jurisdiction</label>
+            <select class="w-full bg-[#03050F] border border-white/[0.08] rounded-lg px-3 py-2.5 text-[13px] text-[#F5F5F7] focus:border-[#30D158]/50 focus:outline-none">
+              {['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'].map(j => (
+                <option value={j} selected={j === 'EU'}>{j}</option>
+              ))}
+            </select>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4 mb-5">
+            {[
+              { label: 'Attest Key', key: 'SOVEREIGN_ATTEST_KEY', val: '••••••••••••', hint: 'HMAC-SHA256 signing key' },
+              { label: 'Tunnel Offline After', key: 'TUNNEL_OFFLINE_AFTER_FAILS', val: '5', hint: 'Probe failures before OFFLINE' },
+            ].map(f => (
+              <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+                <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">{f.label}</label>
+                <input value={f.val} class="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] font-mono text-[#F5F5F7] focus:border-[#30D158]/50 focus:outline-none" />
+                <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.key} · {f.hint}</div>
+              </div>
+            ))}
+          </div>
+          <div class="space-y-3">
+            {['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'].map((j, i) => (
+              <div class="flex items-center justify-between p-3.5 rounded-xl border border-white/[0.05] bg-[#03050F]">
+                <div class="flex items-center gap-3">
+                  <span class="font-mono text-[12px] font-bold text-[#30D158]">{j}</span>
+                  <span class="text-[11px] text-[#8E8E9E]">Jurisdiction routing</span>
+                </div>
+                <div class={`w-10 h-6 rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${i < 3 ? 'bg-[#30D158]' : 'bg-white/[0.1]'}`}
+                     onclick="this.classList.toggle('bg-[#30D158]');this.classList.toggle('bg-white/[0.1]')">
+                  <div class={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${i < 3 ? 'left-4' : 'left-0.5'}`}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- PQC -->
+        <div id="spanel-pqc" class="settings-panel hidden">
+          <div class="p-4 rounded-xl border border-[#BF5AF2]/25 bg-[#BF5AF2]/[0.05] mb-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-[13px] font-bold text-[#BF5AF2]">Post-Quantum Crypto (Enterprise)</div>
+              <span class="text-[9px] px-2 py-0.5 rounded bg-[#BF5AF2]/20 text-[#BF5AF2] font-bold">FIPS 203/204</span>
+            </div>
+            <div class="space-y-3">
+              {[
+                { label: 'liboqs Available', key: 'OQS_AVAILABLE', val: true },
+                { label: 'Hybrid Signatures', key: 'PQC_HYBRID_SIGN', val: true },
+                { label: 'Hybrid KEM', key: 'PQC_HYBRID_KEM', val: true },
+                { label: 'PQC Transfer Proofs', key: 'SEP_PQC_PROOF', val: false },
+              ].map(s => (
+                <div class="flex items-center justify-between">
+                  <span class="text-[12px]">{s.label} <code class="text-[9px] text-[#48485A]">{s.key}</code></span>
+                  <div class={`w-10 h-6 rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${s.val ? 'bg-[#BF5AF2]' : 'bg-white/[0.1]'}`}
+                       onclick="this.classList.toggle('bg-[#BF5AF2]');this.classList.toggle('bg-white/[0.1]')">
+                    <div class={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${s.val ? 'left-4' : 'left-0.5'}`}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4">
+            {[
+              { label: 'Vault Master Key', key: 'VAULT_MASTER_KEY', val: '••••••••••••', hint: 'Fernet encryption root' },
+              { label: 'Community Vault Key', key: 'COMMUNITY_VAULT_KEY', val: '••••••••••••', hint: 'SEP keypair encryption' },
+              { label: 'SEP DB Path', key: 'SEP_DB_PATH', val: '/tmp/warden_sep.db', hint: 'SQLite for UECIID/peerings' },
+              { label: 'Transfer Risk Threshold', key: 'TRANSFER_RISK_THRESHOLD', val: '0.70', hint: 'Causal Transfer Guard block P' },
+            ].map(f => (
+              <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+                <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">{f.label}</label>
+                <input value={f.val} class="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] font-mono text-[#F5F5F7] focus:border-[#BF5AF2]/50 focus:outline-none" />
+                <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.key} · {f.hint}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- Other panels (SEP, Shadow AI, XAI, Auth, Billing, Alerts, Infra) -->
+        {['sep','shadowai','xai','auth','billing','alerts','infra'].map(pid => (
+          <div id={`spanel-${pid}`} class="settings-panel hidden">
+            <div class="space-y-3">
+              {({
+                sep: [
+                  { l:'SEP DB Path', k:'SEP_DB_PATH', v:'/tmp/warden_sep.db', h:'SQLite peerings/UECIID' },
+                  { l:'Knock Token TTL (sec)', k:'KNOCK_TTL', v:'259200', h:'72 hours default' },
+                  { l:'Velocity Window (sec)', k:'TRANSFER_VELOCITY_WINDOW', v:'3600', h:'1h sliding window' },
+                  { l:'Burst Window (sec)', k:'TRANSFER_BURST_WINDOW', v:'300', h:'5min burst detection' },
+                ],
+                shadowai: [
+                  { l:'Scan Concurrency', k:'SHADOW_AI_CONCURRENCY', v:'50', h:'Max concurrent probes' },
+                  { l:'Probe Timeout (sec)', k:'SHADOW_AI_PROBE_TIMEOUT', v:'3', h:'Per-host timeout' },
+                  { l:'Syslog Port', k:'SHADOW_AI_SYSLOG_PORT', v:'5514', h:'UDP DNS telemetry sink' },
+                  { l:'Findings Cap', k:'SHADOW_AI_FINDINGS_CAP', v:'1000', h:'Redis entries per tenant' },
+                ],
+                xai: [
+                  { l:'XAI Report Format', k:'XAI_DEFAULT_FORMAT', v:'html', h:'html or pdf' },
+                  { l:'Dashboard Hours', k:'XAI_DASHBOARD_HOURS', v:'24', h:'Default time window' },
+                  { l:'Batch Size', k:'XAI_BATCH_SIZE', v:'50', h:'Max batch explain calls' },
+                  { l:'PDF Library', k:'XAI_PDF_LIB', v:'reportlab', h:'or fallback to html' },
+                ],
+                auth: [
+                  { l:'Admin Key', k:'ADMIN_KEY', v:'••••••••••••', h:'Billing grant/revoke' },
+                  { l:'Warden API Key', k:'WARDEN_API_KEY', v:'warden_live_••••', h:'Primary auth key' },
+                  { l:'OIDC Issuer URL', k:'OIDC_ISSUER_URL', v:'https://auth.example.com', h:'OAuth2/OIDC provider' },
+                  { l:'SAML SP Entity ID', k:'SAML_SP_ENTITY_ID', v:'shadow-warden', h:'SAML metadata' },
+                ],
+                billing: [
+                  { l:'Stripe Secret Key', k:'STRIPE_SECRET_KEY', v:'sk_live_••••', h:'Stripe payment integration' },
+                  { l:'Lemon Squeezy Key', k:'LEMON_API_KEY', v:'••••••••', h:'Lemon Squeezy webhooks' },
+                  { l:'Pro Price $/mo', k:'BILLING_PRO_PRICE', v:'69', h:'Shadow Warden Pro' },
+                  { l:'Enterprise $/mo', k:'BILLING_ENT_PRICE', v:'249', h:'Shadow Warden Enterprise' },
+                ],
+                alerts: [
+                  { l:'Slack Webhook URL', k:'SLACK_WEBHOOK_URL', v:'https://hooks.slack.com/••••', h:'HIGH/BLOCK alerts' },
+                  { l:'PagerDuty Key', k:'PAGERDUTY_KEY', v:'••••••••', h:'Incident escalation' },
+                  { l:'Telegram Bot Token', k:'TELEGRAM_BOT_TOKEN', v:'••••••••', h:'Telegram alerts' },
+                  { l:'Alert Threshold', k:'ALERT_THRESHOLD', v:'HIGH', h:'Minimum severity to alert' },
+                ],
+                infra: [
+                  { l:'Redis URL', k:'REDIS_URL', v:'redis://redis:6379', h:'Cache + ERS + memory' },
+                  { l:'Logs Path', k:'LOGS_PATH', v:'/data/logs.json', h:'NDJSON event log' },
+                  { l:'S3 Bucket', k:'S3_BUCKET', v:'warden-evidence', h:'MinIO/S3 storage' },
+                  { l:'Prometheus Port', k:'PROMETHEUS_PORT', v:'9090', h:'Metrics scrape endpoint' },
+                ],
+              } as any)[pid].map((f: any) => (
+                <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+                  <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">{f.l}</label>
+                  <input value={f.v} class="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] font-mono text-[#F5F5F7] focus:border-[#0A84FF]/50 focus:outline-none" />
+                  <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.k} · {f.h}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TITLES: Record<string, string> = {
+    pipeline: 'Filter Pipeline Settings', brain: 'Brain / ML Settings',
+    soc: 'Agentic SOC Settings', sovereign: 'Sovereign Cloud Settings',
+    pqc: 'Post-Quantum Crypto Settings', sep: 'SEP Communities Settings',
+    shadowai: 'Shadow AI Discovery Settings', xai: 'XAI / Explainer Settings',
+    auth: 'Auth & Identity Settings', billing: 'Billing Settings',
+    alerts: 'Alerts & Notifications', infra: 'Infrastructure Settings',
+  };
+
+  function showSettingsTab(id: string) {
+    document.querySelectorAll('.settings-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.settings-tab-btn').forEach(b => {
+      b.classList.remove('bg-white/[0.06]', 'text-[#F5F5F7]');
+      b.classList.add('text-[#8E8E9E]');
+    });
+    const panel = document.getElementById(`spanel-${id}`);
+    const btn   = document.getElementById(`stab-${id}`);
+    const title = document.getElementById('settings-title');
+    if (panel) panel.classList.remove('hidden');
+    if (btn)   { btn.classList.add('bg-white/[0.06]', 'text-[#F5F5F7]'); btn.classList.remove('text-[#8E8E9E]'); }
+    if (title) title.textContent = TITLES[id] || id;
+  }
+
+  function openSettings() {
+    const el = document.getElementById('settings-modal');
+    if (el) { el.classList.remove('hidden'); el.classList.add('flex'); }
+  }
+
+  function closeSettings() {
+    const el = document.getElementById('settings-modal');
+    if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+  }
+
+  (window as any).showSettingsTab = showSettingsTab;
+  (window as any).openSettings    = openSettings;
+  (window as any).closeSettings   = closeSettings;
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+</script>

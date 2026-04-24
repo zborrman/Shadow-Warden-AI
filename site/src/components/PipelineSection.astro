@@ -1,0 +1,231 @@
+---
+const stages = [
+  {
+    num: '01', icon: '🌀', color: '#FF2D55', ms: '<2ms',
+    title: 'Topological Gatekeeper',
+    module: 'topology_guard.py',
+    tech: 'TDA · Ripser · Betti β₀/β₁',
+    desc: 'n-gram point cloud analysis via persistent homology. Catches structural anomalies invisible to semantic analysis.',
+    stats: [['Betti numbers', 'β₀ + β₁'], ['Point cloud', 'n-gram'], ['Library', 'Ripser']],
+  },
+  {
+    num: '02', icon: '🔓', color: '#FF9F0A', ms: '<1ms',
+    title: 'Obfuscation Decoder',
+    module: 'obfuscation.py',
+    tech: 'Base64 · Hex · ROT13 · Homoglyphs',
+    desc: 'Recursive 3-layer decoder. Strips Base64, hex, Caesar, UUencode, and unicode homoglyph substitutions.',
+    stats: [['Max depth', '3 layers'], ['Encodings', '7 types'], ['Unicode', 'Homoglyphs']],
+  },
+  {
+    num: '03', icon: '🔑', color: '#FFD60A', ms: '<1ms',
+    title: 'PII & Secret Vault',
+    module: 'secret_redactor.py + masking/engine.py',
+    tech: '15 Patterns · Shannon Entropy · Fernet',
+    desc: '15 regex patterns for AWS keys, JWTs, SSNs, credit cards. Shannon entropy catches novel secrets. Fernet-encrypted vault.',
+    stats: [['Patterns', '15 regex'], ['Entropy scan', 'Shannon'], ['Vault', 'Fernet AES']],
+  },
+  {
+    num: '04', icon: '📏', color: '#30D158', ms: '<3ms',
+    title: 'Semantic Rule Engine',
+    module: 'semantic_guard.py',
+    tech: '420 Rules · Compound Escalation',
+    desc: '420 regex rules with compound risk escalation: 3+ MEDIUM flags auto-escalate to HIGH. Catches multi-vector attacks.',
+    stats: [['Rules', '420'], ['Escalation', '3× MEDIUM'], ['Mode', 'Compound']],
+  },
+  {
+    num: '05', icon: '🧠', color: '#0A84FF', ms: '<8ms',
+    title: 'Hyperbolic Brain',
+    module: 'brain/semantic.py + brain/hyperbolic.py',
+    tech: 'MiniLM · ONNX · Poincaré Ball',
+    desc: 'MiniLM embeddings projected to Poincaré ball geometry. 70% cosine + 30% hyperbolic distance blend.',
+    stats: [['Model', 'MiniLM L6'], ['Blend', '70/30'], ['Runtime', 'ONNX CPU']],
+  },
+  {
+    num: '06', icon: '🔗', color: '#BF5AF2', ms: '<3ms',
+    title: 'Causal Arbiter',
+    module: 'causal_arbiter.py',
+    tech: 'Bayesian DAG · Pearl Do-Calculus',
+    desc: 'Gray-zone decisions via 5-node Bayesian DAG. Pearl do-calculus with backdoor adjustment — causal inference.',
+    stats: [['Nodes', '5-node DAG'], ['Method', 'Do-calculus'], ['Gray-zone', 'P(HIGH|e)']],
+  },
+  {
+    num: '07', icon: '🎣', color: '#FF2D55', ms: '<2ms',
+    title: 'PhishGuard + SE-Arbiter',
+    module: 'phishing_guard.py',
+    tech: 'URL Analysis · Social Engineering',
+    desc: 'Dual-layer: URL pattern matching for phishing domains + semantic social-engineering detection.',
+    stats: [['Layers', '2 parallel'], ['URL check', 'Pattern DB'], ['SE', 'Semantic']],
+  },
+  {
+    num: '08', icon: '📊', color: '#FF9F0A', ms: '<1ms',
+    title: 'Entity Risk Scoring',
+    module: 'shadow_ban.py + entity_risk.py',
+    tech: 'Redis · Sliding Window · Shadow Ban',
+    desc: 'Per-session reputation via Redis sliding window. Score ≥0.75 → differentiated Shadow Ban: gaslight, delay, or standard.',
+    stats: [['Threshold', '0.75 score'], ['Backend', 'Redis'], ['Strategies', '3 modes']],
+  },
+  {
+    num: '09', icon: '🛡️', color: '#30D158', ms: '<1ms',
+    title: 'Output Guard',
+    module: 'output_guard.py + output_sanitizer.py',
+    tech: 'LLM02 · Insecure Output Handling',
+    desc: 'Scans model responses for dangerous content, exfiltration attempts, and hallucinated PII before delivery.',
+    stats: [['OWASP', 'LLM02'], ['Scan', 'Post-model'], ['Mode', 'Bidirectional']],
+  },
+  {
+    num: '10', icon: '🔒', color: '#5AC8FA', ms: '<1ms',
+    title: 'Prompt Shield',
+    module: 'prompt_shield.py',
+    tech: 'System Prompt Protection',
+    desc: 'Guards system prompts from extraction attacks. Detects prompt injection attempts targeting the system role.',
+    stats: [['Target', 'System role'], ['Attack', 'Extraction'], ['Mode', 'Guard']],
+  },
+  {
+    num: '11', icon: '🤖', color: '#BF5AF2', ms: '<2ms',
+    title: 'Agent Monitor',
+    module: 'agent_monitor.py + tool_guard.py',
+    tech: 'INJECTION_CHAIN · Tool Control',
+    desc: 'Session-level threat patterns including INJECTION_CHAIN. Cryptographic attestation chain for every tool call.',
+    stats: [['Patterns', '7+ types'], ['Attestation', 'SHA-256'], ['Tool', 'Call guard']],
+  },
+  {
+    num: '12', icon: '🌊', color: '#FF2D55', ms: '<1ms',
+    title: 'Worm Guard',
+    module: 'worm_guard.py',
+    tech: 'Self-Propagating Attack Detection',
+    desc: 'Detects prompt worms that try to self-replicate across agent invocations and multi-turn sessions.',
+    stats: [['Type', 'Worm detect'], ['Scope', 'Multi-turn'], ['Mode', 'Pattern']],
+  },
+  {
+    num: '13', icon: '🖼️', color: '#FF9F0A', ms: '<5ms',
+    title: 'Multimodal Shield',
+    module: 'image_guard.py + audio_guard.py',
+    tech: 'Vision · Audio · Cross-modal',
+    desc: 'Extends protection to image and audio inputs. Detects injections hidden in visual or audio content.',
+    stats: [['Modalities', 'Text+Image+Audio'], ['Vision', 'Guard'], ['Audio', 'Guard']],
+  },
+  {
+    num: '14', icon: '🐝', color: '#30D158', ms: '<1ms',
+    title: 'Honeypot & Taint',
+    module: 'honey.py + taint_tracker.py + session_guard.py',
+    tech: 'Honeypot Tokens · Taint Tracking',
+    desc: 'Injects honeypot tokens to detect exfiltration. Taint tracking follows sensitive data through the pipeline.',
+    stats: [['Tokens', 'Honeypot'], ['Tracking', 'Taint flow'], ['Session', 'Guard']],
+  },
+];
+---
+
+<section id="pipeline" class="relative py-24 lg:py-32">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(255,45,85,0.3),transparent)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
+      <div>
+        <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FF2D55] mb-3">
+          Filter Pipeline · POST /filter
+        </p>
+        <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
+          18 modules.<br />
+          <span style="background:linear-gradient(135deg,#FF2D55,#FF9F0A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+            One request.
+          </span>
+          Under 20ms.
+        </h2>
+        <p class="text-[16px] text-[#8E8E9E] max-w-lg leading-relaxed">
+          Every AI request passes through all 14+ detection stages in a synchronous pipeline.
+          No async gaps. Every stage enriches a shared context object.
+        </p>
+      </div>
+      <div class="flex-shrink-0 rounded-2xl border border-white/[0.07] bg-[#080D1E] p-5 text-right">
+        <div class="text-[36px] font-black text-[#FF2D55] leading-none mb-1">&lt;20ms</div>
+        <div class="text-[12px] text-[#8E8E9E]">Total pipeline P99</div>
+        <div class="mt-3 text-[36px] font-black text-[#30D158] leading-none mb-1">18</div>
+        <div class="text-[12px] text-[#8E8E9E]">Detection modules</div>
+      </div>
+    </div>
+
+    <!-- Pipeline grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      {stages.map((s) => (
+        <div class="group relative rounded-xl border border-white/[0.06] bg-[#080D1E] p-5
+                    hover:border-opacity-60 hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+             style={`--accent:${s.color}`}>
+          <!-- Background number -->
+          <span class="absolute top-2 right-3 text-[56px] font-black text-white/[0.025]
+                       select-none font-mono leading-none">{s.num}</span>
+
+          <!-- Stage indicator -->
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+                   style={`background:${s.color}15`}>
+                {s.icon}
+              </div>
+              <div>
+                <div class="text-[8px] font-mono font-bold opacity-50 mb-0.5"
+                     style={`color:${s.color}`}>STAGE {s.num}</div>
+                <div class="text-[13px] font-bold leading-tight">{s.title}</div>
+              </div>
+            </div>
+            <div class="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex-shrink-0"
+                 style={`color:${s.color};background:${s.color}18`}>{s.ms}</div>
+          </div>
+
+          <p class="text-[12px] text-[#8E8E9E] leading-[1.65] mb-4">{s.desc}</p>
+
+          <!-- Tech tag -->
+          <div class="text-[9px] font-mono font-bold px-2 py-1 rounded-md inline-block mb-4"
+               style={`color:${s.color};background:${s.color}12`}>{s.tech}</div>
+
+          <!-- Stats -->
+          <div class="border-t border-white/[0.05] pt-3 grid grid-cols-3 gap-2">
+            {s.stats.map(([k, v]) => (
+              <div>
+                <div class="text-[10px] font-bold truncate" style={`color:${s.color}`}>{v}</div>
+                <div class="text-[9px] text-[#48485A] uppercase tracking-wide">{k}</div>
+              </div>
+            ))}
+          </div>
+
+          <!-- Module path -->
+          <div class="mt-3 text-[9px] font-mono text-[#48485A] truncate">{s.module}</div>
+
+          <!-- Hover accent line -->
+          <div class="absolute bottom-0 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100
+                      transition-opacity duration-200"
+               style={`background:${s.color}`}></div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Decision box -->
+    <div class="mt-6 rounded-2xl border border-[#30D158]/30 bg-[#30D158]/[0.04] p-6
+                flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-xl bg-[#30D158]/15 flex items-center justify-center text-2xl">⚖️</div>
+        <div>
+          <div class="text-[18px] font-bold text-[#30D158] mb-1">Final Decision Engine</div>
+          <div class="text-[13px] text-[#8E8E9E]">
+            Aggregates all stage verdicts → ALLOW / FLAG / BLOCK / SHADOW_BAN.
+            Evidence Vault: SHA-256 attestation chain → MinIO. STIX 2.1 audit export.
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 flex-shrink-0">
+        {['ALLOW', 'FLAG', 'BLOCK', 'SHADOW BAN'].map((d, i) => (
+          <div class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg text-center"
+               style={[
+                 'background:#30D158/10;color:#30D158;border:1px solid #30D15830',
+                 'background:#FFD60A10;color:#FFD60A;border:1px solid #FFD60A30',
+                 'background:#FF2D5510;color:#FF2D55;border:1px solid #FF2D5530',
+                 'background:#BF5AF210;color:#BF5AF2;border:1px solid #BF5AF230',
+               ][i]}>
+            {d}
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

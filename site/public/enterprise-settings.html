@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enterprise Settings | Shadow Warden AI v4.7</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#03050F; --bg2:#080D1E; --bg3:#0D1225;
+  --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.1);
+  --text:#F5F5F7; --muted:#8E8E9E; --dim:#48485A;
+  --red:#FF2D55; --purple:#BF5AF2; --blue:#0A84FF;
+  --green:#30D158; --gold:#FFD60A; --orange:#FF9F0A;
+  --cyan:#5AC8FA; --nvidia:#76B900;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px}
+
+/* ── TOPBAR ── */
+#topbar{
+  height:52px;background:rgba(3,5,15,0.95);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;z-index:50
+}
+.logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--text)}
+.logo-icon{
+  width:26px;height:26px;border-radius:7px;font-size:12px;
+  background:linear-gradient(135deg,var(--red),#FF6B35);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 14px rgba(255,45,85,0.4);position:relative
+}
+.logo-dot{
+  position:absolute;top:-2px;right:-2px;width:6px;height:6px;
+  border-radius:50%;background:var(--green);border:1.5px solid var(--bg);
+  animation:pulse 2s infinite
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.logo-name{font-size:13px;font-weight:800;letter-spacing:-.3px}
+.logo-ver{font-size:7px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px}
+.tb-sep{width:1px;height:22px;background:var(--border)}
+.tb-title{font-size:12px;font-weight:600;color:var(--muted)}
+.tb-title b{color:var(--text);font-weight:700}
+.tb-sp{flex:1}
+.tb-status{
+  display:flex;align-items:center;gap:6px;
+  font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;
+  color:var(--green);background:rgba(48,209,88,0.1);
+  border:1px solid rgba(48,209,88,0.2);padding:4px 12px;border-radius:20px
+}
+.tb-status span{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+.back-btn{
+  padding:5px 14px;border-radius:8px;font-size:10px;font-weight:700;
+  color:var(--muted);background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);text-decoration:none;transition:all .15s
+}
+.back-btn:hover{color:var(--text);background:rgba(255,255,255,0.08)}
+
+/* ── LAYOUT ── */
+#layout{flex:1;display:flex;overflow:hidden}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:220px;border-right:1px solid var(--border);
+  background:var(--bg2);padding:16px 0;overflow-y:auto;flex-shrink:0
+}
+.sb-section{padding:0 12px;margin-bottom:4px}
+.sb-label{
+  font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:2px;
+  color:var(--dim);padding:10px 8px 6px
+}
+.sb-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;border-radius:8px;cursor:pointer;
+  font-size:11px;font-weight:600;color:var(--muted);
+  transition:all .15s;border:1px solid transparent;margin-bottom:1px
+}
+.sb-item:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+.sb-item.active{color:var(--text);background:rgba(255,255,255,0.07);border-color:var(--border)}
+.sb-item .icon{font-size:13px;flex-shrink:0;width:18px;text-align:center}
+.sb-item .dot{
+  width:5px;height:5px;border-radius:50%;margin-left:auto;flex-shrink:0
+}
+
+/* ── MAIN CONTENT ── */
+#main{flex:1;overflow-y:auto;padding:32px 40px 60px}
+.panel{display:none}
+.panel.active{display:block}
+
+.panel-header{margin-bottom:28px}
+.panel-header h2{font-size:24px;font-weight:900;letter-spacing:-1px;margin-bottom:6px}
+.panel-header p{font-size:12px;color:var(--muted);max-width:580px;line-height:1.6}
+.panel-header .ph-tags{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.tag{
+  font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;
+  padding:3px 10px;border-radius:20px
+}
+
+/* Settings card */
+.scard{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;margin-bottom:16px;overflow:hidden
+}
+.scard-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;border-bottom:1px solid var(--border)
+}
+.scard-head h3{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px}
+.scard-head .sh-note{font-size:10px;color:var(--dim)}
+.scard-body{padding:6px 0}
+
+/* Setting row */
+.srow{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 18px;border-bottom:1px solid rgba(255,255,255,0.03);
+  transition:background .1s
+}
+.srow:last-child{border-bottom:none}
+.srow:hover{background:rgba(255,255,255,0.02)}
+.srow-left{flex:1;min-width:0}
+.srow-key{font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--text);margin-bottom:2px}
+.srow-desc{font-size:10px;color:var(--dim);line-height:1.4}
+.srow-right{flex-shrink:0}
+
+/* Toggle */
+.toggle{position:relative;width:38px;height:20px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{
+  position:absolute;inset:0;border-radius:20px;
+  background:rgba(255,255,255,0.1);border:1px solid var(--border);
+  transition:all .25s
+}
+.toggle-thumb{
+  position:absolute;top:3px;left:3px;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--dim);transition:all .25s
+}
+.toggle input:checked ~ .toggle-track{background:var(--green);border-color:var(--green)}
+.toggle input:checked ~ .toggle-thumb{transform:translateX(18px);background:white}
+
+/* Input */
+.s-input{
+  background:rgba(255,255,255,0.05);border:1px solid var(--border);
+  border-radius:7px;padding:5px 10px;font-size:10px;font-family:'JetBrains Mono',monospace;
+  color:var(--text);width:200px;outline:none;transition:all .15s
+}
+.s-input:focus{border-color:rgba(10,132,255,0.4);background:rgba(10,132,255,0.05)}
+.s-input.wide{width:280px}
+.s-input.narrow{width:80px}
+
+/* Select */
+.s-select{
+  background:rgba(255,255,255,0.05);border:1px solid var(--border);
+  border-radius:7px;padding:5px 28px 5px 10px;font-size:10px;
+  color:var(--text);outline:none;cursor:pointer;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238E8E9E'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+  transition:all .15s
+}
+.s-select:focus{border-color:rgba(10,132,255,0.4)}
+
+/* Slider */
+.s-slider-wrap{display:flex;align-items:center;gap:10px}
+.s-slider{
+  -webkit-appearance:none;appearance:none;
+  width:140px;height:4px;border-radius:4px;
+  background:rgba(255,255,255,0.1);outline:none;cursor:pointer
+}
+.s-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--blue);cursor:pointer;
+  box-shadow:0 0 6px rgba(10,132,255,0.4)
+}
+.s-slider-val{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--blue);font-weight:700;min-width:36px;text-align:right}
+
+/* Badge pill */
+.pill{
+  font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
+  padding:2px 8px;border-radius:20px
+}
+.pill-green{color:var(--green);background:rgba(48,209,88,0.12);border:1px solid rgba(48,209,88,0.2)}
+.pill-red{color:var(--red);background:rgba(255,45,85,0.12);border:1px solid rgba(255,45,85,0.2)}
+.pill-blue{color:var(--blue);background:rgba(10,132,255,0.12);border:1px solid rgba(10,132,255,0.2)}
+.pill-purple{color:var(--purple);background:rgba(191,90,242,0.12);border:1px solid rgba(191,90,242,0.2)}
+.pill-gold{color:var(--gold);background:rgba(255,214,10,0.12);border:1px solid rgba(255,214,10,0.2)}
+.pill-orange{color:var(--orange);background:rgba(255,159,10,0.12);border:1px solid rgba(255,159,10,0.2)}
+.pill-dim{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--border)}
+
+/* Tier card */
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px 18px}
+.tier-card{
+  border-radius:12px;padding:16px;border:1px solid var(--border);
+  background:rgba(255,255,255,0.02);cursor:pointer;transition:all .2s;position:relative
+}
+.tier-card:hover{border-color:rgba(255,255,255,0.12);transform:translateY(-1px)}
+.tier-card.selected{border-color:var(--purple);background:rgba(191,90,242,0.07)}
+.tier-card.selected::before{
+  content:'✓';position:absolute;top:10px;right:12px;
+  font-size:10px;font-weight:900;color:var(--purple)
+}
+.tier-name{font-size:13px;font-weight:800;margin-bottom:4px}
+.tier-price{font-size:22px;font-weight:900;letter-spacing:-1px;margin-bottom:8px}
+.tier-price span{font-size:11px;font-weight:500;color:var(--muted)}
+.tier-features{list-style:none;display:flex;flex-direction:column;gap:4px}
+.tier-features li{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.tier-features li::before{content:'✓';color:var(--green);font-weight:700;font-size:9px}
+
+/* Addon row */
+.addon-row{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.03)
+}
+.addon-row:last-child{border-bottom:none}
+.addon-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.addon-name{font-size:11px;font-weight:700;margin-bottom:2px}
+.addon-desc{font-size:10px;color:var(--dim)}
+.addon-price{font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-left:auto;flex-shrink:0;color:var(--text)}
+
+/* Metric row */
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)}
+.metric-cell{background:var(--bg2);padding:16px;text-align:center}
+.metric-val{font-size:20px;font-weight:900;font-family:'JetBrains Mono',monospace;margin-bottom:2px}
+.metric-key{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim)}
+
+/* Save bar */
+#save-bar{
+  position:fixed;bottom:0;left:220px;right:0;
+  height:52px;background:rgba(8,13,30,0.97);backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 40px;gap:12px;z-index:40
+}
+.save-note{font-size:11px;color:var(--dim);flex:1}
+.save-note b{color:var(--gold)}
+.btn-reset{
+  padding:7px 18px;border-radius:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--muted);background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  cursor:pointer;transition:all .15s
+}
+.btn-reset:hover{color:var(--text);background:rgba(255,255,255,0.08)}
+.btn-save{
+  padding:8px 22px;border-radius:8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
+  color:white;background:var(--red);border:none;cursor:pointer;
+  transition:all .15s;box-shadow:0 4px 14px rgba(255,45,85,0.3)
+}
+.btn-save:hover{background:#E8213A;transform:translateY(-1px)}
+.btn-save:active{transform:translateY(0)}
+
+/* Alert notification */
+#toast{
+  position:fixed;top:70px;right:20px;z-index:200;
+  background:var(--green);color:white;
+  padding:10px 20px;border-radius:10px;font-size:11px;font-weight:700;
+  opacity:0;transform:translateY(-8px);transition:all .3s;pointer-events:none;
+  box-shadow:0 8px 24px rgba(48,209,88,0.3)
+}
+#toast.show{opacity:1;transform:translateY(0)}
+
+/* ── COLOR ACCENTS PER SECTION ── */
+[data-color="red"] .scard-head h3{color:var(--red)}
+[data-color="purple"] .scard-head h3{color:var(--purple)}
+[data-color="blue"] .scard-head h3{color:var(--blue)}
+[data-color="green"] .scard-head h3{color:var(--green)}
+[data-color="gold"] .scard-head h3{color:var(--gold)}
+[data-color="orange"] .scard-head h3{color:var(--orange)}
+[data-color="cyan"] .scard-head h3{color:var(--cyan)}
+[data-color="nvidia"] .scard-head h3{color:var(--nvidia)}
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<header id="topbar">
+  <a href="/" class="logo">
+    <div class="logo-icon">🛡️<span class="logo-dot"></span></div>
+    <div><div class="logo-name">Shadow Warden AI</div><div class="logo-ver">v4.7 · Enterprise</div></div>
+  </a>
+  <div class="tb-sep"></div>
+  <span class="tb-title"><b>Enterprise Settings</b> — High Level Configuration</span>
+  <div class="tb-sp"></div>
+  <div class="tb-status"><span></span>14 Layers Active</div>
+  <a href="/" class="back-btn">← Back to Site</a>
+</header>
+
+<!-- ── LAYOUT ── -->
+<div id="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <nav id="sidebar">
+    <div class="sb-section">
+      <div class="sb-label">Core Pipeline</div>
+      <div class="sb-item active" onclick="show('pipeline')"><span class="icon">⚡</span>Pipeline Defense<span class="dot" style="background:var(--red)"></span></div>
+      <div class="sb-item" onclick="show('brain')"><span class="icon">🧠</span>Brain & AI<span class="dot" style="background:var(--purple)"></span></div>
+      <div class="sb-item" onclick="show('soc')"><span class="icon">🤖</span>Agentic SOC<span class="dot" style="background:var(--blue)"></span></div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Security</div>
+      <div class="sb-item" onclick="show('fraud')"><span class="icon">🎯</span>FraudScore<span class="dot" style="background:var(--red)"></span></div>
+      <div class="sb-item" onclick="show('shadowai')"><span class="icon">👁</span>Shadow AI Governance</div>
+      <div class="sb-item" onclick="show('xai')"><span class="icon">🔮</span>XAI & Explainability</div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Compliance</div>
+      <div class="sb-item" onclick="show('sovereign')"><span class="icon">🌍</span>Sovereign Cloud<span class="dot" style="background:var(--cyan)"></span></div>
+      <div class="sb-item" onclick="show('pqc')"><span class="icon">🔐</span>Post-Quantum Crypto<span class="dot" style="background:var(--gold)"></span></div>
+      <div class="sb-item" onclick="show('sep')"><span class="icon">🏛</span>SEP Communities</div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Infrastructure</div>
+      <div class="sb-item" onclick="show('infra')"><span class="icon">🗄</span>Infrastructure</div>
+      <div class="sb-item" onclick="show('alerts')"><span class="icon">🔔</span>Alerts & SLO</div>
+      <div class="sb-item" onclick="show('billing')"><span class="icon">💳</span>Billing & Tiers<span class="dot" style="background:var(--purple)"></span></div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main id="main">
+
+    <!-- ════════════════════ PIPELINE ════════════════════ -->
+    <div class="panel active" id="p-pipeline" data-color="red">
+      <div class="panel-header">
+        <h2>Pipeline Defense</h2>
+        <p>Configure the 14-layer threat detection pipeline. Each stage runs in sequence — topology → obfuscation → secrets → semantic → brain → causal → phishing → ERS → output. Total P99 target: &lt;20ms.</p>
+        <div class="ph-tags">
+          <span class="tag pill-red">14 Layers</span>
+          <span class="tag pill-green">P99 &lt;20ms</span>
+          <span class="tag pill-blue">Real-Time</span>
+        </div>
+      </div>
+
+      <div class="metric-grid" style="border-radius:12px;overflow:hidden;margin-bottom:16px;border:1px solid var(--border)">
+        <div class="metric-cell"><div class="metric-val" style="color:var(--green)">14</div><div class="metric-key">Active Layers</div></div>
+        <div class="metric-cell"><div class="metric-val" style="color:var(--blue)">2.1ms</div><div class="metric-key">Avg Latency</div></div>
+        <div class="metric-cell"><div class="metric-val" style="color:var(--red)">99.7%</div><div class="metric-key">Block Accuracy</div></div>
+        <div class="metric-cell"><div class="metric-val" style="color:var(--gold)">0.03%</div><div class="metric-key">False Positive</div></div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Topological Gatekeeper</h3><span class="sh-note">topology_guard.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">TOPOLOGY_ENABLED</div><div class="srow-desc">TDA n-gram point cloud — Betti numbers β₀/β₁ pre-filter (&lt;2ms)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">BETTI_THRESHOLD_B0</div><div class="srow-desc">β₀ connected components threshold. Higher = stricter topology check.</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="20" value="8" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">8</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">BETTI_THRESHOLD_B1</div><div class="srow-desc">β₁ loop count threshold. Detects obfuscation topological signatures.</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="0" max="10" value="3" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">3</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">NGRAM_WINDOW</div><div class="srow-desc">N-gram tokenization window size for point cloud construction.</div></div><div class="srow-right"><input class="s-input narrow" value="3"></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Obfuscation Decoder</h3><span class="sh-note">obfuscation.py · depth-3 recursive</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">OBFUSCATION_DECODE_DEPTH</div><div class="srow-desc">Recursive decoding depth. base64 → hex → ROT13 → Caesar → homoglyphs.</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="6" value="3" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">3</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">DECODE_BASE64</div><div class="srow-desc">Enable Base64 decoding stage</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">DECODE_HOMOGLYPHS</div><div class="srow-desc">Unicode homoglyph substitution detection (Cyrillic/Greek lookalikes)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">DECODE_UUENCODE</div><div class="srow-desc">UUencode / Quoted-Printable legacy encoding detection</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Secret Redactor</h3><span class="sh-note">secret_redactor.py · 15 regex patterns</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SECRET_REDACTION_ENABLED</div><div class="srow-desc">Strip API keys, tokens, credentials, PII from all requests before processing</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">ENTROPY_SCAN_ENABLED</div><div class="srow-desc">Shannon entropy scan for unknown secrets (high-entropy strings ≥ threshold)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">ENTROPY_THRESHOLD</div><div class="srow-desc">Shannon entropy threshold for secret detection (bits/char). Default: 4.5</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="30" max="60" value="45" oninput="this.nextElementSibling.textContent=(this.value/10).toFixed(1)"><span class="s-slider-val">4.5</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">PII_VAULT_ENABLED</div><div class="srow-desc">Fernet-encrypted PII vault — HMAC-SHA256 reverse map, no plaintext in memory</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Semantic Guard & ERS</h3><span class="sh-note">semantic_guard.py · causal_arbiter.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SEMANTIC_THRESHOLD</div><div class="srow-desc">MiniLM cosine similarity threshold for jailbreak detection (0.0–1.0)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="50" max="95" value="72" oninput="this.nextElementSibling.textContent='0.'+this.value"><span class="s-slider-val">0.72</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">STRICT_MODE</div><div class="srow-desc">Strict mode: any MEDIUM risk auto-escalates to HIGH. Disable for tuning.</div></div><div class="srow-right"><label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">ERS_SHADOW_BAN_SCORE</div><div class="srow-desc">ERS session score threshold triggering Shadow Ban strategy (0.0–1.0)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="50" max="99" value="75" oninput="this.nextElementSibling.textContent='0.'+this.value"><span class="s-slider-val">0.75</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_BAN_STRATEGY</div><div class="srow-desc">Strategy when shadow ban activates: gaslight (inject noise) / delay / standard</div></div><div class="srow-right"><select class="s-select"><option>gaslight</option><option>delay</option><option>standard</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">CAUSAL_ARBITER_ENABLED</div><div class="srow-desc">Bayesian DAG do-calculus gray-zone resolution (Pearl backdoor correction)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ BRAIN & AI ════════════════════ -->
+    <div class="panel" id="p-brain" data-color="purple">
+      <div class="panel-header">
+        <h2>Brain & AI</h2>
+        <p>Configure MiniLM hyperbolic embeddings, Poincaré ball projection, Evolution Engine (Claude Opus / Nemotron), and the self-improvement corpus hot-reload pipeline.</p>
+        <div class="ph-tags">
+          <span class="tag pill-purple">HyperbolicBrain</span>
+          <span class="tag pill-blue">MiniLM L6-v2</span>
+          <span class="tag pill-green">Evolution Engine</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Hyperbolic Brain</h3><span class="sh-note">brain/hyperbolic.py · brain/semantic.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">HYPERBOLIC_BLEND_COSINE</div><div class="srow-desc">Cosine similarity weight in final score blend (remainder goes to hyperbolic)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="50" max="90" value="70" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-slider-val">70%</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">POINCARE_CURVATURE</div><div class="srow-desc">Poincaré ball curvature constant c. Higher = tighter hyperbolic geometry.</div></div><div class="srow-right"><input class="s-input narrow" value="1.0"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">MODEL_CACHE_DIR</div><div class="srow-desc">ONNX model cache directory. Use named Docker volume for persistence.</div></div><div class="srow-right"><input class="s-input wide" value="/warden/models"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">ADVERSARIAL_SUFFIX_STRIP</div><div class="srow-desc">Strip GCG/AutoDAN adversarial suffixes before embedding (regex + heuristic)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Evolution Engine</h3><span class="sh-note">brain/evolve.py · brain/evolve_nemotron.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">ANTHROPIC_API_KEY</div><div class="srow-desc">Anthropic API key for Claude Opus evolution backend. Leave empty for air-gap mode.</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="sk-ant-••••••••" value="sk-ant-••••••••"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">EVOLUTION_MODEL</div><div class="srow-desc">Claude model used for adversarial example generation</div></div><div class="srow-right"><select class="s-select"><option>claude-opus-4-7</option><option selected>claude-opus-4-6</option><option>claude-sonnet-4-6</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">NEMOTRON_ENABLED</div><div class="srow-desc">Switch Evolution Engine to NVIDIA Nemotron-3 (air-gap / on-premise GPU)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">NEMOTRON_API_KEY</div><div class="srow-desc">NVIDIA AI Foundation API key (required when NEMOTRON_ENABLED=true)</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="nvapi-••••••••"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">NEMOTRON_BASE_URL</div><div class="srow-desc">NVIDIA API endpoint for self-hosted deployment</div></div><div class="srow-right"><input class="s-input wide" value="https://integrate.api.nvidia.com/v1"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">EVOLUTION_BATCH_SIZE</div><div class="srow-desc">Number of adversarial examples generated per HIGH/BLOCK event</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="20" value="5" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">5</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">HOT_RELOAD_CORPUS</div><div class="srow-desc">Hot-reload corpus into _brain_guard without container restart</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Intel Bridge</h3><span class="sh-note">intel_bridge.py · intel_ops.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">INTEL_OPS_ENABLED</div><div class="srow-desc">ArXiv LLM-attack paper hunter + OSV dependency CVE scanner</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">INTEL_BRIDGE_INTERVAL_HRS</div><div class="srow-desc">Frequency of ArXiv → Evolution Engine auto-sync (hours)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="24" value="6" oninput="this.nextElementSibling.textContent=this.value+'h'"><span class="s-slider-val">6h</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">ARXIV_MAX_PAPERS</div><div class="srow-desc">Max ArXiv papers fetched per sync cycle (rate-limit safe)</div></div><div class="srow-right"><input class="s-input narrow" value="10"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ AGENTIC SOC ════════════════════ -->
+    <div class="panel" id="p-soc" data-color="blue">
+      <div class="panel-header">
+        <h2>Agentic SOC</h2>
+        <p>SOVA autonomous operator (30 tools, Claude Opus 4.6, ≤10 iterations), MasterAgent multi-agent SOC (4 sub-agents, HMAC tokens, Human-in-the-Loop), and WardenHealer autonomous anomaly detection.</p>
+        <div class="ph-tags">
+          <span class="tag pill-blue">SOVA · 30 Tools</span>
+          <span class="tag pill-purple">MasterAgent v4.0</span>
+          <span class="tag pill-green">WardenHealer</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>SOVA Agent</h3><span class="sh-note">agent/sova.py · agent/tools.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SOVA_ENABLED</div><div class="srow-desc">SOVA autonomous operator — requires ANTHROPIC_API_KEY</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SOVA_MAX_ITERATIONS</div><div class="srow-desc">Maximum agentic loop iterations per query (prevents infinite loops)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="3" max="20" value="10" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">10</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SOVA_MEMORY_TTL_HRS</div><div class="srow-desc">Redis conversation memory TTL — sova:conv:{session_id} JSON</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="24" value="6" oninput="this.nextElementSibling.textContent=this.value+'h'"><span class="s-slider-val">6h</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SOVA_MEMORY_MAX_TURNS</div><div class="srow-desc">Max conversation turns stored in Redis memory per session</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="5" max="50" value="20" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">20</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">PROMPT_CACHE_ENABLED</div><div class="srow-desc">Anthropic prompt caching for SOVA system prompt (5-min TTL, cost savings)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>MasterAgent</h3><span class="sh-note">agent/master.py · Human-in-the-Loop</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">MASTER_AGENT_ENABLED</div><div class="srow-desc">Multi-agent SOC coordinator — 4 sub-agents, HMAC task tokens</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SUB_AGENT_MAX_ITER</div><div class="srow-desc">Max iterations per sub-agent (SOVAOperator/ThreatHunter/Forensics/Compliance)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="2" max="10" value="5" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">5</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SUB_AGENT_TOKEN_BUDGET</div><div class="srow-desc">Early-halt token budget per sub-agent call (50% discount via Batches API)</div></div><div class="srow-right"><input class="s-input narrow" value="8192"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">APPROVAL_TTL_HRS</div><div class="srow-desc">REQUIRES_APPROVAL Redis token TTL — human-in-the-loop gate timeout</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="24" value="1" oninput="this.nextElementSibling.textContent=this.value+'h'"><span class="s-slider-val">1h</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SLACK_WEBHOOK_URL</div><div class="srow-desc">Slack webhook for REQUIRES_APPROVAL notifications and HIGH/BLOCK alerts</div></div><div class="srow-right"><input class="s-input wide" placeholder="https://hooks.slack.com/services/…"></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>SOVA Cron Schedule (ARQ)</h3><span class="sh-note">agent/scheduler.py · 7 jobs</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">sova_morning_brief</div><div class="srow-desc">Daily security briefing — threat summary, anomalies, SOC report</div></div><div class="srow-right"><input class="s-input narrow" value="08:00 UTC"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">sova_threat_sync</div><div class="srow-desc">CVE + ArXiv threat sync — every 6h (00:05 / 06:05 / 12:05 / 18:05)</div></div><div class="srow-right"><select class="s-select"><option>Every 6h</option><option>Every 12h</option><option>Every 24h</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">sova_visual_patrol</div><div class="srow-desc">BrowserSandbox screenshot → Claude Vision → MinIO SOC 2 evidence</div></div><div class="srow-right"><input class="s-input narrow" value="03:00 UTC"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">PATROL_URLS</div><div class="srow-desc">Comma-separated extra URLs for visual patrol</div></div><div class="srow-right"><input class="s-input wide" placeholder="https://dashboard.example.com,…"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">sova_corpus_watchdog</div><div class="srow-desc">WardenHealer corpus check — every 30 min (LLM-free, direct httpx)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ FRAUDSCORE ════════════════════ -->
+    <div class="panel" id="p-fraud" data-color="red">
+      <div class="panel-header">
+        <h2>FraudScore Sovereign</h2>
+        <p>6-dimensional composite fraud scoring engine — Behavioral, Semantic, Identity, Exfiltration, Injection, Sovereign Violation. Computed in &lt;3ms with Bayesian causal explainability.</p>
+        <div class="ph-tags">
+          <span class="tag pill-red">v4.0 Elite</span>
+          <span class="tag pill-blue">&lt;3ms</span>
+          <span class="tag pill-purple">6 Dimensions</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Dimension Weights</h3><span class="sh-note">Bayesian fusion — total must = 100%</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_W_BEHAVIORAL</div><div class="srow-desc">Session velocity, request pattern deviation, typing cadence</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="5" max="50" value="25" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-slider-val">25%</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_W_SEMANTIC</div><div class="srow-desc">MiniLM hyperbolic distance from known-safe cluster centroids</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="5" max="50" value="20" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-slider-val">20%</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_W_IDENTITY</div><div class="srow-desc">API key rotation, tenant fingerprint drift, JWT claim anomalies</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="5" max="40" value="15" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-slider-val">15%</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_W_EXFILTRATION</div><div class="srow-desc">PII density, Shannon entropy spikes, output volume anomaly</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="5" max="50" value="25" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-slider-val">25%</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_W_INJECTION</div><div class="srow-desc">Multi-turn INJECTION_CHAIN score from AgentMonitor</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="5" max="30" value="10" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-slider-val">10%</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_W_SOVEREIGN</div><div class="srow-desc">Cross-border data transfer compliance risk</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="2" max="20" value="5" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-slider-val">5%</span></div></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Decision Tier Thresholds</h3><span class="sh-note">Redis sliding window per session</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_TIER_MONITOR</div><div class="srow-desc">Score threshold for MONITOR tier (enhanced telemetry + soft flag)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="20" max="60" value="40" oninput="this.nextElementSibling.textContent='0.'+this.value"><span class="s-slider-val">0.40</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_TIER_CHALLENGE</div><div class="srow-desc">Score threshold for CHALLENGE tier (CAPTCHA / re-auth + rate limit)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="40" max="80" value="65" oninput="this.nextElementSibling.textContent='0.'+this.value"><span class="s-slider-val">0.65</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_TIER_SHADOW_BAN</div><div class="srow-desc">Score threshold for SHADOW BAN (gaslight / delay strategy)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="60" max="95" value="80" oninput="this.nextElementSibling.textContent='0.'+this.value"><span class="s-slider-val">0.80</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FRAUD_TIER_BLOCK</div><div class="srow-desc">Score threshold for BLOCK + ALERT (hard block + PagerDuty)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="80" max="99" value="92" oninput="this.nextElementSibling.textContent='0.'+this.value"><span class="s-slider-val">0.92</span></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ SHADOW AI ════════════════════ -->
+    <div class="panel" id="p-shadowai" data-color="orange">
+      <div class="panel-header">
+        <h2>Shadow AI Governance</h2>
+        <p>Detect and govern unauthorized AI usage across your network. 18-provider fingerprint database, async /24 subnet probe, DNS telemetry classifier, per-tenant policy enforcement.</p>
+        <div class="ph-tags">
+          <span class="tag pill-orange">18 Providers</span>
+          <span class="tag pill-blue">Async /24 Probe</span>
+          <span class="tag pill-gold">DNS Telemetry</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Discovery Engine</h3><span class="sh-note">shadow_ai/discovery.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_AI_ENABLED</div><div class="srow-desc">Enable Shadow AI Discovery (Enterprise or add-on required)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_AI_CONCURRENCY</div><div class="srow-desc">Max concurrent subnet probe connections (safety limit: max /24 = 256 hosts)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="10" max="100" value="50" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">50</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_AI_PROBE_TIMEOUT</div><div class="srow-desc">Per-host HTTP fingerprinting timeout (seconds)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="10" value="3" oninput="this.nextElementSibling.textContent=this.value+'s'"><span class="s-slider-val">3s</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_AI_USE_SCAPY</div><div class="srow-desc">Optional ARP/ICMP pre-probe via scapy (60-80% faster on sparse subnets). Requires CAP_NET_RAW.</div></div><div class="srow-right"><label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_AI_SYSLOG_ENABLED</div><div class="srow-desc">Async UDP syslog listener — parses dnsmasq/BIND9/Zeek DNS query lines</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_AI_SYSLOG_PORT</div><div class="srow-desc">UDP syslog listener port</div></div><div class="srow-right"><input class="s-input narrow" value="5514"></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Policy Enforcement</h3><span class="sh-note">shadow_ai/policy.py · per-tenant</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_AI_DEFAULT_POLICY</div><div class="srow-desc">Default policy for new tenants: MONITOR / BLOCK_DENYLIST / ALLOWLIST_ONLY</div></div><div class="srow-right"><select class="s-select"><option selected>MONITOR</option><option>BLOCK_DENYLIST</option><option>ALLOWLIST_ONLY</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FINDINGS_CAP_PER_TENANT</div><div class="srow-desc">Max findings stored in Redis per tenant (LPUSH + LTRIM)</div></div><div class="srow-right"><input class="s-input narrow" value="1000"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ XAI ════════════════════ -->
+    <div class="panel" id="p-xai" data-color="purple">
+      <div class="panel-header">
+        <h2>XAI & Explainability</h2>
+        <p>9-stage pipeline DAG explainability. Primary cause attribution, counterfactual remediations, HTML/PDF reports. SHA-256 attested XAI reports for legal/compliance use.</p>
+        <div class="ph-tags">
+          <span class="tag pill-purple">9-Stage DAG</span>
+          <span class="tag pill-blue">PDF Export</span>
+          <span class="tag pill-gold">SHA-256 Attested</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Report Configuration</h3><span class="sh-note">xai/chain.py · xai/renderer.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">XAI_REPORTS_ENABLED</div><div class="srow-desc">Enable XAI report generation (Individual+ with add-on, Pro/Enterprise included)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">XAI_PDF_ENABLED</div><div class="srow-desc">PDF export via reportlab (falls back to HTML if not installed)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">XAI_DASHBOARD_HOURS</div><div class="srow-desc">Default time window for XAI dashboard stage hit rates (1–168h)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="168" value="24" oninput="this.nextElementSibling.textContent=this.value+'h'"><span class="s-slider-val">24h</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">XAI_ATTEST_ENABLED</div><div class="srow-desc">SHA-256 attestation for every XAI decision (litigation-ready evidence chain)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ SOVEREIGN ════════════════════ -->
+    <div class="panel" id="p-sovereign" data-color="cyan">
+      <div class="panel-header">
+        <h2>Sovereign Cloud</h2>
+        <p>8-jurisdiction data routing (EU/US/UK/CA/SG/AU/JP/CH), MASQUE H3/H2/TCP tunnels with TOFU pinning, per-tenant routing policy, and HMAC-SHA256 signed sovereignty attestations (7yr Redis TTL).</p>
+        <div class="ph-tags">
+          <span class="tag pill-blue">8 Jurisdictions</span>
+          <span class="tag pill-cyan">MASQUE H3</span>
+          <span class="tag pill-gold">7yr Attestation</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Routing Engine</h3><span class="sh-note">sovereign/router.py · sovereign/policy.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SOVEREIGN_ENABLED</div><div class="srow-desc">Sovereign cloud routing (Enterprise only)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">DEFAULT_JURISDICTION</div><div class="srow-desc">Home jurisdiction for new tenants without explicit policy</div></div><div class="srow-right"><select class="s-select"><option>EU</option><option selected>US</option><option>UK</option><option>CA</option><option>SG</option><option>AU</option><option>JP</option><option>CH</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FALLBACK_MODE</div><div class="srow-desc">Action when no compliant tunnel is ACTIVE: BLOCK or DIRECT (pass-through)</div></div><div class="srow-right"><select class="s-select"><option>BLOCK</option><option selected>DIRECT</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">TUNNEL_OFFLINE_AFTER_FAILS</div><div class="srow-desc">Consecutive probe failures before ACTIVE → OFFLINE transition</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="2" max="10" value="5" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">5</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SOVEREIGN_ATTEST_KEY</div><div class="srow-desc">HMAC-SHA256 key for sovereignty attestations (fallback: VAULT_MASTER_KEY)</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="••••••••••••••••••••••••"></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>MASQUE Tunnel Protocol</h3><span class="sh-note">sovereign/tunnel.py · TOFU pinning</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">DEFAULT_TUNNEL_PROTOCOL</div><div class="srow-desc">Preferred MASQUE protocol for new tunnel registrations</div></div><div class="srow-right"><select class="s-select"><option selected>MASQUE_H3</option><option>MASQUE_H2</option><option>CONNECT_TCP</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">TOFU_PINNING_ENABLED</div><div class="srow-desc">Trust-on-First-Use TLS fingerprint pinning for tunnel endpoints</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">ATTESTATION_MAX_PER_TENANT</div><div class="srow-desc">Max sovereignty attestations stored per tenant (Redis cap)</div></div><div class="srow-right"><input class="s-input narrow" value="10000"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ PQC ════════════════════ -->
+    <div class="panel" id="p-pqc" data-color="gold">
+      <div class="panel-header">
+        <h2>Post-Quantum Cryptography</h2>
+        <p>NIST FIPS 203/204 hybrid cryptography — HybridSigner (Ed25519 64B + ML-DSA-65 3309B = 3373B), HybridKEM (X25519 ⊕ ML-KEM-768 via HKDF-SHA256), liboqs fail-open. Enterprise-only.</p>
+        <div class="ph-tags">
+          <span class="tag pill-gold">FIPS 203/204</span>
+          <span class="tag pill-green">liboqs fail-open</span>
+          <span class="tag pill-purple">Enterprise Only</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>PQC Backend</h3><span class="sh-note">crypto/pqc.py · communities/keypair.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">PQC_ENABLED</div><div class="srow-desc">Enable hybrid PQC (requires liboqs-python + Enterprise tier). Fail-open to classical.</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">PQC_SIGNER_ALGORITHM</div><div class="srow-desc">Post-quantum signature algorithm (NIST FIPS 204)</div></div><div class="srow-right"><select class="s-select"><option selected>ML-DSA-65</option><option>ML-DSA-44</option><option>ML-DSA-87</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">PQC_KEM_ALGORITHM</div><div class="srow-desc">Post-quantum KEM algorithm (NIST FIPS 203)</div></div><div class="srow-right"><select class="s-select"><option selected>ML-KEM-768</option><option>ML-KEM-512</option><option>ML-KEM-1024</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">HYBRID_KDF</div><div class="srow-desc">KDF for hybrid shared secret: HKDF-SHA256(X25519_ss ⊕ mlkem_ss[:32])</div></div><div class="srow-right"><select class="s-select"><option selected>HKDF-SHA256</option><option>HKDF-SHA512</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">COMMUNITY_VAULT_KEY</div><div class="srow-desc">Master key for Fernet-encrypting community private key slots</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="••••••••••••••••••••••••"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ SEP ════════════════════ -->
+    <div class="panel" id="p-sep" data-color="blue">
+      <div class="panel-header">
+        <h2>SEP Communities</h2>
+        <p>Syndicate Exchange Protocol — UECIID (SEP-{11 base-62}), inter-community peering, Knock-and-Verify invitations, Causal Transfer Guard (P≥0.70 block), Sovereign Data Pods, STIX 2.1 audit chain.</p>
+        <div class="ph-tags">
+          <span class="tag pill-blue">UECIID</span>
+          <span class="tag pill-gold">STIX 2.1</span>
+          <span class="tag pill-green">Transfer Guard</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Transfer Guard & Causal Arbiter</h3><span class="sh-note">communities/transfer_guard.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">TRANSFER_RISK_THRESHOLD</div><div class="srow-desc">P(exfiltration) threshold above which inter-community transfers are REJECTED</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="50" max="95" value="70" oninput="this.nextElementSibling.textContent='0.'+this.value"><span class="s-slider-val">0.70</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">VELOCITY_WINDOW_MINUTES</div><div class="srow-desc">Redis sliding window for transfer velocity tracking per community</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="5" max="60" value="60" oninput="this.nextElementSibling.textContent=this.value+'m'"><span class="s-slider-val">60m</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">BURST_WINDOW_MINUTES</div><div class="srow-desc">Redis burst detection window per community</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="30" value="5" oninput="this.nextElementSibling.textContent=this.value+'m'"><span class="s-slider-val">5m</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">STIX_AUDIT_ENABLED</div><div class="srow-desc">STIX 2.1 tamper-evident audit chain for all transfers (including REJECTED)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Peering & Knock-and-Verify</h3><span class="sh-note">communities/peering.py · communities/knock.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">DEFAULT_PEERING_POLICY</div><div class="srow-desc">Default policy for new inter-community peerings</div></div><div class="srow-right"><select class="s-select"><option selected>MIRROR_ONLY</option><option>REWRAP_ALLOWED</option><option>FULL_SYNC</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">KNOCK_TOKEN_TTL_HRS</div><div class="srow-desc">Redis TTL for Knock-and-Verify invitation tokens (sep:knock:{hash})</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="168" value="72" oninput="this.nextElementSibling.textContent=this.value+'h'"><span class="s-slider-val">72h</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SEP_DB_PATH</div><div class="srow-desc">SQLite database path for UECIID index, pod tags, peerings, transfers, STIX chain</div></div><div class="srow-right"><input class="s-input wide" value="/tmp/warden_sep.db"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ INFRASTRUCTURE ════════════════════ -->
+    <div class="panel" id="p-infra" data-color="green">
+      <div class="panel-header">
+        <h2>Infrastructure</h2>
+        <p>Configure Redis, MinIO/S3, PostgreSQL, Prometheus, Grafana, and logging. 11 Docker services with healthchecks and resource limits. Caddy v2.8+ reverse proxy with QUIC/HTTP3.</p>
+        <div class="ph-tags">
+          <span class="tag pill-green">11 Services</span>
+          <span class="tag pill-blue">Docker Compose</span>
+          <span class="tag pill-cyan">Caddy v2.8</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Redis</h3><span class="sh-note">ERS · Cache · Sessions · Memory</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">REDIS_URL</div><div class="srow-desc">Redis connection URL. Use memory:// for tests (in-process limiter).</div></div><div class="srow-right"><input class="s-input wide" value="redis://redis:6379/0"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">CACHE_TTL_SECONDS</div><div class="srow-desc">SHA-256 content hash cache TTL — prevents duplicate processing</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="60" max="3600" value="300" oninput="this.nextElementSibling.textContent=this.value+'s'"><span class="s-slider-val">300s</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">ERS_WINDOW_SIZES</div><div class="srow-desc">Sliding window durations for Entity Risk Score (comma-separated)</div></div><div class="srow-right"><input class="s-input" value="1m,5m,1h,24h"></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Object Storage (MinIO / S3)</h3><span class="sh-note">storage/s3.py · Evidence Vault</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">S3_ENABLED</div><div class="srow-desc">Enable MinIO/S3 object storage for evidence vault and screencasts</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">S3_ENDPOINT_URL</div><div class="srow-desc">MinIO endpoint (use AWS S3 URL for cloud deployment)</div></div><div class="srow-right"><input class="s-input wide" value="http://minio:9000"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">S3_BUCKET_EVIDENCE</div><div class="srow-desc">Evidence vault bucket — warden-evidence/bundles/{session_id}.json</div></div><div class="srow-right"><input class="s-input" value="warden-evidence"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">S3_BUCKET_LOGS</div><div class="srow-desc">Analytics log bucket — warden-logs/logs/{date}/{request_id}.json</div></div><div class="srow-right"><input class="s-input" value="warden-logs"></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Logging & GDPR</h3><span class="sh-note">analytics/logger.py · GDPR Art.35</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">LOGS_PATH</div><div class="srow-desc">NDJSON log file path (atomic writes via tempfile + os.replace)</div></div><div class="srow-right"><input class="s-input wide" value="/data/logs.json"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">LOG_CONTENT</div><div class="srow-desc">⚠ GDPR HARD BLOCK — content NEVER logged (metadata only: type, length, timing)</div></div><div class="srow-right"><span class="pill pill-red">DISABLED</span></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">LOG_RETENTION_DAYS</div><div class="srow-desc">Auto-purge logs older than N days (GDPR Art.5 storage limitation)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="7" max="365" value="90" oninput="this.nextElementSibling.textContent=this.value+'d'"><span class="s-slider-val">90d</span></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ ALERTS ════════════════════ -->
+    <div class="panel" id="p-alerts" data-color="orange">
+      <div class="panel-header">
+        <h2>Alerts & SLO</h2>
+        <p>Slack + PagerDuty real-time alerting on HIGH/BLOCK events. Prometheus SLO alerts: P99 latency, 5xx rate, availability, shadow ban rate, corpus drift. Grafana dashboards.</p>
+        <div class="ph-tags">
+          <span class="tag pill-orange">Slack · PagerDuty</span>
+          <span class="tag pill-blue">Prometheus SLO</span>
+          <span class="tag pill-green">Grafana</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Alert Channels</h3><span class="sh-note">alerting.py · warden_alerts.yml</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SLACK_ENABLED</div><div class="srow-desc">Slack alerts on HIGH/BLOCK events and SOVA REQUIRES_APPROVAL</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SLACK_WEBHOOK_URL</div><div class="srow-desc">Incoming webhook URL for alert delivery</div></div><div class="srow-right"><input class="s-input wide" placeholder="https://hooks.slack.com/services/…"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">PAGERDUTY_ENABLED</div><div class="srow-desc">PagerDuty integration for critical (BLOCK + ALERT) events</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">PAGERDUTY_ROUTING_KEY</div><div class="srow-desc">PagerDuty Events API v2 routing key</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="••••••••••••••••••••••••"></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>SLO Thresholds</h3><span class="sh-note">Pro 99.9% · Enterprise 99.95%</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SLO_P99_LATENCY_MS</div><div class="srow-desc">P99 latency SLO alert threshold — fires Prometheus alert if exceeded</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="10" max="500" value="50" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span class="s-slider-val">50ms</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SLO_5XX_RATE_PCT</div><div class="srow-desc">5xx error rate alert threshold (percentage of requests)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="20" value="1" oninput="this.nextElementSibling.textContent='0.'+this.value+'%'"><span class="s-slider-val">0.1%</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SLO_UPTIME_TARGET_PCT</div><div class="srow-desc">Uptime SLO target (Pro: 99.9% / Enterprise: 99.95%)</div></div><div class="srow-right"><select class="s-select"><option>99.9% (Pro)</option><option selected>99.95% (Enterprise)</option><option>99.99% (Custom)</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SHADOW_BAN_RATE_ALERT</div><div class="srow-desc">Alert when shadow ban rate exceeds threshold (anomalous attack pattern)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="30" value="10" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="s-slider-val">10%</span></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ BILLING ════════════════════ -->
+    <div class="panel" id="p-billing" data-color="purple">
+      <div class="panel-header">
+        <h2>Billing & Tiers</h2>
+        <p>Manage your plan, add-on SKUs, and feature gates. Pro includes MasterAgent. Enterprise includes PQC + Sovereign. HTTP 403 = tier too low. HTTP 402 = add-on not purchased.</p>
+        <div class="ph-tags">
+          <span class="tag pill-purple">Active: Enterprise</span>
+          <span class="tag pill-green">$249/mo</span>
+          <span class="tag pill-gold">All Features</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Plan Selection</h3></div>
+        <div class="tier-grid">
+          <div class="tier-card">
+            <div class="tier-name" style="color:var(--muted)">Individual</div>
+            <div class="tier-price">$29<span>/mo</span></div>
+            <ul class="tier-features">
+              <li>Pipeline defense (14 layers)</li>
+              <li>XAI reports (add-on)</li>
+              <li>1 tenant</li>
+              <li>99.5% uptime SLA</li>
+            </ul>
+          </div>
+          <div class="tier-card">
+            <div class="tier-name" style="color:var(--blue)">Pro</div>
+            <div class="tier-price" style="color:var(--blue)">$69<span>/mo</span></div>
+            <ul class="tier-features">
+              <li>Everything in Individual</li>
+              <li>MasterAgent v4.0</li>
+              <li>Shadow AI (add-on)</li>
+              <li>Multi-tenant</li>
+              <li>99.9% uptime SLA</li>
+            </ul>
+          </div>
+          <div class="tier-card selected">
+            <div class="tier-name" style="color:var(--purple)">Enterprise</div>
+            <div class="tier-price" style="color:var(--purple)">$249<span>/mo</span></div>
+            <ul class="tier-features">
+              <li>Everything in Pro</li>
+              <li>Post-Quantum Crypto</li>
+              <li>Sovereign Cloud</li>
+              <li>SEP Communities</li>
+              <li>99.95% uptime SLA</li>
+              <li>Dedicated support</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Add-on SKUs</h3><span class="sh-note">billing/addons.py · Lemon Squeezy</span></div>
+        <div class="scard-body">
+          <div class="addon-row">
+            <div class="addon-icon" style="background:rgba(255,159,10,0.12)">👁</div>
+            <div><div class="addon-name">Shadow AI Discovery</div><div class="addon-desc">18-provider subnet probe + DNS telemetry governance (Pro+)</div></div>
+            <span class="pill pill-green" style="margin-left:auto;margin-right:12px">Active</span>
+            <div class="addon-price">+$15/mo</div>
+          </div>
+          <div class="addon-row">
+            <div class="addon-icon" style="background:rgba(191,90,242,0.12)">🔮</div>
+            <div><div class="addon-name">XAI Audit Reports</div><div class="addon-desc">HTML/PDF explainability reports + SHA-256 attestation (Individual+)</div></div>
+            <span class="pill pill-green" style="margin-left:auto;margin-right:12px">Active</span>
+            <div class="addon-price">+$9/mo</div>
+          </div>
+          <div class="addon-row">
+            <div class="addon-icon" style="background:rgba(10,132,255,0.12)">🤖</div>
+            <div><div class="addon-name">MasterAgent SOC</div><div class="addon-desc">4 sub-agents, HMAC tokens, Human-in-the-Loop (included in Pro+)</div></div>
+            <span class="pill pill-dim" style="margin-left:auto;margin-right:12px">Included</span>
+            <div class="addon-price" style="color:var(--dim)">+$20/mo</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Admin Keys</h3><span class="sh-note">billing/router.py · X-Admin-Key required</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">ADMIN_KEY</div><div class="srow-desc">X-Admin-Key header required for POST /billing/addons/grant and DELETE /billing/addons/revoke</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="••••••••••••••••••••••••"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">WARDEN_API_KEY</div><div class="srow-desc">Per-tenant API keys (JSON multi-key + SHA-256 hash lookup, constant-time compare)</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="••••••••••••••••••••••••"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── SAVE BAR ── -->
+<div id="save-bar">
+  <span class="save-note">Unsaved changes — <b>settings will apply on next container restart</b> unless hot-reload is supported</span>
+  <button class="btn-reset" onclick="resetPanel()">Reset to Defaults</button>
+  <button class="btn-save" onclick="saveSettings()">Save Configuration</button>
+</div>
+
+<!-- ── TOAST ── -->
+<div id="toast">✓ Configuration saved</div>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+    document.getElementById('p-' + id).classList.add('active');
+    event.currentTarget.classList.add('active');
+  }
+
+  function saveSettings() {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  function resetPanel() {
+    if (confirm('Reset all settings in this panel to defaults?')) {
+      document.querySelectorAll('.panel.active input[type="range"]').forEach(r => {
+        r.dispatchEvent(new Event('input'));
+      });
+    }
+  }
+
+  // Keyboard nav
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') window.location.href = '/';
+  });
+</script>
+</body>
+</html>

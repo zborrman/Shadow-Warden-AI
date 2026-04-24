@@ -1,0 +1,111 @@
+---
+const nav = [
+  { label: 'Pipeline',     href: '#pipeline'   },
+  { label: 'Brain / AI',   href: '#brain'      },
+  { label: 'Agentic SOC',  href: '#soc'        },
+  { label: 'Sovereign',    href: '#sovereign'  },
+  { label: 'Nemotron',     href: '#nemotron'   },
+  { label: 'FraudScore',   href: '#fraudscore' },
+  { label: 'SEP',          href: '#sep'        },
+  { label: 'Compliance',   href: '#compliance' },
+  { label: 'Pricing',      href: '#pricing'    },
+];
+---
+
+<header id="navbar" class="fixed top-0 left-0 right-0 z-50 h-14 transition-all duration-300"
+        style="background:rgba(3,5,15,0.88);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)">
+  <nav class="mx-auto max-w-7xl px-4 lg:px-8 h-full flex items-center gap-4">
+
+    <!-- Logo -->
+    <a href="/" class="flex items-center gap-2 flex-shrink-0 group">
+      <div class="relative w-7 h-7 rounded-lg flex items-center justify-center text-xs
+                  bg-gradient-to-br from-[#FF2D55] to-[#FF6B35]"
+           style="box-shadow:0 0 16px rgba(255,45,85,0.45)">
+        🛡️
+        <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#30D158]
+                     border-2 border-[#03050F] animate-pulse"></span>
+      </div>
+      <div class="flex flex-col leading-none">
+        <span class="text-[13px] font-bold tracking-tight">Shadow Warden</span>
+        <span class="text-[8px] text-[#FF2D55] font-bold tracking-[1px] uppercase">v4.7 · LIVE</span>
+      </div>
+    </a>
+
+    <!-- Desktop links -->
+    <div class="hidden xl:flex items-center gap-0 flex-1 overflow-hidden">
+      {nav.map(l => (
+        <a href={l.href}
+           class="px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-[#8E8E9E]
+                  hover:text-[#F5F5F7] hover:bg-white/[0.05] transition-all duration-150 whitespace-nowrap">
+          {l.label}
+        </a>
+      ))}
+    </div>
+
+    <!-- Action buttons -->
+    <div class="ml-auto flex items-center gap-2">
+      <!-- Status -->
+      <div class="hidden sm:flex items-center gap-1.5 text-[10px] font-semibold
+                  text-[#30D158] bg-[#30D158]/10 border border-[#30D158]/20
+                  px-2.5 py-1.5 rounded-full whitespace-nowrap">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
+        14 Layers Active
+      </div>
+
+      <!-- FraudScore tool -->
+      <a href="/fraud-score.html"
+         class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
+                text-[#FF9F0A] bg-[#FF9F0A]/[0.08] border border-[#FF9F0A]/20
+                hover:bg-[#FF9F0A]/15 transition-all duration-150 whitespace-nowrap">
+        🎯 FraudScore
+      </a>
+
+      <!-- Docs -->
+      <a href="/enterprise-guide"
+         class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
+                text-[#5AC8FA] bg-[#5AC8FA]/[0.08] border border-[#5AC8FA]/20
+                hover:bg-[#5AC8FA]/15 transition-all duration-150 whitespace-nowrap">
+        📖 Docs v4.7
+      </a>
+
+      <!-- Settings -->
+      <a href="/enterprise-settings.html"
+              class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
+                     text-[#8E8E9E] hover:text-[#F5F5F7] bg-white/[0.03] border border-white/[0.07]
+                     hover:bg-white/[0.07] transition-all duration-150">
+        ⚙ Settings
+      </a>
+
+      <!-- Agent Bot -->
+      <button onclick="openAgent()"
+              class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
+                     text-[#BF5AF2] bg-[#BF5AF2]/[0.08] border border-[#BF5AF2]/20
+                     hover:bg-[#BF5AF2]/15 transition-all duration-150">
+        🤖 SOVA Bot
+      </button>
+
+      <!-- Sign In -->
+      <button onclick="openAuth('signin')"
+              class="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#8E8E9E]
+                     hover:text-[#F5F5F7] transition-colors">
+        Sign In
+      </button>
+
+      <!-- CTA -->
+      <button onclick="openAuth('signup')"
+              class="px-3.5 py-2 rounded-lg text-[12px] font-bold text-white bg-[#FF2D55]
+                     hover:bg-[#E8213A] transition-all duration-200 whitespace-nowrap"
+              style="box-shadow:0 4px 14px rgba(255,45,85,0.35)">
+        Start Free Trial
+      </button>
+    </div>
+  </nav>
+</header>
+
+<script>
+  const el = document.getElementById('navbar')!;
+  window.addEventListener('scroll', () => {
+    el.style.borderBottomColor = window.scrollY > 20
+      ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.06)';
+  }, { passive: true });
+</script>

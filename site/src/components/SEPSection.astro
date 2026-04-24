@@ -1,0 +1,168 @@
+---
+const sepFeatures = [
+  {
+    icon: '🆔', color: '#FFD60A', title: 'UECIID — Universal Entity ID',
+    file: 'communities/sep.py',
+    desc: 'SEP-{11 base-62 chars} encodes 64-bit Snowflake ID. Case-sensitive alphabet 0-9A-Za-z. Lexicographic = chronological. Globally unique business identity.',
+    badge: 'SEP-aBcDeFgHiJk',
+  },
+  {
+    icon: '🤝', color: '#FF9F0A', title: 'Inter-Community Peering',
+    file: 'communities/peering.py',
+    desc: 'MIRROR_ONLY / REWRAP_ALLOWED / FULL_SYNC policies. HMAC handshake token stored as hash only. Duplicate ACTIVE peering blocked. Transfer velocity tracking.',
+    badge: 'HMAC Handshake',
+  },
+  {
+    icon: '🚪', color: '#0A84FF', title: 'Knock-and-Verify',
+    file: 'communities/knock.py',
+    desc: 'One-time invitation tokens. Redis sep:knock:{hash} (72h TTL). verify_and_accept_knock() asserts invitee_tenant_id. Auto-promotes to member on accept.',
+    badge: '72h TTL · One-time',
+  },
+  {
+    icon: '🛡️', color: '#FF2D55', title: 'Causal Transfer Guard',
+    file: 'communities/transfer_guard.py',
+    desc: 'Bayesian risk gate on every transfer. Maps data_class + velocity + peering age → arbitrate() evidence. Blocks exfiltration P≥0.70 in <20ms. Redis sliding window.',
+    badge: 'P≥0.70 BLOCK',
+  },
+  {
+    icon: '🗄️', color: '#30D158', title: 'Sovereign Data Pods',
+    file: 'communities/data_pod.py',
+    desc: 'Per-jurisdiction MinIO routing. Fernet-encrypted secret keys (SHA-256 of COMMUNITY_VAULT_KEY). Resolution: jurisdiction → data_class → primary → first ACTIVE.',
+    badge: 'Fernet AES-128',
+  },
+  {
+    icon: '📜', color: '#BF5AF2', title: 'STIX 2.1 Audit Chain',
+    file: 'communities/stix_audit.py',
+    desc: 'Tamper-evident blockchain-style chain. Genesis block prev_hash = "0"×64. verify_chain() re-hashes canonical JSON. JSONL export for SIEM import.',
+    badge: 'SHA-256 Chain',
+  },
+];
+
+const transferFlow = [
+  { label: 'transfer_entity()', color: '#FFD60A' },
+  { label: 'resolve pod tag → data_class', color: '#FF9F0A' },
+  { label: 'evaluate_transfer_risk()', color: '#FF2D55' },
+  { label: 'P < 0.70?', color: '#0A84FF', branch: true },
+  { label: 'sign CTP (HMAC + PQC)', color: '#BF5AF2' },
+  { label: 'stix_audit.append_transfer()', color: '#30D158' },
+  { label: 'new UECIID in target community', color: '#30D158' },
+];
+---
+
+<section id="sep" class="relative py-24 lg:py-32 bg-[#03050F]">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(255,215,10,0.2),transparent)"></div>
+
+  <!-- Gold ambient -->
+  <div class="absolute top-0 left-0 w-[700px] h-[500px] pointer-events-none"
+       style="background:radial-gradient(ellipse at top left,rgba(255,215,10,0.04) 0%,transparent 70%)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="mb-16">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FFD60A] mb-3">
+        SEP — Syndicate Exchange Protocol
+      </p>
+      <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
+        Secure business<br />
+        <span style="background:linear-gradient(135deg,#FFD60A,#FF9F0A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          document exchange.
+        </span>
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        Cryptographically-attested inter-community protocol. Every entity transfer gets
+        a Causal Transfer Proof, PQC signature, and STIX 2.1 audit chain entry.
+      </p>
+    </div>
+
+    <!-- Feature cards -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+      {sepFeatures.map(f => (
+        <div class="rounded-xl border border-white/[0.06] bg-[#080D1E] p-5
+                    hover:border-opacity-50 hover:-translate-y-0.5 transition-all duration-200">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                 style={`background:${f.color}15`}>{f.icon}</div>
+            <div>
+              <div class="text-[13px] font-bold">{f.title}</div>
+              <div class="text-[8px] font-mono text-[#48485A] mt-0.5">{f.file}</div>
+            </div>
+          </div>
+          <p class="text-[11px] text-[#8E8E9E] leading-[1.65] mb-3">{f.desc}</p>
+          <span class="text-[9px] font-mono font-bold px-2.5 py-1 rounded-md"
+                style={`color:${f.color};background:${f.color}15`}>{f.badge}</span>
+        </div>
+      ))}
+    </div>
+
+    <!-- Transfer flow + 24 API endpoints -->
+    <div class="grid lg:grid-cols-[1fr_300px] gap-6">
+
+      <!-- Transfer flow -->
+      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-5">
+          Entity Transfer Flow
+        </div>
+        <div class="flex flex-col gap-0">
+          {transferFlow.map((step, i) => (
+            <div class="flex items-center gap-3">
+              <div class="flex flex-col items-center">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                     style={`background:${step.color}20;color:${step.color}`}>{i + 1}</div>
+                {i < transferFlow.length - 1 && <div class="w-px h-4 my-0.5" style={`background:${step.color}30`}></div>}
+              </div>
+              <div class={`text-[12px] py-1 ${step.branch ? 'font-bold' : ''}`}
+                   style={step.branch ? `color:${step.color}` : 'color:#F5F5F7'}>
+                {step.label}
+                {step.branch && (
+                  <span class="ml-2 text-[9px] text-[#FF2D55]">→ REJECTED if P≥0.70</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div class="mt-4 pt-4 border-t border-white/[0.05] text-[10px] text-[#8E8E9E]">
+          REJECTED transfers still written to sep_transfers table and STIX chain — full audit trail preserved.
+          Proof includes optional ML-DSA-65 pqc_signature when source community is_hybrid=True.
+        </div>
+      </div>
+
+      <!-- 24 endpoints -->
+      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+          24 REST Endpoints · /sep/*
+        </div>
+        <div class="flex flex-col gap-1.5">
+          {[
+            ['POST', '/sep/ueciid', '#30D158'],
+            ['GET',  '/sep/ueciid/{id}', '#0A84FF'],
+            ['GET',  '/sep/ueciid/search', '#0A84FF'],
+            ['GET',  '/sep/ueciid/list', '#0A84FF'],
+            ['PUT',  '/sep/pod-tags/{id}', '#FFD60A'],
+            ['GET',  '/sep/pod-tags/{id}', '#0A84FF'],
+            ['POST', '/sep/peerings', '#30D158'],
+            ['POST', '/sep/peerings/{id}/accept', '#FF9F0A'],
+            ['POST', '/sep/peerings/{id}/transfer', '#FF2D55'],
+            ['POST', '/sep/transfers/{id}/verify-proof', '#BF5AF2'],
+            ['POST', '/sep/knock/issue', '#30D158'],
+            ['POST', '/sep/knock/accept', '#FF9F0A'],
+            ['POST', '/sep/pods', '#30D158'],
+            ['GET',  '/sep/pods/{id}', '#0A84FF'],
+            ['POST', '/sep/pods/{id}/probe', '#FF9F0A'],
+            ['GET',  '/sep/audit-chain/{id}', '#0A84FF'],
+            ['POST', '/sep/audit-chain/{id}/verify', '#BF5AF2'],
+            ['GET',  '/sep/audit-chain/{id}/export', '#5AC8FA'],
+          ].map(([method, path, color]) => (
+            <div class="flex items-center gap-2">
+              <span class="text-[8px] font-bold w-10 text-right flex-shrink-0"
+                    style={`color:${color}`}>{method}</span>
+              <span class="text-[9px] font-mono text-[#8E8E9E] truncate">{path}</span>
+            </div>
+          ))}
+          <div class="text-[9px] text-[#48485A] mt-1">+ 6 more (knock revoke/list, pod delete...)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

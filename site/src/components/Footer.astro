@@ -1,0 +1,103 @@
+---
+const cols = [
+  {
+    title: 'Security',
+    links: ['Pipeline (/filter)', 'Obfuscation Decoder', 'PII & Secret Vault', 'Hyperbolic Brain', 'Causal Arbiter', 'PhishGuard + SE', 'Shadow Ban (ERS)', 'Evolution Engine'],
+    hrefs: ['#pipeline','#pipeline','#pipeline','#brain','#brain','#pipeline','#pipeline','#brain'],
+  },
+  {
+    title: 'Platform',
+    links: ['Agentic SOC', 'MasterAgent', 'SOVA (30 tools)', 'Post-Quantum Crypto', 'Sovereign Cloud', 'SEP Communities', 'Shadow AI Discovery', 'XAI / Explainability'],
+    hrefs: ['#soc','#soc','#soc','#pqc','#sovereign','#sep','#intel','#compliance'],
+  },
+  {
+    title: 'Compliance',
+    links: ['OWASP LLM Top 10', 'GDPR Art.35 DPIA', 'SOC 2 Type II', 'EU AI Act Ready', 'NIST FIPS 203/204', 'HIPAA PHI Controls', 'ISO 27001', 'Evidence Vault'],
+    hrefs: ['#compliance','#compliance','#compliance','#compliance','#pqc','#sovereign','#compliance','#pqc'],
+  },
+  {
+    title: 'Resources',
+    links: ['Documentation', 'API Reference', 'Security Model', 'SLA (99.95%)', 'GitHub', 'ROI Calculator', 'Pricing', 'Contact Sales'],
+    hrefs: ['/enterprise-guide','#','#','#','https://github.com/zborrman/Shadow-Warden-AI','#roi','#pricing','#'],
+  },
+];
+
+const badges = ['SOC 2 Type II', 'GDPR Native', 'FIPS 203/204', 'EU AI Act Ready', 'HIPAA Controls', 'ISO 27001'];
+---
+
+<footer class="relative border-t border-white/[0.06] bg-[#03050F] pt-16 pb-10">
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <div class="grid lg:grid-cols-[1.5fr_repeat(4,1fr)] gap-10 mb-14">
+      <!-- Brand -->
+      <div>
+        <a href="/" class="flex items-center gap-2.5 mb-5 w-fit">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg
+                      bg-gradient-to-br from-[#FF2D55] to-[#FF6B35]"
+               style="box-shadow:0 0 24px rgba(255,45,85,0.4)">🛡️</div>
+          <div>
+            <div class="text-[15px] font-black tracking-tight">Shadow Warden AI</div>
+            <div class="text-[9px] text-[#FF2D55] font-bold tracking-[1.5px] uppercase">v4.7 · 153 modules</div>
+          </div>
+        </a>
+
+        <p class="text-[12px] text-[#8E8E9E] leading-[1.7] max-w-[240px] mb-5">
+          The zero-trust AI security gateway with 14-layer real-time defense, self-improving ML,
+          agentic SOC, post-quantum crypto, and sovereign cloud across 8 jurisdictions.
+        </p>
+
+        <!-- Compliance badges -->
+        <div class="flex flex-wrap gap-1.5">
+          {badges.map(b => (
+            <span class="text-[8px] font-bold uppercase tracking-wider
+                        px-2 py-1 rounded border border-white/[0.08] text-[#48485A]">{b}</span>
+          ))}
+        </div>
+
+        <!-- Status -->
+        <div class="mt-5 flex items-center gap-2 text-[11px] text-[#30D158]">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
+          All 14 Layers Operational
+        </div>
+      </div>
+
+      <!-- Link columns -->
+      {cols.map(col => (
+        <div>
+          <h4 class="text-[10px] font-bold tracking-[2px] uppercase text-[#48485A] mb-4">{col.title}</h4>
+          <ul class="flex flex-col gap-2">
+            {col.links.map((l, i) => (
+              <li>
+                <a href={col.hrefs[i]}
+                   class="text-[12px] text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors duration-150">
+                  {l}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+
+    <!-- Docker command -->
+    <div class="rounded-xl border border-white/[0.06] bg-[#080D1E] px-5 py-4 mb-8 font-mono text-[11px]">
+      <span class="text-[#30D158]">$</span>
+      <span class="text-[#F5F5F7] ml-2">docker-compose up --build</span>
+      <span class="text-[#48485A] ml-4"># 11 services · 60 seconds · production-ready · v4.7.0</span>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4
+                pt-8 border-t border-white/[0.05]">
+      <p class="text-[11px] text-[#48485A]">
+        © 2025 Shadow Warden AI. Proprietary license. All rights reserved.
+      </p>
+      <div class="flex items-center gap-6 text-[11px] text-[#48485A]">
+        <a href="#" class="hover:text-[#8E8E9E] transition-colors">Privacy</a>
+        <a href="#" class="hover:text-[#8E8E9E] transition-colors">Terms</a>
+        <a href="#" class="hover:text-[#8E8E9E] transition-colors">Security</a>
+        <span class="text-[#30D158] font-bold">v4.7.0</span>
+      </div>
+    </div>
+  </div>
+</footer>

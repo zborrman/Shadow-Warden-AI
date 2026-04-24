@@ -1,0 +1,153 @@
+---
+const tiers = [
+  {
+    name: 'Individual', price: 29, color: '#8E8E9E', glow: false,
+    cta: 'Start Free Trial', ctaStyle: 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12)',
+    features: [
+      { text: 'Up to 50K requests/month', ok: true },
+      { text: '8-layer filter pipeline', ok: true },
+      { text: 'PII & Secret Redaction', ok: true },
+      { text: 'OWASP LLM Top 10 baseline', ok: true },
+      { text: 'Streamlit dashboard', ok: true },
+      { text: 'MasterAgent SOC', ok: false },
+      { text: 'PQC / Sovereign Cloud', ok: false },
+      { text: 'XAI Reports ($9/mo add-on)', ok: null },
+    ],
+  },
+  {
+    name: 'Pro', price: 69, color: '#FF2D55', glow: true,
+    tag: 'Most Popular',
+    cta: 'Start Free Trial', ctaStyle: 'background:#FF2D55;box-shadow:0 8px 32px rgba(255,45,85,0.4)',
+    features: [
+      { text: 'Up to 500K requests/month', ok: true },
+      { text: 'Full 14-layer defense stack', ok: true },
+      { text: 'MasterAgent SOC (4 sub-agents)', ok: true },
+      { text: 'Evolution Engine (self-improving)', ok: true },
+      { text: 'Evidence Vault + STIX 2.1', ok: true },
+      { text: 'SOC 2 + GDPR audit package', ok: true },
+      { text: 'Shadow AI Discovery ($15/mo add-on)', ok: null },
+      { text: 'PQC / Sovereign Cloud', ok: false },
+    ],
+  },
+  {
+    name: 'Enterprise', price: 249, color: '#BF5AF2', glow: false,
+    tag: 'Full Stack',
+    cta: 'Contact Sales', ctaStyle: 'background:rgba(191,90,242,0.12);border:1px solid rgba(191,90,242,0.3)',
+    features: [
+      { text: 'Unlimited requests', ok: true },
+      { text: 'Post-Quantum Crypto (FIPS 203/204)', ok: true },
+      { text: 'Sovereign AI Cloud — 8 jurisdictions', ok: true },
+      { text: 'Shadow AI Governance', ok: true },
+      { text: 'XAI Audit Reports (PDF)', ok: true },
+      { text: 'SEP Communities Protocol', ok: true },
+      { text: 'SAML/OIDC SSO + RBAC', ok: true },
+      { text: 'Dedicated SLA + 24/7 support', ok: true },
+    ],
+  },
+];
+
+const addons = [
+  { name: 'Shadow AI Discovery', price: '$15/mo', tier: 'Pro+',
+    desc: 'Async /24 subnet probe across 18 AI providers. DNS telemetry. Per-tenant MONITOR/BLOCK/ALLOWLIST policy.' },
+  { name: 'XAI Audit Reports',   price: '$9/mo',  tier: 'Individual+',
+    desc: '9-stage causal chain. Primary cause attribution. PDF reports for SOC 2 evidence packages.' },
+  { name: 'MasterAgent SOC',     price: '$20/mo', tier: 'Individual+',
+    desc: 'Included in Pro base. 4 sub-agents. 30 tools. Human-in-the-Loop approval. ARQ cron scheduler.' },
+];
+---
+
+<section id="pricing" class="relative py-24 lg:py-32 bg-[#03050F]">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(255,45,85,0.2),transparent)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="text-center mb-16">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FF2D55] mb-3">Pricing</p>
+      <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] mb-4">
+        Pays for itself in<br />
+        <span style="background:linear-gradient(135deg,#FF2D55,#FFD60A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          minutes.
+        </span>
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl mx-auto leading-relaxed">
+        IBM 2024: average breach costs <span class="text-[#FF2D55] font-bold">$4.88M</span>.
+        Pro plan ROI at default settings: <span class="text-[#30D158] font-bold">782×</span> annually.
+      </p>
+    </div>
+
+    <!-- Cards -->
+    <div class="grid lg:grid-cols-3 gap-5 mb-10">
+      {tiers.map((t, i) => (
+        <div class={`relative rounded-2xl border p-8 flex flex-col
+                     ${i === 1 ? 'lg:-mt-4 lg:mb-4' : ''}`}
+             style={`border-color:${t.color}${i === 1 ? '50' : '20'};background:#080D1E;
+                     ${t.glow ? `box-shadow:0 0 60px ${t.color}15` : ''}`}>
+          {t.tag && (
+            <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[9px] font-black
+                        tracking-[1.5px] uppercase px-3 py-1 rounded-full whitespace-nowrap"
+                 style={`background:${t.color};color:${i === 1 ? '#fff' : t.color === '#BF5AF2' ? '#fff' : '#03050F'};
+                         ${i === 2 ? `background:${t.color}20;color:${t.color};border:1px solid ${t.color}40` : ''}`}>
+              {t.tag}
+            </div>
+          )}
+
+          <div class="mb-6">
+            <div class="text-[11px] font-bold tracking-[2px] uppercase mb-3" style={`color:${t.color}`}>{t.name}</div>
+            <div class="flex items-end gap-1">
+              <span class="text-[52px] font-black tracking-[-2px] leading-none">${t.price}</span>
+              <span class="text-[#8E8E9E] text-[14px] mb-2">/mo</span>
+            </div>
+            <p class="text-[11px] text-[#48485A] mt-1">billed monthly · cancel anytime</p>
+          </div>
+
+          <ul class="flex flex-col gap-2.5 mb-8 flex-1">
+            {t.features.map(f => (
+              <li class={`flex items-start gap-2.5 text-[12px] ${f.ok === false ? 'opacity-30' : ''}`}>
+                <span class={`mt-0.5 text-[11px] font-bold flex-shrink-0 ${f.ok === null ? 'opacity-50' : ''}`}
+                      style={`color:${f.ok ? t.color : f.ok === null ? '#8E8E9E' : '#48485A'}`}>
+                  {f.ok ? '✓' : f.ok === null ? '○' : '✗'}
+                </span>
+                <span class={f.ok === null ? 'text-[#8E8E9E]' : f.ok === false ? 'text-[#48485A]' : 'text-[#F5F5F7]'}>
+                  {f.text}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <a href={t.name === 'Enterprise' ? 'mailto:sales@shadow-warden-ai.com' : '#'}
+             class="block w-full py-3.5 rounded-xl text-[14px] font-bold text-center
+                    transition-all duration-200 hover:-translate-y-0.5"
+             style={`${t.ctaStyle};color:${i === 1 ? '#fff' : i === 2 ? '#BF5AF2' : '#F5F5F7'}`}>
+            {t.cta}
+          </a>
+        </div>
+      ))}
+    </div>
+
+    <!-- Add-ons -->
+    <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-7">
+      <div class="flex items-center gap-3 mb-5">
+        <span class="text-[11px] font-bold tracking-[2px] uppercase text-[#48485A]">Optional Add-ons</span>
+        <div class="flex-1 h-px bg-white/[0.05]"></div>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-4">
+        {addons.map(a => (
+          <div class="p-4 rounded-xl border border-white/[0.05]">
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div class="text-[13px] font-bold">{a.name}</div>
+              <div class="text-[18px] font-black text-[#FFD60A] flex-shrink-0">{a.price}</div>
+            </div>
+            <div class="text-[11px] text-[#8E8E9E] leading-[1.55] mb-2">{a.desc}</div>
+            <div class="text-[9px] text-[#48485A]">Available: {a.tier}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <p class="text-center text-[11px] text-[#48485A] mt-8">
+      * IBM Cost of a Data Breach Report 2024. All prices USD. Enterprise pricing custom — contact sales.
+    </p>
+  </div>
+</section>

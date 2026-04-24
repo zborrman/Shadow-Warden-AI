@@ -1,0 +1,169 @@
+---
+const jurisdictions = [
+  { code: 'EU', flag: '🇪🇺', name: 'European Union', color: '#0A84FF',
+    frameworks: ['GDPR Art.35', 'EU AI Act', 'NIS2'], data: ['PII', 'PHI', 'FINANCIAL'] },
+  { code: 'US', flag: '🇺🇸', name: 'United States', color: '#FF2D55',
+    frameworks: ['CCPA', 'HIPAA', 'SOC 2'], data: ['PHI', 'FINANCIAL', 'GENERAL'] },
+  { code: 'UK', flag: '🇬🇧', name: 'United Kingdom', color: '#BF5AF2',
+    frameworks: ['UK GDPR', 'ICO', 'FCA'], data: ['PII', 'FINANCIAL'] },
+  { code: 'CA', flag: '🇨🇦', name: 'Canada', color: '#FF9F0A',
+    frameworks: ['PIPEDA', 'C-27', 'PHIPA'], data: ['PII', 'PHI'] },
+  { code: 'SG', flag: '🇸🇬', name: 'Singapore', color: '#30D158',
+    frameworks: ['PDPA', 'MAS TRM'], data: ['FINANCIAL', 'GENERAL'] },
+  { code: 'AU', flag: '🇦🇺', name: 'Australia', color: '#FFD60A',
+    frameworks: ['Privacy Act', 'ASD ISM'], data: ['PII', 'GENERAL'] },
+  { code: 'JP', flag: '🇯🇵', name: 'Japan', color: '#5AC8FA',
+    frameworks: ['APPI', 'FISC'], data: ['PII', 'FINANCIAL'] },
+  { code: 'CH', flag: '🇨🇭', name: 'Switzerland', color: '#FF2D55',
+    frameworks: ['nFADP', 'FINMA'], data: ['PHI', 'FINANCIAL'] },
+];
+
+const tunnelProtocols = [
+  { name: 'MASQUE_H3', desc: 'HTTP/3 QUIC multiplexed', status: 'ACTIVE' },
+  { name: 'MASQUE_H2', desc: 'HTTP/2 fallback', status: 'STANDBY' },
+  { name: 'CONNECT_TCP', desc: 'Legacy TCP fallback', status: 'STANDBY' },
+];
+
+const dataClasses = [
+  { cls: 'CLASSIFIED', color: '#FF2D55', allowed: [] },
+  { cls: 'PHI',        color: '#FF9F0A', allowed: ['EU', 'US', 'UK', 'CA', 'CH'] },
+  { cls: 'PII',        color: '#FFD60A', allowed: ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'] },
+  { cls: 'FINANCIAL',  color: '#0A84FF', allowed: ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'] },
+  { cls: 'GENERAL',    color: '#30D158', allowed: ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'] },
+];
+---
+
+<section id="sovereign" class="relative py-24 lg:py-32 bg-[#03050F]">
+  <div class="absolute inset-x-0 top-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(48,209,88,0.25),transparent)"></div>
+  <div class="absolute inset-x-0 bottom-0 h-px"
+       style="background:linear-gradient(90deg,transparent,rgba(48,209,88,0.1),transparent)"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="mb-16">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#30D158] mb-3">
+        Sovereign AI Cloud · 8 Jurisdictions
+      </p>
+      <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
+        Your data stays in<br />
+        <span style="background:linear-gradient(135deg,#30D158,#5AC8FA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          your jurisdiction.
+        </span>
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        Per-tenant routing policy across 8 jurisdictions via MASQUE_H3 tunnels.
+        TOFU TLS pinning. Cross-border transfer enforcement. GDPR-native by design.
+      </p>
+    </div>
+
+    <!-- Jurisdiction cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+      {jurisdictions.map(j => (
+        <div class="rounded-xl border p-4 hover:-translate-y-0.5 transition-all duration-200"
+             style={`border-color:${j.color}25;background:${j.color}06`}>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-2xl">{j.flag}</span>
+            <span class="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                  style={`color:${j.color};background:${j.color}20`}>{j.code}</span>
+          </div>
+          <div class="text-[13px] font-bold mb-1">{j.name}</div>
+          <div class="flex flex-col gap-1 mb-2">
+            {j.frameworks.map(f => (
+              <span class="text-[9px] text-[#8E8E9E]">· {f}</span>
+            ))}
+          </div>
+          <div class="flex flex-wrap gap-1">
+            {j.data.map(d => (
+              <span class="text-[8px] font-bold px-1 py-0.5 rounded"
+                    style={`color:${j.color};background:${j.color}15`}>{d}</span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="grid lg:grid-cols-[1fr_320px] gap-6">
+
+      <!-- Data classification matrix -->
+      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-5">
+          Cross-Border Transfer Matrix
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-[10px]">
+            <thead>
+              <tr>
+                <th class="text-left py-2 pr-4 text-[#48485A] font-semibold uppercase tracking-wide">Data Class</th>
+                {['EU','US','UK','CA','SG','AU','JP','CH'].map(c => (
+                  <th class="px-1 py-2 text-[#48485A] font-semibold">{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {dataClasses.map(dc => (
+                <tr class="border-t border-white/[0.04]">
+                  <td class="py-2.5 pr-4">
+                    <span class="font-bold text-[9px] px-2 py-0.5 rounded"
+                          style={`color:${dc.color};background:${dc.color}18`}>{dc.cls}</span>
+                  </td>
+                  {['EU','US','UK','CA','SG','AU','JP','CH'].map(j => {
+                    const ok = dc.allowed.includes(j);
+                    return (
+                      <td class="px-1 py-2.5 text-center">
+                        <span class="text-[12px]" style={`color:${ok ? '#30D158' : '#FF2D55'}`}>
+                          {ok ? '✓' : '×'}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-4 text-[10px] text-[#48485A]">
+          CLASSIFIED: never transferable · Adequacy partners: EU↔UK, EU↔CA, EU↔JP, EU↔CH
+        </div>
+      </div>
+
+      <!-- Tunnel protocols + attestation -->
+      <div class="flex flex-col gap-4">
+        <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
+          <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+            MASQUE Tunnel Protocols
+          </div>
+          {tunnelProtocols.map(t => (
+            <div class="flex items-center justify-between py-2.5 border-b border-white/[0.04] last:border-0">
+              <div>
+                <div class="text-[12px] font-mono font-bold text-[#5AC8FA]">{t.name}</div>
+                <div class="text-[10px] text-[#8E8E9E]">{t.desc}</div>
+              </div>
+              <div class="text-[9px] font-bold px-2 py-0.5 rounded"
+                   style={t.status === 'ACTIVE'
+                     ? 'color:#30D158;background:#30D15820'
+                     : 'color:#48485A;background:#48485A20'}>
+                {t.status}
+              </div>
+            </div>
+          ))}
+          <div class="mt-3 text-[10px] text-[#8E8E9E]">
+            Lifecycle: PENDING → ACTIVE → DEGRADED → OFFLINE<br/>
+            TOFU TLS pinning via SHA-256 leaf cert fingerprint
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-[#30D158]/20 bg-[#30D158]/[0.04] p-5">
+          <div class="text-[12px] font-bold text-[#30D158] mb-3">Sovereignty Attestation</div>
+          <div class="space-y-2 text-[11px] text-[#8E8E9E]">
+            <div>🔐 HMAC-SHA256 signed per request</div>
+            <div>🗄️ Redis TTL: 7 years (220,752,000 s)</div>
+            <div>📋 10,000 attestations cap per tenant</div>
+            <div>✅ <code class="text-[#30D158] text-[9px]">POST /sovereign/attest</code> + verify endpoint</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,121 @@
+---
+const owasp = [
+  { id: 'LLM01', name: 'Prompt Injection',         layer: 'SemanticGuard + Brain',   pct: 99 },
+  { id: 'LLM02', name: 'Insecure Output Handling', layer: 'OutputGuard v2',          pct: 98 },
+  { id: 'LLM03', name: 'Training Data Poisoning',  layer: 'Evolution Engine Guard',  pct: 94 },
+  { id: 'LLM04', name: 'Model Denial of Service',  layer: 'ERS Shadow Ban',          pct: 100 },
+  { id: 'LLM05', name: 'Supply Chain Vuln.',        layer: 'Dependency CVE Scanner',  pct: 96 },
+  { id: 'LLM06', name: 'Sensitive Info Disclosure', layer: 'PII Vault + Redactor',   pct: 100 },
+  { id: 'LLM07', name: 'Insecure Plugin Design',    layer: 'Agent Monitor',           pct: 97 },
+  { id: 'LLM08', name: 'Excessive Agency',          layer: 'Agent Sandbox',           pct: 98 },
+  { id: 'LLM09', name: 'Overreliance',              layer: 'Causal Arbiter',          pct: 95 },
+  { id: 'LLM10', name: 'Model Theft',               layer: 'PQC + Evidence Vault',   pct: 99 },
+];
+
+const frameworks = [
+  { icon: '🇪🇺', name: 'GDPR Art.35 DPIA',      color: 'text-[#0A84FF]' },
+  { icon: '🔐', name: 'SOC 2 Type II',           color: 'text-[#30D158]' },
+  { icon: '🏛️', name: 'EU AI Act Ready',         color: 'text-[#FFD60A]' },
+  { icon: '🧬', name: 'NIST FIPS 203/204',       color: 'text-[#BF5AF2]' },
+  { icon: '🏥', name: 'HIPAA PHI Controls',      color: 'text-[#0A84FF]' },
+  { icon: '🌐', name: 'ISO 27001',               color: 'text-[#30D158]' },
+];
+---
+
+<section id="compliance" class="relative py-28 lg:py-36 bg-[#080D1E]">
+  <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"></div>
+  <div class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-16">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#30D158] mb-3">
+        Compliance & Certifications
+      </p>
+      <h2 class="text-[42px] lg:text-[52px] font-bold tracking-[-2px] mb-4">
+        100% OWASP LLM Top 10 coverage.
+      </h2>
+      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        Every known LLM attack vector mapped to a specific defense layer.
+        Audit evidence generated automatically.
+      </p>
+    </div>
+
+    <div class="grid lg:grid-cols-[1fr_340px] gap-12">
+      <!-- OWASP table -->
+      <div class="rounded-2xl border border-white/[0.07] overflow-hidden">
+        <div class="grid grid-cols-[80px_1fr_160px_60px] px-5 py-3 border-b border-white/[0.07] bg-[#0D1428]">
+          {['ID', 'Vulnerability', 'Defense Layer', 'Det.'].map(h => (
+            <span class="text-[9px] font-bold tracking-[1.5px] uppercase text-[#48485A]">{h}</span>
+          ))}
+        </div>
+        {owasp.map((row, i) => (
+          <div
+            class={`grid grid-cols-[80px_1fr_160px_60px] items-center px-5 py-3.5 text-[13px]
+                   ${i < owasp.length - 1 ? 'border-b border-white/[0.05]' : ''}
+                   hover:bg-white/[0.02] transition-colors duration-150`}
+          >
+            <span
+              class="font-mono text-[11px] font-bold px-2 py-0.5 rounded
+                     bg-[#30D158]/10 text-[#30D158] w-fit"
+            >{row.id}</span>
+            <span class="text-[#F5F5F7] font-medium pr-4">{row.name}</span>
+            <span class="text-[11px] text-[#8E8E9E]">{row.layer}</span>
+            <div class="flex items-center gap-1.5">
+              <div class="flex-1 h-1 rounded-full bg-white/[0.06]">
+                <div
+                  class="h-1 rounded-full bg-[#30D158] transition-all"
+                  style={`width:${row.pct}%`}
+                ></div>
+              </div>
+              <span class="text-[10px] font-bold text-[#30D158] font-mono">{row.pct}%</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <!-- Frameworks + Evidence Vault -->
+      <div class="flex flex-col gap-6">
+        <!-- Frameworks -->
+        <div class="rounded-2xl border border-white/[0.07] p-6 bg-[#0D1428]">
+          <h3 class="text-[13px] font-bold mb-4 text-[#8E8E9E] uppercase tracking-wider">
+            Frameworks Covered
+          </h3>
+          <div class="flex flex-col gap-3">
+            {frameworks.map(f => (
+              <div class="flex items-center gap-3">
+                <span class="text-lg">{f.icon}</span>
+                <span class={`text-[13px] font-medium ${f.color}`}>{f.name}</span>
+                <span class="ml-auto text-[#30D158] text-sm font-bold">✓</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- Evidence Vault -->
+        <div class="rounded-2xl border border-[#30D158]/20 p-6 bg-[#30D158]/[0.04]">
+          <div class="text-2xl mb-3">🔒</div>
+          <h3 class="text-[15px] font-bold mb-2">Litigation-Ready Evidence Vault</h3>
+          <p class="text-[13px] text-[#8E8E9E] leading-relaxed mb-4">
+            Every decision backed by SHA-256 attestation chains stored in MinIO.
+            STIX 2.1 tamper-evident audit chain. PDF reports on demand.
+          </p>
+          <div class="flex gap-2 flex-wrap">
+            <span class="text-[9px] font-bold uppercase tracking-wider
+                        px-2.5 py-1 rounded bg-[#30D158]/10 text-[#30D158]">
+              SHA-256 Chain
+            </span>
+            <span class="text-[9px] font-bold uppercase tracking-wider
+                        px-2.5 py-1 rounded bg-[#30D158]/10 text-[#30D158]">
+              STIX 2.1
+            </span>
+            <span class="text-[9px] font-bold uppercase tracking-wider
+                        px-2.5 py-1 rounded bg-[#30D158]/10 text-[#30D158]">
+              PDF Export
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

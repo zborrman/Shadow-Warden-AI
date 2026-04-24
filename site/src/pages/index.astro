@@ -1,0 +1,49 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Hero from '../components/Hero.astro';
+import PipelineSection from '../components/PipelineSection.astro';
+import BrainSection from '../components/BrainSection.astro';
+import AgentSOC from '../components/AgentSOC.astro';
+import NemotronSection from '../components/NemotronSection.astro';
+import FraudScoreSection from '../components/FraudScoreSection.astro';
+import SovereignSection from '../components/SovereignSection.astro';
+import PQCSection from '../components/PQCSection.astro';
+import SEPSection from '../components/SEPSection.astro';
+import Architecture from '../components/Architecture.astro';
+import FeaturesGrid from '../components/FeaturesGrid.astro';
+import ComplianceSection from '../components/ComplianceSection.astro';
+import ThreatIntelSection from '../components/ThreatIntelSection.astro';
+import ROICalculator from '../components/ROICalculator.astro';
+import Pricing from '../components/Pricing.astro';
+import Footer from '../components/Footer.astro';
+import SettingsSection from '../components/SettingsSection.astro';
+import AgentBot from '../components/AgentBot.astro';
+import AuthModal from '../components/AuthModal.astro';
+---
+
+<Layout>
+  <SettingsSection />
+  <AgentBot />
+  <AuthModal />
+
+  <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen relative z-10">
+    <Navbar />
+    <Hero />
+    <PipelineSection />
+    <BrainSection />
+    <AgentSOC />
+    <NemotronSection />
+    <FraudScoreSection />
+    <SovereignSection />
+    <PQCSection />
+    <SEPSection />
+    <Architecture />
+    <FeaturesGrid />
+    <ComplianceSection />
+    <ThreatIntelSection />
+    <ROICalculator />
+    <Pricing />
+    <Footer />
+  </div>
+</Layout>
