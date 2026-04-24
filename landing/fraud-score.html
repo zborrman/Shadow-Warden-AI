@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign v4.0 | Global Risk Intelligence</title>
+
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --paper: #FDFCFB;
+            --ink: #111827;
+            --us-blue: #0A2342;
+            --eu-blue: #003399;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--paper);
+            color: var(--ink);
+        }
+
+        .serif { font-family: 'Playfair Display', serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
+
+        /* Premium Checkbox */
+        .risk-check {
+            appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid #D1D5DB;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: white;
+            flex-shrink: 0;
+        }
+        .risk-check:checked {
+            background-color: var(--ink);
+            border-color: var(--ink);
+        }
+        .risk-check:checked::after {
+            content: "✓";
+            color: white;
+            position: absolute;
+            left: 3px;
+            top: -3px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            background: rgba(17, 24, 39, 0.4);
+            backdrop-filter: blur(12px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-card {
+            transform: scale(0.95) translateY(20px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-overlay.active .modal-card {
+            transform: scale(1) translateY(0);
+        }
+
+        /* Info Button */
+        .info-trigger {
+            font-size: 11px;
+            color: #9CA3AF;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid #E5E7EB;
+            font-weight: bold;
+        }
+        .info-trigger:hover {
+            color: var(--ink);
+            border-color: var(--ink);
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 350px;
+        }
+
+        .verdict-bar {
+            box-shadow: 0 -15px 40px rgba(0,0,0,0.06);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(24px);
+        }
+
+        .market-btn.active {
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            color: var(--ink);
+        }
+
+        /* Dark theme */
+        body.dark {
+            --paper: #03050F;
+            --ink: #F5F5F7;
+            background-color: var(--paper);
+            color: var(--ink);
+        }
+        body.dark header { background: rgba(8,13,30,0.95) !important; border-color: rgba(255,255,255,0.06) !important; }
+        body.dark .bg-white { background: #080D1E !important; }
+        body.dark .bg-white\/80 { background: rgba(8,13,30,0.95) !important; }
+        body.dark .bg-slate-50 { background: #080D1E !important; }
+        body.dark .bg-slate-100 { background: rgba(255,255,255,0.06) !important; }
+        body.dark .bg-rose-50\/50 { background: rgba(255,45,85,0.05) !important; }
+        body.dark .bg-emerald-50\/30 { background: rgba(48,209,88,0.04) !important; }
+        body.dark .border-black\/5 { border-color: rgba(255,255,255,0.06) !important; }
+        body.dark .border-black\/10 { border-color: rgba(255,255,255,0.08) !important; }
+        body.dark .border-slate-100 { border-color: rgba(255,255,255,0.06) !important; }
+        body.dark .border-slate-200 { border-color: rgba(255,255,255,0.08) !important; }
+        body.dark .border-rose-100 { border-color: rgba(255,45,85,0.2) !important; }
+        body.dark .border-emerald-100 { border-color: rgba(48,209,88,0.2) !important; }
+        body.dark .text-slate-400 { color: #8E8E9E !important; }
+        body.dark .text-slate-500 { color: #8E8E9E !important; }
+        body.dark .text-slate-600 { color: #A0A0B0 !important; }
+        body.dark .text-slate-800 { color: #F5F5F7 !important; }
+        body.dark .text-indigo-950 { color: #BF5AF2 !important; }
+        body.dark .text-rose-900 { color: #FF6B6B !important; }
+        body.dark .text-emerald-900 { color: #30D158 !important; }
+        body.dark .bg-rose-100 { background: rgba(255,45,85,0.15) !important; }
+        body.dark .text-rose-800 { color: #FF6B6B !important; }
+        body.dark .bg-emerald-100 { background: rgba(48,209,88,0.15) !important; }
+        body.dark .text-emerald-800 { color: #30D158 !important; }
+        body.dark .risk-check { background: #080D1E !important; border-color: rgba(255,255,255,0.2) !important; }
+        body.dark .risk-check:checked { background: #FF2D55 !important; border-color: #FF2D55 !important; }
+        body.dark .info-trigger { border-color: rgba(255,255,255,0.15) !important; color: #8E8E9E !important; }
+        body.dark .info-trigger:hover { background: rgba(255,255,255,0.08) !important; color: #F5F5F7 !important; border-color: rgba(255,255,255,0.3) !important; }
+        body.dark .verdict-bar { background: rgba(8,13,30,0.97) !important; }
+        body.dark .market-btn.active { background: rgba(255,255,255,0.12) !important; color: #F5F5F7 !important; }
+        body.dark #score-val { color: #FF2D55; }
+        body.dark .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+        /* Back & theme buttons */
+        .top-actions {
+            position: fixed;
+            top: 16px;
+            right: 20px;
+            z-index: 200;
+            display: flex;
+            gap: 8px;
+        }
+        .top-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 11px; font-weight: 700;
+            border: 1px solid rgba(0,0,0,0.12);
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(12px);
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .top-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        body.dark .top-btn { background: rgba(8,13,30,0.9); color: #F5F5F7; border-color: rgba(255,255,255,0.12); }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Fixed action buttons -->
+    <div class="top-actions">
+        <a href="/" class="top-btn">← Back to site</a>
+        <button class="top-btn" onclick="toggleTheme()" id="theme-btn">🌙 Dark</button>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="h-24 border-b border-black/5 flex items-center px-12 bg-white/80 shrink-0 z-40">
+        <div class="flex-1">
+            <h1 class="text-3xl italic tracking-tighter serif">FraudScore <span class="not-italic font-black text-indigo-950">Sovereign</span> <span class="text-[10px] align-top opacity-40 font-sans ml-2 uppercase tracking-[0.3em]">v4.0 Elite</span></h1>
+        </div>
+
+        <div class="flex items-center space-x-12">
+            <div class="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 cursor-pointer shadow-inner">
+                <button id="btn-us" class="market-btn px-8 py-2 rounded-xl text-[10px] font-black transition-all text-slate-400 active" onclick="switchMarket('US')">🇺🇸 US MARKET</button>
+                <button id="btn-eu" class="market-btn px-8 py-2 rounded-xl text-[10px] font-black transition-all text-slate-400" onclick="switchMarket('EU')">🇪🇺 EU MARKET</button>
+            </div>
+            <div class="text-right border-l pl-10 border-slate-200">
+                <p class="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">Active Jurisdiction</p>
+                <p id="label-market" class="text-xs font-bold uppercase tracking-widest text-indigo-950">Federal (SEC / OFAC)</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Content Workspace -->
+    <main class="flex-1 flex overflow-hidden">
+
+        <!-- Factor Underwriting Form -->
+        <div class="flex-1 overflow-y-auto custom-scroll p-16 pb-48">
+            <div class="max-w-4xl mx-auto space-y-20">
+
+                <!-- Editorial Intro -->
+                <div class="border-l-4 border-indigo-950 pl-10 space-y-3">
+                    <h2 class="text-5xl serif italic font-bold">Risk Assessment Dossier</h2>
+                    <p class="text-base text-slate-500 max-w-2xl leading-relaxed">
+                        A multidimensional audit of entity risk. Evaluate across 44 discrete factors calibrated for US/EU institutional standards. Utilize the <span class="info-trigger">i</span> tool for factor intelligence.
+                    </p>
+                </div>
+
+                <!-- Sector Tabs -->
+                <div class="flex border-b border-slate-100">
+                    <button onclick="setIndustry('b2b')" id="seg-b2b" class="pb-6 px-4 font-black text-[11px] uppercase tracking-[0.3em] text-indigo-950 border-b-2 border-indigo-950 transition-all">🏢 B2B / Institutional</button>
+                    <button onclick="setIndustry('b2c')" id="seg-b2c" class="pb-6 px-10 font-black text-[11px] uppercase tracking-[0.3em] text-slate-400 border-b-2 border-transparent hover:text-indigo-950 transition-all">👤 B2C / Subscriptions</button>
+                    <button onclick="setIndustry('ecom')" id="seg-ecom" class="pb-6 px-10 font-black text-[11px] uppercase tracking-[0.3em] text-slate-400 border-b-2 border-transparent hover:text-indigo-950 transition-all">🛒 E-Commerce / Retail</button>
+                </div>
+
+                <!-- Factor Grids -->
+                <div class="space-y-16">
+
+                    <!-- 1. Hard Stops (10 factors) -->
+                    <section class="bg-rose-50/50 p-12 rounded-[3rem] border border-rose-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-8 opacity-5 font-black text-6xl select-none">STOP</div>
+                        <div class="flex justify-between items-center mb-10">
+                            <h3 class="serif text-2xl text-rose-900 italic font-bold">01. Critical Barriers (Hard Stops)</h3>
+                            <span class="text-[10px] font-black tracking-[0.2em] bg-rose-100 text-rose-800 px-5 py-2 rounded-full uppercase">Automatic Lockdown</span>
+                        </div>
+                        <div id="grid-hardstops" class="grid grid-cols-2 gap-x-16 gap-y-7">
+                        </div>
+                    </section>
+
+                    <!-- 2. Market Regulatory (6 factors per market) -->
+                    <section>
+                        <h3 class="serif text-3xl mb-10 italic font-bold">02. Regulatory Transparency</h3>
+                        <div id="grid-market" class="grid grid-cols-2 gap-x-16 gap-y-7">
+                        </div>
+                    </section>
+
+                    <!-- 3. Unique Industry Criteria (8 factors per industry) -->
+                    <section>
+                        <h3 class="serif text-3xl mb-10 italic font-bold">03. Sectoral Intelligence</h3>
+                        <div id="grid-industry" class="grid grid-cols-2 gap-x-16 gap-y-7">
+                        </div>
+                    </section>
+
+                    <!-- 4. Mitigations (10 factors) -->
+                    <section class="bg-emerald-50/30 p-12 rounded-[3rem] border border-emerald-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-8 opacity-5 font-black text-6xl select-none">HEDGE</div>
+                        <div class="flex justify-between items-center mb-10">
+                            <h3 class="serif text-2xl text-emerald-900 italic font-bold">04. Risk Mitigating Instruments</h3>
+                            <span class="text-[10px] font-black tracking-[0.2em] bg-emerald-100 text-emerald-800 px-5 py-2 rounded-full uppercase">Offset Controls</span>
+                        </div>
+                        <div id="grid-mitigations" class="grid grid-cols-2 gap-x-16 gap-y-7">
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytical Intelligence Sidebar -->
+        <aside class="w-[550px] border-l border-black/5 bg-slate-50 p-12 shrink-0 flex flex-col overflow-y-auto custom-scroll">
+            <div class="space-y-12">
+
+                <!-- Radar Visualization -->
+                <div>
+                    <h4 class="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em] mb-10">Risk Vector Dispersion</h4>
+                    <div class="chart-container">
+                        <canvas id="riskRadar"></canvas>
+                    </div>
+                </div>
+
+                <!-- Transaction Audit Log -->
+                <div class="bg-white p-10 rounded-[2.5rem] border border-black/5 shadow-sm space-y-8">
+                    <div class="flex justify-between items-center border-b pb-6">
+                        <h4 class="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em]">Live Audit Trail</h4>
+                        <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">SECURED</span>
+                    </div>
+                    <div id="audit-log" class="text-[12px] space-y-5 max-h-[400px] overflow-y-auto custom-scroll pr-4">
+                        <p class="text-slate-400 italic">No triggers active. Awaiting assessment input...</p>
+                    </div>
+                </div>
+
+                <!-- Summary Meta -->
+                <div class="pt-10 border-t border-slate-200 grid grid-cols-2 gap-8">
+                    <div class="space-y-2">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entity Integrity</p>
+                        <p id="meta-integrity" class="text-sm font-bold text-slate-800">Unverified</p>
+                    </div>
+                    <div class="space-y-2">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Analysis Engine</p>
+                        <p class="text-sm font-bold text-indigo-950">Sovereign 4.0 Core</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Global Verdict Status Bar -->
+    <footer id="verdict-bar" class="h-32 border-t border-black/10 flex items-center px-16 z-50 verdict-bar transition-all duration-700">
+        <div class="flex-1 flex items-baseline space-x-16">
+            <div class="flex flex-col">
+                <span class="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">Aggregate Fraud Score</span>
+                <span id="score-val" class="mono text-7xl font-black">00</span>
+            </div>
+            <div class="flex flex-col">
+                <span class="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">Strategic Verdict</span>
+                <span id="tier-val" class="text-3xl font-bold italic serif">Awaiting Documentation...</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-12">
+            <div id="verdict-badge" class="px-16 py-5 rounded-full text-[11px] font-black tracking-[0.3em] uppercase bg-slate-100 text-slate-400 border border-slate-200 shadow-sm">
+                INITIALIZING
+            </div>
+            <button class="bg-indigo-950 text-white px-12 py-5 rounded-full text-xs font-bold hover:scale-105 transition-all shadow-2xl active:scale-95 uppercase tracking-widest">
+                Print Final Report
+            </button>
+        </div>
+    </footer>
+
+    <!-- Contextual Intelligence Modal -->
+    <div id="modal-overlay" class="fixed inset-0 z-[100] modal-overlay flex items-center justify-center p-8">
+        <div class="modal-card bg-white w-full max-w-2xl rounded-[3.5rem] shadow-2xl overflow-hidden border border-black/5">
+            <div class="p-12 space-y-8">
+                <div class="flex justify-between items-start">
+                    <div class="space-y-3">
+                        <p id="modal-cat" class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em]"></p>
+                        <h3 id="modal-title" class="serif text-4xl italic font-bold leading-tight">Factor Intelligence</h3>
+                    </div>
+                    <button onclick="closeModal()" class="text-4xl text-slate-300 hover:text-black transition-colors px-4">✕</button>
+                </div>
+                <div id="modal-body" class="text-base text-slate-600 leading-relaxed space-y-6">
+                </div>
+                <div class="pt-10 border-t border-slate-100 flex justify-end">
+                    <button onclick="closeModal()" class="bg-indigo-950 text-white px-12 py-4 rounded-full text-xs font-bold uppercase tracking-widest">Confirm Knowledge</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            market: 'US',
+            industry: 'b2b',
+            score: 0,
+            fatal: false
+        };
+
+        const DATA = {
+            hard_stops: {
+                hs1: { t: "OFAC/SDN Match", c: "Compliance (US)", d: "Direct match on the US Treasury Sanctions list. Mandatory transaction block under IEEPA regulations." },
+                hs2: { t: "EU Consolidated List", c: "Compliance (EU)", d: "Entity found in the European Union's asset freezing database. Prohibits all economic resources from reaching the target." },
+                hs3: { t: "FATF Blacklist Match", c: "AML / Geo", d: "Jurisdiction identified by FATF as 'High-Risk'. Extremely high money laundering and terrorist financing nexus." },
+                hs4: { t: "Active Insolvency", c: "Financial", d: "Current Chapter 11 (US) or Insolvency Reg (EU) proceedings. Risk of 'Preferential Transfer' clawbacks." },
+                hs5: { t: "SAM.gov Debarment", c: "Compliance (US)", d: "Exclusion from Federal contracts due to fraud, antitrust, or embezzlement history." },
+                hs6: { t: "Fraud Conviction (Entity)", c: "Legal", d: "The entity or its directors have a verified criminal record of financial misrepresentation or fraud." },
+                hs7: { t: "AML Direct Violation", c: "Compliance", d: "History of proven money laundering or structured financial movements identified by FinCEN or EBA." },
+                hs8: { t: "Terrorist Nexus", c: "Security", d: "Links to organizations monitored for financing extremist activities. Critical security risk." },
+                hs9: { t: "High-Risk Embargo", c: "Geo-Politics", d: "Trade restrictions on specific goods or technologies involving the counterparty's primary jurisdiction." },
+                hs10: { t: "Shell Bank Connection", c: "Compliance", d: "Transaction routing through a 'Shell Bank' with no physical presence, often used for obfuscation." }
+            },
+            market: {
+                US: {
+                    m1: { t: "SEC 10-K Discrepancy", c: "Reg (US)", d: "Material contradictions between public annual filings and provided financial disclosures." },
+                    m2: { t: "SOX 404 Control Failure", c: "Reg (US)", d: "Internal control weaknesses documented by auditors under Sarbanes-Oxley. Elevated fraud window." },
+                    m3: { t: "CCPA/CPRA Breach", c: "Reg (US)", d: "History of data privacy violations in California, leading to significant statutory liability exposure." },
+                    m4: { t: "Delaware Legal Suit", c: "Legal (US)", d: "Material ongoing litigation in the Delaware Court of Chancery regarding corporate control or shareholder rights." },
+                    m5: { t: "CFIUS Review Risk", c: "Reg (US)", d: "National security review potential on foreign investment, risking deal termination or asset divestment." },
+                    m6: { t: "HSR Antitrust Trigger", c: "Reg (US)", d: "Notification thresholds reached for Hart-Scott-Rodino, requiring pre-merger review by FTC/DOJ." }
+                },
+                EU: {
+                    m1: { t: "GDPR Art. 32 Failure", c: "Reg (EU)", d: "Failure to provide adequate technical and organizational data security measures. Penalty risk up to 4% of turnover." },
+                    m2: { t: "BaFin/FCA Enforcement", c: "Reg (EU)", d: "History of disciplinary measures from DE (BaFin) or UK (FCA) regarding market abuse or reporting." },
+                    m3: { t: "Competition DG Probe", c: "Reg (EU)", d: "Antitrust investigation by the European Commission's DG Competition. Potential for massive behavioral fines." },
+                    m4: { t: "AMLD6 Gap Analysis", c: "Reg (EU)", d: "Failure to comply with the 6th Anti-Money Laundering Directive. High risk of criminal liability for entities." },
+                    m5: { t: "DAC7 Reporting Gap", c: "Reg (EU)", d: "Non-compliance with digital platform tax reporting rules. Risk of platform suspension in EU territories." },
+                    m6: { t: "CSRD ESG Deficit", c: "Reg (EU)", d: "Failure to meet Sustainable Finance Disclosure requirements. Reputational and investment barrier for EU institutions." }
+                }
+            },
+            industry: {
+                b2b: {
+                    i1: { t: "UBO Opacity", c: "B2B / Gov", d: "Complex multi-layered ownership structure preventing clear identification of the Ultimate Beneficial Owner." },
+                    i2: { t: "Offshore Headquarters", c: "B2B / Geo", d: "Entity is headquartered in a 'Secrecy Jurisdiction' with zero economic substance (no staff or office)." },
+                    i3: { t: "Related Party Trans.", c: "B2B / Fin", d: "High volume of sales/purchases with affiliated entities, potentially masking revenue inflation or cash siphoning." },
+                    i4: { t: "Asset-Light Substance", c: "B2B / Ops", d: "Stated operational scale is inconsistent with physical asset register (No warehouses, servers, or hubs)." },
+                    i5: { t: "PEP Overlap", c: "B2B / Gov", d: "Board members or major shareholders match Politically Exposed Person databases. Elevated corruption risk." },
+                    i6: { t: "Sudden Board Exit", c: "B2B / Ops", d: "Departure of >30% of directors or the CFO within the last 6 months. Signals internal governance crisis." },
+                    i7: { t: "Multi-layered Mesh", c: "B2B / Gov", d: "Use of intermediate companies across >3 jurisdictions to obscure cash flow or tax liabilities." },
+                    i8: { t: "Regulatory Record", c: "B2B / Legal", d: "Verified history of administrative penalties or license suspensions in the primary industry of operation." }
+                },
+                b2c: {
+                    i1: { t: "Bot Acquisition Pulse", c: "B2C / Ops", d: "User growth patterns show 'Burst' signatures consistent with bot-driven account generation." },
+                    i2: { t: "Dark Pattern UX", c: "B2C / Legal", d: "Interface uses manipulative 'Deceptive Patterns' to trap subscribers. High regulatory risk (FTC/CPC)." },
+                    i3: { t: "Breach Vulnerability", c: "B2C / Ops", d: "History of >2 data breaches. Critical lack of identity protection for the customer base." },
+                    i4: { t: "Account Sharing Surge", c: "B2C / Fin", d: "High percentage of single accounts used across distant IP ranges. Indicates credential harvesting/selling." },
+                    i5: { t: "High-Risk Signups", c: "B2C / Identity", d: "Large volume of registrations using disposable email domains or temporary VOIP numbers." },
+                    i6: { t: "Subscription Trap", c: "B2C / Fin", d: "Revenue model relies on difficult-to-cancel billing cycles. High dispute (chargeback) liability." },
+                    i7: { t: "Referral Abuse", c: "B2C / Ops", d: "Manipulation of affiliate/referral programs to generate artificial GMV or incentive payouts." },
+                    i8: { t: "IP/Carrier Mismatch", c: "B2C / Identity", d: "User mobile carrier data frequently contradicts the detected IP geolocation. Proxy/Emulator signal." }
+                },
+                ecom: {
+                    i1: { t: "Card Testing Wave", c: "Ecom / Ops", d: "Micro-transaction bursts on the platform, used by hackers to validate stolen credit card numbers." },
+                    i2: { t: "VPN/Proxy Saturation", c: "Ecom / Geo", d: "Excessive volume of high-value orders coming from known data-center IPs or TOR exit nodes." },
+                    i3: { t: "Multi-Device Link", c: "Ecom / Identity", d: "Hundreds of distinct orders associated with a single hardware fingerprint. Systematic automation abuse." },
+                    i4: { t: "High-Value SKU Fencing", c: "Ecom / Fin", d: "Inventory skewed towards highly-liquid items (Apple, Gold, Gift Cards) that are easily converted to cash." },
+                    i5: { t: "AVS Failures >15%", c: "Ecom / Geo", d: "Widespread Address Verification Service errors. Suggests usage of сompromised 'CVV' data sets." },
+                    i6: { t: "Velocity Spike", c: "Ecom / Ops", d: "Sudden orders from a single IP address inconsistent with human browsing speeds." },
+                    i7: { t: "Parcel Locker Bias", c: "Ecom / Geo", d: "Orders primarily destined for temporary storage/lockers rather than residential addresses." },
+                    i8: { t: "3DS Bypass Attempt", c: "Ecom / Fin", d: "Systematic routing of payments through regions/acquirers with weaker 3D-Secure enforcement." }
+                }
+            },
+            mitigations: {
+                mit1: { t: "R&W Insurance", c: "Offset", d: "Representations and Warranties insurance covers losses from false entity statements. Major risk transfer." },
+                mit2: { t: "MAC Clause In-Place", c: "Offset", d: "Material Adverse Change clause allows exit if the asset health deteriorates significantly before closing." },
+                mit3: { t: "D&O Coverage", c: "Offset", d: "Comprehensive insurance for Directors and Officers against personal liability for management decisions." },
+                mit4: { t: "Escrow Holdback", c: "Offset", d: "Retention of >15% of funds in neutral custody to cover future indemnity claims." },
+                mit5: { t: "Big-4 Audit Clean", c: "Offset", d: "Recent (last 24m) unqualified audit opinion from PwC/Deloitte/EY/KPMG. High transparency." },
+                mit6: { t: "Parent Guarantee", c: "Offset", d: "Legally enforceable backing from a Tier-1 capitalized parent structure." },
+                mit7: { t: "Active Monitoring", c: "Offset", d: "Real-time AML/Sanctions monitoring system integrated into the transaction flow." },
+                mit8: { t: "UBO Verified (KYB)", c: "Offset", d: "Independent 3rd-party verification of corporate ownership hierarchy." },
+                mit9: { t: "SOC2 Compliance", c: "Offset", d: "Independently audited data security controls for technical operations." },
+                mit10: { t: "Favorable Legal Opinion", c: "Offset", d: "Formal 'Clean' opinion from reputable external counsel on entity standing." }
+            }
+        };
+
+        let radarChart;
+
+        function initRadar() {
+            const ctx = document.getElementById('riskRadar').getContext('2d');
+            radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Governance', 'Geo-Risk', 'Operations', 'Financial', 'Compliance'],
+                    datasets: [{
+                        label: 'Weighted Exposure',
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: 'rgba(30, 27, 75, 0.04)',
+                        borderColor: '#1e1b4b',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#1e1b4b',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { display: false },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            angleLines: { color: 'rgba(0,0,0,0.05)' },
+                            pointLabels: { font: { size: 10, weight: '700', family: "'Inter'" }, color: '#94a3b8' }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function switchMarket(m) {
+            state.market = m;
+            document.querySelectorAll('.market-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${m.toLowerCase()}`).classList.add('active');
+            document.getElementById('label-market').innerText = m === 'US' ? 'Federal (SEC / OFAC)' : 'EBA (FCA / BaFin)';
+            renderGrids();
+            calculate();
+        }
+
+        function setIndustry(ind) {
+            state.industry = ind;
+            ['b2b', 'b2c', 'ecom'].forEach(i => {
+                const el = document.getElementById(`seg-${i}`);
+                if(i === ind) {
+                    el.className = 'pb-6 px-4 font-black text-[11px] uppercase tracking-[0.3em] text-indigo-950 border-b-2 border-indigo-950 transition-all';
+                } else {
+                    el.className = 'pb-6 px-10 font-black text-[11px] uppercase tracking-[0.3em] text-slate-400 border-b-2 border-transparent hover:text-indigo-950 transition-all';
+                }
+            });
+            renderGrids();
+            calculate();
+        }
+
+        function renderGrids() {
+            const hGrid = document.getElementById('grid-hardstops');
+            hGrid.innerHTML = Object.entries(DATA.hard_stops).map(([id, f]) => renderItem(id, f, 'fatal')).join('');
+
+            const mGrid = document.getElementById('grid-market');
+            mGrid.innerHTML = Object.entries(DATA.market[state.market]).map(([id, f]) => renderItem(id, f)).join('');
+
+            const iGrid = document.getElementById('grid-industry');
+            iGrid.innerHTML = Object.entries(DATA.industry[state.industry]).map(([id, f]) => renderItem(id, f)).join('');
+
+            const mitGrid = document.getElementById('grid-mitigations');
+            mitGrid.innerHTML = Object.entries(DATA.mitigations).map(([id, f]) => renderItem(id, f, 'mitigation')).join('');
+        }
+
+        function renderItem(id, f, type = '') {
+            return `
+                <div class="flex items-start space-x-3 group">
+                    <input type="checkbox" id="cb-${id}" data-id="${id}" data-type="${type}" class="risk-check ${type} mt-0.5" onchange="calculate()">
+                    <div class="flex flex-col">
+                        <div class="flex items-center">
+                            <label for="cb-${id}" class="text-[11px] font-bold text-slate-600 cursor-pointer group-hover:text-indigo-950 transition-colors uppercase tracking-wider leading-none">
+                                ${f.t}
+                            </label>
+                            <span class="info-trigger" onclick="openModal('${id}')">i</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openModal(id) {
+            let f;
+            if (DATA.hard_stops[id]) f = DATA.hard_stops[id];
+            else if (DATA.market.US[id] || DATA.market.EU[id]) f = DATA.market[state.market][id];
+            else if (DATA.industry.b2b[id] || DATA.industry.b2c[id] || DATA.industry.ecom[id]) f = DATA.industry[state.industry][id];
+            else f = DATA.mitigations[id];
+
+            document.getElementById('modal-title').innerText = f.t;
+            document.getElementById('modal-cat').innerText = f.c;
+            document.getElementById('modal-body').innerText = f.d;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+
+        function calculate() {
+            let total = 0;
+            let fatal = false;
+            let audit = [];
+            let rMap = { Governance: 0, Geo: 0, Operations: 0, Financial: 0, Compliance: 0 };
+
+            document.querySelectorAll('.risk-check').forEach(cb => {
+                if(cb.checked) {
+                    const id = cb.dataset.id;
+                    const type = cb.dataset.type;
+                    let f;
+                    if(DATA.hard_stops[id]) f = DATA.hard_stops[id];
+                    else if(DATA.market[state.market][id]) f = DATA.market[state.market][id];
+                    else if(DATA.industry[state.industry][id]) f = DATA.industry[state.industry][id];
+                    else f = DATA.mitigations[id];
+
+                    if(type === 'fatal') {
+                        fatal = true;
+                        audit.push({ l: `CRITICAL BARRIER: ${f.t}`, p: '∞', fatal: true });
+                    } else if(type === 'mitigation') {
+                        const pts = 12;
+                        total -= pts;
+                        audit.push({ l: f.t, p: `-${pts}`, mit: true });
+                    } else {
+                        const pts = 18;
+                        total += pts;
+                        audit.push({ l: f.t, p: `+${pts}` });
+
+                        const c = f.c;
+                        if(c.includes('Gov')) rMap.Governance += 25;
+                        if(c.includes('Geo')) rMap.Geo += 25;
+                        if(c.includes('Ops')) rMap.Operations += 25;
+                        if(c.includes('Fin')) rMap.Financial += 25;
+                        if(c.includes('Reg') || c.includes('Compliance')) rMap.Compliance += 25;
+                    }
+                }
+            });
+
+            state.score = Math.max(0, Math.min(100, total));
+            state.fatal = fatal;
+
+            updateUI(audit, rMap);
+        }
+
+        function updateUI(audit, rMap) {
+            const sVal = document.getElementById('score-val');
+            const tVal = document.getElementById('tier-val');
+            const bBadge = document.getElementById('verdict-badge');
+            const logEl = document.getElementById('audit-log');
+            const vBar = document.getElementById('verdict-bar');
+            const mIntegrity = document.getElementById('meta-integrity');
+
+            sVal.innerText = state.fatal ? '!!' : (state.score < 10 ? '0'+state.score : state.score);
+
+            let tier = "";
+            let badgeText = "";
+            let bStyle = "";
+            let barGlow = "";
+            let integrityText = "Unverified";
+
+            if (state.fatal) {
+                tier = "Regulatory Barrier Encountered";
+                badgeText = "HARD STOP";
+                bStyle = "bg-rose-900 text-white border-none shadow-xl";
+                barGlow = "rgba(159, 18, 57, 0.08)";
+                integrityText = "COMPROMISED";
+            } else if (state.score > 75) {
+                tier = "Extreme Structural Exposure";
+                badgeText = "DECLINE";
+                bStyle = "bg-rose-600 text-white border-none shadow-lg";
+                barGlow = "rgba(225, 29, 72, 0.05)";
+                integrityText = "HIGH RISK";
+            } else if (state.score > 55) {
+                tier = "Escalate to Board / Underwriting";
+                badgeText = "ESCALATE";
+                bStyle = "bg-amber-500 text-white border-none shadow-lg";
+                barGlow = "rgba(245, 158, 11, 0.05)";
+                integrityText = "QUESTIONABLE";
+            } else if (state.score > 35) {
+                tier = "Negotiation & Covenant Hold";
+                badgeText = "NEGOTIATE";
+                bStyle = "bg-indigo-600 text-white border-none shadow-lg";
+                barGlow = "rgba(79, 70, 229, 0.05)";
+                integrityText = "MODERATE";
+            } else if (state.score > 15) {
+                tier = "Standard Asset Classification";
+                badgeText = "APPROVE ✓";
+                bStyle = "bg-emerald-600 text-white border-none shadow-lg";
+                barGlow = "rgba(5, 150, 105, 0.03)";
+                integrityText = "VALIDATED";
+            } else {
+                tier = "Prime Sovereign Classification";
+                badgeText = "APPROVE ★";
+                bStyle = "bg-indigo-950 text-white border-none shadow-xl";
+                barGlow = "rgba(15, 23, 42, 0.1)";
+                integrityText = "EXEMPLARY";
+            }
+
+            tVal.innerText = tier;
+            bBadge.innerText = badgeText;
+            bBadge.className = `px-16 py-5 rounded-full text-[11px] font-black tracking-[0.3em] uppercase transition-all ${bStyle}`;
+            vBar.style.boxShadow = `0 -15px 40px ${barGlow}`;
+            mIntegrity.innerText = integrityText;
+
+            logEl.innerHTML = audit.map(a => `
+                <div class="flex justify-between items-center ${a.fatal ? 'text-rose-600 font-black' : (a.mit ? 'text-emerald-600 font-bold' : 'text-slate-500')}">
+                    <span class="truncate pr-8">${a.l}</span>
+                    <span class="mono shrink-0">${a.p}</span>
+                </div>
+            `).join('') || '<p class="text-slate-400 italic">No triggers active. Awaiting assessment input...</p>';
+
+            if(radarChart) {
+                radarChart.data.datasets[0].data = [
+                    rMap.Governance, rMap.Geo, rMap.Operations, rMap.Financial, rMap.Compliance
+                ];
+                radarChart.update();
+            }
+        }
+
+        function toggleTheme() {
+            const dark = document.body.classList.toggle('dark');
+            document.getElementById('theme-btn').textContent = dark ? '☀️ Light' : '🌙 Dark';
+            if (radarChart) {
+                const color = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+                const labelColor = dark ? '#8E8E9E' : '#94a3b8';
+                const borderColor = dark ? '#FF2D55' : '#1e1b4b';
+                const bgColor = dark ? 'rgba(255,45,85,0.05)' : 'rgba(30,27,75,0.04)';
+                radarChart.options.scales.r.grid.color = color;
+                radarChart.options.scales.r.angleLines.color = color;
+                radarChart.options.scales.r.pointLabels.color = labelColor;
+                radarChart.data.datasets[0].borderColor = borderColor;
+                radarChart.data.datasets[0].backgroundColor = bgColor;
+                radarChart.data.datasets[0].pointBackgroundColor = borderColor;
+                radarChart.update();
+            }
+        }
+
+        window.onload = () => {
+            initRadar();
+            switchMarket('US');
+            setIndustry('b2b');
+        };
+    </script>
+</body>
+</html>
