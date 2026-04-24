@@ -1101,6 +1101,27 @@ except ImportError:
     log.warning("email_guard router not available — /scan/email skipped.")
 
 try:
+    from warden.api.extension_risk import router as _ext_risk_router
+    app.include_router(_ext_risk_router)
+    log.info("Extension Risk Scanner mounted at /scan/extensions (Q2.4)")
+except ImportError:
+    log.warning("extension_risk router not available — /scan/extensions skipped.")
+
+try:
+    from warden.api.rotation import router as _rotation_router
+    app.include_router(_rotation_router)
+    log.info("Rotation Alerts mounted at /admin/rotation (Q1.3)")
+except ImportError:
+    log.warning("rotation router not available — /admin/rotation skipped.")
+
+try:
+    from warden.api.compliance_report import router as _compliance_router
+    app.include_router(_compliance_router)
+    log.info("Compliance Report mounted at /compliance (Q3.7)")
+except ImportError:
+    log.warning("compliance_report router not available — /compliance skipped.")
+
+try:
     from warden.api.sep import router as _sep_router
     app.include_router(_sep_router)
     log.info("Syndicate Exchange Protocol mounted at /sep")

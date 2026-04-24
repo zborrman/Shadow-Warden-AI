@@ -62,7 +62,65 @@ chrome.runtime.onInstalled.addListener(async () => {
 
   await _resetDailyStats();
   console.log("[Shadow Warden] Extension installed.");
+  // Run extension risk scan on install
+  _scanInstalledExtensions();
 });
+
+// Q2.4 — Extension Risk Scanner
+// On install and every 6h, scan installed extensions against Warden's risk DB.
+// Requires the 'management' permission in manifest.json.
+async function _scanInstalledExtensions() {
+  const cfg = await _resolveConfig();
+  if (!cfg.enabled || !cfg.gatewayUrl) return;
+
+  let extensions = [];
+  try {
+    extensions = await chrome.management.getAll();
+  } catch (_) {
+    return;  // management API not available (Firefox or unprivileged)
+  }
+
+  const payload = {
+    tenant_id: cfg.tenantId || "default",
+    extensions: extensions
+      .filter(e => e.type === "extension" && e.enabled && e.id !== chrome.runtime.id)
+      .map(e => ({
+        id:               e.id,
+        name:             e.name,
+        version:          e.version,
+        permissions:      e.permissions || [],
+        host_permissions: e.hostPermissions || [],
+        enabled:          e.enabled,
+      })),
+  };
+
+  try {
+    const resp = await fetch(`${cfg.gatewayUrl}/scan/extensions`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": cfg.apiKey || "" },
+      body:    JSON.stringify(payload),
+    });
+    if (!resp.ok) return;
+
+    const result = await resp.json();
+    if (result.flagged_count > 0) {
+      const names = result.flagged.filter(f => f.risk_level !== "LOW").map(f => f.name).slice(0, 3);
+      if (names.length > 0) {
+        chrome.notifications.create({
+          type:     "basic",
+          iconUrl:  "icons/icon48.png",
+          title:    "Shadow Warden — Extension Risk Detected",
+          message:  `⚠️ Risky extensions found: ${names.join(", ")}. Check extension settings.`,
+          priority: 2,
+        });
+      }
+    }
+    await chrome.storage.local.set({ lastExtensionScan: Date.now(), extensionScanResult: result });
+  } catch (_) {}
+}
+
+// Re-scan every 6 hours
+setInterval(_scanInstalledExtensions, 6 * 3_600_000);
 
 // ── Warden Identity — OIDC token management ───────────────────────────────────
 //

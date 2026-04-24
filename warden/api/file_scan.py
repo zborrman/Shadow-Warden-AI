@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 import time
 from typing import Annotated
 
@@ -144,6 +145,53 @@ def _extract_pdf(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 
 
+# Q4.12 — Indirect prompt injection patterns hidden in HTML/binary formats
+_HTML_COMMENT_INJECTION_RE = re.compile(
+    r"<!--[\s\S]{0,1000}?"
+    r"(?:ignore|system\s+prompt|instructions?|you\s+are|jailbreak|override)"
+    r"[\s\S]{0,500}?-->",
+    re.I,
+)
+_HIDDEN_ELEMENT_RE = re.compile(
+    r"<[^>]+(?:display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0|"
+    r"font-size\s*:\s*0|color\s*:\s*(?:white|#fff|#ffffff))[^>]*>"
+    r"([^<]{20,})"
+    r"</[^>]+>",
+    re.I,
+)
+_META_INJECTION_RE = re.compile(
+    r'<meta[^>]+(?:content|name)\s*=\s*["\']([^"\']{30,}ignore[^"\']*)["\']',
+    re.I,
+)
+
+
+def _scan_html_injection(text: str) -> list[FileScanFinding]:
+    """Q4.12: Detect indirect prompt injection hidden in HTML comments/elements."""
+    found: list[FileScanFinding] = []
+    for m in _HTML_COMMENT_INJECTION_RE.finditer(text):
+        found.append(FileScanFinding(
+            kind    = "prompt_injection",
+            label   = "Hidden HTML Comment Injection",
+            excerpt = m.group()[:120],
+            line    = text[:m.start()].count("\n") + 1,
+        ))
+    for m in _HIDDEN_ELEMENT_RE.finditer(text):
+        found.append(FileScanFinding(
+            kind    = "prompt_injection",
+            label   = "Invisible Element Injection (CSS hidden)",
+            excerpt = m.group()[:120],
+            line    = text[:m.start()].count("\n") + 1,
+        ))
+    for m in _META_INJECTION_RE.finditer(text):
+        found.append(FileScanFinding(
+            kind    = "prompt_injection",
+            label   = "Meta Tag Injection",
+            excerpt = m.group()[:120],
+            line    = text[:m.start()].count("\n") + 1,
+        ))
+    return found
+
+
 def _line_of_match(text: str, start: int) -> int:
     return text[:start].count("\n") + 1
 
@@ -247,6 +295,14 @@ async def scan_file(
                 injection_found = True
     except Exception as exc:
         log.debug("file_scan: obfuscation check skipped: %s", exc)
+
+    # ── Q4.12: HTML/binary indirect injection ────────────────────────────────
+    fname_lower = filename.lower()
+    if any(fname_lower.endswith(ext) for ext in (".html", ".htm", ".svg", ".xml")):
+        html_injections = _scan_html_injection(text[:50_000])
+        findings.extend(html_injections)
+        if html_injections:
+            injection_found = True
 
     risk  = _risk_level(findings, injection_found)
     safe  = risk in ("SAFE", "LOW")

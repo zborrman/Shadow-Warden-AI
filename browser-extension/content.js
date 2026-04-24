@@ -842,4 +842,85 @@
     _startSEObserver();
   }
 
+  // ── Q2.6: Clipboard Monitor ────────────────────────────────────────────────
+  //
+  // When a user pastes >500 characters into an AI chat input, scan the pasted
+  // content via Shadow Warden.  If PII or secrets are found, show an advisory
+  // toast so the user can remove sensitive data before the prompt is sent.
+  //
+  // Privacy: clipboard text is ONLY scanned — never stored.
+  // Consent:  only runs on AI sites listed in AI_ENDPOINTS matchers.
+  // Opt-out:  set clipboardMonitor: false in extension settings.
+
+  const _CLIPBOARD_THRESHOLD = 500;  // characters — below this, skip scan
+  const _AI_INPUT_SELECTORS  = [
+    "#prompt-textarea",                    // ChatGPT
+    "[data-testid='chat-input']",          // Claude.ai, Copilot
+    "textarea[placeholder*='message']",    // Gemini + generics
+    ".ProseMirror",                        // rich-text AI inputs
+    "div[contenteditable='true']",         // generic CE fields
+  ].join(", ");
+
+  function _isOnAISite() {
+    return AI_ENDPOINTS.some(m => m.test(location.href));
+  }
+
+  async function _scanClipboardContent(text) {
+    if (!_cfg.enabled || text.length < _CLIPBOARD_THRESHOLD) return;
+    if (!_isOnAISite()) return;
+
+    try {
+      const result = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          {
+            type:    "WARDEN_FILTER",
+            payload: { content: text, tenantId: _cfg.tenantId,
+                       context: { source: "clipboard_monitor", site: location.hostname } },
+          },
+          (r) => chrome.runtime.lastError
+            ? reject(new Error(chrome.runtime.lastError.message))
+            : resolve(r)
+        );
+      });
+
+      if (!result) return;
+
+      if (result.pii_action === "block" || !result.allowed) {
+        _showAdvisoryToast(
+          `🔒 Shadow Warden: PII or secrets detected in pasted content (${text.length} chars). ` +
+          `Remove sensitive data before sending. Risk: ${result.risk_level || "HIGH"}.`,
+          "#7c3aed",
+          6000
+        );
+      } else if (result.risk_level === "MEDIUM") {
+        _showAdvisoryToast(
+          "⚠️ Shadow Warden: Pasted content may contain sensitive information — review before sending.",
+          "#78350f",
+          4000
+        );
+      }
+    } catch (_) {
+      // Fail-open — if Warden is unreachable, clipboard paste proceeds normally
+    }
+  }
+
+  function _startClipboardMonitor() {
+    if (!_isOnAISite()) return;
+
+    document.addEventListener("paste", (event) => {
+      try {
+        const text = (event.clipboardData || window.clipboardData)?.getData("text") || "";
+        if (text.length >= _CLIPBOARD_THRESHOLD) {
+          _scanClipboardContent(text);
+        }
+      } catch (_) {}
+    }, { capture: true, passive: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _startClipboardMonitor);
+  } else {
+    _startClipboardMonitor();
+  }
+
 })();
