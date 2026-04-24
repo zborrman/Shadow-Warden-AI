@@ -140,6 +140,12 @@ PyJWT>=2.8.0
 # Install separately if needed: pip install faiss-cpu
 # faiss-cpu>=1.8.0
 
+# ── Office document parsing (C2 Local File Scanner — docx/xlsx) ───────────────
+# python-docx — extract paragraphs + table cells from .docx files
+python-docx>=1.1.0
+# openpyxl — read cell values from .xlsx spreadsheets
+openpyxl>=3.1.0
+
 # ── v1.4 Multi-Modal Guard ────────────────────────────────────────────────────
 # Pillow — image decoding for ImageGuard (CLIP input preprocessing)
 Pillow>=10.0.0

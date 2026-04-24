@@ -126,6 +126,7 @@ from warden.threat_feed import ThreatFeedClient
 from warden.threat_neutralizer_router import router as _neutralizer_router
 from warden.threat_store import ThreatStore
 from warden.threat_vault import SEVERITY_RANK, ThreatVault
+from warden.offline import is_offline as _is_offline
 from warden.topology_guard import scan as _topo_scan
 from warden.webhook_dispatch import WebhookStore
 from warden.webhook_dispatch import dispatch_bypass_event as _dispatch_bypass_webhook
@@ -581,12 +582,13 @@ async def lifespan(app: FastAPI):
     #                                      else Claude if ANTHROPIC_API_KEY set
     #   EVOLUTION_ENGINE=nemotron       → always Nemotron Super (NIM)
     #   EVOLUTION_ENGINE=claude         → always Claude Opus (legacy)
-    _evolve = build_evolution_engine(
-        semantic_guard = _brain_guard,
-        ledger         = _ledger,
-        review_queue   = _review_queue,
-        feed_client    = _feed,
-    )
+    if not _is_offline():
+        _evolve = build_evolution_engine(
+            semantic_guard = _brain_guard,
+            ledger         = _ledger,
+            review_queue   = _review_queue,
+            feed_client    = _feed,
+        )
     if _evolve is not None:
         engine_name = type(_evolve).__name__
         log.info("EvolutionEngine online (%s).", engine_name)
@@ -1092,6 +1094,13 @@ except ImportError:
     log.warning("file_scan router not available — /filter/file skipped.")
 
 try:
+    from warden.api.email_guard import router as _email_guard_router
+    app.include_router(_email_guard_router)
+    log.info("Email Guard mounted at /scan/email (C5 email-vector protection)")
+except ImportError:
+    log.warning("email_guard router not available — /scan/email skipped.")
+
+try:
     from warden.api.sep import router as _sep_router
     app.include_router(_sep_router)
     log.info("Syndicate Exchange Protocol mounted at /sep")
@@ -1197,6 +1206,7 @@ async def health():
         "bypasses_1m":      bypasses_1m,
         "filter_rps_1m":    round(filter_1m / 60, 2),
         "circuit_breaker":  cb_state,
+        "offline_mode":     _is_offline(),
     }
 
 

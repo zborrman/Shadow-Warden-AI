@@ -67,19 +67,64 @@ class FileScanResponse(BaseModel):
 
 
 def _extract_text(data: bytes, content_type: str, filename: str) -> str:
-    """Return plain text from uploaded bytes. PDF falls back to text layer."""
+    """Return plain text from uploaded bytes."""
     ct = (content_type or "").lower().split(";")[0].strip()
     fname = (filename or "").lower()
 
-    # PDF — try pdfminer then pypdf then fallback to raw bytes decode
     if ct == "application/pdf" or fname.endswith(".pdf"):
         return _extract_pdf(data)
 
-    # Decode as UTF-8 with error replacement for everything else
+    if (ct == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            or fname.endswith(".docx")):
+        return _extract_docx(data)
+
+    if (ct in ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+               "application/vnd.ms-excel")
+            or fname.endswith((".xlsx", ".xls"))):
+        return _extract_xlsx(data)
+
     try:
         return data.decode("utf-8", errors="replace")
     except Exception:
         return data.decode("latin-1", errors="replace")
+
+
+def _extract_docx(data: bytes) -> str:
+    """Extract paragraphs + table cells from a .docx file."""
+    try:
+        import docx  # python-docx
+        doc = docx.Document(io.BytesIO(data))
+        parts: list[str] = [p.text for p in doc.paragraphs]
+        for table in doc.tables:
+            for row in table.rows:
+                parts.append("\t".join(c.text for c in row.cells))
+        return "\n".join(parts)
+    except ImportError:
+        log.debug("python-docx not installed — falling back to raw decode")
+        return data.decode("utf-8", errors="replace")
+    except Exception as exc:
+        log.debug("docx extract failed: %s", exc)
+        return data.decode("utf-8", errors="replace")
+
+
+def _extract_xlsx(data: bytes) -> str:
+    """Extract cell values from all sheets of a .xlsx file."""
+    try:
+        import openpyxl  # type: ignore
+        wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        rows: list[str] = []
+        for ws in wb.worksheets:
+            rows.append(f"[Sheet: {ws.title}]")
+            for row in ws.iter_rows(values_only=True):
+                rows.append("\t".join("" if c is None else str(c) for c in row))
+        wb.close()
+        return "\n".join(rows)
+    except ImportError:
+        log.debug("openpyxl not installed — falling back to raw decode")
+        return data.decode("utf-8", errors="replace")
+    except Exception as exc:
+        log.debug("xlsx extract failed: %s", exc)
+        return data.decode("utf-8", errors="replace")
 
 
 def _extract_pdf(data: bytes) -> str:
@@ -232,5 +277,6 @@ async def supported_types() -> dict:
                  ".html", ".xml", ".yaml", ".env", ".sh", ".sql"],
         "pdf":  [".pdf"],
         "max_size_mb": _MAX_BYTES // 1024 // 1024,
-        "note": "Binary files (images, .docx, .xlsx) are not supported in this version.",
+        "office": [".docx", ".xlsx", ".xls"],
+        "note": "Images and audio files are not supported.",
     }
