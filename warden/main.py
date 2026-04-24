@@ -97,6 +97,7 @@ from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
+from warden.offline import is_offline as _is_offline
 from warden.onboarding import OnboardingEngine
 from warden.output_sanitizer import get_sanitizer as _get_output_sanitizer
 from warden.review_queue import ReviewQueue
@@ -126,7 +127,6 @@ from warden.threat_feed import ThreatFeedClient
 from warden.threat_neutralizer_router import router as _neutralizer_router
 from warden.threat_store import ThreatStore
 from warden.threat_vault import SEVERITY_RANK, ThreatVault
-from warden.offline import is_offline as _is_offline
 from warden.topology_guard import scan as _topo_scan
 from warden.webhook_dispatch import WebhookStore
 from warden.webhook_dispatch import dispatch_bypass_event as _dispatch_bypass_webhook
