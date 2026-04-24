@@ -115,8 +115,8 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 
 	root * /srv/landing
 
-	# SPA-style fallback: try file → try .html → index.html
-	try_files {path} {path}.html /index.html
+	# Astro static output: try file → directory index → .html → root index.html
+	try_files {path} {path}/index.html {path}.html /index.html
 
 	file_server
 }
