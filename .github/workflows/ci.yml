@@ -46,9 +46,9 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Wipe and replace landing/ with fresh Astro dist
-          rm -rf landing
-          cp -r site/dist landing
+          # Merge Astro dist into landing/ — overwrites Astro-owned paths only,
+          # preserves legacy HTML files (settings, login, billing, etc.)
+          cp -r site/dist/. landing/
           git add landing/
           # Only commit if something changed
           if git diff --cached --quiet; then
