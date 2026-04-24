@@ -10,6 +10,35 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ── Astro Site Build ─────────────────────────────────────────────────────────
+  site-build:
+    name: Site Build (Astro)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install site dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        working-directory: site
+
+      - name: Build Astro site
+        run: npm run build
+        working-directory: site
+
+      - name: Upload dist as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: site/dist/
+          retention-days: 7
+
   # ── Unit + Integration Tests ────────────────────────────────────────────────
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -220,7 +249,7 @@ jobs:
   deploy:
     name: Deploy to VPS
     runs-on: ubuntu-latest
-    needs: [test, lint]
+    needs: [test, lint, site-build]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
     steps:
@@ -284,7 +313,19 @@ jobs:
 
           echo "── [1/4] Code already pulled via git ──────────────────────"
 
-          echo "── [1b/4] ONNX model — build if missing ────────────────────"
+          echo "── [1b/4] Build Astro marketing site ───────────────────────"
+          # node ≥18 required; use system node or nvm if available.
+          if command -v node >/dev/null 2>&1; then
+            cd "$SSH_PATH/site"
+            npm ci --prefer-offline --no-audit --no-fund 2>&1 | tail -5
+            npm run build 2>&1 | tail -10
+            echo "  Site built → $SSH_PATH/site/dist/"
+            cd "$SSH_PATH"
+          else
+            echo "  WARNING: node not found — skipping site build"
+          fi
+
+          echo "── [1c/4] ONNX model — build if missing ────────────────────"
           # The quantized INT8 ONNX model lives in the named Docker volume.
           # docker compose prefixes the volume with the project name, so the
           # actual volume on the server is shadow-warden_warden-models (not
