@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Get Free Access — Shadow Warden AI</title>
+  <meta name="description" content="Secure your AI pipeline in 5 minutes. Free forever. No credit card required."/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:     #020c14;
+      --bg2:    #05131f;
+      --bg3:    #0a2035;
+      --cyan:   #22d3ee;
+      --green:  #10b981;
+      --purple: #8b5cf6;
+      --red:    #f43f5e;
+      --t1:     #dff0ff;
+      --t2:     #5d8aa8;
+      --t3:     #1e3a50;
+      --border: rgba(34,211,238,0.09);
+      --border2:rgba(34,211,238,0.25);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--t1);
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(34,211,238,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,211,238,0.025) 1px, transparent 1px);
+      background-size: 56px 56px;
+    }
+
+    .text-grad {
+      background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 40%, #a78bfa 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .text-grad-green {
+      background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* Aurora */
+    .aurora-wrap { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+    .aurora-blob { position:absolute; border-radius:50%; filter:blur(90px); opacity:0.1; animation:aurora-drift 20s ease-in-out infinite alternate; }
+    .aurora-1 { width:600px; height:600px; background:radial-gradient(circle,#22d3ee,transparent 70%); top:-200px; left:-150px; animation-duration:22s; }
+    .aurora-2 { width:450px; height:450px; background:radial-gradient(circle,#8b5cf6,transparent 70%); bottom:-100px; right:-100px; animation-duration:28s; animation-delay:-10s; }
+    .aurora-3 { width:350px; height:350px; background:radial-gradient(circle,#10b981,transparent 70%); top:40%; left:45%; animation-duration:32s; animation-delay:-5s; }
+    @keyframes aurora-drift { 0%{transform:translate(0,0) scale(1);} 100%{transform:translate(50px,35px) scale(1.1);} }
+
+    /* Navbar */
+    nav { position:fixed; top:0; left:0; right:0; z-index:50; padding:0 24px; height:64px; display:flex; align-items:center; justify-content:space-between; background:rgba(2,12,20,0.88); backdrop-filter:blur(18px); border-bottom:1px solid var(--border); }
+    .nav-logo { font-size:1.1rem; font-weight:800; letter-spacing:-0.02em; color:var(--t1); text-decoration:none; display:flex; align-items:center; gap:8px; }
+    .nav-logo span { color:var(--cyan); }
+    .nav-login { font-size:13px; font-weight:600; color:var(--t2); text-decoration:none; padding:7px 16px; border:1px solid var(--border); border-radius:10px; transition:all 0.2s; }
+    .nav-login:hover { border-color:var(--border2); color:var(--t1); }
+
+    /* Two-column grid */
+    .page-grid { display:grid; grid-template-columns:1fr; min-height:100vh; padding-top:64px; }
+    @media (min-width:1024px) { .page-grid { grid-template-columns:1fr 1fr; } }
+
+    /* Left panel */
+    .left-panel { padding:52px 40px 52px 52px; display:flex; flex-direction:column; justify-content:center; border-right:1px solid var(--border); }
+    @media (min-width:1024px) { .left-panel { position:sticky; top:64px; height:calc(100vh - 64px); overflow-y:auto; } }
+    @media (max-width:1023px) { .left-panel { padding:36px 24px 28px; border-right:none; border-bottom:1px solid var(--border); } }
+
+    /* Right panel */
+    .right-panel { padding:48px 40px 56px; display:flex; flex-direction:column; justify-content:center; }
+    @media (max-width:1023px) { .right-panel { padding:32px 24px 48px; } }
+    @media (min-width:1024px) { .right-panel { min-height:calc(100vh - 64px); } }
+
+    /* Left panel atoms */
+    .lp-badge { display:inline-flex; align-items:center; gap:8px; padding:5px 12px 5px 8px; border-radius:20px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.22); font-size:11px; font-weight:700; color:#34d399; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:24px; width:fit-content; }
+    .lp-badge-dot { width:7px; height:7px; border-radius:50%; background:#10b981; animation:pulse-dot 2s infinite; flex-shrink:0; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(1.5);} }
+
+    .lp-h1 { font-size:clamp(1.9rem,3.2vw,2.65rem); font-weight:900; line-height:1.1; letter-spacing:-0.03em; margin-bottom:16px; }
+    .lp-sub { font-size:15px; color:var(--t2); line-height:1.65; margin-bottom:30px; max-width:430px; }
+
+    /* Stats */
+    .stats-row { display:flex; gap:18px; margin-bottom:30px; flex-wrap:wrap; align-items:flex-end; }
+    .stat-item { display:flex; flex-direction:column; }
+    .stat-num { font-size:1.45rem; font-weight:900; letter-spacing:-0.02em; color:var(--t1); line-height:1; }
+    .stat-num span { color:var(--cyan); }
+    .stat-label { font-size:11px; color:var(--t2); margin-top:3px; }
+    .stat-divider { width:1px; background:var(--border2); height:32px; align-self:center; }
+
+    /* Features */
+    .features-title { font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--t3); margin-bottom:12px; }
+    .feature-item { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid rgba(34,211,238,0.05); }
+    .feature-item:last-child { border-bottom:none; }
+    .feature-check { width:20px; height:20px; border-radius:6px; flex-shrink:0; margin-top:1px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); display:flex; align-items:center; justify-content:center; }
+    .feature-name { font-size:13.5px; font-weight:600; color:var(--t1); }
+    .feature-desc { font-size:12px; color:var(--t2); line-height:1.4; margin-top:2px; }
+
+    /* Testimonial */
+    .testimonial { background:rgba(5,19,31,0.85); border:1px solid var(--border); border-radius:16px; padding:18px 18px 14px; position:relative; margin-top:24px; }
+    .testimonial::before { content:'"'; font-size:52px; line-height:1; color:var(--cyan); opacity:0.12; position:absolute; top:6px; left:16px; font-family:Georgia,serif; }
+    .testimonial-text { font-size:13px; color:var(--t1); line-height:1.65; padding-left:8px; margin-bottom:12px; font-style:italic; }
+    .testimonial-author { display:flex; align-items:center; gap:10px; }
+    .testimonial-avatar { width:32px; height:32px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+    .testimonial-name { font-size:12.5px; font-weight:700; color:var(--t1); }
+    .testimonial-role { font-size:11px; color:var(--t2); }
+    .stars { display:flex; gap:2px; margin-left:auto; }
+
+    /* Social proof */
+    .social-proof { display:flex; align-items:center; gap:10px; margin-top:18px; }
+    .avatar-stack { display:flex; }
+    .avatar { width:28px; height:28px; border-radius:50%; border:2px solid var(--bg); margin-left:-8px; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .avatar:first-child { margin-left:0; }
+    .social-text { font-size:12.5px; color:var(--t2); }
+
+    /* Form wrap */
+    .form-wrap { max-width:440px; margin:0 auto; width:100%; }
+
+    /* Step progress */
+    .step-progress { display:flex; align-items:center; gap:8px; margin-bottom:28px; }
+    .step-dot { width:8px; height:8px; border-radius:50%; background:var(--t3); transition:all 0.3s ease; }
+    .step-dot.active { background:var(--cyan); box-shadow:0 0 10px rgba(34,211,238,0.5); width:24px; border-radius:4px; }
+    .step-dot.done { background:var(--green); }
+    .step-label { font-size:12px; color:var(--t2); margin-left:4px; }
+    .step-of { font-size:12px; color:var(--t3); }
+
+    /* Steps */
+    .step { display:none; }
+    .step.active { display:block; }
+
+    /* Form elements */
+    .form-group { margin-bottom:18px; }
+    .form-label { display:block; font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--t2); margin-bottom:8px; }
+    .req { color:var(--red); }
+    .opt { font-weight:400; text-transform:none; letter-spacing:0; color:var(--t3); }
+    .form-input { width:100%; background:rgba(10,32,53,0.8); border:1px solid rgba(34,211,238,0.14); border-radius:12px; color:var(--t1); font-size:15px; padding:12px 16px; outline:none; transition:border-color 0.2s,box-shadow 0.2s; font-family:'Inter',sans-serif; }
+    .form-input::placeholder { color:var(--t3); }
+    .form-input:focus { border-color:rgba(34,211,238,0.45); box-shadow:0 0 0 3px rgba(34,211,238,0.08); }
+    .form-input:valid:not(:placeholder-shown) { border-color:rgba(16,185,129,0.3); }
+    .form-select { width:100%; background:rgba(10,32,53,0.8); border:1px solid rgba(34,211,238,0.14); border-radius:12px; color:var(--t1); font-size:15px; padding:12px 36px 12px 16px; outline:none; transition:border-color 0.2s,box-shadow 0.2s; font-family:'Inter',sans-serif; cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235d8aa8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
+    .form-select:focus { border-color:rgba(34,211,238,0.45); box-shadow:0 0 0 3px rgba(34,211,238,0.08); }
+    .form-select option { background:#0a2035; color:var(--t1); }
+    .err-msg { font-size:12px; color:#f87171; margin-top:5px; display:none; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width:480px) { .form-row { grid-template-columns:1fr; } }
+
+    /* Modules */
+    .module-grid { display:flex; flex-direction:column; gap:9px; }
+    .module-card { position:relative; cursor:pointer; border:1px solid rgba(34,211,238,0.1); border-radius:14px; padding:11px 14px; background:rgba(10,32,53,0.5); transition:border-color 0.2s,background 0.2s,transform 0.15s; display:flex; align-items:center; gap:12px; }
+    .module-card:hover { border-color:rgba(34,211,238,0.28); background:rgba(10,32,53,0.85); transform:translateY(-1px); }
+    .module-card.selected { border-color:rgba(34,211,238,0.55); background:rgba(34,211,238,0.06); box-shadow:0 0 18px rgba(34,211,238,0.07); }
+    .module-card input[type="checkbox"] { display:none; }
+    .module-check { width:20px; height:20px; border-radius:6px; flex-shrink:0; border:1.5px solid rgba(34,211,238,0.25); background:rgba(2,12,20,0.6); display:flex; align-items:center; justify-content:center; transition:background 0.2s,border-color 0.2s; }
+    .module-card.selected .module-check { background:var(--cyan); border-color:var(--cyan); }
+    .module-check svg { opacity:0; transition:opacity 0.15s; }
+    .module-card.selected .module-check svg { opacity:1; }
+    .module-icon-wrap { width:36px; height:36px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; line-height:1; }
+    .module-title { font-size:13.5px; font-weight:700; color:var(--t1); }
+    .module-desc { font-size:11.5px; color:var(--t2); line-height:1.4; margin-top:2px; }
+    .module-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:0.05em; padding:2px 7px; border-radius:6px; background:rgba(16,185,129,0.1); color:#34d399; border:1px solid rgba(16,185,129,0.2); margin-top:4px; white-space:nowrap; }
+    .select-all-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .select-all-btn { font-size:12px; font-weight:600; color:var(--cyan); cursor:pointer; background:none; border:none; padding:0; text-decoration:underline; text-underline-offset:2px; }
+
+    /* Consent */
+    .consent-row { display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
+    .consent-box { width:18px; height:18px; border-radius:5px; flex-shrink:0; margin-top:1px; border:1.5px solid rgba(34,211,238,0.25); background:rgba(2,12,20,0.6); display:flex; align-items:center; justify-content:center; transition:background 0.2s,border-color 0.2s; }
+    .consent-row.checked .consent-box { background:var(--cyan); border-color:var(--cyan); }
+    .consent-row.checked .consent-box svg { opacity:1; }
+    .consent-box svg { opacity:0; transition:opacity 0.15s; }
+
+    /* Buttons */
+    .btn-primary { width:100%; padding:14px 24px; border-radius:14px; font-size:15px; font-weight:700; background:linear-gradient(135deg,#22d3ee 0%,#8b5cf6 100%); color:#020c14; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; position:relative; overflow:hidden; transition:opacity 0.2s,transform 0.15s,box-shadow 0.2s; box-shadow:0 4px 24px rgba(34,211,238,0.22); }
+    .btn-primary:hover { opacity:0.92; transform:translateY(-1px); box-shadow:0 8px 32px rgba(34,211,238,0.3); }
+    .btn-primary:active { transform:translateY(0); }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .btn-shimmer { position:absolute; inset:0; background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.18) 50%,transparent 100%); transform:translateX(-100%); }
+    .btn-primary:not(:disabled):hover .btn-shimmer { animation:shimmer-swipe 0.6s ease forwards; }
+    @keyframes shimmer-swipe { to{transform:translateX(100%);} }
+    .btn-back { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--t2); cursor:pointer; background:none; border:none; padding:0; margin-bottom:20px; transition:color 0.2s; }
+    .btn-back:hover { color:var(--t1); }
+
+    /* Trust strip */
+    .trust-strip { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:16px; margin-top:18px; }
+    .trust-badge { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--t2); white-space:nowrap; }
+    .trust-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse-dot 2s infinite; flex-shrink:0; }
+
+    /* Error banner */
+    .err-banner { display:none; background:rgba(244,63,94,0.08); border:1px solid rgba(244,63,94,0.25); border-radius:10px; padding:10px 14px; font-size:13px; color:#f87171; margin-bottom:16px; }
+
+    /* Success */
+    #success-view { display:none; }
+    .success-icon-ring { width:88px; height:88px; border-radius:50%; background:rgba(16,185,129,0.1); border:2px solid rgba(16,185,129,0.4); display:flex; align-items:center; justify-content:center; margin:0 auto 24px; animation:pop-in 0.5s cubic-bezier(0.34,1.56,0.64,1) both; }
+    @keyframes pop-in { 0%{transform:scale(0.4);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+    .next-steps { background:rgba(10,32,53,0.7); border:1px solid var(--border); border-radius:16px; padding:20px; margin:24px 0; }
+    .next-step-row { display:flex; align-items:flex-start; gap:14px; padding:10px 0; border-bottom:1px solid rgba(34,211,238,0.05); }
+    .next-step-row:last-child { border-bottom:none; padding-bottom:0; }
+    .next-step-num { width:26px; height:26px; border-radius:8px; flex-shrink:0; background:rgba(34,211,238,0.1); border:1px solid rgba(34,211,238,0.2); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:var(--cyan); font-family:'JetBrains Mono',monospace; }
+    .next-step-title { font-size:13.5px; font-weight:700; color:var(--t1); margin-bottom:2px; }
+    .next-step-desc { font-size:12px; color:var(--t2); line-height:1.5; }
+
+    .fade-up { opacity:0; transform:translateY(20px); }
+  </style>
+</head>
+<body class="grid-bg">
+
+<div class="aurora-wrap">
+  <div class="aurora-blob aurora-1"></div>
+  <div class="aurora-blob aurora-2"></div>
+  <div class="aurora-blob aurora-3"></div>
+</div>
+
+<nav>
+  <a href="/" class="nav-logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Shadow<span>Warden</span>
+  </a>
+  <a href="/login" class="nav-login">Sign In</a>
+</nav>
+
+<div class="page-grid relative z-10">
+
+  <!-- ── LEFT PANEL ─────────────────────────────────────────────────────────── -->
+  <div class="left-panel fade-up">
+
+    <div class="lp-badge">
+      <span class="lp-badge-dot"></span>
+      Free Access · No Credit Card
+    </div>
+
+    <h1 class="lp-h1">
+      Protect your AI.<br/>
+      <span class="text-grad">Start free, today.</span>
+    </h1>
+    <p class="lp-sub">
+      Zero-trust security layer for every AI request. Drop in to any stack in 5 minutes.
+      Blocks prompt injection, credential leaks, and jailbreaks before they reach your model.
+    </p>
+
+    <!-- Animated stats -->
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-num"><span id="cnt-teams">0</span>+</div>
+        <div class="stat-label">Teams protected</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-num"><span id="cnt-threats">0</span>M+</div>
+        <div class="stat-label">Threats blocked</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-num">&lt;<span id="cnt-ms">0</span>ms</div>
+        <div class="stat-label">P99 latency</div>
+      </div>
+    </div>
+
+    <!-- Feature list -->
+    <p class="features-title">What's included, free forever</p>
+    <div>
+      <div class="feature-item">
+        <div class="feature-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div>
+          <div class="feature-name">Secret Redactor</div>
+          <div class="feature-desc">15 regex patterns + Shannon entropy strips all credentials before they reach the LLM.</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div>
+          <div class="feature-name">Semantic Guard <span style="color:var(--t3);font-weight:400;">· MiniLM · F1 0.947</span></div>
+          <div class="feature-desc">ML jailbreak detection via Poincaré hyperbolic embeddings. Catches what regex misses.</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div>
+          <div class="feature-name">Obfuscation Decoder</div>
+          <div class="feature-desc">Recursive depth-3 decoding of Base64, ROT13, hex, Unicode homoglyphs, word-splits.</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div>
+          <div class="feature-name">GDPR Compliance Tools</div>
+          <div class="feature-desc">PII masking vault + Art. 35 audit trail. Fernet-encrypted, DSAR-ready.</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div>
+          <div class="feature-name">ROI Impact Calculator</div>
+          <div class="feature-desc">IBM 2024 breach benchmarks → your dollar savings from preventing AI security incidents.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Testimonial -->
+    <div class="testimonial">
+      <p class="testimonial-text">
+        "We ran a red team exercise the week after deploying Shadow Warden. Every single prompt injection attempt was caught — including obfuscated payloads that bypassed our previous regex filter."
+      </p>
+      <div class="testimonial-author">
+        <div class="testimonial-avatar" style="background:linear-gradient(135deg,#22d3ee,#0891b2);">DK</div>
+        <div>
+          <div class="testimonial-name">Daniel K.</div>
+          <div class="testimonial-role">CTO · FinTech SaaS, Berlin</div>
+        </div>
+        <div class="stars">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Social proof -->
+    <div class="social-proof">
+      <div class="avatar-stack">
+        <div class="avatar" style="background:linear-gradient(135deg,#22d3ee,#0891b2);">AK</div>
+        <div class="avatar" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);">MR</div>
+        <div class="avatar" style="background:linear-gradient(135deg,#10b981,#065f46);">JL</div>
+        <div class="avatar" style="background:linear-gradient(135deg,#f59e0b,#b45309);">SP</div>
+        <div class="avatar" style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.25);color:var(--cyan);font-size:9px;">+243</div>
+      </div>
+      <span class="social-text">Already protecting their AI pipelines</span>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT PANEL ─────────────────────────────────────────────────────────── -->
+  <div class="right-panel">
+    <div class="form-wrap fade-up">
+
+      <!-- Form view -->
+      <div id="form-view">
+
+        <!-- Step progress -->
+        <div class="step-progress" id="step-progress">
+          <div class="step-dot active" id="dot-1"></div>
+          <div class="step-dot" id="dot-2"></div>
+          <div class="step-dot" id="dot-3"></div>
+          <span class="step-label" id="step-label">Contact info</span>
+          <span style="flex:1;"></span>
+          <span class="step-of" id="step-of">Step 1 of 3</span>
+        </div>
+
+        <!-- ── Step 1: Contact ──────────────────────────────────────────── -->
+        <div class="step active" id="step-1">
+          <h2 style="font-size:22px;font-weight:900;letter-spacing:-0.02em;margin-bottom:6px;">Create your free account</h2>
+          <p style="font-size:13px;color:var(--t2);margin-bottom:24px;line-height:1.55;">No credit card. Deploy in under 5 minutes.</p>
+
+          <div class="form-row" style="margin-bottom:18px;">
+            <div>
+              <label class="form-label" for="inp-name">Full Name <span class="req">*</span></label>
+              <input class="form-input" type="text" id="inp-name" placeholder="Jane Smith" required autocomplete="name"/>
+              <div class="err-msg" id="err-name">Please enter your name.</div>
+            </div>
+            <div>
+              <label class="form-label" for="inp-email">Work Email <span class="req">*</span></label>
+              <input class="form-input" type="email" id="inp-email" placeholder="jane@company.com" required autocomplete="email"/>
+              <div class="err-msg" id="err-email">Please enter a valid email.</div>
+            </div>
+          </div>
+
+          <button type="button" class="btn-primary" id="btn-step1" style="margin-bottom:18px;">
+            <span class="btn-shimmer"></span>
+            Continue
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+
+          <div class="trust-strip">
+            <span class="trust-badge"><span class="trust-dot"></span>No credit card</span>
+            <span class="trust-badge"><span class="trust-dot" style="background:#8b5cf6;"></span>Self-hosted</span>
+            <span class="trust-badge"><span class="trust-dot" style="background:#22d3ee;"></span>GDPR compliant</span>
+          </div>
+        </div>
+
+        <!-- ── Step 2: Team context ─────────────────────────────────────── -->
+        <div class="step" id="step-2">
+          <button class="btn-back" id="btn-back-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back
+          </button>
+
+          <h2 style="font-size:22px;font-weight:900;letter-spacing:-0.02em;margin-bottom:6px;">Tell us about your team</h2>
+          <p style="font-size:13px;color:var(--t2);margin-bottom:24px;line-height:1.55;">Helps us send the right setup guide. All optional.</p>
+
+          <div class="form-group">
+            <label class="form-label" for="inp-company">Company <span class="opt">(optional)</span></label>
+            <input class="form-input" type="text" id="inp-company" placeholder="Acme Corp" autocomplete="organization"/>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="inp-role">Your Role</label>
+              <select class="form-select" id="inp-role">
+                <option value="" disabled selected>Select…</option>
+                <option>CTO / VP Engineering</option>
+                <option>Security Engineer</option>
+                <option>AI / ML Engineer</option>
+                <option>DevOps / Platform</option>
+                <option>Product Manager</option>
+                <option>Founder / CEO</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inp-size">Team Size</label>
+              <select class="form-select" id="inp-size">
+                <option value="" disabled selected>Select…</option>
+                <option>Solo / freelancer</option>
+                <option>2–10</option>
+                <option>11–50</option>
+                <option>51–200</option>
+                <option>201–1000</option>
+                <option>1000+</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inp-usecase">What AI are you protecting?</label>
+            <select class="form-select" id="inp-usecase">
+              <option value="" disabled selected>Select use case…</option>
+              <option>Customer-facing chatbot / support</option>
+              <option>Internal AI assistant / copilot</option>
+              <option>AI agent / autonomous workflow</option>
+              <option>RAG / document Q&amp;A</option>
+              <option>Code generation tool</option>
+              <option>API product (LLM as a service)</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <button type="button" class="btn-primary" id="btn-step2">
+            <span class="btn-shimmer"></span>
+            Continue
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+
+        <!-- ── Step 3: Modules + Submit ────────────────────────────────── -->
+        <div class="step" id="step-3">
+          <button class="btn-back" id="btn-back-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back
+          </button>
+
+          <h2 style="font-size:22px;font-weight:900;letter-spacing:-0.02em;margin-bottom:6px;">Choose your free modules</h2>
+          <p style="font-size:13px;color:var(--t2);margin-bottom:16px;line-height:1.55;">All modules are free forever — select any combination.</p>
+
+          <div class="select-all-row">
+            <span style="font-size:12px;color:var(--t2);" id="modules-selected-count">None selected</span>
+            <button type="button" class="select-all-btn" id="btn-select-all">Select all</button>
+          </div>
+
+          <div class="module-grid" id="module-grid">
+
+            <label class="module-card" onclick="toggleModule(this)">
+              <input type="checkbox" value="secret-redactor"/>
+              <div class="module-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#020c14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="module-icon-wrap" style="background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.15);">🔐</div>
+              <div style="flex:1;min-width:0;">
+                <div class="module-title">Secret Redactor</div>
+                <div class="module-desc">API keys, tokens, PII + entropy scan</div>
+                <span class="module-badge"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Free forever</span>
+              </div>
+            </label>
+
+            <label class="module-card" onclick="toggleModule(this)">
+              <input type="checkbox" value="semantic-guard"/>
+              <div class="module-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#020c14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="module-icon-wrap" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);">🧠</div>
+              <div style="flex:1;min-width:0;">
+                <div class="module-title">Semantic Guard</div>
+                <div class="module-desc">MiniLM jailbreak detection · F1 0.947</div>
+                <span class="module-badge"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Free forever</span>
+              </div>
+            </label>
+
+            <label class="module-card" onclick="toggleModule(this)">
+              <input type="checkbox" value="obfuscation-decoder"/>
+              <div class="module-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#020c14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="module-icon-wrap" style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.15);">🔄</div>
+              <div style="flex:1;min-width:0;">
+                <div class="module-title">Obfuscation Decoder</div>
+                <div class="module-desc">Base64 / ROT13 / homoglyphs · depth-3</div>
+                <span class="module-badge"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Free forever</span>
+              </div>
+            </label>
+
+            <label class="module-card" onclick="toggleModule(this)">
+              <input type="checkbox" value="gdpr-tools"/>
+              <div class="module-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#020c14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="module-icon-wrap" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.15);">🛡️</div>
+              <div style="flex:1;min-width:0;">
+                <div class="module-title">GDPR Compliance Tools</div>
+                <div class="module-desc">PII vault · Art. 35 audit trail · DSAR</div>
+                <span class="module-badge"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Free forever</span>
+              </div>
+            </label>
+
+            <label class="module-card" onclick="toggleModule(this)">
+              <input type="checkbox" value="impact-calculator"/>
+              <div class="module-check"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#020c14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="module-icon-wrap" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15);">💰</div>
+              <div style="flex:1;min-width:0;">
+                <div class="module-title">ROI Impact Calculator</div>
+                <div class="module-desc">IBM 2024 breach data → your $ savings</div>
+                <span class="module-badge"><svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Free forever</span>
+              </div>
+            </label>
+
+          </div>
+          <div class="err-msg" id="err-modules" style="margin-top:8px;">Please select at least one module.</div>
+
+          <!-- Consent -->
+          <div style="margin:18px 0 14px;">
+            <div class="consent-row" id="consent-row" onclick="toggleConsent()">
+              <div class="consent-box">
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#020c14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <span style="font-size:12.5px;color:var(--t2);line-height:1.5;">
+                I agree to Shadow Warden's <a href="/privacy" style="color:var(--cyan);" onclick="event.stopPropagation()">Privacy Policy</a> and <a href="/terms" style="color:var(--cyan);" onclick="event.stopPropagation()">Terms of Service</a>. I consent to product update emails.
+              </span>
+            </div>
+            <div class="err-msg" id="err-consent">You must agree to continue.</div>
+          </div>
+
+          <div class="err-banner" id="form-error"></div>
+
+          <button type="button" class="btn-primary" id="btn-submit" style="margin-bottom:16px;">
+            <span class="btn-shimmer"></span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span id="btn-submit-text">Get Free Access</span>
+          </button>
+
+          <div class="trust-strip">
+            <span class="trust-badge"><span class="trust-dot"></span>No credit card</span>
+            <span class="trust-badge"><span class="trust-dot" style="background:#8b5cf6;"></span>Open-source core</span>
+            <span class="trust-badge"><span class="trust-dot" style="background:#22d3ee;"></span>GDPR Art. 35</span>
+          </div>
+        </div>
+
+      </div><!-- /form-view -->
+
+      <!-- ── Success view ──────────────────────────────────────────────── -->
+      <div id="success-view">
+        <div class="text-center">
+          <div class="success-icon-ring">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2 style="font-size:26px;font-weight:900;letter-spacing:-0.02em;margin-bottom:8px;">
+            You're in!<br/><span class="text-grad-green">Access incoming.</span>
+          </h2>
+          <p style="font-size:14px;color:var(--t2);line-height:1.65;max-width:360px;margin:0 auto 8px;" id="success-msg">
+            We'll send your free module credentials shortly.
+          </p>
+
+          <div id="success-modules" style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:20px 0;"></div>
+
+          <div class="next-steps">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:var(--t2);text-transform:uppercase;margin-bottom:12px;">What happens next</p>
+            <div class="next-step-row">
+              <div class="next-step-num">01</div>
+              <div>
+                <div class="next-step-title">Check your inbox</div>
+                <div class="next-step-desc">Setup guide + API key on the way. Check spam if not there in 5 min.</div>
+              </div>
+            </div>
+            <div class="next-step-row">
+              <div class="next-step-num">02</div>
+              <div>
+                <div class="next-step-title">Deploy with Docker Compose</div>
+                <div class="next-step-desc"><span class="mono" style="font-size:11px;color:var(--cyan);">docker compose up -d</span> — one command, zero config.</div>
+              </div>
+            </div>
+            <div class="next-step-row">
+              <div class="next-step-num">03</div>
+              <div>
+                <div class="next-step-title">First request protected in &lt;5 min</div>
+                <div class="next-step-desc">Point your LLM client at <span class="mono" style="font-size:11px;color:var(--cyan);">localhost:8001/filter</span> and you're live.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <a href="/" style="font-size:13px;font-weight:600;color:var(--cyan);text-decoration:none;padding:9px 18px;border:1px solid rgba(34,211,238,0.3);border-radius:10px;transition:border-color 0.2s;" onmouseover="this.style.borderColor='rgba(34,211,238,0.6)'" onmouseout="this.style.borderColor='rgba(34,211,238,0.3)'">← Home</a>
+            <a href="/docs" style="font-size:13px;font-weight:600;color:var(--t1);text-decoration:none;padding:9px 18px;border:1px solid var(--border);border-radius:10px;background:rgba(10,32,53,0.5);transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">View Docs →</a>
+          </div>
+        </div>
+      </div><!-- /success-view -->
+
+    </div>
+  </div><!-- /right-panel -->
+
+</div><!-- /page-grid -->
+
+<script>
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8001'
+    : 'https://api.shadow-warden-ai.com';
+
+  // ── Entrance animations ────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.fade-up').forEach((el, i) => {
+      gsap.to(el, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out', delay: 0.1 + i * 0.15 });
+    });
+    animateCount('cnt-teams',   247,  1400, false);
+    animateCount('cnt-threats', 4.2,  1800, true);
+    animateCount('cnt-ms',      19,   1600, false);
+  });
+
+  function animateCount(id, target, duration, isDecimal) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const start = performance.now();
+    (function step(now) {
+      const p = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      el.textContent = isDecimal ? (ease * target).toFixed(1) : Math.floor(ease * target);
+      if (p < 1) requestAnimationFrame(step);
+    })(performance.now());
+  }
+
+  // ── Step machine ───────────────────────────────────────────────────────────
+  const STEP_LABELS = ['Contact info', 'Your team', 'Free modules'];
+  let currentStep = 1;
+
+  function goToStep(n) {
+    const from = document.getElementById('step-' + currentStep);
+    const to   = document.getElementById('step-' + n);
+    const dir  = n > currentStep ? 1 : -1;
+    gsap.to(from, { opacity: 0, x: -28 * dir, duration: 0.22, ease: 'power2.in', onComplete: () => {
+      from.classList.remove('active');
+      to.classList.add('active');
+      gsap.fromTo(to, { opacity: 0, x: 28 * dir }, { opacity: 1, x: 0, duration: 0.28, ease: 'power2.out' });
+    }});
+    currentStep = n;
+    // Update dots
+    for (let i = 1; i <= 3; i++) {
+      const d = document.getElementById('dot-' + i);
+      d.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+    }
+    document.getElementById('step-label').textContent = STEP_LABELS[n - 1];
+    document.getElementById('step-of').textContent = 'Step ' + n + ' of 3';
+  }
+
+  // Step 1 → 2
+  document.getElementById('btn-step1').addEventListener('click', () => {
+    const name  = document.getElementById('inp-name').value.trim();
+    const email = document.getElementById('inp-email').value.trim();
+    const rx    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    let ok = true;
+    document.getElementById('err-name').style.display  = name ? 'none' : (ok = false, 'block');
+    document.getElementById('err-email').style.display = (email && rx.test(email)) ? 'none' : (ok = false, 'block');
+    if (ok) goToStep(2);
+  });
+
+  // Step 2 → 3
+  document.getElementById('btn-step2').addEventListener('click', () => goToStep(3));
+
+  // Back buttons
+  document.getElementById('btn-back-1').addEventListener('click', () => goToStep(1));
+  document.getElementById('btn-back-2').addEventListener('click', () => goToStep(2));
+
+  // ── Module toggle ──────────────────────────────────────────────────────────
+  function toggleModule(el) {
+    el.classList.toggle('selected');
+    const cb = el.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = el.classList.contains('selected');
+    document.getElementById('err-modules').style.display = 'none';
+    updateModuleCount();
+  }
+
+  function updateModuleCount() {
+    const n = document.querySelectorAll('#module-grid .module-card.selected').length;
+    document.getElementById('modules-selected-count').textContent = n === 0 ? 'None selected' : n + ' selected';
+    document.getElementById('btn-select-all').textContent = (n === 5) ? 'Deselect all' : 'Select all';
+  }
+
+  document.getElementById('btn-select-all').addEventListener('click', () => {
+    const cards = document.querySelectorAll('#module-grid .module-card');
+    const allOn = [...cards].every(c => c.classList.contains('selected'));
+    cards.forEach(c => {
+      const cb = c.querySelector('input[type="checkbox"]');
+      c.classList.toggle('selected', !allOn);
+      if (cb) cb.checked = !allOn;
+    });
+    updateModuleCount();
+  });
+
+  // ── Consent ────────────────────────────────────────────────────────────────
+  function toggleConsent() {
+    document.getElementById('consent-row').classList.toggle('checked');
+    document.getElementById('err-consent').style.display = 'none';
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  document.getElementById('btn-submit').addEventListener('click', async () => {
+    const modules   = [...document.querySelectorAll('#module-grid input:checked')].map(c => c.value);
+    const consented = document.getElementById('consent-row').classList.contains('checked');
+    let ok = true;
+    if (!modules.length) { document.getElementById('err-modules').style.display = 'block'; ok = false; }
+    if (!consented)       { document.getElementById('err-consent').style.display = 'block'; ok = false; }
+    if (!ok) return;
+
+    const btn = document.getElementById('btn-submit');
+    const txt = document.getElementById('btn-submit-text');
+    const err = document.getElementById('form-error');
+    btn.disabled = true;
+    txt.textContent = 'Creating account…';
+    err.style.display = 'none';
+
+    try {
+      const resp = await fetch(API_BASE + '/portal/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email:     document.getElementById('inp-email').value.trim(),
+          full_name: document.getElementById('inp-name').value.trim(),
+          company:   document.getElementById('inp-company').value.trim(),
+          role:      document.getElementById('inp-role').value,
+          team_size: document.getElementById('inp-size').value,
+          use_case:  document.getElementById('inp-usecase').value,
+          modules,
+        }),
+      });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.detail || 'Server error (' + resp.status + ')');
+      }
+      showSuccess(document.getElementById('inp-email').value.trim(), modules);
+    } catch (e) {
+      err.textContent = e.message || 'Something went wrong. Please try again.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      txt.textContent = 'Get Free Access';
+    }
+  });
+
+  // ── Success ────────────────────────────────────────────────────────────────
+  const MODULE_LABELS = {
+    'secret-redactor':    '🔐 Secret Redactor',
+    'semantic-guard':     '🧠 Semantic Guard',
+    'obfuscation-decoder':'🔄 Obfuscation Decoder',
+    'gdpr-tools':         '🛡️ GDPR Tools',
+    'impact-calculator':  '💰 Impact Calculator',
+  };
+
+  function showSuccess(email, modules) {
+    document.getElementById('success-msg').textContent =
+      'We\'ll send your free module credentials to ' + email + ' shortly.';
+    document.getElementById('success-modules').innerHTML = modules.map(m =>
+      '<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:8px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);font-size:12px;font-weight:600;color:#34d399;">' +
+      (MODULE_LABELS[m] || m) + '</span>'
+    ).join('');
+
+    const fv = document.getElementById('form-view');
+    const pg = document.getElementById('step-progress');
+    const sv = document.getElementById('success-view');
+    gsap.to([fv, pg], { opacity: 0, y: -18, duration: 0.25, ease: 'power2.in', onComplete: () => {
+      fv.style.display = 'none';
+      pg.style.display = 'none';
+      sv.style.display = 'block';
+      gsap.fromTo(sv, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' });
+    }});
+  }
+</script>
+</body>
+</html>

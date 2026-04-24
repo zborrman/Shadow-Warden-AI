@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Shadow Warden AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #030712;
+      --surface:   #0a0f1e;
+      --surface2:  #0f172a;
+      --border:    rgba(99,102,241,0.16);
+      --border-h:  rgba(99,102,241,0.40);
+      --indigo:    #6366f1;
+      --violet:    #8b5cf6;
+      --cyan:      #06b6d4;
+      --text:      #f1f5f9;
+      --text-2:    #94a3b8;
+      --text-3:    #475569;
+      --danger:    #f87171;
+      --success:   #34d399;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+    }
+
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .panel-left { display: none; }
+    }
+
+    /* ── Left panel ─────────────────────────────────────────────── */
+    .panel-left {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel-left::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 20%, rgba(99,102,241,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(139,92,246,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .left-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.125rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .left-logo span {
+      background: linear-gradient(135deg, var(--indigo), var(--violet), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .left-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      max-width: 400px;
+    }
+
+    .left-headline {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+
+    .left-headline em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--indigo), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .left-sub {
+      font-size: 0.9375rem;
+      color: var(--text-2);
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .feature-icon svg { color: var(--indigo); }
+
+    .feature-text strong {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .feature-text span {
+      font-size: 0.8125rem;
+      color: var(--text-3);
+    }
+
+    .left-footer {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-3);
+    }
+
+    .badge-secure {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: rgba(52,211,153,0.08);
+      border: 1px solid rgba(52,211,153,0.2);
+      border-radius: 100px;
+      color: var(--success);
+      font-size: 0.6875rem;
+      font-weight: 500;
+    }
+
+    /* ── Right panel ────────────────────────────────────────────── */
+    .panel-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 32px;
+      background: var(--bg);
+    }
+
+    .form-container {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    /* Mobile logo */
+    .mobile-logo {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.125rem;
+      margin-bottom: 40px;
+    }
+    .mobile-logo span {
+      background: linear-gradient(135deg, var(--indigo), var(--violet), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    @media (max-width: 768px) { .mobile-logo { display: flex; } }
+
+    .form-heading { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .form-sub { font-size: 0.875rem; color: var(--text-2); margin-bottom: 32px; }
+
+    /* ── Tabs ───────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 28px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-3);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 7px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3), 0 0 0 1px var(--border);
+    }
+
+    /* ── Form fields ────────────────────────────────────────────── */
+    .field { margin-bottom: 16px; }
+
+    .field-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-2);
+      margin-bottom: 6px;
+    }
+
+    .label-link {
+      font-size: 0.75rem;
+      color: var(--indigo);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .label-link:hover { color: #818cf8; }
+
+    .input-wrap { position: relative; }
+
+    input[type="email"],
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.875rem;
+      font-family: inherit;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -webkit-appearance: none;
+    }
+
+    input:focus {
+      border-color: var(--indigo);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+
+    input.error { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(248,113,113,0.1); }
+    input::placeholder { color: var(--text-3); }
+
+    input[type="password"].has-toggle { padding-right: 42px; }
+
+    .toggle-pw {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-3);
+      padding: 4px;
+      display: flex;
+      transition: color 0.15s;
+    }
+    .toggle-pw:hover { color: var(--text-2); }
+
+    /* ── Password strength ──────────────────────────────────────── */
+    .pw-strength { margin-top: 8px; }
+
+    .pw-bars {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 5px;
+    }
+
+    .pw-bar {
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--surface2);
+      transition: background 0.3s;
+    }
+
+    .pw-bar.weak   { background: #f87171; }
+    .pw-bar.fair   { background: #fb923c; }
+    .pw-bar.good   { background: #facc15; }
+    .pw-bar.strong { background: var(--success); }
+
+    .pw-label { font-size: 0.6875rem; color: var(--text-3); }
+    .pw-label.weak   { color: #f87171; }
+    .pw-label.fair   { color: #fb923c; }
+    .pw-label.good   { color: #facc15; }
+    .pw-label.strong { color: var(--success); }
+
+    /* ── Alerts ─────────────────────────────────────────────────── */
+    .alert {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .alert svg { flex-shrink: 0; margin-top: 1px; }
+    .alert.error  { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); color: #fca5a5; }
+    .alert.success { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); color: #6ee7b7; }
+
+    /* ── Submit button ──────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%;
+      padding: 11px 16px;
+      background: linear-gradient(135deg, var(--indigo), var(--violet));
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.2s, transform 0.15s;
+      margin-top: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background 0.2s;
+    }
+
+    .btn-primary:hover::after { background: rgba(255,255,255,0.06); }
+    .btn-primary:active { transform: scale(0.99); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.8s linear infinite; }
+
+    /* ── Divider ────────────────────────────────────────────────── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: var(--text-3);
+      font-size: 0.75rem;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    .form-footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.75rem;
+      color: var(--text-3);
+      line-height: 1.6;
+    }
+
+    .form-footer a { color: var(--text-3); text-decoration: none; transition: color 0.15s; }
+    .form-footer a:hover { color: var(--text-2); }
+  </style>
+  <script src="/landing/session.js"></script>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ══ Left panel ══════════════════════════════════════════════════════ -->
+  <aside class="panel-left">
+    <a href="/" class="left-logo">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+        <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#lg)" opacity=".9"/>
+        <defs>
+          <linearGradient id="lg" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+        <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Shadow</span> Warden
+    </a>
+
+    <div class="left-body">
+      <h1 class="left-headline">Secure every<br/><em>AI request</em><br/>in real time.</h1>
+      <p class="left-sub">Shadow Warden guards your LLM pipeline — blocking jailbreaks, stripping secrets, and enforcing policies before a single token reaches your model.</p>
+
+      <ul class="feature-list">
+        <li class="feature-item">
+          <div class="feature-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <strong>5-stage filter pipeline</strong>
+            <span>Obfuscation decode → PII redact → semantic rules → ML brain → decision</span>
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <strong>Sub-5ms latency</strong>
+            <span>Inline protection with Redis caching — zero perceptible overhead</span>
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <strong>GDPR by design</strong>
+            <span>Content never logged — only metadata. Your data stays yours.</span>
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <strong>Self-improving rules</strong>
+            <span>Claude Opus auto-generates detection rules from blocked attacks</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="left-footer">
+      <div class="badge-secure">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+        AES-256 encrypted
+      </div>
+      <span>·</span>
+      <span>SOC 2 compliant</span>
+      <span>·</span>
+      <span>OWASP LLM Top 10</span>
+    </div>
+  </aside>
+
+  <!-- ══ Right panel ═════════════════════════════════════════════════════ -->
+  <main class="panel-right">
+    <div class="form-container">
+
+      <a href="/" class="mobile-logo">
+        <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+          <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#lm)" opacity=".9"/>
+          <defs><linearGradient id="lm" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+          <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Shadow</span> Warden
+      </a>
+
+      <h2 class="form-heading" id="form-heading">Welcome back</h2>
+      <p class="form-sub" id="form-sub">Sign in to your account to continue</p>
+
+      <!-- Tabs -->
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" id="tab-signin" onclick="switchTab('signin')" role="tab" aria-selected="true">Sign In</button>
+        <button class="tab-btn" id="tab-register" onclick="switchTab('register')" role="tab" aria-selected="false">Create Account</button>
+      </div>
+
+      <!-- ── Sign In form ──────────────────────────────────────── -->
+      <div id="panel-signin" role="tabpanel">
+        <div class="alert error" id="si-error" role="alert">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="si-error-text"></span>
+        </div>
+
+        <form id="form-signin" onsubmit="handleSignIn(event)" novalidate>
+          <div class="field">
+            <label for="si-email">Email address</label>
+            <input id="si-email" type="email" placeholder="you@company.com" autocomplete="email" required />
+          </div>
+
+          <div class="field">
+            <div class="field-row">
+              <label for="si-password" style="margin:0">Password</label>
+              <a href="#" class="label-link" onclick="openForgot();return false;">Forgot password?</a>
+            </div>
+            <div class="input-wrap">
+              <input id="si-password" type="password" placeholder="••••••••" autocomplete="current-password" class="has-toggle" required />
+              <button type="button" class="toggle-pw" onclick="togglePw('si-password', this)" tabindex="-1" aria-label="Show password">
+                <svg id="si-pw-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="si-btn">
+            <span id="si-btn-text">Sign In</span>
+            <svg id="si-spinner" class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          </button>
+        </form>
+      </div>
+
+      <!-- ── TOTP Step 2 panel ──────────────────────────────────── -->
+      <div id="panel-totp" style="display:none" role="tabpanel">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="width:56px;height:56px;border-radius:16px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/><circle cx="12" cy="16" r="1" fill="#22d3ee"/></svg>
+          </div>
+          <div style="font-size:17px;font-weight:800;color:var(--text-primary,#f1f5f9);">Two-Factor Authentication</div>
+          <div style="font-size:13px;color:var(--text-secondary,#94a3b8);margin-top:4px;">Enter the 6-digit code from your Google Authenticator app</div>
+        </div>
+
+        <div class="alert error" id="totp-error" role="alert">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="totp-error-text"></span>
+        </div>
+
+        <!-- 6-digit code boxes -->
+        <div id="totp-boxes" style="display:flex;gap:8px;justify-content:center;margin-bottom:24px;">
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <div style="display:flex;align-items:center;color:rgba(148,163,184,0.4);font-size:18px;font-weight:300;">–</div>
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+          <input class="totp-box" maxlength="1" inputmode="numeric" pattern="[0-9]" type="text" style="width:44px;height:54px;text-align:center;font-size:22px;font-weight:700;background:rgba(15,23,42,0.7);border:1.5px solid rgba(148,163,184,0.2);border-radius:10px;color:#f1f5f9;outline:none;transition:border-color 0.2s;" />
+        </div>
+
+        <button class="btn-primary" id="totp-btn" onclick="handleTotpVerify()">
+          <span id="totp-btn-text">Verify Code</span>
+          <svg id="totp-spinner" class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        </button>
+
+        <button onclick="showTotpPanel(false)" style="width:100%;margin-top:10px;background:none;border:none;color:var(--text-secondary,#94a3b8);font-size:13px;cursor:pointer;padding:6px;">← Back to Sign In</button>
+      </div>
+
+      <!-- ── Create Account form ───────────────────────────────── -->
+      <div id="panel-register" style="display:none" role="tabpanel">
+        <div class="alert error" id="reg-error" role="alert">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="reg-error-text"></span>
+        </div>
+        <div class="alert success" id="reg-success" role="status">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Account created — signing you in…
+        </div>
+
+        <form id="form-register" onsubmit="handleRegister(event)" novalidate>
+          <div class="field">
+            <label for="reg-name">Full name</label>
+            <input id="reg-name" type="text" placeholder="Jane Smith" autocomplete="name" />
+          </div>
+
+          <div class="field">
+            <label for="reg-email">Work email</label>
+            <input id="reg-email" type="email" placeholder="you@company.com" autocomplete="email" required />
+          </div>
+
+          <div class="field">
+            <label for="reg-password">Password</label>
+            <div class="input-wrap">
+              <input id="reg-password" type="password" placeholder="Min. 8 characters" autocomplete="new-password" class="has-toggle" required minlength="8" oninput="updateStrength(this.value)" />
+              <button type="button" class="toggle-pw" onclick="togglePw('reg-password', this)" tabindex="-1" aria-label="Show password">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="pw-strength" id="pw-strength" style="display:none">
+              <div class="pw-bars">
+                <div class="pw-bar" id="bar1"></div>
+                <div class="pw-bar" id="bar2"></div>
+                <div class="pw-bar" id="bar3"></div>
+                <div class="pw-bar" id="bar4"></div>
+              </div>
+              <span class="pw-label" id="pw-label"></span>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="reg-btn">
+            <span id="reg-btn-text">Create Account</span>
+            <svg id="reg-spinner" class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          </button>
+        </form>
+      </div>
+
+      <p class="form-footer">
+        By continuing you agree to our
+        <a href="/">Terms of Service</a> and <a href="/">Privacy Policy</a>.<br/>
+        <a href="/" style="margin-top:12px;display:inline-block">← Back to shadow-warden-ai.com</a>
+      </p>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  // ── Tab switch ─────────────────────────────────────────────────────────
+  const HEADINGS = {
+    signin:   ['Welcome back', 'Sign in to your account to continue'],
+    register: ['Create your account', 'Start protecting your AI pipeline today'],
+  };
+
+  function switchTab(tab) {
+    const isSign = tab === 'signin';
+    document.getElementById('panel-signin').style.display   = isSign ? '' : 'none';
+    document.getElementById('panel-register').style.display = isSign ? 'none' : '';
+    document.getElementById('tab-signin').classList.toggle('active', isSign);
+    document.getElementById('tab-register').classList.toggle('active', !isSign);
+    document.getElementById('tab-signin').setAttribute('aria-selected', isSign);
+    document.getElementById('tab-register').setAttribute('aria-selected', !isSign);
+    document.getElementById('form-heading').textContent = HEADINGS[tab][0];
+    document.getElementById('form-sub').textContent     = HEADINGS[tab][1];
+  }
+
+  // ── Show/hide password ─────────────────────────────────────────────────
+  function togglePw(id, btn) {
+    const input = document.getElementById(id);
+    const show  = input.type === 'password';
+    input.type  = show ? 'text' : 'password';
+    btn.querySelector('svg').innerHTML = show
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+
+  // ── Password strength ──────────────────────────────────────────────────
+  function pwScore(pw) {
+    let score = 0;
+    if (pw.length >= 8)  score++;
+    if (pw.length >= 12) score++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+    if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+    return score;
+  }
+
+  const LEVELS = [null, 'weak', 'fair', 'good', 'strong'];
+  const LABELS = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+
+  function updateStrength(val) {
+    const wrap  = document.getElementById('pw-strength');
+    const label = document.getElementById('pw-label');
+    if (!val) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    const score = Math.max(1, pwScore(val));
+    const level = LEVELS[score];
+    [1,2,3,4].forEach(i => {
+      const bar = document.getElementById('bar' + i);
+      bar.className = 'pw-bar ' + (i <= score ? level : '');
+    });
+    label.textContent = LABELS[score];
+    label.className   = 'pw-label ' + level;
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────
+  function setLoading(prefix, loading) {
+    const btn  = document.getElementById(prefix + '-btn');
+    const txt  = document.getElementById(prefix + '-btn-text');
+    const spin = document.getElementById(prefix + '-spinner');
+    btn.disabled         = loading;
+    spin.style.display   = loading ? '' : 'none';
+    txt.textContent      = loading
+      ? (prefix === 'si' ? 'Signing in…' : 'Creating account…')
+      : (prefix === 'si' ? 'Sign In' : 'Create Account');
+  }
+
+  function showAlert(id, msg, isSuccess) {
+    const el = document.getElementById(id);
+    if (el.querySelector('span')) el.querySelector('span').textContent = msg;
+    else el.textContent = msg;
+    el.className = 'alert ' + (isSuccess ? 'success' : 'error');
+    el.style.display = 'flex';
+  }
+
+  function hideAlert(id) { document.getElementById(id).style.display = 'none'; }
+
+  // ── TOTP state ─────────────────────────────────────────────────────────
+  let _totpSession = null;   // short-lived JWT from /auth/login when TOTP required
+
+  // ── Show / hide TOTP panel ─────────────────────────────────────────────
+  function showTotpPanel(visible) {
+    document.getElementById('panel-signin').style.display = visible ? 'none' : '';
+    document.getElementById('panel-totp').style.display   = visible ? ''     : 'none';
+    // Hide tabs while on TOTP step so user can't switch mid-flow
+    document.querySelector('.tabs').style.display = visible ? 'none' : '';
+    if (visible) {
+      hideAlert('totp-error');
+      document.querySelectorAll('.totp-box').forEach(b => { b.value = ''; });
+      document.querySelectorAll('.totp-box')[0].focus();
+      document.getElementById('form-heading').textContent = 'Two-Factor Auth';
+      document.getElementById('form-sub').textContent     = 'Enter the code from your Authenticator app';
+    } else {
+      _totpSession = null;
+      document.getElementById('form-heading').textContent = HEADINGS.signin[0];
+      document.getElementById('form-sub').textContent     = HEADINGS.signin[1];
+    }
+  }
+
+  // ── Sign In ────────────────────────────────────────────────────────────
+  async function handleSignIn(e) {
+    e.preventDefault();
+    hideAlert('si-error');
+    setLoading('si', true);
+
+    try {
+      const res  = await fetch('https://api.shadow-warden-ai.com/portal/auth/login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          email:    document.getElementById('si-email').value.trim(),
+          password: document.getElementById('si-password').value,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.access_token) {
+        Session.setToken(data.access_token);
+        window.location.href = '/dashboard';
+      } else if (res.ok && data.requires_totp && data.totp_session) {
+        // Password OK — TOTP required next
+        _totpSession = data.totp_session;
+        showTotpPanel(true);
+      } else {
+        showAlert('si-error', data.detail || 'Invalid email or password.');
+        document.getElementById('si-password').classList.add('error');
+      }
+    } catch (err) {
+      showAlert('si-error', 'Connection error: ' + (err?.message || String(err)));
+    } finally {
+      setLoading('si', false);
+    }
+  }
+
+  // ── TOTP verify ────────────────────────────────────────────────────────
+  async function handleTotpVerify() {
+    hideAlert('totp-error');
+    const boxes = document.querySelectorAll('.totp-box');
+    const code  = Array.from(boxes).map(b => b.value).join('');
+    if (code.length < 6) {
+      showTotpError('Please enter all 6 digits.');
+      return;
+    }
+
+    const btn  = document.getElementById('totp-btn');
+    const txt  = document.getElementById('totp-btn-text');
+    const spin = document.getElementById('totp-spinner');
+    btn.disabled = true; spin.style.display = ''; txt.textContent = 'Verifying…';
+
+    try {
+      const res  = await fetch('https://api.shadow-warden-ai.com/portal/auth/totp/complete', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ totp_session: _totpSession, code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.access_token) {
+        Session.setToken(data.access_token);
+        window.location.href = '/dashboard';
+      } else {
+        showTotpError(data.detail || 'Invalid code. Try again.');
+        boxes.forEach(b => { b.value = ''; });
+        boxes[0].focus();
+      }
+    } catch {
+      showTotpError('Connection error. Please try again.');
+    } finally {
+      btn.disabled = false; spin.style.display = 'none'; txt.textContent = 'Verify Code';
+    }
+  }
+
+  function showTotpError(msg) {
+    const el = document.getElementById('totp-error');
+    document.getElementById('totp-error-text').textContent = msg;
+    el.style.display = 'flex';
+  }
+
+  // ── Register ───────────────────────────────────────────────────────────
+  async function handleRegister(e) {
+    e.preventDefault();
+    hideAlert('reg-error');
+    hideAlert('reg-success');
+
+    const email    = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+
+    if (pwScore(password) < 2) {
+      showAlert('reg-error', 'Please choose a stronger password.');
+      return;
+    }
+
+    setLoading('reg', true);
+    try {
+      const regRes  = await fetch('https://api.shadow-warden-ai.com/portal/auth/register', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          email,
+          password,
+          display_name: document.getElementById('reg-name').value.trim(),
+        }),
+      });
+      const regData = await regRes.json().catch(() => ({}));
+
+      if (!regRes.ok) {
+        showAlert('reg-error', regData.detail || 'Registration failed.');
+        return;
+      }
+
+      document.getElementById('reg-success').style.display = 'flex';
+
+      const loginRes  = await fetch('https://api.shadow-warden-ai.com/portal/auth/login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      });
+      const loginData = await loginRes.json().catch(() => ({}));
+
+      if (loginRes.ok && loginData.access_token) {
+        localStorage.setItem('warden_token', loginData.access_token);
+        window.location.href = '/dashboard';
+      } else {
+        switchTab('signin');
+        document.getElementById('si-email').value = email;
+      }
+    } catch {
+      showAlert('reg-error', 'Connection error. Please try again.');
+    } finally {
+      setLoading('reg', false);
+    }
+  }
+
+  // Clear error styling on input
+  document.getElementById('si-password').addEventListener('input', function () {
+    this.classList.remove('error');
+    hideAlert('si-error');
+  });
+
+  // ── Forgot Password ────────────────────────────────────────────────────
+  function openForgot() {
+    document.getElementById('forgot-modal').style.display = 'flex';
+    document.getElementById('fp-step1').style.display = '';
+    document.getElementById('fp-step2').style.display = 'none';
+    document.getElementById('fp-email').value = document.getElementById('si-email').value || '';
+    hideAlert('fp-error');
+  }
+  function closeForgot() {
+    document.getElementById('forgot-modal').style.display = 'none';
+  }
+
+  async function handleForgotRequest(e) {
+    e.preventDefault();
+    const email = document.getElementById('fp-email').value.trim();
+    hideAlert('fp-error');
+    const btn = document.getElementById('fp-btn1');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      const res  = await fetch('https://api.shadow-warden-ai.com/portal/auth/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'Request failed');
+      // Close modal and pre-fill email in sign-in form
+      closeForgot();
+      document.getElementById('si-email').value = email;
+      showAlert('si-error',
+        '✉ Check your inbox — a password reset link has been sent to ' + email,
+        true);
+    } catch (err) { showAlert('fp-error', err.message || 'Connection error. Please try again.'); }
+    finally { btn.disabled = false; btn.textContent = 'Send Reset Token'; }
+  }
+
+  async function handleForgotReset(e) {
+    e.preventDefault();
+    const token   = document.getElementById('fp-token').value.trim();
+    const pw      = document.getElementById('fp-newpw').value;
+    const confirm = document.getElementById('fp-confirmpw').value;
+    hideAlert('fp-error2');
+    if (pw !== confirm) { showAlert('fp-error2', 'Passwords do not match.'); return; }
+    if (pw.length < 8)  { showAlert('fp-error2', 'Password must be at least 8 characters.'); return; }
+    const btn = document.getElementById('fp-btn2');
+    btn.disabled = true; btn.textContent = 'Resetting…';
+    try {
+      const res  = await fetch('https://api.shadow-warden-ai.com/portal/auth/reset-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password: pw }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        closeForgot();
+        document.getElementById('si-email').value = document.getElementById('fp-email').value;
+        showAlert('si-error', '✓ Password reset successfully. Please sign in.', true);
+      } else {
+        showAlert('fp-error2', data.detail || 'Reset failed. Try again.');
+      }
+    } catch { showAlert('fp-error2', 'Connection error.'); }
+    finally { btn.disabled = false; btn.textContent = 'Set New Password'; }
+  }
+
+  // ── TOTP digit-box keyboard UX ─────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    const boxes = document.querySelectorAll('.totp-box');
+    boxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        // Allow only digits
+        box.value = box.value.replace(/\D/g, '').slice(-1);
+        if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+        // Auto-submit when last digit entered
+        if (i === boxes.length - 1 && box.value) handleTotpVerify();
+      });
+      box.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !box.value && i > 0) {
+          boxes[i - 1].value = '';
+          boxes[i - 1].focus();
+        }
+        if (e.key === 'ArrowLeft'  && i > 0)              boxes[i - 1].focus();
+        if (e.key === 'ArrowRight' && i < boxes.length-1) boxes[i + 1].focus();
+        if (e.key === 'Enter') handleTotpVerify();
+      });
+      // Handle paste of full 6-digit code
+      box.addEventListener('paste', e => {
+        e.preventDefault();
+        const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+        if (digits.length === 6) {
+          boxes.forEach((b, j) => { b.value = digits[j] || ''; });
+          boxes[5].focus();
+          handleTotpVerify();
+        }
+      });
+      box.addEventListener('focus', () => {
+        box.style.borderColor = 'rgba(34,211,238,0.6)';
+        box.style.boxShadow   = '0 0 0 3px rgba(34,211,238,0.12)';
+      });
+      box.addEventListener('blur', () => {
+        box.style.borderColor = 'rgba(148,163,184,0.2)';
+        box.style.boxShadow   = '';
+      });
+    });
+  });
+</script>
+
+<!-- ── Forgot Password Modal ─────────────────────────────────────────── -->
+<div id="forgot-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(3,7,18,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.25);border-radius:18px;width:100%;max-width:420px;padding:32px;position:relative;">
+    <button onclick="closeForgot()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.2rem;line-height:1;">✕</button>
+
+    <!-- Step 1: Enter email -->
+    <div id="fp-step1">
+      <div style="font-size:1.25rem;font-weight:700;color:#f1f5f9;margin-bottom:6px;">Reset Password</div>
+      <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:24px;">Enter your email to receive a reset token.</div>
+      <div id="fp-error" class="alert error" style="display:none;margin-bottom:16px;"><span></span></div>
+      <form onsubmit="handleForgotRequest(event)">
+        <div class="field" style="margin-bottom:20px;">
+          <label for="fp-email">Email address</label>
+          <input id="fp-email" type="email" class="input" placeholder="you@company.com" required autocomplete="email" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);background:#0f172a;color:#f1f5f9;font-size:0.9rem;outline:none;" />
+        </div>
+        <button id="fp-btn1" type="submit" class="btn-primary" style="width:100%;">Send Reset Token</button>
+      </form>
+    </div>
+
+    <!-- Step 2: Enter token + new password -->
+    <div id="fp-step2" style="display:none;">
+      <div style="font-size:1.25rem;font-weight:700;color:#f1f5f9;margin-bottom:6px;">Set New Password</div>
+      <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:16px;">Your reset token (copy it or it's pre-filled):</div>
+      <div id="fp-token-display" style="font-family:monospace;font-size:0.72rem;background:#0f172a;border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px 12px;color:#6366f1;word-break:break-all;margin-bottom:20px;"></div>
+      <div id="fp-error2" class="alert error" style="display:none;margin-bottom:16px;"><span></span></div>
+      <form onsubmit="handleForgotReset(event)">
+        <input id="fp-token" type="hidden" />
+        <div class="field" style="margin-bottom:16px;">
+          <label for="fp-newpw" style="color:#94a3b8;font-size:0.82rem;margin-bottom:6px;display:block;">New Password</label>
+          <input id="fp-newpw" type="password" placeholder="Min. 8 characters" required minlength="8" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);background:#0f172a;color:#f1f5f9;font-size:0.9rem;outline:none;" />
+        </div>
+        <div class="field" style="margin-bottom:20px;">
+          <label for="fp-confirmpw" style="color:#94a3b8;font-size:0.82rem;margin-bottom:6px;display:block;">Confirm Password</label>
+          <input id="fp-confirmpw" type="password" placeholder="Repeat password" required style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid rgba(99,102,241,0.2);background:#0f172a;color:#f1f5f9;font-size:0.9rem;outline:none;" />
+        </div>
+        <button id="fp-btn2" type="submit" class="btn-primary" style="width:100%;">Set New Password</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
