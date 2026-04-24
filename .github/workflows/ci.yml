@@ -39,6 +39,25 @@ jobs:
           path: site/dist/
           retention-days: 7
 
+      # Sync Astro dist → landing/ and commit back to main so Vercel auto-deploys.
+      # Only runs on push to main (not PRs). Uses GITHUB_TOKEN (built-in).
+      - name: Sync dist → landing/ and push (Vercel deploy)
+        if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Wipe and replace landing/ with fresh Astro dist
+          rm -rf landing
+          cp -r site/dist landing
+          git add landing/
+          # Only commit if something changed
+          if git diff --cached --quiet; then
+            echo "landing/ unchanged — no commit needed"
+          else
+            git commit -m "chore(landing): sync Astro dist [skip ci]"
+            git push origin main
+          fi
+
   # ── Unit + Integration Tests ────────────────────────────────────────────────
   test:
     name: Tests (Python ${{ matrix.python-version }})
