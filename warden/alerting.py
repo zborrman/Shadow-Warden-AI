@@ -250,6 +250,29 @@ async def _telegram_rollback_alert(
     await _send_telegram(text)
 
 
+def send_alert(message: str, *, level: str = "warning") -> None:
+    """Fire-and-forget a plain Slack message. Safe to call from sync code inside FastAPI."""
+    if not _SLACK_WEBHOOK:
+        return
+    import asyncio
+    payload = {"text": message}
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(_send_slack_raw(payload))
+        else:
+            loop.run_until_complete(_send_slack_raw(payload))
+    except Exception as exc:
+        log.debug("send_alert skipped: %s", exc)
+
+
+@async_retry(ALERT_RETRY)
+async def _send_slack_raw(payload: dict) -> None:
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        resp = await client.post(_SLACK_WEBHOOK, json=payload)
+        resp.raise_for_status()
+
+
 @async_retry(ALERT_RETRY)
 async def _send_telegram(text: str) -> None:
     """POST a message to the Telegram Bot API."""
