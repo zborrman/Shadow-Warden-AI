@@ -130,8 +130,8 @@ html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--b
   </a>
   <div class="nav-links">
     <button class="nav-link active" id="tab-dashboard" onclick="switchScreen('dashboard')">Dashboard</button>
-    <button class="nav-link" id="tab-settings" onclick="switchScreen('settings')">Settings</button>
     <button class="nav-link" id="tab-docs" onclick="switchScreen('docs')">API Docs</button>
+    <a class="nav-link" href="/enterprise-settings">Settings</a>
   </div>
   <div class="nav-right">
     <div class="time-range">
@@ -340,42 +340,6 @@ result = chain.invoke(input, config={"callbacks": [cb]})</div></div>
   </div>
 </main>
 
-<!-- ── SETTINGS SCREEN ── -->
-<main class="main screen" id="screen-settings">
-  <div style="margin-bottom:8px;">
-    <h1 style="font-size:1.5rem;font-weight:800;color:var(--text);">Settings</h1>
-    <p style="font-size:13px;color:var(--text3);margin-top:4px;">Manage your Shadow Warden configuration</p>
-  </div>
-  <div style="display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start;">
-    <div style="display:flex;flex-direction:column;gap:2px;">
-      <button onclick="switchSettings(this,'general')" class="settings-tab active-s" style="text-align:left;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;border:none;background:rgba(99,102,241,0.12);color:var(--indigo);font-family:inherit;cursor:pointer;">General</button>
-      <button onclick="switchSettings(this,'billing')" class="settings-tab" style="text-align:left;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;border:none;background:transparent;color:var(--text2);font-family:inherit;cursor:pointer;">Billing</button>
-      <button onclick="switchSettings(this,'security')" class="settings-tab" style="text-align:left;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;border:none;background:transparent;color:var(--text2);font-family:inherit;cursor:pointer;">Security</button>
-      <button onclick="switchSettings(this,'team')" class="settings-tab" style="text-align:left;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;border:none;background:transparent;color:var(--text2);font-family:inherit;cursor:pointer;">Team</button>
-    </div>
-    <div id="settings-content">
-      <div class="card">
-        <div class="card-title" style="margin-bottom:20px;">General Settings</div>
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <div>
-            <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px;">Organization Name</label>
-            <input value="Acme Corp" style="width:100%;max-width:360px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13.5px;font-family:inherit;padding:9px 12px;outline:none;">
-          </div>
-          <div>
-            <label style="font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px;">Warden Endpoint</label>
-            <input value="https://shadow-warden-ai.com" style="width:100%;max-width:360px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13.5px;font-family:inherit;padding:9px 12px;outline:none;">
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;max-width:360px;padding:12px 14px;background:var(--surf2);border-radius:8px;border:1px solid var(--border);">
-            <div><div style="font-size:13px;font-weight:500;color:var(--text);">GDPR Compliance Mode</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">No content logged; metadata only</div></div>
-            <div style="width:40px;height:22px;border-radius:11px;background:var(--indigo);cursor:pointer;position:relative;"><div style="position:absolute;right:2px;top:2px;width:18px;height:18px;border-radius:50%;background:white;"></div></div>
-          </div>
-          <div><button class="btn-primary-sm" onclick="toast('Settings saved!')">Save Changes</button></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</main>
-
 <!-- ── API DOCS SCREEN ── -->
 <main class="main screen" id="screen-docs">
   <div style="margin-bottom:20px;">
@@ -466,13 +430,6 @@ function toast(msg) {
 function openModal() { document.getElementById('modal').classList.add('open'); document.getElementById('new-key-display').style.display='none'; }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 function createKey() { document.getElementById('new-key-display').style.display='block'; document.querySelector('#modal .btn-primary-sm').textContent='Done'; document.querySelector('#modal .btn-primary-sm').onclick = closeModal; }
-
-// Settings tabs
-function switchSettings(btn, id) {
-  document.querySelectorAll('.settings-tab').forEach(t => { t.style.background='transparent'; t.style.color='var(--text2)'; });
-  btn.style.background = 'rgba(99,102,241,0.12)';
-  btn.style.color = 'var(--indigo)';
-}
 
 // Live feed
 const events = [
