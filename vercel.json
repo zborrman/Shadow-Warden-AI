@@ -5,7 +5,7 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/fraud-score", "destination": "/fraud-score/index.html" },
+    { "source": "/settings", "destination": "/settings.html" },
     { "source": "/enterprise-settings", "destination": "/enterprise-settings.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" }
   ],
