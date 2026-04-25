@@ -16,6 +16,7 @@ import pytest
 os.environ.setdefault("ANTHROPIC_API_KEY", "")           # disable Evolution Engine
 os.environ.setdefault("SEMANTIC_THRESHOLD", "0.72")
 os.environ.setdefault("WARDEN_API_KEY", "")              # auth disabled in tests
+os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")   # required when WARDEN_API_KEY is blank
 os.environ.setdefault("LOGS_PATH",            "/tmp/warden_test_logs.json")
 os.environ.setdefault("DYNAMIC_RULES_PATH",   "/tmp/warden_test_dynamic_rules.json")
 os.environ.setdefault("STRICT_MODE", "false")

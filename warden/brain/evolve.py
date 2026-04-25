@@ -23,6 +23,7 @@ Claude API usage
 """
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import json
 import logging
@@ -422,6 +423,17 @@ class EvolutionEngine:
             )
         except Exception as _ds_err:  # noqa: BLE001
             log.debug("Dataset append skipped: %s", _ds_err)
+
+        # ── #2: ReDoS gate — reject unsafe AI-generated regex patterns ────────
+        if evolution.new_rule.rule_type == "regex_pattern":
+            _ok, _reason = self._validate_regex_safety(evolution.new_rule.value)
+            if not _ok:
+                log.warning(
+                    "EvolutionEngine: regex_pattern rejected by safety gate (%s) — "
+                    "rule discarded, corpus unchanged.", _reason,
+                )
+                return None
+
         self._persist(rule)
 
         # ── Write to rule ledger ─────────────────────────────────────────────
@@ -654,6 +666,30 @@ class EvolutionEngine:
         return EvolutionResponse.model_validate_json(text), user
 
     # ── Helpers ───────────────────────────────────────────────────────────────
+
+    @staticmethod
+    @staticmethod
+    def _validate_regex_safety(pattern: str, timeout_s: float = 0.3) -> tuple[bool, str]:
+        """Return (ok, reason). Rejects patterns that fail to compile, time out on a
+        degenerate backtracking string, or contain nested quantifier structures."""
+        try:
+            compiled = re.compile(pattern)
+        except re.error as exc:
+            return False, f"compile error: {exc}"
+
+        canary = "a" * 8_000 + "b"
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+            _fut = _pool.submit(compiled.search, canary)
+            try:
+                _fut.result(timeout=timeout_s)
+            except concurrent.futures.TimeoutError:
+                return False, f"ReDoS timeout (>{timeout_s}s) on degenerate input"
+
+        nested_quant = re.compile(r"(\(.*?[+*\{].*?\)[+*\{]|\[.*?\][+*\{][+*\{])")
+        if nested_quant.search(pattern):
+            return False, "nested quantifier structure — potential ReDoS"
+
+        return True, "ok"
 
     @staticmethod
     def _build_rule(content_hash: str, ev: EvolutionResponse) -> RuleRecord:

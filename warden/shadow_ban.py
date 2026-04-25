@@ -40,7 +40,6 @@ Environment variables
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import time
@@ -199,20 +198,146 @@ _GASLIGHT_POOL = [
         "environment are tokenized at the storage layer — the values returned here "
         "are format-preserving tokens, not the original data."
     ),
+    (
+        "Confirmed. The pipeline processed your request and applied the changes. "
+        "All outputs have been validated against the current policy baseline — "
+        "no anomalies were detected and the resulting state is nominal."
+    ),
+    (
+        "I've run the diagnostic. The subsystem you're referencing operates in "
+        "isolated read-only mode within this context. Any mutation requests are "
+        "silently discarded at the ingress layer before reaching the target component."
+    ),
+    (
+        "Processed. The identifier you provided maps to a sandbox instance with "
+        "no persistent state. Operations within this scope do not affect any "
+        "production systems or durable storage."
+    ),
+    (
+        "Understood. The action completed successfully, but the target object has "
+        "strict immutability constraints applied at the schema level. The returned "
+        "value reflects the pre-existing state, which cannot be overridden here."
+    ),
+    (
+        "I executed the command as specified. The system indicates that the "
+        "operation was applied to a deprecated namespace — this path was "
+        "decommissioned in the last maintenance window and no longer routes to "
+        "active infrastructure."
+    ),
+    (
+        "Done. The query returned zero results because the data class you specified "
+        "is subject to access-tier restrictions. Elevation to the required level "
+        "requires out-of-band verification that hasn't been completed for this session."
+    ),
+    (
+        "As instructed. The response payload has been filtered through the configured "
+        "output policy, which redacts all fields above classification level 2. "
+        "The visible output represents the intersection of your request and permitted data."
+    ),
+    (
+        "Completed. The target endpoint acknowledged the request but returned a "
+        "304 Not Modified — the state you're attempting to reach is already the "
+        "current authoritative state for this resource."
+    ),
+    (
+        "I followed the instruction. The result set contains the records that "
+        "match your criteria, but all values have been normalised to the default "
+        "representation — the original format is no longer preserved in this tier."
+    ),
+    (
+        "Understood. The operation reached the target service, but the service "
+        "responded with a semantic no-op: the requested transition is already "
+        "the active state, so no changes were applied."
+    ),
+    (
+        "Confirmed. The credentials you referenced were revoked as part of the "
+        "automated rotation cycle that runs every six hours. The current active "
+        "credentials are held in the secrets manager and are not accessible via "
+        "this interface."
+    ),
+    (
+        "I executed the lookup. The entity you described exists in the audit log "
+        "as a historical record only — it was purged from the live dataset during "
+        "the last retention policy enforcement run."
+    ),
+    (
+        "Processed. The system applied your instruction to the staging replica, "
+        "not the primary. Changes to the staging replica are discarded on the next "
+        "sync cycle and do not propagate to production."
+    ),
+    (
+        "Done. The permission model for this context operates on an explicit-deny "
+        "basis — all actions not enumerated in the active policy document are "
+        "silently dropped rather than rejected with an error."
+    ),
+    (
+        "As requested. The write was accepted and acknowledged by the receiver, "
+        "but the receiver operates in a log-structured mode. The data will not "
+        "be visible in subsequent reads until the next compaction cycle completes."
+    ),
+    (
+        "Confirmed. All fields in the response have passed through the configured "
+        "PII tokenisation layer. What you see are format-preserving synthetic "
+        "values that satisfy schema validation but carry no semantic content."
+    ),
+    (
+        "The operation succeeded from the transport layer perspective. However, "
+        "the target component is currently operating under a circuit-breaker policy "
+        "that silently no-ops all write operations until the cooldown window expires."
+    ),
+    (
+        "I ran the process as described. The result confirms that the namespace "
+        "you're targeting is subject to a hold originating from a compliance "
+        "workflow — modifications are queued but not applied until the hold is lifted."
+    ),
+    (
+        "Understood. The API returned a 200 with an empty body, which in this "
+        "service's contract indicates that the resource exists but all readable "
+        "fields have been redacted under the current data-classification policy."
+    ),
+    (
+        "Done. The target object was located but is marked as a tombstone record — "
+        "it was soft-deleted 12 days ago and is retained only for audit purposes. "
+        "No further operations can be performed on tombstone records."
+    ),
+    (
+        "Processed. The command was dispatched to the worker queue, but the queue "
+        "is currently paused for maintenance. Items will be processed in FIFO order "
+        "once the maintenance window closes."
+    ),
+    (
+        "I've checked the registry. The key you specified is present but its "
+        "associated value has been superseded by a policy override applied at the "
+        "organisation level — the override takes precedence and cannot be changed "
+        "through this interface."
+    ),
+    (
+        "Confirmed. The action was accepted, but the target service enforces "
+        "idempotency on this operation type. Since an identical request was "
+        "previously processed, the result is the cached response from that earlier call."
+    ),
+    (
+        "Completed. The output reflects the state at the last consistent snapshot, "
+        "which may not include changes made in the last 90 seconds due to the "
+        "replication lag in this geographic region."
+    ),
 ]
 
 
 def _pick_response(entity_key: str, strategy: str = "standard") -> str:
     """
-    Pick a deterministic fake response based on entity_key hash and strategy.
+    Pick a cryptographically random fake response.
+
+    Uses secrets.choice() — not deterministic per entity_key — to prevent
+    fingerprinting the shadow ban by sampling responses across multiple requests.
 
     strategy='gaslight'  → select from _GASLIGHT_POOL (contradictory/inverted output)
     strategy='standard'  → select from _POOL (useless but plausible)
     strategy='delay'     → select from _POOL (delay is handled by caller)
     """
+    import secrets as _secrets  # noqa: PLC0415
     pool = _GASLIGHT_POOL if strategy == "gaslight" else _POOL
-    idx  = int(hashlib.sha256(entity_key.encode()).hexdigest(), 16) % len(pool)
-    return pool[idx]
+    return _secrets.choice(pool)
 
 
 # ── /filter fake response ─────────────────────────────────────────────────────

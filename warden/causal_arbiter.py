@@ -212,6 +212,32 @@ def calibrate_from_logs(
             )
             return False
 
+        # ── Adversarial drift gate: reject updates that shift CPT > 25% ──────
+        # Coordinated low-volume attacks can bias production logs and gradually
+        # poison the MLE estimates. Cap drift per calibration run.
+        max_drift = 0.25
+
+        def _drift_ok(old: float, new: float, label: str) -> bool:
+            if old == 0:
+                return True
+            drift = abs(new - old) / old
+            if drift > max_drift:
+                log.warning(
+                    "calibrate_from_logs: CPT[%s] drift %.1f%% exceeds %.0f%% threshold "
+                    "— update rejected to prevent data poisoning.",
+                    label, drift * 100, max_drift * 100,
+                )
+                return False
+            return True
+
+        if not (
+            _drift_ok(_cpt.obfusc_pos,     new_obfusc_pos,     "obfusc_pos")
+            and _drift_ok(_cpt.obfusc_neg, new_obfusc_neg,     "obfusc_neg")
+            and _drift_ok(_cpt.ers_center, new_ers_center,     "ers_center")
+            and _drift_ok(_cpt.entropy_center, new_entropy_center, "entropy_center")
+        ):
+            return False
+
         _cpt.obfusc_pos     = round(new_obfusc_pos,   4)
         _cpt.obfusc_neg     = round(new_obfusc_neg,   4)
         _cpt.ers_center     = round(new_ers_center,   4)

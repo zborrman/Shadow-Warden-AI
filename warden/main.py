@@ -454,6 +454,35 @@ async def lifespan(app: FastAPI):
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
+    # ── #11: Fail-closed auth check ───────────────────────────────────────
+    _api_key   = os.getenv("WARDEN_API_KEY", "")
+    _keys_path = os.getenv("WARDEN_API_KEYS_PATH", "")
+    if not _api_key and not _keys_path:
+        if os.getenv("ALLOW_UNAUTHENTICATED", "false").lower() != "true":
+            raise RuntimeError(
+                "FATAL: Neither WARDEN_API_KEY nor WARDEN_API_KEYS_PATH is set. "
+                "All requests would pass unauthenticated. "
+                "Set ALLOW_UNAUTHENTICATED=true to explicitly allow this (dev only)."
+            )
+        log.warning("AUTH DISABLED — ALLOW_UNAUTHENTICATED=true. Never use in production.")
+
+    # ── #1: VAULT_MASTER_KEY validation ──────────────────────────────────
+    _vault_raw = os.getenv("VAULT_MASTER_KEY") or os.getenv("COMMUNITY_VAULT_KEY")
+    if _vault_raw:
+        try:
+            from cryptography.fernet import Fernet as _Fernet  # noqa: PLC0415
+            _Fernet(_vault_raw.encode() if isinstance(_vault_raw, str) else _vault_raw)
+        except Exception as _vk_err:
+            raise RuntimeError(
+                f"FATAL: VAULT_MASTER_KEY is not a valid Fernet key: {_vk_err}. "
+                "Generate a valid key with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            ) from _vk_err
+    else:
+        log.warning(
+            "VAULT_MASTER_KEY not set — community keypairs and data pod secret keys "
+            "will use insecure dev fallbacks. Set in production."
+        )
+
     log.info("Warden gateway starting — initialising filter pipeline…")
 
     # ── DB schema (idempotent — IF NOT EXISTS) ────────────────────────
