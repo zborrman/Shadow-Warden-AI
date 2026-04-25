@@ -6,7 +6,8 @@
   "trailingSlash": false,
   "rewrites": [
     { "source": "/fraud-score", "destination": "/fraud-score/index.html" },
-    { "source": "/enterprise-settings", "destination": "/enterprise-settings.html" }
+    { "source": "/enterprise-settings", "destination": "/enterprise-settings.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" }
   ],
   "headers": [
     {
