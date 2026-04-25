@@ -1,6 +1,6 @@
 # Shadow Warden AI — Security Model
 
-**Version:** 2.2 · **Audience:** Security auditors, CISOs, penetration testers
+**Version:** 4.7 · **Audience:** Security auditors, CISOs, penetration testers
 
 ---
 
@@ -42,6 +42,8 @@ Every request traverses all stages in sequence. Each stage fails open (never blo
 
 ```
 Stage 0:   Auth Gate           — per-tenant API key, constant-time compare
+                                 Fail-closed: startup halts if no key configured
+                                 (ALLOW_UNAUTHENTICATED=true required for dev mode)
 Stage 0.5: Redis Cache         — SHA-256 content hash, 5-min TTL
 Stage 1:   Topological Guard   — n-gram point cloud → β₀/β₁ Betti numbers, < 2ms
 Stage 2:   Obfuscation Decoder — base64/hex/ROT13/homoglyphs, depth-3 recursive
@@ -49,7 +51,9 @@ Stage 3:   Secret Redactor     — 15 regex patterns + Shannon entropy scan
 Stage 4:   Semantic Guard      — rule-based, compound escalation (3× MEDIUM → HIGH)
 Stage 5:   Brain (ML)          — MiniLM cosine (70%) + Poincaré ball hyperbolic (30%)
 Stage 5.5: Causal Arbiter      — Bayesian DAG, gray-zone only, do-calculus
+                                 CPT drift gate: rejects MLE updates >25% from prior
 Stage 6:   Entity Risk Score   — Redis sliding window → shadow ban at ≥ 0.75
+                                 Shadow ban pool: 30+ entries, secrets.choice() (non-deterministic)
 Stage 7:   Decision            — ALLOW / BLOCK / SHADOW_BAN
 ```
 
@@ -58,31 +62,38 @@ Stage 7:   Decision            — ALLOW / BLOCK / SHADOW_BAN
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Layer 1 — Network                                                            │
-│   nginx reverse proxy, TLS 1.2+, CORS origin whitelist                      │
+│   Caddy v2.8+ reverse proxy, HTTP/3 QUIC, TLS 1.2+, HSTS 2yr               │
+│   Early-Data: 1 rejected on POST endpoints (HTTP 425 — RFC 8470)            │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ Layer 2 — Authentication                                                     │
+│ Layer 2 — Authentication (fail-closed)                                       │
 │   Per-tenant API keys, SHA-256 hash lookup, constant-time compare           │
+│   Startup halts if WARDEN_API_KEY unset (unless ALLOW_UNAUTHENTICATED=true) │
 │   SAML 2.0 SSO (optional), TOTP MFA for dashboard                           │
+│   VAULT_MASTER_KEY validated as Fernet key at boot                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Layer 3 — Content Inspection (pre-ML)                                        │
 │   Topological Gatekeeper (TDA), Obfuscation Decoder, Secret Redactor        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Layer 4 — Semantic Detection                                                 │
 │   Rule engine + MiniLM ML + Poincaré ball hyperbolic space                  │
+│   Evolution Engine regex gate: ReDoS check + nested-quantifier heuristic    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Layer 5 — Causal Reasoning                                                   │
 │   Bayesian DAG (gray zone only) — do-calculus, backdoor correction          │
+│   CPT drift gate: rejects MLE updates >25% shift (anti-poisoning)           │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Layer 6 — Behavioural / Session                                              │
-│   Entity Risk Scoring, Shadow Ban, AgentMonitor (7 patterns)                │
+│   Entity Risk Scoring, AgentMonitor (7 patterns)                            │
+│   Shadow Ban: 30+ pool, secrets.choice() (non-deterministic, unfingerprint.) │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Layer 7 — Output Guardrails                                                  │
 │   OutputGuard (price manipulation, unauthorized commitments)                 │
 │   WalletShield (token budget enforcement, DoS prevention)                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Layer 8 — Compliance & Evidence                                              │
-│   Evidence Vault (SHA-256 sign-last), Cryptographic Audit Trail             │
+│   Evidence Vault (SHA-256 sign-last), STIX 2.1 tamper-evident audit chain   │
 │   GDPR-safe NDJSON logs, MinIO on-prem object storage                       │
+│   Community key material: field-level Fernet + validated VAULT_MASTER_KEY   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Layer 9 — Self-Improvement                                                   │
 │   Evolution Engine (Claude Opus), CorpusHealthMonitor, canary validation    │
@@ -141,13 +152,18 @@ Decision logged as metadata only (no content):
 | Control | Algorithm | Purpose |
 |---------|-----------|---------|
 | Evidence bundle signing | SHA-256 (sign-last) | Tamper detection |
-| Audit trail chaining | SHA-256 | Deletion/modification detection |
+| STIX audit chain | SHA-256 prev_hash chain | Deletion/modification detection |
 | PII vault encryption | Fernet (AES-128-CBC + HMAC-SHA256) | At-rest PII protection |
 | PII reverse map | HMAC-SHA256 | No-plaintext reverse lookup |
 | API key storage | SHA-256 (one-way) | Credential protection |
 | ERS entity key | SHA-256[:16] | GDPR pseudonymisation |
-| Cache key | SHA-256 (content hash) | Cache poisoning prevention |
+| Cache key | SHA-256 (full content hash) | Cache poisoning prevention |
 | S3 transport | TLS 1.2+ (MinIO) | Data-in-transit protection |
+| Community private keys | Fernet field-level (VAULT_MASTER_KEY) | At-rest key material protection |
+| Causal Transfer Proofs | HMAC-SHA256 + ML-DSA-65 (Enterprise PQC) | Tamper-evident transfer records |
+| Sovereignty attestations | HMAC-SHA256 (SOVEREIGN_ATTEST_KEY) | Jurisdiction compliance proof |
+| PQC signatures | Ed25519 + ML-DSA-65 hybrid | Post-quantum signing |
+| PQC KEM | X25519 + ML-KEM-768 hybrid | Post-quantum key encapsulation |
 
 ---
 
@@ -169,8 +185,8 @@ Shadow Warden AI follows responsible disclosure. Security researchers can report
 | Shadow ban relies on Redis state — lost on Redis restart | AOF persistence + Redis replica in production config |
 | Vault keys are ephemeral — PII masking sessions break on restart | Design choice: prevents key persistence attacks; document in SLA |
 | β₁ computation is approximate without ripser | Install `ripser` for true persistent homology in production |
-| Causal Arbiter CPTs are static defaults | v2.2+ target: MLE calibration from production data |
+| Causal Arbiter CPT can drift under long-horizon attacks | CPT drift gate (25% cap) + human review required for large updates |
 
 ---
 
-*Shadow Warden AI · security-model.md · Updated v2.2 · 2026-03-26*
+*Shadow Warden AI · security-model.md · Updated v4.7 · 2026-04-25*

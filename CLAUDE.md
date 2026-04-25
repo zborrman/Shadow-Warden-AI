@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 4.6 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.7 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
@@ -195,6 +195,7 @@ Tests require these env vars (set in `warden/tests/conftest.py`):
 ```
 ANTHROPIC_API_KEY=""           # disables Evolution Engine
 WARDEN_API_KEY=""              # disables auth
+ALLOW_UNAUTHENTICATED="true"   # required when WARDEN_API_KEY is blank (fail-closed by default)
 SEMANTIC_THRESHOLD="0.72"
 LOGS_PATH="/tmp/warden_test_logs.json"
 DYNAMIC_RULES_PATH="/tmp/warden_test_dynamic_rules.json"
@@ -209,6 +210,11 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 - **Playwright base image**: `mcr.microsoft.com/playwright/python:v1.49.0-noble` — do NOT switch to `python:3.x-slim` (Playwright requires OS-level browser deps from MCR). Non-root user uses GID/UID 10001 (1001 is taken by the noble base image).
 - **GDPR**: Content is NEVER logged — only metadata (type, length, timing). This is a hard requirement.
 - **Atomic writes**: `tempfile` + `os.replace()` for `logs.json` and `dynamic_rules.json` to prevent corruption.
+- **Fail-closed auth (#11)**: startup raises `RuntimeError` if `WARDEN_API_KEY` and `WARDEN_API_KEYS_PATH` are both unset, unless `ALLOW_UNAUTHENTICATED=true`. Tests set `ALLOW_UNAUTHENTICATED=true` in `conftest.py`.
+- **VAULT_MASTER_KEY validation (#1)**: startup validates Fernet key format and halts with a clear error if invalid. Used by communities/sovereign/data_pod for at-rest encryption of private key material.
+- **Shadow ban randomness (#3)**: `_pick_response()` uses `secrets.choice()` — not deterministic hash — to prevent fingerprinting. `_GASLIGHT_POOL` has 30+ entries.
+- **CPT drift gate (#6)**: `calibrate_from_logs()` rejects CPT updates that shift any parameter >25% from prior — prevents slow-burn data poisoning via coordinated borderline attacks.
+- **Evolution regex gate (#2)**: `EvolutionEngine._validate_regex_safety()` rejects AI-generated `regex_pattern` rules that fail compile, time out on 8 000-char degenerate string (0.3s), or contain nested quantifiers.
 - **Evolution Loop optional**: Runs without `ANTHROPIC_API_KEY` (air-gapped mode). All detection still works.
 - **Model loading**: `@lru_cache(maxsize=1)` singleton in `brain/semantic.py`. Pre-warmed in FastAPI `lifespan()`. Uses `asyncio.get_running_loop()` (not deprecated `get_event_loop()`).
 - **Entrypoint pass-through**: `entrypoint.sh` checks `$# > 0` — if args are passed (e.g. `docker run ... python3 script.py`), exec them as wardenuser instead of starting uvicorn. Required for `[1b/4]` ONNX export step in CI deploy.
@@ -268,7 +274,7 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 
 Three jobs: `test` (matrix 3.11/3.12), `lint`, `docker-build`.
 
-- **Coverage gate**: ≥75% (`--cov-fail-under=75`), currently ~75.2%
+- **Coverage gate**: ≥75% (`--cov-fail-under=75`), currently ~74% (post-security-fix additions)
 - **Adversarial tests**: informational (`|| true`), don't block merges
 - **Mutation testing**: mutmut on `secret_redactor.py` + `semantic_guard.py`, threshold 20 surviving mutants
 - **Docker smoke**: Phase 1 (import test, no model) + Phase 2 (runtime /health check with model cache)

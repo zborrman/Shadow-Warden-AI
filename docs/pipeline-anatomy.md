@@ -1,7 +1,7 @@
 # Shadow Warden AI — Pipeline Anatomy
 
 > **Audience:** Security architects, platform engineers, and contributors who need to understand the internal request lifecycle.
-> **Version:** v1.8
+> **Version:** v4.7
 
 ---
 
@@ -34,7 +34,7 @@ POST /filter
 
 | Component | File | Key behaviour |
 |-----------|------|---------------|
-| `AuthGuard` | `auth_guard.py` | Per-tenant API keys (JSON file or SHA-256 hash lookup). Constant-time compare to prevent timing attacks. `WARDEN_API_KEY=""` disables auth entirely for testing. |
+| `AuthGuard` | `auth_guard.py` | Per-tenant API keys (JSON file or SHA-256 hash lookup). Constant-time compare to prevent timing attacks. **Fail-closed**: startup raises `RuntimeError` if `WARDEN_API_KEY` and `WARDEN_API_KEYS_PATH` are both blank, unless `ALLOW_UNAUTHENTICATED=true` (dev only). |
 | `slowapi` limiter | `main.py` | Default 60 req/min per IP, Redis-backed sliding window. Returns `429` on breach. Configurable via `RATE_LIMIT_PER_MINUTE`. |
 
 `AuthResult` carries `tenant_id`, `entity_key` (GDPR pseudonym), and pre-computed ERS score for downstream stages.

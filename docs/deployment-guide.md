@@ -180,10 +180,13 @@ and writes them to your chosen backend.
 
 | Secret | Purpose | Minimum length |
 |--------|---------|----------------|
-| `WARDEN_API_KEY` | Client authentication (`X-API-Key` header) | 32 hex chars |
+| `WARDEN_API_KEY` | Client authentication (`X-API-Key` header). **Startup fails** if this and `WARDEN_API_KEYS_PATH` are both unset. | 32 hex chars |
+| `VAULT_MASTER_KEY` | Fernet key wrapping community Ed25519/ML-DSA private keys, data pod secrets, knock tokens. **Validated at boot** — malformed key halts startup. Generate: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` | 44 base64 chars (Fernet) |
 | `SECRET_KEY` | Session signing (Streamlit admin) | 32 hex chars |
 | `POSTGRES_PASS` | PostgreSQL database password | 12 chars |
 | `REDIS_PASSWORD` | Redis AUTH password | 12 chars |
+
+> **ALLOW_UNAUTHENTICATED**: Set to `true` only in development when `WARDEN_API_KEY` is blank. **Never set in production.**
 
 #### Optional secrets (features disabled if unset)
 
