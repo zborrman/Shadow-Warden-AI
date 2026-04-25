@@ -1,11 +1,27 @@
 SHADOW WARDEN AI — PROPRIETARY SOFTWARE LICENSE
 
+Version 4.7 · Effective 2026-04-01
 Copyright (c) 2024–2026 Shadow Warden AI. All rights reserved.
 
 NOTICE: This software and all associated source code, documentation, algorithms,
-models, training data, configuration files, and related materials (collectively,
-the "Software") are the exclusive proprietary property of Shadow Warden AI and
-are protected by copyright law, trade secret law, and international treaties.
+models, training data, configuration files, cryptographic implementations,
+security rule corpora, and related materials (collectively, the "Software") are
+the exclusive proprietary property of Shadow Warden AI and are protected by
+copyright law, trade secret law, patent law, and international treaties.
+
+This includes but is not limited to:
+  - The 9-layer AI security filter pipeline and all component modules
+  - The Topological Gatekeeper (Betti number computation, n-gram point cloud)
+  - The HyperbolicBrain (Poincaré ball projection, MiniLM integration)
+  - The CausalArbiter (Bayesian DAG, Pearl do-calculus implementation)
+  - The Evolution Engine (Claude Opus integration, corpus hot-reload)
+  - The SOVA Agentic Operator and MasterAgent SOC subsystem
+  - The Syndicate Exchange Protocol (SEP) and UECIID codec
+  - The Post-Quantum Cryptography layer (HybridSigner, HybridKEM)
+  - The Sovereign AI Cloud routing and attestation system
+  - The FraudScore Sovereign scoring engine and factor database
+  - All GDPR compliance architecture, audit trail, and STIX 2.1 chain logic
+  - All security rule sets, detection corpora, and training examples
 
 RESTRICTIONS
 
@@ -20,35 +36,76 @@ RESTRICTIONS
    prior written consent of Shadow Warden AI.
 
 3. NO REVERSE ENGINEERING. You must not reverse engineer, decompile, disassemble,
-   or otherwise attempt to derive the source code, algorithms, or trade secrets
-   embodied in the Software.
+   or otherwise attempt to derive the source code, algorithms, cryptographic
+   implementations, or trade secrets embodied in the Software.
 
 4. NO DERIVATIVE WORKS. You must not create derivative works based on the
    Software or any portion thereof.
 
-5. AUTHORIZED USE ONLY. Access to and use of the Software is permitted solely
+5. NO AI TRAINING. You must not use the Software, its source code, rule corpora,
+   detection patterns, or any outputs thereof to train, fine-tune, or otherwise
+   improve any machine learning model, AI system, or automated decision system
+   without the prior written consent of Shadow Warden AI.
+
+6. AUTHORIZED USE ONLY. Access to and use of the Software is permitted solely
    under the terms of a separate written agreement (e.g., Enterprise License
-   Agreement, Evaluation Agreement, or NDA) executed between you and Shadow
-   Warden AI. Any use outside the scope of such agreement is strictly prohibited.
+   Agreement, Pro Subscription Agreement, SMB License, Evaluation Agreement,
+   or NDA) executed between you and Shadow Warden AI. Any use outside the scope
+   of such agreement is strictly prohibited.
+
+7. TIER COMPLIANCE. Authorized users must not circumvent, disable, or modify
+   billing tier gates, feature flags, or add-on enforcement mechanisms in the
+   Software (warden/billing/, warden/billing/feature_gate.py, and related).
 
 INTELLECTUAL PROPERTY
 
 All intellectual property rights in the Software, including but not limited to
-patents, copyrights, trademarks, trade secrets, and know-how, are and shall
-remain the exclusive property of Shadow Warden AI.
+patents, patent applications, copyrights, trademarks, trade secrets, and
+know-how, are and shall remain the exclusive property of Shadow Warden AI.
+
+The following elements are specifically claimed as trade secrets:
+  - The compound risk escalation logic in SemanticGuard
+  - The Betti number thresholds and n-gram point cloud parameters
+  - The Poincaré ball projection hyperparameters and hyperbolic blend weights
+  - The Bayesian DAG structure and do-calculus parameterization in CausalArbiter
+  - The SEP UECIID Snowflake epoch and base-62 encoding alphabet
+  - The FraudScore factor weights and verdict threshold calibration
+
+GDPR AND DATA PROTECTION
+
+The Software implements GDPR-by-design architecture. Any authorized deployment
+must maintain the following invariants required by EU Regulation 2016/679:
+  - Content is never logged (Art. 5(1)(c) data minimisation)
+  - All writes to persistent storage are atomic (Art. 5(1)(f) integrity)
+  - Right to erasure (Art. 17) is preserved via purge_before() in logger.py
+  - No PII in Redis beyond HMAC/Fernet-encrypted tokens (Art. 32)
+
+Violation of these invariants by an authorized licensee constitutes a material
+breach of the license agreement.
 
 NO WARRANTY
 
 THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. SHADOW WARDEN AI
 EXPRESSLY DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
-NON-INFRINGEMENT.
+TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+NON-INFRINGEMENT. SHADOW WARDEN AI DOES NOT WARRANT THAT THE SOFTWARE WILL BE
+UNINTERRUPTED, ERROR-FREE, OR FREE OF SECURITY VULNERABILITIES.
+
+LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL SHADOW WARDEN AI BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+WITH THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
 ENFORCEMENT
 
 Unauthorized use, reproduction, or distribution of the Software, or any portion
 thereof, may result in severe civil and criminal penalties and will be prosecuted
-to the maximum extent possible under applicable law.
+to the maximum extent possible under applicable law, including but not limited to:
+  - EU Directive 2016/943 on Trade Secrets
+  - 17 U.S.C. § 101 et seq. (Copyright Act)
+  - 18 U.S.C. § 1832 (Defend Trade Secrets Act)
+  - Applicable criminal statutes in all jurisdictions
 
 CONTACT
 
@@ -56,4 +113,10 @@ For licensing inquiries, authorized access requests, or to report unauthorized u
 
   Shadow Warden AI
   Email: legal@shadowwarden.ai
+  Security: security@shadowwarden.ai
   Web:   https://shadowwarden.ai/contact
+
+  Tier licensing:
+    Pro ($69/mo):        https://shadowwarden.ai/pricing
+    Enterprise ($249/mo): https://shadowwarden.ai/enterprise
+    SMB Community:        https://shadowwarden.ai/smb
