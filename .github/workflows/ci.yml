@@ -18,7 +18,7 @@ jobs:
       contents: write   # required to push the [skip ci] sync commit
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6.0.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -74,7 +74,7 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6.0.2
 
       - uses: actions/setup-python@v5.6.0
         with:
@@ -145,7 +145,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6.0.2
 
       - uses: actions/setup-python@v5.6.0
         with:
@@ -181,7 +181,7 @@ jobs:
     timeout-minutes: 25
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6.0.2
 
       # ── Docker layer cache ────────────────────────────────────────────────────
       # Buildx + GHA cache re-uses unchanged layers (pip install, apt) across
