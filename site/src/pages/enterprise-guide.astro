@@ -1047,8 +1047,8 @@ docker-compose build --no-cache warden`,
     <!-- Right TOC (xl screens) -->
     <aside class="hidden 2xl:block w-52 flex-shrink-0 pt-10 pr-6 sticky top-14 self-start max-h-[calc(100vh-3.5rem)] overflow-y-auto">
       <div class="text-[9px] font-bold uppercase tracking-[2px] text-[#48485A] mb-3">On this page</div>
-      {sections.slice(0, 12).map(s => (
-        <a href={`#${s.id}`} class="flex items-center gap-1.5 py-1 text-[11px] text-[#48485A] hover:text-[#8E8E9E] transition-colors">
+      {sections.map(s => (
+        <a href={`#${s.id}`} class="toc-link flex items-center gap-1.5 py-1 text-[11px] text-[#48485A] hover:text-[#8E8E9E] transition-colors">
           <span class="text-[9px]">{s.icon}</span>{s.label}
         </a>
       ))}
@@ -1061,17 +1061,20 @@ docker-compose build --no-cache warden`,
   @media (min-width: 1024px) {
     main { margin-left: 15rem; }
   }
+  aside a[href^="#"].active {
+    color: #F5F5F7;
+    font-weight: 600;
+  }
 </style>
 
-<script>
-  /* Highlight active section in sidebar */
+<script is:inline>
+  /* Highlight active section in both sidebars */
   const links = document.querySelectorAll('aside a[href^="#"]');
   const observer = new IntersectionObserver(entries => {
     entries.forEach(e => {
       if (e.isIntersecting) {
-        links.forEach(l => l.classList.remove('text-[#F5F5F7]', 'font-semibold'));
-        const active = document.querySelector(`aside a[href="#${e.target.id}"]`);
-        active?.classList.add('text-[#F5F5F7]', 'font-semibold');
+        links.forEach(l => l.classList.remove('active'));
+        document.querySelectorAll(`aside a[href="#${e.target.id}"]`).forEach(a => a.classList.add('active'));
       }
     });
   }, { rootMargin: '-20% 0px -70% 0px' });
