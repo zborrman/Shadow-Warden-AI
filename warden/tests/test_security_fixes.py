@@ -9,12 +9,8 @@ Tests for critical security fixes:
 from __future__ import annotations
 
 import os
-import re
-import types
-from unittest import mock
 
 import pytest
-
 
 # ── #11: Fail-closed auth check ──────────────────────────────────────────────
 
@@ -25,11 +21,10 @@ class TestFailClosedAuth:
         keys_path = env.get("WARDEN_API_KEYS_PATH", "")
         allow_unauth = env.get("ALLOW_UNAUTHENTICATED", "false").lower() == "true"
 
-        if not api_key and not keys_path:
-            if not allow_unauth:
-                raise RuntimeError(
-                    "FATAL: Neither WARDEN_API_KEY nor WARDEN_API_KEYS_PATH is set."
-                )
+        if not api_key and not keys_path and not allow_unauth:
+            raise RuntimeError(
+                "FATAL: Neither WARDEN_API_KEY nor WARDEN_API_KEYS_PATH is set."
+            )
 
     def test_blank_key_no_flag_raises(self):
         with pytest.raises(RuntimeError, match="WARDEN_API_KEY"):
@@ -59,15 +54,15 @@ class TestVaultKeyValidation:
         Fernet(key.encode())
 
     def test_invalid_key_raises_runtime_error(self):
-        from cryptography.fernet import Fernet, InvalidToken
-        with pytest.raises(Exception):
+        from cryptography.fernet import Fernet
+        with pytest.raises(ValueError):
             Fernet(b"not-a-valid-fernet-key")
 
     def test_startup_rejects_bad_vault_key(self, monkeypatch):
         monkeypatch.setenv("VAULT_MASTER_KEY", "definitely-not-valid-base64-fernet-key")
         from cryptography.fernet import Fernet
         raw = os.getenv("VAULT_MASTER_KEY")
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             Fernet(raw.encode() if isinstance(raw, str) else raw)
 
 
@@ -115,13 +110,13 @@ class TestCPTDriftGate:
 
     def test_normal_calibration_succeeds(self, tmp_path):
         entries = []
-        for i in range(60):
+        for _ in range(60):
             entries.append({
                 "flags": ["OBFUSCATION"],
                 "risk_level": "HIGH",
                 "payload_len": 200,
             })
-        for i in range(40):
+        for _ in range(40):
             entries.append({
                 "flags": [],
                 "risk_level": "LOW",
