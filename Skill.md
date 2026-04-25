@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 4.7.0 · Proprietary · All rights reserved**
+**Version 4.7.1 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -28,14 +28,19 @@ surface, its observable outputs, and integration patterns.
 16. Skill 15 — Syndicate Exchange Protocol (SEP)
 17. Skill 16 — GDPR-Safe Analytics
 18. Skill 17 — Uptime Monitor
-19. Integration Recipes
-20. Configuration Quick-Reference
+19. Skill 18 — File Scanner (SMB)
+20. Skill 19 — Email Guard (SMB)
+21. Skill 20 — Secrets Rotation Monitor
+22. Skill 21 — Agent Action Whitelist
+23. Skill 22 — SMB Compliance Report
+24. Integration Recipes
+25. Configuration Quick-Reference
 
 ---
 
 ## 1. Skill Taxonomy
 
-Shadow Warden AI is composed of 17 discrete, independently configurable skills.
+Shadow Warden AI is composed of 22 discrete, independently configurable skills.
 Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–17 are
 background, agentic, or on-demand capabilities.
 
@@ -81,6 +86,11 @@ Background / On-demand:
 | 15 | SEP | On-demand | ✅ | Pro+ |
 | 16 | GDPR-Safe Analytics | < 1 ms | ✅ | All |
 | 17 | Uptime Monitor | Background | ✅ | All |
+| 18 | File Scanner | On-demand | ✅ | SMB+ |
+| 19 | Email Guard | On-demand | ✅ | SMB+ |
+| 20 | Secrets Rotation Monitor | Background | ✅ | All |
+| 21 | Agent Action Whitelist | Per-request | ✅ | All |
+| 22 | SMB Compliance Report | On-demand | ✅ | SMB+ |
 
 *PQC requires liboqs-python system package; classical fallback if unavailable.
 
@@ -587,7 +597,142 @@ Built-in SaaS monitoring for HTTP, SSL, DNS, and TCP checks.
 
 ---
 
-## 19. Integration Recipes
+## 19. Skill 18 — File Scanner (SMB)
+
+**File:** `warden/api/file_scan.py`
+
+Pre-upload file scanner for AI tools. Supports text, JSON, PDF, Python, JS/TS,
+HTML, CSV, YAML, `.env`, SQL, docx, xlsx/xls (10 MB max).
+
+**Extraction pipeline:**
+- `.docx` — python-docx: paragraphs + table cells
+- `.xlsx`/`.xls` — openpyxl: all sheets, all cell values
+- `.pdf` — pdfminer → pypdf → raw decode (cascading fallback)
+- Other — UTF-8 → latin-1 decode
+
+**Detection layers:**
+1. `SecretRedactor` — 15 PII/secret patterns + entropy scan
+2. `SemanticGuard` — injection detection on first 5,000 chars
+3. `ObfuscationDecoder` — base64/hex/ROT13 multi-layer (depth ≥2 → CRITICAL)
+4. HTML injection — `<!--` comments, CSS-hidden elements, poisoned `<meta>` tags (Q4.12)
+
+**Risk levels:** `SAFE` / `LOW` / `MEDIUM` / `HIGH` / `CRITICAL`
+
+**Endpoints:**
+```
+POST  /filter/file                  scan file (multipart/form-data)
+GET   /filter/file/supported-types  list accepted extensions + size limit
+```
+
+---
+
+## 20. Skill 19 — Email Guard (SMB)
+
+**File:** `warden/api/email_guard.py`
+
+Scans inbound email (subject + body + headers) for social engineering, phishing
+links, and prompt-injection payloads hidden in email bodies.
+
+**Detection:**
+- 5 social-engineering subject patterns (urgency, authority spoofing, invoice fraud)
+- 6 body injection patterns (AI persona override, instruction smuggling)
+- Phishing URL classifier (defanged URLs, typosquatting, data URI abuse)
+- `SecretRedactor` on body → `SemanticGuard` analysis
+
+**Input:** `EmailScanRequest(subject, body, from_address, raw_headers, tenant_id)`
+**Output:** `EmailScanResponse(safe, risk_level, findings, sanitized_body, processing_ms)`
+
+**Endpoint:**
+```
+POST  /scan/email
+```
+
+---
+
+## 21. Skill 20 — Secrets Rotation Monitor
+
+**File:** `warden/api/rotation.py`
+
+Tracks the age of 8 critical API secrets by SHA-256 digest prefix in Redis
+(`warden:key_age:{digest}`). Fires Slack alerts automatically when keys approach
+or pass the rotation policy window.
+
+**Tracked secrets:** `WARDEN_API_KEY`, `ANTHROPIC_API_KEY`, `NVIDIA_API_KEY`,
+`VAULT_MASTER_KEY`, `COMMUNITY_VAULT_KEY`, `SOVEREIGN_ATTEST_KEY`,
+`SLACK_WEBHOOK_URL`, `PAGERDUTY_ROUTING_KEY`.
+
+**Status:** `OK` (< 75 days) → `WARNING` (≥75 days) → `EXPIRED` (≥90 days).
+
+| Config | Default |
+|--------|---------|
+| `KEY_ROTATION_WARNING_DAYS` | `75` |
+| `KEY_ROTATION_MAX_DAYS` | `90` |
+| `ADMIN_KEY` | Required for all endpoints |
+
+**Endpoints:**
+```
+GET   /admin/rotation/status        age + status of all tracked secrets
+POST  /admin/rotation/record        reset age clock for a label
+POST  /admin/rotation/rotate-alert  manual Slack rotation reminder
+```
+
+---
+
+## 22. Skill 21 — Agent Action Whitelist
+
+**File:** `warden/agentic/action_whitelist.py`
+
+Per-agent CRUD permission enforcement using glob-style endpoint patterns and
+per-second rate limiting. Hot-path gate called before every agentic tool invocation.
+
+**Rule fields:** `http_method` (`*` or specific verb), `endpoint_glob` (fnmatch),
+`max_rps` (0 = unlimited).
+
+**`check_action(agent_id, method, endpoint)` logic:**
+1. No rules defined → allow (open policy, log warning)
+2. Any rule matches (method + glob) → allow, enforce `max_rps`
+3. No rule matches → deny
+
+**Rate limiting:** 1-second sliding window in `agent_action_rate` SQLite table.
+Thread-safe via shared `threading.Lock` with `AgentRegistry`.
+
+**Storage:** `agent_action_whitelist` + `agent_action_rate` tables in `AgentRegistry` SQLite DB.
+
+---
+
+## 23. Skill 22 — SMB Compliance Report
+
+**File:** `warden/api/compliance_report.py`
+
+Generates GDPR Art.30 + FZ-152 compliance records for the Community Business tier.
+Aggregates analytics logs over a configurable period (1–365 days).
+
+**Report contents:**
+- Processing KPIs: total requests, blocked, PII hits, anonymisation rate, avg latency
+- GDPR Art.5(1)(a–f), Art.30, Art.35 checklist — all 8 items
+- FZ-152 Art.18 (data localisation), Art.19 (cross-border transfer), Art.21 (Roskomnadzor)
+- Top 10 detected flag categories
+- Data minimisation statement (GDPR Art.5(1)(c))
+
+**PDF:** reportlab if installed; HTML fallback with `X-Report-Format: html` header.
+
+| Config | Default |
+|--------|---------|
+| `ORG_NAME` | `"Your Organisation"` |
+| `TENANT_ID` | `"default"` |
+| `DATA_RESIDENCY_JURISDICTION` | `"EU"` |
+| `RETENTION_DAYS` | `"180"` |
+
+**Endpoints:**
+```
+GET  /compliance/smb-report        JSON summary
+GET  /compliance/smb-report/html   print-ready HTML
+GET  /compliance/smb-report/pdf    PDF (reportlab) or HTML fallback
+```
+
+---
+
+## 24. Integration Recipes
 
 ### Filter a prompt before forwarding to an LLM
 
@@ -651,7 +796,7 @@ resp = httpx.post("/sep/pods",
 
 ---
 
-## 20. Configuration Quick-Reference
+## 25. Configuration Quick-Reference
 
 | Env Var | Default | Skill |
 |---------|---------|-------|

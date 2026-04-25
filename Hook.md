@@ -172,6 +172,88 @@ repos:
 
 ---
 
+## 7. Block D Module Hooks (Q1–Q4 Roadmap)
+
+These hooks guard the five new API modules added in the Block D sprint.
+
+### Hook 5: check-rotation-redis — Rotation Redis Key Guard
+
+Fails if `warden/api/rotation.py` is modified but the Redis key prefix constant is changed from `warden:key_age:`.
+
+```bash
+#!/usr/bin/env bash
+# .hooks/check-rotation-redis.sh
+set -euo pipefail
+if git diff --cached warden/api/rotation.py | grep -q 'redis_key\|key_age'; then
+  if ! grep -q 'warden:key_age:' warden/api/rotation.py; then
+    echo "❌ rotation.py: Redis key prefix must remain 'warden:key_age:' (breaks production key lookup)."
+    exit 1
+  fi
+fi
+echo "✅ rotation.py key prefix OK."
+```
+
+### Hook 6: check-gdpr-content-log — GDPR No-Content-Log Guard
+
+Fails if any new logging statement in `warden/` logs `content`, `text`, `body`, or `prompt` at INFO/WARNING level (content must never be logged — GDPR Art.5(1)(c)).
+
+```bash
+#!/usr/bin/env bash
+# .hooks/check-gdpr-content-log.sh
+set -euo pipefail
+fail=0
+for f in $(git diff --cached --name-only | grep '^warden/.*\.py$'); do
+  if grep -nE 'log\.(info|warning|error)\([^)]*\b(content|text|body|prompt)\b' "$f"; then
+    echo "❌ $f: potential content logging detected. Content must NEVER be logged (GDPR Art.5(1)(c))."
+    fail=1
+  fi
+done
+exit $fail
+```
+
+### Hook 7: check-action-whitelist-schema — SQLite Schema Guard
+
+Fails if `action_whitelist.py` is modified but the `_SCHEMA` constant no longer contains both required tables.
+
+```bash
+#!/usr/bin/env bash
+# .hooks/check-whitelist-schema.sh
+set -euo pipefail
+FILE="warden/agentic/action_whitelist.py"
+if git diff --cached --name-only | grep -q "$FILE"; then
+  for tbl in agent_action_whitelist agent_action_rate; do
+    if ! grep -q "CREATE TABLE IF NOT EXISTS $tbl" "$FILE"; then
+      echo "❌ $FILE: missing required table '$tbl' in _SCHEMA."
+      exit 1
+    fi
+  done
+fi
+echo "✅ action_whitelist schema OK."
+```
+
+Add all three to `.pre-commit-config.yaml`:
+```yaml
+      - id: check-rotation-redis
+        name: Rotation Redis key prefix guard
+        language: script
+        entry: .hooks/check-rotation-redis.sh
+        files: warden/api/rotation\.py
+
+      - id: check-gdpr-content-log
+        name: GDPR no-content-log guard
+        language: script
+        entry: .hooks/check-gdpr-content-log.sh
+        files: ^warden/.*\.py$
+
+      - id: check-whitelist-schema
+        name: Action whitelist SQLite schema guard
+        language: script
+        entry: .hooks/check-whitelist-schema.sh
+        files: warden/agentic/action_whitelist\.py
+```
+
+---
+
 ## 7. SMB Compose Hook
 
 A lightweight hook for `docker-compose.smb.yml` — verifies the SMB stack before pushing.
