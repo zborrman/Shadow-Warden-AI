@@ -9,10 +9,10 @@ Redis as a set per tenant.
 
 Add-on catalog
 ──────────────
-  shadow_ai_discovery  +$15/mo  Pro+Enterprise   Shadow AI subnet probe + DNS telemetry
-  xai_audit            +$9/mo   Individual+      Causal XAI HTML/PDF audit reports
-  master_agent         +$20/mo  Pro only         MasterAgent multi-agent SOC
-                                                  (Enterprise: included; add-on for Pro)
+  shadow_ai_discovery  +$15/mo  Pro+   Shadow AI subnet probe + DNS telemetry
+  xai_audit            +$9/mo   Indiv+ Causal XAI HTML/PDF audit reports
+
+  MasterAgent is included in the Pro base plan — not sold as an add-on.
 
 Lemon Squeezy integration
 ──────────────────────────
@@ -79,17 +79,8 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/xai-audit",
     },
 
-    "master_agent": {
-        "display_name":   "Master Agent (Multi-Agent SOC)",
-        "description":    "MasterAgent: 4 specialist sub-agents (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent), HMAC task tokens, human-in-the-loop approval.",
-        "usd_per_month":  20,
-        "min_tier":       "pro",
-        "ls_variant_id":  os.getenv("LS_VARIANT_MASTER_AGENT", ""),
-        "unlocks":        ["master_agent_enabled"],
-        "note":           "Enterprise tier includes MasterAgent at no additional cost.",
-        "docs_url":       "/docs/addons/master-agent",
-    },
 }
+
 
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────

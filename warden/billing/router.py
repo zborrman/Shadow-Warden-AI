@@ -76,14 +76,15 @@ async def get_billing_tiers():
     from warden.billing.feature_gate import OVERAGE_PRICES, FeatureGate
 
     prices = {
-        "starter":    {"usd_per_month": 0,   "label": "Free"},
-        "individual": {"usd_per_month": 5,   "label": "Individual"},
-        "pro":        {"usd_per_month": 69,  "label": "Pro"},
-        "enterprise": {"usd_per_month": 249, "label": "Enterprise"},
+        "starter":            {"usd_per_month": 0,   "label": "Free"},
+        "individual":         {"usd_per_month": 5,   "label": "Individual"},
+        "community_business": {"usd_per_month": 19,  "label": "Community Business"},
+        "pro":                {"usd_per_month": 69,  "label": "Pro"},
+        "enterprise":         {"usd_per_month": 249, "label": "Enterprise"},
     }
 
     tiers = []
-    for tier_name in ("starter", "individual", "pro", "enterprise"):
+    for tier_name in ("starter", "individual", "community_business", "pro", "enterprise"):
         gate = FeatureGate.for_tier(tier_name)
         d    = gate.as_dict()
         d["pricing"]        = prices[tier_name]

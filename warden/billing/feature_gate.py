@@ -5,16 +5,18 @@ Tier-based Feature Gating for Shadow Warden AI.
 
 Tiers (aligned with Lemon Squeezy monetization)
 ────────────────────────────────────────────────
-  starter    $0/mo   — Developers / Testing        1 000 req/mo
-  individual $5/mo   — Solo Devs / Hobbyists       5 000 req/mo  (+$9/mo XAI add-on)
-  pro        $69/mo  — Mid-market / SMBs           50 000 req/mo, SIEM, Master Agent (+$15/mo Shadow AI add-on)
-  enterprise $249/mo — MSPs / Corporations         Unlimited, PQC, Sovereign AI Cloud, all add-ons included
+  starter            $0/mo   — Developers / Testing    1 000 req/mo
+  individual         $5/mo   — Solo Devs / Hobbyists   5 000 req/mo  (+$9/mo XAI add-on)
+  community_business $19/mo  — SMB one-click           10 000 req/mo, File Scanner, Shadow AI Monitor, 3 communities×10 members, 180-day retention
+  pro                $69/mo  — Mid-market              50 000 req/mo, MasterAgent included (+$15/mo Shadow AI add-on)
+  enterprise         $249/mo — MSPs / Corporations     Unlimited, PQC, Sovereign AI Cloud, all add-ons included
 
 Add-on SKUs (Lemon Squeezy variant IDs)
 ────────────────────────────────────────
-  shadow_ai_discovery  +$15/mo  Pro+Enterprise   Shadow AI subnet scan + DNS telemetry
-  xai_audit            +$9/mo   Individual+      Causal XAI HTML/PDF audit reports
-  master_agent         +$20/mo  Pro only         MasterAgent multi-agent SOC (Enterprise: included)
+  shadow_ai_discovery  +$15/mo  Pro+       Shadow AI subnet scan + DNS telemetry
+  xai_audit            +$9/mo   Individual+ Causal XAI HTML/PDF audit reports
+
+  MasterAgent is included in Pro — not sold as an add-on.
 
 Feature matrix
 ──────────────
@@ -223,7 +225,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "break_glass_enabled":         False,
         "byok_enabled":                False,
         "pqc_enabled":                 False,
-        "master_agent_enabled":        True,    # ← MasterAgent SOC (+$20/mo, included in $69 Pro)
+        "master_agent_enabled":        True,    # ← MasterAgent SOC (included in $69 Pro)
         "shadow_ai_enabled":           False,   # ← add-on: +$15/mo Shadow AI Discovery
         "xai_reports_enabled":         True,    # ← Causal XAI + PDF reports included at Pro
         "sovereign_enabled":           False,
