@@ -806,9 +806,8 @@ def section_communities() -> None:
     hero("🌐", "Communities & SEP",
          "Syndicate Exchange Protocol — secure, privacy-preserving entity exchange across organisations.")
 
-    badge(("SMB $19", "smb")), st.markdown(" 3×10 &nbsp;|&nbsp;", unsafe_allow_html=True)
-    badge(("PRO $69", "pro")), st.markdown(" 10×25 &nbsp;|&nbsp;", unsafe_allow_html=True)
-    badge(("ENTERPRISE $249", "ent")), st.markdown(" Unlimited", unsafe_allow_html=True)
+    badge(("SMB $19", "smb"), ("3×10", "smb"), ("PRO $69", "pro"), ("10×25", "pro"),
+          ("ENTERPRISE $249", "ent"), ("Unlimited", "ent"))
 
     tab_ueciid, tab_peer, tab_knock, tab_guard, tab_stix, tab_pods = st.tabs(
         ["UECIID", "Peering", "Knock-and-Verify", "Transfer Guard", "STIX Chain", "Data Pods"]
@@ -1142,7 +1141,7 @@ python scripts/impact_analysis.py \\
   --export pdf""", language="bash")
 
     with tab_shadow:
-        badge(("SMB $19", "smb"), ("monitor-only"))
+        badge(("SMB $19", "smb"), ("monitor-only", "smb"))
         badge(("PRO $69", "pro"), ("+$15/mo shadow_ai_discovery", "addon"))
         st.markdown("## Shadow AI Governance API")
         ep("POST", "/shadow-ai/scan",       "Async /24 subnet probe (max 50 concurrent, 3s timeout)")
