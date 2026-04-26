@@ -109,22 +109,28 @@ class TestCPTDriftGate:
         return str(p)
 
     def test_normal_calibration_succeeds(self, tmp_path):
+        import warden.causal_arbiter as ca
+
         entries = []
         for _ in range(60):
-            entries.append({
-                "flags": ["OBFUSCATION"],
-                "risk_level": "HIGH",
-                "payload_len": 200,
-            })
+            entries.append({"flags": ["OBFUSCATION"], "risk_level": "HIGH", "payload_len": 200})
         for _ in range(40):
-            entries.append({
-                "flags": [],
-                "risk_level": "LOW",
-                "payload_len": 50,
-            })
+            entries.append({"flags": [], "risk_level": "LOW", "payload_len": 50})
         path = self._write_logs(tmp_path, entries)
-        result = self._calibrate(path)
-        assert result is True
+
+        # Pre-set CPT to values this data produces so recalibration drift ≈ 0.
+        # Data: 60 obfusc HIGH, 40 clean LOW → obfusc_pos=61/62≈0.984,
+        # obfusc_neg=1/42≈0.024, block_rate=0.60 → ers_center clamped to 0.15.
+        saved = (ca._cpt.obfusc_pos, ca._cpt.obfusc_neg, ca._cpt.ers_center, ca._cpt.entropy_center)
+        ca._cpt.obfusc_pos = round(61 / 62, 4)
+        ca._cpt.obfusc_neg = round(1 / 42, 4)
+        ca._cpt.ers_center = 0.15
+        ca._cpt.entropy_center = 4.5
+        try:
+            result = self._calibrate(path)
+            assert result is True
+        finally:
+            ca._cpt.obfusc_pos, ca._cpt.obfusc_neg, ca._cpt.ers_center, ca._cpt.entropy_center = saved
 
     def test_insufficient_samples_returns_false(self, tmp_path):
         entries = [{"flags": [], "risk_level": "LOW", "payload_len": 50}] * 5
