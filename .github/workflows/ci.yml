@@ -52,9 +52,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # Merge Astro dist into landing/ — overwrites Astro-owned paths only,
           # preserves legacy HTML files (settings, login, billing, etc.)
-          # Exclude fraud-score.html: public/ copy conflicts with fraud-score/ directory routing
           cp -r site/dist/. landing/
-          rm -f landing/fraud-score.html
           git add landing/
           # Only commit if something changed
           if git diff --cached --quiet; then
