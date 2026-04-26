@@ -5,7 +5,6 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/settings", "destination": "/settings.html" },
     { "source": "/enterprise-settings", "destination": "/enterprise-settings.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" }
   ],
