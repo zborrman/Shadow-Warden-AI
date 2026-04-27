@@ -469,9 +469,8 @@ if page_mode == "⚙ Settings":
             if st.form_submit_button("💾 Save Shadow AI Policy", type="primary"):
                 if cid:
                     try:
-                        from warden.shadow_ai.policy import ShadowAIPolicy
-                        policy = ShadowAIPolicy(cid)
-                        policy.update_policy(sa_policy)
+                        from warden.shadow_ai.policy import update_policy
+                        update_policy(cid, {"mode": sa_policy})
                         st.success(f"Shadow AI policy → {sa_policy}")
                     except Exception as exc:
                         st.error(str(exc))
@@ -516,13 +515,13 @@ if page_mode == "⚙ Settings":
                 from warden.secret_redactor import SecretRedactor
                 redactor = SecretRedactor()
                 result = redactor.redact(test_text)
-                found  = result.get("secrets", []) or result.get("findings", [])
+                found  = result.findings
                 risk   = "HIGH" if found else "SAFE"
                 st.markdown(f"**Risk:** `{risk}` · **Findings:** {len(found)}")
                 if found:
-                    for f in found[:5]:
-                        st.markdown(f"- `{f}`")
-                st.text_area("Redacted output", value=result.get("redacted", test_text), height=120)
+                    for finding in found[:5]:
+                        st.markdown(f"- `{finding.redacted_to}` ({finding.kind})")
+                st.text_area("Redacted output", value=result.text, height=120)
             except Exception as exc:
                 st.error(f"Scanner error: {exc}")
 
@@ -558,13 +557,13 @@ if page_mode == "⚙ Settings":
                 grants = list_grants(cid)
                 if grants:
                     import pandas as pd
-                    rows = [
+                    grant_rows: list[tuple[str, ...]] = [
                         (g.display_name, g.member_id, g.risk_level, g.verdict,
                          ", ".join(g.scopes), g.detected_at[:10])
                         for g in grants
                     ]
                     st.dataframe(
-                        pd.DataFrame(rows, columns=["Provider", "Member", "Risk", "Verdict", "Scopes", "Detected"]),
+                        pd.DataFrame(grant_rows, columns=["Provider", "Member", "Risk", "Verdict", "Scopes", "Detected"]),
                         use_container_width=True, hide_index=True,
                     )
                 else:
