@@ -475,7 +475,7 @@ with tab_guide:
     st.markdown("""
     <span class="guide-badge badge-free">FREE</span>
     <span class="guide-badge badge-indiv">INDIVIDUAL $5</span>
-    <span class="guide-badge badge-smb">SMB $19</span>
+    <span class="guide-badge badge-smb">COMMUNITY $19</span>
     <span class="guide-badge badge-pro">PRO $69</span>
     <span class="guide-badge badge-ent">ENTERPRISE $249</span>
     &nbsp;&nbsp; Tier badges mark the minimum plan required for each feature.
@@ -582,7 +582,7 @@ curl -H "X-API-Key: your_key" http://localhost:8000/health""", language="bash")
         <span class="guide-badge badge-ent">ENTERPRISE $249</span> Unlimited tenants
         """, unsafe_allow_html=True)
 
-        st.markdown("### Single API Key (Starter / Individual / SMB)")
+        st.markdown("### Single API Key (Starter / Individual / Community)")
         st.code("""# .env
 WARDEN_API_KEY=warden_prod_xxxxxxxxxxxxxxxx
 
@@ -954,7 +954,7 @@ async def scan_subnet(...): ...""", language="python")
         st.subheader("8. Communities & SEP")
 
         st.markdown("""
-        <span class="guide-badge badge-smb">SMB $19</span> 3 communities × 10 members &nbsp;|&nbsp;
+        <span class="guide-badge badge-smb">COMMUNITY $19</span> 3 communities × 10 members &nbsp;|&nbsp;
         <span class="guide-badge badge-pro">PRO $69</span> 10 communities × 25 members &nbsp;|&nbsp;
         <span class="guide-badge badge-ent">ENTERPRISE $249</span> Unlimited
         """, unsafe_allow_html=True)
@@ -1193,7 +1193,7 @@ POST /financial/generate-proposal  # PDF proposal for enterprise sales
 python scripts/impact_analysis.py --live --industry fintech --export pdf""", language="bash")
 
         st.markdown("### Shadow AI Governance API")
-        st.markdown('<span class="guide-badge badge-smb">SMB $19</span> Monitor-only &nbsp;|&nbsp; <span class="guide-badge badge-pro">PRO $69</span> + shadow_ai_discovery add-on', unsafe_allow_html=True)
+        st.markdown('<span class="guide-badge badge-smb">COMMUNITY $19</span> Monitor-only &nbsp;|&nbsp; <span class="guide-badge badge-pro">PRO $69</span> + shadow_ai_discovery add-on', unsafe_allow_html=True)
         st.code("""# Scan your internal subnet for unauthorized AI tools
 POST /shadow-ai/scan
 {"subnet": "192.168.1.0/24", "tenant_id": "acme"}  # max /24, 50 concurrent probes

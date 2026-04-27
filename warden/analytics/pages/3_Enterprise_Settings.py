@@ -60,7 +60,7 @@ st.markdown("""
   }
   .b-free  { background:#21262d; color:#8b949e; border:1px solid #30363d; }
   .b-indiv { background:#0c2a4a; color:#58a6ff; border:1px solid #1f4e79; }
-  .b-smb   { background:#0f2d1a; color:#3fb950; border:1px solid #238636; }
+  .b-comm  { background:#0f2d1a; color:#3fb950; border:1px solid #238636; }
   .b-pro   { background:#2d1b00; color:#e3b341; border:1px solid #9e6a03; }
   .b-ent   { background:#2d0f3a; color:#d2a8ff; border:1px solid #7c3aed; }
   .b-addon { background:#1a1a2e; color:#79c0ff; border:1px solid #388bfd; }
@@ -150,9 +150,9 @@ with st.sidebar:
     # Tier legend
     st.markdown("""
     <div style="font-size:0.72rem; color:#6e7681; margin-bottom:4px;">Tier legend</div>
-    <span class="badge b-free">FREE</span><br>
+    <span class="badge b-free">STARTER $0</span><br>
     <span class="badge b-indiv">INDIVIDUAL $5</span><br>
-    <span class="badge b-smb">SMB $19</span><br>
+    <span class="badge b-comm">COMMUNITY $19</span><br>
     <span class="badge b-pro">PRO $69</span><br>
     <span class="badge b-ent">ENTERPRISE $249</span><br>
     <span class="badge b-addon">ADD-ON</span>
@@ -292,7 +292,7 @@ def section_auth() -> None:
     )
 
     with tab_single:
-        badge(("FREE", "free"), ("INDIVIDUAL", "indiv"), ("SMB", "smb"))
+        badge(("STARTER", "free"), ("INDIVIDUAL", "indiv"), ("COMMUNITY", "comm"))
         st.markdown("## Single API Key")
         st.code("""# .env
 WARDEN_API_KEY=warden_prod_xxxxxxxxxxxxxxxx
@@ -806,7 +806,7 @@ def section_communities() -> None:
     hero("🌐", "Communities & SEP",
          "Syndicate Exchange Protocol — secure, privacy-preserving entity exchange across organisations.")
 
-    badge(("SMB $19", "smb"), ("3×10", "smb"), ("PRO $69", "pro"), ("10×25", "pro"),
+    badge(("COMMUNITY $19", "comm"), ("3×10", "comm"), ("PRO $69", "pro"), ("10×25", "pro"),
           ("ENTERPRISE $249", "ent"), ("Unlimited", "ent"))
 
     tab_ueciid, tab_peer, tab_knock, tab_guard, tab_stix, tab_pods = st.tabs(
@@ -1141,7 +1141,7 @@ python scripts/impact_analysis.py \\
   --export pdf""", language="bash")
 
     with tab_shadow:
-        badge(("SMB $19", "smb"), ("monitor-only", "smb"))
+        badge(("COMMUNITY $19", "comm"), ("monitor-only", "comm"))
         badge(("PRO $69", "pro"), ("+$15/mo shadow_ai_discovery", "addon"))
         st.markdown("## Shadow AI Governance API")
         ep("POST", "/shadow-ai/scan",       "Async /24 subnet probe (max 50 concurrent, 3s timeout)")
