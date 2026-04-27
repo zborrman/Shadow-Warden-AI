@@ -1157,6 +1157,13 @@ try:
 except ImportError:
     log.warning("SEP router not available — /sep routes skipped.")
 
+try:
+    from warden.api.community_intel import router as _community_intel_router
+    app.include_router(_community_intel_router)
+    log.info("Community Intelligence mounted at /community-intel")
+except ImportError:
+    log.warning("community_intel router not available — /community-intel routes skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
