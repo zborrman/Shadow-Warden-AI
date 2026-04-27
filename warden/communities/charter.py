@@ -29,7 +29,7 @@ import os
 import sqlite3
 import threading
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -179,16 +179,16 @@ def create_charter(
     auto_block_threshold: float = 0.70,
 ) -> CharterRecord:
     """Create a new DRAFT charter (version auto-incremented)."""
-    _VALID_TRANS = {"REQUIRED", "ENCOURAGED", "OPTIONAL"}
-    _VALID_DM    = {"STRICT", "STANDARD", "RELAXED"}
-    _VALID_SUS   = {"STANDARD", "ADVANCED", "CERTIFIED"}
+    valid_trans = {"REQUIRED", "ENCOURAGED", "OPTIONAL"}
+    valid_dm    = {"STRICT", "STANDARD", "RELAXED"}
+    valid_sus   = {"STANDARD", "ADVANCED", "CERTIFIED"}
 
-    if transparency not in _VALID_TRANS:
-        raise ValueError(f"transparency must be one of {_VALID_TRANS}")
-    if data_minimization not in _VALID_DM:
-        raise ValueError(f"data_minimization must be one of {_VALID_DM}")
-    if sustainability not in _VALID_SUS:
-        raise ValueError(f"sustainability must be one of {_VALID_SUS}")
+    if transparency not in valid_trans:
+        raise ValueError(f"transparency must be one of {valid_trans}")
+    if data_minimization not in valid_dm:
+        raise ValueError(f"data_minimization must be one of {valid_dm}")
+    if sustainability not in valid_sus:
+        raise ValueError(f"sustainability must be one of {valid_sus}")
     if not 0.0 <= auto_block_threshold <= 1.0:
         raise ValueError("auto_block_threshold must be in [0.0, 1.0]")
 

@@ -17,7 +17,6 @@ Output: CommunityIntelReport (JSON-serialisable) used by:
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import sqlite3

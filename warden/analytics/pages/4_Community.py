@@ -294,8 +294,7 @@ with tab4:
 
     if not charter:
         st.warning("No active charter. Publish one to enforce governance rules.")
-        with st.expander("Create Charter"):
-            with st.form("charter_form"):
+        with st.expander("Create Charter"), st.form("charter_form"):
                 title   = st.text_input("Charter Title", "Community Data Governance Charter v1")
                 trans   = st.selectbox("Transparency", ["REQUIRED", "ENCOURAGED", "OPTIONAL"])
                 dm      = st.selectbox("Data Minimization", ["STRICT", "STANDARD", "RELAXED"])

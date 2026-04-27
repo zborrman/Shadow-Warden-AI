@@ -28,13 +28,11 @@ Anomaly patterns tracked
 """
 from __future__ import annotations
 
-import json
 import logging
 import math
 import os
 import sqlite3
 import threading
-import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -177,7 +175,6 @@ def compute_baseline(
 ) -> BaselineSnapshot:
     """Recompute and store the mean/stddev/p99 baseline from recent history."""
     conn = _get_conn()
-    cutoff = f"{datetime.now(UTC).isoformat()[:10]}T00:00:00Z"
     # Rough approximation: filter by days via rowid ordering (good enough for SQLite)
     rows = conn.execute(
         """
