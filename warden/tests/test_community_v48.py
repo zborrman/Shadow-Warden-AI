@@ -11,10 +11,9 @@ Tests for v4.8 Community Business features:
 from __future__ import annotations
 
 import os
+import uuid as _uuid
 
 import pytest
-
-import uuid as _uuid
 
 os.environ.setdefault("REDIS_URL", "memory://")
 os.environ.setdefault("WARDEN_API_KEY", "")

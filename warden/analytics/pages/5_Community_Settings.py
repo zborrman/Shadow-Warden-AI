@@ -235,8 +235,8 @@ with st.sidebar:
 
 if page_mode == "⚙ Settings":
     st.markdown(
-        f'<div class="comm-hero"><h1>⚙ Community Settings</h1>'
-        f'<p>Operational controls for Community Business tier · v4.8</p></div>',
+        '<div class="comm-hero"><h1>⚙ Community Settings</h1>'
+        '<p>Operational controls for Community Business tier · v4.8</p></div>',
         unsafe_allow_html=True,
     )
 
@@ -299,7 +299,9 @@ if page_mode == "⚙ Settings":
         else:
             try:
                 from warden.communities.charter import (
-                    create_charter, get_active_charter, list_charters, publish_charter,
+                    create_charter,
+                    get_active_charter,
+                    publish_charter,
                 )
                 active = get_active_charter(cid)
             except Exception as exc:
@@ -325,8 +327,7 @@ if page_mode == "⚙ Settings":
             else:
                 st.warning("No active charter for this community.")
 
-            with st.expander("➕ Create & Publish New Charter", expanded=not active):
-                with st.form("charter_form"):
+            with st.expander("➕ Create & Publish New Charter", expanded=not active), st.form("charter_form"):
                     ch_title = st.text_input("Charter Title", "Community Data Governance Charter")
                     ch_trans = st.selectbox("Transparency", ["REQUIRED", "ENCOURAGED", "OPTIONAL"])
                     ch_dm    = st.selectbox("Data Minimization", ["STRICT", "STANDARD", "RELAXED"])
@@ -510,22 +511,20 @@ if page_mode == "⚙ Settings":
         divider()
         st.markdown("### Test Scanner")
         test_text = st.text_area("Paste text to scan", placeholder="OPENAI_API_KEY=sk-abc123…\nJohn Smith, john@example.com")
-        if st.button("🔍 Scan Now"):
-            if test_text:
-                try:
-                    from warden.api.file_scan import _extract_text, _risk_level
-                    from warden.secret_redactor import SecretRedactor
-                    redactor = SecretRedactor()
-                    result = redactor.redact(test_text)
-                    found  = result.get("secrets", []) or result.get("findings", [])
-                    risk   = "HIGH" if found else "SAFE"
-                    st.markdown(f"**Risk:** `{risk}` · **Findings:** {len(found)}")
-                    if found:
-                        for f in found[:5]:
-                            st.markdown(f"- `{f}`")
-                    st.text_area("Redacted output", value=result.get("redacted", test_text), height=120)
-                except Exception as exc:
-                    st.error(f"Scanner error: {exc}")
+        if st.button("🔍 Scan Now") and test_text:
+            try:
+                from warden.secret_redactor import SecretRedactor
+                redactor = SecretRedactor()
+                result = redactor.redact(test_text)
+                found  = result.get("secrets", []) or result.get("findings", [])
+                risk   = "HIGH" if found else "SAFE"
+                st.markdown(f"**Risk:** `{risk}` · **Findings:** {len(found)}")
+                if found:
+                    for f in found[:5]:
+                        st.markdown(f"- `{f}`")
+                st.text_area("Redacted output", value=result.get("redacted", test_text), height=120)
+            except Exception as exc:
+                st.error(f"Scanner error: {exc}")
 
     # ── OAuth Policy ──────────────────────────────────────────────────────────
     with stab_oauth:
