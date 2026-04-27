@@ -292,7 +292,7 @@ class TestBillingRouter:
         data = resp.json()
         assert "tiers" in data
         tiers_by_name = {t["tier"]: t for t in data["tiers"]}
-        assert set(tiers_by_name.keys()) == {"starter", "individual", "pro", "enterprise"}
+        assert set(tiers_by_name.keys()) == {"starter", "individual", "community_business", "pro", "enterprise"}
         assert tiers_by_name["pro"]["siem_integration"] is True
         assert tiers_by_name["starter"]["siem_integration"] is False
         assert tiers_by_name["enterprise"]["referral_program"] is False
@@ -317,7 +317,7 @@ class TestBillingRouter:
         resp = client.get("/billing/status", headers={"X-Tenant-ID": "test-tenant"})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["plan"] in ("starter", "individual", "pro", "enterprise")
+        assert data["plan"] in ("starter", "individual", "community_business", "pro", "enterprise")
         assert "features" in data
 
     def test_referral_generate_requires_tenant_id(self, client):
