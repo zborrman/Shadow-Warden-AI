@@ -245,6 +245,19 @@ jobs:
       # Phase 2 (runtime health check) disabled — model download from HuggingFace
       # exceeds CI timeout. Import smoke test above is sufficient gate.
 
+      # ── Docker Scout CVE scan (Docker Desktop Pro) ────────────────────────
+      # Scans the built warden image for known CVEs. Informational — does not
+      # block merges, but results appear in the Docker Scout dashboard.
+      - name: Docker Scout — CVE scan
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: warden-ci:${{ github.sha }}
+          only-severities: critical,high
+          exit-code: false    # informational; set true to block on CVEs
+          summary: true
+        continue-on-error: true
+
       - name: Cleanup
         if: always()
         run: |

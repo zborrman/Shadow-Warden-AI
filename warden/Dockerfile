@@ -3,22 +3,24 @@
 #
 #  Base: python:3.11-slim  (~130 MB vs ~1.8 GB playwright/python MCR image)
 #
+#  BuildKit required (DOCKER_BUILDKIT=1 or Docker Desktop ≥4.x default).
+#  Cache mounts keep pip/apt caches across rebuilds → code-only change: ~30s.
+#
 #  Browser sandbox (warden/tools/browser.py) is DEFERRED.
 #  To re-enable when server disk allows:
 #    1. Switch FROM back to: mcr.microsoft.com/playwright/python:v1.49.0-noble
 #    2. Add after pip installs: RUN playwright install chromium
 #    3. Set BROWSER_ENABLED=true in docker-compose.yml
 # ─────────────────────────────────────────────────────────────────────────────
+# syntax=docker/dockerfile:1.7
 FROM python:3.11-slim
 
 WORKDIR /warden
 
-# System deps:
-#   gcc / g++   — compile C extensions in pip packages
-#   libgomp1    — OpenMP required by torch CPU
-#   curl        — healthcheck
-#   gosu        — privilege drop in entrypoint (root → wardenuser after perm fix)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# System deps — apt cache mount avoids re-downloading packages on every build.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
         gcc g++ libgomp1 curl gosu git \
         cmake ninja-build libssl-dev astyle \
     && rm -rf /var/lib/apt/lists/*
@@ -27,18 +29,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 
 # Step 1 — liboqs-python (Post-Quantum Cryptography — NIST FIPS 203/204).
-#   Builds liboqs C library from source via cmake (~60s).
-#   Fail-open: || true so the build continues even if liboqs is unavailable
-#   (warden/crypto/pqc.py falls back to classical Ed25519/X25519 automatically).
-RUN pip install --no-cache-dir liboqs-python || \
+#   Builds liboqs C library from source via cmake (~60s first time, cached after).
+#   Fail-open: || true so the build continues even if liboqs is unavailable.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install liboqs-python || \
     echo "⚠ liboqs-python build failed — PQC disabled (classical crypto still active)"
 
-# Step 2 — torch from the CPU-only wheel index.
-RUN pip install --no-cache-dir torch \
-        --index-url https://download.pytorch.org/whl/cpu
+# Step 2 — torch from the CPU-only wheel index (~800 MB wheel, cached after first pull).
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install torch --index-url https://download.pytorch.org/whl/cpu
 
 # Step 3 — everything else from PyPI.
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
 # ── Non-root runtime user ─────────────────────────────────────────────────────
 RUN addgroup --system --gid 10001 warden \

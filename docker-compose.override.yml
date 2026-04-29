@@ -1,0 +1,103 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  docker-compose.override.yml — LOCAL DEV ONLY
+#
+#  Automatically merged by `docker compose up` on your workstation.
+#  NOT used in CI or on the VPS (server uses docker-compose.yml directly).
+#
+#  Key differences from production:
+#   • warden source bind-mounted → code changes reflect without rebuild
+#   • Compose Watch (docker compose watch) for auto-restart on file change
+#   • Streamlit dashboard exposed locally on :8501
+#   • Prometheus + Grafana exposed directly (no auth proxy needed in dev)
+#   • Jaeger UI exposed on :16686
+#   • Resource limits relaxed for dev machine
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  warden:
+    build:
+      context: ./warden
+      dockerfile: Dockerfile
+      # Pass local cache dir so BuildKit reuses layers across rebuilds
+      cache_from:
+        - type=local,src=.docker-cache/warden
+    volumes:
+      # Bind-mount source — edits are live without `docker compose build`
+      - ./warden:/warden:delegated
+      # Keep the ML model volume (don't shadow it with the bind mount)
+      - warden-models:/warden/models
+      - ./data:/warden/data
+    environment:
+      - ENV=development
+      - LOG_LEVEL=debug
+      - RELOAD=true
+    # Compose Watch — restarts warden container when Python files change.
+    # Run with: docker compose watch
+    develop:
+      watch:
+        - action: sync
+          path: ./warden
+          target: /warden
+          ignore:
+            - __pycache__/
+            - "*.pyc"
+            - tests/
+            - models/
+        - action: rebuild
+          path: ./warden/requirements.txt
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4096M
+
+  analytics:
+    volumes:
+      - ./analytics:/app:delegated
+      - ./data:/data
+    develop:
+      watch:
+        - action: sync
+          path: ./analytics
+          target: /app
+          ignore:
+            - __pycache__/
+
+  # Expose Streamlit dashboard directly in dev
+  dashboard:
+    image: python:3.11-slim
+    container_name: warden-dashboard
+    command: >
+      bash -c "pip install -q streamlit watchdog &&
+               streamlit run /app/analytics/dashboard.py
+               --server.port=8501 --server.address=0.0.0.0
+               --server.fileWatcherType=watchdog"
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./warden:/app:ro
+      - ./data:/data:ro
+    environment:
+      - LOGS_PATH=/data/logs.json
+    networks:
+      - warden-net
+    profiles:
+      - dashboard
+
+  prometheus:
+    ports:
+      - "9090:9090"    # expose in dev for direct access
+
+  grafana:
+    ports:
+      - "3001:3000"
+
+  jaeger:
+    ports:
+      - "16686:16686"
+      - "4317:4317"    # OTLP gRPC — for local tracing from host
+
+  # Lighter Redis in dev (no persistence overhead)
+  redis:
+    command: redis-server --loglevel verbose
