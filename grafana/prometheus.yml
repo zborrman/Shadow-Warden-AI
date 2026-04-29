@@ -1,9 +1,45 @@
 global:
-  scrape_interval: 15s
+  scrape_interval:     15s
   evaluation_interval: 15s
+  external_labels:
+    environment: production
+    project:     shadow-warden-ai
 
 scrape_configs:
-  - job_name: "warden-gateway"
+
+  # ── Warden Gateway (FastAPI + custom metrics) ─────────────────────────────
+  - job_name: "warden"
     static_configs:
       - targets: ["warden:8001"]
+    metrics_path: /metrics
+
+  # ── Node Exporter (host CPU / RAM / disk / network) ───────────────────────
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # ── cAdvisor (per-container CPU / memory / net / IO) ─────────────────────
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    metric_relabel_configs:
+      # Keep only shadow-warden containers, drop noisy internal ones
+      - source_labels: [container_label_com_docker_compose_service]
+        regex: ""
+        action: drop
+
+  # ── Redis Exporter ────────────────────────────────────────────────────────
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+
+  # ── Postgres Exporter ─────────────────────────────────────────────────────
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  # ── Caddy (built-in Prometheus endpoint) ─────────────────────────────────
+  - job_name: "caddy"
+    static_configs:
+      - targets: ["proxy:2019"]
     metrics_path: /metrics

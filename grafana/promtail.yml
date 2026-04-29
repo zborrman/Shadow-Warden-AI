@@ -1,0 +1,54 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+
+  # ── All Docker container logs ─────────────────────────────────────────────
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project=shadow-warden"]
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        target_label: container
+      - source_labels: [__meta_docker_compose_service]
+        target_label: service
+      - source_labels: [__meta_docker_container_log_stream]
+        target_label: stream
+
+    pipeline_stages:
+      # Parse JSON log lines from warden (structured logging)
+      - match:
+          selector: '{service="warden"}'
+          stages:
+            - json:
+                expressions:
+                  level:      level
+                  logger:     logger
+                  request_id: request_id
+                  risk_level: risk_level
+            - labels:
+                level:
+                logger:
+                risk_level:
+            - drop:
+                expression: ".*health.*"   # drop /health poll noise
+      # Structured logs from analytics
+      - match:
+          selector: '{service="analytics"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+            - labels:
+                level:
