@@ -5,7 +5,7 @@ Four tabs:
   1. Threat Radar          — OSV dependency CVE scanner + ArXiv AI threat feed
   2. Intel Bridge          — Auto-Evolution sync status + manual trigger
   3. Causal Arbiter        — Interactive Bayesian DAG probability visualizer
-  4. Enterprise Guide      — Integration & Development Guide v4.7
+  4. Enterprise Guide      — Integration & Development Guide v4.8
 
 Run with the main dashboard:
     streamlit run warden/analytics/dashboard.py
@@ -429,12 +429,12 @@ Threshold: 65% → {"BLOCK ✗" if result.is_high_risk else "ALLOW ✓"}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — ENTERPRISE INTEGRATION & DEVELOPMENT GUIDE v4.7
+# TAB 4 — ENTERPRISE INTEGRATION & DEVELOPMENT GUIDE v4.8
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_guide:
     st.markdown(
-        '<p class="section-title">Enterprise Integration & Development Guide — v4.7</p>',
+        '<p class="section-title">Enterprise Integration & Development Guide — v4.8</p>',
         unsafe_allow_html=True,
     )
 

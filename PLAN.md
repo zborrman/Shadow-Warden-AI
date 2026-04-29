@@ -1,6 +1,6 @@
 # PlAN.md — Shadow Warden AI Product Roadmap
 
-**Version 4.7 · Last updated 2026-04**
+**Version 4.8 · Last updated 2026-04**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -134,4 +134,4 @@ Omitted from coverage: dashboard, auth UI, SIEM, LangChain callback, browser san
 
 ---
 
-*PlAN.md — Shadow Warden AI product roadmap v4.7 · 2026-04*
+*PlAN.md — Shadow Warden AI product roadmap v4.8 · 2026-04*

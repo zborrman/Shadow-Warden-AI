@@ -1,7 +1,7 @@
 # Shadow Warden AI — Pipeline Anatomy
 
 > **Audience:** Security architects, platform engineers, and contributors who need to understand the internal request lifecycle.
-> **Version:** v4.7
+> **Version:** v4.8
 
 ---
 

@@ -1,6 +1,6 @@
 # Security Policy
 
-**Version 4.7 · Last updated 2026-04**
+**Version 4.8 · Last updated 2026-04**
 
 ## Reporting a Vulnerability
 
@@ -60,7 +60,7 @@ We credit researchers who report valid issues in our release notes (opt-in).
 
 | Version | Supported | Notes |
 |---------|-----------|-------|
-| 4.7.x   | ✅ Active  | Current release — PQC + SEP + Sovereign Cloud |
+| 4.8.x   | ✅ Active  | Current release — PQC + SEP + Sovereign Cloud |
 | 4.6.x   | ✅ Security patches only | SEP protocol |
 | 4.5.x   | ⚠️ Critical only | Billing tier gates |
 | < 4.5   | ❌ EOL | Upgrade required |

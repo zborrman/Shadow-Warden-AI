@@ -1,6 +1,6 @@
 # Shadow Warden AI — Security Model
 
-**Version:** 4.7 · **Audience:** Security auditors, CISOs, penetration testers
+**Version:** 4.8 · **Audience:** Security auditors, CISOs, penetration testers
 
 ---
 
@@ -189,4 +189,4 @@ Shadow Warden AI follows responsible disclosure. Security researchers can report
 
 ---
 
-*Shadow Warden AI · security-model.md · Updated v4.7 · 2026-04-25*
+*Shadow Warden AI · security-model.md · Updated v4.8 · 2026-04-25*

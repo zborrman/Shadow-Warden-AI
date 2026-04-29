@@ -1,6 +1,6 @@
 # Shadow Warden AI — Engineering Rules
 
-**Version 4.7 · Last updated 2026-04**
+**Version 4.8 · Last updated 2026-04**
 
 Engineering standards enforced across the entire codebase. Pre-commit hooks in `Hook.md` automate the critical subset.
 
@@ -131,4 +131,4 @@ These rules are non-negotiable and violation blocks merge.
 
 ---
 
-*Rull.md — Shadow Warden AI engineering standards v4.7 · 2026-04*
+*Rull.md — Shadow Warden AI engineering standards v4.8 · 2026-04*

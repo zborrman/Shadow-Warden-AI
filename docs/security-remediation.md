@@ -1,4 +1,4 @@
-# Security Remediation Plan — Shadow Warden AI v4.7
+# Security Remediation Plan — Shadow Warden AI v4.8
 
 **Date:** 2026-04-25  
 **Scope:** 11 reported vulnerabilities re-assessed against actual codebase state  

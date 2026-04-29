@@ -1027,7 +1027,7 @@ if result["risk_level"] in ("HIGH", "BLOCK"):
     elif active_key == "data_pods":
         hero("🗄", "Sovereign Data Pods & Storage",
              "Per-jurisdiction MinIO routing with Fernet-encrypted secret keys.")
-        badge(("COMMUNITY $19", "comm"), ("NEW v4.7", "new"))
+        badge(("COMMUNITY $19", "comm"), ("NEW v4.8", "new"))
 
         st.markdown("## Architecture")
         st.code("""entity.data_class  →  pod_tag.jurisdiction  →  DataPod (MinIO bucket)
@@ -1117,7 +1117,7 @@ PAGERDUTY_ROUTING_KEY=your_pagerduty_key
     elif active_key == "stix":
         hero("🔒", "STIX 2.1 Tamper-Proof Audit Chain",
              "Every community document transfer is recorded in an immutable blockchain-style ledger.")
-        badge(("COMMUNITY $19", "comm"), ("NEW v4.7", "new"))
+        badge(("COMMUNITY $19", "comm"), ("NEW v4.8", "new"))
 
         st.markdown("## How It Works")
         st.code("""append_transfer(transfer_record)

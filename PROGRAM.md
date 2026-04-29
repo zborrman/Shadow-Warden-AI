@@ -1,6 +1,6 @@
 # Shadow Warden AI — Program Reference
 
-**Version:** 4.7.0
+**Version:** 4.8.0
 **Language:** Python 3.11+
 **License:** Proprietary
 **Target:** US / EU marketplace · GDPR Article 30 compliant

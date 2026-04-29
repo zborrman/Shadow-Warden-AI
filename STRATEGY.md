@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 4.7 · Last updated 2026-04**
+**Version 4.8 · Last updated 2026-04**
 
 ---
 
@@ -139,4 +139,4 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v4.7 · 2026-04*
+*Strategy.md — Shadow Warden AI business strategy v4.8 · 2026-04*

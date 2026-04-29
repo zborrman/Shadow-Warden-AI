@@ -1,5 +1,5 @@
 """
-Shadow Warden AI — Enterprise Integration & Development Guide v4.7
+Shadow Warden AI — Enterprise Integration & Development Guide v4.8
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Professional settings page with sidebar navigation across 11 sections.
 
@@ -128,7 +128,7 @@ SECTIONS: list[tuple[str, str, str]] = [
 with st.sidebar:
     st.markdown("### 🏢 Enterprise Settings")
     st.markdown('<hr class="sdiv">', unsafe_allow_html=True)
-    st.caption("v4.7 · Integration & Development Guide")
+    st.caption("v4.8 · Integration & Development Guide")
 
     search = st.text_input("", placeholder="🔍 Search sections…", label_visibility="collapsed")
 

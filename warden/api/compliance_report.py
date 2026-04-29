@@ -130,7 +130,7 @@ def _build_report(days: int) -> dict:
         "gdpr":           gdpr_checklist,
         "fz152":          fz152_checklist,
         "data_residency": _DATA_RESIDENCY,
-        "version":        "4.7",
+        "version":        "4.8",
     }
 
 

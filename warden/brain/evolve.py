@@ -668,7 +668,6 @@ class EvolutionEngine:
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
-    @staticmethod
     def _validate_regex_safety(pattern: str, timeout_s: float = 0.3) -> tuple[bool, str]:
         """Return (ok, reason). Rejects patterns that fail to compile, time out on a
         degenerate backtracking string, or contain nested quantifier structures."""
@@ -677,6 +676,13 @@ class EvolutionEngine:
         except re.error as exc:
             return False, f"compile error: {exc}"
 
+        # Heuristic first — catches (a+)+, (a|a)+, etc. without spawning a thread.
+        # This avoids thread-deadlock on Windows when the degenerate string test
+        # would catastrophically backtrack before the timeout fires.
+        nested_quant = re.compile(r"(\(.*?[+*\{].*?\)[+*\{]|\[.*?\][+*\{][+*\{])")
+        if nested_quant.search(pattern):
+            return False, "nested quantifier structure — potential ReDoS"
+
         canary = "a" * 8_000 + "b"
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
             _fut = _pool.submit(compiled.search, canary)
@@ -684,10 +690,6 @@ class EvolutionEngine:
                 _fut.result(timeout=timeout_s)
             except concurrent.futures.TimeoutError:
                 return False, f"ReDoS timeout (>{timeout_s}s) on degenerate input"
-
-        nested_quant = re.compile(r"(\(.*?[+*\{].*?\)[+*\{]|\[.*?\][+*\{][+*\{])")
-        if nested_quant.search(pattern):
-            return False, "nested quantifier structure — potential ReDoS"
 
         return True, "ok"
 
