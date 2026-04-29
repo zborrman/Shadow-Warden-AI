@@ -10,7 +10,7 @@ contactPoints:
         type: slack
         settings:
           url: ${SLACK_WEBHOOK_URL}
-          channel: "#warden-alerts"
+          recipient: "#warden-alerts"
           username: "Grafana · Shadow Warden"
           icon_emoji: ":shield:"
           title: |
@@ -20,7 +20,6 @@ contactPoints:
             *Severity:* {{ .CommonLabels.severity | title }}
             *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
             *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
-            <http://{{ .ExternalURL }}|Open Grafana>
         disableResolveMessage: false
 
   # ── Email fallback (set GF_SMTP_* env vars to enable) ────────────────────
@@ -42,10 +41,10 @@ policies:
     repeat_interval: 4h
     routes:
       - receiver: slack-warden
-        match:
-          severity: critical
+        matchers:
+          - severity = critical
         repeat_interval: 1h
       - receiver: email-warden
-        match:
-          severity: critical
+        matchers:
+          - severity = critical
         repeat_interval: 2h
