@@ -1,50 +1,7 @@
 apiVersion: 1
 
-contactPoints:
+# Slack + email contact points are configured via Grafana UI (Alerting → Contact points)
+# to avoid provisioning crashes when env vars are not set in the container.
+contactPoints: []
 
-  # ── Slack — primary alert channel ────────────────────────────────────────
-  - orgId: 1
-    name: slack-warden
-    receivers:
-      - uid: slack-warden-receiver
-        type: slack
-        settings:
-          url: ${SLACK_WEBHOOK_URL}
-          recipient: "#warden-alerts"
-          username: "Grafana · Shadow Warden"
-          icon_emoji: ":shield:"
-          title: |
-            {{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }}
-            {{ .CommonLabels.alertname }}
-          text: |
-            *Severity:* {{ .CommonLabels.severity | title }}
-            *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
-            *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
-        disableResolveMessage: false
-
-  # ── Email fallback (set GF_SMTP_* env vars to enable) ────────────────────
-  - orgId: 1
-    name: email-warden
-    receivers:
-      - uid: email-warden-receiver
-        type: email
-        settings:
-          addresses: ${ALERT_EMAIL:-admin@shadow-warden-ai.com}
-          subject: "[Shadow Warden] {{ .CommonLabels.alertname }} — {{ .Status | title }}"
-
-policies:
-  - orgId: 1
-    receiver: slack-warden
-    group_by: [alertname, severity]
-    group_wait: 30s
-    group_interval: 5m
-    repeat_interval: 4h
-    routes:
-      - receiver: slack-warden
-        matchers:
-          - severity = critical
-        repeat_interval: 1h
-      - receiver: email-warden
-        matchers:
-          - severity = critical
-        repeat_interval: 2h
+policies: []
