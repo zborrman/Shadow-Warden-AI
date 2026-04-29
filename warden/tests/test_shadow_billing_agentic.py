@@ -137,7 +137,7 @@ class TestBillingAddons:
         from warden.billing.addons import ADDON_CATALOG
         assert "shadow_ai_discovery" in ADDON_CATALOG
         assert "xai_audit" in ADDON_CATALOG
-        assert "master_agent" in ADDON_CATALOG
+        # master_agent is included in Pro tier — not an add-on
 
     def test_catalog_has_price_and_tier(self):
         from warden.billing.addons import ADDON_CATALOG
