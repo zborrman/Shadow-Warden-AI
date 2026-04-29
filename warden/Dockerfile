@@ -13,7 +13,7 @@
 #    3. Set BROWSER_ENABLED=true in docker-compose.yml
 # ─────────────────────────────────────────────────────────────────────────────
 # syntax=docker/dockerfile:1.7
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /warden
 
