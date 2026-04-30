@@ -28,6 +28,7 @@
 	# Global options
 	# HTTP/3 is on by default — no extra config needed.
 	# Caddy automatically adds Alt-Svc response headers when h3 is active.
+	admin 0.0.0.0:2019
 	servers {
 		metrics
 	}
