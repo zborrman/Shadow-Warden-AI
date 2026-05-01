@@ -83,7 +83,7 @@ class LifecycleManager:
                 "days_until_rotation": (next_rotation - now).days,
             })
 
-        schedule.sort(key=lambda x: x["days_until_rotation"])
+        schedule.sort(key=lambda x: x["days_until_rotation"])  # type: ignore[arg-type,return-value]
         return schedule
 
     def summary(self, tenant_id: str, interval_days: int = 30) -> dict:

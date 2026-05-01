@@ -23,7 +23,7 @@ def _parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
     if not m:
         return {}, content
     try:
-        import yaml  # PyYAML — bundled with most Python environments
+        import yaml  # type: ignore[import-untyped]
         meta = yaml.safe_load(m.group(1)) or {}
     except Exception:
         meta = {}
