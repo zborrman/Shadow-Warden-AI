@@ -4,11 +4,11 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.9 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.10 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
-## Product Tiers — v4.9
+## Product Tiers — v4.10
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -28,6 +28,18 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 | MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v4.10
+
+| Feature | Description |
+|---------|-------------|
+| **Obsidian Plugin** | `obsidian-plugin/main.ts` — TypeScript Obsidian plugin. Ribbon icon + status bar item + 5 commands: **Scan Current Note** (risk badge + secrets + data class modal), **Share Note to Community** (SEP UECIID registration), **Scan Vault** (batch scan with progress modal), **Community Feed** (paginated shared-note feed), **Check Connection** (server health ping). Auto-scan on file modify (debounced). `WardenSettingTab` with server URL, API key, community ID, auto-scan toggle, display name, max feed items. Built with esbuild (CJS, ES2018, watch + production modes). |
+| **Note Scanner** | `warden/integrations/obsidian/note_scanner.py` — `scan_note(content)` parses YAML frontmatter (regex + PyYAML), infers data classification: explicit `data_class:` field wins → tag-based (phi/classified/financial/pii) → keyword scan in body → GENERAL. SecretRedactor integration: `redact(body)` → `.text` (redacted) + `.findings` (kinds). Returns `meta`, `body`, `redacted_body`, `secrets_found`, `data_class`, `word_count`, `has_frontmatter`. |
+| **Obsidian REST API — 5 endpoints** | `warden/api/obsidian.py` — FastAPI router at `/obsidian/*`. `POST /scan` → risk_level (ALLOW/LOW/MEDIUM/HIGH/BLOCK), allowed bool, flags list, data_class, secrets_found, word_count, redacted_content, scanned_at. `POST /share` → SEP UECIID (blocks if secrets_found), community_id, display_name, data_class, word_count, shared_at. `GET /feed?community_id&limit` → paginated shared note list from SEP index. `POST /ai-filter` → SecretRedactor + SemanticGuard on free-form AI prompt. `GET /stats` → integration health object. |
+| **Test Suite** | `warden/tests/test_obsidian_integration.py` — 25 tests across 6 classes: `TestNoteScanner` (9), `TestScanEndpoint` (6), `TestShareEndpoint` (4), `TestFeedEndpoint` (3), `TestAIFilterEndpoint` (2), `TestStatsEndpoint` (1). All pass. |
+| **Plugin Build System** | `obsidian-plugin/esbuild.config.mjs` — esbuild context, obsidian + CodeMirror externals, CJS format, ES2018 target, watch (dev) / minify+exit (prod). `package.json` (TypeScript + obsidian + esbuild devDeps). `tsconfig.json` (ES6 target, ESNext module, inlineSourceMap). `styles.css` — badge colour classes (allow/low/medium/high/block), feed card styles, UECIID monospace, status-bar cursor. `manifest.json` — id `shadow-warden-ai`, minAppVersion `1.4.0`. |
 
 ---
 
