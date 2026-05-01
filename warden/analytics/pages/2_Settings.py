@@ -5,7 +5,7 @@ Four tabs:
   1. Threat Radar          — OSV dependency CVE scanner + ArXiv AI threat feed
   2. Intel Bridge          — Auto-Evolution sync status + manual trigger
   3. Causal Arbiter        — Interactive Bayesian DAG probability visualizer
-  4. Enterprise Guide      — Integration & Development Guide v4.8
+  4. Enterprise Guide      — Integration & Development Guide v4.9
 
 Run with the main dashboard:
     streamlit run warden/analytics/dashboard.py
@@ -429,12 +429,12 @@ Threshold: 65% → {"BLOCK ✗" if result.is_high_risk else "ALLOW ✓"}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — ENTERPRISE INTEGRATION & DEVELOPMENT GUIDE v4.8
+# TAB 4 — ENTERPRISE INTEGRATION & DEVELOPMENT GUIDE v4.9
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_guide:
     st.markdown(
-        '<p class="section-title">Enterprise Integration & Development Guide — v4.8</p>',
+        '<p class="section-title">Enterprise Integration & Development Guide — v4.9</p>',
         unsafe_allow_html=True,
     )
 
@@ -496,6 +496,7 @@ with tab_guide:
         "9. PQC & Sovereign AI Cloud",
         "10. SDK Integrations",
         "11. Environment Variable Reference",
+        "12. Secrets Governance",
     ]
     selected = st.selectbox("Jump to section", sections, label_visibility="collapsed")
 
@@ -897,7 +898,7 @@ DELETE /monitors/{id}""", language="text")
         tier_data = [
             ("Starter",            "$0/mo",   "1,000",    "Core pipeline, analytics dashboard, OpenAI proxy"),
             ("Individual",         "$5/mo",   "5,000",    "+ Audit trail, XAI add-on eligible (+$9/mo)"),
-            ("Community Business", "$19/mo",  "10,000",   "+ File Scanner, Shadow AI Monitor, 3 communities×10 members, 180-day retention, one-click install"),
+            ("Community Business", "$19/mo",  "10,000",   "+ File Scanner, Shadow AI Monitor, 3 communities×10 members, 180-day retention, Secrets Governance, one-click install"),
             ("Pro",                "$69/mo",  "50,000",   "+ MasterAgent (included), SIEM, Prometheus/Grafana, multi-tenant (≤50), Shadow AI Discovery add-on (+$15/mo)"),
             ("Enterprise",         "$249/mo", "Unlimited","+ PQC (ML-DSA-65 + ML-KEM-768), Sovereign AI Cloud, all add-ons, on-prem, white-label, dedicated support"),
         ]
@@ -907,6 +908,7 @@ DELETE /monitors/{id}""", language="text")
 
         st.markdown("### Purchasable Add-Ons")
         addon_data = [
+            ("secrets_vault",       "Secrets Vault Governance","+$12/mo", "Individual+", "Connect AWS SM / Azure KV / HashiCorp / GCP SM vaults. Risk scoring, policy engine, compliance audit, rotation lifecycle."),
             ("xai_audit",           "XAI Audit Reports",      "+$9/mo",  "Individual+", "HTML + PDF causal chain reports for every filter decision. SOC 2 / GDPR audit evidence."),
             ("shadow_ai_discovery", "Shadow AI Discovery",    "+$15/mo", "Pro+",        "Async /24 subnet probe, DNS telemetry classifier, 18-provider fingerprint DB, MONITOR/BLOCK_DENYLIST/ALLOWLIST_ONLY policy."),
         ]
@@ -1273,6 +1275,11 @@ PUT /shadow-ai/policy
                 ("COMMUNITY_VAULT_KEY",   "—",                     "Fernet key for community keypair private key storage. Falls back to VAULT_MASTER_KEY."),
                 ("TRANSFER_RISK_THRESHOLD", "0.70",                "Causal Transfer Guard block threshold (0–1)."),
             ],
+            "Secrets Governance (Community Business+)": [
+                ("SECRETS_DB_PATH",       "/tmp/warden_secrets.db","SQLite DB for vault registry and secrets inventory. Set per-tenant for isolation."),
+                ("VAULT_MASTER_KEY",      "—",                     "Fernet key used to encrypt vault credentials at rest (shared with communities/data pods)."),
+                ("LS_VARIANT_SECRETS_VAULT", "—",                  "Lemon Squeezy variant ID for secrets_vault add-on checkout link."),
+            ],
         }
 
         for section_name, rows in env_sections.items():
@@ -1282,3 +1289,149 @@ PUT /shadow-ai/policy
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
         st.markdown('<div class="guide-note">📄 Full reference: <code>.env.example</code> in the project root. Copy to <code>.env</code> and fill in the required values.</div>', unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # 12 — SECRETS GOVERNANCE
+    # ══════════════════════════════════════════════════════════════════════════
+    elif selected == sections[11]:
+        st.subheader("12. Secrets Governance")
+
+        st.markdown("""
+        <span class="guide-badge badge-smb">COMMUNITY $19</span> Included &nbsp;|&nbsp;
+        <span class="guide-badge badge-indiv">INDIVIDUAL $5</span> + secrets_vault add-on (+$12/mo)
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        Unified vault governance — connect any secrets backend, track every secret's health,
+        enforce rotation and expiry policies, and get a compliance score. No secret values
+        are ever read or stored (GDPR Art. 5 metadata-only).
+        """)
+
+        # ── Vault connectors ──────────────────────────────────────────────────
+        st.markdown("### Supported Vault Backends")
+        vault_data = [
+            ("aws_sm",    "AWS Secrets Manager",   "boto3",                  "region, aws_access_key_id, aws_secret_access_key"),
+            ("azure_kv",  "Azure Key Vault",        "azure-keyvault-secrets", "vault_url, tenant_id, client_id, client_secret"),
+            ("hashicorp", "HashiCorp Vault",         "hvac",                   "url, token (or role_id + secret_id)"),
+            ("gcp_sm",    "GCP Secret Manager",      "google-cloud-secretmanager", "project_id, credentials_json"),
+            ("env",       "Environment Variables",   "none",                   "No config — scans process env for secret-like names"),
+        ]
+        import pandas as pd
+        st.dataframe(pd.DataFrame(vault_data, columns=["vault_type", "Backend", "SDK Required", "Config Fields"]),
+                     use_container_width=True, hide_index=True)
+
+        st.markdown('<div class="guide-note">💡 SDK imports are lazy — a missing SDK only raises <code>RuntimeError</code> when you attempt to use that specific connector. Other connectors remain operational.</div>', unsafe_allow_html=True)
+
+        # ── API ───────────────────────────────────────────────────────────────
+        st.markdown("### REST API — `/secrets/*`")
+        col_v, col_i = st.columns(2)
+
+        with col_v:
+            st.markdown("**Vault management**")
+            st.code("""# Register a vault
+POST /secrets/vaults
+{
+  "vault_type": "aws_sm",
+  "display_name": "Production AWS",
+  "config": {
+    "region": "us-east-1",
+    "aws_access_key_id": "AKIA...",
+    "aws_secret_access_key": "..."
+  }
+}
+
+# List vaults
+GET /secrets/vaults
+
+# Sync — pull metadata from vault
+POST /secrets/vaults/{vault_id}/sync
+
+# Health check
+GET /secrets/vaults/{vault_id}/health
+
+# Delete vault
+DELETE /secrets/vaults/{vault_id}""", language="bash")
+
+        with col_i:
+            st.markdown("**Inventory & lifecycle**")
+            st.code("""# Full inventory (optional filters)
+GET /secrets/inventory?status=expiring_soon
+GET /secrets/inventory?vault_id=vault-abc
+
+# Expiring secrets
+GET /secrets/inventory/expiring?within_days=30
+
+# Stats overview
+GET /secrets/stats
+
+# Rotate a secret
+POST /secrets/rotate/{secret_id}
+{"vault_id": "vault-abc"}
+
+# Retire a secret
+POST /secrets/retire/{secret_id}
+
+# Rotation schedule
+GET /secrets/lifecycle/schedule?interval_days=30""", language="bash")
+
+        st.markdown("**Policy & audit**")
+        col_p, col_a = st.columns(2)
+        with col_p:
+            st.code("""# Get current policy
+GET /secrets/policy
+
+# Update policy
+PUT /secrets/policy
+{
+  "max_age_days": 90,
+  "rotation_interval_days": 30,
+  "alert_days_before_expiry": 14,
+  "auto_retire_expired": false,
+  "require_expiry_date": false,
+  "forbidden_name_patterns": ["test_", "dev_"],
+  "require_tags": ["team", "env"]
+}""", language="bash")
+
+        with col_a:
+            st.code("""# Run compliance audit
+GET /secrets/policy/audit
+# Returns:
+{
+  "compliance_score": 87.5,
+  "total_secrets": 24,
+  "compliant_secrets": 21,
+  "violations_by_severity": {
+    "critical": 0, "high": 1,
+    "medium": 2,  "low": 0
+  },
+  "violations": [...]
+}""", language="json")
+
+        # ── Policy rules ──────────────────────────────────────────────────────
+        st.markdown("### Policy Violation Rules")
+        rules = [
+            ("max_age",          "high",     "Secret older than max_age_days"),
+            ("rotation_interval","high",     "Not rotated within rotation_interval_days"),
+            ("never_rotated",    "medium",   "last_rotated is null and rotation_interval_days > 0"),
+            ("expired",          "critical", "secret.status == 'expired'"),
+            ("missing_expiry",   "medium",   "require_expiry_date=True and no expires_at set"),
+            ("forbidden_pattern","medium",   "Name matches a forbidden_name_patterns regex"),
+            ("missing_tag",      "low",      "A required tag from require_tags is absent"),
+        ]
+        st.dataframe(pd.DataFrame(rules, columns=["Rule", "Severity", "Condition"]),
+                     use_container_width=True, hide_index=True)
+
+        # ── Governance report ─────────────────────────────────────────────────
+        st.markdown("### Full Governance Report")
+        st.code("""GET /secrets/report
+# Returns combined stats + compliance + lifecycle + expiring count + vault list
+{
+  "tenant_id": "acme-corp",
+  "stats": { "total": 24, "by_status": {...}, "high_risk_count": 3 },
+  "compliance": { "score": 87.5, "violations_by_severity": {...} },
+  "lifecycle": { "overdue_rotation": 2, "due_within_7_days": 4 },
+  "expiring_within_30_days": 5,
+  "vaults": [...]
+}""", language="json")
+
+        st.markdown('<div class="guide-warn">⚠ Secret values are <strong>never</strong> fetched, stored, or logged. Only metadata (name, created_at, last_rotated, expires_at, tags) is synced. Vault credentials are Fernet-encrypted at rest using <code>VAULT_MASTER_KEY</code>.</div>', unsafe_allow_html=True)
