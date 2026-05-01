@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Optional
 
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -139,9 +138,9 @@ async def sync_vault(
         connector = build_connector(vault_config)
         metas = await connector.list_secrets()
     except RuntimeError as exc:
-        raise HTTPException(502, str(exc))
+        raise HTTPException(502, str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(502, f"Vault sync failed: {exc}")
+        raise HTTPException(502, f"Vault sync failed: {exc}") from exc
     count = inv.upsert_secrets(tenant_id, vault_id, metas)
     return {"synced_count": count, "vault_id": vault_id}
 
@@ -170,8 +169,8 @@ async def vault_health(
 @router.get("/inventory")
 async def list_inventory(
     tenant_id: str = Depends(_get_tenant),
-    status: Optional[str] = Query(None),
-    vault_id: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    vault_id: str | None = Query(None),
     inv: SecretsInventory = Depends(_get_inventory),
 ):
     secrets = inv.list_secrets(tenant_id, status=status, vault_id=vault_id)

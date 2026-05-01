@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -31,7 +30,7 @@ class ShareNoteRequest(BaseModel):
     filename: str = ""
     display_name: str
     community_id: str
-    data_class: Optional[str] = None
+    data_class: str | None = None
     tags: dict = Field(default_factory=dict)
 
 
@@ -79,7 +78,7 @@ async def scan_note(
         "redacted_content": result["redacted_body"],
         "filename": body.filename,
         "tenant_id": tenant_id,
-        "scanned_at": datetime.now(timezone.utc).isoformat(),
+        "scanned_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -121,7 +120,7 @@ async def share_note(
         "data_class": data_class,
         "filename": body.filename,
         "word_count": result["word_count"],
-        "shared_at": datetime.now(timezone.utc).isoformat(),
+        "shared_at": datetime.now(UTC).isoformat(),
         "tenant_id": tenant_id,
     }
 

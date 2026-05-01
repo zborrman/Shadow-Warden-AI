@@ -5,9 +5,8 @@ import json
 import os
 import sqlite3
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 _DB_PATH = os.environ.get("SECRETS_DB_PATH", "/tmp/warden_secrets.db")
 
@@ -70,7 +69,7 @@ class SecretsPolicyEngine:
         _init_policy_table(db_path)
 
     def upsert_policy(self, policy: SecretsPolicy) -> None:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with _conn(self.db_path) as con:
             con.execute(
                 """INSERT INTO secrets_policy
@@ -121,7 +120,7 @@ class SecretsPolicyEngine:
 
     def evaluate(self, secret, policy: SecretsPolicy) -> list[PolicyViolation]:
         violations: list[PolicyViolation] = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Age check
         if secret.created_at:
@@ -223,7 +222,7 @@ class SecretsPolicyEngine:
 
         return {
             "tenant_id": tenant_id,
-            "audited_at": datetime.now(timezone.utc).isoformat(),
+            "audited_at": datetime.now(UTC).isoformat(),
             "total_secrets": len(secrets),
             "compliant_secrets": compliant,
             "compliance_score": score,

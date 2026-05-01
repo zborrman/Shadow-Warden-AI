@@ -5,8 +5,6 @@ import os
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
 
 
 @dataclass
@@ -14,9 +12,9 @@ class VaultSecretMeta:
     name: str
     vault_id: str
     vault_type: str
-    created_at: Optional[str] = None
-    last_rotated: Optional[str] = None
-    expires_at: Optional[str] = None
+    created_at: str | None = None
+    last_rotated: str | None = None
+    expires_at: str | None = None
     tags: dict = field(default_factory=dict)
 
 
@@ -146,8 +144,8 @@ class AzureKeyVaultConnector(VaultConnector):
 
     def _client(self):
         try:
-            from azure.keyvault.secrets import SecretClient  # type: ignore
             from azure.identity import ClientSecretCredential  # type: ignore
+            from azure.keyvault.secrets import SecretClient  # type: ignore
         except ImportError as exc:
             raise RuntimeError(
                 "azure-keyvault-secrets + azure-identity not installed"
@@ -234,6 +232,7 @@ class GCPSecretManagerConnector(VaultConnector):
     def _client(self):
         try:
             import json
+
             from google.cloud import secretmanager  # type: ignore
             from google.oauth2 import service_account  # type: ignore
             creds_dict = json.loads(self._credentials_json)

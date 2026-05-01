@@ -1,13 +1,11 @@
 """Lifecycle Manager — automated rotation scheduling, expiry alerting, retirement."""
 from __future__ import annotations
 
-import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
-from .inventory import SecretsInventory, SecretRecord
-from .vault_connector import VaultConnector, build_connector
+from .inventory import SecretRecord, SecretsInventory
+from .vault_connector import build_connector
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +57,7 @@ class LifecycleManager:
     def get_rotation_schedule(self, tenant_id: str,
                                interval_days: int = 30) -> list[dict]:
         secrets = self.inventory.list_secrets(tenant_id)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         schedule = []
         for s in secrets:
             if s.status in ("retired", "expired"):

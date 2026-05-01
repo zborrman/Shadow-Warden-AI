@@ -6,9 +6,8 @@ import os
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 
 _DB_PATH = os.environ.get("SECRETS_DB_PATH", "/tmp/warden_secrets.db")
 
@@ -70,9 +69,9 @@ class SecretRecord:
     vault_type: str
     status: str = "active"
     risk_score: float = 0.0
-    created_at: Optional[str] = None
-    last_rotated: Optional[str] = None
-    expires_at: Optional[str] = None
+    created_at: str | None = None
+    last_rotated: str | None = None
+    expires_at: str | None = None
     tags: dict = field(default_factory=dict)
     synced_at: str = ""
 
@@ -85,7 +84,7 @@ def _row_to_record(row: sqlite3.Row) -> SecretRecord:
 
 def _compute_risk(meta) -> float:
     score = 0.0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if meta.expires_at:
         try:
             exp = datetime.fromisoformat(meta.expires_at.replace("Z", "+00:00"))
@@ -123,7 +122,7 @@ class SecretsInventory:
     def register_vault(self, tenant_id: str, vault_type: str, display_name: str,
                        config_enc: str) -> str:
         vault_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with _conn(self.db_path) as con:
             con.execute(
                 """INSERT INTO secrets_vaults
@@ -142,7 +141,7 @@ class SecretsInventory:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_vault(self, tenant_id: str, vault_id: str) -> Optional[dict]:
+    def get_vault(self, tenant_id: str, vault_id: str) -> dict | None:
         with _conn(self.db_path) as con:
             row = con.execute(
                 "SELECT * FROM secrets_vaults WHERE vault_id=? AND tenant_id=?",
@@ -166,7 +165,7 @@ class SecretsInventory:
 
     def upsert_secrets(self, tenant_id: str, vault_id: str,
                        metas: list) -> int:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         synced_names: set[str] = set()
         with _conn(self.db_path) as con:
             for m in metas:
@@ -220,8 +219,8 @@ class SecretsInventory:
 
     # ── Queries ───────────────────────────────────────────────────────────────
 
-    def list_secrets(self, tenant_id: str, status: Optional[str] = None,
-                     vault_id: Optional[str] = None) -> list[SecretRecord]:
+    def list_secrets(self, tenant_id: str, status: str | None = None,
+                     vault_id: str | None = None) -> list[SecretRecord]:
         q = "SELECT * FROM secrets_inventory WHERE tenant_id=?"
         params: list = [tenant_id]
         if status:
@@ -236,8 +235,8 @@ class SecretsInventory:
         return [_row_to_record(r) for r in rows]
 
     def get_expiring(self, tenant_id: str, within_days: int = 30) -> list[SecretRecord]:
-        cutoff = (datetime.now(timezone.utc) + timedelta(days=within_days)).isoformat()
-        now = datetime.now(timezone.utc).isoformat()
+        cutoff = (datetime.now(UTC) + timedelta(days=within_days)).isoformat()
+        now = datetime.now(UTC).isoformat()
         with _conn(self.db_path) as con:
             rows = con.execute(
                 """SELECT * FROM secrets_inventory
@@ -293,7 +292,7 @@ class SecretsInventory:
 
 
 def _derive_status(meta) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if meta.expires_at:
         try:
             exp = datetime.fromisoformat(meta.expires_at.replace("Z", "+00:00"))

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+
 import pytest
 
 os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
@@ -14,7 +15,6 @@ os.environ.setdefault("MODEL_CACHE_DIR", "/tmp/warden_test_models")
 os.environ.setdefault("SEP_DB_PATH", "/tmp/test_obsidian_sep.db")
 
 from fastapi.testclient import TestClient
-
 
 # ── note_scanner tests ────────────────────────────────────────────────────────
 
@@ -77,8 +77,9 @@ class TestNoteScanner:
 
 @pytest.fixture(scope="module")
 def client():
-    from warden.api.obsidian import router
     from fastapi import FastAPI
+
+    from warden.api.obsidian import router
     app = FastAPI()
     app.include_router(router, prefix="/obsidian")
     return TestClient(app)
