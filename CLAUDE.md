@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 4.8 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.9 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
@@ -123,6 +123,12 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/api/financial.py` | FastAPI router `/financial/*` — impact, cost-saved, roi, generate-proposal endpoints |
 | `scripts/impact_analysis.py` | CLI entry point — `--live`, `--industry`, `--requests`, `--export`, `--interactive` |
 | `.github/workflows/ci.yml` | Test matrix (3.11/3.12) + lint + Docker smoke + mutation testing |
+| `warden/secrets/vault_connector.py` | Abstract vault connectors — AWS SM / Azure KV / HashiCorp / GCP SM / env (metadata-only, no plaintext) |
+| `warden/secrets/inventory.py` | SQLite-backed secrets inventory — risk scoring, auto-retire, expiry tracking |
+| `warden/secrets/policy.py` | Secrets Policy Engine — per-tenant governance rules, compliance audit scoring |
+| `warden/secrets/lifecycle.py` | Lifecycle Manager — expiry alerts, auto-retire, rotation scheduling |
+| `warden/api/secrets.py` | FastAPI router `/secrets/*` — 14 endpoints: vaults, inventory, lifecycle, policy, audit, report |
+| `warden/analytics/pages/6_Secrets_Governance.py` | Streamlit dashboard — 6-tab secrets governance UI |
 | `warden/api/monitor.py` | Uptime Monitor REST API — `/monitors/*` CRUD + `/status` + `/uptime` + `/history` |
 | `warden/workers/probe_worker.py` | Async probe scheduler — HTTP/SSL/DNS/TCP checks, TimescaleDB write, Redis Pub/Sub publish |
 | `warden/db/migrations/versions/0010_uptime_monitors.py` | TimescaleDB migration — hypertable, continuous aggregate, retention + compression policies |
