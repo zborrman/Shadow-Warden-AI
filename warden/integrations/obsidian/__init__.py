@@ -1,0 +1,1 @@
+"""Obsidian Business Community integration."""

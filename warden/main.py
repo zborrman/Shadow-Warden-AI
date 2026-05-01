@@ -1171,6 +1171,13 @@ try:
 except ImportError:
     log.warning("secrets router not available — /secrets routes skipped.")
 
+try:
+    from warden.api.obsidian import router as _obsidian_router
+    app.include_router(_obsidian_router, prefix="/obsidian")
+    log.info("Obsidian Business Community integration mounted at /obsidian")
+except ImportError:
+    log.warning("obsidian router not available — /obsidian routes skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /

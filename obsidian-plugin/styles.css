@@ -1,0 +1,83 @@
+/* Shadow Warden AI — Obsidian plugin styles */
+
+.warden-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.warden-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.warden-badge-allow  { background: #1a3a2a; color: #48bb78; border: 1px solid #276749; }
+.warden-badge-low    { background: #1a3a2a; color: #68d391; border: 1px solid #276749; }
+.warden-badge-medium { background: #3a2e1a; color: #f6ad55; border: 1px solid #7b4f12; }
+.warden-badge-high   { background: #3a1a1a; color: #fc8181; border: 1px solid #9b2c2c; }
+.warden-badge-block  { background: #4a1a1a; color: #fc4444; border: 1px solid #c53030; }
+
+.warden-section {
+  background: var(--background-secondary);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 10px 0;
+}
+
+.warden-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.warden-tag {
+  display: inline-block;
+  background: var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  margin: 2px;
+  font-family: var(--font-monospace);
+}
+
+.warden-feed-entry {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 8px 0;
+  cursor: default;
+}
+
+.warden-feed-entry:hover {
+  background: var(--background-modifier-hover);
+}
+
+.warden-feed-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.warden-ueciid {
+  font-family: var(--font-monospace);
+  font-size: 0.82rem;
+  color: var(--text-accent);
+}
+
+.warden-status-bar {
+  cursor: pointer;
+}
+
+.warden-divider {
+  border: none;
+  border-top: 1px solid var(--background-modifier-border);
+  margin: 14px 0;
+}

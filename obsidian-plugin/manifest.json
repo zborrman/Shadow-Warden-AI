@@ -1,0 +1,10 @@
+{
+  "id": "shadow-warden-ai",
+  "name": "Shadow Warden AI",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Business Community integration — scan notes for secrets/PII, share to community via SEP, filter AI prompts. Powered by Shadow Warden AI.",
+  "author": "Shadow Warden AI",
+  "authorUrl": "https://shadow-warden-ai.com",
+  "isDesktopOnly": false
+}
