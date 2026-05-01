@@ -123,10 +123,10 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/api/financial.py` | FastAPI router `/financial/*` — impact, cost-saved, roi, generate-proposal endpoints |
 | `scripts/impact_analysis.py` | CLI entry point — `--live`, `--industry`, `--requests`, `--export`, `--interactive` |
 | `.github/workflows/ci.yml` | Test matrix (3.11/3.12) + lint + Docker smoke + mutation testing |
-| `warden/secrets/vault_connector.py` | Abstract vault connectors — AWS SM / Azure KV / HashiCorp / GCP SM / env (metadata-only, no plaintext) |
-| `warden/secrets/inventory.py` | SQLite-backed secrets inventory — risk scoring, auto-retire, expiry tracking |
-| `warden/secrets/policy.py` | Secrets Policy Engine — per-tenant governance rules, compliance audit scoring |
-| `warden/secrets/lifecycle.py` | Lifecycle Manager — expiry alerts, auto-retire, rotation scheduling |
+| `warden/secrets_gov/vault_connector.py` | Abstract vault connectors — AWS SM / Azure KV / HashiCorp / GCP SM / env (metadata-only, no plaintext) |
+| `warden/secrets_gov/inventory.py` | SQLite-backed secrets inventory — risk scoring, auto-retire, expiry tracking |
+| `warden/secrets_gov/policy.py` | Secrets Policy Engine — per-tenant governance rules, compliance audit scoring |
+| `warden/secrets_gov/lifecycle.py` | Lifecycle Manager — expiry alerts, auto-retire, rotation scheduling |
 | `warden/api/secrets.py` | FastAPI router `/secrets/*` — 14 endpoints: vaults, inventory, lifecycle, policy, audit, report |
 | `warden/analytics/pages/6_Secrets_Governance.py` | Streamlit dashboard — 6-tab secrets governance UI |
 | `warden/api/monitor.py` | Uptime Monitor REST API — `/monitors/*` CRUD + `/status` + `/uptime` + `/history` |

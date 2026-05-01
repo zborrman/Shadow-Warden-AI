@@ -4,17 +4,17 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.8 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.9 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
-## Product Tiers — v4.8
+## Product Tiers — v4.9
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
 | **Starter** | Free | 1,000 | Core filter pipeline, analytics dashboard |
 | **Individual** | $5/mo | 5,000 | + XAI audit add-on eligible (+$9/mo) |
-| **Community Business** *(SMB)* | $19/mo | 10,000 | + File Scanner, Shadow AI Monitor, Communities (3×10), 180-day retention, one-click install |
+| **Community Business** *(SMB)* | $19/mo | 10,000 | + File Scanner, Shadow AI Monitor, Communities (3×10), 180-day retention, Secrets Governance, one-click install |
 | **Pro** | $69/mo | 50,000 | + MasterAgent, Shadow AI Discovery add-on eligible (+$15/mo) |
 | **Enterprise** | $249/mo | Unlimited | + PQC (ML-DSA-65 + ML-KEM-768), Sovereign AI Cloud, all add-ons |
 
@@ -22,11 +22,27 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 
 | Add-on | Price | Min Tier | Feature key |
 |--------|-------|----------|-------------|
+| Secrets Vault Governance | +$12/mo | Individual | `secrets_governance` |
 | XAI Audit Reports | +$9/mo | Individual | `xai_reports_enabled` |
 | Shadow AI Discovery | +$15/mo | Pro | `shadow_ai_enabled` |
 | MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v4.9
+
+| Feature | Description |
+|---------|-------------|
+| **Secrets Vault Connectors** | `warden/secrets_gov/vault_connector.py` — abstract `VaultConnector` base with 5 implementations: `AWSSecretsManagerConnector`, `AzureKeyVaultConnector`, `HashiCorpVaultConnector`, `GCPSecretManagerConnector`, `EnvVaultConnector`. All return `VaultSecretMeta` (name, vault_id, vault_type, created_at, last_rotated, expires_at, tags) — no plaintext values ever read or stored. Lazy SDK imports: missing boto3/azure-keyvault/hvac/google-cloud-secretmanager raises `RuntimeError` with install instruction. `build_connector(vault_config)` factory. |
+| **Secrets Inventory** | `warden/secrets_gov/inventory.py` — SQLite-backed (`SECRETS_DB_PATH` env, default `/tmp/warden_secrets.db`). Tables: `secrets_vaults` (tenant_id, vault_type, display_name, config_enc, created_at) and `secrets_inventory` (secret_id UUID, vault_id FK, name, status, risk_score, created_at, last_rotated, expires_at, tags JSON). `upsert_secrets()` auto-retires secrets removed from vault on next sync. `_compute_risk()` scores 0–100 based on expiry days remaining + rotation age. `get_stats()` returns totals, by_status, by_vault_type, high_risk_count, vaults count. |
+| **Secrets Policy Engine** | `warden/secrets_gov/policy.py` — `SecretsPolicy` dataclass (max_age_days=90, rotation_interval_days=30, alert_days_before_expiry=14, auto_retire_expired, require_expiry_date, forbidden_name_patterns, require_tags). `SecretsPolicyEngine.evaluate()` produces `PolicyViolation` list across 7 rules: max_age (high), rotation_interval (high), never_rotated (medium), expired (critical), missing_expiry (medium), forbidden_pattern (medium), missing_tag (low). `audit()` returns compliance_score 0–100, violations_by_severity breakdown, full violation list. Empty inventory scores 100.0. |
+| **Lifecycle Manager** | `warden/secrets_gov/lifecycle.py` — `check_and_flag_expiry()` async, flags secrets within alert window. `retire_expired()` auto-retires past-expiry secrets. `rotate()` dispatches to vault connector's `rotate_secret()` and updates `last_rotated`. `get_rotation_schedule()` returns upcoming rotation due dates. `summary()` returns overdue_rotation + due_within_7_days counts. |
+| **Secrets REST API — 14 endpoints** | `warden/api/secrets.py` — FastAPI router at `/secrets/*`. Uses `Depends()` DI (not module-level singletons) for per-request DB path from env. Vault endpoints: `GET/POST /vaults`, `DELETE /vaults/{id}`, `POST /vaults/{id}/sync`, `GET /vaults/{id}/health`. Inventory: `GET /inventory` (status/vault_id filters), `GET /inventory/expiring?within_days=30`, `GET /stats`. Lifecycle: `POST /rotate/{secret_id}`, `POST /retire/{secret_id}`, `GET /lifecycle/schedule`. Policy: `GET/PUT /policy`, `GET /policy/audit`. Report: `GET /report` (stats + compliance + lifecycle summary + expiring count + vaults). |
+| **Billing Gate** | `warden/billing/feature_gate.py` — `secrets_governance`: True for community_business, pro, enterprise; False for starter/individual. `warden/billing/addons.py` — `secrets_vault` add-on: $12/mo, min_tier individual, unlocks `secrets_governance`. Allows Individual users to purchase vault governance without upgrading to Community Business. |
+| **Secrets Governance Dashboard** | `warden/analytics/pages/6_Secrets_Governance.py` — 6-tab Streamlit UI: **Overview** (4 KPI metrics + by_status bar chart + by_vault_type bar chart + lifecycle health), **Inventory** (status filter select + dataframe), **Expiring Soon** (day slider 7–90 + warning count), **Vaults** (vault table + register form + sync trigger), **Policy** (form with all 7 policy fields, saves via PUT), **Audit Report** (run-on-demand compliance score + severity breakdown + violations dataframe). |
+| **stdlib conflict fix** | Renamed `warden/secrets/` → `warden/secrets_gov/` to prevent Python's stdlib `secrets` module from being shadowed when `/warden` is in `sys.path`. Affects all imports: `from warden.secrets_gov.*`. |
 
 ---
 
