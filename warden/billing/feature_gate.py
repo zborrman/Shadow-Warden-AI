@@ -147,6 +147,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "shadow_ai_enabled":           False,  # add-on only; not available at starter
         "xai_reports_enabled":         False,  # add-on only; not available at starter
         "sovereign_enabled":           False,
+        "secrets_governance":          False,  # Community Business+
         "communities_enabled":         False,
         "max_communities":             0,
         "max_members_per_community":   0,
@@ -189,6 +190,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "shadow_ai_enabled":           False,  # add-on only at individual tier
         "xai_reports_enabled":         False,  # add-on ($9/mo) unlocks at individual
         "sovereign_enabled":           False,
+        "secrets_governance":          False,  # add-on (secrets_vault $12/mo) unlocks at individual
         "communities_enabled":         False,
         "max_communities":             0,
         "max_members_per_community":   0,
@@ -229,6 +231,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "shadow_ai_enabled":           False,   # ← add-on: +$15/mo Shadow AI Discovery
         "xai_reports_enabled":         True,    # ← Causal XAI + PDF reports included at Pro
         "sovereign_enabled":           False,
+        "secrets_governance":          True,    # ← Secrets Governance included at Pro
         "communities_enabled":         True,    # ← Secure Communities
         "max_communities":             10,
         "max_members_per_community":   25,
@@ -260,6 +263,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "shadow_ai_monitor":           True,   # MONITOR-only (no BLOCK_DENYLIST)
         "shadow_ai_enabled":           False,  # full subnet scan is add-on
         "xai_reports_enabled":         False,
+        "secrets_governance":          True,   # ← Secrets Governance included at Community Business
         # Communities
         "communities_enabled":         True,
         "max_communities":             3,
@@ -320,6 +324,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "shadow_ai_enabled":           True,    # ← Shadow AI Discovery (included at Enterprise)
         "xai_reports_enabled":         True,    # ← Causal XAI + PDF reports (included)
         "sovereign_enabled":           True,    # ← MASQUE Jurisdictional Tunnels (included)
+        "secrets_governance":          True,    # ← Secrets Governance (included at Enterprise)
         "communities_enabled":         True,
         "max_communities":             _UNLIMITED,
         "max_members_per_community":   _UNLIMITED,

@@ -79,6 +79,16 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/xai-audit",
     },
 
+    "secrets_vault": {
+        "display_name":   "Secrets Vault Governance",
+        "description":    "Centralize secrets discovery, lifecycle automation, and policy enforcement across AWS SM, Azure KV, HashiCorp Vault, GCP SM, and env.",
+        "usd_per_month":  12,
+        "min_tier":       "individual",
+        "ls_variant_id":  os.getenv("LS_VARIANT_SECRETS_VAULT", ""),
+        "unlocks":        ["secrets_governance"],
+        "docs_url":       "/docs/addons/secrets-vault",
+    },
+
 }
 
 

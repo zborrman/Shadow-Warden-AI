@@ -1164,6 +1164,13 @@ try:
 except ImportError:
     log.warning("community_intel router not available — /community-intel routes skipped.")
 
+try:
+    from warden.api.secrets import router as _secrets_router
+    app.include_router(_secrets_router, prefix="/secrets")
+    log.info("Secrets Governance mounted at /secrets")
+except ImportError:
+    log.warning("secrets router not available — /secrets routes skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
