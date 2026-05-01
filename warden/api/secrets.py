@@ -9,10 +9,10 @@ from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from warden.secrets.inventory import SecretsInventory
-from warden.secrets.lifecycle import LifecycleManager
-from warden.secrets.policy import SecretsPolicy, SecretsPolicyEngine
-from warden.secrets.vault_connector import CONNECTOR_TYPES, build_connector
+from warden.secrets_gov.inventory import SecretsInventory
+from warden.secrets_gov.lifecycle import LifecycleManager
+from warden.secrets_gov.policy import SecretsPolicy, SecretsPolicyEngine
+from warden.secrets_gov.vault_connector import CONNECTOR_TYPES, build_connector
 
 router = APIRouter(tags=["secrets"])
 

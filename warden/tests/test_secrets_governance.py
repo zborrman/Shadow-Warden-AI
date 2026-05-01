@@ -27,7 +27,7 @@ def _tid():
 
 class TestEnvConnector:
     def test_lists_secret_env_vars(self, monkeypatch):
-        from warden.secrets.vault_connector import EnvVaultConnector
+        from warden.secrets_gov.vault_connector import EnvVaultConnector
         monkeypatch.setenv("MY_API_KEY", "sk-abc123")
         monkeypatch.setenv("DB_HOST", "localhost")  # not a secret
         conn = EnvVaultConnector(vault_id="env-test")
@@ -37,18 +37,18 @@ class TestEnvConnector:
         assert "DB_HOST" not in names
 
     def test_rotate_returns_false(self):
-        from warden.secrets.vault_connector import EnvVaultConnector
+        from warden.secrets_gov.vault_connector import EnvVaultConnector
         conn = EnvVaultConnector()
         result = asyncio.run(conn.rotate_secret("KEY"))
         assert result is False
 
     def test_health_check_true(self):
-        from warden.secrets.vault_connector import EnvVaultConnector
+        from warden.secrets_gov.vault_connector import EnvVaultConnector
         conn = EnvVaultConnector()
         assert asyncio.run(conn.health_check()) is True
 
     def test_vault_type(self):
-        from warden.secrets.vault_connector import EnvVaultConnector
+        from warden.secrets_gov.vault_connector import EnvVaultConnector
         assert EnvVaultConnector.vault_type == "env"
 
 
@@ -56,17 +56,17 @@ class TestEnvConnector:
 
 class TestBuildConnector:
     def test_builds_env_connector(self):
-        from warden.secrets.vault_connector import build_connector, EnvVaultConnector
+        from warden.secrets_gov.vault_connector import build_connector, EnvVaultConnector
         conn = build_connector({"vault_type": "env", "vault_id": "x"})
         assert isinstance(conn, EnvVaultConnector)
 
     def test_raises_on_unknown_type(self):
-        from warden.secrets.vault_connector import build_connector
+        from warden.secrets_gov.vault_connector import build_connector
         with pytest.raises(ValueError, match="Unknown vault type"):
             build_connector({"vault_type": "nonexistent", "vault_id": "x"})
 
     def test_all_types_registered(self):
-        from warden.secrets.vault_connector import CONNECTOR_TYPES
+        from warden.secrets_gov.vault_connector import CONNECTOR_TYPES
         assert set(CONNECTOR_TYPES) == {"aws_sm", "azure_kv", "hashicorp", "gcp_sm", "env"}
 
 
@@ -75,7 +75,7 @@ class TestBuildConnector:
 class TestSecretsInventory:
     def setup_method(self):
         self.db = _tmp_db()
-        from warden.secrets.inventory import SecretsInventory
+        from warden.secrets_gov.inventory import SecretsInventory
         self.inv = SecretsInventory(self.db)
         self.tid = _tid()
 
@@ -101,7 +101,7 @@ class TestSecretsInventory:
         assert self.inv.delete_vault(self.tid, "fake-id") is False
 
     def test_upsert_and_list_secrets(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         vid = self.inv.register_vault(self.tid, "env", "Env", "{}")
         metas = [
             VaultSecretMeta(name="API_KEY", vault_id=vid, vault_type="env"),
@@ -113,7 +113,7 @@ class TestSecretsInventory:
         assert len(secrets) == 2
 
     def test_upsert_idempotent(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         vid = self.inv.register_vault(self.tid, "env", "Env", "{}")
         meta = [VaultSecretMeta(name="KEY", vault_id=vid, vault_type="env")]
         self.inv.upsert_secrets(self.tid, vid, meta)
@@ -121,7 +121,7 @@ class TestSecretsInventory:
         assert len(self.inv.list_secrets(self.tid)) == 1
 
     def test_secrets_retired_when_removed_from_vault(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         vid = self.inv.register_vault(self.tid, "env", "Env", "{}")
         metas = [VaultSecretMeta(name="KEY_A", vault_id=vid, vault_type="env"),
                  VaultSecretMeta(name="KEY_B", vault_id=vid, vault_type="env")]
@@ -133,7 +133,7 @@ class TestSecretsInventory:
         assert any(s.name == "KEY_B" for s in retired)
 
     def test_get_expiring_secrets(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         from datetime import datetime, timedelta, timezone
         vid = self.inv.register_vault(self.tid, "aws_sm", "AWS", "{}")
         soon = (datetime.now(timezone.utc) + timedelta(days=10)).isoformat()
@@ -144,7 +144,7 @@ class TestSecretsInventory:
         assert any(s.name == "EXPIRING_KEY" for s in expiring)
 
     def test_stats(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         vid = self.inv.register_vault(self.tid, "env", "E", "{}")
         self.inv.upsert_secrets(self.tid, vid,
                                 [VaultSecretMeta(name="K", vault_id=vid, vault_type="env")])
@@ -153,7 +153,7 @@ class TestSecretsInventory:
         assert stats["vaults"] == 1
 
     def test_update_status(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         vid = self.inv.register_vault(self.tid, "env", "E", "{}")
         self.inv.upsert_secrets(self.tid, vid,
                                 [VaultSecretMeta(name="K", vault_id=vid, vault_type="env")])
@@ -162,7 +162,7 @@ class TestSecretsInventory:
         assert self.inv.list_secrets(self.tid, status="retired")[0].secret_id == secret_id
 
     def test_filter_by_vault(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         vid1 = self.inv.register_vault(self.tid, "env", "V1", "{}")
         vid2 = self.inv.register_vault(self.tid, "env", "V2", "{}")
         self.inv.upsert_secrets(self.tid, vid1,
@@ -178,7 +178,7 @@ class TestSecretsInventory:
 class TestSecretsPolicyEngine:
     def setup_method(self):
         self.db = _tmp_db()
-        from warden.secrets.policy import SecretsPolicyEngine
+        from warden.secrets_gov.policy import SecretsPolicyEngine
         self.engine = SecretsPolicyEngine(self.db)
         self.tid = _tid()
 
@@ -188,7 +188,7 @@ class TestSecretsPolicyEngine:
         assert p.rotation_interval_days == 30
 
     def test_upsert_and_get_policy(self):
-        from warden.secrets.policy import SecretsPolicy
+        from warden.secrets_gov.policy import SecretsPolicy
         policy = SecretsPolicy(
             tenant_id=self.tid,
             max_age_days=60,
@@ -202,8 +202,8 @@ class TestSecretsPolicyEngine:
         assert fetched.require_expiry_date is True
 
     def test_evaluate_expired_secret(self):
-        from warden.secrets.policy import SecretsPolicy
-        from warden.secrets.inventory import SecretRecord
+        from warden.secrets_gov.policy import SecretsPolicy
+        from warden.secrets_gov.inventory import SecretRecord
         from datetime import datetime, timedelta, timezone
         policy = SecretsPolicy(tenant_id=self.tid)
         secret = SecretRecord(
@@ -218,8 +218,8 @@ class TestSecretsPolicyEngine:
         assert "expired" in rules
 
     def test_evaluate_never_rotated(self):
-        from warden.secrets.policy import SecretsPolicy
-        from warden.secrets.inventory import SecretRecord
+        from warden.secrets_gov.policy import SecretsPolicy
+        from warden.secrets_gov.inventory import SecretRecord
         policy = SecretsPolicy(tenant_id=self.tid, rotation_interval_days=30)
         secret = SecretRecord(
             secret_id="s2", tenant_id=self.tid, vault_id="v1",
@@ -231,8 +231,8 @@ class TestSecretsPolicyEngine:
         assert any(v.rule == "never_rotated" for v in violations)
 
     def test_evaluate_forbidden_pattern(self):
-        from warden.secrets.policy import SecretsPolicy
-        from warden.secrets.inventory import SecretRecord
+        from warden.secrets_gov.policy import SecretsPolicy
+        from warden.secrets_gov.inventory import SecretRecord
         policy = SecretsPolicy(tenant_id=self.tid, forbidden_name_patterns=["password"])
         secret = SecretRecord(
             secret_id="s3", tenant_id=self.tid, vault_id="v1",
@@ -244,8 +244,8 @@ class TestSecretsPolicyEngine:
         assert any(v.rule == "forbidden_pattern" for v in violations)
 
     def test_audit_compliance_score(self):
-        from warden.secrets.policy import SecretsPolicy
-        from warden.secrets.inventory import SecretRecord
+        from warden.secrets_gov.policy import SecretsPolicy
+        from warden.secrets_gov.inventory import SecretRecord
         policy = SecretsPolicy(tenant_id=self.tid)
         self.engine.upsert_policy(policy)
         secrets = [
@@ -265,8 +265,8 @@ class TestSecretsPolicyEngine:
 class TestLifecycleManager:
     def setup_method(self):
         self.db = _tmp_db()
-        from warden.secrets.inventory import SecretsInventory
-        from warden.secrets.lifecycle import LifecycleManager
+        from warden.secrets_gov.inventory import SecretsInventory
+        from warden.secrets_gov.lifecycle import LifecycleManager
         self.inv = SecretsInventory(self.db)
         self.lifecycle = LifecycleManager(self.inv)
         self.tid = _tid()
@@ -276,7 +276,7 @@ class TestLifecycleManager:
         assert summary["total_tracked"] == 0
 
     def test_rotation_schedule_with_secrets(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         from datetime import datetime, timedelta, timezone
         vid = self.inv.register_vault(self.tid, "env", "E", "{}")
         old_date = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
@@ -287,7 +287,7 @@ class TestLifecycleManager:
         assert summary["overdue_rotation"] >= 1
 
     def test_check_and_flag_expiry(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         from datetime import datetime, timedelta, timezone
         vid = self.inv.register_vault(self.tid, "env", "E", "{}")
         soon = (datetime.now(timezone.utc) + timedelta(days=5)).isoformat()
@@ -300,7 +300,7 @@ class TestLifecycleManager:
         assert len(expiring) >= 1
 
     def test_retire_expired(self):
-        from warden.secrets.vault_connector import VaultSecretMeta
+        from warden.secrets_gov.vault_connector import VaultSecretMeta
         from datetime import datetime, timedelta, timezone
         vid = self.inv.register_vault(self.tid, "env", "E", "{}")
         past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
