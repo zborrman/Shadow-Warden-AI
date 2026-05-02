@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Enterprise Settings | Shadow Warden AI v4.7</title>
+<title>Enterprise Settings | Shadow Warden AI v4.10</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -278,7 +278,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 <header id="topbar">
   <a href="/" class="logo">
     <div class="logo-icon">🛡️<span class="logo-dot"></span></div>
-    <div><div class="logo-name">Shadow Warden AI</div><div class="logo-ver">v4.7 · Enterprise</div></div>
+    <div><div class="logo-name">Shadow Warden AI</div><div class="logo-ver">v4.10 · Enterprise</div></div>
   </a>
   <div class="tb-sep"></div>
   <span class="tb-title"><b>Enterprise Settings</b> — High Level Configuration</span>
@@ -309,6 +309,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
       <div class="sb-item" onclick="show('sovereign')"><span class="icon">🌍</span>Sovereign Cloud<span class="dot" style="background:var(--cyan)"></span></div>
       <div class="sb-item" onclick="show('pqc')"><span class="icon">🔐</span>Post-Quantum Crypto<span class="dot" style="background:var(--gold)"></span></div>
       <div class="sb-item" onclick="show('sep')"><span class="icon">🏛</span>SEP Communities</div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">v4.9–4.10</div>
+      <div class="sb-item" onclick="show('secrets')"><span class="icon">🔑</span>Secrets Governance<span class="dot" style="background:var(--gold)"></span></div>
+      <div class="sb-item" onclick="show('obsidian')"><span class="icon">🗒️</span>Obsidian<span class="dot" style="background:var(--green)"></span></div>
+      <div class="sb-item" onclick="show('accessibility')"><span class="icon">♿</span>Accessibility</div>
     </div>
     <div class="sb-section">
       <div class="sb-label">Infrastructure</div>
@@ -434,7 +440,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
         <p>SOVA autonomous operator (30 tools, Claude Opus 4.6, ≤10 iterations), MasterAgent multi-agent SOC (4 sub-agents, HMAC tokens, Human-in-the-Loop), and WardenHealer autonomous anomaly detection.</p>
         <div class="ph-tags">
           <span class="tag pill-blue">SOVA · 30 Tools</span>
-          <span class="tag pill-purple">MasterAgent v4.0</span>
+          <span class="tag pill-purple">MasterAgent v4.0+</span>
           <span class="tag pill-green">WardenHealer</span>
         </div>
       </div>
@@ -479,7 +485,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
         <h2>FraudScore Sovereign</h2>
         <p>6-dimensional composite fraud scoring engine — Behavioral, Semantic, Identity, Exfiltration, Injection, Sovereign Violation. Computed in &lt;3ms with Bayesian causal explainability.</p>
         <div class="ph-tags">
-          <span class="tag pill-red">v4.0 Elite</span>
+          <span class="tag pill-red">v4.10 Elite</span>
           <span class="tag pill-blue">&lt;3ms</span>
           <span class="tag pill-purple">6 Dimensions</span>
         </div>
@@ -741,37 +747,56 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 
       <div class="scard">
         <div class="scard-head"><h3>Plan Selection</h3></div>
-        <div class="tier-grid">
+        <div class="tier-grid" style="grid-template-columns:repeat(5,1fr)">
+          <div class="tier-card">
+            <div class="tier-name" style="color:var(--muted)">Starter</div>
+            <div class="tier-price" style="font-size:1.4rem">Free</div>
+            <ul class="tier-features">
+              <li>1K req/day</li>
+              <li>9-layer pipeline</li>
+              <li>1 tenant</li>
+            </ul>
+          </div>
           <div class="tier-card">
             <div class="tier-name" style="color:var(--muted)">Individual</div>
-            <div class="tier-price">$29<span>/mo</span></div>
+            <div class="tier-price">$5<span>/mo</span></div>
             <ul class="tier-features">
-              <li>Pipeline defense (14 layers)</li>
+              <li>5K req/day</li>
               <li>XAI reports (add-on)</li>
               <li>1 tenant</li>
-              <li>99.5% uptime SLA</li>
+            </ul>
+          </div>
+          <div class="tier-card">
+            <div class="tier-name" style="color:var(--green)">Community Business</div>
+            <div class="tier-price" style="color:var(--green)">$19<span>/mo</span></div>
+            <ul class="tier-features">
+              <li>10K req/day</li>
+              <li>File Scanner + Shadow AI Monitor</li>
+              <li>3 communities × 10 members</li>
+              <li>Secrets Governance</li>
+              <li>Obsidian plugin</li>
+              <li>180-day retention</li>
             </ul>
           </div>
           <div class="tier-card">
             <div class="tier-name" style="color:var(--blue)">Pro</div>
             <div class="tier-price" style="color:var(--blue)">$69<span>/mo</span></div>
             <ul class="tier-features">
-              <li>Everything in Individual</li>
-              <li>MasterAgent v4.0</li>
+              <li>50K req/day</li>
+              <li>MasterAgent included</li>
               <li>Shadow AI (add-on)</li>
               <li>Multi-tenant</li>
-              <li>99.9% uptime SLA</li>
+              <li>99.9% SLA</li>
             </ul>
           </div>
           <div class="tier-card selected">
             <div class="tier-name" style="color:var(--purple)">Enterprise</div>
             <div class="tier-price" style="color:var(--purple)">$249<span>/mo</span></div>
             <ul class="tier-features">
-              <li>Everything in Pro</li>
-              <li>Post-Quantum Crypto</li>
-              <li>Sovereign Cloud</li>
+              <li>Unlimited req</li>
+              <li>PQC + Sovereign</li>
               <li>SEP Communities</li>
-              <li>99.95% uptime SLA</li>
+              <li>99.95% SLA</li>
               <li>Dedicated support</li>
             </ul>
           </div>
@@ -799,6 +824,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
             <span class="pill pill-dim" style="margin-left:auto;margin-right:12px">Included</span>
             <div class="addon-price" style="color:var(--dim)">+$20/mo</div>
           </div>
+          <div class="addon-row">
+            <div class="addon-icon" style="background:rgba(255,214,10,0.12)">🔑</div>
+            <div><div class="addon-name">Secrets Vault Add-on</div><div class="addon-desc">AWS SM / Azure KV / HashiCorp / GCP SM connector (Individual+, Community Business+ included)</div></div>
+            <span class="pill pill-green" style="margin-left:auto;margin-right:12px">Active</span>
+            <div class="addon-price">+$12/mo</div>
+          </div>
         </div>
       </div>
 
@@ -807,6 +838,109 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
         <div class="scard-body">
           <div class="srow"><div class="srow-left"><div class="srow-key">ADMIN_KEY</div><div class="srow-desc">X-Admin-Key header required for POST /billing/addons/grant and DELETE /billing/addons/revoke</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="••••••••••••••••••••••••"></div></div>
           <div class="srow"><div class="srow-left"><div class="srow-key">WARDEN_API_KEY</div><div class="srow-desc">Per-tenant API keys (JSON multi-key + SHA-256 hash lookup, constant-time compare)</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="••••••••••••••••••••••••"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ SECRETS GOVERNANCE ════════════════════ -->
+    <div class="panel" id="p-secrets" data-color="gold">
+      <div class="panel-header">
+        <h2>Secrets Governance <span style="font-size:0.6rem;padding:2px 8px;border-radius:4px;background:rgba(255,214,10,0.15);color:var(--gold);margin-left:8px;">v4.9</span></h2>
+        <p>Multi-vault connector (AWS SM / Azure KV / HashiCorp / GCP SM / env). SQLite secrets inventory — risk scoring, expiry tracking, auto-retire. Per-tenant policy engine with 7 violation rules. 14 REST endpoints.</p>
+        <div class="ph-tags">
+          <span class="tag pill-gold">Multi-Vault</span>
+          <span class="tag pill-green">Auto-Retire</span>
+          <span class="tag pill-purple">Community Business+</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Vault Connectors</h3><span class="sh-note">secrets_gov/vault_connector.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SECRETS_GOV_ENABLED</div><div class="srow-desc">Enable secrets governance (Community Business+ or secrets_vault add-on)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SECRETS_DB_PATH</div><div class="srow-desc">SQLite database path for secrets inventory</div></div><div class="srow-right"><input class="s-input wide" value="/tmp/warden_secrets.db"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">AWS_SECRETS_MANAGER_REGION</div><div class="srow-desc">AWS region for Secrets Manager connector (lazy SDK import)</div></div><div class="srow-right"><input class="s-input" placeholder="us-east-1"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">AZURE_VAULT_URL</div><div class="srow-desc">Azure Key Vault URL (https://your-vault.vault.azure.net/)</div></div><div class="srow-right"><input class="s-input wide" placeholder="https://••••.vault.azure.net/"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">HASHICORP_VAULT_URL</div><div class="srow-desc">HashiCorp Vault URL + token (metadata-only, no plaintext)</div></div><div class="srow-right"><input class="s-input wide" placeholder="http://vault:8200"></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Lifecycle & Policy</h3><span class="sh-note">secrets_gov/lifecycle.py · secrets_gov/policy.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">SECRET_EXPIRY_WARN_DAYS</div><div class="srow-desc">Days before expiry to trigger alert (lifecycle manager)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="3" max="60" value="14" oninput="this.nextElementSibling.textContent=this.value+'d'"><span class="s-slider-val">14d</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SECRET_AUTO_RETIRE</div><div class="srow-desc">Auto-retire expired secrets on sync (marks RETIRED — does not delete)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">ROTATION_SCHEDULE_DEFAULT</div><div class="srow-desc">Default rotation interval for new secrets (days)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="7" max="365" value="90" oninput="this.nextElementSibling.textContent=this.value+'d'"><span class="s-slider-val">90d</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">COMPLIANCE_SCORE_MIN</div><div class="srow-desc">Minimum acceptable compliance audit score (0–100). Below triggers alert.</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="50" max="100" value="80" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">80</span></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ OBSIDIAN ════════════════════ -->
+    <div class="panel" id="p-obsidian" data-color="green">
+      <div class="panel-header">
+        <h2>Obsidian Integration <span style="font-size:0.6rem;padding:2px 8px;border-radius:4px;background:rgba(48,209,88,0.15);color:var(--green);margin-left:8px;">v4.10</span></h2>
+        <p>TypeScript Obsidian plugin — auto-scan notes on save (SecretRedactor + data classification), SEP community share (UECIID), community feed, AI-filter pre-share. 5 REST endpoints at /obsidian/*.</p>
+        <div class="ph-tags">
+          <span class="tag pill-green">Auto-Scan</span>
+          <span class="tag pill-blue">SEP Share</span>
+          <span class="tag pill-purple">Community Business+</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Plugin Connection</h3><span class="sh-note">api/obsidian.py · obsidian-plugin/main.ts</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">OBSIDIAN_ENABLED</div><div class="srow-desc">Enable Obsidian REST endpoints (/obsidian/*) — Community Business+</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">WARDEN_API_KEY (plugin)</div><div class="srow-desc">Tenant API key entered in Obsidian plugin settings tab</div></div><div class="srow-right"><input class="s-input" type="password" placeholder="••••••••••••••••••••••••"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">OBSIDIAN_COMMUNITY_ID</div><div class="srow-desc">Default community ID for SEP share operations from plugin</div></div><div class="srow-right"><input class="s-input" placeholder="my-team"></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">OBSIDIAN_MAX_FEED_ITEMS</div><div class="srow-desc">Max items returned by GET /obsidian/feed per request</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="5" max="100" value="20" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">20</span></div></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Scan Behaviour</h3><span class="sh-note">integrations/obsidian/note_scanner.py</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">AUTO_SCAN_ON_MODIFY</div><div class="srow-desc">Auto-scan note on every save event (debounced)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SCAN_DEBOUNCE_MS</div><div class="srow-desc">Debounce delay before triggering auto-scan on modify (ms)</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="200" max="5000" value="800" oninput="this.nextElementSibling.textContent=this.value+'ms'"><span class="s-slider-val">800ms</span></div></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">BLOCK_SHARE_ON_SECRETS</div><div class="srow-desc">Block community share (UECIID not issued) if secrets_found = true</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">BLOCK_SHARE_ON_CLASSIFIED</div><div class="srow-desc">Block share if data_class = CLASSIFIED (YAML frontmatter or keyword)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">AI_FILTER_PRE_SHARE</div><div class="srow-desc">Run full /filter pipeline on note content before issuing UECIID</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ ACCESSIBILITY ════════════════════ -->
+    <div class="panel" id="p-accessibility" data-color="cyan">
+      <div class="panel-header">
+        <h2>Accessibility <span style="font-size:0.6rem;padding:2px 8px;border-radius:4px;background:rgba(90,200,250,0.15);color:var(--cyan);margin-left:8px;">v4.10</span></h2>
+        <p>WCAG 2.1 AA / Section 508 / EN 301 549 / ADA compliant accessibility widget — zero-dependency IIFE injected into all dashboard surfaces. High-contrast, font scaling, keyboard nav, reduced motion.</p>
+        <div class="ph-tags">
+          <span class="tag pill-cyan">WCAG 2.1 AA</span>
+          <span class="tag pill-blue">Section 508</span>
+          <span class="tag pill-green">All Tiers — Free</span>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Widget Features</h3><span class="sh-note">analytics/accessibility.py · accessibility-widget.js</span></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">ACCESSIBILITY_WIDGET_ENABLED</div><div class="srow-desc">Inject accessibility widget into all Streamlit pages (zero-dependency IIFE)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">HIGH_CONTRAST_MODE</div><div class="srow-desc">Toggle high-contrast color scheme (WCAG 1.4.3 contrast ratio ≥ 4.5:1)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">FONT_SCALE</div><div class="srow-desc">Base font size multiplier (1.0 = default, 1.5 = large, 2.0 = extra-large)</div></div><div class="srow-right"><select class="s-select"><option selected>1.0× (default)</option><option>1.25× (large)</option><option>1.5× (x-large)</option><option>2.0× (xx-large)</option></select></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">REDUCED_MOTION</div><div class="srow-desc">Prefers-reduced-motion: skip CSS animations and transitions</div></div><div class="srow-right"><label class="toggle"><input type="checkbox"><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">KEYBOARD_NAV_FOCUS_RING</div><div class="srow-desc">Enhanced visible focus ring for keyboard-only navigation</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">SCREEN_READER_ANNOUNCE</div><div class="srow-desc">Inject aria-live regions for dynamic content announcements</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+        </div>
+      </div>
+
+      <div class="scard">
+        <div class="scard-head"><h3>Deployment Coverage</h3></div>
+        <div class="scard-body">
+          <div class="srow"><div class="srow-left"><div class="srow-key">Streamlit Dashboard (:8501)</div><div class="srow-desc">Main security dashboard — auto-injected via inject_accessibility_widget()</div></div><div class="srow-right"><span class="pill pill-green">✅ Active</span></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">Analytics Pages (6 tabs)</div><div class="srow-desc">Settings, Enterprise Settings, Community, Secrets Gov pages</div></div><div class="srow-right"><span class="pill pill-green">✅ Active</span></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">Landing Site</div><div class="srow-desc">accessibility-widget.js served via Caddy at /accessibility-widget.js</div></div><div class="srow-right"><span class="pill pill-green">✅ Active</span></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">Portal (Next.js)</div><div class="srow-desc">Injected via &lt;script src="/accessibility-widget.js" defer&gt;</div></div><div class="srow-right"><span class="pill pill-green">✅ Active</span></div></div>
         </div>
       </div>
     </div>
