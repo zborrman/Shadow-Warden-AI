@@ -40,6 +40,8 @@ Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`soverei
 | **Obsidian REST API — 5 endpoints** | `warden/api/obsidian.py` — FastAPI router at `/obsidian/*`. `POST /scan` → risk_level (ALLOW/LOW/MEDIUM/HIGH/BLOCK), allowed bool, flags list, data_class, secrets_found, word_count, redacted_content, scanned_at. `POST /share` → SEP UECIID (blocks if secrets_found), community_id, display_name, data_class, word_count, shared_at. `GET /feed?community_id&limit` → paginated shared note list from SEP index. `POST /ai-filter` → SecretRedactor + SemanticGuard on free-form AI prompt. `GET /stats` → integration health object. |
 | **Test Suite** | `warden/tests/test_obsidian_integration.py` — 25 tests across 6 classes: `TestNoteScanner` (9), `TestScanEndpoint` (6), `TestShareEndpoint` (4), `TestFeedEndpoint` (3), `TestAIFilterEndpoint` (2), `TestStatsEndpoint` (1). All pass. |
 | **Plugin Build System** | `obsidian-plugin/esbuild.config.mjs` — esbuild context, obsidian + CodeMirror externals, CJS format, ES2018 target, watch (dev) / minify+exit (prod). `package.json` (TypeScript + obsidian + esbuild devDeps). `tsconfig.json` (ES6 target, ESNext module, inlineSourceMap). `styles.css` — badge colour classes (allow/low/medium/high/block), feed card styles, UECIID monospace, status-bar cursor. `manifest.json` — id `shadow-warden-ai`, minAppVersion `1.4.0`. |
+| **Accessibility Widget — WCAG 2.1 AA / Section 508 / EN 301 549 / ADA** | Zero-dependency IIFE (`landing/accessibility-widget.js`, ~420 lines). Auto-detects `prefers-reduced-motion` and `prefers-contrast` on first load. Features: skip-to-content link, text resize (3 levels), high-contrast (dark/light), colour-vision LUT (Normal / Protanopia / Deuteranopia / Tritanopia via SVG `feColorMatrix`), dyslexia font (OpenDyslexic), reduce motion, enhanced focus ring (4px gold), large SVG cursor, line/word spacing, reading guide (follows pointer), ARIA live announcer, focus trap in modal, Escape-to-close, Alt+A global shortcut, `localStorage` persistence, compliance badges. Deployed to every surface: 33 landing HTML pages (`<script defer>`), Astro site (`site/src/components/AccessibilityWidget.astro` + `Layout.astro`), Next.js portal (`portal/src/components/ui/AccessibilityWidget.tsx` `'use client'` + `app/layout.tsx`), Streamlit dashboards (`warden/analytics/accessibility.py` — `inject_accessibility_widget()` called in `dashboard.py`, `2_Settings.py`, `3_Enterprise_Settings.py`, `4_Community.py`, `5_Community_Settings.py`, `6_Secrets_Governance.py`), browser extension (`browser-extension/popup/popup.html`). |
+| **Coverage Boost** | `warden/tests/test_coverage_boost.py` — 55 targeted tests covering `topology_guard` (12), `worm_guard` (11), `xai/renderer` (9), `threat_intel/rule_factory` (8), `threat_intel/analyzer` (7), Redis fail-open paths (8). Raises measured coverage from 74.9% → 75.3% (CI gate ≥ 75%). |
 
 ---
 
@@ -150,54 +152,33 @@ Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`soverei
 
 ## Roadmap 2026–2027
 
-### v4.0 — Master Agent Architecture _(Q1 2026)_
+### v4.11 — Real-Time Threat Collaboration _(Q3 2026)_
 
 | Feature | Description |
 |---------|-------------|
-| **MasterAgent Orchestrator** | `warden/agent/master.py` — supervisor agent (Claude Opus 4.6) that spawns and coordinates four specialist sub-agents: `SOVAOperator` (gateway health, quota, rotation), `ThreatHunter` (CVE triage, ArXiv synthesis, STIX export), `ForensicsAgent` (Evidence Vault reconstruction, timeline diff), `ComplianceAgent` (SOC 2 control mapping, SLA breach detection). Inter-agent tasks signed with HMAC-SHA256 to prevent cross-agent injection. |
-| **Human-in-the-Loop Gate** | Actions tagged `REQUIRES_APPROVAL` pause the agent loop and post to Slack with approve/reject webhook buttons (`POST /agent/approve/{token}`). Covers high-impact operations: key rotation, break glass, tenant suspension. |
-| **Agent Activity Dashboard** | Streamlit panel showing real-time agent coordination graph — nodes = agents, edges = delegated tasks, color = status (running / blocked / done). |
-| **SOVA tools #29–30** | `scan_shadow_ai(subnet)` — Shadow AI Discovery sweep; `explain_decision(request_id)` — returns causal chain + plain-English decision brief. |
+| **Warden Nexus Live Feed** | Federated STIX 2.1 threat-indicator sharing across the Shadow Warden fleet — only SHA-256 fingerprints and Betti topology numbers (β₀/β₁) shared, never payload text or PII. Bayesian consensus gate (Trust_Score ≥ 0.80 requires 3+ independent nodes) prevents network poisoning. Enterprise air-gap mode: `THREAT_FEED_RECEIVE_ONLY=true`. |
+| **MITRE ATT&CK Mapping** | Auto-map every BLOCK/HIGH decision to MITRE ATT&CK for LLMs technique IDs. STIX export enriched with `technique_id`, `tactic`, `kill_chain_phase`. Compliance report generator produces ATT&CK coverage heat-map. |
+| **SOC 2 Type II Automation** | Scheduled evidence collection from Evidence Vault + ScreencastRecorder + STIX audit chain → ZIP archive with auditor-ready control narratives. `/compliance/soc2/collect` triggers full collection. Auto-emails to designated auditor address. |
 
 ---
 
-### v4.1 — Post-Quantum Cryptography _(Q2 2026)_
+### v4.12 — AI Model Firewall _(Q4 2026)_
 
 | Feature | Description |
 |---------|-------------|
-| **Hybrid PQC Stack** | `warden/crypto/pqc.py` — `HybridSigner` (Ed25519 + ML-DSA-65 / FIPS 204) and `HybridKEM` (X25519 + ML-KEM-768 / FIPS 203) via `liboqs-python`. Both signatures required for validation; shared secret = XOR-concatenation of X25519 and ML-KEM outputs. |
-| **Hybrid Syndicate Tunnels** | Warden Syndicate inter-gateway handshake upgraded to `X25519MLKEM768`. `kid` versioning bumped to `v2-hybrid`; classical `v1` keys remain valid during 90-day transition window. Enterprise-only gate via `FeatureGate.require("pqc")`. |
-| **NIST FIPS 203/204 Docs** | `docs/security-model.md` updated with PQC threat model, harvest-now-decrypt-later rationale, and migration runbook for existing communities. |
+| **Output Semantic Guard** | Mirror of the input pipeline applied to LLM responses before delivery. Catches prompt-injection echoes, hallucinated credentials, and covert data exfiltration in model output. P99 < 5ms using shared MiniLM singleton. |
+| **Model Provenance Chain** | Cryptographically signed attestation per LLM call: model ID, version, system-prompt hash, response hash. Stored in Evidence Vault. Enables litigation-grade proof that a specific model version produced a specific output. |
+| **Multi-Model Router** | Route requests by data class: PHI → on-prem model only, FINANCIAL → EU-jurisdiction model, GENERAL → cost-optimized cloud. `ModelRouter` honours Sovereign AI Cloud jurisdiction policy and billing tier. |
 
 ---
 
-### v4.2 — Shadow AI Governance Engine _(Q3 2026)_
+### v4.13 — Enterprise Identity & Access _(Q1 2027)_
 
 | Feature | Description |
 |---------|-------------|
-| **Shadow AI Discovery** | `warden/shadow_ai/discovery.py` — passive DNS telemetry collector fingerprints 50+ AI provider endpoints (`*.openai.com`, `*.anthropic.com`, `*.gemini.google.com`, `*.cohere.ai` …). Resolves src IPs against DHCP leases for employee/service attribution. Risk-scored: personal ChatGPT = HIGH, authorized gateway = exempt. |
-| **Shadow AI Policy Engine** | `warden/shadow_ai/policy.py` — allowlist / greylist / blacklist per tool per department. Blacklisted tools answered with DNS sinkhole response. Extends existing `YELLOW/RED` Data Policy Engine. GDPR-safe: DNS metadata only, no payload capture. |
-| **Shadow AI Radar Dashboard** | Streamlit tab — heatmap by department, timeline of new AI tool adoption, CSV export for compliance officers. |
-
----
-
-### v4.3 — Explainable AI 2.0 _(Q4 2026)_
-
-| Feature | Description |
-|---------|-------------|
-| **Causal Chain Visualizer** | `warden/xai/causal_graph.py` serializes `CausalArbiter` DAG to JSON-LD (nodes = evidence variables, edges = do-calculus interventions, weights = posterior probabilities). `warden/analytics/pages/4_CausalExplainer.py` — interactive Streamlit page with pyvis DAG render, frame-by-frame decision timeline replay, and what-if panel (toggle evidence nodes, watch score update live). |
-| **XAI Decision Brief (PDF)** | `generate_decision_brief(request_id)` — 1-page boardroom summary: DAG thumbnail, evidence list, recommended action. Every HIGH/BLOCK decision links to its brief at `/xai/{request_id}`. P99 generation < 500ms. |
-| **ROI Dashboard Integration** | Every HIGH/BLOCK card in the analytics dashboard links to its causal chain. Dollar Impact Calculator shows top-5 blocked attack types with causal rationale. |
-
----
-
-### v4.4 — Sovereign AI Cloud / MASQUE Tunnels _(Q1 2027)_
-
-| Feature | Description |
-|---------|-------------|
-| **MASQUE Jurisdictional Tunnels** | `warden/tunnels/masque.py` — HTTP/3 CONNECT-UDP (RFC 9297) transport for Warden Syndicates. Each tunnel tagged `jurisdiction: {EU|US|UK|APAC}`. `JurisdictionalRouter` enforces data never transits a non-compliant jurisdiction at packet level. `MASQUEProxy` wraps existing ECDH handshake inside QUIC stream. Caddy v2.8+ provides H3 ingress (added to `docker-compose.yml`). |
-| **Jurisdictional Storage Policy** | `warden/storage/s3.py` — `jurisdiction_policy` field on bucket; writes forbidden if MinIO region ≠ declared jurisdiction. Every cross-tunnel byte logs `{src_jurisdiction, dst_jurisdiction, timestamp}` to Evidence Vault (GDPR Art. 46 transfer mechanism). |
-| **Enterprise Pricing Update** | PQC certificates + MASQUE tunnels bundled into Enterprise tier ($249/mo). Shadow AI Discovery available as Pro/Enterprise add-on (+$15/mo). XAI PDF reports as Individual+ add-on (+$9/mo). |
+| **SCIM 2.0 Provisioning** | Auto-provision/deprovision tenant users from Okta, Azure AD, Google Workspace. SCIM Groups map to community membership and clearance levels. `SCIM_BEARER_TOKEN` env var. |
+| **SAML 2.0 SSO** | `warden/auth/saml.py` — SP-initiated SAML flow; `AuthnRequest` signed with tenant Ed25519 key. Attribute mapping: `email` → tenant, `groups` → community roles. Dashboard login via SAML assertion redirect. |
+| **Hardware Security Module (HSM)** | PKCS#11 bridge for community keypairs and VAULT_MASTER_KEY on Enterprise tier. Supports YubiHSM 2, AWS CloudHSM, Azure Managed HSM. Ed25519 + ML-DSA-65 signing operations execute inside HSM boundary — private key material never in process memory. |
 
 ---
 
@@ -1204,81 +1185,6 @@ shadow-warden-ai/
     └── dashboards/warden_overview.json
 ```
 
----
-
-## Roadmap
-
-### v2.1 (current)
-
-- **Data-Gravity Hybrid Hub** — MinIO on-prem S3 storage for Evidence Vault + analytics logs. Data sovereignty: security metadata stays inside your infrastructure.
-- `warden/storage/s3.py` — S3 backend with lazy boto3 import, background threads, auto-bucket creation, fail-open.
-- `minio` + `minio-init` services added to `docker-compose.yml`. Enable with `S3_ENABLED=true`.
-
-### v2.0
-
-- **Topological Gatekeeper** — TDA pre-filter using n-gram point cloud + Betti numbers (β₀, β₁). Catches noise/bot/DoS in < 2ms before any ML. Ripser optional for true persistent homology.
-- **Hyperbolic Semantic Space** — MiniLM projected into Poincaré ball. Cosine (70%) + hyperbolic (30%) blend. Better precision on hierarchically nested attacks.
-- **Causal Arbiter** — Bayesian DAG with Pearl's do-calculus resolves ML gray zone. Five causal nodes + backdoor correction. Zero LLM calls, ~1–5ms CPU.
-
-### v1.9
-
-- INJECTION_CHAIN pattern — detects compromised agents acting on injected instructions after a blocked tool result
-- Encrypted PII vault — Fernet + HMAC-SHA256, no original PII value ever unencrypted in memory
-- Progressive streaming — 400-char fast-scan buffer then live-emit; eliminates streaming TTFB
-
-### v1.8
-
-- Entity Risk Scoring (ERS) — Redis sliding-window reputation, shadow ban at critical threshold
-- Shadow Ban — fake `allowed=true` responses, real LLM never called, no adversarial feedback
-- Zero-Trust Agent Sandbox — capability manifests, `authorize_tool_call()`, kill-switch API
-- Evidence Vault — SHA-256 sign-last bundles, live compliance score `Cs`, SOC 2 / litigation ready
-- Multimodal Guard — CLIP (image) + Whisper+FFT (audio, ultrasonic steganography)
-- ThreatVault 1,300+ — upgraded signature library with Evolution Engine auto-growth
-- WardenDoctor — production diagnostics CLI with P50/P99 benchmarks and CI/CD JSON output
-- 30/30 pre-release integration suite (SMOKE → Compliance)
-- Log rotation — Docker json-file driver, 10MB / 3 files per service
-- Startup MOTD — live system status on every `docker compose up`
-
-### v1.0
-
-- NVIDIA NIM routing — `nim/<org>/<model>` prefix
-- Full multi-cloud provider catalogue
-- Backend contact form (`/api/contact`)
-
-### v0.9
-
-- Cryptographic audit trail (SHA-256 hash chain, SQLite + WAL)
-- SOC 2 Type II controls (CC6.1, CC6.7, CC7.2)
-
-### v0.8
-
-- PromptShield — indirect injection detection (OWASP LLM01/02), six labeled attack types
-
-### v0.7
-
-- Google Cloud Vertex AI provider
-- Amazon Bedrock streaming (binary AWS EventStream → SSE)
-- `/v1/embeddings` proxy
-
-### v0.6
-
-- ToolCallGuard + AgentMonitor
-- WalletShield (token budget enforcement)
-- Reversible PII masking
-- Amazon Bedrock + Azure OpenAI routing
-
-### v0.5
-
-- OutputGuard v2 (10 risk types, per-tenant config)
-- SSE streaming in `/v1/chat/completions`
-- Real-time WebSocket event feed
-
-### v0.4
-
-- Obfuscation decoder pre-filter
-- Per-tenant API keys (SHA-256 hash lookup)
-- Batch filter endpoint
-- Redis content-hash cache
 
 ### Planned
 
