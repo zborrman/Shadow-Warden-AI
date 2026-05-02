@@ -653,17 +653,7 @@
       'aria-expanded' : 'false',
       'aria-haspopup' : 'dialog',
       title           : 'Accessibility options — WCAG 2.1 AA · Section 508 · EN 301 549',
-      /* ISA person-in-circle icon */
-      innerHTML: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
-            viewBox="0 0 24 24" fill="currentColor"
-            aria-hidden="true" focusable="false" role="img">
-          <title>Accessibility options</title>
-          <circle cx="12" cy="4.5" r="2.5"/>
-          <path d="M19 11h-5.5l-1-3.5H9a1 1 0 0 0-.95.68L6 13h3l1-3h1.5l1.8 6.3
-                   A2 2 0 0 0 15.2 18h.3l1.5-5H19a1 1 0 0 0 0-2z"/>
-          <path d="M10.6 15.5l-.7 2.4A4 4 0 1 0 15 21.3l-.8-2.7a1.5 1.5 0 0 1-1 .4
-                   A2 2 0 0 1 11 17a2 2 0 0 1-.4-1.5z"/>
-        </svg>`,
+      innerHTML: `<span style="font-size:30px;line-height:1;display:flex;align-items:center;justify-content:center" aria-hidden="true">♿</span>`,
     });
     btnEl.addEventListener('click', togglePanel);
     document.body.appendChild(btnEl);
@@ -678,7 +668,7 @@
     /* 8. close on outside click */
     document.addEventListener('click', e => {
       if (panelEl.classList.contains('open') &&
-          !panelEl.contains(e.target) && e.target !== btnEl) {
+          !panelEl.contains(e.target) && !btnEl.contains(e.target)) {
         closePanel();
       }
     });
