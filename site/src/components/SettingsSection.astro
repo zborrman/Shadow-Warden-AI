@@ -8,6 +8,7 @@ const settingsTabs = [
   { id: 'sep',          icon: '🔗', label: 'SEP Communities'   },
   { id: 'shadowai',     icon: '👁️', label: 'Shadow AI'         },
   { id: 'xai',          icon: '📊', label: 'XAI / Explainer'   },
+  { id: 'nvidia',       icon: '🟢', label: 'NVIDIA / NeMo'     },
   { id: 'obsidian',     icon: '🗒️', label: 'Obsidian'          },
   { id: 'accessibility',icon: '♿', label: 'Accessibility'      },
   { id: 'auth',         icon: '🔐', label: 'Auth & Identity'   },
@@ -263,6 +264,89 @@ const settingsTabs = [
                 <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.key} · {f.hint}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        <!-- NVIDIA / NeMo -->
+        <div id="spanel-nvidia" class="settings-panel hidden">
+          <div class="p-4 rounded-xl border border-[#76B900]/20 bg-[#76B900]/[0.04] mb-5">
+            <div class="text-[12px] font-bold text-[#76B900] mb-1">NVIDIA NIM + NeMo Guardrails — Geometric Threat Bridge</div>
+            <div class="text-[11px] text-[#8E8E9E]">Route NIM model calls through the Warden filter pipeline. Translate hyperbolic geometry into Colang flow variables via GeometricThreatBridge. Claude Opus hot-generates new Colang flows on novel attacks.</div>
+          </div>
+          <!-- Credentials -->
+          <div class="grid sm:grid-cols-2 gap-4 mb-5">
+            {[
+              { label: 'NVIDIA API Key', key: 'NVIDIA_API_KEY', val: '', hint: 'generate at build.nvidia.com → API Keys', pw: true },
+              { label: 'NIM Endpoint URL', key: 'NIM_ENDPOINT', val: 'https://integrate.api.nvidia.com/v1', hint: 'all nim/* prefixed requests forwarded here', pw: false },
+              { label: 'Default NIM Model', key: 'NIM_DEFAULT_MODEL', val: 'nvidia/llama-3.1-nemotron-70b-instruct', hint: 'used when no model specified in agentic calls', pw: false },
+              { label: 'Nemotron API Base', key: 'NEMOTRON_BASE_URL', val: 'https://integrate.api.nvidia.com/v1', hint: 'override for self-hosted Nemotron deployment', pw: false },
+            ].map(f => (
+              <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+                <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">{f.label}</label>
+                <input type={f.pw ? 'password' : 'text'} value={f.val} placeholder={f.pw ? 'nvapi-••••••••' : undefined}
+                       class="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] font-mono text-[#F5F5F7] focus:border-[#76B900]/50 focus:outline-none" />
+                <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.key} · {f.hint}</div>
+              </div>
+            ))}
+          </div>
+          <!-- Feature toggles -->
+          <div class="space-y-3 mb-5">
+            {[
+              { label: 'NIM Routing', key: 'NIM_ROUTING_ENABLED', val: true, desc: 'Filter nim/<org>/<model> requests through Warden pipeline' },
+              { label: 'NIM Embeddings', key: 'NIM_EMBEDDINGS_ENABLED', val: true, desc: 'Route POST /v1/embeddings with nim/ prefix to NVIDIA' },
+              { label: 'Agent Toolkit', key: 'AGENT_TOOLKIT_ENABLED', val: false, desc: 'Policy-based safety rails for autonomous NVIDIA agent workflows' },
+              { label: 'Prompt Shield', key: 'PROMPT_SHIELD_ENABLED', val: false, desc: 'Detect indirect prompt injection and tool-call hijacking in agentic flows' },
+              { label: 'Audit Trail', key: 'AUDIT_TRAIL_ENABLED', val: true, desc: 'SHA-256 hash chain per agentic decision — SOC 2 compliant' },
+              { label: 'Block on Violation', key: 'AGENT_TOOLKIT_BLOCK', val: true, desc: 'Hard-block on Agent Toolkit policy violation (off = log-only)' },
+              { label: 'Nemotron Evolution Mode', key: 'NEMOTRON_ENABLED', val: false, desc: 'Use Nemotron-3 instead of Claude Opus for Evolution Engine (on-prem GPU)' },
+              { label: 'Geometric Threat Bridge', key: 'NEMO_BRIDGE_ENABLED', val: false, desc: 'Translate hyperbolic distance + Betti + P(HIGH_RISK) → Colang context vars' },
+              { label: 'Colang Evolution Synthesizer', key: 'NEMO_EVOLUTION_ENABLED', val: false, desc: 'Auto-generate .co flow files on novel attacks (requires ANTHROPIC_API_KEY)' },
+              { label: 'Dual Output Guard', key: 'NEMO_DUAL_OUTPUT', val: true, desc: 'Second Warden scan on LLM output after NeMo rails (400-char fast-scan)' },
+            ].map(s => (
+              <div class="flex items-center justify-between p-3 rounded-xl border border-white/[0.05] bg-[#03050F]">
+                <div>
+                  <div class="text-[12px] font-semibold text-[#F5F5F7]">{s.label} <span class="text-[9px] font-mono text-[#48485A] ml-1">{s.key}</span></div>
+                  <div class="text-[10px] text-[#8E8E9E] mt-0.5">{s.desc}</div>
+                </div>
+                <div class={`ml-4 flex-shrink-0 w-10 h-6 rounded-full relative cursor-pointer transition-colors duration-200 ${s.val ? 'bg-[#76B900]' : 'bg-white/[0.1]'}`}
+                     onclick="this.classList.toggle('bg-[#76B900]');this.classList.toggle('bg-white/[0.1]')">
+                  <div class={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all duration-200 ${s.val ? 'left-4' : 'left-0.5'}`}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <!-- Bridge thresholds -->
+          <div class="p-4 rounded-xl border border-[#76B900]/20 bg-[#76B900]/[0.04] mb-4">
+            <div class="text-[11px] font-bold text-[#76B900] uppercase tracking-wide mb-3">GeometricThreatBridge Thresholds</div>
+            <div class="space-y-4">
+              {[
+                { label: 'Topology Threshold', key: 'BRIDGE_TOPOLOGY_THRESHOLD', min: 0.5, max: 0.99, step: 0.01, val: 0.75 },
+                { label: 'Hyperbolic HIGH', key: 'BRIDGE_HYPERBOLIC_HIGH', min: 0.5, max: 0.99, step: 0.01, val: 0.80 },
+                { label: 'Hyperbolic GRAY', key: 'BRIDGE_HYPERBOLIC_GRAY', min: 0.3, max: 0.79, step: 0.01, val: 0.55 },
+                { label: 'Causal HIGH', key: 'BRIDGE_CAUSAL_HIGH', min: 0.4, max: 0.99, step: 0.01, val: 0.65 },
+                { label: 'ERS Restrict', key: 'BRIDGE_ERS_RESTRICT', min: 0.4, max: 0.99, step: 0.01, val: 0.70 },
+              ].map(t => (
+                <div>
+                  <div class="flex justify-between text-[11px] mb-1">
+                    <span class="text-[#F5F5F7] font-medium">{t.label}</span>
+                    <span class="font-mono text-[#76B900]">{t.val}</span>
+                  </div>
+                  <input type="range" min={t.min} max={t.max} step={t.step} value={t.val} class="w-full accent-[#76B900]"
+                         oninput="this.nextElementSibling.textContent=this.value" />
+                  <div class="text-[9px] font-mono text-[#48485A] mt-0.5">{t.key}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <!-- Quick-start -->
+          <div class="space-y-2 text-[11px] font-mono bg-[#03050F] rounded-lg p-4 border border-white/[0.06]">
+            <div class="text-[#8E8E9E] mb-2 font-sans text-[10px] uppercase tracking-wide font-bold">Quick-start .env</div>
+            <div><span class="text-[#76B900]">NVIDIA_API_KEY</span>=<span class="text-[#30D158]">nvapi-…</span></div>
+            <div><span class="text-[#76B900]">NEMOTRON_ENABLED</span>=<span class="text-[#30D158]">false</span> <span class="text-[#48485A]"># true = use Nemotron instead of Claude Opus</span></div>
+            <div><span class="text-[#76B900]">PROMPT_SHIELD_ENABLED</span>=<span class="text-[#30D158]">true</span></div>
+            <div><span class="text-[#76B900]">BRIDGE_TOPOLOGY_THRESHOLD</span>=<span class="text-[#30D158]">0.75</span></div>
+            <div><span class="text-[#76B900]">BRIDGE_HYPERBOLIC_HIGH</span>=<span class="text-[#30D158]">0.80</span></div>
+            <div><span class="text-[#76B900]">BRIDGE_CAUSAL_HIGH</span>=<span class="text-[#30D158]">0.65</span></div>
           </div>
         </div>
 
@@ -558,6 +642,7 @@ const settingsTabs = [
     sep:           'SEP Communities Settings',
     shadowai:      'Shadow AI Discovery Settings',
     xai:           'XAI / Explainer Settings',
+    nvidia:        'NVIDIA NIM + NeMo Guardrails — GeometricThreatBridge',
     obsidian:      'Obsidian Integration Settings',
     accessibility: 'Accessibility Widget — WCAG 2.1 AA / Section 508 / EN 301 549',
     auth:          'Auth & Identity Settings',

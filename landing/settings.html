@@ -1177,7 +1177,7 @@
 
       <!-- NeMo Guardrails — Geometric Threat Bridge -->
       <div class="setting-group">
-        <div class="setting-group-title">NeMo Guardrails — Geometric Threat Bridge <span class="badge badge-green" style="font-size:0.65rem;padding:2px 8px;margin-left:8px;">v2.4</span></div>
+        <div class="setting-group-title">NeMo Guardrails — Geometric Threat Bridge <span class="badge badge-green" style="font-size:0.65rem;padding:2px 8px;margin-left:8px;">v4.10</span></div>
 
         <div class="setting-row">
           <div class="setting-info">
@@ -1331,6 +1331,69 @@ synthesizer.register_rails(rails)<br/>
 <span class="code-key">BRIDGE_HYPERBOLIC_GRAY</span>=<span class="code-val">0.55</span><br/>
 <span class="code-key">BRIDGE_CAUSAL_HIGH</span>=<span class="code-val">0.65</span><br/>
 <span class="code-key">BRIDGE_ERS_RESTRICT</span>=<span class="code-val">0.70</span></div>
+        </div>
+      </div>
+
+      <!-- Nemotron Evolution Engine -->
+      <div class="setting-group">
+        <div class="setting-group-title">Nemotron Evolution Engine <span class="badge badge-green" style="font-size:0.65rem;padding:2px 8px;margin-left:8px;">v4.10</span></div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Enable Nemotron Mode</div>
+            <div class="setting-desc">Replace Claude Opus as the Evolution Engine backend with NVIDIA Nemotron-3. For air-gapped / on-prem GPU deployments. Requires <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--indigo)">NEMOTRON_API_KEY</code>.</div>
+            <div class="restart-notice">⚠ Restart required after toggling</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap">
+              <input type="checkbox" class="toggle-input" id="nemotron-enabled" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Nemotron API Key</div>
+            <div class="setting-desc">NVIDIA AI Foundation API key for Nemotron-3 access (<code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">NEMOTRON_API_KEY</code>). Leave blank if using self-hosted deployment.</div>
+          </div>
+          <div class="setting-control">
+            <input type="password" class="ctrl-input wide mono" id="nemotron-api-key" placeholder="nvapi-…" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Nemotron Base URL</div>
+            <div class="setting-desc">API endpoint for Nemotron. Change to <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">http://nemotron-host:8000/v1</code> for self-hosted GPU deployment.</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input wide mono" id="nemotron-base-url" value="https://integrate.api.nvidia.com/v1" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Evolution Batch Size</div>
+            <div class="setting-desc">Number of adversarial examples generated per HIGH/BLOCK event by the Evolution Engine (Claude Opus or Nemotron).</div>
+          </div>
+          <div class="setting-control" style="min-width:180px">
+            <input type="range" class="ctrl-range" id="evolution-batch-size" min="1" max="20" value="5" oninput="document.getElementById('evo-batch-val').textContent=this.value" />
+            <div class="text-xs mono text-center mt-1" style="color:var(--cyan)" id="evo-batch-val">5</div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">ColangEvolutionSynthesizer</div>
+            <div class="setting-desc">Generates new <code style="font-family:JetBrains Mono;font-size:0.75rem;color:var(--cyan)">.co</code> Colang flow files via Evolution Engine on novel attacks and hot-reloads into NeMo Guardrails without restart.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap">
+              <input type="checkbox" class="toggle-input" id="colang-synth-enabled" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
         </div>
       </div>
 
