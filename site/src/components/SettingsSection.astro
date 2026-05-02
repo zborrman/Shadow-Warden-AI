@@ -15,6 +15,7 @@ const settingsTabs = [
   { id: 'alerts',       icon: '🔔', label: 'Alerts'            },
   { id: 'infra',        icon: '⚙️', label: 'Infrastructure'    },
   { id: 'install',      icon: '📦', label: 'Install / Uninstall'},
+  { id: 'guide',        icon: '📋', label: 'Integration Guide'  },
 ];
 ---
 
@@ -458,6 +459,32 @@ const settingsTabs = [
           </div>
         </div>
 
+        <!-- Integration Guide panel -->
+        <div id="spanel-guide" class="settings-panel hidden">
+          <div class="text-[13px] font-bold text-[#A78BFA] mb-3">Enterprise Integration Guide v4.10</div>
+          <p class="text-[12px] text-[#8E8E9E] mb-4">Full deployment playbook — segment strategies, hybrid architecture, ROI models, v4.x platform pillars, and Obsidian community integration.</p>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            {[
+              ['Segment Playbooks', '7 client segments (Financial, Healthcare, SaaS, Enterprise, Gov, MLOps, Business Community)'],
+              ['9-Layer Architecture', 'Per-layer timing, purpose, and configuration reference'],
+              ['Hybrid Deployment', 'On-prem + cloud topology, data-gravity patterns, step-by-step setup'],
+              ['v4.x Platform Pillars', 'SOVA Agent, PQC, Shadow AI, XAI, Sovereign, SEP, Secrets Gov, Obsidian'],
+              ['ROI Calculator', 'IBM 2024 benchmarks, industry multipliers, CLI + API output'],
+              ['Config Reference', 'All env vars including v4.x Sovereign, SEP, SOVA, Secrets Gov'],
+            ].map(([title, desc]) => (
+              <div class="bg-[#0D0D1A] rounded-lg p-3 border border-[#1C1C2E]">
+                <div class="text-[11px] font-semibold text-[#E2E2EA] mb-1">{title}</div>
+                <div class="text-[10px] text-[#8E8E9E]">{desc}</div>
+              </div>
+            ))}
+          </div>
+          <a href="/integration-guide" target="_blank"
+             class="inline-flex items-center gap-2 bg-[#A78BFA] text-[#0D0D1A] text-[12px] font-bold px-4 py-2 rounded-lg hover:bg-[#C4B5FD] transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Open Enterprise Integration Guide v4.10
+          </a>
+        </div>
+
         <!-- Other panels (SEP, Shadow AI, XAI, Auth, Billing, Alerts, Infra) -->
         {['sep','shadowai','xai','auth','billing','alerts','infra'].map(pid => (
           <div id={`spanel-${pid}`} class="settings-panel hidden">
@@ -538,6 +565,7 @@ const settingsTabs = [
     alerts:        'Alerts & Notifications',
     infra:         'Infrastructure Settings',
     install:       'Install / Uninstall',
+    guide:         'Enterprise Integration Guide v4.10',
   };
 
   function showSettingsTab(id: string) {

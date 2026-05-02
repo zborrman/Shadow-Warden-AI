@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shadow Warden AI — Enterprise Integration Guide v2.9</title>
+<title>Shadow Warden AI — Enterprise Integration Guide v4.10</title>
 <style>
   /* ── Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -407,13 +407,9 @@
   <h1>Enterprise Integration<br>& Deployment Guide</h1>
   <p class="cover-sub">Hybrid infrastructure, per-segment integration playbooks, and ROI methodology for security architects and platform engineers.</p>
   <div class="cover-meta">
-    <span><strong>Version</strong> 2.4 (archived)</span>
-    <span><strong>Date</strong> March 2026</span>
+    <span><strong>Version</strong> 4.10</span>
+    <span><strong>Date</strong> May 2026</span>
     <span><strong>Classification</strong> Confidential — Client Distribution Only</span>
-  </div>
-  <div style="margin-top:24px;padding:14px 18px;background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3);border-radius:10px;position:relative;z-index:1;">
-    <span style="color:#67e8f9;font-size:9pt;font-weight:600;">📄 A newer version is available:</span>
-    <a href="/enterprise-guide" style="display:inline-block;margin-left:12px;background:#22d3ee;color:#0f172a;font-size:9pt;font-weight:800;padding:6px 18px;border-radius:99px;text-decoration:none;">View Enterprise Guide v2.9 →</a>
   </div>
   <div class="cover-logo">SW</div>
 </div>
@@ -432,6 +428,8 @@
     <a href="#s8" class="toc-item"><span class="toc-num">8</span> Deployment Sizing Guide</a>
     <a href="#s9" class="toc-item"><span class="toc-num">9</span> GDPR & Compliance Checklist</a>
     <a href="#s10" class="toc-item"><span class="toc-num">10</span> Configuration Reference</a>
+    <a href="#s11" class="toc-item"><span class="toc-num">11</span> v4.x Platform Pillars (v4.0–v4.10)</a>
+    <a href="#s12" class="toc-item"><span class="toc-num">12</span> Obsidian Business Community (v4.10)</a>
   </div>
 </div>
 
@@ -448,6 +446,19 @@
   <div class="stat"><div class="stat-val">&lt;8ms</div><div class="stat-label">End-to-End P99 Latency</div></div>
   <div class="stat"><div class="stat-val">9</div><div class="stat-label">Defense Layers</div></div>
   <div class="stat"><div class="stat-val">$0</div><div class="stat-label">Data Sent to 3rd Parties</div></div>
+</div>
+
+<div class="callout callout-blue" style="margin-bottom:20px;">
+  <strong>v4.10 Platform — What's New:</strong> &nbsp;
+  <span class="pill pill-purple">Agentic SOC (SOVA + MasterAgent)</span>
+  <span class="pill pill-blue">Post-Quantum Crypto (ML-DSA-65 + ML-KEM-768)</span>
+  <span class="pill pill-green">Shadow AI Discovery</span>
+  <span class="pill pill-amber">Explainable AI (XAI)</span>
+  <span class="pill pill-red">Sovereign AI Cloud</span>
+  <span class="pill pill-gray">SEP Communities</span>
+  <span class="pill pill-purple">Secrets Governance</span>
+  <span class="pill pill-green">Obsidian Integration</span>
+  <span class="pill pill-blue">WCAG 2.1 AA Accessibility</span>
 </div>
 
 <div class="card-grid">
@@ -913,6 +924,82 @@ attestation = monitor.get_attestation_chain()  # SHA-256 verified chain</code></
   </div>
 </div>
 
+<!-- ── SEGMENT G: Business Community / Obsidian ── -->
+<div class="segment no-break">
+  <div class="segment-header">
+    <div class="segment-icon" style="background:#f0fdf4;">🗒️</div>
+    <div>
+      <h3>G — Business Community & Knowledge Workers (v4.10)</h3>
+      <p>SMBs, law firms, research teams, agencies — using Obsidian for private knowledge management with AI-powered sharing</p>
+    </div>
+    <div style="margin-left:auto;text-align:right;">
+      <span class="pill pill-green">GDPR</span>
+      <span class="pill pill-blue">SEP</span>
+      <span class="pill pill-purple">Community Business</span>
+    </div>
+  </div>
+  <div class="segment-body">
+    <div class="segment-grid">
+      <div>
+        <h4>Primary Risks</h4>
+        <ul>
+          <li>Secrets / API keys in Obsidian vault notes</li>
+          <li>PII exfiltration via community AI-share</li>
+          <li>Unclassified PHI or FINANCIAL data in shared notes</li>
+          <li>Shadow AI usage by team members</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Key Features Activated</h4>
+        <ul>
+          <li><strong>Obsidian Plugin</strong>: auto-scan on note modify</li>
+          <li><strong>SecretRedactor</strong>: 15 patterns + entropy scan</li>
+          <li><strong>SEP UECIID</strong>: <code>SEP-{11}</code> community share IDs</li>
+          <li><strong>AI-Filter</strong>: <code>POST /obsidian/ai-filter</code> pre-share</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Recommended Integration</h4>
+        <ul>
+          <li>Obsidian plugin via BRAT (beta) or manual</li>
+          <li>Community Business tier ($19/mo, 3 communities)</li>
+          <li>Docker Compose on team NAS or VPS</li>
+          <li>SEP Knock-and-Verify for cross-community sharing</li>
+        </ul>
+      </div>
+    </div>
+    <div class="impact-box">
+      <h4>💰 Dollar Impact Model — Business Community (Risk Prevention + Compliance)</h4>
+      <div class="impact-row"><span class="impact-label">Prevented data leak (avg SMB breach, IBM 2024)</span><span class="impact-value">$4.88M potential</span></div>
+      <div class="impact-row"><span class="impact-label">Secrets scan automation (replaces manual review)</span><span class="impact-value">$8,000–$24,000/yr</span></div>
+      <div class="impact-row"><span class="impact-label">GDPR compliance for shared knowledge bases</span><span class="impact-value">up to €20M fine avoided</span></div>
+    </div>
+    <h4>Obsidian Plugin Quick-Start</h4>
+    <pre><code># Install via BRAT (Obsidian Beta Reviewers Auto-update Tester)
+# Or: copy dist/main.js + manifest.json to .obsidian/plugins/shadow-warden-ai/
+
+# Plugin settings: server URL + API key (Community Business plan)
+# Commands available:
+#   Ctrl+Shift+S : Scan current note
+#   Ctrl+Shift+U : Share to community (issues SEP-{UECIID})
+#   Ctrl+Shift+V : Scan entire vault
+#   Ctrl+Shift+F : View community feed
+
+# Auto-scan on save: enabled by default (configurable debounce: 800ms)</code></pre>
+    <h4>SEP Community Share API</h4>
+    <pre><code># Share a scanned note to a community
+POST /obsidian/share
+{
+  "community_id": "acme-team",
+  "note_path": "projects/q2-plan.md",
+  "requester_tenant_id": "alice"
+}
+# Response: { "ueciid": "SEP-4aB3xZ9kQmN", "data_class": "GENERAL", "secrets_found": false }
+
+# Blocked if secrets_found = true or data_class = CLASSIFIED</code></pre>
+  </div>
+</div>
+
 <!-- ══════════════════════════ S4 — INTEGRATION PATTERNS ══════════════════════════ -->
 <div class="page-break"></div>
 <div class="section-head" id="s4">
@@ -974,6 +1061,20 @@ attestation = monitor.get_attestation_chain()  # SHA-256 verified chain</code></
       <td>20 min</td>
       <td>All</td>
       <td>POST /filter — language-agnostic JSON API.</td>
+    </tr>
+    <tr>
+      <td><strong>G — Obsidian Plugin</strong></td>
+      <td>Knowledge workers, SMB</td>
+      <td>5 min</td>
+      <td>G</td>
+      <td>Auto-scan on save, SEP community share, vault bulk-scan.</td>
+    </tr>
+    <tr>
+      <td><strong>H — SOVA Agent API</strong></td>
+      <td>SOC, SecOps, Enterprise</td>
+      <td>15 min</td>
+      <td>D, E</td>
+      <td><code>POST /agent/sova</code> — Claude Opus autonomous SOC loop.</td>
     </tr>
   </tbody>
 </table>
@@ -1457,7 +1558,39 @@ PAGERDUTY_ROUTING_KEY=your-key
 # ── SIEM ──────────────────────────────────────────────────────
 SPLUNK_HEC_URL=https://splunk.internal:8088
 SPLUNK_HEC_TOKEN=your-hec-token
-ELASTIC_URL=https://elastic.internal:9200</code></pre>
+ELASTIC_URL=https://elastic.internal:9200
+
+# ── Sovereign AI Cloud (v4.4) ──────────────────────────────
+SOVEREIGN_ATTEST_KEY=your-hmac-key       # fallback: VAULT_MASTER_KEY
+TUNNEL_OFFLINE_AFTER_FAILS=5             # MASQUE tunnel → OFFLINE after N failures
+
+# ── SEP Communities (v4.6) ────────────────────────────────
+SEP_DB_PATH=/tmp/warden_sep.db           # SQLite: UECIID, peerings, pods, STIX chain
+COMMUNITY_VAULT_KEY=your-fernet-key      # encrypts community keypair private keys
+TRANSFER_RISK_THRESHOLD=0.70             # CausalArbiter gate for entity transfers
+
+# ── Post-Quantum Crypto (v4.1) ────────────────────────────
+VAULT_MASTER_KEY=your-fernet-key         # Fernet key — validated at startup
+
+# ── Shadow AI Discovery (v4.2) ────────────────────────────
+SHADOW_AI_CONCURRENCY=50                 # max concurrent probe hosts
+SHADOW_AI_PROBE_TIMEOUT=3               # per-host probe timeout (seconds)
+SHADOW_AI_SYSLOG_ENABLED=false          # UDP syslog listener for DNS telemetry
+SHADOW_AI_SYSLOG_PORT=5514
+
+# ── Secrets Governance (v4.9) ─────────────────────────────
+SECRETS_DB_PATH=/tmp/warden_secrets.db   # SQLite secrets inventory
+
+# ── SOVA Agent (v3.2+) ────────────────────────────────────
+SOVA_MAX_ITER=10                         # max agentic loop iterations
+PATROL_URLS=https://app.example.com      # extra URLs for visual-patrol cron
+
+# ── Obsidian Integration (v4.10) ──────────────────────────
+# No server-side env vars — configured via Obsidian plugin settings tab
+
+# ── Intel Bridge (optional) ───────────────────────────────
+INTEL_OPS_ENABLED=false                  # true = background ArXiv→Evolution sync
+INTEL_BRIDGE_INTERVAL_HRS=6             # sync interval (hours)</code></pre>
 
 <h3>API Response Schema</h3>
 <pre><code>{
@@ -1473,6 +1606,147 @@ ELASTIC_URL=https://elastic.internal:9200</code></pre>
   "betti_score":    0.12,
   "redacted_content": "Hello, my API key is [REDACTED_API_KEY]..."
 }</code></pre>
+
+<!-- ══════════════════════════ S11 — v4.x PLATFORM PILLARS ══════════════════════════ -->
+<div class="page-break"></div>
+<div class="section-head" id="s11">
+  <div class="section-num">11</div>
+  <h2>v4.x Platform Pillars (v4.0–v4.10)</h2>
+</div>
+<p>Shadow Warden v4.x introduced five enterprise pillars beyond the core 9-layer gateway. Each pillar is independently deployable and tier-gated.</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>🤖 Pillar 1 — Agentic SOC (v4.0)</h4>
+    <p style="font-size:9pt;"><strong>SOVA Agent</strong>: Claude Opus 4.6 agentic loop with 30 tool handlers, 7 cron jobs (morning brief, threat sync, key rotation, SLA report, visual patrol), Redis conversation memory (6h TTL, 20-turn cap).</p>
+    <p style="font-size:9pt;"><strong>MasterAgent</strong>: multi-agent SOC coordinator — 4 sub-agents (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent), HMAC task tokens, human-in-the-loop Slack approval gate.</p>
+    <div class="pill pill-purple">Pro / Enterprise</div>
+    <pre style="font-size:7.5pt;"><code>POST /agent/sova         # autonomous query loop
+POST /agent/master       # parallel sub-agent decomposition
+POST /agent/approve/{t}  # approve high-impact action</code></pre>
+  </div>
+  <div class="card">
+    <h4>🔐 Pillar 2 — Post-Quantum Cryptography (v4.1)</h4>
+    <p style="font-size:9pt;"><strong>HybridSigner</strong>: Ed25519 + ML-DSA-65 (FIPS 204). <strong>HybridKEM</strong>: X25519 + ML-KEM-768 (FIPS 203). HKDF-SHA256 shared secret. Liboqs fail-open (classical fallback). Community keypairs upgradeable to hybrid via <code>POST /communities/{id}/upgrade-pqc</code>.</p>
+    <div class="pill pill-red">Enterprise only</div>
+    <pre style="font-size:7.5pt;"><code>GET /communities/{id}/keypair
+POST /communities/{id}/upgrade-pqc  # requires liboqs</code></pre>
+  </div>
+  <div class="card">
+    <h4>🔍 Pillar 3 — Shadow AI Discovery (v4.2)</h4>
+    <p style="font-size:9pt;">Async subnet probe (max /24, 50 concurrent, 3s timeout) + DNS telemetry classifier. 18-provider fingerprint DB. Per-tenant MONITOR / BLOCK_DENYLIST / ALLOWLIST_ONLY policy. Findings capped at 1,000 per tenant in Redis.</p>
+    <div class="pill pill-amber">Pro + add-on ($15/mo)</div>
+    <pre style="font-size:7.5pt;"><code>POST /shadow-ai/scan  {"subnet": "10.0.1.0/24", "tenant_id": "..."}
+GET  /shadow-ai/findings
+GET  /shadow-ai/report</code></pre>
+  </div>
+  <div class="card">
+    <h4>🧠 Pillar 4 — Explainable AI (v4.3)</h4>
+    <p style="font-size:9pt;">9-stage causal chain DAG per request (topology → obfuscation → secrets → semantic → brain → causal → phish → ers → decision). Primary cause attribution, counterfactual remediations. HTML + PDF reports (reportlab optional).</p>
+    <div class="pill pill-blue">Individual + add-on ($9/mo)</div>
+    <pre style="font-size:7.5pt;"><code>GET /xai/explain/{request_id}
+GET /xai/report/{id}        # HTML report
+GET /xai/report/{id}/pdf    # PDF download
+GET /xai/dashboard          # aggregate analytics</code></pre>
+  </div>
+  <div class="card">
+    <h4>🌍 Pillar 5 — Sovereign AI Cloud (v4.4)</h4>
+    <p style="font-size:9pt;">8-jurisdiction registry (EU/US/UK/CA/SG/AU/JP/CH). MASQUE tunnel lifecycle (PENDING→ACTIVE→DEGRADED→OFFLINE). TOFU TLS pinning. Per-tenant routing policy. HMAC-signed sovereignty attestations (7yr Redis TTL). Transfer rules matrix: CLASSIFIED never; PHI to US/EU/UK/CA/CH only.</p>
+    <div class="pill pill-red">Enterprise only</div>
+    <pre style="font-size:7.5pt;"><code>GET  /sovereign/jurisdictions
+POST /sovereign/route        # pick optimal tunnel
+POST /sovereign/attest       # issue attestation
+GET  /sovereign/report</code></pre>
+  </div>
+  <div class="card">
+    <h4>🤝 Pillar 6 — SEP Communities (v4.6–v4.7)</h4>
+    <p style="font-size:9pt;">Syndicate Exchange Protocol — UECIID <code>SEP-{11 base-62}</code> identifiers, inter-community peering (MIRROR_ONLY/REWRAP_ALLOWED/FULL_SYNC), Knock-and-Verify invitations (72h TTL), Causal Transfer Guard (P≥0.70 blocks exfiltration), STIX 2.1 tamper-evident audit chain, Sovereign Data Pods (per-jurisdiction MinIO routing).</p>
+    <div class="pill pill-green">Community Business+</div>
+    <pre style="font-size:7.5pt;"><code>POST /sep/peerings/{id}/transfer  # transfer entity
+POST /sep/knock/issue             # invite member
+GET  /sep/audit-chain/{community} # STIX chain</code></pre>
+  </div>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>🔑 Secrets Governance (v4.9)</h4>
+    <p style="font-size:9pt;">Multi-vault connector (AWS SM / Azure KV / HashiCorp / GCP SM / env). SQLite secrets inventory with risk scoring, expiry tracking, auto-retire. Per-tenant policy engine (7 violation rules). 14 REST endpoints.</p>
+    <div class="pill pill-purple">Community Business+</div>
+    <pre style="font-size:7.5pt;"><code>GET  /secrets/inventory
+POST /secrets/inventory/{id}/rotate
+GET  /secrets/lifecycle/expiring
+GET  /secrets/audit</code></pre>
+  </div>
+  <div class="card">
+    <h4>♿ Accessibility (v4.10)</h4>
+    <p style="font-size:9pt;">WCAG 2.1 AA / Section 508 / EN 301 549 / ADA compliant accessibility widget. Zero-dependency IIFE, injected into all Streamlit dashboard pages and landing surfaces. High-contrast mode, font scaling, keyboard navigation, reduced motion, screen reader announcements.</p>
+    <div class="pill pill-green">All tiers — built-in</div>
+    <pre style="font-size:7.5pt;"><code># Auto-injected via:
+from warden.analytics.accessibility import inject_accessibility_widget
+inject_accessibility_widget()  # in every Streamlit page</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════ S12 — OBSIDIAN ══════════════════════════ -->
+<div class="page-break"></div>
+<div class="section-head" id="s12">
+  <div class="section-num">12</div>
+  <h2>Obsidian Business Community Integration (v4.10)</h2>
+</div>
+
+<p>The Shadow Warden Obsidian plugin bridges private knowledge management with enterprise-grade AI security. Notes are scanned locally before any AI interaction or community share.</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>5 REST Endpoints</h4>
+    <table style="margin-top:8px;">
+      <tr><th>Endpoint</th><th>Purpose</th></tr>
+      <tr><td><code>POST /obsidian/scan</code></td><td>Scan note — returns data_class, secrets_found, risk_score</td></tr>
+      <tr><td><code>POST /obsidian/share</code></td><td>Share to community — issues SEP UECIID, blocks if secrets found</td></tr>
+      <tr><td><code>GET /obsidian/feed</code></td><td>Community shared notes feed (paginated)</td></tr>
+      <tr><td><code>POST /obsidian/ai-filter</code></td><td>Pre-filter note content through full /filter pipeline before AI</td></tr>
+      <tr><td><code>GET /obsidian/stats</code></td><td>Vault scan statistics per tenant</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Data Classification Logic</h4>
+    <p style="font-size:9pt;">Resolution order for each note:</p>
+    <ol style="font-size:9pt;">
+      <li><strong>Explicit</strong>: YAML frontmatter <code>data_class: PHI</code></li>
+      <li><strong>Tags</strong>: <code>#phi</code>, <code>#pii</code>, <code>#financial</code>, <code>#classified</code></li>
+      <li><strong>Keywords</strong>: regex match (SSN, patient, credit card, IBAN…)</li>
+      <li><strong>Default</strong>: <code>GENERAL</code></li>
+    </ol>
+    <div class="callout" style="margin-top:10px;font-size:9pt;">
+      Notes with <code>data_class: CLASSIFIED</code> or <code>secrets_found: true</code> are <strong>blocked from share</strong> — the SEP UECIID is never issued.
+    </div>
+  </div>
+</div>
+
+<h3>Integration Deployment</h3>
+<div class="card-grid-3">
+  <div class="card">
+    <h4>1. Deploy Warden</h4>
+    <pre style="font-size:7.5pt;"><code>docker compose up -d
+# Community Business plan minimum
+# Warden running on :8001</code></pre>
+  </div>
+  <div class="card">
+    <h4>2. Install Plugin</h4>
+    <pre style="font-size:7.5pt;"><code># BRAT → add beta plugin
+# Repo: your-org/obsidian-shadow-warden
+# Or: manual copy to .obsidian/plugins/</code></pre>
+  </div>
+  <div class="card">
+    <h4>3. Configure</h4>
+    <pre style="font-size:7.5pt;"><code># Plugin Settings tab:
+Server URL: http://warden:8001
+API Key: your-tenant-key
+Community ID: acme-team
+Auto-scan: enabled</code></pre>
+  </div>
+</div>
 
 <h3>Contact & Support</h3>
 <div class="card-grid">
@@ -1491,7 +1765,7 @@ ELASTIC_URL=https://elastic.internal:9200</code></pre>
 </div>
 
 <footer class="doc-footer">
-  <span>Shadow Warden AI — Enterprise Integration Guide v2.9</span>
+  <span>Shadow Warden AI — Enterprise Integration Guide v4.10</span>
   <span>© 2026 Shadow Warden AI. Confidential — Client Distribution Only.</span>
   <span>security@shadowwarden.ai</span>
 </footer>
