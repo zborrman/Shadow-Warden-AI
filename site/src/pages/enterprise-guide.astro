@@ -28,8 +28,8 @@ const sections = [
 ---
 
 <Layout
-  title="Enterprise Integration & Deployment Guide v4.7 — Shadow Warden AI"
-  description="Complete enterprise deployment guide for Shadow Warden AI v4.7. Docker, configuration, API integration, compliance, monitoring, HA."
+  title="Enterprise Integration & Deployment Guide v4.10 — Shadow Warden AI"
+  description="Complete enterprise deployment guide for Shadow Warden AI v4.10. Docker, configuration, API integration, compliance, monitoring, HA."
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen flex flex-col" style="font-family:'Inter',system-ui,sans-serif">
 
@@ -52,7 +52,7 @@ const sections = [
         </div>
       </div>
       <div class="flex items-center gap-3">
-        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v4.7</span>
+        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v4.10</span>
         <a href="/" class="text-[12px] text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors">← Back to site</a>
       </div>
     </div>
@@ -90,12 +90,12 @@ const sections = [
         <h1 class="text-[48px] font-black tracking-[-2.5px] leading-[1.05] mb-4">
           Shadow Warden AI<br/>
           <span style="background:linear-gradient(135deg,#FF2D55,#FF9F0A,#FFD60A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-            v4.7 Deployment Guide
+            v4.10 Deployment Guide
           </span>
         </h1>
         <p class="text-[17px] text-[#8E8E9E] leading-[1.7] mb-8 max-w-2xl">
           Complete reference for deploying Shadow Warden AI in enterprise environments.
-          Covers all 15 subsystems, 153 modules, compliance requirements, HA architecture,
+          Covers all 15 subsystems, 170 modules, compliance requirements, HA architecture,
           and operational runbooks for production workloads.
         </p>
 
@@ -116,7 +116,7 @@ const sections = [
 
         <div class="p-4 rounded-xl border border-[#FFD60A]/20 bg-[#FFD60A]/[0.04] text-[13px] text-[#F5F5F7] leading-relaxed">
           <span class="text-[#FFD60A] font-bold">⚠ Enterprise Note:</span> This guide covers the full
-          v4.7 feature set including Post-Quantum Crypto (requires <code class="bg-white/[0.06] px-1 rounded text-[#BF5AF2]">liboqs-python</code>),
+          v4.10 feature set including Post-Quantum Crypto (requires <code class="bg-white/[0.06] px-1 rounded text-[#BF5AF2]">liboqs-python</code>),
           Sovereign AI Cloud, SEP Communities Protocol, NVIDIA Nemotron integration, and FraudScore Sovereign v4.0 Elite.
           Some features are gated by billing tier — see <a href="#billing" class="text-[#FF2D55] underline">Billing & Tiers</a>.
         </div>
@@ -128,11 +128,11 @@ const sections = [
       <!-- 2. ARCHITECTURE -->
       <!-- ═══════════════════════════════════════════════════ -->
       <div id="architecture" class="mb-16">
-        <h2 class="text-[32px] font-black tracking-[-1.5px] mb-2">🏗️ Architecture v4.7</h2>
-        <p class="text-[15px] text-[#8E8E9E] mb-6">11 Docker services, 153 modules, 6 strategic security pillars.</p>
+        <h2 class="text-[32px] font-black tracking-[-1.5px] mb-2">🏗️ Architecture v4.10</h2>
+        <p class="text-[15px] text-[#8E8E9E] mb-6">11 Docker services, 170 modules, 6 strategic security pillars.</p>
 
         <div class="rounded-2xl border border-white/[0.07] bg-[#080D1E] p-6 mb-6 font-mono text-[12px] overflow-x-auto">
-          <div class="text-[#30D158] mb-1"># v4.7 System Map</div>
+          <div class="text-[#30D158] mb-1"># v4.10 System Map</div>
           <pre class="text-[#F5F5F7] leading-[1.8] whitespace-pre">{`POST /filter ──► TopologicalGatekeeper  [topology_guard.py]     <2ms
              ──► ObfuscationDecoder     [obfuscation.py]         <1ms
              ──► PII & Secret Vault     [secret_redactor.py]     <1ms
@@ -967,12 +967,12 @@ docker-compose build --no-cache warden`,
       <!-- 13. CHANGELOG -->
       <!-- ═══════════════════════════════════════════════════ -->
       <div id="changelog" class="mb-16">
-        <h2 class="text-[32px] font-black tracking-[-1.5px] mb-2">📝 Changelog v4.7</h2>
-        <p class="text-[15px] text-[#8E8E9E] mb-6">What's new in Shadow Warden AI v4.7.</p>
+        <h2 class="text-[32px] font-black tracking-[-1.5px] mb-2">📝 Changelog v4.10</h2>
+        <p class="text-[15px] text-[#8E8E9E] mb-6">What's new in Shadow Warden AI v4.10.</p>
 
         {[
           {
-            version: 'v4.7', date: '2025-04',
+            version: 'v4.10', date: '2025-04',
             badge: 'Current', color: '#30D158',
             items: [
               'SEP: Causal Transfer Guard — Bayesian risk gate on every entity transfer (<20ms, P≥0.70 block)',
@@ -1038,7 +1038,7 @@ docker-compose build --no-cache warden`,
 
       <!-- Footer -->
       <div class="border-t border-white/[0.06] pt-8 pb-16 flex items-center justify-between text-[11px] text-[#48485A]">
-        <div>Shadow Warden AI · Enterprise Guide v4.7 · © 2025</div>
+        <div>Shadow Warden AI · Enterprise Guide v4.10 · © 2025</div>
         <a href="/" class="text-[#FF2D55] hover:underline">← Back to site</a>
       </div>
 
