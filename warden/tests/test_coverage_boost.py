@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import re
 import unittest.mock as mock
-from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
-
 
 # ── topology_guard ────────────────────────────────────────────────────────────
 
@@ -80,16 +78,16 @@ class TestTopologyGuard:
         assert result.is_noise is False or result.is_noise is True  # just ensure it runs
 
     def test_scan_nonempty_freq_fallback_path(self):
-        from warden.topology_guard import scan
         import warden.topology_guard as tg
+        from warden.topology_guard import scan
         tg._HAS_RIPSER = False
         text = "hello world " * 30
         result = scan(text)
         assert result.elapsed_ms >= 0.0
 
     def test_scan_ripser_exception_fallback(self):
-        from warden.topology_guard import scan
         import warden.topology_guard as tg
+        from warden.topology_guard import scan
         tg._HAS_RIPSER = True
         with mock.patch("warden.topology_guard._compute_ripser", side_effect=Exception("ripser fail")):
             result = scan("hello world " * 30)
@@ -284,8 +282,8 @@ class TestXAIRenderer:
         assert isinstance(result, bytes)
 
     def test_render_node_detail_empty_dict(self):
-        from warden.xai.renderer import _render_node_detail
         from warden.xai.chain import ChainNode
+        from warden.xai.renderer import _render_node_detail
         node = ChainNode(
             stage_id="test", stage_name="Test", icon="?", color="#fff",
             verdict="PASS", score=None, score_label="—", detail={},
@@ -295,8 +293,8 @@ class TestXAIRenderer:
         assert result == ""
 
     def test_render_node_detail_none_values_filtered(self):
-        from warden.xai.renderer import _render_node_detail
         from warden.xai.chain import ChainNode
+        from warden.xai.renderer import _render_node_detail
         node = ChainNode(
             stage_id="test", stage_name="Test", icon="?", color="#fff",
             verdict="FLAG", score=0.5, score_label="medium",
@@ -307,8 +305,8 @@ class TestXAIRenderer:
         assert result == ""
 
     def test_render_node_detail_with_data(self):
-        from warden.xai.renderer import _render_node_detail
         from warden.xai.chain import ChainNode
+        from warden.xai.renderer import _render_node_detail
         node = ChainNode(
             stage_id="secrets", stage_name="Secrets", icon="🔑", color="#ec4899",
             verdict="FLAG", score=2.0, score_label="2 patterns",
@@ -327,10 +325,10 @@ class TestXAIRenderer:
                                               "reportlab.lib.pagesizes": None,
                                               "reportlab.lib.styles": None,
                                               "reportlab.lib.colors": None,
-                                              "reportlab.lib.units": None}):
-            with mock.patch("warden.xai.renderer._render_pdf_reportlab",
-                            side_effect=ImportError("no reportlab")):
-                result, mime = rmod.render_pdf(chain)
+                                              "reportlab.lib.units": None}), \
+             mock.patch("warden.xai.renderer._render_pdf_reportlab",
+                        side_effect=ImportError("no reportlab")):
+            result, mime = rmod.render_pdf(chain)
         assert isinstance(result, bytes)
         assert "html" in mime
 

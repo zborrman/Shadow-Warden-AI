@@ -17,8 +17,8 @@ import streamlit as st
 # Allow running from repo root without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from warden.analytics.auth import require_auth
 from warden.analytics.accessibility import inject_accessibility_widget
+from warden.analytics.auth import require_auth
 from warden.analytics.logger import load_entries
 
 # ── Page config ───────────────────────────────────────────────────────────────
