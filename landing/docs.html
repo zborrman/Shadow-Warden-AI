@@ -477,25 +477,62 @@
       </a>
     </div>
     <div class="sb-section">
-      <div class="sb-title">Financial (v2.9)</div>
+      <div class="sb-title">Financial (v2.3)</div>
+      <a class="sb-link" href="#financial-impact"><span class="sb-method m-get">GET</span>/financial/impact</a>
+      <a class="sb-link" href="#financial-roi"><span class="sb-method m-get">GET</span>/financial/roi</a>
+      <a class="sb-link" href="#financial-cost"><span class="sb-method m-get">GET</span>/financial/cost-saved</a>
+      <a class="sb-link" href="#financial-proposal"><span class="sb-method m-post">POST</span>/financial/generate-proposal</a>
     </div>
     <div class="sb-section">
-      <div class="sb-title">NeMo Bridge (v2.9)</div>
-      <a class="sb-link" href="#nemo-bridge">GeometricThreatBridge</a>
-      <a class="sb-link" href="#nemo-bridge">DualOutputGuard</a>
-      <a class="sb-link" href="#nemo-bridge">ColangEvolutionSynthesizer</a>
-      <a class="sb-link" href="#financial-impact">
-        <span class="sb-method m-get">GET</span>/financial/impact
-      </a>
-      <a class="sb-link" href="#financial-roi">
-        <span class="sb-method m-get">GET</span>/financial/roi
-      </a>
-      <a class="sb-link" href="#financial-cost">
-        <span class="sb-method m-get">GET</span>/financial/cost-saved
-      </a>
-      <a class="sb-link" href="#financial-proposal">
-        <span class="sb-method m-post">POST</span>/financial/generate-proposal
-      </a>
+      <div class="sb-title">XAI / Explainer (v4.3) <span class="tag tag-new" style="font-size:0.55rem;padding:1px 5px;">NEW</span></div>
+      <a class="sb-link" href="#xai-explain"><span class="sb-method m-get">GET</span>/xai/explain/{id}</a>
+      <a class="sb-link" href="#xai-report"><span class="sb-method m-get">GET</span>/xai/report/{id}</a>
+      <a class="sb-link" href="#xai-pdf"><span class="sb-method m-get">GET</span>/xai/report/{id}/pdf</a>
+      <a class="sb-link" href="#xai-dashboard"><span class="sb-method m-get">GET</span>/xai/dashboard</a>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Shadow AI (v4.2)</div>
+      <a class="sb-link" href="#shadowai-scan"><span class="sb-method m-post">POST</span>/shadow-ai/scan</a>
+      <a class="sb-link" href="#shadowai-findings"><span class="sb-method m-get">GET</span>/shadow-ai/findings</a>
+      <a class="sb-link" href="#shadowai-policy"><span class="sb-method m-get">GET</span>/shadow-ai/policy</a>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Sovereign Cloud (v4.4)</div>
+      <a class="sb-link" href="#sovereign-jurisdictions"><span class="sb-method m-get">GET</span>/sovereign/jurisdictions</a>
+      <a class="sb-link" href="#sovereign-route"><span class="sb-method m-post">POST</span>/sovereign/route</a>
+      <a class="sb-link" href="#sovereign-attest"><span class="sb-method m-post">POST</span>/sovereign/attest</a>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">SEP Communities (v4.6)</div>
+      <a class="sb-link" href="#sep-ueciid"><span class="sb-method m-post">POST</span>/sep/ueciid/register</a>
+      <a class="sb-link" href="#sep-transfer"><span class="sb-method m-post">POST</span>/sep/peerings/{id}/transfer</a>
+      <a class="sb-link" href="#sep-pods"><span class="sb-method m-get">GET</span>/sep/pods</a>
+      <a class="sb-link" href="#sep-audit"><span class="sb-method m-get">GET</span>/sep/audit-chain/{id}</a>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Secrets Governance (v4.9)</div>
+      <a class="sb-link" href="#secrets-inventory"><span class="sb-method m-get">GET</span>/secrets/inventory</a>
+      <a class="sb-link" href="#secrets-policy"><span class="sb-method m-get">GET</span>/secrets/policy</a>
+      <a class="sb-link" href="#secrets-report"><span class="sb-method m-get">GET</span>/secrets/report</a>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Obsidian (v4.10) <span class="tag tag-new" style="font-size:0.55rem;padding:1px 5px;">NEW</span></div>
+      <a class="sb-link" href="#obsidian-scan"><span class="sb-method m-post">POST</span>/obsidian/scan</a>
+      <a class="sb-link" href="#obsidian-share"><span class="sb-method m-post">POST</span>/obsidian/share</a>
+      <a class="sb-link" href="#obsidian-feed"><span class="sb-method m-get">GET</span>/obsidian/feed</a>
+      <a class="sb-link" href="#obsidian-ai-filter"><span class="sb-method m-post">POST</span>/obsidian/ai-filter</a>
+      <a class="sb-link" href="#obsidian-stats"><span class="sb-method m-get">GET</span>/obsidian/stats</a>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">SOVA Agent (v3.2)</div>
+      <a class="sb-link" href="#sova-query"><span class="sb-method m-post">POST</span>/agent/sova</a>
+      <a class="sb-link" href="#master-run"><span class="sb-method m-post">POST</span>/agent/master</a>
+      <a class="sb-link" href="#agent-approve"><span class="sb-method m-post">POST</span>/agent/approve/{token}</a>
+    </div>
+    <div class="sb-section">
+      <div class="sb-title">Install &amp; Deploy</div>
+      <a class="sb-link" href="#install-guide">Installation Guide</a>
+      <a class="sb-link" href="#uninstall">Uninstall</a>
     </div>
     <div class="sb-section">
       <div class="sb-title">SDK</div>
@@ -515,8 +552,8 @@
 
     <!-- INTRO -->
     <div class="section section-anchor" id="intro">
-      <h1>API Reference</h1>
-      <p>Shadow Warden AI is a zero-trust AI security gateway (v2.9). Every payload passes through a 9-layer pipeline: TDA topological gatekeeper, obfuscation decoder, secret/PII redaction, semantic rules, hyperbolic ML brain, Bayesian causal arbiter, entity risk scoring — before reaching any downstream model. v2.9 adds the <strong>4-tier SaaS billing engine</strong>, referral flywheel, quota middleware, and Warden Nexus federated threat intelligence.</p>
+      <h1>API Reference <span class="tag tag-new" style="font-size:0.75rem;vertical-align:middle;margin-left:8px;">v4.10</span></h1>
+      <p>Shadow Warden AI is a zero-trust AI security gateway. Every payload passes through a 9-layer pipeline: TDA topological gatekeeper, obfuscation decoder, secret/PII redaction, semantic rules, hyperbolic ML brain, Bayesian causal arbiter, entity risk scoring — before reaching any downstream model. <strong>v4.10</strong> adds the Obsidian Business Community integration (5 endpoints), WCAG 2.1 AA accessibility widget, and targeted coverage boost (55 new tests).</p>
 
       <div class="base-url-bar">
         <span class="base-url-label">Base URL</span>
@@ -1388,6 +1425,139 @@ synthesizer.register_rails(rails)
         <span class="info-icon">&#9432;</span>
         <span>Run the demo without any dependencies: <code>python scripts/nemo_demo.py --simulate</code>. All 5 threat classes (clean, gray_zone, high_risk, topology, blocked) are simulated with hardcoded fixtures.</span>
       </div>
+    </div>
+
+    <!-- ── XAI / Explainer ─────────────────────────────────────────────── -->
+    <hr class="divider" />
+    <div class="section section-anchor" id="xai-explain">
+      <h2>XAI / Explainer <span class="tag tag-new">v4.3</span></h2>
+      <p>Explainable AI — 9-stage causal chain with primary cause attribution, counterfactual remediations, and HTML/PDF reports. Gate: <code>xai_reports_enabled</code> feature flag (Pro+) or <code>xai_audit</code> add-on (+$9/mo, Individual+).</p>
+
+      <div class="endpoint" id="xai-explain">
+        <div class="endpoint-header"><span class="method-badge method-get">GET</span><span class="endpoint-path">/xai/explain/{request_id}</span><span class="endpoint-desc">Causal chain for a request</span></div>
+        <div class="endpoint-body">
+          <p>Returns the 9-stage pipeline DAG for a completed filter request: stage verdicts, scores, primary cause, and counterfactual remediations.</p>
+          <div class="code-block">{"chain_id":"…","request_id":"…","verdict":"BLOCKED","risk":"HIGH",
+ "primary_cause":{"stage_id":"brain","score":0.91,"counterfactual":"Lower semantic score below 0.72"},
+ "stages":[{"stage_id":"topology","verdict":"PASS","score":0.12},…],
+ "generated_at":"2026-05-02T10:00:00Z"}</div>
+        </div>
+      </div>
+
+      <div class="endpoint" id="xai-report">
+        <div class="endpoint-header"><span class="method-badge method-get">GET</span><span class="endpoint-path">/xai/report/{request_id}</span><span class="endpoint-desc">Self-contained HTML report</span></div>
+        <div class="endpoint-body"><p>Returns a self-contained HTML page with SVG risk gauge, collapsible stage cards, and counterfactuals. Print-ready. Add <code>?format=pdf</code> to get a PDF (reportlab required, fallback to HTML).</p></div>
+      </div>
+
+      <div class="endpoint" id="xai-dashboard">
+        <div class="endpoint-header"><span class="method-badge method-get">GET</span><span class="endpoint-path">/xai/dashboard</span><span class="endpoint-desc">Stage hit-rate analytics</span></div>
+        <div class="endpoint-body"><p>Returns stage hit rates, top primary causes, and flag distribution over a configurable time window (<code>?hours=24</code>, max 168).</p></div>
+      </div>
+    </div>
+
+    <!-- ── Obsidian ──────────────────────────────────────────────────────── -->
+    <hr class="divider" />
+    <div class="section section-anchor" id="obsidian-scan">
+      <h2>Obsidian Integration <span class="tag tag-new">v4.10</span></h2>
+      <p>5 endpoints for the Shadow Warden Obsidian plugin — scan notes, share to SEP communities, serve community feed, filter AI prompts. Data classification: <code>GENERAL</code> / <code>PII</code> / <code>FINANCIAL</code> / <code>CLASSIFIED</code> / <code>PHI</code>. Risk levels: <code>ALLOW</code> / <code>LOW</code> / <code>MEDIUM</code> / <code>HIGH</code> / <code>BLOCK</code>.</p>
+
+      <div class="endpoint" id="obsidian-scan">
+        <div class="endpoint-header"><span class="method-badge method-post">POST</span><span class="endpoint-path">/obsidian/scan</span><span class="endpoint-desc">Scan a note for secrets + risk</span></div>
+        <div class="endpoint-body">
+          <table class="params-table"><thead><tr><th>Field</th><th>Type</th><th>Req?</th><th>Description</th></tr></thead><tbody>
+            <tr><td class="p-name">content</td><td class="p-type">string</td><td class="p-req">✓</td><td class="p-desc">Full Markdown note content including YAML frontmatter</td></tr>
+            <tr><td class="p-name">filename</td><td class="p-type">string</td><td class="p-opt">opt</td><td class="p-desc">Used for display only</td></tr>
+          </tbody></table>
+          <div class="res-badge res-200">200 OK</div>
+          <div class="code-block">{"risk_level":"LOW","allowed":true,"flags":[],"data_class":"GENERAL",
+ "secrets_found":false,"word_count":312,"redacted_content":"…","scanned_at":"…"}</div>
+        </div>
+      </div>
+
+      <div class="endpoint" id="obsidian-share">
+        <div class="endpoint-header"><span class="method-badge method-post">POST</span><span class="endpoint-path">/obsidian/share</span><span class="endpoint-desc">Share note to SEP community</span></div>
+        <div class="endpoint-body">
+          <p>Registers the note in the SEP UECIID index and returns a stable <code>SEP-{11}</code> identifier. Blocked if <code>secrets_found=true</code>.</p>
+          <table class="params-table"><thead><tr><th>Field</th><th>Type</th><th>Req?</th><th>Description</th></tr></thead><tbody>
+            <tr><td class="p-name">content</td><td class="p-type">string</td><td class="p-req">✓</td><td class="p-desc">Note Markdown</td></tr>
+            <tr><td class="p-name">community_id</td><td class="p-type">string</td><td class="p-req">✓</td><td class="p-desc">Target SEP community UUID</td></tr>
+            <tr><td class="p-name">display_name</td><td class="p-type">string</td><td class="p-opt">opt</td><td class="p-desc">Author label</td></tr>
+          </tbody></table>
+          <div class="res-badge res-200">200 OK</div>
+          <div class="code-block">{"ueciid":"SEP-A1b2C3d4E5f","community_id":"…","display_name":"…",
+ "data_class":"GENERAL","word_count":312,"shared_at":"…"}</div>
+        </div>
+      </div>
+
+      <div class="endpoint" id="obsidian-feed">
+        <div class="endpoint-header"><span class="method-badge method-get">GET</span><span class="endpoint-path">/obsidian/feed</span><span class="endpoint-desc">Paginated community note feed</span></div>
+        <div class="endpoint-body"><p>Query params: <code>community_id</code> (required), <code>limit</code> (default 20, max 100). Returns shared notes ordered by <code>shared_at</code> descending.</p></div>
+      </div>
+
+      <div class="endpoint" id="obsidian-ai-filter">
+        <div class="endpoint-header"><span class="method-badge method-post">POST</span><span class="endpoint-path">/obsidian/ai-filter</span><span class="endpoint-desc">Filter a free-form AI prompt</span></div>
+        <div class="endpoint-body"><p>Runs SecretRedactor + SemanticGuard on a prompt string before it reaches any LLM. Returns <code>allowed</code>, <code>risk_level</code>, <code>redacted_content</code>, and semantic flags.</p></div>
+      </div>
+
+      <div class="endpoint" id="obsidian-stats">
+        <div class="endpoint-header"><span class="method-badge method-get">GET</span><span class="endpoint-path">/obsidian/stats</span><span class="endpoint-desc">Integration health</span></div>
+        <div class="endpoint-body"><p>Returns total scans, shares, secrets blocked, average risk score, and gateway reachability for the current tenant.</p></div>
+      </div>
+    </div>
+
+    <!-- ── Install & Deploy ─────────────────────────────────────────────── -->
+    <hr class="divider" />
+    <div class="section section-anchor" id="install-guide">
+      <h2>Installation Guide <span class="tag tag-new">v4.10</span></h2>
+      <p>Shadow Warden AI is distributed as a Docker Compose stack. 11 services start with a single command. No external cloud dependencies required.</p>
+
+      <div class="info-box info"><span class="info-icon">ℹ</span><span>All 11 services are defined in <code>docker-compose.yml</code>. The stack includes its own Caddy proxy, TimescaleDB, Redis, Prometheus, Grafana, and MinIO — no external dependencies needed for self-hosted deployment.</span></div>
+
+      <h3>Prerequisites</h3>
+      <table class="params-table"><thead><tr><th>Requirement</th><th>Minimum</th><th>Notes</th></tr></thead><tbody>
+        <tr><td class="p-name">Docker Desktop</td><td class="p-type">24.x</td><td class="p-desc">Docker Compose v2 included</td></tr>
+        <tr><td class="p-name">RAM</td><td class="p-type">4 GB</td><td class="p-desc">8 GB recommended (ML model + all services)</td></tr>
+        <tr><td class="p-name">Disk</td><td class="p-type">5 GB</td><td class="p-desc">Images + model cache + volumes</td></tr>
+        <tr><td class="p-name">ANTHROPIC_API_KEY</td><td class="p-type">optional</td><td class="p-desc">Enables Evolution Engine, SOVA, MasterAgent. Air-gapped mode works without it.</td></tr>
+      </tbody></table>
+
+      <h3>Quick Start</h3>
+      <div class="code-wrap"><div class="code-block"><span class="c-comment"># 1. Clone</span>
+git clone https://github.com/zborrman/Shadow-Warden-AI.git
+cd Shadow-Warden-AI
+
+<span class="c-comment"># 2. Configure</span>
+cp .env.example .env
+<span class="c-comment"># Edit SECRET_KEY, WARDEN_API_KEY, POSTGRES_PASS</span>
+<span class="c-comment"># Optional: ANTHROPIC_API_KEY, SLACK_WEBHOOK_URL</span>
+
+<span class="c-comment"># 3. Start all 11 services</span>
+docker compose up --build -d
+
+<span class="c-comment"># 4. Verify</span>
+python scripts/warden_doctor.py --url http://localhost --key $WARDEN_API_KEY</div></div>
+
+      <div class="info-box success"><span class="info-icon">✓</span><span>First run downloads PyTorch CPU wheels (~200 MB) and <code>all-MiniLM-L6-v2</code> (~80 MB). Both are cached — subsequent starts are fast.</span></div>
+
+      <h3>One-Click SMB Installer</h3>
+      <div class="code-wrap"><div class="code-block">bash &lt;(curl -fsSL https://install.shadow-warden-ai.com/smb)</div></div>
+      <p>Handles Docker detection, <code>.env</code> generation, secrets keygen, MinIO bucket init, health checks, and a first-request smoke test.</p>
+
+      <h3>Update</h3>
+      <div class="code-wrap"><div class="code-block">git pull origin main
+docker compose pull
+docker compose up --build -d</div></div>
+
+      <h3 id="uninstall" style="color:#f87171">Uninstall</h3>
+      <div class="info-box warn"><span class="info-icon">⚠</span><span>Back up your MinIO evidence vault before running the full wipe. <code>-v</code> permanently deletes all database data, logs, and model cache.</span></div>
+      <div class="code-wrap"><div class="code-block"><span class="c-comment"># Stop containers — keep volumes (data safe)</span>
+docker compose down
+
+<span class="c-comment"># Full wipe — removes ALL data volumes (irreversible)</span>
+docker compose down -v --rmi all
+
+<span class="c-comment"># Remove named model volume only</span>
+docker volume rm shadow-warden-ai_warden-models</div></div>
     </div>
 
   </main>

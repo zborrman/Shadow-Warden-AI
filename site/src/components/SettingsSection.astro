@@ -1,17 +1,20 @@
 ---
 const settingsTabs = [
-  { id: 'pipeline',   icon: '🔴', label: 'Filter Pipeline' },
-  { id: 'brain',      icon: '🧠', label: 'Brain / ML'      },
-  { id: 'soc',        icon: '🤖', label: 'Agentic SOC'     },
-  { id: 'sovereign',  icon: '🌐', label: 'Sovereign Cloud' },
-  { id: 'pqc',        icon: '🧬', label: 'Post-Quantum'    },
-  { id: 'sep',        icon: '🔗', label: 'SEP Communities' },
-  { id: 'shadowai',   icon: '👁️', label: 'Shadow AI'       },
-  { id: 'xai',        icon: '📊', label: 'XAI / Explainer' },
-  { id: 'auth',       icon: '🔐', label: 'Auth & Identity' },
-  { id: 'billing',    icon: '💳', label: 'Billing'         },
-  { id: 'alerts',     icon: '🔔', label: 'Alerts'          },
-  { id: 'infra',      icon: '⚙️', label: 'Infrastructure'  },
+  { id: 'pipeline',     icon: '🔴', label: 'Filter Pipeline'   },
+  { id: 'brain',        icon: '🧠', label: 'Brain / ML'        },
+  { id: 'soc',          icon: '🤖', label: 'Agentic SOC'       },
+  { id: 'sovereign',    icon: '🌐', label: 'Sovereign Cloud'   },
+  { id: 'pqc',          icon: '🧬', label: 'Post-Quantum'      },
+  { id: 'sep',          icon: '🔗', label: 'SEP Communities'   },
+  { id: 'shadowai',     icon: '👁️', label: 'Shadow AI'         },
+  { id: 'xai',          icon: '📊', label: 'XAI / Explainer'   },
+  { id: 'obsidian',     icon: '🗒️', label: 'Obsidian'          },
+  { id: 'accessibility',icon: '♿', label: 'Accessibility'      },
+  { id: 'auth',         icon: '🔐', label: 'Auth & Identity'   },
+  { id: 'billing',      icon: '💳', label: 'Billing'           },
+  { id: 'alerts',       icon: '🔔', label: 'Alerts'            },
+  { id: 'infra',        icon: '⚙️', label: 'Infrastructure'    },
+  { id: 'install',      icon: '📦', label: 'Install / Uninstall'},
 ];
 ---
 
@@ -26,7 +29,7 @@ const settingsTabs = [
          style="background:#03050F">
       <div class="px-5 py-5 border-b border-white/[0.06]">
         <div class="text-[11px] font-black uppercase tracking-[2px] text-[#FF2D55]">⚙ Settings</div>
-        <div class="text-[10px] text-[#48485A] mt-0.5">v4.7 · All Categories</div>
+        <div class="text-[10px] text-[#48485A] mt-0.5">v4.10 · All Categories</div>
       </div>
       <nav class="flex-1 overflow-y-auto py-3">
         {settingsTabs.map((t, i) => (
@@ -262,6 +265,199 @@ const settingsTabs = [
           </div>
         </div>
 
+        <!-- OBSIDIAN -->
+        <div id="spanel-obsidian" class="settings-panel hidden">
+          <div class="p-4 rounded-xl border border-[#FFD60A]/20 bg-[#FFD60A]/[0.04] mb-5">
+            <div class="text-[12px] font-bold text-[#FFD60A] mb-1">Obsidian Business Community Integration <span class="ml-2 text-[9px] px-2 py-0.5 rounded bg-[#FFD60A]/15 text-[#FFD60A] font-bold">v4.10</span></div>
+            <div class="text-[10px] text-[#8E8E9E]">Scan notes, share to SEP communities, filter AI prompts — GDPR-safe, secrets-aware.</div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4 mb-5">
+            {[
+              { l:'Warden Server URL', k:'OBSIDIAN_SERVER_URL', v:'https://api.shadow-warden-ai.com', h:'Your Warden gateway base URL' },
+              { l:'API Key', k:'OBSIDIAN_API_KEY', v:'warden_live_••••', h:'X-API-Key used by the plugin' },
+              { l:'Community ID', k:'OBSIDIAN_COMMUNITY_ID', v:'', h:'Default SEP community for sharing' },
+              { l:'Display Name', k:'OBSIDIAN_DISPLAY_NAME', v:'', h:'Author label on shared notes' },
+              { l:'Max Feed Items', k:'OBSIDIAN_MAX_FEED', v:'20', h:'Notes shown in Community Feed' },
+              { l:'Debounce (ms)', k:'OBSIDIAN_DEBOUNCE_MS', v:'2000', h:'Auto-scan delay on file modify' },
+            ].map(f => (
+              <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+                <label class="block text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">{f.l}</label>
+                <input value={f.v} class="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] font-mono text-[#F5F5F7] focus:border-[#FFD60A]/50 focus:outline-none" />
+                <div class="text-[9px] text-[#48485A] mt-1.5 font-mono">{f.k} · {f.h}</div>
+              </div>
+            ))}
+          </div>
+          <div class="space-y-3">
+            {[
+              { label:'Auto-Scan on Modify', key:'OBSIDIAN_AUTO_SCAN', val:true,  desc:'Trigger scan 2s after every file save' },
+              { label:'Block on Secrets Found', key:'OBSIDIAN_BLOCK_SECRETS', val:true,  desc:'Prevent sharing if secrets detected' },
+              { label:'AI Filter Endpoint', key:'OBSIDIAN_AI_FILTER', val:true,  desc:'SecretRedactor + SemanticGuard on prompts' },
+              { label:'Show Risk Badge', key:'OBSIDIAN_SHOW_BADGE', val:true,  desc:'Status-bar badge after each scan' },
+            ].map(s => (
+              <div class="flex items-center justify-between p-4 rounded-xl border border-white/[0.05] bg-[#03050F]">
+                <div>
+                  <div class="text-[13px] font-semibold">{s.label}</div>
+                  <div class="text-[10px] text-[#48485A] font-mono mt-0.5">{s.key} · {s.desc}</div>
+                </div>
+                <div class={`w-10 h-6 rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${s.val ? 'bg-[#FFD60A]' : 'bg-white/[0.1]'}`}
+                     onclick="this.classList.toggle('bg-[#FFD60A]');this.classList.toggle('bg-white/[0.1]')">
+                  <div class={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${s.val ? 'left-4' : 'left-0.5'}`}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div class="mt-4 p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">Plugin Endpoints (v4.10)</div>
+            <div class="space-y-1 font-mono text-[10px] text-[#48485A]">
+              {['POST /obsidian/scan — risk_level + secrets + data_class',
+                'POST /obsidian/share — SEP UECIID registration',
+                'GET  /obsidian/feed  — paginated community note feed',
+                'POST /obsidian/ai-filter — SecretRedactor + SemanticGuard',
+                'GET  /obsidian/stats — integration health'].map(e => (
+                <div class="flex gap-2"><span class="text-[#30D158]">▸</span>{e}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <!-- ACCESSIBILITY -->
+        <div id="spanel-accessibility" class="settings-panel hidden">
+          <div class="p-4 rounded-xl border border-[#0A84FF]/20 bg-[#0A84FF]/[0.04] mb-5">
+            <div class="flex items-center justify-between mb-1">
+              <div class="text-[13px] font-bold text-[#0A84FF]">Accessibility Widget <span class="ml-2 text-[9px] px-2 py-0.5 rounded bg-[#0A84FF]/15 text-[#0A84FF] font-bold">v4.10</span></div>
+              <div class="flex gap-1.5 text-[9px]">
+                <span class="px-2 py-0.5 rounded bg-[#30D158]/15 text-[#30D158] font-bold">WCAG 2.1 AA</span>
+                <span class="px-2 py-0.5 rounded bg-[#30D158]/15 text-[#30D158] font-bold">Section 508</span>
+                <span class="px-2 py-0.5 rounded bg-[#30D158]/15 text-[#30D158] font-bold">EN 301 549</span>
+                <span class="px-2 py-0.5 rounded bg-[#30D158]/15 text-[#30D158] font-bold">ADA</span>
+              </div>
+            </div>
+            <div class="text-[10px] text-[#8E8E9E]">Zero-dependency IIFE widget. Auto-detects prefers-reduced-motion and prefers-contrast on first load. Alt+A to open.</div>
+          </div>
+          <div class="space-y-3 mb-5">
+            {[
+              { label:'Widget Enabled',         key:'A11Y_WIDGET_ENABLED',  val:true,  desc:'Show accessibility button on all pages' },
+              { label:'Skip-to-Content Link',   key:'A11Y_SKIP_LINK',       val:true,  desc:'Hidden link shown on first Tab keypress' },
+              { label:'Text Resize',            key:'A11Y_TEXT_RESIZE',     val:true,  desc:'3-level font scaling (100%/125%/150%)' },
+              { label:'High Contrast',          key:'A11Y_HIGH_CONTRAST',   val:true,  desc:'Dark/Light contrast mode toggle' },
+              { label:'Colour-Vision LUT',      key:'A11Y_COLOR_VISION',    val:true,  desc:'Protanopia / Deuteranopia / Tritanopia SVG filter' },
+              { label:'Dyslexia Font',          key:'A11Y_DYSLEXIA_FONT',   val:true,  desc:'OpenDyslexic typeface via CDN' },
+              { label:'Reduce Motion',          key:'A11Y_REDUCE_MOTION',   val:true,  desc:'Suppresses CSS animations/transitions' },
+              { label:'Enhanced Focus Ring',    key:'A11Y_FOCUS_RING',      val:true,  desc:'4px gold outline on all interactive elements' },
+              { label:'Large Cursor',           key:'A11Y_LARGE_CURSOR',    val:false, desc:'SVG enlarged pointer cursor' },
+              { label:'Reading Guide',          key:'A11Y_READING_GUIDE',   val:false, desc:'Horizontal line follows mouse pointer' },
+              { label:'Line / Word Spacing',    key:'A11Y_SPACING',         val:true,  desc:'Expanded line-height + word-spacing' },
+              { label:'ARIA Live Announcer',    key:'A11Y_ARIA_LIVE',       val:true,  desc:'Polite announcements for state changes' },
+              { label:'localStorage Persist',   key:'A11Y_PERSIST',         val:true,  desc:'Remembers user preferences across sessions' },
+            ].map(s => (
+              <div class="flex items-center justify-between p-3.5 rounded-xl border border-white/[0.05] bg-[#03050F]">
+                <div>
+                  <div class="text-[12px] font-semibold">{s.label}</div>
+                  <div class="text-[9px] text-[#48485A] font-mono mt-0.5">{s.key} · {s.desc}</div>
+                </div>
+                <div class={`w-10 h-6 rounded-full relative cursor-pointer transition-colors flex-shrink-0 ${s.val ? 'bg-[#0A84FF]' : 'bg-white/[0.1]'}`}
+                     onclick="this.classList.toggle('bg-[#0A84FF]');this.classList.toggle('bg-white/[0.1]')">
+                  <div class={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${s.val ? 'left-4' : 'left-0.5'}`}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div class="p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">Deployment Coverage</div>
+            <div class="grid grid-cols-2 gap-2 text-[10px]">
+              {[['33 Landing HTML pages','<script defer>'],['Astro site','AccessibilityWidget.astro'],['Next.js portal','"use client" component'],['Streamlit dashboards','inject_accessibility_widget()'],['Browser extension','popup.html relative path'],['Alt+A keyboard shortcut','global toggle']].map(([surface, impl]) => (
+                <div class="flex items-start gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                  <span class="text-[#30D158] mt-0.5 flex-shrink-0">✓</span>
+                  <div><div class="text-[#F5F5F7] font-medium">{surface}</div><div class="text-[#48485A] font-mono">{impl}</div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <!-- INSTALL / UNINSTALL -->
+        <div id="spanel-install" class="settings-panel hidden">
+          <div class="p-4 rounded-xl border border-[#30D158]/20 bg-[#30D158]/[0.04] mb-5">
+            <div class="text-[13px] font-bold text-[#30D158] mb-1">Install &amp; Uninstall — Shadow Warden AI v4.10</div>
+            <div class="text-[10px] text-[#8E8E9E]">Self-contained Docker stack. All 11 services start with a single command. No external dependencies.</div>
+          </div>
+
+          <!-- Quick Install -->
+          <div class="mb-5">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-3">Quick Install (Community Business Edition)</div>
+            <div class="space-y-2 text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4">
+              <div><span class="text-[#8E8E9E]"># 1. Clone</span></div>
+              <div class="text-[#34d399]">git clone https://github.com/zborrman/Shadow-Warden-AI.git</div>
+              <div class="text-[#34d399]">cd Shadow-Warden-AI</div>
+              <div class="mt-2"><span class="text-[#8E8E9E]"># 2. Configure</span></div>
+              <div class="text-[#34d399]">cp .env.example .env  <span class="text-[#48485A]"># edit SECRET_KEY, WARDEN_API_KEY, POSTGRES_PASS</span></div>
+              <div class="mt-2"><span class="text-[#8E8E9E]"># 3. Start all 11 services</span></div>
+              <div class="text-[#34d399]">docker compose up --build -d</div>
+              <div class="mt-2"><span class="text-[#8E8E9E]"># 4. Verify</span></div>
+              <div class="text-[#34d399]">python scripts/warden_doctor.py --url http://localhost --key $WARDEN_API_KEY</div>
+            </div>
+          </div>
+
+          <!-- SMB one-click -->
+          <div class="mb-5">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-3">One-Click SMB Installer</div>
+            <div class="text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4 text-[#34d399]">
+              bash &lt;(curl -fsSL https://install.shadow-warden-ai.com/smb)
+            </div>
+            <div class="text-[10px] text-[#48485A] mt-2">Handles Docker install, .env generation, secrets, MinIO bucket init, health checks, and first-request smoke test.</div>
+          </div>
+
+          <!-- Services table -->
+          <div class="mb-5">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-3">Docker Services (11)</div>
+            <div class="space-y-1.5">
+              {[
+                ['proxy',     '80/443',   'Caddy v2 reverse proxy + QUIC/H3 + HSTS'],
+                ['warden',    '8001',     'FastAPI gateway — filter, agents, all APIs'],
+                ['app',       '8000',     'Application server'],
+                ['analytics', '8002',     'Streamlit analytics + settings pages'],
+                ['dashboard', '8501',     'Streamlit security dashboard'],
+                ['postgres',  '5432',     'TimescaleDB — hypertable for probe results'],
+                ['redis',     '6379',     'Cache, ERS, SOVA memory, rate-limit'],
+                ['prometheus','9090',     'Metrics scrape'],
+                ['grafana',   '3000',     'SLO alerts + dashboards'],
+                ['minio',     '9000/9001','On-prem S3 — Evidence Vault + screencasts'],
+                ['minio-init','—',        'Bucket bootstrap sidecar'],
+              ].map(([svc, port, desc]) => (
+                <div class="flex items-center gap-3 p-3 rounded-lg bg-[#03050F] border border-white/[0.04] text-[11px]">
+                  <span class="font-mono text-[#0A84FF] w-20 flex-shrink-0">{svc}</span>
+                  <span class="font-mono text-[#48485A] w-16 flex-shrink-0">{port}</span>
+                  <span class="text-[#8E8E9E]">{desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <!-- Update -->
+          <div class="mb-5">
+            <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-3">Update to Latest</div>
+            <div class="text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4 space-y-1 text-[#34d399]">
+              <div>git pull origin main</div>
+              <div>docker compose pull</div>
+              <div>docker compose up --build -d</div>
+            </div>
+          </div>
+
+          <!-- Uninstall -->
+          <div class="p-4 rounded-xl border border-[#FF3B30]/20 bg-[#FF3B30]/[0.04]">
+            <div class="text-[12px] font-bold text-[#FF3B30] mb-3">Uninstall</div>
+            <div class="space-y-2 text-[11px] font-mono bg-[#03050F] rounded-lg p-4 text-[#f87171]">
+              <div><span class="text-[#8E8E9E]"># Stop + remove containers (keep volumes)</span></div>
+              <div>docker compose down</div>
+              <div class="mt-2"><span class="text-[#8E8E9E]"># Full wipe — removes all data volumes</span></div>
+              <div>docker compose down -v --rmi all</div>
+              <div class="mt-2"><span class="text-[#8E8E9E]"># Remove named model volume</span></div>
+              <div>docker volume rm shadow-warden-ai_warden-models</div>
+            </div>
+            <div class="text-[10px] text-[#48485A] mt-2">⚠ <code>-v</code> permanently deletes all database data, logs, and evidence vault. Back up MinIO first.</div>
+          </div>
+        </div>
+
         <!-- Other panels (SEP, Shadow AI, XAI, Auth, Billing, Alerts, Infra) -->
         {['sep','shadowai','xai','auth','billing','alerts','infra'].map(pid => (
           <div id={`spanel-${pid}`} class="settings-panel hidden">
@@ -327,12 +523,21 @@ const settingsTabs = [
 
 <script>
   const TITLES: Record<string, string> = {
-    pipeline: 'Filter Pipeline Settings', brain: 'Brain / ML Settings',
-    soc: 'Agentic SOC Settings', sovereign: 'Sovereign Cloud Settings',
-    pqc: 'Post-Quantum Crypto Settings', sep: 'SEP Communities Settings',
-    shadowai: 'Shadow AI Discovery Settings', xai: 'XAI / Explainer Settings',
-    auth: 'Auth & Identity Settings', billing: 'Billing Settings',
-    alerts: 'Alerts & Notifications', infra: 'Infrastructure Settings',
+    pipeline:      'Filter Pipeline Settings',
+    brain:         'Brain / ML Settings',
+    soc:           'Agentic SOC Settings',
+    sovereign:     'Sovereign Cloud Settings',
+    pqc:           'Post-Quantum Crypto Settings',
+    sep:           'SEP Communities Settings',
+    shadowai:      'Shadow AI Discovery Settings',
+    xai:           'XAI / Explainer Settings',
+    obsidian:      'Obsidian Integration Settings',
+    accessibility: 'Accessibility Widget — WCAG 2.1 AA / Section 508 / EN 301 549',
+    auth:          'Auth & Identity Settings',
+    billing:       'Billing Settings',
+    alerts:        'Alerts & Notifications',
+    infra:         'Infrastructure Settings',
+    install:       'Install / Uninstall',
   };
 
   function showSettingsTab(id: string) {

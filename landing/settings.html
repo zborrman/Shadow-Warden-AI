@@ -442,6 +442,14 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
       Enterprise Resilience
     </a>
+    <a class="sidebar-item" onclick="return showSection('obsidian', this)" href="#obsidian">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Obsidian <span style="font-size:0.6rem;padding:1px 5px;border-radius:4px;background:rgba(99,102,241,0.15);color:#a5b4fc;margin-left:4px;">v4.10</span>
+    </a>
+    <a class="sidebar-item" onclick="return showSection('accessibility', this)" href="#accessibility">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="4" r="2"/><path d="M12 8c-4 0-6 2-6 5v1h4l1 8h2l1-8h4v-1c0-3-2-5-6-5z"/></svg>
+      Accessibility <span style="font-size:0.6rem;padding:1px 5px;border-radius:4px;background:rgba(52,211,153,0.12);color:#34d399;margin-left:4px;">WCAG 2.1</span>
+    </a>
     <div class="sidebar-group">Financial</div>
     <a class="sidebar-item" onclick="return showSection('impact', this)" href="#impact">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
@@ -455,6 +463,11 @@
     <a class="sidebar-item" onclick="return showSection('api', this)" href="#api">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
       API Keys
+    </a>
+    <div class="sidebar-group">Deploy</div>
+    <a class="sidebar-item" onclick="return showSection('install', this)" href="#install">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Install / Uninstall
     </a>
   </aside>
 
@@ -1854,6 +1867,242 @@ synthesizer.register_rails(rails)<br/>
       <div id="impact-report-box" style="display:none;margin-top:16px">
         <div class="setting-group-title" style="padding:12px 0 8px;font-size:0.75rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em">Report Output</div>
         <pre id="impact-report-pre" class="code-block" style="white-space:pre-wrap;max-height:400px;overflow-y:auto"></pre>
+      </div>
+    </section>
+
+    <!-- ── Obsidian Integration ────────────────────────────────────────── -->
+    <section class="section" id="section-obsidian">
+      <div class="section-title">Obsidian Integration <span style="font-size:0.75rem;padding:2px 8px;border-radius:6px;background:rgba(99,102,241,0.15);color:#a5b4fc;vertical-align:middle;margin-left:8px;">v4.10</span></div>
+      <div class="section-sub">Connect your Obsidian vault to Shadow Warden AI — scan notes for secrets and PII, share to SEP communities, and filter AI prompts.</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Plugin Connection</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Warden Server URL</div>
+            <div class="setting-desc">Base URL of your Shadow Warden gateway. Used by the Obsidian plugin for all API calls.</div>
+          </div>
+          <div class="setting-control">
+            <input class="ctrl-input wide mono" value="https://api.shadow-warden-ai.com" />
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">API Key</div>
+            <div class="setting-desc">X-API-Key sent with every plugin request. Copy from Dashboard → API Keys.</div>
+          </div>
+          <div class="setting-control">
+            <input type="password" class="ctrl-input wide mono" placeholder="warden_live_…" />
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Community ID</div>
+            <div class="setting-desc">Default SEP community for the "Share Note" command. Leave blank to select at share time.</div>
+          </div>
+          <div class="setting-control">
+            <input class="ctrl-input wide mono" placeholder="SEP-xxxxxxxxxxx" />
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Max Feed Items</div>
+            <div class="setting-desc">Number of shared notes shown in the Community Feed modal.</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" value="20" min="5" max="100" />
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Scan Behaviour</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Auto-Scan on Modify</div>
+            <div class="setting-desc">Trigger a scan 2 seconds after every file save. Shows risk badge in status bar.</div>
+          </div>
+          <div class="setting-control"><label class="toggle-wrap"><input type="checkbox" class="toggle-input" checked /><div class="toggle-track"></div></label></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Block Sharing on Secrets Found</div>
+            <div class="setting-desc">Prevents "Share Note" if the scan detects any secrets or PII. Recommended for compliance.</div>
+          </div>
+          <div class="setting-control"><label class="toggle-wrap"><input type="checkbox" class="toggle-input" checked /><div class="toggle-track"></div></label></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">AI Filter on Prompts</div>
+            <div class="setting-desc">Runs SecretRedactor + SemanticGuard on free-form AI prompt text before sending to any LLM.</div>
+          </div>
+          <div class="setting-control"><label class="toggle-wrap"><input type="checkbox" class="toggle-input" checked /><div class="toggle-track"></div></label></div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Plugin Install</div>
+        <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:12px;">
+          <div class="setting-info">
+            <div class="setting-name">Install from BRAT (Beta)</div>
+            <div class="setting-desc">Community plugins are not yet on the Obsidian marketplace. Install via BRAT plugin manager:</div>
+          </div>
+          <div class="code-block" style="width:100%;"><span class="code-key">1.</span> <span class="code-val">Install BRAT from Obsidian Community Plugins</span>
+<span class="code-key">2.</span> <span class="code-val">BRAT → Add Beta Plugin → paste repo URL:</span>
+<span class="code-str">   https://github.com/zborrman/Shadow-Warden-AI</span>
+<span class="code-key">3.</span> <span class="code-val">Enable "Shadow Warden AI" in Community Plugins</span>
+<span class="code-key">4.</span> <span class="code-val">Set Server URL + API Key in plugin settings</span></div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <span class="save-bar-text">Plugin reads these values directly from its own settings UI — changes here are for reference.</span>
+        <button class="btn btn-primary" onclick="showToast('Obsidian settings saved', 'success')">Apply Changes</button>
+      </div>
+    </section>
+
+    <!-- ── Accessibility ────────────────────────────────────────────────── -->
+    <section class="section" id="section-accessibility">
+      <div class="section-title">Accessibility Widget</div>
+      <div class="section-sub">WCAG 2.1 AA · Section 508 (US) · EN 301 549 (EU) · ADA — zero-dependency IIFE, deployed on all surfaces.</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Compliance Standards</div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">WCAG 2.1 Level AA</div><div class="setting-desc">Web Content Accessibility Guidelines — international baseline (EU EN 301 549 references this).</div></div>
+          <div class="setting-control"><span class="badge badge-green">✓ Compliant</span></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">Section 508 (US)</div><div class="setting-desc">US federal accessibility standard. Required for government contracts and federal software.</div></div>
+          <div class="setting-control"><span class="badge badge-green">✓ Compliant</span></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">EN 301 549 (EU)</div><div class="setting-desc">European accessibility standard for ICT products. Mandatory for public sector organisations in the EU.</div></div>
+          <div class="setting-control"><span class="badge badge-green">✓ Compliant</span></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">ADA Title III (US)</div><div class="setting-desc">Americans with Disabilities Act — applies to places of public accommodation including websites.</div></div>
+          <div class="setting-control"><span class="badge badge-green">✓ Compliant</span></div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Widget Features</div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Text Resize</div><div class="setting-desc">3 levels: 100% / 125% / 150% — applies via CSS font-size on &lt;html&gt;.</div></div><div class="setting-control"><span class="badge badge-green">Active</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">High Contrast</div><div class="setting-desc">Dark and light high-contrast modes with WCAG-compliant colour ratios.</div></div><div class="setting-control"><span class="badge badge-green">Active</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Colour-Vision Simulation</div><div class="setting-desc">SVG feColorMatrix LUT for Protanopia, Deuteranopia, Tritanopia + Normal modes.</div></div><div class="setting-control"><span class="badge badge-green">Active</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Dyslexia Font (OpenDyslexic)</div><div class="setting-desc">Loaded from CDN on demand — increases letter recognition for dyslexic readers.</div></div><div class="setting-control"><span class="badge badge-green">Active</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Reduce Motion</div><div class="setting-desc">Suppresses all CSS animations and transitions — respects prefers-reduced-motion.</div></div><div class="setting-control"><span class="badge badge-green">Active</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Enhanced Focus Ring</div><div class="setting-desc">4px gold outline on all focusable elements. Keyboard shortcut: Alt+A to open panel.</div></div><div class="setting-control"><span class="badge badge-green">Active</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Reading Guide</div><div class="setting-desc">Horizontal line follows the mouse pointer — helps readers track their line of text.</div></div><div class="setting-control"><label class="toggle-wrap"><input type="checkbox" class="toggle-input" /><div class="toggle-track"></div></label></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Large Cursor</div><div class="setting-desc">Enlarged SVG pointer cursor for motor-impaired users.</div></div><div class="setting-control"><label class="toggle-wrap"><input type="checkbox" class="toggle-input" /><div class="toggle-track"></div></label></div></div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Deployment — All Surfaces</div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Landing Pages (33)</div><div class="setting-desc">&lt;script src="/accessibility-widget.js" defer&gt;&lt;/script&gt; injected before &lt;/body&gt; in every HTML page.</div></div><div class="setting-control"><span class="badge badge-green">Deployed</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Astro Site</div><div class="setting-desc">site/src/components/AccessibilityWidget.astro — is:inline, loaded via Layout.astro.</div></div><div class="setting-control"><span class="badge badge-green">Deployed</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Next.js Portal</div><div class="setting-desc">'use client' AccessibilityWidget.tsx — injected via app/layout.tsx.</div></div><div class="setting-control"><span class="badge badge-green">Deployed</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Streamlit Dashboards (6)</div><div class="setting-desc">inject_accessibility_widget() called in all 6 analytics pages via warden/analytics/accessibility.py.</div></div><div class="setting-control"><span class="badge badge-green">Deployed</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Browser Extension</div><div class="setting-desc">popup.html loads accessibility-widget.js with relative path.</div></div><div class="setting-control"><span class="badge badge-green">Deployed</span></div></div>
+      </div>
+    </section>
+
+    <!-- ── Install / Uninstall ──────────────────────────────────────────── -->
+    <section class="section" id="section-install">
+      <div class="section-title">Install / Uninstall</div>
+      <div class="section-sub">Shadow Warden AI v4.10 — self-contained Docker stack, 11 services, single command.</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Prerequisites</div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Docker Desktop</div><div class="setting-desc">Version 24.x or later required. Docker Compose v2 included.</div></div><div class="setting-control"><span class="badge badge-amber">Required</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">RAM</div><div class="setting-desc">Minimum 4 GB. 8 GB recommended for ML model + all services.</div></div><div class="setting-control"><span class="badge badge-amber">4 GB min</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">Disk</div><div class="setting-desc">~5 GB free for images, model cache, and volumes.</div></div><div class="setting-control"><span class="badge badge-amber">5 GB min</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">ANTHROPIC_API_KEY</div><div class="setting-desc">Optional — enables Evolution Engine, SOVA Agent, and MasterAgent. Air-gapped mode works without it.</div></div><div class="setting-control"><span class="badge badge-gray">Optional</span></div></div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Quick Install</div>
+        <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:14px;">
+          <div class="code-block" style="width:100%"><span class="code-key"># 1.</span> <span class="code-val">Clone</span>
+git clone https://github.com/zborrman/Shadow-Warden-AI.git
+cd Shadow-Warden-AI
+
+<span class="code-key"># 2.</span> <span class="code-val">Configure environment</span>
+cp .env.example .env
+<span class="code-str"># Edit: SECRET_KEY  WARDEN_API_KEY  POSTGRES_PASS  (ANTHROPIC_API_KEY optional)</span>
+
+<span class="code-key"># 3.</span> <span class="code-val">Start all 11 services</span>
+docker compose up --build -d
+
+<span class="code-key"># 4.</span> <span class="code-val">Verify</span>
+python scripts/warden_doctor.py --url http://localhost --key $WARDEN_API_KEY</div>
+          <div class="save-bar" style="width:100%;margin-top:0;">
+            <span class="save-bar-text">First run downloads PyTorch CPU wheels (~200 MB) and all-MiniLM-L6-v2 (~80 MB). Cached on rebuild.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">One-Click SMB Installer</div>
+        <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+          <div class="setting-info"><div class="setting-name">bash installer</div><div class="setting-desc">Handles Docker detection, .env generation, secrets keygen, MinIO bucket init, health checks, and smoke test.</div></div>
+          <div class="code-block" style="width:100%;color:var(--green)">bash &lt;(curl -fsSL https://install.shadow-warden-ai.com/smb)</div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Services (11 Docker Containers)</div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">proxy</div><div class="setting-desc">Caddy v2 — 80/443, QUIC/HTTP3, HSTS, hostname routing (api/app/analytics/landing)</div></div><div class="setting-control"><span class="badge badge-green">:80/:443</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">warden</div><div class="setting-desc">FastAPI gateway — /filter, all API routes, agents, billing, secrets, obsidian, XAI, sovereign</div></div><div class="setting-control"><span class="badge badge-green">:8001</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">app</div><div class="setting-desc">Application server</div></div><div class="setting-control"><span class="badge badge-green">:8000</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">analytics</div><div class="setting-desc">Streamlit — Settings, Enterprise, Community, Secrets Governance dashboards</div></div><div class="setting-control"><span class="badge badge-green">:8002</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">dashboard</div><div class="setting-desc">Streamlit security dashboard — live filter events + charts</div></div><div class="setting-control"><span class="badge badge-green">:8501</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">postgres</div><div class="setting-desc">TimescaleDB — hypertable for probe results, continuous aggregate, 30-day retention</div></div><div class="setting-control"><span class="badge badge-green">:5432</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">redis</div><div class="setting-desc">Cache, ERS sliding window, SOVA conversation memory, rate-limit, Shadow AI findings</div></div><div class="setting-control"><span class="badge badge-green">:6379</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">prometheus / grafana</div><div class="setting-desc">Metrics scrape + SLO alerts (P99 latency, 5xx rate, shadow ban rate, corpus drift)</div></div><div class="setting-control"><span class="badge badge-green">:9090/:3000</span></div></div>
+        <div class="setting-row"><div class="setting-info"><div class="setting-name">minio + minio-init</div><div class="setting-desc">On-prem S3 — Evidence Vault, screencasts, analytics logs. Enable with S3_ENABLED=true</div></div><div class="setting-control"><span class="badge badge-green">:9000/:9001</span></div></div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Update</div>
+        <div class="setting-row" style="flex-direction:column;align-items:flex-start;">
+          <div class="code-block" style="width:100%">git pull origin main
+docker compose pull
+docker compose up --build -d</div>
+        </div>
+      </div>
+
+      <div class="setting-group" style="border-color:rgba(248,113,113,0.2);">
+        <div class="setting-group-title" style="color:var(--red);">Uninstall</div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Stop containers (keep data)</div>
+            <div class="setting-desc">Stops all services, removes containers. Volumes (database, logs, models) are preserved.</div>
+          </div>
+          <div class="setting-control">
+            <button class="btn btn-outline btn-sm" onclick="showToast('Run: docker compose down', 'success')">Copy Command</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name" style="color:var(--red);">Full Wipe — Delete All Data</div>
+            <div class="setting-desc">Removes containers, images, and all volumes. Permanently deletes database, logs, evidence vault, and model cache. Irreversible.</div>
+            <div class="restart-notice">⚠ Back up MinIO evidence vault before running</div>
+          </div>
+          <div class="setting-control">
+            <button class="btn btn-danger btn-sm" onclick="showToast('docker compose down -v --rmi all', 'success')">Copy Wipe Command</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Remove Model Volume</div>
+            <div class="setting-desc">Removes the warden-models named volume. ONNX model will be re-exported on next start (~2 min).</div>
+          </div>
+          <div class="setting-control">
+            <button class="btn btn-outline btn-sm" onclick="showToast('docker volume rm shadow-warden-ai_warden-models', 'success')">Copy Command</button>
+          </div>
+        </div>
       </div>
     </section>
 

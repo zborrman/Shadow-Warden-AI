@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   User, Bell, Lock, CreditCard, CheckCircle2, AlertCircle, Copy, Check,
-  Shield, Database, DollarSign,
+  Shield, Database, DollarSign, Package, Trash2,
 } from 'lucide-react'
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -439,6 +439,119 @@ function FinancialSection() {
   )
 }
 
+// ── Install / Uninstall section ───────────────────────────────────────────────
+function CodeBlock({ children }: { children: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="relative group">
+      <pre className="bg-black/40 border border-white/[0.07] rounded-xl p-4 text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed whitespace-pre">{children}</pre>
+      <button
+        onClick={() => { navigator.clipboard.writeText(children); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 text-slate-300 hover:text-white"
+      >
+        {copied ? '✓ Copied' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
+function InstallSection() {
+  const services = [
+    { name: 'proxy',      port: '80/443',   desc: 'Caddy v2 — TLS, QUIC/H3, HSTS, hostname routing' },
+    { name: 'warden',     port: '8001',     desc: 'FastAPI gateway — /filter, agents, all API routes' },
+    { name: 'app',        port: '8000',     desc: 'Application server' },
+    { name: 'analytics',  port: '8002',     desc: 'Streamlit — Settings, Enterprise, Community, Secrets' },
+    { name: 'dashboard',  port: '8501',     desc: 'Streamlit security dashboard' },
+    { name: 'postgres',   port: '5432',     desc: 'TimescaleDB — probe hypertable, 30-day retention' },
+    { name: 'redis',      port: '6379',     desc: 'Cache, ERS, SOVA memory, rate-limit' },
+    { name: 'prometheus', port: '9090',     desc: 'Metrics scrape' },
+    { name: 'grafana',    port: '3000',     desc: 'SLO alerts + dashboards' },
+    { name: 'minio',      port: '9000/9001',desc: 'On-prem S3 — Evidence Vault + screencasts' },
+    { name: 'minio-init', port: '—',        desc: 'Bucket bootstrap sidecar (exits after init)' },
+  ]
+
+  return (
+    <Section title="Install / Uninstall" description="Shadow Warden AI v4.10 — Docker Compose, 11 services, single command" icon={Package}>
+      <div className="space-y-5 max-w-xl">
+
+        {/* Quick Start */}
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Quick Start</p>
+          <CodeBlock>{`# 1. Clone
+git clone https://github.com/zborrman/Shadow-Warden-AI.git
+cd Shadow-Warden-AI
+
+# 2. Configure
+cp .env.example .env
+# Edit: SECRET_KEY  WARDEN_API_KEY  POSTGRES_PASS
+# Optional: ANTHROPIC_API_KEY  SLACK_WEBHOOK_URL
+
+# 3. Start all 11 services
+docker compose up --build -d
+
+# 4. Verify
+python scripts/warden_doctor.py \\
+  --url http://localhost --key $WARDEN_API_KEY`}</CodeBlock>
+          <p className="text-xs text-slate-500 mt-2">First run downloads PyTorch CPU wheels (~200 MB) and <span className="font-mono text-slate-400">all-MiniLM-L6-v2</span> (~80 MB). Cached on rebuild.</p>
+        </div>
+
+        {/* One-click SMB */}
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">One-Click SMB Installer</p>
+          <CodeBlock>{`bash <(curl -fsSL https://install.shadow-warden-ai.com/smb)`}</CodeBlock>
+          <p className="text-xs text-slate-500 mt-1.5">Handles Docker detection, .env keygen, MinIO bucket init, health checks, and smoke test.</p>
+        </div>
+
+        {/* Services */}
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Services (11)</p>
+          <div className="rounded-xl border border-white/[0.06] overflow-hidden text-xs">
+            {services.map((s, i) => (
+              <div key={s.name} className={`flex items-start gap-3 px-4 py-2.5 ${i < services.length - 1 ? 'border-b border-white/[0.04]' : ''}`}>
+                <span className="font-mono text-brand-400 w-20 flex-shrink-0 pt-0.5">{s.name}</span>
+                <span className="font-mono text-slate-500 w-16 flex-shrink-0 pt-0.5">{s.port}</span>
+                <span className="text-slate-400">{s.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Update */}
+        <div>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Update to Latest</p>
+          <CodeBlock>{`git pull origin main
+docker compose pull
+docker compose up --build -d`}</CodeBlock>
+        </div>
+
+        {/* Uninstall */}
+        <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Trash2 className="w-4 h-4 text-red-400" />
+            <p className="text-sm font-semibold text-red-400">Uninstall</p>
+          </div>
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-slate-400 mb-1.5">Stop containers — keep volumes (data safe)</p>
+              <CodeBlock>{`docker compose down`}</CodeBlock>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-1.5">Full wipe — removes ALL data volumes (irreversible)</p>
+              <CodeBlock>{`docker compose down -v --rmi all`}</CodeBlock>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-1.5">Remove named model volume only</p>
+              <CodeBlock>{`docker volume rm shadow-warden-ai_warden-models`}</CodeBlock>
+            </div>
+          </div>
+          <p className="text-xs text-red-400/70 mt-3">⚠ Back up your MinIO evidence vault before running the full wipe. <code>-v</code> permanently deletes all database data and logs.</p>
+        </div>
+
+      </div>
+    </Section>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   return (
@@ -453,6 +566,7 @@ export default function SettingsPage() {
           <FinancialSection />
           <PasswordSection />
           <BillingSection />
+          <InstallSection />
         </div>
       </div>
     </>
