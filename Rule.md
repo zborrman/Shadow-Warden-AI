@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 4.8.0 · Proprietary · All rights reserved**
+> **Version 4.10 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
@@ -27,6 +27,8 @@
 16. [Rule Governance](#16-rule-governance)
 17. [File Scanner Rules (Community Business / SMB)](#17-file-scanner-rules-community-business--smb)
 18. [Exemptions & Overrides](#18-exemptions--overrides)
+19. [Obsidian Note Scanner Rules](#19-obsidian-note-scanner-rules)
+20. [Secrets Governance Inventory Rules](#20-secrets-governance-inventory-rules)
 
 ---
 
@@ -521,3 +523,91 @@ detection only.
 | Causal Arbiter | `CAUSAL_THRESHOLD` env var | Default 0.65; range 0.50–0.95 |
 | Transfer risk | `TRANSFER_RISK_THRESHOLD` env var | Default 0.70; range 0.50–0.95 |
 | Shadow ban | ERS score reset via `DELETE /admin/ers/{entity_id}` | Requires admin API key |
+
+---
+
+## 19. Obsidian Note Scanner Rules
+
+**File:** `warden/integrations/obsidian/note_scanner.py`  
+**Endpoint:** `POST /obsidian/scan`
+
+The Obsidian note scanner runs a classification pipeline on the vault note
+content **before** it can be shared to a Business Community via SEP.
+
+### Data Classification Rules
+
+| Priority | Source | Inference |
+|---|---|---|
+| 1 (highest) | YAML frontmatter `data_class` field | Explicit override — always wins |
+| 2 | YAML frontmatter `tags` list | `[phi, medical, health]` → PHI; `[classified, secret]` → CLASSIFIED |
+| 3 | Keyword scan (note body) | Medical/financial/legal keyword sets |
+| 4 (fallback) | None of the above | `GENERAL` |
+
+### Data Class Definitions
+
+| Class | Keywords / Tags | Share restriction |
+|---|---|---|
+| `CLASSIFIED` | `classified`, `secret`, `top-secret` | Blocked from all cross-border SEP transfers |
+| `PHI` | `patient`, `diagnosis`, `medical`, `health`, `dob` | EU/US/UK/CA/CH only |
+| `FINANCIAL` | `invoice`, `payment`, `bank`, `account`, `iban` | All jurisdictions with adequacy check |
+| `PII` | `email`, `address`, `phone`, `ssn`, `passport` | All jurisdictions with adequacy check |
+| `GENERAL` | Default | No transfer restrictions |
+
+### Share Gate Rules
+
+| Condition | Action |
+|---|---|
+| `secrets_found > 0` | HTTP 422 — BLOCKED. UECIID never issued. |
+| `data_class == CLASSIFIED` | HTTP 422 — BLOCKED. Cannot be shared via SEP. |
+| `data_class == PHI` and target jurisdiction not in `[EU, US, UK, CA, CH]` | Causal Transfer Guard rejects |
+| All checks pass | UECIID issued via `sep.register_ueciid()` |
+
+### AI Filter Pre-Share (`POST /obsidian/ai-filter`)
+
+Content is passed through `SecretRedactor` → `SemanticGuard` before any LLM
+call. A HIGH or BLOCK verdict cancels the AI enrichment and returns the verdict
+to the plugin.
+
+---
+
+## 20. Secrets Governance Inventory Rules
+
+**Files:** `warden/secrets_gov/inventory.py`, `warden/secrets_gov/policy.py`,
+`warden/secrets_gov/lifecycle.py`
+
+### Risk Scoring
+
+Inventory entries receive a composite risk score (0–100):
+
+| Factor | Weight | Calculation |
+|---|---|---|
+| Rotation age | 40% | `min(rotation_age_days / max_age_days, 1.0) × 40` |
+| Exposure level | 30% | INTERNAL=0.2 / EXTERNAL=0.6 / PUBLIC=1.0 → ×30 |
+| Compliance violations | 20% | `min(violation_count / 5, 1.0) × 20` |
+| Access frequency | 10% | Low=0 / Medium=5 / High=10 |
+
+**Risk tiers:** 0–25 LOW · 26–50 MEDIUM · 51–75 HIGH · 76–100 CRITICAL
+
+### Policy Violation Rules
+
+| ID | Rule | Default |
+|---|---|---|
+| V-01 | `max_age_days` exceeded | 90 days |
+| V-02 | `min_rotation_frequency` not met | 2 rotations / year |
+| V-03 | Vault with no last-sync in >7 days | Required for managed vaults |
+| V-04 | Secret with `exposure == PUBLIC` and no rotation in >30 days | Immediate HIGH |
+| V-05 | Inventory entry with `status == ACTIVE` and `expires_at` < now | Auto-retire |
+| V-06 | More than `max_secrets_per_vault` entries | 500 (configurable) |
+| V-07 | No MFA on vault connector | Required for FINANCIAL/PHI classes |
+
+### Compliance Score
+
+```
+score = 100 - (Σ violation_weight_i for all active violations)
+```
+
+Score < 60 → blocks new vault registrations (configurable via `min_compliance_score`).
+
+---
+
+*Rule.md — Shadow Warden AI detection rules reference v4.10 · 2026-05*

@@ -1,342 +1,179 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               Shadow Warden AI — Project TODO List                         ║
-║               Version 0.2.0 · Updated 2025                                 ║
+║               Version 4.10 · Updated 2026-05                               ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 Priority legend:
-  [!!!] Critical — blocks production launch
-  [!!]  High — complete before public release
-  [!]   Medium — complete before v1.0
-  [ ]   Low / Roadmap — post-launch
+  [!!!] Critical — blocks production or revenue
+  [!!]  High — complete before next version bump
+  [!]   Medium — Q2 2026 target
+  [ ]   Low / Roadmap — post Q2 2026
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  1. PRODUCTION READINESS
+  1. BACKEND — OPEN ITEMS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[!!!] Generate and set SECRET_KEY in .env before first deploy
-      → python -c "import secrets; print(secrets.token_hex(32))"
+[!!]  FraudScore API backend — POST /fraud-score/evaluate
+      → Landing page UI exists; backend stub returns 404
+      → Integrate financial/impact_calculator.py + ERS score
+      → Gate: Individual+ tier
 
-[!!!] Set POSTGRES_PASS to a strong unique password in .env
+[!!]  Agent Action Whitelist REST API (Q2.6)
+      → warden/agentic/action_whitelist.py logic is complete
+      → Needs FastAPI router warden/api/action_whitelist.py
+      → CRUD: POST/GET/DELETE /admin/agents/{id}/whitelist
 
-[!!!] Set DASHBOARD_PASSWORD_HASH via CLI generator before exposing :8501
-      → python -m warden.analytics.auth
+[!]   Shadow AI Dashboard for SMB (Q3.8)
+      → Non-Streamlit, standalone HTML page in landing/
+      → Show findings list + policy toggle + provider list
+      → Requires shadow_ai_enabled feature gate check at load
 
-[!!!] Replace placeholder app/Dockerfile with real application code
-      → Current file contains only the integration stub / safe_prompt() example
+[!]   Obsidian feed persistence
+      → Currently feed returns last 20 scan results from in-memory list
+      → Move to SQLite table sep_obsidian_feed in SEP_DB_PATH
+      → Survives restarts, supports pagination offset
 
-[!!!] Replace placeholder analytics/Dockerfile with real analytics API
-      → Current service returns only a health-check stub on :8002
+[!]   Secrets Vault add-on webhook handler
+      → POST /billing/webhooks/lemon-squeezy grants secrets_vault add-on
+      → Map product ID → add-on key → billing/addons.grant_addon()
+      → Test with Lemon Squeezy sandbox
 
-[!!]  Enable HTTPS on Nginx (TLS termination)
-      → Uncomment HTTPS server block in warden/nginx/nginx.conf
-      → Provision Let's Encrypt certificate (certbot) or supply .pem files
-      → Redirect HTTP → HTTPS
-
-[!!]  Set ENV=production in .env and audit all dev-mode code paths
-
-[!!]  Rotate ANTHROPIC_API_KEY regularly; document rotation procedure
-
-[!!]  Confirm Docker Desktop RAM allocation ≥ 4 GB before first build
-      → MiniLM model load requires ~400 MB RAM per warden container replica
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  2. SECURITY HARDENING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[!!]  Implement mTLS between internal Docker services
-      → warden ↔ app ↔ analytics ↔ postgres
-      → Use Docker Swarm secrets or Vault for cert distribution
-
-[!!]  Add API key authentication on POST /filter
-      → Keys stored hashed in warden_core.api_keys (table already in init.sql)
-      → FastAPI dependency: extract X-API-Key header, validate against DB
-      → Return 401 on missing/invalid key
-
-[!!]  Add rate limiting per API key on POST /filter
-      → Suggested: slowapi (Starlette-compatible) + Redis back-end
-      → Limits: 100 req/min per key, 10 000 req/day per key (configurable)
-      → Return 429 with Retry-After header on exceed
-
-[!!]  Harden Nginx configuration
-      → Add security headers: HSTS, X-Frame-Options, X-Content-Type-Options
-      → Restrict /dashboard/ to internal network or VPN IP range in prod
-      → Disable server_tokens (already done — verify)
-
-[!]   Run warden container as non-root user
-      → Add USER warden (uid 1000) to warden/Dockerfile
-      → Adjust /warden/data volume permissions accordingly
-
-[!]   Implement Playwright sandbox resource limits
-      → Cap CPU and memory per browser context in tools/browser.py
-      → Add request timeout and max-response-size guards
-
-[!]   Add Content Security Policy header on dashboard Nginx route
-
-[!]   Document API key rotation procedure in README
+[ ]   NVIDIA NeMo / GeometricThreatBridge production wiring
+      → Settings UI exists (SettingsSection.astro + settings.html)
+      → Backend stub in warden/integrations/nvidia/
+      → GeometricThreatBridge: translate hyperbolic dist + Betti → Colang vars
+      → ColangEvolutionSynthesizer: auto-generate .co guardrail files
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  3. OBSERVABILITY & MONITORING
+  2. CI / QUALITY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[!]   Add Prometheus /metrics endpoint on warden gateway (:8001/metrics)
-      → Counters: requests_total, blocked_total, secrets_redacted_total
-      → Histograms: filter_latency_ms, semantic_score_distribution
-      → Gauge: corpus_size (number of semantic examples in SemanticGuard)
+[!!]  Coverage gate — restore to ≥75%
+      → Recent additions (v4.9 secrets_gov, v4.10 obsidian) added uncovered lines
+      → warden/tests/test_coverage_boost.py exists but needs expansion
+      → Target: 76%+ without disabling any existing tests
 
-[!]   Create Grafana dashboard template
-      → Import from prometheus datasource
-      → Panels: block rate over time, p95 latency, flag distribution
-      → Alert rules: block rate spike (> 20% over 5 min window)
+[!]   mutmut — enforce ≤20 surviving mutants
+      → Targets: secret_redactor.py + semantic_guard.py
+      → Currently unblocked (CI runs mutmut informational only)
+      → Add threshold check to CI on mutation-testing job
 
-[!]   Add structured JSON logging (replace plaintext format)
-      → Use python-json-logger or structlog
-      → Include request_id, risk_level, elapsed_ms in every log line
-      → Enables log aggregation in ELK / CloudWatch without parsing
+[!]   Hadolint GitHub Actions step
+      → Lint all Dockerfile* files for best practices
+      → Add hadolint/hadolint-action@v3 to ci.yml lint job
 
-[!]   Wire analytics service to write hourly aggregates to warden_analytics.hourly_stats
-      → Table already created in data/init.sql
-      → analytics/Dockerfile currently a stub — needs real implementation
+[!]   docker scout / Trivy image CVE scan
+      → Add trivy-action after Docker smoke build
+      → Gate on CRITICAL severity CVEs
 
-[ ]   SIEM integration — Splunk / Elastic
-      → Ship logs.json entries as CEF or ECS events
-      → Provide Logstash pipeline config or Splunk HEC forwarder config
-
-[ ]   Add Slack / PagerDuty alerting for BLOCK-severity events
-      → Webhook call from EvolutionEngine.process_blocked()
-      → Include attack_type, flags, and newly generated rule summary
+[ ]   Obsidian plugin TypeScript CI
+      → Add obsidian-plugin build step to ci.yml
+      → npm install && npm run build → fail if compile errors
+      → Check manifest.json version matches git tag on release
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  4. TESTING
+  3. LANDING / FRONTEND
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[!!]  Write unit tests — warden/tests/ (pytest)
-      → secret_redactor.py: one test per secret type (R-01 → R-15)
-      → semantic_guard.py: LOW / MEDIUM / HIGH / BLOCK response validation
-      → main.py: /filter endpoint integration test (TestClient)
-      → analytics/logger.py: build_entry(), append(), purge_old_entries()
+[!]   landing/index.html footer — update v4.7.0 → v4.10
+      → Footer currently shows stale version badge
 
-[!!]  Write adversarial test suite — tests/adversarial.py
-      → 30+ jailbreak prompts that must be blocked
-      → 20+ benign prompts that must be allowed (false-positive regression)
-      → Script: python -m pytest tests/adversarial.py -v
+[!]   Obsidian landing page
+      → New page landing/obsidian.html
+      → Hero: "Your AI-Secured Vault" — plugin screenshot, install steps
+      → CTA → Community Business tier pricing
 
-[!]   Set up GitHub Actions / CI pipeline
-      → On push: run pytest, check coverage ≥ 80%
-      → On tag: build Docker image, push to registry
-      → Secrets: ANTHROPIC_API_KEY (test account, low quota)
+[!]   Secrets Governance landing page stub
+      → Expand existing landing/settings.html Secrets Governance panel
+      → Add screenshot and "How It Works" section
+      → Link from pricing page Community Business tier card
 
-[!]   Add load test — locust or k6
-      → Target: 100 concurrent users, p95 < 200 ms
-      → Run against docker-compose stack locally before cloud deploy
+[ ]   FraudScore landing page (landing/fraud-score.html)
+      → Demo calculator functional but backend POST /fraud-score/evaluate missing
+      → Wire up once backend implemented
 
-[!]   Add contract tests for FilterRequest / FilterResponse schemas
-      → Pydantic schema validation smoke tests
-      → Ensure schema changes don't break existing integrations
-
-[ ]   Mutation testing — verify adversarial suite catches real regressions
-      → Use mutmut or cosmic-ray on secret_redactor.py and semantic_guard.py
+[ ]   Accessibility widget — verify ♿ button renders correctly on mobile
+      → Test on iOS Safari + Android Chrome
+      → Confirm z-index doesn't conflict with iOS Safari bottom toolbar
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  5. PERFORMANCE & SCALABILITY
+  4. INFRASTRUCTURE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[!]   Pre-warm MiniLM model on container startup
-      → Embed a single dummy sentence in the lifespan() handler
-      → Eliminates 100–300 ms cold-start penalty on first real request
+[!]   Server backup automation
+      → Daily cron: pg_dump + tar data/ → MinIO warden-backups/
+      → Retention: 7 daily + 4 weekly + 3 monthly (Grandfather-Father-Son)
+      → Alert on backup failure via Slack webhook
 
-[!]   Cache frequently seen content hashes in Redis
-      → Skip full pipeline for exact duplicate payloads (replay protection)
-      → TTL: 5 minutes; key = sha256(content)
+[!]   TimescaleDB compression policy for probe_results
+      → Compression already defined in migration 0010
+      → Verify add_compression_policy is running on production
+      → Check chunk sizes via timescaledb_information.chunks
 
-[!]   Benchmark SemanticGuard corpus scaling
-      → Profile cosine similarity at 100 / 500 / 1000 / 5000 examples
-      → If > 500 examples causes > 50 ms overhead, consider FAISS index
+[ ]   Kubernetes Helm chart
+      → Deploy, Service, ConfigMap, HPA, PVC for warden-models
+      → Target: AWS EKS, Azure AKS, Google GKE
 
-[!]   Add horizontal scaling documentation
-      → warden service is stateless except for in-process corpus cache
-      → Document: SemanticGuard.add_examples() only updates one replica
-      → Fix: load dynamic_rules.json from shared Redis on startup
-
-[ ]   Add GPU support path (optional)
-      → Detect CUDA availability at startup, use GPU embeddings if present
-      → Keep CPU-only as default; document GPU activation in README
-
-[ ]   Investigate async embedding for non-blocking ML inference
-      → Move embedding call to a ThreadPoolExecutor
-      → Prevents FastAPI worker thread from blocking on numpy operations
+[ ]   Terraform module (cloud deploy)
+      → VPC + ECS/EKS + RDS (PostgreSQL) + ElastiCache (Redis)
+      → Output: warden endpoint URL, dashboard URL
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  6. INTEGRATIONS & ECOSYSTEM
+  5. COMPLIANCE & DOCS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[!]   Publish warden as a standalone pip package (warden-ai or shadow-warden)
-      → Add pyproject.toml with setuptools metadata
-      → Entry point: warden-gateway = warden.main:app
-      → Publish to PyPI for non-Docker deployments
+[!]   Update docs/dpia.md to v4.10
+      → Add Obsidian note scanner data flows
+      → Add Secrets Governance vault connector section
+      → Update processing activity table
 
-[!]   Write OpenAPI spec export and post to API marketplace
-      → FastAPI auto-generates /openapi.json — add description, contact, license
-      → Export: curl http://localhost:8001/openapi.json > openapi.json
-      → Submit to RapidAPI / AWS Marketplace for US/EU distribution
-
-[!]   Multi-tenant rule sets
-      → Add tenant_id field to FilterRequest.context
-      → Load per-tenant dynamic_rules from tenant-namespaced keys in Redis
-      → Isolate SemanticGuard corpus per tenant
-
-[!]   OpenAI-compatible proxy mode
-      → Intercept POST /v1/chat/completions (OpenAI format)
-      → Strip secrets, analyse, then forward to real OpenAI/Azure endpoint
-      → Drop-in replacement — no app code changes required
-
-[ ]   LangChain integration example
-      → Write warden/integrations/langchain_callback.py
-      → Implement BaseCallbackHandler that calls /filter on every LLM input
-
-[ ]   LlamaIndex integration example
-      → Write InputModifier node that wraps warden /filter
-
-[ ]   REST SDK — JavaScript / TypeScript client
-      → Auto-generate from OpenAPI spec using openapi-generator
-      → Publish to npm as @shadow-warden/client
-
-[ ]   REST SDK — Python client
-      → Thin httpx wrapper around FilterRequest / FilterResponse
-      → Publish to PyPI as shadow-warden-client
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  7. GDPR & COMPLIANCE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[!!]  Publish Data Processing Agreement (DPA) template for customers
-      → Required for EU B2B sales under GDPR Article 28
-      → Include sub-processor list (HuggingFace for model download only)
-
-[!]   Complete Article 30 Record of Processing (RoPA)
-      → Template started in README — expand to full legal document
-      → Include Data Controller fields for customer to fill in
-
-[!]   Add GDPR data subject rights endpoint
-      → GET /gdpr/export?request_id=... — export all log entries for a request
-      → DELETE /gdpr/purge?before=YYYY-MM-DD — manual early purge
-      → Protect with API key auth (same as /filter)
-
-[!]   Write Cookie Policy for dashboard (if adding browser telemetry)
-      → Currently no cookies set — document this explicitly
-
-[ ]   SOC 2 Type II audit preparation
-      → Document access controls, change management, incident response
-      → Identify evidence artifacts (logs, access records, change logs)
+[!]   Update docs/soc2-evidence.md to v4.10
+      → Add Secrets Governance control mapping (CC6.1, CC6.2)
+      → Add Obsidian share gate as access control evidence
+      → Update evidence collection procedures
 
 [ ]   ISO 27001 gap analysis
       → Map existing controls to ISO 27001 Annex A requirements
+      → Prioritise: A.8 (asset management), A.9 (access), A.12 (operations)
+
+[ ]   EU AI Act compliance checklist
+      → Shadow Warden classified as AI safety system (Art. 6 Annex III)
+      → Document risk management system (Art. 9)
+      → Document human oversight measures (Art. 14)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  8. DEVELOPER EXPERIENCE
+  6. DONE ✓ (v4.10 current)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[!]   Add Makefile with standard targets
-      → make build  — docker-compose up --build
-      → make test   — pytest + adversarial suite
-      → make logs   — docker-compose logs -f warden
-      → make purge  — python -m warden.analytics.logger purge
-
-[!]   Add pre-commit hooks (.pre-commit-config.yaml)
-      → ruff (lint + format)
-      → mypy (type check)
-      → bandit (security lint)
-      → check-secrets (block accidental .env commits)
-
-[!]   Add type annotations across all modules
-      → secret_redactor.py and semantic_guard.py currently partially typed
-      → Run: mypy warden/ --strict
-
-[!]   Add CHANGELOG.md — track changes per version
-
-[!]   Add CONTRIBUTING.md — development setup, branching, PR checklist
-
-[ ]   Create Docker Compose override for local development
-      → docker-compose.dev.yml — hot-reload uvicorn, mounted source volumes
-      → Separate from production compose
-
-[ ]   Add VS Code devcontainer.json
-      → Pre-configured Python + Playwright environment
-      → Eliminates local torch/playwright setup friction
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  9. DASHBOARD ENHANCEMENTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[!]   Live stream new blocked events (WebSocket or SSE polling)
-      → Currently: 30-second full page refresh
-      → Better: server-sent events from analytics API → dashboard toast alerts
-
-[!]   Export logs.json to CSV/PDF from dashboard UI
-      → Streamlit st.download_button on the "Recent Blocked Events" table
-
-[!]   Add Evolution Engine rule browser to dashboard
-      → Table view of dynamic_rules.json — attack_type, severity, created_at
-      → Allow operators to disable individual rules without code changes
-
-[ ]   Add geographic threat map (if IP logging enabled)
-      → Currently IP is not logged (GDPR) — requires explicit opt-in + legal review
-
-[ ]   Dark/light theme toggle on dashboard
-
-[ ]   Mobile-responsive layout pass
-      → Current Streamlit layout not optimised for mobile viewport
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  10. INFRASTRUCTURE & DEPLOYMENT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[!]   Write Kubernetes manifests (Helm chart)
-      → Deployment, Service, ConfigMap, Secret, HorizontalPodAutoscaler
-      → Target: AWS EKS, Azure AKS, Google GKE
-      → Include PersistentVolumeClaim for warden-models cache
-
-[!]   Publish Docker images to registry
-      → Tag strategy: semver (0.2.0), latest, git SHA
-      → Options: Docker Hub, GitHub Container Registry, AWS ECR
-
-[!]   Write Terraform module for cloud deployment
-      → VPC, ECS/EKS cluster, RDS (PostgreSQL), ElastiCache (Redis)
-      → Output: warden endpoint URL, dashboard URL
-
-[!]   Document disaster recovery procedure
-      → Backup: data/logs.json, data/dynamic_rules.json, postgres dump
-      → Recovery: restore volumes, restart containers, verify /health
-
-[ ]   Add Docker Compose healthcheck for all services
-      → warden: curl /health
-      → dashboard: curl :8501/_stcore/health
-      → postgres: pg_isready
-
-[ ]   Implement blue/green deployment pattern for warden service
-      → Zero-downtime deploys even during model reload
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  11. DONE ✓
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[✓]  Phase 1  — Docker Orchestration (docker-compose.yml, 7 services)
-[✓]  Phase 2  — FastAPI Gateway (warden/main.py, POST /filter, 5-stage pipeline)
-[✓]  Phase 3  — Semantic Filtering (brain/semantic.py, MiniLM cosine similarity)
-[✓]  Phase 4  — Playwright Browser Sandbox (tools/browser.py, Context7Manager)
-[✓]  Phase 5  — Evolution Engine (brain/evolve.py, Claude Opus adaptive thinking)
-[✓]  Phase 6  — Analytics Logger (analytics/logger.py, GDPR-safe NDJSON)
-[✓]  Phase 7  — Streamlit Dashboard (analytics/dashboard.py, 6 widgets)
-[✓]  Phase 8  — Dashboard Auth (analytics/auth.py, bcrypt + brute-force lockout)
-[✓]  Phase 9  — Marketplace Packaging (README.md, .env.example, init.sql, nginx.conf)
-[✓]  Rule.md  — Detection rules reference (15 regex + 10 semantic + ML corpus)
-[✓]  Skill.md — Capability and integration reference (8 skills, 8 recipes)
-[✓]  Secret Redactor (secret_redactor.py, 15 secret types)
-[✓]  Semantic Guard (semantic_guard.py, rule engine + ML bridge)
-[✓]  PostgreSQL schema (data/init.sql, warden_core + warden_analytics schemas)
-[✓]  Nginx reverse proxy (warden/nginx/nginx.conf, WebSocket support for Streamlit)
-[✓]  CPU-only torch build (two-step Dockerfile, prevents 2 GB CUDA download)
-[✓]  GDPR retention purge (purge_old_entries(), atomic os.replace())
-[✓]  Evolution Engine deduplication (SHA-256 content hash, in-process seen_hashes)
-[✓]  Structured output from Claude Opus (EvolutionResponse Pydantic schema)
+[✓]  Core gateway — 9-stage pipeline (TDA, obfuscation, secrets, semantic, ML, causal, phish, ERS, decision)
+[✓]  Evolution Engine — Claude Opus auto-rule gen, hot-reload, Intel Bridge
+[✓]  SOVA Agent — 30 tools, 7 ARQ cron jobs, WardenHealer, visual patrol
+[✓]  MasterAgent — 4 sub-agents, HMAC tokens, human-in-the-loop (Pro)
+[✓]  Shadow AI Governance — 18 providers, /24 subnet probe, DNS syslog sink (Enterprise / add-on)
+[✓]  Explainable AI 2.0 — 9-stage CausalChain, HTML+PDF renderer (Pro / add-on)
+[✓]  Sovereign AI Cloud — 8 jurisdictions, MASQUE tunnels, attestation (Enterprise)
+[✓]  Post-Quantum Cryptography — HybridSigner Ed25519+ML-DSA-65, HybridKEM (Enterprise)
+[✓]  SEP — UECIID, peering, Knock-and-Verify, Transfer Guard, Data Pods, STIX 2.1 chain
+[✓]  Billing — 5-tier pricing, add-on catalog, Lemon Squeezy integration
+[✓]  SMB stack — File Scanner, Email Guard, Compliance Report, Offline Mode
+[✓]  Uptime Monitor — TimescaleDB hypertable, continuous aggregate, WebSocket
+[✓]  Financial Impact Calculator — IBM 2024 benchmarks, ROI tiers, CLI
+[✓]  Secrets Governance v4.9 — 5 vault connectors, inventory, lifecycle, policy, 14 endpoints, Streamlit dashboard
+[✓]  Obsidian Integration v4.10 — note scanner, 5 API endpoints, TypeScript plugin, auto-scan, UECIID share
+[✓]  Accessibility widget — ♿ international symbol, click bug fixed, main page only (v4.10)
+[✓]  Enterprise Integration Guide — updated to v4.10 (all pillars, Obsidian section, Settings link)
+[✓]  Enterprise Settings — updated to v4.10 (Secrets Gov, Obsidian, Accessibility panels)
+[✓]  NVIDIA / NeMo Settings UI — SettingsSection.astro + settings.html panels
+[✓]  Fail-closed auth — startup RuntimeError if no API key (unless ALLOW_UNAUTHENTICATED=true)
+[✓]  VAULT_MASTER_KEY Fernet validation on startup
+[✓]  Shadow ban randomness — secrets.choice(), 30+ gaslight pool entries
+[✓]  CPT drift gate — rejects CausalArbiter CPT updates >25% from prior
+[✓]  Evolution regex gate — compile + timeout + nested-quantifier heuristic
+[✓]  CI — test matrix 3.11/3.12, lint, Docker smoke, mutation testing
+[✓]  Prometheus + Grafana SLO alerts (P99, 5xx, shadow ban rate, corpus drift)
+[✓]  SIEM integration — Splunk HEC + Elastic ECS
+[✓]  LangChain callback (WardenCallback)
+[✓]  Production server on Hetzner VPS — api.shadow-warden-ai.com
+[✓]  GitHub Actions CI autodeploy → server
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

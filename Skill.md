@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 4.8.1 · Proprietary · All rights reserved**
+**Version 4.10 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -33,15 +33,17 @@ surface, its observable outputs, and integration patterns.
 21. Skill 20 — Secrets Rotation Monitor
 22. Skill 21 — Agent Action Whitelist
 23. Skill 22 — SMB Compliance Report
-24. Integration Recipes
-25. Configuration Quick-Reference
+24. Skill 23 — Secrets Governance
+25. Skill 24 — Obsidian Community Integration
+26. Integration Recipes
+27. Configuration Quick-Reference
 
 ---
 
 ## 1. Skill Taxonomy
 
-Shadow Warden AI is composed of 22 discrete, independently configurable skills.
-Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–17 are
+Shadow Warden AI is composed of 24 discrete, independently configurable skills.
+Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–24 are
 background, agentic, or on-demand capabilities.
 
 ```
@@ -65,6 +67,8 @@ Background / On-demand:
   Skill 15 · SEP                         (on-demand)
   Skill 16 · GDPR-Safe Analytics         (fire-and-forget)
   Skill 17 · Uptime Monitor              (background probes)
+  Skill 23 · Secrets Governance          (background + on-demand)
+  Skill 24 · Obsidian Integration        (on-demand / plugin)
 ```
 
 | # | Skill | Latency | Offline | Tier |
@@ -86,11 +90,13 @@ Background / On-demand:
 | 15 | SEP | On-demand | ✅ | Pro+ |
 | 16 | GDPR-Safe Analytics | < 1 ms | ✅ | All |
 | 17 | Uptime Monitor | Background | ✅ | All |
-| 18 | File Scanner | On-demand | ✅ | SMB+ |
-| 19 | Email Guard | On-demand | ✅ | SMB+ |
+| 18 | File Scanner | On-demand | ✅ | Community Business+ |
+| 19 | Email Guard | On-demand | ✅ | Community Business+ |
 | 20 | Secrets Rotation Monitor | Background | ✅ | All |
 | 21 | Agent Action Whitelist | Per-request | ✅ | All |
-| 22 | SMB Compliance Report | On-demand | ✅ | SMB+ |
+| 22 | SMB Compliance Report | On-demand | ✅ | Community Business+ |
+| 23 | Secrets Governance | Background + On-demand | ✅ | Community Business+ or +$12/mo add-on |
+| 24 | Obsidian Integration | On-demand / plugin | ✅ | Community Business+ |
 
 *PQC requires liboqs-python system package; classical fallback if unavailable.
 
@@ -732,7 +738,131 @@ GET  /compliance/smb-report/pdf    PDF (reportlab) or HTML fallback
 
 ---
 
-## 24. Integration Recipes
+## 24. Skill 23 — Secrets Governance
+
+**Files:** `warden/secrets_gov/vault_connector.py`, `warden/secrets_gov/inventory.py`,
+`warden/secrets_gov/policy.py`, `warden/secrets_gov/lifecycle.py`,
+`warden/api/secrets.py`
+
+End-to-end secrets lifecycle management across multi-cloud vault connectors.
+All operations are **metadata-only** — no plaintext secret values are ever
+returned through the API.
+
+### Vault Connectors
+
+| Connector | Backend | Auth |
+|-----------|---------|------|
+| `AwsSecretsManager` | AWS Secrets Manager | IAM role / access key |
+| `AzureKeyVault` | Azure Key Vault | Service principal / managed identity |
+| `HashiCorpVault` | HashiCorp Vault | Token / AppRole |
+| `GcpSecretManager` | GCP Secret Manager | Service account JSON |
+| `EnvConnector` | Environment variables | N/A — local dev only |
+
+All connectors implement `sync_metadata()` → populates inventory.
+
+### Inventory
+
+SQLite-backed `SecretsInventory` in `SEP_DB_PATH`. Fields per entry:
+`label`, `vault_id`, `secret_path`, `data_class`, `rotation_age_days`,
+`exposure`, `status` (ACTIVE/RETIRED), `expires_at`, `risk_score`.
+
+`sync()` auto-retires expired entries and recalculates risk scores.
+
+### Lifecycle Manager
+
+- Expiry alerts at `expiry_warning_days` (default 14) before `expires_at`
+- `schedule_rotation(label, target_date)` → persists to Redis + sends Slack reminder
+- `lifecycle_summary()` → counts by status + upcoming rotations in 30d window
+
+### Policy Engine
+
+Per-tenant governance: 7 violation rules (V-01→V-07), compliance score (0–100).
+Score < `min_compliance_score` (default 60) blocks new vault registrations.
+
+**Tier gate:** Community Business+ or `secrets_vault` add-on (+$12/mo, Individual+).
+
+**14 endpoints at `/secrets/*`:**
+```
+POST|GET|DELETE  /secrets/vaults/{id}       vault CRUD
+POST             /secrets/vaults/{id}/sync  trigger metadata sync
+GET              /secrets/vaults/{id}/health vault health check
+GET              /secrets/inventory         list all entries
+GET              /secrets/inventory/expiring entries expiring within N days
+GET              /secrets/inventory/stats   count by status/risk tier
+POST             /secrets/inventory/{id}/rotate  schedule rotation
+POST             /secrets/inventory/{id}/retire  mark as RETIRED
+GET              /secrets/lifecycle/schedule     upcoming rotations (30d)
+GET|PUT          /secrets/policy             get/update governance policy
+POST             /secrets/policy/audit       run violation scan
+GET              /secrets/report             full governance report (JSON/PDF)
+```
+
+**Streamlit dashboard:** `warden/analytics/pages/6_Secrets_Governance.py` —
+6 tabs: Overview, Vaults, Inventory, Lifecycle, Policy, Report.
+
+---
+
+## 25. Skill 24 — Obsidian Community Integration
+
+**Files:** `warden/integrations/obsidian/note_scanner.py`, `warden/api/obsidian.py`,
+`obsidian-plugin/main.ts`
+
+Brings Shadow Warden AI security directly into Obsidian vaults. Notes are
+scanned for secrets and classified before sharing to Business Communities via SEP.
+
+### Note Scanner
+
+`scan_note(content, frontmatter)` performs:
+1. YAML frontmatter parse (regex + PyYAML fallback)
+2. Data class inference: explicit field → tags → keywords → GENERAL
+3. `SecretRedactor` scan — secrets replaced with `[REDACTED:<kind>]`
+4. Word count + classification metadata returned (body never stored)
+
+**Output:**
+```json
+{
+  "data_class": "PHI",
+  "secrets_found": 0,
+  "word_count": 342,
+  "tags": ["health", "patient"],
+  "redacted_body": "Patient: [REDACTED:email] ..."
+}
+```
+
+### API Endpoints (5)
+
+```
+POST  /obsidian/scan        scan note content — returns data_class, secrets_found
+POST  /obsidian/share       register note as SEP entity → returns UECIID
+GET   /obsidian/feed        shared notes feed for this tenant (max 20)
+POST  /obsidian/ai-filter   pre-share AI enrichment (SecretRedactor → LLM)
+GET   /obsidian/stats       vault scan statistics for this tenant
+```
+
+`/obsidian/share` blocks if `secrets_found > 0` or `data_class == CLASSIFIED`.
+UECIID format: `SEP-{11 base-62 chars}`.
+
+### Obsidian Plugin (`obsidian-plugin/main.ts`)
+
+TypeScript plugin built on the Obsidian Plugin API (minAppVersion `1.4.0`).
+
+**5 commands:**
+| Command | Action |
+|---------|--------|
+| Scan current note | POST /obsidian/scan → ScanResultModal |
+| Share current note | POST /obsidian/share → ShareResultModal (shows UECIID) |
+| Scan entire vault | Iterates all `.md` files → aggregate stats |
+| View community feed | GET /obsidian/feed → FeedModal |
+| Ping Warden | GET /health → status check |
+
+**Auto-scan:** fires on `vault.on('modify')` with 800ms debounce. Status bar
+shows last scan result (✅ / ⚠️ / 🔴). Ribbon icon toggles settings tab.
+
+**Tier gate:** Community Business+ (included — no add-on required).
+
+---
+
+## 26. Integration Recipes
 
 ### Filter a prompt before forwarding to an LLM
 
@@ -776,27 +906,32 @@ print(f"Primary cause: {chain['primary_cause']['stage']}")
 print(f"Remediation: {chain['counterfactuals'][0]['action']}")
 ```
 
-### Register a Sovereign Data Pod
+### Scan an Obsidian note before sharing
 
 ```python
-resp = httpx.post("/sep/pods",
-    headers={"X-API-Key": "..."},
-    json={
-        "community_id": "c-001",
-        "jurisdiction": "EU",
-        "minio_endpoint": "https://minio-eu.internal",
-        "minio_region": "eu-central-1",
-        "access_key": "AKIAIOSFODNN7EXAMPLE",
-        "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-        "data_classes": ["PHI", "PII"],
-        "bucket": "community-eu-vault",
-        "is_primary": True
-    })
+resp = httpx.post("/obsidian/scan",
+    headers={"X-API-Key": "...", "X-Tenant-ID": "t-001"},
+    json={"content": note_body, "frontmatter": {"tags": ["health"]}})
+
+result = resp.json()
+if result["secrets_found"] == 0:
+    share = httpx.post("/obsidian/share", ...)
+    print(f"UECIID: {share.json()['ueciid']}")
+```
+
+### Check secrets governance compliance
+
+```python
+resp = httpx.post("/secrets/policy/audit",
+    headers={"X-API-Key": "...", "X-Tenant-ID": "t-001"})
+audit = resp.json()
+print(f"Compliance score: {audit['compliance_score']}/100")
+print(f"Violations: {audit['violations']}")
 ```
 
 ---
 
-## 25. Configuration Quick-Reference
+## 27. Configuration Quick-Reference
 
 | Env Var | Default | Skill |
 |---------|---------|-------|
@@ -806,7 +941,7 @@ resp = httpx.post("/sep/pods",
 | `TRANSFER_RISK_THRESHOLD` | `0.70` | 15 (Transfer Guard) |
 | `STRICT_MODE` | `false` | 1, 3 |
 | `REDIS_URL` | `memory://` | 9, 10, 11, 15, 17 |
-| `SEP_DB_PATH` | `/tmp/warden_sep.db` | 15 |
+| `SEP_DB_PATH` | `/tmp/warden_sep.db` | 15, 23, 24 |
 | `COMMUNITY_VAULT_KEY` | — | 15 (Data Pods encryption) |
 | `SHADOW_AI_USE_SCAPY` | `false` | 11 |
 | `SHADOW_AI_SYSLOG_ENABLED` | `false` | 11 |
@@ -820,3 +955,5 @@ resp = httpx.post("/sep/pods",
 | `MODEL_CACHE_DIR` | `/warden/models` | 6 |
 | `TOPO_NOISE_THRESHOLD_CODE` | `0.65` | 5 |
 | `TOPO_NOISE_THRESHOLD_NATURAL` | `0.82` | 5 |
+| `OBSIDIAN_WARDEN_URL` | `https://api.shadow-warden-ai.com` | 24 (plugin setting) |
+| `OBSIDIAN_COMMUNITY_ID` | — | 24 (plugin setting) |

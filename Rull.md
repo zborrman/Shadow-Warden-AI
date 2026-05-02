@@ -1,6 +1,6 @@
 # Shadow Warden AI — Engineering Rules
 
-**Version 4.8 · Last updated 2026-04**
+**Version 4.10 · Last updated 2026-05**
 
 Engineering standards enforced across the entire codebase. Pre-commit hooks in `Hook.md` automate the critical subset.
 
@@ -30,6 +30,7 @@ These rules are non-negotiable and violation blocks merge.
 | G-03 | **PII never in Redis keys or values** beyond HMAC/Fernet-encrypted tokens. |
 | G-04 | **Right to erasure.** `purge_before(timestamp)` must remain functional in `analytics/logger.py`. |
 | G-05 | **Data minimisation.** No new telemetry fields without DPIA justification (`docs/dpia.md`). |
+| G-06 | **Obsidian note body** is never stored server-side. Only `data_class`, `word_count`, and metadata returned. The `redacted_body` field exists only in the API response — never in any log. |
 
 ---
 
@@ -77,7 +78,7 @@ These rules are non-negotiable and violation blocks merge.
 
 | # | Rule |
 |---|------|
-| T-01 | **Coverage gate: ≥75%.** `--cov-fail-under=75`. Currently at 76.31%. |
+| T-01 | **Coverage gate: ≥75%.** `--cov-fail-under=75`. |
 | T-02 | **Pytest markers.** `adversarial`, `slow`, `integration` — slow/adversarial excluded from CI fast run. |
 | T-03 | **In-memory Redis** for tests: `REDIS_URL=memory://`. No live Redis dependency in unit tests. |
 | T-04 | **No model download in unit tests.** `MODEL_CACHE_DIR=/tmp/warden_test_models`. |
@@ -117,6 +118,7 @@ These rules are non-negotiable and violation blocks merge.
 | V-03 | **Explicit rewrites** in `vercel.json` for any route that has a non-obvious resolution (e.g. `/dashboard`, `/fraud-score`, `/enterprise-settings`). |
 | V-04 | **`outputDirectory: landing`** is the single source of truth. Never push to Vercel directly — always commit to git and let Vercel auto-deploy. |
 | V-05 | **Astro pages sync via CI.** `site/src/pages/*.astro` → `npm run build` → `cp -r site/dist/. landing/` → commit `[skip ci]`. Do not manually edit Astro output files. |
+| V-06 | **Accessibility widget** (`accessibility-widget.js`) is loaded **only on `landing/index.html`**. Do not add the `<script>` tag to any other landing page. |
 
 ---
 
@@ -131,4 +133,29 @@ These rules are non-negotiable and violation blocks merge.
 
 ---
 
-*Rull.md — Shadow Warden AI engineering standards v4.8 · 2026-04*
+## §11. Obsidian Integration Rules
+
+| # | Rule |
+|---|------|
+| OB-01 | **Share gate.** `POST /obsidian/share` must check `secrets_found > 0` and return HTTP 422 before issuing a UECIID. Never share a note that contains unredacted secrets. |
+| OB-02 | **Frontmatter parse order.** Data class inference: explicit `data_class` frontmatter field → `tags` list match → keyword scan → `GENERAL`. The explicit field always wins. |
+| OB-03 | **Auto-scan debounce.** Obsidian plugin fires `scan_note()` on file modify with ≥300ms debounce minimum. Lower values cause hot-loop on rapid saves. |
+| OB-04 | **AI-filter content.** `POST /obsidian/ai-filter` must pass note content through `SecretRedactor` before forwarding to any LLM. |
+| OB-05 | **Feed pagination cap.** `GET /obsidian/feed` returns at most 20 entries per tenant per request (`limit` param max = 20). |
+| OB-06 | **No plaintext note storage.** The server never persists note body content. `redacted_body` exists only in the JSON response — never written to DB or log. |
+
+---
+
+## §12. Secrets Governance Rules
+
+| # | Rule |
+|---|------|
+| SG-01 | **Metadata-only connectors.** Vault connectors (`AWS SM / Azure KV / HashiCorp / GCP SM / env`) return metadata only. No plaintext secret values returned through the API — only `last_accessed`, `rotation_age_days`, risk score. |
+| SG-02 | **Auto-retire on sync.** Inventory sync auto-retires secrets whose `last_rotated` exceeds `max_age_days`. Auto-retire sets `status = RETIRED` — it does not delete the record. |
+| SG-03 | **Policy compliance gate.** A tenant compliance score < `min_compliance_score` (default 60) blocks new vault connector registrations. |
+| SG-04 | **Expiry alerts.** Lifecycle manager fires Slack/webhook alerts at `expiry_warning_days` (default 14) before `expires_at`. Second alert fires at `expiry_warning_days // 2`. |
+| SG-05 | **Tier gate.** Secrets Governance requires `secrets_governance` feature: Community Business tier or above, or `secrets_vault` add-on ($12/mo, Individual+). |
+
+---
+
+*Rull.md — Shadow Warden AI engineering standards v4.10 · 2026-05*

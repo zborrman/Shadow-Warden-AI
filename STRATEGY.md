@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 4.8 · Last updated 2026-04**
+**Version 4.10 · Last updated 2026-05**
 
 ---
 
@@ -13,26 +13,41 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - Post-Quantum cryptography (Ed25519+ML-DSA-65)
 - Sovereign cloud routing (8 jurisdictions, MASQUE tunnels)
 - Agentic SOC automation (MasterAgent + SOVA)
+- Business Community document exchange (SEP + Obsidian integration)
+- Secrets Governance (multi-cloud vault lifecycle)
 
-**Primary markets:** EU/US SMBs handling regulated data + Enterprise AI teams deploying LLM-backed products.
+**Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
+Enterprise AI teams deploying LLM-backed products.
 
 ---
 
 ## 2. Pricing Strategy
 
-| Tier | Price | Target |
-|------|-------|--------|
-| Starter | Free | Developers, evaluation |
-| Individual | $19/mo | Freelancers, solo builders |
-| Pro | $69/mo | SMBs, SaaS teams (≤50 employees) |
-| Enterprise | $249/mo | Regulated industries, large orgs |
+| Tier | Price | Requests | Target |
+|------|-------|----------|--------|
+| Starter | Free | 1k/mo | Developers, evaluation |
+| Individual | $5/mo | 5k/mo | Freelancers, solo builders |
+| Community Business | $19/mo | 10k/mo | Small teams, Obsidian power users |
+| Pro | $69/mo | 50k/mo | SMBs, SaaS teams (≤50 employees) |
+| Enterprise | $249/mo | Unlimited | Regulated industries, large orgs |
 
-**Add-ons** (incremental revenue on Pro tier):
-- Shadow AI Discovery: +$15/mo
-- XAI Audit Reports: +$9/mo
-- MasterAgent SOC: included in Pro base
+**Add-ons** (incremental revenue, sold separately from tier):
 
-**Strategic rationale:** Price anchored to IBM Cost of Data Breach 2024 average ($4.88M). Even a single breach prevention pays >16 years of Enterprise subscription.
+| Add-on | Price | Eligible tiers | Feature unlocked |
+|--------|-------|----------------|-----------------|
+| Shadow AI Discovery | +$15/mo | Pro+ | Shadow AI subnet probe + DNS telemetry |
+| XAI Audit Reports | +$9/mo | Individual+ | /xai/* HTML + PDF reports |
+| Secrets Vault | +$12/mo | Individual+ | Secrets Governance (all 14 endpoints) |
+
+**Included in base tier** (not sold as add-ons):
+- MasterAgent SOC — included in Pro ($69)
+- Obsidian Integration — included in Community Business ($19)
+- File Scanner + Email Guard — included in Community Business ($19)
+
+**Strategic rationale:** Price anchored to IBM Cost of Data Breach 2024 average
+($4.88M). Even a single breach prevention pays >16 years of Enterprise subscription.
+Community Business at $19 targets the growing Obsidian + knowledge-management market
+where GDPR compliance for AI-assisted note sharing is an unmet need.
 
 ---
 
@@ -47,6 +62,8 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 | Self-improving (Evolution Engine) | ✅ | ⚠️ | ❌ | ⚠️ |
 | Agentic SOC (MasterAgent) | ✅ | ❌ | ❌ | ❌ |
 | Community document exchange (SEP) | ✅ | ❌ | ❌ | ❌ |
+| Obsidian vault integration | ✅ | ❌ | ❌ | ❌ |
+| Multi-cloud secrets governance | ✅ | ❌ | ❌ | ❌ |
 | FraudScore (real-time risk) | ✅ | ❌ | ❌ | ❌ |
 | Open source core | ❌ (proprietary) | ✅ | ❌ | ✅ |
 
@@ -55,59 +72,74 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 2. **Topological + Causal AI** — Betti numbers + do-calculus arbitration not replicable without deep ML research.
 3. **Evolution Engine** — Claude Opus rewrites detection rules from every attack attempt; gap closes faster than human analysts.
 4. **Sovereign routing** — only product with MASQUE H3 tunnels + data residency attestation per jurisdiction.
+5. **Obsidian + SEP** — first AI security gateway with native Obsidian plugin that gates note sharing behind causal transfer safety.
 
 ---
 
 ## 4. Go-to-Market Channels
 
-### 4.1 Developer-Led Growth (Starter → Pro)
-- Free Starter tier with generous rate limits
+### 4.1 Developer-Led Growth (Starter → Individual → Pro)
+- Free Starter tier with immediate API access
 - SDK: `pip install shadow-warden-client`
 - LangChain callback (`WardenCallback`) — zero-friction integration
 - OpenAI-compatible proxy endpoint — swap base URL, no code changes
+- GitHub-first: open issues for feature requests, closed-source core
 
-### 4.2 Product-Led Growth (SMB)
-- Landing page ROI calculator (IBM benchmarks)
-- FraudScore page as lead magnet (real-time AI trust scoring)
+### 4.2 Product-Led Growth (Community Business)
+- Obsidian plugin published to Obsidian community plugins marketplace
+- Landing page: shadow-warden-ai.com/obsidian — "Secure your vault"
+- Free scan (no account required) → account required to share via SEP
+- FraudScore page as lead magnet (real-time AI trust scoring demo)
+
+### 4.3 SMB / Pro Channel
+- ROI calculator (IBM benchmarks) on pricing page
 - Dashboard SPA as free trial hook (live threat feed, no signup)
+- Email Guard and File Scanner demonstrate immediate value before conversion
 
-### 4.3 Enterprise Direct
+### 4.4 Enterprise Direct
 - Compliance Report PDF as sales collateral (SOC 2 / GDPR Art. 30 ready)
 - DPIA template (`docs/dpia.md`) handed to legal/DPO teams
 - Sovereign Cloud demo (jurisdiction picker → MASQUE tunnel → attestation cert)
 - MasterAgent live demo (autonomous SOC briefing on customer data)
+- Secrets Governance demo for DevSecOps teams (multi-vault compliance dashboard)
 
-### 4.4 Partnership
+### 4.5 Partnership
 - EU AI Act consulting firms (we provide the technical layer they need)
 - MSPs / MSSPs targeting SMBs in healthcare, finance, legal
+- Obsidian plugin ecosystem — co-marketing with Obsidian-adjacent tools
 - Reseller margin: 20% on annual Pro/Enterprise contracts
 
 ---
 
 ## 5. Revenue Model
 
-### Recurring (MRR targets Q2 2026)
+### Recurring (MRR targets Q3 2026)
+
 | Segment | Target MRR |
 |---------|-----------|
-| Pro (SMB) | $21,000 (300 seats) |
-| Enterprise | $24,900 (100 seats) |
-| Add-ons | $3,600 |
-| **Total MRR** | **$49,500** |
+| Community Business ($19) | $3,800 (200 seats) |
+| Pro ($69) | $21,000 (304 seats) |
+| Enterprise ($249) | $24,900 (100 seats) |
+| Add-ons (Shadow AI + XAI + Secrets) | $5,400 |
+| **Total MRR** | **$55,100** |
 
 ### Non-Recurring
 - Implementation / onboarding: $2,500 flat (Enterprise)
 - Custom compliance report generation: $500/report
 - Priority support SLA upgrade: $199/mo (Enterprise add-on)
+- Obsidian plugin enterprise deployment: $1,500 one-time setup
 
 ---
 
-## 6. Q2 2026 Growth Targets
+## 6. Q3 2026 Growth Targets
 
 | Metric | Target |
 |--------|--------|
-| MRR | $49,500 |
-| Paying customers | 400 |
+| MRR | $55,100 |
+| Paying customers | 604 |
 | Enterprise contracts | 100 |
+| Community Business seats | 200 |
+| Obsidian plugin installs | 2,000 |
 | Churn (monthly) | < 3% |
 | P99 filter latency | < 2ms |
 | Coverage gate | ≥ 75% |
@@ -124,6 +156,7 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 | NIS2 Directive | AI supply chain security → Shadow AI Governance |
 | DORA (Financial) | AI resilience testing → Uptime Monitor + WardenHealer |
 | US EO 14110 | Federal AI security standards → Sovereign Cloud routing |
+| EU Data Act 2025 | Data portability and sharing obligations → SEP + Data Pods |
 
 ---
 
@@ -136,7 +169,9 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 | Playwright MCR base image changes | Pin `v1.49.0-noble`; CI smoke test catches breakage |
 | Redis unavailability | `REDIS_URL=memory://` in-process fallback throughout |
 | Coverage gate regression | Block-fail CI at 75%; adversarial tests are informational only |
+| Obsidian API breaking change | Plugin targets minAppVersion 1.4.0; locked to stable API surface |
+| Multi-cloud vault connector auth changes | Abstract `VaultConnector` base class; each connector independently versioned |
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v4.8 · 2026-04*
+*Strategy.md — Shadow Warden AI business strategy v4.10 · 2026-05*
