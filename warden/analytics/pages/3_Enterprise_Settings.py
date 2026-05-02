@@ -16,8 +16,10 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from warden.analytics.auth import require_auth
+from warden.analytics.accessibility import inject_accessibility_widget
 
 require_auth()
+inject_accessibility_widget()
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(

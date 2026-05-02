@@ -7,6 +7,13 @@ import streamlit as st
 sys.path.insert(0, "/warden")
 
 st.set_page_config(page_title="Secrets Governance", page_icon="🔐", layout="wide")
+
+try:
+    from warden.analytics.accessibility import inject_accessibility_widget
+    inject_accessibility_widget()
+except Exception:
+    pass
+
 st.title("🔐 Secrets Governance")
 
 _DB = os.environ.get("SECRETS_DB_PATH", "/tmp/warden_secrets.db")

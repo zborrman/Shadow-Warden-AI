@@ -47,6 +47,12 @@ try:
 except Exception:
     pass
 
+try:
+    from warden.analytics.accessibility import inject_accessibility_widget
+    inject_accessibility_widget()
+except Exception:
+    pass
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Community Settings — Shadow Warden AI",

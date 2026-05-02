@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Providers } from './providers'
+import AccessibilityWidget from '@/components/ui/AccessibilityWidget'
 
 export const metadata: Metadata = {
   title: 'Shadow Warden — Portal',
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body>
         <Providers>{children}</Providers>
+        <AccessibilityWidget />
       </body>
     </html>
   )

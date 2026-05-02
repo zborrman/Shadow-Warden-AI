@@ -18,6 +18,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from warden.analytics.auth import require_auth
+from warden.analytics.accessibility import inject_accessibility_widget
 from warden.analytics.logger import load_entries
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ st.set_page_config(
 # Returns immediately (and injects the sidebar logout widget) if auth is valid.
 
 require_auth()
+inject_accessibility_widget()
 
 # ── Minimal dark-mode CSS ─────────────────────────────────────────────────────
 

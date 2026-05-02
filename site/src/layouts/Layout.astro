@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import AccessibilityWidget from '../components/AccessibilityWidget.astro';
 
 interface Props {
   title?: string;
@@ -42,5 +43,6 @@ const {
     ></div>
 
     <slot />
+    <AccessibilityWidget />
   </body>
 </html>
