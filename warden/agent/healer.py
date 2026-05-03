@@ -40,10 +40,10 @@ import logging
 import os
 import sqlite3
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from collections.abc import Generator
 from typing import Any
 
 import httpx
