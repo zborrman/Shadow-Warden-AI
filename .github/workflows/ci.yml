@@ -45,15 +45,31 @@ jobs:
 
       # Sync Astro dist → landing/ and commit back to main so Vercel auto-deploys.
       # Only runs on push to main (not PRs). Uses GITHUB_TOKEN (built-in).
+      #
+      # IMPORTANT: Only copy ASTRO-generated files (those produced by site/src/pages/).
+      # Do NOT use cp -r site/dist/. landing/ — that overwrites manually-maintained
+      # landing files (enterprise-settings.html, settings.html, dashboard.html, etc.)
+      # with stale or wrong content.
       - name: Sync dist → landing/ and push (Vercel deploy)
         if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Merge Astro dist into landing/ — overwrites Astro-owned paths only,
-          # preserves legacy HTML files (settings, login, billing, etc.)
-          cp -r site/dist/. landing/
-          git add landing/
+
+          # Copy only Astro-generated files — one entry per page in site/src/pages/
+          cp site/dist/index.html                     landing/index.html
+          cp site/dist/enterprise-guide/index.html    landing/enterprise-guide/index.html
+          cp site/dist/fraud-score/index.html         landing/fraud-score/index.html
+          cp site/dist/smb/index.html                 landing/smb/index.html
+          # Copy compiled CSS/JS assets (content-hashed, safe to overwrite)
+          cp -r site/dist/_astro landing/_astro
+
+          git add landing/index.html \
+                  landing/enterprise-guide/index.html \
+                  landing/fraud-score/index.html \
+                  landing/smb/index.html \
+                  landing/_astro
+
           # Only commit if something changed
           if git diff --cached --quiet; then
             echo "landing/ unchanged — no commit needed"
