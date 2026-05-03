@@ -4,11 +4,11 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.10 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.11 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
-## Product Tiers — v4.10
+## Product Tiers — v4.11
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -31,7 +31,7 @@ Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`soverei
 
 ---
 
-## What's New in v4.10
+## What's New in v4.11
 
 | Feature | Description |
 |---------|-------------|

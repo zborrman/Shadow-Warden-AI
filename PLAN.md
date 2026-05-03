@@ -104,7 +104,7 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
-### Block H — Obsidian Business Community Integration v4.10 (✅ Complete)
+### Block H — Obsidian Business Community Integration v4.11 (✅ Complete)
 | ID | Feature | Status |
 |----|---------|--------|
 | H-01 | `warden/integrations/obsidian/__init__.py` — package init | ✅ |
@@ -119,14 +119,14 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
-### Block I — Platform Polish v4.10 (✅ Complete)
+### Block I — Platform Polish v4.11 (✅ Complete)
 | ID | Feature | Status |
 |----|---------|--------|
 | I-01 | Accessibility widget — ♿ international symbol icon | ✅ |
 | I-02 | Accessibility widget — click bug fixed (!btnEl.contains(e.target)) | ✅ |
 | I-03 | Accessibility widget — loaded only on index.html (removed from 27 other pages) | ✅ |
-| I-04 | Enterprise Integration Guide — updated to v4.10 (pillars, Obsidian, Settings link) | ✅ |
-| I-05 | Enterprise Settings — updated to v4.10 (Secrets Gov, Obsidian, Accessibility panels) | ✅ |
+| I-04 | Enterprise Integration Guide — updated to v4.11 (pillars, Obsidian, Settings link) | ✅ |
+| I-05 | Enterprise Settings — updated to v4.11 (Secrets Gov, Obsidian, Accessibility panels) | ✅ |
 | I-06 | Settings pages (Astro + landing/settings.html) — NVIDIA/NeMo settings tab | ✅ |
 
 ---
@@ -169,13 +169,13 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | MED | Obsidian feed persistence (SQLite sep_obsidian_feed) | Backend |
 | MED | Secrets Vault add-on Lemon Squeezy webhook handler | Backend |
 | MED | mutmut pass ≤20 surviving mutants (CI enforcement) | QA |
-| MED | landing/index.html footer — update v4.7.0 → v4.10 | Frontend |
+| MED | landing/index.html footer — update v4.7.0 → v4.11 | Frontend |
 | LOW | Obsidian plugin TypeScript CI step | DevOps |
 | LOW | Hadolint GitHub Actions step | DevOps |
 | LOW | docker scout / Trivy in CI | DevOps |
 | LOW | NVIDIA NeMo GeometricThreatBridge production wiring | Backend |
 | LOW | Kubernetes Helm chart | DevOps |
-| LOW | docs/dpia.md + docs/soc2-evidence.md update to v4.10 | Docs |
+| LOW | docs/dpia.md + docs/soc2-evidence.md update to v4.11 | Docs |
 
 ---
 
@@ -183,7 +183,7 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 Current: ~74% (gate: ≥75%)
 
-Recent additions in v4.9 (48 tests) and v4.10 (25 tests) added new coverage
+Recent additions in v4.9 (48 tests) and v4.11 (25 tests) added new coverage
 but also introduced uncovered lines in some modules. Target is to restore to
 76%+ before next version bump.
 
@@ -191,4 +191,4 @@ Omitted from coverage: dashboard, auth UI, SIEM, LangChain callback, browser san
 
 ---
 
-*PLAN.md — Shadow Warden AI product roadmap v4.10 · 2026-05*
+*PLAN.md — Shadow Warden AI product roadmap v4.11 · 2026-05*

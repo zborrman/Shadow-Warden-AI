@@ -31,7 +31,7 @@ const settingsTabs = [
          style="background:#03050F">
       <div class="px-5 py-5 border-b border-white/[0.06]">
         <div class="text-[11px] font-black uppercase tracking-[2px] text-[#FF2D55]">⚙ Settings</div>
-        <div class="text-[10px] text-[#48485A] mt-0.5">v4.10 · All Categories</div>
+        <div class="text-[10px] text-[#48485A] mt-0.5">v4.11 · All Categories</div>
       </div>
       <nav class="flex-1 overflow-y-auto py-3">
         {settingsTabs.map((t, i) => (
@@ -353,7 +353,7 @@ const settingsTabs = [
         <!-- OBSIDIAN -->
         <div id="spanel-obsidian" class="settings-panel hidden">
           <div class="p-4 rounded-xl border border-[#FFD60A]/20 bg-[#FFD60A]/[0.04] mb-5">
-            <div class="text-[12px] font-bold text-[#FFD60A] mb-1">Obsidian Business Community Integration <span class="ml-2 text-[9px] px-2 py-0.5 rounded bg-[#FFD60A]/15 text-[#FFD60A] font-bold">v4.10</span></div>
+            <div class="text-[12px] font-bold text-[#FFD60A] mb-1">Obsidian Business Community Integration <span class="ml-2 text-[9px] px-2 py-0.5 rounded bg-[#FFD60A]/15 text-[#FFD60A] font-bold">v4.11</span></div>
             <div class="text-[10px] text-[#8E8E9E]">Scan notes, share to SEP communities, filter AI prompts — GDPR-safe, secrets-aware.</div>
           </div>
           <div class="grid sm:grid-cols-2 gap-4 mb-5">
@@ -392,7 +392,7 @@ const settingsTabs = [
             ))}
           </div>
           <div class="mt-4 p-4 rounded-xl border border-white/[0.06] bg-[#03050F]">
-            <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">Plugin Endpoints (v4.10)</div>
+            <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-2">Plugin Endpoints (v4.11)</div>
             <div class="space-y-1 font-mono text-[10px] text-[#48485A]">
               {['POST /obsidian/scan — risk_level + secrets + data_class',
                 'POST /obsidian/share — SEP UECIID registration',
@@ -409,7 +409,7 @@ const settingsTabs = [
         <div id="spanel-accessibility" class="settings-panel hidden">
           <div class="p-4 rounded-xl border border-[#0A84FF]/20 bg-[#0A84FF]/[0.04] mb-5">
             <div class="flex items-center justify-between mb-1">
-              <div class="text-[13px] font-bold text-[#0A84FF]">Accessibility Widget <span class="ml-2 text-[9px] px-2 py-0.5 rounded bg-[#0A84FF]/15 text-[#0A84FF] font-bold">v4.10</span></div>
+              <div class="text-[13px] font-bold text-[#0A84FF]">Accessibility Widget <span class="ml-2 text-[9px] px-2 py-0.5 rounded bg-[#0A84FF]/15 text-[#0A84FF] font-bold">v4.11</span></div>
               <div class="flex gap-1.5 text-[9px]">
                 <span class="px-2 py-0.5 rounded bg-[#30D158]/15 text-[#30D158] font-bold">WCAG 2.1 AA</span>
                 <span class="px-2 py-0.5 rounded bg-[#30D158]/15 text-[#30D158] font-bold">Section 508</span>
@@ -463,7 +463,7 @@ const settingsTabs = [
         <!-- INSTALL / UNINSTALL -->
         <div id="spanel-install" class="settings-panel hidden">
           <div class="p-4 rounded-xl border border-[#30D158]/20 bg-[#30D158]/[0.04] mb-5">
-            <div class="text-[13px] font-bold text-[#30D158] mb-1">Install &amp; Uninstall — Shadow Warden AI v4.10</div>
+            <div class="text-[13px] font-bold text-[#30D158] mb-1">Install &amp; Uninstall — Shadow Warden AI v4.11</div>
             <div class="text-[10px] text-[#8E8E9E]">Self-contained Docker stack. All 11 services start with a single command. No external dependencies.</div>
           </div>
 
@@ -545,7 +545,7 @@ const settingsTabs = [
 
         <!-- Integration Guide panel -->
         <div id="spanel-guide" class="settings-panel hidden">
-          <div class="text-[13px] font-bold text-[#A78BFA] mb-3">Enterprise Integration Guide v4.10</div>
+          <div class="text-[13px] font-bold text-[#A78BFA] mb-3">Enterprise Integration Guide v4.11</div>
           <p class="text-[12px] text-[#8E8E9E] mb-4">Full deployment playbook — segment strategies, hybrid architecture, ROI models, v4.x platform pillars, and Obsidian community integration.</p>
           <div class="grid grid-cols-2 gap-3 mb-4">
             {[
@@ -565,7 +565,7 @@ const settingsTabs = [
           <a href="/integration-guide" target="_blank"
              class="inline-flex items-center gap-2 bg-[#A78BFA] text-[#0D0D1A] text-[12px] font-bold px-4 py-2 rounded-lg hover:bg-[#C4B5FD] transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            Open Enterprise Integration Guide v4.10
+            Open Enterprise Integration Guide v4.11
           </a>
         </div>
 
@@ -650,7 +650,7 @@ const settingsTabs = [
     alerts:        'Alerts & Notifications',
     infra:         'Infrastructure Settings',
     install:       'Install / Uninstall',
-    guide:         'Enterprise Integration Guide v4.10',
+    guide:         'Enterprise Integration Guide v4.11',
   };
 
   function showSettingsTab(id: string) {

@@ -516,7 +516,7 @@
       <a class="sb-link" href="#secrets-report"><span class="sb-method m-get">GET</span>/secrets/report</a>
     </div>
     <div class="sb-section">
-      <div class="sb-title">Obsidian (v4.10) <span class="tag tag-new" style="font-size:0.55rem;padding:1px 5px;">NEW</span></div>
+      <div class="sb-title">Obsidian (v4.11) <span class="tag tag-new" style="font-size:0.55rem;padding:1px 5px;">NEW</span></div>
       <a class="sb-link" href="#obsidian-scan"><span class="sb-method m-post">POST</span>/obsidian/scan</a>
       <a class="sb-link" href="#obsidian-share"><span class="sb-method m-post">POST</span>/obsidian/share</a>
       <a class="sb-link" href="#obsidian-feed"><span class="sb-method m-get">GET</span>/obsidian/feed</a>
@@ -552,8 +552,8 @@
 
     <!-- INTRO -->
     <div class="section section-anchor" id="intro">
-      <h1>API Reference <span class="tag tag-new" style="font-size:0.75rem;vertical-align:middle;margin-left:8px;">v4.10</span></h1>
-      <p>Shadow Warden AI is a zero-trust AI security gateway. Every payload passes through a 9-layer pipeline: TDA topological gatekeeper, obfuscation decoder, secret/PII redaction, semantic rules, hyperbolic ML brain, Bayesian causal arbiter, entity risk scoring — before reaching any downstream model. <strong>v4.10</strong> adds the Obsidian Business Community integration (5 endpoints), WCAG 2.1 AA accessibility widget, and targeted coverage boost (55 new tests).</p>
+      <h1>API Reference <span class="tag tag-new" style="font-size:0.75rem;vertical-align:middle;margin-left:8px;">v4.11</span></h1>
+      <p>Shadow Warden AI is a zero-trust AI security gateway. Every payload passes through a 9-layer pipeline: TDA topological gatekeeper, obfuscation decoder, secret/PII redaction, semantic rules, hyperbolic ML brain, Bayesian causal arbiter, entity risk scoring — before reaching any downstream model. <strong>v4.11</strong> adds the Obsidian Business Community integration (5 endpoints), WCAG 2.1 AA accessibility widget, and targeted coverage boost (55 new tests).</p>
 
       <div class="base-url-bar">
         <span class="base-url-label">Base URL</span>
@@ -1458,7 +1458,7 @@ synthesizer.register_rails(rails)
     <!-- ── Obsidian ──────────────────────────────────────────────────────── -->
     <hr class="divider" />
     <div class="section section-anchor" id="obsidian-scan">
-      <h2>Obsidian Integration <span class="tag tag-new">v4.10</span></h2>
+      <h2>Obsidian Integration <span class="tag tag-new">v4.11</span></h2>
       <p>5 endpoints for the Shadow Warden Obsidian plugin — scan notes, share to SEP communities, serve community feed, filter AI prompts. Data classification: <code>GENERAL</code> / <code>PII</code> / <code>FINANCIAL</code> / <code>CLASSIFIED</code> / <code>PHI</code>. Risk levels: <code>ALLOW</code> / <code>LOW</code> / <code>MEDIUM</code> / <code>HIGH</code> / <code>BLOCK</code>.</p>
 
       <div class="endpoint" id="obsidian-scan">
@@ -1508,7 +1508,7 @@ synthesizer.register_rails(rails)
     <!-- ── Install & Deploy ─────────────────────────────────────────────── -->
     <hr class="divider" />
     <div class="section section-anchor" id="install-guide">
-      <h2>Installation Guide <span class="tag tag-new">v4.10</span></h2>
+      <h2>Installation Guide <span class="tag tag-new">v4.11</span></h2>
       <p>Shadow Warden AI is distributed as a Docker Compose stack. 11 services start with a single command. No external cloud dependencies required.</p>
 
       <div class="info-box info"><span class="info-icon">ℹ</span><span>All 11 services are defined in <code>docker-compose.yml</code>. The stack includes its own Caddy proxy, TimescaleDB, Redis, Prometheus, Grafana, and MinIO — no external dependencies needed for self-hosted deployment.</span></div>

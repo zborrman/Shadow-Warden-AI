@@ -610,4 +610,4 @@ Score < 60 → blocks new vault registrations (configurable via `min_compliance_
 
 ---
 
-*Rule.md — Shadow Warden AI detection rules reference v4.10 · 2026-05*
+*Rule.md — Shadow Warden AI detection rules reference v4.11 · 2026-05*

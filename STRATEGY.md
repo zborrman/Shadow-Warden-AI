@@ -174,4 +174,4 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v4.10 · 2026-05*
+*Strategy.md — Shadow Warden AI business strategy v4.11 · 2026-05*

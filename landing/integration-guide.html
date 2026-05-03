@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shadow Warden AI — Enterprise Integration Guide v4.10</title>
+<title>Shadow Warden AI — Enterprise Integration Guide v4.11</title>
 <style>
   /* ── Base ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -428,8 +428,8 @@
     <a href="#s8" class="toc-item"><span class="toc-num">8</span> Deployment Sizing Guide</a>
     <a href="#s9" class="toc-item"><span class="toc-num">9</span> GDPR & Compliance Checklist</a>
     <a href="#s10" class="toc-item"><span class="toc-num">10</span> Configuration Reference</a>
-    <a href="#s11" class="toc-item"><span class="toc-num">11</span> v4.x Platform Pillars (v4.0–v4.10)</a>
-    <a href="#s12" class="toc-item"><span class="toc-num">12</span> Obsidian Business Community (v4.10)</a>
+    <a href="#s11" class="toc-item"><span class="toc-num">11</span> v4.x Platform Pillars (v4.0–v4.11)</a>
+    <a href="#s12" class="toc-item"><span class="toc-num">12</span> Obsidian Business Community (v4.11)</a>
   </div>
 </div>
 
@@ -449,7 +449,7 @@
 </div>
 
 <div class="callout callout-blue" style="margin-bottom:20px;">
-  <strong>v4.10 Platform — What's New:</strong> &nbsp;
+  <strong>v4.11 Platform — What's New:</strong> &nbsp;
   <span class="pill pill-purple">Agentic SOC (SOVA + MasterAgent)</span>
   <span class="pill pill-blue">Post-Quantum Crypto (ML-DSA-65 + ML-KEM-768)</span>
   <span class="pill pill-green">Shadow AI Discovery</span>
@@ -929,7 +929,7 @@ attestation = monitor.get_attestation_chain()  # SHA-256 verified chain</code></
   <div class="segment-header">
     <div class="segment-icon" style="background:#f0fdf4;">🗒️</div>
     <div>
-      <h3>G — Business Community & Knowledge Workers (v4.10)</h3>
+      <h3>G — Business Community & Knowledge Workers (v4.11)</h3>
       <p>SMBs, law firms, research teams, agencies — using Obsidian for private knowledge management with AI-powered sharing</p>
     </div>
     <div style="margin-left:auto;text-align:right;">
@@ -1585,7 +1585,7 @@ SECRETS_DB_PATH=/tmp/warden_secrets.db   # SQLite secrets inventory
 SOVA_MAX_ITER=10                         # max agentic loop iterations
 PATROL_URLS=https://app.example.com      # extra URLs for visual-patrol cron
 
-# ── Obsidian Integration (v4.10) ──────────────────────────
+# ── Obsidian Integration (v4.11) ──────────────────────────
 # No server-side env vars — configured via Obsidian plugin settings tab
 
 # ── Intel Bridge (optional) ───────────────────────────────
@@ -1611,7 +1611,7 @@ INTEL_BRIDGE_INTERVAL_HRS=6             # sync interval (hours)</code></pre>
 <div class="page-break"></div>
 <div class="section-head" id="s11">
   <div class="section-num">11</div>
-  <h2>v4.x Platform Pillars (v4.0–v4.10)</h2>
+  <h2>v4.x Platform Pillars (v4.0–v4.11)</h2>
 </div>
 <p>Shadow Warden v4.x introduced five enterprise pillars beyond the core 9-layer gateway. Each pillar is independently deployable and tier-gated.</p>
 
@@ -1679,7 +1679,7 @@ GET  /secrets/lifecycle/expiring
 GET  /secrets/audit</code></pre>
   </div>
   <div class="card">
-    <h4>♿ Accessibility (v4.10)</h4>
+    <h4>♿ Accessibility (v4.11)</h4>
     <p style="font-size:9pt;">WCAG 2.1 AA / Section 508 / EN 301 549 / ADA compliant accessibility widget. Zero-dependency IIFE, injected into all Streamlit dashboard pages and landing surfaces. High-contrast mode, font scaling, keyboard navigation, reduced motion, screen reader announcements.</p>
     <div class="pill pill-green">All tiers — built-in</div>
     <pre style="font-size:7.5pt;"><code># Auto-injected via:
@@ -1692,7 +1692,7 @@ inject_accessibility_widget()  # in every Streamlit page</code></pre>
 <div class="page-break"></div>
 <div class="section-head" id="s12">
   <div class="section-num">12</div>
-  <h2>Obsidian Business Community Integration (v4.10)</h2>
+  <h2>Obsidian Business Community Integration (v4.11)</h2>
 </div>
 
 <p>The Shadow Warden Obsidian plugin bridges private knowledge management with enterprise-grade AI security. Notes are scanned locally before any AI interaction or community share.</p>
@@ -1765,7 +1765,7 @@ Auto-scan: enabled</code></pre>
 </div>
 
 <footer class="doc-footer">
-  <span>Shadow Warden AI — Enterprise Integration Guide v4.10</span>
+  <span>Shadow Warden AI — Enterprise Integration Guide v4.11</span>
   <span>© 2026 Shadow Warden AI. Confidential — Client Distribution Only.</span>
   <span>security@shadowwarden.ai</span>
 </footer>

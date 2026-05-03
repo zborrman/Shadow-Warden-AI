@@ -158,4 +158,4 @@ These rules are non-negotiable and violation blocks merge.
 
 ---
 
-*Rull.md — Shadow Warden AI engineering standards v4.10 · 2026-05*
+*Rull.md — Shadow Warden AI engineering standards v4.11 · 2026-05*

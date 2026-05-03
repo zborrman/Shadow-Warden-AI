@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 4.10 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.11 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
@@ -48,13 +48,14 @@ SOVA Agent (autonomous operator):
         sova_sla_report     Monday 09:00 UTC
         sova_upgrade_scan   Sunday 10:00 UTC
         sova_corpus_watchdog every 30 min (delegates to WardenHealer — no LLM)
-        sova_visual_patrol  03:00 UTC daily (ScreencastRecorder + Claude Vision → MinIO)
+        sova_visual_patrol  03:00 UTC daily (ScreencastRecorder + Claude Vision → MinIO, smart priority weights)
     Memory: Redis sova:conv:{session_id} JSON (6h TTL, 20-turn cap)
     Tools: 30 tool handlers → http://localhost:8001 X-API-Key calls
         #28: visual_assert_page — BrowserSandbox + Claude Vision (in-process)
         #29: scan_shadow_ai     — Shadow AI Discovery (ShadowAIDetector, 18 providers, subnet probe + DNS)
         #30: explain_decision   — Causal chain retrieval from logs + XAI rationale
-    Healer: WardenHealer — autonomous anomaly detection (circuit breaker, bypass spike, corpus, canary probe)
+        #31: visual_diff        — Claude Vision baseline vs candidate screenshot comparison
+    Healer: WardenHealer — autonomous anomaly detection (CB, bypass spike, corpus DEGRADED, canary probe, OLS trend prediction, Haiku incident classification, SQLite recipe cache)
 
 MasterAgent (multi-agent SOC coordinator — v4.0):
     POST /agent/master               → run_master() → decompose → parallel sub-agents → synthesis
@@ -167,7 +168,7 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/tools/browser.py` | BrowserSandbox (Playwright headless Chromium) + `ScreencastRecorder` (video → MinIO SOC 2 evidence) |
 | `warden/agent/memory.py` | Redis-backed conversation memory (sova:conv:{sid}, 6h TTL, 20-turn cap) |
 | `warden/agent/scheduler.py` | 7 ARQ job functions for SOVA scheduled tasks |
-| `warden/agent/healer.py` | WardenHealer — autonomous anomaly detection (CB, bypass spike, corpus DEGRADED, canary probe) |
+| `warden/agent/healer.py` | WardenHealer — autonomous anomaly detection (CB, bypass spike, corpus DEGRADED, canary probe, OLS trend prediction, Haiku classification, SQLite recipe cache) |
 | `warden/api/agent.py` | FastAPI router `/agent/sova` — query, clear session, trigger task |
 | `warden/testing/context.py` | SWFE FakeContext — unified fake activation via mock.patch, X-Simulation-ID isolation |
 | `warden/testing/fakes/` | SWFE fake layer — FakeAnthropicClient, FakeNvidiaClient, FakeS3Storage, FakeEvolutionEngine |
@@ -235,8 +236,12 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 - **`warden-models` migration**: copy from host path via `docker run --rm -v warden-models:/warden/models alpine sh -c "cp -r /src/. /warden/models/"` before switching compose mount.
 - **ScreencastRecorder video timing**: `page.video.path()` must be called AFTER `page.close()` and BEFORE `context.close()`. `BrowserSandbox.__aexit__` closes the page explicitly when `record_video=True` to finalise the WebM before the context is torn down.
 - **visual_assert_page is in-process**: unlike the other 27 SOVA tools (all HTTP), `visual_assert_page` imports `BrowserSandbox` directly and calls the Anthropic SDK in-process. No HTTP round-trip. Requires Playwright + `ANTHROPIC_API_KEY`.
-- **WardenHealer is LLM-free**: all 4 checks are direct httpx calls to localhost:8001. No SOVA loop invoked. `sova_corpus_watchdog` delegates to `WardenHealer` — do not call `_run(task, ...)` from the watchdog.
+- **visual_diff tool (#31)**: `BrowserSandbox.capture_screenshot_b64()` static helper captures both URLs, sends both images to Claude Vision for comparison. Verdicts: IDENTICAL | MINOR_DIFF | REGRESSION | CRITICAL_REGRESSION | ERROR. Falls back to byte-size delta when no `ANTHROPIC_API_KEY`.
+- **WardenHealer is LLM-free on happy path**: all 4 checks are direct httpx calls to localhost:8001. On anomaly, `_llm_classify_incident()` calls Claude Haiku (`claude-haiku-4-5-20251001`) once per unique incident fingerprint and caches the remedy in SQLite `incident_recipes`. `sova_corpus_watchdog` delegates to `WardenHealer` — do not call `_run(task, ...)` from the watchdog.
+- **WardenHealer trend prediction**: `_check_trend_prediction()` uses OLS (`_linear_trend()`) over the last 12 bypass-rate samples (stored in SQLite `bypass_metrics`). Fires WARN action if predicted rate > `HEALER_BYPASS_THRESHOLD` (default 15%) while current ≤ threshold. Pure Python — no numpy dependency.
 - **PATROL_URLS env var**: comma-separated list of extra URLs for `sova_visual_patrol`.
+- **_PatrolWeights**: Redis-backed per-URL failure weights for `sova_visual_patrol`. Decay × 0.85 on success, boost × 1.5 (cap 10) on failure. Key `sova:patrol_weights` (7-day TTL). Falls back to in-process dict when Redis unavailable. Patrol targets sorted descending by weight so frequently-failing routes always run first.
+- **ScenarioStep.smart_retry**: int field (default 0). When > 0, `ScenarioRunner._run_step()` retries the step up to that many extra times on failure. Final `failure_msg` is enriched with XAI causal-chain hint via `GET /xai/explain/{request_id}` (primary stage, verdict, score).
 - **MasterAgent task tokens**: every delegated sub-task carries HMAC-SHA256 token `(sub_agent:task_hash:ts:sig)`. `_verify_token()` is called before each sub-agent run — prevents cross-agent injection if a sub-agent is compromised.
 - **MasterAgent approval**: `REQUIRES_APPROVAL` is a text flag the sub-agent includes in its response. Master scans for it, extracts context, issues approval token, stores in Redis `master:approval:{token}` (1h TTL), posts to Slack. `/agent/approve/{token}?action=approve|reject` resolves via `resolve_approval()` which sets `master:approval:callback:{cb_key}`. `auto_approve=True` skips the gate entirely (for scheduled jobs).
 - **MasterAgent sub-agent tools**: each sub-agent only gets its `_AGENT_TOOLS[SubAgent]` subset — principle of least privilege across agents. Parsed with split/strip — empty strings filtered out. `DASHBOARD_URL` is a separate single-URL convenience var.
