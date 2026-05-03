@@ -450,6 +450,15 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="4" r="2"/><path d="M12 8c-4 0-6 2-6 5v1h4l1 8h2l1-8h4v-1c0-3-2-5-6-5z"/></svg>
       Accessibility <span style="font-size:0.6rem;padding:1px 5px;border-radius:4px;background:rgba(52,211,153,0.12);color:#34d399;margin-left:4px;">WCAG 2.1</span>
     </a>
+    <div class="sidebar-group">Agents</div>
+    <a class="sidebar-item" onclick="return showSection('sova', this)" href="#sova">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      SOVA Agent <span style="font-size:0.6rem;padding:1px 5px;border-radius:4px;background:rgba(99,102,241,0.15);color:#a5b4fc;margin-left:4px;">v4.11</span>
+    </a>
+    <a class="sidebar-item" onclick="return showSection('masteragent', this)" href="#masteragent">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="7" cy="10" r="1.5"/><circle cx="12" cy="10" r="1.5"/><circle cx="17" cy="10" r="1.5"/></svg>
+      MasterAgent SOC <span style="font-size:0.6rem;padding:1px 5px;border-radius:4px;background:rgba(255,45,85,0.12);color:#ff6b81;margin-left:4px;">Pro</span>
+    </a>
     <div class="sidebar-group">Financial</div>
     <a class="sidebar-item" onclick="return showSection('impact', this)" href="#impact">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
@@ -470,6 +479,10 @@
       Install / Uninstall
     </a>
     <div class="sidebar-group">Resources</div>
+    <a class="sidebar-item" href="/docs" target="_blank">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      API Documentation
+    </a>
     <a class="sidebar-item" href="/integration-guide" target="_blank">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       Enterprise Integration Guide
@@ -2174,6 +2187,314 @@ docker compose up --build -d</div>
       </div>
     </section>
 
+    <!-- ── SOVA Agent ───────────────────────────────────────────────── -->
+    <section class="section" id="section-sova">
+      <div class="section-title">SOVA Agent <span style="font-size:0.75rem;padding:2px 8px;border-radius:6px;background:rgba(99,102,241,0.15);color:#a5b4fc;margin-left:8px;vertical-align:middle;">v4.11</span></div>
+      <div class="section-sub">Autonomous AI operator — 30 tools, 7 scheduled jobs, Claude Opus 4.6</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Anthropic API</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Anthropic API Key</div>
+            <div class="setting-desc">Required for SOVA agentic loop, EvolutionEngine, and visual patrol. Without it, all detection still works (air-gapped mode).</div>
+            <div class="restart-notice">⚠ Set ANTHROPIC_API_KEY env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="password" class="ctrl-input wide" id="sova-api-key" placeholder="sk-ant-api03-…" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Max Iterations per Task</div>
+            <div class="setting-desc">Maximum agentic loop iterations for a single SOVA task. Default 10.</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="sova-max-iter" min="1" max="20" value="10" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Session Memory TTL</div>
+            <div class="setting-desc">Conversation history TTL in Redis (key: sova:conv:{session_id}). Capped at 20 turns.</div>
+            <div class="restart-notice">⚠ Set SOVA_MEMORY_TTL env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="sova-memory-ttl" min="600" max="86400" value="21600" />
+            <span style="font-size:0.75rem;color:var(--text3)">sec</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Visual Patrol (v4.11)</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Warden Base URL</div>
+            <div class="setting-desc">Base URL for /health endpoint patrol. Defaults to http://localhost:8001.</div>
+            <div class="restart-notice">⚠ Set WARDEN_BASE_URL env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="url" class="ctrl-input wide" id="sova-base-url" placeholder="http://localhost:8001" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Dashboard URL</div>
+            <div class="setting-desc">Optional Streamlit analytics dashboard URL to include in nightly visual patrol.</div>
+            <div class="restart-notice">⚠ Set DASHBOARD_URL env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="url" class="ctrl-input wide" id="sova-dashboard-url" placeholder="http://localhost:8501" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Extra Patrol URLs</div>
+            <div class="setting-desc">Comma-separated extra URLs for nightly visual patrol (PATROL_URLS). Smart priority weights are applied per URL based on failure history.</div>
+            <div class="restart-notice">⚠ Set PATROL_URLS env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input wide" id="sova-patrol-urls" placeholder="https://app.example.com,https://status.example.com" />
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Scheduled Jobs (ARQ Cron)</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Morning Brief</div>
+            <div class="setting-desc">Daily 08:00 UTC — health, 24h stats, top threats, ROI snapshot, action recommendations. Posts to Slack.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="job-morning" checked /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Threat Sync</div>
+            <div class="setting-desc">Every 6 hours — OSV CVE + ArXiv LLM-attack refresh. Slack alert on CRITICAL findings.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="job-threat" checked /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Key Rotation Check</div>
+            <div class="setting-desc">Daily 02:00 UTC — audits all Business Community keys. Auto-rotates keys older than 90 days.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="job-rotation" checked /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">SLA Report</div>
+            <div class="setting-desc">Monday 09:00 UTC — 7-day uptime %, P99 latency, breach analysis. Posts to Slack.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="job-sla" checked /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Upgrade Scan</div>
+            <div class="setting-desc">Sunday 10:00 UTC — identifies tenants at &gt;80% quota. Posts upsell candidates to Slack.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="job-upgrade" checked /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Corpus Watchdog</div>
+            <div class="setting-desc">Every 30 min — WardenHealer anomaly detection (circuit breaker, bypass spike, corpus health, canary). LLM-free on happy path; Haiku incident classification on issues.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="job-watchdog" checked /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Visual Patrol</div>
+            <div class="setting-desc">Daily 03:00 UTC — Playwright screenshots + Claude Vision analysis. Smart priority weights boost frequently-failing routes. WebM evidence ships to MinIO.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="job-visual" checked /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Healer Metrics (v4.11)</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Metrics Database Path</div>
+            <div class="setting-desc">SQLite path for WardenHealer time-series metrics and incident recipe cache. Used for OLS trend prediction.</div>
+            <div class="restart-notice">⚠ Set HEALER_METRICS_DB env var + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" class="ctrl-input wide" id="sova-healer-db" placeholder="/tmp/warden_healer_metrics.db" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Bypass Rate Warn Threshold</div>
+            <div class="setting-desc">Trigger WARN action when OLS-predicted bypass rate exceeds this % while current rate is below it. Default 15%.</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="sova-bypass-threshold" min="1" max="100" value="15" />
+            <span style="font-size:0.75rem;color:var(--text3)">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:24px;">
+        <button class="btn btn-primary" onclick="saveSova()">Save Agent Settings</button>
+        <button class="btn btn-outline" onclick="showToast('curl -X POST /agent/sova/task/morning_brief', 'success')">Copy Manual Trigger</button>
+      </div>
+    </section>
+
+    <!-- ── MasterAgent SOC ───────────────────────────────────────────── -->
+    <section class="section" id="section-masteragent">
+      <div class="section-title">MasterAgent SOC <span style="font-size:0.75rem;padding:2px 8px;border-radius:6px;background:rgba(255,45,85,0.12);color:#ff6b81;margin-left:8px;vertical-align:middle;">Pro</span></div>
+      <div class="section-sub">Multi-agent SOC coordinator — 4 specialist sub-agents, human-in-the-loop approvals</div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">General</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Enable MasterAgent</div>
+            <div class="setting-desc">Enables POST /agent/master endpoint. Requires Pro or Enterprise plan + ANTHROPIC_API_KEY.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="master-enabled" checked /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Auto-Approve Actions</div>
+            <div class="setting-desc">Skip human-in-the-loop approval gate for REQUIRES_APPROVAL actions. Not recommended for production.</div>
+          </div>
+          <div class="setting-control">
+            <label class="toggle-wrap"><input type="checkbox" class="toggle-input" id="master-autoapprove" /><div class="toggle-track"></div></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Sub-Agent Limits</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Sub-Agent Max Iterations</div>
+            <div class="setting-desc">Max agentic loop iterations per sub-agent task. Default 5. Increase only if complex tasks time out.</div>
+            <div class="restart-notice">⚠ Maps to _SUB_AGENT_MAX_ITER in master.py</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="master-max-iter" min="1" max="15" value="5" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Sub-Agent Token Budget</div>
+            <div class="setting-desc">Early-halt token budget per sub-agent. Default 8192 tokens.</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="master-token-budget" min="1024" max="32768" step="1024" value="8192" />
+            <span style="font-size:0.75rem;color:var(--text3)">tokens</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Human-in-the-Loop Approvals</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Approval Webhook URL</div>
+            <div class="setting-desc">Slack webhook for REQUIRES_APPROVAL notifications. Separate from the main alerting webhook.</div>
+            <div class="restart-notice">⚠ Set SLACK_WEBHOOK_URL env var (shared with alerting) + restart</div>
+          </div>
+          <div class="setting-control">
+            <input type="url" class="ctrl-input wide" id="master-webhook" placeholder="https://hooks.slack.com/…" />
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Approval Token TTL</div>
+            <div class="setting-desc">How long a pending approval token remains valid in Redis before expiring. Default 1 hour.</div>
+          </div>
+          <div class="setting-control">
+            <input type="number" class="ctrl-input" id="master-approval-ttl" min="300" max="86400" value="3600" />
+            <span style="font-size:0.75rem;color:var(--text3)">sec</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-group-title">Sub-Agents</div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">SOVAOperator</div>
+            <div class="setting-desc">Health, stats, billing, config, key rotation tools.</div>
+          </div>
+          <div class="setting-control"><span class="badge badge-green">Active</span></div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">ThreatHunter</div>
+            <div class="setting-desc">CVE triage, ArXiv threat intel, adversarial analysis tools.</div>
+          </div>
+          <div class="setting-control"><span class="badge badge-green">Active</span></div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">ForensicsAgent</div>
+            <div class="setting-desc">Agent activity analysis, GDPR Art.30, Evidence Vault, visual patrol tools.</div>
+          </div>
+          <div class="setting-control"><span class="badge badge-green">Active</span></div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">ComplianceAgent</div>
+            <div class="setting-desc">SLA monitor audits, SOC 2 controls, ROI proposal generation tools.</div>
+          </div>
+          <div class="setting-control"><span class="badge badge-green">Active</span></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:24px;">
+        <button class="btn btn-primary" onclick="saveMasterAgent()">Save MasterAgent Settings</button>
+        <button class="btn btn-outline" onclick="showToast('curl -X POST /agent/master -d \'{\"query\":\"status check\"}\' -H \'X-API-Key: …\'', 'success')">Copy API Example</button>
+      </div>
+    </section>
+
   </div><!-- /content -->
 </div><!-- /layout -->
 
@@ -2228,6 +2549,28 @@ docker compose up --build -d</div>
       }
     } catch { errEl.textContent = 'Connection error.'; errEl.style.display = ''; }
     finally { btn.disabled = false; btn.textContent = 'Update Password'; }
+  }
+
+  // ── SOVA Agent settings ──────────────────────────────────────────────────────
+  function saveSova() {
+    const fields = {
+      'ANTHROPIC_API_KEY':    document.getElementById('sova-api-key')?.value,
+      'SOVA_MAX_ITER':        document.getElementById('sova-max-iter')?.value,
+      'SOVA_MEMORY_TTL':      document.getElementById('sova-memory-ttl')?.value,
+      'WARDEN_BASE_URL':      document.getElementById('sova-base-url')?.value,
+      'DASHBOARD_URL':        document.getElementById('sova-dashboard-url')?.value,
+      'PATROL_URLS':          document.getElementById('sova-patrol-urls')?.value,
+      'HEALER_METRICS_DB':    document.getElementById('sova-healer-db')?.value,
+      'HEALER_BYPASS_THRESH': document.getElementById('sova-bypass-threshold')?.value,
+    };
+    const envLines = Object.entries(fields).filter(([,v]) => v).map(([k,v]) => `${k}=${v}`).join('\n');
+    showToast('Settings shown below — add to your .env file and restart', 'success');
+    console.info('SOVA .env snippet:\n' + envLines);
+  }
+
+  // ── MasterAgent settings ─────────────────────────────────────────────────────
+  function saveMasterAgent() {
+    showToast('MasterAgent settings — update .env and restart warden service', 'success');
   }
 
   // ── Toast helper ─────────────────────────────────────────────────────────────
