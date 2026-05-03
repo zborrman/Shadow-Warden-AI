@@ -426,6 +426,18 @@ class BrowserSandbox:
         self.context7.record(record)
         return record
 
+    @staticmethod
+    async def capture_screenshot_b64(url: str, timeout: int = 30_000) -> str:
+        """
+        Convenience: spin up a throw-away browser, navigate to *url*, return
+        a base64-encoded PNG string.  Used by visual_diff to capture both
+        baseline and candidate without keeping a shared browser context.
+        """
+        async with BrowserSandbox(timeout=timeout) as sb:
+            await sb.navigate(url)
+            rec = await sb.screenshot()
+            return rec.result.get("screenshot_b64", "")
+
 
 # ── ScreencastRecorder ────────────────────────────────────────────────────────
 

@@ -59,6 +59,9 @@ class ScenarioStep:
     extra_headers:     dict[str, str]     = field(default_factory=dict)
     # Chapter marker — optional grouping label rendered as a header in summary()
     chapter:           str                = ""
+    # Smart retry: re-run the step up to N extra times on failure and enrich
+    # the final failure_msg with an XAI causal-chain explanation when available.
+    smart_retry:       int                = 0
 
 
 @dataclass

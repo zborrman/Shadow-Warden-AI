@@ -106,6 +106,12 @@ class ScenarioRunner:
         return [self.run(s) for s in scenarios]
 
     def _run_step(self, step: ScenarioStep) -> StepResult:
+        result = self._execute_step(step)
+        if not result.passed and step.smart_retry > 0:
+            result = self._smart_retry(step, result)
+        return result
+
+    def _execute_step(self, step: ScenarioStep) -> StepResult:
         payload: dict[str, Any] = {"content": step.content}
         if step.tenant_id:
             payload["tenant_id"] = step.tenant_id
@@ -146,6 +152,57 @@ class ScenarioRunner:
             failure_msg=failure or "",
             chapter=step.chapter,
         )
+
+    def _smart_retry(self, step: ScenarioStep, first_result: StepResult) -> StepResult:
+        """
+        Re-run *step* up to ``step.smart_retry`` extra times.
+
+        On the final failure, the failure_msg is enriched with a causal-chain
+        hint fetched from ``GET /xai/explain/{request_id}`` (if the pipeline
+        returned a request_id).  This surfaces the primary detection stage and
+        score without requiring a manual XAI dashboard lookup.
+        """
+        for attempt in range(1, step.smart_retry + 1):
+            retry = self._execute_step(step)
+            if retry.passed:
+                return retry
+            if attempt == step.smart_retry:
+                # Final attempt — annotate with XAI hint and attempt counter
+                xai_hint = self._fetch_xai_hint(first_result.response)
+                suffix = f" [smart_retry {attempt}/{step.smart_retry}]"
+                if xai_hint:
+                    suffix += f" | {xai_hint}"
+                retry.failure_msg += suffix
+                return retry
+        return first_result
+
+    def _fetch_xai_hint(self, response: dict) -> str:
+        """
+        Try to get a one-line causal explanation from the XAI endpoint.
+        Returns an empty string on any failure (fail-open).
+        """
+        request_id = response.get("request_id") or response.get("id")
+        if not request_id:
+            return ""
+        try:
+            r = self._client.get(
+                f"/xai/explain/{request_id}",
+                headers=self._headers,
+            )
+            if r.status_code != 200:
+                return ""
+            chain = r.json()
+            # primary_cause is the first BLOCK stage, or highest-weight FLAG
+            primary = chain.get("primary_cause") or {}
+            stage   = primary.get("stage_id", "")
+            verdict = primary.get("verdict", "")
+            score   = primary.get("score")
+            if stage:
+                score_str = f" score={score:.3f}" if isinstance(score, float) else ""
+                return f"XAI: primary={stage} verdict={verdict}{score_str}"
+        except Exception:
+            pass
+        return ""
 
     @staticmethod
     def _check_step(

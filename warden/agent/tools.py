@@ -363,6 +363,97 @@ async def explain_decision(
         return {"found": False, "request_id": request_id, "error": str(exc)}
 
 
+async def visual_diff(
+    baseline_url: str,
+    candidate_url: str,
+    prompt: str = "",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #31 — Visual Regression Diff.
+
+    Captures a screenshot of *baseline_url* and *candidate_url*, then asks
+    Claude Vision to describe significant visual differences.
+
+    Falls back to byte-size delta when ANTHROPIC_API_KEY is absent.
+
+    Verdicts: IDENTICAL | MINOR_DIFF | REGRESSION | CRITICAL_REGRESSION | ERROR
+    """
+    try:
+        from warden.tools.browser import BrowserSandbox
+    except ImportError:
+        return {"ok": False, "error": "Playwright not available"}
+
+    import base64 as _b64
+
+    try:
+        b_b64 = await BrowserSandbox.capture_screenshot_b64(baseline_url)
+        c_b64 = await BrowserSandbox.capture_screenshot_b64(candidate_url)
+    except Exception as exc:
+        return {"ok": False, "error": f"Screenshot capture failed: {exc}"}
+
+    diff_prompt = prompt or (
+        "You are a visual regression analyst. "
+        "Screenshot 1 is the BASELINE (expected). Screenshot 2 is the CANDIDATE (current). "
+        "Describe only SIGNIFICANT differences: layout breaks, missing UI elements, error banners, "
+        "text content changes, style regressions. Ignore timestamps, counters, and dynamic ads. "
+        "End your response with exactly one verdict on its own line: "
+        "IDENTICAL | MINOR_DIFF | REGRESSION | CRITICAL_REGRESSION"
+    )
+
+    api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        baseline_bytes = len(_b64.b64decode(b_b64 + "==")) if b_b64 else 0
+        candidate_bytes = len(_b64.b64decode(c_b64 + "==")) if c_b64 else 0
+        delta_pct = abs(baseline_bytes - candidate_bytes) / max(baseline_bytes, 1) * 100
+        verdict = "REGRESSION" if delta_pct > 20 else "MINOR_DIFF" if delta_pct > 5 else "IDENTICAL"
+        return {
+            "ok":             True,
+            "verdict":        verdict,
+            "analysis":       f"[size-diff fallback] delta={delta_pct:.1f}% baseline={baseline_bytes}B candidate={candidate_bytes}B",
+            "baseline_url":   baseline_url,
+            "candidate_url":  candidate_url,
+        }
+
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.AsyncAnthropic(api_key=api_key)
+        msg = await client.messages.create(
+            model="claude-opus-4-6",
+            max_tokens=512,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": b_b64}},
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": c_b64}},
+                    {"type": "text",  "text": diff_prompt},
+                ],
+            }],
+        )
+        analysis: str = msg.content[0].text if msg.content else ""
+        last_line = analysis.strip().split("\n")[-1].upper()
+        if "CRITICAL" in last_line:
+            verdict = "CRITICAL_REGRESSION"
+        elif "REGRESSION" in last_line:
+            verdict = "REGRESSION"
+        elif "MINOR" in last_line:
+            verdict = "MINOR_DIFF"
+        else:
+            verdict = "IDENTICAL"
+    except Exception as exc:
+        analysis = f"Vision analysis failed: {exc}"
+        verdict = "ERROR"
+
+    return {
+        "ok":            verdict != "ERROR",
+        "verdict":       verdict,
+        "analysis":      analysis,
+        "baseline_url":  baseline_url,
+        "candidate_url": candidate_url,
+    }
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -705,6 +796,35 @@ TOOLS: list[dict] = [
             "required": ["url"],
         },
     },
+    {
+        "name": "visual_diff",
+        "description": (
+            "Capture screenshots of two URLs and use Claude Vision to describe significant "
+            "visual differences between them. Returns a verdict: IDENTICAL / MINOR_DIFF / "
+            "REGRESSION / CRITICAL_REGRESSION. Falls back to byte-size delta comparison "
+            "when ANTHROPIC_API_KEY is absent. Use for visual regression testing or to "
+            "compare a baseline snapshot against the current production state."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "baseline_url": {
+                    "type": "string",
+                    "description": "URL of the known-good baseline (what it should look like).",
+                },
+                "candidate_url": {
+                    "type": "string",
+                    "description": "URL of the current state to test against the baseline.",
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "Optional custom vision instruction. Overrides the default diff prompt.",
+                },
+                "tenant_id": {"type": "string"},
+            },
+            "required": ["baseline_url", "candidate_url"],
+        },
+    },
 ]
 
 # ── Dispatch table ────────────────────────────────────────────────────────────
@@ -740,4 +860,5 @@ TOOL_HANDLERS: dict[str, Any] = {
     "scan_shadow_ai":         scan_shadow_ai,
     "explain_decision":       explain_decision,
     "visual_assert_page":     visual_assert_page,
+    "visual_diff":            visual_diff,
 }

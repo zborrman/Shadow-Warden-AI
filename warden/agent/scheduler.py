@@ -203,6 +203,73 @@ async def sova_corpus_watchdog(ctx: dict) -> dict:
     }
 
 
+# ── Patrol priority weights ───────────────────────────────────────────────────
+
+class _PatrolWeights:
+    """
+    Redis-backed patrol priority weights.  Each URL starts at 1.0.
+    Failures boost the weight (× 1.5, capped at 10); successes decay it
+    (× 0.85) so frequently-failing routes get checked every run while
+    stable ones gradually drop in priority.
+
+    Falls back to an in-process dict when Redis is unavailable.
+    """
+
+    _KEY   = "sova:patrol_weights"
+    _DECAY = 0.85
+    _BOOST = 1.5
+    _CAP   = 10.0
+    _TTL   = 86_400 * 7   # 7 days
+
+    def __init__(self) -> None:
+        self._local: dict[str, float] = {}
+
+    async def _redis(self):
+        import os as _os  # noqa: PLC0415
+        url = _os.getenv("REDIS_URL", "")
+        if not url or url == "memory://":
+            return None
+        try:
+            import redis.asyncio as aioredis  # noqa: PLC0415
+            return aioredis.from_url(url)
+        except Exception:
+            return None
+
+    async def load(self, urls: list[str]) -> dict[str, float]:
+        weights: dict[str, float] = {u: 1.0 for u in urls}
+        r = await self._redis()
+        if r:
+            try:
+                stored = await r.hgetall(self._KEY)
+                for raw_k, raw_v in stored.items():
+                    k = raw_k.decode() if isinstance(raw_k, bytes) else raw_k
+                    if k in weights:
+                        weights[k] = float(raw_v)
+            except Exception:
+                pass
+        else:
+            for u in urls:
+                if u in self._local:
+                    weights[u] = self._local[u]
+        return weights
+
+    async def update(self, url: str, success: bool) -> None:
+        r = await self._redis()
+        try:
+            if r:
+                raw = await r.hget(self._KEY, url)
+                w = float(raw) if raw else 1.0
+                w = w * self._DECAY if success else min(w * self._BOOST, self._CAP)
+                await r.hset(self._KEY, url, round(w, 4))
+                await r.expire(self._KEY, self._TTL)
+            else:
+                w = self._local.get(url, 1.0)
+                w = w * self._DECAY if success else min(w * self._BOOST, self._CAP)
+                self._local[url] = round(w, 4)
+        except Exception as exc:
+            log.debug("patrol weights update failed: %s", exc)
+
+
 async def sova_visual_patrol(ctx: dict) -> dict:
     """
     Nightly 03:00 UTC — visual health patrol using Browser Bind + Claude Vision.
@@ -211,9 +278,14 @@ async def sova_visual_patrol(ctx: dict) -> dict:
     then calls visual_assert_page on key production endpoints.  Screenshots
     and the full WebM screencast are shipped to MinIO as SOC 2 evidence.
 
+    Smart prioritization (v4.11): patrol targets are sorted by failure weight
+    so frequently-failing routes are always checked first.  The run reports
+    critical coverage % and sends a weighted summary to Slack.
+
     Endpoints patrolled (configurable via PATROL_URLS env var):
       • /health      — gateway liveness
       • Dashboard    — Streamlit analytics (if DASHBOARD_URL is set)
+      • PATROL_URLS  — comma-separated extra URLs
     """
     log.info("sova: visual patrol starting [%s]", _ts())
 
@@ -224,42 +296,54 @@ async def sova_visual_patrol(ctx: dict) -> dict:
 
     session_id = f"patrol-{datetime.now(UTC).strftime('%Y%m%d-%H%M')}"
 
-    # Patrol targets — expand via PATROL_URLS="url1,url2" env var
-    base_url     = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
-    dashboard    = os.getenv("DASHBOARD_URL", "")
-    extra_urls   = [u.strip() for u in os.getenv("PATROL_URLS", "").split(",") if u.strip()]
+    # ── Build target list ─────────────────────────────────────────────────────
+    base_url   = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
+    dashboard  = os.getenv("DASHBOARD_URL", "")
+    extra_urls = [u.strip() for u in os.getenv("PATROL_URLS", "").split(",") if u.strip()]
 
-    targets: list[tuple[str, str]] = [
+    targets_raw: list[tuple[str, str]] = [
         (f"{base_url}/health", "Verify gateway health page is reachable and shows status=ok"),
     ]
     if dashboard:
-        targets.append((dashboard, "Verify analytics dashboard loads without errors"))
+        targets_raw.append((dashboard, "Verify analytics dashboard loads without errors"))
     for url in extra_urls:
-        targets.append((url, ""))
+        targets_raw.append((url, ""))
+
+    # ── Load weights and sort by priority (highest weight = most urgent) ──────
+    pw = _PatrolWeights()
+    url_list = [u for u, _ in targets_raw]
+    weights  = await pw.load(url_list)
+    targets  = sorted(targets_raw, key=lambda t: weights.get(t[0], 1.0), reverse=True)
+
+    log.info("patrol order: %s", [(u, f"w={weights.get(u,1.0):.2f}") for u, _ in targets])
 
     findings: list[dict] = []
     issues:   list[str]  = []
 
     # ── Run visual_assert_page for each target ────────────────────────────────
-    # ScreencastRecorder wraps the session so the full patrol is recorded as one
-    # WebM video and shipped to MinIO (screencasts/<session_id>.webm).
+    async def _run_target(url: str, assertion: str) -> dict:
+        result = await visual_assert_page(url=url, assertion=assertion)
+        ok = result.get("ok", False) and "error" not in result.get("analysis", "").lower()
+        await pw.update(url, success=ok)
+        return result
+
     try:
-        from warden.tools.browser import ScreencastRecorder
+        from warden.tools.browser import ScreencastRecorder  # noqa: PLC0415
         async with ScreencastRecorder(session_id):
             for url, assertion in targets:
-                result = await visual_assert_page(url=url, assertion=assertion)
+                result = await _run_target(url, assertion)
                 findings.append(result)
                 if not result.get("ok"):
                     issues.append(f"{url}: {result.get('error', 'unknown error')}")
                 elif "error" in result.get("analysis", "").lower():
                     issues.append(f"{url}: Vision flagged: {result['analysis'][:120]}")
-                log.info("patrol: %s → ok=%s bytes=%s",
-                         url, result.get("ok"), result.get("screenshot_bytes"))
+                log.info("patrol: %s → ok=%s w=%.2f bytes=%s",
+                         url, result.get("ok"), weights.get(url, 1.0),
+                         result.get("screenshot_bytes"))
     except ImportError:
-        # Playwright not installed — fall back to plain visual_assert_page without recording
         log.warning("sova patrol: Playwright not available — skipping ScreencastRecorder")
         for url, assertion in targets:
-            result = await visual_assert_page(url=url, assertion=assertion)
+            result = await _run_target(url, assertion)
             findings.append(result)
             if not result.get("ok"):
                 issues.append(f"{url}: {result.get('error', 'unknown error')}")
@@ -267,18 +351,33 @@ async def sova_visual_patrol(ctx: dict) -> dict:
         log.error("sova visual patrol: unexpected error: %s", exc)
         return {"status": "error", "ts": _ts(), "error": str(exc)}
 
+    # ── Coverage report ───────────────────────────────────────────────────────
+    # "Critical" = weight > 2 (has failed at least once recently)
+    critical_urls    = [u for u in url_list if weights.get(u, 1.0) > 2.0]
+    critical_checked = sum(1 for u in critical_urls if any(f.get("url") == u for f in findings))
+    coverage_pct     = (critical_checked / len(critical_urls) * 100) if critical_urls else 100.0
+
     # ── Alert if issues found ─────────────────────────────────────────────────
     if issues:
+        weight_summary = " | ".join(
+            f"{u.split('/')[-1] or 'root'}: w={weights.get(u, 1.0):.1f}"
+            for u, _ in targets[:5]
+        )
         await _slack(
             f"*SOVA Visual Patrol Alert* [{_ts()}] `{session_id}`\n"
             + "\n".join(f"• {i}" for i in issues)
+            + f"\n_Priority weights: {weight_summary}_"
+            + f"\n_Critical coverage: {coverage_pct:.0f}% ({critical_checked}/{len(critical_urls)})_"
         )
 
-    log.info("sova: visual patrol complete — %d targets, %d issues", len(targets), len(issues))
+    log.info("sova: visual patrol complete — %d targets, %d issues, coverage=%.0f%%",
+             len(targets), len(issues), coverage_pct)
     return {
-        "status":    "alerted" if issues else "ok",
-        "ts":        _ts(),
-        "session_id": session_id,
-        "targets":   len(targets),
-        "issues":    issues,
+        "status":           "alerted" if issues else "ok",
+        "ts":               _ts(),
+        "session_id":       session_id,
+        "targets":          len(targets),
+        "issues":           issues,
+        "critical_coverage_pct": coverage_pct,
+        "weights":          {u: round(weights.get(u, 1.0), 2) for u in url_list},
     }
