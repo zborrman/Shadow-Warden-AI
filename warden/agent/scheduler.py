@@ -236,7 +236,7 @@ class _PatrolWeights:
             return None
 
     async def load(self, urls: list[str]) -> dict[str, float]:
-        weights: dict[str, float] = {u: 1.0 for u in urls}
+        weights: dict[str, float] = dict.fromkeys(urls, 1.0)
         r = await self._redis()
         if r:
             try:

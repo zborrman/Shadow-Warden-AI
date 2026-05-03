@@ -43,7 +43,8 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 import httpx
 
@@ -126,7 +127,7 @@ def _linear_trend(values: list[float], ahead: int = _PREDICT_AHEAD) -> float:
     xs = list(range(n))
     x_mean = sum(xs) / n
     y_mean = sum(values) / n
-    num = sum((x - x_mean) * (y - y_mean) for x, y in zip(xs, values))
+    num = sum((x - x_mean) * (y - y_mean) for x, y in zip(xs, values, strict=False))
     den = sum((x - x_mean) ** 2 for x in xs)
     slope = num / den if den != 0 else 0.0
     return y_mean + slope * (n - 1 - x_mean + ahead)
