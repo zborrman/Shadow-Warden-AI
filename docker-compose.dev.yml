@@ -34,13 +34,7 @@ services:
       LOG_LEVEL: debug
       LOGS_PATH: /data/logs.json
       DYNAMIC_RULES_PATH: /data/dynamic_rules.json
-    # Remove resource limits in dev to allow profiling
-    deploy:
-      resources:
-        limits:
-          cpus: ""
-          memory: ""
-
+      ALLOW_UNAUTHENTICATED: "true"
   analytics:
     volumes:
       - ./analytics:/app/analytics:ro
@@ -55,23 +49,7 @@ services:
     environment:
       LOG_LEVEL: debug
       LOGS_PATH: /data/logs.json
-    deploy:
-      resources:
-        limits:
-          cpus: ""
-          memory: ""
 
-  dashboard:
-    volumes:
-      - ./warden/analytics:/app/warden/analytics:ro
-      - ./data:/data:ro
-    environment:
-      LOGS_PATH: /data/logs.json
-    deploy:
-      resources:
-        limits:
-          cpus: ""
-          memory: ""
 
   postgres:
     # Expose Postgres in dev for psql / pgAdmin / DBeaver
@@ -90,3 +68,15 @@ services:
   grafana:
     environment:
       GF_LOG_LEVEL: debug
+
+  proxy:
+    # Use HTTP-only Caddyfile for local dev (no TLS certs needed)
+    volumes:
+      - ./docker/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ./landing:/srv/landing:ro
+      - caddy-data:/data
+      - warden-logs:/var/log/caddy
+    ports:
+      - "80:80"
+      - "8081:8081"
+      - "8082:8082"

@@ -1,0 +1,41 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Shadow Warden AI — Caddy dev config (HTTP only, no TLS)
+#  Use for local development when SSL certs are not available.
+#
+#  Access via http://localhost/<service>
+#  Routes:
+#    :80               → warden:8001  (API gateway, catch-all)
+#    :8081             → portal:3001  (tenant portal)
+#    :8082             → analytics:8002
+# ─────────────────────────────────────────────────────────────────────────────
+
+{
+	admin 0.0.0.0:2019
+}
+
+# ── API Gateway (plain HTTP, port 80) ────────────────────────────────────────
+:80 {
+	handle /health {
+		reverse_proxy warden:8001
+	}
+
+	handle {
+		reverse_proxy warden:8001 {
+			header_up X-Real-IP    {remote_host}
+		}
+	}
+}
+
+# ── Tenant Portal ─────────────────────────────────────────────────────────────
+:8081 {
+	reverse_proxy portal:3001 {
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+# ── Analytics API ─────────────────────────────────────────────────────────────
+:8082 {
+	reverse_proxy analytics:8002 {
+		header_up X-Real-IP {remote_host}
+	}
+}
