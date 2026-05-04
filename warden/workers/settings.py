@@ -29,6 +29,9 @@ Environment variables
 
   scan_cves                   — every 6 hours (00:10, 06:10, 12:10, 18:10)
     OSV API dependency CVE scan → data/cve_report.json → Slack on new CRITICALs.
+
+  sova_community_watchdog     — every hour at :20
+    Auto-blocks WARN-scored posts ≥ 0.85; alerts Slack on any BLOCK verdicts.
 """
 from __future__ import annotations
 
@@ -39,6 +42,7 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from warden.agent.scheduler import (
+    sova_community_watchdog,
     sova_corpus_watchdog,
     sova_morning_brief,
     sova_rotation_check,
@@ -86,6 +90,7 @@ class WorkerSettings:
         sova_upgrade_scan,
         sova_corpus_watchdog,
         sova_visual_patrol,
+        sova_community_watchdog,
         # Community moderation
         moderate_post,
         # Cyber Security Hub
@@ -133,6 +138,9 @@ class WorkerSettings:
 
         # ── Cyber Security Hub — CVE scan every 6 hours ───────────────────────
         cron(scan_cves, hour={0, 6, 12, 18}, minute=10, timeout=300),
+
+        # ── Community moderation watchdog — every hour ────────────────────────
+        cron(sova_community_watchdog, minute=20, timeout=120),
     ]
 
     on_startup  = startup

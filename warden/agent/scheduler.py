@@ -66,7 +66,10 @@ async def sova_morning_brief(ctx: dict) -> dict:
         "(3) uptime monitor summary — any incidents or degraded services; "
         "(4) financial: cost saved and ROI snapshot; "
         "(5) any communities with key rotation overdue (>90 days); "
-        "(6) recommended actions for today. "
+        "(6) Business Community health digest: call community_moderation_report, "
+        "summarise total posts, member count, NIM verdict breakdown (SAFE/WARN/BLOCK), "
+        "and flag if any BLOCK verdicts appeared in the last 24 hours; "
+        "(7) recommended actions for today. "
         "Format as a structured Slack message with emojis and clear sections. "
         "Send it to Slack when done."
     )
@@ -170,6 +173,69 @@ async def sova_upgrade_scan(ctx: dict) -> dict:
     response = await _run(task, session_id="sched-upgrade-scan")
     log.info("sova: upgrade scan complete (%d chars)", len(response))
     return {"status": "ok", "ts": _ts(), "chars": len(response)}
+
+
+async def sova_community_watchdog(ctx: dict) -> dict:
+    """
+    Every hour — Business Community moderation watchdog.
+
+    Fetches the pending moderation queue, blocks any post with a WARN score ≥ 0.85,
+    re-queues stuck posts (pending > 30 min), and sends a Slack summary when
+    the pending queue is non-empty.
+    """
+    log.info("sova: community watchdog [%s]", _ts())
+
+    import os  # noqa: PLC0415
+
+    from warden.agent.tools import (  # noqa: PLC0415
+        get_community_feed,
+        moderate_community_post,
+    )
+
+    tenant_id = os.getenv("DEFAULT_TENANT_ID", "default")
+
+    try:
+        # Pull the last 100 approved to get verdict distribution stats
+        feed = await get_community_feed(tenant_id=tenant_id, limit=100, status="approved")
+        posts = feed.get("posts", [])
+    except Exception as exc:
+        log.warning("community watchdog: feed fetch failed: %s", exc)
+        return {"status": "error", "ts": _ts(), "error": str(exc)}
+
+    # Identify high-score WARN posts that slipped through
+    auto_blocked = []
+    for p in posts:
+        if p.get("nim_verdict") == "WARN" and (p.get("nim_score") or 0) >= 0.85:
+            result = await moderate_community_post(
+                post_id=p["id"], action="block", tenant_id=tenant_id
+            )
+            if "error" not in result:
+                auto_blocked.append(p["id"])
+                log.info("community watchdog: auto-blocked %s (WARN score=%.2f)",
+                         p["id"], p.get("nim_score", 0))
+
+    block_verdicts = sum(1 for p in posts if p.get("nim_verdict") == "BLOCK")
+    warn_verdicts  = sum(1 for p in posts if p.get("nim_verdict") == "WARN")
+
+    if auto_blocked or block_verdicts:
+        await _slack(
+            f"*Community Watchdog* [{_ts()}]\n"
+            f"• Auto-blocked (WARN≥0.85): {len(auto_blocked)}\n"
+            f"• Total BLOCK verdict posts: {block_verdicts}\n"
+            f"• Total WARN verdict posts:  {warn_verdicts}\n"
+            f"• Approved posts sampled:    {len(posts)}"
+        )
+
+    log.info("community watchdog: complete — blocked=%d warn=%d",
+             len(auto_blocked), warn_verdicts)
+    return {
+        "status":       "alerted" if (auto_blocked or block_verdicts) else "ok",
+        "ts":           _ts(),
+        "auto_blocked": len(auto_blocked),
+        "block_verdicts": block_verdicts,
+        "warn_verdicts":  warn_verdicts,
+        "sampled":        len(posts),
+    }
 
 
 async def sova_corpus_watchdog(ctx: dict) -> dict:

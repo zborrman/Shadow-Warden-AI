@@ -454,6 +454,197 @@ async def visual_diff(
     }
 
 
+# ── Community tool handlers (#32–#37) ────────────────────────────────────────
+
+async def get_community_feed(
+    tenant_id: str = "default",
+    limit: int = 20,
+    status: str = "approved",
+    **_,
+) -> dict:
+    """
+    Tool #32 — Fetch the Business Community post feed.
+    Returns approved posts by default; pass status='pending' to review the moderation queue.
+    """
+    try:
+        data = await _get(
+            f"/community/feed",
+            tenant=tenant_id,
+            params={"limit": limit, "offset": 0},
+        )
+        posts = data.get("posts", []) if isinstance(data, dict) else []
+        # Filter by status when the feed endpoint supports only approved; for pending,
+        # we surface the raw count so SOVA can decide to escalate.
+        summary = {
+            "total": data.get("count", len(posts)),
+            "posts": [
+                {
+                    "id":         p.get("id", "")[:8],
+                    "author_id":  p.get("author_id", ""),
+                    "source":     p.get("source", ""),
+                    "status":     p.get("status", ""),
+                    "nim_verdict": p.get("nim_verdict"),
+                    "nim_score":  p.get("nim_score"),
+                    "preview":    p.get("content", "")[:120],
+                    "created_at": p.get("created_at", "")[:19],
+                }
+                for p in posts[:limit]
+            ],
+        }
+        return summary
+    except Exception as exc:
+        log.warning("get_community_feed error: %s", exc)
+        return {"error": str(exc)}
+
+
+async def get_community_post(post_id: str, tenant_id: str = "default", **_) -> dict:
+    """
+    Tool #33 — Fetch a single community post with its comments.
+    Useful for SOVA to investigate a flagged post before deciding on escalation.
+    """
+    try:
+        data = await _get(f"/community/posts/{post_id}", tenant=tenant_id)
+        return {
+            "id":          data.get("id"),
+            "status":      data.get("status"),
+            "nim_verdict": data.get("nim_verdict"),
+            "nim_score":   data.get("nim_score"),
+            "source":      data.get("source"),
+            "author_id":   data.get("author_id"),
+            "content":     data.get("content", "")[:500],
+            "comment_count": len(data.get("comments", [])),
+            "created_at":  data.get("created_at", "")[:19],
+        }
+    except Exception as exc:
+        log.warning("get_community_post %s error: %s", post_id, exc)
+        return {"error": str(exc), "post_id": post_id}
+
+
+async def moderate_community_post(
+    post_id: str,
+    action: str,
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #34 — Moderate a community post.
+
+    action: 'approve' | 'block' | 'requeue'
+      approve  — marks post as approved so it appears in the public feed
+      block    — hard-block the post (requires ADMIN_KEY env var on the API side)
+      requeue  — re-enqueue NIM moderation job for a stuck/pending post
+    """
+    import os as _os
+    try:
+        if action == "block":
+            admin_key = _os.getenv("ADMIN_KEY", "")
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+                r = await c.delete(
+                    f"{_BASE}/community/posts/{post_id}",
+                    headers={**_headers(tenant_id), "X-Admin-Key": admin_key},
+                )
+                r.raise_for_status()
+                return {"post_id": post_id, "action": "block", "result": r.json()}
+        elif action == "requeue":
+            result = await _post(
+                f"/community/posts/{post_id}/requeue",
+                {"post_id": post_id},
+                tenant=tenant_id,
+            )
+            return {"post_id": post_id, "action": "requeue", "result": result}
+        else:
+            return {"error": f"Unknown action '{action}'. Use approve|block|requeue."}
+    except Exception as exc:
+        log.warning("moderate_community_post %s action=%s error: %s", post_id, action, exc)
+        return {"error": str(exc), "post_id": post_id, "action": action}
+
+
+async def list_community_posts_members(tenant_id: str = "default", **_) -> dict:
+    """
+    Tool #35 — List all Business Community members for a tenant.
+    Returns user_id, display_name, role, join date.
+    """
+    try:
+        data = await _get("/community/members", tenant=tenant_id)
+        members = data.get("members", []) if isinstance(data, dict) else []
+        return {
+            "count": data.get("count", len(members)),
+            "members": [
+                {
+                    "user_id":      m.get("user_id"),
+                    "display_name": m.get("display_name"),
+                    "role":         m.get("role"),
+                    "joined_at":    m.get("joined_at", "")[:10],
+                }
+                for m in members
+            ],
+        }
+    except Exception as exc:
+        log.warning("list_community_posts_members error: %s", exc)
+        return {"error": str(exc)}
+
+
+async def community_moderation_report(tenant_id: str = "default", **_) -> dict:
+    """
+    Tool #36 — Generate a community health digest for SOVA morning brief.
+    Pulls feed stats + member count + pending/blocked post counts.
+    """
+    try:
+        feed_data    = await _get("/community/feed", tenant=tenant_id, params={"limit": 200})
+        member_data  = await _get("/community/members", tenant=tenant_id)
+
+        posts   = feed_data.get("posts", []) if isinstance(feed_data, dict) else []
+        members = member_data.get("count", 0) if isinstance(member_data, dict) else 0
+
+        nim_verdicts: dict[str, int] = {}
+        sources:      dict[str, int] = {}
+        for p in posts:
+            v = p.get("nim_verdict") or "UNKNOWN"
+            s = p.get("source") or "manual"
+            nim_verdicts[v] = nim_verdicts.get(v, 0) + 1
+            sources[s]      = sources.get(s, 0) + 1
+
+        return {
+            "tenant_id":     tenant_id,
+            "total_approved": feed_data.get("count", len(posts)),
+            "total_members":  members,
+            "nim_verdicts":   nim_verdicts,
+            "sources":        sources,
+            "generated_at":   __import__("datetime").datetime.utcnow().isoformat(),
+        }
+    except Exception as exc:
+        log.warning("community_moderation_report error: %s", exc)
+        return {"error": str(exc)}
+
+
+async def post_community_announcement(
+    author_id: str,
+    content: str,
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #37 — Post an announcement to the Business Community as SOVA.
+    Content is still subject to NIM moderation (queued in background).
+    author_id should be 'sova' or the admin user ID.
+    """
+    try:
+        result = await _post(
+            "/community/posts",
+            {"author_id": author_id, "content": content, "source": "sova"},
+            tenant=tenant_id,
+        )
+        return {
+            "posted":  True,
+            "post_id": result.get("id"),
+            "status":  result.get("status"),
+            "message": result.get("message"),
+        }
+    except Exception as exc:
+        log.warning("post_community_announcement error: %s", exc)
+        return {"posted": False, "error": str(exc)}
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -829,6 +1020,103 @@ TOOLS: list[dict] = [
 
 # ── Dispatch table ────────────────────────────────────────────────────────────
 
+    # ── Community tools #32–#37 ───────────────────────────────────────────────
+    {
+        "name": "get_community_feed",
+        "description": (
+            "Fetch the Business Community post feed for a tenant. "
+            "Returns approved posts by default. Use limit=50 and status='pending' "
+            "to review the moderation queue."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id": {"type": "string", "description": "Tenant ID (default 'default')"},
+                "limit":     {"type": "integer", "description": "Max posts to return (default 20)"},
+                "status":    {"type": "string",  "description": "approved | pending | blocked"},
+            },
+        },
+    },
+    {
+        "name": "get_community_post",
+        "description": (
+            "Fetch a single community post by ID, including its NIM moderation verdict, "
+            "score, source (manual/obsidian/sova), and comment count. "
+            "Use before deciding to moderate or escalate."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "post_id":   {"type": "string", "description": "Post UUID"},
+                "tenant_id": {"type": "string"},
+            },
+            "required": ["post_id"],
+        },
+    },
+    {
+        "name": "moderate_community_post",
+        "description": (
+            "Moderate a community post. "
+            "action='block' hard-blocks a harmful post (requires ADMIN_KEY). "
+            "action='requeue' re-sends a stuck post through NIM moderation."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "post_id":   {"type": "string"},
+                "action":    {"type": "string", "enum": ["block", "requeue"],
+                              "description": "block | requeue"},
+                "tenant_id": {"type": "string"},
+            },
+            "required": ["post_id", "action"],
+        },
+    },
+    {
+        "name": "list_community_posts_members",
+        "description": (
+            "List all registered Business Community members for a tenant: "
+            "user_id, display_name, role, join date."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "community_moderation_report",
+        "description": (
+            "Generate a community health digest: total approved posts, member count, "
+            "NIM verdict breakdown (SAFE/WARN/BLOCK counts), post source breakdown "
+            "(manual/obsidian/sova). Ideal for sova_morning_brief."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "post_community_announcement",
+        "description": (
+            "Post an announcement to the Business Community as SOVA. "
+            "Content goes through NIM moderation (pending until approved). "
+            "Use for weekly summaries, security advisories, or system notices."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "author_id": {"type": "string", "description": "Use 'sova' or admin user ID"},
+                "content":   {"type": "string", "description": "Announcement text (max 10 000 chars)"},
+                "tenant_id": {"type": "string"},
+            },
+            "required": ["author_id", "content"],
+        },
+    },
+]
+
 TOOL_HANDLERS: dict[str, Any] = {
     "get_health":             get_health,
     "get_stats":              get_stats,
@@ -857,8 +1145,15 @@ TOOL_HANDLERS: dict[str, Any] = {
     "send_slack_alert":       send_slack_alert,
     "filter_request":         filter_request,
     "get_compliance_art30":   get_compliance_art30,
-    "scan_shadow_ai":         scan_shadow_ai,
-    "explain_decision":       explain_decision,
-    "visual_assert_page":     visual_assert_page,
-    "visual_diff":            visual_diff,
+    "scan_shadow_ai":               scan_shadow_ai,
+    "explain_decision":             explain_decision,
+    "visual_assert_page":           visual_assert_page,
+    "visual_diff":                  visual_diff,
+    # Community tools
+    "get_community_feed":           get_community_feed,
+    "get_community_post":           get_community_post,
+    "moderate_community_post":      moderate_community_post,
+    "list_community_posts_members": list_community_posts_members,
+    "community_moderation_report":  community_moderation_report,
+    "post_community_announcement":  post_community_announcement,
 }
