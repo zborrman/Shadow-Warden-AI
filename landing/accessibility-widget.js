@@ -436,7 +436,13 @@
     });
     closeBtn.addEventListener('click', closePanel);
 
-    const iconEl = el('div', { id: `${NS}-header-icon`, 'aria-hidden': 'true', textContent: '♿' });
+    const iconEl = el('div', { id: `${NS}-header-icon`, 'aria-hidden': 'true' });
+    iconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="18" height="18">
+      <circle cx="50" cy="18" r="11" fill="#fff"/>
+      <path fill="#fff" d="M38 34 a12 12 0 0 1 24 0 v18 h10 a4 4 0 0 1 0 8 H58 a4 4 0 0 1-4-4 V42 H46 v10 l8 13 a4 4 0 1 1-6.9 4 L38 56 Z"/>
+      <circle cx="38" cy="79" r="13" fill="none" stroke="#fff" stroke-width="7"/>
+      <circle cx="68" cy="79" r="7" fill="none" stroke="#fff" stroke-width="5"/>
+    </svg>`;
     const titleEl = el('div');
     titleEl.appendChild(el('h2', { textContent: 'Accessibility' }));
     titleEl.appendChild(el('small', { textContent: 'Alt + A  ·  WCAG 2.1 AA' }));
@@ -672,16 +678,15 @@
       'aria-expanded' : 'false',
       'aria-haspopup' : 'dialog',
       title           : 'Accessibility options — WCAG 2.1 AA · Section 508 · EN 301 549',
-      /* ISA person-in-circle icon */
-      innerHTML: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
-            viewBox="0 0 24 24" fill="currentColor"
-            aria-hidden="true" focusable="false" role="img">
+      /* International Symbol of Access (ISO 7001 PF 001) */
+      innerHTML: `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"
+            viewBox="0 0 100 100" aria-hidden="true" focusable="false" role="img">
           <title>Accessibility options</title>
-          <circle cx="12" cy="4.5" r="2.5"/>
-          <path d="M19 11h-5.5l-1-3.5H9a1 1 0 0 0-.95.68L6 13h3l1-3h1.5l1.8 6.3
-                   A2 2 0 0 0 15.2 18h.3l1.5-5H19a1 1 0 0 0 0-2z"/>
-          <path d="M10.6 15.5l-.7 2.4A4 4 0 1 0 15 21.3l-.8-2.7a1.5 1.5 0 0 1-1 .4
-                   A2 2 0 0 1 11 17a2 2 0 0 1-.4-1.5z"/>
+          <rect width="100" height="100" rx="14" fill="#0057B8"/>
+          <circle cx="50" cy="18" r="11" fill="#fff"/>
+          <path fill="#fff" d="M38 34 a12 12 0 0 1 24 0 v18 h10 a4 4 0 0 1 0 8 H58 a4 4 0 0 1-4-4 V42 H46 v10 l8 13 a4 4 0 1 1-6.9 4 L38 56 Z"/>
+          <circle cx="38" cy="79" r="13" fill="none" stroke="#fff" stroke-width="7"/>
+          <circle cx="68" cy="79" r="7" fill="none" stroke="#fff" stroke-width="5"/>
         </svg>`,
     });
     btnEl.addEventListener('click', togglePanel);
