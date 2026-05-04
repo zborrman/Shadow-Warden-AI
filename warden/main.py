@@ -1178,6 +1178,13 @@ try:
 except ImportError:
     log.warning("obsidian router not available — /obsidian routes skipped.")
 
+try:
+    from warden.api.community import router as _community_router
+    app.include_router(_community_router)
+    log.info("Business Community mounted at /community (NIM moderation + Obsidian bridge)")
+except ImportError:
+    log.warning("community router not available — /community routes skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /

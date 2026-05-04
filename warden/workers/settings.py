@@ -44,6 +44,7 @@ from warden.agent.scheduler import (
     sova_upgrade_scan,
     sova_visual_patrol,
 )
+from warden.workers.content_filter import moderate_post
 from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
@@ -81,6 +82,8 @@ class WorkerSettings:
         sova_upgrade_scan,
         sova_corpus_watchdog,
         sova_visual_patrol,
+        # Community moderation
+        moderate_post,
     ]
 
     cron_jobs = [
