@@ -678,7 +678,7 @@
     /* 8. close on outside click */
     document.addEventListener('click', e => {
       if (panelEl.classList.contains('open') &&
-          !panelEl.contains(e.target) && e.target !== btnEl) {
+          !panelEl.contains(e.target) && !btnEl.contains(e.target)) {
         closePanel();
       }
     });
