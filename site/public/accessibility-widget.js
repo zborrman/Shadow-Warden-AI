@@ -519,11 +519,12 @@
   }
 
   function toggle(key, label) {
-    const row   = el('div',   { className: `${NS}-toggle-row` });
-    const id    = `${NS}-toggle-${key}`;
-    const lbl   = el('label', { className: `${NS}-toggle-label`, 'for': id, textContent: label });
-    const sw    = el('span',  { className: `${NS}-switch` });
-    const inp   = el('input', {
+    const row = el('div',   { className: `${NS}-toggle-row` });
+    const id  = `${NS}-toggle-${key}`;
+    const lbl = el('label', { className: `${NS}-toggle-label`, 'for': id });
+    lbl.appendChild(el('span', { textContent: label }));
+    const sw  = el('span',  { className: `${NS}-switch` });
+    const inp = el('input', {
       type: 'checkbox', id, role: 'switch',
       'aria-checked': String(!!state[key]),
     });
@@ -537,8 +538,8 @@
     });
     sw.appendChild(inp);
     sw.appendChild(el('span', { className: `${NS}-slider`, 'aria-hidden': 'true' }));
+    lbl.appendChild(sw);
     row.appendChild(lbl);
-    row.appendChild(sw);
     return row;
   }
 
