@@ -53,6 +53,7 @@ from warden.agent.scheduler import (
 )
 from warden.workers.content_filter import moderate_post
 from warden.workers.cve_scanner import scan_cves
+from warden.workers.settings_watcher import watch_config_drift
 from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
@@ -95,6 +96,8 @@ class WorkerSettings:
         moderate_post,
         # Cyber Security Hub
         scan_cves,
+        # Settings watcher
+        watch_config_drift,
     ]
 
     cron_jobs = [
@@ -141,6 +144,9 @@ class WorkerSettings:
 
         # ── Community moderation watchdog — every hour ────────────────────────
         cron(sova_community_watchdog, minute=20, timeout=120),
+
+        # ── Config drift + canary probe — every 15 minutes ───────────────────
+        cron(watch_config_drift, minute={0, 15, 30, 45}, timeout=60),
     ]
 
     on_startup  = startup

@@ -1194,6 +1194,13 @@ try:
 except ImportError:
     log.warning("security_hub/soc_dashboard not available — /security /soc routes skipped.")
 
+try:
+    from warden.api.config_api import router as _config_api_router
+    app.include_router(_config_api_router)
+    log.info("Settings API mounted at /api/settings (Tier-1 approval gate)")
+except ImportError:
+    log.warning("config_api not available — /api/settings routes skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
