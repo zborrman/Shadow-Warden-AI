@@ -62,3 +62,28 @@ repos:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
         exclude: (\.env\.example|requirements.*\.txt|.*\.lock)
+
+  # ── Project-specific hooks ────────────────────────────────────────────────
+
+  - repo: local
+    hooks:
+      - id: idempotency-key
+        name: Payment idempotency check
+        entry: python warden/hooks/idempotency.py
+        language: system
+        types: [python]
+        files: (payment|billing|checkout).*\.py$
+
+      - id: fail-open-lint
+        name: Fail-open pattern check
+        entry: python warden/hooks/fail_open.py
+        language: system
+        types: [python]
+        exclude: ^warden/tests/
+
+      - id: tenant-isolation
+        name: Multi-tenant query isolation (advisory)
+        entry: python warden/hooks/tenant_isolation.py
+        language: system
+        types: [python]
+        files: ^warden/api/
