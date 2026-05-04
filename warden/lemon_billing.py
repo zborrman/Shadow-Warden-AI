@@ -45,10 +45,11 @@ from pathlib import Path
 
 log = logging.getLogger("warden.lemon_billing")
 
-_LS_API_KEY          = os.getenv("LEMONSQUEEZY_API_KEY", "")
-_LS_STORE_ID         = os.getenv("LEMONSQUEEZY_STORE_ID", "")
-_LS_WEBHOOK_SECRET   = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
+_LS_API_KEY            = os.getenv("LEMONSQUEEZY_API_KEY", "")
+_LS_STORE_ID           = os.getenv("LEMONSQUEEZY_STORE_ID", "")
+_LS_WEBHOOK_SECRET     = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
 _LS_VARIANT_INDIVIDUAL = os.getenv("LEMONSQUEEZY_VARIANT_INDIVIDUAL", "")
+_LS_VARIANT_COMMUNITY  = os.getenv("LEMONSQUEEZY_VARIANT_COMMUNITY", "")
 _LS_VARIANT_PRO        = os.getenv("LEMONSQUEEZY_VARIANT_PRO", "")
 _LS_VARIANT_ENTERPRISE = os.getenv("LEMONSQUEEZY_VARIANT_ENTERPRISE", "")
 
@@ -80,8 +81,10 @@ def _variant_to_plan(variant_id: str) -> str:
     mapping: dict[str, str] = {}
     if _LS_VARIANT_INDIVIDUAL:
         mapping[_LS_VARIANT_INDIVIDUAL] = "individual"
+    if _LS_VARIANT_COMMUNITY:
+        mapping[_LS_VARIANT_COMMUNITY]  = "community_business"
     if _LS_VARIANT_PRO:
-        mapping[_LS_VARIANT_PRO] = "pro"
+        mapping[_LS_VARIANT_PRO]        = "pro"
     if _LS_VARIANT_ENTERPRISE:
         mapping[_LS_VARIANT_ENTERPRISE] = "enterprise"
     return mapping.get(variant_id, "individual")
@@ -207,11 +210,12 @@ class LemonBilling:
             raise RuntimeError("Lemon Squeezy not configured (LEMONSQUEEZY_API_KEY missing).")
 
         variant_map = {
-            "individual": _LS_VARIANT_INDIVIDUAL,
-            "pro":        _LS_VARIANT_PRO,
-            "enterprise": _LS_VARIANT_ENTERPRISE,
-            # backwards-compat aliases
-            "msp":        _LS_VARIANT_ENTERPRISE,
+            "individual":         _LS_VARIANT_INDIVIDUAL,
+            "community_business": _LS_VARIANT_COMMUNITY,
+            "smb":                _LS_VARIANT_COMMUNITY,   # alias
+            "pro":                _LS_VARIANT_PRO,
+            "enterprise":         _LS_VARIANT_ENTERPRISE,
+            "msp":                _LS_VARIANT_ENTERPRISE,  # alias
         }
         variant_id = variant_map.get(plan, "")
         if not variant_id:
@@ -413,6 +417,35 @@ class LemonBilling:
                 (tenant_id, customer_id, sub_id, plan, status, renews_at, now),
             )
             self._conn.commit()
+
+    # ── Dunning ───────────────────────────────────────────────────────────────
+
+    def expire_past_due(self, cutoff_iso: str) -> list[dict]:
+        """
+        Downgrade subscriptions in 'past_due' whose updated_at < cutoff_iso.
+
+        Called by the dunning worker after the grace period expires.
+        Returns a list of {tenant_id, plan} for each downgraded row.
+        """
+        now = datetime.now(UTC).isoformat()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT tenant_id, plan FROM subscriptions "
+                "WHERE status='past_due' AND updated_at < ?",
+                (cutoff_iso,),
+            ).fetchall()
+            if not rows:
+                return []
+            ids = [r["tenant_id"] for r in rows]
+            placeholders = ",".join("?" * len(ids))
+            self._conn.execute(
+                f"UPDATE subscriptions SET plan='starter', status='expired', updated_at=?"
+                f" WHERE tenant_id IN ({placeholders})",
+                [now, *ids],
+            )
+            self._conn.commit()
+        log.info("dunning: expired %d past_due subscriptions.", len(rows))
+        return [{"tenant_id": r["tenant_id"], "plan": r["plan"]} for r in rows]
 
     def close(self) -> None:
         self._conn.close()

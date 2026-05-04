@@ -381,3 +381,157 @@ class TestBillingRouter:
             follow_redirects=False,
         )
         assert resp.status_code in (303, 302, 307)
+
+
+# ── Phase 5: expire_past_due + community_business + webhook endpoint ──────────
+
+class TestPhase5:
+    """Tests added in v4.11 Phase 5 — Lemon Squeezy full integration."""
+
+    @pytest.fixture()
+    def billing(self, tmp_path):
+        from warden.lemon_billing import LemonBilling
+        return LemonBilling(db_path=tmp_path / "p5_lemon.db")
+
+    # ── community_business variant ────────────────────────────────────────────
+
+    def test_community_business_variant_activates_correct_plan(self, billing):
+        import warden.lemon_billing as lb
+        old = lb._LS_VARIANT_COMMUNITY
+        lb._LS_VARIANT_COMMUNITY = "var_com"
+        try:
+            payload = json.dumps({
+                "meta": {
+                    "event_name":  "subscription_created",
+                    "event_id":    "evt_com_001",
+                    "custom_data": {"tenant_id": "smb-tenant"},
+                },
+                "data": {
+                    "id": "sub_com",
+                    "attributes": {
+                        "customer_id": "cust_com",
+                        "variant_id":  "var_com",
+                        "status":      "active",
+                        "renews_at":   None,
+                    },
+                },
+            }).encode()
+            old_sec = lb._LS_WEBHOOK_SECRET
+            lb._LS_WEBHOOK_SECRET = ""
+            billing.handle_webhook(payload, "")
+            lb._LS_WEBHOOK_SECRET = old_sec
+            assert billing.get_plan("smb-tenant") == "community_business"
+        finally:
+            lb._LS_VARIANT_COMMUNITY = old
+
+    # ── expire_past_due ───────────────────────────────────────────────────────
+
+    def test_expire_past_due_downgrades_old_rows(self, billing):
+        from datetime import UTC, datetime, timedelta
+        now  = datetime.now(UTC)
+        old  = (now - timedelta(days=10)).isoformat()
+        billing._conn.execute(
+            "INSERT INTO subscriptions(tenant_id, plan, status, updated_at) VALUES(?,?,?,?)",
+            ("old-t", "pro", "past_due", old),
+        )
+        billing._conn.commit()
+        cutoff     = (now - timedelta(days=7)).isoformat()
+        downgraded = billing.expire_past_due(cutoff)
+        assert len(downgraded) == 1
+        assert downgraded[0]["tenant_id"] == "old-t"
+        assert billing.get_plan("old-t")  == "starter"
+
+    def test_expire_past_due_skips_within_grace(self, billing):
+        from datetime import UTC, datetime, timedelta
+        now   = datetime.now(UTC)
+        fresh = (now - timedelta(days=3)).isoformat()
+        billing._conn.execute(
+            "INSERT INTO subscriptions(tenant_id, plan, status, updated_at) VALUES(?,?,?,?)",
+            ("fresh-t", "pro", "past_due", fresh),
+        )
+        billing._conn.commit()
+        cutoff = (now - timedelta(days=7)).isoformat()
+        assert billing.expire_past_due(cutoff) == []
+        # Row must still be past_due (not downgraded to starter/expired)
+        row = billing._conn.execute(
+            "SELECT plan, status FROM subscriptions WHERE tenant_id='fresh-t'"
+        ).fetchone()
+        assert row["plan"]   == "pro"
+        assert row["status"] == "past_due"
+
+    def test_expire_past_due_skips_active(self, billing):
+        from datetime import UTC, datetime, timedelta
+        old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        billing._conn.execute(
+            "INSERT INTO subscriptions(tenant_id, plan, status, updated_at) VALUES(?,?,?,?)",
+            ("active-t", "enterprise", "active", old),
+        )
+        billing._conn.commit()
+        cutoff = (datetime.now(UTC) - timedelta(days=7)).isoformat()
+        assert billing.expire_past_due(cutoff) == []
+
+    def test_expire_past_due_multiple_rows(self, billing):
+        from datetime import UTC, datetime, timedelta
+        now    = datetime.now(UTC)
+        old    = (now - timedelta(days=10)).isoformat()
+        recent = (now - timedelta(days=3)).isoformat()
+        for tid, age in [("t-old-1", old), ("t-old-2", old), ("t-recent", recent)]:
+            billing._conn.execute(
+                "INSERT INTO subscriptions(tenant_id, plan, status, updated_at) VALUES(?,?,?,?)",
+                (tid, "pro", "past_due", age),
+            )
+        billing._conn.commit()
+        cutoff     = (now - timedelta(days=7)).isoformat()
+        downgraded = billing.expire_past_due(cutoff)
+        assert len(downgraded) == 2
+        ids = {d["tenant_id"] for d in downgraded}
+        assert ids == {"t-old-1", "t-old-2"}
+        # t-recent must still be past_due (not expired) — row untouched
+        row = billing._conn.execute(
+            "SELECT plan, status FROM subscriptions WHERE tenant_id='t-recent'"
+        ).fetchone()
+        assert row["plan"]   == "pro"
+        assert row["status"] == "past_due"
+
+    # ── Webhook endpoint ──────────────────────────────────────────────────────
+
+    def test_webhook_endpoint_rejects_bad_signature(self, client, monkeypatch):
+        monkeypatch.setenv("LEMONSQUEEZY_WEBHOOK_SECRET", "real-secret")
+        import warden.lemon_billing as lb
+        old = lb._LS_WEBHOOK_SECRET
+        lb._LS_WEBHOOK_SECRET = "real-secret"
+        try:
+            resp = client.post(
+                "/billing/webhook",
+                content=b'{"meta":{"event_name":"ping"},"data":{}}',
+                headers={"X-Signature": "bad", "Content-Type": "application/json"},
+            )
+            assert resp.status_code == 400
+        finally:
+            lb._LS_WEBHOOK_SECRET = old
+
+    def test_webhook_endpoint_accepts_valid_event(self, client):
+        import warden.lemon_billing as lb
+        old = lb._LS_WEBHOOK_SECRET
+        lb._LS_WEBHOOK_SECRET = ""   # dev mode — no sig check
+        try:
+            payload = json.dumps({
+                "meta": {"event_name": "subscription_cancelled", "event_id": "evt_ep_001"},
+                "data": {"id": "sub_ep", "attributes": {}},
+            }).encode()
+            resp = client.post(
+                "/billing/webhook",
+                content=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["ok"] is True
+        finally:
+            lb._LS_WEBHOOK_SECRET = old
+
+    def test_webhook_health_endpoint(self, client):
+        resp = client.get("/billing/webhook/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "secret_set" in data

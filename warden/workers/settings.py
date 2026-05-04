@@ -58,6 +58,7 @@ from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
 )
+from warden.workers.dunning import process_dunning
 from warden.workers.weekly_report import send_weekly_reports
 
 logging.basicConfig(
@@ -81,6 +82,7 @@ class WorkerSettings:
 
     functions = [
         send_weekly_reports,
+        process_dunning,
         reap_expired_tunnels,
         notify_impending_expiration,
         # SOVA Agent jobs
@@ -103,6 +105,9 @@ class WorkerSettings:
     cron_jobs = [
         # ── Weekly ROI email — every Friday 08:00 UTC ─────────────────────────
         cron(send_weekly_reports, weekday=4, hour=8, minute=0, timeout=600),
+
+        # ── Dunning — every 12 hours (06:00 + 18:00 UTC) ─────────────────────
+        cron(process_dunning, hour={6, 18}, minute=0, timeout=120),
 
         # ── Syndicate Reaper — every 5 minutes ───────────────────────────────
         cron(

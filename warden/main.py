@@ -1201,6 +1201,13 @@ try:
 except ImportError:
     log.warning("config_api not available — /api/settings routes skipped.")
 
+try:
+    from warden.api.webhook import router as _webhook_router
+    app.include_router(_webhook_router)
+    log.info("Lemon Squeezy webhook receiver mounted at POST /billing/webhook")
+except ImportError:
+    log.warning("webhook router not available — /billing/webhook skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
