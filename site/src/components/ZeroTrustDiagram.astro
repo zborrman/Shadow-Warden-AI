@@ -1,0 +1,319 @@
+---
+const callouts = [
+  {
+    num: 1,
+    title: 'Real-Time Threat Interception',
+    body: 'Every AI request passes through 14 defense layers in under 2 ms — topology analysis, obfuscation decoding, secret redaction, and ML jailbreak detection — before a single token reaches your model.',
+  },
+  {
+    num: 2,
+    title: 'PII & Secret Redaction',
+    body: 'Shadow Warden strips credentials, API keys, and personal data with 15 regex patterns plus Shannon-entropy scanning for unknown secrets. Data never leaves your perimeter in plaintext.',
+  },
+  {
+    num: 3,
+    title: 'Adaptive Compliance Enforcement',
+    body: 'SOC 2 · GDPR · OWASP LLM Top 10 controls enforced per request. Sovereignty routing sends PHI only to compliant jurisdictions. Evidence Vault captures immutable audit trails automatically.',
+  },
+];
+
+const sources = [
+  { icon: '🌐', label: 'Web App' },
+  { icon: '📱', label: 'Mobile' },
+  { icon: '🤖', label: 'AI Agent' },
+  { icon: '⚡', label: 'API Client' },
+  { icon: '🏢', label: 'Enterprise' },
+];
+
+const destinations = [
+  { icon: '🟢', label: 'OpenAI GPT-4' },
+  { icon: '🟠', label: 'Claude Opus' },
+  { icon: '🔵', label: 'Azure OpenAI' },
+  { icon: '🦙', label: 'Llama 3' },
+  { icon: '🏠', label: 'Local LLM' },
+];
+
+const layers = [
+  { id: 'topo',   label: 'Topology Guard',    color: '#FF2D55', desc: 'TDA Betti numbers' },
+  { id: 'obfs',   label: 'Obfuscation Decode', color: '#FF9F0A', desc: 'base64 / ROT13 / homoglyphs' },
+  { id: 'secret', label: 'Secret Redactor',   color: '#FFD60A', desc: '15 patterns + entropy scan' },
+  { id: 'sem',    label: 'Semantic Guard',     color: '#30D158', desc: 'Rule-based escalation' },
+  { id: 'brain',  label: 'Hyperbolic Brain',   color: '#0A84FF', desc: 'MiniLM + Poincaré ball' },
+  { id: 'causal', label: 'Causal Arbiter',     color: '#BF5AF2', desc: 'Bayesian DAG do-calculus' },
+  { id: 'ers',    label: 'Shadow Ban ERS',     color: '#FF2D55', desc: 'Redis sliding window' },
+];
+---
+
+<section id="ztd" class="relative py-20 overflow-hidden" style="background:linear-gradient(180deg,#020409 0%,#03050F 60%,#020409 100%)">
+
+  <!-- grid bg -->
+  <div class="pointer-events-none absolute inset-0" style="background-image:linear-gradient(rgba(0,132,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,132,255,0.04) 1px,transparent 1px);background-size:40px 40px;"></div>
+
+  <div class="max-w-7xl mx-auto px-6">
+
+    <!-- heading -->
+    <div class="text-center mb-12">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-widest uppercase mb-4"
+           style="background:rgba(0,132,255,0.1);border:1px solid rgba(0,132,255,0.25);color:#0A84FF">
+        Zero-Trust Architecture
+      </div>
+      <h2 class="text-4xl md:text-5xl font-black tracking-tight text-white">
+        AI Gateway Security
+        <span class="block" style="background:linear-gradient(90deg,#0A84FF,#BF5AF2);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          Precision Threat Interception
+        </span>
+      </h2>
+    </div>
+
+    <div class="flex gap-6 items-start">
+
+      <!-- ── LEFT BRAND PANEL ── -->
+      <div class="hidden lg:flex flex-col gap-3 w-[140px] flex-shrink-0">
+        <div class="rounded-xl border p-4 text-center flex flex-col items-center gap-2"
+             style="background:#08101E;border-color:rgba(0,132,255,0.2)">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
+               style="background:linear-gradient(135deg,#FF2D55,#BF5AF2)">🛡️</div>
+          <div class="text-[10px] font-black tracking-widest uppercase text-white">Shadow<br/>Warden</div>
+          <div class="text-[9px] text-[#48485A] tracking-wider">v4.11</div>
+        </div>
+        <div class="rounded-xl border p-4 text-center flex flex-col items-center gap-2"
+             style="background:#08101E;border-color:rgba(191,90,242,0.2)">
+          <div class="text-lg">🧠</div>
+          <div class="text-[10px] font-bold text-white">14 Layers</div>
+          <div class="text-[9px] text-[#48485A]">&lt; 2 ms</div>
+        </div>
+      </div>
+
+      <!-- ── CENTRE DIAGRAM ── -->
+      <div class="flex-1 min-w-0">
+
+        <!-- source row -->
+        <div class="flex justify-around mb-4" id="ztd-sources">
+          {sources.map((s, i) => (
+            <div class="flex flex-col items-center gap-1.5 ztd-source" data-idx={i}>
+              <div class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl ztd-node"
+                   style="background:#08101E;border:1px solid rgba(0,132,255,0.25)">
+                {s.icon}
+              </div>
+              <span class="text-[10px] text-[#8E8E9E]">{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <!-- connector lines down -->
+        <div class="relative flex justify-around h-6 mb-0" aria-hidden="true">
+          {sources.map(() => (
+            <div class="w-px ztd-line-down" style="background:linear-gradient(180deg,rgba(0,132,255,0.6),rgba(0,132,255,0.1))"></div>
+          ))}
+        </div>
+
+        <!-- main gateway box -->
+        <div class="relative rounded-2xl border p-5" id="ztd-gateway"
+             style="background:linear-gradient(135deg,rgba(8,16,30,0.95),rgba(3,5,15,0.98));border-color:rgba(0,132,255,0.3);box-shadow:0 0 60px rgba(0,132,255,0.08),inset 0 0 40px rgba(0,0,0,0.4)">
+
+          <!-- glow orb -->
+          <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full pointer-events-none"
+               style="background:radial-gradient(circle,rgba(0,132,255,0.12) 0%,transparent 70%);"></div>
+
+          <!-- brain icon -->
+          <div class="flex justify-center mb-5">
+            <div class="relative w-20 h-20 rounded-full flex items-center justify-center text-4xl ztd-brain"
+                 style="background:linear-gradient(135deg,rgba(0,132,255,0.15),rgba(191,90,242,0.15));border:1px solid rgba(0,132,255,0.3);box-shadow:0 0 30px rgba(0,132,255,0.3)">
+              🧠
+              <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#30D158] ztd-pulse"></span>
+            </div>
+          </div>
+
+          <!-- layers grid -->
+          <div class="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-5" id="ztd-layers">
+            {layers.map((l) => (
+              <button
+                class="ztd-layer-btn rounded-lg p-2 text-center transition-all duration-200 cursor-pointer group"
+                data-layer={l.id}
+                style={`background:rgba(255,255,255,0.03);border:1px solid ${l.color}33`}
+                title={l.desc}
+              >
+                <div class="w-2 h-2 rounded-full mx-auto mb-1.5 transition-all group-hover:scale-125"
+                     style={`background:${l.color};box-shadow:0 0 6px ${l.color}88`}></div>
+                <div class="text-[8px] leading-tight text-[#8E8E9E] group-hover:text-white transition-colors">{l.label}</div>
+              </button>
+            ))}
+          </div>
+
+          <!-- verdict badges -->
+          <div class="flex justify-center gap-4">
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.3)">
+              <span class="text-base">🚫</span>
+              <span class="text-[10px] font-bold text-[#FF2D55]">Blocked</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background:rgba(255,159,10,0.1);border:1px solid rgba(255,159,10,0.3)">
+              <span class="text-base">👁️</span>
+              <span class="text-[10px] font-bold text-[#FF9F0A]">Monitored</span>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style="background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.3)">
+              <span class="text-base">✅</span>
+              <span class="text-[10px] font-bold text-[#30D158]">Allowed</span>
+            </div>
+          </div>
+
+          <!-- layer tooltip -->
+          <div id="ztd-tooltip" class="hidden mt-3 rounded-lg px-3 py-2 text-center text-[11px]"
+               style="background:rgba(0,132,255,0.1);border:1px solid rgba(0,132,255,0.2);color:#7BB8FF"></div>
+        </div>
+
+        <!-- connector lines down -->
+        <div class="relative flex justify-around h-6" aria-hidden="true">
+          {destinations.map(() => (
+            <div class="w-px ztd-line-down" style="background:linear-gradient(180deg,rgba(48,209,88,0.1),rgba(48,209,88,0.6))"></div>
+          ))}
+        </div>
+
+        <!-- destination row -->
+        <div class="flex justify-around mt-0">
+          {destinations.map((d, i) => (
+            <div class="flex flex-col items-center gap-1.5 ztd-dest" data-idx={i}>
+              <div class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl ztd-node"
+                   style="background:#08101E;border:1px solid rgba(48,209,88,0.25)">
+                {d.icon}
+              </div>
+              <span class="text-[10px] text-[#8E8E9E] text-center leading-tight">{d.label}</span>
+            </div>
+          ))}
+        </div>
+
+      </div>
+      <!-- end centre -->
+
+      <!-- ── RIGHT CALLOUT PANEL ── -->
+      <div class="hidden md:block w-[260px] flex-shrink-0">
+        <div id="ztd-callout" class="rounded-2xl border p-5" style="background:#08101E;border-color:rgba(0,132,255,0.2);min-height:260px">
+          {callouts.map((c, i) => (
+            <div class={`ztd-callout-card ${i === 0 ? '' : 'hidden'}`} data-idx={i}>
+              <div class="text-[11px] font-black tracking-widest uppercase mb-3" style="color:#0A84FF">
+                {c.num}: {c.title}
+              </div>
+              <p class="text-[12px] leading-relaxed text-[#A0AABB]">{c.body}</p>
+            </div>
+          ))}
+        </div>
+
+        <!-- nav -->
+        <div class="flex items-center justify-between mt-3">
+          <span id="ztd-counter" class="text-[11px] text-[#48485A]">1 of {callouts.length}</span>
+          <div class="flex gap-2">
+            <button id="ztd-prev" class="px-3 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                    style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#8E8E9E">Prev</button>
+            <button id="ztd-next" class="px-3 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                    style="background:rgba(0,132,255,0.15);border:1px solid rgba(0,132,255,0.3);color:#0A84FF">Next</button>
+          </div>
+        </div>
+
+        <!-- dot indicators -->
+        <div class="flex gap-1.5 mt-3 justify-center">
+          {callouts.map((_, i) => (
+            <div class={`ztd-dot w-1.5 h-1.5 rounded-full transition-all ${i === 0 ? '' : 'opacity-30'}`}
+                 style={i === 0 ? 'background:#0A84FF' : 'background:#48485A'} data-idx={i}></div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style>
+  @keyframes ztd-float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
+  }
+  @keyframes ztd-pulse-ring {
+    0%   { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+  @keyframes ztd-traffic {
+    0%   { opacity: 0; transform: scaleY(0); transform-origin: top; }
+    20%  { opacity: 1; transform: scaleY(1); }
+    80%  { opacity: 1; }
+    100% { opacity: 0; transform-origin: bottom; }
+  }
+
+  .ztd-brain { animation: ztd-float 3s ease-in-out infinite; }
+
+  .ztd-pulse::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: #30D158;
+    animation: ztd-pulse-ring 2s ease-out infinite;
+  }
+
+  .ztd-node {
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .ztd-node:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,132,255,0.3);
+  }
+
+  .ztd-line-down {
+    height: 100%;
+    animation: ztd-traffic 2s ease-in-out infinite;
+  }
+
+  .ztd-layer-btn:hover {
+    background: rgba(0,132,255,0.08) !important;
+    transform: translateY(-1px);
+  }
+
+  .ztd-callout-card {
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+<script>
+(function () {
+  const total = 3;
+  let cur = 0;
+
+  const cards   = document.querySelectorAll('.ztd-callout-card');
+  const dots    = document.querySelectorAll('.ztd-dot');
+  const counter = document.getElementById('ztd-counter');
+
+  function show(idx) {
+    cards.forEach((c, i) => c.classList.toggle('hidden', i !== idx));
+    dots.forEach((d, i) => {
+      d.style.background   = i === idx ? '#0A84FF' : '#48485A';
+      d.style.opacity      = i === idx ? '1' : '0.3';
+    });
+    if (counter) counter.textContent = `${idx + 1} of ${total}`;
+    cur = idx;
+  }
+
+  document.getElementById('ztd-next')?.addEventListener('click', () => show((cur + 1) % total));
+  document.getElementById('ztd-prev')?.addEventListener('click', () => show((cur - 1 + total) % total));
+
+  /* auto-advance */
+  setInterval(() => show((cur + 1) % total), 5000);
+
+  /* layer tooltips */
+  const tooltip = document.getElementById('ztd-tooltip');
+  document.querySelectorAll('.ztd-layer-btn').forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      if (!tooltip) return;
+      tooltip.textContent = btn.title;
+      tooltip.classList.remove('hidden');
+    });
+    btn.addEventListener('mouseleave', () => tooltip?.classList.add('hidden'));
+  });
+
+  /* stagger source/dest animations */
+  document.querySelectorAll('.ztd-line-down').forEach((el, i) => {
+    (el as HTMLElement).style.animationDelay = `${i * 0.4}s`;
+  });
+})();
+</script>
