@@ -57,12 +57,17 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Copy only Astro-generated files — one entry per page in site/src/pages/
-          cp site/dist/index.html                     landing/index.html
           cp site/dist/enterprise-guide/index.html    landing/enterprise-guide/index.html
           cp site/dist/fraud-score/index.html         landing/fraud-score/index.html
           cp site/dist/smb/index.html                 landing/smb/index.html
-          # Copy compiled CSS/JS assets (content-hashed, safe to overwrite).
-          # Use trailing /. to copy CONTENTS into landing/_astro/ not nest as _astro/_astro/
+          # Copy main CSS with a stable fixed name and patch index.html to reference it.
+          # Avoids content-hash filename churn and CDN-cached-404 problems.
+          CSS_FILE=$(ls site/dist/_astro/Layout.*.css | head -1)
+          cp "$CSS_FILE" landing/warden-main.css
+          # Rebuild index.html with the stable CSS path
+          cp site/dist/index.html landing/index.html
+          sed -i 's|href="/_astro/Layout\.[^"]*\.css"|href="/warden-main.css"|g' landing/index.html
+          # Also copy _astro JS/CSS assets (contents only, no nested dir)
           mkdir -p landing/_astro
           cp -r site/dist/_astro/. landing/_astro/
 
