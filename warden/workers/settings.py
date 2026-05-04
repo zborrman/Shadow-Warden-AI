@@ -26,6 +26,9 @@ Environment variables
   REDIS_URL          — Redis connection string (default redis://localhost:6379/0)
   DATABASE_URL       — PostgreSQL for reaper DB queries
   SLACK_WEBHOOK_URL  — optional; reaper expiration alerts
+
+  scan_cves                   — every 6 hours (00:10, 06:10, 12:10, 18:10)
+    OSV API dependency CVE scan → data/cve_report.json → Slack on new CRITICALs.
 """
 from __future__ import annotations
 
@@ -45,6 +48,7 @@ from warden.agent.scheduler import (
     sova_visual_patrol,
 )
 from warden.workers.content_filter import moderate_post
+from warden.workers.cve_scanner import scan_cves
 from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
@@ -84,6 +88,8 @@ class WorkerSettings:
         sova_visual_patrol,
         # Community moderation
         moderate_post,
+        # Cyber Security Hub
+        scan_cves,
     ]
 
     cron_jobs = [
@@ -124,6 +130,9 @@ class WorkerSettings:
 
         # ── SOVA Agent — visual patrol nightly 03:00 UTC ─────────────────────
         cron(sova_visual_patrol, hour=3, minute=0, timeout=300),
+
+        # ── Cyber Security Hub — CVE scan every 6 hours ───────────────────────
+        cron(scan_cves, hour={0, 6, 12, 18}, minute=10, timeout=300),
     ]
 
     on_startup  = startup

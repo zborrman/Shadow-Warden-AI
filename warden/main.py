@@ -1185,6 +1185,15 @@ try:
 except ImportError:
     log.warning("community router not available — /community routes skipped.")
 
+try:
+    from warden.api.security_hub import router as _security_router
+    from warden.api.soc_dashboard import router as _soc_router
+    app.include_router(_security_router)
+    app.include_router(_soc_router)
+    log.info("Cyber Security Hub mounted at /security + /soc")
+except ImportError:
+    log.warning("security_hub/soc_dashboard not available — /security /soc routes skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
