@@ -301,11 +301,34 @@
       clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;
     }
 
-    /* ── body modifier classes (unchanged) ── */
+    /* ── body modifier classes ── */
     body.${NS}-text-large *{font-size:115% !important}
     body.${NS}-text-xl    *{font-size:135% !important}
-    body.${NS}-contrast-dark{filter:contrast(1.55) brightness(0.88) !important;background:#000 !important;}
-    body.${NS}-contrast-light{filter:contrast(1.65) !important;background:#fff !important;color:#000 !important;}
+
+    /* ── HIGH CONTRAST DARK — WCAG AAA ── */
+    body.${NS}-contrast-dark{
+      filter:contrast(2.8) brightness(0.62) saturate(1.6) !important;
+      background:#000 !important;
+    }
+    /* restore natural look on media — they get over-darkened by the body filter */
+    body.${NS}-contrast-dark img,
+    body.${NS}-contrast-dark video,
+    body.${NS}-contrast-dark canvas{
+      filter:brightness(1.45) contrast(0.8) !important;
+    }
+
+    /* ── HIGH CONTRAST LIGHT — WCAG AAA ── */
+    /* Invert the dark site → white background; hue-rotate restores natural colours */
+    body.${NS}-contrast-light{
+      filter:invert(1) hue-rotate(180deg) contrast(1.15) saturate(1.1) !important;
+      background:#fff !important;
+    }
+    /* re-invert media so photos/videos look natural */
+    body.${NS}-contrast-light img,
+    body.${NS}-contrast-light video,
+    body.${NS}-contrast-light canvas{
+      filter:invert(1) hue-rotate(180deg) !important;
+    }
     body.${NS}-cb-protanopia   {filter:url('#${NS}-cb-protanopia')}
     body.${NS}-cb-deuteranopia {filter:url('#${NS}-cb-deuteranopia')}
     body.${NS}-cb-tritanopia   {filter:url('#${NS}-cb-tritanopia')}
@@ -334,15 +357,47 @@
     }
     body.${NS}-reading-guide #${NS}-guide{display:block}
 
-    /* contrast overrides for panel */
-    body.${NS}-contrast-dark  #${NS}-panel{filter:none;background:#000;border-color:rgba(255,255,255,.3)}
-    body.${NS}-contrast-light #${NS}-panel{filter:none;background:#fff;border-color:rgba(0,0,0,.2);color:#000}
-    body.${NS}-contrast-light #${NS}-panel .${NS}-label{color:#555}
-    body.${NS}-contrast-light .${NS}-badge{color:#003080;border-color:#0044cc;background:rgba(0,65,195,.1)}
-    body.${NS}-contrast-light #${NS}-close{color:#333;border-color:#999;background:rgba(0,0,0,.05)}
-    body.${NS}-contrast-light .${NS}-group button{color:#333;border-color:#ccc;background:rgba(0,0,0,.04)}
-    body.${NS}-contrast-light .${NS}-toggle-label > span:first-child{color:#222}
-    body.${NS}-contrast-light .${NS}-slider{background:rgba(0,0,0,.1);border-color:rgba(0,0,0,.2)}
+    /* ── contrast: panel & button counter-corrections ── */
+
+    /* DARK — lift panel out of the heavy body filter; apply its own crisp dark shell */
+    body.${NS}-contrast-dark #${NS}-panel{
+      filter:none !important;
+      background:linear-gradient(160deg,#08080f 0%,#03030a 100%) !important;
+      border:1.5px solid rgba(255,255,255,.55) !important;
+      box-shadow:0 0 0 1px rgba(255,255,255,.15),0 28px 80px rgba(0,0,0,.98) !important;
+      color:#fff !important;
+    }
+    body.${NS}-contrast-dark #${NS}-panel .${NS}-label{color:rgba(255,255,255,.55) !important}
+    body.${NS}-contrast-dark .${NS}-badge{
+      color:#7df !important;border-color:rgba(100,200,255,.5) !important;
+      background:rgba(100,200,255,.12) !important;
+    }
+    body.${NS}-contrast-dark #${NS}-close{
+      color:#fff !important;border-color:rgba(255,255,255,.4) !important;
+      background:rgba(255,255,255,.07) !important;
+    }
+    body.${NS}-contrast-dark .${NS}-group button{
+      color:#fff !important;border-color:rgba(255,255,255,.3) !important;
+      background:rgba(255,255,255,.06) !important;
+    }
+    body.${NS}-contrast-dark .${NS}-group button[aria-pressed="true"]{
+      background:rgba(100,180,255,.22) !important;
+      border-color:rgba(100,180,255,.7) !important;
+      color:#7df !important;
+    }
+    /* button stays visible — counter the body filter just enough */
+    body.${NS}-contrast-dark #${NS}-btn{
+      filter:brightness(1.35) contrast(0.7) !important;
+    }
+
+    /* LIGHT — counter-invert the panel so it shows in its original dark glassmorphism */
+    body.${NS}-contrast-light #${NS}-panel{
+      filter:invert(1) hue-rotate(180deg) !important;
+    }
+    /* counter-invert the trigger button so it looks correct */
+    body.${NS}-contrast-light #${NS}-btn{
+      filter:invert(1) hue-rotate(180deg) !important;
+    }
   `;
 
   /* ── SVG colour-vision filters ────────────────────────────── */

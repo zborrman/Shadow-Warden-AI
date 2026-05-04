@@ -270,6 +270,99 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 [data-color="orange"] .scard-head h3{color:var(--orange)}
 [data-color="cyan"] .scard-head h3{color:var(--cyan)}
 [data-color="nvidia"] .scard-head h3{color:var(--nvidia)}
+
+/* ── BILLING PANEL REDESIGN ── */
+.billing-hero{
+  background:linear-gradient(135deg,rgba(191,90,242,0.07) 0%,rgba(10,132,255,0.05) 100%);
+  border:1px solid rgba(191,90,242,0.22);border-radius:16px;
+  padding:24px 28px;margin-bottom:20px;
+  display:flex;align-items:center;gap:28px;position:relative;overflow:hidden;
+}
+.billing-hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% -10%,rgba(191,90,242,0.13),transparent 55%),
+             radial-gradient(ellipse at 10% 100%,rgba(10,132,255,0.08),transparent 50%);
+  pointer-events:none;
+}
+.billing-hero-divider{width:1px;height:64px;background:rgba(255,255,255,0.07);flex-shrink:0}
+.billing-plan-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
+.billing-price-big{
+  font-size:46px;font-weight:900;letter-spacing:-2.5px;line-height:1;
+  background:linear-gradient(135deg,var(--purple) 0%,var(--blue) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.billing-price-big span{font-size:14px;font-weight:400;-webkit-text-fill-color:var(--muted);color:var(--muted)}
+.billing-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;
+  padding:5px 14px;border-radius:20px;
+  background:linear-gradient(135deg,rgba(191,90,242,0.2),rgba(10,132,255,0.15));
+  border:1px solid rgba(191,90,242,0.35);color:var(--purple);
+  margin-bottom:12px;
+}
+.billing-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--purple);animation:pulse 2s infinite}
+.billing-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;flex:1}
+.billing-stat-val{font-size:17px;font-weight:900;font-family:'JetBrains Mono',monospace;margin-bottom:3px}
+.billing-stat-key{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim)}
+.billing-next{text-align:right;flex-shrink:0}
+.billing-next-label{font-size:9px;color:var(--dim);margin-bottom:4px}
+.billing-next-date{font-size:12px;font-weight:700}
+
+/* 4-column tier grid */
+.tier-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px 18px}
+.tier-card-v2{
+  border-radius:14px;padding:18px 16px;border:1px solid var(--border);
+  background:rgba(255,255,255,0.018);cursor:pointer;transition:all .25s;
+  position:relative;overflow:hidden;
+}
+.tier-card-v2:hover{border-color:rgba(255,255,255,0.1);transform:translateY(-2px);background:rgba(255,255,255,0.03)}
+.tier-card-v2.selected{
+  border-color:rgba(191,90,242,0.55);
+  background:rgba(191,90,242,0.07);
+  box-shadow:0 0 0 1px rgba(191,90,242,0.15),0 12px 40px rgba(191,90,242,0.15);
+}
+.tier-card-v2.selected::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% -20%,rgba(191,90,242,0.12),transparent 65%);
+  pointer-events:none;
+}
+.tier-check{
+  position:absolute;top:11px;right:11px;
+  width:19px;height:19px;border-radius:50%;
+  background:linear-gradient(135deg,var(--purple),var(--blue));
+  display:flex;align-items:center;justify-content:center;
+  font-size:8px;font-weight:900;color:#fff;
+  box-shadow:0 2px 8px rgba(191,90,242,0.4);
+}
+.tier-name-v2{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+.tier-price-v2{font-size:26px;font-weight:900;letter-spacing:-1px;margin-bottom:14px;line-height:1}
+.tier-price-v2 span{font-size:11px;font-weight:400;color:var(--muted)}
+.tier-feat-v2{list-style:none;display:flex;flex-direction:column;gap:5px}
+.tier-feat-v2 li{
+  font-size:9.5px;color:var(--muted);
+  display:flex;align-items:flex-start;gap:5px;line-height:1.35;
+}
+.tier-feat-v2 li::before{content:'→';color:var(--dim);font-size:8px;flex-shrink:0;margin-top:2px}
+.tier-feat-v2 li.hi{color:var(--text);font-weight:600}
+.tier-feat-v2 li.hi::before{content:'✓';color:var(--green);font-size:9px}
+
+/* Addon cards v2 */
+.addon-card-v2{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.03);
+  transition:background .15s;
+}
+.addon-card-v2:last-child{border-bottom:none}
+.addon-card-v2:hover{background:rgba(255,255,255,0.02)}
+.addon-icon-v2{
+  width:38px;height:38px;border-radius:10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.addon-info{flex:1;min-width:0}
+.addon-name-v2{font-size:11px;font-weight:700;margin-bottom:3px}
+.addon-desc-v2{font-size:10px;color:var(--dim);line-height:1.4}
+.addon-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.addon-price-v2{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--text)}
 </style>
 </head>
 <body>
@@ -730,7 +823,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
     <!-- ════════════════════ BILLING ════════════════════ -->
     <div class="panel" id="p-billing" data-color="purple">
       <div class="panel-header">
-        <h2>Billing & Tiers</h2>
+        <h2>Billing &amp; Tiers</h2>
         <p>Manage your plan, add-on SKUs, and feature gates. Pro includes MasterAgent. Enterprise includes PQC + Sovereign. HTTP 403 = tier too low. HTTP 402 = add-on not purchased.</p>
         <div class="ph-tags">
           <span class="tag pill-purple">Active: Enterprise</span>
@@ -739,81 +832,142 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
         </div>
       </div>
 
+      <!-- ── Plan Status Hero ── -->
+      <div class="billing-hero">
+        <div style="flex-shrink:0">
+          <div class="billing-plan-label">Current Plan</div>
+          <div class="billing-price-big">$249<span>/mo</span></div>
+        </div>
+        <div class="billing-hero-divider"></div>
+        <div style="flex:1">
+          <div class="billing-badge">Enterprise</div>
+          <div class="billing-stats">
+            <div>
+              <div class="billing-stat-val" style="color:var(--purple)">∞</div>
+              <div class="billing-stat-key">Requests / mo</div>
+            </div>
+            <div>
+              <div class="billing-stat-val" style="color:var(--green)">99.95%</div>
+              <div class="billing-stat-key">Uptime SLA</div>
+            </div>
+            <div>
+              <div class="billing-stat-val" style="color:var(--cyan)">PQC + Sov</div>
+              <div class="billing-stat-key">Exclusive Features</div>
+            </div>
+          </div>
+        </div>
+        <div class="billing-hero-divider"></div>
+        <div class="billing-next">
+          <div class="billing-next-label">Next billing</div>
+          <div class="billing-next-date">Jun 4, 2026</div>
+          <div style="margin-top:10px"><span class="pill pill-green">● Active</span></div>
+        </div>
+      </div>
+
+      <!-- ── Plan Selection ── -->
       <div class="scard">
-        <div class="scard-head"><h3>Plan Selection</h3></div>
-        <div class="tier-grid">
-          <div class="tier-card">
-            <div class="tier-name" style="color:var(--muted)">Individual</div>
-            <div class="tier-price">$5<span>/mo</span></div>
-            <ul class="tier-features">
-              <li>5k requests/mo</li>
+        <div class="scard-head"><h3>Plan Selection</h3><span class="sh-note">billing/router.py</span></div>
+        <div class="tier-grid-4">
+          <!-- Individual -->
+          <div class="tier-card-v2">
+            <div class="tier-name-v2" style="color:var(--muted)">Individual</div>
+            <div class="tier-price-v2">$5<span>/mo</span></div>
+            <ul class="tier-feat-v2">
+              <li class="hi">5k requests/mo</li>
               <li>Pipeline defense (14 layers)</li>
               <li>XAI reports (add-on)</li>
               <li>1 tenant</li>
               <li>99.5% uptime SLA</li>
             </ul>
           </div>
-          <div class="tier-card">
-            <div class="tier-name" style="color:var(--green)">Community Business</div>
-            <div class="tier-price" style="color:var(--green)">$19<span>/mo</span></div>
-            <ul class="tier-features">
-              <li>10k requests/mo</li>
-              <li>File Scanner + Shadow AI Monitor</li>
+          <!-- Community Business -->
+          <div class="tier-card-v2">
+            <div class="tier-name-v2" style="color:var(--green)">Community</div>
+            <div class="tier-price-v2" style="color:var(--green)">$19<span>/mo</span></div>
+            <ul class="tier-feat-v2">
+              <li class="hi">10k requests/mo</li>
+              <li class="hi">File Scanner + Shadow AI</li>
               <li>3 communities × 10 members</li>
               <li>180-day retention</li>
               <li>99.5% uptime SLA</li>
             </ul>
           </div>
-          <div class="tier-card">
-            <div class="tier-name" style="color:var(--blue)">Pro</div>
-            <div class="tier-price" style="color:var(--blue)">$69<span>/mo</span></div>
-            <ul class="tier-features">
-              <li>50k requests/mo</li>
-              <li>MasterAgent SOC included</li>
-              <li>Shadow AI (add-on)</li>
+          <!-- Pro -->
+          <div class="tier-card-v2">
+            <div class="tier-name-v2" style="color:var(--blue)">Pro</div>
+            <div class="tier-price-v2" style="color:var(--blue)">$69<span>/mo</span></div>
+            <ul class="tier-feat-v2">
+              <li class="hi">50k requests/mo</li>
+              <li class="hi">MasterAgent SOC</li>
+              <li class="hi">Shadow AI (add-on)</li>
               <li>Multi-tenant</li>
               <li>99.9% uptime SLA</li>
             </ul>
           </div>
-          <div class="tier-card selected">
-            <div class="tier-name" style="color:var(--purple)">Enterprise</div>
-            <div class="tier-price" style="color:var(--purple)">$249<span>/mo</span></div>
-            <ul class="tier-features">
-              <li>Unlimited requests</li>
-              <li>Post-Quantum Crypto</li>
-              <li>Sovereign Cloud (8 jurisdictions)</li>
-              <li>SEP Communities</li>
-              <li>99.95% uptime SLA</li>
-              <li>Dedicated support</li>
+          <!-- Enterprise (selected) -->
+          <div class="tier-card-v2 selected">
+            <div class="tier-check">✓</div>
+            <div class="tier-name-v2" style="color:var(--purple)">Enterprise</div>
+            <div class="tier-price-v2" style="color:var(--purple)">$249<span>/mo</span></div>
+            <ul class="tier-feat-v2">
+              <li class="hi">Unlimited requests</li>
+              <li class="hi">Post-Quantum Crypto</li>
+              <li class="hi">Sovereign Cloud (8 j.)</li>
+              <li class="hi">SEP Communities</li>
+              <li class="hi">99.95% uptime SLA</li>
+              <li class="hi">Dedicated support</li>
             </ul>
           </div>
         </div>
       </div>
 
+      <!-- ── Add-on SKUs ── -->
       <div class="scard">
         <div class="scard-head"><h3>Add-on SKUs</h3><span class="sh-note">billing/addons.py · Lemon Squeezy</span></div>
-        <div class="scard-body">
-          <div class="addon-row">
-            <div class="addon-icon" style="background:rgba(255,159,10,0.12)">👁</div>
-            <div><div class="addon-name">Shadow AI Discovery</div><div class="addon-desc">18-provider subnet probe + DNS telemetry governance (Pro+)</div></div>
-            <span class="pill pill-green" style="margin-left:auto;margin-right:12px">Active</span>
-            <div class="addon-price">+$15/mo</div>
+        <div>
+          <div class="addon-card-v2">
+            <div class="addon-icon-v2" style="background:rgba(255,159,10,0.1);border:1px solid rgba(255,159,10,0.18)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><circle cx="11" cy="11" r="4" stroke-dasharray="2 2"/></svg>
+            </div>
+            <div class="addon-info">
+              <div class="addon-name-v2">Shadow AI Discovery</div>
+              <div class="addon-desc-v2">18-provider subnet probe + DNS telemetry governance (Pro+)</div>
+            </div>
+            <div class="addon-right">
+              <span class="pill pill-green">Active</span>
+              <div class="addon-price-v2">+$15/mo</div>
+            </div>
           </div>
-          <div class="addon-row">
-            <div class="addon-icon" style="background:rgba(191,90,242,0.12)">🔮</div>
-            <div><div class="addon-name">XAI Audit Reports</div><div class="addon-desc">HTML/PDF explainability reports + SHA-256 attestation (Individual+)</div></div>
-            <span class="pill pill-green" style="margin-left:auto;margin-right:12px">Active</span>
-            <div class="addon-price">+$9/mo</div>
+          <div class="addon-card-v2">
+            <div class="addon-icon-v2" style="background:rgba(191,90,242,0.1);border:1px solid rgba(191,90,242,0.18)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+            </div>
+            <div class="addon-info">
+              <div class="addon-name-v2">XAI Audit Reports</div>
+              <div class="addon-desc-v2">HTML/PDF explainability reports + SHA-256 attestation (Individual+)</div>
+            </div>
+            <div class="addon-right">
+              <span class="pill pill-green">Active</span>
+              <div class="addon-price-v2">+$9/mo</div>
+            </div>
           </div>
-          <div class="addon-row">
-            <div class="addon-icon" style="background:rgba(10,132,255,0.12)">🤖</div>
-            <div><div class="addon-name">MasterAgent SOC</div><div class="addon-desc">4 sub-agents, HMAC tokens, Human-in-the-Loop — included in Pro &amp; Enterprise</div></div>
-            <span class="pill pill-green" style="margin-left:auto;margin-right:12px">Included</span>
-            <div class="addon-price" style="color:var(--dim)">Pro+</div>
+          <div class="addon-card-v2">
+            <div class="addon-icon-v2" style="background:rgba(10,132,255,0.1);border:1px solid rgba(10,132,255,0.18)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="7" cy="10" r="1.5" fill="var(--blue)"/><circle cx="12" cy="10" r="1.5" fill="var(--blue)"/><circle cx="17" cy="10" r="1.5" fill="var(--blue)"/></svg>
+            </div>
+            <div class="addon-info">
+              <div class="addon-name-v2">MasterAgent SOC</div>
+              <div class="addon-desc-v2">4 sub-agents, HMAC tokens, Human-in-the-Loop — included in Pro &amp; Enterprise</div>
+            </div>
+            <div class="addon-right">
+              <span class="pill pill-blue">Included</span>
+              <div class="addon-price-v2" style="color:var(--dim)">Pro+</div>
+            </div>
           </div>
         </div>
       </div>
 
+      <!-- ── Admin Keys ── -->
       <div class="scard">
         <div class="scard-head"><h3>Admin Keys</h3><span class="sh-note">billing/router.py · X-Admin-Key required</span></div>
         <div class="scard-body">
