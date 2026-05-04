@@ -61,8 +61,10 @@ jobs:
           cp site/dist/enterprise-guide/index.html    landing/enterprise-guide/index.html
           cp site/dist/fraud-score/index.html         landing/fraud-score/index.html
           cp site/dist/smb/index.html                 landing/smb/index.html
-          # Copy compiled CSS/JS assets (content-hashed, safe to overwrite)
-          cp -r site/dist/_astro landing/_astro
+          # Copy compiled CSS/JS assets (content-hashed, safe to overwrite).
+          # Use trailing /. to copy CONTENTS into landing/_astro/ not nest as _astro/_astro/
+          mkdir -p landing/_astro
+          cp -r site/dist/_astro/. landing/_astro/
 
           git add landing/index.html \
                   landing/enterprise-guide/index.html \
