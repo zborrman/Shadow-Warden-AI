@@ -1,0 +1,135 @@
+site_name: Shadow Warden AI — Documentation
+site_url: https://docs.shadow-warden-ai.com
+site_description: >-
+  Self-contained, GDPR-compliant AI security gateway.
+  9-layer defense model, autonomous SOVA operator, and post-quantum crypto.
+site_author: Shadow Warden AI Team
+
+repo_name: Shadow-Warden-AI
+repo_url: https://github.com/zborrman/Shadow-Warden-AI
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+  - gen-files:
+      scripts:
+        - scripts/gen_api_docs.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Guides:
+      - Quick Start: guides/quickstart.md
+      - Business Community: guides/community.md
+      - Cyber Security Hub: guides/security-hub.md
+      - SOVA Agent: guides/sova.md
+      - Obsidian Integration: guides/obsidian.md
+      - Settings Integration: guides/settings.md
+  - Architecture:
+      - System Overview: architecture/overview.md
+      - Filter Pipeline: architecture/pipeline.md
+      - Security Model: security-model.md
+      - DPIA (GDPR Art.35): dpia.md
+      - SOC 2 Evidence: soc2-evidence.md
+      - SLA: sla.md
+      - Decision Records: architecture/decisions.md
+  - API Reference:
+      - Overview: api.md
+      - Filter: api/filter.md
+      - Community: api/community.md
+      - Security Hub: api/security.md
+      - SOC Dashboard: api/soc.md
+      - SOVA Agent: api/agent.md
+      - Secrets Governance: api/secrets.md
+      - Financial: api/financial.md
+  - Changelog: changelog/index.md
+  - Contributing: contributing.md
+
+extra:
+  version:
+    provider: mike
+    default: stable
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/zborrman/Shadow-Warden-AI
+  analytics:
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: Yes
+          data: 1
+          note: Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: No
+          data: 0
+          note: Let us know how to improve.

@@ -85,6 +85,113 @@ jobs:
             git push origin main
           fi
 
+  # ── MkDocs Documentation Build ──────────────────────────────────────────────
+  docs:
+    name: Docs Build (MkDocs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install MkDocs + plugins
+        run: |
+          pip install \
+            mkdocs-material \
+            mkdocs-gen-files \
+            mkdocs-literate-nav \
+            mkdocstrings[python] \
+            mike
+
+      - name: Install warden package (for gen_api_docs.py OpenAPI extraction)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
+          pip install -e ".[dev]" -r warden/requirements.txt --quiet
+        env:
+          ALLOW_UNAUTHENTICATED: "true"
+          WARDEN_API_KEY: ""
+          REDIS_URL: "memory://"
+          LOGS_PATH: "/tmp/ci_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/ci_rules.json"
+          MODEL_CACHE_DIR: "/tmp/ci_models"
+
+      - name: Build docs (strict — link check)
+        run: mkdocs build --strict --site-dir site/dist/docs
+        env:
+          ALLOW_UNAUTHENTICATED: "true"
+          WARDEN_API_KEY: ""
+          REDIS_URL: "memory://"
+          LOGS_PATH: "/tmp/ci_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/ci_rules.json"
+          MODEL_CACHE_DIR: "/tmp/ci_models"
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-dist
+          path: site/dist/docs/
+          retention-days: 7
+
+  # ── Docs Evidence Upload ────────────────────────────────────────────────────
+  docs-evidence:
+    name: Docs Evidence → MinIO
+    runs-on: ubuntu-latest
+    needs: docs
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+      MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+      MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docs-dist
+          path: site/dist/docs/
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Upload docs snapshot to MinIO evidence bucket
+        run: |
+          if [ -z "$MINIO_ENDPOINT" ]; then
+            echo "MINIO_ENDPOINT not configured — skipping evidence upload"
+            exit 0
+          fi
+          pip install boto3 --quiet
+          python - <<'EOF'
+          import boto3, hashlib, json, os
+          from pathlib import Path
+          from datetime import UTC, datetime
+
+          endpoint = os.environ["MINIO_ENDPOINT"]
+          s3 = boto3.client(
+              "s3",
+              endpoint_url=endpoint,
+              aws_access_key_id=os.environ["MINIO_ACCESS_KEY"],
+              aws_secret_access_key=os.environ["MINIO_SECRET_KEY"],
+          )
+          sha = os.environ.get("GITHUB_SHA", "unknown")[:12]
+          prefix = f"evidence/docs/{sha}"
+          manifest = {}
+          for p in Path("site/dist/docs").rglob("*"):
+              if p.is_file():
+                  key = f"{prefix}/{p.relative_to('site/dist/docs')}"
+                  data = p.read_bytes()
+                  manifest[str(p.relative_to("site/dist/docs"))] = hashlib.sha256(data).hexdigest()
+                  s3.put_object(Bucket="warden-evidence", Key=key, Body=data)
+          mkey = f"{prefix}/manifest.json"
+          s3.put_object(
+              Bucket="warden-evidence", Key=mkey,
+              Body=json.dumps({"sha": sha, "built_at": datetime.now(UTC).isoformat(),
+                               "files": manifest}, indent=2).encode(),
+          )
+          print(f"Uploaded {len(manifest)} files + manifest to {endpoint}/{mkey}")
+          EOF
+
   # ── Unit + Integration Tests ────────────────────────────────────────────────
   test:
     name: Tests (Python ${{ matrix.python-version }})
