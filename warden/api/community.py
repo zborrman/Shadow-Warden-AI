@@ -129,7 +129,7 @@ async def post_from_obsidian(
     """
     from warden.integrations.obsidian.note_scanner import scan_note
 
-    scan = scan_note(req.note_content, filename=req.filename)
+    scan = scan_note(req.note_content)
 
     if scan["secrets_found"]:
         raise HTTPException(

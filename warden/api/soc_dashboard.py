@@ -137,8 +137,8 @@ async def trigger_heal(
         report = await WardenHealer().run()
         return {
             "triggered": True,
-            "issues":    report.issues,
-            "actions":   report.actions,
+            "issues":    [a.result for a in report.actions if not a.success],
+            "actions":   [{"target": a.target, "action": a.action, "result": a.result, "success": a.success} for a in report.actions],
         }
     except Exception as exc:
         log.warning("soc/heal trigger failed: %s", exc)

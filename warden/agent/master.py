@@ -689,7 +689,7 @@ async def run_master_batch(
             await asyncio.sleep(poll_interval)
             synth_batch = await client.beta.messages.batches.retrieve(synth_batch.id)
 
-        async for result in client.beta.messages.batches.results(synth_batch.id):
+        async for result in client.beta.messages.batches.results(synth_batch.id):  # type: ignore[attr-defined]
             if result.custom_id == "synthesis" and result.result.type == "succeeded":
                 msg          = result.result.message
                 synthesis    = "".join(b.text for b in msg.content if hasattr(b, "text"))

@@ -569,7 +569,7 @@ class EvolutionEngine:
                 system     = system,
                 messages   = [{"role": "user", "content": user}],
             )
-            raw = resp.content[0].text.strip()
+            raw = resp.content[0].text.strip()  # type: ignore[union-attr]
             # Strip markdown code fences if present
             raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.DOTALL).strip()
             examples: list[str] = json.loads(raw)

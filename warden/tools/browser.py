@@ -255,7 +255,7 @@ class BrowserSandbox:
             try:
                 await self._page.close()
                 if self._page.video is not None:
-                    self.video_path = await self._page.video.path()
+                    self.video_path = str(await self._page.video.path())
                     log.info("BrowserSandbox: video saved → %s", self.video_path)
             except Exception as exc:
                 log.warning("BrowserSandbox: video path capture failed: %s", exc)

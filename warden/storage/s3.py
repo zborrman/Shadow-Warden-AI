@@ -34,6 +34,7 @@ GDPR note:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -250,3 +251,33 @@ def _upload_log(entry: dict) -> None:
         log.debug("S3 log shipped: %s/%s", S3_BUCKET_LOGS, key)
     except Exception as exc:
         log.warning("S3 ship_log(%s) failed: %s", request_id, exc)
+
+
+# ── Async object write ────────────────────────────────────────────────────────
+
+class _StorageClient:
+    """Thin async wrapper returned by get_storage()."""
+
+    async def put_object_async(self, bucket: str, key: str, data: bytes) -> None:
+        client = _get_client()
+        if client is None:
+            return
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            _executor,
+            lambda: client.put_object(Bucket=bucket, Key=key, Body=data,
+                                      ContentType="application/json"),
+        )
+
+
+_storage_client: _StorageClient | None = None
+
+
+def get_storage() -> _StorageClient | None:
+    """Return a storage client for direct async object writes, or None if S3 is disabled."""
+    if not S3_ENABLED:
+        return None
+    global _storage_client
+    if _storage_client is None:
+        _storage_client = _StorageClient()
+    return _storage_client

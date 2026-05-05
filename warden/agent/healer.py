@@ -457,7 +457,7 @@ class WardenHealer:
                 max_tokens=256,
                 messages=[{"role": "user", "content": classify_prompt}],
             )
-            remedy = msg.content[0].text.strip() if msg.content else ""
+            remedy = msg.content[0].text.strip() if msg.content else ""  # type: ignore[union-attr]
             if remedy:
                 _save_recipe(fingerprint, remedy)
                 log.info("healer: LLM classified '%s' — recipe saved", fingerprint)

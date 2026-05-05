@@ -426,3 +426,19 @@ class SemanticGuard:
             if faiss_idx is not None:
                 self._faiss_index = faiss_idx
                 log.info("FAISS ANN index activated (%d vectors).", corpus_size)
+
+
+# ── Module-level guard registry ───────────────────────────────────────────────
+
+_active_guard: SemanticGuard | None = None
+
+
+def get_guard() -> SemanticGuard | None:
+    """Return the active SemanticGuard singleton registered via set_guard()."""
+    return _active_guard
+
+
+def set_guard(guard: SemanticGuard) -> None:
+    """Register the active guard instance (called from main.py lifespan)."""
+    global _active_guard
+    _active_guard = guard

@@ -250,7 +250,7 @@ async def visual_assert_page(
                 ],
             }],
         )
-        analysis: str = msg.content[0].text if msg.content else ""
+        analysis: str = msg.content[0].text if msg.content else ""  # type: ignore[union-attr]
     except Exception as exc:
         analysis = f"Vision analysis failed: {exc}"
 
@@ -431,7 +431,7 @@ async def visual_diff(
                 ],
             }],
         )
-        analysis: str = msg.content[0].text if msg.content else ""
+        analysis: str = msg.content[0].text if msg.content else ""  # type: ignore[union-attr]
         last_line = analysis.strip().split("\n")[-1].upper()
         if "CRITICAL" in last_line:
             verdict = "CRITICAL_REGRESSION"

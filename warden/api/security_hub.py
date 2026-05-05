@@ -22,7 +22,7 @@ import logging
 import os
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -44,7 +44,7 @@ def _require_admin(key: str | None) -> None:
         raise HTTPException(status_code=403, detail="Admin key required")
 
 
-def _load_json(path: Path, default: object) -> object:
+def _load_json(path: Path, default: Any) -> Any:
     try:
         return json.loads(path.read_text()) if path.exists() else default
     except Exception as exc:

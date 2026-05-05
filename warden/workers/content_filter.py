@@ -32,10 +32,12 @@ async def _nim_moderate(content: str) -> tuple[str, float, str]:
     from warden.brain.nemotron_client import NimClient
     client = NimClient()
     import json
-    raw = await client.chat(_MODERATION_PROMPT.format(content=content[:2000]))
+    answer, _ = await client.chat([
+        {"role": "user", "content": _MODERATION_PROMPT.format(content=content[:2000])}
+    ])
     # strip <think>...</think> if present
     import re
-    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+    raw = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
     data = json.loads(raw)
     return data["verdict"], float(data.get("score", 0.5)), data.get("reason", "")
 
@@ -46,8 +48,8 @@ async def _semantic_fallback(content: str) -> tuple[str, float, str]:
         from warden.semantic_guard import SemanticGuard
         guard = SemanticGuard()
         result = guard.analyse(content)
-        level = result.get("risk_level", "LOW")
-        score = result.get("score", 0.0)
+        level = result.risk_level.name
+        score = result.top_flag.score if result.top_flag else 0.0
         mapping = {"LOW": "SAFE", "MEDIUM": "WARN", "HIGH": "BLOCK", "BLOCK": "BLOCK"}
         return mapping.get(level, "SAFE"), score, f"semantic_guard:{level}"
     except Exception as e:
