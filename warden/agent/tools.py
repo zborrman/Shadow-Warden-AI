@@ -393,6 +393,26 @@ async def visual_diff(
     except Exception as exc:
         return {"ok": False, "error": f"Screenshot capture failed: {exc}"}
 
+    # OCR pre-check: extract text from both screenshots and run through the
+    # Warden filter before passing images to Vision. This prevents prompt
+    # injection attacks embedded as visible text in a screenshot from bypassing
+    # all nine text-filter layers.
+    try:
+        from warden.ocr import extract_text_from_b64 as _ocr
+        for _label, _b64img in (("baseline", b_b64), ("candidate", c_b64)):
+            _ocr_text = _ocr(_b64img)
+            if _ocr_text:
+                _check = await _post("/filter", {"text": _ocr_text}, tenant_id)
+                if isinstance(_check, dict) and not _check.get("allowed", True):
+                    return {
+                        "ok":      False,
+                        "verdict": "BLOCKED_BY_OCR_PRECHECK",
+                        "reason":  f"Prompt injection detected in {_label} screenshot text",
+                        "flags":   _check.get("flags", []),
+                    }
+    except Exception as _ocr_exc:
+        log.debug("visual_diff: OCR pre-check skipped — %s", _ocr_exc)
+
     diff_prompt = prompt or (
         "You are a visual regression analyst. "
         "Screenshot 1 is the BASELINE (expected). Screenshot 2 is the CANDIDATE (current). "

@@ -610,8 +610,17 @@ class EvolutionEngine:
             f"{f.flag.value}(score={f.score:.2f})" for f in flags
         ) or "none detected"
 
-        # GDPR: strip structural UIDs (UUIDs, IPs, emails, timestamps, hex tokens)
-        # before the content leaves the perimeter via the Anthropic API.
+        # GDPR — what leaves the perimeter via Anthropic API (Cloud-optional mode):
+        #   SENT:     safe_content (anonymized attack text, max 2 000 chars)
+        #             risk_level.value  (e.g. "high")
+        #             flag_summary      (e.g. "prompt_injection(score=0.91)")
+        #   NOT SENT: original prompt, IP address, user-agent, tenant_id, request_id,
+        #             any PII that SecretRedactor or _anonymize_for_evolution strips.
+        #
+        # Air-gapped mode (ANTHROPIC_API_KEY unset): this function is never called;
+        # the EvolutionEngine.__init__ succeeds but process_blocked() is a no-op
+        # because AsyncAnthropic() raises on the first API call. Set
+        # ANTHROPIC_API_KEY="" explicitly to guarantee air-gapped operation.
         safe_content = _anonymize_for_evolution(content[:2_000])
 
         # PhishGuard v3 — route SE / phishing attacks to the specialised analyst prompt.

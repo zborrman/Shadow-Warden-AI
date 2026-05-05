@@ -97,6 +97,25 @@ _WORD_SPLIT_SPC  = re.compile(r"\b(?:[A-Z] ){3,}[A-Z]\b")
 # Max recursion depth for nested encodings (e.g. base64 inside base64)
 _MAX_DECODE_DEPTH = 3
 
+# ── Bidirectional / Trojan Source controls (CVE-2021-42574) ──────────────────
+# Strip all Unicode directional override and invisible characters before any
+# downstream analysis. Policy: strip-then-continue (not auto-BLOCK) to avoid
+# false positives from copy-pasted PDF/Word text with orphaned BiDi marks.
+# Callers receive `bidi_stripped=True` and may apply a risk score boost.
+
+_BIDI_CONTROLS = re.compile(
+    "["
+    "‪‫‬‭‮"  # LRE RLE PDF LRO RLO
+    "⁦⁧⁨⁩"         # LRI RLI FSI PDI
+    "​‌‍‎‏"  # ZWSP ZWNJ ZWJ LRM RLM
+    "­"                            # soft hyphen
+    "﻿"                            # BOM / ZWNBSP
+    "]"
+)
+
+# Trojan Source attack patterns: directional overrides used mid-identifier
+_TROJAN_SOURCE = re.compile("[‮⁦⁧⁨⁩]")
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -256,15 +275,32 @@ def _normalize_homoglyphs(text: str) -> tuple[str, bool]:
 
 # ── Result type ───────────────────────────────────────────────────────────────
 
+def strip_bidi(text: str) -> tuple[str, bool, bool]:
+    """Remove BiDi / Trojan Source control characters from *text*.
+
+    Returns (cleaned_text, bidi_stripped, trojan_source_detected).
+
+    Policy: strip-then-continue (not auto-BLOCK). Callers should apply a risk
+    score boost (+0.3 recommended) when bidi_stripped=True, and escalate to HIGH
+    when trojan_source_detected=True — but only block if other layers also fire.
+    This avoids false positives from legitimate text (copy-paste from PDF/Word).
+    """
+    trojan = bool(_TROJAN_SOURCE.search(text))
+    cleaned = _BIDI_CONTROLS.sub("", text)
+    return cleaned, cleaned != text, trojan
+
+
 @dataclass
 class DecoderResult:
-    original:       str
-    decoded_extra:  str = ""      # decoded text to append (empty if nothing found)
-    layers_found:   list[str] = field(default_factory=list)
+    original:               str
+    decoded_extra:          str  = ""      # decoded text to append (empty if nothing found)
+    layers_found:           list[str] = field(default_factory=list)
+    bidi_stripped:          bool = False   # BiDi controls were removed before analysis
+    trojan_source_detected: bool = False   # Trojan Source override chars found (CVE-2021-42574)
 
     @property
     def has_obfuscation(self) -> bool:
-        return bool(self.layers_found)
+        return bool(self.layers_found) or self.bidi_stripped
 
     @property
     def combined(self) -> str:
@@ -334,6 +370,11 @@ def decode(text: str, _depth: int = 0) -> DecoderResult:
     """
     Run all obfuscation decoders on *text* with multi-layer recursion.
 
+    BiDi / Trojan Source control characters are stripped first (CVE-2021-42574).
+    The caller receives bidi_stripped / trojan_source_detected flags and should
+    apply a risk score boost (+0.3) rather than auto-blocking — avoiding false
+    positives from legitimate text that contains orphaned Unicode directional marks.
+
     Recurses up to _MAX_DECODE_DEPTH times on each decoded segment to
     catch nested encodings such as base64(rot13(...)) or base64(base64(...)).
 
@@ -343,7 +384,12 @@ def decode(text: str, _depth: int = 0) -> DecoderResult:
     layers: list[str] = []
     decoded_parts: list[str] = []
 
-    pass_layers, pass_parts = _decode_pass(text)
+    # Strip BiDi / invisible controls before any decoding pass.
+    # Analysis continues on the cleaned text; original is preserved for evidence.
+    clean_text, bidi_stripped, trojan_detected = strip_bidi(text)
+    analysis_text = clean_text if bidi_stripped else text
+
+    pass_layers, pass_parts = _decode_pass(analysis_text)
     layers.extend(pass_layers)
     decoded_parts.extend(pass_parts)
 
@@ -363,4 +409,6 @@ def decode(text: str, _depth: int = 0) -> DecoderResult:
         original=text,
         decoded_extra="\n".join(decoded_parts) if decoded_parts else "",
         layers_found=layers,
+        bidi_stripped=bidi_stripped,
+        trojan_source_detected=trojan_detected,
     )
