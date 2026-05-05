@@ -142,4 +142,4 @@ async def trigger_heal(
         }
     except Exception as exc:
         log.warning("soc/heal trigger failed: %s", exc)
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail=str(exc)) from exc

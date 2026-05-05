@@ -3,6 +3,7 @@ Pre-commit hook: every SQLAlchemy query in api/ must filter by tenant_id.
 Warns (does not block) — tenant isolation is advisory in this check.
 """
 from __future__ import annotations
+
 import ast
 import sys
 from pathlib import Path

@@ -208,7 +208,8 @@ def add_pentest_finding(
     x_admin_key: Annotated[str | None, Header()] = None,
 ):
     """Add a pentest finding (admin only)."""
-    import uuid, tempfile
+    import tempfile
+    import uuid
     _require_admin(x_admin_key)
     findings = _load_json(_PENTEST_DB_PATH, [])
     if not isinstance(findings, list):

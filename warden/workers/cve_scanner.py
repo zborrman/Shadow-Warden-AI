@@ -14,6 +14,7 @@ Can also be triggered on-demand via POST /security/cve-scan.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -92,7 +93,7 @@ async def _batch_osv(packages: list[dict[str, str]], client: httpx.AsyncClient) 
             log.warning("OSV batch query failed: %s", exc)
             continue
 
-        for pkg, result in zip(packages[i: i + 100], data.get("results", [])):
+        for pkg, result in zip(packages[i: i + 100], data.get("results", []), strict=False):
             for vuln in result.get("vulns", []):
                 pkg_name = pkg["name"]
                 if pkg_name in _IGNORED:
@@ -156,10 +157,8 @@ def _update_posture(findings: list[dict]) -> None:
 
     existing: dict = {}
     if _POSTURE_PATH.exists():
-        try:
+        with contextlib.suppress(Exception):
             existing = json.loads(_POSTURE_PATH.read_text())
-        except Exception:
-            pass
 
     existing.update({
         "badge":            badge,

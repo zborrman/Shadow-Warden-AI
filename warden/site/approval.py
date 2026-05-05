@@ -27,7 +27,6 @@ import secrets
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import Any
 
 log = logging.getLogger("warden.site.approval")
 

@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import os
 import sys
-import time
 
 import streamlit as st
 
@@ -115,7 +114,7 @@ with TABS[0]:
             ("rate_limit_per_minute", "Rate Limit/min"),
             ("uncertainty_lower_threshold", "Uncertainty Lower"),
         ]
-        for col, (k, label) in zip(cols, pipeline_keys):
+        for col, (k, label) in zip(cols, pipeline_keys, strict=False):
             v = cfg.get(k)
             display = _bool_badge(v) if isinstance(v, bool) else str(v)
             col.markdown(
@@ -151,7 +150,7 @@ with TABS[0]:
             ("slack_webhook_set",     "Slack Webhook"),
         ]
         icols = st.columns(5)
-        for col, (k, label) in zip(icols, int_keys):
+        for col, (k, label) in zip(icols, int_keys, strict=False):
             v = cfg.get(k, False)
             col.markdown(
                 f'<div class="cfg-card"><div class="cfg-key">{label}</div>'
@@ -399,9 +398,11 @@ with TABS[4]:
         if st.button("▶️ Run watcher now", type="primary", key="run_watcher"):
             with st.spinner("Running watch_config_drift…"):
                 try:
+                    import asyncio
+                    import os
+
                     from arq import create_pool  # type: ignore
                     from arq.connections import RedisSettings
-                    import asyncio, os
 
                     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379")
 
@@ -413,7 +414,7 @@ with TABS[4]:
 
                     asyncio.run(_enqueue())
                     st.success("Watcher queued in ARQ. Check Slack / logs for results.")
-                except Exception as exc:
+                except Exception:
                     # Fallback: run inline
                     try:
                         from warden.workers.settings_watcher import watch_config_drift

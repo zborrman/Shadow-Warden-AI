@@ -305,7 +305,7 @@ with tab_upgrade:
     ]
 
     cols = st.columns(len(plans))
-    for col, (name, key, price, desc) in zip(cols, plans):
+    for col, (name, key, price, desc) in zip(cols, plans, strict=False):
         with col:
             st.markdown(f"### {name}")
             st.markdown(f"**{price}**  \n{desc}")

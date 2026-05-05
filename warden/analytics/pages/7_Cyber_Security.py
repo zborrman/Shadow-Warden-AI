@@ -7,7 +7,6 @@ from __future__ import annotations
 import os
 import sys
 import time
-from datetime import UTC, datetime
 
 import streamlit as st
 
@@ -281,7 +280,7 @@ with TABS[1]:
                 fig.update_layout(
                     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                     font_color="#e2e8f0", legend_font_color="#a0aec0",
-                    margin=dict(t=40, b=0, l=0, r=0),
+                    margin={"t": 40, "b": 0, "l": 0, "r": 0},
                     height=260,
                 )
                 st.plotly_chart(fig, use_container_width=True)
@@ -377,7 +376,7 @@ with TABS[2]:
             ))
             fig_gauge.update_layout(
                 paper_bgcolor="rgba(0,0,0,0)", font_color="#e2e8f0",
-                height=220, margin=dict(t=30, b=0, l=20, r=20),
+                height=220, margin={"t": 30, "b": 0, "l": 20, "r": 20},
             )
             st.plotly_chart(fig_gauge, use_container_width=True)
 
@@ -523,7 +522,7 @@ with TABS[3]:
                     fig_pt.update_layout(
                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                         font_color="#e2e8f0", showlegend=False,
-                        height=220, margin=dict(t=40, b=0, l=0, r=0),
+                        height=220, margin={"t": 40, "b": 0, "l": 0, "r": 0},
                     )
                     st.plotly_chart(fig_pt, use_container_width=True)
 
@@ -543,7 +542,7 @@ with TABS[4]:
         # Certifications grid
         st.subheader("Certifications")
         cert_cols = st.columns(len(certs) if certs else 1)
-        for col, cert in zip(cert_cols, certs):
+        for col, cert in zip(cert_cols, certs, strict=False):
             status = cert.get("status", "")
             icon   = "✅" if status == "compliant" else ("🔄" if status == "in_progress" else "❌")
             color  = "#48bb78" if status == "compliant" else ("#ecc94b" if status == "in_progress" else "#fc8181")

@@ -468,7 +468,7 @@ async def get_community_feed(
     """
     try:
         data = await _get(
-            f"/community/feed",
+            "/community/feed",
             tenant=tenant_id,
             params={"limit": limit, "offset": 0},
         )
@@ -1016,9 +1016,6 @@ TOOLS: list[dict] = [
             "required": ["baseline_url", "candidate_url"],
         },
     },
-]
-
-# ── Dispatch table ────────────────────────────────────────────────────────────
 
     # ── Community tools #32–#37 ───────────────────────────────────────────────
     {

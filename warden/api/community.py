@@ -26,10 +26,18 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from warden.models.community import (
-    Comment, Member, Post,
-    create_comment, create_post, get_comments,
-    get_feed, get_members, get_post,
-    init_db, register_member, update_post_status,
+    Comment,
+    Member,
+    Post,
+    create_comment,
+    create_post,
+    get_comments,
+    get_feed,
+    get_members,
+    get_post,
+    init_db,
+    register_member,
+    update_post_status,
 )
 
 router = APIRouter(prefix="/community", tags=["community"])
@@ -47,9 +55,10 @@ def _tenant(x_tenant_id: Annotated[str, Header()] = "default") -> str:
 async def _queue_moderation(post_id: str) -> None:
     """Fire-and-forget: enqueue NIM moderation via ARQ or run inline as fallback."""
     try:
+        import os
+
         from arq import create_pool
         from arq.connections import RedisSettings
-        import os
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         if redis_url.startswith("memory://"):
             raise RuntimeError("in-memory redis — inline moderation")
@@ -207,7 +216,8 @@ def admin_block_post(
     tenant_id: str = "default",
     x_admin_key: Annotated[str | None, Header()] = None,
 ):
-    import os, hmac
+    import hmac
+    import os
     admin_key = os.getenv("ADMIN_KEY", "")
     if not admin_key or not x_admin_key or not hmac.compare_digest(x_admin_key, admin_key):
         raise HTTPException(status_code=403, detail="Admin key required")

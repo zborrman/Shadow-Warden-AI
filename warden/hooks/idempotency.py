@@ -3,6 +3,7 @@ Pre-commit hook: verify every charge/refund/subscription call
 carries an idempotency_key argument.
 """
 from __future__ import annotations
+
 import ast
 import sys
 from pathlib import Path

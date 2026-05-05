@@ -25,7 +25,6 @@ import json
 import logging
 import os
 import tempfile
-import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
@@ -37,7 +36,6 @@ from pydantic import BaseModel, Field
 from warden.site.approval import (
     TIER1_KEYS,
     PendingChange,
-    get_pending,
     issue_token,
     list_pending,
     resolve_token,
@@ -296,7 +294,6 @@ async def update_settings(
             ignored.append(key_lower)
             log.debug("settings update: unknown key %s — ignored", key)
 
-    status = 202 if pending_tokens else 200
     return {
         "applied":          applied,
         "pending_approval": pending_tokens,

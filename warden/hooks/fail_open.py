@@ -3,6 +3,7 @@ Pre-commit hook: ensure except blocks never silently swallow errors.
 Blocks: `except ...: pass` or bare return without a logger call.
 """
 from __future__ import annotations
+
 import ast
 import sys
 from pathlib import Path
@@ -12,8 +13,7 @@ _LOGGER_CALLS = {"warning", "error", "critical", "exception", "warn"}
 
 def _has_log_call(body: list[ast.stmt]) -> bool:
     for node in ast.walk(ast.Module(body=body, type_ignores=[])):
-        if isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Attribute) and node.func.attr in _LOGGER_CALLS:
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in _LOGGER_CALLS:
                 return True
     return False
 
