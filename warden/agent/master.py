@@ -174,7 +174,7 @@ def get_pending_approval(token: str) -> dict | None:
         import redis as _redis
         r = _redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
         raw = r.get(f"master:approval:{token}")
-        return json.loads(raw) if raw else None
+        return json.loads(raw) if raw else None  # type: ignore[arg-type]
     except Exception:
         return None
 
@@ -188,7 +188,7 @@ def resolve_approval(token: str, approved: bool) -> bool:
         raw = r.get(key)
         if not raw:
             return False
-        data = json.loads(raw)
+        data = json.loads(raw)  # type: ignore[arg-type]
         data["approved"]    = approved
         data["resolved_at"] = int(time.time())
         # Store result under a different key, delete the pending entry
@@ -611,7 +611,7 @@ async def run_master_batch(
 
         decomp_text  = ""
         decomp_tokens = 0
-        async for result in client.beta.messages.batches.results(batch.id):
+        async for result in client.beta.messages.batches.results(batch.id):  # type: ignore[attr-defined]
             if result.custom_id == "decompose" and result.result.type == "succeeded":
                 msg           = result.result.message
                 decomp_text   = "".join(b.text for b in msg.content if hasattr(b, "text"))

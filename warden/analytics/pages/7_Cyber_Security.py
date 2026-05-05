@@ -166,10 +166,11 @@ with TABS[0]:
         if err:
             st.error(f"Could not load posture: {err}")
         else:
-            badge  = posture.get("badge", "UNKNOWN")
-            counts = posture.get("cve_counts", {})
+            posture_dict = posture if isinstance(posture, dict) else {}
+            badge  = posture_dict.get("badge", "UNKNOWN")
+            counts = posture_dict.get("cve_counts", {})
             st.markdown(
-                _badge_html(badge, counts, posture.get("last_scan")),
+                _badge_html(badge, counts, posture_dict.get("last_scan")),
                 unsafe_allow_html=True,
             )
             # Mini stat row
@@ -188,8 +189,8 @@ with TABS[0]:
             )
 
             st.divider()
-            controls_pass  = posture.get("controls_passing", 0)
-            controls_total = posture.get("controls_total",   0)
+            controls_pass  = posture_dict.get("controls_passing", 0)
+            controls_total = posture_dict.get("controls_total",   0)
             if controls_total:
                 pct = int(100 * controls_pass / controls_total)
                 st.progress(pct / 100, text=f"Controls passing: {controls_pass}/{controls_total} ({pct}%)")
