@@ -1,19 +1,14 @@
-{{- if .Values.ingress.enabled -}}
+{{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "shadow-warden.fullname" . }}
-  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "shadow-warden.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- toYaml .Values.ingress.annotations | nindent 4 }}
 spec:
-  {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
-  {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
     {{- toYaml .Values.ingress.tls | nindent 4 }}
@@ -28,9 +23,9 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "shadow-warden.fullname" $ }}-{{ .service }}
+                name: {{ include "shadow-warden.fullname" $ }}-warden
                 port:
-                  number: {{ .port }}
+                  number: {{ $.Values.warden.service.port }}
           {{- end }}
     {{- end }}
 {{- end }}

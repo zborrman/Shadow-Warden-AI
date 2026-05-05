@@ -110,6 +110,14 @@ _PATTERNS: list[_Pattern] = [
              "[REDACTED:iban]",
              pii=True),
 
+    # ── BIC / SWIFT codes ─────────────────────────────────────────────────
+    # Format: 4 bank + 2 country + 2 location + optional 3 branch (ISO 9362)
+    # Require word boundary to avoid false positives on random 8/11-char strings.
+    _Pattern("bic_swift",
+             re.compile(r"\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b"),
+             "[REDACTED:bic_swift]",
+             pii=True),
+
     # ── Email addresses (GDPR PII) ────────────────────────────────────────
     _Pattern("email",
              re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),

@@ -58,6 +58,7 @@ from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
 )
+from warden.workers.gdpr_retention import run_gdpr_retention
 from warden.workers.settings_watcher import watch_config_drift
 from warden.workers.weekly_report import send_weekly_reports
 
@@ -100,6 +101,8 @@ class WorkerSettings:
         scan_cves,
         # Settings watcher
         watch_config_drift,
+        # GDPR retention
+        run_gdpr_retention,
     ]
 
     cron_jobs = [
@@ -152,6 +155,9 @@ class WorkerSettings:
 
         # ── Config drift + canary probe — every 15 minutes ───────────────────
         cron(watch_config_drift, minute={0, 15, 30, 45}, timeout=60),
+
+        # ── GDPR auto-retention — daily at 02:00 UTC ─────────────────────────
+        cron(run_gdpr_retention, hour=2, minute=0, timeout=120),
     ]
 
     on_startup  = startup

@@ -1,41 +1,82 @@
-# ──────────────────────────────────────────────────────────────────────────────
 # Shadow Warden AI — Helm values
-# ──────────────────────────────────────────────────────────────────────────────
+# Override any value with --set key=value or -f custom-values.yaml
 
+# ── Global ────────────────────────────────────────────────────────────────────
 global:
-  imageRegistry: ""          # override for private registries, e.g. registry.example.com
-  imagePullSecrets: []       # [{name: regcred}]
-  storageClass: ""           # PVC storage class; "" = cluster default
+  imageRegistry: ghcr.io
+  imagePullSecrets: []
 
-# ── Warden Gateway (FastAPI filter proxy) ─────────────────────────────────────
+# ── Warden gateway ────────────────────────────────────────────────────────────
 warden:
   image:
-    repository: shadow-warden/gateway
-    tag: "0.4.0"
+    repository: zborrman/shadow-warden
+    tag: "latest"
     pullPolicy: IfNotPresent
 
   replicaCount: 2
 
   resources:
-    limits:
-      cpu: "2"
-      memory: "2Gi"
     requests:
       cpu: "500m"
       memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
 
-  # /dev/shm for Playwright Chromium browser sandbox
-  shmSize: "512Mi"
+  # Pod scheduling
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: warden
+            topologyKey: kubernetes.io/hostname
 
-  # Browser sandbox (Playwright) — disable for lighter deployments without active URL auditing
-  browserSandbox:
-    enabled: true
+  tolerations: []
+  nodeSelector: {}
+
+  # Security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+
+  # Environment variables (non-secret)
+  env:
+    SEMANTIC_THRESHOLD: "0.72"
+    STRICT_MODE: "false"
+    ERS_ENABLED: "true"
+    SHADOW_BAN_ENABLED: "true"
+    S3_ENABLED: "false"
+    GDPR_LOG_RETENTION_DAYS: "30"
+    GDPR_AUTO_PURGE: "true"
+    WARDEN_OCR_BACKEND: "tesseract"
+
+  # Secret keys — create a Kubernetes Secret named "warden-secrets" with these keys
+  secretRef: warden-secrets
+  secretKeys:
+    - WARDEN_API_KEY
+    - ANTHROPIC_API_KEY
+    - VAULT_MASTER_KEY
+    - SLACK_WEBHOOK_URL
+    - REDIS_URL
+    - DATABASE_URL
 
   service:
     type: ClusterIP
     port: 8001
 
-  # HorizontalPodAutoscaler
   hpa:
     enabled: true
     minReplicas: 2
@@ -43,430 +84,92 @@ warden:
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
 
-  # PodDisruptionBudget — keep at least 1 pod available during rollouts
-  pdb:
+  persistence:
     enabled: true
-    minAvailable: 1
-    maxUnavailable: ""  # set to a value OR minAvailable, not both
+    size: 10Gi
+    storageClass: ""        # use cluster default
+    accessMode: ReadWriteOnce
 
-  # ML model PVC — persists all-MiniLM-L6-v2 weights across pod restarts
-  modelCache:
-    enabled: true
-    size: "2Gi"
-    mountPath: "/warden/models"
-    storageClass: ""    # "" = cluster default (RWO is sufficient)
-
-  config:
-    env: production
-    logLevel: info
-    semanticThreshold: "0.72"
-    strictMode: "false"
-    rateLimitPerMinute: "60"
-    maxBatchSize: "50"
-    cacheТtlSeconds: "300"
-    gdprLogRetentionDays: "7"      # v2.5: reduced from 30 to limit disk growth
-    alertMinRiskLevel: high
-    elasticIndex: shadow-warden-events
-
-    # ── ONNX INT8 inference (v2.5) ────────────────────────────────────────────
-    # onnxThreads: parallel intra-op threads per worker.
-    # Rule: onnxIntraThreads = vCPU / uvicornWorkers (e.g. 8 vCPU / 4 workers = 2)
-    onnxEnabled: "true"
-    onnxThreads: "1"
-    onnxIntraThreads: "2"
-
-    # ── Browser extension — Reversible PII Vault (v2.5) ─────────────────────
-    # Set extMaskEnabled=false to disable auto-masking and revert to legacy
-    # YELLOW-block behaviour for tenants that require it (e.g. legal hold).
-    extMaskEnabled: "true"
-
-  # Warden-managed mTLS (between nginx proxy → warden)
-  mtls:
-    enabled: false
-    allowedCNs: "proxy,analytics,app"
-
-  # Sensitive values — set via --set or external secret manager
-  # Never commit real values here.
-  secret:
-    anthropicApiKey: ""       # enables EvolutionEngine (Claude Opus)
-    wardenApiKey: ""          # shared API key (single-key mode)
-    secretKey: ""             # app secret key — generate: openssl rand -hex 32
-    llmBaseUrl: ""            # e.g. https://api.openai.com/v1
-    llmApiKey: ""             # forwarded to LLM backend
-    slackWebhookUrl: ""       # real-time alerts
-    pagerdutyRoutingKey: ""   # PagerDuty escalation
-    splunkHecUrl: ""          # Splunk HEC
-    splunkHecToken: ""
-    elasticUrl: ""            # Elastic ECS
-    elasticApiKey: ""
-    nvidiaApiKey: ""          # Nemotron Super chairman model (v2.5)
-    openrouterApiKey: ""      # LLM Council via OpenRouter (v2.5)
-
-  # Multi-tenant API keys JSON file (mounted as ConfigMap/Secret)
-  apiKeysJson: ""             # inline JSON — set via --set-file warden.apiKeysJson=keys.json
-
-  podAnnotations: {}
-  podLabels: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-
-  # Readiness / liveness probes
-  livenessProbe:
-    httpGet:
-      path: /health
-      port: 8001
-    initialDelaySeconds: 30
-    periodSeconds: 20
-    timeoutSeconds: 5
-    failureThreshold: 5
-
-  readinessProbe:
-    httpGet:
-      path: /health
-      port: 8001
-    initialDelaySeconds: 20
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
-
-# ── Analytics API (FastAPI) ───────────────────────────────────────────────────
-analytics:
+# ── Redis ─────────────────────────────────────────────────────────────────────
+redis:
   enabled: true
+  architecture: standalone
+  auth:
+    enabled: true
+    existingSecret: warden-secrets
+    existingSecretPasswordKey: REDIS_PASSWORD
+  master:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    persistence:
+      enabled: true
+      size: 5Gi
 
-  image:
-    repository: shadow-warden/analytics
-    tag: "0.4.0"
-    pullPolicy: IfNotPresent
+# ── PostgreSQL ────────────────────────────────────────────────────────────────
+postgresql:
+  enabled: true
+  auth:
+    existingSecret: warden-secrets
+    secretKeys:
+      adminPasswordKey: POSTGRES_PASSWORD
+      userPasswordKey:  POSTGRES_PASSWORD
+      database: warden
+  primary:
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+    persistence:
+      enabled: true
+      size: 20Gi
 
-  replicaCount: 1
-
+# ── MinIO (Evidence Vault) ────────────────────────────────────────────────────
+minio:
+  enabled: false   # set true for on-prem S3; use AWS S3 env vars otherwise
+  mode: standalone
+  rootUser: warden-admin
+  rootPassword: ""   # set via existingSecret
+  persistence:
+    enabled: true
+    size: 50Gi
   resources:
-    limits:
-      cpu: "500m"
-      memory: "512Mi"
     requests:
       cpu: "100m"
-      memory: "128Mi"
-
-  service:
-    type: ClusterIP
-    port: 8002
-
-  podAnnotations: {}
-  nodeSelector: {}
-  tolerations: []
-
-# ── Admin UI (Streamlit) ──────────────────────────────────────────────────────
-admin:
-  enabled: true
-
-  image:
-    repository: shadow-warden/admin
-    tag: "0.4.0"
-    pullPolicy: IfNotPresent
-
-  replicaCount: 1
-
-  resources:
-    limits:
-      cpu: "250m"
       memory: "256Mi"
-    requests:
-      cpu: "50m"
-      memory: "64Mi"
-
-  service:
-    type: ClusterIP
-    port: 8502
-
-  podAnnotations: {}
-  nodeSelector: {}
-  tolerations: []
 
 # ── Ingress ───────────────────────────────────────────────────────────────────
 ingress:
   enabled: true
   className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    # WebSocket upgrade support (required for /ws/stream)
-    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "upgrade";
-    # cert-manager TLS (uncomment to enable)
-    # cert-manager.io/cluster-issuer: letsencrypt-prod
-
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "4m"
   hosts:
-    - host: warden.example.com
+    - host: api.shadow-warden-ai.com
       paths:
         - path: /
           pathType: Prefix
-          service: warden
-          port: 8001
-    - host: admin.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-          service: admin
-          port: 8502
+  tls:
+    - secretName: warden-tls
+      hosts:
+        - api.shadow-warden-ai.com
 
-  tls: []
-  # - secretName: warden-tls
-  #   hosts:
-  #     - warden.example.com
-  #     - admin.example.com
-
-# ── Persistent Volumes ────────────────────────────────────────────────────────
-persistence:
-  # Shared data volume (logs.json + dynamic_rules.json)
-  data:
+# ── Features ──────────────────────────────────────────────────────────────────
+features:
+  ocr:
+    backend: tesseract    # tesseract | vision | disabled
+  evolutionEngine:
+    enabled: true         # false for air-gapped mode
+  shadowBan:
     enabled: true
-    size: "5Gi"
-    accessMode: ReadWriteMany    # RWX for multi-pod warden
-    # storageClass: efs           # use RWX-capable storage class (e.g. EFS, NFS)
-
-# ── NetworkPolicy ─────────────────────────────────────────────────────────────
-networkPolicy:
-  enabled: true
-  # When true, warden only accepts traffic from ingress-controller namespace
-  # and pods with label app.kubernetes.io/name=shadow-warden
-
-# ── ServiceAccount ────────────────────────────────────────────────────────────
-serviceAccount:
-  create: true
-  name: ""
-  annotations: {}
-
-# ── PostgreSQL (Bitnami subchart) ─────────────────────────────────────────────
-postgresql:
-  enabled: true       # set false to use externalPostgresql
-  auth:
-    username: warden
-    password: ""      # set via --set postgresql.auth.password=...
-    database: warden_db
-  primary:
-    resources:
-      limits:
-        cpu: "1"
-        memory: "1Gi"
-      requests:
-        cpu: "250m"
-        memory: "256Mi"
-    persistence:
-      enabled: true
-      size: "10Gi"
-
-# External PostgreSQL (used when postgresql.enabled=false)
-externalPostgresql:
-  host: ""
-  port: 5432
-  username: warden
-  password: ""
-  database: warden_db
-
-# ── Redis (Bitnami subchart) ──────────────────────────────────────────────────
-redis:
-  enabled: true       # set false to use externalRedis
-  architecture: standalone
-  auth:
+  gdprAutoRetention:
     enabled: true
-    password: ""      # set via --set redis.auth.password=...
-  master:
-    resources:
-      limits:
-        cpu: "500m"
-        memory: "512Mi"
-      requests:
-        cpu: "100m"
-        memory: "128Mi"
-    persistence:
-      enabled: true
-      size: "5Gi"
-
-# External Redis (used when redis.enabled=false)
-externalRedis:
-  host: ""
-  port: 6379
-  password: ""
-
-# ── Threat Intelligence Feed Server (v1.2+) ───────────────────────────────────
-feed:
-  enabled: true
-  image:
-    repository: shadow-warden/feed-server
-    tag: "1.3.0"
-    pullPolicy: IfNotPresent
-
-  replicaCount: 1
-
-  resources:
-    limits:
-      cpu: "500m"
-      memory: "512Mi"
-    requests:
-      cpu: "100m"
-      memory: "128Mi"
-
-  service:
-    type: ClusterIP
-    port: 8003
-
-  config:
-    feedPublic: "false"       # set true to expose feed without auth
-    minVetSources: "2"        # unique sources before auto-publishing a rule
-    dailySubmitCap: "50"      # max rule submissions per source per day
-    logRetentionDays: "30"
-
-  secret:
-    adminKey: ""              # set via --set feed.secret.adminKey=...
-
-  persistence:
-    enabled: true
-    size: "2Gi"
-    storageClass: ""
-
-# ── XAI (Explainable AI, v1.3+) ───────────────────────────────────────────────
-xai:
-  useClause: false            # set true + provide anthropicApiKey to enable Claude Haiku explanations
-
-# ── Warden Identity — OIDC Zero-Friction Onboarding (v2.5) ───────────────────
-#
-# Replaces manual API-key distribution for SMB browser-extension users.
-# Employees sign in with their corporate Google / Microsoft account once;
-# the Service Worker holds the OIDC id_token; no key is ever exposed to the
-# LLM page's JavaScript context.
-#
-# Domain → tenant_id mapping:
-#   Format: "domain1:tenant_id1,domain2:tenant_id2"
-#   Example: "acme.com:tenant_acme,contoso.com:tenant_contoso"
-#   Live updates: POST /admin/oidc/domains  (stores in Redis)
-#
-# Instant offboarding: when IT revokes the employee's Google account,
-# the next id_token fetch fails → extension goes dark automatically.
-identity:
-  enabled: false              # enable when OAuth client is configured
-  oidcAllowedDomains: ""      # "acme.com:t_acme,contoso.com:t_contoso"
-  oidcJwksTtlSeconds: "86400" # JWKS public-key cache TTL (1 day)
-  # oauth2 client ID baked into the Chrome extension manifest.json
-  # (must match the client configured in Google Cloud Console)
-  googleClientId: ""          # REPLACE_WITH_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com
-
-# ── WormGuard + Warden Nexus (v2.5) ──────────────────────────────────────────
-#
-# WormGuard: 3-layer Morris-II self-replicating AI worm defence
-#   L1 — Anti-Replication: bigram Jaccard overlap on LLM prompts
-#   L2 — RAG Firewall: blocks worm fingerprints from entering vector store
-#   L3 — Redis Quarantine: SHA-256 worm hash stored in warden:worm:hashes
-#
-# Warden Nexus: global federated threat intelligence
-#   - Submits worm fingerprints as STIX 2.1 Indicator bundles
-#   - Downloads peer hashes (Bayesian consensus gate ≥ 0.80)
-#   - Enterprise air-gap mode: receive-only (no submissions)
-wormGuard:
-  enabled: true
-  redosTimeoutSeconds: "0.5"  # max regex eval time before pattern rejection
-
-nexus:
-  enabled: false              # enable to join Warden Nexus federation
-  feedUrl: ""                 # e.g. https://nexus.shadow-warden.io/v1
-  receiveOnly: "false"        # "true" for enterprise air-gap (subscribe only)
-  consensusThreshold: "0.80"  # Bayesian trust gate: 1 − ∏(1−P(Tᵢ|H)) ≥ this
-  maxWormHashes: "10000"      # per-instance worm hash cap
-  maxRules: "5000"            # threat rule import cap
-  secret:
-    apiKey: ""                # write-key for submitting worm hashes
-
-# ── ONNX INT8 Quantised Inference (v2.5) ─────────────────────────────────────
-#
-# 2-4× CPU speedup over FP32 by quantising all-MiniLM-L6-v2 MatMul weights
-# to INT8.  Model export runs as an init container on first deploy.
-#
-# Thread tuning rule:
-#   onnxIntraThreads = ceil(node_vcpus / warden.replicaCount)
-#   Example: 8 vCPU node, 4 replicas → 2 intra-op threads per pod
-#
-# The quantised model is stored in the model PVC alongside FP32 weights.
-# Set quantized=false to fall back to FP32 (larger pods may prefer it).
-onnx:
-  quantized: true
-  exportOnFirstDeploy: true   # run init container to export + quantize model
-  fp32Dir: "/warden/models/minilm-onnx"
-  int8Dir: "/warden/models/minilm-onnx-int8"
-  cacheDir: "/warden/models/.cache"
-
-# ── Async Task Queue — ARQ + Redis (v2.5) ────────────────────────────────────
-#
-# Offloads long-running tasks (email delivery, geo-webhook dispatch,
-# STIX bundle assembly) from request handlers to background workers.
-#
-# Workers run as a separate Deployment (arq-worker) that shares the
-# same Redis instance as the gateway.
-arq:
-  enabled: true               # set true to enable weekly ROI email reports + geo-webhooks
-  workers: 1
-  image:
-    repository: shadow-warden/gateway   # same image, different entrypoint
-    tag: "2.5.0"
-    pullPolicy: IfNotPresent
-  resources:
-    limits:
-      cpu: "500m"
-      memory: "512Mi"
-    requests:
-      cpu: "100m"
-      memory: "128Mi"
-  config:
-    emailSmtpUrl: ""          # smtp://user:pass@host:587  (SendGrid / SES / Postmark)
-    emailFromAddr: ""         # "Shadow Warden <noreply@shadow-warden.io>"
-    weeklyReportReplyTo: ""   # optional reply-to for weekly reports
-    portalUrl: ""             # https://app.shadow-warden.io — used in CTA buttons
-    geoWebhookUrl: ""         # POST endpoint for geo-block events
-
-# ── SAML 2.0 SSO — Enterprise IdP Integration (v2.0+) ────────────────────────
-#
-# Enables SAML 2.0 SP for the admin dashboard / customer portal.
-# Supports Okta, Microsoft Entra ID, Google Workspace, and any SAML 2.0 IdP.
-# Leave enabled=false for deployments using API-key or OIDC auth only.
-saml:
-  enabled: false
-  secret:
-    spEntityId: ""            # e.g. https://warden.example.com
-    spAcsUrl: ""              # e.g. https://warden.example.com/auth/saml/acs
-    idpMetadataUrl: ""        # IdP metadata XML URL (Okta / Entra)
-    idpX509Cert: ""           # IdP signing cert (PEM, no headers)
-
-# ── Lemon Squeezy Billing ────────────────────────────────────────────────────
-#
-# Plan tiers (monthly subscriptions):
-#   starter    —  1 000 req/month,  $0/month   (default, no key required)
-#   individual —  5 000 req/month,  $5/month
-#   pro        — 50 000 req/month, $49/month   (up to 50 tenants)
-#   enterprise — Unlimited req/month, $199/month (on-prem, custom ML)
-#
-# Get variant IDs from: Lemon Squeezy Dashboard → Products → Variants
-lemonsqueezy:
-  secret:
-    apiKey: ""              # from LS dashboard → API
-    storeId: ""             # your store ID
-    webhookSecret: ""       # LS Dashboard → Webhooks → Signing Secret
-    variantIndividual: ""   # variant_id for $5/mo plan
-    variantPro: ""          # variant_id for $49/mo plan
-    variantEnterprise: ""   # variant_id for $199/mo plan
-
-# ── Prometheus / Grafana Observability (v2.0+) ───────────────────────────────
-monitoring:
-  # Scrape warden /metrics via ServiceMonitor (requires kube-prometheus-stack)
-  serviceMonitor:
-    enabled: false
-    interval: "30s"
-    namespace: ""             # "" = same namespace as warden
-    labels: {}                # additional labels for ServiceMonitor
-  # Pre-built Grafana dashboard (loaded via ConfigMap + sidecar)
-  grafanaDashboard:
-    enabled: false
-    namespace: ""             # "" = same namespace
-    labels:
-      grafana_dashboard: "1"  # matches Grafana sidecar label selector
+    retentionDays: 30
