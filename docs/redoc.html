@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shadow Warden AI — API Reference</title>
+  <meta name="description" content="Shadow Warden AI REST API — interactive documentation powered by Redoc." />
+  <link rel="icon" href="https://shadow-warden-ai.com/favicon.ico" type="image/x-icon" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0e1a;
+    }
+
+    /* ── Top bar ──────────────────────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0d1220;
+      border-bottom: 1px solid #1e2a45;
+      padding: 0 24px;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #e2e8f0;
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: 0.02em;
+    }
+    .topbar-brand svg {
+      flex-shrink: 0;
+    }
+    .topbar-badge {
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+    .topbar-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .topbar-links a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.15s;
+    }
+    .topbar-links a:hover { color: #e2e8f0; }
+
+    /* ── Redoc container ──────────────────────────────────────────────────── */
+    #redoc-container {
+      min-height: calc(100vh - 56px);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top navigation bar -->
+  <header class="topbar">
+    <a class="topbar-brand" href="https://shadow-warden-ai.com">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="8" fill="url(#g)"/>
+        <path d="M16 6L26 11V18C26 22.4 21.5 26.3 16 28C10.5 26.3 6 22.4 6 18V11L16 6Z"
+              fill="white" fill-opacity="0.15" stroke="white" stroke-width="1.5"
+              stroke-linejoin="round"/>
+        <path d="M12 16L15 19L20 13" stroke="white" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#7c3aed"/>
+            <stop offset="1" stop-color="#2563eb"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      Shadow Warden AI
+    </a>
+    <nav class="topbar-links">
+      <span class="topbar-badge">v4.11</span>
+      <a href="https://shadow-warden-ai.com">Home</a>
+      <a href="https://app.shadow-warden-ai.com">Dashboard</a>
+      <a href="https://api.shadow-warden-ai.com/health">Status</a>
+    </nav>
+  </header>
+
+  <!-- Redoc renders here -->
+  <div id="redoc-container"></div>
+
+  <!-- Redoc standalone bundle (no React needed in page) -->
+  <script src="https://cdn.jsdelivr.net/npm/redoc@latest/bundles/redoc.standalone.js"></script>
+  <script>
+    Redoc.init(
+      "https://api.shadow-warden-ai.com/openapi.json",
+      {
+        theme: {
+          colors: {
+            primary: { main: "#7c3aed" },
+            success: { main: "#10b981" },
+            warning: { main: "#f59e0b" },
+            error:   { main: "#ef4444" },
+            text: {
+              primary:   "#e2e8f0",
+              secondary: "#94a3b8",
+            },
+            border: { dark: "#1e2a45", light: "#1e2a45" },
+            responses: {
+              success: { color: "#10b981", backgroundColor: "#022c22" },
+              error:   { color: "#ef4444", backgroundColor: "#2d0a0a" },
+            },
+            http: {
+              get:    "#10b981",
+              post:   "#7c3aed",
+              put:    "#f59e0b",
+              delete: "#ef4444",
+              patch:  "#3b82f6",
+            },
+          },
+          typography: {
+            fontSize:         "14px",
+            lineHeight:       "1.6",
+            fontFamily:       "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            headings: {
+              fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+              fontWeight: "600",
+            },
+            code: {
+              fontSize:   "13px",
+              fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+            },
+          },
+          sidebar: {
+            width:           "280px",
+            backgroundColor: "#0d1220",
+            textColor:       "#94a3b8",
+          },
+          rightPanel: {
+            backgroundColor: "#060b17",
+          },
+          schema: {
+            nestedBackground: "#0d1220",
+          },
+        },
+        scrollYOffset:         56,
+        hideDownloadButton:    false,
+        expandDefaultServerVariables: true,
+        pathInMiddlePanel:     false,
+        nativeScrollbars:      false,
+        disableSearch:         false,
+        requiredPropsFirst:    true,
+        sortPropsAlphabetically: false,
+        showExtensions:        false,
+        hideSingleRequestSampleTab: true,
+        menuToggle:            true,
+        jsonSampleExpandLevel: 2,
+      },
+      document.getElementById("redoc-container")
+    );
+  </script>
+</body>
+</html>

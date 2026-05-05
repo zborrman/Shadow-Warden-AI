@@ -107,6 +107,17 @@ analytics.shadow-warden-ai.com {
 	}
 }
 
+# ── API Documentation (Redoc) ────────────────────────────────────────────────
+docs.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
+
+	import security_headers
+
+	root * /srv/docs
+	try_files {path} {path}/index.html /index.html
+	file_server
+}
+
 # ── Landing Page (static) ─────────────────────────────────────────────────────
 shadow-warden-ai.com, www.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem

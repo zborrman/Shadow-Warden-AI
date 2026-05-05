@@ -59,6 +59,7 @@ services:
     volumes:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./landing:/srv/landing:ro
+      - ./docs/redoc.html:/srv/docs/index.html:ro
       - ./ssl:/etc/caddy/ssl:ro
       - caddy-data:/data
       - warden-logs:/var/log/caddy

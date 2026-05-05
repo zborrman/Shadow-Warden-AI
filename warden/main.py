@@ -1643,9 +1643,12 @@ async def _run_filter_pipeline(
     # TDA pre-filter — detects bot payloads, random noise, and repetitive
     # DoS content via n-gram point cloud + Betti number approximation.
     # Runs in < 2ms; result is stored and applied to guard_result after Stage 2.
-    t0 = time.perf_counter()
-    _topo_result = _topo_scan(payload.content)
-    timings["topology"] = round((time.perf_counter() - t0) * 1000, 2)
+    with _trace_stage("topology", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+        t0 = time.perf_counter()
+        _topo_result = _topo_scan(payload.content)
+        timings["topology"] = round((time.perf_counter() - t0) * 1000, 2)
+        _sp.set_attribute("topology.is_noise",    _topo_result.is_noise)
+        _sp.set_attribute("topology.noise_score", float(_topo_result.noise_score))
     if _topo_result.is_noise:
         log.warning(
             json.dumps({
@@ -1898,32 +1901,35 @@ async def _run_filter_pipeline(
         and not brain_result.is_jailbreak
         and brain_result.score >= _UNCERTAINTY_LOWER
     ):
-        t0 = time.perf_counter()
-        _session_blocks = 0
-        if session_id and _agent_monitor is not None:
-            with suppress(Exception):
-                _sess = _agent_monitor.get_session(session_id)
-                if _sess:
-                    _session_blocks = int(_sess.get("block_count", 0))
-        # PhishGuard se_risk: run a lightweight pre-check here so the Causal
-        # Arbiter can incorporate the SE signal in the same pass (avoids a
-        # second arbitrate() call later).
-        try:
-            from warden.phishing_guard import analyse as _phish_pre  # noqa: PLC0415
-            _pre_se = _phish_pre(analysis_text).se_risk
-        except Exception:
-            _pre_se = 0.0
+        with _trace_stage("causal_arbiter", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+            t0 = time.perf_counter()
+            _session_blocks = 0
+            if session_id and _agent_monitor is not None:
+                with suppress(Exception):
+                    _sess = _agent_monitor.get_session(session_id)
+                    if _sess:
+                        _session_blocks = int(_sess.get("block_count", 0))
+            # PhishGuard se_risk: run a lightweight pre-check here so the Causal
+            # Arbiter can incorporate the SE signal in the same pass (avoids a
+            # second arbitrate() call later).
+            try:
+                from warden.phishing_guard import analyse as _phish_pre  # noqa: PLC0415
+                _pre_se = _phish_pre(analysis_text).se_risk
+            except Exception:
+                _pre_se = 0.0
 
-        _causal_result = _causal_arbitrate(
-            ml_score             = brain_result.score,
-            ers_score            = float(getattr(auth, "ers_score", 0.0) or 0.0),
-            obfuscation_detected = obfuscation_result.has_obfuscation,
-            block_history        = _session_blocks,
-            tool_tier            = -1,
-            content_entropy      = _content_entropy(analysis_text),
-            se_risk              = _pre_se,
-        )
-        timings["causal"] = round((time.perf_counter() - t0) * 1000, 2)
+            _causal_result = _causal_arbitrate(
+                ml_score             = brain_result.score,
+                ers_score            = float(getattr(auth, "ers_score", 0.0) or 0.0),
+                obfuscation_detected = obfuscation_result.has_obfuscation,
+                block_history        = _session_blocks,
+                tool_tier            = -1,
+                content_entropy      = _content_entropy(analysis_text),
+                se_risk              = _pre_se,
+            )
+            timings["causal"] = round((time.perf_counter() - t0) * 1000, 2)
+            _sp.set_attribute("causal.is_high_risk",       _causal_result.is_high_risk)
+            _sp.set_attribute("causal.risk_probability",   round(_causal_result.risk_probability, 4))
         if _causal_result.is_high_risk:
             guard_result.flags.append(SemanticFlag(
                 flag=FlagType.CAUSAL_HIGH_RISK,
@@ -1945,16 +1951,19 @@ async def _run_filter_pipeline(
 
     # ── Stage 2c: Data Poisoning Detection ───────────────────────────
     if _poison_guard is not None:
-        t0 = time.perf_counter()
         try:
             from warden.brain.poison import PoisonResult  # noqa: PLC0415
-            _pr: PoisonResult = await _poison_guard.check_async(
-                content=redact_result.text,
-                tenant_id=tenant_id,
-                ml_score=brain_result.score,
-                threshold=brain_result.threshold,
-            )
-            timings["poison"] = round((time.perf_counter() - t0) * 1000, 2)
+            with _trace_stage("data_poison", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+                t0 = time.perf_counter()
+                _pr: PoisonResult = await _poison_guard.check_async(
+                    content=redact_result.text,
+                    tenant_id=tenant_id,
+                    ml_score=brain_result.score,
+                    threshold=brain_result.threshold,
+                )
+                timings["poison"] = round((time.perf_counter() - t0) * 1000, 2)
+                _sp.set_attribute("poison.is_attempt",     _pr.is_poisoning_attempt)
+                _sp.set_attribute("poison.score",          round(_pr.poisoning_score, 4))
             if _pr.is_poisoning_attempt:
                 poison_result_dict = _pr.as_dict
                 guard_result.flags.append(SemanticFlag(
@@ -2000,9 +2009,13 @@ async def _run_filter_pipeline(
     # second arbitrate() call when SE is detected.
     try:
         from warden.phishing_guard import analyse as _phish_analyse  # noqa: PLC0415
-        t0 = time.perf_counter()
-        _phish_result = _phish_analyse(analysis_text)
-        timings["phishguard"] = round((time.perf_counter() - t0) * 1000, 2)
+        with _trace_stage("phish_guard", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
+            t0 = time.perf_counter()
+            _phish_result = _phish_analyse(analysis_text)
+            timings["phishguard"] = round((time.perf_counter() - t0) * 1000, 2)
+            _sp.set_attribute("phish.is_phishing",          _phish_result.is_phishing)
+            _sp.set_attribute("phish.is_social_engineering", _phish_result.is_social_engineering)
+            _sp.set_attribute("phish.se_risk",              round(_phish_result.se_risk, 4))
 
         if _phish_result.is_phishing:
             guard_result.flags.append(SemanticFlag(
