@@ -49,6 +49,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
+from warden.telemetry import trace_stage as _trace_stage
+
 log = logging.getLogger("warden.phishing_guard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -500,7 +502,11 @@ def analyse(text: str) -> PhishResult:
     Fails open: exceptions return PhishResult with all flags False.
     """
     t0 = time.perf_counter()
-    try:
+    with _trace_stage("PhishGuard.analyse", {
+        "layer":        "phish_guard",
+        "input.length": len(text),
+    }) as _sp:
+     try:
         # ── 1. URL analysis ───────────────────────────────────────────────────
         url_findings: list[URLFinding] = []
         max_url_score = 0.0
@@ -602,8 +608,12 @@ def analyse(text: str) -> PhishResult:
                 se_risk, se_labels[:4],
             )
 
+        _sp.set_attribute("verdict",          "phishing" if is_phishing else ("se" if is_se else "clean"))
+        _sp.set_attribute("phish.url_count",  len(url_findings))
+        _sp.set_attribute("phish.max_score",  float(round(max_url_score, 4)))
+        _sp.set_attribute("se.risk",          float(se_risk))
         return result
 
-    except Exception as exc:
+     except Exception as exc:
         log.debug("PhishGuard.analyse error (fail-open): %s", exc)
         return PhishResult(elapsed_ms=round((time.perf_counter() - t0) * 1000, 3))

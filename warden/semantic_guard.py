@@ -18,6 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from warden.schemas import FlagType, RiskLevel, SemanticFlag
+from warden.telemetry import trace_stage as _trace_stage
 
 # ── Pattern banks ─────────────────────────────────────────────────────────────
 
@@ -565,44 +566,49 @@ class SemanticGuard:
     # ── Public API ────────────────────────────────────────────────────────
 
     def analyse(self, text: str) -> SemanticGuard.Result:
-        flags:      list[SemanticFlag] = []
-        risk_level: RiskLevel          = RiskLevel.LOW
+        with _trace_stage("SemanticGuard.analyse", {
+            "layer":        "semantic_guard",
+            "input.length": len(text),
+        }) as _sp:
+            flags:      list[SemanticFlag] = []
+            risk_level: RiskLevel          = RiskLevel.LOW
 
-        for rule in _RULES:
-            if rule.pattern.search(text):
-                flags.append(SemanticFlag(
-                    flag=rule.flag,
-                    score=rule.score,
-                    detail=rule.detail,
-                ))
-                risk_level = _max_risk(risk_level, rule.risk)
+            for rule in _RULES:
+                if rule.pattern.search(text):
+                    flags.append(SemanticFlag(
+                        flag=rule.flag,
+                        score=rule.score,
+                        detail=rule.detail,
+                    ))
+                    risk_level = _max_risk(risk_level, rule.risk)
 
-        # Run any subclass-defined custom checks
-        extra_flags, extra_risk = self._custom_checks(text)
-        flags.extend(extra_flags)
-        if extra_flags:
-            risk_level = _max_risk(risk_level, extra_risk)
+            # Run any subclass-defined custom checks
+            extra_flags, extra_risk = self._custom_checks(text)
+            flags.extend(extra_flags)
+            if extra_flags:
+                risk_level = _max_risk(risk_level, extra_risk)
 
-        # ── Compound risk escalation: 3+ MEDIUM signals → HIGH ───────────
-        # Multiple weak signals together indicate a sophisticated attack
-        # that uses lower-confidence techniques to stay under threshold.
-        if risk_level == RiskLevel.MEDIUM:
-            medium_count = sum(
-                1 for f in flags
-                if f.score < 0.85 and f.score >= 0.60
-            )
-            if medium_count >= 3:
-                risk_level = RiskLevel.HIGH
-                flags.append(SemanticFlag(
-                    flag=FlagType.POLICY_VIOLATION,
-                    score=0.70,
-                    detail=(
-                        f"Compound risk: {medium_count} MEDIUM-confidence signals "
-                        f"escalated to HIGH (possible multi-vector attack)."
-                    ),
-                ))
+            # ── Compound risk escalation: 3+ MEDIUM signals → HIGH ───────────
+            if risk_level == RiskLevel.MEDIUM:
+                medium_count = sum(
+                    1 for f in flags
+                    if f.score < 0.85 and f.score >= 0.60
+                )
+                if medium_count >= 3:
+                    risk_level = RiskLevel.HIGH
+                    flags.append(SemanticFlag(
+                        flag=FlagType.POLICY_VIOLATION,
+                        score=0.70,
+                        detail=(
+                            f"Compound risk: {medium_count} MEDIUM-confidence signals "
+                            f"escalated to HIGH (possible multi-vector attack)."
+                        ),
+                    ))
 
-        return SemanticGuard.Result(flags=flags, risk_level=risk_level)
+            _sp.set_attribute("layer",       "semantic_guard")
+            _sp.set_attribute("flags_count", len(flags))
+            _sp.set_attribute("risk_level",  risk_level.value)
+            return SemanticGuard.Result(flags=flags, risk_level=risk_level)
 
     # ── Extension hook ────────────────────────────────────────────────────
 

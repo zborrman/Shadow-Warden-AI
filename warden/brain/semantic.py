@@ -41,6 +41,7 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 
 from warden.brain.hyperbolic import max_hyperbolic_similarity
+from warden.telemetry import trace_stage as _trace_stage
 
 log = logging.getLogger("warden.brain.semantic")
 
@@ -370,12 +371,24 @@ class SemanticGuard:
                 max_score, self.threshold, _JAILBREAK_CORPUS[max_idx],
             )
 
-        return SemanticResult(
+        result = SemanticResult(
             is_jailbreak=flagged,
             score=round(max_score, 4),
             closest_example=_JAILBREAK_CORPUS[max_idx],
             threshold=self.threshold,
         )
+        return result
+
+    def _check_with_span(self, text: str) -> SemanticResult:
+        with _trace_stage("HyperbolicBrain.check", {
+            "layer":        "hyperbolic_brain",
+            "input.length": len(text),
+        }) as _sp:
+            result = self.check(text)
+            _sp.set_attribute("verdict",     "jailbreak" if result.is_jailbreak else "clean")
+            _sp.set_attribute("score",       result.score)
+            _sp.set_attribute("threshold",   result.threshold)
+            return result
 
     async def check_async(self, text: str) -> SemanticResult:
         """
@@ -391,7 +404,7 @@ class SemanticGuard:
             result = await brain_guard.check_async(text)
         """
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(_executor, self.check, text)
+        return await loop.run_in_executor(_executor, self._check_with_span, text)
 
     # ── Corpus management ─────────────────────────────────────────────────────
 

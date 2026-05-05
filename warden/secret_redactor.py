@@ -26,6 +26,7 @@ import re
 from dataclasses import dataclass, field
 
 from warden.schemas import RedactionPolicy, SecretFinding
+from warden.telemetry import trace_stage as _trace_stage
 
 # ── Pattern registry ──────────────────────────────────────────────────────────
 
@@ -398,6 +399,19 @@ class SecretRedactor:
         * ``MASKED`` — replace with partially-revealed tokens (last 4 chars).
         * ``RAW``    — detect only; return original text unchanged.
         """
+        with _trace_stage("SecretRedactor.redact", {
+            "layer":        "secret_redactor",
+            "input.length": len(text),
+            "policy":       policy.value,
+        }) as _sp:
+            return self._redact_inner(text, policy, _sp)
+
+    def _redact_inner(
+        self,
+        text: str,
+        policy: RedactionPolicy,
+        _sp: object,
+    ) -> "SecretRedactor.Result":
         findings: list[SecretFinding] = []
         # Maps (start, end) → original matched text; needed for MASKED calculation
         # when we apply replacements in reverse order.
@@ -467,4 +481,6 @@ class SecretRedactor:
         # Re-sort findings into document order for the caller
         findings.sort(key=lambda f: f.start)
 
+        _sp.set_attribute("secrets_found", len(findings))
+        _sp.set_attribute("verdict", "redacted" if findings else "clean")
         return SecretRedactor.Result(text=text, findings=findings)

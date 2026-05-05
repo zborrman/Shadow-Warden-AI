@@ -55,7 +55,7 @@ log = logging.getLogger("warden.telemetry")
 
 _ENABLED      = os.getenv("OTEL_ENABLED",                  "false").lower() == "true"
 _SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME",             "shadow-warden")
-_ENDPOINT     = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT",  "http://jaeger:4318")
+_ENDPOINT     = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT",  "http://otel-collector:4317")
 _SAMPLE_RATE  = float(os.getenv("OTEL_SAMPLE_RATE",       "1.0"))
 
 _tracer       = None
@@ -86,16 +86,28 @@ def setup_telemetry(app: Any = None) -> None:
 
     try:
         from opentelemetry import trace
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.resources import SERVICE_NAME, Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
         from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 
+        # Prefer gRPC exporter (OTel Collector); fall back to HTTP for local dev
+        try:
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                OTLPSpanExporter as GrpcExporter,
+            )
+            exporter = GrpcExporter(endpoint=_ENDPOINT, insecure=True)
+            log.info("OTel: using gRPC exporter → %s", _ENDPOINT)
+        except ImportError:
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+                OTLPSpanExporter as HttpExporter,
+            )
+            exporter = HttpExporter(endpoint=f"{_ENDPOINT}/v1/traces")
+            log.info("OTel: grpc exporter not available; using HTTP → %s/v1/traces", _ENDPOINT)
+
         resource = Resource.create({SERVICE_NAME: _SERVICE_NAME})
         sampler  = TraceIdRatioBased(_SAMPLE_RATE)
         provider = TracerProvider(resource=resource, sampler=sampler)
-        exporter = OTLPSpanExporter(endpoint=f"{_ENDPOINT}/v1/traces")
         provider.add_span_processor(BatchSpanProcessor(exporter))
         trace.set_tracer_provider(provider)
         _tracer = trace.get_tracer(_SERVICE_NAME)
@@ -116,7 +128,7 @@ def setup_telemetry(app: Any = None) -> None:
     except ImportError as exc:
         log.warning(
             "OpenTelemetry packages missing (%s) — tracing disabled. "
-            "Install: opentelemetry-sdk opentelemetry-exporter-otlp-proto-http "
+            "Install: opentelemetry-sdk opentelemetry-exporter-otlp-proto-grpc "
             "opentelemetry-instrumentation-fastapi",
             exc,
         )

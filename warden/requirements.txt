@@ -67,6 +67,7 @@ anthropic>=0.40.0
 # Install to enable Jaeger tracing across filter pipeline stages.
 opentelemetry-api>=1.27.0
 opentelemetry-sdk>=1.27.0
+opentelemetry-exporter-otlp-proto-grpc>=1.27.0
 opentelemetry-exporter-otlp-proto-http>=1.27.0
 opentelemetry-instrumentation-fastapi>=0.48b0
 

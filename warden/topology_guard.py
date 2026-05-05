@@ -32,6 +32,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from warden.telemetry import trace_stage as _trace_stage
+
 log = logging.getLogger("warden.topology_guard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -248,7 +250,8 @@ def scan(text: str) -> TopoResult:
     Fails open: any internal error returns is_noise=False.
     """
     t_start = time.perf_counter()
-    try:
+    with _trace_stage("TopologicalGatekeeper.analyse", {"input.length": len(text)}) as _sp:
+      try:
         if not text or len(text) < _TOPO_MIN_LEN:
             return TopoResult(
                 is_noise=False, noise_score=0.0, beta0=0.0, beta1=0.0,
@@ -282,6 +285,13 @@ def scan(text: str) -> TopoResult:
         is_noise = noise_score >= threshold
         elapsed  = round((time.perf_counter() - t_start) * 1000, 2)
 
+        _sp.set_attribute("layer",        "topology_gatekeeper")
+        _sp.set_attribute("verdict",      "noise" if is_noise else "clean")
+        _sp.set_attribute("score",        float(round(noise_score, 4)))
+        _sp.set_attribute("betti_0",      float(round(beta0, 4)))
+        _sp.set_attribute("betti_1",      float(round(beta1, 4)))
+        _sp.set_attribute("content_type", content_type)
+
         if is_noise:
             log.warning(
                 "Topological noise detected: score=%.3f β₀=%.3f β₁=%.3f "
@@ -305,7 +315,7 @@ def scan(text: str) -> TopoResult:
             elapsed_ms=elapsed,
         )
 
-    except Exception as exc:
+      except Exception as exc:
         log.debug("TopologyGuard.scan error (fail-open): %s", exc)
         return TopoResult(
             is_noise=False, noise_score=0.0, beta0=0.0, beta1=0.0,

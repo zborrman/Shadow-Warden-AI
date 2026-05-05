@@ -173,3 +173,42 @@ features:
   gdprAutoRetention:
     enabled: true
     retentionDays: 30
+
+# ── OpenTelemetry ──────────────────────────────────────────────────────────────
+otel:
+  enabled: false          # set to true to emit traces
+  collectorEndpoint: "http://otel-collector.monitoring:4317"
+  sampleRate: "1.0"       # 0.0–1.0; reduce to 0.1 in high-traffic prod
+  serviceName: "shadow-warden"
+
+# ── OTel Collector sidecar (optional — deploy separately or use existing) ──────
+otelCollector:
+  deploy: false           # true = deploy collector DaemonSet/Deployment in cluster
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.103.1"
+  config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+      memory_limiter:
+        limit_mib: 100
+        spike_limit_mib: 20
+        check_interval: 5s
+    exporters:
+      otlp/jaeger:
+        endpoint: jaeger.monitoring:4317
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp/jaeger]

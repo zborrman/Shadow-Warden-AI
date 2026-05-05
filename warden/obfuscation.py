@@ -28,6 +28,8 @@ import math
 import re
 from dataclasses import dataclass, field
 
+from warden.telemetry import trace_stage as _trace_stage
+
 # ── Unicode homoglyph map (common Cyrillic/Greek → Latin) ────────────────────
 
 _HOMOGLYPHS: dict[str, str] = {
@@ -381,34 +383,42 @@ def decode(text: str, _depth: int = 0) -> DecoderResult:
     Returns a DecoderResult with decoded content appended for downstream
     analysis.  The original text is never modified.
     """
-    layers: list[str] = []
-    decoded_parts: list[str] = []
+    _attrs = {"input.length": len(text), "layer": "obfuscation_decoder"} if _depth == 0 else None
+    with _trace_stage("ObfuscationDecoder.decode", _attrs) as _sp:
+        layers: list[str] = []
+        decoded_parts: list[str] = []
 
-    # Strip BiDi / invisible controls before any decoding pass.
-    # Analysis continues on the cleaned text; original is preserved for evidence.
-    clean_text, bidi_stripped, trojan_detected = strip_bidi(text)
-    analysis_text = clean_text if bidi_stripped else text
+        # Strip BiDi / invisible controls before any decoding pass.
+        # Analysis continues on the cleaned text; original is preserved for evidence.
+        clean_text, bidi_stripped, trojan_detected = strip_bidi(text)
+        analysis_text = clean_text if bidi_stripped else text
 
-    pass_layers, pass_parts = _decode_pass(analysis_text)
-    layers.extend(pass_layers)
-    decoded_parts.extend(pass_parts)
+        pass_layers, pass_parts = _decode_pass(analysis_text)
+        layers.extend(pass_layers)
+        decoded_parts.extend(pass_parts)
 
-    # Recursive multi-layer: decode each decoded segment up to _MAX_DECODE_DEPTH
-    if pass_parts and _depth < _MAX_DECODE_DEPTH:
-        for part in pass_parts:
-            inner = decode(part, _depth + 1)
-            if inner.has_obfuscation:
-                for layer in inner.layers_found:
-                    qualified = f"{layer}[nested]"
-                    if qualified not in layers:
-                        layers.append(qualified)
-                if inner.decoded_extra:
-                    decoded_parts.append(inner.decoded_extra)
+        # Recursive multi-layer: decode each decoded segment up to _MAX_DECODE_DEPTH
+        if pass_parts and _depth < _MAX_DECODE_DEPTH:
+            for part in pass_parts:
+                inner = decode(part, _depth + 1)
+                if inner.has_obfuscation:
+                    for layer in inner.layers_found:
+                        qualified = f"{layer}[nested]"
+                        if qualified not in layers:
+                            layers.append(qualified)
+                    if inner.decoded_extra:
+                        decoded_parts.append(inner.decoded_extra)
 
-    return DecoderResult(
-        original=text,
-        decoded_extra="\n".join(decoded_parts) if decoded_parts else "",
-        layers_found=layers,
-        bidi_stripped=bidi_stripped,
-        trojan_source_detected=trojan_detected,
-    )
+        result = DecoderResult(
+            original=text,
+            decoded_extra="\n".join(decoded_parts) if decoded_parts else "",
+            layers_found=layers,
+            bidi_stripped=bidi_stripped,
+            trojan_source_detected=trojan_detected,
+        )
+        if _depth == 0:
+            _sp.set_attribute("verdict",        "obfuscated" if result.has_obfuscation else "clean")
+            _sp.set_attribute("layers_found",   str(layers))
+            _sp.set_attribute("bidi_stripped",  bidi_stripped)
+            _sp.set_attribute("trojan_source",  trojan_detected)
+        return result

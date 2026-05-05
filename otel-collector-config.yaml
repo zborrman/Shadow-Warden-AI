@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Shadow Warden AI — OpenTelemetry Collector config
+#
+#  Pipeline:
+#    warden (gRPC :4317) → otel-collector → jaeger (:4317)
+#
+#  To add Prometheus metrics scraping or Loki log shipping, add the
+#  corresponding exporter here and wire it into the service pipeline.
+# ─────────────────────────────────────────────────────────────────────────────
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  memory_limiter:
+    limit_mib: 100
+    spike_limit_mib: 20
+    check_interval: 5s
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # Uncomment to also forward traces to Grafana Tempo
+  # otlp/tempo:
+  #   endpoint: tempo:4317
+  #   tls:
+  #     insecure: true
+
+  debug:
+    verbosity: normal
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+service:
+  pipelines:
+    traces:
+      receivers:  [otlp]
+      processors: [memory_limiter, batch]
+      exporters:  [otlp/jaeger]
+      # exporters: [otlp/jaeger, otlp/tempo]
+
+  telemetry:
+    logs:
+      level: warn
