@@ -2498,7 +2498,7 @@ def _ers_record(
                 "flags": [], "filtered_content": "Summarise the quarterly revenue report in three bullet points.",
                 "processing_ms": 4.1,
             }},
-        }}}},
+        }}}}},
     },
 )
 @_limiter.limit(_tenant_limit)
