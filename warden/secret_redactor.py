@@ -24,6 +24,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 from warden.schemas import RedactionPolicy, SecretFinding
 from warden.telemetry import trace_stage as _trace_stage
@@ -410,7 +411,7 @@ class SecretRedactor:
         self,
         text: str,
         policy: RedactionPolicy,
-        _sp: object,
+        _sp: Any,
     ) -> SecretRedactor.Result:
         findings: list[SecretFinding] = []
         # Maps (start, end) → original matched text; needed for MASKED calculation
