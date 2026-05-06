@@ -626,14 +626,26 @@ jobs:
           docker compose ps -q --status exited --status created 2>/dev/null \
             | xargs -r docker rm -f 2>/dev/null || true
 
-          # Force-rebuild admin and arq-worker without cache — their python:3.11-slim
-          # base layer is prone to cache corruption (wrong Alpine layer cached under
-          # the slim digest).  --no-cache guarantees a fresh pull from Docker Hub.
-          docker compose build --no-cache admin arq-worker 2>&1 | tail -5 || true
+          # Build all services in two passes to avoid corrupted-cache regression:
+          #
+          # Pass 1 — admin + arq-worker with --no-cache.
+          #   Their python:3.11-slim base layer is prone to BuildKit cache
+          #   corruption (wrong Alpine layer cached under the slim digest).
+          #   --no-cache forces a fresh pull; creates correct images.
+          #
+          # Pass 2 — remaining buildable services with normal cache (fast).
+          #   warden/analytics/portal/dashboard are unaffected by the slim
+          #   corruption (different base images or their own isolated layers).
+          #
+          # Then 'up --no-build' starts everything from the pre-built images —
+          # never touching the cache again, so the corruption can't re-enter.
+          echo "   building admin + arq-worker (no-cache)..."
+          docker compose build --no-cache admin arq-worker 2>&1 | tail -10
+          echo "   building warden analytics portal dashboard..."
+          docker compose build warden analytics portal dashboard 2>&1 | tail -10
 
-          # Use || true: proxy depends_on warden with service_started so compose
-          # never fails here — but guard against any other compose error.
-          docker compose up -d --build --remove-orphans || {
+          # Use --no-build: all images were just built above.
+          docker compose up -d --no-build --remove-orphans || {
             echo "── docker compose up failed — gateway logs ─────────────────"
             docker compose logs --tail 100 warden || true
             exit 1
