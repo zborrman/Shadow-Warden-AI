@@ -411,7 +411,7 @@ class SecretRedactor:
         text: str,
         policy: RedactionPolicy,
         _sp: object,
-    ) -> "SecretRedactor.Result":
+    ) -> SecretRedactor.Result:
         findings: list[SecretFinding] = []
         # Maps (start, end) → original matched text; needed for MASKED calculation
         # when we apply replacements in reverse order.

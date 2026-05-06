@@ -19,9 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-import time
 from datetime import UTC, datetime
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -108,7 +106,8 @@ async def purge_session(session_id: str) -> PurgeResult:
                         kept.append(line)
                 except Exception:
                     kept.append(line)
-            import tempfile, os as _os  # noqa: E401,PLC0415
+            import os as _os  # noqa: PLC0415
+            import tempfile  # noqa: PLC0415
             with tempfile.NamedTemporaryFile("w", dir=LOGS_PATH.parent, delete=False, suffix=".tmp") as f:
                 f.write("\n".join(kept) + ("\n" if kept else ""))
                 tmp = f.name
@@ -216,7 +215,8 @@ async def purge_tenant(tenant_id: str) -> PurgeResult:
                         kept.append(line)
                 except Exception:
                     kept.append(line)
-            import tempfile, os as _os  # noqa: E401,PLC0415
+            import os as _os  # noqa: PLC0415
+            import tempfile  # noqa: PLC0415
             with tempfile.NamedTemporaryFile("w", dir=LOGS_PATH.parent, delete=False, suffix=".tmp") as f:
                 f.write("\n".join(kept) + ("\n" if kept else ""))
                 tmp = f.name
@@ -229,7 +229,7 @@ async def purge_tenant(tenant_id: str) -> PurgeResult:
         from warden.cache import _get_client as _redis  # noqa: PLC0415
         r = _redis()
         if r:
-            for key in r.scan_iter(f"warden:ers:*"):
+            for key in r.scan_iter("warden:ers:*"):
                 r.delete(key)
     except Exception:
         pass

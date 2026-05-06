@@ -54,11 +54,11 @@ from warden.agent.scheduler import (
 from warden.workers.content_filter import moderate_post
 from warden.workers.cve_scanner import scan_cves
 from warden.workers.dunning import process_dunning
+from warden.workers.gdpr_retention import run_gdpr_retention
 from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
 )
-from warden.workers.gdpr_retention import run_gdpr_retention
 from warden.workers.settings_watcher import watch_config_drift
 from warden.workers.weekly_report import send_weekly_reports
 
