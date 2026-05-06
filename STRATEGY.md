@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 4.10 · Last updated 2026-05**
+**Version 4.13 · Last updated 2026-05-06**
 
 ---
 
@@ -15,6 +15,8 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - Agentic SOC automation (MasterAgent + SOVA)
 - Business Community document exchange (SEP + Obsidian integration)
 - Secrets Governance (multi-cloud vault lifecycle)
+- SOC Next.js Dashboard (real-time threat feed, filter sandbox, OTel traces)
+- Full OTel distributed tracing (per-layer spans, Jaeger, < 2ms overhead)
 
 **Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
 Enterprise AI teams deploying LLM-backed products.
@@ -65,6 +67,8 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 | Obsidian vault integration | ✅ | ❌ | ❌ | ❌ |
 | Multi-cloud secrets governance | ✅ | ❌ | ❌ | ❌ |
 | FraudScore (real-time risk) | ✅ | ❌ | ❌ | ❌ |
+| SOC Dashboard SPA (real-time feed) | ✅ | ❌ | ❌ | ❌ |
+| OTel distributed tracing (Jaeger) | ✅ | ❌ | ❌ | ❌ |
 | Open source core | ❌ (proprietary) | ✅ | ❌ | ✅ |
 
 **Key moats:**
@@ -93,7 +97,7 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 
 ### 4.3 SMB / Pro Channel
 - ROI calculator (IBM benchmarks) on pricing page
-- Dashboard SPA as free trial hook (live threat feed, no signup)
+- SOC Dashboard (`dash.shadow-warden-ai.com`) as free trial hook — live threat feed, filter sandbox, Jaeger traces, no signup required
 - Email Guard and File Scanner demonstrate immediate value before conversion
 
 ### 4.4 Enterprise Direct
@@ -171,7 +175,9 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 | Coverage gate regression | Block-fail CI at 75%; adversarial tests are informational only |
 | Obsidian API breaking change | Plugin targets minAppVersion 1.4.0; locked to stable API surface |
 | Multi-cloud vault connector auth changes | Abstract `VaultConnector` base class; each connector independently versioned |
+| OTel Collector breaking change | Pinned to `otel/opentelemetry-collector-contrib:0.103.1`; dashboard works without tracing |
+| Next.js breaking change | Dashboard pinned to `next@14.2.29`; standalone output means no runtime dep on Next.js CDN |
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v4.11 · 2026-05*
+*Strategy.md — Shadow Warden AI business strategy v4.13 · 2026-05-06*

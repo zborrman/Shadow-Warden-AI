@@ -172,14 +172,23 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/api/agent.py` | FastAPI router `/agent/sova` — query, clear session, trigger task |
 | `warden/testing/context.py` | SWFE FakeContext — unified fake activation via mock.patch, X-Simulation-ID isolation |
 | `warden/testing/fakes/` | SWFE fake layer — FakeAnthropicClient, FakeNvidiaClient, FakeS3Storage, FakeEvolutionEngine |
+| `warden/telemetry.py` | OTel TracerProvider, gRPC exporter, `trace_stage()` context manager (all 9 pipeline stages) |
+| `dashboard/` | Next.js 14.2 SOC Dashboard — App Router, TanStack Query, Recharts, Tailwind dark theme |
+| `dashboard/src/lib/api.ts` | API client — stats, events, event detail, threats, roi, compliance, health, filter |
+| `dashboard/src/app/(soc)/` | Route group — overview, events, events/[id], threats, sandbox, platform/metrics, platform/traces |
+| `dashboard/Dockerfile` | Multi-stage Node 20 Alpine build (deps → builder → runner), port 3002 |
+| `docker/Caddyfile` | Caddy v2 vhosts — api/app/analytics/landing/dash.shadow-warden-ai.com |
 | `warden/testing/scenarios/` | SWFE Scenario DSL — ScenarioRunner, ScenarioStep, build_core_scenarios(), YAML loader |
 | `docs/sla.md` | Formal SLA — Pro 99.9% / Enterprise 99.95% uptime, P99 < 50ms, incident response, credits |
 
 ## Build & Test Commands
 
 ```bash
-# Start all services
+# Start all services (including dashboard on port 3002)
 docker-compose up --build
+
+# Build dashboard separately (if not using compose)
+docker build -t shadow-warden-dashboard ./dashboard
 
 # Run tests locally (CPU-only torch required)
 pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -190,12 +199,15 @@ pytest warden/tests/ -v --tb=short -m "not adversarial and not slow"
 # Full coverage gate
 pytest warden/tests/ --tb=short -m "not adversarial" --cov=warden --cov-fail-under=75
 
-# Lint
+# Lint (ruff + mypy — must pass before merge)
 ruff check warden/ analytics/ --ignore E501
 mypy warden/ --ignore-missing-imports --no-strict-optional
 
 # Mutation testing (Linux/WSL/CI only — not supported on native Windows)
 mutmut run --no-progress
+
+# CI: force --no-cache pre-build for admin + arq-worker (prevents corrupted layer cache)
+docker compose build --no-cache admin arq-worker 2>&1 | tail -5 || true
 ```
 
 ## Environment Variables (test context)
@@ -212,6 +224,20 @@ DYNAMIC_RULES_PATH="/tmp/warden_test_dynamic_rules.json"
 STRICT_MODE="false"
 REDIS_URL="memory://"          # in-memory limiter; no Redis needed
 MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-only
+```
+
+OTel + dashboard env vars (production, in `/opt/shadow-warden/.env`):
+
+```
+OTEL_ENABLED=true                                          # activate distributed tracing
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317    # gRPC exporter endpoint
+OTEL_SERVICE_NAME=shadow-warden                            # Jaeger service label
+
+# Dashboard (dashboard/ service, port 3002)
+NEXT_PUBLIC_API_URL=https://api.shadow-warden-ai.com
+NEXT_PUBLIC_ANALYTICS_URL=https://api.shadow-warden-ai.com
+NEXT_PUBLIC_GRAFANA_URL=http://91.98.234.160:3000
+NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
 ```
 
 ## Design Constraints
@@ -240,6 +266,11 @@ MODEL_CACHE_DIR="/tmp/warden_test_models"  # default /warden/models is Docker-on
 - **WardenHealer is LLM-free on happy path**: all 4 checks are direct httpx calls to localhost:8001. On anomaly, `_llm_classify_incident()` calls Claude Haiku (`claude-haiku-4-5-20251001`) once per unique incident fingerprint and caches the remedy in SQLite `incident_recipes`. `sova_corpus_watchdog` delegates to `WardenHealer` — do not call `_run(task, ...)` from the watchdog.
 - **WardenHealer trend prediction**: `_check_trend_prediction()` uses OLS (`_linear_trend()`) over the last 12 bypass-rate samples (stored in SQLite `bypass_metrics`). Fires WARN action if predicted rate > `HEALER_BYPASS_THRESHOLD` (default 15%) while current ≤ threshold. Pure Python — no numpy dependency.
 - **PATROL_URLS env var**: comma-separated list of extra URLs for `sova_visual_patrol`.
+- **OTel is opt-in**: `OTEL_ENABLED=false` by default. When disabled, `trace_stage()` is a no-op context manager — zero overhead, no import errors. Never import OTel directly in pipeline code; always go through `warden.telemetry`.
+- **OTel span attributes must be GDPR-safe**: raw content, decoded text, PII, and secret values are prohibited on spans. Refer to Rule.md §21 for the full allowlist.
+- **Next.js 14.2 `next.config.mjs`** (not `.ts`): Next.js 14 does not support TypeScript config files. Use `.mjs` with JSDoc `/** @type */` annotation. `output: "standalone"` enables minimal Docker image (no Next.js CDN runtime dependency).
+- **Dashboard `public/` must exist at build time**: Dockerfile runner stage does `COPY --from=builder /app/public ./public` — if `public/` is empty or missing from git, Docker COPY fails. Keep `dashboard/public/.gitkeep` committed.
+- **Dashboard uses mock data until Block L-02**: `dashboard/src/app/(soc)/overview/page.tsx` and threats page use `placeholderData` from `@tanstack/react-query`. Wire real API endpoints after analytics REST adapter is built.
 - **_PatrolWeights**: Redis-backed per-URL failure weights for `sova_visual_patrol`. Decay × 0.85 on success, boost × 1.5 (cap 10) on failure. Key `sova:patrol_weights` (7-day TTL). Falls back to in-process dict when Redis unavailable. Patrol targets sorted descending by weight so frequently-failing routes always run first.
 - **ScenarioStep.smart_retry**: int field (default 0). When > 0, `ScenarioRunner._run_step()` retries the step up to that many extra times on failure. Final `failure_msg` is enriched with XAI causal-chain hint via `GET /xai/explain/{request_id}` (primary stage, verdict, score).
 - **MasterAgent task tokens**: every delegated sub-task carries HMAC-SHA256 token `(sub_agent:task_hash:ts:sig)`. `_verify_token()` is called before each sub-agent run — prevents cross-agent injection if a sub-agent is compromised.

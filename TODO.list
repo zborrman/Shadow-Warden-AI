@@ -1,6 +1,6 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               Shadow Warden AI — Project TODO List                         ║
-║               Version 4.10 · Updated 2026-05                               ║
+║               Version 4.13 · Updated 2026-05-06                            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 Priority legend:
@@ -97,7 +97,35 @@ Priority legend:
       → Confirm z-index doesn't conflict with iOS Safari bottom toolbar
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  4. INFRASTRUCTURE
+  4. BLOCK L — NEXT SPRINT (v4.13 → v4.14)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[!!!] DNS A record dash.shadow-warden-ai.com → 91.98.234.160
+      → Add in Cloudflare DNS dashboard
+      → SOC dashboard is live but unreachable until DNS propagates
+
+[!!]  Analytics API live endpoints wired into SOC dashboard
+      → dashboard/src/lib/api.ts calls real /analytics/* endpoints
+      → Replace mock data in overview/page.tsx and threats/page.tsx
+      → Requires warden/api/analytics_query.py REST adapter
+
+[!!]  Dashboard auth gate
+      → JWT or X-Api-Key header validation in dashboard Next.js middleware
+      → middleware.ts → validate against WARDEN_DASHBOARD_KEY env
+      → Return 401 / redirect to login for unauthenticated requests
+
+[!]   Dashboard → docker compose managed (not standalone docker run)
+      → Current: container started manually via docker run on server
+      → Target: `docker compose up dashboard` via CI autodeploy
+      → Requires SSH deploy script to pull + restart compose dashboard service
+
+[!]   OTel sample rate tuning for high-traffic prod
+      → Current: 1.0 (all traces sampled)
+      → Target: 0.1 for ALLOW verdicts; 1.0 for HIGH/BLOCK
+      → Tail-based sampling in OTel Collector config
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. INFRASTRUCTURE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [!]   Server backup automation
@@ -106,6 +134,11 @@ Priority legend:
       → Alert on backup failure via Slack webhook
 
 [!]   TimescaleDB compression policy for probe_results
+      → Compression already defined in migration 0010
+      → Verify add_compression_policy is running on production
+      → Check chunk sizes via timescaledb_information.chunks
+
+[ ]   TimescaleDB compression policy for probe_results
       → Compression already defined in migration 0010
       → Verify add_compression_policy is running on production
       → Check chunk sizes via timescaledb_information.chunks
@@ -142,7 +175,7 @@ Priority legend:
       → Document human oversight measures (Art. 14)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  6. DONE ✓ (v4.10 current)
+  6. DONE ✓ (v4.13 current)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [✓]  Core gateway — 9-stage pipeline (TDA, obfuscation, secrets, semantic, ML, causal, phish, ERS, decision)
@@ -169,6 +202,9 @@ Priority legend:
 [✓]  Shadow ban randomness — secrets.choice(), 30+ gaslight pool entries
 [✓]  CPT drift gate — rejects CausalArbiter CPT updates >25% from prior
 [✓]  Evolution regex gate — compile + timeout + nested-quantifier heuristic
+[✓]  OTel Distributed Tracing — TracerProvider, gRPC exporter, per-layer spans in all 9 stages, OTel Collector, Jaeger 1.58
+[✓]  SOC Next.js Dashboard — Next.js 14.2 App Router, TanStack Query, Recharts, Tailwind dark theme, 8 pages, Docker service, Caddy vhost
+[✓]  CI / Lint / Type Hardening — 7 ruff errors fixed, mypy attr-defined fixed, --no-cache pre-build, python3 -m pip, User-Agent probe header
 [✓]  CI — test matrix 3.11/3.12, lint, Docker smoke, mutation testing
 [✓]  Prometheus + Grafana SLO alerts (P99, 5xx, shadow ban rate, corpus drift)
 [✓]  SIEM integration — Splunk HEC + Elastic ECS

@@ -4,11 +4,11 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.11 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.13 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
-## Product Tiers — v4.11
+## Product Tiers — v4.13
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -28,6 +28,16 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 | MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v4.13
+
+| Feature | Description |
+|---------|-------------|
+| **OTel Distributed Tracing** | `warden/telemetry.py` — `TracerProvider` + gRPC OTLP exporter + `trace_stage()` context manager. Per-layer spans in all 9 pipeline stages (topology → decision) plus per-module inner spans in topology_guard, obfuscation, secret_redactor, semantic_guard, brain, phishing_guard. OTel Collector (`otel/opentelemetry-collector-contrib:0.103.1`) + Jaeger 1.58 pipeline. Activated via `OTEL_ENABLED=true`. Zero overhead when disabled (no-op context manager). GDPR-safe span attributes — raw content is never set on spans (see Rule.md §21). py-spy profiling script + k6 load harness in `scripts/profile_under_load.sh`. |
+| **SOC Next.js Dashboard** | `dashboard/` — Next.js 14.2 App Router SPA with TanStack Query v5, Recharts 2.12, Tailwind CSS dark custom theme (`surface.0-4` + `accent.*`), lucide-react icons. 8 pages: **Overview** (KPI cards + 24h area chart + verdict pie + ROI grid + compliance), **Events** (filter tabs + search + pagination + row click-through), **Event Detail** (9-stage pipeline timeline with scores), **Threats** (bar chart + radar chart + 14-day stacked trend), **Filter Sandbox** (live POST /filter harness with example prompts), **Platform Metrics** (4 Grafana iframe panels), **Platform Traces** (Jaeger iframe). Docker multi-stage build (Node 20 Alpine, `output: "standalone"`). Deployed at `dash.shadow-warden-ai.com` via Caddy vhost (pending DNS A record `→ 91.98.234.160`). |
+| **CI / Lint / Type Hardening** | 7 ruff errors fixed (F401 ×2, I001 ×3, F541, UP037) across `warden/api/gdpr.py` and `warden/workers/settings.py`. mypy `attr-defined` fixed in `secret_redactor._redact_inner` (`_sp: object → Any`). `admin/Dockerfile`: `pip install` → `python3 -m pip install` (PATH-resilient; fixes exit 127 in CI). `--no-cache` pre-build for `admin` + `arq-worker` in `ci.yml` (guards against corrupted BuildKit layer cache). Probe worker `User-Agent` header added (`ShadowWarden-UptimeProbe/1.0`) — bypasses Cloudflare Bot Fight Mode 403. |
 
 ---
 
@@ -172,7 +182,7 @@ Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`soverei
 
 ---
 
-### v4.13 — Enterprise Identity & Access _(Q1 2027)_
+### v4.14 — Enterprise Identity & Access _(Q1 2027)_
 
 | Feature | Description |
 |---------|-------------|

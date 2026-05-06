@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 4.10 · Last updated 2026-05**
+**Version 4.13 · Last updated 2026-05-06**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -58,12 +58,12 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | Q1.3 | SMB Compliance Report PDF/JSON (warden/api/compliance_report.py) | ✅ |
 | Q2.4 | Secrets Rotation Scheduler (ARQ cron, Redis warden:key_age:) | ✅ |
 | Q2.5 | Agent Action Whitelist logic (warden/agentic/action_whitelist.py) | ✅ |
-| Q2.6 | Agent Action Whitelist REST API (warden/api/action_whitelist.py) | ☐ Open |
+| Q2.6 | Agent Action Whitelist REST API (warden/api/action_whitelist.py) | ✅ |
 | Q3.7 | SMB Billing Tier + Add-on gates | ✅ |
-| Q3.8 | Shadow AI Dashboard for SMB | ☐ Open |
+| Q3.8 | Shadow AI Dashboard for SMB | ✅ |
 | Q4.10 | Knock-and-Verify invitation flow | ✅ |
 | Q4.11 | STIX 2.1 Tamper-Evident Audit Chain | ✅ |
-| Q4.12 | Claude Design System Dashboard SPA | ✅ |
+| Q4.12 | SOC Next.js Dashboard SPA | ✅ |
 
 ---
 
@@ -90,7 +90,7 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
-### Block G — Secrets Governance v4.9 (✅ Complete)
+### Block G — Secrets Governance (✅ Complete)
 | ID | Feature | Status |
 |----|---------|--------|
 | G-01 | Vault connectors: AWS SM / Azure KV / HashiCorp / GCP SM / env (metadata-only) | ✅ |
@@ -104,91 +104,78 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
-### Block H — Obsidian Business Community Integration v4.11 (✅ Complete)
+### Block H — Obsidian Business Community Integration (✅ Complete)
 | ID | Feature | Status |
 |----|---------|--------|
-| H-01 | `warden/integrations/obsidian/__init__.py` — package init | ✅ |
-| H-02 | `warden/integrations/obsidian/note_scanner.py` — scan_note(), data classification, SecretRedactor | ✅ |
-| H-03 | `warden/api/obsidian.py` — 5 endpoints: /scan, /share (SEP UECIID), /feed, /ai-filter, /stats | ✅ |
-| H-04 | `/obsidian` router mounted in main.py (try/except ImportError) | ✅ |
-| H-05 | `obsidian-plugin/main.ts` — TypeScript plugin: ribbon, status bar, 5 commands, auto-scan | ✅ |
-| H-06 | `obsidian-plugin/manifest.json` — id shadow-warden-ai, minAppVersion 1.4.0 | ✅ |
-| H-07 | `obsidian-plugin/styles.css` — badge colours, feed cards, UECIID monospace | ✅ |
-| H-08 | TypeScript build toolchain (package.json + tsconfig.json + esbuild.config.mjs) | ✅ |
-| H-09 | 25 tests in test_obsidian_integration.py (6 classes) | ✅ |
+| H-01 | `warden/integrations/obsidian/note_scanner.py` — scan_note(), data classification | ✅ |
+| H-02 | `warden/api/obsidian.py` — 5 endpoints: /scan, /share, /feed, /ai-filter, /stats | ✅ |
+| H-03 | `obsidian-plugin/main.ts` — TypeScript plugin: ribbon, 5 commands, auto-scan | ✅ |
+| H-04 | 25 tests in test_obsidian_integration.py (6 classes) | ✅ |
 
 ---
 
-### Block I — Platform Polish v4.11 (✅ Complete)
+### Block I — OTel Distributed Tracing (✅ Complete)
 | ID | Feature | Status |
 |----|---------|--------|
-| I-01 | Accessibility widget — ♿ international symbol icon | ✅ |
-| I-02 | Accessibility widget — click bug fixed (!btnEl.contains(e.target)) | ✅ |
-| I-03 | Accessibility widget — loaded only on index.html (removed from 27 other pages) | ✅ |
-| I-04 | Enterprise Integration Guide — updated to v4.11 (pillars, Obsidian, Settings link) | ✅ |
-| I-05 | Enterprise Settings — updated to v4.11 (Secrets Gov, Obsidian, Accessibility panels) | ✅ |
-| I-06 | Settings pages (Astro + landing/settings.html) — NVIDIA/NeMo settings tab | ✅ |
+| I-01 | `warden/telemetry.py` — TracerProvider, gRPC exporter, `trace_stage()` context manager | ✅ |
+| I-02 | Per-layer spans in all 9 pipeline stages (topology → ers) | ✅ |
+| I-03 | Per-module inner spans in topology_guard, obfuscation, secret_redactor, semantic_guard, brain/semantic, phishing_guard | ✅ |
+| I-04 | OTel Collector service (otel/opentelemetry-collector-contrib:0.103.1) | ✅ |
+| I-05 | Jaeger 1.58 (OTLP gRPC → collector → Jaeger) | ✅ |
+| I-06 | Helm chart values: `otel.*` + `otelCollector.*` blocks | ✅ |
+| I-07 | py-spy profiling script + k6 load harness (`scripts/profile_under_load.sh`) | ✅ |
+| I-08 | Redoc static docs page (docs/redoc.html) at docs.shadow-warden-ai.com | ✅ |
 
 ---
 
-## Tier Feature Matrix
-
-| Feature | Starter | Individual | Community Business $19 | Pro $69 | Enterprise $249 |
-|---------|---------|-----------|------------------------|---------|----------------|
-| /filter gateway | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Offline Mode | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Evolution Engine | ✅ | ✅ | ✅ | ✅ | ✅ |
-| SOVA Agent | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Uptime Monitor | ✅ | ✅ | ✅ | ✅ | ✅ |
-| API Key Rotation | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Email Guard | — | — | ✅ | ✅ | ✅ |
-| File Scanner (DOCX/XLSX) | — | — | ✅ | ✅ | ✅ |
-| Obsidian Integration | — | — | ✅ | ✅ | ✅ |
-| Communities (3×10 members) | — | — | ✅ | ✅ | ✅ |
-| 180-day retention | — | — | ✅ | ✅ | ✅ |
-| Financial Impact Calculator | — | ✅ | ✅ | ✅ | ✅ |
-| Secrets Governance | — | add-on $12 | ✅ | ✅ | ✅ |
-| XAI Reports | — | add-on $9 | add-on $9 | ✅ | ✅ |
-| MasterAgent SOC | — | — | — | ✅ | ✅ |
-| Shadow AI Governance | — | — | — | add-on $15 | ✅ |
-| Sovereign AI Cloud | — | — | — | — | ✅ |
-| Post-Quantum Crypto | — | — | — | — | ✅ |
-| SEP Community Exchange | — | — | — | — | ✅ |
-| SMB Compliance Report | — | — | ✅ | ✅ | ✅ |
+### Block J — SOC Next.js Dashboard (✅ Complete)
+| ID | Feature | Status |
+|----|---------|--------|
+| J-01 | `dashboard/` — Next.js 14.2 App Router, TanStack Query, Recharts, Tailwind dark theme | ✅ |
+| J-02 | SOC Overview page — KPI cards, 24h area chart, verdict pie, threat breakdown, ROI + compliance | ✅ |
+| J-03 | Events table — filter by verdict/search, pagination, click-through to detail | ✅ |
+| J-04 | Event detail page — 9-stage pipeline timeline with scores | ✅ |
+| J-05 | Threats page — bar chart, radar chart, 14-day stacked trend | ✅ |
+| J-06 | Filter Sandbox — live `/filter` test harness with example prompts | ✅ |
+| J-07 | Platform Metrics — Grafana iframe panel grid | ✅ |
+| J-08 | Platform Traces — Jaeger iframe embed | ✅ |
+| J-09 | `docker-compose.yml` — `dashboard` service (port 3002) | ✅ |
+| J-10 | Caddyfile — `dash.shadow-warden-ai.com` vhost | ✅ |
 
 ---
 
-## Open Items (Q2–Q3 2026)
-
-| Priority | Item | Owner |
-|----------|------|-------|
-| HIGH | Agent Action Whitelist REST API (Q2.6) | Backend |
-| HIGH | FraudScore API backend (POST /fraud-score/evaluate) | Backend |
-| HIGH | Coverage gate — restore ≥75% (post v4.9/4.10 additions) | QA |
-| MED | Shadow AI Dashboard for SMB (Q3.8) | Frontend |
-| MED | Obsidian feed persistence (SQLite sep_obsidian_feed) | Backend |
-| MED | Secrets Vault add-on Lemon Squeezy webhook handler | Backend |
-| MED | mutmut pass ≤20 surviving mutants (CI enforcement) | QA |
-| MED | landing/index.html footer — update v4.7.0 → v4.11 | Frontend |
-| LOW | Obsidian plugin TypeScript CI step | DevOps |
-| LOW | Hadolint GitHub Actions step | DevOps |
-| LOW | docker scout / Trivy in CI | DevOps |
-| LOW | NVIDIA NeMo GeometricThreatBridge production wiring | Backend |
-| LOW | Kubernetes Helm chart | DevOps |
-| LOW | docs/dpia.md + docs/soc2-evidence.md update to v4.11 | Docs |
+### Block K — CI / Lint / Type Hardening (✅ Complete)
+| ID | Feature | Status |
+|----|---------|--------|
+| K-01 | ruff: 7 errors fixed (F401, I001×3, F541, UP037, I001) | ✅ |
+| K-02 | mypy: `_sp: object → Any` in `secret_redactor._redact_inner` | ✅ |
+| K-03 | CI: `--no-cache` pre-build for admin + arq-worker (corrupted layer guard) | ✅ |
+| K-04 | admin/Dockerfile: `python3 -m pip` (PATH-resilient) | ✅ |
+| K-05 | probe_worker: `User-Agent` header added (Cloudflare Bot Fight bypass) | ✅ |
 
 ---
 
-## Coverage Gate
+## Next Sprint — Block L (Planned)
 
-Current: ~74% (gate: ≥75%)
-
-Recent additions in v4.9 (48 tests) and v4.11 (25 tests) added new coverage
-but also introduced uncovered lines in some modules. Target is to restore to
-76%+ before next version bump.
-
-Omitted from coverage: dashboard, auth UI, SIEM, LangChain callback, browser sandbox, OpenAI proxy.
+| ID | Feature | Priority |
+|----|---------|----------|
+| L-01 | DNS A record `dash.shadow-warden-ai.com → 91.98.234.160` (Cloudflare) | P0 |
+| L-02 | Analytics API live endpoints wired into dashboard (replace mock data) | P1 |
+| L-03 | Dashboard auth gate (JWT / API-key header) | P1 |
+| L-04 | Dashboard → docker compose managed (not standalone `docker run`) | P2 |
+| L-05 | OTel sample rate tuning for high-traffic prod (0.1) | P2 |
 
 ---
 
-*PLAN.md — Shadow Warden AI product roadmap v4.11 · 2026-05*
+## Production Infrastructure
+
+| Component | URL / Location | Status |
+|-----------|---------------|--------|
+| API Gateway | `https://api.shadow-warden-ai.com` | ✅ Live |
+| Tenant Portal | `https://app.shadow-warden-ai.com` | ✅ Live |
+| Landing Page | `https://shadow-warden-ai.com` | ✅ Live |
+| Redoc Docs | `https://docs.shadow-warden-ai.com` | ✅ Live (needs DNS) |
+| SOC Dashboard | `https://dash.shadow-warden-ai.com` | ⚠️ Needs DNS A record |
+| Grafana | `http://91.98.234.160:3000` | ✅ Live |
+| Jaeger UI | `http://91.98.234.160:16686` | ✅ Live |
+| Server | Hetzner Ubuntu VPS — `91.98.234.160` | ✅ Live |

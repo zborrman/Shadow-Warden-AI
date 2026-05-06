@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 4.10 · Proprietary · All rights reserved**
+> **Version 4.13 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
@@ -610,7 +610,45 @@ Score < 60 → blocks new vault registrations (configurable via `min_compliance_
 
 ---
 
-*Rule.md — Shadow Warden AI detection rules reference v4.11 · 2026-05*
+---
+
+## 21. OTel Span Attribute Rules
+
+**Files:** `warden/telemetry.py`, all 9 pipeline stages
+
+Every pipeline stage emits an OpenTelemetry span via `trace_stage()`. Span
+attribute naming is governed by these rules to ensure GDPR compliance and
+consistent Jaeger query patterns.
+
+### Allowed Span Attributes
+
+| Attribute | Type | Stage | Notes |
+|-----------|------|-------|-------|
+| `warden.stage` | string | All | Stage name (e.g. `topology`, `brain`) |
+| `warden.risk_level` | string | All | LOW/MEDIUM/HIGH/BLOCK |
+| `warden.allowed` | bool | Decision | Final verdict |
+| `warden.latency_ms` | float | All | Stage latency |
+| `warden.tenant_id` | string | All | Hashed — never plaintext |
+| `warden.secrets_found` | int | Redactor | Count only |
+| `warden.obfuscation_detected` | bool | Obfuscation | — |
+| `warden.flags` | string | Semantic | Comma-separated flag names |
+| `warden.ml_score` | float | Brain | 0.0–1.0 |
+| `warden.causal_prob` | float | Causal | 0.0–1.0 |
+| `warden.ers_score` | float | ERS | 0.0–1.0 |
+
+### Prohibited Span Attributes
+
+The following **must never** be set on any span — GDPR Art. 5(1)(c):
+
+- Raw or decoded content (`text`, `content`, `body`, `decoded`)
+- Secret values or patterns (`secret_value`, `matched_pattern`)
+- PII or any user-identifiable token
+
+Violation is caught by the GDPR no-content-log pre-commit hook (Hook §6).
+
+---
+
+*Rule.md — Shadow Warden AI detection rules reference v4.13 · 2026-05*
 
 ---
 

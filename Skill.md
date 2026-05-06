@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 4.10 · Proprietary · All rights reserved**
+**Version 4.13 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -35,14 +35,16 @@ surface, its observable outputs, and integration patterns.
 23. Skill 22 — SMB Compliance Report
 24. Skill 23 — Secrets Governance
 25. Skill 24 — Obsidian Community Integration
-26. Integration Recipes
-27. Configuration Quick-Reference
+26. Skill 25 — OTel Distributed Tracing
+27. Skill 26 — SOC Next.js Dashboard
+28. Integration Recipes
+29. Configuration Quick-Reference
 
 ---
 
 ## 1. Skill Taxonomy
 
-Shadow Warden AI is composed of 24 discrete, independently configurable skills.
+Shadow Warden AI is composed of 26 discrete, independently configurable skills.
 Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–24 are
 background, agentic, or on-demand capabilities.
 
@@ -69,6 +71,8 @@ Background / On-demand:
   Skill 17 · Uptime Monitor              (background probes)
   Skill 23 · Secrets Governance          (background + on-demand)
   Skill 24 · Obsidian Integration        (on-demand / plugin)
+  Skill 25 · OTel Distributed Tracing   (background, per-request)
+  Skill 26 · SOC Dashboard              (SPA, on-demand)
 ```
 
 | # | Skill | Latency | Offline | Tier |
@@ -97,6 +101,8 @@ Background / On-demand:
 | 22 | SMB Compliance Report | On-demand | ✅ | Community Business+ |
 | 23 | Secrets Governance | Background + On-demand | ✅ | Community Business+ or +$12/mo add-on |
 | 24 | Obsidian Integration | On-demand / plugin | ✅ | Community Business+ |
+| 25 | OTel Distributed Tracing | Per-request background | ✅ | All (opt-in) |
+| 26 | SOC Dashboard | SPA on-demand | ✅ | Pro+ |
 
 *PQC requires liboqs-python system package; classical fallback if unavailable.
 
@@ -862,7 +868,109 @@ shows last scan result (✅ / ⚠️ / 🔴). Ribbon icon toggles settings tab.
 
 ---
 
-## 26. Integration Recipes
+## 26. Skill 25 — OTel Distributed Tracing
+
+**Files:** `warden/telemetry.py`, all 9 pipeline stage modules
+
+Exports OpenTelemetry spans for every filter request — one root span per
+`POST /filter` call, with child spans per pipeline stage. Enables per-layer
+latency breakdown in Jaeger and root-cause pinpointing on latency regressions.
+
+### Architecture
+
+```
+POST /filter → root span "warden.filter"
+  ├── topology         span (warden.stage=topology)
+  ├── obfuscation      span (warden.stage=obfuscation)
+  ├── secrets          span (warden.stage=secrets)
+  ├── semantic_rules   span (warden.stage=semantic_rules)
+  ├── brain            span (warden.stage=brain)
+  ├── causal           span (warden.stage=causal)
+  ├── phish            span (warden.stage=phish)
+  ├── ers              span (warden.stage=ers)
+  └── decision         span (warden.stage=decision)
+```
+
+Spans flow: warden → OTel Collector → Jaeger (OTLP gRPC port 4317).
+
+### Configuration
+
+| Env Var | Default | Effect |
+|---------|---------|--------|
+| `OTEL_ENABLED` | `false` | Enable/disable all tracing |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | Collector gRPC endpoint |
+| `OTEL_SERVICE_NAME` | `shadow-warden` | Service label in Jaeger |
+
+### Activation on production
+
+```bash
+# Add to /opt/shadow-warden/.env
+OTEL_ENABLED=true
+# Restart warden service
+docker compose restart warden
+# Open Jaeger UI at http://91.98.234.160:16686
+```
+
+### GDPR compliance
+
+Span attributes **never** contain raw content, decoded text, or PII.
+Only metadata: stage name, risk level, latency ms, score floats, secret count.
+See Rule.md §21 for the complete allowed/prohibited attribute list.
+
+**Tier gate:** All tiers. Activated via `OTEL_ENABLED=true` env var.
+
+---
+
+## 27. Skill 26 — SOC Next.js Dashboard
+
+**Files:** `dashboard/` — Next.js 14.2 App Router SPA
+
+Real-time Security Operations Center dashboard. Connects to the warden API
+and analytics service to display live threat data, filter test results, and
+platform observability (Grafana + Jaeger iframes).
+
+### Pages
+
+| Route | Page | Data source |
+|-------|------|-------------|
+| `/overview` | KPI cards + 24h area chart + verdict pie + ROI | `/analytics/stats` |
+| `/events` | Paginated event table with verdict filter + search | `/analytics/events` |
+| `/events/[id]` | 9-stage pipeline timeline + scores | `/analytics/event/{id}` |
+| `/threats` | Bar chart + radar chart + 14-day trend | `/analytics/threats` |
+| `/sandbox` | Live filter test harness | `POST /filter` |
+| `/platform/metrics` | Grafana iframe panels | Grafana embed |
+| `/platform/traces` | Jaeger search iframe | Jaeger embed |
+
+### Tech stack
+
+- Next.js 14.2 App Router, TypeScript
+- TanStack Query v5 — polling every 30s, stale-while-revalidate
+- Recharts — AreaChart, BarChart, PieChart, RadarChart
+- Tailwind CSS dark theme (custom `surface.*` + `accent.*` palette)
+- lucide-react icons
+
+### Deployment
+
+```bash
+# Build image
+docker build -t shadow-warden-dashboard ./dashboard
+
+# Run (prod)
+docker run -d --name warden-dashboard \
+  --network shadow-warden_warden-net \
+  --network-alias dashboard \
+  -p 3002:3002 \
+  -e NEXT_PUBLIC_API_URL=https://api.shadow-warden-ai.com \
+  shadow-warden-dashboard
+
+# Caddy routes dash.shadow-warden-ai.com → dashboard:3002
+```
+
+**Tier gate:** Pro+ (requires auth gate — Block L-03).
+
+---
+
+## 28. Integration Recipes
 
 ### Filter a prompt before forwarding to an LLM
 
@@ -931,7 +1039,7 @@ print(f"Violations: {audit['violations']}")
 
 ---
 
-## 27. Configuration Quick-Reference
+## 29. Configuration Quick-Reference
 
 | Env Var | Default | Skill |
 |---------|---------|-------|

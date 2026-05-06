@@ -292,4 +292,88 @@ Add to `.pre-commit-config.yaml`:
 
 ---
 
-*Hook.md last updated: 2026-04 — Community Business (SMB) tier + Docker task audit*
+---
+
+## 8. CI / Lint / Type Hooks (v4.13)
+
+These hooks mirror the CI gate added in Block K.
+
+### Hook 8: check-ruff — Ruff Lint Guard
+
+Fails if `ruff check` produces any error in `warden/` or `analytics/`.
+
+```bash
+#!/usr/bin/env bash
+# .hooks/check-ruff.sh
+set -euo pipefail
+ruff check warden/ analytics/ --ignore E501
+```
+
+Add to `.pre-commit-config.yaml`:
+```yaml
+      - id: check-ruff
+        name: Ruff lint gate
+        language: script
+        entry: .hooks/check-ruff.sh
+        pass_filenames: false
+        files: ^(warden|analytics)/.*\.py$
+```
+
+---
+
+### Hook 9: check-mypy — Mypy Type Gate
+
+Fails if mypy reports `attr-defined` or `assignment` errors in `warden/`.
+
+```bash
+#!/usr/bin/env bash
+# .hooks/check-mypy.sh
+set -euo pipefail
+mypy warden/ --ignore-missing-imports --no-strict-optional
+```
+
+Add to `.pre-commit-config.yaml`:
+```yaml
+      - id: check-mypy
+        name: Mypy type gate
+        language: script
+        entry: .hooks/check-mypy.sh
+        pass_filenames: false
+        files: ^warden/.*\.py$
+```
+
+---
+
+### Hook 10: check-pip-resilience — python3 -m pip Enforcement
+
+Fails if any `Dockerfile*` in the diff uses bare `pip install` instead of
+`python3 -m pip install` — bare `pip` is not on PATH in some base images
+and causes CI exit 127.
+
+```bash
+#!/usr/bin/env bash
+# .hooks/check-pip-resilience.sh
+set -euo pipefail
+fail=0
+for df in "$@"; do
+  if grep -nE '^\s*RUN pip install' "$df"; then
+    echo "❌ $df: use 'python3 -m pip install' instead of bare 'pip install' (PATH-resilient)."
+    fail=1
+  fi
+done
+exit $fail
+```
+
+Add to `.pre-commit-config.yaml`:
+```yaml
+      - id: check-pip-resilience
+        name: python3 -m pip enforcement
+        language: script
+        entry: .hooks/check-pip-resilience.sh
+        files: (^|/)Dockerfile[^/]*$
+        types: [file]
+```
+
+---
+
+*Hook.md last updated: 2026-05-06 — v4.13: OTel, SOC Dashboard, CI/Lint/Type hardening*
