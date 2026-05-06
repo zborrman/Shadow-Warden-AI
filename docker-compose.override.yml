@@ -64,26 +64,10 @@ services:
           ignore:
             - __pycache__/
 
-  # Expose Streamlit dashboard directly in dev
+  # Next.js SOC dashboard — dev port override only (no image override)
   dashboard:
-    image: python:3.11-slim
-    container_name: warden-dashboard
-    command: >
-      bash -c "pip install -q streamlit watchdog &&
-               streamlit run /app/analytics/dashboard.py
-               --server.port=8501 --server.address=0.0.0.0
-               --server.fileWatcherType=watchdog"
     ports:
-      - "8501:8501"
-    volumes:
-      - ./warden:/app:ro
-      - ./data:/data:ro
-    environment:
-      - LOGS_PATH=/data/logs.json
-    networks:
-      - warden-net
-    profiles:
-      - dashboard
+      - "3002:3002"
 
   prometheus:
     ports:
