@@ -626,6 +626,11 @@ jobs:
           docker compose ps -q --status exited --status created 2>/dev/null \
             | xargs -r docker rm -f 2>/dev/null || true
 
+          # Force-rebuild admin and arq-worker without cache — their python:3.11-slim
+          # base layer is prone to cache corruption (wrong Alpine layer cached under
+          # the slim digest).  --no-cache guarantees a fresh pull from Docker Hub.
+          docker compose build --no-cache admin arq-worker 2>&1 | tail -5 || true
+
           # Use || true: proxy depends_on warden with service_started so compose
           # never fails here — but guard against any other compose error.
           docker compose up -d --build --remove-orphans || {

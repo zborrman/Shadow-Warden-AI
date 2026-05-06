@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /admin
 
 # Install only what the admin UI needs
-RUN pip install --no-cache-dir \
+RUN python3 -m pip install --no-cache-dir \
     streamlit==1.35.0 \
     requests==2.32.3 \
     pandas==2.2.2

@@ -34,6 +34,9 @@ _PROBE_TIMEOUT_S  = 10  # per-probe HTTP/TCP timeout
 
 # ── Probe implementations ─────────────────────────────────────────────────────
 
+_PROBE_HEADERS = {"User-Agent": "ShadowWarden-UptimeProbe/1.0 (+https://shadow-warden-ai.com)"}
+
+
 async def _probe_http(url: str) -> dict:
     t0 = time.perf_counter()
     try:
@@ -41,6 +44,7 @@ async def _probe_http(url: str) -> dict:
             follow_redirects=True,
             timeout=_PROBE_TIMEOUT_S,
             verify=True,
+            headers=_PROBE_HEADERS,
         ) as client:
             resp = await client.get(url)
         return {
