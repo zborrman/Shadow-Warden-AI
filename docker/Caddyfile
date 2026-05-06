@@ -107,6 +107,21 @@ analytics.shadow-warden-ai.com {
 	}
 }
 
+# ── SOC Dashboard (Next.js) ──────────────────────────────────────────────────
+dash.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
+
+	import security_headers
+
+	handle {
+		reverse_proxy dashboard:3002 {
+			header_up X-Real-IP        {remote_host}
+			header_up X-Forwarded-For  {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+}
+
 # ── API Documentation (Redoc) ────────────────────────────────────────────────
 docs.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
