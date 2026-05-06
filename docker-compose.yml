@@ -591,11 +591,45 @@ services:
         condition: service_started
     networks:
       - warden-net
+
+  # ── DASHBOARD (SOC Next.js UI) ──────────────────────────────────────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: warden-dashboard
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    expose:
+      - "3002"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.shadow-warden-ai.com}
+      - NEXT_PUBLIC_ANALYTICS_URL=http://analytics:8002
+      - NEXT_PUBLIC_GRAFANA_URL=http://grafana:3000
+      - NEXT_PUBLIC_JAEGER_URL=http://jaeger:16686
+    depends_on:
+      warden:
+        condition: service_started
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/', r => process.exit(r.statusCode < 400 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # ── JAEGER (distributed tracing) ────────────────────────────────────────────
   jaeger:
