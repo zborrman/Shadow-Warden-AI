@@ -52,7 +52,7 @@ export default function MetricsPage() {
             <p className="text-xs font-medium text-gray-300">Full Grafana Dashboard</p>
             <a href={base} target="_blank" rel="noreferrer"
               className="flex items-center gap-1 text-xs text-accent-blue hover:underline">
-              Open in Grafana <ExternalLink size=11 />
+              Open in Grafana <ExternalLink size={11} />
             </a>
           </div>
           <iframe
