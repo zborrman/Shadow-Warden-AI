@@ -167,7 +167,11 @@ class MISPConnector:
                 "MISP Threat Intelligence Sync\n\n"
                 + "\n".join(f"- {d}" for d in all_descriptions)
             )
-            added = await engine.synthesize_from_intel(pseudo_paper)
+            added = await engine.synthesize_from_intel(
+                pseudo_paper,
+                title="MISP Threat Intelligence Sync",
+                link="",
+            )
             result.examples_added = added if isinstance(added, int) else len(added or [])
         except Exception as exc:
             result.errors.append(f"Evolution Engine synthesis failed: {exc}")

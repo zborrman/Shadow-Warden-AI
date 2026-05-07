@@ -462,9 +462,9 @@ async def apply_community_recommendation(
     examples_added = 0
     if applied:
         try:
-            from warden.brain.evolve import EvolutionEngine  # noqa: PLC0415
-            engine = EvolutionEngine()
-            await engine.add_examples([{"text": example_text, "label": "jailbreak_attempt"}])
+            from warden import main as _warden_main  # noqa: PLC0415
+            if _warden_main._brain_guard is not None:
+                _warden_main._brain_guard.add_examples([example_text])
             examples_added = 1
             # Award reputation points to the source community
             try:
