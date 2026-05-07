@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 4.16 · Last updated 2026-05-07**
+**Version 4.19 · Last updated 2026-05-07**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -108,8 +108,8 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | ID | Feature | Status |
 |----|---------|--------|
 | H-01 | `warden/integrations/obsidian/note_scanner.py` — scan_note(), data classification | ✅ |
-| H-02 | `warden/api/obsidian.py` — 5 endpoints: /scan, /share, /feed, /ai-filter, /stats | ✅ |
-| H-03 | `obsidian-plugin/main.ts` — TypeScript plugin: ribbon, 5 commands, auto-scan | ✅ |
+| H-02 | `warden/api/obsidian.py` — 6 endpoints: /scan, /share, /feed, /ai-filter, /reputation, /stats | ✅ |
+| H-03 | `obsidian-plugin/main.ts` v4.10 — TypeScript plugin: ribbon, 5 commands, auto-scan | ✅ |
 | H-04 | 25 tests in test_obsidian_integration.py (6 classes) | ✅ |
 
 ---
@@ -186,15 +186,57 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
-## Next Sprint — Block N (Planned)
+### Block N — SOVA + Obsidian + Slack Unification (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| N-01 | `warden/api/slack_commands.py` — Slack slash command handler (HMAC-SHA256, Block Kit, /warden scan/status/approve) | ✅ |
+| N-02 | `warden/alerting.py` — `alert_obsidian_event()` Slack webhook (HIGH/BLOCK + share with UECIID) | ✅ |
+| N-03 | `warden/api/obsidian.py` — `GET /obsidian/reputation` endpoint | ✅ |
+| N-04 | `warden/agent/tools.py` — SOVA tools #43–45: scan_obsidian_note, get_obsidian_feed, share_obsidian_note | ✅ |
+| N-05 | `warden/agent/scheduler.py` — `sova_obsidian_watchdog()` ARQ job (every 4h) | ✅ |
+| N-06 | `warden/workers/settings.py` — registered sova_obsidian_watchdog cron | ✅ |
+| N-07 | Lint: 6 ruff + 2 mypy errors fixed (agent.py, reputation.py, misp.py) | ✅ |
+
+---
+
+### Block O — Obsidian Plugin v4.18 — Sidebar + Pre-validation (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| O-01 | `WardenSidebarView` — ItemView right panel: scan result, reputation, feed, queue badge | ✅ |
+| O-02 | `tagFrontmatter()` — async `processFrontMatter()` writes warden_* YAML tags | ✅ |
+| O-03 | `prevalidate()` — 8 client-side regex patterns, instant PII warning before API call | ✅ |
+| O-04 | `GET /obsidian/reputation` polling in sidebar (5min interval) | ✅ |
+| O-05 | `styles.css` — `.warden-sidebar-*`, `.warden-pipeline-dot`, `.warden-queue-row` | ✅ |
+
+---
+
+### Block P — Obsidian Plugin v4.19 — Dashboard + Queue + XAI + Scheduler (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| P-01 | `buildDashboardNote()` — 5 Dataview query blocks (high-risk, scanned, distribution, flagged, clean) | ✅ |
+| P-02 | `createSecurityDashboard()` — creates/opens `Warden Security Dashboard.md` | ✅ |
+| P-03 | `PublishQueueItem` offline queue — `enqueueShare()`, `flushPublishQueue()`, `loadData()`/`saveData()` | ✅ |
+| P-04 | Sidebar queue badge + Flush button; Settings tab queue section + Flush button | ✅ |
+| P-05 | `PipelineStage` + `buildPipelineStages()` — 4-stage XAI viz derived from ScanResult | ✅ |
+| P-06 | `verdictColor()` — hex mapping; modal table + sidebar mini colored dots | ✅ |
+| P-07 | `scheduledScanEnabled` + `scheduledScanIntervalHours` — `startScheduledScan()` via setInterval | ✅ |
+| P-08 | `manifest.json` version `1.0.0 → 4.19.0` | ✅ |
+| P-09 | TypeScript compiles clean (`tsc --noEmit`) | ✅ |
+
+---
+
+## Next Sprint — Block Q (Planned)
 
 | ID | Feature | Priority |
 |----|---------|----------|
-| N-01 | DNS A record `dash.shadow-warden-ai.com → 91.98.234.160` (Cloudflare) | P0 |
-| N-02 | Analytics API live endpoints wired into dashboard (replace mock data) | P1 |
-| N-03 | `TRUSTED_ENTRY +3` reputation cron — 30-day no-report entries auto-awarded | P2 |
-| N-04 | `SEARCH_HIT +1` reputation — award on `search_community_feed` result match | P2 |
-| N-05 | MISP syslog bridge — route MISP ZMQ feed into Shadow Warden syslog sink | P3 |
+| Q-01 | DNS A record `dash.shadow-warden-ai.com → 91.98.234.160` (Cloudflare) | P0 |
+| Q-02 | Analytics API live endpoints wired into dashboard (replace mock data) | P1 |
+| Q-03 | `TRUSTED_ENTRY +3` reputation cron — 30-day no-report entries auto-awarded | P2 |
+| Q-04 | `SEARCH_HIT +1` reputation — award on `search_community_feed` result match | P2 |
+| Q-05 | MISP syslog bridge — route MISP ZMQ feed into Shadow Warden syslog sink | P3 |
 
 ---
 

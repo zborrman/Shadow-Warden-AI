@@ -4,11 +4,11 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.16 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.19 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
-## Product Tiers — v4.16
+## Product Tiers — v4.19
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -28,6 +28,40 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 | MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v4.19
+
+| Feature | Description |
+|---------|-------------|
+| **Obsidian Plugin v4.19** | `obsidian-plugin/main.ts` — 4 new capabilities: **Dataview Dashboard** (`createSecurityDashboard()` command — generates `Warden Security Dashboard.md` with 5 Dataview query blocks: high-risk notes, all scanned, data-class distribution, flagged notes, clean notes); **Offline Publish Queue** (`PublishQueueItem` interface, `enqueueShare()` on network failure, `flushPublishQueue()` retries on reconnect, sidebar badge + Flush button, persisted via `loadData()`/`saveData()`); **XAI Pipeline Visualization** (`PipelineStage` + `buildPipelineStages()` derives 4 stages from scan response — SecretRedactor → DataClassification → SemanticGuard → RiskDecision; modal table + sidebar mini colored dots with `verdictColor()` hex); **Scan Scheduler** (`scheduledScanEnabled` + `scheduledScanIntervalHours` settings, `startScheduledScan()` via `setInterval`, full Settings tab section). TypeScript compiles clean (`tsc --noEmit`). |
+| **Plugin version** | `manifest.json` version bumped `1.0.0 → 4.19.0`. |
+
+---
+
+## What's New in v4.18
+
+| Feature | Description |
+|---------|-------------|
+| **Obsidian Sidebar Panel** | `WardenSidebarView extends ItemView` — persistent right-panel sidebar registered via `registerView()`. Shows: live scan result for active note (filename, risk badge, secrets/flags, pipeline dots), community reputation (badge emoji + points + tier), community feed (last 5 entries from `/obsidian/feed`), scan/share quick-action buttons, offline queue badge. Activated via ribbon icon or `activateSidebar()`. Tracks active note via `active-leaf-change` event. Auto-refreshes reputation every 5 minutes. |
+| **Frontmatter Auto-Tagging** | `tagFrontmatter(file, result)` uses `processFrontMatter()` async API to write `warden_data_class`, `warden_risk`, `warden_flags`, `warden_scanned` into note YAML — enables Dataview queries. Fires on every scan (manual + auto-scan on modify + vault batch). Graceful fallback for pre-0.16 Obsidian. |
+| **Local PII Pre-Validation** | `prevalidate(content)` checks 8 client-side regex patterns (email, phone, SSN, credit card, API key, private key, password, secret keyword) before any network call. Instant red warning banner in `ScanResultModal` listing detected PII types — no round-trip needed. |
+| **Reputation Endpoint** | `GET /obsidian/reputation` — returns current tenant badge/points/entry_count from `warden.communities.reputation`. Sidebar polls every 5 min; displayed as emoji badge with animated transition. |
+| **Sidebar CSS** | `styles.css` extended with `.warden-sidebar-*`, `.warden-pipeline-dot`, `.warden-queue-row`, `.warden-reputation-row` classes. |
+
+---
+
+## What's New in v4.17
+
+| Feature | Description |
+|---------|-------------|
+| **Slack Slash Command Handler** | `warden/api/slack_commands.py` — `POST /slack/command` with HMAC-SHA256 signature verification (`X-Slack-Request-Timestamp` + `X-Slack-Signature`, 300s replay window). Commands: `/warden scan <text>` (calls `/filter`), `/warden status` (calls `/health`), `/warden approve <token>` (resolves MasterAgent approval). Responds with Block Kit JSON (`response_type: ephemeral`). Mounted on FastAPI app in `warden/main.py`. |
+| **Obsidian Slack Alerts** | `warden/alerting.py` — new `alert_obsidian_event()`: fires Slack webhook on HIGH/BLOCK scan (`🔴`/`🚨`) and on successful note share (📒 with UECIID). Called as `BackgroundTasks` from `/obsidian/scan` and `/obsidian/share`. GDPR-compliant: filename/risk/flags/data_class only — no note content. |
+| **SOVA Obsidian Tools (#43–45)** | `warden/agent/tools.py` — `scan_obsidian_note` (#43): POST to `/obsidian/scan`, returns full risk result. `get_obsidian_feed` (#44): GET `/obsidian/feed`, returns paginated entries. `share_obsidian_note` (#45): POST to `/obsidian/share`, registers UECIID. All registered in `TOOLS` schemas + `TOOL_HANDLERS` dispatch table. |
+| **Obsidian Vault Watchdog** | `warden/agent/scheduler.py` — `sova_obsidian_watchdog()` ARQ job: every 4 hours, fetches community feed, flags CLASSIFIED/PHI entries and high-volume days (≥15 entries), sends Slack alert. Registered in `warden/workers/settings.py` as `cron(sova_obsidian_watchdog, hour={0,4,8,12,16,20}, minute=45, timeout=60)`. |
+| **SOVA Morning Brief extended** | `sova_morning_brief` task string extended with step 7: Obsidian vault digest via `get_obsidian_feed`. |
+| **Lint + Type fixes** | `warden/api/agent.py` — 6 ruff errors fixed (I001, SIM118→SIM401, E401, UP035, UP042). 2 mypy errors fixed: `synthesize_from_intel(source, title, link)` call in `misp.py`; `_brain_guard.add_examples()` via lazy `warden.main` import in `agent.py`. `warden/communities/reputation.py` — `from collections.abc import Generator`, `class Badge(StrEnum)`. |
 
 ---
 

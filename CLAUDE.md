@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 4.13 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.19 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 

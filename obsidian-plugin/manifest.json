@@ -1,9 +1,9 @@
 {
   "id": "shadow-warden-ai",
   "name": "Shadow Warden AI",
-  "version": "1.0.0",
+  "version": "4.19.0",
   "minAppVersion": "1.4.0",
-  "description": "Business Community integration — scan notes for secrets/PII, share to community via SEP, filter AI prompts. Powered by Shadow Warden AI.",
+  "description": "Business Community integration — scan notes for secrets/PII, share to community via SEP, filter AI prompts, offline queue, Dataview dashboard, XAI pipeline viz. Powered by Shadow Warden AI.",
   "author": "Shadow Warden AI",
   "authorUrl": "https://shadow-warden-ai.com",
   "isDesktopOnly": false
