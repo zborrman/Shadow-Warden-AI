@@ -81,10 +81,12 @@ async def sova_morning_brief(ctx: dict) -> dict:
 
 async def sova_threat_sync(ctx: dict) -> dict:
     """
-    Every 6 hours — refresh threat intelligence and synthesize new attacks.
+    Every 6 hours — refresh threat intelligence, synthesize new attacks,
+    and cross-reference the community knowledge base.
 
     Triggers OSV CVE scan + ArXiv refresh. If new high-severity items
-    found, alerts Slack immediately.
+    found, alerts Slack immediately. Then searches the community feed for
+    matching signatures and logs recommendations.
     """
     log.info("sova: threat sync starting [%s]", _ts())
 
@@ -99,7 +101,57 @@ async def sova_threat_sync(ctx: dict) -> dict:
 
     response = await _run(task, session_id="sched-threat-sync")
     log.info("sova: threat sync complete (%d chars)", len(response))
-    return {"status": "ok", "ts": _ts(), "chars": len(response)}
+
+    # ── Community knowledge cross-reference ───────────────────────────────────
+    # Search the community feed for jailbreak/injection/exfiltration signatures
+    # that other tenants have already published and logged recommendations for.
+    community_matches: list[dict] = []
+    import os  # noqa: PLC0415
+    from warden.agent.tools import (  # noqa: PLC0415
+        get_community_recommendations,
+        search_community_feed,
+    )
+    tenant_id = os.getenv("DEFAULT_TENANT_ID", "default")
+    keywords = ["jailbreak", "prompt injection", "exfiltration", "adversarial"]
+    for kw in keywords:
+        try:
+            feed = await search_community_feed(query=kw, limit=3, tenant_id=tenant_id)
+            hits = feed.get("results", [])
+            if hits:
+                recs = await get_community_recommendations(
+                    incident_type=kw, risk_level="HIGH", tenant_id=tenant_id
+                )
+                community_matches.append({
+                    "keyword":         kw,
+                    "hits":            len(hits),
+                    "top_ueciid":      hits[0].get("ueciid") if hits else None,
+                    "recommendations": recs.get("recommendations", [])[:2],
+                    "source":          recs.get("source", "mitre_fallback"),
+                })
+                log.info("threat sync: community feed '%s' → %d hits, recs=%s",
+                         kw, len(hits), recs.get("source"))
+        except Exception as exc:
+            log.debug("threat sync: community search '%s' failed: %s", kw, exc)
+
+    if community_matches:
+        lines = []
+        for m in community_matches:
+            rec_text = "; ".join(m["recommendations"]) or "—"
+            lines.append(
+                f"• *{m['keyword']}*: {m['hits']} community entries — {rec_text}"
+            )
+        await _slack(
+            f"*SOVA Community Threat Intel* [{_ts()}]\n"
+            + "\n".join(lines)
+            + f"\n_Source: community feed × {len(community_matches)} keywords_"
+        )
+
+    return {
+        "status":            "ok",
+        "ts":                _ts(),
+        "chars":             len(response),
+        "community_matches": len(community_matches),
+    }
 
 
 async def sova_rotation_check(ctx: dict) -> dict:

@@ -76,6 +76,26 @@ class ApprovalResponse(BaseModel):
     detail:   str = ""
 
 
+class CommunityLookupRequest(BaseModel):
+    query:        str  = Field(..., min_length=1, max_length=500,
+                               description="Search query — threat name, CVE ID, attack type, etc.")
+    tenant_id:    str  = Field("default", description="Tenant context for tool calls")
+    auto_publish: bool = Field(False,
+                               description="If True, publish the lookup result to the community feed")
+    risk_level:   str  = Field("HIGH", pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$")
+
+
+class CommunityLookupResponse(BaseModel):
+    query:           str
+    total:           int
+    results:         list[dict]
+    recommendations: list[str]
+    source:          str
+    published:       bool
+    ueciid:          str | None = None
+    latency_ms:      float
+
+
 AuthDep = Depends(require_api_key)
 
 
@@ -128,13 +148,14 @@ async def clear_session(session_id: str, auth: AuthResult = AuthDep) -> None:
 
 
 _MANUAL_TASKS = {
-    "morning-brief":  "sova_morning_brief",
-    "threat-sync":    "sova_threat_sync",
-    "rotation-check": "sova_rotation_check",
-    "sla-report":     "sova_sla_report",
-    "upgrade-scan":   "sova_upgrade_scan",
-    "corpus-watchdog": "sova_corpus_watchdog",
-    "visual-patrol":  "sova_visual_patrol",
+    "morning-brief":    "sova_morning_brief",
+    "threat-sync":      "sova_threat_sync",
+    "rotation-check":   "sova_rotation_check",
+    "sla-report":       "sova_sla_report",
+    "upgrade-scan":     "sova_upgrade_scan",
+    "corpus-watchdog":  "sova_corpus_watchdog",
+    "visual-patrol":    "sova_visual_patrol",
+    "community-lookup": "sova_community_watchdog",
 }
 
 
@@ -281,4 +302,71 @@ async def get_approval(
         resolved = False,
         approved = None,
         detail   = f"Pending approval for agent={record.get('action')}. Context: {record.get('context', '')[:200]}",
+    )
+
+
+# ── Community Intelligence endpoint ──────────────────────────────────────────
+
+@router.post(
+    "/sova/community/lookup",
+    response_model=CommunityLookupResponse,
+    summary="Search community threat feed and get mitigation recommendations",
+)
+async def community_lookup(
+    body: CommunityLookupRequest,
+    auth: AuthResult = AuthDep,
+) -> CommunityLookupResponse:
+    """
+    Search the SEP community feed for threat signatures and retrieve
+    actionable recommendations from the community knowledge base.
+
+    Optionally publishes the lookup as a new community entry so other
+    tenants benefit from the intelligence (`auto_publish=true`).
+
+    Example:
+    ```json
+    { "query": "new jailbreak", "auto_publish": false }
+    ```
+    """
+    from warden.agent.tools import (
+        get_community_recommendations,
+        publish_to_community,
+        search_community_feed,
+    )
+
+    t0 = time.perf_counter()
+
+    feed = await search_community_feed(
+        query=body.query, limit=10, tenant_id=body.tenant_id
+    )
+    results = feed.get("results", [])
+
+    recs = await get_community_recommendations(
+        incident_type=body.query,
+        risk_level=body.risk_level,
+        tenant_id=body.tenant_id,
+    )
+
+    ueciid: str | None = None
+    published = False
+    if body.auto_publish:
+        pub = await publish_to_community(
+            verdict="FLAG",
+            rule_id=f"community_lookup:{body.query[:40]}",
+            risk_level=body.risk_level,
+            evidence_summary=f"Community lookup: {body.query}",
+            tenant_id=body.tenant_id,
+        )
+        published = pub.get("published", False)
+        ueciid = pub.get("ueciid")
+
+    return CommunityLookupResponse(
+        query=body.query,
+        total=len(results),
+        results=results,
+        recommendations=recs.get("recommendations", []),
+        source=recs.get("source", "mitre_fallback"),
+        published=published,
+        ueciid=ueciid,
+        latency_ms=round((time.perf_counter() - t0) * 1000, 1),
     )

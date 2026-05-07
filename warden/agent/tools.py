@@ -665,6 +665,183 @@ async def post_community_announcement(
         return {"posted": False, "error": str(exc)}
 
 
+# ── SEP Community Intelligence tools (#38 – #40) ─────────────────────────────
+
+async def search_community_feed(
+    query: str,
+    limit: int = 5,
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #38 — Semantic search over the SEP community incident feed.
+
+    Searches the UECIID index by keyword/display-name match.  Returns the top-N
+    incident records with UECIID, data_class, jurisdiction, and metadata so SOVA
+    can determine whether a new threat has already been documented by peer
+    communities before escalating or publishing a duplicate entry.
+    """
+    try:
+        results = await _get(
+            "/sep/ueciids/search",
+            tenant=tenant_id,
+            params={"q": query, "limit": limit},
+        )
+        entries = results if isinstance(results, list) else results.get("results", [])
+        return {
+            "query":   query,
+            "total":   len(entries),
+            "results": [
+                {
+                    "ueciid":       e.get("ueciid"),
+                    "display_name": e.get("display_name"),
+                    "data_class":   e.get("data_class"),
+                    "jurisdiction": e.get("jurisdiction"),
+                    "created_at":   e.get("created_at"),
+                    "metadata":     e.get("metadata", {}),
+                }
+                for e in entries[:limit]
+            ],
+        }
+    except Exception as exc:
+        log.warning("search_community_feed error: %s", exc)
+        return {"query": query, "total": 0, "results": [], "error": str(exc)}
+
+
+async def publish_to_community(
+    verdict: str,
+    rule_id: str,
+    risk_level: str,
+    evidence_summary: str,
+    tenant_id: str = "default",
+    community_id: str = "",
+    **_,
+) -> dict:
+    """
+    Tool #39 — Publish an anonymized security incident to the SEP hub.
+
+    Workflow:
+      1. Validate evidence_summary through /filter — abort if PII/secrets detected.
+      2. Register a new UECIID with incident metadata (verdict, rule_id, risk_level).
+      3. Return the UECIID so the caller can link it in STIX audit or Slack alerts.
+
+    evidence_summary must already be anonymized (_anonymize_for_evolution output).
+    PII or secrets will cause an immediate abort before any SEP write.
+    """
+    # Step 1: PII gate — confirm evidence is clean before any SEP write
+    try:
+        check = await _post(
+            "/filter",
+            {"content": evidence_summary, "tenant_id": tenant_id},
+            tenant=tenant_id,
+        )
+        if check.get("secrets_found"):
+            return {
+                "published":    False,
+                "error":        "Evidence contains secrets/PII — redact before publishing",
+                "secrets_found": check["secrets_found"],
+            }
+    except Exception as exc:
+        log.warning("publish_to_community: filter gate error: %s", exc)
+        return {"published": False, "error": f"PII filter check failed: {exc}"}
+
+    # Step 2: register UECIID
+    display_name = f"[{risk_level}] {rule_id} — {verdict}"
+    try:
+        reg = await _post(
+            "/sep/ueciids",
+            {
+                "display_name": display_name,
+                "data_class":   "GENERAL",
+                "metadata": {
+                    "verdict":    verdict,
+                    "rule_id":    rule_id,
+                    "risk_level": risk_level,
+                    "evidence":   evidence_summary[:500],
+                    "publisher":  "sova",
+                },
+            },
+            tenant=tenant_id,
+        )
+    except Exception as exc:
+        log.warning("publish_to_community: register error: %s", exc)
+        return {"published": False, "error": f"UECIID registration failed: {exc}"}
+
+    return {
+        "published":    True,
+        "ueciid":       reg.get("ueciid"),
+        "display_name": display_name,
+        "risk_level":   risk_level,
+        "verdict":      verdict,
+        "community_id": community_id or tenant_id,
+    }
+
+
+def _mitre_fallback(incident_type: str, risk_level: str) -> list[str]:
+    """Built-in MITRE ATT&CK-based playbook when community intel is unavailable."""
+    recs = [
+        f"[MITRE T1190] Review prompt-injection vectors for: {incident_type}",
+        "Isolate affected tenant and rotate API keys via rotate_community_key",
+        "Add confirmed attack to Evolution Engine corpus via /api/evolution/add-examples",
+        f"Escalate to {'MasterAgent' if risk_level == 'HIGH' else 'SOVA'} for root-cause analysis",
+    ]
+    ltype = incident_type.lower()
+    if "jailbreak" in ltype:
+        recs.insert(0, "[MITRE T1059.007] Update SemanticGuard patterns and HyperbolicBrain corpus")
+    elif "secret" in ltype or "pii" in ltype:
+        recs.insert(0, "[MITRE T1552] Verify SecretRedactor patterns cover the leaked credential type")
+    elif "phish" in ltype:
+        recs.insert(0, "[MITRE T1566] Update PhishGuard domain blocklist and SE-Arbiter thresholds")
+    elif "injection" in ltype:
+        recs.insert(0, "[MITRE T1055] Check AgentMonitor INJECTION_CHAIN detection and tool allowlist")
+    return recs
+
+
+async def get_community_recommendations(
+    incident_type: str,
+    risk_level: str = "HIGH",
+    tenant_id: str = "default",
+    community_id: str = "",
+    **_,
+) -> dict:
+    """
+    Tool #40 — Get recommended playbook actions from community intelligence.
+
+    Queries CommunityIntelReport for the tenant/community and filters recommendations
+    relevant to the incident_type keyword.  Falls back to built-in MITRE ATT&CK
+    playbook when community intel is unavailable or returns no relevant items.
+    """
+    target = community_id or tenant_id
+    try:
+        report = await _get(f"/community-intel/{target}/report", tenant=tenant_id)
+        all_recs = report.get("recommendations", [])
+        ltype = incident_type.lower()
+        relevant = [r for r in all_recs if ltype in r.lower() or risk_level.lower() in r.lower()]
+        if not relevant:
+            relevant = all_recs[:5] or _mitre_fallback(incident_type, risk_level)
+
+        return {
+            "incident_type":   incident_type,
+            "risk_level":      risk_level,
+            "recommendations": relevant,
+            "community_risk":  report.get("risk_label", "UNKNOWN"),
+            "risk_score":      report.get("risk_score", 0),
+            "community_id":    target,
+            "source":          "community_intel",
+        }
+    except Exception as exc:
+        log.warning("get_community_recommendations error: %s", exc)
+        return {
+            "incident_type":   incident_type,
+            "risk_level":      risk_level,
+            "recommendations": _mitre_fallback(incident_type, risk_level),
+            "community_id":    target,
+            "source":          "mitre_fallback",
+            "note":            "Community intel unavailable — using built-in MITRE playbook",
+            "error":           str(exc),
+        }
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -1132,6 +1309,70 @@ TOOLS: list[dict] = [
             "required": ["author_id", "content"],
         },
     },
+
+    # ── SEP Community Intelligence #38–#40 ────────────────────────────────────
+    {
+        "name": "search_community_feed",
+        "description": (
+            "Search the SEP community incident feed by keyword. "
+            "Returns the top-N relevant incident records (UECIID, data_class, jurisdiction, metadata). "
+            "Use before publish_to_community to avoid duplicate entries — check if other "
+            "communities have already documented this threat pattern. "
+            "Also useful during threat_sync to enrich local CVE/ArXiv findings with peer intelligence."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query":     {"type": "string", "description": "Search keyword or threat description"},
+                "limit":     {"type": "integer", "description": "Max results to return (default 5, max 20)"},
+                "tenant_id": {"type": "string"},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "publish_to_community",
+        "description": (
+            "Publish an anonymized security incident to the SEP community hub. "
+            "Runs the evidence_summary through the full filter pipeline first — "
+            "if PII or secrets are detected the publish is aborted. "
+            "On success, returns a UECIID that other community members can reference. "
+            "IMPORTANT: evidence_summary must already be anonymized (no IPs, user IDs, or PII). "
+            "Use explain_decision to get the causal chain, then strip identifying fields before calling this."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "verdict":          {"type": "string", "description": "ALLOW | BLOCK | HIGH | MEDIUM"},
+                "rule_id":          {"type": "string", "description": "Rule or pattern that fired (e.g. 'jailbreak_v3')"},
+                "risk_level":       {"type": "string", "description": "LOW | MEDIUM | HIGH | BLOCK"},
+                "evidence_summary": {"type": "string", "description": "Anonymized description of the attack — no PII, no IPs, no secrets"},
+                "community_id":     {"type": "string", "description": "Target community ID (default: tenant_id)"},
+                "tenant_id":        {"type": "string"},
+            },
+            "required": ["verdict", "rule_id", "risk_level", "evidence_summary"],
+        },
+    },
+    {
+        "name": "get_community_recommendations",
+        "description": (
+            "Get recommended playbook actions from community intelligence for a given incident type. "
+            "Queries CommunityIntelReport and returns filtered recommendations relevant to the incident. "
+            "Maps to MITRE ATT&CK techniques (T1190, T1059.007, T1552, T1566, T1055) when available. "
+            "Falls back to built-in MITRE playbook if community intel is unavailable. "
+            "Use after explain_decision to determine next steps for HIGH/BLOCK incidents."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "incident_type": {"type": "string",  "description": "Type of incident: jailbreak | secret_leak | phishing | injection | other"},
+                "risk_level":    {"type": "string",  "description": "Risk level to filter recommendations by (default HIGH)"},
+                "community_id":  {"type": "string",  "description": "Community to query (default: tenant_id)"},
+                "tenant_id":     {"type": "string"},
+            },
+            "required": ["incident_type"],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -1173,4 +1414,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     "list_community_posts_members": list_community_posts_members,
     "community_moderation_report":  community_moderation_report,
     "post_community_announcement":  post_community_announcement,
+    "search_community_feed":        search_community_feed,
+    "publish_to_community":         publish_to_community,
+    "get_community_recommendations": get_community_recommendations,
 }
