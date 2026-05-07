@@ -619,11 +619,12 @@ jobs:
           docker compose pull --quiet --ignore-buildable 2>/dev/null || docker compose pull --quiet || true
 
           echo "── [3/4] Restart services ──────────────────────────────────"
-          # Remove any stopped/errored containers whose names conflict with
-          # what compose wants to create (e.g. warden-feed left by a prior
-          # failed build).  'down --remove-orphans' only removes orphans;
-          # it won't clear a same-named container created outside compose.
-          docker compose ps -q --status exited --status created 2>/dev/null \
+          # Remove any containers (running or stopped) whose names conflict with
+          # what compose wants to create (e.g. warden-dashboard left by a prior
+          # config, warden-feed left by a failed build).
+          # --remove-orphans only removes services no longer in the compose file;
+          # it won't clear a same-named container for a service that still exists.
+          docker compose ps -q --status exited --status created --status running 2>/dev/null \
             | xargs -r docker rm -f 2>/dev/null || true
 
           # Build all services in two passes to avoid corrupted-cache regression:
