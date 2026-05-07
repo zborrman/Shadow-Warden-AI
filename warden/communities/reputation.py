@@ -24,10 +24,10 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from enum import Enum
-from typing import Generator
+from enum import StrEnum
 
 log = logging.getLogger("warden.communities.reputation")
 
@@ -57,7 +57,7 @@ POINT_EVENTS = {
 }
 
 
-class Badge(str, Enum):
+class Badge(StrEnum):
     NEWCOMER    = "NEWCOMER"
     CONTRIBUTOR = "CONTRIBUTOR"
     TOP_SHARER  = "TOP_SHARER"

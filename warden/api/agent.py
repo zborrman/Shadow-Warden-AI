@@ -403,8 +403,8 @@ async def apply_community_recommendation(
     Returns immediately with `status=pending` if approval required, or
     `status=applied` if `auto_approve=true` env is set (admin use only).
     """
-    import sqlite3
     import os as _os  # noqa: PLC0415
+    import sqlite3  # noqa: PLC0415
 
     t0 = time.perf_counter()
 
@@ -426,7 +426,7 @@ async def apply_community_recommendation(
         raise HTTPException(status_code=404, detail=f"UECIID {ueciid} not found")
 
     display_name = row["display_name"]
-    data_class   = row["data_class"] if "data_class" in row.keys() else "GENERAL"
+    data_class   = row.get("data_class", "GENERAL")
     rule_id      = f"community:{ueciid}"
 
     # Derive attack example from the indicator display name
@@ -437,7 +437,10 @@ async def apply_community_recommendation(
     )
 
     # Issue approval token via MasterAgent gate before mutating the corpus
-    import hmac as _hmac, hashlib as _hashlib, os as _os2, json as _json  # noqa: PLC0415
+    import hashlib as _hashlib  # noqa: PLC0415
+    import hmac as _hmac  # noqa: PLC0415
+    import json as _json  # noqa: PLC0415
+    import os as _os2  # noqa: PLC0415
     secret   = _os2.getenv("ADMIN_KEY", "dev").encode()
     task_hash = _hashlib.sha256(example_text.encode()).hexdigest()[:16]
     token    = _hmac.new(secret, f"apply:{ueciid}:{task_hash}".encode(), _hashlib.sha256).hexdigest()[:24]
