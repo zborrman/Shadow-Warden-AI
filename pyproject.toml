@@ -79,6 +79,9 @@ target-version = "py311"
 select  = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
 ignore  = ["E501", "B008"]   # E501=line length (ruff handles it), B008=FastAPI Depends()
 
+[tool.ruff.lint.isort]
+known-first-party = ["warden", "analytics"]
+
 [tool.ruff.lint.per-file-ignores]
 "warden/tests/*" = ["S101"]                    # assert is expected in tests
 "warden/analytics/dashboard.py"     = ["C408"]    # Plotly uses dict() kwargs by convention

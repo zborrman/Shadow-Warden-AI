@@ -5,13 +5,13 @@ Coverage booster for v4.20 billing trial, addons, hooks, reputation, action whit
 from __future__ import annotations
 
 import ast
-from datetime import UTC, datetime, timedelta
 import importlib
 import os
-from pathlib import Path
 import sqlite3
 import tempfile
 import threading
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest import mock
 
 import pytest
