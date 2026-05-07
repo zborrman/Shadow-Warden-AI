@@ -5,13 +5,13 @@ Coverage booster for v4.20 billing trial, addons, hooks, reputation, action whit
 from __future__ import annotations
 
 import ast
+from datetime import UTC, datetime, timedelta
 import importlib
 import os
+from pathlib import Path
 import sqlite3
 import tempfile
 import threading
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -58,7 +58,7 @@ class TestBillingTrial:
         assert get_trial("ghost-tenant-xyz") is None
 
     def test_get_trial_active_status(self):
-        from warden.billing.trial import start_trial, get_trial
+        from warden.billing.trial import get_trial, start_trial
         start_trial("trial-t4")
         rec = get_trial("trial-t4")
         assert rec is not None
@@ -101,7 +101,7 @@ class TestBillingTrial:
         assert t.get_trial("trial-t7") is None
 
     def test_is_trial_active_true(self):
-        from warden.billing.trial import start_trial, is_trial_active
+        from warden.billing.trial import is_trial_active, start_trial
         start_trial("trial-t8")
         assert is_trial_active("trial-t8") is True
 
@@ -127,7 +127,7 @@ class TestBillingTrial:
         assert lim["_is_trial"] is True
 
     def test_start_trial_stores_previous_tier(self):
-        from warden.billing.trial import start_trial, get_trial
+        from warden.billing.trial import get_trial, start_trial
         start_trial("trial-t10", current_tier="community_business")
         rec = get_trial("trial-t10")
         assert rec["previous_tier"] == "community_business"
@@ -178,7 +178,7 @@ class TestBillingAddonsV420:
         assert has_addon("seats-t1", "community_seats")
 
     def test_revoke_addon_removes_from_set(self):
-        from warden.billing.addons import grant_addon, revoke_addon, has_addon
+        from warden.billing.addons import grant_addon, has_addon, revoke_addon
         grant_addon("rv-t1", "xai_audit")
         revoke_addon("rv-t1", "xai_audit")
         assert not has_addon("rv-t1", "xai_audit")
@@ -226,9 +226,8 @@ class TestBillingAddonsV420:
 class TestFailOpenHook:
 
     def _write_py(self, content: str) -> Path:
-        f = tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8")
-        f.write(content)
-        f.close()
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as f:
+            f.write(content)
         return Path(f.name)
 
     def test_bare_except_pass_detected(self):
@@ -319,9 +318,8 @@ class TestFailOpenHook:
 class TestIdempotencyHook:
 
     def _write_py(self, content: str) -> Path:
-        f = tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8")
-        f.write(content)
-        f.close()
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as f:
+            f.write(content)
         return Path(f.name)
 
     def test_charge_without_idempotency_key_detected(self):
@@ -382,9 +380,8 @@ class TestIdempotencyHook:
 class TestTenantIsolationHook:
 
     def _write_py(self, content: str) -> Path:
-        f = tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8")
-        f.write(content)
-        f.close()
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as f:
+            f.write(content)
         return Path(f.name)
 
     def test_filter_without_tenant_id_warns(self):

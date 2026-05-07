@@ -37,6 +37,8 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from warden.billing.feature_gate import ANNUAL_PRICING, FeatureGate, OVERAGE_PRICES
+
 log = logging.getLogger("warden.billing.router")
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -81,7 +83,6 @@ async def get_billing_tiers():
     Returns the full feature matrix for all 4 plan tiers.
     No authentication required — used by the landing page pricing section.
     """
-    from warden.billing.feature_gate import ANNUAL_PRICING, OVERAGE_PRICES, FeatureGate  # noqa: PLC0415
     prices = {
         "starter":            {"usd_per_month": 0,   "label": "Free",               "annual": None},
         "individual":         {"usd_per_month": 5,   "label": "Individual",          "annual": ANNUAL_PRICING.get("individual")},
