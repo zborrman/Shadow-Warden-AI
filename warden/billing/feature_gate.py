@@ -11,10 +11,24 @@ Tiers (aligned with Lemon Squeezy monetization)
   pro                $69/mo  — Mid-market              50 000 req/mo, MasterAgent included (+$15/mo Shadow AI add-on)
   enterprise         $249/mo — MSPs / Corporations     Unlimited, PQC, Sovereign AI Cloud, all add-ons included
 
+Annual billing discount (15% off all paid tiers)
+─────────────────────────────────────────────────
+  individual_annual         $51/yr   ($4.25/mo effectively)
+  community_business_annual $194/yr  ($16.15/mo effectively)
+  pro_annual                $703/yr  ($58.65/mo effectively)
+  enterprise_annual         $2541/yr ($211.75/mo effectively)
+
 Add-on SKUs (Lemon Squeezy variant IDs)
 ────────────────────────────────────────
-  shadow_ai_discovery  +$15/mo  Pro+       Shadow AI subnet scan + DNS telemetry
-  xai_audit            +$9/mo   Individual+ Causal XAI HTML/PDF audit reports
+  shadow_ai_discovery  +$15/mo  Pro+           Shadow AI subnet scan + DNS telemetry
+  xai_audit            +$9/mo   Individual+    Causal XAI HTML/PDF audit reports
+  secrets_vault        +$12/mo  Individual+    Secrets governance
+  on_prem_pack         +$29/mo  Pro+           Self-hosted license + Helm chart
+  community_seats      +$9/mo   Community Biz+ +5 member slots (stackable)
+
+Bundle SKUs
+───────────
+  power_user_bundle    $29/mo   Pro+           Secrets Vault + XAI Audit + Shadow AI ($36 → save $7)
 
   MasterAgent is included in Pro — not sold as an add-on.
 
@@ -83,6 +97,17 @@ _K         = 1_000
 _GB        = 1024 ** 3
 _TB        = 1024 ** 4
 
+# ── Annual billing — 15% discount off monthly × 12 ──────────────────────────
+
+ANNUAL_DISCOUNT = 0.15   # 15% off
+
+ANNUAL_PRICING: dict[str, dict[str, Any]] = {
+    "individual":         {"usd_per_year": 51,   "usd_per_month_effective": 4.25},
+    "community_business": {"usd_per_year": 194,  "usd_per_month_effective": 16.15},
+    "pro":                {"usd_per_year": 703,  "usd_per_month_effective": 58.58},
+    "enterprise":         {"usd_per_year": 2541, "usd_per_month_effective": 211.75},
+}
+
 # ── Overage pricing ───────────────────────────────────────────────────────────
 
 OVERAGE_PRICES: dict[str, dict[str, Any]] = {
@@ -121,6 +146,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         # ── Request quota ──────────────────────────────────────────────────────
         "req_per_month":               1_000,
         "overage_enabled":             False,
+        "trial_eligible":              False,   # must upgrade to Individual first
         # ── Core detection (always-on) ─────────────────────────────────────────
         "prompt_shield":               True,
         "secret_redactor":             True,
@@ -166,6 +192,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
     "individual": {
         "req_per_month":               5_000,
         "overage_enabled":             False,
+        "trial_eligible":              True,    # can activate 14-day Pro trial
         "prompt_shield":               True,
         "secret_redactor":             True,
         "threat_vault":                True,
@@ -207,6 +234,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
     "pro": {
         "req_per_month":               50_000,
         "overage_enabled":             True,    # soft stop + charge
+        "trial_eligible":              False,   # already on Pro
         "prompt_shield":               True,
         "secret_redactor":             True,
         "threat_vault":                True,
@@ -249,6 +277,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
     "community_business": {
         "req_per_month":               10_000,
         "overage_enabled":             False,
+        "trial_eligible":              True,    # can activate 14-day Pro trial
         # Core (always on)
         "prompt_shield":               True,
         "secret_redactor":             True,
@@ -300,6 +329,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
     "enterprise": {
         "req_per_month":               None,    # unlimited
         "overage_enabled":             True,
+        "trial_eligible":              False,   # contact sales
         "prompt_shield":               True,
         "secret_redactor":             True,
         "threat_vault":                True,
@@ -445,7 +475,9 @@ class FeatureGate:
         """Return all limits as a serializable dict (for /billing/tiers endpoint)."""
         d = dict(self.limits)
         d["tier"] = self.tier
-        d["overage_prices"] = OVERAGE_PRICES.get(self.tier, {})
+        d["overage_prices"]  = OVERAGE_PRICES.get(self.tier, {})
+        d["annual_pricing"]  = ANNUAL_PRICING.get(self.tier, {})
+        d["annual_discount"] = ANNUAL_DISCOUNT
         return d
 
 

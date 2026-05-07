@@ -27,7 +27,19 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 | Secrets Vault Governance | +$12/mo | Individual | `secrets_governance` |
 | XAI Audit Reports | +$9/mo | Individual | `xai_reports_enabled` |
 | Shadow AI Discovery | +$15/mo | Pro | `shadow_ai_enabled` |
+| On-Prem Deployment Pack | +$29/mo | Pro | `on_prem_deployment` |
+| Community Seats (+5 members) | +$9/mo | Community Business | stackable |
 | MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
+
+**Bundles** (save vs buying separately):
+
+| Bundle | Price | Saves | Includes |
+|--------|-------|-------|---------|
+| Power User Bundle | $29/mo | $7/mo | Secrets Vault + XAI Audit + Shadow AI Discovery |
+
+**Annual billing:** 15% off all paid tiers — Individual $51/yr · Community Business $194/yr · Pro $703/yr · Enterprise $2,541/yr
+
+**14-day Pro trial:** available to Individual and Community Business tenants — 10,000 requests, no MasterAgent, one-time per account.
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
 

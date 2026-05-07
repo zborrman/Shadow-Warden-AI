@@ -228,6 +228,26 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
+### Block R — Billing v4.20 Enhancements (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| R-01 | `warden/billing/addons.py` — `on_prem_pack` add-on (+$29/mo, Pro+, unlocks `on_prem_deployment`) | ✅ |
+| R-02 | `warden/billing/addons.py` — `community_seats` add-on (+$9/mo, stackable, +5 members/unit) | ✅ |
+| R-03 | `warden/billing/addons.py` — `BUNDLE_CATALOG` + `power_user_bundle` ($29 → saves $7 vs $36) | ✅ |
+| R-04 | `warden/billing/addons.py` — `grant_bundle()`, `get_seat_expansion()`, `increment_seat_units()` helpers | ✅ |
+| R-05 | `warden/billing/trial.py` — NEW: 14-day Pro trial (10k req cap, no MasterAgent, Redis TTL, idempotent) | ✅ |
+| R-06 | `warden/billing/feature_gate.py` — `ANNUAL_PRICING` dict (15% off: $51/$194/$703/$2541/yr) | ✅ |
+| R-07 | `warden/billing/feature_gate.py` — `trial_eligible` flag per tier; `annual_pricing` in `as_dict()` | ✅ |
+| R-08 | `warden/billing/router.py` — `POST /billing/trial/start`, `GET /billing/trial/status` | ✅ |
+| R-09 | `warden/billing/router.py` — `GET /billing/addons/bundles`, `GET /billing/addons/bundle/{key}/checkout` | ✅ |
+| R-10 | `warden/billing/router.py` — `POST /billing/community-seats/add`, `GET /billing/community-seats` | ✅ |
+| R-11 | `warden/billing/router.py` — annual pricing in `/billing/tiers` response | ✅ |
+| R-12 | `dashboard/src/components/ui/pricing-calculator.tsx` — interactive tier+addon+bundle calculator with annual toggle | ✅ |
+| R-13 | `dashboard/src/components/ui/usage-progress.tsx` — quota progress bar, 80% upgrade CTA, 60s auto-refresh | ✅ |
+
+---
+
 ## Next Sprint — Block Q (Planned)
 
 | ID | Feature | Priority |

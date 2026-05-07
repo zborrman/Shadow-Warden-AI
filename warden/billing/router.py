@@ -5,13 +5,21 @@ Billing API router — tier catalog, quota status, and referral flywheel.
 
 Endpoints
 ─────────
-  GET  /billing/tiers              — public tier catalog (no auth)
-  GET  /billing/status             — current plan + subscription details
-  GET  /billing/quota              — monthly request usage for a tenant
-  GET  /billing/upgrade            — redirect to Lemon Squeezy checkout
-  POST /billing/referral/generate  — generate a referral code
-  POST /billing/referral/redeem    — redeem a referral code
-  GET  /billing/referral/stats     — referral statistics for a tenant
+  GET  /billing/tiers                    — public tier catalog with annual pricing (no auth)
+  GET  /billing/status                   — current plan + subscription details
+  GET  /billing/quota                    — monthly request usage for a tenant
+  GET  /billing/upgrade                  — redirect to Lemon Squeezy checkout
+  POST /billing/trial/start              — activate 14-day Pro trial (Individual+ only)
+  GET  /billing/trial/status             — trial status + days remaining
+  GET  /billing/addons/bundles           — bundle catalog (Power User Bundle etc.)
+  GET  /billing/addons/bundle/{key}/checkout  — redirect to bundle checkout
+  POST /billing/addons/grant             — [Admin] grant add-on to tenant
+  DELETE /billing/addons/revoke          — [Admin] revoke add-on from tenant
+  POST /billing/community-seats/add      — add seat expansion units (stackable)
+  GET  /billing/community-seats          — current extra seats for tenant
+  POST /billing/referral/generate        — generate a referral code
+  POST /billing/referral/redeem          — redeem a referral code
+  GET  /billing/referral/stats           — referral statistics for a tenant
 
 Auth
 ────
@@ -75,12 +83,13 @@ async def get_billing_tiers():
     """
     from warden.billing.feature_gate import OVERAGE_PRICES, FeatureGate
 
+    from warden.billing.feature_gate import ANNUAL_PRICING  # noqa: PLC0415
     prices = {
-        "starter":            {"usd_per_month": 0,   "label": "Free"},
-        "individual":         {"usd_per_month": 5,   "label": "Individual"},
-        "community_business": {"usd_per_month": 19,  "label": "Community Business"},
-        "pro":                {"usd_per_month": 69,  "label": "Pro"},
-        "enterprise":         {"usd_per_month": 249, "label": "Enterprise"},
+        "starter":            {"usd_per_month": 0,   "label": "Free",               "annual": None},
+        "individual":         {"usd_per_month": 5,   "label": "Individual",          "annual": ANNUAL_PRICING.get("individual")},
+        "community_business": {"usd_per_month": 19,  "label": "Community Business",  "annual": ANNUAL_PRICING.get("community_business")},
+        "pro":                {"usd_per_month": 69,  "label": "Pro",                 "annual": ANNUAL_PRICING.get("pro")},
+        "enterprise":         {"usd_per_month": 249, "label": "Enterprise",          "annual": ANNUAL_PRICING.get("enterprise")},
     }
 
     tiers = []
@@ -307,6 +316,144 @@ async def admin_revoke_addon(
     from warden.billing.addons import revoke_addon
     revoke_addon(body.tenant_id, body.addon_key)
     return {"status": "revoked", "tenant_id": body.tenant_id, "addon_key": body.addon_key}
+
+
+# ── Trial ─────────────────────────────────────────────────────────────────────
+
+class TrialStartRequest(BaseModel):
+    current_tier: str = "starter"
+
+
+@router.post(
+    "/trial/start",
+    summary="Activate 14-day Pro trial (Individual+ tenants only, one-time)",
+)
+async def start_trial(
+    body:        TrialStartRequest,
+    x_tenant_id: str | None = Header(default=None),
+):
+    """
+    Activates a 14-day Pro trial capped at 10 000 requests.
+    MasterAgent is excluded from the trial.
+    One-time per tenant — raises 409 if already used.
+    """
+    tenant_id = _require_tenant(x_tenant_id)
+    from warden.billing.trial import start_trial as _start  # noqa: PLC0415
+    try:
+        record = _start(tenant_id, current_tier=body.current_tier)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return record
+
+
+@router.get(
+    "/trial/status",
+    summary="Get current trial status for a tenant",
+)
+async def trial_status(
+    x_tenant_id: str | None = Header(default=None),
+):
+    tenant_id = _require_tenant(x_tenant_id)
+    from warden.billing.trial import get_trial  # noqa: PLC0415
+    trial = get_trial(tenant_id)
+    if not trial:
+        return {"tenant_id": tenant_id, "status": "none", "trial_available": True}
+    return trial
+
+
+# ── Bundles ───────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/addons/bundles",
+    summary="Bundle catalog — discounted add-on packs",
+    response_model=None,
+)
+async def list_bundles():
+    """Return all available bundle SKUs with savings information."""
+    from warden.billing.addons import BUNDLE_CATALOG  # noqa: PLC0415
+    return {"bundles": list(BUNDLE_CATALOG.values())}
+
+
+@router.get(
+    "/addons/bundle/{bundle_key}/checkout",
+    summary="Redirect to Lemon Squeezy checkout for a bundle",
+    response_class=RedirectResponse,
+    status_code=303,
+)
+async def bundle_checkout(
+    bundle_key:  str,
+    x_tenant_id: str | None = Header(default=None),
+    success_url: str | None = Query(default=None),
+    cancel_url:  str | None = Query(default=None),
+):
+    tenant_id = _require_tenant(x_tenant_id)
+    from warden.billing.addons import BUNDLE_CATALOG  # noqa: PLC0415
+    bundle = BUNDLE_CATALOG.get(bundle_key)
+    if not bundle:
+        raise HTTPException(status_code=404, detail=f"Unknown bundle: {bundle_key!r}")
+
+    variant_id = bundle.get("ls_variant_id", "")
+    if not variant_id:
+        return RedirectResponse(url=f"{_PORTAL_BASE}/pricing?bundle={bundle_key}", status_code=303)
+
+    _success = success_url or f"{_PORTAL_BASE}/billing/bundle/{bundle_key}/success"
+    _cancel  = cancel_url  or f"{_PORTAL_BASE}/billing/addons"
+    try:
+        from warden.lemon_billing import get_lemon_billing  # noqa: PLC0415
+        url = get_lemon_billing().create_checkout_session(
+            tenant_id=tenant_id, plan=bundle_key,
+            success_url=_success, cancel_url=_cancel,
+        )
+        return RedirectResponse(url=url, status_code=303)
+    except Exception as exc:
+        log.warning("bundle_checkout: lemon error bundle=%s: %s", bundle_key, exc)
+        return RedirectResponse(url=f"{_PORTAL_BASE}/pricing?bundle={bundle_key}", status_code=303)
+
+
+# ── Community seat expansion ──────────────────────────────────────────────────
+
+class SeatGrantRequest(BaseModel):
+    tenant_id: str
+    units:     int = 1    # each unit = +5 members
+
+
+@router.post(
+    "/community-seats/add",
+    summary="[Admin] Add community seat expansion units to a tenant",
+)
+async def add_community_seats(
+    body:        SeatGrantRequest,
+    x_admin_key: str | None = Header(default=None),
+):
+    """
+    Called by Lemon Squeezy webhook on community_seats purchase.
+    Each unit adds 5 member slots. Stackable — purchase multiple times.
+    """
+    _require_admin(x_admin_key)
+    from warden.billing.addons import increment_seat_units  # noqa: PLC0415
+    total_extra = increment_seat_units(body.tenant_id, units=body.units)
+    return {
+        "tenant_id":   body.tenant_id,
+        "units_added": body.units,
+        "total_extra_seats": total_extra,
+    }
+
+
+@router.get(
+    "/community-seats",
+    summary="Get extra community member seats for a tenant",
+)
+async def get_community_seats(
+    x_tenant_id: str | None = Header(default=None),
+):
+    tenant_id = _require_tenant(x_tenant_id)
+    from warden.billing.addons import get_seat_expansion  # noqa: PLC0415
+    extra = get_seat_expansion(tenant_id)
+    return {
+        "tenant_id":   tenant_id,
+        "extra_seats": extra,
+        "note":        "Added to your tier's base max_members_per_community",
+    }
 
 
 # ── Referral — generate ───────────────────────────────────────────────────────

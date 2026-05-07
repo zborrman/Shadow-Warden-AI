@@ -9,8 +9,15 @@ Redis as a set per tenant.
 
 Add-on catalog
 ──────────────
-  shadow_ai_discovery  +$15/mo  Pro+   Shadow AI subnet probe + DNS telemetry
-  xai_audit            +$9/mo   Indiv+ Causal XAI HTML/PDF audit reports
+  shadow_ai_discovery  +$15/mo  Pro+           Shadow AI subnet probe + DNS telemetry
+  xai_audit            +$9/mo   Individual+    Causal XAI HTML/PDF audit reports
+  secrets_vault        +$12/mo  Individual+    Secrets governance (AWS SM / Azure KV / etc.)
+  on_prem_pack         +$29/mo  Pro+           Self-hosted license + Helm chart support
+  community_seats      +$9/mo   Community Biz+ +5 member slots per unit (stackable)
+
+Bundle catalog
+──────────────
+  power_user_bundle    $29/mo   Pro+           Secrets Vault + XAI Audit + Shadow AI ($36 separately → save $7)
 
   MasterAgent is included in the Pro base plan — not sold as an add-on.
 
@@ -89,6 +96,46 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/secrets-vault",
     },
 
+    "on_prem_pack": {
+        "display_name":   "On-Prem Deployment Pack",
+        "description":    "Self-hosted license + Helm chart support + hardening runbook. Run Shadow Warden entirely inside your own infrastructure with no cloud dependency.",
+        "usd_per_month":  29,
+        "min_tier":       "pro",
+        "ls_variant_id":  os.getenv("LS_VARIANT_ON_PREM", ""),
+        "unlocks":        ["on_prem_deployment"],
+        "docs_url":       "/docs/addons/on-prem",
+    },
+
+    "community_seats": {
+        "display_name":   "Community Seat Expansion (+5 members)",
+        "description":    "Add 5 additional member slots to every community on your account. Stack multiple purchases for larger teams.",
+        "usd_per_month":  9,
+        "min_tier":       "community_business",
+        "ls_variant_id":  os.getenv("LS_VARIANT_COMMUNITY_SEATS", ""),
+        "unlocks":        [],        # handled via seat counter, not feature flag
+        "stackable":      True,      # can be purchased multiple times
+        "seats_per_unit": 5,
+        "docs_url":       "/docs/addons/community-seats",
+    },
+
+}
+
+# ── Bundle catalog ─────────────────────────────────────────────────────────────
+# Virtual bundles — not sold individually via LS; resolved to component add-ons on checkout.
+
+BUNDLE_CATALOG: dict[str, dict[str, Any]] = {
+
+    "power_user_bundle": {
+        "display_name":     "Power User Bundle",
+        "description":      "Secrets Vault + XAI Audit Reports + Shadow AI Discovery in one package. Save $7/mo vs purchasing separately.",
+        "usd_per_month":    29,      # vs $12 + $9 + $15 = $36 separately
+        "savings_usd":      7,
+        "min_tier":         "pro",
+        "includes_addons":  ["secrets_vault", "xai_audit", "shadow_ai_discovery"],
+        "ls_variant_id":    os.getenv("LS_VARIANT_POWER_BUNDLE", ""),
+        "docs_url":         "/docs/addons/power-user-bundle",
+    },
+
 }
 
 
@@ -147,6 +194,46 @@ def get_tenant_addons(tenant_id: str) -> set[str]:
 
 def has_addon(tenant_id: str, addon_key: str) -> bool:
     return addon_key in get_tenant_addons(tenant_id)
+
+
+def grant_bundle(tenant_id: str, bundle_key: str) -> list[str]:
+    """Grant all component add-ons for *bundle_key* to *tenant_id*."""
+    bundle = BUNDLE_CATALOG.get(bundle_key)
+    if not bundle:
+        raise ValueError(f"Unknown bundle: {bundle_key!r}")
+    granted: list[str] = []
+    for addon_key in bundle["includes_addons"]:
+        grant_addon(tenant_id, addon_key)
+        granted.append(addon_key)
+    log.info("Bundle granted tenant=%s bundle=%s addons=%s", tenant_id, bundle_key, granted)
+    return granted
+
+
+def get_seat_expansion(tenant_id: str) -> int:
+    """Return total extra community member slots purchased via community_seats add-on (stackable)."""
+    r = _redis()
+    key = f"billing:seat_units:{tenant_id}"
+    try:
+        units = int(r.get(key) or 0) if r else 0
+    except Exception:
+        units = 0
+    seats_per_unit = ADDON_CATALOG["community_seats"]["seats_per_unit"]
+    return units * seats_per_unit
+
+
+def increment_seat_units(tenant_id: str, units: int = 1) -> int:
+    """Add *units* seat expansion packs for *tenant_id*. Returns new total extra seats."""
+    r = _redis()
+    key = f"billing:seat_units:{tenant_id}"
+    if r:
+        try:
+            r.incrby(key, units)
+        except Exception as exc:
+            log.warning("increment_seat_units redis error: %s", exc)
+    seats_per_unit = ADDON_CATALOG["community_seats"]["seats_per_unit"]
+    new_seats = get_seat_expansion(tenant_id)
+    log.info("Seat units added tenant=%s units=%d total_extra_seats=%d", tenant_id, units, new_seats)
+    return new_seats
 
 
 def _get_tenant_id_from_request(request: Request) -> str:

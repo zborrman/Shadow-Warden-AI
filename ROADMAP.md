@@ -327,11 +327,16 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-09 | Billing admin endpoints — `grant`/`revoke` require `X-Admin-Key` | v4.5 | — | ✅ |
 | BL-10 | Dunning ARQ cron — every 12h (06:00 + 18:00 UTC) | v3.0 | — | ✅ |
 | BL-11 | Lemon Squeezy webhook handler — checkout → grant_addon() | v4.5 | — | ✅ |
-| BL-12 | Request overage billing — charge per 1k requests above tier limit | — | All | 📋 |
-| BL-13 | Annual plan discount — 20% off Pro/Enterprise with annual commitment | — | Pro+ | 📋 |
-| BL-14 | Usage dashboard — real-time request count vs tier limit + cost projection | — | All | 📋 |
-| BL-15 | Add-on: Obsidian Business Pack — bundled plugin features +$8/mo | — | Individual+ | 📋 |
-| BL-16 | Marketplace listing — AWS Marketplace / Azure Marketplace / Google Cloud Marketplace | — | Enterprise | 📋 |
+| BL-12 | Add-on: On-Prem Deployment Pack — +$29/mo (Pro+), unlocks `on_prem_deployment` | v4.20 | Pro+ | ✅ |
+| BL-13 | Add-on: Community Seats (+5 members) — +$9/mo (Community Business+), stackable | v4.20 | CB+ | ✅ |
+| BL-14 | Bundle: Power User Bundle — Secrets Vault + XAI + Shadow AI at $29 (save $7) | v4.20 | Pro+ | ✅ |
+| BL-15 | Annual billing — 15% off: $51/$194/$703/$2541/yr for Individual/CB/Pro/Enterprise | v4.20 | All | ✅ |
+| BL-16 | 14-day Pro trial — 10k req cap, no MasterAgent, one-time per tenant | v4.20 | Individual+ | ✅ |
+| BL-17 | `PricingCalculator` React component — tier + add-on + bundle + annual/monthly toggle | v4.20 | — | ✅ |
+| BL-18 | `UsageProgress` React component — quota bar, 80% upgrade CTA, 60s refresh | v4.20 | — | ✅ |
+| BL-19 | Request overage billing — automatic charge per 1k requests above Pro tier | — | Pro+ | 📋 |
+| BL-20 | Add-on: Obsidian Business Pack — bundled plugin features +$8/mo | — | Individual+ | 📋 |
+| BL-21 | Marketplace listing — AWS / Azure / Google Cloud Marketplace | — | Enterprise | 📋 |
 
 ---
 
