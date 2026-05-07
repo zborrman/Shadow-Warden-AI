@@ -1,6 +1,6 @@
 # Shadow Warden AI — Program Reference
 
-**Version:** 4.8.0
+**Version:** 4.14.0
 **Language:** Python 3.11+
 **License:** Proprietary
 **Target:** US / EU marketplace · GDPR Article 30 compliant
@@ -52,7 +52,7 @@ All sensitive data stays on your infrastructure. The gateway logs **metadata onl
 Internet
    │
    ▼
- proxy :80/:443   ── Nginx reverse proxy; TLS termination; routes /api/warden/* → warden
+ proxy :80/:443   ── Caddy v2.8+ reverse proxy; HTTP/3 (QUIC); TLS; routes by hostname
    │
    ├──► warden :8001      FastAPI security gateway (core — this document)
    │        │
@@ -62,22 +62,26 @@ Internet
    │
    ├──► analytics :8002   Read-only analytics REST API (reads logs.json)
    │
-   ├──► dashboard :8501   Streamlit security dashboard (reads logs.json)
+   ├──► dashboard :3002   Next.js 14 SOC Dashboard (App Router, TanStack Query, Recharts)
    │
-   └──► grafana :3000     Prometheus-backed metrics dashboard
+   ├──► analytics-ui:8501 Streamlit threat dashboard (reads logs.json)
+   │
+   └──► grafana :3000     Prometheus-backed metrics + SLO burn-rate alerts
 ```
 
 | Service | Port | Access | Description |
 |---------|------|--------|-------------|
-| `proxy` | 80 / 443 | Public | Nginx — TLS, routing, mTLS termination |
+| `proxy` | 80/443/443udp | Public | Caddy v2.8+ — HTTP/3, TLS, HSTS, hostname routing |
 | `warden` | 8001 | Internal | FastAPI security gateway |
 | `app` | 8000 | Internal | Your application |
-| `analytics` | 8002 | Internal | Analytics REST API |
-| `dashboard` | 8501 | Internal / VPN | Streamlit threat dashboard |
+| `analytics` | 8002 | Internal | Analytics REST API (`/api/v1/*`) |
+| `dashboard` | 3002 | Internal / Caddy | Next.js 14 SOC Dashboard (auth-gated) |
+| `analytics-ui` | 8501 | Internal / VPN | Streamlit threat dashboard |
 | `postgres` | 5432 | Internal | Relational store |
 | `redis` | 6379 | Internal | Cache + rate limiter |
 | `prometheus` | 9090 | Internal | Metrics scraper |
-| `grafana` | 3000 | Internal / VPN | Metrics dashboard |
+| `grafana` | 3000 | Internal / VPN | Metrics dashboard + SLO burn-rate alerts |
+| `minio` | 9000/9001 | Internal | S3-compatible object store (evidence vault, flamegraphs) |
 
 ---
 

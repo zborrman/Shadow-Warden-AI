@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 4.13 · Proprietary · All rights reserved**
+**Version 4.14 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -37,14 +37,17 @@ surface, its observable outputs, and integration patterns.
 25. Skill 24 — Obsidian Community Integration
 26. Skill 25 — OTel Distributed Tracing
 27. Skill 26 — SOC Next.js Dashboard
-28. Integration Recipes
-29. Configuration Quick-Reference
+28. Skill 27 — Public API Documentation (Redoc)
+29. Skill 28 — Load Profiling + Flamegraph
+30. Skill 29 — SLO Burn-Rate Alerting
+31. Integration Recipes
+32. Configuration Quick-Reference
 
 ---
 
 ## 1. Skill Taxonomy
 
-Shadow Warden AI is composed of 26 discrete, independently configurable skills.
+Shadow Warden AI is composed of 29 discrete, independently configurable skills.
 Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–24 are
 background, agentic, or on-demand capabilities.
 
@@ -103,6 +106,9 @@ Background / On-demand:
 | 24 | Obsidian Integration | On-demand / plugin | ✅ | Community Business+ |
 | 25 | OTel Distributed Tracing | Per-request background | ✅ | All (opt-in) |
 | 26 | SOC Dashboard | SPA on-demand | ✅ | Pro+ |
+| 27 | Public API Documentation | Static Redoc | ✅ | All (public) |
+| 28 | Load Profiling + Flamegraph | On-demand (script) | ✅ | Ops |
+| 29 | SLO Burn-Rate Alerting | Grafana provisioned | ✅ | All |
 
 *PQC requires liboqs-python system package; classical fallback if unavailable.
 
@@ -970,7 +976,75 @@ docker run -d --name warden-dashboard \
 
 ---
 
-## 28. Integration Recipes
+## 27. Skill 27 — Public API Documentation (Redoc)
+
+**File:** `docs/redoc.html` · **Endpoint:** `GET /openapi-public.json`
+
+Serves the complete OpenAPI 3.1 schema at `/openapi-public.json` with no authentication required. The Caddy reverse proxy mounts `docs/redoc.html` as `/srv/docs/index.html` and serves it under `docs.shadow-warden-ai.com`. The Redoc SPA fetches the schema from `https://api.shadow-warden-ai.com/openapi-public.json` cross-origin (CORS allowed for `docs.shadow-warden-ai.com`).
+
+**Contrast with `/openapi.json`:** Protected by HTTP Basic auth when `DOCS_PASSWORD` is set. `/openapi-public.json` is always public — no password, no token — making it suitable for developer portal embedding.
+
+**Configuration:**
+```
+# No extra env vars required — endpoint is always active.
+# DOCS_PASSWORD protects /docs and /openapi.json only; does not affect /openapi-public.json.
+```
+
+**Tier gate:** All (public, no auth).
+
+---
+
+## 28. Skill 28 — Load Profiling + Flamegraph
+
+**File:** `scripts/profile_under_load.sh`
+
+Simultaneously runs a k6 load test and py-spy CPU profiler against the live warden process, producing an SVG flamegraph, a Speedscope JSON, and k6 NDJSON metrics. Results are optionally uploaded to MinIO for long-term SOC evidence retention.
+
+**Workflow:**
+1. Resolves warden process PID from Docker (`shadow-warden-warden-1` or `warden-warden`) or local `pgrep`.
+2. Launches two py-spy recorders in background: SVG flamegraph + Speedscope JSON at `PYSPY_RATE` Hz (default 100).
+3. Runs `k6/load_test.js` with `--env SCENARIO=<scenario>` (all / baseline / ramp / spike / soak).
+4. Stops py-spy and uploads all artifacts to MinIO `warden-evidence/profiles/<timestamp>/` via `mc`.
+
+**Usage:**
+```bash
+WARDEN_URL=https://api.shadow-warden-ai.com \
+WARDEN_API_KEY=your-key \
+SCENARIO=baseline \
+./scripts/profile_under_load.sh
+```
+
+**MinIO setup (one-time):**
+```bash
+mc alias set warden http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+```
+
+**Tier gate:** Ops (server-side tool, no tier gate).
+
+---
+
+## 29. Skill 29 — SLO Burn-Rate Alerting
+
+**File:** `grafana/provisioning/alerting/warden_alerts.yml` (rules `warden-burn-fast`, `warden-burn-slow`)
+
+Google SRE-style multi-window burn-rate alerts for the 99.9% SLO (error budget = 0.1%/month = 43.8 min). Two rules using the AND-gate multi-window pattern to eliminate false positives from transient spikes:
+
+| Rule | Windows | Threshold | Meaning | Action |
+|------|---------|-----------|---------|--------|
+| Fast burn (critical) | 1h + 5min | 14.4× SLO rate | 2% of monthly budget/hour | Page immediately |
+| Slow burn (warning) | 6h + 30min | 6× SLO rate | 5% of monthly budget/6h | File ticket |
+
+**Formula:** `burn_rate = actual_error_rate / slo_error_rate` where `slo_error_rate = 0.001` (99.9% SLO).
+
+**Multi-window AND gate:** Both the long window (detects sustained burn) and short window (confirms it's not just a stale Prometheus datapoint) must exceed threshold before the alert fires. This is the standard Google SRE approach from "Implementing SLOs" (Chapter 5).
+
+**Labels:** `severity: critical|warning`, `category: slo_burn`, `window: fast|slow`.
+
+**Tier gate:** All (Grafana provisioned, no billing gate).
+
+---
+
+## 31. Integration Recipes
 
 ### Filter a prompt before forwarding to an LLM
 

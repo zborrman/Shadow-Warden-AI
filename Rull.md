@@ -1,6 +1,6 @@
 # Shadow Warden AI — Engineering Rules
 
-**Version 4.10 · Last updated 2026-05**
+**Version 4.14 · Last updated 2026-05-07**
 
 Engineering standards enforced across the entire codebase. Pre-commit hooks in `Hook.md` automate the critical subset.
 
@@ -158,4 +158,28 @@ These rules are non-negotiable and violation blocks merge.
 
 ---
 
-*Rull.md — Shadow Warden AI engineering standards v4.11 · 2026-05*
+---
+
+## §13. CI Security Scanning Rules
+
+| # | Rule |
+|---|------|
+| CS-01 | **Trivy in every docker-build job.** `aquasecurity/trivy-action` must scan the built warden image after every push. `severity: CRITICAL,HIGH`; `ignore-unfixed: true`; SARIF uploaded to GitHub Security tab. |
+| CS-02 | **`continue-on-error: true` on Trivy.** A newly-disclosed CVE must never block a hotfix deploy. Alert via GitHub Security tab; fix in a follow-up PR within the SLA window. |
+| CS-03 | **pip-audit in a dedicated CI job.** Separate from the main `test` job so Python CVEs surface independently of test failures. Artifacts retained 30 days. |
+| CS-04 | **k6 smoke after every deploy.** `k6-smoke` job runs `k6/smoke_test.js` (1 VU, 30s) against `api.shadow-warden-ai.com` after every main-branch deploy. Thresholds: `http_req_failed rate==0` and `http_req_duration p(95)<3000ms`. |
+| CS-05 | **JUnit XML for every test matrix run.** `--junitxml=results/test-{version}.xml` passed to pytest; `dorny/test-reporter@v1` publishes results as GitHub Checks. Enables per-test pass/fail visibility in PRs. |
+
+---
+
+## §14. Observability Rules
+
+| # | Rule |
+|---|------|
+| OB-01 | **OTel span attributes must be GDPR-safe.** Allowed: `tenant_id`, `request_id`, `risk_level`, `stage`, `latency_ms`, `verdict`, `flag_type`. Prohibited: raw content, decoded text, PII, secret values, prompt text. |
+| OB-02 | **Adaptive OTel sampling.** `OTEL_SAMPLE_RATE=0.1` for ALLOW traffic; `OTEL_SAMPLE_RATE_HIGH=1.0` for HIGH/BLOCK traffic. `mark_high_risk(span)` sets `sampling.priority=1` for tail-based Collector override. |
+| OB-03 | **Burn-rate alerts take priority over threshold alerts.** When a burn-rate alert (`category: slo_burn`) and a threshold alert fire simultaneously, page on the burn-rate alert only. Threshold alerts are noise during a burn event. |
+| OB-04 | **Flamegraph artifacts to MinIO.** `scripts/profile_under_load.sh` uploads SVG + Speedscope JSON to `warden-evidence/profiles/<timestamp>/` for long-term SOC evidence. Never stored in git. |
+| OB-05 | **Profile only under real load.** py-spy `--nonblocking` is mandatory in production. Blocking profilers (`py-spy dump`) must never run against the live warden process. |
+
+*Rull.md — Shadow Warden AI engineering standards v4.14 · 2026-05-07*

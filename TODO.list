@@ -1,6 +1,6 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               Shadow Warden AI — Project TODO List                         ║
-║               Version 4.13 · Updated 2026-05-06                            ║
+║               Version 4.14 · Updated 2026-05-07                            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 Priority legend:
@@ -62,9 +62,19 @@ Priority legend:
       → Lint all Dockerfile* files for best practices
       → Add hadolint/hadolint-action@v3 to ci.yml lint job
 
-[!]   docker scout / Trivy image CVE scan
-      → Add trivy-action after Docker smoke build
-      → Gate on CRITICAL severity CVEs
+[✓]   Trivy image CVE scan — DONE (v4.14)
+      → aquasecurity/trivy-action@0.28.0 in docker-build job
+      → SARIF uploaded to GitHub Security tab (security-events: write)
+      → continue-on-error so hotfixes are never blocked
+
+[✓]   pip-audit SCA — DONE (v4.14)
+      → Dedicated pip-audit CI job, artifact retained 30 days
+
+[✓]   JUnit XML test reports — DONE (v4.14)
+      → --junitxml in pytest, dorny/test-reporter@v1 publishes GitHub Checks
+
+[✓]   k6 smoke test in CI — DONE (v4.14)
+      → k6-smoke job after deploy, publishes to GitHub job summary
 
 [ ]   Obsidian plugin TypeScript CI
       → Add obsidian-plugin build step to ci.yml
@@ -97,32 +107,65 @@ Priority legend:
       → Confirm z-index doesn't conflict with iOS Safari bottom toolbar
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  4. BLOCK L — NEXT SPRINT (v4.13 → v4.14)
+  4. BLOCK L — COMPLETED (v4.13 → v4.14) ✓
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [!!!] DNS A record dash.shadow-warden-ai.com → 91.98.234.160
       → Add in Cloudflare DNS dashboard
       → SOC dashboard is live but unreachable until DNS propagates
 
-[!!]  Analytics API live endpoints wired into SOC dashboard
-      → dashboard/src/lib/api.ts calls real /analytics/* endpoints
-      → Replace mock data in overview/page.tsx and threats/page.tsx
-      → Requires warden/api/analytics_query.py REST adapter
+[✓]  Analytics API live endpoints wired into SOC dashboard
+      → dashboard/src/lib/api.ts rewritten with /api/v1/* correct paths
+      → overview, events, threats pages consume real data with placeholderData fallback
+      → event detail page fetches EventEntry + XAI explain
 
-[!!]  Dashboard auth gate
-      → JWT or X-Api-Key header validation in dashboard Next.js middleware
-      → middleware.ts → validate against WARDEN_DASHBOARD_KEY env
-      → Return 401 / redirect to login for unauthenticated requests
+[✓]  Dashboard auth gate — DONE (v4.14)
+      → dashboard/src/middleware.ts validates warden_auth httpOnly cookie
+      → dashboard/src/app/login/page.tsx — dark-themed password form
+      → dashboard/src/app/api/auth/route.ts — POST sets 8h cookie, DELETE clears
 
-[!]   Dashboard → docker compose managed (not standalone docker run)
-      → Current: container started manually via docker run on server
-      → Target: `docker compose up dashboard` via CI autodeploy
-      → Requires SSH deploy script to pull + restart compose dashboard service
+[✓]  Dashboard managed via docker compose — DONE (v4.13)
+      → docker-compose.yml includes dashboard service, CI autodeploys it
 
-[!]   OTel sample rate tuning for high-traffic prod
-      → Current: 1.0 (all traces sampled)
-      → Target: 0.1 for ALLOW verdicts; 1.0 for HIGH/BLOCK
-      → Tail-based sampling in OTel Collector config
+[✓]  OTel adaptive sampling — DONE (v4.14)
+      → OTEL_SAMPLE_RATE=0.1 (ALLOW), OTEL_SAMPLE_RATE_HIGH=1.0 (HIGH/BLOCK)
+      → mark_high_risk(span) sets sampling.priority=1 for tail-sampling
+
+[✓]  Public Redoc docs site — DONE (v4.14)
+      → GET /openapi-public.json (no auth) + docs.shadow-warden-ai.com CORS
+      → docs/redoc.html fetches from /openapi-public.json
+
+[✓]  Load profiling script fixed — DONE (v4.14)
+      → scripts/profile_under_load.sh: correct k6 path + env var + MinIO upload
+
+[✓]  SLO burn-rate alerts — DONE (v4.14)
+      → Fast burn (14.4×, 1h+5min) + slow burn (6×, 6h+30min) in Grafana
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4B. BLOCK M — NEXT SPRINT (v4.14 → v4.15)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[!!!] DNS A record dash.shadow-warden-ai.com → 91.98.234.160
+      → Add in Cloudflare DNS dashboard (still pending)
+      → SOC dashboard is live but unreachable until DNS propagates
+
+[!!]  Redoc CDN pin
+      → docs/redoc.html loads redoc@latest — pin to @2.x.x before GA
+      → Prevents silent breaking changes from CDN
+
+[!!]  FraudScore API backend — POST /fraud-score/evaluate
+      → Landing page UI exists; backend stub returns 404
+      → Integrate financial/impact_calculator.py + ERS score
+      → Gate: Individual+ tier
+
+[!]   Hadolint GitHub Actions step
+      → Lint all Dockerfile* files for best practices
+      → Add hadolint/hadolint-action@v3 to ci.yml lint job
+
+[!]   Server backup automation
+      → Daily cron: pg_dump + tar data/ → MinIO warden-backups/
+      → Retention: 7 daily + 4 weekly + 3 monthly (GFS)
+      → Alert on backup failure via Slack webhook
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   5. INFRASTRUCTURE
@@ -175,7 +218,7 @@ Priority legend:
       → Document human oversight measures (Art. 14)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  6. DONE ✓ (v4.13 current)
+  6. DONE ✓ (v4.14 current)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [✓]  Core gateway — 9-stage pipeline (TDA, obfuscation, secrets, semantic, ML, causal, phish, ERS, decision)
@@ -203,10 +246,17 @@ Priority legend:
 [✓]  CPT drift gate — rejects CausalArbiter CPT updates >25% from prior
 [✓]  Evolution regex gate — compile + timeout + nested-quantifier heuristic
 [✓]  OTel Distributed Tracing — TracerProvider, gRPC exporter, per-layer spans in all 9 stages, OTel Collector, Jaeger 1.58
+[✓]  OTel adaptive sampling — OTEL_SAMPLE_RATE=0.1 (ALLOW) / 1.0 (HIGH/BLOCK), mark_high_risk(), tail-sampling
 [✓]  SOC Next.js Dashboard — Next.js 14.2 App Router, TanStack Query, Recharts, Tailwind dark theme, 8 pages, Docker service, Caddy vhost
+[✓]  Dashboard auth gate — middleware.ts, login page, /api/auth route, httpOnly 8h cookie
+[✓]  Dashboard live analytics — api.ts /api/v1/* paths, typed EventEntry/StatsResponse, real data in all pages
 [✓]  CI / Lint / Type Hardening — 7 ruff errors fixed, mypy attr-defined fixed, --no-cache pre-build, python3 -m pip, User-Agent probe header
-[✓]  CI — test matrix 3.11/3.12, lint, Docker smoke, mutation testing
+[✓]  CI — test matrix 3.11/3.12, lint, Docker smoke, mutation testing, JUnit XML reports, Slack notify
+[✓]  CI — Trivy container CVE scan + pip-audit SCA + k6 smoke test post-deploy
 [✓]  Prometheus + Grafana SLO alerts (P99, 5xx, shadow ban rate, corpus drift)
+[✓]  Grafana SLO burn-rate alerts — fast (14.4×, 1h+5min) + slow (6×, 6h+30min), multi-window AND gate
+[✓]  Public Redoc — GET /openapi-public.json (no auth), CORS for docs.shadow-warden-ai.com
+[✓]  Load profiling — scripts/profile_under_load.sh: k6/load_test.js, WARDEN_API_KEY, SCENARIO, MinIO upload
 [✓]  SIEM integration — Splunk HEC + Elastic ECS
 [✓]  LangChain callback (WardenCallback)
 [✓]  Production server on Hetzner VPS — api.shadow-warden-ai.com

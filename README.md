@@ -4,11 +4,11 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.13 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.14 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
-## Product Tiers — v4.13
+## Product Tiers — v4.14
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -28,6 +28,24 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 | MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v4.14
+
+| Feature | Description |
+|---------|-------------|
+| **Public Redoc** | `GET /openapi-public.json` — always-public OpenAPI schema endpoint (no `DOCS_PASSWORD` auth). `docs.shadow-warden-ai.com` added to CORS allowed origins. `docs/redoc.html` updated to fetch from `/openapi-public.json` so the Caddy-served static docs site works cross-domain without credentials. Caddy already mounts `./docs/redoc.html` → `/srv/docs/index.html`. |
+| **Load Profiling** | `scripts/profile_under_load.sh` fully fixed and extended. Corrected broken k6 script path (`tests/load/filter_bench.js` → `k6/load_test.js`), fixed env var (`API_KEY` → `WARDEN_API_KEY`), replaced unsupported `--vus/--duration` with `--env SCENARIO=` (baseline \| ramp \| spike \| soak \| all). Auto-detects Docker container by both `shadow-warden-warden-1` and `warden-warden`. New step 4: MinIO upload via `mc` client — flamegraph SVG + Speedscope JSON + k6 metrics + summary stored at `warden-evidence/profiles/<timestamp>/`. |
+| **SLO Burn-Rate Alerts** | Two new Grafana provisioned alert rules using Google SRE multi-window burn-rate methodology. **Fast burn (critical)**: 1h + 5min windows, threshold 14.4× SLO error rate — fires when 2% of the monthly error budget burns per hour; pages immediately. **Slow burn (warning)**: 6h + 30min windows, threshold 6× — fires when 5% burns per 6h; creates ticket. AND-gate multi-window pattern eliminates false positives from transient spikes. |
+| **CI: Trivy CVE Scan** | `docker-build` job now runs `aquasecurity/trivy-action@0.28.0` on `warden-ci:${{ github.sha }}` after build. CRITICAL/HIGH CVEs only; ignores unfixed; uploads SARIF to GitHub Security tab (`security-events: write` permission). `continue-on-error` so CVEs never block hotfix deploys. |
+| **CI: k6 Smoke Test** | New `k6-smoke` job after `deploy` (main branch only). Installs k6 from official apt repo, runs `k6/smoke_test.js` (1 VU, 30s) against `api.shadow-warden-ai.com`. Publishes last 40 lines to GitHub job summary. Uploads `k6-results.json` + `k6-summary.json` + `k6-output.txt` as 30-day artifact. |
+| **CI: pip-audit SCA** | Dedicated `pip-audit` CI job scans Python dependencies for known CVEs. Uploads `pip-audit-report.txt` as 30-day artifact. `continue-on-error` — informational, does not block merges. |
+| **CI: JUnit Test Reports** | `--junitxml=results/test-{version}.xml` added to pytest command. `dorny/test-reporter@v1` publishes results as GitHub Checks (pass/fail per test visible in PR). `checks: write` permission added to `test` job. |
+| **CI: Slack Deploy Notify** | `notify-deploy` job posts ✅/🚨 Slack attachment after every deploy attempt. Includes commit SHA, actor, run URL. Reads `SLACK_WEBHOOK_URL` secret; gracefully skips if unset. |
+| **Dashboard Auth Gate** | `dashboard/src/middleware.ts` — Next.js edge middleware validates `warden_auth` httpOnly cookie against `DASHBOARD_API_KEY` env var. Public prefixes (`/login`, `/api/auth`, `/_next`) bypass auth. `dashboard/src/app/login/page.tsx` — dark-themed password form with show/hide toggle. `dashboard/src/app/api/auth/route.ts` — POST sets 8h cookie; DELETE clears it (logout). |
+| **Dashboard Live Analytics** | `dashboard/src/lib/api.ts` rewritten — all paths corrected to `/api/v1/*` prefix. Typed exports: `EventEntry`, `StatsResponse`, `EventsResponse`, `ThreatEntry`. `overview/page.tsx`, `events/page.tsx`, `threats/page.tsx`, `events/[id]/page.tsx` all consume real API data with `placeholderData` mock fallback. |
+| **OTel Adaptive Sampling** | `warden/telemetry.py` — `OTEL_SAMPLE_RATE=0.1` (ALLOW traffic, 10%) and `OTEL_SAMPLE_RATE_HIGH=1.0` (HIGH/BLOCK, 100%). `mark_high_risk(span)` sets `sampling.priority=1` for Collector tail-sampling override. Configures tail-sampling in OTel Collector without code changes. |
 
 ---
 

@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 4.13 · Proprietary · All rights reserved**
+> **Version 4.14 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
@@ -738,3 +738,26 @@ Switch between these modes on request. Default to **collaborative vibe** when no
 - Suggest simpler alternatives when complexity creeps in.
 - When stuck, propose a lightweight spike or experiment.
 - Act as a thinking partner: challenge assumptions respectfully.
+
+---
+
+## 22. Public API Endpoint Rules
+
+| # | Rule |
+|---|------|
+| P-01 | **`GET /openapi-public.json` is always public.** No `DOCS_PASSWORD` auth, no `X-API-Key` required. Never add auth dependencies to this endpoint. |
+| P-02 | **CORS for docs domain.** `https://docs.shadow-warden-ai.com` must remain in `_DEFAULT_CORS`. Removing it silently breaks the Redoc site. |
+| P-03 | **Schema must not leak internal routes.** `openapi-public.json` returns the same schema as `openapi.json`. Sensitive internal routes (admin, debug) are excluded via `include_in_schema=False` on their route decorators. |
+| P-04 | **Redoc CDN pin.** `docs/redoc.html` loads Redoc from `cdn.jsdelivr.net/npm/redoc@latest`. Pin to a specific semver (`@2.x.x`) before GA launch to avoid breaking changes. |
+
+---
+
+## 23. SLO Burn-Rate Alerting Rules
+
+| # | Rule |
+|---|------|
+| SLO-01 | **Multi-window AND gate required.** Burn-rate alerts must require both long-window AND short-window to exceed threshold. Single-window burn alerts generate excessive false positives during brief spikes. |
+| SLO-02 | **Fast burn threshold: 14.4×.** For a 99.9% SLO, firing at 14.4× budget consumption rate means 2% of the monthly budget is consumed in 1 hour — page immediately. |
+| SLO-03 | **Slow burn threshold: 6×.** At 6× budget consumption, 5% of the monthly budget burns per 6h — create a ticket for next-business-day investigation. |
+| SLO-04 | **Labels required.** Every burn-rate alert must carry `category: slo_burn` + `window: fast|slow` labels so dashboards and PagerDuty routing can distinguish from threshold-based alerts. |
+| SLO-05 | **`noDataState: OK` for slow burn.** When Prometheus has no data (service is down), the slow-burn alert must not fire. The availability alert (rule uid `warden-availability`) covers the outage. |
