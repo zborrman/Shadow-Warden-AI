@@ -9,15 +9,51 @@ async function get<T>(base: string, path: string, params?: Record<string, string
   return res.json() as Promise<T>;
 }
 
+export type EventEntry = {
+  request_id: string;
+  ts: string;
+  tenant_id: string;
+  allowed: boolean;
+  risk_level: string;
+  elapsed_ms: number;
+  flags: string[];
+  secrets_found: string[];
+  content_length?: number;
+};
+
+export type StatsResponse = {
+  days: number;
+  total: number;
+  allowed: number;
+  blocked: number;
+  block_rate_pct: number;
+  avg_latency_ms: number;
+  by_day: Record<string, { total: number; blocked: number }>;
+};
+
+export type EventsResponse = { total: number; events: EventEntry[] };
+export type ThreatEntry    = { flag: string; count: number };
+export type ThreatsResponse = { days: number; total_flags: number; threats: ThreatEntry[] };
+
+export type RoiResponse = {
+  days: number;
+  total_requests: number;
+  blocked_requests: number;
+  shadow_ban: { count: number; tokens_saved: number; cost_saved_usd: number };
+  threat_mitigation: { high_block_events: number; estimated_breach_cost_avoided: number };
+  secret_protection: { secrets_redacted: number; estimated_credential_savings: number };
+  total_estimated_roi_usd: number;
+};
+
 export const api = {
-  stats:     ()                => get<Record<string, unknown>>(ANALYTICS, "/stats"),
-  events:    (limit = 100)     => get<Record<string, unknown>[]>(ANALYTICS, "/events", { limit: String(limit) }),
-  event:     (id: string)      => get<Record<string, unknown>>(ANALYTICS, `/events/${id}`),
-  threats:   ()                => get<Record<string, unknown>[]>(ANALYTICS, "/threats"),
-  roi:       ()                => get<Record<string, unknown>>(ANALYTICS, "/roi"),
-  compliance: ()               => get<Record<string, unknown>>(ANALYTICS, "/compliance"),
-  health:    ()                => get<Record<string, unknown>>(API, "/health"),
-  filter:    (body: { content: string; tenant_id?: string }) =>
+  stats:      ()               => get<StatsResponse>(ANALYTICS, "/api/v1/stats"),
+  events:     (limit = 100)    => get<EventsResponse>(ANALYTICS, "/api/v1/events", { limit: String(limit) }),
+  event:      (id: string)     => get<EventEntry>(ANALYTICS, `/api/v1/events/${id}`),
+  threats:    ()               => get<ThreatsResponse>(ANALYTICS, "/api/v1/threats"),
+  roi:        ()               => get<RoiResponse>(ANALYTICS, "/api/v1/compliance/roi"),
+  health:     ()               => get<Record<string, unknown>>(API, "/health"),
+  xaiExplain: (id: string)     => get<Record<string, unknown>>(API, `/xai/explain/${id}`),
+  filter:     (body: { content: string; tenant_id?: string }) =>
     fetch(`${API}/filter`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Key": "" },

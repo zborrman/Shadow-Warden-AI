@@ -2,43 +2,61 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Search, Filter, ChevronRight } from "lucide-react";
+import { Search, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Header } from "@/components/layout/header";
 import { VerdictBadge } from "@/components/ui/verdict-badge";
-import { api } from "@/lib/api";
+import { api, type EventEntry } from "@/lib/api";
 import { fmtMs, cn } from "@/lib/utils";
 import type { Verdict } from "@/lib/types";
 
-const MOCK_EVENTS = Array.from({ length: 50 }, (_, i) => ({
+const VERDICTS: (Verdict | "ALL")[] = ["ALL", "ALLOW", "MEDIUM", "HIGH", "BLOCK"];
+
+function toVerdict(e: EventEntry): Verdict {
+  if (e.allowed) return "ALLOW";
+  const rl = (e.risk_level ?? "").toUpperCase();
+  if (rl === "BLOCK") return "BLOCK";
+  if (rl === "HIGH")  return "HIGH";
+  if (rl === "MEDIUM") return "MEDIUM";
+  return "BLOCK";
+}
+
+const MOCK_EVENTS: EventEntry[] = Array.from({ length: 20 }, (_, i) => ({
   request_id: `req_${(Math.random() * 1e9 | 0).toString(36)}`,
   ts: new Date(Date.now() - i * 73_000).toISOString(),
   tenant_id: ["tenant_a", "tenant_b", "tenant_c"][i % 3],
-  verdict: (["ALLOW", "ALLOW", "ALLOW", "MEDIUM", "HIGH", "BLOCK"] as Verdict[])[i % 6],
-  processing_ms: 22 + Math.random() * 40,
-  threat_type: i % 6 < 3 ? null : ["Jailbreak", "Secret Leak", "Prompt Injection"][i % 3],
+  allowed: i % 6 < 3,
+  risk_level: (["low", "low", "low", "medium", "high", "block"])[i % 6],
+  elapsed_ms: 22 + Math.random() * 40,
+  flags: i % 6 < 3 ? [] : [["jailbreak_attempt", "secret_leak", "prompt_injection"][i % 3]],
+  secrets_found: [],
   content_length: 80 + Math.random() * 400 | 0,
 }));
-
-const VERDICTS: (Verdict | "ALL")[] = ["ALL", "ALLOW", "MEDIUM", "HIGH", "BLOCK"];
 
 export default function EventsPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Verdict | "ALL">("ALL");
 
-  const { data: raw } = useQuery({ queryKey: ["events"], queryFn: () => api.events(200), placeholderData: MOCK_EVENTS });
-  const events = (raw as typeof MOCK_EVENTS) ?? MOCK_EVENTS;
+  const { data: raw } = useQuery({
+    queryKey: ["events"],
+    queryFn: () => api.events(200),
+    placeholderData: { total: MOCK_EVENTS.length, events: MOCK_EVENTS },
+  });
+  const events = raw?.events ?? MOCK_EVENTS;
 
   const filtered = events.filter(e => {
-    if (filter !== "ALL" && e.verdict !== filter) return false;
-    if (search && !e.request_id.includes(search) && !e.tenant_id.includes(search) && !(e.threat_type ?? "").toLowerCase().includes(search.toLowerCase())) return false;
+    const verdict = toVerdict(e);
+    if (filter !== "ALL" && verdict !== filter) return false;
+    const q = search.toLowerCase();
+    if (q && !e.request_id.includes(q) && !e.tenant_id.includes(q) &&
+        !e.flags.join(" ").toLowerCase().includes(q)) return false;
     return true;
   });
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header title="Security Events" subtitle={`${events.length.toLocaleString()} events`} />
+      <Header title="Security Events" subtitle={`${(raw?.total ?? events.length).toLocaleString()} events`} />
       <div className="p-6 space-y-4 animate-fade-in">
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -72,27 +90,30 @@ export default function EventsPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border">
-                {["Request ID", "Time", "Tenant", "Verdict", "Latency", "Threat Type", ""].map(h => (
+                {["Request ID", "Time", "Tenant", "Verdict", "Latency", "Threat Flags", ""].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-gray-500 font-medium uppercase tracking-wider text-[10px]">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map(e => (
-                <tr
-                  key={e.request_id}
-                  className="border-b border-border/50 hover:bg-surface-3 cursor-pointer transition-colors"
-                  onClick={() => router.push(`/events/${e.request_id}`)}
-                >
-                  <td className="px-4 py-3 font-mono text-accent-blue">{e.request_id}</td>
-                  <td className="px-4 py-3 text-gray-400">{formatDistanceToNow(new Date(e.ts), { addSuffix: true })}</td>
-                  <td className="px-4 py-3 text-gray-300">{e.tenant_id}</td>
-                  <td className="px-4 py-3"><VerdictBadge verdict={e.verdict} /></td>
-                  <td className="px-4 py-3 font-mono text-gray-300">{fmtMs(e.processing_ms)}</td>
-                  <td className="px-4 py-3 text-gray-400">{e.threat_type ?? <span className="text-gray-600">—</span>}</td>
-                  <td className="px-4 py-3"><ChevronRight size={12} className="text-gray-600" /></td>
-                </tr>
-              ))}
+              {filtered.map(e => {
+                const verdict = toVerdict(e);
+                return (
+                  <tr
+                    key={e.request_id}
+                    className="border-b border-border/50 hover:bg-surface-3 cursor-pointer transition-colors"
+                    onClick={() => router.push(`/events/${e.request_id}`)}
+                  >
+                    <td className="px-4 py-3 font-mono text-accent-blue">{e.request_id}</td>
+                    <td className="px-4 py-3 text-gray-400">{formatDistanceToNow(new Date(e.ts), { addSuffix: true })}</td>
+                    <td className="px-4 py-3 text-gray-300">{e.tenant_id}</td>
+                    <td className="px-4 py-3"><VerdictBadge verdict={verdict} /></td>
+                    <td className="px-4 py-3 font-mono text-gray-300">{fmtMs(e.elapsed_ms)}</td>
+                    <td className="px-4 py-3 text-gray-400">{e.flags[0] ?? <span className="text-gray-600">—</span>}</td>
+                    <td className="px-4 py-3"><ChevronRight size={12} className="text-gray-600" /></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {filtered.length === 0 && (

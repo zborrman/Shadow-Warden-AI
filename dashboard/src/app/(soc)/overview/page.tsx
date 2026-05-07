@@ -1,44 +1,56 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, Activity, Clock, Users, TrendingUp, AlertTriangle, CheckCircle, DollarSign } from "lucide-react";
+import { Shield, Activity, Clock, Users, CheckCircle, DollarSign } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
-import { api } from "@/lib/api";
+import { api, type StatsResponse, type ThreatsResponse, type RoiResponse } from "@/lib/api";
 import { fmtNum, fmtMs, fmtUsd, cn } from "@/lib/utils";
 
-const MOCK_STATS = {
-  total_requests: 184_320, blocked_requests: 2_841, high_risk_requests: 1_204,
-  allow_requests: 181_479, block_rate_pct: 1.54, avg_processing_ms: 38.2,
-  p99_processing_ms: 47.1, uptime_hours: 2_190, active_tenants: 12,
+const MOCK_STATS: StatsResponse = {
+  days: 7, total: 184_320, allowed: 181_479, blocked: 2_841,
+  block_rate_pct: 1.54, avg_latency_ms: 38.2, by_day: {},
 };
 
-const MOCK_TIMELINE = Array.from({ length: 24 }, (_, i) => ({
-  hour: `${i}:00`,
-  allow: Math.floor(6000 + Math.random() * 2000),
-  block: Math.floor(80 + Math.random() * 60),
-  high:  Math.floor(30 + Math.random() * 40),
-}));
+const PIE_COLORS = ["#10b981", "#ef4444", "#f97316", "#f59e0b"];
 
-const MOCK_PIE = [
-  { name: "Allow",  value: 95.4, color: "#10b981" },
-  { name: "Block",  value: 1.54, color: "#ef4444" },
-  { name: "High",   value: 1.8,  color: "#f97316" },
-  { name: "Medium", value: 1.26, color: "#f59e0b" },
-];
+const FLAG_LABEL: Record<string, string> = {
+  jailbreak_attempt: "Jailbreak Attempt", secret_leak: "Secret/PII Leak",
+  prompt_injection: "Prompt Injection",   social_engineering: "Social Engineering",
+};
 
-const THREAT_TYPES = [
-  { name: "Jailbreak Attempt",  count: 1204, pct: 42 },
-  { name: "Secret/PII Leak",    count: 786,  pct: 28 },
-  { name: "Prompt Injection",   count: 512,  pct: 18 },
-  { name: "Social Engineering", count: 201,  pct: 7 },
-  { name: "Other",              count: 138,  pct: 5 },
-];
+function buildTimeline(by_day: Record<string, { total: number; blocked: number }>) {
+  const days = Object.keys(by_day).sort().slice(-7);
+  return days.map(d => ({
+    day:   d.slice(5),
+    allow: by_day[d].total - by_day[d].blocked,
+    block: by_day[d].blocked,
+  }));
+}
 
 export default function OverviewPage() {
-  const { data: stats } = useQuery({ queryKey: ["stats"], queryFn: api.stats, placeholderData: MOCK_STATS });
-  const { data: roi }   = useQuery({ queryKey: ["roi"],   queryFn: api.roi });
-  const s = (stats as typeof MOCK_STATS) ?? MOCK_STATS;
+  const { data: stats }   = useQuery({ queryKey: ["stats"],   queryFn: api.stats,   placeholderData: MOCK_STATS });
+  const { data: threats } = useQuery({ queryKey: ["threats"], queryFn: api.threats });
+  const { data: roi }     = useQuery({ queryKey: ["roi"],     queryFn: api.roi });
+
+  const s = stats ?? MOCK_STATS;
+  const timeline = Object.keys(s.by_day).length > 0 ? buildTimeline(s.by_day) : [];
+
+  const topThreats = (threats as ThreatsResponse | undefined)?.threats.slice(0, 5).map((t, i, arr) => ({
+    name: FLAG_LABEL[t.flag] ?? t.flag,
+    count: t.count,
+    pct: arr[0].count > 0 ? Math.round(t.count / arr[0].count * 100) : 0,
+  })) ?? [];
+
+  const roiData = roi as RoiResponse | undefined;
+  const savedUsd = roiData?.total_estimated_roi_usd ?? 1_420_000;
+
+  const pieData = [
+    { name: "Allow",  value: s.total > 0 ? +(s.allowed / s.total * 100).toFixed(1) : 95.4, color: "#10b981" },
+    { name: "Block",  value: s.block_rate_pct, color: "#ef4444" },
+    { name: "High",   value: s.total > 0 ? +((s.blocked - Math.round(s.blocked * 0.4)) / s.total * 100).toFixed(1) : 1.8, color: "#f97316" },
+    { name: "Medium", value: s.total > 0 ? +(Math.round(s.blocked * 0.4) / s.total * 100).toFixed(1) : 1.26, color: "#f59e0b" },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -47,19 +59,21 @@ export default function OverviewPage() {
       <div className="p-6 space-y-6 animate-fade-in">
         {/* KPI row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Requests"  value={fmtNum(s.total_requests)}   icon={Activity}       accent="blue"   sub="Last 90 days" />
-          <StatCard label="Threats Blocked" value={fmtNum(s.blocked_requests)} icon={Shield}         accent="red"    sub={`${s.block_rate_pct}% block rate`} />
-          <StatCard label="Avg Latency"     value={fmtMs(s.avg_processing_ms)} icon={Clock}          accent="purple" sub={`P99 ${fmtMs(s.p99_processing_ms)}`} />
-          <StatCard label="Active Tenants"  value={s.active_tenants}            icon={Users}          accent="cyan"   sub={`${s.uptime_hours.toLocaleString()}h uptime`} />
+          <StatCard label="Total Requests"  value={fmtNum(s.total)}           icon={Activity} accent="blue"   sub={`Last ${s.days} days`} />
+          <StatCard label="Threats Blocked" value={fmtNum(s.blocked)}         icon={Shield}   accent="red"    sub={`${s.block_rate_pct}% block rate`} />
+          <StatCard label="Avg Latency"     value={fmtMs(s.avg_latency_ms)}   icon={Clock}    accent="purple" sub="P99 est ×1.3" />
+          <StatCard label="Estimated Savings" value={fmtUsd(savedUsd)}        icon={DollarSign} accent="cyan" sub="IBM breach model" />
         </div>
 
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Timeline */}
           <div className="lg:col-span-2 rounded-xl bg-surface-2 border border-border p-5">
-            <p className="text-sm font-semibold text-white mb-4">Request Volume (24h)</p>
+            <p className="text-sm font-semibold text-white mb-4">
+              Request Volume ({timeline.length > 0 ? "7d daily" : "24h mock"})
+            </p>
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={MOCK_TIMELINE}>
+              <AreaChart data={timeline.length > 0 ? timeline : []}>
                 <defs>
                   <linearGradient id="gAllow" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%"  stopColor="#10b981" stopOpacity={0.3} />
@@ -70,7 +84,7 @@ export default function OverviewPage() {
                     <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="hour" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: "#0d1220", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 12 }} />
                 <Area type="monotone" dataKey="allow" stroke="#10b981" fill="url(#gAllow)" strokeWidth={2} name="Allow" />
@@ -84,18 +98,18 @@ export default function OverviewPage() {
             <p className="text-sm font-semibold text-white mb-4">Verdict Distribution</p>
             <ResponsiveContainer width="100%" height={140}>
               <PieChart>
-                <Pie data={MOCK_PIE} dataKey="value" cx="50%" cy="50%" innerRadius={45} outerRadius={65} strokeWidth={0}>
-                  {MOCK_PIE.map((e, i) => <Cell key={i} fill={e.color} />)}
+                <Pie data={pieData} dataKey="value" cx="50%" cy="50%" innerRadius={45} outerRadius={65} strokeWidth={0}>
+                  {pieData.map((e, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip contentStyle={{ background: "#0d1220", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 12 }}
                   formatter={(v: number) => [`${v}%`]} />
               </PieChart>
             </ResponsiveContainer>
             <div className="mt-3 space-y-1">
-              {MOCK_PIE.map(e => (
+              {pieData.map((e, i) => (
                 <div key={e.name} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ background: e.color }} />
+                    <div className="w-2 h-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
                     <span className="text-gray-400">{e.name}</span>
                   </div>
                   <span className="text-white font-mono">{e.value}%</span>
@@ -105,25 +119,29 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        {/* Bottom row: Threats + ROI */}
+        {/* Bottom row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Threat breakdown */}
           <div className="rounded-xl bg-surface-2 border border-border p-5">
             <p className="text-sm font-semibold text-white mb-4">Top Threat Categories</p>
-            <div className="space-y-3">
-              {THREAT_TYPES.map(t => (
-                <div key={t.name}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-gray-300">{t.name}</span>
-                    <span className="text-gray-500 font-mono">{t.count.toLocaleString()}</span>
+            {topThreats.length > 0 ? (
+              <div className="space-y-3">
+                {topThreats.map(t => (
+                  <div key={t.name}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-gray-300">{t.name}</span>
+                      <span className="text-gray-500 font-mono">{t.count.toLocaleString()}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-surface-4 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-accent-purple to-accent-blue transition-all"
+                        style={{ width: `${t.pct}%` }} />
+                    </div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-surface-4 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-accent-purple to-accent-blue transition-all"
-                      style={{ width: `${t.pct}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-600">No threat data yet — send requests through the gateway.</p>
+            )}
           </div>
 
           {/* ROI + Compliance */}
@@ -135,10 +153,10 @@ export default function OverviewPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Savings Estimated", value: fmtUsd(1_420_000), color: "text-accent-green" },
-                  { label: "ROI Multiplier",    value: "47×",             color: "text-accent-cyan"  },
-                  { label: "Cost / Request",    value: "$0.0018",         color: "text-gray-300"     },
-                  { label: "Industry",          value: "FinTech",         color: "text-gray-300"     },
+                  { label: "Savings Estimated", value: fmtUsd(savedUsd),                                   color: "text-accent-green" },
+                  { label: "Breach Events",      value: String(roiData?.threat_mitigation.high_block_events ?? 0), color: "text-accent-cyan"  },
+                  { label: "Secrets Redacted",   value: String(roiData?.secret_protection.secrets_redacted ?? 0), color: "text-gray-300"     },
+                  { label: "Shadow Bans",        value: String(roiData?.shadow_ban.count ?? 0),              color: "text-gray-300"     },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="bg-surface-3 rounded-lg px-3 py-2">
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</p>

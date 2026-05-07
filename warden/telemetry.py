@@ -12,7 +12,13 @@ Configuration
   OTEL_ENABLED=false                      opt-in (default disabled)
   OTEL_SERVICE_NAME=shadow-warden
   OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
-  OTEL_SAMPLE_RATE=1.0                    (0.0–1.0, default 100 %)
+  OTEL_SAMPLE_RATE=0.1                    ALLOW traffic (default 10 %)
+  OTEL_SAMPLE_RATE_HIGH=1.0               HIGH/BLOCK traffic (default 100 %)
+
+  Head-based sampling note: the SDK sampler uses OTEL_SAMPLE_RATE for all
+  requests (since verdict is unknown at span-creation time).  Call
+  mark_high_risk(span) from the decision stage to set sampling.priority=1
+  so the OTel Collector's tail-based sampler can oversample HIGH/BLOCK traces.
 
 Public API
 ──────────
@@ -53,10 +59,11 @@ from typing import Any
 
 log = logging.getLogger("warden.telemetry")
 
-_ENABLED      = os.getenv("OTEL_ENABLED",                  "false").lower() == "true"
-_SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME",             "shadow-warden")
-_ENDPOINT     = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT",  "http://otel-collector:4317")
-_SAMPLE_RATE  = float(os.getenv("OTEL_SAMPLE_RATE",       "1.0"))
+_ENABLED           = os.getenv("OTEL_ENABLED",                  "false").lower() == "true"
+_SERVICE_NAME      = os.getenv("OTEL_SERVICE_NAME",             "shadow-warden")
+_ENDPOINT          = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT",  "http://otel-collector:4317")
+_SAMPLE_RATE       = float(os.getenv("OTEL_SAMPLE_RATE",       "0.1"))   # ALLOW traffic
+_SAMPLE_RATE_HIGH  = float(os.getenv("OTEL_SAMPLE_RATE_HIGH",  "1.0"))   # HIGH/BLOCK traffic
 
 _tracer       = None
 _initialized  = False
@@ -121,8 +128,8 @@ def setup_telemetry(app: Any = None) -> None:
 
         _initialized = True
         log.info(
-            "OpenTelemetry: service=%s  endpoint=%s  sample_rate=%.2f",
-            _SERVICE_NAME, _ENDPOINT, _SAMPLE_RATE,
+            "OpenTelemetry: service=%s  endpoint=%s  sample_rate=%.2f  sample_rate_high=%.2f",
+            _SERVICE_NAME, _ENDPOINT, _SAMPLE_RATE, _SAMPLE_RATE_HIGH,
         )
 
     except ImportError as exc:
@@ -213,6 +220,28 @@ def traced(span_name: str, attributes: dict[str, Any] | None = None):
                     return fn(*args, **kwargs)
             return sync_wrapper
     return decorator
+
+
+# ── High-risk sampling marker ─────────────────────────────────────────────────
+
+def mark_high_risk(span: Any) -> None:
+    """
+    Mark a span as high-priority so tail-based samplers keep it at 100%.
+
+    Call this from the decision stage when verdict is HIGH or BLOCK::
+
+        from warden.telemetry import mark_high_risk
+        with trace_stage("decision", {...}) as span:
+            if verdict in ("HIGH", "BLOCK"):
+                mark_high_risk(span)
+
+    Sets two attributes understood by OTel Collector tail-sampling policies:
+      sampling.priority=1  (OpenTracing compatibility)
+      warden.force_sample=true  (Shadow Warden Collector policy)
+    """
+    with contextlib.suppress(Exception):
+        span.set_attribute("sampling.priority", 1)
+        span.set_attribute("warden.force_sample", True)
 
 
 # ── No-op span ─────────────────────────────────────────────────────────────────
