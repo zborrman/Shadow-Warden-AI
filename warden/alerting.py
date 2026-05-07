@@ -250,6 +250,46 @@ async def _telegram_rollback_alert(
     await _send_telegram(text)
 
 
+async def alert_obsidian_event(
+    *,
+    filename:   str,
+    risk_level: str,
+    flags:      list[str],
+    data_class: str,
+    tenant_id:  str = "default",
+    ueciid:     str = "",
+) -> None:
+    """
+    Slack alert for Obsidian note events.
+    - ueciid non-empty → share confirmation (info)
+    - ueciid empty + HIGH/BLOCK → high-risk scan alert
+    Note content is NEVER included (GDPR Rule G-01/G-06).
+    """
+    if not _SLACK_WEBHOOK:
+        return
+    if ueciid:
+        text = (
+            f"📒 *Obsidian Note Shared* — `{data_class}`\n"
+            f"*File:* `{filename or 'untitled'}`\n"
+            f"*UECIID:* `{ueciid}`\n"
+            f"*Tenant:* `{tenant_id}`"
+        )
+    else:
+        emoji = {"high": "🔴", "block": "🚨"}.get(risk_level.lower(), "⚠️")
+        flag_str = ", ".join(flags) if flags else "none"
+        text = (
+            f"{emoji} *Obsidian High-Risk Scan* — `{risk_level.upper()}`\n"
+            f"*File:* `{filename or 'untitled'}`\n"
+            f"*Data Class:* `{data_class}`\n"
+            f"*Flags:* {flag_str}\n"
+            f"*Tenant:* `{tenant_id}`"
+        )
+    try:
+        await _send_slack_raw({"text": text})
+    except Exception as exc:
+        log.warning("Obsidian Slack alert failed: %s", exc)
+
+
 def send_alert(message: str, *, level: str = "warning") -> None:
     """Fire-and-forget a plain Slack message. Safe to call from sync code inside FastAPI."""
     if not _SLACK_WEBHOOK:

@@ -889,6 +889,73 @@ async def get_reputation(tenant_id: str = "default", **_) -> dict:
         return {"tenant_id": tenant_id, "points": 0, "badge": "NEWCOMER", "entry_count": 0, "error": str(exc)}
 
 
+async def scan_obsidian_note(
+    content: str,
+    filename: str = "",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #43 — Scan an Obsidian note through Warden's security pipeline.
+
+    Returns risk_level, secrets_found, data_class, and redacted_content.
+    Automatically fires a Slack alert if risk is HIGH or BLOCK.
+    """
+    return await _post(
+        "/obsidian/scan",
+        {"content": content, "filename": filename},
+        tenant=tenant_id,
+    )
+
+
+async def get_obsidian_feed(
+    community_id: str,
+    limit: int = 10,
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #44 — Fetch recent Obsidian notes shared to a Business Community via SEP.
+
+    Returns list of entries: ueciid, display_name, content_type, byte_size, shared_at.
+    """
+    results = await _get(
+        "/obsidian/feed",
+        tenant=tenant_id,
+        params={"community_id": community_id, "limit": min(int(limit), 20)},
+    )
+    return {"entries": results if isinstance(results, list) else [], "community_id": community_id}
+
+
+async def share_obsidian_note(
+    content: str,
+    display_name: str,
+    community_id: str,
+    filename: str = "",
+    data_class: str = "GENERAL",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #45 — Share a scanned Obsidian note to the SEP community hub.
+
+    Runs the note through SecretRedactor first — aborts with error if secrets found.
+    On success returns ueciid, data_class, and shared_at.
+    A Slack notification is sent automatically on successful share.
+    """
+    return await _post(
+        "/obsidian/share",
+        {
+            "content":      content,
+            "filename":     filename,
+            "display_name": display_name,
+            "community_id": community_id,
+            "data_class":   data_class,
+        },
+        tenant=tenant_id,
+    )
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -1448,6 +1515,65 @@ TOOLS: list[dict] = [
             "required": [],
         },
     },
+
+    # ── Obsidian + Slack unified tools #43–#45 ────────────────────────────────
+    {
+        "name": "scan_obsidian_note",
+        "description": (
+            "Scan an Obsidian markdown note through the full Warden security pipeline. "
+            "Returns risk_level (ALLOW/LOW/MEDIUM/HIGH/BLOCK), secrets_found list, "
+            "data_class (GENERAL/PII/PHI/FINANCIAL/CLASSIFIED), and redacted_content. "
+            "Fires a Slack alert automatically when risk is HIGH or BLOCK. "
+            "Use before share_obsidian_note to ensure no secrets leak into the community."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "content":   {"type": "string", "description": "Full note markdown content"},
+                "filename":  {"type": "string", "description": "Note filename for Slack alert context"},
+                "tenant_id": {"type": "string"},
+            },
+            "required": ["content"],
+        },
+    },
+    {
+        "name": "get_obsidian_feed",
+        "description": (
+            "Fetch recent Obsidian notes shared to a Business Community via the SEP protocol. "
+            "Returns list of entries: ueciid, display_name, content_type, byte_size, shared_at. "
+            "Use during morning_brief to audit what knowledge was shared by the tenant's vault."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "community_id": {"type": "string", "description": "SEP community ID to fetch entries for"},
+                "limit":        {"type": "integer", "description": "Max entries to return (default 10, max 20)"},
+                "tenant_id":    {"type": "string"},
+            },
+            "required": ["community_id"],
+        },
+    },
+    {
+        "name": "share_obsidian_note",
+        "description": (
+            "Share a scanned Obsidian note to the SEP community hub under a given display_name. "
+            "Runs SecretRedactor first — if secrets are detected the share is aborted with an error. "
+            "On success returns the UECIID and sends a Slack confirmation. "
+            "Always call scan_obsidian_note first and confirm risk is ALLOW or LOW before sharing."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "content":      {"type": "string", "description": "Full note markdown content to share"},
+                "display_name": {"type": "string", "description": "Human-readable title for the community entry"},
+                "community_id": {"type": "string", "description": "SEP community ID to publish to"},
+                "filename":     {"type": "string", "description": "Original filename (for Slack notification)"},
+                "data_class":   {"type": "string", "description": "Data classification override: GENERAL | PII | PHI | FINANCIAL | CLASSIFIED"},
+                "tenant_id":    {"type": "string"},
+            },
+            "required": ["content", "display_name", "community_id"],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -1494,4 +1620,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     "get_community_recommendations": get_community_recommendations,
     "sync_misp_feed":                sync_misp_feed,
     "get_reputation":                get_reputation,
+    "scan_obsidian_note":            scan_obsidian_note,
+    "get_obsidian_feed":             get_obsidian_feed,
+    "share_obsidian_note":           share_obsidian_note,
 }

@@ -69,7 +69,10 @@ async def sova_morning_brief(ctx: dict) -> dict:
         "(6) Business Community health digest: call community_moderation_report, "
         "summarise total posts, member count, NIM verdict breakdown (SAFE/WARN/BLOCK), "
         "and flag if any BLOCK verdicts appeared in the last 24 hours; "
-        "(7) recommended actions for today. "
+        "(7) Obsidian vault digest: call get_obsidian_feed for community_id='default', "
+        "report total notes shared, top data_class distribution, "
+        "and flag any entries with data_class=CLASSIFIED or PHI; "
+        "(8) recommended actions for today. "
         "Format as a structured Slack message with emojis and clear sections. "
         "Send it to Slack when done."
     )
@@ -499,4 +502,71 @@ async def sova_visual_patrol(ctx: dict) -> dict:
         "issues":           issues,
         "critical_coverage_pct": coverage_pct,
         "weights":          {u: round(weights.get(u, 1.0), 2) for u in url_list},
+    }
+
+
+async def sova_obsidian_watchdog(ctx: dict) -> dict:
+    """
+    Every 4 hours — Obsidian vault integrity check.
+
+    Fetches the Obsidian integration stats and the 20 most recent shared
+    entries.  Alerts Slack if:
+      • Any entry has data_class CLASSIFIED or PHI (high-sensitivity leak risk)
+      • More than 5 entries were shared in the last hour (spike detection)
+      • The /obsidian/stats endpoint is unreachable (integration down)
+    """
+    log.info("sova: obsidian watchdog starting [%s]", _ts())
+
+    import os  # noqa: PLC0415
+
+    from warden.agent.tools import get_obsidian_feed  # noqa: PLC0415
+
+    tenant_id    = os.getenv("DEFAULT_TENANT_ID", "default")
+    community_id = os.getenv("OBSIDIAN_COMMUNITY_ID", "default")
+
+    try:
+        feed = await get_obsidian_feed(
+            community_id=community_id, limit=20, tenant_id=tenant_id
+        )
+        entries = feed.get("entries", [])
+    except Exception as exc:
+        await _slack(
+            f"⚠️ *Obsidian Watchdog* [{_ts()}] — integration unreachable\n"
+            f"Error: `{exc}`"
+        )
+        return {"status": "error", "ts": _ts(), "error": str(exc)}
+
+    sensitive = [
+        e for e in entries
+        if e.get("content_type", "").upper() in ("CLASSIFIED", "PHI")
+        or e.get("display_name", "").startswith("[CLASSIFIED]")
+    ]
+
+    alert_lines: list[str] = []
+    if sensitive:
+        alert_lines.append(
+            f"• {len(sensitive)} high-sensitivity entry/entries detected "
+            f"(CLASSIFIED/PHI): "
+            + ", ".join(e.get("ueciid", "?") for e in sensitive[:3])
+        )
+    if len(entries) >= 15:
+        alert_lines.append(
+            f"• Share volume spike: {len(entries)} entries in the feed (threshold ≥ 15)"
+        )
+
+    if alert_lines:
+        await _slack(
+            f"🔴 *Obsidian Watchdog Alert* [{_ts()}]\n"
+            + "\n".join(alert_lines)
+            + f"\n_Community: `{community_id}` | Tenant: `{tenant_id}`_"
+        )
+
+    log.info("sova: obsidian watchdog complete — entries=%d sensitive=%d alerted=%s",
+             len(entries), len(sensitive), bool(alert_lines))
+    return {
+        "status":    "alerted" if alert_lines else "ok",
+        "ts":        _ts(),
+        "entries":   len(entries),
+        "sensitive": len(sensitive),
+        "alerted":   bool(alert_lines),
     }

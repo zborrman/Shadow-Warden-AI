@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from warden.integrations.obsidian.note_scanner import scan_note as _scan
@@ -64,10 +64,23 @@ def _risk_from_scan(result: dict) -> tuple[str, list[str]]:
 @router.post("/scan")
 async def scan_note(
     body: ScanNoteRequest,
+    background_tasks: BackgroundTasks,
     tenant_id: str = Depends(_get_tenant),
 ):
     result = _scan(body.content)
     risk, flags = _risk_from_scan(result)
+
+    if risk in ("HIGH", "BLOCK"):
+        from warden import alerting  # noqa: PLC0415
+        background_tasks.add_task(
+            alerting.alert_obsidian_event,
+            filename=body.filename,
+            risk_level=risk,
+            flags=flags,
+            data_class=result["data_class"],
+            tenant_id=tenant_id,
+        )
+
     return {
         "allowed": risk not in ("HIGH", "BLOCK"),
         "risk_level": risk,
@@ -85,6 +98,7 @@ async def scan_note(
 @router.post("/share")
 async def share_note(
     body: ShareNoteRequest,
+    background_tasks: BackgroundTasks,
     tenant_id: str = Depends(_get_tenant),
 ):
     result = _scan(body.content)
@@ -111,6 +125,17 @@ async def share_note(
         ueciid = entry.ueciid
     except Exception:
         ueciid = f"SEP-{uuid.uuid4().hex[:11].upper()}"
+
+    from warden import alerting  # noqa: PLC0415
+    background_tasks.add_task(
+        alerting.alert_obsidian_event,
+        filename=body.filename,
+        risk_level="ALLOW",
+        flags=[],
+        data_class=data_class,
+        tenant_id=tenant_id,
+        ueciid=ueciid,
+    )
 
     return {
         "ueciid": ueciid,

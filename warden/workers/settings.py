@@ -45,6 +45,7 @@ from warden.agent.scheduler import (
     sova_community_watchdog,
     sova_corpus_watchdog,
     sova_morning_brief,
+    sova_obsidian_watchdog,
     sova_rotation_check,
     sova_sla_report,
     sova_threat_sync,
@@ -95,6 +96,7 @@ class WorkerSettings:
         sova_corpus_watchdog,
         sova_visual_patrol,
         sova_community_watchdog,
+        sova_obsidian_watchdog,
         # Community moderation
         moderate_post,
         # Cyber Security Hub
@@ -158,6 +160,9 @@ class WorkerSettings:
 
         # ── GDPR auto-retention — daily at 02:00 UTC ─────────────────────────
         cron(run_gdpr_retention, hour=2, minute=0, timeout=120),
+
+        # ── Obsidian vault watchdog — every 4 hours ───────────────────────────
+        cron(sova_obsidian_watchdog, hour={0, 4, 8, 12, 16, 20}, minute=45, timeout=60),
     ]
 
     on_startup  = startup

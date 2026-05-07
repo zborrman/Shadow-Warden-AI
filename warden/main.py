@@ -1214,6 +1214,13 @@ except ImportError:
     log.warning("obsidian router not available — /obsidian routes skipped.")
 
 try:
+    from warden.api.slack_commands import router as _slack_router
+    app.include_router(_slack_router)
+    log.info("Slack slash command handler mounted at /slack/command")
+except ImportError:
+    log.warning("slack_commands router not available — /slack/command skipped.")
+
+try:
     from warden.api.gdpr import router as _gdpr_router
     app.include_router(_gdpr_router)
     log.info("GDPR scrubbing API mounted at /gdpr")
