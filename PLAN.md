@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 4.13 · Last updated 2026-05-06**
+**Version 4.16 · Last updated 2026-05-07**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -155,15 +155,46 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
-## Next Sprint — Block L (Planned)
+### Block L — Public Community Intelligence (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| L-01 | SOVA community tools #38–40 (`search_community_feed`, `publish_to_community`, `get_community_recommendations`) | ✅ |
+| L-02 | `sova_threat_sync` cross-reference community feed (4 keywords + Slack alert) | ✅ |
+| L-03 | `POST /agent/sova/community/lookup` endpoint + models | ✅ |
+| L-04 | `GET /public/community` unauthenticated GDPR-safe stats endpoint | ✅ |
+| L-05 | `shadow-warden-ai.com/community` Storytelling Dashboard (Astro, SVG chart, live feed) | ✅ |
+| L-06 | Community Defense Widget in SOC dashboard Overview page | ✅ |
+| L-07 | Community Recommendations block in Event Detail page (blocked events) | ✅ |
+
+---
+
+### Block M — Collective Immunity & ISAC (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| M-01 | `warden/communities/reputation.py` — SQLite points ledger + badge ladder | ✅ |
+| M-02 | `GET /public/leaderboard` — anonymised top-10 (no tenant_id) | ✅ |
+| M-03 | Reputation points awarded automatically on `publish_to_community` tool | ✅ |
+| M-04 | `warden/integrations/misp.py` — MISP REST → EvolutionEngine synthesis | ✅ |
+| M-05 | SOVA tool #41 `sync_misp_feed` + `POST /agent/misp/sync` | ✅ |
+| M-06 | `POST /agent/sova/community/apply/{ueciid}` — auto-apply with human-in-the-loop | ✅ |
+| M-07 | `GET /public/incident/{ueciid}` — anonymised public incident card + XAI chain | ✅ |
+| M-08 | `shadow-warden-ai.com/incident?id=SEP-xxx` — public incident Astro page | ✅ |
+| M-09 | SOVA tool #42 `get_reputation` | ✅ |
+| M-10 | Leaderboard section on community.astro (120s auto-refresh) | ✅ |
+
+---
+
+## Next Sprint — Block N (Planned)
 
 | ID | Feature | Priority |
 |----|---------|----------|
-| L-01 | DNS A record `dash.shadow-warden-ai.com → 91.98.234.160` (Cloudflare) | P0 |
-| L-02 | Analytics API live endpoints wired into dashboard (replace mock data) | P1 |
-| L-03 | Dashboard auth gate (JWT / API-key header) | P1 |
-| L-04 | Dashboard → docker compose managed (not standalone `docker run`) | P2 |
-| L-05 | OTel sample rate tuning for high-traffic prod (0.1) | P2 |
+| N-01 | DNS A record `dash.shadow-warden-ai.com → 91.98.234.160` (Cloudflare) | P0 |
+| N-02 | Analytics API live endpoints wired into dashboard (replace mock data) | P1 |
+| N-03 | `TRUSTED_ENTRY +3` reputation cron — 30-day no-report entries auto-awarded | P2 |
+| N-04 | `SEARCH_HIT +1` reputation — award on `search_community_feed` result match | P2 |
+| N-05 | MISP syslog bridge — route MISP ZMQ feed into Shadow Warden syslog sink | P3 |
 
 ---
 
@@ -174,7 +205,9 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | API Gateway | `https://api.shadow-warden-ai.com` | ✅ Live |
 | Tenant Portal | `https://app.shadow-warden-ai.com` | ✅ Live |
 | Landing Page | `https://shadow-warden-ai.com` | ✅ Live |
-| Redoc Docs | `https://docs.shadow-warden-ai.com` | ✅ Live (needs DNS) |
+| Redoc Docs | `https://docs.shadow-warden-ai.com` | ✅ Live |
+| Community Dashboard | `https://shadow-warden-ai.com/community` | ✅ Live (Vercel) |
+| Public Incident Page | `https://shadow-warden-ai.com/incident` | ✅ Live (Vercel) |
 | SOC Dashboard | `https://dash.shadow-warden-ai.com` | ⚠️ Needs DNS A record |
 | Grafana | `http://91.98.234.160:3000` | ✅ Live |
 | Jaeger UI | `http://91.98.234.160:16686` | ✅ Live |
