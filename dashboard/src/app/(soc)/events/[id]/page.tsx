@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { VerdictBadge } from "@/components/ui/verdict-badge";
+import { CommunityRecommendations } from "@/components/ui/community-recommendations";
 import { fmtMs, cn } from "@/lib/utils";
 import { api, type EventEntry } from "@/lib/api";
 import type { Verdict } from "@/lib/types";
@@ -139,6 +140,11 @@ export default function EventDetailPage() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Community recommendations — only for blocked/high-risk events */}
+        {!event.allowed && event.flags.length > 0 && (
+          <CommunityRecommendations flags={event.flags} riskLevel={event.risk_level} />
         )}
       </div>
     </div>

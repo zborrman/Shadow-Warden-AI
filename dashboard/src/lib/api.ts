@@ -45,6 +45,36 @@ export type RoiResponse = {
   total_estimated_roi_usd: number;
 };
 
+export type CommunityFeedItem = {
+  ueciid:      string;
+  display_name: string;
+  risk_level:  string;
+  data_class:  string;
+  created_at:  string;
+};
+
+export type CommunityLookupResponse = {
+  query:           string;
+  total:           number;
+  results:         CommunityFeedItem[];
+  recommendations: string[];
+  source:          string;
+  published:       boolean;
+  ueciid:          string | null;
+  latency_ms:      number;
+};
+
+async function post<T>(base: string, path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${base}${path}`, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", "X-API-Key": "" },
+    body:    JSON.stringify(body),
+    next:    { revalidate: 0 },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json() as Promise<T>;
+}
+
 export const api = {
   stats:      ()               => get<StatsResponse>(ANALYTICS, "/api/v1/stats"),
   events:     (limit = 100)    => get<EventsResponse>(ANALYTICS, "/api/v1/events", { limit: String(limit) }),
@@ -59,4 +89,10 @@ export const api = {
       headers: { "Content-Type": "application/json", "X-API-Key": "" },
       body: JSON.stringify(body),
     }).then(r => r.json()),
+  communityFeed:   (q: string, limit = 5) =>
+    get<{ query: string; total: number; results: CommunityFeedItem[] }>(
+      API, "/sep/ueciids/search", { q, limit: String(limit) }
+    ),
+  communityLookup: (body: { query: string; auto_publish?: boolean; risk_level?: string }) =>
+    post<CommunityLookupResponse>(API, "/agent/sova/community/lookup", body),
 };

@@ -4,6 +4,7 @@ import { Shield, Activity, Clock, Users, CheckCircle, DollarSign } from "lucide-
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
+import { CommunityDefenseWidget } from "@/components/ui/community-defense-widget";
 import { api, type StatsResponse, type ThreatsResponse, type RoiResponse } from "@/lib/api";
 import { fmtNum, fmtMs, fmtUsd, cn } from "@/lib/utils";
 
@@ -119,10 +120,13 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        {/* Bottom row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Threat breakdown */}
-          <div className="rounded-xl bg-surface-2 border border-border p-5">
+        {/* Community Defence + Threat breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Collective defense widget — spans 1 col */}
+          <CommunityDefenseWidget />
+
+          {/* Threat breakdown — spans 2 cols */}
+          <div className="lg:col-span-2 rounded-xl bg-surface-2 border border-border p-5">
             <p className="text-sm font-semibold text-white mb-4">Top Threat Categories</p>
             {topThreats.length > 0 ? (
               <div className="space-y-3">
@@ -143,7 +147,10 @@ export default function OverviewPage() {
               <p className="text-xs text-gray-600">No threat data yet — send requests through the gateway.</p>
             )}
           </div>
+        </div>
 
+        {/* Bottom row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* ROI + Compliance */}
           <div className="space-y-4">
             <div className="rounded-xl bg-surface-2 border border-border p-5">
