@@ -230,7 +230,6 @@ def increment_seat_units(tenant_id: str, units: int = 1) -> int:
             r.incrby(key, units)
         except Exception as exc:
             log.warning("increment_seat_units redis error: %s", exc)
-    seats_per_unit = ADDON_CATALOG["community_seats"]["seats_per_unit"]
     new_seats = get_seat_expansion(tenant_id)
     log.info("Seat units added tenant=%s units=%d total_extra_seats=%d", tenant_id, units, new_seats)
     return new_seats
