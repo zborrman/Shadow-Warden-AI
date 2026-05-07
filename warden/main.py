@@ -941,6 +941,8 @@ _DEFAULT_CORS = ",".join([
     "https://app.shadow-warden-ai.com",
     "https://shadow-warden-ai.com",
     "https://www.shadow-warden-ai.com",
+    # Public API docs (Redoc at docs.shadow-warden-ai.com fetches /openapi-public.json)
+    "https://docs.shadow-warden-ai.com",
     # Browser extension origins — required for Shadow Warden browser extension
     "https://chatgpt.com",
     "https://chat.openai.com",
@@ -1012,6 +1014,12 @@ if _PROMETHEUS_ENABLED:
 
 @app.get("/openapi.json", include_in_schema=False)
 async def _openapi_schema(_: None = Depends(_docs_auth)):
+    return JSONResponse(app.openapi())
+
+
+@app.get("/openapi-public.json", include_in_schema=False)
+async def _openapi_public():
+    """Always-public OpenAPI schema — served to docs.shadow-warden-ai.com (Redoc)."""
     return JSONResponse(app.openapi())
 
 

@@ -372,3 +372,179 @@ groups:
             an automated boundary-probing or adversarial-perturbation
             campaign targeting this Warden instance.
             Dashboard: http://localhost:3000/d/ai-security-health
+
+      # ── 7. SLO Burn-Rate — Fast Burn (Critical / Page Now) ───────────────────
+      #
+      # Google SRE multi-window burn-rate alert.
+      # SLO: 99.9% availability → error budget = 0.1% = 43.8 min/month.
+      #
+      # Fast burn: if the error rate exceeds 14.4× the SLO budget rate,
+      # 2% of the monthly error budget is consumed in just 1 hour.
+      # Multi-window (1h + 5min) eliminates false positives from short spikes.
+      #
+      # burn_rate = actual_error_rate / slo_error_rate
+      #           = error_rate / 0.001
+      # Threshold: 14.4 → page immediately, 2% budget consumed in 1h
+      #
+      - uid: warden-burn-fast
+        title: "Warden — SLO Burn Rate FAST (> 14.4×, page now)"
+        condition: D
+
+        data:
+          # A: error rate over 1h window
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(http_requests_total{job="warden", status=~"5.."}[1h]))
+                /
+                sum(rate(http_requests_total{job="warden"}[1h]))
+              intervalMs: 60000
+              maxDataPoints: 720
+              instant: true
+
+          # B: error rate over 5min window (short window to confirm fast burn)
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(http_requests_total{job="warden", status=~"5.."}[5m]))
+                /
+                sum(rate(http_requests_total{job="warden"}[5m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          # C: 1h burn rate > 14.4× SLO (0.001 * 14.4 = 0.0144)
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.0144"
+
+          # D: both windows must fire (AND gate — prevents false positives)
+          - refId: D
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$C == 1 && $B > 0.0144"
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        labels:
+          severity: critical
+          team: warden
+          category: slo_burn
+          window: fast
+        annotations:
+          summary: "Warden SLO fast burn — 2% error budget consumed in 1h"
+          description: >
+            CRITICAL: The error rate has exceeded 14.4× the SLO budget rate
+            (confirmed on both 1h and 5min windows). At this rate, 2% of the
+            monthly error budget is consumed every hour — the entire monthly
+            budget will be gone in ~50 hours.
+            Immediate investigation required.
+            Runbook: docs.shadow-warden-ai.com/guides/slo-burn-runbook
+            Dashboard: http://localhost:3000/d/warden-overview
+
+      # ── 8. SLO Burn-Rate — Slow Burn (Warning / Ticket) ─────────────────────
+      #
+      # Slow burn: if the error rate exceeds 6× the SLO budget rate,
+      # 5% of the monthly error budget is consumed in 6 hours.
+      # Multi-window (6h + 30min) reduces noise from transient dips.
+      #
+      # Threshold: 6 → file a ticket, investigate within business hours
+      #
+      - uid: warden-burn-slow
+        title: "Warden — SLO Burn Rate SLOW (> 6×, file ticket)"
+        condition: D
+
+        data:
+          # A: error rate over 6h window
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 21600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(http_requests_total{job="warden", status=~"5.."}[6h]))
+                /
+                sum(rate(http_requests_total{job="warden"}[6h]))
+              intervalMs: 60000
+              maxDataPoints: 720
+              instant: true
+
+          # B: error rate over 30min window (short window confirmation)
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(http_requests_total{job="warden", status=~"5.."}[30m]))
+                /
+                sum(rate(http_requests_total{job="warden"}[30m]))
+              intervalMs: 60000
+              maxDataPoints: 720
+              instant: true
+
+          # C: 6h burn rate > 6× SLO (0.001 * 6 = 0.006)
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 21600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.006"
+
+          # D: both windows must exceed threshold
+          - refId: D
+            queryType: ""
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$C == 1 && $B > 0.006"
+
+        noDataState: OK
+        execErrState: OK
+        for: 15m
+        labels:
+          severity: warning
+          team: warden
+          category: slo_burn
+          window: slow
+        annotations:
+          summary: "Warden SLO slow burn — 5% error budget consumed in 6h"
+          description: >
+            WARNING: The error rate has exceeded 6× the SLO budget rate
+            (confirmed on both 6h and 30min windows). At this rate, 5% of the
+            monthly error budget is consumed every 6 hours.
+            File a ticket and investigate during business hours.
+            Runbook: docs.shadow-warden-ai.com/guides/slo-burn-runbook
+            Dashboard: http://localhost:3000/d/warden-overview
