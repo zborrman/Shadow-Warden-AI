@@ -107,6 +107,7 @@ async def sova_threat_sync(ctx: dict) -> dict:
     # that other tenants have already published and logged recommendations for.
     community_matches: list[dict] = []
     import os  # noqa: PLC0415
+
     from warden.agent.tools import (  # noqa: PLC0415
         get_community_recommendations,
         search_community_feed,
