@@ -454,21 +454,25 @@ class TestCommunityReputation:
         assert rec.entry_count == 0
 
     def test_award_publish_entry(self, rep_module):
-        rec = rep_module.award_points("rep-pub-1", "PUBLISH_ENTRY")
+        rep_module.award_points("rep-pub-1", "PUBLISH_ENTRY")
+        rec = rep_module.get_reputation("rep-pub-1")
         assert rec.points == 5
         assert rec.entry_count == 1
 
     def test_award_search_hit(self, rep_module):
-        rec = rep_module.award_points("rep-sh-1", "SEARCH_HIT")
+        rep_module.award_points("rep-sh-1", "SEARCH_HIT")
+        rec = rep_module.get_reputation("rep-sh-1")
         assert rec.points == 1
         assert rec.entry_count == 0
 
     def test_award_rec_adopted(self, rep_module):
-        rec = rep_module.award_points("rep-ra-1", "REC_ADOPTED")
+        rep_module.award_points("rep-ra-1", "REC_ADOPTED")
+        rec = rep_module.get_reputation("rep-ra-1")
         assert rec.points == 10
 
     def test_award_trusted_entry(self, rep_module):
-        rec = rep_module.award_points("rep-te-1", "TRUSTED_ENTRY")
+        rep_module.award_points("rep-te-1", "TRUSTED_ENTRY")
+        rec = rep_module.get_reputation("rep-te-1")
         assert rec.points == 3
 
     def test_award_unknown_event_zero_points(self, rep_module):
