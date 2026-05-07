@@ -1,0 +1,179 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout
+  title="Incident Detail — Shadow Warden AI Community"
+  description="Anonymised public incident card: XAI causal chain, verdict, risk level. No PII, no content — metadata only."
+>
+  <Navbar />
+
+  <section class="relative pt-28 pb-8 overflow-hidden">
+    <div class="absolute inset-0 pointer-events-none"
+         style="background-image:linear-gradient(rgba(99,117,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,117,255,0.03) 1px,transparent 1px);background-size:56px 56px"></div>
+
+    <div class="relative z-10 mx-auto max-w-3xl px-6">
+      <a href="/community" class="inline-flex items-center gap-2 text-xs text-[#555] hover:text-white mb-8 transition-colors">
+        ← Back to Community Feed
+      </a>
+
+      <!-- Loading state -->
+      <div id="loading" class="text-center py-20">
+        <div class="inline-flex items-center gap-3 text-[#555] text-sm">
+          <span class="animate-spin">⟳</span>
+          Loading incident…
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div id="error" class="hidden text-center py-20">
+        <p class="text-[#FF2D55] text-sm mb-2" id="error-msg">Incident not found.</p>
+        <a href="/community" class="text-xs text-[#555] hover:text-white">← Back to feed</a>
+      </div>
+
+      <!-- Content -->
+      <div id="content" class="hidden space-y-6 animate-fade-in">
+
+        <!-- Header -->
+        <div>
+          <div class="flex items-center gap-3 mb-3">
+            <span id="verdict-pill" class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono border"></span>
+            <span id="risk-pill" class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono border text-[#FF8C42] bg-[#FF8C42]/10 border-[#FF8C42]/30"></span>
+            <span id="class-pill" class="px-2.5 py-1 rounded-lg text-xs font-mono border text-[#555] bg-[#1a2236] border-[#1a2236]"></span>
+          </div>
+          <p class="text-[11px] font-mono text-[#555] mb-1" id="ueciid-label"></p>
+          <p class="text-[11px] text-[#444]" id="published-label"></p>
+        </div>
+
+        <!-- Indicator -->
+        <div class="rounded-2xl border border-[#1a2236] bg-[#0d1220] p-5">
+          <p class="text-[10px] uppercase tracking-wider text-[#555] mb-2">Published Indicator</p>
+          <p class="text-sm text-[#ccc] font-mono leading-relaxed" id="indicator-text"></p>
+        </div>
+
+        <!-- XAI pipeline -->
+        <div class="rounded-2xl border border-[#1a2236] bg-[#0d1220] p-5">
+          <p class="text-sm font-semibold text-white mb-1">9-Layer Pipeline Analysis</p>
+          <p class="text-xs text-[#555] mb-5">Reconstructed from community-published metadata · no real pipeline data exposed</p>
+          <div id="xai-stages" class="space-y-1"></div>
+        </div>
+
+        <!-- GDPR notice -->
+        <div class="rounded-2xl border border-[#1a2236] bg-[#0a0e1a] p-4 text-center">
+          <p class="text-[11px] text-[#444] leading-relaxed">
+            🔒 Anonymised metadata only — no content, no tenant identifiers, no PII.<br />
+            <span class="font-mono">GDPR Art. 5(1)(b) · Data minimisation principle</span>
+          </p>
+        </div>
+
+        <!-- CTA -->
+        <div class="flex gap-3 pt-2">
+          <a href="/early-access"
+             class="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm
+                    bg-[#FF2D55] hover:bg-[#e0263d] text-white transition-colors">
+            Join Community →
+          </a>
+          <a href="/community"
+             class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm
+                    border border-[#1a2236] hover:border-[#2a3a52] text-[#8E8E9E] hover:text-white transition-colors">
+            View Feed
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <Footer />
+</Layout>
+
+<script>
+  const API = "https://api.shadow-warden-ai.com";
+
+  const VERDICT_STYLE: Record<string, string> = {
+    BLOCK: "color:#FF2D55;background:rgba(255,45,85,0.1);border-color:rgba(255,45,85,0.3)",
+    FLAG:  "color:#FFD60A;background:rgba(255,214,10,0.1);border-color:rgba(255,214,10,0.3)",
+    ALLOW: "color:#30D158;background:rgba(48,209,88,0.1);border-color:rgba(48,209,88,0.3)",
+  };
+
+  const STAGE_VERDICT_COLOR: Record<string, string> = {
+    PASS:  "#30D158",
+    FLAG:  "#FFD60A",
+    BLOCK: "#FF2D55",
+    SKIP:  "#555",
+  };
+
+  function qs(id: string): HTMLElement | null {
+    return document.getElementById(id);
+  }
+
+  function showError(msg: string) {
+    (qs("loading") as HTMLElement).classList.add("hidden");
+    (qs("error-msg") as HTMLElement).textContent = msg;
+    (qs("error") as HTMLElement).classList.remove("hidden");
+  }
+
+  function renderStages(stages: Array<{ stage: string; verdict: string; note: string }>) {
+    const el = qs("xai-stages");
+    if (!el) return;
+    el.innerHTML = stages.map((s, i) => {
+      const color = STAGE_VERDICT_COLOR[s.verdict] ?? "#555";
+      return `
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #1a2236">
+          <span style="font-size:10px;color:#333;font-family:monospace;width:16px;text-align:right;flex-shrink:0;padding-top:2px">${i + 1}</span>
+          <span style="font-family:monospace;font-size:11px;color:#aaa;width:120px;flex-shrink:0">${s.stage}</span>
+          <span style="padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;font-family:monospace;color:${color};background:${color}18;border:1px solid ${color}30;white-space:nowrap;flex-shrink:0">${s.verdict}</span>
+          <span style="font-size:11px;color:#555;flex:1">${s.note}</span>
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function load() {
+    const params = new URLSearchParams(window.location.search);
+    const ueciid = params.get("id");
+
+    if (!ueciid || !ueciid.startsWith("SEP-")) {
+      showError("No valid UECIID provided. Use ?id=SEP-xxxxxxxxxx");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/public/incident/${ueciid}`);
+      if (!res.ok) {
+        showError(res.status === 404 ? `Incident ${ueciid} not found.` : `API error: ${res.status}`);
+        return;
+      }
+      const d = await res.json();
+
+      (qs("loading") as HTMLElement).classList.add("hidden");
+      (qs("content") as HTMLElement).classList.remove("hidden");
+
+      const vp = qs("verdict-pill") as HTMLElement;
+      vp.textContent = d.verdict;
+      vp.setAttribute("style", VERDICT_STYLE[d.verdict] ?? VERDICT_STYLE.FLAG);
+
+      (qs("risk-pill") as HTMLElement).textContent = d.risk_level;
+      (qs("class-pill") as HTMLElement).textContent = d.data_class;
+      (qs("ueciid-label") as HTMLElement).textContent = d.ueciid;
+      (qs("published-label") as HTMLElement).textContent = `Published: ${d.published_at?.slice(0, 10) ?? "—"}`;
+      (qs("indicator-text") as HTMLElement).textContent = d.indicator;
+
+      renderStages(d.xai_stages ?? []);
+
+      document.title = `${d.ueciid} · ${d.verdict} ${d.risk_level} — Shadow Warden AI`;
+    } catch (err) {
+      showError(`Failed to load incident: ${err}`);
+    }
+  }
+
+  load();
+</script>
+
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .animate-spin { display: inline-block; animation: spin 1s linear infinite; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+  .animate-fade-in { animation: fadeIn 0.3s ease; }
+</style>

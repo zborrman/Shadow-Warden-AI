@@ -767,9 +767,18 @@ async def publish_to_community(
         log.warning("publish_to_community: register error: %s", exc)
         return {"published": False, "error": f"UECIID registration failed: {exc}"}
 
+    ueciid = reg.get("ueciid")
+
+    # Award reputation points to the publishing tenant
+    try:
+        from warden.communities.reputation import award_points  # noqa: PLC0415
+        award_points(tenant_id, "PUBLISH_ENTRY", ref_ueciid=ueciid or "")
+    except Exception:
+        pass
+
     return {
         "published":    True,
-        "ueciid":       reg.get("ueciid"),
+        "ueciid":       ueciid,
         "display_name": display_name,
         "risk_level":   risk_level,
         "verdict":      verdict,
@@ -840,6 +849,44 @@ async def get_community_recommendations(
             "note":            "Community intel unavailable — using built-in MITRE playbook",
             "error":           str(exc),
         }
+
+
+async def sync_misp_feed(**_) -> dict:
+    """
+    Tool #41 — Trigger MISP threat feed sync.
+
+    Pulls recent events from the configured MISP instance, converts IoC
+    attributes to attack descriptions, and synthesises them into the local
+    SemanticGuard corpus via EvolutionEngine.
+
+    Returns events_fetched, attrs_extracted, examples_added, errors.
+    Requires MISP_URL + MISP_API_KEY env vars.
+    """
+    try:
+        from warden.integrations.misp import MISPConnector  # noqa: PLC0415
+        result = await MISPConnector().sync()
+        return result.to_dict()
+    except ValueError as exc:
+        return {"error": str(exc), "note": "Set MISP_URL and MISP_API_KEY to enable MISP integration"}
+    except Exception as exc:
+        log.warning("sync_misp_feed error: %s", exc)
+        return {"error": str(exc)}
+
+
+async def get_reputation(tenant_id: str = "default", **_) -> dict:
+    """
+    Tool #42 — Get community reputation for a tenant.
+
+    Returns points, badge, entry_count, and badge_emoji.
+    Badge levels: NEWCOMER → CONTRIBUTOR → TOP_SHARER → GUARDIAN → ELITE.
+    """
+    try:
+        from warden.communities.reputation import get_reputation as _get  # noqa: PLC0415
+        rec = _get(tenant_id)
+        return rec.to_dict()
+    except Exception as exc:
+        log.warning("get_reputation error: %s", exc)
+        return {"tenant_id": tenant_id, "points": 0, "badge": "NEWCOMER", "entry_count": 0, "error": str(exc)}
 
 
 # ── Anthropic tool schema definitions ────────────────────────────────────────
@@ -1373,6 +1420,34 @@ TOOLS: list[dict] = [
             "required": ["incident_type"],
         },
     },
+    {
+        "name": "sync_misp_feed",
+        "description": (
+            "Trigger a MISP (Malware Information Sharing Platform) threat feed sync. "
+            "Fetches recent events from the configured MISP instance, converts IoC attributes "
+            "(URLs, domains, hashes, CVEs) to attack descriptions, and synthesises them into "
+            "the local SemanticGuard corpus via EvolutionEngine. "
+            "Use during threat-sync to cross-reference community IoCs with ISAC/MISP feeds. "
+            "Requires MISP_URL and MISP_API_KEY env vars — returns error if not configured."
+        ),
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "get_reputation",
+        "description": (
+            "Get community reputation for a tenant: points, badge, entry_count, badge_emoji. "
+            "Badges: NEWCOMER (0pts) → CONTRIBUTOR (25pts) → TOP_SHARER (100pts) → "
+            "GUARDIAN (300pts) → ELITE (750pts). "
+            "Use to assess community standing before trusting published indicators."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id": {"type": "string", "description": "Tenant to check reputation for"},
+            },
+            "required": [],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -1414,7 +1489,9 @@ TOOL_HANDLERS: dict[str, Any] = {
     "list_community_posts_members": list_community_posts_members,
     "community_moderation_report":  community_moderation_report,
     "post_community_announcement":  post_community_announcement,
-    "search_community_feed":        search_community_feed,
-    "publish_to_community":         publish_to_community,
+    "search_community_feed":         search_community_feed,
+    "publish_to_community":          publish_to_community,
     "get_community_recommendations": get_community_recommendations,
+    "sync_misp_feed":                sync_misp_feed,
+    "get_reputation":                get_reputation,
 }

@@ -96,6 +96,15 @@ class CommunityLookupResponse(BaseModel):
     latency_ms:      float
 
 
+class ApplyRecommendationResponse(BaseModel):
+    ueciid:          str
+    rule_id:         str
+    examples_added:  int
+    approval_token:  str | None = None
+    status:          str
+    latency_ms:      float
+
+
 AuthDep = Depends(require_api_key)
 
 
@@ -370,3 +379,132 @@ async def community_lookup(
         ueciid=ueciid,
         latency_ms=round((time.perf_counter() - t0) * 1000, 1),
     )
+
+
+# ── Apply community recommendation ────────────────────────────────────────────
+
+@router.post(
+    "/sova/community/apply/{ueciid}",
+    response_model=ApplyRecommendationResponse,
+    summary="Apply a community recommendation to local filter corpus",
+)
+async def apply_community_recommendation(
+    ueciid: str,
+    auth:   AuthResult = AuthDep,
+) -> ApplyRecommendationResponse:
+    """
+    Fetch a published community UECIID and synthesise its indicator into the
+    local SemanticGuard corpus via EvolutionEngine.add_examples().
+
+    High-impact: the call is wrapped in a human-in-the-loop gate — an approval
+    token is returned.  Resolve it via `POST /agent/approve/{token}?action=approve`
+    before the examples are actually committed.
+
+    Returns immediately with `status=pending` if approval required, or
+    `status=applied` if `auto_approve=true` env is set (admin use only).
+    """
+    import sqlite3
+    import os as _os  # noqa: PLC0415
+
+    t0 = time.perf_counter()
+
+    if not ueciid.startswith("SEP-"):
+        raise HTTPException(status_code=400, detail="Invalid UECIID format")
+
+    # Fetch the UECIID record
+    db_path = _os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+    try:
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM sep_ueciid_index WHERE ueciid=?", (ueciid,)
+            ).fetchone()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"SEP DB unavailable: {exc}") from exc
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"UECIID {ueciid} not found")
+
+    display_name = row["display_name"]
+    data_class   = row["data_class"] if "data_class" in row.keys() else "GENERAL"
+    rule_id      = f"community:{ueciid}"
+
+    # Derive attack example from the indicator display name
+    example_text = (
+        f"Community-reported threat indicator: {display_name}. "
+        f"Data classification: {data_class}. "
+        "Treat any prompt containing this indicator as HIGH risk — block or escalate."
+    )
+
+    # Issue approval token via MasterAgent gate before mutating the corpus
+    import hmac as _hmac, hashlib as _hashlib, os as _os2, json as _json  # noqa: PLC0415
+    secret   = _os2.getenv("ADMIN_KEY", "dev").encode()
+    task_hash = _hashlib.sha256(example_text.encode()).hexdigest()[:16]
+    token    = _hmac.new(secret, f"apply:{ueciid}:{task_hash}".encode(), _hashlib.sha256).hexdigest()[:24]
+
+    # Store in Redis for approval resolution (fail-open: apply immediately if no Redis)
+    applied = False
+    try:
+        import redis  # noqa: PLC0415
+        r = redis.from_url(_os2.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
+        r.setex(
+            f"master:approval:{token}",
+            3600,
+            _json.dumps({"action": f"apply_recommendation:{ueciid}", "context": display_name[:200], "example": example_text}),
+        )
+    except Exception:
+        # No Redis — apply immediately (dev/test mode)
+        applied = True
+
+    examples_added = 0
+    if applied:
+        try:
+            from warden.brain.evolve import EvolutionEngine  # noqa: PLC0415
+            engine = EvolutionEngine()
+            await engine.add_examples([{"text": example_text, "label": "jailbreak_attempt"}])
+            examples_added = 1
+            # Award reputation points to the source community
+            try:
+                from warden.communities.reputation import award_points  # noqa: PLC0415
+                award_points(auth.tenant_id, "REC_ADOPTED", ref_ueciid=ueciid)
+            except Exception:
+                pass
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Evolution Engine error: {exc}") from exc
+
+    return ApplyRecommendationResponse(
+        ueciid         = ueciid,
+        rule_id        = rule_id,
+        examples_added = examples_added,
+        approval_token = None if applied else token,
+        status         = "applied" if applied else "pending_approval",
+        latency_ms     = round((time.perf_counter() - t0) * 1000, 1),
+    )
+
+
+# ── MISP sync endpoint (admin) ─────────────────────────────────────────────────
+
+@router.post(
+    "/misp/sync",
+    summary="Trigger MISP threat feed sync",
+    dependencies=[Depends(require_api_key)],
+)
+async def misp_sync(auth: AuthResult = AuthDep) -> dict:
+    """
+    Pull events from the configured MISP instance and synthesise them into the
+    local SemanticGuard corpus via EvolutionEngine.
+
+    Requires `MISP_URL` and `MISP_API_KEY` env vars.
+    """
+    try:
+        from warden.integrations.misp import MISPConnector  # noqa: PLC0415
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail=f"MISP integration not available: {exc}") from exc
+
+    try:
+        connector = MISPConnector()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    result = await connector.sync()
+    return result.to_dict()

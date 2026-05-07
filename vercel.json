@@ -9,7 +9,8 @@
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/settings", "destination": "/settings.html" },
     { "source": "/fraud-score", "destination": "/fraud-score.html" },
-    { "source": "/community", "destination": "/community.html" }
+    { "source": "/community", "destination": "/community.html" },
+    { "source": "/incident",  "destination": "/incident.html" }
   ],
   "headers": [
     {

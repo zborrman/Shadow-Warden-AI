@@ -103,6 +103,22 @@ import Footer from '../components/Footer.astro';
     </div>
   </section>
 
+  <!-- Leaderboard -->
+  <section class="mx-auto max-w-5xl px-6 pb-12">
+    <div class="rounded-2xl border border-[#1a2236] bg-[#0d1220] p-6">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <p class="text-sm font-semibold text-white">Top Contributors</p>
+          <p class="text-xs text-[#555] mt-0.5">Anonymised · badge + points · no identifiers</p>
+        </div>
+        <span class="text-[10px] text-[#555] font-mono">reputation v1</span>
+      </div>
+      <div id="leaderboard" class="space-y-2">
+        <p class="text-xs text-[#444]">Loading…</p>
+      </div>
+    </div>
+  </section>
+
   <!-- CTA -->
   <section class="mx-auto max-w-3xl px-6 pb-24 text-center">
     <div class="rounded-2xl border border-[#BF5AF2]/25 bg-[#BF5AF2]/[0.04] p-10">
@@ -286,9 +302,46 @@ import Footer from '../components/Footer.astro';
     }
   }
 
+  async function loadLeaderboard() {
+    try {
+      const res = await fetch(`${API}/public/leaderboard`);
+      if (!res.ok) return;
+      const d = await res.json();
+      const el = document.getElementById("leaderboard");
+      if (!el || !d.leaderboard?.length) return;
+
+      const BADGE_COLOR: Record<string, string> = {
+        ELITE:       "#FFD60A",
+        GUARDIAN:    "#BF5AF2",
+        TOP_SHARER:  "#0A84FF",
+        CONTRIBUTOR: "#30D158",
+        NEWCOMER:    "#555",
+      };
+
+      el.innerHTML = d.leaderboard.map((r: { rank: number; badge: string; badge_emoji: string; points: number; entry_count: number }) => {
+        const color = BADGE_COLOR[r.badge] ?? "#555";
+        return `
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #0d1220">
+            <span style="font-size:13px;font-weight:700;font-family:monospace;color:#333;width:20px;text-align:right">${r.rank}</span>
+            <span style="font-size:18px">${r.badge_emoji}</span>
+            <span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:monospace;
+                         color:${color};background:${color}18;border:1px solid ${color}30">${r.badge}</span>
+            <span style="flex:1"></span>
+            <span style="font-size:12px;color:#666;font-family:monospace">${r.entry_count} entries</span>
+            <span style="font-size:13px;font-weight:700;font-family:monospace;color:${color};width:52px;text-align:right">${r.points}pt</span>
+          </div>
+        `;
+      }).join("");
+    } catch {
+      // silent fail — leaderboard is supplementary
+    }
+  }
+
   load();
+  loadLeaderboard();
   // Auto-refresh every 60 s
   setInterval(load, 60_000);
+  setInterval(loadLeaderboard, 120_000);
 </script>
 
 <style>
