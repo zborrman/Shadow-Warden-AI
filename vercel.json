@@ -8,7 +8,8 @@
     { "source": "/enterprise-settings", "destination": "/enterprise-settings.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/settings", "destination": "/settings.html" },
-    { "source": "/fraud-score", "destination": "/fraud-score.html" }
+    { "source": "/fraud-score", "destination": "/fraud-score.html" },
+    { "source": "/community", "destination": "/community.html" }
   ],
   "headers": [
     {

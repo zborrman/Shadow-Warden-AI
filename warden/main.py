@@ -1179,6 +1179,13 @@ except ImportError:
     log.warning("compliance_report router not available — /compliance skipped.")
 
 try:
+    from warden.api.public_stats import router as _public_stats_router
+    app.include_router(_public_stats_router)
+    log.info("Public community stats mounted at /public/community")
+except ImportError:
+    log.warning("public_stats router not available — /public routes skipped.")
+
+try:
     from warden.api.sep import router as _sep_router
     app.include_router(_sep_router)
     log.info("Syndicate Exchange Protocol mounted at /sep")
