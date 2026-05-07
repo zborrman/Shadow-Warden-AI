@@ -4,11 +4,11 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.14 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.16 · **License:** Proprietary · **Language:** Python 3.11+
 
 ---
 
-## Product Tiers — v4.14
+## Product Tiers — v4.16
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -28,6 +28,33 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 | MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v4.16
+
+| Feature | Description |
+|---------|-------------|
+| **Reputation System** | `warden/communities/reputation.py` — SQLite points ledger: `PUBLISH_ENTRY +5`, `SEARCH_HIT +1`, `REC_ADOPTED +10`, `TRUSTED_ENTRY +3`. Badge ladder: NEWCOMER→CONTRIBUTOR (25pt)→TOP_SHARER (100pt)→GUARDIAN (300pt)→ELITE (750pt). `award_points()` fires automatically on every `publish_to_community` tool call. `GET /public/leaderboard` returns top 10 anonymised (no tenant_id) — badge + points + entry_count. |
+| **MISP Connector** | `warden/integrations/misp.py` — `MISPConnector.sync()`: httpx MISP REST API (`/events/restSearch`) → extracts 14 IoC attribute types (URL, domain, IP, MD5, SHA-256, CVE, YARA, Snort…) → converts to attack descriptions → `EvolutionEngine.synthesize_from_intel()`. Config: `MISP_URL`, `MISP_API_KEY`, `MISP_LOOKBACK_DAYS` (default 7), `MISP_TAG_FILTER`. SOVA tool #41 `sync_misp_feed`. `POST /agent/misp/sync` admin endpoint. |
+| **Auto-Apply Recommendations** | `POST /agent/sova/community/apply/{ueciid}` — fetches published UECIID from SEP SQLite, derives attack example, issues Redis human-in-the-loop approval token (1h TTL). Fail-open in dev (no Redis = immediate apply). On commit: awards `REC_ADOPTED +10` reputation. Resolve via `/agent/approve/{token}?action=approve`. |
+| **Public Incident Page** | `GET /public/incident/{ueciid}` — anonymised incident card: verdict, risk_level, data_class, reconstructed 9-stage XAI pipeline (metadata only). `shadow-warden-ai.com/incident?id=SEP-xxx` — client-side Astro page with GDPR notice, pipeline table, CTA. 5-min browser cache. |
+| **Public Leaderboard** | `GET /public/leaderboard` — top 10 reputation entries on the community page. 2-min browser cache. Leaderboard section added to `community.astro`. |
+| **SOVA tools #41–42** | `sync_misp_feed` (#41): trigger MISP → Evolution Engine sync from SOVA agentic loop. `get_reputation` (#42): query community badge + points for any tenant. Both registered in `TOOL_HANDLERS`. |
+| **Community Defense Widget (dashboard)** | `dashboard/src/components/ui/community-defense-widget.tsx` — live SEP feed (90s auto-refresh), SOVA search input → inline recommendations panel, "Ask SOVA" button. Placed on Overview page in 3-col grid alongside Threat breakdown. |
+| **Community Recommendations (dashboard)** | `dashboard/src/components/ui/community-recommendations.tsx` — collapsible block in Event Detail page (blocked events only). MITRE ATT&CK tag from flags, SOVA lookup on expand, similar community reports list. |
+
+---
+
+## What's New in v4.15
+
+| Feature | Description |
+|---------|-------------|
+| **SOVA Community Tools (#38–40)** | `search_community_feed` (#38): search SEP UECIID index by keyword, returns ranked results. `publish_to_community` (#39): PII-gate via `/filter` then registers UECIID in SEP hub. `get_community_recommendations` (#40): queries CommunityIntelReport + MITRE ATT&CK fallback. All in `TOOL_HANDLERS`. |
+| **`sova_threat_sync` extension** | After standard CVE+ArXiv sync, cross-references community feed on 4 keywords (jailbreak, prompt injection, exfiltration, adversarial). Sends Slack alert when community matches found with recommendations. |
+| **`POST /agent/sova/community/lookup`** | Single-call: search community feed + get SOVA recommendations + optional `auto_publish`. `CommunityLookupRequest/Response` models. `community-lookup` in `_MANUAL_TASKS`. |
+| **Public Community Dashboard** | `shadow-warden-ai.com/community` — Storytelling Dashboard. Animated KPI counters (members, entries, attacks blocked, block rate), SVG bar chart (7-day BLOCK/HIGH/ALLOW trend), top threat categories, live incident feed. 60-second auto-refresh. Graceful fallback to placeholder numbers on API error. GDPR disclaimer. |
+| **`GET /public/community`** | Unauthenticated, GDPR-safe aggregated endpoint. No tenant_id, no content. Members count (distinct tenant count), 7d trend by date, top 5 flag types (30-day), 10 most recent incidents (verdict + risk_level + date + flags only). 60-second browser cache. |
 
 ---
 

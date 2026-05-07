@@ -1113,6 +1113,118 @@ print(f"Violations: {audit['violations']}")
 
 ---
 
+## 30. Community Reputation System
+
+Points engine that gamifies threat intelligence sharing within the SEP network.
+
+### Key files
+- `warden/communities/reputation.py` — points ledger, badge engine, leaderboard
+- `GET /public/leaderboard` — anonymised top-10 (no tenant_id)
+- `GET /community/reputation` (authenticated) — own stats
+
+### Points events
+| Event | Points | Trigger |
+|-------|--------|---------|
+| `PUBLISH_ENTRY` | +5 | Every successful `publish_to_community` tool call |
+| `SEARCH_HIT` | +1 | Your entry matched another tenant's `search_community_feed` |
+| `REC_ADOPTED` | +10 | Another tenant applied your recommendation via `apply/{ueciid}` |
+| `TRUSTED_ENTRY` | +3 | Entry survived 30 days with zero takedown reports |
+
+### Badge ladder
+| Badge | Threshold | Emoji |
+|-------|-----------|-------|
+| NEWCOMER | 0 pt | 🌱 |
+| CONTRIBUTOR | 25 pt | ⭐ |
+| TOP_SHARER | 100 pt | 📡 |
+| GUARDIAN | 300 pt | 🛡️ |
+| ELITE | 750 pt | 🏆 (admin-granted) |
+
+### Query reputation
+```python
+import httpx
+r = httpx.get("https://api.shadow-warden-ai.com/public/leaderboard")
+print(r.json()["leaderboard"])  # [{rank, badge, badge_emoji, points, entry_count}, ...]
+```
+
+---
+
+## 31. MISP Threat Feed Integration
+
+Connects Shadow Warden to MISP/ISAC instances and synthesises IoC attributes directly
+into the local SemanticGuard corpus via EvolutionEngine.
+
+### Key files
+- `warden/integrations/misp.py` — `MISPConnector`
+- SOVA tool #41 `sync_misp_feed`
+- `POST /agent/misp/sync` — manual trigger
+
+### Configuration
+```bash
+MISP_URL=https://misp.example.com
+MISP_API_KEY=<your-authkey>
+MISP_VERIFY_SSL=true
+MISP_LOOKBACK_DAYS=7        # days back to fetch
+MISP_TAG_FILTER=tlp:white   # optional tag filter
+MISP_MAX_EVENTS=100         # safety cap
+```
+
+### Supported IoC types
+URL, domain, IP, MD5, SHA-256, filename, vulnerability (CVE), YARA, Snort, email-src, text.
+
+### Trigger sync via SOVA
+Ask SOVA: `"Sync the MISP threat feed"` → SOVA calls `sync_misp_feed` → results logged.
+
+---
+
+## 32. Auto-Apply Community Recommendations
+
+One-click import of a community-published UECIID into the local filter corpus.
+
+### Endpoint
+```
+POST /agent/sova/community/apply/{ueciid}
+Authorization: X-API-Key: <key>
+```
+
+### Response
+```json
+{
+  "ueciid": "SEP-AbCd1234xyz",
+  "rule_id": "community:SEP-AbCd1234xyz",
+  "examples_added": 0,
+  "approval_token": "a3f9b2c1d4e5f6...",
+  "status": "pending_approval",
+  "latency_ms": 12.3
+}
+```
+
+Resolve approval:
+```
+POST /agent/approve/{approval_token}?action=approve
+```
+
+On approval: `EvolutionEngine.add_examples()` is called and the publishing tenant receives `REC_ADOPTED +10` reputation points.
+
+---
+
+## 33. Public Incident Detail Page
+
+Anonymised public incident card for any SEP UECIID — no PII, no content.
+
+### API endpoint
+```
+GET /public/incident/{ueciid}
+```
+Returns: `verdict`, `risk_level`, `data_class`, `published_at`, `indicator` (display_name), reconstructed `xai_stages[]` (9 pipeline stages with verdict + note).
+
+### Web page
+`shadow-warden-ai.com/incident?id=SEP-xxxxxxxxxx` — client-side fetch, pipeline table, GDPR notice, join CTA.
+
+### Link from community feed
+Each entry in `GET /public/community` → `recent[].ueciid` can be linked to `/incident?id={ueciid}` for full context.
+
+---
+
 ## 29. Configuration Quick-Reference
 
 | Env Var | Default | Skill |
@@ -1139,3 +1251,9 @@ print(f"Violations: {audit['violations']}")
 | `TOPO_NOISE_THRESHOLD_NATURAL` | `0.82` | 5 |
 | `OBSIDIAN_WARDEN_URL` | `https://api.shadow-warden-ai.com` | 24 (plugin setting) |
 | `OBSIDIAN_COMMUNITY_ID` | — | 24 (plugin setting) |
+| `MISP_URL` | — | 31 (MISP connector, opt-in) |
+| `MISP_API_KEY` | — | 31 |
+| `MISP_LOOKBACK_DAYS` | `7` | 31 |
+| `MISP_MAX_EVENTS` | `100` | 31 |
+| `MISP_TAG_FILTER` | — | 31 (comma-separated) |
+| `MISP_VERIFY_SSL` | `true` | 31 |

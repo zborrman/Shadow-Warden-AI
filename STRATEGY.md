@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 4.14 · Last updated 2026-05-07**
+**Version 4.16 · Last updated 2026-05-07**
 
 ---
 
@@ -20,6 +20,9 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - Public API documentation (Redoc at docs.shadow-warden-ai.com — always-on, no auth)
 - SLO burn-rate alerting (Google SRE multi-window: fast 14.4× + slow 6× budget consumption)
 - Supply-chain security: Trivy container CVE scanning + pip-audit SCA in CI
+- **Collective immunity network**: SEP community threat feed, reputation system (badges + points), public storytelling dashboard
+- **ISAC/MISP integration**: MISPConnector → EvolutionEngine synthesis, SOVA tool #41
+- **Auto-apply community recommendations**: one-click UECIID → corpus import with human-in-the-loop approval
 
 **Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
 Enterprise AI teams deploying LLM-backed products.
@@ -75,6 +78,9 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 | Public API docs (Redoc, always-on) | ✅ | ⚠️ | ⚠️ | ❌ |
 | SLO burn-rate alerting (multi-window) | ✅ | ❌ | ❌ | ❌ |
 | Container CVE scanning (Trivy CI) | ✅ | ⚠️ | ❌ | ❌ |
+| Community threat feed (SEP + reputation) | ✅ | ❌ | ❌ | ❌ |
+| ISAC/MISP feed connector | ✅ | ❌ | ❌ | ❌ |
+| Public storytelling dashboard | ✅ | ❌ | ❌ | ❌ |
 | Open source core | ❌ (proprietary) | ✅ | ❌ | ✅ |
 
 **Key moats:**
@@ -83,6 +89,8 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 3. **Evolution Engine** — Claude Opus rewrites detection rules from every attack attempt; gap closes faster than human analysts.
 4. **Sovereign routing** — only product with MASQUE H3 tunnels + data residency attestation per jurisdiction.
 5. **Obsidian + SEP** — first AI security gateway with native Obsidian plugin that gates note sharing behind causal transfer safety.
+6. **Collective immunity network** — reputation-gated community threat feed with gamification creates compounding network effects: more members → faster threat propagation → higher detection quality for every tenant.
+7. **ISAC/MISP hub** — only product that bridges enterprise MISP feeds directly into the local ML corpus via EvolutionEngine; turns external intelligence into in-process rules in under a minute.
 
 ---
 
@@ -100,6 +108,8 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 - Landing page: shadow-warden-ai.com/obsidian — "Secure your vault"
 - Free scan (no account required) → account required to share via SEP
 - FraudScore page as lead magnet (real-time AI trust scoring demo)
+- **Public community dashboard** (`shadow-warden-ai.com/community`) — live threat stats, leaderboard, incident feed; demonstrates network effect to prospects without requiring signup
+- **Reputation badges** — GUARDIAN/ELITE tiers serve as social proof; top contributors visible on public leaderboard (anonymised)
 
 ### 4.3 SMB / Pro Channel
 - ROI calculator (IBM benchmarks) on pricing page
@@ -185,7 +195,10 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 | SLO budget exhaustion unnoticed | Burn-rate alerts (fast 14.4× + slow 6×) fire before budget is fully consumed |
 | OTel Collector breaking change | Pinned to `otel/opentelemetry-collector-contrib:0.103.1`; dashboard works without tracing |
 | Next.js breaking change | Dashboard pinned to `next@14.2.29`; standalone output means no runtime dep on Next.js CDN |
+| MISP server unreachable | `MISPConnector.sync()` catches httpx errors and returns `MISPSyncResult` with errors list; no crash |
+| Reputation DB corruption | SQLite `community_reputation` is append-only ledger; worst case: `DROP TABLE` and rebuild from `reputation_events` log |
+| Community feed spam/abuse | UECIID publication requires PII gate (`/filter` check); display_name capped at 200 chars; rate-limited by ERS |
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v4.13 · 2026-05-06*
+*Strategy.md — Shadow Warden AI business strategy v4.16 · 2026-05-07*

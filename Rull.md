@@ -182,4 +182,27 @@ These rules are non-negotiable and violation blocks merge.
 | OB-04 | **Flamegraph artifacts to MinIO.** `scripts/profile_under_load.sh` uploads SVG + Speedscope JSON to `warden-evidence/profiles/<timestamp>/` for long-term SOC evidence. Never stored in git. |
 | OB-05 | **Profile only under real load.** py-spy `--nonblocking` is mandatory in production. Blocking profilers (`py-spy dump`) must never run against the live warden process. |
 
-*Rull.md — Shadow Warden AI engineering standards v4.14 · 2026-05-07*
+---
+
+## §15. Community & Reputation Rules
+
+| # | Rule |
+|---|------|
+| CR-01 | **PII gate before every SEP publish.** `publish_to_community` must call `POST /filter` on `evidence_summary` before writing any UECIID. Abort with HTTP 422 if `secrets_found > 0`. |
+| CR-02 | **Reputation points are append-only.** `reputation_events` table is never updated — only inserted. Points recovery requires admin action. No retroactive deduction. |
+| CR-03 | **Public leaderboard returns no tenant_id.** `GET /public/leaderboard` and `GET /public/community` must never include `tenant_id` in any response field. Only rank, badge, points, entry_count. |
+| CR-04 | **MISP sync fail-open.** `MISPConnector.sync()` must catch all httpx/network errors and return `MISPSyncResult` with `errors` list — never raise. A missing MISP server must not halt the warden process. |
+| CR-05 | **Auto-apply requires approval token when Redis available.** `POST /agent/sova/community/apply/{ueciid}` must issue a Redis approval token (1h TTL) and return `status=pending_approval` before mutating the Evolution Engine corpus. Fail-open (immediate apply) only when Redis is genuinely unavailable. |
+| CR-06 | **Public incident endpoint: 5-min cache, metadata only.** `GET /public/incident/{ueciid}` returns verdict + risk_level + data_class + reconstructed XAI chain. No request_id, no tenant_id, no actual pipeline scores. `Cache-Control: public, max-age=300`. |
+
+---
+
+## §16. ISAC / External Feed Rules
+
+| # | Rule |
+|---|------|
+| IF-01 | **MISP attributes are synthesised, not stored verbatim.** IoC values from MISP (IPs, hashes, domains) are converted to natural-language attack descriptions before passing to `synthesize_from_intel()`. Raw values are never written to `dynamic_rules.json` directly. |
+| IF-02 | **Max 100 MISP events per sync.** `MISP_MAX_EVENTS=100` cap prevents runaway corpus growth from a high-volume MISP instance. Increase only with explicit DPIA justification (`docs/dpia.md`). |
+| IF-03 | **MISP connector is opt-in.** `warden/integrations/misp.py` is never imported at startup. `ImportError` at `POST /agent/misp/sync` returns HTTP 503 cleanly. No `MISP_URL` set = silently disabled. |
+
+*Rull.md — Shadow Warden AI engineering standards v4.16 · 2026-05-07*
