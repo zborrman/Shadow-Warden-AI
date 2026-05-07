@@ -111,6 +111,7 @@ nav:
       - SOVA Agent: api/agent.md
       - Secrets Governance: api/secrets.md
       - Financial: api/financial.md
+  - Roadmap: roadmap.md
   - Changelog: changelog/index.md
   - Contributing: contributing.md
 

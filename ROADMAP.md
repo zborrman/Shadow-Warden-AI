@@ -8,6 +8,20 @@ Legend: ✅ Shipped · 🔄 In Progress · 📋 Planned · ❌ Cancelled
 
 ---
 
+## How We Prioritize
+
+Every item on this roadmap competes across three inputs:
+
+1. **Community Feedback** — security teams using the platform vote on features via the Community Hub. Items with 3+ community votes jump one priority tier automatically.
+2. **Threat Signal** — SOVA analytics surfaces emerging attack patterns. When a new jailbreak class or CVE class exceeds a detection threshold, the corresponding pipeline hardening moves to P0 regardless of backlog position.
+3. **Enterprise Demand** — direct requests from Enterprise customers with signed contracts. These land in the next sprint if they don't require architectural changes; otherwise they enter the quarterly planning cycle.
+
+We publish an updated priority snapshot every quarter. The `📋 Planned` items below reflect the current ranking; re-ordering happens openly — if something drops, the reason appears in the changelog.
+
+> **Release cadence:** patch versions (4.x.y) ship weekly; minor versions (4.x) ship when a delivery block is complete; major versions (5.0) ship on a quarterly cycle tied to infrastructure milestones.
+
+---
+
 ## 1. Security Pipeline — Core Detection Engine
 
 The 9-layer filter that processes every AI request in < 2ms.
