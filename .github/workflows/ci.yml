@@ -442,7 +442,7 @@ jobs:
       # Results are uploaded as SARIF to GitHub Security → Code scanning alerts.
       # continue-on-error so a new CVE never blocks a hotfix deploy.
       - name: Trivy — container CVE scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: warden-ci:${{ github.sha }}
           format: sarif
