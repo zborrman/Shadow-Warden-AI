@@ -81,3 +81,146 @@
   border-top: 1px solid var(--background-modifier-border);
   margin: 14px 0;
 }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+
+.warden-sidebar {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.warden-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.warden-sidebar-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.warden-sidebar-btn {
+  background: var(--background-modifier-border);
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.warden-sidebar-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.warden-sidebar-btn-full {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  font-size: 0.82rem;
+}
+
+.warden-sidebar-section {
+  background: var(--background-secondary);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.warden-sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.warden-sidebar-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+  margin: 0 0 6px 0;
+}
+
+.warden-sidebar-muted {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 2px 0;
+}
+
+.warden-sidebar-filename {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-normal);
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.warden-sidebar-scan-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.warden-reputation-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.warden-sidebar-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.warden-sidebar-feed-card {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: default;
+  transition: background 0.1s;
+}
+
+.warden-sidebar-feed-card:hover {
+  background: var(--background-modifier-hover);
+}
+
+.warden-sidebar-feed-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-normal);
+  margin: 0 0 3px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.warden-sidebar-feed-meta {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.warden-ueciid-small {
+  font-family: var(--font-monospace);
+  font-size: 0.72rem;
+  color: var(--text-accent);
+}

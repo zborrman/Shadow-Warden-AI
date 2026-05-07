@@ -204,12 +204,29 @@ async def ai_filter(
     }
 
 
+@router.get("/reputation")
+async def obsidian_reputation(tenant_id: str = Depends(_get_tenant)):
+    """Return community reputation for the requesting tenant (for Obsidian sidebar)."""
+    try:
+        from warden.communities.reputation import get_reputation  # noqa: PLC0415
+        rec = get_reputation(tenant_id)
+        return rec.to_dict()
+    except Exception:
+        return {
+            "tenant_id": tenant_id,
+            "points": 0,
+            "badge": "NEWCOMER",
+            "badge_emoji": "🌱",
+            "entry_count": 0,
+        }
+
+
 @router.get("/stats")
 async def obsidian_stats(tenant_id: str = Depends(_get_tenant)):
     return {
         "integration": "obsidian",
         "version": "1.0.0",
         "tenant_id": tenant_id,
-        "endpoints": ["scan", "share", "feed", "ai-filter", "stats"],
+        "endpoints": ["scan", "share", "feed", "ai-filter", "reputation", "stats"],
         "status": "active",
     }
