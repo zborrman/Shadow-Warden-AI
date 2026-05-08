@@ -37,7 +37,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from warden.billing.feature_gate import ANNUAL_PRICING, FeatureGate, OVERAGE_PRICES
+from warden.billing.feature_gate import ANNUAL_PRICING, OVERAGE_PRICES, FeatureGate
 
 log = logging.getLogger("warden.billing.router")
 
