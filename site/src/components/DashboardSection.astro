@@ -1,0 +1,171 @@
+---
+const features = [
+  {
+    icon: '📋',
+    title: 'SOC Event Log',
+    desc: 'Per-request deep dive: verdict, risk score, stage timing, causal chain. Full audit trail with request ID.',
+    tier: 'Individual+',
+  },
+  {
+    icon: '🔭',
+    title: 'Threat Intelligence',
+    desc: 'ArXiv LLM-attack paper hunter + OSV CVE dependency scanner. Auto-feeds Evolution Engine. Saved to <code>data/intel_report.json</code>.',
+    tier: 'Pro+',
+  },
+  {
+    icon: '💰',
+    title: 'Financial Impact',
+    desc: 'IBM 2024 breach cost benchmarks × industry multiplier × blocked event count. ASCII ROI report + PDF export. Live data from Prometheus.',
+    tier: 'All',
+  },
+  {
+    icon: '🔬',
+    title: 'OTel Distributed Tracing',
+    desc: '9 pipeline stage spans with timing, verdict, and score. gRPC export to Jaeger. GDPR-safe — no raw content on spans.',
+    tier: 'Pro+',
+  },
+  {
+    icon: '📊',
+    title: 'Prometheus + Grafana',
+    desc: 'SLO alerts: P99 latency, 5xx rate, shadow ban rate, corpus drift. Pre-built dashboards at port 3000.',
+    tier: 'Pro+',
+  },
+  {
+    icon: '🔌',
+    title: 'SIEM Integration',
+    desc: 'Splunk HEC + Elastic ECS format. Custom field mappings. SOC 2 Type II evidence ingestion.',
+    tier: 'Pro+',
+  },
+  {
+    icon: '🗄️',
+    title: 'Evidence Vault',
+    desc: 'MinIO session bundles (<code>warden-evidence/</code>) + date-partitioned logs (<code>warden-logs/</code>). Background S3 ship, fail-open.',
+    tier: 'Pro+',
+  },
+  {
+    icon: '🩺',
+    title: 'Uptime Monitor',
+    desc: 'HTTP/SSL/DNS/TCP checks. TimescaleDB hypertable + continuous aggregates. 90-day retention + compression. PagerDuty + Slack webhooks.',
+    tier: 'Pro+',
+  },
+];
+
+const stats = [
+  { label: 'P99 Latency', value: '<2ms', color: '#30D158' },
+  { label: 'Uptime SLA', value: '99.95%', color: '#0A84FF' },
+  { label: 'Trace Stages', value: '9', color: '#BF5AF2' },
+  { label: 'Alert Rules', value: '5 SLO', color: '#FFD60A' },
+];
+---
+
+<section id="dashboard" class="relative py-24 lg:py-32 overflow-hidden"
+         style="background:var(--surface-800)">
+
+  <div class="absolute inset-0 pointer-events-none">
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] opacity-6 blur-[100px]"
+         style="background:var(--cat-dashboard)"></div>
+  </div>
+
+  <div class="relative mx-auto max-w-7xl px-4 lg:px-8">
+
+    <!-- Header -->
+    <div class="text-center mb-16">
+      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold uppercase tracking-widest mb-6 border"
+           style="color:var(--cat-dashboard);background:color-mix(in srgb,var(--cat-dashboard) 10%,transparent);border-color:color-mix(in srgb,var(--cat-dashboard) 25%,transparent)">
+        <span>◈</span> Dashboard
+      </div>
+      <h2 class="text-4xl lg:text-5xl font-extrabold mb-5 leading-tight">
+        See Everything.<br>
+        <span style="background:linear-gradient(135deg,var(--cat-dashboard),var(--cat-community));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          Miss Nothing.
+        </span>
+      </h2>
+      <p class="text-[#8E8E9E] text-lg max-w-2xl mx-auto">
+        From live event streams to 7-year audit chains — every decision is observable,
+        explainable, and export-ready for auditors.
+      </p>
+    </div>
+
+    <!-- Mock SOC dashboard card -->
+    <div class="rounded-3xl border overflow-hidden mb-16"
+         style="background:var(--surface-700);border-color:var(--surface-border);box-shadow:0 32px 80px rgba(0,0,0,0.6)">
+      <!-- Fake window chrome -->
+      <div class="flex items-center gap-2 px-4 py-3 border-b"
+           style="border-color:var(--surface-border);background:var(--surface-600)">
+        <span class="w-3 h-3 rounded-full bg-[#FF2D55]"></span>
+        <span class="w-3 h-3 rounded-full bg-[#FFD60A]"></span>
+        <span class="w-3 h-3 rounded-full bg-[#30D158]"></span>
+        <span class="ml-3 text-[11px] text-[#8E8E9E] font-mono">shadow-warden — SOC Dashboard (:3002)</span>
+      </div>
+      <!-- Dashboard content preview -->
+      <div class="p-6">
+        <!-- Stat row -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+          {stats.map(s => (
+            <div class="rounded-xl p-4 text-center border"
+                 style={`background:color-mix(in srgb,${s.color} 8%,var(--surface-800));border-color:color-mix(in srgb,${s.color} 20%,transparent)`}>
+              <div class="text-2xl font-extrabold mb-1" style={`color:${s.color}`}>{s.value}</div>
+              <div class="text-[10px] text-[#8E8E9E] uppercase tracking-wide">{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <!-- Fake area chart -->
+        <div class="rounded-xl p-4 border mb-4" style="border-color:var(--surface-border);background:var(--surface-800)">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-[12px] font-semibold text-[#F5F5F7]">Request Volume — Last 24h</span>
+            <div class="flex items-center gap-3 text-[10px]">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#0A84FF]"></span>Allowed</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#FF2D55]"></span>Blocked</span>
+            </div>
+          </div>
+          <svg viewBox="0 0 600 80" class="w-full h-16">
+            <defs>
+              <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#0A84FF" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#FF2D55" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#FF2D55" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,60 C50,55 80,30 120,35 S180,50 220,40 S280,20 320,30 S380,45 420,38 S480,25 520,32 S570,45 600,40 L600,80 L0,80Z"
+                  fill="url(#gBlue)" stroke="#0A84FF" stroke-width="1.5" fill-opacity="1"/>
+            <path d="M0,72 C50,70 80,65 120,68 S180,72 220,70 S280,65 320,68 S380,72 420,70 S480,67 520,70 S570,72 600,71 L600,80 L0,80Z"
+                  fill="url(#gRed)" stroke="#FF2D55" stroke-width="1" fill-opacity="1"/>
+          </svg>
+        </div>
+        <!-- Risk distribution -->
+        <div class="rounded-xl p-4 border" style="border-color:var(--surface-border);background:var(--surface-800)">
+          <div class="text-[12px] font-semibold text-[#F5F5F7] mb-3">Risk Distribution</div>
+          <div class="flex h-3 rounded-full overflow-hidden gap-px">
+            <div class="h-full rounded-l-full" style="width:72%;background:#30D158"></div>
+            <div class="h-full" style="width:16%;background:#FFD60A"></div>
+            <div class="h-full" style="width:8%;background:#FF9F0A"></div>
+            <div class="h-full rounded-r-full" style="width:4%;background:#FF2D55"></div>
+          </div>
+          <div class="flex text-[9px] mt-2 gap-4 text-[#8E8E9E]">
+            <span><span style="color:#30D158">●</span> Low 72%</span>
+            <span><span style="color:#FFD60A">●</span> Med 16%</span>
+            <span><span style="color:#FF9F0A">●</span> High 8%</span>
+            <span><span style="color:#FF2D55">●</span> Block 4%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature grid -->
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {features.map(f => (
+        <div class="card-hover rounded-2xl p-5 border"
+             style="background:var(--surface-700);border-color:var(--surface-border)">
+          <div class="text-2xl mb-3">{f.icon}</div>
+          <div class="flex items-center gap-2 flex-wrap mb-2">
+            <h3 class="text-[13px] font-bold text-[#F5F5F7]">{f.title}</h3>
+          </div>
+          <p class="text-[#8E8E9E] text-[12px] leading-relaxed" set:html={f.desc}/>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

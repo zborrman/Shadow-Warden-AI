@@ -1,87 +1,62 @@
 ---
 const nav = [
-  { label: 'Pipeline',     href: '#pipeline'   },
-  { label: 'Brain / AI',   href: '#brain'      },
-  { label: 'Agentic SOC',  href: '#soc'        },
-  { label: 'Sovereign',    href: '#sovereign'  },
-  { label: 'Nemotron',     href: '#nemotron'   },
-  { label: 'FraudScore',   href: '#fraudscore' },
-  { label: 'SEP',          href: '#sep'        },
-  { label: 'Compliance',   href: '#compliance' },
-  { label: 'Pricing',      href: '#pricing'    },
+  { label: 'Community', href: '#community', accent: 'var(--cat-community)', glow: 'var(--cat-community-glow)' },
+  { label: 'Security',  href: '#security',  accent: 'var(--cat-security)',  glow: 'var(--cat-security-glow)'  },
+  { label: 'Dashboard', href: '#dashboard', accent: 'var(--cat-dashboard)', glow: 'var(--cat-dashboard-glow)' },
+  { label: 'Settings',  href: '#settings',  accent: 'var(--cat-settings)',  glow: 'var(--cat-settings-glow)'  },
+  { label: 'Docs',      href: '#docs',      accent: 'var(--cat-docs)',      glow: 'var(--cat-docs-glow)'      },
+  { label: 'Price',     href: '#price',     accent: 'var(--cat-price)',     glow: 'var(--cat-price-glow)'     },
 ];
 ---
 
 <header id="navbar" class="fixed top-0 left-0 right-0 z-50 h-14 transition-all duration-300"
-        style="background:rgba(3,5,15,0.88);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)">
+        style="background:rgba(3,5,15,0.90);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)">
   <nav class="mx-auto max-w-7xl px-4 lg:px-8 h-full flex items-center gap-4">
 
     <!-- Logo -->
     <a href="/" class="flex items-center gap-2 flex-shrink-0 group">
       <div class="relative w-7 h-7 rounded-lg flex items-center justify-center text-xs
                   bg-gradient-to-br from-[#FF2D55] to-[#FF6B35]"
-           style="box-shadow:0 0 16px rgba(255,45,85,0.45)">
+           style="box-shadow:0 0 16px var(--brand-glow)">
         🛡️
         <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#30D158]
                      border-2 border-[#03050F] animate-pulse"></span>
       </div>
       <div class="flex flex-col leading-none">
         <span class="text-[13px] font-bold tracking-tight">Shadow Warden</span>
-        <span class="text-[8px] text-[#FF2D55] font-bold tracking-[1px] uppercase">v4.11 · LIVE</span>
+        <span class="text-[8px] text-[#FF2D55] font-bold tracking-[1px] uppercase">v4.19 · LIVE</span>
       </div>
     </a>
 
-    <!-- Desktop links -->
-    <div class="hidden xl:flex items-center gap-0 flex-1 overflow-hidden">
+    <!-- Desktop category nav -->
+    <div class="hidden lg:flex items-center gap-1 flex-1">
       {nav.map(l => (
         <a href={l.href}
-           class="px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-[#8E8E9E]
-                  hover:text-[#F5F5F7] hover:bg-white/[0.05] transition-all duration-150 whitespace-nowrap">
+           data-section={l.href.slice(1)}
+           class="nav-pill px-3 py-1.5 rounded-full text-[12px] font-semibold
+                  text-[#8E8E9E] hover:text-[#F5F5F7] transition-all duration-150 whitespace-nowrap"
+           style={`--pill-accent:${l.accent};--pill-glow:${l.glow}`}>
           {l.label}
         </a>
       ))}
     </div>
 
-    <!-- Action buttons -->
+    <!-- Right actions -->
     <div class="ml-auto flex items-center gap-2">
-      <!-- Status -->
+      <!-- Status badge -->
       <div class="hidden sm:flex items-center gap-1.5 text-[10px] font-semibold
                   text-[#30D158] bg-[#30D158]/10 border border-[#30D158]/20
                   px-2.5 py-1.5 rounded-full whitespace-nowrap">
         <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
-        14 Layers Active
+        All Systems Active
       </div>
 
-      <!-- FraudScore tool -->
-      <a href="/fraud-score"
-         class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
-                text-[#FF9F0A] bg-[#FF9F0A]/[0.08] border border-[#FF9F0A]/20
-                hover:bg-[#FF9F0A]/15 transition-all duration-150 whitespace-nowrap">
-        🎯 FraudScore
-      </a>
-
-      <!-- Docs -->
-      <a href="/enterprise-guide"
-         class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
-                text-[#5AC8FA] bg-[#5AC8FA]/[0.08] border border-[#5AC8FA]/20
-                hover:bg-[#5AC8FA]/15 transition-all duration-150 whitespace-nowrap">
-        📖 Docs v4.11
-      </a>
-
-      <!-- Settings -->
-      <a href="/enterprise-settings"
-              class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
-                     text-[#8E8E9E] hover:text-[#F5F5F7] bg-white/[0.03] border border-white/[0.07]
-                     hover:bg-white/[0.07] transition-all duration-150">
-        ⚙ Settings
-      </a>
-
-      <!-- Agent Bot -->
+      <!-- SOVA Bot -->
       <button onclick="openAgent()"
               class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
                      text-[#BF5AF2] bg-[#BF5AF2]/[0.08] border border-[#BF5AF2]/20
                      hover:bg-[#BF5AF2]/15 transition-all duration-150">
-        🤖 SOVA Bot
+        🤖 SOVA
       </button>
 
       <!-- Sign In -->
@@ -96,16 +71,81 @@ const nav = [
               class="px-3.5 py-2 rounded-lg text-[12px] font-bold text-white bg-[#FF2D55]
                      hover:bg-[#E8213A] transition-all duration-200 whitespace-nowrap"
               style="box-shadow:0 4px 14px rgba(255,45,85,0.35)">
-        Start Free Trial
+        Start Free
+      </button>
+
+      <!-- Mobile hamburger -->
+      <button id="mobile-menu-btn" class="lg:hidden p-2 rounded-lg text-[#8E8E9E] hover:text-[#F5F5F7]"
+              aria-label="Open menu">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
       </button>
     </div>
   </nav>
 </header>
 
+<!-- Mobile overlay -->
+<div id="mobile-menu" class="hidden fixed inset-0 z-40 lg:hidden"
+     style="background:rgba(3,5,15,0.97);backdrop-filter:blur(24px)">
+  <div class="flex flex-col items-center justify-center h-full gap-6">
+    <button id="mobile-close" class="absolute top-4 right-4 p-2 text-[#8E8E9E]">✕</button>
+    {nav.map(l => (
+      <a href={l.href}
+         class="mobile-nav-link text-2xl font-bold transition-colors"
+         style={`color:${l.accent}`}>
+        {l.label}
+      </a>
+    ))}
+    <button onclick="openAuth('signup')"
+            class="mt-4 px-8 py-3 rounded-xl text-base font-bold text-white bg-[#FF2D55]"
+            style="box-shadow:0 8px 32px rgba(255,45,85,0.4)">
+      Start Free Trial
+    </button>
+  </div>
+</div>
+
+<style>
+  /* Active nav pill */
+  .nav-pill.active {
+    color: var(--pill-accent) !important;
+    background: color-mix(in srgb, var(--pill-accent) 10%, transparent);
+    box-shadow: 0 0 12px var(--pill-glow);
+  }
+  .nav-pill:hover {
+    color: var(--pill-accent) !important;
+    background: color-mix(in srgb, var(--pill-accent) 7%, transparent);
+  }
+</style>
+
 <script>
-  const el = document.getElementById('navbar')!;
+  // Scroll-triggered nav highlight
+  const pills = document.querySelectorAll<HTMLAnchorElement>('.nav-pill[data-section]');
+  const sections = Array.from(pills).map(p => document.getElementById(p.dataset.section!)).filter(Boolean) as HTMLElement[];
+
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        pills.forEach(p => p.classList.toggle('active', p.dataset.section === id));
+      }
+    });
+  }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+
+  sections.forEach(s => io.observe(s));
+
+  // Navbar scroll shadow
+  const navbar = document.getElementById('navbar')!;
   window.addEventListener('scroll', () => {
-    el.style.borderBottomColor = window.scrollY > 20
-      ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.06)';
+    navbar.style.borderBottomColor = window.scrollY > 20
+      ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)';
   }, { passive: true });
+
+  // Mobile menu
+  const menu = document.getElementById('mobile-menu')!;
+  document.getElementById('mobile-menu-btn')!.addEventListener('click', () => menu.classList.remove('hidden'));
+  document.getElementById('mobile-close')!.addEventListener('click', () => menu.classList.add('hidden'));
+  document.querySelectorAll('.mobile-nav-link').forEach(a =>
+    a.addEventListener('click', () => menu.classList.add('hidden'))
+  );
 </script>

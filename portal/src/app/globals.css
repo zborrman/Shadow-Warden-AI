@@ -1,6 +1,29 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
+/* Shadow Warden shared design tokens */
+:root {
+  --surface-900: #03050F;
+  --surface-800: #0D0D14;
+  --surface-700: #16161F;
+  --surface-600: #1E1E2E;
+  --surface-border: rgba(255,255,255,0.07);
+  --brand: #FF2D55;
+  --brand-glow: rgba(255,45,85,0.40);
+  --cat-community: #BF5AF2;
+  --cat-community-glow: rgba(191,90,242,0.30);
+  --cat-security:  #FF2D55;
+  --cat-security-glow: rgba(255,45,85,0.30);
+  --cat-dashboard: #0A84FF;
+  --cat-dashboard-glow: rgba(10,132,255,0.30);
+  --cat-settings:  #30D158;
+  --cat-settings-glow: rgba(48,209,88,0.30);
+  --cat-docs:      #FFD60A;
+  --cat-docs-glow: rgba(255,214,10,0.25);
+  --cat-price:     #FF8C42;
+  --cat-price-glow: rgba(255,140,66,0.30);
+}
+
 /* v4 CSS-first theme — replaces tailwind.config.js */
 @theme {
   /* Dark background palette */

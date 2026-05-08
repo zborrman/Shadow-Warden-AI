@@ -74,10 +74,21 @@ const addons = [
     desc: '9-stage causal chain. Primary cause attribution. PDF reports for SOC 2 evidence packages.' },
   { name: 'Secrets Vault',       price: '$12/mo', tier: 'Individual+',
     desc: 'Multi-cloud vault connectors (AWS SM / Azure KV / HashiCorp / GCP). Inventory, lifecycle alerts, policy compliance score.' },
+  { name: 'On-Prem Pack',        price: '$29/mo', tier: 'Pro+',
+    desc: 'MinIO on-premises object store, self-hosted Prometheus/Grafana, air-gapped Evolution Engine mode.' },
+  { name: 'Community Seats',     price: '$9/mo',  tier: 'Community Business+',
+    desc: 'Stackable +5 extra seats per unit. Combine with any higher tier for unlimited seat expansion.' },
 ];
+
+const bundle = {
+  name: 'Power User Bundle',
+  price: '$29/mo',
+  saves: 'saves $7',
+  includes: ['XAI Audit Reports', 'Secrets Vault', 'Shadow AI Discovery'],
+};
 ---
 
-<section id="pricing" class="relative py-24 lg:py-32 bg-[#03050F]">
+<section id="price" class="relative py-24 lg:py-32 bg-[#03050F]">
   <div class="absolute inset-x-0 top-0 h-px"
        style="background:linear-gradient(90deg,transparent,rgba(255,45,85,0.2),transparent)"></div>
 
@@ -85,7 +96,10 @@ const addons = [
 
     <!-- Header -->
     <div class="text-center mb-16">
-      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FF2D55] mb-3">Pricing</p>
+      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold uppercase tracking-widest mb-6 border"
+           style="color:var(--cat-price);background:color-mix(in srgb,var(--cat-price) 10%,transparent);border-color:color-mix(in srgb,var(--cat-price) 25%,transparent)">
+        <span>◈</span> Pricing
+      </div>
       <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] mb-4">
         Pays for itself in<br />
         <span style="background:linear-gradient(135deg,#FF2D55,#FFD60A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
@@ -96,6 +110,23 @@ const addons = [
         IBM 2024: average breach costs <span class="text-[#FF2D55] font-bold">$4.88M</span>.
         Pro plan ROI at default settings: <span class="text-[#30D158] font-bold">782×</span> annually.
       </p>
+    </div>
+
+    <!-- Annual toggle -->
+    <div class="flex items-center justify-center gap-3 mb-10">
+      <span class="text-[13px] text-[#8E8E9E]">Monthly</span>
+      <button id="annual-toggle"
+              class="relative w-12 h-6 rounded-full border transition-all duration-200"
+              style="background:color-mix(in srgb,var(--cat-price) 20%,#16161F);border-color:color-mix(in srgb,var(--cat-price) 40%,transparent)"
+              aria-pressed="false">
+        <span id="toggle-knob"
+              class="absolute left-1 top-1 w-4 h-4 rounded-full bg-[#8E8E9E] transition-all duration-200"></span>
+      </button>
+      <span class="text-[13px] text-[#8E8E9E]">Annual</span>
+      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style="color:var(--cat-price);background:color-mix(in srgb,var(--cat-price) 15%,transparent);border:1px solid color-mix(in srgb,var(--cat-price) 30%,transparent)">
+        Save 15%
+      </span>
     </div>
 
     <!-- Cards -->
@@ -118,7 +149,8 @@ const addons = [
           <div class="mb-5">
             <div class="text-[11px] font-bold tracking-[2px] uppercase mb-3" style={`color:${t.color}`}>{t.name}</div>
             <div class="flex items-end gap-1">
-              <span class="text-[44px] font-black tracking-[-2px] leading-none">${t.price}</span>
+              <span class="text-[44px] font-black tracking-[-2px] leading-none"
+                    data-price={t.name} data-base={t.price}>${t.price}</span>
               <span class="text-[#8E8E9E] text-[13px] mb-2">/mo</span>
             </div>
             <p class="text-[11px] text-[#48485A] mt-1">billed monthly · cancel anytime</p>
@@ -168,8 +200,73 @@ const addons = [
       </div>
     </div>
 
+    <!-- Power User Bundle -->
+    <div class="mt-4 rounded-2xl border p-6 flex items-center gap-6"
+         style="background:color-mix(in srgb,var(--cat-price) 5%,#080D1E);border-color:color-mix(in srgb,var(--cat-price) 25%,transparent)">
+      <div class="flex-1">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-[14px] font-black text-[#F5F5F7]">{bundle.name}</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style="color:var(--cat-price);background:color-mix(in srgb,var(--cat-price) 15%,transparent);border:1px solid color-mix(in srgb,var(--cat-price) 30%,transparent)">
+            {bundle.saves}
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          {bundle.includes.map(i => (
+            <span class="text-[11px] px-2 py-1 rounded-lg text-[#8E8E9E]"
+                  style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07)">
+              ✓ {i}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div class="text-right flex-shrink-0">
+        <div class="text-[32px] font-black" style="color:var(--cat-price)">{bundle.price}</div>
+        <div class="text-[10px] text-[#8E8E9E]">Individual+ plan</div>
+        <button class="mt-2 px-4 py-2 rounded-xl text-[12px] font-bold text-[#F5F5F7] transition-all"
+                style="background:color-mix(in srgb,var(--cat-price) 20%,transparent);border:1px solid color-mix(in srgb,var(--cat-price) 40%,transparent)">
+          Add Bundle
+        </button>
+      </div>
+    </div>
+
+    <!-- Trial CTA -->
+    <div class="mt-6 rounded-xl border p-4 flex items-center gap-4"
+         style="background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.07)">
+      <span class="text-2xl">🎁</span>
+      <div class="flex-1">
+        <span class="text-[13px] font-bold text-[#F5F5F7]">14-day Pro trial — no card required.</span>
+        <span class="text-[13px] text-[#8E8E9E]"> Available for Individual and Community Business plans.</span>
+      </div>
+      <button onclick="openAuth('signup')"
+              class="flex-shrink-0 px-4 py-2 rounded-xl text-[12px] font-bold text-white"
+              style="background:#FF2D55;box-shadow:0 4px 14px rgba(255,45,85,0.35)">
+        Start Free Trial
+      </button>
+    </div>
+
     <p class="text-center text-[11px] text-[#48485A] mt-8">
-      * IBM Cost of a Data Breach Report 2024. All prices USD. Enterprise pricing custom — contact sales.
+      * IBM Cost of a Data Breach Report 2024. All prices USD. Annual billing saves 15%. Enterprise pricing custom — contact sales.
     </p>
   </div>
 </section>
+
+<script>
+  const toggle = document.getElementById('annual-toggle') as HTMLButtonElement;
+  const knob = document.getElementById('toggle-knob') as HTMLSpanElement;
+  const annualPrices: Record<string, number> = { Individual: 4, 'Community Business': 16, Pro: 59, Enterprise: 212 };
+  let isAnnual = false;
+
+  toggle?.addEventListener('click', () => {
+    isAnnual = !isAnnual;
+    toggle.setAttribute('aria-pressed', String(isAnnual));
+    knob.style.left = isAnnual ? '26px' : '4px';
+    knob.style.background = isAnnual ? 'var(--cat-price)' : '#8E8E9E';
+
+    document.querySelectorAll<HTMLElement>('[data-price]').forEach(el => {
+      const name = el.dataset.price!;
+      const base = Number(el.dataset.base!);
+      el.textContent = '$' + (isAnnual && annualPrices[name] ? annualPrices[name] : base);
+    });
+  });
+</script>
