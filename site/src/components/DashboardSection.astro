@@ -1,171 +1,124 @@
 ---
-const features = [
-  {
-    icon: '📋',
-    title: 'SOC Event Log',
-    desc: 'Per-request deep dive: verdict, risk score, stage timing, causal chain. Full audit trail with request ID.',
-    tier: 'Individual+',
-  },
-  {
-    icon: '🔭',
-    title: 'Threat Intelligence',
-    desc: 'ArXiv LLM-attack paper hunter + OSV CVE dependency scanner. Auto-feeds Evolution Engine. Saved to <code>data/intel_report.json</code>.',
-    tier: 'Pro+',
-  },
-  {
-    icon: '💰',
-    title: 'Financial Impact',
-    desc: 'IBM 2024 breach cost benchmarks × industry multiplier × blocked event count. ASCII ROI report + PDF export. Live data from Prometheus.',
-    tier: 'All',
-  },
-  {
-    icon: '🔬',
-    title: 'OTel Distributed Tracing',
-    desc: '9 pipeline stage spans with timing, verdict, and score. gRPC export to Jaeger. GDPR-safe — no raw content on spans.',
-    tier: 'Pro+',
-  },
-  {
-    icon: '📊',
-    title: 'Prometheus + Grafana',
-    desc: 'SLO alerts: P99 latency, 5xx rate, shadow ban rate, corpus drift. Pre-built dashboards at port 3000.',
-    tier: 'Pro+',
-  },
-  {
-    icon: '🔌',
-    title: 'SIEM Integration',
-    desc: 'Splunk HEC + Elastic ECS format. Custom field mappings. SOC 2 Type II evidence ingestion.',
-    tier: 'Pro+',
-  },
-  {
-    icon: '🗄️',
-    title: 'Evidence Vault',
-    desc: 'MinIO session bundles (<code>warden-evidence/</code>) + date-partitioned logs (<code>warden-logs/</code>). Background S3 ship, fail-open.',
-    tier: 'Pro+',
-  },
-  {
-    icon: '🩺',
-    title: 'Uptime Monitor',
-    desc: 'HTTP/SSL/DNS/TCP checks. TimescaleDB hypertable + continuous aggregates. 90-day retention + compression. PagerDuty + Slack webhooks.',
-    tier: 'Pro+',
-  },
+const kpis = [
+  { label: 'Requests Filtered',  value: '2.4M',  sub: 'Last 30 days',         accent: 'var(--sw-indigo)' },
+  { label: 'Threats Blocked',    value: '98.3%',  sub: 'Block accuracy',        accent: 'var(--sw-red)'    },
+  { label: 'Avg Latency',        value: '<2ms',   sub: '9-stage pipeline',      accent: 'var(--sw-green)'  },
+  { label: 'Cost Saved',         value: '$18,400', sub: 'IBM 2024 benchmarks',  accent: 'var(--sw-amber)'  },
 ];
 
-const stats = [
-  { label: 'P99 Latency', value: '<2ms', color: '#30D158' },
-  { label: 'Uptime SLA', value: '99.95%', color: '#0A84FF' },
-  { label: 'Trace Stages', value: '9', color: '#BF5AF2' },
-  { label: 'Alert Rules', value: '5 SLO', color: '#FFD60A' },
+const features = [
+  { icon: '📋', title: 'SOC Event Log',           desc: 'Per-request deep dive: verdict, risk score, stage timing, causal chain. Full audit trail with request ID.',                               tier: 'Individual+' },
+  { icon: '🔭', title: 'Threat Intelligence',     desc: 'ArXiv LLM-attack paper hunter + OSV CVE dependency scanner. Auto-feeds Evolution Engine. Saved to <code>data/intel_report.json</code>.',tier: 'Pro+'        },
+  { icon: '💰', title: 'Financial Impact',        desc: 'IBM 2024 breach cost benchmarks × industry multiplier × blocked events. ASCII ROI report + PDF export. Live data from Prometheus.',      tier: 'All'         },
+  { icon: '🔬', title: 'OTel Distributed Tracing',desc: '9 pipeline stage spans with timing, verdict, and score. gRPC export to Jaeger. GDPR-safe — no raw content on spans.',                   tier: 'Pro+'        },
+  { icon: '📊', title: 'Prometheus + Grafana',    desc: 'SLO alerts: P99 latency, 5xx rate, shadow ban rate, corpus drift. Pre-built dashboards at port 3000.',                                   tier: 'Pro+'        },
+  { icon: '🔌', title: 'SIEM Integration',        desc: 'Splunk HEC + Elastic ECS format. SOC 2 Type II evidence ingestion. Custom field mappings.',                                               tier: 'Pro+'        },
+  { icon: '🗄️', title: 'Evidence Vault',          desc: 'MinIO session bundles (<code>warden-evidence/</code>) + date-partitioned logs (<code>warden-logs/</code>). Background S3 ship, fail-open.', tier: 'Pro+'   },
+  { icon: '🩺', title: 'Uptime Monitor',           desc: 'HTTP/SSL/DNS/TCP checks. TimescaleDB hypertable + continuous aggregates. 90-day retention. PagerDuty + Slack webhooks.',                 tier: 'Pro+'        },
 ];
+
+const tierColor: Record<string, string> = { 'All': 'var(--sw-fg-4)', 'Individual+': 'var(--sw-green)', 'Pro+': 'var(--sw-indigo)' };
+const tierBg:    Record<string, string> = { 'All': 'rgba(100,116,139,.12)', 'Individual+': 'var(--sw-tint-green)', 'Pro+': 'var(--sw-tint-indigo)' };
 ---
 
-<section id="dashboard" class="relative py-24 lg:py-32 overflow-hidden"
-         style="background:var(--surface-800)">
+<section id="dashboard" class="relative py-24 overflow-hidden"
+         style="background:var(--sw-bg)">
 
-  <div class="absolute inset-0 pointer-events-none">
-    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] opacity-6 blur-[100px]"
-         style="background:var(--cat-dashboard)"></div>
-  </div>
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 50% at 50% 0%,rgba(99,102,241,.07) 0%,transparent 70%)"></div>
 
   <div class="relative mx-auto max-w-7xl px-4 lg:px-8">
 
     <!-- Header -->
     <div class="text-center mb-16">
-      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold uppercase tracking-widest mb-6 border"
-           style="color:var(--cat-dashboard);background:color-mix(in srgb,var(--cat-dashboard) 10%,transparent);border-color:color-mix(in srgb,var(--cat-dashboard) 25%,transparent)">
-        <span>◈</span> Dashboard
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[12px] font-semibold"
+           style="color:var(--sw-indigo);background:var(--sw-tint-indigo);border:1px solid rgba(99,102,241,.2)">
+        ◈ Dashboard
       </div>
-      <h2 class="text-4xl lg:text-5xl font-extrabold mb-5 leading-tight">
-        See Everything.<br>
-        <span style="background:linear-gradient(135deg,var(--cat-dashboard),var(--cat-community));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-          Miss Nothing.
-        </span>
+      <h2 class="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold mb-4" style="color:var(--sw-fg-1)">
+        See Everything.<br/>
+        <span class="sw-gradient-text">Miss Nothing.</span>
       </h2>
-      <p class="text-[#8E8E9E] text-lg max-w-2xl mx-auto">
-        From live event streams to 7-year audit chains — every decision is observable,
-        explainable, and export-ready for auditors.
+      <p class="text-[15px] max-w-2xl mx-auto" style="color:var(--sw-fg-3)">
+        Full-stack observability from a single pane of glass. Real-time SOC metrics, distributed tracing,
+        financial impact analysis, and continuous uptime monitoring — built for security teams.
       </p>
     </div>
 
+    <!-- KPI tiles — design kit KpiTile pattern -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+      {kpis.map(k => (
+        <div class="rounded-xl p-5" style={`background:var(--sw-surf-1);border:1px solid var(--sw-border);border-top:2px solid ${k.accent}`}>
+          <div class="text-[11px] font-semibold tracking-widest uppercase mb-2" style="color:var(--sw-fg-4)">{k.label}</div>
+          <div class="text-[2rem] font-bold leading-none mb-1" style="color:var(--sw-fg-1)">{k.value}</div>
+          <div class="text-[12px]" style="color:var(--sw-fg-3)">{k.sub}</div>
+        </div>
+      ))}
+    </div>
+
     <!-- Mock SOC dashboard card -->
-    <div class="rounded-3xl border overflow-hidden mb-16"
-         style="background:var(--surface-700);border-color:var(--surface-border);box-shadow:0 32px 80px rgba(0,0,0,0.6)">
-      <!-- Fake window chrome -->
-      <div class="flex items-center gap-2 px-4 py-3 border-b"
-           style="border-color:var(--surface-border);background:var(--surface-600)">
-        <span class="w-3 h-3 rounded-full bg-[#FF2D55]"></span>
-        <span class="w-3 h-3 rounded-full bg-[#FFD60A]"></span>
-        <span class="w-3 h-3 rounded-full bg-[#30D158]"></span>
-        <span class="ml-3 text-[11px] text-[#8E8E9E] font-mono">shadow-warden — SOC Dashboard (:3002)</span>
-      </div>
-      <!-- Dashboard content preview -->
-      <div class="p-6">
-        <!-- Stat row -->
-        <div class="grid grid-cols-4 gap-4 mb-6">
-          {stats.map(s => (
-            <div class="rounded-xl p-4 text-center border"
-                 style={`background:color-mix(in srgb,${s.color} 8%,var(--surface-800));border-color:color-mix(in srgb,${s.color} 20%,transparent)`}>
-              <div class="text-2xl font-extrabold mb-1" style={`color:${s.color}`}>{s.value}</div>
-              <div class="text-[10px] text-[#8E8E9E] uppercase tracking-wide">{s.label}</div>
-            </div>
+    <div class="mb-12 rounded-2xl overflow-hidden" style="background:var(--sw-surf-1);border:1px solid var(--sw-border)">
+      <!-- Toolbar -->
+      <div class="flex items-center justify-between px-5 py-3" style="border-bottom:1px solid var(--sw-border)">
+        <div class="flex items-center gap-3">
+          <span class="text-[13px] font-semibold" style="color:var(--sw-fg-2)">Event Timeline</span>
+          <span class="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                style="color:var(--sw-green);background:var(--sw-tint-green)">Live</span>
+        </div>
+        <div class="flex items-center gap-2">
+          {['1h','6h','24h','7d'].map((t,i) => (
+            <button class="text-[11px] px-2.5 py-1 rounded-lg font-medium"
+                    style={i===1 ? 'color:var(--sw-indigo);background:var(--sw-tint-indigo)' : 'color:var(--sw-fg-4)'}>
+              {t}
+            </button>
           ))}
         </div>
-        <!-- Fake area chart -->
-        <div class="rounded-xl p-4 border mb-4" style="border-color:var(--surface-border);background:var(--surface-800)">
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-[12px] font-semibold text-[#F5F5F7]">Request Volume — Last 24h</span>
-            <div class="flex items-center gap-3 text-[10px]">
-              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#0A84FF]"></span>Allowed</span>
-              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#FF2D55]"></span>Blocked</span>
-            </div>
-          </div>
-          <svg viewBox="0 0 600 80" class="w-full h-16">
-            <defs>
-              <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#0A84FF" stop-opacity="0.3"/>
-                <stop offset="100%" stop-color="#0A84FF" stop-opacity="0"/>
-              </linearGradient>
-              <linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#FF2D55" stop-opacity="0.3"/>
-                <stop offset="100%" stop-color="#FF2D55" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <path d="M0,60 C50,55 80,30 120,35 S180,50 220,40 S280,20 320,30 S380,45 420,38 S480,25 520,32 S570,45 600,40 L600,80 L0,80Z"
-                  fill="url(#gBlue)" stroke="#0A84FF" stroke-width="1.5" fill-opacity="1"/>
-            <path d="M0,72 C50,70 80,65 120,68 S180,72 220,70 S280,65 320,68 S380,72 420,70 S480,67 520,70 S570,72 600,71 L600,80 L0,80Z"
-                  fill="url(#gRed)" stroke="#FF2D55" stroke-width="1" fill-opacity="1"/>
-          </svg>
+      </div>
+      <!-- Chart placeholder -->
+      <div class="px-5 py-6">
+        <div class="h-[120px] flex items-end gap-1">
+          {[18,32,24,45,38,52,41,29,58,44,36,62,48,35,71,55,43,68,52,39,76,61,48,83,67,54,91,72,59,86].map((v,i) => (
+            <div class="flex-1 rounded-t-sm transition-opacity hover:opacity-80"
+                 style={`height:${v}%;background:${i % 5 === 0 ? 'var(--sw-red-deep)' : i % 7 === 0 ? 'var(--sw-amber)' : 'rgba(99,102,241,.6)'}`}></div>
+          ))}
         </div>
-        <!-- Risk distribution -->
-        <div class="rounded-xl p-4 border" style="border-color:var(--surface-border);background:var(--surface-800)">
-          <div class="text-[12px] font-semibold text-[#F5F5F7] mb-3">Risk Distribution</div>
-          <div class="flex h-3 rounded-full overflow-hidden gap-px">
-            <div class="h-full rounded-l-full" style="width:72%;background:#30D158"></div>
-            <div class="h-full" style="width:16%;background:#FFD60A"></div>
-            <div class="h-full" style="width:8%;background:#FF9F0A"></div>
-            <div class="h-full rounded-r-full" style="width:4%;background:#FF2D55"></div>
-          </div>
-          <div class="flex text-[9px] mt-2 gap-4 text-[#8E8E9E]">
-            <span><span style="color:#30D158">●</span> Low 72%</span>
-            <span><span style="color:#FFD60A">●</span> Med 16%</span>
-            <span><span style="color:#FF9F0A">●</span> High 8%</span>
-            <span><span style="color:#FF2D55">●</span> Block 4%</span>
-          </div>
+        <div class="flex justify-between mt-2 text-[10px]" style="color:var(--sw-fg-4)">
+          <span>30 days ago</span><span>15 days ago</span><span>Today</span>
         </div>
+      </div>
+      <!-- Risk breakdown -->
+      <div class="grid grid-cols-4 gap-0" style="border-top:1px solid var(--sw-border)">
+        {[
+          { label: 'ALLOW',  count: '2,381,204', color: 'var(--sw-green)' },
+          { label: 'FLAG',   count: '14,829',    color: 'var(--sw-amber)' },
+          { label: 'BLOCK',  count: '4,967',     color: 'var(--sw-red)'   },
+          { label: 'SHADOW', count: '891',        color: 'var(--sw-orange)'},
+        ].map((r,i) => (
+          <div class={`px-5 py-4 text-center ${i < 3 ? 'border-r' : ''}`} style="border-color:var(--sw-border)">
+            <div class="text-[20px] font-bold" style={`color:${r.color}`}>{r.count}</div>
+            <div class="text-[10px] font-semibold tracking-wider uppercase mt-0.5" style="color:var(--sw-fg-4)">{r.label}</div>
+          </div>
+        ))}
       </div>
     </div>
 
     <!-- Feature grid -->
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {features.map(f => (
-        <div class="card-hover rounded-2xl p-5 border"
-             style="background:var(--surface-700);border-color:var(--surface-border)">
-          <div class="text-2xl mb-3">{f.icon}</div>
-          <div class="flex items-center gap-2 flex-wrap mb-2">
-            <h3 class="text-[13px] font-bold text-[#F5F5F7]">{f.title}</h3>
+        <div class="rounded-xl p-5 card-hover"
+             style="background:var(--sw-surf-1);border:1px solid var(--sw-border);border-top:2px solid var(--sw-indigo)">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center text-[18px] mb-3"
+               style="background:var(--sw-tint-indigo)">
+            {f.icon}
           </div>
-          <p class="text-[#8E8E9E] text-[12px] leading-relaxed" set:html={f.desc}/>
+          <div class="text-[13px] font-semibold mb-1.5" style="color:var(--sw-fg-1)">{f.title}</div>
+          <div class="text-[12px] leading-relaxed mb-3" style="color:var(--sw-fg-3)" set:html={f.desc} />
+          <span class="inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                style={`color:${tierColor[f.tier]};background:${tierBg[f.tier]}`}>
+            {f.tier}
+          </span>
         </div>
       ))}
     </div>
+
   </div>
 </section>

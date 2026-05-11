@@ -1,166 +1,110 @@
 ---
 const cards = [
-  {
-    icon: '🔗',
-    title: 'SEP / UECIID',
-    desc: 'Snowflake→base-62 entity IDs (<code>SEP-{11}</code>). Cryptographically-unique, sortable, collision-free cross-community references.',
-    tier: 'Community Business',
-  },
-  {
-    icon: '🤝',
-    title: 'Inter-Community Peering',
-    desc: 'Three sharing modes: MIRROR_ONLY, REWRAP_ALLOWED, FULL_SYNC. HMAC-SHA256 handshake tokens. Duplicate peering guard.',
-    tier: 'Community Business',
-  },
-  {
-    icon: '📬',
-    title: 'Knock-and-Verify',
-    desc: '72-hour Redis-backed one-time invitation tokens. Invitee identity verified before member enrollment. Revoke at any time.',
-    tier: 'Community Business',
-  },
-  {
-    icon: '🗺️',
-    title: 'Sovereign Data Pods',
-    desc: 'Per-jurisdiction MinIO routing across 8 regions (EU/US/UK/CA/SG/AU/JP/CH). Fernet-encrypted pod keys. 5-second health probes.',
-    tier: 'Pro',
-  },
-  {
-    icon: '🔒',
-    title: 'STIX 2.1 Audit Chain',
-    desc: 'Tamper-evident SHA-256 linked bundles. Genesis block + prev_hash chain per community. OASIS STIX JSONL export for SIEM ingestion.',
-    tier: 'Pro',
-  },
-  {
-    icon: '⚛️',
-    title: 'Post-Quantum Keypairs',
-    desc: 'Hybrid Ed25519 + ML-DSA-65 (FIPS 204) community keys. Upgrade existing communities in-place. <code>is_hybrid</code> flag auto-detected.',
-    tier: 'Enterprise',
-  },
-  {
-    icon: '🏆',
-    title: 'Reputation Engine',
-    desc: '5-badge system (NEWCOMER → ELITE). Points for publishing, search hits, adopted recommendations, trusted entries. Anonymised leaderboard (GDPR-safe).',
-    tier: 'Community Business',
-  },
-  {
-    icon: '📝',
-    title: 'Obsidian Plugin',
-    desc: 'Auto-scan notes on save. Share via SEP UECIID. XAI pipeline visualization. Offline publish queue with Fernet-encrypted vault sync.',
-    tier: 'Community Business',
-  },
-  {
-    icon: '📋',
-    title: 'Charter & Governance',
-    desc: 'Versioned governance lifecycle (DRAFT→ACTIVE→SUPERSEDED). Z-score behavioral anomaly detection. OAuth agent discovery across 14 providers.',
-    tier: 'Pro',
-  },
+  { icon: '🔗', title: 'SEP / UECIID',           desc: 'Snowflake→base-62 entity IDs (<code>SEP-{11}</code>). Cryptographically-unique, sortable, collision-free cross-community references.', tier: 'Community Business' },
+  { icon: '🤝', title: 'Inter-Community Peering',  desc: 'Three modes: MIRROR_ONLY, REWRAP_ALLOWED, FULL_SYNC. HMAC-SHA256 handshake tokens. Duplicate peering guard enforced.', tier: 'Community Business' },
+  { icon: '📬', title: 'Knock-and-Verify',         desc: '72-hour Redis-backed one-time invitation tokens. Invitee identity verified before member enrollment. Revoke at any time.', tier: 'Community Business' },
+  { icon: '🗺️', title: 'Sovereign Data Pods',      desc: 'Per-jurisdiction MinIO routing across 8 regions (EU/US/UK/CA/SG/AU/JP/CH). Fernet-encrypted pod keys. 5-second health probes.', tier: 'Pro' },
+  { icon: '🔒', title: 'STIX 2.1 Audit Chain',     desc: 'Tamper-evident SHA-256 linked bundles. Genesis + prev_hash chain per community. OASIS STIX JSONL export for SIEM ingestion.', tier: 'Pro' },
+  { icon: '⚛️', title: 'Post-Quantum Keypairs',    desc: 'Hybrid Ed25519 + ML-DSA-65 (FIPS 204) community keys. Upgrade existing communities in-place. <code>is_hybrid</code> auto-detected.', tier: 'Enterprise' },
+  { icon: '🏆', title: 'Reputation Engine',         desc: '5-badge system (NEWCOMER → ELITE). Points for publishing, search hits, adopted recommendations. Anonymised leaderboard — GDPR-safe.', tier: 'Community Business' },
+  { icon: '📝', title: 'Obsidian Plugin',           desc: 'Auto-scan notes on save. Share via SEP UECIID. XAI pipeline visualization. Offline publish queue with Fernet-encrypted vault sync.', tier: 'Community Business' },
+  { icon: '📜', title: 'Charter & Governance',      desc: 'Versioned community charters (DRAFT → ACTIVE → SUPERSEDED). Z-score behavioral anomaly detection. OAuth agent discovery with 14-provider catalog.', tier: 'Community Business' },
 ];
 
 const tierColor: Record<string, string> = {
-  'Community Business': '#30D158',
-  'Pro': '#FF2D55',
-  'Enterprise': '#BF5AF2',
+  'Community Business': 'var(--sw-violet)',
+  'Pro': 'var(--sw-indigo)',
+  'Enterprise': 'var(--sw-cyan)',
+};
+const tierBg: Record<string, string> = {
+  'Community Business': 'var(--sw-tint-violet)',
+  'Pro': 'var(--sw-tint-indigo)',
+  'Enterprise': 'var(--sw-tint-cyan)',
 };
 ---
 
-<section id="community" class="relative py-24 lg:py-32 overflow-hidden">
-  <!-- Background glow -->
-  <div class="absolute inset-0 pointer-events-none">
-    <div class="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10 blur-[120px]"
-         style="background:var(--cat-community)"></div>
-    <div class="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full opacity-8 blur-[80px]"
-         style="background:var(--cat-dashboard)"></div>
-  </div>
+<section id="community" class="relative py-24 overflow-hidden"
+         style="background:var(--sw-bg)">
+
+  <!-- ambient glow -->
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 60% 40% at 30% 50%,rgba(139,92,246,.06) 0%,transparent 70%)"></div>
 
   <div class="relative mx-auto max-w-7xl px-4 lg:px-8">
 
     <!-- Header -->
     <div class="text-center mb-16">
-      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold uppercase tracking-widest mb-6 border"
-           style="color:var(--cat-community);background:color-mix(in srgb,var(--cat-community) 10%,transparent);border-color:color-mix(in srgb,var(--cat-community) 25%,transparent)">
-        <span>◈</span> Business Community
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[12px] font-semibold"
+           style="color:var(--sw-violet);background:var(--sw-tint-violet);border:1px solid rgba(139,92,246,.2)">
+        ◈ Business Community
       </div>
-      <h2 class="text-4xl lg:text-5xl font-extrabold mb-5 leading-tight">
-        Exchange Intelligence.<br>
-        <span style="background:linear-gradient(135deg,var(--cat-community),var(--cat-dashboard));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-          Build Trust Between Teams.
-        </span>
+      <h2 class="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold mb-4" style="color:var(--sw-fg-1)">
+        Trusted Intelligence,<br/>
+        <span class="sw-gradient-text">Shared Securely</span>
       </h2>
-      <p class="text-[#8E8E9E] text-lg max-w-2xl mx-auto">
-        A cryptographic community layer for sharing threat intelligence, governing data transfers,
-        and building reputation — without exposing raw data.
+      <p class="text-[15px] max-w-2xl mx-auto" style="color:var(--sw-fg-3)">
+        Build federated knowledge networks with cryptographic identity, sovereign data residency,
+        and tamper-evident audit trails — across every community boundary.
       </p>
     </div>
 
     <!-- Peering ring diagram -->
     <div class="flex justify-center mb-16">
-      <div class="relative w-72 h-72">
-        <!-- Center hub -->
-        <div class="absolute inset-0 flex items-center justify-center">
-          <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl border"
-               style="background:color-mix(in srgb,var(--cat-community) 15%,#0D0D14);border-color:color-mix(in srgb,var(--cat-community) 40%,transparent);box-shadow:0 0 32px var(--cat-community-glow)">
-            🛡️
-          </div>
-        </div>
-        <!-- Orbiting communities -->
-        {[0, 120, 240].map((deg, i) => {
-          const rad = (deg - 90) * Math.PI / 180;
-          const r = 104;
-          const x = 50 + (r / 144) * 100 * Math.cos(rad);
-          const y = 50 + (r / 144) * 100 * Math.sin(rad);
-          const labels = ['Community A', 'Community B', 'Community C'];
-          const colors = ['#BF5AF2', '#0A84FF', '#30D158'];
-          return (
-            <div class="absolute w-14 h-14 rounded-xl flex flex-col items-center justify-center text-[9px] font-bold border transition-transform hover:scale-110"
-                 style={`left:${x - 7}%;top:${y - 7}%;transform:translate(-50%,-50%);background:color-mix(in srgb,${colors[i]} 12%,#0D0D14);border-color:color-mix(in srgb,${colors[i]} 35%,transparent);color:${colors[i]}`}>
-              <span class="text-lg">🏢</span>
-              <span class="mt-0.5 leading-tight text-center">{labels[i]}</span>
-            </div>
-          );
-        })}
-        <!-- Orbit ring -->
-        <svg class="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 288 288">
-          <circle cx="144" cy="144" r="104" fill="none" stroke="var(--cat-community)"
-                  stroke-width="1" stroke-dasharray="6 4"/>
+      <div class="relative w-[360px] h-[180px]">
+        <!-- arcs -->
+        <svg class="absolute inset-0 w-full h-full" viewBox="0 0 360 180" fill="none">
+          <!-- arc A→B -->
+          <path d="M90,90 Q180,30 270,90" stroke="url(#arc-grad)" stroke-width="1.5" stroke-dasharray="6 4" opacity=".6"/>
+          <!-- arc B→C -->
+          <path d="M270,90 Q180,150 90,90" stroke="url(#arc-grad)" stroke-width="1.5" stroke-dasharray="6 4" opacity=".6"/>
+          <!-- arc A→C -->
+          <path d="M90,90 Q180,90 270,90" stroke="rgba(139,92,246,.25)" stroke-width="1" stroke-dasharray="4 6"/>
+          <defs>
+            <linearGradient id="arc-grad" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
+              <stop stop-color="#8b5cf6"/>
+              <stop offset="1" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
         </svg>
+        <!-- nodes -->
+        {[
+          { x: 'left-0',   y: 'top-1/2 -translate-y-1/2', label: 'Acme Corp',    flag: '🇪🇺' },
+          { x: 'left-1/2 -translate-x-1/2', y: 'top-2',   label: 'SecureBank',   flag: '🇺🇸' },
+          { x: 'right-0',  y: 'top-1/2 -translate-y-1/2', label: 'DataCo',       flag: '🇬🇧' },
+        ].map(n => (
+          <div class={`absolute ${n.x} ${n.y} flex flex-col items-center gap-1.5`}>
+            <div class="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold"
+                 style="background:var(--sw-surf-2);border:2px solid var(--sw-border-strong)">
+              {n.flag}
+            </div>
+            <span class="text-[11px] font-semibold whitespace-nowrap" style="color:var(--sw-fg-3)">{n.label}</span>
+          </div>
+        ))}
+        <!-- center badge -->
+        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-full text-[10px] font-bold"
+             style="color:var(--sw-violet);background:var(--sw-tint-violet);border:1px solid rgba(139,92,246,.3)">
+          SEP Peering
+        </div>
       </div>
     </div>
 
-    <!-- Feature cards grid -->
+    <!-- Feature grid -->
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {cards.map(c => (
-        <div class="card-hover rounded-2xl p-5 border"
-             style="background:var(--surface-700);border-color:var(--surface-border)">
-          <div class="flex items-start gap-3 mb-3">
-            <span class="text-2xl">{c.icon}</span>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="text-[14px] font-bold text-[#F5F5F7]">{c.title}</h3>
-                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                      style={`color:${tierColor[c.tier]};background:color-mix(in srgb,${tierColor[c.tier]} 12%,transparent);border:1px solid color-mix(in srgb,${tierColor[c.tier]} 30%,transparent)`}>
-                  {c.tier}
-                </span>
-              </div>
-            </div>
+        <div class="rounded-xl p-5 card-hover"
+             style="background:var(--sw-surf-1);border:1px solid var(--sw-border);border-top:2px solid var(--sw-violet)">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center text-[18px] mb-3"
+               style="background:var(--sw-tint-violet)">
+            {c.icon}
           </div>
-          <p class="text-[#8E8E9E] text-[13px] leading-relaxed" set:html={c.desc}/>
+          <div class="text-[14px] font-semibold mb-1.5" style="color:var(--sw-fg-1)">{c.title}</div>
+          <div class="text-[13px] leading-relaxed mb-3" style="color:var(--sw-fg-3)" set:html={c.desc} />
+          <span class="inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                style={`color:${tierColor[c.tier]};background:${tierBg[c.tier]}`}>
+            {c.tier}
+          </span>
         </div>
       ))}
     </div>
 
-    <!-- Transfer Guard callout -->
-    <div class="mt-8 rounded-2xl p-6 border flex items-start gap-4"
-         style="background:color-mix(in srgb,var(--cat-community) 6%,var(--surface-800));border-color:color-mix(in srgb,var(--cat-community) 25%,transparent)">
-      <span class="text-3xl flex-shrink-0">⚡</span>
-      <div>
-        <div class="text-[13px] font-bold text-[#F5F5F7] mb-1">Causal Transfer Guard</div>
-        <p class="text-[#8E8E9E] text-[13px] leading-relaxed">
-          Every entity transfer runs a <strong class="text-[#F5F5F7]">Bayesian risk gate</strong> in &lt;20ms.
-          Velocity spikes, suspicious peering ages, and burst patterns trigger automatic REJECTED status —
-          with the full causal chain written to the STIX audit trail.
-          Threshold: <code class="text-[#BF5AF2]">P(exfiltration) ≥ 0.70</code>.
-        </p>
-      </div>
-    </div>
   </div>
 </section>

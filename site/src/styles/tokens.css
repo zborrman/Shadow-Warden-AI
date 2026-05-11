@@ -1,43 +1,143 @@
-/* Shadow Warden AI — Design Tokens v4.19 */
+/* Shadow Warden AI — Design System v4.19 */
 :root {
-  /* ── Surfaces ──────────────────────────────── */
-  --surface-900: #03050F;
-  --surface-800: #0D0D14;
-  --surface-700: #16161F;
-  --surface-600: #1E1E2E;
-  --surface-border: rgba(255,255,255,0.07);
+  /* ── Surfaces ────────────────────────────────── */
+  --sw-bg:      #030712;
+  --sw-surf-1:  #0a0f1e;
+  --sw-surf-2:  #0f172a;
+  --sw-surf-3:  #1e293b;
 
-  /* ── Brand ─────────────────────────────────── */
-  --brand: #FF2D55;
-  --brand-glow: rgba(255,45,85,0.40);
+  /* ── Borders (indigo-tinted) ─────────────────── */
+  --sw-border:        rgba(99,102,241,0.14);
+  --sw-border-strong: rgba(99,102,241,0.30);
+  --sw-border-hover:  rgba(99,102,241,0.40);
 
-  /* ── Category accents ───────────────────────── */
-  --cat-community: #BF5AF2;
-  --cat-community-glow: rgba(191,90,242,0.30);
-  --cat-security:  #FF2D55;
-  --cat-security-glow: rgba(255,45,85,0.30);
-  --cat-dashboard: #0A84FF;
-  --cat-dashboard-glow: rgba(10,132,255,0.30);
-  --cat-settings:  #30D158;
-  --cat-settings-glow: rgba(48,209,88,0.30);
-  --cat-docs:      #FFD60A;
-  --cat-docs-glow: rgba(255,214,10,0.25);
-  --cat-price:     #FF8C42;
-  --cat-price-glow: rgba(255,140,66,0.30);
+  /* ── Brand trio ──────────────────────────────── */
+  --sw-indigo: #6366f1;
+  --sw-violet: #8b5cf6;
+  --sw-cyan:   #06b6d4;
 
-  /* ── Text ───────────────────────────────────── */
-  --text-primary:  #F5F5F7;
-  --text-secondary: #8E8E9E;
-  --text-muted:    #555566;
+  /* ── Semantic state ──────────────────────────── */
+  --sw-green:    #34d399;
+  --sw-amber:    #fbbf24;
+  --sw-orange:   #fb923c;
+  --sw-red:      #f87171;
+  --sw-red-deep: #ef4444;
 
-  /* ── Risk ───────────────────────────────────── */
-  --risk-low:    #30D158;
-  --risk-medium: #FFD60A;
-  --risk-high:   #FF9F0A;
-  --risk-block:  #FF2D55;
+  /* ── Text scale ──────────────────────────────── */
+  --sw-fg-1: #f1f5f9;
+  --sw-fg-2: #cbd5e1;
+  --sw-fg-3: #94a3b8;
+  --sw-fg-4: #64748b;
 
-  /* ── Motion ─────────────────────────────────── */
-  --ease-card: cubic-bezier(0.25,0.46,0.45,0.94);
-  --dur-fast: 150ms;
-  --dur-med: 250ms;
+  /* ── Gradients ───────────────────────────────── */
+  --sw-gradient-brand:   linear-gradient(135deg,#6366f1,#8b5cf6,#06b6d4);
+  --sw-gradient-primary: linear-gradient(135deg,#6366f1,#8b5cf6);
+  --sw-gradient-mark:    linear-gradient(135deg,#6366f1,#06b6d4);
+  --sw-gradient-hero:    radial-gradient(ellipse 60% 50% at 20% 20%,rgba(99,102,241,.12) 0%,transparent 70%),
+                         radial-gradient(ellipse 40% 40% at 80% 80%,rgba(139,92,246,.08) 0%,transparent 70%);
+
+  /* ── Tinted fills ────────────────────────────── */
+  --sw-tint-indigo: rgba(99,102,241,0.12);
+  --sw-tint-violet: rgba(139,92,246,0.12);
+  --sw-tint-cyan:   rgba(6,182,212,0.12);
+  --sw-tint-green:  rgba(52,211,153,0.12);
+  --sw-tint-amber:  rgba(251,191,36,0.12);
+  --sw-tint-red:    rgba(248,113,113,0.15);
+
+  /* ── Radii ───────────────────────────────────── */
+  --sw-r-sm:   6px;
+  --sw-r-md:   8px;
+  --sw-r-lg:   12px;
+  --sw-r-xl:   16px;
+  --sw-r-pill: 100px;
+
+  /* ── Shadows ─────────────────────────────────── */
+  --sw-shadow-sm:   0 1px 4px rgba(0,0,0,.30), 0 0 0 1px var(--sw-border);
+  --sw-shadow-md:   0 4px 16px rgba(0,0,0,.40);
+  --sw-shadow-lg:   0 12px 40px rgba(0,0,0,.50);
+  --sw-shadow-glow: 0 0 0 3px rgba(99,102,241,.12);
+  --sw-shadow-cta:  0 12px 40px rgba(99,102,241,.20);
+
+  /* ── Spacing (4px base) ──────────────────────── */
+  --sw-sp-1:  4px;  --sw-sp-2:  8px;  --sw-sp-3: 12px;
+  --sw-sp-4: 16px;  --sw-sp-5: 20px;  --sw-sp-6: 24px;
+  --sw-sp-8: 32px;  --sw-sp-10:40px;  --sw-sp-12:48px;
+  --sw-sp-16:64px;
+
+  /* ── Fonts ───────────────────────────────────── */
+  --sw-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --sw-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ── Type scale ──────────────────────────────── */
+  --sw-text-display: clamp(2.5rem,5vw,4.5rem);
+  --sw-text-h1:   1.875rem;
+  --sw-text-h2:   1.5rem;
+  --sw-text-h3:   1.125rem;
+  --sw-text-body: 0.9375rem;
+  --sw-text-sm:   0.875rem;
+  --sw-text-xs:   0.8125rem;
+  --sw-text-2xs:  0.75rem;
+  --sw-text-micro:0.6875rem;
+
+  /* ── Legacy aliases (backward compat with old tokens.css) ── */
+  --surface-900: var(--sw-bg);
+  --surface-800: var(--sw-surf-1);
+  --surface-700: var(--sw-surf-2);
+  --surface-600: var(--sw-surf-3);
+  --surface-border: var(--sw-border);
+  --brand: var(--sw-indigo);
+  --brand-glow: rgba(99,102,241,.40);
+  --cat-community: var(--sw-violet);
+  --cat-community-glow: rgba(139,92,246,.30);
+  --cat-security:  var(--sw-red);
+  --cat-security-glow: rgba(248,113,113,.30);
+  --cat-dashboard: var(--sw-indigo);
+  --cat-dashboard-glow: rgba(99,102,241,.30);
+  --cat-settings:  var(--sw-green);
+  --cat-settings-glow: rgba(52,211,153,.30);
+  --cat-docs:      var(--sw-amber);
+  --cat-docs-glow: rgba(251,191,36,.25);
+  --cat-price:     var(--sw-orange);
+  --cat-price-glow:rgba(251,146,60,.30);
+}
+
+/* ── Global base ───────────────────────────────── */
+body {
+  font-family: var(--sw-font-sans);
+  background: var(--sw-bg);
+  color: var(--sw-fg-1);
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: rgba(99,102,241,.25); }
+
+/* ── Scrollbar ─────────────────────────────────── */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background: var(--sw-surf-1); }
+::-webkit-scrollbar-thumb { background: var(--sw-surf-3); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--sw-border-strong); }
+
+/* ── Gradient text ─────────────────────────────── */
+.sw-gradient-text {
+  background: var(--sw-gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.text-grad-red    { background:linear-gradient(135deg,var(--sw-red),var(--sw-orange));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent; }
+.text-grad-blue   { background:var(--sw-gradient-primary);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent; }
+.text-grad-brand  { background:var(--sw-gradient-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent; }
+
+/* ── Card hover ────────────────────────────────── */
+.card-hover { transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
+.card-hover:hover { transform:translateY(-2px); border-color:var(--sw-border-strong) !important; box-shadow:var(--sw-shadow-md); }
+
+/* ── Code inline ───────────────────────────────── */
+code {
+  font-family: var(--sw-font-mono);
+  font-size: 0.8em;
+  color: var(--sw-indigo);
+  background: var(--sw-surf-2);
+  border: 1px solid var(--sw-border);
+  padding: 1px 5px;
+  border-radius: var(--sw-r-sm);
 }

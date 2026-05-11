@@ -1,82 +1,85 @@
 ---
 const nav = [
-  { label: 'Community', href: '#community', accent: 'var(--cat-community)', glow: 'var(--cat-community-glow)' },
-  { label: 'Security',  href: '#security',  accent: 'var(--cat-security)',  glow: 'var(--cat-security-glow)'  },
-  { label: 'Dashboard', href: '#dashboard', accent: 'var(--cat-dashboard)', glow: 'var(--cat-dashboard-glow)' },
-  { label: 'Settings',  href: '#settings',  accent: 'var(--cat-settings)',  glow: 'var(--cat-settings-glow)'  },
-  { label: 'Docs',      href: '#docs',      accent: 'var(--cat-docs)',      glow: 'var(--cat-docs-glow)'      },
-  { label: 'Price',     href: '#price',     accent: 'var(--cat-price)',     glow: 'var(--cat-price-glow)'     },
+  { label: 'Community', href: '#community', accent: 'var(--sw-violet)' },
+  { label: 'Security',  href: '#security',  accent: 'var(--sw-red)'    },
+  { label: 'Dashboard', href: '#dashboard', accent: 'var(--sw-indigo)' },
+  { label: 'Settings',  href: '#settings',  accent: 'var(--sw-green)'  },
+  { label: 'Docs',      href: '#docs',      accent: 'var(--sw-amber)'  },
+  { label: 'Price',     href: '#price',     accent: 'var(--sw-orange)' },
 ];
 ---
 
-<header id="navbar" class="fixed top-0 left-0 right-0 z-50 h-14 transition-all duration-300"
-        style="background:rgba(3,5,15,0.90);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)">
+<header id="navbar" class="fixed top-0 left-0 right-0 z-50 h-14"
+        style="background:rgba(3,7,18,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--sw-border);transition:border-color 0.3s">
   <nav class="mx-auto max-w-7xl px-4 lg:px-8 h-full flex items-center gap-4">
 
-    <!-- Logo -->
-    <a href="/" class="flex items-center gap-2 flex-shrink-0 group">
-      <div class="relative w-7 h-7 rounded-lg flex items-center justify-center text-xs
-                  bg-gradient-to-br from-[#FF2D55] to-[#FF6B35]"
-           style="box-shadow:0 0 16px var(--brand-glow)">
-        🛡️
-        <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#30D158]
-                     border-2 border-[#03050F] animate-pulse"></span>
-      </div>
+    <!-- Logo: gradient shield + wordmark (from design system Logo.jsx) -->
+    <a href="/" class="flex items-center gap-2.5 flex-shrink-0 group">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+        <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z"
+              fill="url(#navbar-logo-grad)" opacity=".95"/>
+        <defs>
+          <linearGradient id="navbar-logo-grad" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6366f1"/>
+            <stop offset="1" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+        <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
       <div class="flex flex-col leading-none">
-        <span class="text-[13px] font-bold tracking-tight">Shadow Warden</span>
-        <span class="text-[8px] text-[#FF2D55] font-bold tracking-[1px] uppercase">v4.19 · LIVE</span>
+        <span class="text-[14px] font-bold">
+          <span class="sw-gradient-text">Shadow</span>
+          <span style="color:var(--sw-fg-1)"> Warden</span>
+        </span>
+        <span class="text-[9px] font-semibold tracking-wider uppercase" style="color:var(--sw-fg-4)">Business Community AI</span>
       </div>
     </a>
 
-    <!-- Desktop category nav -->
-    <div class="hidden lg:flex items-center gap-1 flex-1">
+    <!-- Desktop nav pills -->
+    <div class="hidden lg:flex items-center gap-0.5 flex-1 ml-4">
       {nav.map(l => (
         <a href={l.href}
            data-section={l.href.slice(1)}
-           class="nav-pill px-3 py-1.5 rounded-full text-[12px] font-semibold
-                  text-[#8E8E9E] hover:text-[#F5F5F7] transition-all duration-150 whitespace-nowrap"
-           style={`--pill-accent:${l.accent};--pill-glow:${l.glow}`}>
+           class="nav-pill px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 whitespace-nowrap"
+           style={`color:var(--sw-fg-3);--pill-accent:${l.accent}`}>
           {l.label}
         </a>
       ))}
     </div>
 
-    <!-- Right actions -->
+    <!-- Right side -->
     <div class="ml-auto flex items-center gap-2">
-      <!-- Status badge -->
-      <div class="hidden sm:flex items-center gap-1.5 text-[10px] font-semibold
-                  text-[#30D158] bg-[#30D158]/10 border border-[#30D158]/20
-                  px-2.5 py-1.5 rounded-full whitespace-nowrap">
-        <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
+      <!-- Live badge -->
+      <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold"
+           style="color:var(--sw-green);background:var(--sw-tint-green);border:1px solid rgba(52,211,153,.2)">
+        <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--sw-green)"></span>
         All Systems Active
       </div>
 
       <!-- SOVA Bot -->
       <button onclick="openAgent()"
-              class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium
-                     text-[#BF5AF2] bg-[#BF5AF2]/[0.08] border border-[#BF5AF2]/20
-                     hover:bg-[#BF5AF2]/15 transition-all duration-150">
+              class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150"
+              style="color:var(--sw-violet);background:var(--sw-tint-violet);border:1px solid rgba(139,92,246,.2)">
         🤖 SOVA
       </button>
 
       <!-- Sign In -->
       <button onclick="openAuth('signin')"
-              class="px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#8E8E9E]
-                     hover:text-[#F5F5F7] transition-colors">
+              class="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+              style="color:var(--sw-fg-3)">
         Sign In
       </button>
 
       <!-- CTA -->
       <button onclick="openAuth('signup')"
-              class="px-3.5 py-2 rounded-lg text-[12px] font-bold text-white bg-[#FF2D55]
-                     hover:bg-[#E8213A] transition-all duration-200 whitespace-nowrap"
-              style="box-shadow:0 4px 14px rgba(255,45,85,0.35)">
+              class="px-4 py-2 rounded-lg text-[13px] font-semibold text-white transition-all duration-200 whitespace-nowrap"
+              style="background:var(--sw-gradient-primary);box-shadow:var(--sw-shadow-cta)">
         Start Free
       </button>
 
       <!-- Mobile hamburger -->
-      <button id="mobile-menu-btn" class="lg:hidden p-2 rounded-lg text-[#8E8E9E] hover:text-[#F5F5F7]"
-              aria-label="Open menu">
+      <button id="mobile-menu-btn" class="lg:hidden p-2 rounded-lg transition-colors"
+              style="color:var(--sw-fg-3)" aria-label="Open menu">
         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
         </svg>
@@ -85,43 +88,40 @@ const nav = [
   </nav>
 </header>
 
-<!-- Mobile overlay -->
-<div id="mobile-menu" class="hidden fixed inset-0 z-40 lg:hidden"
-     style="background:rgba(3,5,15,0.97);backdrop-filter:blur(24px)">
-  <div class="flex flex-col items-center justify-center h-full gap-6">
-    <button id="mobile-close" class="absolute top-4 right-4 p-2 text-[#8E8E9E]">✕</button>
-    {nav.map(l => (
-      <a href={l.href}
-         class="mobile-nav-link text-2xl font-bold transition-colors"
-         style={`color:${l.accent}`}>
-        {l.label}
-      </a>
-    ))}
-    <button onclick="openAuth('signup')"
-            class="mt-4 px-8 py-3 rounded-xl text-base font-bold text-white bg-[#FF2D55]"
-            style="box-shadow:0 8px 32px rgba(255,45,85,0.4)">
-      Start Free Trial
-    </button>
-  </div>
+<!-- Mobile menu overlay -->
+<div id="mobile-menu" class="hidden fixed inset-0 z-40 lg:hidden flex-col items-center justify-center gap-6"
+     style="background:rgba(3,7,18,0.97);backdrop-filter:blur(24px)">
+  <button id="mobile-close" class="absolute top-4 right-4 p-2 text-[18px]"
+          style="color:var(--sw-fg-3)">✕</button>
+  {nav.map(l => (
+    <a href={l.href}
+       class="mobile-nav-link text-2xl font-bold"
+       style={`color:${l.accent}`}>
+      {l.label}
+    </a>
+  ))}
+  <button onclick="openAuth('signup')"
+          class="mt-4 px-8 py-3 rounded-xl text-base font-bold text-white"
+          style="background:var(--sw-gradient-primary);box-shadow:var(--sw-shadow-cta)">
+    Start Free Trial
+  </button>
 </div>
 
 <style>
-  /* Active nav pill */
+  .nav-pill:hover,
   .nav-pill.active {
     color: var(--pill-accent) !important;
     background: color-mix(in srgb, var(--pill-accent) 10%, transparent);
-    box-shadow: 0 0 12px var(--pill-glow);
   }
-  .nav-pill:hover {
-    color: var(--pill-accent) !important;
-    background: color-mix(in srgb, var(--pill-accent) 7%, transparent);
-  }
+  #mobile-menu.open { display: flex; }
 </style>
 
 <script>
-  // Scroll-triggered nav highlight
+  // IntersectionObserver active nav pill
   const pills = document.querySelectorAll<HTMLAnchorElement>('.nav-pill[data-section]');
-  const sections = Array.from(pills).map(p => document.getElementById(p.dataset.section!)).filter(Boolean) as HTMLElement[];
+  const sections = Array.from(pills)
+    .map(p => document.getElementById(p.dataset.section!))
+    .filter(Boolean) as HTMLElement[];
 
   const io = new IntersectionObserver(entries => {
     entries.forEach(e => {
@@ -134,18 +134,19 @@ const nav = [
 
   sections.forEach(s => io.observe(s));
 
-  // Navbar scroll shadow
+  // Navbar scroll border
   const navbar = document.getElementById('navbar')!;
   window.addEventListener('scroll', () => {
     navbar.style.borderBottomColor = window.scrollY > 20
-      ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)';
+      ? 'var(--sw-border-strong)' : 'var(--sw-border)';
   }, { passive: true });
 
   // Mobile menu
   const menu = document.getElementById('mobile-menu')!;
-  document.getElementById('mobile-menu-btn')!.addEventListener('click', () => menu.classList.remove('hidden'));
-  document.getElementById('mobile-close')!.addEventListener('click', () => menu.classList.add('hidden'));
+  document.getElementById('mobile-menu-btn')!.addEventListener('click',
+    () => menu.classList.toggle('hidden'));
+  document.getElementById('mobile-close')!.addEventListener('click',
+    () => menu.classList.add('hidden'));
   document.querySelectorAll('.mobile-nav-link').forEach(a =>
-    a.addEventListener('click', () => menu.classList.add('hidden'))
-  );
+    a.addEventListener('click', () => menu.classList.add('hidden')));
 </script>

@@ -1,116 +1,107 @@
 ---
-const stats = [
-  { id: 'threats', val: 2847391, label: 'Threats Blocked Today',  color: '#FF2D55', prefix: '' },
-  { id: 'latency', val: 1.8,     label: 'Median Latency ms',      color: '#0A84FF', prefix: '' },
-  { id: 'uptime',  val: 99.95,   label: 'Uptime SLA %',           color: '#30D158', prefix: '' },
-  { id: 'layers',  val: 14,      label: 'Defense Layers',          color: '#FFD60A', prefix: '' },
-];
-
 const ticker = [
-  { type: 'BLOCK', msg: 'Prompt injection via Base64 layer-3 encoding · session:a4f2',  color: '#FF2D55' },
-  { type: 'BLOCK', msg: 'AWS key leak detected · Shannon entropy 4.82 · tenant:fin-02', color: '#FF2D55' },
-  { type: 'WARN',  msg: 'Social engineering attempt · SE-Arbiter P=0.71 · session:c1e9', color: '#FFD60A' },
-  { type: 'BLOCK', msg: 'Jailbreak attempt · Poincaré distance 0.94 · tenant:med-07',  color: '#FF2D55' },
-  { type: 'BLOCK', msg: 'PII exfiltration via prompt · SSN pattern match · tenant:hr-01', color: '#FF2D55' },
-  { type: 'INFO',  msg: 'Evolution Engine added 3 examples from BLOCK cluster · brain v847', color: '#0A84FF' },
-  { type: 'BLOCK', msg: 'Shadow ban triggered · score 0.89 · gaslight strategy applied', color: '#BF5AF2' },
-  { type: 'WARN',  msg: 'Agent tool-call chain depth 4 · injection chain detected',      color: '#FFD60A' },
+  { type: 'BLOCK', msg: 'Prompt injection via Base64 layer-3 encoding · session:a4f2',    color: 'var(--sw-red)'    },
+  { type: 'BLOCK', msg: 'AWS key leak detected · Shannon entropy 4.82 · tenant:fin-02',   color: 'var(--sw-red)'    },
+  { type: 'WARN',  msg: 'Social engineering attempt · SE-Arbiter P=0.71 · session:c1e9',  color: 'var(--sw-amber)'  },
+  { type: 'BLOCK', msg: 'Jailbreak attempt · Poincaré distance 0.94 · tenant:med-07',     color: 'var(--sw-red)'    },
+  { type: 'BLOCK', msg: 'PII exfiltration via prompt · SSN pattern match · tenant:hr-01', color: 'var(--sw-red)'    },
+  { type: 'INFO',  msg: 'Evolution Engine added 3 examples from BLOCK cluster · brain v847', color: 'var(--sw-indigo)' },
+  { type: 'BLOCK', msg: 'Shadow ban triggered · score 0.89 · gaslight strategy applied',  color: 'var(--sw-violet)' },
+  { type: 'WARN',  msg: 'Agent tool-call chain depth 4 · injection chain detected',        color: 'var(--sw-amber)'  },
 ];
 ---
 
-<section id="hero" class="relative min-h-screen flex flex-col items-center justify-center pt-16 overflow-hidden">
+<section id="hero" class="relative min-h-screen flex flex-col items-center justify-center pt-16 overflow-hidden"
+         style="background:var(--sw-bg)">
 
-  <!-- Animated grid -->
+  <!-- Grid overlay -->
   <div class="absolute inset-0 pointer-events-none"
-       style="background-image:linear-gradient(rgba(99,117,255,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(99,117,255,0.035) 1px,transparent 1px);background-size:56px 56px"></div>
+       style="background-image:linear-gradient(rgba(99,102,241,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.04) 1px,transparent 1px);background-size:56px 56px"></div>
 
   <!-- Radial glows -->
-  <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full pointer-events-none"
-       style="background:radial-gradient(ellipse,rgba(255,45,85,0.07) 0%,transparent 70%)"></div>
-  <div class="absolute bottom-1/4 left-1/4 w-[600px] h-[400px] rounded-full pointer-events-none"
-       style="background:radial-gradient(ellipse,rgba(10,132,255,0.06) 0%,transparent 70%)"></div>
-  <div class="absolute top-1/3 right-1/4 w-[500px] h-[400px] rounded-full pointer-events-none"
-       style="background:radial-gradient(ellipse,rgba(191,90,242,0.05) 0%,transparent 70%)"></div>
+  <div class="absolute pointer-events-none" style="top:20%;left:50%;transform:translateX(-50%);width:800px;height:500px;border-radius:50%;background:radial-gradient(ellipse,rgba(99,102,241,0.09) 0%,transparent 70%)"></div>
+  <div class="absolute pointer-events-none" style="bottom:20%;left:20%;width:600px;height:400px;border-radius:50%;background:radial-gradient(ellipse,rgba(139,92,246,0.06) 0%,transparent 70%)"></div>
+  <div class="absolute pointer-events-none" style="top:30%;right:15%;width:500px;height:400px;border-radius:50%;background:radial-gradient(ellipse,rgba(6,182,212,0.05) 0%,transparent 70%)"></div>
 
-  <!-- Center shield pulse -->
-  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-    <div class="w-[600px] h-[600px] rounded-full border border-[#FF2D55]/[0.04] animate-ping-slow"></div>
-  </div>
+  <!-- Pulse ring -->
+  <div class="absolute top-1/2 left-1/2 pointer-events-none animate-ping-slow"
+       style="width:600px;height:600px;border-radius:50%;border:1px solid rgba(99,102,241,0.05);transform:translate(-50%,-50%)"></div>
 
   <div class="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 py-20 text-center">
 
     <!-- Badge -->
-    <div class="inline-flex items-center gap-2.5 mb-8 px-4 py-2 rounded-full
-                border border-[#FF2D55]/25 bg-[#FF2D55]/[0.06]">
-      <span class="w-1.5 h-1.5 rounded-full bg-[#FF2D55] animate-pulse"></span>
-      <span class="text-[11px] font-bold tracking-[2px] uppercase text-[#FF2D55]">
-        Zero-Trust AI Security Gateway · v4.11 · 170 modules
+    <div class="inline-flex items-center gap-2.5 mb-8 px-4 py-2 rounded-full"
+         style="border:1px solid rgba(99,102,241,.25);background:rgba(99,102,241,.06)">
+      <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--sw-indigo)"></span>
+      <span class="text-[11px] font-bold tracking-[2px] uppercase" style="color:var(--sw-indigo)">
+        Zero-Trust AI Security Gateway · v4.19 · 170 modules
       </span>
     </div>
 
     <!-- Headline -->
-    <h1 class="text-[clamp(42px,6vw,88px)] font-black leading-[1.0] tracking-[-3px] mb-6 max-w-5xl mx-auto">
-      The Only Gateway That<br />
-      <span style="background:linear-gradient(135deg,#FF2D55 0%,#FF8C42 50%,#FFD60A 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-        Thinks Like an Attacker.
-      </span>
+    <h1 class="text-[clamp(42px,6vw,88px)] font-black leading-[1.0] tracking-[-3px] mb-6 max-w-5xl mx-auto" style="color:var(--sw-fg-1)">
+      Your AI. Your Rules.<br/>
+      <span class="sw-gradient-text">Your Fortress.</span>
     </h1>
 
     <!-- Sub -->
-    <p class="text-[18px] text-[#8E8E9E] leading-[1.65] max-w-2xl mx-auto mb-10 font-light">
+    <p class="text-[18px] leading-[1.65] max-w-2xl mx-auto mb-10 font-light" style="color:var(--sw-fg-3)">
       14-layer real-time defense pipeline · Self-improving ML · Agentic SOC ·
       Post-quantum cryptography · Sovereign AI Cloud across 8 jurisdictions.
-      <span class="text-[#F5F5F7] font-normal"> Deployed in 60 seconds.</span>
+      <span style="color:var(--sw-fg-1);font-weight:400"> Deployed in 60 seconds.</span>
     </p>
 
     <!-- CTAs -->
     <div class="flex flex-wrap gap-3 justify-center mb-16">
-      <a href="#pricing"
-         class="px-7 py-3.5 rounded-xl text-[15px] font-bold text-white bg-[#FF2D55]
-                hover:-translate-y-1 transition-all duration-200"
-         style="box-shadow:0 8px 40px rgba(255,45,85,0.4)">
+      <button onclick="openAuth('signup')"
+              class="px-7 py-3.5 rounded-xl text-[15px] font-bold text-white hover:-translate-y-1 transition-all duration-200"
+              style="background:var(--sw-gradient-primary);box-shadow:var(--sw-shadow-cta)">
         Start Free Trial — $0
-      </a>
-      <a href="#pipeline"
-         class="px-7 py-3.5 rounded-xl text-[15px] font-semibold text-[#F5F5F7]
-                bg-white/[0.05] border border-white/[0.1]
-                hover:bg-white/[0.09] hover:-translate-y-1 transition-all duration-200">
-        Explore 14 Layers ↓
+      </button>
+      <a href="#security"
+         class="px-7 py-3.5 rounded-xl text-[15px] font-semibold hover:-translate-y-1 transition-all duration-200"
+         style="color:var(--sw-fg-1);background:rgba(255,255,255,0.05);border:1px solid var(--sw-border-strong)">
+        See 14 Layers ↓
       </a>
     </div>
 
     <!-- Live counters -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/[0.05] rounded-2xl overflow-hidden
-                border border-white/[0.07] max-w-3xl mx-auto mb-16">
-      {stats.map((s, i) => (
-        <div class={`bg-[#03050F] px-6 py-5 ${i < stats.length - 1 ? '' : ''}`}>
-          <div id={`stat-${s.id}`}
+    <div class="grid grid-cols-2 sm:grid-cols-4 max-w-3xl mx-auto mb-16 rounded-2xl overflow-hidden"
+         style="border:1px solid var(--sw-border);background:var(--sw-border)">
+      {[
+        { label: 'Threats Blocked Today', val: '2,847,391', color: 'var(--sw-red)'    },
+        { label: 'Median Latency ms',     val: '1.8',       color: 'var(--sw-indigo)' },
+        { label: 'Uptime SLA %',          val: '99.95',     color: 'var(--sw-green)'  },
+        { label: 'Defense Layers',        val: '14',        color: 'var(--sw-amber)'  },
+      ].map((s, i) => (
+        <div class="px-6 py-5" style="background:var(--sw-bg)">
+          <div id={i === 0 ? 'stat-threats' : undefined}
                class="text-[28px] font-black tracking-tight leading-none mb-1"
                style={`color:${s.color}`}>
-            {s.id === 'threats' ? '2,847,391' : s.id === 'latency' ? '1.8' : s.id === 'uptime' ? '99.95' : '14'}
+            {s.val}
           </div>
-          <div class="text-[10px] text-[#48485A] font-semibold uppercase tracking-wider">{s.label}</div>
+          <div class="text-[10px] font-semibold uppercase tracking-wider" style="color:var(--sw-fg-4)">{s.label}</div>
         </div>
       ))}
     </div>
 
     <!-- Threat ticker -->
-    <div class="relative overflow-hidden rounded-xl border border-white/[0.06] bg-[#080D1E]
-                max-w-4xl mx-auto" style="height:36px">
-      <div class="absolute left-0 top-0 bottom-0 z-10 flex items-center px-3
-                  bg-[#FF2D55] text-[9px] font-black uppercase tracking-[1.5px]">
+    <div class="relative overflow-hidden rounded-xl max-w-4xl mx-auto"
+         style="height:36px;background:var(--sw-surf-1);border:1px solid var(--sw-border)">
+      <div class="absolute left-0 top-0 bottom-0 z-10 flex items-center px-3 text-[9px] font-black uppercase tracking-[1.5px] text-white"
+           style="background:var(--sw-red-deep)">
         LIVE
       </div>
-      <div id="ticker-wrap" class="absolute left-[52px] right-0 top-0 bottom-0 overflow-hidden">
+      <div class="absolute left-[52px] right-0 top-0 bottom-0 overflow-hidden">
         <div id="ticker-inner" class="flex items-center h-full gap-8 whitespace-nowrap"
              style="animation:ticker 60s linear infinite">
           {[...ticker, ...ticker].map(t => (
             <span class="text-[11px] font-mono flex-shrink-0 flex items-center gap-2">
               <span class="font-bold text-[9px] px-1.5 py-0.5 rounded"
-                    style={`color:${t.color};background:${t.color}20`}>
+                    style={`color:${t.color};background:color-mix(in srgb,${t.color} 15%,transparent)`}>
                 {t.type}
               </span>
-              <span class="text-[#8E8E9E]">{t.msg}</span>
+              <span style="color:var(--sw-fg-3)">{t.msg}</span>
             </span>
           ))}
         </div>
@@ -121,25 +112,24 @@ const ticker = [
 
   <!-- Scroll indicator -->
   <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
-    <span class="text-[10px] uppercase tracking-[2px] text-[#48485A]">Explore</span>
-    <div class="w-px h-8 bg-gradient-to-b from-[#48485A] to-transparent"></div>
+    <span class="text-[10px] uppercase tracking-[2px]" style="color:var(--sw-fg-4)">Explore</span>
+    <div class="w-px h-8" style="background:linear-gradient(to bottom,var(--sw-fg-4),transparent)"></div>
   </div>
 </section>
 
 <style>
   @keyframes ticker {
-    0%   { transform: translateX(0) }
+    0%   { transform: translateX(0)    }
     100% { transform: translateX(-50%) }
   }
   @keyframes ping-slow {
-    0%, 100% { transform: translate(-50%,-50%) scale(1); opacity: 0.4 }
-    50%       { transform: translate(-50%,-50%) scale(1.15); opacity: 0 }
+    0%, 100% { opacity: 0.4; transform: translate(-50%,-50%) scale(1);    }
+    50%       { opacity: 0;   transform: translate(-50%,-50%) scale(1.12); }
   }
   .animate-ping-slow { animation: ping-slow 4s ease-in-out infinite; }
 </style>
 
 <script>
-  /* Threat counter ticks up every 3s */
   let count = 2847391;
   const el = document.getElementById('stat-threats');
   setInterval(() => {

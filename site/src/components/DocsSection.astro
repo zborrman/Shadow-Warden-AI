@@ -1,97 +1,44 @@
 ---
 const docs = [
-  {
-    icon: '🚀',
-    title: 'Quick Start',
-    desc: 'Up in 5 minutes with Docker Compose. First request filtered in under 60 seconds.',
-    link: '/docs/quickstart',
-    color: '#30D158',
-  },
-  {
-    icon: '📡',
-    title: 'API Reference',
-    desc: 'Full endpoint catalog: filter, batch, SOVA, billing, communities, XAI, sovereign — 80+ endpoints.',
-    link: '/enterprise-guide',
-    color: '#0A84FF',
-  },
-  {
-    icon: '🏗️',
-    title: 'Architecture',
-    desc: '9-layer pipeline anatomy, n-tier agent topology, multi-cloud routing, MinIO evidence vault.',
-    link: '/enterprise-guide#architecture',
-    color: '#BF5AF2',
-  },
-  {
-    icon: '🛡️',
-    title: 'Security Model',
-    desc: 'OWASP LLM Top 10 coverage, threat model, crypto controls (Ed25519, HMAC-SHA256, PQC).',
-    link: '/enterprise-guide#security',
-    color: '#FF2D55',
-  },
-  {
-    icon: '🔒',
-    title: 'GDPR DPIA',
-    desc: 'Art. 35 Data Protection Impact Assessment. Metadata-only logging, data minimisation, right-to-erasure API.',
-    link: '/enterprise-guide#gdpr',
-    color: '#FFD60A',
-  },
-  {
-    icon: '✅',
-    title: 'SOC 2 Type II',
-    desc: 'Control mapping + auditor collection procedures. Evidence Vault walkthrough. STIX 2.1 chain export.',
-    link: '/enterprise-guide#soc2',
-    color: '#FF8C42',
-  },
-  {
-    icon: '📋',
-    title: 'SLA',
-    desc: 'Pro 99.9% / Enterprise 99.95% uptime. P99 &lt;50ms guarantee. Incident response timeline + credit schedule.',
-    link: '/enterprise-guide#sla',
-    color: '#8E8E9E',
-  },
-  {
-    icon: '🔌',
-    title: 'Integration Guides',
-    desc: 'LangChain callback, OpenAI-compatible proxy, Obsidian plugin, k6 load tests, GitHub Actions CI matrix.',
-    link: '/enterprise-guide#integrations',
-    color: '#30D158',
-  },
+  { icon: '🚀', title: 'Quick Start',        desc: 'Up in 5 minutes with Docker Compose. First request filtered in under 60 seconds.',                                          link: '/docs/quickstart',             color: 'var(--sw-green)'  },
+  { icon: '📡', title: 'API Reference',      desc: 'Full endpoint catalog: filter, batch, SOVA, billing, communities, XAI, sovereign — 80+ endpoints with auth and examples.', link: '/enterprise-guide',            color: 'var(--sw-indigo)' },
+  { icon: '🏗️', title: 'Architecture',      desc: '9-layer pipeline anatomy, n-tier agent topology, multi-cloud sovereign routing, MinIO evidence vault.',                     link: '/enterprise-guide#architecture',color: 'var(--sw-violet)' },
+  { icon: '🛡️', title: 'Security Model',   desc: 'OWASP LLM Top 10 coverage, threat model, crypto controls (Ed25519, HMAC-SHA256, PQC), GDPR data flow.',                    link: '/enterprise-guide#security',   color: 'var(--sw-red)'    },
+  { icon: '📄', title: 'GDPR DPIA',         desc: 'Art. 35 Data Protection Impact Assessment with necessity, proportionality, and risk mitigation analysis.',                  link: '/docs/dpia',                   color: 'var(--sw-amber)'  },
+  { icon: '✅', title: 'SOC 2 Type II',     desc: 'Control mapping + auditor evidence collection procedures. Pre-built evidence bundles from MinIO.',                           link: '/docs/soc2',                   color: 'var(--sw-cyan)'   },
+  { icon: '📈', title: 'SLA',               desc: 'Pro 99.9% / Enterprise 99.95% uptime. P99 &lt; 50ms. Incident response SLOs and credit schedule.',                          link: '/docs/sla',                    color: 'var(--sw-orange)' },
+  { icon: '🔗', title: 'Integration Guides',desc: 'LangChain WardenCallback, OpenAI proxy, Obsidian plugin, k6 load tests, SIEM ingestion, Grafana dashboards.',               link: '/enterprise-guide#integrations',color: 'var(--sw-violet)' },
 ];
 
 const changelog = [
-  { version: 'v4.19', label: 'Obsidian Plugin Full Integration', color: '#BF5AF2' },
-  { version: 'v4.7',  label: 'SEP · PQC Signing · STIX Chain · Security P0 Fixes', color: '#FF2D55' },
-  { version: 'v4.0',  label: 'MasterAgent · SOVA 30 Tools · Agentic SOC', color: '#0A84FF' },
-  { version: 'v3.0',  label: 'Sovereign AI Cloud · Shadow AI · XAI 2.0', color: '#30D158' },
-  { version: 'v2.0',  label: 'Causal Arbiter · Evolution Engine · Evidence Vault', color: '#FFD60A' },
+  { version: 'v4.19', label: 'Obsidian Plugin Full Integration', date: 'May 2026' },
+  { version: 'v4.10', label: 'Business Community + SEP Protocol', date: 'May 2026' },
+  { version: 'v4.0',  label: 'Agentic SOC — MasterAgent & SOVA', date: 'Apr 2026' },
+  { version: 'v3.0',  label: 'Sovereign Cloud + PQC Keypairs',    date: 'Mar 2026' },
+  { version: 'v2.0',  label: 'Shadow AI Discovery + XAI Reports', date: 'Feb 2026' },
 ];
 ---
 
-<section id="docs" class="relative py-24 lg:py-32 overflow-hidden"
-         style="background:var(--surface-800)">
+<section id="docs" class="relative py-24 overflow-hidden"
+         style="background:var(--sw-bg)">
 
-  <div class="absolute inset-0 pointer-events-none">
-    <div class="absolute top-1/2 right-1/4 w-[400px] h-[400px] opacity-6 blur-[100px]"
-         style="background:var(--cat-docs)"></div>
-  </div>
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 40% at 80% 30%,rgba(251,191,36,.05) 0%,transparent 70%)"></div>
 
   <div class="relative mx-auto max-w-7xl px-4 lg:px-8">
 
     <!-- Header -->
     <div class="text-center mb-16">
-      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold uppercase tracking-widest mb-6 border"
-           style="color:var(--cat-docs);background:color-mix(in srgb,var(--cat-docs) 10%,transparent);border-color:color-mix(in srgb,var(--cat-docs) 25%,transparent)">
-        <span>◈</span> Documentation
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[12px] font-semibold"
+           style="color:var(--sw-amber);background:var(--sw-tint-amber);border:1px solid rgba(251,191,36,.2)">
+        ◈ Docs
       </div>
-      <h2 class="text-4xl lg:text-5xl font-extrabold mb-5 leading-tight">
-        Everything Documented.<br>
-        <span style="background:linear-gradient(135deg,var(--cat-docs),var(--cat-price));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-          Nothing Hidden.
-        </span>
+      <h2 class="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold mb-4" style="color:var(--sw-fg-1)">
+        Everything You Need<br/>
+        <span style="background:linear-gradient(135deg,var(--sw-amber),var(--sw-orange));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">To Ship with Confidence.</span>
       </h2>
-      <p class="text-[#8E8E9E] text-lg max-w-2xl mx-auto">
-        From GDPR DPIA to k6 load tests — every integration, compliance artefact,
-        and architectural decision is written down.
+      <p class="text-[15px] max-w-2xl mx-auto" style="color:var(--sw-fg-3)">
+        Production-grade documentation: quick-start guides, full API reference, GDPR DPIA,
+        SOC 2 evidence procedures, and architecture deep-dives.
       </p>
     </div>
 
@@ -99,39 +46,44 @@ const changelog = [
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
       {docs.map(d => (
         <a href={d.link}
-           class="card-hover rounded-2xl p-5 border group block"
-           style="background:var(--surface-700);border-color:var(--surface-border)">
-          <div class="text-2xl mb-3">{d.icon}</div>
-          <h3 class="text-[14px] font-bold text-[#F5F5F7] mb-2 group-hover:underline"
-              style={`color:${d.color}`}>{d.title}</h3>
-          <p class="text-[#8E8E9E] text-[12px] leading-relaxed" set:html={d.desc}/>
-          <div class="mt-4 text-[11px] font-semibold" style={`color:${d.color}`}>Read →</div>
+           class="group block rounded-xl p-5 card-hover no-underline"
+           style="background:var(--sw-surf-1);border:1px solid var(--sw-border)">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] mb-4 transition-transform group-hover:scale-110"
+               style={`background:color-mix(in srgb,${d.color} 12%,transparent)`}>
+            {d.icon}
+          </div>
+          <div class="text-[14px] font-semibold mb-2" style="color:var(--sw-fg-1)">{d.title}</div>
+          <div class="text-[12px] leading-relaxed mb-4" style="color:var(--sw-fg-3)" set:html={d.desc} />
+          <span class="inline-flex items-center gap-1 text-[12px] font-semibold transition-colors"
+                style={`color:${d.color}`}>
+            Read →
+          </span>
         </a>
       ))}
     </div>
 
     <!-- Changelog timeline -->
-    <div class="rounded-2xl p-6 border" style="border-color:var(--surface-border);background:var(--surface-700)">
-      <div class="text-[13px] font-bold text-[#F5F5F7] mb-6">Release Timeline</div>
+    <div class="max-w-2xl mx-auto">
+      <h3 class="text-center text-[14px] font-semibold mb-8" style="color:var(--sw-fg-3)">Release Timeline</h3>
       <div class="relative">
-        <!-- Vertical line -->
-        <div class="absolute left-[19px] top-2 bottom-2 w-px"
-             style="background:linear-gradient(180deg,var(--cat-community),var(--cat-docs))"></div>
-        <div class="flex flex-col gap-6">
-          {changelog.map(c => (
-            <div class="flex items-start gap-4 pl-1">
-              <div class="relative flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-extrabold border"
-                   style={`background:color-mix(in srgb,${c.color} 15%,var(--surface-800));border-color:color-mix(in srgb,${c.color} 40%,transparent);color:${c.color}`}>
-                {c.version.replace('v', '')}
+        <!-- vertical line -->
+        <div class="absolute left-[74px] top-0 bottom-0 w-px" style="background:var(--sw-border)"></div>
+        <div class="space-y-6">
+          {changelog.map((c, i) => (
+            <div class="flex items-start gap-4">
+              <div class="text-right w-[70px] shrink-0">
+                <span class="text-[10px] font-bold" style="color:var(--sw-amber)">{c.version}</span>
+                <div class="text-[10px]" style="color:var(--sw-fg-4)">{c.date}</div>
               </div>
-              <div class="flex-1 pt-1.5">
-                <div class="text-[12px] font-bold" style={`color:${c.color}`}>{c.version}</div>
-                <div class="text-[#8E8E9E] text-[12px]">{c.label}</div>
-              </div>
+              <!-- dot -->
+              <div class="relative z-10 mt-1 w-3 h-3 rounded-full shrink-0"
+                   style={`background:${i === 0 ? 'var(--sw-amber)' : 'var(--sw-surf-3)'};border:2px solid ${i === 0 ? 'var(--sw-amber)' : 'var(--sw-border-strong)'}`}></div>
+              <div class="text-[13px] font-medium" style="color:var(--sw-fg-2)">{c.label}</div>
             </div>
           ))}
         </div>
       </div>
     </div>
+
   </div>
 </section>

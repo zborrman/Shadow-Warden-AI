@@ -1,111 +1,75 @@
 ---
 const cards = [
-  {
-    icon: '🔐',
-    title: 'Secrets Governance',
-    desc: '5 vault connectors (AWS SM, Azure KV, HashiCorp, GCP SM, Env). SQLite inventory with risk scoring. Expiry alerts, auto-retire, rotation scheduling.',
-    tier: 'Add-on $12',
-    tierColor: '#0A84FF',
-  },
-  {
-    icon: '🌐',
-    title: 'Sovereign Routing',
-    desc: '8 jurisdictions (EU/US/UK/CA/SG/AU/JP/CH). MASQUE tunnels (H3/H2/TCP). TOFU TLS pinning. Lowest-latency ACTIVE tunnel selection.',
-    tier: 'Enterprise',
-    tierColor: '#BF5AF2',
-  },
-  {
-    icon: '🗺️',
-    title: 'Transfer Rules Matrix',
-    desc: 'CLASSIFIED → blocked always. PHI → 5 allowed jurisdictions. GENERAL → all with adequacy check. EU↔UK/CA/JP/CH adequacy decisions built-in.',
-    tier: 'Enterprise',
-    tierColor: '#BF5AF2',
-  },
-  {
-    icon: '🪙',
-    title: 'Sovereignty Attestation',
-    desc: 'HMAC-SHA256 signed attestations. 7-year Redis TTL. 10K cap per tenant. Verify any historical routing decision in O(1).',
-    tier: 'Enterprise',
-    tierColor: '#BF5AF2',
-  },
-  {
-    icon: '🔒',
-    title: 'GDPR Controls',
-    desc: '<code>POST /gdpr/export</code> and <code>/gdpr/purge</code>. ARQ retention scheduler. Metadata-only logging — no content ever stored.',
-    tier: 'Pro+',
-    tierColor: '#FF2D55',
-  },
-  {
-    icon: '🗝️',
-    title: 'Multi-tenant Auth',
-    desc: 'Per-tenant API keys. JSON multi-key + SHA-256 hash lookup. Constant-time compare (no timing oracle). Fail-closed by default at startup.',
-    tier: 'All',
-    tierColor: '#48485A',
-  },
-  {
-    icon: '🔄',
-    title: 'Key Rotation',
-    desc: 'SOVA-automated rotation schedule (daily 02:00 UTC). Community keypair rotation with hybrid PQC re-signing. Full audit trail.',
-    tier: 'Pro+',
-    tierColor: '#FF2D55',
-  },
-  {
-    icon: '⚙️',
-    title: 'Live Config API',
-    desc: '<code>GET/POST /api/config</code> — tune risk thresholds, model cache, timeout, fail-strategy without restarting the gateway.',
-    tier: 'All',
-    tierColor: '#48485A',
-  },
+  { icon: '🔐', title: 'Secrets Governance',     desc: '5 vault connectors (AWS SM, Azure KV, HashiCorp, GCP SM, Env). SQLite inventory with risk scoring. Expiry alerts, auto-retire, rotation scheduling.', tier: 'Add-on $12' },
+  { icon: '🌐', title: 'Sovereign Routing',       desc: '8 jurisdictions (EU/US/UK/CA/SG/AU/JP/CH). MASQUE tunnels (H3/H2/TCP). TOFU TLS pinning. Lowest-latency ACTIVE tunnel selection.',                  tier: 'Enterprise'  },
+  { icon: '🗺️', title: 'Transfer Rules Matrix',  desc: 'CLASSIFIED → blocked always. PHI → 5 allowed jurisdictions. GENERAL → all with adequacy check. EU↔UK/CA/JP/CH adequacy decisions built-in.',       tier: 'Enterprise'  },
+  { icon: '🪙', title: 'Sovereignty Attestation', desc: 'HMAC-SHA256 signed attestations. 7-year Redis TTL. 10K cap per tenant. Verify any historical routing decision in O(1).',                              tier: 'Enterprise'  },
+  { icon: '📋', title: 'GDPR Controls',           desc: 'Export/purge APIs for Art. 17 right-to-erasure. Metadata-only logging (no content). Retention scheduler with NDJSON rotation.',                      tier: 'All'         },
+  { icon: '🔑', title: 'Multi-tenant Auth',        desc: 'Per-tenant API keys with SHA-256 constant-time compare. Fail-closed at startup — no plaintext key in any log or span.',                              tier: 'All'         },
+  { icon: '🔄', title: 'Key Rotation',             desc: 'SOVA-automated daily rotation at 02:00 UTC. Community keypair rotation with PQC upgrade path. Zero-downtime key swap.',                              tier: 'Pro+'        },
+  { icon: '⚙️', title: 'Config API',              desc: 'Live-tune thresholds, timeouts, and resilience strategy without restart. Shadow ban score, semantic threshold, transit rules — all hot-reloadable.', tier: 'Pro+'        },
 ];
 
-const jurisdictions = [
-  { code: 'EU', flag: '🇪🇺', laws: 'GDPR · AI Act' },
-  { code: 'US', flag: '🇺🇸', laws: 'CCPA · HIPAA' },
-  { code: 'UK', flag: '🇬🇧', laws: 'UK GDPR · ICO' },
-  { code: 'CA', flag: '🇨🇦', laws: 'PIPEDA' },
-  { code: 'SG', flag: '🇸🇬', laws: 'PDPA' },
-  { code: 'AU', flag: '🇦🇺', laws: 'Privacy Act' },
-  { code: 'JP', flag: '🇯🇵', laws: 'APPI' },
-  { code: 'CH', flag: '🇨🇭', laws: 'nFADP' },
+const toggles = [
+  { label: 'Fail-closed auth',       on: true,  desc: 'Startup halts if API key unset' },
+  { label: 'GDPR metadata-only mode',on: true,  desc: 'Content never leaves your stack' },
+  { label: 'Evolution Engine',        on: false, desc: 'Requires ANTHROPIC_API_KEY'      },
+  { label: 'OTel tracing',           on: false,  desc: 'Enable with OTEL_ENABLED=true'   },
 ];
+
+const tierColor: Record<string, string> = {
+  'All': 'var(--sw-fg-4)', 'Add-on $12': 'var(--sw-cyan)',
+  'Enterprise': 'var(--sw-violet)', 'Pro+': 'var(--sw-indigo)',
+};
+const tierBg: Record<string, string> = {
+  'All': 'rgba(100,116,139,.12)', 'Add-on $12': 'var(--sw-tint-cyan)',
+  'Enterprise': 'var(--sw-tint-violet)', 'Pro+': 'var(--sw-tint-indigo)',
+};
 ---
 
-<section id="settings" class="relative py-24 lg:py-32 overflow-hidden">
+<section id="settings" class="relative py-24 overflow-hidden"
+         style="background:var(--sw-surf-1)">
 
-  <div class="absolute inset-0 pointer-events-none">
-    <div class="absolute bottom-1/3 left-0 w-[500px] h-[500px] opacity-6 blur-[120px]"
-         style="background:var(--cat-settings)"></div>
-  </div>
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 40% at 20% 80%,rgba(52,211,153,.05) 0%,transparent 70%)"></div>
 
   <div class="relative mx-auto max-w-7xl px-4 lg:px-8">
 
     <!-- Header -->
     <div class="text-center mb-16">
-      <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold uppercase tracking-widest mb-6 border"
-           style="color:var(--cat-settings);background:color-mix(in srgb,var(--cat-settings) 10%,transparent);border-color:color-mix(in srgb,var(--cat-settings) 25%,transparent)">
-        <span>◈</span> Settings
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[12px] font-semibold"
+           style="color:var(--sw-green);background:var(--sw-tint-green);border:1px solid rgba(52,211,153,.2)">
+        ◈ Settings
       </div>
-      <h2 class="text-4xl lg:text-5xl font-extrabold mb-5 leading-tight">
-        Compliant by Design.<br>
-        <span style="background:linear-gradient(135deg,var(--cat-settings),var(--cat-dashboard));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-          Configurable Without Risk.
-        </span>
+      <h2 class="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold mb-4" style="color:var(--sw-fg-1)">
+        Compliant by Design.<br/>
+        <span style="background:linear-gradient(135deg,var(--sw-green),var(--sw-cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">Secure by Default.</span>
       </h2>
-      <p class="text-[#8E8E9E] text-lg max-w-2xl mx-auto">
-        8 jurisdiction registry, 5 vault connectors, live config tuning — all without
-        restarting your gateway or exposing sensitive material.
+      <p class="text-[15px] max-w-2xl mx-auto" style="color:var(--sw-fg-3)">
+        Every governance control you need — secrets vaulting, sovereign routing, GDPR purge APIs,
+        and automated key rotation — shipped and ready. No custom infra required.
       </p>
     </div>
 
-    <!-- Jurisdiction pills -->
-    <div class="flex flex-wrap justify-center gap-3 mb-16">
-      {jurisdictions.map(j => (
-        <div class="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-[12px] font-semibold"
-             style="background:color-mix(in srgb,var(--cat-settings) 6%,var(--surface-700));border-color:color-mix(in srgb,var(--cat-settings) 20%,transparent)">
-          <span class="text-lg">{j.flag}</span>
+    <!-- Settings panel (design kit SettingsPanel pattern) -->
+    <div class="mb-12 rounded-2xl overflow-hidden max-w-lg mx-auto"
+         style="background:var(--sw-surf-2);border:1px solid var(--sw-border)">
+      <div class="px-5 py-3 flex items-center gap-2" style="border-bottom:1px solid var(--sw-border)">
+        <div class="w-5 h-5 rounded flex items-center justify-center text-[12px]"
+             style="background:var(--sw-tint-green)">⚙️</div>
+        <span class="text-[13px] font-semibold" style="color:var(--sw-fg-2)">Security Defaults</span>
+      </div>
+      {toggles.map((t, i) => (
+        <div class={`flex items-center justify-between px-5 py-3.5 ${i < toggles.length - 1 ? 'border-b' : ''}`}
+             style="border-color:var(--sw-border)">
           <div>
-            <div class="text-[#F5F5F7]">{j.code}</div>
-            <div class="text-[9px] text-[#8E8E9E]">{j.laws}</div>
+            <div class="text-[13px] font-medium" style="color:var(--sw-fg-1)">{t.label}</div>
+            <div class="text-[11px] mt-0.5" style="color:var(--sw-fg-4)">{t.desc}</div>
+          </div>
+          <!-- toggle -->
+          <div class="relative w-10 h-6 rounded-full flex-shrink-0 transition-colors"
+               style={`background:${t.on ? 'var(--sw-green)' : 'var(--sw-surf-3)'}`}>
+            <div class="absolute top-0.5 w-5 h-5 rounded-full transition-all"
+                 style={`background:white;left:${t.on ? 'calc(100% - 22px)' : '2px'}`}></div>
           </div>
         </div>
       ))}
@@ -114,42 +78,21 @@ const jurisdictions = [
     <!-- Feature grid -->
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map(c => (
-        <div class="card-hover rounded-2xl p-5 border"
-             style="background:var(--surface-700);border-color:var(--surface-border)">
-          <div class="text-2xl mb-3">{c.icon}</div>
-          <div class="flex items-center gap-2 flex-wrap mb-2">
-            <h3 class="text-[13px] font-bold text-[#F5F5F7]">{c.title}</h3>
-            <span class="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                  style={`color:${c.tierColor};background:color-mix(in srgb,${c.tierColor} 12%,transparent);border:1px solid color-mix(in srgb,${c.tierColor} 30%,transparent)`}>
-              {c.tier}
-            </span>
+        <div class="rounded-xl p-5 card-hover"
+             style="background:var(--sw-surf-2);border:1px solid var(--sw-border);border-top:2px solid var(--sw-green)">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center text-[18px] mb-3"
+               style="background:var(--sw-tint-green)">
+            {c.icon}
           </div>
-          <p class="text-[#8E8E9E] text-[12px] leading-relaxed" set:html={c.desc}/>
+          <div class="text-[13px] font-semibold mb-1.5" style="color:var(--sw-fg-1)">{c.title}</div>
+          <div class="text-[12px] leading-relaxed mb-3" style="color:var(--sw-fg-3)">{c.desc}</div>
+          <span class="inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                style={`color:${tierColor[c.tier]};background:${tierBg[c.tier]}`}>
+            {c.tier}
+          </span>
         </div>
       ))}
     </div>
 
-    <!-- MASQUE tunnel status strip -->
-    <div class="mt-8 rounded-2xl p-6 border"
-         style="background:color-mix(in srgb,var(--cat-settings) 5%,var(--surface-800));border-color:color-mix(in srgb,var(--cat-settings) 20%,transparent)">
-      <div class="text-[13px] font-bold text-[#F5F5F7] mb-4">MASQUE Tunnel Lifecycle</div>
-      <div class="flex items-center gap-3 flex-wrap">
-        {[
-          { state: 'PENDING', color: '#8E8E9E' },
-          { state: '→', color: '#48485A' },
-          { state: 'ACTIVE', color: '#30D158' },
-          { state: '→', color: '#48485A' },
-          { state: 'DEGRADED', color: '#FFD60A' },
-          { state: '→', color: '#48485A' },
-          { state: 'OFFLINE', color: '#FF2D55' },
-        ].map(s => (
-          <span class="px-3 py-1 rounded-full text-[11px] font-bold"
-                style={s.state === '→' ? `color:${s.color}` : `color:${s.color};background:color-mix(in srgb,${s.color} 12%,transparent);border:1px solid color-mix(in srgb,${s.color} 25%,transparent)`}>
-            {s.state}
-          </span>
-        ))}
-        <span class="ml-auto text-[11px] text-[#8E8E9E]">Health-probed every 30s · TOFU pinning · H3/H2/TCP</span>
-      </div>
-    </div>
   </div>
 </section>
