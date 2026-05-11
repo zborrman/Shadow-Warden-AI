@@ -1,0 +1,66 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const releases = [
+  { v: 'v4.19', date: 'May 2026',  color: '#6366f1', highlights: ['Obsidian Plugin full integration — sidebar, XAI pipeline viz, offline queue, Dataview dashboard','Uptime Monitor — HTTP/SSL/DNS/TCP, TimescaleDB hypertable','Obsidian ARQ watchdog cron every 4h'] },
+  { v: 'v4.11', date: 'May 2026',  color: '#8b5cf6', highlights: ['visual_diff SOVA tool — Claude Vision baseline vs candidate','WardenHealer OLS trend prediction + Haiku incident classification','_PatrolWeights Redis-backed per-URL priority system'] },
+  { v: 'v4.10', date: 'May 2026',  color: '#06b6d4', highlights: ['Obsidian Plugin TypeScript — auto-scan, share via SEP UECIID','Obsidian API router — /scan, /share, /feed, /ai-filter, /stats'] },
+  { v: 'v4.9',  date: 'Apr 2026',  color: '#10b981', highlights: ['Secrets Governance — 5 vault connectors, SQLite inventory, lifecycle alerts','14 REST endpoints at /secrets/*'] },
+  { v: 'v4.8',  date: 'Apr 2026',  color: '#f59e0b', highlights: ['Community Charter versioning (DRAFT→ACTIVE→SUPERSEDED)','Z-score behavioral anomaly detection','14-provider OAuth discovery catalog'] },
+  { v: 'v4.7',  date: 'Apr 2026',  color: '#ef4444', highlights: ['Security hardening: fail-closed auth, CPT drift gate, Evolution regex gate','SEP: Causal Transfer Guard, Sovereign Data Pods, STIX 2.1 Audit Chain','Caddy v2 QUIC/HTTP3 reverse proxy'] },
+  { v: 'v4.6',  date: 'Apr 2026',  color: '#f97316', highlights: ['SEP/UECIID protocol — Snowflake→base-62 entity IDs','Inter-community peering (MIRROR_ONLY/REWRAP/FULL_SYNC)','Knock-and-Verify 72h one-time invitation tokens'] },
+  { v: 'v4.5',  date: 'Mar 2026',  color: '#8b5cf6', highlights: ['Billing add-on marketplace — Shadow AI, XAI Audit, Secrets Vault','Pro tier update: $69/mo with MasterAgent included'] },
+  { v: 'v4.4',  date: 'Mar 2026',  color: '#06b6d4', highlights: ['Sovereign AI Cloud — 8 jurisdictions, MASQUE tunnels','Transfer rules matrix (CLASSIFIED/PHI/GENERAL)','Sovereignty attestation with 7yr Redis TTL'] },
+  { v: 'v4.3',  date: 'Mar 2026',  color: '#10b981', highlights: ['XAI 2.0 — 9-stage causal chain, counterfactuals per stage','HTML + PDF report renderer (reportlab optional)'] },
+  { v: 'v4.2',  date: 'Feb 2026',  color: '#f59e0b', highlights: ['Shadow AI Governance — 18 provider fingerprints, async /24 subnet probe','MONITOR/BLOCK/ALLOWLIST policy per tenant'] },
+  { v: 'v4.1',  date: 'Feb 2026',  color: '#6366f1', highlights: ['Post-Quantum Cryptography — Ed25519+ML-DSA-65, X25519+ML-KEM-768','liboqs fail-open, Enterprise-only PQC tier gate'] },
+  { v: 'v4.0',  date: 'Jan 2026',  color: '#ef4444', highlights: ['MasterAgent SOC — 4 sub-agents, HMAC task tokens, human-in-the-loop','BrowserSandbox Playwright, ScreencastRecorder → MinIO SOC 2'] },
+  { v: 'v3.5',  date: 'Dec 2025',  color: '#8b5cf6', highlights: ['Financial Impact Calculator — IBM 2024 benchmarks, 782× ROI','Intel Bridge — ArXiv paper hunter auto-feeds Evolution Engine'] },
+  { v: 'v2.0',  date: 'Oct 2025',  color: '#06b6d4', highlights: ['Evolution Engine — Claude Opus auto-generates rules from BLOCK events','HyperbolicBrain — Poincaré ball 70/30 blend'] },
+  { v: 'v1.0',  date: 'Aug 2025',  color: '#10b981', highlights: ['Initial 9-layer pipeline — Topology, Obfuscation, Secrets, Rules, Brain, Causal, Phish, ERS, Decision','Docker Compose orchestration'] },
+];
+---
+<BaseLayout title="Changelog — Shadow Warden AI">
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/doc" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Doc</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Changelog</span>
+        </div>
+        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold" style="color:#f1f5f9">Changelog</h1>
+      </div>
+    </div>
+    <div class="mx-auto max-w-2xl px-4 lg:px-8 py-12">
+      <div class="relative">
+        <div class="absolute left-[52px] top-2 bottom-2 w-px" style="background:rgba(255,255,255,0.07)"></div>
+        <div class="space-y-8">
+          {releases.map((r, i) => (
+            <div class="flex gap-5">
+              <div class="shrink-0 w-[44px] text-right">
+                <span class="text-[11px] font-bold font-mono" style={`color:${r.color}`}>{r.v}</span>
+                <div class="text-[9px] mt-0.5" style="color:#475569">{r.date}</div>
+              </div>
+              <div class="relative flex items-start gap-4 flex-1">
+                <div class="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full border-2 shrink-0"
+                     style={`background:${i === 0 ? r.color : '#111118'};border-color:${r.color}`}></div>
+                <div class="pl-5 flex-1">
+                  <ul class="space-y-1.5">
+                    {r.highlights.map(h => (
+                      <li class="text-[13px] leading-relaxed" style="color:#94a3b8">
+                        <span style={`color:${r.color}`}>·</span> {h}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

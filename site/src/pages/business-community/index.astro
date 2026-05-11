@@ -1,0 +1,93 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import roadmap from '../../data/roadmap.json';
+
+const features = roadmap.filter(r => r.category === 'Business Community');
+const subcats = [...new Set(features.map(r => r.subcategory))];
+
+function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+
+const shipped = features.filter(f => f.status === 'shipped').length;
+---
+
+<BaseLayout title="Business Community — Shadow Warden AI"
+            description="Federated AI knowledge networks with cryptographic identity, sovereign data residency, and tamper-evident audit chains.">
+  <div class="pt-14">
+    <!-- Header -->
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] transition-colors hover:text-white" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Business Community</span>
+        </div>
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+          <div>
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] font-bold"
+                   style="background:rgba(139,92,246,.15);color:#8b5cf6">◈</div>
+              <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">Business Community</h1>
+            </div>
+            <p class="text-[15px] max-w-2xl leading-relaxed" style="color:#94a3b8">
+              Build federated knowledge networks with cryptographic identity, sovereign data residency,
+              tamper-evident STIX 2.1 audit chains, and post-quantum keypairs.
+            </p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <div class="text-right">
+              <div class="text-[28px] font-black" style="color:#8b5cf6">{shipped}</div>
+              <div class="text-[11px] font-semibold" style="color:#475569">Features Shipped</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12">
+      <!-- Subcategory grid -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
+        {subcats.map(sub => {
+          const count = features.filter(f => f.subcategory === sub).length;
+          return (
+            <a href={`/business-community/${slugify(sub)}`}
+               class="group block rounded-xl p-5 transition-all duration-200 no-underline"
+               style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+               onmouseover="this.style.borderColor='#8b5cf640';this.style.transform='translateY(-1px)'"
+               onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+              <div class="flex items-start justify-between mb-2">
+                <div class="text-[14px] font-semibold" style="color:#f1f5f9">{sub}</div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     class="group-hover:translate-x-1 transition-transform mt-0.5" style="color:#475569">
+                  <path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </div>
+              <div class="text-[11px]" style="color:#475569">{count} features</div>
+            </a>
+          );
+        })}
+      </div>
+
+      <!-- GitHub link -->
+      <div class="rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4"
+           style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+        <div class="flex-1">
+          <div class="text-[15px] font-semibold mb-1" style="color:#f1f5f9">Open Source on GitHub</div>
+          <p class="text-[13px]" style="color:#94a3b8">
+            Star the repo, open issues, join Discussions, and contribute to the SEP protocol.
+          </p>
+        </div>
+        <div class="flex gap-3 shrink-0">
+          <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank"
+             class="btn-primary text-[13px] px-4 py-2 flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+            View on GitHub
+          </a>
+          <a href="https://github.com/zborrman/Shadow-Warden-AI/discussions" target="_blank"
+             class="btn-ghost text-[13px] px-4 py-2">Discussions</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

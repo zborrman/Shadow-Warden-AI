@@ -1,0 +1,26 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FeatureList from '../../components/FeatureList.astro';
+import roadmap from '../../data/roadmap.json';
+
+const features = roadmap.filter(r => r.subcategory === 'Testing & Quality');
+---
+<BaseLayout title="Testing & Quality — Shadow Warden AI">
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/doc" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Doc</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Testing & Quality</span>
+        </div>
+        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold" style="color:#f1f5f9">Testing & Quality</h1>
+      </div>
+    </div>
+    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-10">
+      <FeatureList features={features} accent="#ec4899" />
+    </div>
+  </div>
+</BaseLayout>

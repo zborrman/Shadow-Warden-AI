@@ -1,0 +1,193 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const tiers = [
+  {
+    name: 'Starter', price: 0, color: '#64748b',
+    cta: 'Get Started Free', ctaHref: 'https://portal.shadow-warden-ai.com',
+    features: ['1,000 req / month','Basic 9-layer pipeline','1 tenant','Community support'],
+    missing: ['XAI Reports','Evolution Engine','MasterAgent SOC','Sovereign Cloud'],
+  },
+  {
+    name: 'Individual', price: 5, color: '#10b981',
+    cta: 'Start Free Trial', ctaHref: 'https://portal.shadow-warden-ai.com',
+    features: ['5,000 req / month','Full pipeline','PII & Secret Redaction','Streamlit dashboard','Email support'],
+    addons: ['XAI Reports +$9/mo'],
+    missing: ['MasterAgent SOC','Evolution Engine'],
+  },
+  {
+    name: 'Community Business', price: 19, color: '#8b5cf6',
+    cta: 'Start Free Trial', ctaHref: 'https://portal.shadow-warden-ai.com',
+    features: ['10,000 req / month','Everything in Individual','Obsidian Plugin','Secrets Governance (included)','3 communities × 10 members','180-day log retention'],
+    missing: ['MasterAgent SOC','PQC/Sovereign'],
+  },
+  {
+    name: 'Pro', price: 69, color: '#6366f1', highlight: true,
+    tag: 'Most Popular',
+    cta: 'Start Free Trial', ctaHref: 'https://portal.shadow-warden-ai.com',
+    features: ['50,000 req / month','MasterAgent SOC (included)','Evolution Engine','Evidence Vault + STIX 2.1','SOC 2 + GDPR audit package','Priority support'],
+    addons: ['Shadow AI +$15/mo'],
+    missing: ['PQC / Sovereign Cloud'],
+  },
+  {
+    name: 'Enterprise', price: 249, color: '#06b6d4',
+    tag: 'Full Stack',
+    cta: 'Contact Sales', ctaHref: 'mailto:sales@shadow-warden-ai.com',
+    features: ['Unlimited requests','Post-Quantum Crypto (FIPS 203/204)','Sovereign AI Cloud — 8 jurisdictions','Shadow AI Governance (included)','SAML/OIDC SSO + RBAC','Dedicated SLA · 24/7 support','Custom contract'],
+  },
+];
+
+const addons = [
+  { name: 'Shadow AI Discovery', price: '$15/mo', tier: 'Pro+',   desc: 'Async /24 subnet probe, 18 provider fingerprints, MONITOR/BLOCK/ALLOWLIST policy.' },
+  { name: 'XAI Audit Reports',   price: '$9/mo',  tier: 'Indiv+', desc: '9-stage causal chain, primary cause attribution, PDF reports for SOC 2.' },
+  { name: 'Secrets Vault',       price: '$12/mo', tier: 'Indiv+', desc: 'AWS SM / Azure KV / HashiCorp / GCP SM connectors. Inventory + lifecycle alerts.' },
+  { name: 'On-Prem Pack',        price: '$29/mo', tier: 'Pro+',   desc: 'MinIO on-prem, self-hosted Prometheus/Grafana, air-gapped Evolution Engine.' },
+  { name: 'Community Seats',     price: '$9/mo',  tier: 'CB+',    desc: 'Stackable +5 extra seats. Combine with any tier for unlimited expansion.' },
+  { name: 'Power User Bundle',   price: '$29/mo', tier: 'Indiv+', desc: 'XAI Audit + Secrets Vault + Shadow AI. Saves $7 vs. individual add-ons.' },
+];
+---
+
+<BaseLayout title="Pricing — Shadow Warden AI"
+            description="From free to enterprise. IBM 2024 breach data: Pro plan delivers 782× ROI. 14-day trial, no card required.">
+  <div class="pt-14">
+    <!-- Header -->
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16 text-center">
+        <div class="flex items-center gap-2 mb-6 justify-center">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Price</span>
+        </div>
+        <h1 class="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold mb-3" style="color:#f1f5f9">
+          Pays for Itself in Minutes
+        </h1>
+        <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
+          IBM 2024: average breach costs <span style="color:#ef4444;font-weight:700">$4.88M</span>.
+          Pro plan ROI: <span style="color:#10b981;font-weight:700">782×</span> annually.
+          14-day trial, no card required.
+        </p>
+
+        <!-- Monthly/Annual toggle -->
+        <div class="flex items-center justify-center gap-3 mt-8">
+          <span id="lbl-monthly" class="text-[13px] font-medium" style="color:#94a3b8">Monthly</span>
+          <button id="toggle"
+                  class="relative w-12 h-6 rounded-full transition-all duration-200 focus:outline-none"
+                  style="background:#1e1e2a;border:1px solid rgba(255,255,255,0.12)"
+                  aria-pressed="false">
+            <span id="knob" class="absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200"
+                  style="background:#64748b"></span>
+          </button>
+          <span class="text-[13px] font-medium" style="color:#94a3b8">Annual</span>
+          <span class="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                style="color:#f97316;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.2)">
+            Save 15%
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12">
+
+      <!-- Tier grid -->
+      <div class="grid lg:grid-cols-5 gap-3 mb-10 items-start">
+        {tiers.map((t, i) => (
+          <div class={`relative rounded-2xl p-5 flex flex-col ${t.highlight ? 'lg:-mt-4 ring-1' : ''}`}
+               style={`background:#111118;border:1px solid ${t.highlight ? t.color + '50' : 'rgba(255,255,255,0.08)'};
+                       ${t.highlight ? `box-shadow:0 0 40px ${t.color}14;ring-color:${t.color}` : ''}`}>
+            {t.tag && (
+              <div class="absolute -top-3 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-wider uppercase px-3 py-0.5 rounded-full whitespace-nowrap"
+                   style={t.highlight
+                     ? `background:${t.color};color:#fff`
+                     : `background:color-mix(in srgb,${t.color} 15%,transparent);color:${t.color};border:1px solid ${t.color}40`}>
+                {t.tag}
+              </div>
+            )}
+
+            <div class="mb-4">
+              <div class="text-[10px] font-bold tracking-widest uppercase mb-2" style={`color:${t.color}`}>{t.name}</div>
+              <div class="flex items-end gap-1">
+                <span class="text-[38px] font-black leading-none" style="color:#f1f5f9"
+                      data-name={t.name} data-base={t.price}>${t.price}</span>
+                <span class="text-[12px] mb-1.5" style="color:#64748b">/mo</span>
+              </div>
+              <div class="text-[10px] mt-0.5" style="color:#475569">billed monthly · cancel anytime</div>
+            </div>
+
+            <ul class="space-y-1.5 mb-5 flex-1">
+              {t.features.map(f => (
+                <li class="flex items-start gap-2 text-[12px]" style="color:#f1f5f9">
+                  <span class="font-bold mt-0.5" style={`color:${t.color}`}>✓</span> {f}
+                </li>
+              ))}
+              {t.addons?.map(a => (
+                <li class="flex items-start gap-2 text-[12px]" style="color:#94a3b8">
+                  <span class="font-bold mt-0.5" style="color:#64748b">○</span> {a}
+                </li>
+              ))}
+              {t.missing?.map(m => (
+                <li class="flex items-start gap-2 text-[12px] opacity-30" style="color:#64748b">
+                  <span class="mt-0.5">✗</span> {m}
+                </li>
+              ))}
+            </ul>
+
+            <a href={t.ctaHref} target="_blank" rel="noopener"
+               class="block w-full py-2.5 rounded-xl text-[12px] font-bold text-center transition-all no-underline hover:-translate-y-0.5"
+               style={t.highlight
+                 ? `background:${t.color};color:#fff;box-shadow:0 8px 28px ${t.color}40`
+                 : `background:color-mix(in srgb,${t.color} 12%,transparent);border:1px solid ${t.color}30;color:${t.color}`}>
+              {t.cta}
+            </a>
+          </div>
+        ))}
+      </div>
+
+      <!-- Add-ons -->
+      <div class="rounded-2xl p-6 mb-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="text-[11px] font-bold tracking-widest uppercase" style="color:#475569">Optional Add-ons</span>
+          <div class="flex-1 h-px" style="background:rgba(255,255,255,0.06)"></div>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {addons.map(a => (
+            <div class="rounded-xl p-4" style="background:#16161f;border:1px solid rgba(255,255,255,0.06)">
+              <div class="flex items-start justify-between gap-2 mb-2">
+                <div class="text-[13px] font-semibold" style="color:#f1f5f9">{a.name}</div>
+                <div class="text-[18px] font-black shrink-0" style="color:#f59e0b">{a.price}</div>
+              </div>
+              <div class="text-[12px] leading-relaxed mb-2" style="color:#64748b">{a.desc}</div>
+              <div class="text-[10px]" style="color:#475569">Available: {a.tier}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- IBM ROI note -->
+      <div class="rounded-xl p-4 text-center text-[12px]" style="color:#475569">
+        * IBM Cost of a Data Breach Report 2024. All prices in USD. Annual billing saves 15%.
+        Enterprise pricing is custom — <a href="mailto:sales@shadow-warden-ai.com" style="color:#6366f1">contact sales</a>.
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const toggle = document.getElementById('toggle')!;
+  const knob   = document.getElementById('knob')!;
+  const annualPrices: Record<string, number> = {
+    Individual: 4, 'Community Business': 16, Pro: 59, Enterprise: 212,
+  };
+  let annual = false;
+
+  toggle.addEventListener('click', () => {
+    annual = !annual;
+    toggle.setAttribute('aria-pressed', String(annual));
+    knob.style.left       = annual ? '26px' : '4px';
+    knob.style.background = annual ? '#f97316' : '#64748b';
+    document.querySelectorAll<HTMLElement>('[data-name]').forEach(el => {
+      const name = el.dataset.name!;
+      const base = Number(el.dataset.base!);
+      el.textContent = '$' + (annual && annualPrices[name] ? annualPrices[name] : base);
+    });
+  });
+</script>

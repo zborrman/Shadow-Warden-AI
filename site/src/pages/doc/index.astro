@@ -1,0 +1,61 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const docs = [
+  { title: 'Quick Start',    href: '/doc/quick-start',   icon: '🚀', desc: 'Up and running in 5 minutes with Docker Compose. First request filtered in <60s.', color: '#10b981' },
+  { title: 'API Reference',  href: 'https://docs.shadow-warden-ai.com', icon: '📡', desc: '80+ endpoints: filter, batch, SOVA, billing, communities, XAI, sovereign.', color: '#6366f1', external: true },
+  { title: 'Architecture',   href: '/doc/quick-start#architecture', icon: '🏗️', desc: '9-layer pipeline, n-tier agent topology, multi-cloud routing, MinIO vault.', color: '#8b5cf6' },
+  { title: 'Compliance',     href: '/doc/compliance',    icon: '📋', desc: 'GDPR Art.35 DPIA, SOC 2 Type II evidence, SLA, ISO 27001 mapping.', color: '#f59e0b' },
+  { title: 'Changelog',      href: '/doc/changelog',     icon: '🕐', desc: 'Full release history from v1.0 to v4.19 with feature highlights.', color: '#06b6d4' },
+  { title: 'Testing Guide',  href: '/doc/testing-quality', icon: '🧪', desc: 'SWFE fake context, Scenario DSL, mutation testing, k6 load tests.', color: '#ec4899' },
+];
+---
+
+<BaseLayout title="Documentation — Shadow Warden AI">
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Doc</span>
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
+               style="background:rgba(245,158,11,.15);color:#f59e0b;font-size:18px">◧</div>
+          <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">Documentation</h1>
+        </div>
+        <p class="text-[15px] max-w-xl" style="color:#94a3b8">
+          Everything you need to deploy, configure, and maintain Shadow Warden AI in production.
+        </p>
+      </div>
+    </div>
+    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {docs.map(d => (
+          <a href={d.href} target={d.external ? '_blank' : undefined} rel={d.external ? 'noopener' : undefined}
+             class="group block rounded-xl p-6 transition-all duration-200 no-underline"
+             style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+             onmouseover={`this.style.borderColor='${d.color}40';this.style.transform='translateY(-1px)'`}
+             onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+            <div class="flex items-start justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px]"
+                   style={`background:color-mix(in srgb,${d.color} 12%,transparent)`}>
+                {d.icon}
+              </div>
+              {d.external && (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     style="color:#475569;margin-top:4px">
+                  <path stroke-linecap="round" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+                </svg>
+              )}
+            </div>
+            <h3 class="text-[14px] font-semibold mb-2" style="color:#f1f5f9">{d.title}</h3>
+            <p class="text-[13px] leading-relaxed mb-4" style="color:#64748b">{d.desc}</p>
+            <span class="text-[12px] font-semibold" style={`color:${d.color}`}>Read →</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </div>
+</BaseLayout>

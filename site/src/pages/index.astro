@@ -1,35 +1,231 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Navbar from '../components/Navbar.astro';
-import Hero from '../components/Hero.astro';
-import BusinessCommunitySection from '../components/BusinessCommunitySection.astro';
-import CyberSecuritySection from '../components/CyberSecuritySection.astro';
-import DashboardSection from '../components/DashboardSection.astro';
-import SettingsNewSection from '../components/SettingsNewSection.astro';
-import DocsSection from '../components/DocsSection.astro';
-import Pricing from '../components/Pricing.astro';
-import ROICalculator from '../components/ROICalculator.astro';
-import Footer from '../components/Footer.astro';
-import AgentBot from '../components/AgentBot.astro';
-import AuthModal from '../components/AuthModal.astro';
-import AccessibilityWidget from '../components/AccessibilityWidget.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import roadmap from '../data/roadmap.json';
+
+const shipped = roadmap.filter(r => r.status === 'shipped').length;
+const categories = ['Business Community', 'Cyber Security', 'Dashboard', 'Price'];
+const featCount = (cat: string) => roadmap.filter(r => r.category === cat).length;
+
+const catCards = [
+  {
+    label: 'Business Community',
+    href: '/business-community',
+    color: '#8b5cf6',
+    tint: 'rgba(139,92,246,.1)',
+    icon: '◈',
+    desc: 'Federated knowledge networks with cryptographic identity, sovereign data residency, and tamper-evident audit chains.',
+    count: featCount('Business Community'),
+    pills: ['SEP / UECIID', 'Peering', 'Reputation', 'Obsidian Plugin'],
+  },
+  {
+    label: 'Cyber Security',
+    href: '/cyber-security',
+    color: '#ef4444',
+    tint: 'rgba(239,68,68,.1)',
+    icon: '⬡',
+    desc: '9-stage causal defense pipeline. Every AI request is topologically analyzed, obfuscated decoded, and ML-scored in <2ms.',
+    count: featCount('Cyber Security'),
+    pills: ['SOVA Agent', 'MasterAgent', 'PQC', 'XAI Reports'],
+  },
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    color: '#6366f1',
+    tint: 'rgba(99,102,241,.1)',
+    icon: '▣',
+    desc: 'Full-stack observability — OTel tracing, Prometheus/Grafana, Jaeger, SOC event log, and uptime monitoring.',
+    count: featCount('Dashboard'),
+    pills: ['Grafana', 'Jaeger', 'OTel Tracing', 'SOC Log'],
+  },
+  {
+    label: 'Price',
+    href: '/price',
+    color: '#f97316',
+    tint: 'rgba(249,115,22,.1)',
+    icon: '◇',
+    desc: 'Starter to Enterprise. IBM 2024 breach data shows Pro plan ROI of 782×. 14-day trial, no card required.',
+    count: roadmap.filter(r => r.category === 'Price').length,
+    pills: ['Starter $0', 'Pro $69', 'Enterprise $249', 'Add-ons'],
+  },
+];
 ---
 
-<Layout>
-  <AgentBot />
-  <AuthModal />
+<BaseLayout>
+  <!-- Hero -->
+  <section class="relative min-h-screen flex flex-col items-center justify-center pt-14 overflow-hidden">
+    <!-- Grid bg -->
+    <div class="absolute inset-0 pointer-events-none"
+         style="background-image:linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px);background-size:64px 64px"></div>
+    <!-- Radials -->
+    <div class="absolute pointer-events-none" style="top:10%;left:50%;transform:translateX(-50%);width:900px;height:600px;background:radial-gradient(ellipse,rgba(99,102,241,0.08) 0%,transparent 65%)"></div>
+    <div class="absolute pointer-events-none" style="bottom:5%;right:5%;width:500px;height:400px;background:radial-gradient(ellipse,rgba(139,92,246,0.06) 0%,transparent 65%)"></div>
 
-  <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen relative z-10">
-    <Navbar />
-    <Hero />
-    <BusinessCommunitySection />
-    <CyberSecuritySection />
-    <DashboardSection />
-    <SettingsNewSection />
-    <DocsSection />
-    <ROICalculator />
-    <Pricing />
-    <Footer />
-  </div>
-  <AccessibilityWidget />
-</Layout>
+    <div class="relative z-10 mx-auto max-w-5xl px-4 lg:px-8 py-20 text-center">
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 text-[12px] font-semibold"
+           style="color:#6366f1;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2)">
+        <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#6366f1"></span>
+        v4.19 · {shipped} features shipped · Production-ready
+      </div>
+
+      <h1 class="text-[clamp(40px,6vw,80px)] font-black leading-[1.05] tracking-tight mb-6"
+          style="color:#f1f5f9;letter-spacing:-2px">
+        Your AI. Your Rules.<br/>
+        <span class="text-gradient">Your Fortress.</span>
+      </h1>
+
+      <p class="text-[18px] leading-relaxed max-w-2xl mx-auto mb-10 font-light" style="color:#94a3b8">
+        14-layer real-time defense pipeline. Self-improving ML. Agentic SOC. Post-quantum cryptography.
+        Sovereign AI Cloud across 8 jurisdictions.
+        <span style="color:#f1f5f9;font-weight:400"> Deployed in 60 seconds.</span>
+      </p>
+
+      <div class="flex flex-wrap items-center justify-center gap-3 mb-16">
+        <a href="https://portal.shadow-warden-ai.com" target="_blank" class="btn-primary text-[14px] px-6 py-3">
+          Start Free Trial — $0
+        </a>
+        <a href="/doc/quick-start" class="btn-ghost text-[14px] px-6 py-3">
+          Read the Docs
+        </a>
+        <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener"
+           class="flex items-center gap-2 px-6 py-3 rounded-lg text-[14px] font-medium transition-colors"
+           style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)"
+           onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.color='#f1f5f9'"
+           onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:inherit">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          View on GitHub
+        </a>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-2xl mx-auto"
+           style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06)">
+        {[
+          { val: '<2ms',  label: 'Pipeline Latency', color: '#6366f1' },
+          { val: '9',     label: 'Defense Layers',   color: '#ef4444' },
+          { val: '99.95%',label: 'Uptime SLA',       color: '#10b981' },
+          { val: '782×',  label: 'Pro ROI (IBM 2024)', color: '#f59e0b' },
+        ].map(s => (
+          <div class="px-5 py-4 text-center" style="background:#0a0a0f">
+            <div class="text-[24px] font-black leading-none mb-1" style={`color:${s.color}`}>{s.val}</div>
+            <div class="text-[10px] font-semibold uppercase tracking-wider" style="color:#475569">{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Category cards -->
+  <section class="py-24 relative">
+    <div class="mx-auto max-w-7xl px-4 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
+          Everything You Need to Secure AI
+        </h2>
+        <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
+          From detection pipeline to community federation — every feature built and shipped.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-5">
+        {catCards.map(c => (
+          <a href={c.href}
+             class="group block rounded-2xl p-6 transition-all duration-200 no-underline"
+             style={`background:#111118;border:1px solid rgba(255,255,255,0.07)`}
+             onmouseover={`this.style.borderColor='${c.color}40';this.style.transform='translateY(-2px)'`}
+             onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] font-bold"
+                     style={`background:${c.tint};color:${c.color}`}>
+                  {c.icon}
+                </div>
+                <div>
+                  <div class="text-[15px] font-semibold" style="color:#f1f5f9">{c.label}</div>
+                  <div class="text-[11px]" style="color:#475569">{c.count} features</div>
+                </div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   style="color:#475569" class="mt-1 group-hover:translate-x-1 transition-transform">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </div>
+            <p class="text-[13px] leading-relaxed mb-4" style="color:#94a3b8">{c.desc}</p>
+            <div class="flex flex-wrap gap-1.5">
+              {c.pills.map(p => (
+                <span class="text-[11px] px-2 py-0.5 rounded-md font-medium"
+                      style={`color:${c.color};background:${c.tint}`}>{p}</span>
+              ))}
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- OWASP LLM coverage strip -->
+  <section class="py-16 border-y" style="border-color:rgba(255,255,255,0.06);background:#111118">
+    <div class="mx-auto max-w-7xl px-4 lg:px-8">
+      <div class="text-center mb-8">
+        <span class="text-[12px] font-semibold tracking-widest uppercase" style="color:#475569">
+          OWASP LLM Top 10 Coverage
+        </span>
+      </div>
+      <div class="flex flex-wrap justify-center gap-3">
+        {[
+          'LLM01 Prompt Injection','LLM02 Insecure Output','LLM03 Training Data Poisoning',
+          'LLM04 Model DoS','LLM05 Supply Chain','LLM06 Sensitive Info',
+          'LLM07 Insecure Plugin','LLM08 Excessive Agency','LLM09 Overreliance','LLM10 Model Theft'
+        ].map(item => (
+          <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-medium"
+               style="color:#10b981;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.15)">
+            <span>✓</span> {item}
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Pipeline overview -->
+  <section class="py-24">
+    <div class="mx-auto max-w-7xl px-4 lg:px-8">
+      <div class="text-center mb-12">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-[11px] font-semibold"
+             style="color:#ef4444;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2)">
+          ⬡ 9-Stage Defense Pipeline
+        </div>
+        <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
+          Every Request. Every Time.
+        </h2>
+      </div>
+      <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2">
+        {[
+          { n: '01', name: 'Topology',    icon: '📐', color: '#ef4444' },
+          { n: '02', name: 'Obfuscation', icon: '🔄', color: '#f97316' },
+          { n: '03', name: 'Secrets',     icon: '🔑', color: '#f59e0b' },
+          { n: '04', name: 'Rules',       icon: '📏', color: '#10b981' },
+          { n: '05', name: 'Brain',       icon: '🧠', color: '#06b6d4' },
+          { n: '06', name: 'Causal',      icon: '🎯', color: '#6366f1' },
+          { n: '07', name: 'Phish',       icon: '🎣', color: '#8b5cf6' },
+          { n: '08', name: 'ERS',         icon: '🚫', color: '#ec4899' },
+          { n: '09', name: 'Decision',    icon: '✅', color: '#10b981' },
+        ].map((s, i) => (
+          <div class="flex flex-col items-center gap-2 p-3 rounded-xl text-center transition-colors"
+               style="background:#111118;border:1px solid rgba(255,255,255,0.06)">
+            <div class="text-[9px] font-bold" style="color:#475569">{s.n}</div>
+            <div class="text-[22px]">{s.icon}</div>
+            <div class="text-[10px] font-semibold leading-tight" style={`color:${s.color}`}>{s.name}</div>
+          </div>
+        ))}
+      </div>
+      <div class="text-center mt-6">
+        <span class="text-[13px] font-semibold px-4 py-1.5 rounded-full"
+              style="color:#ef4444;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2)">
+          Total latency &lt; 2ms
+        </span>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

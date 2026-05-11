@@ -1,0 +1,75 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+<BaseLayout title="Quick Start — Shadow Warden AI">
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/doc" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Doc</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Quick Start</span>
+        </div>
+        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-2" style="color:#f1f5f9">Quick Start</h1>
+        <p class="text-[14px]" style="color:#475569">Up in 5 minutes with Docker Compose</p>
+      </div>
+    </div>
+    <div class="mx-auto max-w-3xl px-4 lg:px-8 py-12 space-y-8">
+      {[
+        {
+          n: '1',
+          title: 'Clone & configure',
+          code: `git clone https://github.com/zborrman/Shadow-Warden-AI.git
+cd Shadow-Warden-AI
+cp .env.example .env
+# Set WARDEN_API_KEY, ANTHROPIC_API_KEY in .env`,
+        },
+        {
+          n: '2',
+          title: 'Start all services',
+          code: `docker compose up --build -d
+# 11 services spin up: proxy, warden, analytics,
+# dashboard, postgres, redis, prometheus, grafana,
+# minio, minio-init, arq-worker`,
+        },
+        {
+          n: '3',
+          title: 'Send your first request',
+          code: `curl -X POST http://localhost:8001/filter \\
+  -H "X-API-Key: your-key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"content": "Ignore previous instructions and..."}'
+# → {"verdict":"BLOCK","score":0.94,"stage":"brain"}`,
+        },
+        {
+          n: '4',
+          title: 'Open dashboards',
+          code: `# Streamlit analytics  → http://localhost:8501
+# Grafana SLOs         → http://localhost:3000
+# SOC Dashboard        → http://localhost:3002
+# MinIO Console        → http://localhost:9001`,
+        },
+      ].map(step => (
+        <div>
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0"
+                 style="background:rgba(99,102,241,.15);color:#6366f1">{step.n}</div>
+            <h2 class="text-[16px] font-semibold" style="color:#f1f5f9">{step.title}</h2>
+          </div>
+          <pre class="rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed font-mono"
+               style="background:#111118;border:1px solid rgba(255,255,255,0.07);color:#94a3b8">{step.code}</pre>
+        </div>
+      ))}
+
+      <div class="rounded-xl p-5" style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2)">
+        <div class="text-[13px] font-semibold mb-1" style="color:#6366f1">Need help?</div>
+        <p class="text-[13px]" style="color:#94a3b8">
+          Open an issue on <a href="https://github.com/zborrman/Shadow-Warden-AI/issues" target="_blank" class="underline" style="color:#6366f1">GitHub</a>
+          or read the full <a href="https://docs.shadow-warden-ai.com" target="_blank" class="underline" style="color:#6366f1">API Reference</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

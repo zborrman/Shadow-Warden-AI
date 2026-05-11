@@ -1,0 +1,96 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import roadmap from '../../data/roadmap.json';
+
+const features = roadmap.filter(r => r.category === 'Cyber Security');
+const subcats = [...new Set(features.map(r => r.subcategory))];
+function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+const shipped = features.filter(f => f.status === 'shipped').length;
+
+const subIcons: Record<string, string> = {
+  'Security Pipeline': '🔒',
+  'Agentic SOC': '🤖',
+  'Cryptography': '⚛️',
+  'AI Research & Evolution': '🔬',
+  'Compliance & Privacy': '📋',
+};
+---
+
+<BaseLayout title="Cyber Security — Shadow Warden AI"
+            description="9-stage causal defense pipeline. SOVA Agent, MasterAgent, Post-Quantum Crypto, XAI Reports, Data Poisoning Guard.">
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Cyber Security</span>
+        </div>
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+          <div>
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] font-bold"
+                   style="background:rgba(239,68,68,.15);color:#ef4444">⬡</div>
+              <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">Cyber Security</h1>
+            </div>
+            <p class="text-[15px] max-w-2xl leading-relaxed" style="color:#94a3b8">
+              9-stage causal pipeline. Every AI request is topologically analyzed, obfuscation-decoded,
+              secret-redacted, ML-scored, and causally arbitrated in under 2ms.
+            </p>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="text-[28px] font-black" style="color:#ef4444">{shipped}</div>
+            <div class="text-[11px] font-semibold" style="color:#475569">Features Shipped</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12">
+      <!-- Pipeline strip -->
+      <div class="rounded-2xl p-6 mb-10" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+        <div class="text-[11px] font-semibold tracking-widest uppercase mb-4" style="color:#475569">Detection Pipeline</div>
+        <div class="flex flex-wrap gap-2 items-center">
+          {['Topology','Obfuscation','Secrets','Rules','Brain','Causal','Phish','ERS','Decision'].map((s, i) => (
+            <>
+              <span class="px-3 py-1.5 rounded-lg text-[12px] font-semibold"
+                    style="color:#ef4444;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.15)">
+                {s}
+              </span>
+              {i < 8 && <span style="color:#475569">→</span>}
+            </>
+          ))}
+          <span class="ml-2 px-3 py-1 rounded-full text-[11px] font-bold"
+                style="color:#10b981;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2)">
+            &lt;2ms
+          </span>
+        </div>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {subcats.map(sub => {
+          const count = features.filter(f => f.subcategory === sub).length;
+          return (
+            <a href={`/cyber-security/${slugify(sub)}`}
+               class="group block rounded-xl p-5 transition-all duration-200 no-underline"
+               style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+               onmouseover="this.style.borderColor='#ef444440';this.style.transform='translateY(-1px)'"
+               onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2.5">
+                  <span class="text-[18px]">{subIcons[sub] ?? '🔐'}</span>
+                  <div class="text-[14px] font-semibold" style="color:#f1f5f9">{sub}</div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     class="group-hover:translate-x-1 transition-transform mt-0.5" style="color:#475569">
+                  <path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </div>
+              <div class="text-[11px]" style="color:#475569">{count} features</div>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+</BaseLayout>
