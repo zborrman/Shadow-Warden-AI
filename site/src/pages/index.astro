@@ -251,4 +251,249 @@ const catCards = [
       </div>
     </div>
   </section>
+
+  <!-- ── EU Accessibility Widget (main page only) ── -->
+  <div id="a11y-widget" aria-label="Accessibility options" role="region">
+
+    <!-- Toggle button -->
+    <button id="a11y-toggle"
+      aria-expanded="false"
+      aria-controls="a11y-panel"
+      aria-label="Open accessibility options"
+      style="position:fixed;bottom:24px;right:24px;z-index:9999;width:46px;height:46px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);background:linear-gradient(135deg,#6366f1,#8b5cf6);transition:transform .2s,box-shadow .2s"
+      onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 6px 28px rgba(99,102,241,0.45)'"
+      onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(0,0,0,0.5)'">
+      <!-- Universal accessibility icon -->
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+        <circle cx="12" cy="4" r="2"/>
+        <path d="M12 7c-2.21 0-4 1.79-4 4v5h2v5h4v-5h2v-5c0-2.21-1.79-4-4-4z"/>
+      </svg>
+    </button>
+
+    <!-- Panel -->
+    <div id="a11y-panel" role="dialog" aria-label="Accessibility settings" aria-modal="false"
+      style="position:fixed;bottom:80px;right:24px;z-index:9998;width:300px;border-radius:16px;padding:0;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.6);background:#0d0d16;border:1px solid rgba(99,102,241,0.25);display:none;opacity:0;transform:translateY(8px) scale(0.97);transition:opacity .2s,transform .2s">
+
+      <!-- Header -->
+      <div style="padding:16px 18px 14px;border-bottom:1px solid rgba(255,255,255,0.07)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <p style="font-size:14px;font-weight:700;color:#f1f5f9;margin:0 0 2px">Accessibility</p>
+            <p style="font-size:10px;color:#475569;margin:0">EAA 2019/882 · WCAG 2.1 AA · EN 301 549</p>
+          </div>
+          <!-- EU flag badge -->
+          <div style="display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;background:rgba(0,51,153,0.15);border:1px solid rgba(0,51,153,0.3)">
+            <span style="font-size:14px" aria-label="EU flag">🇪🇺</span>
+            <span style="font-size:10px;font-weight:600;color:#4d7cfe">Compliant</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px">
+
+        <!-- Text size -->
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#94a3b8;font-weight:500">Text size</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <button class="a11y-btn" data-action="font-down" aria-label="Decrease text size"
+              style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#94a3b8;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700">A−</button>
+            <button class="a11y-btn" data-action="font-reset" aria-label="Reset text size"
+              style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#94a3b8;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700">A</button>
+            <button class="a11y-btn" data-action="font-up" aria-label="Increase text size"
+              style="width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#94a3b8;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700">A+</button>
+          </div>
+        </div>
+
+        <!-- High contrast -->
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <span style="font-size:12px;color:#94a3b8;font-weight:500;display:block">High contrast</span>
+            <span style="font-size:10px;color:#334155">WCAG 1.4.6 Enhanced</span>
+          </div>
+          <button class="a11y-toggle-btn" data-action="high-contrast" aria-pressed="false" aria-label="Toggle high contrast"
+            style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;background:rgba(255,255,255,0.1);position:relative;transition:background .2s">
+            <span class="toggle-knob" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;transform:translateX(0)"></span>
+          </button>
+        </div>
+
+        <!-- Reduce motion -->
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <span style="font-size:12px;color:#94a3b8;font-weight:500;display:block">Reduce motion</span>
+            <span style="font-size:10px;color:#334155">WCAG 2.3.3 Animation</span>
+          </div>
+          <button class="a11y-toggle-btn" data-action="reduce-motion" aria-pressed="false" aria-label="Toggle reduce motion"
+            style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;background:rgba(255,255,255,0.1);position:relative;transition:background .2s">
+            <span class="toggle-knob" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;transform:translateX(0)"></span>
+          </button>
+        </div>
+
+        <!-- Dyslexia font -->
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <span style="font-size:12px;color:#94a3b8;font-weight:500;display:block">Dyslexia-friendly font</span>
+            <span style="font-size:10px;color:#334155">OpenDyslexic typeface</span>
+          </div>
+          <button class="a11y-toggle-btn" data-action="dyslexia" aria-pressed="false" aria-label="Toggle dyslexia-friendly font"
+            style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;background:rgba(255,255,255,0.1);position:relative;transition:background .2s">
+            <span class="toggle-knob" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;transform:translateX(0)"></span>
+          </button>
+        </div>
+
+        <!-- Focus indicators -->
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <span style="font-size:12px;color:#94a3b8;font-weight:500;display:block">Enhanced focus</span>
+            <span style="font-size:10px;color:#334155">WCAG 2.4.11 Focus Appearance</span>
+          </div>
+          <button class="a11y-toggle-btn" data-action="focus" aria-pressed="false" aria-label="Toggle enhanced focus indicators"
+            style="width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;background:rgba(255,255,255,0.1);position:relative;transition:background .2s">
+            <span class="toggle-knob" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;transform:translateX(0)"></span>
+          </button>
+        </div>
+
+        <!-- Reset -->
+        <button id="a11y-reset" aria-label="Reset all accessibility settings"
+          style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:#475569;font-size:11px;cursor:pointer;transition:color .2s,border-color .2s;margin-top:2px"
+          onmouseover="this.style.color='#94a3b8';this.style.borderColor='rgba(255,255,255,0.15)'"
+          onmouseout="this.style.color='#475569';this.style.borderColor='rgba(255,255,255,0.08)'">
+          Reset all settings
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:10px 18px 14px;border-top:1px solid rgba(255,255,255,0.05)">
+        <p style="font-size:10px;color:#334155;margin:0;text-align:center;line-height:1.5">
+          European Accessibility Act · Directive (EU) 2019/882<br/>
+          WCAG 2.1 Level AA · EN 301 549 v3.2.1
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dyslexia font CSS (loaded only when activated) -->
+  <style id="a11y-styles">
+    .a11y-high-contrast { filter: contrast(1.6) brightness(1.1); }
+    .a11y-reduce-motion *, .a11y-reduce-motion *::before, .a11y-reduce-motion *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+    .a11y-focus *:focus-visible {
+      outline: 3px solid #6366f1 !important;
+      outline-offset: 3px !important;
+      border-radius: 4px !important;
+    }
+    @font-face {
+      font-family: 'OpenDyslexic';
+      src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.woff') format('woff');
+      font-display: swap;
+    }
+    .a11y-dyslexia, .a11y-dyslexia * { font-family: 'OpenDyslexic', sans-serif !important; }
+  </style>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'sw_a11y';
+  const html = document.documentElement;
+
+  let state = { fontScale: 0, highContrast: false, reduceMotion: false, dyslexia: false, focus: false };
+  try { Object.assign(state, JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')); } catch {}
+
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+  function applyFont() {
+    const sizes = [0.85, 0.925, 1, 1.1, 1.2];
+    const idx = Math.min(Math.max(state.fontScale + 2, 0), sizes.length - 1);
+    html.style.fontSize = (sizes[idx] * 16) + 'px';
+  }
+
+  function applyAll() {
+    html.classList.toggle('a11y-high-contrast', state.highContrast);
+    html.classList.toggle('a11y-reduce-motion', state.reduceMotion);
+    html.classList.toggle('a11y-dyslexia',      state.dyslexia);
+    html.classList.toggle('a11y-focus',         state.focus);
+    applyFont();
+  }
+
+  function setSwitch(btn, on) {
+    btn.setAttribute('aria-pressed', String(on));
+    btn.style.background = on ? 'rgba(99,102,241,0.7)' : 'rgba(255,255,255,0.1)';
+    const knob = btn.querySelector('.toggle-knob');
+    if (knob) knob.style.transform = on ? 'translateX(18px)' : 'translateX(0)';
+  }
+
+  function syncSwitches() {
+    const map = {
+      'high-contrast': state.highContrast,
+      'reduce-motion': state.reduceMotion,
+      'dyslexia':      state.dyslexia,
+      'focus':         state.focus,
+    };
+    document.querySelectorAll('.a11y-toggle-btn').forEach(function(btn) {
+      const action = btn.dataset.action;
+      if (action in map) setSwitch(btn, map[action]);
+    });
+  }
+
+  applyAll();
+  syncSwitches();
+
+  const toggleBtn = document.getElementById('a11y-toggle');
+  const panel     = document.getElementById('a11y-panel');
+  let open = false;
+
+  function openPanel() {
+    open = true;
+    panel.style.display = 'block';
+    requestAnimationFrame(function() {
+      panel.style.opacity = '1';
+      panel.style.transform = 'translateY(0) scale(1)';
+    });
+    toggleBtn.setAttribute('aria-expanded', 'true');
+  }
+  function closePanel() {
+    open = false;
+    panel.style.opacity = '0';
+    panel.style.transform = 'translateY(8px) scale(0.97)';
+    setTimeout(function() { if (!open) panel.style.display = 'none'; }, 200);
+    toggleBtn.setAttribute('aria-expanded', 'false');
+    toggleBtn.focus();
+  }
+
+  toggleBtn.addEventListener('click', function() { open ? closePanel() : openPanel(); });
+
+  document.addEventListener('click', function(e) {
+    if (open && !panel.contains(e.target) && e.target !== toggleBtn) closePanel();
+  });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && open) closePanel(); });
+
+  document.querySelectorAll('.a11y-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const action = btn.dataset.action;
+      if (action === 'font-up')    state.fontScale = Math.min(state.fontScale + 1, 2);
+      if (action === 'font-down')  state.fontScale = Math.max(state.fontScale - 1, -2);
+      if (action === 'font-reset') state.fontScale = 0;
+      applyFont(); save();
+    });
+  });
+
+  document.querySelectorAll('.a11y-toggle-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const action = btn.dataset.action;
+      if (action === 'high-contrast') state.highContrast = !state.highContrast;
+      if (action === 'reduce-motion') state.reduceMotion = !state.reduceMotion;
+      if (action === 'dyslexia')      state.dyslexia     = !state.dyslexia;
+      if (action === 'focus')         state.focus        = !state.focus;
+      applyAll(); syncSwitches(); save();
+    });
+  });
+
+  document.getElementById('a11y-reset').addEventListener('click', function() {
+    state = { fontScale: 0, highContrast: false, reduceMotion: false, dyslexia: false, focus: false };
+    applyAll(); syncSwitches(); save();
+  });
+})();
+</script>
 </BaseLayout>
+
