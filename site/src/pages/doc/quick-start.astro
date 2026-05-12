@@ -58,8 +58,26 @@ cp .env.example .env
                  style="background:rgba(99,102,241,.15);color:#6366f1">{step.n}</div>
             <h2 class="text-[16px] font-semibold" style="color:#f1f5f9">{step.title}</h2>
           </div>
-          <pre class="rounded-xl p-4 overflow-x-auto text-[12px] leading-relaxed font-mono"
-               style="background:#111118;border:1px solid rgba(255,255,255,0.07);color:#94a3b8">{step.code}</pre>
+          <div class="code-block relative">
+            <pre class="rounded-xl p-4 pb-10 overflow-x-auto text-[12px] leading-relaxed font-mono"
+                 style="background:#111118;border:1px solid rgba(255,255,255,0.07);color:#94a3b8">{step.code}</pre>
+            <button
+              class="copy-btn absolute bottom-2.5 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all"
+              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#475569"
+              data-code={step.code}
+              aria-label="Copy code"
+            >
+              <!-- clipboard icon -->
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="copy-icon">
+                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <!-- check icon (hidden by default) -->
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="check-icon" style="display:none">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
         </div>
       ))}
 
@@ -73,3 +91,44 @@ cp .env.example .env
     </div>
   </div>
 </BaseLayout>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>(".copy-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const code = btn.dataset.code ?? "";
+      try {
+        await navigator.clipboard.writeText(code);
+      } catch {
+        // fallback for non-https
+        const ta = document.createElement("textarea");
+        ta.value = code;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+
+      const copyIcon  = btn.querySelector<SVGElement>(".copy-icon")!;
+      const checkIcon = btn.querySelector<SVGElement>(".check-icon")!;
+      const label     = btn.querySelector<HTMLSpanElement>(".copy-label")!;
+
+      copyIcon.style.display  = "none";
+      checkIcon.style.display = "block";
+      label.textContent       = "Copied!";
+      label.style.color       = "#10b981";
+      btn.style.borderColor   = "rgba(16,185,129,0.3)";
+      btn.style.background    = "rgba(16,185,129,0.08)";
+
+      setTimeout(() => {
+        copyIcon.style.display  = "block";
+        checkIcon.style.display = "none";
+        label.textContent       = "Copy";
+        label.style.color       = "";
+        btn.style.borderColor   = "";
+        btn.style.background    = "";
+      }, 2000);
+    });
+  });
+</script>
