@@ -1,11 +1,11 @@
 ---
 const nav = [
-  { label: 'Community', href: '#community', accent: 'var(--sw-violet)' },
-  { label: 'Security',  href: '#security',  accent: 'var(--sw-red)'    },
-  { label: 'Dashboard', href: '#dashboard', accent: 'var(--sw-indigo)' },
-  { label: 'Settings',  href: '#settings',  accent: 'var(--sw-green)'  },
-  { label: 'Docs',      href: '#docs',      accent: 'var(--sw-amber)'  },
-  { label: 'Price',     href: '#price',     accent: 'var(--sw-orange)' },
+  { label: 'Community', href: '/business-community', accent: 'var(--sw-violet)' },
+  { label: 'Security',  href: '/cyber-security',     accent: 'var(--sw-red)'    },
+  { label: 'Dashboard', href: '/dashboard',          accent: 'var(--sw-indigo)' },
+  { label: 'Settings',  href: '/settings',           accent: 'var(--sw-green)'  },
+  { label: 'Docs',      href: '/doc/quick-start',    accent: 'var(--sw-amber)'  },
+  { label: 'Price',     href: '/price',              accent: 'var(--sw-orange)' },
 ];
 ---
 
@@ -39,7 +39,6 @@ const nav = [
     <div class="hidden lg:flex items-center gap-0.5 flex-1 ml-4">
       {nav.map(l => (
         <a href={l.href}
-           data-section={l.href.slice(1)}
            class="nav-pill px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 whitespace-nowrap"
            style={`color:var(--sw-fg-3);--pill-accent:${l.accent}`}>
           {l.label}
@@ -117,22 +116,14 @@ const nav = [
 </style>
 
 <script>
-  // IntersectionObserver active nav pill
-  const pills = document.querySelectorAll<HTMLAnchorElement>('.nav-pill[data-section]');
-  const sections = Array.from(pills)
-    .map(p => document.getElementById(p.dataset.section!))
-    .filter(Boolean) as HTMLElement[];
-
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        const id = e.target.id;
-        pills.forEach(p => p.classList.toggle('active', p.dataset.section === id));
-      }
-    });
-  }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
-
-  sections.forEach(s => io.observe(s));
+  // Active pill — highlight current page
+  const pills = document.querySelectorAll<HTMLAnchorElement>('.nav-pill');
+  const path = window.location.pathname;
+  pills.forEach(p => {
+    if (p.getAttribute('href') === path || (path.startsWith(p.getAttribute('href')!) && p.getAttribute('href') !== '/')) {
+      p.classList.add('active');
+    }
+  });
 
   // Navbar scroll border
   const navbar = document.getElementById('navbar')!;
