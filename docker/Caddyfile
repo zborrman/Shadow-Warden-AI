@@ -107,6 +107,32 @@ analytics.shadow-warden-ai.com {
 	}
 }
 
+# ── Portal / SOC Dashboard (Next.js) — public-facing login + SOC UI ─────────
+portal.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
+
+	import security_headers
+
+	# Next.js immutable static chunks — overwrite any upstream cache header
+	@nextStatic path /_next/static/*
+	header @nextStatic >Cache-Control "public, max-age=31536000, immutable"
+
+	# HTML pages and API routes — force no-store so Cloudflare never caches page refs
+	@noCache {
+		not path /_next/static/*
+		not path /_next/image*
+	}
+	header @noCache >Cache-Control "no-store, no-cache, must-revalidate"
+
+	handle {
+		reverse_proxy dashboard:3002 {
+			header_up X-Real-IP        {remote_host}
+			header_up X-Forwarded-For  {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+}
+
 # ── SOC Dashboard (Next.js) ──────────────────────────────────────────────────
 dash.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
