@@ -17,6 +17,7 @@ const NAV = [
   { group: "Platform", items: [
     { href: "/platform/metrics", icon: Activity,   label: "Metrics" },
     { href: "/platform/traces",  icon: GitBranch,  label: "Traces" },
+    { href: "/settings",         icon: Settings,   label: "Settings" },
   ]},
 ];
 
