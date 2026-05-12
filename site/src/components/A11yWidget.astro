@@ -1,0 +1,450 @@
+---
+// EU Accessibility Widget — WCAG 2.1 AA · EAA Directive 2019/882 · EN 301 549
+---
+
+<!-- Floating trigger button -->
+<button
+  id="a11y-trigger"
+  aria-label="Accessibility options"
+  aria-expanded="false"
+  aria-controls="a11y-panel"
+  title="Accessibility settings"
+>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="white" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="4.5" r="2.5"/>
+    <path d="M5.5 8.5l6.5 1 6.5-1M12 10v4.5m0 0l-2.5 4.5m2.5-4.5l2.5 4.5"/>
+    <path d="M9 13.5l-3 1.5m9-1.5l3 1.5" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+</button>
+
+<!-- Panel -->
+<div
+  id="a11y-panel"
+  role="dialog"
+  aria-label="Accessibility settings"
+  aria-modal="true"
+  hidden
+>
+  <!-- Header -->
+  <div class="a11y-header">
+    <div>
+      <p class="a11y-title">Accessibility</p>
+      <p class="a11y-sub">EAA 2019/882 · WCAG 2.1 AA · EN 301 549</p>
+    </div>
+    <div class="a11y-eu-badge">
+      <span aria-hidden="true">🇪🇺</span>
+      <span>Compliant</span>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="a11y-controls">
+
+    <!-- Text size -->
+    <div class="a11y-row">
+      <span class="a11y-label">Text size</span>
+      <div class="a11y-font-btns">
+        <button class="a11y-font-btn" data-scale="-1" aria-label="Decrease text size">A−</button>
+        <button class="a11y-font-btn" data-scale="0"  aria-label="Reset text size">A</button>
+        <button class="a11y-font-btn" data-scale="1"  aria-label="Increase text size" style="font-size:15px">A+</button>
+      </div>
+    </div>
+
+    <!-- Toggles -->
+    {[
+      { key:'contrast', label:'High contrast',          sub:'WCAG 1.4.6 Enhanced' },
+      { key:'motion',   label:'Reduce motion',          sub:'WCAG 2.3.3 Animation' },
+      { key:'dyslexia', label:'Dyslexia-friendly font', sub:'OpenDyslexic typeface' },
+      { key:'focus',    label:'Enhanced focus ring',    sub:'WCAG 2.4.11 Focus Appearance' },
+    ].map(t => (
+      <div class="a11y-row">
+        <div>
+          <span class="a11y-label">{t.label}</span>
+          <span class="a11y-hint">{t.sub}</span>
+        </div>
+        <button
+          class="a11y-switch"
+          data-key={t.key}
+          role="switch"
+          aria-checked="false"
+          aria-label={`Toggle ${t.label}`}
+        >
+          <span class="a11y-knob"></span>
+        </button>
+      </div>
+    ))}
+
+    <!-- Reset -->
+    <button id="a11y-reset" class="a11y-reset-btn">Reset all</button>
+  </div>
+
+  <!-- Footer -->
+  <div class="a11y-footer">
+    European Accessibility Act · Directive (EU) 2019/882<br/>
+    WCAG 2.1 Level AA · EN 301 549 v3.2.1
+  </div>
+</div>
+
+<style is:global>
+  /* ── Global a11y class effects (applied to body) ── */
+  body.a11y-contrast { filter: contrast(1.55) brightness(1.05); }
+
+  body.a11y-motion *,
+  body.a11y-motion *::before,
+  body.a11y-motion *::after {
+    animation-duration:   0.001ms !important;
+    transition-duration:  0.001ms !important;
+    scroll-behavior:      auto    !important;
+  }
+
+  body.a11y-focus *:focus-visible {
+    outline:        3px solid #6366f1 !important;
+    outline-offset: 3px              !important;
+    border-radius:  3px              !important;
+  }
+
+  @font-face {
+    font-family: 'OpenDyslexic';
+    src: local('OpenDyslexic'),
+         url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.woff') format('woff');
+    font-display: swap;
+  }
+  body.a11y-dyslexia,
+  body.a11y-dyslexia * {
+    font-family: 'OpenDyslexic', sans-serif !important;
+    letter-spacing: 0.05em !important;
+  }
+</style>
+
+<style>
+  /* ── Trigger button ── */
+  #a11y-trigger {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    outline-offset: 3px;
+  }
+  #a11y-trigger:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 30px rgba(99,102,241,0.55);
+  }
+  #a11y-trigger:focus-visible {
+    outline: 2px solid #8b5cf6;
+  }
+
+  /* ── Panel ── */
+  #a11y-panel {
+    position: fixed;
+    bottom: 84px;
+    right: 24px;
+    z-index: 9998;
+    width: 296px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #0d0d18;
+    border: 1px solid rgba(99,102,241,0.3);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    pointer-events: none;
+  }
+  #a11y-panel:not([hidden]) {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  /* ── Header ── */
+  .a11y-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .a11y-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin: 0 0 2px;
+    font-family: system-ui, sans-serif;
+  }
+  .a11y-sub {
+    font-size: 10px;
+    color: #475569;
+    margin: 0;
+    font-family: system-ui, sans-serif;
+  }
+  .a11y-eu-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(0,51,153,0.18);
+    border: 1px solid rgba(77,124,254,0.3);
+    font-size: 10px;
+    font-weight: 600;
+    color: #4d7cfe;
+    white-space: nowrap;
+    font-family: system-ui, sans-serif;
+  }
+
+  /* ── Controls area ── */
+  .a11y-controls {
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* ── Row ── */
+  .a11y-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .a11y-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: #94a3b8;
+    font-family: system-ui, sans-serif;
+  }
+  .a11y-hint {
+    display: block;
+    font-size: 10px;
+    color: #334155;
+    font-family: system-ui, sans-serif;
+    margin-top: 1px;
+  }
+
+  /* ── Font size buttons ── */
+  .a11y-font-btns {
+    display: flex;
+    gap: 3px;
+  }
+  .a11y-font-btn {
+    width: 32px;
+    height: 30px;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    font-family: system-ui, sans-serif;
+  }
+  .a11y-font-btn:hover,
+  .a11y-font-btn.active {
+    border-color: rgba(99,102,241,0.5);
+    background: rgba(99,102,241,0.12);
+    color: #a78bfa;
+  }
+  .a11y-font-btn:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+
+  /* ── Toggle switch ── */
+  .a11y-switch {
+    flex-shrink: 0;
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.08);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s, border-color 0.2s;
+    padding: 0;
+  }
+  .a11y-switch[aria-checked="true"] {
+    background: rgba(99,102,241,0.75);
+    border-color: rgba(99,102,241,0.6);
+  }
+  .a11y-switch:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+  .a11y-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s cubic-bezier(.4,0,.2,1);
+    pointer-events: none;
+  }
+  .a11y-switch[aria-checked="true"] .a11y-knob {
+    transform: translateX(20px);
+  }
+
+  /* ── Reset button ── */
+  .a11y-reset-btn {
+    width: 100%;
+    padding: 7px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent;
+    color: #475569;
+    font-size: 11px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    font-family: system-ui, sans-serif;
+    margin-top: 2px;
+  }
+  .a11y-reset-btn:hover {
+    color: #94a3b8;
+    border-color: rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.03);
+  }
+  .a11y-reset-btn:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+
+  /* ── Footer ── */
+  .a11y-footer {
+    padding: 10px 16px 13px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    font-size: 10px;
+    color: #334155;
+    text-align: center;
+    line-height: 1.6;
+    font-family: system-ui, sans-serif;
+  }
+</style>
+
+<script>
+(function () {
+  const KEY = 'sw_a11y_v2';
+  const SCALES = [0.875, 0.9375, 1, 1.125, 1.25];
+
+  type State = {
+    scale:    number;   // -2 … +2 index offset from 0 (default)
+    contrast: boolean;
+    motion:   boolean;
+    dyslexia: boolean;
+    focus:    boolean;
+  };
+
+  let s: State = { scale: 0, contrast: false, motion: false, dyslexia: false, focus: false };
+  try { Object.assign(s, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch {}
+
+  const body = document.body;
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(s)); }
+
+  function applyAll() {
+    // font size — apply to body so rem cascade still works off html default
+    const idx = Math.min(Math.max(s.scale + 2, 0), SCALES.length - 1);
+    body.style.fontSize = (SCALES[idx] * 16) + 'px';
+
+    body.classList.toggle('a11y-contrast', s.contrast);
+    body.classList.toggle('a11y-motion',   s.motion);
+    body.classList.toggle('a11y-dyslexia', s.dyslexia);
+    body.classList.toggle('a11y-focus',    s.focus);
+  }
+
+  function syncUI() {
+    // font buttons — highlight active
+    document.querySelectorAll<HTMLButtonElement>('.a11y-font-btn').forEach(btn => {
+      const sc = parseInt(btn.dataset.scale ?? '0');
+      btn.classList.toggle('active', sc === s.scale);
+    });
+    // switches
+    const map: Record<string, boolean> = {
+      contrast: s.contrast, motion: s.motion, dyslexia: s.dyslexia, focus: s.focus,
+    };
+    document.querySelectorAll<HTMLButtonElement>('.a11y-switch').forEach(sw => {
+      const on = map[sw.dataset.key ?? ''] ?? false;
+      sw.setAttribute('aria-checked', String(on));
+    });
+  }
+
+  applyAll();
+  syncUI();
+
+  /* ── Panel open / close ── */
+  const trigger = document.getElementById('a11y-trigger') as HTMLButtonElement;
+  const panel   = document.getElementById('a11y-panel')   as HTMLElement;
+
+  function open() {
+    panel.removeAttribute('hidden');
+    trigger.setAttribute('aria-expanded', 'true');
+    // focus first interactive element
+    setTimeout(() => {
+      (panel.querySelector('button, [role="switch"]') as HTMLElement | null)?.focus();
+    }, 50);
+  }
+
+  function close() {
+    panel.setAttribute('hidden', '');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.focus();
+  }
+
+  trigger.addEventListener('click', () => {
+    panel.hasAttribute('hidden') ? open() : close();
+  });
+
+  document.addEventListener('click', e => {
+    if (!panel.hasAttribute('hidden') &&
+        !panel.contains(e.target as Node) &&
+        e.target !== trigger) close();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !panel.hasAttribute('hidden')) close();
+  });
+
+  /* ── Font size ── */
+  document.querySelectorAll<HTMLButtonElement>('.a11y-font-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sc = parseInt(btn.dataset.scale ?? '0');
+      s.scale = sc;
+      applyAll(); syncUI(); save();
+    });
+  });
+
+  /* ── Toggle switches ── */
+  document.querySelectorAll<HTMLButtonElement>('.a11y-switch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      const k = sw.dataset.key as keyof State;
+      if (k && k in s && typeof s[k] === 'boolean') {
+        (s as Record<string, unknown>)[k] = !s[k as keyof State];
+        applyAll(); syncUI(); save();
+      }
+    });
+  });
+
+  /* ── Reset ── */
+  document.getElementById('a11y-reset')!.addEventListener('click', () => {
+    s = { scale: 0, contrast: false, motion: false, dyslexia: false, focus: false };
+    body.style.fontSize = '';
+    applyAll(); syncUI(); save();
+  });
+})();
+</script>
