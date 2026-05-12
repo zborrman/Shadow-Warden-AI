@@ -1,31 +1,241 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
-<BaseLayout title="Settings — Shadow Warden AI">
+<BaseLayout title="Settings — Shadow Warden AI"
+            description="Tune Shadow Warden's 9-layer pipeline, GDPR controls, API keys, and more — live config with no restarts.">
   <div class="pt-14">
 
     <!-- ── Hero ── -->
-    <section class="relative py-20 overflow-hidden">
+    <section class="relative py-16 overflow-hidden">
       <div class="absolute inset-0 pointer-events-none"
            style="background-image:linear-gradient(rgba(48,209,88,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(48,209,88,0.03) 1px,transparent 1px);background-size:56px 56px"></div>
-      <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[500px] pointer-events-none"
-           style="background:radial-gradient(ellipse,rgba(48,209,88,0.06) 0%,transparent 65%)"></div>
-
+      <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[400px] pointer-events-none"
+           style="background:radial-gradient(ellipse,rgba(48,209,88,0.05) 0%,transparent 65%)"></div>
       <div class="relative z-10 mx-auto max-w-5xl px-6 text-center">
         <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
              style="color:#30D158;background:rgba(48,209,88,0.08);border:1px solid rgba(48,209,88,0.2)">
           <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#30D158"></span>
           Configuration & Governance
         </div>
-        <h1 class="text-[clamp(36px,5vw,68px)] font-black leading-[1.05] tracking-tight mb-5" style="color:#f1f5f9">
+        <h1 class="text-[clamp(32px,5vw,62px)] font-black leading-[1.05] tracking-tight mb-4" style="color:#f1f5f9">
           Full Control.<br/>
           <span style="background:linear-gradient(135deg,#30D158,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
             Zero Compromise.
           </span>
         </h1>
-        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-4" style="color:#94a3b8">
-          Every knob, every policy, every secret — governed, auditable, and live-tunable
-          without restarting a single container.
+        <p class="text-[16px] leading-relaxed max-w-xl mx-auto" style="color:#94a3b8">
+          Tune your pipeline, manage keys, configure GDPR controls — live, no container restart required.
+        </p>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════
+         SETTINGS PANEL MOCKUP (matches the design)
+         ══════════════════════════════════════════════════════════ -->
+    <section class="pb-20">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8">
+
+        <!-- Browser chrome -->
+        <div class="rounded-2xl overflow-hidden shadow-2xl" style="border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center gap-2 px-4 py-3" style="background:#0d0d16;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span class="w-3 h-3 rounded-full" style="background:#ef4444"></span>
+            <span class="w-3 h-3 rounded-full" style="background:#f59e0b"></span>
+            <span class="w-3 h-3 rounded-full" style="background:#30D158"></span>
+            <span class="ml-3 text-[11px] font-mono px-3 py-0.5 rounded" style="color:#334155;background:rgba(255,255,255,0.03)">
+              portal.shadow-warden-ai.com/settings
+            </span>
+          </div>
+
+          <!-- Two-column layout -->
+          <div class="flex" style="background:#0a0a0f;min-height:580px">
+
+            <!-- ── Sidebar ── -->
+            <nav class="w-48 shrink-0 flex flex-col py-5" style="background:#111118;border-right:1px solid rgba(255,255,255,0.06)">
+              <div class="px-4 mb-3 text-[10px] font-bold tracking-widest uppercase" style="color:#334155">Settings</div>
+
+              {[
+                { icon:'⊡', label:'Filter pipeline', active: true,  badge: null,  danger: false },
+                { icon:'⊕', label:'API keys',        active: false, badge: '2',   danger: false },
+                { icon:'⋯', label:'Webhooks',        active: false, badge: null,  danger: false },
+                { icon:'≡', label:'Rules',            active: false, badge: null,  danger: false },
+                { icon:'⊙', label:'Team',             active: false, badge: '5',   danger: false },
+                { icon:'◈', label:'Billing',          active: false, badge: null,  danger: false },
+              ].map(item => (
+                <div class={`flex items-center justify-between px-3 py-2 mx-2 rounded-lg text-[12px] font-medium cursor-pointer transition-all mb-0.5 ${item.active ? 'active-nav' : ''}`}
+                     style={item.active
+                       ? 'background:rgba(99,102,241,0.15);color:#a5b4fc;border-left:2px solid #6366f1'
+                       : 'color:#64748b;border-left:2px solid transparent'}>
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-md font-semibold"
+                          style={item.active ? 'background:rgba(99,102,241,0.25);color:#818cf8' : 'background:rgba(255,255,255,0.06);color:#475569'}>
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+              ))}
+
+              <div class="mt-auto mx-2">
+                <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium cursor-pointer"
+                     style="color:#ef4444;border-left:2px solid transparent">
+                  <span>⚠</span> Danger zone
+                </div>
+              </div>
+            </nav>
+
+            <!-- ── Main content ── -->
+            <div class="flex-1 flex flex-col min-w-0">
+
+              <!-- Content header -->
+              <div class="flex items-start justify-between px-8 py-5" style="border-bottom:1px solid rgba(255,255,255,0.06)">
+                <div>
+                  <h2 class="text-[18px] font-bold mb-1" style="color:#f1f5f9">Filter pipeline</h2>
+                  <p class="text-[12px]" style="color:#64748b">Tune how Shadow Warden inspects every AI request before it leaves your perimeter.</p>
+                </div>
+                <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold shrink-0"
+                     style="background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#30D158">
+                  <span class="w-1.5 h-1.5 rounded-full" style="background:#30D158"></span>
+                  ALL SYSTEMS HEALTHY
+                </div>
+              </div>
+
+              <!-- Settings rows -->
+              <div class="flex-1 px-8 py-5 space-y-0" style="overflow:hidden">
+
+                <!-- Row 1: SemanticBrain -->
+                <div class="flex items-start justify-between py-5" style="border-bottom:1px solid rgba(255,255,255,0.05)">
+                  <div class="flex-1 min-w-0 pr-8">
+                    <div class="flex items-center gap-2 mb-1.5">
+                      <span class="text-[13px] font-semibold" style="color:#f1f5f9">SemanticBrain (ML cosine)</span>
+                      <span class="text-[10px] px-2 py-0.5 rounded font-bold" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.25)">RECOMMENDED</span>
+                    </div>
+                    <p class="text-[12px] leading-relaxed mb-1.5" style="color:#64748b">
+                      Async ML detection layer using all-MiniLM-L6-v2 embeddings. Catches paraphrased jailbreaks that regex rules miss.
+                    </p>
+                    <p class="text-[11px]" style="color:#334155">
+                      Adds <span style="color:#6366f1">~15ms</span> latency · <span style="color:#10b981">+18%</span> recall on adversarial set
+                    </p>
+                  </div>
+                  <!-- Toggle ON -->
+                  <div class="shrink-0 w-11 h-6 rounded-full flex items-center px-0.5 cursor-pointer"
+                       style="background:#6366f1;box-shadow:0 0 12px rgba(99,102,241,0.4)">
+                    <div class="w-5 h-5 rounded-full ml-auto" style="background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
+                  </div>
+                </div>
+
+                <!-- Row 2: EvolutionEngine -->
+                <div class="py-5" style="border-bottom:1px solid rgba(255,255,255,0.05)">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1 min-w-0 pr-8">
+                      <div class="flex items-center gap-2 mb-1.5">
+                        <span class="text-[13px] font-semibold" style="color:#f1f5f9">EvolutionEngine</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded font-bold" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)">BETA</span>
+                      </div>
+                      <p class="text-[12px] leading-relaxed mb-3" style="color:#64748b">
+                        Auto-generate new detection rules from blocked attacks via Claude Opus. Hot-reloads without restart.
+                      </p>
+                      <!-- Best practice callout -->
+                      <div class="rounded-lg px-4 py-3 text-[11px] leading-relaxed" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.18)">
+                        <span class="font-bold tracking-wider uppercase text-[9px] mr-2 px-1.5 py-0.5 rounded" style="background:rgba(99,102,241,0.2);color:#818cf8">BEST PRACTICE</span>
+                        <span style="color:#94a3b8">Enable in <strong style="color:#f1f5f9">staging first</strong>. Consumes API credits. Review the generated corpus weekly under <strong style="color:#f1f5f9">Rules → Auto-generated</strong>.</span>
+                      </div>
+                    </div>
+                    <!-- Toggle ON -->
+                    <div class="shrink-0 w-11 h-6 rounded-full flex items-center px-0.5 cursor-pointer"
+                         style="background:#6366f1;box-shadow:0 0 12px rgba(99,102,241,0.4)">
+                      <div class="w-5 h-5 rounded-full ml-auto" style="background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row 3: GDPR strict mode -->
+                <div class="flex items-start justify-between py-5" style="border-bottom:1px solid rgba(255,255,255,0.05)">
+                  <div class="flex-1 min-w-0 pr-8">
+                    <div class="flex items-center gap-2 mb-1.5">
+                      <span class="text-[13px] font-semibold" style="color:#f1f5f9">GDPR strict mode</span>
+                      <span class="text-[10px] px-2 py-0.5 rounded font-bold" style="background:rgba(10,132,255,0.15);color:#60a5fa;border:1px solid rgba(10,132,255,0.25)">EU · SOC 2</span>
+                    </div>
+                    <p class="text-[12px] leading-relaxed mb-1.5" style="color:#64748b">
+                      Never log request content. Only metadata (type, length, timing) is persisted. Required for EU deployments.
+                    </p>
+                    <p class="text-[11px] font-mono" style="color:#334155">
+                      Endpoints <span style="color:#6366f1">/gdpr/export</span> and <span style="color:#6366f1">/gdpr/purge</span> rely on this
+                    </p>
+                  </div>
+                  <!-- Toggle ON -->
+                  <div class="shrink-0 w-11 h-6 rounded-full flex items-center px-0.5 cursor-pointer"
+                       style="background:#6366f1;box-shadow:0 0 12px rgba(99,102,241,0.4)">
+                    <div class="w-5 h-5 rounded-full ml-auto" style="background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
+                  </div>
+                </div>
+
+                <!-- Row 4: Sensitivity profile -->
+                <div class="flex items-start justify-between py-5" style="border-bottom:1px solid rgba(255,255,255,0.05)">
+                  <div class="flex-1 min-w-0 pr-8">
+                    <div class="text-[13px] font-semibold mb-1.5" style="color:#f1f5f9">Sensitivity profile</div>
+                    <p class="text-[12px]" style="color:#64748b">
+                      Tradeoff between false-positive rate and recall. <strong style="color:#f1f5f9">Balanced</strong> works for most workloads.
+                    </p>
+                  </div>
+                  <!-- Segmented control -->
+                  <div class="shrink-0 flex rounded-lg overflow-hidden text-[11px] font-semibold"
+                       style="border:1px solid rgba(255,255,255,0.1)">
+                    {['Strict','Balanced','Lenient'].map(opt => (
+                      <div class="px-3 py-1.5 cursor-pointer transition-all"
+                           style={opt === 'Balanced'
+                             ? 'background:#6366f1;color:#fff'
+                             : 'background:rgba(255,255,255,0.03);color:#475569'}>
+                        {opt}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <!-- Row 5: Rate limit -->
+                <div class="flex items-start justify-between py-5">
+                  <div class="flex-1 min-w-0 pr-8">
+                    <div class="text-[13px] font-semibold mb-1.5" style="color:#f1f5f9">Rate limit (per API key)</div>
+                    <p class="text-[12px]" style="color:#64748b">
+                      Hard cap on requests per key per minute. Above 1,000 may require dedicated Redis.
+                    </p>
+                  </div>
+                  <!-- Number input -->
+                  <div class="shrink-0 flex items-center gap-2">
+                    <div class="text-[14px] font-bold px-3 py-1.5 rounded-lg text-right"
+                         style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;min-width:72px">
+                      240
+                    </div>
+                    <span class="text-[11px]" style="color:#475569">req/min</span>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- ── Bottom save bar ── -->
+              <div class="flex items-center justify-between px-8 py-4" style="background:#0d0d16;border-top:1px solid rgba(255,255,255,0.06)">
+                <div class="text-[11px]" style="color:#334155">
+                  Last saved <strong style="color:#475569">2 min ago</strong> by <span style="color:#6366f1">ops@shadowwarden.ai</span>
+                </div>
+                <div class="flex gap-3">
+                  <button class="px-4 py-1.5 rounded-lg text-[12px] font-medium transition-all"
+                          style="color:#475569;border:1px solid rgba(255,255,255,0.08);background:transparent">
+                    Reset to defaults
+                  </button>
+                  <button class="px-4 py-1.5 rounded-lg text-[12px] font-semibold"
+                          style="background:#6366f1;color:#fff;box-shadow:0 0 16px rgba(99,102,241,0.35)">
+                    Save changes
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Caption -->
+        <p class="text-center mt-4 text-[12px]" style="color:#334155">
+          Live in the SOC portal ·
+          <a href="https://portal.shadow-warden-ai.com" target="_blank" class="underline" style="color:#6366f1">Open Settings →</a>
         </p>
       </div>
     </section>
@@ -36,10 +246,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden"
              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.06)">
           {[
-            { val:'8',       label:'Jurisdictions',       color:'#30D158' },
-            { val:'5',       label:'Vault connectors',    color:'#06b6d4' },
-            { val:'0',       label:'Plaintext in memory', color:'#f59e0b' },
-            { val:'7yr',     label:'Attestation TTL',     color:'#6366f1' },
+            { val:'8',   label:'Jurisdictions',        color:'#30D158' },
+            { val:'5',   label:'Vault connectors',     color:'#06b6d4' },
+            { val:'0',   label:'Plaintext in memory',  color:'#f59e0b' },
+            { val:'7yr', label:'Attestation TTL',      color:'#6366f1' },
           ].map(s => (
             <div class="px-5 py-5 text-center" style="background:#0a0a0f">
               <div class="text-[26px] font-black leading-none mb-1" style={`color:${s.color}`}>{s.val}</div>
@@ -79,7 +289,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             {
               icon:'📋', color:'#f59e0b', tier:'Enterprise',
               title:'Transfer Rules Matrix',
-              desc:'CLASSIFIED data is always blocked. PHI allowed to 5 jurisdictions (US/EU/UK/CA/CH). GENERAL traffic routed with adequacy checks. Per-tenant overrides per data class.',
+              desc:'CLASSIFIED data is always blocked. PHI allowed to 5 jurisdictions. GENERAL traffic routed with adequacy checks. Per-tenant overrides per data class.',
               pills:['CLASSIFIED→block','PHI→5 zones','Adequacy check','Per-tenant'],
             },
             {
@@ -97,7 +307,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             {
               icon:'🔐', color:'#ef4444', tier:'All tiers',
               title:'Multi-tenant Auth',
-              desc:'Per-tenant API keys with SHA-256 constant-time comparison. JSON key-file or env-var backends. Fail-closed startup: refuses to start without a key unless ALLOW_UNAUTHENTICATED=true.',
+              desc:'Per-tenant API keys with SHA-256 constant-time comparison. JSON key-file or env-var backends. Fail-closed startup: refuses to start without a key.',
               pills:['Per-tenant keys','SHA-256 compare','Fail-closed','Key rotation'],
             },
             {
@@ -136,7 +346,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       </div>
     </section>
 
-    <!-- ── Transfer Rules Matrix visual ── -->
+    <!-- ── Transfer Rules Matrix ── -->
     <section class="py-16 border-t" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
       <div class="mx-auto max-w-4xl px-4 lg:px-8">
         <div class="text-center mb-10">
@@ -157,11 +367,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             </thead>
             <tbody>
               {[
-                { cls:'CLASSIFIED', color:'#ef4444', bg:'rgba(239,68,68,0.08)', allowed:[] },
-                { cls:'PHI',        color:'#f59e0b', bg:'rgba(245,158,11,0.08)', allowed:['EU','US','UK','CA','CH'] },
-                { cls:'PII',        color:'#6366f1', bg:'rgba(99,102,241,0.08)', allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
-                { cls:'FINANCIAL',  color:'#06b6d4', bg:'rgba(6,182,212,0.08)',  allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
-                { cls:'GENERAL',    color:'#30D158', bg:'rgba(48,209,88,0.08)',  allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
+                { cls:'CLASSIFIED', color:'#ef4444', allowed:[] },
+                { cls:'PHI',        color:'#f59e0b', allowed:['EU','US','UK','CA','CH'] },
+                { cls:'PII',        color:'#6366f1', allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
+                { cls:'FINANCIAL',  color:'#06b6d4', allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
+                { cls:'GENERAL',    color:'#30D158', allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
               ].map((row, ri) => (
                 <tr style={ri % 2 === 0 ? 'background:#0d0d14' : ''}>
                   <td class="py-3 px-4 rounded-l-lg font-semibold" style={`color:${row.color}`}>{row.cls}</td>
