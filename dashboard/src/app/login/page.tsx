@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Key, Fingerprint, CheckCircle2, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -275,9 +275,10 @@ export default function LoginPage() {
   const [pw,    setPw]    = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [passkeySupported] = useState(() =>
-    typeof window !== "undefined" && !!window.PublicKeyCredential
-  );
+  const [passkeySupported, setPasskeySupported] = useState(false);
+  useEffect(() => {
+    setPasskeySupported(!!window.PublicKeyCredential);
+  }, []);
 
   async function handlePasskeyLogin() {
     setError(""); setLoading(true);
