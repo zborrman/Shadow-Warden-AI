@@ -34,6 +34,12 @@ const categories = [
     sub: [...new Set(roadmap.filter(r => r.category === 'Dashboard').map(r => r.subcategory))],
   },
   {
+    label: 'Settings',
+    href: '/settings',
+    color: '#30D158',
+    sub: ['Secrets Vault', 'Sovereign Routing', 'GDPR Controls', 'Key Rotation'],
+  },
+  {
     label: 'Doc',
     href: '/doc',
     color: '#f59e0b',
