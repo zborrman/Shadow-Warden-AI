@@ -1,449 +1,415 @@
 ---
-// EU Accessibility Widget — WCAG 2.1 AA · EAA Directive 2019/882 · EN 301 549
+// EU Accessibility Widget — WCAG 2.1 AA · EAA 2019/882
 ---
 
-<!-- Floating trigger button -->
-<button
-  id="a11y-trigger"
-  aria-label="Accessibility options"
-  aria-expanded="false"
-  aria-controls="a11y-panel"
-  title="Accessibility settings"
->
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="white" aria-hidden="true" focusable="false">
-    <circle cx="12" cy="4.5" r="2.5"/>
-    <path d="M5.5 8.5l6.5 1 6.5-1M12 10v4.5m0 0l-2.5 4.5m2.5-4.5l2.5 4.5"/>
-    <path d="M9 13.5l-3 1.5m9-1.5l3 1.5" stroke-width="1.5" stroke-linecap="round"/>
-  </svg>
-</button>
+<div id="a11y-root">
+  <!-- Floating button -->
+  <button id="a11y-btn" aria-label="Accessibility options" aria-expanded="false" aria-controls="a11y-panel">
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="4" r="2.4" fill="white"/>
+      <line x1="12" y1="7" x2="12" y2="15" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="5"  y1="10" x2="19" y2="10" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="12" y1="15" x2="8"  y2="21" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="12" y1="15" x2="16" y2="21" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
+  </button>
 
-<!-- Panel -->
-<div
-  id="a11y-panel"
-  role="dialog"
-  aria-label="Accessibility settings"
-  aria-modal="true"
-  hidden
->
-  <!-- Header -->
-  <div class="a11y-header">
-    <div>
-      <p class="a11y-title">Accessibility</p>
-      <p class="a11y-sub">EAA 2019/882 · WCAG 2.1 AA · EN 301 549</p>
-    </div>
-    <div class="a11y-eu-badge">
-      <span aria-hidden="true">🇪🇺</span>
-      <span>Compliant</span>
-    </div>
-  </div>
+  <!-- Panel (visibility toggled via .open class) -->
+  <div id="a11y-panel" role="dialog" aria-label="Accessibility settings" aria-modal="false">
 
-  <!-- Controls -->
-  <div class="a11y-controls">
-
-    <!-- Text size -->
-    <div class="a11y-row">
-      <span class="a11y-label">Text size</span>
-      <div class="a11y-font-btns">
-        <button class="a11y-font-btn" data-scale="-1" aria-label="Decrease text size">A−</button>
-        <button class="a11y-font-btn" data-scale="0"  aria-label="Reset text size">A</button>
-        <button class="a11y-font-btn" data-scale="1"  aria-label="Increase text size" style="font-size:15px">A+</button>
+    <div class="ap-head">
+      <div>
+        <div class="ap-title">Accessibility</div>
+        <div class="ap-sub">EAA 2019/882 · WCAG 2.1 AA</div>
       </div>
+      <div class="ap-badge">🇪🇺 <span>Compliant</span></div>
     </div>
 
-    <!-- Toggles -->
-    {[
-      { key:'contrast', label:'High contrast',          sub:'WCAG 1.4.6 Enhanced' },
-      { key:'motion',   label:'Reduce motion',          sub:'WCAG 2.3.3 Animation' },
-      { key:'dyslexia', label:'Dyslexia-friendly font', sub:'OpenDyslexic typeface' },
-      { key:'focus',    label:'Enhanced focus ring',    sub:'WCAG 2.4.11 Focus Appearance' },
-    ].map(t => (
-      <div class="a11y-row">
-        <div>
-          <span class="a11y-label">{t.label}</span>
-          <span class="a11y-hint">{t.sub}</span>
+    <div class="ap-body">
+
+      <!-- Text size -->
+      <div class="ap-row">
+        <div class="ap-row-label">Text size</div>
+        <div class="ap-font-group">
+          <button class="ap-font" data-delta="-1" aria-label="Smaller text" style="font-size:11px">A−</button>
+          <button class="ap-font" data-delta="0"  aria-label="Default text size" style="font-size:13px">A</button>
+          <button class="ap-font" data-delta="1"  aria-label="Larger text" style="font-size:16px">A+</button>
         </div>
-        <button
-          class="a11y-switch"
-          data-key={t.key}
-          role="switch"
-          aria-checked="false"
-          aria-label={`Toggle ${t.label}`}
-        >
-          <span class="a11y-knob"></span>
+      </div>
+
+      <!-- Toggles -->
+      <div class="ap-row">
+        <div>
+          <div class="ap-row-label">High contrast</div>
+          <div class="ap-row-hint">WCAG 1.4.6</div>
+        </div>
+        <button class="ap-switch" data-key="contrast" role="switch" aria-checked="false" aria-label="Toggle high contrast">
+          <span class="ap-knob"></span>
         </button>
       </div>
-    ))}
 
-    <!-- Reset -->
-    <button id="a11y-reset" class="a11y-reset-btn">Reset all</button>
-  </div>
+      <div class="ap-row">
+        <div>
+          <div class="ap-row-label">Reduce motion</div>
+          <div class="ap-row-hint">WCAG 2.3.3</div>
+        </div>
+        <button class="ap-switch" data-key="motion" role="switch" aria-checked="false" aria-label="Toggle reduce motion">
+          <span class="ap-knob"></span>
+        </button>
+      </div>
 
-  <!-- Footer -->
-  <div class="a11y-footer">
-    European Accessibility Act · Directive (EU) 2019/882<br/>
-    WCAG 2.1 Level AA · EN 301 549 v3.2.1
+      <div class="ap-row">
+        <div>
+          <div class="ap-row-label">Dyslexia font</div>
+          <div class="ap-row-hint">OpenDyslexic</div>
+        </div>
+        <button class="ap-switch" data-key="dyslexia" role="switch" aria-checked="false" aria-label="Toggle dyslexia font">
+          <span class="ap-knob"></span>
+        </button>
+      </div>
+
+      <div class="ap-row">
+        <div>
+          <div class="ap-row-label">Focus ring</div>
+          <div class="ap-row-hint">WCAG 2.4.11</div>
+        </div>
+        <button class="ap-switch" data-key="focus" role="switch" aria-checked="false" aria-label="Toggle enhanced focus">
+          <span class="ap-knob"></span>
+        </button>
+      </div>
+
+      <button id="ap-reset">Reset all</button>
+    </div>
+
+    <div class="ap-foot">
+      European Accessibility Act · Directive (EU) 2019/882<br>
+      WCAG 2.1 Level AA · EN 301 549 v3.2.1
+    </div>
   </div>
 </div>
 
+<!-- Global effect classes applied to body -->
 <style is:global>
-  /* ── Global a11y class effects (applied to body) ── */
-  body.a11y-contrast { filter: contrast(1.55) brightness(1.05); }
-
-  body.a11y-motion *,
-  body.a11y-motion *::before,
-  body.a11y-motion *::after {
-    animation-duration:   0.001ms !important;
-    transition-duration:  0.001ms !important;
-    scroll-behavior:      auto    !important;
+  body.a11y-contrast * { filter: contrast(1.6) !important; }
+  body.a11y-motion *, body.a11y-motion *::before, body.a11y-motion *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
   }
-
   body.a11y-focus *:focus-visible {
-    outline:        3px solid #6366f1 !important;
-    outline-offset: 3px              !important;
-    border-radius:  3px              !important;
+    outline: 3px solid #818cf8 !important;
+    outline-offset: 3px !important;
   }
-
   @font-face {
     font-family: 'OpenDyslexic';
-    src: local('OpenDyslexic'),
-         url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.woff') format('woff');
+    src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.woff') format('woff');
     font-display: swap;
   }
-  body.a11y-dyslexia,
-  body.a11y-dyslexia * {
-    font-family: 'OpenDyslexic', sans-serif !important;
-    letter-spacing: 0.05em !important;
-  }
+  body.a11y-dyslexia { font-family: 'OpenDyslexic', sans-serif !important; }
 </style>
 
 <style>
-  /* ── Trigger button ── */
-  #a11y-trigger {
+  /* ── Floating button ── */
+  #a11y-btn {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: 28px;
+    right: 28px;
     z-index: 9999;
     width: 48px;
     height: 48px;
     border-radius: 50%;
     border: none;
     cursor: pointer;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    box-shadow: 0 4px 24px rgba(99,102,241,0.45);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    outline-offset: 3px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    outline: none;
   }
-  #a11y-trigger:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 30px rgba(99,102,241,0.55);
-  }
-  #a11y-trigger:focus-visible {
-    outline: 2px solid #8b5cf6;
-  }
+  #a11y-btn:hover  { transform: scale(1.1); box-shadow: 0 6px 32px rgba(99,102,241,0.6); }
+  #a11y-btn:focus-visible { outline: 2px solid #a78bfa; outline-offset: 3px; }
 
   /* ── Panel ── */
   #a11y-panel {
     position: fixed;
-    bottom: 84px;
-    right: 24px;
+    bottom: 88px;
+    right: 28px;
     z-index: 9998;
-    width: 296px;
-    border-radius: 16px;
+    width: 288px;
+    border-radius: 18px;
+    background: #0e0e1c;
+    border: 1px solid rgba(99,102,241,0.28);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.06);
     overflow: hidden;
-    background: #0d0d18;
-    border: 1px solid rgba(99,102,241,0.3);
-    box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+    /* hidden by default */
     opacity: 0;
-    transform: translateY(10px) scale(0.96);
-    transition: opacity 0.22s ease, transform 0.22s ease;
+    transform: translateY(12px) scale(0.95);
     pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s ease;
   }
-  #a11y-panel:not([hidden]) {
+  #a11y-panel.open {
     opacity: 1;
     transform: translateY(0) scale(1);
     pointer-events: auto;
   }
 
   /* ── Header ── */
-  .a11y-header {
+  .ap-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px 12px;
+    padding: 15px 16px 13px;
     border-bottom: 1px solid rgba(255,255,255,0.07);
+    background: rgba(99,102,241,0.05);
   }
-  .a11y-title {
+  .ap-title {
     font-size: 14px;
     font-weight: 700;
     color: #f1f5f9;
-    margin: 0 0 2px;
-    font-family: system-ui, sans-serif;
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1;
+    margin-bottom: 3px;
   }
-  .a11y-sub {
+  .ap-sub {
     font-size: 10px;
     color: #475569;
-    margin: 0;
-    font-family: system-ui, sans-serif;
+    font-family: system-ui, -apple-system, sans-serif;
   }
-  .a11y-eu-badge {
+  .ap-badge {
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: rgba(0,51,153,0.18);
-    border: 1px solid rgba(77,124,254,0.3);
-    font-size: 10px;
+    padding: 4px 9px;
+    border-radius: 20px;
+    background: rgba(30,64,175,0.2);
+    border: 1px solid rgba(99,130,254,0.3);
+    font-size: 11px;
     font-weight: 600;
-    color: #4d7cfe;
+    color: #7ca3ff;
+    font-family: system-ui, -apple-system, sans-serif;
     white-space: nowrap;
-    font-family: system-ui, sans-serif;
   }
 
-  /* ── Controls area ── */
-  .a11y-controls {
-    padding: 12px 16px 14px;
+  /* ── Body ── */
+  .ap-body {
+    padding: 14px 16px 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
 
   /* ── Row ── */
-  .a11y-row {
+  .ap-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 12px;
   }
-  .a11y-label {
-    display: block;
-    font-size: 12px;
+  .ap-row-label {
+    font-size: 12.5px;
     font-weight: 500;
-    color: #94a3b8;
-    font-family: system-ui, sans-serif;
+    color: #cbd5e1;
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.2;
   }
-  .a11y-hint {
-    display: block;
+  .ap-row-hint {
     font-size: 10px;
     color: #334155;
-    font-family: system-ui, sans-serif;
-    margin-top: 1px;
+    font-family: system-ui, -apple-system, sans-serif;
+    margin-top: 2px;
   }
 
   /* ── Font size buttons ── */
-  .a11y-font-btns {
+  .ap-font-group {
     display: flex;
-    gap: 3px;
+    gap: 4px;
+    flex-shrink: 0;
   }
-  .a11y-font-btn {
-    width: 32px;
+  .ap-font {
+    width: 34px;
     height: 30px;
-    border-radius: 7px;
+    border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.1);
     background: rgba(255,255,255,0.04);
     color: #94a3b8;
-    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: border-color 0.15s, background 0.15s, color 0.15s;
-    font-family: system-ui, sans-serif;
+    font-family: system-ui, -apple-system, sans-serif;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
-  .a11y-font-btn:hover,
-  .a11y-font-btn.active {
+  .ap-font:hover, .ap-font.active {
+    background: rgba(99,102,241,0.18);
     border-color: rgba(99,102,241,0.5);
-    background: rgba(99,102,241,0.12);
     color: #a78bfa;
   }
-  .a11y-font-btn:focus-visible {
-    outline: 2px solid #6366f1;
-    outline-offset: 2px;
-  }
+  .ap-font:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
 
   /* ── Toggle switch ── */
-  .a11y-switch {
+  .ap-switch {
     flex-shrink: 0;
+    position: relative;
     width: 44px;
     height: 24px;
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.07);
     cursor: pointer;
-    position: relative;
-    transition: background 0.2s, border-color 0.2s;
     padding: 0;
+    transition: background 0.2s, border-color 0.2s;
   }
-  .a11y-switch[aria-checked="true"] {
-    background: rgba(99,102,241,0.75);
-    border-color: rgba(99,102,241,0.6);
+  .ap-switch[aria-checked="true"] {
+    background: #5a5fcf;
+    border-color: #6366f1;
   }
-  .a11y-switch:focus-visible {
-    outline: 2px solid #6366f1;
-    outline-offset: 2px;
-  }
-  .a11y-knob {
+  .ap-switch:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+  .ap-knob {
     position: absolute;
     top: 3px;
     left: 3px;
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #fff;
-    transition: transform 0.2s cubic-bezier(.4,0,.2,1);
+    background: #e2e8f0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
     pointer-events: none;
   }
-  .a11y-switch[aria-checked="true"] .a11y-knob {
+  .ap-switch[aria-checked="true"] .ap-knob {
     transform: translateX(20px);
+    background: #fff;
   }
 
   /* ── Reset button ── */
-  .a11y-reset-btn {
+  #ap-reset {
     width: 100%;
-    padding: 7px;
-    border-radius: 8px;
+    padding: 8px;
+    border-radius: 9px;
     border: 1px solid rgba(255,255,255,0.08);
-    background: transparent;
+    background: rgba(255,255,255,0.03);
     color: #475569;
     font-size: 11px;
+    font-weight: 500;
     cursor: pointer;
+    font-family: system-ui, -apple-system, sans-serif;
     transition: color 0.15s, border-color 0.15s, background 0.15s;
-    font-family: system-ui, sans-serif;
     margin-top: 2px;
   }
-  .a11y-reset-btn:hover {
+  #ap-reset:hover {
     color: #94a3b8;
-    border-color: rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.05);
   }
-  .a11y-reset-btn:focus-visible {
-    outline: 2px solid #6366f1;
-    outline-offset: 2px;
-  }
+  #ap-reset:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
 
   /* ── Footer ── */
-  .a11y-footer {
-    padding: 10px 16px 13px;
+  .ap-foot {
+    padding: 10px 16px 14px;
     border-top: 1px solid rgba(255,255,255,0.05);
     font-size: 10px;
-    color: #334155;
+    color: #2d3748;
     text-align: center;
-    line-height: 1.6;
-    font-family: system-ui, sans-serif;
+    line-height: 1.7;
+    font-family: system-ui, -apple-system, sans-serif;
   }
 </style>
 
 <script>
-(function () {
-  const KEY = 'sw_a11y_v2';
-  const SCALES = [0.875, 0.9375, 1, 1.125, 1.25];
+(function() {
+  var STORE = 'sw_a11y_v3';
+  var SCALES = [0.88, 0.94, 1, 1.12, 1.25];
+  var DELTAS = [-2, -1, 0, 1, 2];
 
-  type State = {
-    scale:    number;   // -2 … +2 index offset from 0 (default)
-    contrast: boolean;
-    motion:   boolean;
-    dyslexia: boolean;
-    focus:    boolean;
-  };
+  var def = { delta: 0, contrast: false, motion: false, dyslexia: false, focus: false };
+  var st = Object.assign({}, def);
+  try { Object.assign(st, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch(e) {}
 
-  let s: State = { scale: 0, contrast: false, motion: false, dyslexia: false, focus: false };
-  try { Object.assign(s, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch {}
-
-  const body = document.body;
-
-  function save() { localStorage.setItem(KEY, JSON.stringify(s)); }
+  function save() {
+    try { localStorage.setItem(STORE, JSON.stringify(st)); } catch(e) {}
+  }
 
   function applyAll() {
-    // font size — apply to body so rem cascade still works off html default
-    const idx = Math.min(Math.max(s.scale + 2, 0), SCALES.length - 1);
+    var body = document.body;
+    // font: apply to body so rem doesn't break
+    var idx = DELTAS.indexOf(st.delta);
+    if (idx < 0) idx = 2;
     body.style.fontSize = (SCALES[idx] * 16) + 'px';
 
-    body.classList.toggle('a11y-contrast', s.contrast);
-    body.classList.toggle('a11y-motion',   s.motion);
-    body.classList.toggle('a11y-dyslexia', s.dyslexia);
-    body.classList.toggle('a11y-focus',    s.focus);
+    body.classList.toggle('a11y-contrast', !!st.contrast);
+    body.classList.toggle('a11y-motion',   !!st.motion);
+    body.classList.toggle('a11y-dyslexia', !!st.dyslexia);
+    body.classList.toggle('a11y-focus',    !!st.focus);
   }
 
   function syncUI() {
-    // font buttons — highlight active
-    document.querySelectorAll<HTMLButtonElement>('.a11y-font-btn').forEach(btn => {
-      const sc = parseInt(btn.dataset.scale ?? '0');
-      btn.classList.toggle('active', sc === s.scale);
-    });
+    // font buttons
+    var fontBtns = document.querySelectorAll('.ap-font');
+    for (var i = 0; i < fontBtns.length; i++) {
+      var d = parseInt(fontBtns[i].getAttribute('data-delta') || '0');
+      fontBtns[i].classList.toggle('active', d === st.delta);
+    }
     // switches
-    const map: Record<string, boolean> = {
-      contrast: s.contrast, motion: s.motion, dyslexia: s.dyslexia, focus: s.focus,
-    };
-    document.querySelectorAll<HTMLButtonElement>('.a11y-switch').forEach(sw => {
-      const on = map[sw.dataset.key ?? ''] ?? false;
-      sw.setAttribute('aria-checked', String(on));
-    });
+    var switches = document.querySelectorAll('.ap-switch');
+    for (var j = 0; j < switches.length; j++) {
+      var k = switches[j].getAttribute('data-key');
+      switches[j].setAttribute('aria-checked', st[k] ? 'true' : 'false');
+    }
   }
 
+  // Apply saved settings immediately
   applyAll();
   syncUI();
 
-  /* ── Panel open / close ── */
-  const trigger = document.getElementById('a11y-trigger') as HTMLButtonElement;
-  const panel   = document.getElementById('a11y-panel')   as HTMLElement;
+  // Panel open/close
+  var btn   = document.getElementById('a11y-btn');
+  var panel = document.getElementById('a11y-panel');
 
-  function open() {
-    panel.removeAttribute('hidden');
-    trigger.setAttribute('aria-expanded', 'true');
-    // focus first interactive element
-    setTimeout(() => {
-      (panel.querySelector('button, [role="switch"]') as HTMLElement | null)?.focus();
-    }, 50);
+  function openPanel() {
+    panel.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
   }
-
-  function close() {
-    panel.setAttribute('hidden', '');
-    trigger.setAttribute('aria-expanded', 'false');
-    trigger.focus();
+  function closePanel() {
+    panel.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
   }
+  function isOpen() { return panel.classList.contains('open'); }
 
-  trigger.addEventListener('click', () => {
-    panel.hasAttribute('hidden') ? open() : close();
+  btn.addEventListener('click', function() {
+    isOpen() ? closePanel() : openPanel();
+  });
+  document.addEventListener('click', function(e) {
+    if (isOpen() && !panel.contains(e.target) && e.target !== btn) closePanel();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && isOpen()) { closePanel(); btn.focus(); }
   });
 
-  document.addEventListener('click', e => {
-    if (!panel.hasAttribute('hidden') &&
-        !panel.contains(e.target as Node) &&
-        e.target !== trigger) close();
-  });
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !panel.hasAttribute('hidden')) close();
-  });
-
-  /* ── Font size ── */
-  document.querySelectorAll<HTMLButtonElement>('.a11y-font-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const sc = parseInt(btn.dataset.scale ?? '0');
-      s.scale = sc;
+  // Font buttons
+  var fontBtns = document.querySelectorAll('.ap-font');
+  for (var i = 0; i < fontBtns.length; i++) {
+    fontBtns[i].addEventListener('click', function() {
+      st.delta = parseInt(this.getAttribute('data-delta') || '0');
       applyAll(); syncUI(); save();
     });
-  });
+  }
 
-  /* ── Toggle switches ── */
-  document.querySelectorAll<HTMLButtonElement>('.a11y-switch').forEach(sw => {
-    sw.addEventListener('click', () => {
-      const k = sw.dataset.key as keyof State;
-      if (k && k in s && typeof s[k] === 'boolean') {
-        (s as Record<string, unknown>)[k] = !s[k as keyof State];
-        applyAll(); syncUI(); save();
-      }
+  // Toggle switches
+  var switches = document.querySelectorAll('.ap-switch');
+  for (var j = 0; j < switches.length; j++) {
+    switches[j].addEventListener('click', function() {
+      var k = this.getAttribute('data-key');
+      st[k] = !st[k];
+      applyAll(); syncUI(); save();
     });
-  });
+  }
 
-  /* ── Reset ── */
-  document.getElementById('a11y-reset')!.addEventListener('click', () => {
-    s = { scale: 0, contrast: false, motion: false, dyslexia: false, focus: false };
-    body.style.fontSize = '';
+  // Reset
+  document.getElementById('ap-reset').addEventListener('click', function() {
+    st = Object.assign({}, def);
+    document.body.style.fontSize = '';
     applyAll(); syncUI(); save();
   });
 })();
