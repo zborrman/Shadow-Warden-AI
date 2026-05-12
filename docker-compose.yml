@@ -331,10 +331,11 @@ services:
     networks:
       - warden-net
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   # ── MINIO INIT (create buckets on first start) ────────────────────────────
   minio-init:
