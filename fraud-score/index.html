@@ -1,0 +1,312 @@
+<!DOCTYPE html><html lang="en" data-astro-cid-igqof2vx> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FraudScore Sovereign v4.0 Elite | Shadow Warden AI</title><script type="module" src="/_astro/fraud-score.astro_astro_type_script_index_0_lang.CxO_JRN6.js"></script><script type="module" src="/_astro/fraud-score.astro_astro_type_script_index_1_lang.Ds9P6cqp.js"></script><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="/_astro/fraud-score@_@astro.BZxdmxLk.css"></head> <body class="flex flex-col" style="height:100vh;overflow:hidden" data-astro-cid-igqof2vx> <!-- ── Top nav ─────────────────────────────────────────────── --> <div id="sw-nav" data-astro-cid-igqof2vx> <a href="/" class="logo" data-astro-cid-igqof2vx> <div class="logo-icon" data-astro-cid-igqof2vx>🛡️<span class="logo-dot" data-astro-cid-igqof2vx></span></div> <div data-astro-cid-igqof2vx> <div class="logo-text" data-astro-cid-igqof2vx>Shadow Warden</div> <div class="logo-sub" data-astro-cid-igqof2vx>v4.11 · Live</div> </div> </a> <div class="nav-sep" data-astro-cid-igqof2vx></div> <span class="nav-label" data-astro-cid-igqof2vx>FraudScore <span data-astro-cid-igqof2vx>Sovereign v4.0 Elite</span></span> <div class="spacer" data-astro-cid-igqof2vx></div> <span class="elite-badge" data-astro-cid-igqof2vx>⬡ Elite Access</span> <a href="/" class="back" style="margin-left:8px" data-astro-cid-igqof2vx>← Main Site</a> </div> <!-- ── Page header ─────────────────────────────────────────── --> <header style="background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;padding:20px 40px;display:flex;align-items:center;gap:32px;position:relative;overflow:hidden" data-astro-cid-igqof2vx> <div class="scan-line" data-astro-cid-igqof2vx></div> <div style="flex:1" data-astro-cid-igqof2vx> <h1 class="serif" style="font-size:28px;font-style:italic;margin:0;letter-spacing:-0.5px" data-astro-cid-igqof2vx>
+FraudScore <span style="font-style:normal;font-weight:900;color:var(--red)" data-astro-cid-igqof2vx>Sovereign</span> <span style="font-size:9px;vertical-align:top;margin-left:8px;font-family:'Inter',sans-serif;font-style:normal;font-weight:700;color:var(--muted);letter-spacing:0.3em;text-transform:uppercase" data-astro-cid-igqof2vx>v4.0 Elite</span> </h1> <p style="font-size:11px;color:var(--muted);margin:4px 0 0;letter-spacing:0.02em" data-astro-cid-igqof2vx>
+Multidimensional fraud audit · 44 discrete risk factors · US/EU institutional calibration
+</p> </div> <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:4px" data-astro-cid-igqof2vx> <button id="btn-us" class="market-btn active" onclick="switchMarket('US')" data-astro-cid-igqof2vx>🇺🇸 US Market</button> <button id="btn-eu" class="market-btn" onclick="switchMarket('EU')" data-astro-cid-igqof2vx>🇪🇺 EU Market</button> </div> <div style="text-align:right;padding-left:24px;border-left:1px solid var(--border)" data-astro-cid-igqof2vx> <div class="stat-label" data-astro-cid-igqof2vx>Active Jurisdiction</div> <div id="label-market" style="font-size:11px;font-weight:700;color:var(--blue)" data-astro-cid-igqof2vx>Federal (SEC / OFAC)</div> </div> </header> <!-- ── Main workspace ──────────────────────────────────────── --> <main style="flex:1;display:flex;overflow:hidden" data-astro-cid-igqof2vx> <!-- Left: factor form --> <div style="flex:1;overflow-y:auto;padding:32px 48px 160px" id="factor-scroll" data-astro-cid-igqof2vx> <!-- Segment tabs --> <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:36px" data-astro-cid-igqof2vx> <button onclick="setIndustry('b2b')" id="seg-b2b" style="padding:12px 20px 14px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;background:transparent;border:none;color:var(--red);border-bottom:2px solid var(--red);cursor:pointer" data-astro-cid-igqof2vx>
+🏢 B2B / Institutional
+</button> <button onclick="setIndustry('b2c')" id="seg-b2c" style="padding:12px 24px 14px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;background:transparent;border:none;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;transition:all 0.15s" data-astro-cid-igqof2vx>
+👤 B2C / Subscriptions
+</button> <button onclick="setIndustry('ecom')" id="seg-ecom" style="padding:12px 24px 14px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;background:transparent;border:none;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;transition:all 0.15s" data-astro-cid-igqof2vx>
+🛒 E-Commerce / Retail
+</button> </div> <div style="max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:28px" data-astro-cid-igqof2vx> <!-- Hard stops --> <div class="risk-section stop-section" style="position:relative;overflow:hidden" data-astro-cid-igqof2vx> <div style="position:absolute;top:16px;right:24px;font-size:48px;font-weight:900;color:rgba(255,45,85,0.04);pointer-events:none;letter-spacing:-2px" data-astro-cid-igqof2vx>STOP</div> <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px" data-astro-cid-igqof2vx> <h3 class="serif" style="font-size:18px;font-style:italic;margin:0;color:var(--text)" data-astro-cid-igqof2vx>
+01. Critical Barriers <span style="color:var(--red)" data-astro-cid-igqof2vx>— Hard Stops</span> </h3> <span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:var(--red);background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.2);padding:4px 12px;border-radius:20px" data-astro-cid-igqof2vx>Automatic Lockdown</span> </div> <div id="grid-hardstops" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px" data-astro-cid-igqof2vx></div> </div> <!-- Regulatory --> <div class="risk-section" data-astro-cid-igqof2vx> <h3 class="serif" style="font-size:18px;font-style:italic;margin:0 0 24px;color:var(--text)" data-astro-cid-igqof2vx>
+02. Regulatory Transparency
+</h3> <div id="grid-market" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px" data-astro-cid-igqof2vx></div> </div> <!-- Sectoral --> <div class="risk-section" data-astro-cid-igqof2vx> <h3 class="serif" style="font-size:18px;font-style:italic;margin:0 0 24px;color:var(--text)" data-astro-cid-igqof2vx>
+03. Sectoral Intelligence
+</h3> <div id="grid-industry" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px" data-astro-cid-igqof2vx></div> </div> <!-- Mitigations --> <div class="risk-section hedge-section" style="position:relative;overflow:hidden" data-astro-cid-igqof2vx> <div style="position:absolute;top:16px;right:24px;font-size:48px;font-weight:900;color:rgba(48,209,88,0.04);pointer-events:none;letter-spacing:-2px" data-astro-cid-igqof2vx>HEDGE</div> <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px" data-astro-cid-igqof2vx> <h3 class="serif" style="font-size:18px;font-style:italic;margin:0;color:var(--text)" data-astro-cid-igqof2vx>
+04. Risk Mitigating Instruments
+</h3> <span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:var(--green);background:rgba(48,209,88,0.08);border:1px solid rgba(48,209,88,0.15);padding:4px 12px;border-radius:20px" data-astro-cid-igqof2vx>Offset Controls</span> </div> <div id="grid-mitigations" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px" data-astro-cid-igqof2vx></div> </div> </div> </div> <!-- Right: analytics sidebar --> <aside style="width:480px;border-left:1px solid var(--border);background:var(--surface);flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto;padding:28px" data-astro-cid-igqof2vx> <div style="display:flex;flex-direction:column;gap:24px" data-astro-cid-igqof2vx> <!-- Radar --> <div data-astro-cid-igqof2vx> <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;color:var(--muted);margin-bottom:16px" data-astro-cid-igqof2vx>Risk Vector Dispersion</div> <div class="chart-container" data-astro-cid-igqof2vx><canvas id="riskRadar" data-astro-cid-igqof2vx></canvas></div> </div> <!-- Audit log --> <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px" data-astro-cid-igqof2vx> <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px" data-astro-cid-igqof2vx> <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;color:var(--muted)" data-astro-cid-igqof2vx>Live Audit Trail</span> <span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.2);padding:2px 8px;border-radius:6px" data-astro-cid-igqof2vx>SECURED</span> </div> <div id="audit-log" style="font-size:11px;display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;padding-right:4px" data-astro-cid-igqof2vx> <span style="color:var(--muted);font-style:italic" data-astro-cid-igqof2vx>No triggers active. Awaiting assessment input...</span> </div> </div> <!-- Meta stats --> <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" data-astro-cid-igqof2vx> <div class="stat-box" data-astro-cid-igqof2vx> <div class="stat-label" data-astro-cid-igqof2vx>Entity Integrity</div> <div class="stat-val" id="meta-integrity" data-astro-cid-igqof2vx>Unverified</div> </div> <div class="stat-box" data-astro-cid-igqof2vx> <div class="stat-label" data-astro-cid-igqof2vx>Analysis Engine</div> <div class="stat-val" style="color:var(--purple)" data-astro-cid-igqof2vx>Sovereign 4.0</div> </div> <div class="stat-box" style="grid-column:span 2" data-astro-cid-igqof2vx> <div class="stat-label" data-astro-cid-igqof2vx>Risk Factors Active</div> <div class="stat-val mono" id="meta-count" style="color:var(--amber)" data-astro-cid-igqof2vx>0 / 44</div> </div> </div> </div> </aside> </main> <!-- ── Verdict bar ──────────────────────────────────────────── --> <footer id="verdict-bar" class="verdict-bar" style="height:88px;display:flex;align-items:center;padding:0 40px;gap:40px;flex-shrink:0;transition:all 0.6s" data-astro-cid-igqof2vx> <div style="display:flex;align-items:baseline;gap:20px;flex:1" data-astro-cid-igqof2vx> <div style="display:flex;flex-direction:column" data-astro-cid-igqof2vx> <span style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:0.2em;margin-bottom:4px" data-astro-cid-igqof2vx>Fraud Score</span> <span id="score-val" class="mono" style="font-size:52px;font-weight:700;line-height:1;color:var(--text)" data-astro-cid-igqof2vx>00</span> </div> <div style="display:flex;flex-direction:column" data-astro-cid-igqof2vx> <span style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:0.2em;margin-bottom:4px" data-astro-cid-igqof2vx>Strategic Verdict</span> <span id="tier-val" class="serif" style="font-size:22px;font-weight:700;font-style:italic;color:var(--text)" data-astro-cid-igqof2vx>Awaiting Documentation...</span> </div> </div> <div style="display:flex;align-items:center;gap:16px" data-astro-cid-igqof2vx> <div id="verdict-badge" style="padding:10px 28px;border-radius:100px;font-size:10px;font-weight:800;letter-spacing:0.3em;text-transform:uppercase;background:rgba(255,255,255,0.06);color:var(--muted);border:1px solid var(--border);transition:all 0.4s" data-astro-cid-igqof2vx>
+INITIALIZING
+</div> <button onclick="window.print()" style="background:var(--red);color:white;padding:10px 24px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(255,45,85,0.35);transition:all 0.2s" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'" data-astro-cid-igqof2vx>
+Print Report
+</button> </div> </footer> <!-- ── Intelligence modal ───────────────────────────────────── --> <div id="modal-overlay" class="fixed inset-0 modal-overlay" style="z-index:300;display:flex;align-items:center;justify-content:center;padding:32px" data-astro-cid-igqof2vx> <div class="modal-card" style="width:100%;max-width:600px;overflow:hidden" data-astro-cid-igqof2vx> <div style="padding:40px" data-astro-cid-igqof2vx> <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px" data-astro-cid-igqof2vx> <div data-astro-cid-igqof2vx> <p id="modal-cat" style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.3em;color:var(--purple);margin:0 0 8px" data-astro-cid-igqof2vx></p> <h3 id="modal-title" class="serif" style="font-size:28px;font-style:italic;font-weight:700;margin:0;line-height:1.2;color:var(--text)" data-astro-cid-igqof2vx>Factor Intelligence</h3> </div> <button onclick="closeModal()" style="font-size:24px;color:var(--muted);background:none;border:none;cursor:pointer;padding:4px 8px;transition:color 0.15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'" data-astro-cid-igqof2vx>✕</button> </div> <p id="modal-body" style="font-size:13px;color:var(--muted);line-height:1.7;margin:0 0 32px" data-astro-cid-igqof2vx></p> <div style="border-top:1px solid var(--border);padding-top:24px;display:flex;justify-content:flex-end" data-astro-cid-igqof2vx> <button onclick="closeModal()" style="background:var(--indigo);color:white;padding:10px 28px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;border:none;cursor:pointer" data-astro-cid-igqof2vx>
+Confirm
+</button> </div> </div> </div> </div> <script>
+    const state = { market: 'US', industry: 'b2b', score: 0, fatal: false, activeCount: 0 };
+
+    const DATA = {
+        hard_stops: {
+            hs1:  { t: "OFAC/SDN Match",           c: "Compliance (US)", d: "Direct match on the US Treasury Sanctions list. Mandatory transaction block under IEEPA regulations." },
+            hs2:  { t: "EU Consolidated List",      c: "Compliance (EU)", d: "Entity found in the European Union's asset freezing database. Prohibits all economic resources from reaching the target." },
+            hs3:  { t: "FATF Blacklist Match",      c: "AML / Geo",       d: "Jurisdiction identified by FATF as 'High-Risk'. Extremely high money laundering and terrorist financing nexus." },
+            hs4:  { t: "Active Insolvency",         c: "Financial",       d: "Current Chapter 11 (US) or Insolvency Reg (EU) proceedings. Risk of 'Preferential Transfer' clawbacks." },
+            hs5:  { t: "SAM.gov Debarment",         c: "Compliance (US)", d: "Exclusion from Federal contracts due to fraud, antitrust, or embezzlement history." },
+            hs6:  { t: "Fraud Conviction (Entity)", c: "Legal",           d: "The entity or its directors have a verified criminal record of financial misrepresentation or fraud." },
+            hs7:  { t: "AML Direct Violation",      c: "Compliance",      d: "History of proven money laundering or structured financial movements identified by FinCEN or EBA." },
+            hs8:  { t: "Terrorist Nexus",           c: "Security",        d: "Links to organizations monitored for financing extremist activities. Critical security risk." },
+            hs9:  { t: "High-Risk Embargo",         c: "Geo-Politics",    d: "Trade restrictions on specific goods or technologies involving the counterparty's primary jurisdiction." },
+            hs10: { t: "Shell Bank Connection",     c: "Compliance",      d: "Transaction routing through a 'Shell Bank' with no physical presence, often used for obfuscation." }
+        },
+        market: {
+            US: {
+                m1: { t: "SEC 10-K Discrepancy",    c: "Reg (US)", d: "Material contradictions between public annual filings and provided financial disclosures." },
+                m2: { t: "SOX 404 Control Failure", c: "Reg (US)", d: "Internal control weaknesses documented by auditors under Sarbanes-Oxley. Elevated fraud window." },
+                m3: { t: "CCPA/CPRA Breach",        c: "Reg (US)", d: "History of data privacy violations in California, leading to significant statutory liability exposure." },
+                m4: { t: "Delaware Legal Suit",     c: "Legal (US)", d: "Material ongoing litigation in the Delaware Court of Chancery regarding corporate control or shareholder rights." },
+                m5: { t: "CFIUS Review Risk",       c: "Reg (US)", d: "National security review potential on foreign investment, risking deal termination or asset divestment." },
+                m6: { t: "HSR Antitrust Trigger",   c: "Reg (US)", d: "Notification thresholds reached for Hart-Scott-Rodino, requiring pre-merger review by FTC/DOJ." }
+            },
+            EU: {
+                m1: { t: "GDPR Art. 32 Failure",   c: "Reg (EU)", d: "Failure to provide adequate technical and organizational data security measures. Penalty risk up to 4% of turnover." },
+                m2: { t: "BaFin/FCA Enforcement",  c: "Reg (EU)", d: "History of disciplinary measures from DE (BaFin) or UK (FCA) regarding market abuse or reporting." },
+                m3: { t: "Competition DG Probe",   c: "Reg (EU)", d: "Antitrust investigation by the European Commission's DG Competition. Potential for massive behavioral fines." },
+                m4: { t: "AMLD6 Gap Analysis",     c: "Reg (EU)", d: "Failure to comply with the 6th Anti-Money Laundering Directive. High risk of criminal liability for entities." },
+                m5: { t: "DAC7 Reporting Gap",     c: "Reg (EU)", d: "Non-compliance with digital platform tax reporting rules. Risk of platform suspension in EU territories." },
+                m6: { t: "CSRD ESG Deficit",       c: "Reg (EU)", d: "Failure to meet Sustainable Finance Disclosure requirements. Reputational and investment barrier for EU institutions." }
+            }
+        },
+        industry: {
+            b2b: {
+                i1: { t: "UBO Opacity",           c: "B2B / Gov",  d: "Complex multi-layered ownership structure preventing clear identification of the Ultimate Beneficial Owner." },
+                i2: { t: "Offshore Headquarters", c: "B2B / Geo",  d: "Entity is headquartered in a 'Secrecy Jurisdiction' with zero economic substance (no staff or office)." },
+                i3: { t: "Related Party Trans.",  c: "B2B / Fin",  d: "High volume of sales/purchases with affiliated entities, potentially masking revenue inflation or cash siphoning." },
+                i4: { t: "Asset-Light Substance", c: "B2B / Ops",  d: "Stated operational scale is inconsistent with physical asset register (No warehouses, servers, or hubs)." },
+                i5: { t: "PEP Overlap",           c: "B2B / Gov",  d: "Board members or major shareholders match Politically Exposed Person databases. Elevated corruption risk." },
+                i6: { t: "Sudden Board Exit",     c: "B2B / Ops",  d: "Departure of >30% of directors or the CFO within the last 6 months. Signals internal governance crisis." },
+                i7: { t: "Multi-layered Mesh",    c: "B2B / Gov",  d: "Use of intermediate companies across >3 jurisdictions to obscure cash flow or tax liabilities." },
+                i8: { t: "Regulatory Record",     c: "B2B / Legal", d: "Verified history of administrative penalties or license suspensions in the primary industry of operation." }
+            },
+            b2c: {
+                i1: { t: "Bot Acquisition Pulse", c: "B2C / Ops",      d: "User growth patterns show 'Burst' signatures consistent with bot-driven account generation." },
+                i2: { t: "Dark Pattern UX",       c: "B2C / Legal",    d: "Interface uses manipulative 'Deceptive Patterns' to trap subscribers. High regulatory risk (FTC/CPC)." },
+                i3: { t: "Breach Vulnerability",  c: "B2C / Ops",      d: "History of >2 data breaches. Critical lack of identity protection for the customer base." },
+                i4: { t: "Account Sharing Surge", c: "B2C / Fin",      d: "High percentage of single accounts used across distant IP ranges. Indicates credential harvesting/selling." },
+                i5: { t: "High-Risk Signups",     c: "B2C / Identity", d: "Large volume of registrations using disposable email domains or temporary VOIP numbers." },
+                i6: { t: "Subscription Trap",     c: "B2C / Fin",      d: "Revenue model relies on difficult-to-cancel billing cycles. High dispute (chargeback) liability." },
+                i7: { t: "Referral Abuse",        c: "B2C / Ops",      d: "Manipulation of affiliate/referral programs to generate artificial GMV or incentive payouts." },
+                i8: { t: "IP/Carrier Mismatch",   c: "B2C / Identity", d: "User mobile carrier data frequently contradicts the detected IP geolocation. Proxy/Emulator signal." }
+            },
+            ecom: {
+                i1: { t: "Card Testing Wave",       c: "Ecom / Ops",      d: "Micro-transaction bursts on the platform, used by hackers to validate stolen credit card numbers." },
+                i2: { t: "VPN/Proxy Saturation",    c: "Ecom / Geo",      d: "Excessive volume of high-value orders coming from known data-center IPs or TOR exit nodes." },
+                i3: { t: "Multi-Device Link",       c: "Ecom / Identity", d: "Hundreds of distinct orders associated with a single hardware fingerprint. Systematic automation abuse." },
+                i4: { t: "High-Value SKU Fencing",  c: "Ecom / Fin",      d: "Inventory skewed towards highly-liquid items (Apple, Gold, Gift Cards) that are easily converted to cash." },
+                i5: { t: "AVS Failures >15%",       c: "Ecom / Geo",      d: "Widespread Address Verification Service errors. Suggests usage of compromised 'CVV' data sets." },
+                i6: { t: "Velocity Spike",          c: "Ecom / Ops",      d: "Sudden orders from a single IP address inconsistent with human browsing speeds." },
+                i7: { t: "Parcel Locker Bias",      c: "Ecom / Geo",      d: "Orders primarily destined for temporary storage/lockers rather than residential addresses." },
+                i8: { t: "3DS Bypass Attempt",      c: "Ecom / Fin",      d: "Systematic routing of payments through regions/acquirers with weaker 3D-Secure enforcement." }
+            }
+        },
+        mitigations: {
+            mit1:  { t: "R&W Insurance",          c: "Offset", d: "Representations and Warranties insurance covers losses from false entity statements. Major risk transfer." },
+            mit2:  { t: "MAC Clause In-Place",    c: "Offset", d: "Material Adverse Change clause allows exit if the asset health deteriorates significantly before closing." },
+            mit3:  { t: "D&O Coverage",           c: "Offset", d: "Comprehensive insurance for Directors and Officers against personal liability for management decisions." },
+            mit4:  { t: "Escrow Holdback",        c: "Offset", d: "Retention of >15% of funds in neutral custody to cover future indemnity claims." },
+            mit5:  { t: "Big-4 Audit Clean",      c: "Offset", d: "Recent (last 24m) unqualified audit opinion from PwC/Deloitte/EY/KPMG. High transparency." },
+            mit6:  { t: "Parent Guarantee",       c: "Offset", d: "Legally enforceable backing from a Tier-1 capitalized parent structure." },
+            mit7:  { t: "Active Monitoring",      c: "Offset", d: "Real-time AML/Sanctions monitoring system integrated into the transaction flow." },
+            mit8:  { t: "UBO Verified (KYB)",     c: "Offset", d: "Independent 3rd-party verification of corporate ownership hierarchy." },
+            mit9:  { t: "SOC2 Compliance",        c: "Offset", d: "Independently audited data security controls for technical operations." },
+            mit10: { t: "Favorable Legal Opinion",c: "Offset", d: "Formal 'Clean' opinion from reputable external counsel on entity standing." }
+        }
+    };
+
+    let radarChart;
+
+    function initRadar() {
+        const ctx = document.getElementById('riskRadar').getContext('2d');
+        radarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Governance', 'Geo-Risk', 'Operations', 'Financial', 'Compliance'],
+                datasets: [{
+                    label: 'Weighted Exposure',
+                    data: [0, 0, 0, 0, 0],
+                    backgroundColor: 'rgba(255,45,85,0.06)',
+                    borderColor: 'rgba(255,45,85,0.6)',
+                    borderWidth: 1.5,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#FF2D55',
+                    pointBorderColor: '#03050F',
+                    pointBorderWidth: 1.5,
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true, max: 100,
+                        ticks: { display: false },
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        angleLines: { color: 'rgba(255,255,255,0.05)' },
+                        pointLabels: {
+                            font: { size: 9, weight: '700', family: "'Inter'" },
+                            color: '#6E6E80'
+                        }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    function switchMarket(m) {
+        state.market = m;
+        document.querySelectorAll('.market-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-${m.toLowerCase()}`).classList.add('active');
+        document.getElementById('label-market').innerText =
+            m === 'US' ? 'Federal (SEC / OFAC)' : 'EBA (FCA / BaFin)';
+        renderGrids();
+        calculate();
+    }
+
+    function setIndustry(ind) {
+        state.industry = ind;
+        ['b2b','b2c','ecom'].forEach(i => {
+            const el = document.getElementById(`seg-${i}`);
+            const active = i === ind;
+            el.style.color = active ? 'var(--red)' : 'var(--muted)';
+            el.style.borderBottomColor = active ? 'var(--red)' : 'transparent';
+        });
+        renderGrids();
+        calculate();
+    }
+
+    function renderGrids() {
+        document.getElementById('grid-hardstops').innerHTML   = Object.entries(DATA.hard_stops).map(([id,f]) => renderItem(id,f,'fatal')).join('');
+        document.getElementById('grid-market').innerHTML      = Object.entries(DATA.market[state.market]).map(([id,f]) => renderItem(id,f)).join('');
+        document.getElementById('grid-industry').innerHTML    = Object.entries(DATA.industry[state.industry]).map(([id,f]) => renderItem(id,f)).join('');
+        document.getElementById('grid-mitigations').innerHTML = Object.entries(DATA.mitigations).map(([id,f]) => renderItem(id,f,'mitigation')).join('');
+    }
+
+    function renderItem(id, f, type = '') {
+        const isMit = type === 'mitigation';
+        const isFatal = type === 'fatal';
+        return `
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:8px;border-radius:10px;transition:background 0.15s"
+                 onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+                 onmouseout="this.style.background='transparent'">
+                <input type="checkbox" id="cb-${id}" data-id="${id}" data-type="${type}"
+                    class="risk-check ${type}" onchange="calculate()" style="margin-top:1px">
+                <div style="display:flex;flex-direction:column;flex:1">
+                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+                        <label for="cb-${id}" class="factor-label">${f.t}</label>
+                        <span class="info-trigger" onclick="openModal('${id}')">i</span>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function openModal(id) {
+        let f;
+        if (DATA.hard_stops[id])                                            f = DATA.hard_stops[id];
+        else if (DATA.market.US[id] || DATA.market.EU[id])                  f = DATA.market[state.market][id] || DATA.market.US[id] || DATA.market.EU[id];
+        else if (DATA.industry.b2b[id]||DATA.industry.b2c[id]||DATA.industry.ecom[id]) f = DATA.industry[state.industry][id];
+        else                                                                 f = DATA.mitigations[id];
+        document.getElementById('modal-title').innerText = f.t;
+        document.getElementById('modal-cat').innerText   = f.c;
+        document.getElementById('modal-body').innerText  = f.d;
+        document.getElementById('modal-overlay').classList.add('active');
+    }
+    function closeModal() {
+        document.getElementById('modal-overlay').classList.remove('active');
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    function calculate() {
+        let total = 0, fatal = false, activeCount = 0;
+        const audit = [];
+        const rMap = { Governance: 0, Geo: 0, Operations: 0, Financial: 0, Compliance: 0 };
+
+        document.querySelectorAll('.risk-check').forEach(cb => {
+            if (!cb.checked) return;
+            const id = cb.dataset.id, type = cb.dataset.type;
+            let f;
+            if (DATA.hard_stops[id])                    f = DATA.hard_stops[id];
+            else if (DATA.market[state.market][id])     f = DATA.market[state.market][id];
+            else if (DATA.industry[state.industry][id]) f = DATA.industry[state.industry][id];
+            else                                        f = DATA.mitigations[id];
+
+            if (type === 'fatal') {
+                fatal = true; activeCount++;
+                audit.push({ l: `BARRIER: ${f.t}`, p: '∞', fatal: true });
+            } else if (type === 'mitigation') {
+                total -= 12;
+                audit.push({ l: f.t, p: '−12', mit: true });
+            } else {
+                total += 18; activeCount++;
+                audit.push({ l: f.t, p: '+18' });
+                const c = f.c;
+                if (c.includes('Gov'))  rMap.Governance += 25;
+                if (c.includes('Geo'))  rMap.Geo        += 25;
+                if (c.includes('Ops'))  rMap.Operations += 25;
+                if (c.includes('Fin'))  rMap.Financial  += 25;
+                if (c.includes('Reg') || c.includes('Compliance')) rMap.Compliance += 25;
+            }
+        });
+
+        state.score = Math.max(0, Math.min(100, total));
+        state.fatal = fatal;
+        state.activeCount = activeCount;
+        updateUI(audit, rMap);
+    }
+
+    function updateUI(audit, rMap) {
+        const sVal    = document.getElementById('score-val');
+        const tVal    = document.getElementById('tier-val');
+        const bBadge  = document.getElementById('verdict-badge');
+        const logEl   = document.getElementById('audit-log');
+        const vBar    = document.getElementById('verdict-bar');
+        const mInt    = document.getElementById('meta-integrity');
+        const mCount  = document.getElementById('meta-count');
+
+        const s = state.score;
+        sVal.innerText = state.fatal ? '!!' : (s < 10 ? '0' + s : s);
+
+        let tier, badge, badgeBg, badgeColor, scoreColor;
+
+        if (state.fatal) {
+            tier = "Regulatory Barrier Encountered"; badge = "HARD STOP";
+            badgeBg = 'rgba(255,45,85,0.15)'; badgeColor = '#FF2D55';
+            scoreColor = '#FF2D55'; mInt.innerText = "COMPROMISED";
+            vBar.style.borderTopColor = 'rgba(255,45,85,0.3)';
+        } else if (s > 75) {
+            tier = "Extreme Structural Exposure"; badge = "DECLINE";
+            badgeBg = 'rgba(255,45,85,0.12)'; badgeColor = '#FF2D55';
+            scoreColor = '#FF2D55'; mInt.innerText = "HIGH RISK";
+            vBar.style.borderTopColor = 'rgba(255,45,85,0.2)';
+        } else if (s > 55) {
+            tier = "Escalate to Board / Underwriting"; badge = "ESCALATE";
+            badgeBg = 'rgba(255,159,10,0.12)'; badgeColor = '#FF9F0A';
+            scoreColor = '#FF9F0A'; mInt.innerText = "QUESTIONABLE";
+            vBar.style.borderTopColor = 'rgba(255,159,10,0.2)';
+        } else if (s > 35) {
+            tier = "Negotiation & Covenant Hold"; badge = "NEGOTIATE";
+            badgeBg = 'rgba(99,111,255,0.12)'; badgeColor = '#636FFF';
+            scoreColor = '#636FFF'; mInt.innerText = "MODERATE";
+            vBar.style.borderTopColor = 'rgba(99,111,255,0.2)';
+        } else if (s > 15) {
+            tier = "Standard Asset Classification"; badge = "APPROVE ✓";
+            badgeBg = 'rgba(48,209,88,0.1)'; badgeColor = '#30D158';
+            scoreColor = '#30D158'; mInt.innerText = "VALIDATED";
+            vBar.style.borderTopColor = 'rgba(48,209,88,0.15)';
+        } else {
+            tier = "Prime Sovereign Classification"; badge = "APPROVE ★";
+            badgeBg = 'rgba(191,90,242,0.1)'; badgeColor = '#BF5AF2';
+            scoreColor = '#BF5AF2'; mInt.innerText = "EXEMPLARY";
+            vBar.style.borderTopColor = 'rgba(191,90,242,0.15)';
+        }
+
+        tVal.innerText = tier;
+        sVal.style.color = scoreColor;
+        bBadge.innerText = badge;
+        bBadge.style.background = badgeBg;
+        bBadge.style.color = badgeColor;
+        bBadge.style.borderColor = badgeColor + '44';
+        mCount.innerText = `${state.activeCount} / 44`;
+
+        logEl.innerHTML = audit.length
+            ? audit.map(a => `
+                <div style="display:flex;justify-content:space-between;align-items:center;color:${a.fatal ? '#FF2D55' : a.mit ? '#30D158' : '#6E6E80'}">
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:12px">${a.l}</span>
+                    <span class="mono" style="flex-shrink:0;font-weight:700">${a.p}</span>
+                </div>`).join('')
+            : '<span style="color:var(--muted);font-style:italic">No triggers active. Awaiting assessment input...</span>';
+
+        if (radarChart) {
+            radarChart.data.datasets[0].data = [rMap.Governance, rMap.Geo, rMap.Operations, rMap.Financial, rMap.Compliance];
+            radarChart.update();
+        }
+    }
+
+    window.onload = () => { initRadar(); switchMarket('US'); setIndustry('b2b'); };
+</script> </body> </html>
