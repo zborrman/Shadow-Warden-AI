@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Shield, AlertTriangle, FlaskConical,
-  Activity, GitBranch, Settings, ChevronRight, DollarSign,
+  Activity, GitBranch, Settings, ChevronRight, DollarSign, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,13 @@ const NAV = [
 
 export function Sidebar() {
   const path = usePathname();
+  const router = useRouter();
+
+  async function signOut() {
+    await fetch("/api/auth", { method: "DELETE" });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside className="flex flex-col w-56 shrink-0 bg-surface-2 border-r border-border min-h-screen">
@@ -64,8 +71,15 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-border">
-        <p className="text-[10px] text-gray-600">v4.19 · SOC Dashboard</p>
+      <div className="px-4 py-3 border-t border-border space-y-2">
+        <button
+          onClick={signOut}
+          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+        >
+          <LogOut size={13} />
+          Sign out
+        </button>
+        <p className="text-[10px] text-gray-600 px-2">v4.19 · SOC Dashboard</p>
       </div>
     </aside>
   );
