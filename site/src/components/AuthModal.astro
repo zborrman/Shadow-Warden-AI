@@ -234,14 +234,21 @@
 
   function submitAuth(mode: string) {
     const email = (document.getElementById(mode === 'signin' ? 'si-email' : 'su-email') as HTMLInputElement)?.value;
-    if (!email || !email.includes('@')) { alert('Please enter a valid email address'); return; }
-    alert(`✅ ${mode === 'signin' ? 'Signed in successfully' : 'Account created'}! Redirecting to dashboard...`);
-    closeAuth();
+    if (!email || !email.includes('@')) {
+      const err = document.getElementById('si-email-err');
+      if (err) { err.classList.remove('hidden'); }
+      return;
+    }
+    window.location.href = 'https://portal.shadow-warden-ai.com/login';
   }
 
-  function submitForgot() { alert('✅ Reset link sent! Check your email.'); setAuthTab('signin'); }
+  function submitForgot() {
+    window.location.href = 'https://portal.shadow-warden-ai.com/login';
+  }
 
-  function socialAuth(provider: string) { alert(`Redirecting to ${provider} OAuth...`); }
+  function socialAuth(_provider: string) {
+    window.location.href = 'https://portal.shadow-warden-ai.com/login';
+  }
 
   (window as any).openAuth      = openAuth;
   (window as any).closeAuth     = closeAuth;
