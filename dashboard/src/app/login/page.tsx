@@ -133,7 +133,13 @@ function GhostBtn({ children, onClick }: { children: React.ReactNode; onClick: (
 /* ── TOTP digit inputs ── */
 function TotpInputs({ onComplete }: { onComplete: (code: string) => void }) {
   const [digits, setDigits] = useState(Array(6).fill(""));
-  const refs = Array.from({ length: 6 }, () => useRef<HTMLInputElement>(null));
+  const r0 = useRef<HTMLInputElement>(null);
+  const r1 = useRef<HTMLInputElement>(null);
+  const r2 = useRef<HTMLInputElement>(null);
+  const r3 = useRef<HTMLInputElement>(null);
+  const r4 = useRef<HTMLInputElement>(null);
+  const r5 = useRef<HTMLInputElement>(null);
+  const refs = [r0, r1, r2, r3, r4, r5];
 
   function handleChange(i: number, val: string) {
     const d = val.replace(/\D/g, "").slice(-1);
