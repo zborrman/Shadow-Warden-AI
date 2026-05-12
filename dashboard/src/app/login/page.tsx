@@ -124,7 +124,7 @@ function TotpInputs({ onComplete }: { onComplete: (code: string) => void }) {
   );
 }
 
-type Step = "credentials" | "totp" | "passkey_prompt";
+type Step = "credentials" | "totp" | "passkey_prompt" | "forgot" | "forgot_sent";
 type Tab  = "signin" | "register";
 
 /* ── Field wrapper ── */
@@ -167,6 +167,18 @@ export default function LoginPage() {
     { label: "Number",           met: /[0-9]/.test(pw) },
     { label: "Special char",     met: /[^A-Za-z0-9]/.test(pw) },
   ];
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault(); setError(""); setLoading(true);
+    try {
+      await fetch("/api/auth/forgot", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setStep("forgot_sent");
+    } catch { setError("Could not send reset email. Try again."); }
+    finally { setLoading(false); }
+  }
 
   async function handlePasskeyLogin() {
     setError(""); setLoading(true);
@@ -375,6 +387,18 @@ export default function LoginPage() {
                     </button>
                   </div>
 
+                  {/* Forgot password link — sign in only */}
+                  {!isReg && (
+                    <div className="flex justify-end mt-1.5">
+                      <button type="button"
+                        onClick={() => { setError(""); setStep("forgot"); }}
+                        className="text-[12px] font-medium transition-colors hover:opacity-100 opacity-70"
+                        style={{ color: T.indigo }}>
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
+
                   {/* Strength meter — register only */}
                   {isReg && pw.length > 0 && (
                     <div className="mt-3">
@@ -582,8 +606,92 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Step dots */}
-          {step !== "credentials" && (
+          {/* ─────── STEP: forgot password ─────── */}
+          {step === "forgot" && (
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                   style={{ background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)" }}>
+                <Mail size={28} style={{ color: T.indigo }} />
+              </div>
+              <h1 className="text-[22px] font-black mb-2" style={{ color: T.text }}>Reset your password</h1>
+              <p className="text-[13px] mb-8 leading-relaxed" style={{ color: T.muted }}>
+                Enter your email and we'll send you<br/>a secure reset link.
+              </p>
+
+              <form onSubmit={handleForgot} className="space-y-4 text-left">
+                <Field label="Email address">
+                  <div className="relative">
+                    <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                          style={{ color: T.subtle }} />
+                    <input type="email" placeholder="you@company.com" value={email}
+                      onChange={e => setEmail(e.target.value)} autoFocus autoComplete="email"
+                      className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border focus:outline-none transition-all"
+                      style={inputBase}
+                      onFocus={e => (e.target.style.borderColor = T.indigo)}
+                      onBlur={e  => (e.target.style.borderColor = T.border)} />
+                  </div>
+                </Field>
+
+                {error && (
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[12px]"
+                       style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#f87171" }}>
+                    <span>⚠</span> {error}
+                  </div>
+                )}
+
+                <button type="submit" disabled={!email || loading}
+                  className="w-full py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff",
+                           boxShadow:"0 4px 20px rgba(99,102,241,0.25)" }}>
+                  {loading
+                    ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sending…</>
+                    : <>Send reset link <ChevronRight size={15} /></>
+                  }
+                </button>
+
+                <button type="button" onClick={() => { setStep("credentials"); setError(""); }}
+                  className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors"
+                  style={{ border:`1px solid ${T.border}`, color: T.muted }}>
+                  ← Back to sign in
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ─────── STEP: forgot sent ─────── */}
+          {step === "forgot_sent" && (
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                   style={{ background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.2)" }}>
+                <span className="text-[28px]">✉️</span>
+              </div>
+              <h1 className="text-[22px] font-black mb-2" style={{ color: T.text }}>Check your email</h1>
+              <p className="text-[13px] mb-2 leading-relaxed" style={{ color: T.muted }}>
+                If <span className="font-semibold" style={{ color: T.text }}>{email}</span> is registered,
+                you'll receive a reset link within a few minutes.
+              </p>
+              <p className="text-[12px] mb-8" style={{ color: T.subtle }}>
+                Don't forget to check your spam folder.
+              </p>
+
+              <div className="space-y-2.5">
+                <button type="button" onClick={() => { setStep("forgot"); setError(""); }}
+                  className="w-full py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+                  style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff",
+                           boxShadow:"0 4px 20px rgba(99,102,241,0.25)" }}>
+                  Resend email
+                </button>
+                <button type="button" onClick={() => { setStep("credentials"); setError(""); }}
+                  className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors"
+                  style={{ border:`1px solid ${T.border}`, color: T.muted }}>
+                  ← Back to sign in
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step dots — only on the main auth flow */}
+          {step !== "credentials" && step !== "forgot" && step !== "forgot_sent" && (
             <div className="flex justify-center gap-2 mt-8">
               {(["credentials","totp","passkey_prompt"] as Step[]).map((s, i) => (
                 <div key={s} className="rounded-full transition-all duration-300"
