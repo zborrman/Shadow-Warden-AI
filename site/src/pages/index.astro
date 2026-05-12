@@ -4,7 +4,7 @@ import ConsoleSection from '../components/ConsoleSection.astro';
 import roadmap from '../data/roadmap.json';
 
 const shipped = roadmap.filter(r => r.status === 'shipped').length;
-const categories = ['Business Community', 'Cyber Security', 'Dashboard', 'Price'];
+const categories = ['Business Community', 'Cyber Security', 'Dashboard', 'Settings', 'Docs', 'Price'];
 const featCount = (cat: string) => roadmap.filter(r => r.category === cat).length;
 
 const catCards = [
@@ -37,6 +37,26 @@ const catCards = [
     desc: 'Full-stack observability — OTel tracing, Prometheus/Grafana, Jaeger, SOC event log, and uptime monitoring.',
     count: featCount('Dashboard'),
     pills: ['Grafana', 'Jaeger', 'OTel Tracing', 'SOC Log'],
+  },
+  {
+    label: 'Settings',
+    href: '/settings',
+    color: '#30D158',
+    tint: 'rgba(48,209,88,.1)',
+    icon: '⚙',
+    desc: 'Secrets governance, sovereign data routing, GDPR controls, multi-tenant auth, and live config tuning without restarts.',
+    count: featCount('Settings'),
+    pills: ['Secrets Vault', 'GDPR', 'Sovereign Routing', 'Key Rotation'],
+  },
+  {
+    label: 'Docs',
+    href: '/doc/quick-start',
+    color: '#f59e0b',
+    tint: 'rgba(245,158,11,.1)',
+    icon: '📄',
+    desc: 'Quick start, full API reference, architecture deep-dive, GDPR DPIA, SOC 2 Type II controls, and integration guides.',
+    count: featCount('Docs'),
+    pills: ['Quick Start', 'API Reference', 'Security Model', 'SOC 2 Type II'],
   },
   {
     label: 'Price',
@@ -132,7 +152,7 @@ const catCards = [
         </p>
       </div>
 
-      <div class="grid md:grid-cols-2 gap-5">
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
         {catCards.map(c => (
           <a href={c.href}
              class="group block rounded-2xl p-6 transition-all duration-200 no-underline"
