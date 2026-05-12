@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import ConsoleSection from '../components/ConsoleSection.astro';
 import roadmap from '../data/roadmap.json';
 
 const shipped = roadmap.filter(r => r.status === 'shipped').length;
@@ -116,6 +117,8 @@ const catCards = [
       </div>
     </div>
   </section>
+
+  <ConsoleSection />
 
   <!-- Category cards -->
   <section class="py-24 relative">

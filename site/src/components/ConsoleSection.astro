@@ -1,0 +1,472 @@
+<!-- AI Cyber Security Console — implements UI Kit exactly -->
+<section id="console" class="py-20 relative overflow-hidden" style="background:#080810">
+  <!-- bg grid -->
+  <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(99,102,241,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.025) 1px,transparent 1px);background-size:48px 48px"></div>
+  <!-- radial glow -->
+  <div class="absolute pointer-events-none" style="top:0;left:50%;transform:translateX(-50%);width:1200px;height:500px;background:radial-gradient(ellipse,rgba(99,102,241,0.07) 0%,transparent 65%)"></div>
+
+  <div class="relative mx-auto max-w-7xl px-4 lg:px-8">
+
+    <!-- Section header -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[11px] font-semibold"
+           style="color:#34d399;background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.25)">
+        <span id="live-dot" class="w-2 h-2 rounded-full animate-pulse" style="background:#34d399"></span>
+        LIVE DEMO — Real data simulation
+      </div>
+      <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
+        AI Cyber Security Console
+      </h2>
+      <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
+        Full-stack SOC operations view — KPIs, threat pipeline, live event feed, charts. No content logged (GDPR strict mode on).
+      </p>
+    </div>
+
+    <!-- Browser chrome frame -->
+    <div class="rounded-2xl overflow-hidden shadow-2xl" style="border:1px solid rgba(99,102,241,0.20);box-shadow:0 0 80px rgba(99,102,241,0.08),0 32px 64px rgba(0,0,0,0.6)">
+
+      <!-- Chrome bar -->
+      <div class="flex items-center gap-2 px-4 py-3" style="background:#0a0f1e;border-bottom:1px solid rgba(99,102,241,0.14)">
+        <span class="w-3 h-3 rounded-full" style="background:#ef4444"></span>
+        <span class="w-3 h-3 rounded-full" style="background:#f59e0b"></span>
+        <span class="w-3 h-3 rounded-full" style="background:#10b981"></span>
+        <div class="flex-1 mx-4 h-6 rounded-md flex items-center px-3 text-[11px]"
+             style="background:#111827;border:1px solid rgba(255,255,255,0.08);color:#64748b">
+          🔒 &nbsp;dash.shadow-warden-ai.com/overview
+        </div>
+        <div class="flex items-center gap-5 px-3" style="color:#64748b;font-size:11px">
+          <span>Export</span>
+          <span style="color:#34d399;display:flex;align-items:center;gap:4px">
+            <span style="width:6px;height:6px;border-radius:50%;background:#34d399;animation:swPulse 2s infinite;display:inline-block"></span>
+            LIVE
+          </span>
+        </div>
+      </div>
+
+      <!-- Console nav -->
+      <div class="flex items-center gap-2 px-6 h-12" style="background:#0a0f1e;border-bottom:1px solid rgba(99,102,241,0.10)">
+        <div class="flex gap-1 flex-1">
+          {['Dashboard','Threats','Rules','Settings','Logs'].map((tab, i) => (
+            <div class={`px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer ${i === 0 ? 'text-[#f1f5f9]' : 'text-[#64748b]'}`}
+                 style={i === 0 ? 'background:rgba(99,102,241,0.12)' : ''}>{tab}</div>
+          ))}
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex gap-0.5 p-0.5 rounded-lg" style="background:#111827;border:1px solid rgba(99,102,241,0.12)">
+            {['1h','24h','7d','30d'].map((r, i) => (
+              <div class={`px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer ${i === 1 ? 'text-[#f1f5f9]' : 'text-[#64748b]'}`}
+                   style={i === 1 ? 'background:#1e293b' : ''}>{r}</div>
+            ))}
+          </div>
+          <span class="text-[11px]" style="color:#64748b;font-family:monospace">ops@shadowwarden.ai</span>
+        </div>
+      </div>
+
+      <!-- Console body -->
+      <div class="p-5 flex flex-col gap-4" style="background:#030712">
+
+        <!-- Page header -->
+        <div class="flex items-baseline justify-between">
+          <div>
+            <div class="text-[18px] font-bold" style="color:#f1f5f9;letter-spacing:-0.02em">Operations Console</div>
+            <div class="text-[12px] mt-1" style="color:#94a3b8">
+              Last <strong style="color:#cbd5e1">24h</strong> · Region <strong style="color:#cbd5e1">EU-WEST · US-EAST</strong> · 9 services healthy
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button class="px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer"
+                    style="background:transparent;border:1px solid rgba(99,102,241,0.20);color:#94a3b8">Export CSV</button>
+            <button class="px-3 py-1.5 rounded-lg text-[12px] font-semibold cursor-pointer"
+                    style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff">Run incident drill</button>
+          </div>
+        </div>
+
+        <!-- KPI row -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { label: 'Total requests',    value: '28,492', sub: '+12.4% vs yesterday', accent: '#6366f1', vc: null },
+            { label: 'Blocked',           value: '1,384',  sub: '4.86% block rate',    accent: '#f87171', vc: '#f87171' },
+            { label: 'Avg latency',       value: '14ms',   sub: 'p99 31ms',             accent: '#34d399', vc: null },
+            { label: 'Secrets stripped',  value: '312',    sub: 'API keys · PII · IBANs', accent: '#22d3ee', vc: '#22d3ee' },
+          ].map(k => (
+            <div class="rounded-xl p-4 relative overflow-hidden cursor-pointer"
+                 style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.14)">
+              <div class="absolute top-0 left-0 right-0 h-0.5" style={`background:${k.accent};opacity:0.7`}></div>
+              <div class="text-[11px] font-medium uppercase tracking-wider mb-2" style="color:#64748b">{k.label}</div>
+              <div class="text-[1.75rem] font-bold leading-none mb-1.5" style={`color:${k.vc ?? '#f1f5f9'};letter-spacing:-0.03em`}>{k.value}</div>
+              <div class="text-[11px]" style="color:#64748b">{k.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        <!-- Threat Pipeline -->
+        <div class="rounded-xl p-5" style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.14)">
+          <div class="mb-4">
+            <div class="text-[13px] font-semibold" style="color:#f1f5f9">Filter Pipeline</div>
+            <div class="text-[11px] mt-1" style="color:#64748b">
+              POST <span style="color:#6366f1;font-family:monospace">/filter</span> → 9 stages → ALLOW / HIGH / BLOCK · avg <strong style="color:#34d399">14ms</strong>
+            </div>
+          </div>
+          <div class="grid gap-2" style="grid-template-columns:repeat(5,1fr)">
+            {[
+              { num: '01', label: 'Topology',   sub: 'β₀/β₁ Betti · n-gram',     color: '#ef4444' },
+              { num: '02', label: 'Obfuscation',sub: 'base64·hex·ROT13·unicode',  color: '#f97316' },
+              { num: '03', label: 'Secrets',    sub: '15 PII patterns + entropy', color: '#f59e0b' },
+              { num: '04', label: 'Rules + ML', sub: 'SemanticGuard · MiniLM',    color: '#6366f1' },
+              { num: '05', label: 'Causal',     sub: 'Bayesian DAG · do-calculus', color: '#34d399' },
+            ].map((s, i) => (
+              <div class="relative">
+                <div class="rounded-xl p-3 flex flex-col items-center gap-1.5 text-center"
+                     style="background:#111827;border:1px solid rgba(255,255,255,0.06);min-height:96px">
+                  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[14px]"
+                       style={`background:${s.color}1f;border:1px solid ${s.color}40`}>
+                    {i === 0 ? '📐' : i === 1 ? '🔄' : i === 2 ? '🔑' : i === 3 ? '🧠' : '🎯'}
+                  </div>
+                  <div class="text-[9px] font-bold" style={`color:${s.color};font-family:monospace`}>STAGE {s.num}</div>
+                  <div class="text-[11px] font-semibold" style="color:#f1f5f9">{s.label}</div>
+                  <div class="text-[10px] leading-tight" style="color:#64748b">{s.sub}</div>
+                </div>
+                {i < 4 && (
+                  <div class="absolute flex items-center justify-center" style="right:-9px;top:40px;z-index:1">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <!-- stages 6-9 -->
+          <div class="grid gap-2 mt-2" style="grid-template-columns:repeat(4,1fr)">
+            {[
+              { num: '06', label: 'Phish',    sub: 'URL + social engineering',  color: '#8b5cf6' },
+              { num: '07', label: 'ERS',      sub: 'Redis sliding window ban',  color: '#ec4899' },
+              { num: '08', label: 'XAI',      sub: '9-stage causal chain',      color: '#06b6d4' },
+              { num: '09', label: 'Decision', sub: 'ALLOW / HIGH / BLOCK',      color: '#10b981' },
+            ].map((s, i) => (
+              <div class="relative">
+                <div class="rounded-xl p-3 flex flex-col items-center gap-1.5 text-center"
+                     style="background:#111827;border:1px solid rgba(255,255,255,0.06)">
+                  <div class="w-7 h-7 rounded-lg flex items-center justify-center text-[12px]"
+                       style={`background:${s.color}1f;border:1px solid ${s.color}40`}>
+                    {i === 0 ? '🎣' : i === 1 ? '🚫' : i === 2 ? '🔍' : '✅'}
+                  </div>
+                  <div class="text-[9px] font-bold" style={`color:${s.color};font-family:monospace`}>STAGE {s.num}</div>
+                  <div class="text-[11px] font-semibold" style="color:#f1f5f9">{s.label}</div>
+                  <div class="text-[10px]" style="color:#64748b">{s.sub}</div>
+                </div>
+                {i < 3 && (
+                  <div class="absolute flex items-center justify-center" style="right:-9px;top:36px;z-index:1">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="grid lg:grid-cols-3 gap-3">
+          <!-- Timeline chart -->
+          <div class="lg:col-span-2 rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.14)">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <div class="text-[13px] font-semibold" style="color:#f1f5f9">Requests / minute</div>
+                <div class="text-[11px] mt-0.5" style="color:#64748b">Indigo: total · Red: blocked</div>
+              </div>
+              <div class="flex gap-0.5 p-0.5 rounded-lg" style="background:#111827;border:1px solid rgba(99,102,241,0.12)">
+                <div class="px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer" style="background:#1e293b;color:#f1f5f9">Live</div>
+                <div class="px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer" style="color:#64748b">Compare</div>
+              </div>
+            </div>
+            <div style="height:160px;position:relative">
+              <canvas id="sw-timeline-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Risk donut -->
+          <div class="rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.14)">
+            <div class="mb-4">
+              <div class="text-[13px] font-semibold" style="color:#f1f5f9">Risk distribution</div>
+              <div class="text-[11px] mt-0.5" style="color:#64748b">Last 24h decisions</div>
+            </div>
+            <div style="height:160px;position:relative">
+              <canvas id="sw-donut-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts row 2 -->
+        <div class="grid lg:grid-cols-2 gap-3">
+          <div class="rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.14)">
+            <div class="mb-3">
+              <div class="text-[13px] font-semibold" style="color:#f1f5f9">Top threat flags</div>
+              <div class="text-[11px] mt-0.5" style="color:#64748b">Triggers by detection rule</div>
+            </div>
+            <div style="height:180px;position:relative">
+              <canvas id="sw-flags-chart"></canvas>
+            </div>
+          </div>
+          <div class="rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.14)">
+            <div class="mb-3">
+              <div class="text-[13px] font-semibold" style="color:#f1f5f9">Secrets stripped</div>
+              <div class="text-[11px] mt-0.5" style="color:#64748b">By pattern category</div>
+            </div>
+            <div style="height:180px;position:relative">
+              <canvas id="sw-secrets-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live event feed -->
+        <div class="rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(99,102,241,0.14)">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="flex items-center gap-2 text-[13px] font-semibold" style="color:#f1f5f9">
+                Live Event Feed
+                <span id="feed-dot" class="w-2 h-2 rounded-full" style="background:#34d399;animation:swPulse 2s infinite"></span>
+                <span class="text-[11px] font-normal" style="color:#34d399">connected</span>
+              </div>
+              <div class="text-[11px] mt-0.5" style="color:#64748b">Real-time · no content logged (GDPR)</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="feed-pause" class="px-3 py-1 rounded-lg text-[11px] font-medium cursor-pointer"
+                      style="background:transparent;border:1px solid rgba(99,102,241,0.20);color:#94a3b8">⏸ Pause</button>
+              <button id="feed-clear" class="px-3 py-1 rounded-lg text-[11px] font-medium cursor-pointer"
+                      style="background:transparent;border:1px solid rgba(99,102,241,0.20);color:#94a3b8">Clear</button>
+              <span id="feed-count" class="text-[11px]" style="color:#64748b">0 events</span>
+            </div>
+          </div>
+
+          <!-- Stats bar -->
+          <div id="feed-stats" class="flex gap-4 py-2 mb-1" style="border-top:1px solid rgba(99,102,241,0.10);font-size:11px;color:#64748b">
+            <span>Total: <strong id="stat-total" style="color:#f1f5f9">0</strong></span>
+            <span>Blocked: <strong id="stat-blocked" style="color:#f87171">0</strong></span>
+            <span>HIGH/BLOCK: <strong id="stat-high" style="color:#fb923c">0</strong></span>
+            <span>Avg latency: <strong id="stat-lat" style="color:#f1f5f9">—</strong></span>
+          </div>
+
+          <!-- Column headers -->
+          <div class="grid gap-2 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider mb-1"
+               style="grid-template-columns:60px 80px 70px 1fr 60px;color:#475569;border-bottom:1px solid rgba(99,102,241,0.10)">
+            <span>Time</span><span>Decision</span><span>Risk</span><span>Flags / Secrets</span><span style="text-align:right">Latency</span>
+          </div>
+
+          <!-- Feed rows -->
+          <div id="feed-rows" style="display:flex;flex-direction:column;gap:2px;max-height:220px;overflow-y:auto"></div>
+        </div>
+
+      </div><!-- /console body -->
+    </div><!-- /frame -->
+
+    <!-- CTA below console -->
+    <div class="text-center mt-10">
+      <a href="https://portal.shadow-warden-ai.com" target="_blank"
+         class="btn-primary inline-block px-8 py-3.5 text-[14px] no-underline">
+        Open Live Console — Free
+      </a>
+      <p class="text-[12px] mt-3" style="color:#475569">No credit card · 14-day trial · Deployed in 60 seconds</p>
+    </div>
+
+  </div>
+</section>
+
+<style>
+  @keyframes swPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+  @keyframes swFadeIn { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:none} }
+  .sw-feed-row { animation: swFadeIn 0.25s ease; }
+</style>
+
+<script>
+// ── Chart.js loader ──────────────────────────────────────────────────
+function loadChartJs(cb) {
+  if (window.Chart) return cb();
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+  s.onload = cb;
+  document.head.appendChild(s);
+}
+
+// ── Chart defaults ───────────────────────────────────────────────────
+function chartDefaults() {
+  window.Chart.defaults.color = '#475569';
+  window.Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+  window.Chart.defaults.font.size = 11;
+}
+
+// ── Timeline chart ───────────────────────────────────────────────────
+function initTimeline() {
+  const el = document.getElementById('sw-timeline-chart');
+  if (!el) return;
+  const labels = Array.from({ length: 60 }, (_, i) => `${59 - i}m`);
+  const data   = Array.from({ length: 60 }, () => Math.floor(Math.random() * 80 + 20));
+  const blocked = data.map(v => Math.floor(v * 0.045 + Math.random() * 3));
+  const ch = new window.Chart(el, {
+    type: 'line',
+    data: { labels, datasets: [
+      { data, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.08)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+      { data: blocked, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.06)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+               scales: { x: { display: false }, y: { display: false } } }
+  });
+  // live update every 2s
+  setInterval(() => {
+    ch.data.datasets[0].data.push(Math.floor(Math.random() * 80 + 20));
+    ch.data.datasets[0].data.shift();
+    ch.data.datasets[1].data.push(Math.floor(Math.random() * 6));
+    ch.data.datasets[1].data.shift();
+    ch.update('none');
+  }, 2000);
+}
+
+// ── Donut chart ──────────────────────────────────────────────────────
+function initDonut() {
+  const el = document.getElementById('sw-donut-chart');
+  if (!el) return;
+  new window.Chart(el, {
+    type: 'doughnut',
+    data: {
+      labels: ['LOW', 'MEDIUM', 'HIGH', 'BLOCK'],
+      datasets: [{ data: [18203, 7012, 1893, 1384],
+        backgroundColor: ['rgba(52,211,153,0.8)','rgba(251,191,36,0.8)','rgba(248,113,113,0.8)','rgba(239,68,68,0.9)'],
+        borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '68%',
+               plugins: { legend: { display: true, position: 'right',
+                 labels: { color: '#64748b', font: { size: 10 }, boxWidth: 10 } } } }
+  });
+}
+
+// ── Flags bars ───────────────────────────────────────────────────────
+function initBars(id, labels, values, color) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  new window.Chart(el, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: color, borderRadius: 4, borderSkipped: false }] },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+               plugins: { legend: { display: false } },
+               scales: { x: { display: false }, y: { ticks: { color: '#475569', font: { size: 10 } }, grid: { display: false }, border: { display: false } } } }
+  });
+}
+
+// ── Live event feed ──────────────────────────────────────────────────
+const EVENTS = [
+  { d: 'ALLOWED', r: 'LOW',   f: '—',                           lat: 12 },
+  { d: 'BLOCKED', r: 'BLOCK', f: 'PROMPT_INJECTION, JAILBREAK', lat: 8  },
+  { d: 'ALLOWED', r: 'MEDIUM',f: 'SECRET_REDACTED(1)',          lat: 31 },
+  { d: 'BLOCKED', r: 'HIGH',  f: 'PII_DETECTED, SE_RISK',       lat: 19 },
+  { d: 'ALLOWED', r: 'LOW',   f: '—',                           lat: 9  },
+  { d: 'BLOCKED', r: 'BLOCK', f: 'WORM_SIGNATURE',              lat: 3  },
+  { d: 'ALLOWED', r: 'MEDIUM',f: 'OBFUSCATION_DECODED',         lat: 44 },
+  { d: 'BLOCKED', r: 'HIGH',  f: 'PHISHING_URL, SOCIAL_ENG',    lat: 15 },
+  { d: 'ALLOWED', r: 'LOW',   f: '—',                           lat: 7  },
+];
+const RISK_COLORS = {
+  LOW:   { bg: 'rgba(52,211,153,0.12)',  fg: '#34d399' },
+  MEDIUM:{ bg: 'rgba(251,191,36,0.12)', fg: '#fbbf24' },
+  HIGH:  { bg: 'rgba(248,113,113,0.15)',fg: '#f87171' },
+  BLOCK: { bg: 'rgba(239,68,68,0.20)',  fg: '#ef4444' },
+};
+
+let feedPaused = false;
+let feedStats  = { total: 0, blocked: 0, high: 0, latSum: 0 };
+
+function timeStr() {
+  return new Date().toTimeString().slice(0, 8);
+}
+
+function makeRow(ev) {
+  const c = RISK_COLORS[ev.r];
+  const row = document.createElement('div');
+  row.className = 'sw-feed-row grid gap-2 px-2 py-1.5 rounded-lg';
+  row.style.cssText = 'grid-template-columns:60px 80px 70px 1fr 60px;align-items:center;font-size:11px';
+  row.innerHTML = `
+    <span style="font-family:monospace;color:#475569">${ev.t || timeStr()}</span>
+    <span style="font-weight:600;color:${ev.d === 'BLOCKED' ? '#f87171' : '#34d399'}">${ev.d}</span>
+    <span style="padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;background:${c.bg};color:${c.fg};display:inline-block">${ev.r}</span>
+    <span style="color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.f}</span>
+    <span style="font-family:monospace;color:#64748b;text-align:right">${ev.lat}ms</span>
+  `;
+  return row;
+}
+
+function updateStats() {
+  const avg = feedStats.total ? Math.round(feedStats.latSum / feedStats.total) : 0;
+  document.getElementById('stat-total').textContent   = feedStats.total;
+  document.getElementById('stat-blocked').textContent = feedStats.blocked;
+  document.getElementById('stat-high').textContent    = feedStats.high;
+  document.getElementById('stat-lat').textContent     = avg ? avg + 'ms' : '—';
+  document.getElementById('feed-count').textContent   = feedStats.total + ' events';
+}
+
+function pushEvent(ev) {
+  if (feedPaused) return;
+  feedStats.total++;
+  if (ev.d === 'BLOCKED') feedStats.blocked++;
+  if (ev.r === 'HIGH' || ev.r === 'BLOCK') feedStats.high++;
+  feedStats.latSum += ev.lat;
+  updateStats();
+  const container = document.getElementById('feed-rows');
+  if (!container) return;
+  container.insertBefore(makeRow(ev), container.firstChild);
+  // keep max 50 rows
+  while (container.children.length > 50) container.removeChild(container.lastChild);
+}
+
+function initFeed() {
+  // seed with initial events
+  const seed = [...EVENTS].reverse();
+  seed.forEach((e, i) => {
+    const d = new Date(Date.now() - i * 4000);
+    pushEvent({ ...e, t: d.toTimeString().slice(0, 8) });
+  });
+
+  // stream new events
+  setInterval(() => {
+    const e = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+    pushEvent({ ...e, t: timeStr() });
+  }, 2500);
+
+  // pause / clear buttons
+  const pauseBtn = document.getElementById('feed-pause');
+  pauseBtn?.addEventListener('click', () => {
+    feedPaused = !feedPaused;
+    pauseBtn.textContent = feedPaused ? '▶ Resume' : '⏸ Pause';
+  });
+  document.getElementById('feed-clear')?.addEventListener('click', () => {
+    const c = document.getElementById('feed-rows');
+    if (c) c.innerHTML = '';
+    feedStats = { total: 0, blocked: 0, high: 0, latSum: 0 };
+    updateStats();
+  });
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initFeed();
+
+  // Observe section; load charts when in viewport
+  const section = document.getElementById('console');
+  const observer = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) {
+      observer.disconnect();
+      loadChartJs(() => {
+        chartDefaults();
+        initTimeline();
+        initDonut();
+        initBars('sw-flags-chart',
+          ['Prompt Injection','Jailbreak','PII Detected','Social Eng.','Secret Leaked','Worm Sig.','Phishing'],
+          [512, 318, 204, 189, 87, 43, 31], 'rgba(139,92,246,0.7)');
+        initBars('sw-secrets-chart',
+          ['AWS Key','GitHub Token','Email / PII','Credit Card','Slack Token','Password','API Key'],
+          [89, 71, 63, 44, 31, 28, 21], 'rgba(34,211,238,0.65)');
+      });
+    }
+  }, { threshold: 0.1 });
+  if (section) observer.observe(section);
+});
+</script>
