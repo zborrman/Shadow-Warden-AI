@@ -1,5 +1,5 @@
 "use client";
-import { Bell, RefreshCw } from "lucide-react";
+import { Bell, RefreshCw, ExternalLink } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface HeaderProps { title: string; subtitle?: string; }
@@ -14,6 +14,14 @@ export function Header({ title, subtitle }: HeaderProps) {
         {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-2">
+        <a
+          href="https://shadow-warden-ai.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-surface-4 text-gray-400 hover:text-white transition-colors"
+        >
+          <ExternalLink size={12} /> Main Site
+        </a>
         <button
           onClick={() => qc.invalidateQueries()}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-surface-4 text-gray-400 hover:text-white transition-colors"
