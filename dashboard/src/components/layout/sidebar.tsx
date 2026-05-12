@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Shield, AlertTriangle, FlaskConical,
-  Activity, GitBranch, Settings, ChevronRight,
+  Activity, GitBranch, Settings, ChevronRight, DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ const NAV = [
     { href: "/events",   icon: Shield,           label: "Events" },
     { href: "/threats",  icon: AlertTriangle,    label: "Threats" },
     { href: "/sandbox",  icon: FlaskConical,     label: "Filter Sandbox" },
+    { href: "/roi",      icon: DollarSign,       label: "Dollar Impact" },
   ]},
   { group: "Platform", items: [
     { href: "/platform/metrics", icon: Activity,   label: "Metrics" },
@@ -64,7 +65,7 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-border">
-        <p className="text-[10px] text-gray-600">v4.11 · SOC Dashboard</p>
+        <p className="text-[10px] text-gray-600">v4.19 · SOC Dashboard</p>
       </div>
     </aside>
   );
