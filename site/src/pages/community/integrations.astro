@@ -1,0 +1,386 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Integrations — Shadow Warden AI"
+  description="Connect Obsidian and Slack to your community."
+>
+  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+    <div class="mx-auto max-w-3xl px-4 lg:px-8">
+
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 mb-6 text-[13px]" style="color:#475569">
+        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Communities</a>
+        <span>›</span>
+        <a href="#" id="bc-comm" style="color:#64748b;text-decoration:none">—</a>
+        <span>›</span>
+        <span style="color:#94a3b8">Integrations</span>
+      </div>
+
+      <!-- Tab nav -->
+      <div class="flex gap-2 mb-6" style="overflow-x:auto;padding-bottom:4px" id="tab-nav"></div>
+
+      <!-- Obsidian panel -->
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(124,77,255,0.12);border:1px solid rgba(124,77,255,0.25);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔮</div>
+          <div>
+            <p class="text-[15px] font-semibold" style="color:#f1f5f9">Obsidian Vault</p>
+            <p class="text-[12px]" style="color:#475569">Scan notes for secrets and PII using SecretRedactor</p>
+          </div>
+          <span id="obs-status-badge" style="margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569">
+            DISCONNECTED
+          </span>
+        </div>
+
+        <div style="padding:20px 24px">
+          <!-- Vault path -->
+          <div class="mb-4">
+            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">Vault Path</label>
+            <div style="display:flex;gap:10px">
+              <input id="obs-path" type="text" placeholder="/Users/you/vault  or  C:\Users\you\vault"
+                     style="flex:1;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#f1f5f9;font-size:13px;font-family:monospace;outline:none;transition:border-color 0.2s"
+                     onfocus="this.style.borderColor='rgba(124,77,255,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+              <button id="obs-connect-btn"
+                      style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap;background:rgba(124,77,255,0.12);border:1px solid rgba(124,77,255,0.3);color:#7c4dff"
+                      onmouseover="this.style.background='rgba(124,77,255,0.22)'" onmouseout="this.style.background='rgba(124,77,255,0.12)'">
+                Connect
+              </button>
+            </div>
+          </div>
+
+          <!-- Scan controls -->
+          <div class="flex items-center gap-3 mb-5">
+            <button id="obs-scan-btn" disabled
+                    style="padding:9px 18px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#475569;font-size:13px;font-weight:700;cursor:not-allowed;transition:all 0.15s">
+              🔍 Scan Now
+            </button>
+            <p id="obs-scan-msg" style="font-size:12px;color:#475569"></p>
+          </div>
+
+          <!-- Results table -->
+          <div id="obs-results" style="display:none">
+            <p class="text-[13px] font-semibold mb-3" style="color:#f1f5f9">Scan Results</p>
+            <div id="obs-results-table" style="border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slack panel -->
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden">
+        <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px">
+          <div style="width:38px;height:38px;border-radius:10px;background:rgba(74,21,75,0.3);border:1px solid rgba(229,0,120,0.25);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">💬</div>
+          <div>
+            <p class="text-[15px] font-semibold" style="color:#f1f5f9">Slack Workspace</p>
+            <p class="text-[12px]" style="color:#475569">Alert your team on HIGH/BLOCK verdicts via incoming webhook</p>
+          </div>
+          <span id="slack-status-badge" style="margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569">
+            DISCONNECTED
+          </span>
+        </div>
+
+        <div style="padding:20px 24px">
+          <!-- Webhook URL -->
+          <div class="mb-5">
+            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">Incoming Webhook URL</label>
+            <div style="display:flex;gap:10px">
+              <input id="slack-url" type="url" placeholder="https://hooks.slack.com/services/T…/B…/…"
+                     style="flex:1;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#f1f5f9;font-size:13px;font-family:monospace;outline:none;transition:border-color 0.2s"
+                     onfocus="this.style.borderColor='rgba(229,0,120,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+              <button id="slack-connect-btn"
+                      style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap;background:rgba(229,0,120,0.08);border:1px solid rgba(229,0,120,0.25);color:#e5007a"
+                      onmouseover="this.style.background='rgba(229,0,120,0.16)'" onmouseout="this.style.background='rgba(229,0,120,0.08)'">
+                Connect
+              </button>
+            </div>
+          </div>
+
+          <!-- Notification toggles -->
+          <div class="mb-5">
+            <p class="text-[12px] font-semibold uppercase tracking-wider mb-3" style="color:#64748b">Notification Triggers</p>
+            <div id="slack-toggles" style="display:flex;flex-direction:column;gap:10px">
+              <!-- rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Test alert -->
+          <div style="display:flex;align-items:center;gap-12px;gap:12px">
+            <button id="slack-test-btn" disabled
+                    style="padding:9px 18px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#475569;font-size:13px;font-weight:700;cursor:not-allowed;transition:all 0.15s">
+              📨 Send Test Alert
+            </button>
+            <p id="slack-test-msg" style="font-size:12px;color:#30D158;display:none">✓ Test alert sent to Slack (simulation)</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <script>
+    const COMM_KEY = 'sw_communities';
+    let communityId = '';
+
+    function getParam(name: string): string {
+      return new URLSearchParams(window.location.search).get(name) || '';
+    }
+
+    function loadCommunities(): any[] {
+      try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
+    }
+
+    function getIntegrations(id: string): any {
+      try { return JSON.parse(localStorage.getItem(`sw_integrations_${id}`) || '{}'); } catch { return {}; }
+    }
+
+    function saveIntegrations(id: string, data: any) {
+      localStorage.setItem(`sw_integrations_${id}`, JSON.stringify(data));
+    }
+
+    function esc(s: string): string {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function renderTabs(id: string) {
+      const tabs = [
+        { label: '📋 Overview',      href: `/community/view?id=${encodeURIComponent(id)}` },
+        { label: '👥 Members',       href: `/community/members?id=${encodeURIComponent(id)}` },
+        { label: '🔒 Tunnel',        href: `/community/tunnel?id=${encodeURIComponent(id)}` },
+        { label: '🔌 Integrations',  href: `/community/integrations?id=${encodeURIComponent(id)}`, active: true },
+        { label: '⚙️ Settings',      href: `/community/settings?id=${encodeURIComponent(id)}` },
+      ];
+      const nav = document.getElementById('tab-nav');
+      if (nav) {
+        nav.innerHTML = tabs.map(t => `
+          <a href="${t.href}"
+             style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
+                    ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4'
+                               : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
+                    transition:all 0.15s"
+             ${!t.active ? `onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+            ${t.label}
+          </a>`).join('');
+      }
+    }
+
+    // ── Obsidian ───────────────────────────────────────────────────────────────
+
+    const MOCK_NOTES = [
+      { name: 'Meeting Notes 2026-05-16',  dataClass: 'GENERAL', verdict: 'SAFE',    flags: [] },
+      { name: 'API Keys Backup',           dataClass: 'SECRET',  verdict: 'BLOCKED', flags: ['secret_leak', 'high_entropy'] },
+      { name: 'Research on ML Models',     dataClass: 'GENERAL', verdict: 'SAFE',    flags: [] },
+      { name: 'Customer Contact List',     dataClass: 'PII',     verdict: 'WARNING', flags: ['pii_detected'] },
+      { name: 'Project Architecture.md',  dataClass: 'GENERAL', verdict: 'SAFE',    flags: [] },
+    ];
+
+    const VERDICT_STYLE: Record<string, string> = {
+      SAFE:    'background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#30D158',
+      WARNING: 'background:rgba(255,214,10,0.1);border:1px solid rgba(255,214,10,0.25);color:#FFD60A',
+      BLOCKED: 'background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.25);color:#FF2D55',
+    };
+
+    const CLASS_STYLE: Record<string, string> = {
+      GENERAL: 'color:#94a3b8',
+      PII:     'color:#FFD60A',
+      SECRET:  'color:#FF2D55',
+    };
+
+    function updateObsidianUI(cfg: any) {
+      const connected = !!cfg.obs_connected;
+      const badge = document.getElementById('obs-status-badge')!;
+      badge.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
+      badge.style.cssText = connected
+        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#30D158'
+        : 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569';
+
+      const scanBtn = document.getElementById('obs-scan-btn') as HTMLButtonElement;
+      scanBtn.disabled = !connected;
+      scanBtn.style.cursor = connected ? 'pointer' : 'not-allowed';
+      scanBtn.style.color = connected ? '#BF5AF2' : '#475569';
+      scanBtn.style.background = connected ? 'rgba(191,90,242,0.1)' : 'rgba(255,255,255,0.03)';
+      scanBtn.style.border = connected ? '1px solid rgba(191,90,242,0.25)' : '1px solid rgba(255,255,255,0.08)';
+
+      const pathInput = document.getElementById('obs-path') as HTMLInputElement;
+      if (cfg.obs_path) pathInput.value = cfg.obs_path;
+
+      const connectBtn = document.getElementById('obs-connect-btn') as HTMLButtonElement;
+      connectBtn.textContent = connected ? 'Disconnect' : 'Connect';
+
+      // Restore scan results if any
+      if (cfg.obs_results) renderObsidianResults(cfg.obs_results);
+    }
+
+    function renderObsidianResults(notes: any[]) {
+      const container = document.getElementById('obs-results')!;
+      const table = document.getElementById('obs-results-table')!;
+      container.style.display = 'block';
+
+      table.innerHTML = notes.map((n: any, i: number) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;${i < notes.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.05)' : ''};background:${i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent'}">
+          <span style="font-size:14px">📄</span>
+          <div style="flex:1;min-width:0">
+            <p style="font-size:13px;font-weight:600;color:#e2e8f0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.name)}</p>
+            <p style="font-size:11px;margin:2px 0 0;${CLASS_STYLE[n.dataClass] || 'color:#94a3b8'}">${n.dataClass}${n.flags.length ? ' · ' + n.flags.join(', ').replace(/_/g, ' ') : ''}</p>
+          </div>
+          <span style="padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;font-family:monospace;flex-shrink:0;${VERDICT_STYLE[n.verdict]}">${n.verdict}</span>
+          ${n.verdict !== 'BLOCKED' ? `
+          <button data-note="${esc(n.name)}" class="share-note-btn"
+                  style="padding:4px 10px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:6px;color:#06b6d4;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:all 0.15s"
+                  onmouseover="this.style.background='rgba(6,182,212,0.18)'" onmouseout="this.style.background='rgba(6,182,212,0.08)'">
+            Share
+          </button>` : `<span style="font-size:11px;color:#FF2D55;flex-shrink:0">🚫 Blocked</span>`}
+        </div>
+      `).join('');
+
+      table.querySelectorAll('.share-note-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const name = (btn as HTMLElement).dataset.note;
+          alert(`"${name}" shared to community feed (simulation). In production, this calls POST /obsidian/share.`);
+        });
+      });
+    }
+
+    function initObsidian(cfg: any) {
+      updateObsidianUI(cfg);
+
+      document.getElementById('obs-connect-btn')!.addEventListener('click', () => {
+        const path = (document.getElementById('obs-path') as HTMLInputElement).value.trim();
+        const connected = !cfg.obs_connected;
+        if (connected && !path) {
+          (document.getElementById('obs-path') as HTMLInputElement).style.borderColor = 'rgba(255,45,85,0.5)';
+          return;
+        }
+        cfg.obs_connected = connected;
+        cfg.obs_path = path;
+        if (!connected) cfg.obs_results = null;
+        saveIntegrations(communityId, cfg);
+        updateObsidianUI(cfg);
+      });
+
+      document.getElementById('obs-scan-btn')!.addEventListener('click', () => {
+        const msg = document.getElementById('obs-scan-msg')!;
+        msg.style.color = '#06b6d4';
+        msg.textContent = 'Scanning vault…';
+        setTimeout(() => {
+          msg.style.color = '#30D158';
+          msg.textContent = `✓ Scanned ${MOCK_NOTES.length} notes — ${MOCK_NOTES.filter(n => n.verdict !== 'SAFE').length} issue(s) found`;
+          cfg.obs_results = MOCK_NOTES;
+          saveIntegrations(communityId, cfg);
+          renderObsidianResults(MOCK_NOTES);
+        }, 900);
+      });
+    }
+
+    // ── Slack ──────────────────────────────────────────────────────────────────
+
+    const SLACK_TOGGLES = [
+      { key: 'notify_high',   label: 'Notify on HIGH verdict',  desc: 'Alert when a request is flagged as high risk' },
+      { key: 'notify_block',  label: 'Notify on BLOCK verdict', desc: 'Alert when a request is blocked by the pipeline', default: true },
+      { key: 'weekly_digest', label: 'Weekly security digest',  desc: 'Summary every Monday at 09:00 UTC' },
+    ];
+
+    function updateSlackUI(cfg: any) {
+      const connected = !!cfg.slack_connected;
+      const badge = document.getElementById('slack-status-badge')!;
+      badge.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
+      badge.style.cssText = connected
+        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#30D158'
+        : 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569';
+
+      const urlInput = document.getElementById('slack-url') as HTMLInputElement;
+      if (cfg.slack_url) urlInput.value = cfg.slack_url;
+
+      const connectBtn = document.getElementById('slack-connect-btn')!;
+      connectBtn.textContent = connected ? 'Disconnect' : 'Connect';
+
+      const testBtn = document.getElementById('slack-test-btn') as HTMLButtonElement;
+      testBtn.disabled = !connected;
+      testBtn.style.cursor = connected ? 'pointer' : 'not-allowed';
+      testBtn.style.color = connected ? '#e5007a' : '#475569';
+      testBtn.style.background = connected ? 'rgba(229,0,120,0.08)' : 'rgba(255,255,255,0.03)';
+      testBtn.style.border = connected ? '1px solid rgba(229,0,120,0.2)' : '1px solid rgba(255,255,255,0.08)';
+
+      // Render toggles
+      const togglesEl = document.getElementById('slack-toggles')!;
+      togglesEl.innerHTML = SLACK_TOGGLES.map(t => {
+        const checked = cfg[t.key] !== undefined ? !!cfg[t.key] : (t as any).default ?? false;
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;gap:12px">
+            <div>
+              <p style="font-size:13px;font-weight:600;color:#e2e8f0;margin:0 0 2px">${t.label}</p>
+              <p style="font-size:11px;color:#475569;margin:0">${t.desc}</p>
+            </div>
+            <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;flex-shrink:0">
+              <input type="checkbox" data-key="${t.key}" ${checked ? 'checked' : ''} style="opacity:0;width:0;height:0;position:absolute" />
+              <span class="s-track" style="position:absolute;inset:0;border-radius:12px;background:${checked ? 'rgba(229,0,120,0.4)' : '#1e293b'};border:1px solid rgba(255,255,255,0.08);transition:all 0.2s"></span>
+              <span class="s-thumb" style="position:absolute;top:3px;left:${checked ? '24px' : '3px'};width:16px;height:16px;border-radius:50%;background:${checked ? '#e5007a' : '#475569'};transition:all 0.2s"></span>
+            </label>
+          </div>`;
+      }).join('');
+
+      // Toggle listeners
+      togglesEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const input = cb as HTMLInputElement;
+          const key = input.dataset.key!;
+          const label2 = input.closest('label');
+          if (label2) {
+            const track = label2.querySelector('.s-track') as HTMLElement;
+            const thumb = label2.querySelector('.s-thumb') as HTMLElement;
+            if (track) track.style.background = input.checked ? 'rgba(229,0,120,0.4)' : '#1e293b';
+            if (thumb) { thumb.style.background = input.checked ? '#e5007a' : '#475569'; thumb.style.left = input.checked ? '24px' : '3px'; }
+          }
+          cfg[key] = input.checked;
+          saveIntegrations(communityId, cfg);
+        });
+      });
+    }
+
+    function initSlack(cfg: any) {
+      updateSlackUI(cfg);
+
+      document.getElementById('slack-connect-btn')!.addEventListener('click', () => {
+        const url = (document.getElementById('slack-url') as HTMLInputElement).value.trim();
+        const connected = !cfg.slack_connected;
+        if (connected && !url) {
+          (document.getElementById('slack-url') as HTMLInputElement).style.borderColor = 'rgba(255,45,85,0.5)';
+          return;
+        }
+        cfg.slack_connected = connected;
+        cfg.slack_url = url;
+        saveIntegrations(communityId, cfg);
+        updateSlackUI(cfg);
+      });
+
+      document.getElementById('slack-test-btn')!.addEventListener('click', () => {
+        const msg = document.getElementById('slack-test-msg')!;
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 3000);
+      });
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+
+    function init() {
+      communityId = getParam('id');
+      if (!communityId) { window.location.href = '/community'; return; }
+
+      const comms = loadCommunities();
+      const c = comms.find((x: any) => x.id === communityId);
+      if (!c) { window.location.href = '/community'; return; }
+
+      const bcEl = document.getElementById('bc-comm');
+      if (bcEl) { bcEl.textContent = c.name; (bcEl as HTMLAnchorElement).href = `/community/view?id=${encodeURIComponent(communityId)}`; }
+      document.title = `Integrations · ${c.name} — Shadow Warden AI`;
+
+      renderTabs(communityId);
+
+      const cfg = getIntegrations(communityId);
+      initObsidian(cfg);
+      initSlack(cfg);
+    }
+
+    init();
+  </script>
+</BaseLayout>

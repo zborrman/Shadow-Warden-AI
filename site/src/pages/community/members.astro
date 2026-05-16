@@ -87,8 +87,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const tabs = [
         { label: '📋 Overview', href: `/community/view?id=${encodeURIComponent(id)}` },
         { label: '👥 Members', href: `/community/members?id=${encodeURIComponent(id)}`, active: true },
-        { label: '🔒 Tunnel', href: `/community/tunnel?id=${encodeURIComponent(id)}` },
-        { label: '⚙️ Settings', href: `/community/settings?id=${encodeURIComponent(id)}` },
+        { label: '🔒 Tunnel',       href: `/community/tunnel?id=${encodeURIComponent(id)}` },
+        { label: '🔌 Integrations', href: `/community/integrations?id=${encodeURIComponent(id)}` },
+        { label: '⚙️ Settings',     href: `/community/settings?id=${encodeURIComponent(id)}` },
       ];
       const nav = document.getElementById('tab-nav');
       if (nav) {

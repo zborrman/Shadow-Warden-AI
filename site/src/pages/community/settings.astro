@@ -102,8 +102,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const tabs = [
         { label: '📋 Overview', href: `/community/view?id=${encodeURIComponent(id)}` },
         { label: '👥 Members', href: `/community/members?id=${encodeURIComponent(id)}` },
-        { label: '🔒 Tunnel', href: `/community/tunnel?id=${encodeURIComponent(id)}` },
-        { label: '⚙️ Settings', href: `/community/settings?id=${encodeURIComponent(id)}`, active: true },
+        { label: '🔒 Tunnel',       href: `/community/tunnel?id=${encodeURIComponent(id)}` },
+        { label: '🔌 Integrations', href: `/community/integrations?id=${encodeURIComponent(id)}` },
+        { label: '⚙️ Settings',     href: `/community/settings?id=${encodeURIComponent(id)}`, active: true },
       ];
       const nav = document.getElementById('tab-nav');
       if (nav) {
@@ -169,6 +170,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const cs = loadCommunities().filter((x: any) => x.id !== communityId);
         saveCommunities(cs);
         localStorage.removeItem(`sw_tunnel_${communityId}`);
+        localStorage.removeItem(`sw_integrations_${communityId}`);
         window.location.href = '/community';
       });
     }

@@ -177,7 +177,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     document.getElementById('clear-all-btn')?.addEventListener('click', () => {
       if (!confirm('Clear ALL community data including tunnels, account settings, and your USER ID? This cannot be undone.')) return;
       const comms = (() => { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } })();
-      comms.forEach((c: any) => localStorage.removeItem(`sw_tunnel_${c.id}`));
+      comms.forEach((c: any) => {
+        localStorage.removeItem(`sw_tunnel_${c.id}`);
+        localStorage.removeItem(`sw_integrations_${c.id}`);
+      });
       ['sw_communities', 'sw_account', 'sw_privacy', 'sw_user_id'].forEach(k => localStorage.removeItem(k));
       showMsg('✓ All data cleared. Redirecting…');
       setTimeout(() => { window.location.href = '/community'; }, 1500);
