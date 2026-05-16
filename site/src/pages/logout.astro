@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="Signed Out — Shadow Warden AI"
+            description="You have been signed out of Shadow Warden AI.">
+  <div class="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+         style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </div>
+
+    <h1 class="text-[32px] font-black mb-3" style="color:#f1f5f9">You've been signed out</h1>
+    <p class="text-[15px] max-w-sm mb-10" style="color:#94a3b8">
+      Your session has been cleared securely. See you next time.
+    </p>
+
+    <div class="flex flex-wrap items-center justify-center gap-3">
+      <a href="https://portal.shadow-warden-ai.com/login"
+         class="px-6 py-3 rounded-xl text-[14px] font-semibold text-white"
+         style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+        Sign in again
+      </a>
+      <a href="/"
+         class="px-6 py-3 rounded-xl text-[14px] font-medium transition-colors"
+         style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
+        Back to homepage
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Clear any locally stored preferences except theme
+    const theme = localStorage.getItem('sw-theme');
+    localStorage.clear();
+    if (theme) localStorage.setItem('sw-theme', theme);
+  </script>
+</BaseLayout>

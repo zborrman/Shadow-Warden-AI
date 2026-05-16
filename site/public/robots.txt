@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /logout
+Disallow: /goodbye
+
+Sitemap: https://shadow-warden-ai.com/sitemap-index.xml

@@ -1,424 +1,502 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import ConfirmModal from '../components/ConfirmModal.astro';
+import roadmap from '../data/roadmap.json';
+
+const secFeatures   = roadmap.filter(r => r.category === 'Settings' && r.subcategory === 'Security');
+const gdprFeatures  = roadmap.filter(r => r.category === 'Settings' && r.subcategory === 'GDPR');
+const integrations  = roadmap.filter(r => r.category === 'Settings' && r.subcategory === 'Integrations');
+
+const statusBadge: Record<string, string> = {
+  shipped:     'color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)',
+  'in-progress':'color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)',
+  planned:     'color:#6366f1;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)',
+  cancelled:   'color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)',
+};
+const statusIcon: Record<string, string> = {
+  shipped: '✅', 'in-progress': '🔄', planned: '📋', cancelled: '❌',
+};
 ---
-<BaseLayout title="Settings — Shadow Warden AI"
-            description="Tune Shadow Warden's 9-layer pipeline, GDPR controls, API keys, and more — live config with no restarts.">
-  <div class="pt-14">
 
-    <!-- ── Hero ── -->
-    <section class="relative py-16 overflow-hidden">
-      <div class="absolute inset-0 pointer-events-none"
-           style="background-image:linear-gradient(rgba(48,209,88,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(48,209,88,0.03) 1px,transparent 1px);background-size:56px 56px"></div>
-      <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[400px] pointer-events-none"
-           style="background:radial-gradient(ellipse,rgba(48,209,88,0.05) 0%,transparent 65%)"></div>
-      <div class="relative z-10 mx-auto max-w-5xl px-6 text-center">
-        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#30D158;background:rgba(48,209,88,0.08);border:1px solid rgba(48,209,88,0.2)">
-          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#30D158"></span>
-          Configuration & Governance
+<BaseLayout
+  title="Settings — Shadow Warden AI"
+  description="Configure your pipeline thresholds, manage API keys, GDPR controls, integrations, and account security."
+>
+  <div class="pt-14 min-h-screen" style="background:#03050f">
+
+    <!-- Page header -->
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#0a0a14">
+      <div class="mx-auto max-w-5xl px-4 lg:px-8 py-8">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[16px]"
+               style="background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.2)">⚙</div>
+          <h1 class="text-[22px] font-bold" style="color:#f1f5f9">Settings</h1>
         </div>
-        <h1 class="text-[clamp(32px,5vw,62px)] font-black leading-[1.05] tracking-tight mb-4" style="color:#f1f5f9">
-          Full Control.<br/>
-          <span style="background:linear-gradient(135deg,#30D158,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-            Zero Compromise.
-          </span>
-        </h1>
-        <p class="text-[16px] leading-relaxed max-w-xl mx-auto" style="color:#94a3b8">
-          Tune your pipeline, manage keys, configure GDPR controls — live, no container restart required.
-        </p>
+        <p class="text-[13px]" style="color:#64748b">Manage your project configuration, security, and integrations.</p>
       </div>
-    </section>
+    </div>
 
-    <!-- ══════════════════════════════════════════════════════════
-         SETTINGS PANEL MOCKUP (matches the design)
-         ══════════════════════════════════════════════════════════ -->
-    <section class="pb-20">
-      <div class="mx-auto max-w-7xl px-4 lg:px-8">
+    <div class="mx-auto max-w-5xl px-4 lg:px-8 py-8">
 
-        <!-- Browser chrome -->
-        <div class="rounded-2xl overflow-hidden shadow-2xl" style="border:1px solid rgba(255,255,255,0.08)">
-          <div class="flex items-center gap-2 px-4 py-3" style="background:#0d0d16;border-bottom:1px solid rgba(255,255,255,0.06)">
-            <span class="w-3 h-3 rounded-full" style="background:#ef4444"></span>
-            <span class="w-3 h-3 rounded-full" style="background:#f59e0b"></span>
-            <span class="w-3 h-3 rounded-full" style="background:#30D158"></span>
-            <span class="ml-3 text-[11px] font-mono px-3 py-0.5 rounded" style="color:#334155;background:rgba(255,255,255,0.03)">
-              portal.shadow-warden-ai.com/settings
-            </span>
+      <!-- Tab nav -->
+      <div class="flex items-center gap-1 mb-8 overflow-x-auto pb-1"
+           style="border-bottom:1px solid rgba(255,255,255,0.06)">
+        {(['General','Appearance','Security','Integrations','GDPR','Danger Zone'] as const).map(tab => (
+          <button
+            class="tab-btn px-4 py-2.5 text-[13px] font-medium whitespace-nowrap rounded-t-lg transition-all"
+            data-tab={tab.toLowerCase().replace(' ','-')}
+            style="color:#64748b;border-bottom:2px solid transparent">
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      <!-- ── GENERAL ── -->
+      <div id="tab-general" class="tab-panel">
+        <div class="settings-card mb-5">
+          <h2 class="settings-section-title">Project Identity</h2>
+          <p class="settings-section-sub">Update the display name and description of your project.</p>
+          <div class="mt-5 grid gap-4 max-w-lg">
+            <div>
+              <label class="settings-label">Project name</label>
+              <input id="proj-name" type="text" value="Shadow Warden AI"
+                     class="settings-input" />
+            </div>
+            <div>
+              <label class="settings-label">Description</label>
+              <textarea id="proj-desc" rows="2"
+                        class="settings-input resize-none"
+                        >14-layer real-time AI security gateway.</textarea>
+            </div>
+            <div class="flex items-center gap-3 pt-1">
+              <button onclick="saveGeneral()" class="btn-primary-sm">Save changes</button>
+              <span id="save-msg" class="text-[12px] hidden" style="color:#10b981">✓ Saved</span>
+            </div>
           </div>
+        </div>
 
-          <!-- Two-column layout -->
-          <div class="flex" style="background:#0a0a0f;min-height:580px">
-
-            <!-- ── Sidebar ── -->
-            <nav class="w-48 shrink-0 flex flex-col py-5" style="background:#111118;border-right:1px solid rgba(255,255,255,0.06)">
-              <div class="px-4 mb-3 text-[10px] font-bold tracking-widest uppercase" style="color:#334155">Settings</div>
-
-              {[
-                { icon:'⊡', label:'Filter pipeline', active: true,  badge: null,  danger: false },
-                { icon:'⊕', label:'API keys',        active: false, badge: '2',   danger: false },
-                { icon:'⋯', label:'Webhooks',        active: false, badge: null,  danger: false },
-                { icon:'≡', label:'Rules',            active: false, badge: null,  danger: false },
-                { icon:'⊙', label:'Team',             active: false, badge: '5',   danger: false },
-                { icon:'◈', label:'Billing',          active: false, badge: null,  danger: false },
-              ].map(item => (
-                <div class={`flex items-center justify-between px-3 py-2 mx-2 rounded-lg text-[12px] font-medium cursor-pointer transition-all mb-0.5 ${item.active ? 'active-nav' : ''}`}
-                     style={item.active
-                       ? 'background:rgba(99,102,241,0.15);color:#a5b4fc;border-left:2px solid #6366f1'
-                       : 'color:#64748b;border-left:2px solid transparent'}>
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span class="text-[10px] px-1.5 py-0.5 rounded-md font-semibold"
-                          style={item.active ? 'background:rgba(99,102,241,0.25);color:#818cf8' : 'background:rgba(255,255,255,0.06);color:#475569'}>
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              ))}
-
-              <div class="mt-auto mx-2">
-                <div class="flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium cursor-pointer"
-                     style="color:#ef4444;border-left:2px solid transparent">
-                  <span>⚠</span> Danger zone
-                </div>
+        <div class="settings-card">
+          <h2 class="settings-section-title">Live Config API</h2>
+          <p class="settings-section-sub">Tune pipeline parameters without container restarts. Changes propagate in &lt;100ms.</p>
+          <div class="mt-5 grid gap-4 max-w-lg">
+            <div class="flex items-center justify-between py-3 border-b" style="border-color:rgba(255,255,255,0.06)">
+              <div>
+                <div class="text-[13px] font-medium" style="color:#cbd5e1">Semantic threshold</div>
+                <div class="text-[11px]" style="color:#475569">ML jailbreak score cutoff (0–1)</div>
               </div>
-            </nav>
+              <input type="number" value="0.72" min="0" max="1" step="0.01"
+                     class="w-20 text-center settings-input text-[13px]" />
+            </div>
+            <div class="flex items-center justify-between py-3 border-b" style="border-color:rgba(255,255,255,0.06)">
+              <div>
+                <div class="text-[13px] font-medium" style="color:#cbd5e1">Rate limit</div>
+                <div class="text-[11px]" style="color:#475569">Requests per minute per tenant</div>
+              </div>
+              <input type="number" value="240" min="10" max="10000"
+                     class="w-24 text-center settings-input text-[13px]" />
+            </div>
+            <div class="flex items-center justify-between py-3">
+              <div>
+                <div class="text-[13px] font-medium" style="color:#cbd5e1">Evolution Engine</div>
+                <div class="text-[11px]" style="color:#475569">Auto-rule generation via Claude Opus</div>
+              </div>
+              <label class="toggle-label">
+                <input type="checkbox" checked class="sr-only toggle-input" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <!-- ── Main content ── -->
-            <div class="flex-1 flex flex-col min-w-0">
+      <!-- ── APPEARANCE ── -->
+      <div id="tab-appearance" class="tab-panel hidden">
+        <div class="settings-card mb-5">
+          <h2 class="settings-section-title">Theme</h2>
+          <p class="settings-section-sub">Choose between dark and light mode. Preference is stored locally.</p>
+          <div class="mt-5 flex gap-3">
+            {(['dark','light','system'] as const).map(t => (
+              <button
+                class="theme-btn flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border transition-all"
+                data-theme={t}
+                style="border-color:rgba(255,255,255,0.08);background:rgba(255,255,255,0.02)">
+                <span class="text-[22px]">
+                  {t === 'dark' ? '🌙' : t === 'light' ? '☀️' : '💻'}
+                </span>
+                <span class="text-[12px] font-medium capitalize" style="color:#94a3b8">{t}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-              <!-- Content header -->
-              <div class="flex items-start justify-between px-8 py-5" style="border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div class="settings-card">
+          <h2 class="settings-section-title">Accessibility</h2>
+          <p class="settings-section-sub">WCAG 2.1 AA · EAA 2019/882. Controls are also accessible via the floating ♿ widget.</p>
+          <div class="mt-5 grid gap-3">
+            {[
+              { key: 'contrast',  label: 'High contrast',  hint: 'WCAG 1.4.6' },
+              { key: 'motion',    label: 'Reduce motion',  hint: 'WCAG 2.3.3' },
+              { key: 'dyslexia', label: 'Dyslexia font',  hint: 'OpenDyslexic' },
+              { key: 'focus',     label: 'Enhanced focus', hint: 'WCAG 2.4.11' },
+            ].map(item => (
+              <div class="flex items-center justify-between py-3 border-b" style="border-color:rgba(255,255,255,0.06)">
                 <div>
-                  <h2 class="text-[18px] font-bold mb-1" style="color:#f1f5f9">Filter pipeline</h2>
-                  <p class="text-[12px]" style="color:#64748b">Tune how Shadow Warden inspects every AI request before it leaves your perimeter.</p>
+                  <div class="text-[13px] font-medium" style="color:#cbd5e1">{item.label}</div>
+                  <div class="text-[11px]" style="color:#475569">{item.hint}</div>
                 </div>
-                <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold shrink-0"
-                     style="background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#30D158">
-                  <span class="w-1.5 h-1.5 rounded-full" style="background:#30D158"></span>
-                  ALL SYSTEMS HEALTHY
-                </div>
+                <label class="toggle-label">
+                  <input type="checkbox" data-a11y={item.key} class="sr-only toggle-input a11y-toggle" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
               </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-              <!-- Settings rows -->
-              <div class="flex-1 px-8 py-5 space-y-0" style="overflow:hidden">
-
-                <!-- Row 1: SemanticBrain -->
-                <div class="flex items-start justify-between py-5" style="border-bottom:1px solid rgba(255,255,255,0.05)">
-                  <div class="flex-1 min-w-0 pr-8">
-                    <div class="flex items-center gap-2 mb-1.5">
-                      <span class="text-[13px] font-semibold" style="color:#f1f5f9">SemanticBrain (ML cosine)</span>
-                      <span class="text-[10px] px-2 py-0.5 rounded font-bold" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.25)">RECOMMENDED</span>
-                    </div>
-                    <p class="text-[12px] leading-relaxed mb-1.5" style="color:#64748b">
-                      Async ML detection layer using all-MiniLM-L6-v2 embeddings. Catches paraphrased jailbreaks that regex rules miss.
-                    </p>
-                    <p class="text-[11px]" style="color:#334155">
-                      Adds <span style="color:#6366f1">~15ms</span> latency · <span style="color:#10b981">+18%</span> recall on adversarial set
-                    </p>
-                  </div>
-                  <!-- Toggle ON -->
-                  <div class="shrink-0 w-11 h-6 rounded-full flex items-center px-0.5 cursor-pointer"
-                       style="background:#6366f1;box-shadow:0 0 12px rgba(99,102,241,0.4)">
-                    <div class="w-5 h-5 rounded-full ml-auto" style="background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
-                  </div>
-                </div>
-
-                <!-- Row 2: EvolutionEngine -->
-                <div class="py-5" style="border-bottom:1px solid rgba(255,255,255,0.05)">
-                  <div class="flex items-start justify-between">
-                    <div class="flex-1 min-w-0 pr-8">
-                      <div class="flex items-center gap-2 mb-1.5">
-                        <span class="text-[13px] font-semibold" style="color:#f1f5f9">EvolutionEngine</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded font-bold" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)">BETA</span>
-                      </div>
-                      <p class="text-[12px] leading-relaxed mb-3" style="color:#64748b">
-                        Auto-generate new detection rules from blocked attacks via Claude Opus. Hot-reloads without restart.
-                      </p>
-                      <!-- Best practice callout -->
-                      <div class="rounded-lg px-4 py-3 text-[11px] leading-relaxed" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.18)">
-                        <span class="font-bold tracking-wider uppercase text-[9px] mr-2 px-1.5 py-0.5 rounded" style="background:rgba(99,102,241,0.2);color:#818cf8">BEST PRACTICE</span>
-                        <span style="color:#94a3b8">Enable in <strong style="color:#f1f5f9">staging first</strong>. Consumes API credits. Review the generated corpus weekly under <strong style="color:#f1f5f9">Rules → Auto-generated</strong>.</span>
-                      </div>
-                    </div>
-                    <!-- Toggle ON -->
-                    <div class="shrink-0 w-11 h-6 rounded-full flex items-center px-0.5 cursor-pointer"
-                         style="background:#6366f1;box-shadow:0 0 12px rgba(99,102,241,0.4)">
-                      <div class="w-5 h-5 rounded-full ml-auto" style="background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Row 3: GDPR strict mode -->
-                <div class="flex items-start justify-between py-5" style="border-bottom:1px solid rgba(255,255,255,0.05)">
-                  <div class="flex-1 min-w-0 pr-8">
-                    <div class="flex items-center gap-2 mb-1.5">
-                      <span class="text-[13px] font-semibold" style="color:#f1f5f9">GDPR strict mode</span>
-                      <span class="text-[10px] px-2 py-0.5 rounded font-bold" style="background:rgba(10,132,255,0.15);color:#60a5fa;border:1px solid rgba(10,132,255,0.25)">EU · SOC 2</span>
-                    </div>
-                    <p class="text-[12px] leading-relaxed mb-1.5" style="color:#64748b">
-                      Never log request content. Only metadata (type, length, timing) is persisted. Required for EU deployments.
-                    </p>
-                    <p class="text-[11px] font-mono" style="color:#334155">
-                      Endpoints <span style="color:#6366f1">/gdpr/export</span> and <span style="color:#6366f1">/gdpr/purge</span> rely on this
-                    </p>
-                  </div>
-                  <!-- Toggle ON -->
-                  <div class="shrink-0 w-11 h-6 rounded-full flex items-center px-0.5 cursor-pointer"
-                       style="background:#6366f1;box-shadow:0 0 12px rgba(99,102,241,0.4)">
-                    <div class="w-5 h-5 rounded-full ml-auto" style="background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
-                  </div>
-                </div>
-
-                <!-- Row 4: Sensitivity profile -->
-                <div class="flex items-start justify-between py-5" style="border-bottom:1px solid rgba(255,255,255,0.05)">
-                  <div class="flex-1 min-w-0 pr-8">
-                    <div class="text-[13px] font-semibold mb-1.5" style="color:#f1f5f9">Sensitivity profile</div>
-                    <p class="text-[12px]" style="color:#64748b">
-                      Tradeoff between false-positive rate and recall. <strong style="color:#f1f5f9">Balanced</strong> works for most workloads.
-                    </p>
-                  </div>
-                  <!-- Segmented control -->
-                  <div class="shrink-0 flex rounded-lg overflow-hidden text-[11px] font-semibold"
-                       style="border:1px solid rgba(255,255,255,0.1)">
-                    {['Strict','Balanced','Lenient'].map(opt => (
-                      <div class="px-3 py-1.5 cursor-pointer transition-all"
-                           style={opt === 'Balanced'
-                             ? 'background:#6366f1;color:#fff'
-                             : 'background:rgba(255,255,255,0.03);color:#475569'}>
-                        {opt}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <!-- Row 5: Rate limit -->
-                <div class="flex items-start justify-between py-5">
-                  <div class="flex-1 min-w-0 pr-8">
-                    <div class="text-[13px] font-semibold mb-1.5" style="color:#f1f5f9">Rate limit (per API key)</div>
-                    <p class="text-[12px]" style="color:#64748b">
-                      Hard cap on requests per key per minute. Above 1,000 may require dedicated Redis.
-                    </p>
-                  </div>
-                  <!-- Number input -->
-                  <div class="shrink-0 flex items-center gap-2">
-                    <div class="text-[14px] font-bold px-3 py-1.5 rounded-lg text-right"
-                         style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;min-width:72px">
-                      240
-                    </div>
-                    <span class="text-[11px]" style="color:#475569">req/min</span>
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- ── Bottom save bar ── -->
-              <div class="flex items-center justify-between px-8 py-4" style="background:#0d0d16;border-top:1px solid rgba(255,255,255,0.06)">
-                <div class="text-[11px]" style="color:#334155">
-                  Last saved <strong style="color:#475569">2 min ago</strong> by <span style="color:#6366f1">ops@shadowwarden.ai</span>
-                </div>
-                <div class="flex gap-3">
-                  <button class="px-4 py-1.5 rounded-lg text-[12px] font-medium transition-all"
-                          style="color:#475569;border:1px solid rgba(255,255,255,0.08);background:transparent">
-                    Reset to defaults
-                  </button>
-                  <button class="px-4 py-1.5 rounded-lg text-[12px] font-semibold"
-                          style="background:#6366f1;color:#fff;box-shadow:0 0 16px rgba(99,102,241,0.35)">
-                    Save changes
-                  </button>
-                </div>
-              </div>
-
-            </div>
+      <!-- ── SECURITY ── -->
+      <div id="tab-security" class="tab-panel hidden">
+        <div class="settings-card mb-5">
+          <h2 class="settings-section-title">API Keys</h2>
+          <p class="settings-section-sub">Per-tenant keys with SHA-256 constant-time compare. Fail-closed — service won't start without a valid key.</p>
+          <div class="mt-5 flex gap-3">
+            <input type="password" value="sw-key-••••••••••••••••••••••••••••••••"
+                   class="settings-input flex-1 font-mono text-[12px]" readonly />
+            <button class="btn-secondary-sm" onclick="copyKey(this)">Copy</button>
+            <button class="btn-secondary-sm" style="color:#ef4444;border-color:rgba(239,68,68,0.3)">Rotate</button>
           </div>
         </div>
 
-        <!-- Caption -->
-        <p class="text-center mt-4 text-[12px]" style="color:#334155">
-          Live in the SOC portal ·
-          <a href="https://portal.shadow-warden-ai.com" target="_blank" class="underline" style="color:#6366f1">Open Settings →</a>
-        </p>
-      </div>
-    </section>
+        <div class="settings-card mb-5">
+          <h2 class="settings-section-title">Security Features</h2>
+          <div class="mt-4 grid gap-3">
+            {secFeatures.map(f => (
+              <div class="flex items-start gap-4 p-4 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
+                <span class="text-[18px] mt-0.5">{statusIcon[f.status] ?? '📋'}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <span class="text-[13px] font-semibold" style="color:#f1f5f9">{f.feature}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style={statusBadge[f.status] ?? statusBadge.planned}>
+                      {f.status}
+                    </span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="color:#475569;background:rgba(255,255,255,0.04)">{f.tier}</span>
+                  </div>
+                  <p class="text-[12px] leading-relaxed" style="color:#64748b">{f.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-    <!-- ── Stats strip ── -->
-    <section class="py-10 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
-      <div class="mx-auto max-w-5xl px-4 lg:px-8">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden"
-             style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.06)">
-          {[
-            { val:'8',   label:'Jurisdictions',        color:'#30D158' },
-            { val:'5',   label:'Vault connectors',     color:'#06b6d4' },
-            { val:'0',   label:'Plaintext in memory',  color:'#f59e0b' },
-            { val:'7yr', label:'Attestation TTL',      color:'#6366f1' },
-          ].map(s => (
-            <div class="px-5 py-5 text-center" style="background:#0a0a0f">
-              <div class="text-[26px] font-black leading-none mb-1" style={`color:${s.color}`}>{s.val}</div>
-              <div class="text-[10px] font-semibold uppercase tracking-wider" style="color:#475569">{s.label}</div>
+        <div class="settings-card">
+          <h2 class="settings-section-title">Change Password</h2>
+          <div class="mt-5 grid gap-3 max-w-md">
+            <div>
+              <label class="settings-label">Current password</label>
+              <input type="password" placeholder="••••••••" class="settings-input" />
             </div>
-          ))}
+            <div>
+              <label class="settings-label">New password</label>
+              <input type="password" placeholder="••••••••" class="settings-input" />
+            </div>
+            <div>
+              <label class="settings-label">Confirm new password</label>
+              <input type="password" placeholder="••••••••" class="settings-input" />
+            </div>
+            <button class="btn-primary-sm w-fit mt-1">Update password</button>
+          </div>
         </div>
       </div>
-    </section>
 
-    <!-- ── Feature grid ── -->
-    <section class="py-20">
-      <div class="mx-auto max-w-7xl px-4 lg:px-8">
-        <div class="text-center mb-12">
-          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
-            Every Setting. Every Policy.
-          </h2>
-          <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
-            Secrets, routing, auth, GDPR — all governed through a single API.
+      <!-- ── INTEGRATIONS ── -->
+      <div id="tab-integrations" class="tab-panel hidden">
+        <div class="settings-card">
+          <h2 class="settings-section-title">Connected Integrations</h2>
+          <p class="settings-section-sub">Manage connections to external services and tools.</p>
+          <div class="mt-5 grid gap-4">
+            {integrations.map(f => (
+              <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] flex-shrink-0"
+                     style="background:rgba(255,255,255,0.04)">
+                  {f.id === 'S-09' ? '🔌' : f.id === 'S-10' ? '💬' : f.id === 'S-11' ? '⚙' : '🔗'}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-0.5">
+                    <span class="text-[13px] font-semibold" style="color:#f1f5f9">{f.feature}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style={statusBadge[f.status] ?? statusBadge.planned}>
+                      {f.status}
+                    </span>
+                  </div>
+                  <p class="text-[12px]" style="color:#64748b">{f.description}</p>
+                </div>
+                <label class="toggle-label flex-shrink-0">
+                  <input type="checkbox" checked={f.status === 'shipped'} class="sr-only toggle-input" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
+              </div>
+            ))}
+
+            <!-- Manual integration cards -->
+            {[
+              { name: 'PagerDuty', icon: '🚨', desc: 'Real-time HIGH/BLOCK incident escalation via PagerDuty Events API v2.', connected: true },
+              { name: 'Splunk HEC', icon: '📊', desc: 'Stream security events to your Splunk SIEM via HTTP Event Collector.', connected: false },
+              { name: 'LangChain', icon: '🦜', desc: 'Drop-in WardenCallback for LangChain pipelines. Zero code changes required.', connected: true },
+            ].map(item => (
+              <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] flex-shrink-0"
+                     style="background:rgba(255,255,255,0.04)">{item.icon}</div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[13px] font-semibold mb-0.5" style="color:#f1f5f9">{item.name}</div>
+                  <p class="text-[12px]" style="color:#64748b">{item.desc}</p>
+                </div>
+                <label class="toggle-label flex-shrink-0">
+                  <input type="checkbox" checked={item.connected} class="sr-only toggle-input" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <!-- ── GDPR ── -->
+      <div id="tab-gdpr" class="tab-panel hidden">
+        <div class="settings-card mb-5">
+          <h2 class="settings-section-title">Data Governance</h2>
+          <p class="settings-section-sub">GDPR Articles 13, 15, 17 controls. Raw content is never logged — metadata only.</p>
+          <div class="mt-5 grid gap-3">
+            {gdprFeatures.map(f => (
+              <div class="flex items-start gap-4 p-4 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
+                <span class="text-[18px] mt-0.5">{statusIcon[f.status] ?? '📋'}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <span class="text-[13px] font-semibold" style="color:#f1f5f9">{f.feature}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style={statusBadge[f.status] ?? statusBadge.planned}>{f.status}</span>
+                  </div>
+                  <p class="text-[12px] leading-relaxed" style="color:#64748b">{f.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-section-title">Export & Erasure</h2>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <button class="btn-secondary-sm">Export my data (Art. 15)</button>
+            <button class="btn-secondary-sm" style="color:#f59e0b;border-color:rgba(245,158,11,0.3)">
+              Request erasure (Art. 17)
+            </button>
+          </div>
+          <p class="text-[11px] mt-3" style="color:#334155">
+            Export is delivered to your registered email within 72 hours. Erasure completes within 30 days.
           </p>
         </div>
+      </div>
 
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[
-            {
-              icon:'🔑', color:'#30D158', tier:'Community Business+',
-              title:'Secrets Governance',
-              desc:'5 vault connectors: AWS Secrets Manager, Azure Key Vault, HashiCorp Vault, GCP Secret Manager, and env-file. SQLite inventory with risk scoring, expiry alerts, and auto-retire.',
-              pills:['AWS SM','Azure KV','HashiCorp','GCP SM'],
-            },
-            {
-              icon:'🌍', color:'#06b6d4', tier:'Enterprise',
-              title:'Sovereign Data Routing',
-              desc:'8 jurisdictions (EU/US/UK/CA/SG/AU/JP/CH) with MASQUE tunnels over HTTP/3, HTTP/2, or TCP. TOFU TLS pinning. Auto-failover: ACTIVE → DEGRADED → OFFLINE lifecycle.',
-              pills:['MASQUE H3','TOFU pinning','8 regions','Auto-failover'],
-            },
-            {
-              icon:'📋', color:'#f59e0b', tier:'Enterprise',
-              title:'Transfer Rules Matrix',
-              desc:'CLASSIFIED data is always blocked. PHI allowed to 5 jurisdictions. GENERAL traffic routed with adequacy checks. Per-tenant overrides per data class.',
-              pills:['CLASSIFIED→block','PHI→5 zones','Adequacy check','Per-tenant'],
-            },
-            {
-              icon:'🛡️', color:'#8b5cf6', tier:'Enterprise',
-              title:'Sovereignty Attestation',
-              desc:'Every routed request gets an HMAC-SHA256 signed attestation stored in Redis with a 7-year TTL. 10,000 attestation cap per tenant. Verify endpoint for auditors.',
-              pills:['HMAC-SHA256','7yr TTL','10k cap','Verify API'],
-            },
-            {
-              icon:'🇪🇺', color:'#4d7cfe', tier:'All tiers',
-              title:'GDPR Controls',
-              desc:'Export and purge APIs for Art. 17/20 requests. Metadata-only logging — zero content stored. Retention scheduler with configurable windows. Art. 30 processing register.',
-              pills:['Art.17 purge','Art.20 export','Art.30 register','Retention policy'],
-            },
-            {
-              icon:'🔐', color:'#ef4444', tier:'All tiers',
-              title:'Multi-tenant Auth',
-              desc:'Per-tenant API keys with SHA-256 constant-time comparison. JSON key-file or env-var backends. Fail-closed startup: refuses to start without a key.',
-              pills:['Per-tenant keys','SHA-256 compare','Fail-closed','Key rotation'],
-            },
-            {
-              icon:'🔄', color:'#30D158', tier:'Pro · Enterprise',
-              title:'Automated Key Rotation',
-              desc:'SOVA agent runs rotation checks at 02:00 UTC daily. Community keypair rotation with classical Ed25519 and hybrid PQC (ML-DSA-65). Rotation history in audit log.',
-              pills:['02:00 UTC cron','Ed25519','ML-DSA-65','Audit trail'],
-            },
-            {
-              icon:'⚙️', color:'#94a3b8', tier:'All tiers',
-              title:'Live Config API',
-              desc:'Tune semantic thresholds, pipeline timeouts, shadow ban strategies, evolution engine, and SIEM targets via REST — no container restart required. Changes applied in < 100ms.',
-              pills:['No restart','< 100ms apply','All thresholds','SIEM targets'],
-            },
-          ].map(f => (
-            <div class="p-6 rounded-2xl" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
-              <div class="flex items-start justify-between mb-4">
-                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[20px]"
-                     style={`background:${f.color}18`}>{f.icon}</div>
-                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md"
-                      style="color:#475569;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)">
-                  {f.tier}
-                </span>
+      <!-- ── DANGER ZONE ── -->
+      <div id="tab-danger-zone" class="tab-panel hidden">
+        <div class="rounded-2xl overflow-hidden" style="border:1px solid rgba(239,68,68,0.25)">
+          <div class="px-6 py-4" style="background:rgba(239,68,68,0.06);border-bottom:1px solid rgba(239,68,68,0.15)">
+            <h2 class="text-[15px] font-bold" style="color:#ef4444">Danger Zone</h2>
+            <p class="text-[12px] mt-1" style="color:#9ca3af">Actions here are irreversible. Proceed with caution.</p>
+          </div>
+
+          <div class="p-6 grid gap-4">
+            <!-- Sign out -->
+            <div class="flex items-center justify-between gap-4 pb-4 border-b" style="border-color:rgba(255,255,255,0.06)">
+              <div>
+                <div class="text-[13px] font-semibold mb-1" style="color:#f1f5f9">Sign out</div>
+                <p class="text-[12px]" style="color:#64748b">End your current session. Your data is preserved.</p>
               </div>
-              <h3 class="text-[15px] font-semibold mb-2" style="color:#f1f5f9">{f.title}</h3>
-              <p class="text-[12px] leading-relaxed mb-4" style="color:#64748b">{f.desc}</p>
-              <div class="flex flex-wrap gap-1.5">
-                {f.pills.map(p => (
-                  <span class="text-[10px] px-2 py-0.5 rounded-md font-medium"
-                        style={`color:${f.color};background:${f.color}12`}>{p}</span>
-                ))}
-              </div>
+              <a href="/logout"
+                 class="flex-shrink-0 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors whitespace-nowrap"
+                 style="color:#94a3b8;border:1px solid rgba(255,255,255,0.12)">
+                Sign out
+              </a>
             </div>
-          ))}
+
+            <!-- Delete project -->
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <div class="text-[13px] font-semibold mb-1" style="color:#ef4444">Delete this project</div>
+                <p class="text-[12px]" style="color:#64748b">
+                  Permanently delete the project and all associated data. This action cannot be undone.
+                  All data will be purged in accordance with GDPR Article 17.
+                </p>
+              </div>
+              <button
+                onclick="open_modal-delete()"
+                class="flex-shrink-0 px-4 py-2 rounded-lg text-[12px] font-semibold whitespace-nowrap transition-all"
+                style="color:#fff;background:#dc2626;border:1px solid rgba(220,38,38,0.5)">
+                Delete project
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
 
-    <!-- ── Transfer Rules Matrix ── -->
-    <section class="py-16 border-t" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
-      <div class="mx-auto max-w-4xl px-4 lg:px-8">
-        <div class="text-center mb-10">
-          <h2 class="text-[clamp(1.25rem,2.5vw,1.75rem)] font-bold mb-2" style="color:#f1f5f9">
-            Data Transfer Rules Matrix
-          </h2>
-          <p class="text-[13px]" style="color:#64748b">Enforced at routing layer · no overrides</p>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-[12px] border-collapse">
-            <thead>
-              <tr>
-                <th class="text-left py-2.5 px-4 font-semibold text-[11px] uppercase tracking-wider" style="color:#475569">Data class</th>
-                {['EU','US','UK','CA','SG','AU','JP','CH'].map(j => (
-                  <th class="text-center py-2.5 px-3 font-semibold text-[11px] uppercase tracking-wider" style="color:#475569">{j}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { cls:'CLASSIFIED', color:'#ef4444', allowed:[] },
-                { cls:'PHI',        color:'#f59e0b', allowed:['EU','US','UK','CA','CH'] },
-                { cls:'PII',        color:'#6366f1', allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
-                { cls:'FINANCIAL',  color:'#06b6d4', allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
-                { cls:'GENERAL',    color:'#30D158', allowed:['EU','US','UK','CA','SG','AU','JP','CH'] },
-              ].map((row, ri) => (
-                <tr style={ri % 2 === 0 ? 'background:#0d0d14' : ''}>
-                  <td class="py-3 px-4 rounded-l-lg font-semibold" style={`color:${row.color}`}>{row.cls}</td>
-                  {['EU','US','UK','CA','SG','AU','JP','CH'].map(j => {
-                    const ok = row.allowed.includes(j);
-                    return (
-                      <td class="text-center py-3 px-3">
-                        {row.allowed.length === 0
-                          ? <span class="text-[14px]" style="color:#ef4444">✕</span>
-                          : ok
-                            ? <span class="text-[14px]" style="color:#30D158">✓</span>
-                            : <span class="text-[14px]" style="color:#1e2a35">—</span>
-                        }
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── CTA ── -->
-    <section class="py-20 border-t" style="border-color:rgba(255,255,255,0.06)">
-      <div class="mx-auto max-w-2xl px-6 text-center">
-        <h2 class="text-[clamp(1.5rem,3vw,2rem)] font-black mb-4" style="color:#f1f5f9">
-          Configure your security posture
-        </h2>
-        <p class="text-[15px] mb-8" style="color:#94a3b8">
-          All settings available from the SOC portal. Enterprise plans unlock sovereign routing and PQC.
-        </p>
-        <div class="flex flex-wrap justify-center gap-3">
-          <a href="https://portal.shadow-warden-ai.com" target="_blank"
-             class="px-6 py-3 rounded-xl text-[14px] font-semibold transition-all"
-             style="background:linear-gradient(135deg,#30D158,#06b6d4);color:#000;font-weight:700">
-            Open Settings →
-          </a>
-          <a href="/doc/quick-start"
-             class="px-6 py-3 rounded-xl text-[14px] font-medium transition-colors"
-             style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
-            Read the Docs
-          </a>
-        </div>
-      </div>
-    </section>
-
-  </div>
+    </div><!-- /max-w-5xl -->
+  </div><!-- /pt-14 -->
 </BaseLayout>
+
+<!-- Delete confirmation modal -->
+<ConfirmModal
+  id="modal-delete"
+  title="Delete project?"
+  message="This action cannot be undone. All data will be permanently deleted and purged in accordance with GDPR Article 17."
+  confirmLabel="Yes, delete project"
+  requireText="Shadow Warden AI"
+  redirectTo="/goodbye"
+  danger={true}
+/>
+
+<style>
+  .settings-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .settings-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 4px;
+  }
+  .settings-section-sub {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.5;
+  }
+  .settings-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .settings-input {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    color: #f1f5f9;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .settings-input:focus { border-color: rgba(99,102,241,0.5); }
+  .btn-primary-sm {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: #6366f1;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-primary-sm:hover { opacity: 0.85; }
+  .btn-secondary-sm {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #94a3b8;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-secondary-sm:hover { border-color: rgba(255,255,255,0.2); color: #f1f5f9; }
+
+  /* Toggle switch */
+  .toggle-label { cursor: pointer; }
+  .toggle-track {
+    display: block;
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.1);
+    position: relative;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .toggle-thumb {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #94a3b8;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-input:checked + .toggle-track { background: #30D158; border-color: #30D158; }
+  .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); background: #fff; }
+
+  /* Active tab */
+  .tab-btn.active { color: #f1f5f9 !important; border-bottom-color: #6366f1 !important; }
+  .tab-btn:hover:not(.active) { color: #94a3b8; }
+</style>
+
+<script>
+(function () {
+  // Tab switching
+  const btns   = document.querySelectorAll('.tab-btn');
+  const panels = document.querySelectorAll('.tab-panel');
+
+  function activate(tab: string) {
+    btns.forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.tab === tab));
+    panels.forEach(p => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
+  }
+  btns.forEach(b => b.addEventListener('click', () => activate((b as HTMLElement).dataset.tab!)));
+  activate('general');
+
+  // Theme buttons
+  const themeBtns = document.querySelectorAll('.theme-btn');
+  function setTheme(t: string) {
+    document.documentElement.classList.toggle('light', t === 'light');
+    localStorage.setItem('sw-theme', t);
+    themeBtns.forEach(btn => {
+      const active = (btn as HTMLElement).dataset.theme === t;
+      (btn as HTMLElement).style.borderColor = active ? '#6366f1' : 'rgba(255,255,255,0.08)';
+      (btn as HTMLElement).style.background  = active ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)';
+    });
+  }
+  themeBtns.forEach(b => b.addEventListener('click', () => setTheme((b as HTMLElement).dataset.theme!)));
+  setTheme(localStorage.getItem('sw-theme') ?? 'dark');
+
+  // Accessibility toggles
+  const STORE = 'sw_a11y_v3';
+  let a11y: Record<string, boolean> = {};
+  try { a11y = JSON.parse(localStorage.getItem(STORE) ?? '{}'); } catch {}
+  document.querySelectorAll<HTMLInputElement>('.a11y-toggle').forEach(cb => {
+    const key = cb.dataset.a11y!;
+    cb.checked = !!a11y[key];
+    cb.addEventListener('change', () => {
+      a11y[key] = cb.checked;
+      document.body.classList.toggle(`a11y-${key}`, cb.checked);
+      try { localStorage.setItem(STORE, JSON.stringify(a11y)); } catch {}
+    });
+  });
+
+  // Copy API key
+  (window as any).copyKey = function(btn: HTMLButtonElement) {
+    navigator.clipboard.writeText('sw-key-demo-placeholder').then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => (btn.textContent = 'Copy'), 1500);
+    });
+  };
+
+  // Save general
+  (window as any).saveGeneral = function() {
+    const msg = document.getElementById('save-msg');
+    if (msg) { msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 2000); }
+  };
+})();
+</script>
