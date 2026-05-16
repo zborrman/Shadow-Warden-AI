@@ -1,353 +1,156 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Navbar from '../components/Navbar.astro';
-import Footer from '../components/Footer.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<Layout
-  title="Community Threat Intelligence — Shadow Warden AI"
-  description="Real-time anonymised threat feed from the Shadow Warden community. See live attack trends, top threat categories, and recent incidents — no PII, aggregated metadata only."
+<BaseLayout
+  title="My Communities — Shadow Warden AI"
+  description="Manage secure collaboration communities with end-to-end encrypted data tunnels."
 >
-  <Navbar />
+  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+    <div class="mx-auto max-w-5xl px-4 lg:px-8">
 
-  <!-- Hero -->
-  <section class="relative pt-28 pb-16 overflow-hidden">
-    <div class="absolute inset-0 pointer-events-none"
-         style="background-image:linear-gradient(rgba(99,117,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,117,255,0.03) 1px,transparent 1px);background-size:56px 56px"></div>
-    <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full pointer-events-none"
-         style="background:radial-gradient(ellipse,rgba(255,45,85,0.06) 0%,transparent 70%)"></div>
-
-    <div class="relative z-10 mx-auto max-w-5xl px-6 text-center">
-      <div class="inline-flex items-center gap-2.5 mb-6 px-4 py-2 rounded-full border border-[#FF2D55]/25 bg-[#FF2D55]/[0.06]">
-        <span class="w-1.5 h-1.5 rounded-full bg-[#FF2D55] animate-pulse"></span>
-        <span class="text-[11px] font-bold tracking-[2px] uppercase text-[#FF2D55]">Live · Community Threat Feed</span>
-      </div>
-      <h1 class="text-[clamp(36px,5vw,72px)] font-black leading-[1.05] tracking-[-2px] mb-5">
-        Collective AI Security<br />
-        <span style="background:linear-gradient(135deg,#FF2D55 0%,#BF5AF2 60%,#0A84FF 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-          Intelligence Network
-        </span>
-      </h1>
-      <p class="text-[17px] text-[#8E8E9E] leading-[1.65] max-w-2xl mx-auto mb-4">
-        Every blocked attack strengthens every member. Anonymised, GDPR-safe metadata from
-        the Shadow Warden community — no content, no PII, pure signal.
-      </p>
-      <p class="text-xs text-[#555] font-mono">All data is aggregated metadata only · no tenant identifiers · GDPR Art. 5(1)(b)</p>
-    </div>
-  </section>
-
-  <!-- KPI counters -->
-  <section class="mx-auto max-w-5xl px-6 pb-12">
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="kpi-grid">
-      {[
-        { id: "kpi-members",    label: "Community Members",    color: "#0A84FF", suffix: "" },
-        { id: "kpi-entries",    label: "Shared Threat Entries",color: "#BF5AF2", suffix: "" },
-        { id: "kpi-blocked",    label: "Attacks Blocked",      color: "#FF2D55", suffix: "" },
-        { id: "kpi-block-rate", label: "Block Rate",           color: "#FFD60A", suffix: "%" },
-      ].map(({ id, label, color, suffix }) => (
-        <div class="rounded-2xl border border-[#1a2236] bg-[#0d1220] p-5 text-center">
-          <p class="text-[clamp(28px,4vw,48px)] font-black font-mono tabular-nums" id={id}
-             style={`color:${color}`}>—</p>
-          <p class="text-xs text-[#555] mt-1 tracking-wide uppercase">{label}</p>
-          <span class="hidden" data-suffix={suffix}></span>
-        </div>
-      ))}
-    </div>
-  </section>
-
-  <!-- 7-day trend chart + top threats -->
-  <section class="mx-auto max-w-5xl px-6 pb-12">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-      <!-- Trend chart (spans 2 cols) -->
-      <div class="lg:col-span-2 rounded-2xl border border-[#1a2236] bg-[#0d1220] p-6">
-        <p class="text-sm font-semibold text-white mb-1">Attack Trend · 7 Days</p>
-        <p class="text-xs text-[#555] mb-5">BLOCK + HIGH verdicts per day · anonymised</p>
-        <div id="trend-chart" class="relative h-40">
-          <p class="text-xs text-[#444] text-center pt-16">Loading…</p>
-        </div>
-        <div class="flex items-center gap-5 mt-4 text-xs text-[#555]">
-          <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-[#FF2D55]"></span>BLOCK</span>
-          <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-[#FF8C42]"></span>HIGH</span>
-          <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded-sm bg-[#1a2236]"></span>ALLOW</span>
-        </div>
-      </div>
-
-      <!-- Top threats -->
-      <div class="rounded-2xl border border-[#1a2236] bg-[#0d1220] p-6">
-        <p class="text-sm font-semibold text-white mb-1">Top Threat Types</p>
-        <p class="text-xs text-[#555] mb-5">30-day flag distribution</p>
-        <div id="top-threats" class="space-y-3">
-          <p class="text-xs text-[#444]">Loading…</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Recent incidents feed -->
-  <section class="mx-auto max-w-5xl px-6 pb-20">
-    <div class="rounded-2xl border border-[#1a2236] bg-[#0d1220] p-6">
-      <div class="flex items-center justify-between mb-5">
+      <!-- Header -->
+      <div class="flex items-start justify-between mb-8 gap-4">
         <div>
-          <p class="text-sm font-semibold text-white">Recent Community Incidents</p>
-          <p class="text-xs text-[#555] mt-0.5">Last 7 days · verdict + risk level only · no PII</p>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#06b6d4"></span>
+            <span class="text-[11px] font-bold tracking-widest uppercase" style="color:#06b6d4">Community & Tunnel</span>
+          </div>
+          <h1 class="text-[clamp(28px,4vw,44px)] font-black tracking-tight mb-2" style="color:#f1f5f9">My Communities</h1>
+          <p class="text-[15px]" style="color:#64748b">Secure collaboration spaces with end-to-end encrypted data tunnels</p>
         </div>
-        <span class="flex items-center gap-1.5 text-[10px] font-mono text-[#30D158]">
-          <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
-          AUTO-REFRESH 60s
-        </span>
-      </div>
-      <div id="recent-feed" class="divide-y divide-[#1a2236]">
-        <p class="text-xs text-[#444] py-4">Loading…</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Leaderboard -->
-  <section class="mx-auto max-w-5xl px-6 pb-12">
-    <div class="rounded-2xl border border-[#1a2236] bg-[#0d1220] p-6">
-      <div class="flex items-center justify-between mb-5">
-        <div>
-          <p class="text-sm font-semibold text-white">Top Contributors</p>
-          <p class="text-xs text-[#555] mt-0.5">Anonymised · badge + points · no identifiers</p>
-        </div>
-        <span class="text-[10px] text-[#555] font-mono">reputation v1</span>
-      </div>
-      <div id="leaderboard" class="space-y-2">
-        <p class="text-xs text-[#444]">Loading…</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA -->
-  <section class="mx-auto max-w-3xl px-6 pb-24 text-center">
-    <div class="rounded-2xl border border-[#BF5AF2]/25 bg-[#BF5AF2]/[0.04] p-10">
-      <p class="text-[28px] font-black tracking-tight mb-3">
-        Join the Network. Strengthen Everyone.
-      </p>
-      <p class="text-[15px] text-[#8E8E9E] mb-8 leading-relaxed">
-        Every Shadow Warden deployment automatically contributes to the collective shield.
-        No configuration. No manual sharing. Collective immunity by default.
-      </p>
-      <div class="flex flex-col sm:flex-row gap-3 justify-center">
-        <a href="/early-access"
-           class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm
-                  bg-[#FF2D55] hover:bg-[#e0263d] text-white transition-colors">
-          Start Free Trial
-        </a>
-        <a href="/docs"
-           class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm
-                  border border-[#1a2236] hover:border-[#2a3a52] text-[#8E8E9E] hover:text-white transition-colors">
-          View API Docs
+        <a href="/community/new"
+           class="shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+           style="background:linear-gradient(135deg,#06b6d4,#0e7490);white-space:nowrap">
+          + New Community
         </a>
       </div>
+
+      <!-- User identity -->
+      <div class="mb-8 flex items-center gap-3 px-4 py-3 rounded-xl"
+           style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.15)">
+        <span style="font-size:22px">🛡️</span>
+        <div>
+          <p class="text-[10px] font-bold tracking-widest uppercase mb-1" style="color:#06b6d4">Your Identity</p>
+          <p class="text-[13px] font-mono font-bold" style="color:#e2e8f0" id="my-user-id">Initializing…</p>
+        </div>
+        <div class="ml-auto flex items-center gap-4">
+          <a href="/account" class="text-[12px] transition-colors"
+             style="color:#64748b"
+             onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">
+            Account settings →
+          </a>
+          <a href="/account/storage" class="text-[12px] transition-colors"
+             style="color:#64748b"
+             onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">
+            Storage
+          </a>
+        </div>
+      </div>
+
+      <!-- Communities grid -->
+      <div id="communities-list">
+        <p class="text-sm" style="color:#475569">Loading…</p>
+      </div>
     </div>
   </section>
 
-  <Footer />
-</Layout>
+  <script>
+    const COMM_KEY = 'sw_communities';
+    const USER_KEY = 'sw_user_id';
 
-<script>
-  const API = "https://api.shadow-warden-ai.com";
-
-  const FLAG_LABEL: Record<string, string> = {
-    jailbreak_attempt:  "Jailbreak Attempt",
-    prompt_injection:   "Prompt Injection",
-    secret_leak:        "Secret / PII Leak",
-    social_engineering: "Social Engineering",
-    data_exfiltration:  "Data Exfiltration",
-    obfuscation:        "Obfuscation",
-  };
-
-  const VERDICT_COLOR: Record<string, string> = {
-    BLOCK:  "#FF2D55",
-    HIGH:   "#FF8C42",
-    MEDIUM: "#FFD60A",
-    ALLOW:  "#30D158",
-  };
-
-  function fmt(n: number): string {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-    if (n >= 1_000)     return (n / 1_000).toFixed(1) + "K";
-    return String(n);
-  }
-
-  function animateCounter(el: HTMLElement, target: number, suffix = "") {
-    const duration = 1200;
-    const start = performance.now();
-    const from = 0;
-    const step = (now: number) => {
-      const p = Math.min((now - start) / duration, 1);
-      const ease = 1 - Math.pow(1 - p, 3);
-      el.textContent = fmt(Math.round(from + (target - from) * ease)) + suffix;
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }
-
-  function renderTrend(trend: Array<{ date: string; block: number; high: number; allow: number }>) {
-    const el = document.getElementById("trend-chart");
-    if (!el) return;
-
-    const maxVal = Math.max(...trend.map(d => d.block + d.high + d.allow), 1);
-    const W = el.clientWidth || 480;
-    const H = 140;
-    const barW = Math.floor((W - trend.length * 4) / trend.length);
-
-    const bars = trend.map((d, i) => {
-      const total = d.block + d.high + d.allow;
-      const x = i * (barW + 4);
-
-      const blockH  = Math.round((d.block / maxVal) * H);
-      const highH   = Math.round((d.high  / maxVal) * H);
-      const allowH  = Math.round((d.allow / maxVal) * H);
-
-      const label = d.date.slice(5); // MM-DD
-
-      return `
-        <g transform="translate(${x},0)">
-          <title>${d.date}: BLOCK=${d.block} HIGH=${d.high} ALLOW=${d.allow}</title>
-          <rect x="0" y="${H - allowH}" width="${barW}" height="${allowH}" fill="#1a2236" rx="2"/>
-          <rect x="0" y="${H - allowH - highH}" width="${barW}" height="${highH}" fill="#FF8C42" rx="2"/>
-          <rect x="0" y="${H - allowH - highH - blockH}" width="${barW}" height="${blockH}" fill="#FF2D55" rx="2"/>
-          <text x="${barW / 2}" y="${H + 14}" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">${label}</text>
-        </g>
-      `;
-    }).join("");
-
-    el.innerHTML = `<svg width="${W}" height="${H + 20}" viewBox="0 0 ${W} ${H + 20}" xmlns="http://www.w3.org/2000/svg">
-      <g>${bars}</g>
-    </svg>`;
-  }
-
-  function renderTopThreats(threats: Array<{ type: string; count: number }>) {
-    const el = document.getElementById("top-threats");
-    if (!el || !threats.length) return;
-    const maxCnt = threats[0]?.count || 1;
-    el.innerHTML = threats.map(t => {
-      const pct = Math.round(t.count / maxCnt * 100);
-      const label = FLAG_LABEL[t.type] ?? t.type.replace(/_/g, " ");
-      return `
-        <div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="font-size:12px;color:#ccc">${label}</span>
-            <span style="font-size:11px;color:#555;font-family:monospace">${fmt(t.count)}</span>
-          </div>
-          <div style="height:4px;border-radius:2px;background:#1a2236;overflow:hidden">
-            <div style="height:100%;border-radius:2px;width:${pct}%;background:linear-gradient(90deg,#BF5AF2,#0A84FF);transition:width 0.8s ease"></div>
-          </div>
-        </div>
-      `;
-    }).join("");
-  }
-
-  function renderFeed(recent: Array<{ verdict: string; risk_level: string; date: string; flags: string[] }>) {
-    const el = document.getElementById("recent-feed");
-    if (!el) return;
-    if (!recent.length) {
-      el.innerHTML = `<p style="font-size:12px;color:#444;padding:16px 0">No incidents in the last 7 days.</p>`;
-      return;
+    function getOrCreateUserId(): string {
+      let id = localStorage.getItem(USER_KEY);
+      if (!id) {
+        const bytes = crypto.getRandomValues(new Uint8Array(2));
+        const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+        id = `USER-${hex}`;
+        localStorage.setItem(USER_KEY, id);
+      }
+      return id;
     }
-    el.innerHTML = recent.map(r => {
-      const color = VERDICT_COLOR[r.verdict] ?? "#555";
-      const flagText = r.flags.map(f => FLAG_LABEL[f] ?? f.replace(/_/g, " ")).join(", ") || "—";
-      return `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0">
-          <div style="display:flex;align-items:center;gap:10px;min-width:0">
-            <span style="padding:2px 8px;border-radius:4px;background:${color}18;border:1px solid ${color}30;font-size:10px;font-weight:700;font-family:monospace;color:${color};white-space:nowrap">${r.verdict}</span>
-            <span style="font-size:12px;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${flagText}</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-            <span style="padding:2px 6px;border-radius:3px;background:#1a2236;font-size:10px;font-family:monospace;color:#666">${r.risk_level}</span>
-            <span style="font-size:11px;color:#444;font-family:monospace">${r.date}</span>
-          </div>
-        </div>
-      `;
-    }).join("");
-  }
 
-  async function load() {
-    try {
-      const res = await fetch(`${API}/public/community`);
-      if (!res.ok) throw new Error(res.statusText);
-      const d = await res.json();
+    function loadCommunities(): any[] {
+      try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
+    }
 
-      const kpis = [
-        { id: "kpi-members",    val: d.members,       suffix: ""  },
-        { id: "kpi-entries",    val: d.total_entries,  suffix: ""  },
-        { id: "kpi-blocked",    val: d.blocked_total,  suffix: ""  },
-        { id: "kpi-block-rate", val: d.block_rate_pct, suffix: "%" },
-      ];
-      for (const { id, val, suffix } of kpis) {
-        const el = document.getElementById(id);
-        if (el) animateCounter(el, Number(val), suffix);
+    function esc(s: string): string {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function tunnelMsgCount(commId: string): number {
+      try { return JSON.parse(localStorage.getItem(`sw_tunnel_${commId}`) || '[]').length; } catch { return 0; }
+    }
+
+    function render() {
+      const uid = getOrCreateUserId();
+      const uidEl = document.getElementById('my-user-id');
+      if (uidEl) uidEl.textContent = uid;
+
+      const comms = loadCommunities();
+      const el = document.getElementById('communities-list');
+      if (!el) return;
+
+      if (comms.length === 0) {
+        el.innerHTML = `
+          <div style="text-align:center;padding:80px 20px;border:1px dashed rgba(255,255,255,0.08);border-radius:20px">
+            <div style="font-size:52px;margin-bottom:16px">🏛️</div>
+            <p style="color:#e2e8f0;font-size:18px;font-weight:700;margin-bottom:8px">No communities yet</p>
+            <p style="color:#475569;font-size:14px;margin-bottom:28px;line-height:1.65">
+              Create your first secure collaboration space.<br>
+              Each community gets a unique <code style="color:#06b6d4;font-family:monospace">COMM-XXXX</code> identifier.
+            </p>
+            <a href="/community/new" style="display:inline-block;padding:13px 32px;background:linear-gradient(135deg,#06b6d4,#0e7490);color:white;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">
+              + Create First Community
+            </a>
+          </div>`;
+        return;
       }
 
-      renderTrend(d.trend_7d ?? []);
-      renderTopThreats(d.top_threats ?? []);
-      renderFeed(d.recent ?? []);
-    } catch (err) {
-      console.warn("community stats fetch failed:", err);
-      // Graceful degradation — show placeholder numbers
-      const placeholders = [
-        { id: "kpi-members",    val: 247,  suffix: "" },
-        { id: "kpi-entries",    val: 1832, suffix: "" },
-        { id: "kpi-blocked",    val: 48291,suffix: "" },
-        { id: "kpi-block-rate", val: 2.1,  suffix: "%" },
-      ];
-      for (const { id, val, suffix } of placeholders) {
-        const el = document.getElementById(id);
-        if (el) animateCounter(el, val, suffix);
-      }
+      el.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+          ${comms.map((c: any) => {
+            const memberCount = (c.members || []).length;
+            const msgCount = tunnelMsgCount(c.id);
+            return `
+            <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color 0.2s"
+                 onmouseover="this.style.borderColor='rgba(6,182,212,0.25)'"
+                 onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                <div>
+                  <p style="font-size:10px;font-family:monospace;color:#06b6d4;margin-bottom:4px;letter-spacing:0.05em">${esc(c.id)}</p>
+                  <h3 style="font-size:16px;font-weight:700;color:#f1f5f9;line-height:1.3;margin:0">${esc(c.name)}</h3>
+                </div>
+                <span style="padding:3px 10px;border-radius:20px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.18);font-size:10px;font-weight:700;color:#06b6d4;font-family:monospace;white-space:nowrap;flex-shrink:0">
+                  ${memberCount} member${memberCount !== 1 ? 's' : ''}
+                </span>
+              </div>
+              ${c.description ? `<p style="font-size:13px;color:#64748b;line-height:1.55;margin:0">${esc(c.description)}</p>` : ''}
+              <div style="display:flex;gap:8px">
+                <a href="/community/view?id=${encodeURIComponent(c.id)}"
+                   style="flex:1;text-align:center;padding:9px 8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);border-radius:10px;color:#06b6d4;text-decoration:none;font-size:12px;font-weight:600;transition:background 0.15s"
+                   onmouseover="this.style.background='rgba(6,182,212,0.2)'" onmouseout="this.style.background='rgba(6,182,212,0.1)'">
+                  Overview
+                </a>
+                <a href="/community/tunnel?id=${encodeURIComponent(c.id)}"
+                   style="flex:1;text-align:center;padding:9px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:12px;font-weight:600;transition:background 0.15s"
+                   onmouseover="this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                  🔒 Tunnel${msgCount > 0 ? ` (${msgCount})` : ''}
+                </a>
+                <a href="/community/members?id=${encodeURIComponent(c.id)}"
+                   style="flex:1;text-align:center;padding:9px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:12px;font-weight:600;transition:background 0.15s"
+                   onmouseover="this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                  Members
+                </a>
+              </div>
+              <p style="font-size:11px;color:#334155;font-family:monospace;margin:0">
+                Created ${new Date(c.created).toLocaleDateString()}
+              </p>
+            </div>`;
+          }).join('')}
+        </div>`;
     }
-  }
 
-  async function loadLeaderboard() {
-    try {
-      const res = await fetch(`${API}/public/leaderboard`);
-      if (!res.ok) return;
-      const d = await res.json();
-      const el = document.getElementById("leaderboard");
-      if (!el || !d.leaderboard?.length) return;
-
-      const BADGE_COLOR: Record<string, string> = {
-        ELITE:       "#FFD60A",
-        GUARDIAN:    "#BF5AF2",
-        TOP_SHARER:  "#0A84FF",
-        CONTRIBUTOR: "#30D158",
-        NEWCOMER:    "#555",
-      };
-
-      el.innerHTML = d.leaderboard.map((r: { rank: number; badge: string; badge_emoji: string; points: number; entry_count: number }) => {
-        const color = BADGE_COLOR[r.badge] ?? "#555";
-        return `
-          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #0d1220">
-            <span style="font-size:13px;font-weight:700;font-family:monospace;color:#333;width:20px;text-align:right">${r.rank}</span>
-            <span style="font-size:18px">${r.badge_emoji}</span>
-            <span style="padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:monospace;
-                         color:${color};background:${color}18;border:1px solid ${color}30">${r.badge}</span>
-            <span style="flex:1"></span>
-            <span style="font-size:12px;color:#666;font-family:monospace">${r.entry_count} entries</span>
-            <span style="font-size:13px;font-weight:700;font-family:monospace;color:${color};width:52px;text-align:right">${r.points}pt</span>
-          </div>
-        `;
-      }).join("");
-    } catch {
-      // silent fail — leaderboard is supplementary
-    }
-  }
-
-  load();
-  loadLeaderboard();
-  // Auto-refresh every 60 s
-  setInterval(load, 60_000);
-  setInterval(loadLeaderboard, 120_000);
-</script>
-
-<style>
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.4; }
-  }
-  .animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-</style>
+    render();
+  </script>
+</BaseLayout>

@@ -1,0 +1,122 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Privacy Settings — Shadow Warden AI"
+  description="Control your privacy and data sharing preferences."
+>
+  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+    <div class="mx-auto max-w-2xl px-4 lg:px-8">
+
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 mb-8 text-[13px]" style="color:#475569">
+        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Community</a>
+        <span>›</span>
+        <a href="/account" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Account</a>
+        <span>›</span>
+        <span style="color:#94a3b8">Privacy</span>
+      </div>
+
+      <!-- Account nav -->
+      <div class="flex gap-2 mb-8" style="overflow-x:auto;padding-bottom:4px">
+        <a href="/account"
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b;transition:all 0.15s"
+           onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'">
+          Profile
+        </a>
+        <a href="/account/privacy"
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4">
+          Privacy
+        </a>
+        <a href="/account/storage"
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b;transition:all 0.15s"
+           onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'">
+          Storage
+        </a>
+      </div>
+
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden">
+        <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <p class="text-[15px] font-semibold" style="color:#f1f5f9">Privacy Controls</p>
+          <p class="text-[13px] mt-1" style="color:#475569">All settings stored locally. Changes apply immediately.</p>
+        </div>
+
+        <div id="privacy-settings" style="padding:8px 0"></div>
+
+        <div style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.06)">
+          <p id="save-msg" style="font-size:12px;color:#30D158;display:none">✓ All settings saved automatically</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const PRIV_KEY = 'sw_privacy';
+
+    const PRIVACY_ITEMS = [
+      { key: 'lastSeen',       label: 'Last Seen & Online',  desc: 'Show when you were last active in tunnels' },
+      { key: 'profilePicture', label: 'Profile Picture',     desc: 'Allow community members to see your avatar' },
+      { key: 'aboutVisible',   label: 'About',               desc: 'Show your description to community members' },
+      { key: 'linksVisible',   label: 'Links',               desc: 'Share external links in your profile' },
+      { key: 'groupsVisible',  label: 'Groups',              desc: 'Allow others to see your community memberships' },
+      { key: 'avatarSticker',  label: 'Avatar Sticker',      desc: 'Display animated sticker on your avatar' },
+      { key: 'statusVisible',  label: 'Status',              desc: 'Show custom status to other members' },
+      { key: 'liveLocation',   label: 'Live Location',       desc: 'Share approximate region (never exact location)' },
+    ];
+
+    function loadPrivacy(): Record<string, boolean> {
+      try { return JSON.parse(localStorage.getItem(PRIV_KEY) || '{}'); } catch { return {}; }
+    }
+
+    function savePrivacy(data: Record<string, boolean>) {
+      localStorage.setItem(PRIV_KEY, JSON.stringify(data));
+      const msgEl = document.getElementById('save-msg');
+      if (msgEl) { msgEl.style.display = 'block'; setTimeout(() => { msgEl.style.display = 'none'; }, 1500); }
+    }
+
+    function render() {
+      const priv = loadPrivacy();
+      const el = document.getElementById('privacy-settings');
+      if (!el) return;
+
+      el.innerHTML = PRIVACY_ITEMS.map(item => {
+        const checked = priv[item.key] !== false; // default true
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,0.04);gap:16px">
+            <div style="min-width:0">
+              <p style="font-size:14px;font-weight:600;color:#e2e8f0;margin:0 0 3px">${item.label}</p>
+              <p style="font-size:12px;color:#475569;margin:0;line-height:1.4">${item.desc}</p>
+            </div>
+            <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;flex-shrink:0">
+              <input type="checkbox" data-key="${item.key}" ${checked ? 'checked' : ''} style="opacity:0;width:0;height:0;position:absolute" />
+              <span class="toggle-track" style="position:absolute;inset:0;border-radius:12px;background:${checked ? 'rgba(6,182,212,0.4)' : '#1e293b'};border:1px solid rgba(255,255,255,0.1);transition:all 0.2s"></span>
+              <span class="toggle-thumb" style="position:absolute;top:3px;left:${checked ? '24px' : '3px'};width:16px;height:16px;border-radius:50%;background:${checked ? '#06b6d4' : '#475569'};transition:all 0.2s"></span>
+            </label>
+          </div>
+        `;
+      }).join('');
+
+      // Attach change handlers
+      el.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const input = cb as HTMLInputElement;
+          const key = input.dataset.key;
+          if (!key) return;
+          const label = input.closest('label');
+          if (label) {
+            const track = label.querySelector('.toggle-track') as HTMLElement;
+            const thumb = label.querySelector('.toggle-thumb') as HTMLElement;
+            if (track) track.style.background = input.checked ? 'rgba(6,182,212,0.4)' : '#1e293b';
+            if (thumb) { thumb.style.background = input.checked ? '#06b6d4' : '#475569'; thumb.style.left = input.checked ? '24px' : '3px'; }
+          }
+          const priv2 = loadPrivacy();
+          priv2[key] = input.checked;
+          savePrivacy(priv2);
+        });
+      });
+    }
+
+    render();
+  </script>
+</BaseLayout>

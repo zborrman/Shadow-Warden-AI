@@ -1,0 +1,178 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Community Settings — Shadow Warden AI"
+  description="Configure your community settings."
+>
+  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+    <div class="mx-auto max-w-2xl px-4 lg:px-8">
+
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 mb-6 text-[13px]" style="color:#475569">
+        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Communities</a>
+        <span>›</span>
+        <a href="#" id="bc-comm" style="color:#64748b;text-decoration:none">—</a>
+        <span>›</span>
+        <span style="color:#94a3b8">Settings</span>
+      </div>
+
+      <!-- Tab nav -->
+      <div class="flex gap-2 mb-6" style="overflow-x:auto;padding-bottom:4px" id="tab-nav"></div>
+
+      <!-- Edit form -->
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px;margin-bottom:16px">
+        <p class="text-[15px] font-semibold mb-5" style="color:#f1f5f9">Community Settings</p>
+        <form id="settings-form">
+          <div class="mb-4">
+            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">Community Name</label>
+            <input id="edit-name" type="text" maxlength="60"
+                   style="width:100%;box-sizing:border-box;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:11px 14px;color:#f1f5f9;font-size:14px;outline:none;transition:border-color 0.2s"
+                   onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+          </div>
+          <div class="mb-6">
+            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">Description</label>
+            <textarea id="edit-desc" rows="3" maxlength="200"
+                      style="width:100%;box-sizing:border-box;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:11px 14px;color:#f1f5f9;font-size:14px;outline:none;resize:vertical;transition:border-color 0.2s;font-family:inherit"
+                      onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'"></textarea>
+          </div>
+          <div style="display:flex;gap:10px">
+            <a href="#" id="cancel-link"
+               style="flex:1;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:14px;font-weight:600;transition:all 0.15s"
+               onmouseover="this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+              Cancel
+            </a>
+            <button type="submit"
+                    style="flex:2;padding:12px;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);border-radius:10px;color:#06b6d4;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                    onmouseover="this.style.background='rgba(6,182,212,0.25)'" onmouseout="this.style.background='rgba(6,182,212,0.15)'">
+              Save Changes
+            </button>
+          </div>
+          <p id="save-msg" style="font-size:12px;margin-top:10px;text-align:center;display:none;color:#30D158">✓ Changes saved</p>
+        </form>
+      </div>
+
+      <!-- Community info (read-only) -->
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px">
+        <p class="text-[13px] font-semibold mb-3" style="color:#f1f5f9">Community Info</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <p style="font-size:11px;color:#475569;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">Community ID</p>
+            <p style="font-size:13px;font-family:monospace;color:#06b6d4;font-weight:700" id="info-id">—</p>
+          </div>
+          <div>
+            <p style="font-size:11px;color:#475569;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">Created</p>
+            <p style="font-size:13px;color:#94a3b8" id="info-created">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danger zone -->
+      <div style="background:rgba(255,45,85,0.04);border:1px solid rgba(255,45,85,0.2);border-radius:16px;padding:20px">
+        <p class="text-[13px] font-semibold mb-2" style="color:#FF2D55">Danger Zone</p>
+        <p class="text-[12px] mb-4" style="color:#64748b">Deleting this community removes all local data including tunnel messages. This action is irreversible.</p>
+        <button id="delete-btn"
+                style="padding:10px 20px;background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.3);border-radius:10px;color:#FF2D55;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                onmouseover="this.style.background='rgba(255,45,85,0.2)'" onmouseout="this.style.background='rgba(255,45,85,0.1)'">
+          Delete Community
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <script>
+    const COMM_KEY = 'sw_communities';
+    let communityId = '';
+
+    function getParam(name: string): string {
+      return new URLSearchParams(window.location.search).get(name) || '';
+    }
+
+    function loadCommunities(): any[] {
+      try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
+    }
+
+    function saveCommunities(comms: any[]) {
+      localStorage.setItem(COMM_KEY, JSON.stringify(comms));
+    }
+
+    function renderTabs(id: string) {
+      const tabs = [
+        { label: '📋 Overview', href: `/community/view?id=${encodeURIComponent(id)}` },
+        { label: '👥 Members', href: `/community/members?id=${encodeURIComponent(id)}` },
+        { label: '🔒 Tunnel', href: `/community/tunnel?id=${encodeURIComponent(id)}` },
+        { label: '⚙️ Settings', href: `/community/settings?id=${encodeURIComponent(id)}`, active: true },
+      ];
+      const nav = document.getElementById('tab-nav');
+      if (nav) {
+        nav.innerHTML = tabs.map(t => `
+          <a href="${t.href}"
+             style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
+                    ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4'
+                               : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
+                    transition:all 0.15s"
+             ${!t.active ? `onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+            ${t.label}
+          </a>
+        `).join('');
+      }
+    }
+
+    function init() {
+      communityId = getParam('id');
+      if (!communityId) { window.location.href = '/community'; return; }
+
+      const comms = loadCommunities();
+      const c = comms.find((x: any) => x.id === communityId);
+      if (!c) { window.location.href = '/community'; return; }
+
+      const bcEl = document.getElementById('bc-comm');
+      if (bcEl) { bcEl.textContent = c.name; (bcEl as HTMLAnchorElement).href = `/community/view?id=${encodeURIComponent(communityId)}`; }
+      document.title = `Settings · ${c.name} — Shadow Warden AI`;
+
+      renderTabs(communityId);
+
+      // Populate form
+      (document.getElementById('edit-name') as HTMLInputElement).value = c.name;
+      (document.getElementById('edit-desc') as HTMLTextAreaElement).value = c.description || '';
+      const infoId = document.getElementById('info-id');
+      if (infoId) infoId.textContent = c.id;
+      const infoCreated = document.getElementById('info-created');
+      if (infoCreated) infoCreated.textContent = new Date(c.created).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      const cancelLink = document.getElementById('cancel-link') as HTMLAnchorElement;
+      if (cancelLink) cancelLink.href = `/community/view?id=${encodeURIComponent(communityId)}`;
+
+      // Save form
+      document.getElementById('settings-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = (document.getElementById('edit-name') as HTMLInputElement).value.trim();
+        const desc = (document.getElementById('edit-desc') as HTMLTextAreaElement).value.trim();
+        if (!name) return;
+        const cs = loadCommunities();
+        const comm = cs.find((x: any) => x.id === communityId);
+        if (!comm) return;
+        comm.name = name;
+        comm.description = desc;
+        saveCommunities(cs);
+        const msgEl = document.getElementById('save-msg');
+        if (msgEl) { msgEl.style.display = 'block'; setTimeout(() => { msgEl.style.display = 'none'; }, 2000); }
+        const bcEl2 = document.getElementById('bc-comm');
+        if (bcEl2) bcEl2.textContent = name;
+      });
+
+      // Delete
+      document.getElementById('delete-btn')?.addEventListener('click', () => {
+        if (!confirm(`Delete community "${c.name}"? All data including tunnel messages will be removed permanently.`)) return;
+        const cs = loadCommunities().filter((x: any) => x.id !== communityId);
+        saveCommunities(cs);
+        localStorage.removeItem(`sw_tunnel_${communityId}`);
+        window.location.href = '/community';
+      });
+    }
+
+    init();
+  </script>
+</BaseLayout>

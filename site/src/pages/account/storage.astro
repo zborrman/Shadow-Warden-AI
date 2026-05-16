@@ -1,0 +1,188 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Storage — Shadow Warden AI"
+  description="View and manage your local Community data storage."
+>
+  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+    <div class="mx-auto max-w-2xl px-4 lg:px-8">
+
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 mb-8 text-[13px]" style="color:#475569">
+        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Community</a>
+        <span>›</span>
+        <a href="/account" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Account</a>
+        <span>›</span>
+        <span style="color:#94a3b8">Storage</span>
+      </div>
+
+      <!-- Account nav -->
+      <div class="flex gap-2 mb-8" style="overflow-x:auto;padding-bottom:4px">
+        <a href="/account"
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b;transition:all 0.15s"
+           onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'">
+          Profile
+        </a>
+        <a href="/account/privacy"
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b;transition:all 0.15s"
+           onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'">
+          Privacy
+        </a>
+        <a href="/account/storage"
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4">
+          Storage
+        </a>
+      </div>
+
+      <!-- Storage overview -->
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px;margin-bottom:16px">
+        <p class="text-[15px] font-semibold mb-5" style="color:#f1f5f9">Storage Overview</p>
+        <div id="storage-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px"></div>
+        <div style="height:6px;border-radius:3px;background:#1e293b;overflow:hidden;margin-bottom:8px">
+          <div id="usage-bar" style="height:100%;border-radius:3px;background:linear-gradient(90deg,#06b6d4,#0e7490);transition:width 0.5s ease;width:0%"></div>
+        </div>
+        <p id="usage-text" class="text-[11px] font-mono" style="color:#475569">Calculating…</p>
+      </div>
+
+      <!-- Data breakdown -->
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <p class="text-[14px] font-semibold" style="color:#f1f5f9">Data Breakdown</p>
+        </div>
+        <div id="data-breakdown"></div>
+      </div>
+
+      <!-- Danger zone -->
+      <div style="background:rgba(255,45,85,0.04);border:1px solid rgba(255,45,85,0.2);border-radius:16px;padding:20px">
+        <p class="text-[13px] font-semibold mb-2" style="color:#FF2D55">Clear Data</p>
+        <p class="text-[12px] mb-4" style="color:#64748b">This removes all community data stored in your browser. Your USER ID and account settings will also be cleared.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button id="clear-tunnel-btn"
+                  style="padding:9px 16px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:10px;color:#FF2D55;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                  onmouseover="this.style.background='rgba(255,45,85,0.16)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
+            Clear Tunnel Messages
+          </button>
+          <button id="clear-all-btn"
+                  style="padding:9px 16px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:10px;color:#FF2D55;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                  onmouseover="this.style.background='rgba(255,45,85,0.16)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
+            Clear All Data
+          </button>
+        </div>
+        <p id="clear-msg" style="font-size:12px;margin-top:10px;display:none;color:#30D158"></p>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const COMM_KEY = 'sw_communities';
+
+    function loadCommunities(): any[] {
+      try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
+    }
+
+    function strBytes(s: string): number {
+      return new Blob([s]).size;
+    }
+
+    function fmtBytes(b: number): string {
+      if (b < 1024) return `${b} B`;
+      if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+      return `${(b / 1024 / 1024).toFixed(2)} MB`;
+    }
+
+    function render() {
+      const comms = loadCommunities();
+      let totalBytes = 0;
+      let totalMsgs = 0;
+
+      const commData = comms.map((c: any) => {
+        const tunnelRaw = localStorage.getItem(`sw_tunnel_${c.id}`) || '[]';
+        const msgs = (() => { try { return JSON.parse(tunnelRaw); } catch { return []; } })();
+        const bytes = strBytes(JSON.stringify(c)) + strBytes(tunnelRaw);
+        totalBytes += bytes;
+        totalMsgs += msgs.length;
+        return { id: c.id, name: c.name, msgs: msgs.length, bytes };
+      });
+
+      const accBytes = strBytes(localStorage.getItem('sw_account') || '');
+      const privBytes = strBytes(localStorage.getItem('sw_privacy') || '');
+      totalBytes += accBytes + privBytes;
+
+      // Stats
+      const statsEl = document.getElementById('storage-stats');
+      if (statsEl) {
+        statsEl.innerHTML = [
+          { label: 'Communities', value: comms.length.toString(), icon: '🏛️', color: '#06b6d4' },
+          { label: 'Tunnel Messages', value: totalMsgs.toString(), icon: '🔒', color: '#BF5AF2' },
+          { label: 'Total Members', value: comms.reduce((a: number, c: any) => a + (c.members || []).length, 0).toString(), icon: '👥', color: '#30D158' },
+          { label: 'Local Storage Used', value: fmtBytes(totalBytes), icon: '💾', color: '#FFD60A' },
+        ].map(s => `
+          <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:14px">${s.icon}</span>
+              <span style="font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:0.05em">${s.label}</span>
+            </div>
+            <p style="font-size:20px;font-weight:700;color:${s.color};margin:0">${s.value}</p>
+          </div>
+        `).join('');
+      }
+
+      // Usage bar (estimate 5MB limit)
+      const limitBytes = 5 * 1024 * 1024;
+      const pct = Math.min(totalBytes / limitBytes * 100, 100);
+      const bar = document.getElementById('usage-bar');
+      const text = document.getElementById('usage-text');
+      if (bar) bar.style.width = `${pct.toFixed(1)}%`;
+      if (text) text.textContent = `${fmtBytes(totalBytes)} used of ~5 MB browser limit (${pct.toFixed(1)}%)`;
+
+      // Breakdown
+      const breakdownEl = document.getElementById('data-breakdown');
+      if (breakdownEl) {
+        const rows = [
+          ...commData.map((c: any) => ({
+            label: c.name,
+            sub: `${c.id} · ${c.msgs} tunnel msgs`,
+            bytes: c.bytes,
+            color: '#06b6d4',
+          })),
+          { label: 'Account & Privacy Settings', sub: 'Profile + privacy preferences', bytes: accBytes + privBytes, color: '#30D158' },
+        ];
+        breakdownEl.innerHTML = rows.map((r: any) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.04)">
+            <div>
+              <p style="font-size:13px;font-weight:600;color:#e2e8f0;margin:0 0 2px">${r.label}</p>
+              <p style="font-size:11px;color:#475569;font-family:monospace;margin:0">${r.sub}</p>
+            </div>
+            <span style="font-size:12px;font-family:monospace;color:${r.color};font-weight:600">${fmtBytes(r.bytes)}</span>
+          </div>
+        `).join('') || `<p style="padding:20px;font-size:13px;color:#475569">No community data found.</p>`;
+      }
+    }
+
+    function showMsg(text: string) {
+      const el = document.getElementById('clear-msg');
+      if (el) { el.textContent = text; el.style.display = 'block'; setTimeout(() => { el.style.display = 'none'; }, 3000); }
+    }
+
+    document.getElementById('clear-tunnel-btn')?.addEventListener('click', () => {
+      if (!confirm('Clear all tunnel messages? Community data is preserved.')) return;
+      const comms = (() => { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } })();
+      comms.forEach((c: any) => localStorage.removeItem(`sw_tunnel_${c.id}`));
+      showMsg('✓ All tunnel messages cleared.');
+      render();
+    });
+
+    document.getElementById('clear-all-btn')?.addEventListener('click', () => {
+      if (!confirm('Clear ALL community data including tunnels, account settings, and your USER ID? This cannot be undone.')) return;
+      const comms = (() => { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } })();
+      comms.forEach((c: any) => localStorage.removeItem(`sw_tunnel_${c.id}`));
+      ['sw_communities', 'sw_account', 'sw_privacy', 'sw_user_id'].forEach(k => localStorage.removeItem(k));
+      showMsg('✓ All data cleared. Redirecting…');
+      setTimeout(() => { window.location.href = '/community'; }, 1500);
+    });
+
+    render();
+  </script>
+</BaseLayout>
