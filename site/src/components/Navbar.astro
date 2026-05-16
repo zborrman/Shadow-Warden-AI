@@ -13,26 +13,10 @@ const nav = [
         style="background:rgba(3,7,18,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--sw-border);transition:border-color 0.3s">
   <nav class="mx-auto max-w-7xl px-4 lg:px-8 h-full flex items-center gap-4">
 
-    <!-- Logo: gradient shield + wordmark (from design system Logo.jsx) -->
-    <a href="/" class="flex items-center gap-2.5 flex-shrink-0 group">
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-        <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z"
-              fill="url(#navbar-logo-grad)" opacity=".95"/>
-        <defs>
-          <linearGradient id="navbar-logo-grad" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#6366f1"/>
-            <stop offset="1" stop-color="#06b6d4"/>
-          </linearGradient>
-        </defs>
-        <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <div class="flex flex-col leading-none">
-        <span class="text-[14px] font-bold">
-          <span class="sw-gradient-text">Shadow</span>
-          <span style="color:var(--sw-fg-1)"> Warden</span>
-        </span>
-        <span class="text-[9px] font-semibold tracking-wider uppercase" style="color:var(--sw-fg-4)">Business Community AI</span>
-      </div>
+    <!-- Logo -->
+    <a href="/" class="flex items-center flex-shrink-0">
+      <img src="/logo.png" alt="Shadow Warden AI"
+           style="height:44px;width:auto;border-radius:8px;display:block" />
     </a>
 
     <!-- Desktop nav pills -->

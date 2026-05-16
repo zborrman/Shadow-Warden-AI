@@ -11,7 +11,7 @@ interface Props {
 const {
   title = 'Shadow Warden AI — Zero-Trust AI Security Gateway',
   description = '14-layer real-time AI security gateway. Blocks jailbreaks, strips PII, enforces compliance in <2ms. SOC 2 · GDPR · Post-Quantum Cryptography.',
-  ogImage = '/og.png',
+  ogImage = '/logo.png',
 } = Astro.props;
 
 const categories = [
@@ -76,6 +76,7 @@ function slugify(s: string) {
   <meta property="og:image" content={ogImage} />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="theme-color" content="#0a0a0f" />
+  <link rel="icon" href="/logo.png" type="image/png" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <title>{title}</title>
 </head>
@@ -87,21 +88,9 @@ function slugify(s: string) {
     <div class="mx-auto max-w-7xl px-4 lg:px-8 h-14 flex items-center gap-6">
 
       <!-- Logo -->
-      <a href="/" class="flex items-center gap-2.5 shrink-0 group">
-        <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
-          <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z"
-                fill="url(#logo-g)" opacity=".95"/>
-          <defs>
-            <linearGradient id="logo-g" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#6366f1"/>
-              <stop offset="1" stop-color="#06b6d4"/>
-            </linearGradient>
-          </defs>
-          <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="text-[14px] font-bold" style="color:#f1f5f9">
-          <span class="text-gradient">Shadow</span> Warden
-        </span>
+      <a href="/" class="flex items-center shrink-0">
+        <img src="/logo.png" alt="Shadow Warden AI"
+             style="height:44px;width:auto;border-radius:8px;display:block" />
       </a>
 
       <!-- Desktop nav -->
@@ -227,16 +216,8 @@ function slugify(s: string) {
       <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-10">
         <div class="lg:col-span-2">
           <div class="flex items-center gap-2 mb-3">
-            <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
-              <path d="M16 2L4 8v8c0 7.18 5.14 13.9 12 15.5C22.86 29.9 28 23.18 28 16V8L16 2z" fill="url(#ft-g)"/>
-              <defs>
-                <linearGradient id="ft-g" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/>
-                </linearGradient>
-              </defs>
-              <path d="M11 16l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span class="text-[14px] font-bold" style="color:#f1f5f9">Shadow Warden AI</span>
+            <img src="/logo.png" alt="Shadow Warden AI"
+                 style="height:40px;width:auto;border-radius:6px;display:block" />
           </div>
           <p class="text-[13px] leading-relaxed max-w-xs" style="color:#64748b">
             Zero-trust AI security gateway. 14-layer defense pipeline.
