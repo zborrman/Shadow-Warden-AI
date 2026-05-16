@@ -1,0 +1,210 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Community Activity — Shadow Warden AI"
+  description="Audit log and activity history for your secure collaboration community."
+>
+  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+    <div class="mx-auto max-w-3xl px-4 lg:px-8">
+
+      <div class="flex items-center gap-2 mb-6 text-[13px]" style="color:#475569">
+        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Communities</a>
+        <span>›</span>
+        <a href="#" id="bc-comm" style="color:#64748b;text-decoration:none">—</a>
+        <span>›</span>
+        <span style="color:#94a3b8">Activity</span>
+      </div>
+
+      <div class="flex gap-2 mb-6" style="overflow-x:auto;padding-bottom:4px" id="tab-nav"></div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="stats-bar"></div>
+
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <p style="font-size:14px;font-weight:600;color:#f1f5f9;margin:0">Audit Log</p>
+          <button id="clear-log-btn"
+                  style="display:none;padding:7px 14px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:8px;color:#FF2D55;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                  onmouseover="this.style.background='rgba(255,45,85,0.18)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
+            Clear Log
+          </button>
+        </div>
+        <div id="activity-list"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <script>
+    const COMM_KEY = 'sw_communities';
+
+    function getParam(name: string): string {
+      return new URLSearchParams(window.location.search).get(name) || '';
+    }
+
+    function loadCommunities(): any[] {
+      try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
+    }
+
+    function saveCommunities(comms: any[]): void {
+      localStorage.setItem(COMM_KEY, JSON.stringify(comms));
+    }
+
+    function esc(s: string): string {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function normalizeMembers(raw: any[]): { id: string; role: string }[] {
+      return (raw || []).map((m: any) => typeof m === 'string' ? { id: m, role: 'member' } : m);
+    }
+
+    function actionIcon(action: string): string {
+      const map: Record<string, string> = {
+        community_created: '🏛️',
+        member_joined: '👤',
+        member_removed: '❌',
+        member_left: '🚪',
+        role_changed: '🔑',
+        join_request_sent: '📨',
+        join_request_approved: '✅',
+        join_request_declined: '❌',
+        community_merged: '🔗',
+        messages_cleared: '🗑️',
+      };
+      return map[action] || '📋';
+    }
+
+    function renderTabs(id: string): void {
+      const tabs = [
+        { label: '📋 Overview',     href: `/community/view?id=${encodeURIComponent(id)}` },
+        { label: '👥 Members',      href: `/community/members?id=${encodeURIComponent(id)}` },
+        { label: '🔒 Tunnel',       href: `/community/tunnel?id=${encodeURIComponent(id)}` },
+        { label: '🔌 Integrations', href: `/community/integrations?id=${encodeURIComponent(id)}` },
+        { label: '📊 Activity',     href: `/community/activity?id=${encodeURIComponent(id)}`, active: true },
+        { label: '⚙️ Settings',     href: `/community/settings?id=${encodeURIComponent(id)}` },
+      ];
+      const nav = document.getElementById('tab-nav');
+      if (nav) {
+        nav.innerHTML = tabs.map((t: any) => `
+          <a href="${t.href}"
+             style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
+                    ${t.active
+                      ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4'
+                      : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
+                    transition:all 0.15s"
+             ${!t.active ? `onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+            ${t.label}
+          </a>
+        `).join('');
+      }
+    }
+
+    function renderStats(log: any[]): void {
+      const bar = document.getElementById('stats-bar');
+      if (!bar) return;
+
+      const total = log.length;
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayCount = log.filter((e: any) => e.ts >= todayStart.getTime()).length;
+
+      const lastTs = log.length > 0 ? Math.max(...log.map((e: any) => e.ts)) : null;
+      const lastStr = lastTs ? new Date(lastTs).toLocaleString() : '—';
+
+      const stats = [
+        { label: 'Total Events', value: total.toString(), color: '#06b6d4' },
+        { label: "Today's Events", value: todayCount.toString(), color: '#BF5AF2' },
+        { label: 'Last Activity', value: lastStr, color: '#64748b', small: true },
+      ];
+
+      bar.innerHTML = stats.map((s: any) => `
+        <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px">
+          <p style="font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin:0 0 8px">${s.label}</p>
+          <p style="font-size:${s.small ? '12px' : '22px'};font-weight:700;color:${s.color};margin:0;${s.small ? 'font-family:monospace;word-break:break-all' : ''}">${esc(s.value)}</p>
+        </div>
+      `).join('');
+    }
+
+    function renderLog(log: any[]): void {
+      const el = document.getElementById('activity-list');
+      if (!el) return;
+
+      if (!log || log.length === 0) {
+        el.innerHTML = `
+          <div style="text-align:center;padding:48px 24px">
+            <p style="font-size:32px;margin-bottom:12px">📋</p>
+            <p style="font-size:14px;color:#475569;margin:0">No activity yet. Actions in this community will appear here.</p>
+          </div>`;
+        return;
+      }
+
+      const sorted = [...log].sort((a: any, b: any) => b.ts - a.ts);
+
+      el.innerHTML = `<div style="display:flex;flex-direction:column;gap:0">
+        ${sorted.map((entry: any, idx: number) => `
+          <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;${idx < sorted.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.05)' : ''}">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">
+              ${actionIcon(entry.action || '')}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap-x:10px;flex-wrap:wrap;gap:4px 10px;margin-bottom:4px">
+                <span style="font-size:12px;font-family:monospace;color:#06b6d4;font-weight:600">${esc(entry.userId || '—')}</span>
+                <span style="font-size:11px;color:#334155;font-family:monospace">${new Date(entry.ts).toLocaleString()}</span>
+              </div>
+              <p style="font-size:13px;color:#64748b;margin:0;word-break:break-word">${esc(entry.detail || entry.action || '')}</p>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+    }
+
+    function init(): void {
+      const id = getParam('id');
+      if (!id) {
+        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#FF2D55">No community ID. <a href="/community" style="color:#06b6d4">Back</a></div>`;
+        return;
+      }
+
+      const comms = loadCommunities();
+      const c = comms.find((x: any) => x.id === id);
+      if (!c) {
+        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#FF2D55">Community not found. <a href="/community" style="color:#06b6d4">Back</a></div>`;
+        return;
+      }
+
+      const bcEl = document.getElementById('bc-comm') as HTMLAnchorElement | null;
+      if (bcEl) { bcEl.textContent = c.name; bcEl.href = `/community/view?id=${encodeURIComponent(id)}`; }
+      document.title = `${c.name} — Activity — Shadow Warden AI`;
+
+      renderTabs(id);
+
+      const log: any[] = c.activityLog || [];
+      renderStats(log);
+      renderLog(log);
+
+      const members = normalizeMembers(c.members || []);
+      const currentUser: string = localStorage.getItem('sw_user_id') || '';
+      const ownerEntry = members.find((m: any) => m.role === 'owner');
+      const isOwner = ownerEntry && currentUser && ownerEntry.id === currentUser;
+
+      const clearBtn = document.getElementById('clear-log-btn') as HTMLButtonElement | null;
+      if (clearBtn && isOwner) {
+        clearBtn.style.display = 'block';
+        clearBtn.addEventListener('click', () => {
+          if (!confirm('Clear the entire activity log? This cannot be undone.')) return;
+          const cs = loadCommunities();
+          const comm = cs.find((x: any) => x.id === id);
+          if (!comm) return;
+          comm.activityLog = [];
+          saveCommunities(cs);
+          renderStats([]);
+          renderLog([]);
+        });
+      }
+    }
+
+    init();
+  </script>
+</BaseLayout>

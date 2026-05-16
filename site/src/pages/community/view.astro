@@ -110,11 +110,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       // Tab nav
       const tabs = [
-        { label: '📋 Overview', href: `/community/view?id=${encodeURIComponent(id)}`, active: true },
-        { label: '👥 Members', href: `/community/members?id=${encodeURIComponent(id)}` },
-        { label: '🔒 Tunnel',       href: `/community/tunnel?id=${encodeURIComponent(id)}` },
+        { label: '📋 Overview',     href: `/community/view?id=${encodeURIComponent(id)}`, active: true },
+        { label: '👥 Members',     href: `/community/members?id=${encodeURIComponent(id)}` },
+        { label: '🔒 Tunnel',      href: `/community/tunnel?id=${encodeURIComponent(id)}` },
         { label: '🔌 Integrations', href: `/community/integrations?id=${encodeURIComponent(id)}` },
-        { label: '⚙️ Settings',     href: `/community/settings?id=${encodeURIComponent(id)}` },
+        { label: '📊 Activity',    href: `/community/activity?id=${encodeURIComponent(id)}` },
+        { label: '⚙️ Settings',    href: `/community/settings?id=${encodeURIComponent(id)}` },
       ];
       const tabNav = document.getElementById('tab-nav');
       if (tabNav) {

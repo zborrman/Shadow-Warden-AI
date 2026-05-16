@@ -9,14 +9,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
     <div class="mx-auto max-w-xl px-4 lg:px-8">
 
-      <!-- Breadcrumb -->
       <div class="flex items-center gap-2 mb-8 text-[13px]" style="color:#475569">
         <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Communities</a>
         <span>›</span>
         <span style="color:#94a3b8">New Community</span>
       </div>
 
-      <!-- Form card -->
       <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:36px">
         <div class="flex items-center gap-3 mb-8">
           <div style="width:40px;height:40px;border-radius:12px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);display:flex;align-items:center;justify-content:center;font-size:20px">
@@ -29,7 +27,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         </div>
 
         <form id="new-comm-form">
-          <!-- Name -->
           <div class="mb-5">
             <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">
               Community Name <span style="color:#FF2D55">*</span>
@@ -46,7 +43,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             />
           </div>
 
-          <!-- Description -->
           <div class="mb-5">
             <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">
               Description <span style="color:#334155">(optional)</span>
@@ -62,14 +58,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             ></textarea>
           </div>
 
-          <!-- Privacy notice -->
           <div class="mb-8 px-4 py-3 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05)">
             <p class="text-[12px]" style="color:#475569;line-height:1.6">
               🔐 Community data is stored locally in your browser. Tunnel messages use end-to-end encrypted channels. No data is sent to external servers without your explicit action.
             </p>
           </div>
 
-          <!-- Actions -->
           <div class="flex gap-3">
             <a href="/community"
                style="flex:1;text-align:center;padding:13px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#94a3b8;text-decoration:none;font-size:14px;font-weight:600;transition:all 0.15s"
@@ -91,6 +85,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   <script>
     const COMM_KEY = 'sw_communities';
     const TIER_KEY = 'sw_tier';
+    const USER_KEY = 'sw_user_id';
 
     const TIERS: Record<string, any> = {
       starter:           { name:'Starter',           color:'#64748b', maxComm:0,  price:'Free'    },
@@ -99,13 +94,32 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       pro:               { name:'Pro',                color:'#FF8C42', maxComm:10, price:'$69/mo'  },
       enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1, price:'$249/mo' },
     };
+
     function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
     function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
 
-    function checkTierGate() {
+    function getCurrentUserId(): string {
+      let uid = localStorage.getItem(USER_KEY);
+      if (!uid) {
+        const bytes = crypto.getRandomValues(new Uint8Array(8));
+        uid = 'user-' + Array.from(bytes).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem(USER_KEY, uid);
+      }
+      return uid;
+    }
+
+    function genHex(len: number): string {
+      const bytes = crypto.getRandomValues(new Uint8Array(len / 2));
+      return Array.from(bytes).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function genPublicKey(): string { return 'SW-PUB-' + genHex(32); }
+    function genPrivateKey(): string { return 'SW-PRV-' + genHex(32); }
+
+    function checkTierGate(): void {
       const tc = getTC();
       const comms: any[] = (() => { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } })();
-      if (tc.maxComm === -1) return; // unlimited
+      if (tc.maxComm === -1) return;
 
       if (comms.length >= tc.maxComm) {
         const form = document.getElementById('new-comm-form') as HTMLElement;
@@ -138,10 +152,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     function genCommId(): string {
       const bytes = crypto.getRandomValues(new Uint8Array(2));
-      return 'COMM-' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+      return 'COMM-' + Array.from(bytes).map((b: number) => b.toString(16).padStart(2, '0')).join('').toUpperCase();
     }
 
-    document.getElementById('new-comm-form')?.addEventListener('submit', (e) => {
+    document.getElementById('new-comm-form')?.addEventListener('submit', (e: Event) => {
       e.preventDefault();
       const name = (document.getElementById('comm-name') as HTMLInputElement)?.value.trim();
       const desc = (document.getElementById('comm-desc') as HTMLTextAreaElement)?.value.trim();
@@ -152,7 +166,25 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       })();
 
       const id = genCommId();
-      const newComm = { id, name, description: desc, members: [], created: new Date().toISOString() };
+      const currentUserId = getCurrentUserId();
+      const now = Date.now();
+
+      const newComm = {
+        id,
+        name,
+        description: desc,
+        publicKey: genPublicKey(),
+        privateKey: genPrivateKey(),
+        members: [{ id: currentUserId, role: 'owner' as const }],
+        join_requests: [] as any[],
+        activityLog: [
+          { ts: now, action: 'community_created', userId: currentUserId, detail: 'Community created' }
+        ],
+        disappearingMessages: false,
+        created: new Date(now).toISOString(),
+        tabs: ['👥 Members', '💬 Messages', '🔗 Integrations', '📊 Activity', '⚙️ Settings'],
+      };
+
       comms.push(newComm);
       localStorage.setItem(COMM_KEY, JSON.stringify(comms));
 

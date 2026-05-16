@@ -21,6 +21,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <!-- Tab nav -->
       <div class="flex gap-2 mb-6" style="overflow-x:auto;padding-bottom:4px" id="tab-nav"></div>
 
+      <!-- Join Requests (shown only to owner/admin) -->
+      <div id="join-requests-section" style="display:none;background:#0d1220;border:1px solid rgba(191,90,242,0.2);border-radius:16px;padding:20px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <p style="font-size:14px;font-weight:700;color:#BF5AF2;margin:0">📨 Join Requests <span id="req-count" style="font-size:12px;font-weight:400;color:#64748b"></span></p>
+        </div>
+        <div id="requests-list"></div>
+      </div>
+
       <!-- Add member -->
       <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px">
         <p class="text-[14px] font-semibold mb-4" style="color:#f1f5f9">Add Person</p>
@@ -37,9 +45,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <p id="add-err" style="color:#FF2D55;font-size:12px;margin-top:8px;display:none"></p>
       </div>
 
-      <!-- Members list -->
+      <!-- Search + Members list -->
       <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px">
-        <p class="text-[14px] font-semibold mb-3" style="color:#f1f5f9">Members <span id="member-count" style="color:#475569;font-weight:400"></span></p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
+          <p style="font-size:14px;font-weight:600;color:#f1f5f9;margin:0">Members <span id="member-count" style="color:#475569;font-weight:400"></span></p>
+          <input id="member-search" type="text" placeholder="Search by ID or role…" maxlength="30"
+                 style="background:#0a0a12;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:7px 12px;color:#f1f5f9;font-size:13px;font-family:monospace;outline:none;width:200px;transition:border-color 0.2s"
+                 onfocus="this.style.borderColor='rgba(6,182,212,0.4)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'" />
+        </div>
         <div id="member-limit-bar" style="display:none"></div>
         <div id="members-list"><p style="color:#475569;font-size:13px">No members yet.</p></div>
       </div>
@@ -47,7 +60,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <!-- Merge community -->
       <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px">
         <p class="text-[14px] font-semibold mb-2" style="color:#f1f5f9">Merge Another Community</p>
-        <p class="text-[12px] mb-4" style="color:#64748b">Import all members from another community into this one.</p>
+        <p class="text-[12px] mb-4" style="color:#64748b">Import all members from another community. Their roles become Member; current community Owner is preserved.</p>
         <div style="display:flex;gap:10px">
           <input id="merge-id-input" type="text" placeholder="COMM-XXXX" maxlength="20"
                  style="flex:1;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#f1f5f9;font-size:14px;font-family:monospace;outline:none;transition:border-color 0.2s"
@@ -68,6 +81,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const COMM_KEY = 'sw_communities';
     const TIER_KEY = 'sw_tier';
     let communityId = '';
+    let myUserId = '';
 
     const TIERS: Record<string, any> = {
       starter:           { name:'Starter',           color:'#64748b', maxMem:0  },
@@ -92,30 +106,116 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     }
 
     function esc(s: string): string {
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+
+    function normalizeMember(m: any): { id: string; role: string } {
+      return typeof m === 'string' ? { id: m, role: 'member' } : { id: m.id || m, role: m.role || 'member' };
+    }
+
+    function normalizeMembers(arr: any[]): { id: string; role: string }[] {
+      return (arr || []).map(normalizeMember);
+    }
+
+    function addLog(c: any, action: string, userId: string, detail: string) {
+      if (!c.activityLog) c.activityLog = [];
+      c.activityLog.unshift({ ts: Date.now(), action, userId, detail });
+      if (c.activityLog.length > 200) c.activityLog.length = 200;
+    }
+
+    function myRole(members: { id: string; role: string }[]): string {
+      const me = members.find(m => m.id === myUserId);
+      return me ? me.role : 'none';
+    }
+
+    const ROLE_STYLES: Record<string, string> = {
+      owner: 'background:rgba(255,214,10,0.12);border:1px solid rgba(255,214,10,0.3);color:#FFD60A',
+      admin: 'background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:#06b6d4',
+      member: 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#64748b',
+    };
 
     function renderTabs(id: string) {
       const tabs = [
-        { label: '📋 Overview', href: `/community/view?id=${encodeURIComponent(id)}` },
-        { label: '👥 Members', href: `/community/members?id=${encodeURIComponent(id)}`, active: true },
-        { label: '🔒 Tunnel',       href: `/community/tunnel?id=${encodeURIComponent(id)}` },
+        { label: '📋 Overview',     href: `/community/view?id=${encodeURIComponent(id)}` },
+        { label: '👥 Members',     href: `/community/members?id=${encodeURIComponent(id)}`, active: true },
+        { label: '🔒 Tunnel',      href: `/community/tunnel?id=${encodeURIComponent(id)}` },
         { label: '🔌 Integrations', href: `/community/integrations?id=${encodeURIComponent(id)}` },
-        { label: '⚙️ Settings',     href: `/community/settings?id=${encodeURIComponent(id)}` },
+        { label: '📊 Activity',    href: `/community/activity?id=${encodeURIComponent(id)}` },
+        { label: '⚙️ Settings',    href: `/community/settings?id=${encodeURIComponent(id)}` },
       ];
       const nav = document.getElementById('tab-nav');
-      if (nav) {
-        nav.innerHTML = tabs.map(t => `
-          <a href="${t.href}"
-             style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
-                    ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4'
-                               : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
-                    transition:all 0.15s"
-             ${!t.active ? `onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
-            ${t.label}
-          </a>
-        `).join('');
-      }
+      if (!nav) return;
+      nav.innerHTML = tabs.map(t => `
+        <a href="${t.href}"
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
+                  ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4'
+                             : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
+                  transition:all 0.15s"
+           ${!t.active ? `onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+          ${t.label}
+        </a>
+      `).join('');
+    }
+
+    function renderJoinRequests(c: any, role: string) {
+      const section = document.getElementById('join-requests-section');
+      const listEl = document.getElementById('requests-list');
+      const countEl = document.getElementById('req-count');
+      if (!section || !listEl) return;
+
+      const reqs: { userId: string; ts: number }[] = c.join_requests || [];
+      if (role !== 'owner' && role !== 'admin') { section.style.display = 'none'; return; }
+      if (reqs.length === 0) { section.style.display = 'none'; return; }
+
+      section.style.display = 'block';
+      if (countEl) countEl.textContent = `(${reqs.length})`;
+
+      listEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">
+        ${reqs.map((r, i) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(191,90,242,0.06);border:1px solid rgba(191,90,242,0.15);border-radius:10px;gap:12px">
+            <div>
+              <span style="font-size:13px;font-family:monospace;font-weight:700;color:#e2e8f0">${esc(r.userId)}</span>
+              <span style="font-size:11px;color:#475569;margin-left:10px">${new Date(r.ts).toLocaleString()}</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button data-req-i="${i}" data-req-action="approve"
+                      style="padding:5px 12px;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);border-radius:6px;color:#30D158;font-size:11px;font-weight:700;cursor:pointer">
+                Approve
+              </button>
+              <button data-req-i="${i}" data-req-action="decline"
+                      style="padding:5px 12px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#FF2D55;font-size:11px;font-weight:700;cursor:pointer">
+                Decline
+              </button>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+
+      listEl.querySelectorAll('button[data-req-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = parseInt((btn as HTMLElement).dataset.reqI || '0');
+          const action = (btn as HTMLElement).dataset.reqAction;
+          const cs = loadCommunities();
+          const comm = cs.find((x: any) => x.id === communityId);
+          if (!comm) return;
+          const reqs2: any[] = comm.join_requests || [];
+          const req = reqs2[i];
+          if (!req) return;
+          if (action === 'approve') {
+            const mems = normalizeMembers(comm.members);
+            if (!mems.find(m => m.id === req.userId)) {
+              mems.push({ id: req.userId, role: 'member' });
+              comm.members = mems;
+              addLog(comm, 'join_request_approved', myUserId, `Approved ${req.userId}`);
+            }
+          } else {
+            addLog(comm, 'join_request_declined', myUserId, `Declined ${req.userId}`);
+          }
+          comm.join_requests = reqs2.filter((_: any, j: number) => j !== i);
+          saveCommunities(cs);
+          renderAll();
+        });
+      });
     }
 
     function renderMembers() {
@@ -124,11 +224,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       if (!c) return;
 
       const tc = getTC();
-      const members: string[] = c.members || [];
+      const members = normalizeMembers(c.members);
+      const role = myRole(members);
       const el = document.getElementById('members-list');
       const countEl = document.getElementById('member-count');
       const max = tc.maxMem;
       const atLimit = max !== -1 && members.length >= max;
+      const search = ((document.getElementById('member-search') as HTMLInputElement)?.value || '').toLowerCase();
 
       if (countEl) {
         const ratio = max === -1 ? `(${members.length})` : `(${members.length}/${max})`;
@@ -136,7 +238,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         countEl.style.color = atLimit ? '#FF2D55' : '#475569';
       }
 
-      // Member limit bar
       const limitBar = document.getElementById('member-limit-bar');
       if (limitBar && max > 0) {
         const pct = Math.min(members.length / max * 100, 100);
@@ -146,62 +247,118 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#FF2D55' : tc.color};border-radius:2px;transition:width 0.5s"></div>
             </div>
             <span style="font-size:11px;font-family:monospace;color:${atLimit ? '#FF2D55' : '#475569'};white-space:nowrap">
-              ${members.length}/${max} members · <span style="color:${tc.color}">${tc.name}</span>
+              ${members.length}/${max} · <span style="color:${tc.color}">${tc.name}</span>
             </span>
           </div>
-          ${atLimit ? `<div style="padding:10px 14px;background:rgba(255,140,66,0.08);border:1px solid rgba(255,140,66,0.2);border-radius:10px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-            <p style="font-size:12px;color:#FF8C42;margin:0">Member limit reached. <a href="/price" style="color:#FF8C42;font-weight:700">Upgrade to add more →</a></p>
+          ${atLimit ? `<div style="padding:10px 14px;background:rgba(255,140,66,0.08);border:1px solid rgba(255,140,66,0.2);border-radius:10px;margin-bottom:14px">
+            <p style="font-size:12px;color:#FF8C42;margin:0">Limit reached. <a href="/price" style="color:#FF8C42;font-weight:700">Upgrade →</a></p>
           </div>` : ''}`;
         limitBar.style.display = 'block';
       }
 
-      // Disable add button if at limit
       const addBtn = document.getElementById('add-member-btn') as HTMLButtonElement;
-      if (addBtn && atLimit) {
-        addBtn.disabled = true;
-        addBtn.style.cursor = 'not-allowed';
-        addBtn.style.opacity = '0.4';
-      } else if (addBtn) {
-        addBtn.disabled = false;
-        addBtn.style.cursor = 'pointer';
-        addBtn.style.opacity = '1';
+      if (addBtn) {
+        addBtn.disabled = atLimit;
+        addBtn.style.cursor = atLimit ? 'not-allowed' : 'pointer';
+        addBtn.style.opacity = atLimit ? '0.4' : '1';
       }
 
       if (!el) return;
-      if (members.length === 0) {
-        el.innerHTML = `<p style="color:#475569;font-size:13px">No members yet. Add someone above.</p>`;
+
+      const filtered = search
+        ? members.filter(m => m.id.toLowerCase().includes(search) || m.role.includes(search))
+        : members;
+
+      if (filtered.length === 0) {
+        el.innerHTML = `<p style="color:#475569;font-size:13px">${search ? 'No members match your search.' : 'No members yet. Add someone above.'}</p>`;
         return;
       }
 
+      const canManage = role === 'owner' || role === 'admin';
+
       el.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">
-        ${members.map(m => `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px">
-            <span style="font-size:13px;font-family:monospace;font-weight:600;color:#e2e8f0">${esc(m)}</span>
-            <button data-member="${esc(m)}" class="remove-btn"
-                    style="padding:4px 10px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#FF2D55;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s"
-                    onmouseover="this.style.background='rgba(255,45,85,0.18)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
-              Remove
-            </button>
-          </div>
-        `).join('')}
+        ${filtered.map(m => {
+          const isMe = m.id === myUserId;
+          const isOwner = m.role === 'owner';
+          const roleStyle = ROLE_STYLES[m.role] || ROLE_STYLES.member;
+          return `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;gap:10px">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                <span style="font-size:13px;font-family:monospace;font-weight:600;color:#e2e8f0">${esc(m.id)}${isMe ? ' <span style="font-size:10px;color:#475569">(you)</span>' : ''}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                ${canManage && !isOwner && m.id !== myUserId ? `
+                  <select data-member="${esc(m.id)}" class="role-select"
+                          style="background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 8px;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;outline:none">
+                    <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
+                    <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Admin</option>
+                  </select>
+                ` : `<span style="padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;${roleStyle}">${m.role.toUpperCase()}</span>`}
+                ${canManage && !isOwner ? `
+                  <button data-member="${esc(m.id)}" class="remove-btn"
+                          style="padding:4px 10px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#FF2D55;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                          onmouseover="this.style.background='rgba(255,45,85,0.18)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
+                    Remove
+                  </button>
+                ` : ''}
+              </div>
+            </div>`;
+        }).join('')}
       </div>`;
 
-      document.querySelectorAll('.remove-btn').forEach(btn => {
+      el.querySelectorAll('.role-select').forEach(sel => {
+        sel.addEventListener('change', () => {
+          const memberId = (sel as HTMLElement).dataset.member;
+          const newRole = (sel as HTMLSelectElement).value;
+          if (!memberId) return;
+          const cs = loadCommunities();
+          const comm = cs.find((x: any) => x.id === communityId);
+          if (!comm) return;
+          const mems = normalizeMembers(comm.members);
+          const target = mems.find(m => m.id === memberId);
+          if (target) {
+            const oldRole = target.role;
+            target.role = newRole;
+            comm.members = mems;
+            addLog(comm, 'role_changed', myUserId, `${memberId} role: ${oldRole} → ${newRole}`);
+            saveCommunities(cs);
+            renderAll();
+          }
+        });
+      });
+
+      el.querySelectorAll('.remove-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const memberId = (btn as HTMLElement).dataset.member;
           if (!memberId) return;
           const cs = loadCommunities();
           const comm = cs.find((x: any) => x.id === communityId);
           if (!comm) return;
-          comm.members = (comm.members || []).filter((m: string) => m !== memberId);
+          const mems = normalizeMembers(comm.members);
+          const target = mems.find(m => m.id === memberId);
+          if (target?.role === 'owner') return;
+          comm.members = mems.filter(m => m.id !== memberId);
+          addLog(comm, 'member_removed', myUserId, `Removed ${memberId}`);
           saveCommunities(cs);
-          renderMembers();
+          renderAll();
         });
       });
     }
 
+    function renderAll() {
+      const comms = loadCommunities();
+      const c = comms.find((x: any) => x.id === communityId);
+      if (!c) return;
+      const members = normalizeMembers(c.members);
+      const role = myRole(members);
+      renderJoinRequests(c, role);
+      renderMembers();
+    }
+
     function init() {
       communityId = getParam('id');
+      myUserId = localStorage.getItem('sw_user_id') || 'USER-ANON';
+
       if (!communityId) {
         document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#FF2D55">No community ID. <a href="/community" style="color:#06b6d4">Back</a></div>`;
         return;
@@ -216,9 +373,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       const bcEl = document.getElementById('bc-comm');
       if (bcEl) { bcEl.textContent = c.name; (bcEl as HTMLAnchorElement).href = `/community/view?id=${encodeURIComponent(communityId)}`; }
+      document.title = `Members · ${c.name} — Shadow Warden AI`;
 
       renderTabs(communityId);
-      renderMembers();
+      renderAll();
+
+      // Search filter
+      document.getElementById('member-search')?.addEventListener('input', renderMembers);
 
       // Add member
       document.getElementById('add-member-btn')?.addEventListener('click', () => {
@@ -226,22 +387,24 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const errEl = document.getElementById('add-err');
         const val = input.value.trim().toUpperCase();
         if (!val.match(/^USER-[0-9A-F]{4}$/)) {
-          if (errEl) { errEl.textContent = 'Format must be USER-XXXX (hex, e.g. USER-1A2B)'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = 'Format: USER-XXXX (e.g. USER-1A2B)'; errEl.style.display = 'block'; }
           return;
         }
         if (errEl) errEl.style.display = 'none';
         const cs = loadCommunities();
         const comm = cs.find((x: any) => x.id === communityId);
         if (!comm) return;
-        if (!comm.members) comm.members = [];
-        if (comm.members.includes(val)) {
-          if (errEl) { errEl.textContent = 'This member is already in the community.'; errEl.style.display = 'block'; }
+        const mems = normalizeMembers(comm.members);
+        if (mems.find(m => m.id === val)) {
+          if (errEl) { errEl.textContent = 'Already a member.'; errEl.style.display = 'block'; }
           return;
         }
-        comm.members.push(val);
+        mems.push({ id: val, role: 'member' });
+        comm.members = mems;
+        addLog(comm, 'member_joined', myUserId, `Added ${val}`);
         saveCommunities(cs);
         input.value = '';
-        renderMembers();
+        renderAll();
       });
 
       // Merge community
@@ -250,26 +413,36 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const errEl = document.getElementById('merge-err');
         const mergeId = input.value.trim().toUpperCase();
         if (!mergeId.match(/^COMM-[0-9A-F]{4}$/)) {
-          if (errEl) { errEl.textContent = 'Format must be COMM-XXXX'; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = 'Format: COMM-XXXX'; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
           return;
         }
         if (mergeId === communityId) {
-          if (errEl) { errEl.textContent = 'Cannot merge a community with itself.'; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = 'Cannot merge with itself.'; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
           return;
         }
         const cs = loadCommunities();
         const target = cs.find((x: any) => x.id === communityId);
         const source = cs.find((x: any) => x.id === mergeId);
         if (!source) {
-          if (errEl) { errEl.textContent = `Community ${mergeId} not found in your local storage.`; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = `${mergeId} not found in your communities.`; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
           return;
         }
-        const newMembers = [...new Set([...(target.members || []), ...(source.members || [])])];
-        target.members = newMembers;
+        const targetMems = normalizeMembers(target.members);
+        const sourceMems = normalizeMembers(source.members);
+        const existingIds = new Set(targetMems.map((m: any) => m.id));
+        let added = 0;
+        for (const sm of sourceMems) {
+          if (!existingIds.has(sm.id) && sm.role !== 'owner') {
+            targetMems.push({ id: sm.id, role: 'member' });
+            added++;
+          }
+        }
+        target.members = targetMems;
+        addLog(target, 'community_merged', myUserId, `Merged ${added} members from ${mergeId}`);
         saveCommunities(cs);
         input.value = '';
-        if (errEl) { errEl.textContent = `✓ Merged ${source.members?.length || 0} members from ${mergeId}.`; errEl.style.color = '#30D158'; errEl.style.display = 'block'; }
-        renderMembers();
+        if (errEl) { errEl.textContent = `✓ Merged ${added} new members from ${mergeId}.`; errEl.style.color = '#30D158'; errEl.style.display = 'block'; }
+        renderAll();
       });
     }
 

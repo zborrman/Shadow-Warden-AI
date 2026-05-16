@@ -84,6 +84,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       <!-- Tier banner -->
       <div id="tier-banner" class="mb-5 px-4 py-3 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)"></div>
 
+      <!-- Search -->
+      <div class="mb-4">
+        <input id="comm-search" type="text" placeholder="Search communities by name or ID…" maxlength="60"
+               style="width:100%;box-sizing:border-box;background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:11px 16px;color:#f1f5f9;font-size:14px;outline:none;transition:border-color 0.2s"
+               onfocus="this.style.borderColor='rgba(6,182,212,0.4)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'" />
+      </div>
+
       <!-- Communities grid -->
       <div id="communities-list">
         <p class="text-sm" style="color:#475569">Loading…</p>
@@ -175,6 +182,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         }
       }
 
+      const search = ((document.getElementById('comm-search') as HTMLInputElement)?.value || '').toLowerCase();
+      const filtered = search ? comms.filter((c: any) => c.name.toLowerCase().includes(search) || c.id.toLowerCase().includes(search)) : comms;
+
       if (comms.length === 0) {
         el.innerHTML = `
           <div style="text-align:center;padding:80px 20px;border:1px dashed rgba(255,255,255,0.08);border-radius:20px">
@@ -191,9 +201,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         return;
       }
 
+      if (filtered.length === 0) {
+        el.innerHTML = `<p style="color:#475569;font-size:14px;padding:24px 0">No communities match "${esc(search)}".</p>`;
+        return;
+      }
+
       el.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
-          ${comms.map((c: any) => {
+          ${filtered.map((c: any) => {
             const memberCount = (c.members || []).length;
             const msgCount = tunnelMsgCount(c.id);
             return `
@@ -240,6 +255,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
     render();
 
+    // Search filter
+    document.getElementById('comm-search')?.addEventListener('input', render);
+
     // Join Community modal
     const joinModal = document.getElementById('join-modal') as HTMLElement;
     const joinInput = document.getElementById('join-input') as HTMLInputElement;
@@ -272,29 +290,46 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
       const uid = getOrCreateUserId();
       const comms = loadCommunities();
-
-      // Already in this community?
       const existing = comms.find((x: any) => x.id === code);
+
       if (existing) {
-        if (!existing.members) existing.members = [];
-        if (!existing.members.includes(uid)) {
-          existing.members.push(uid);
-          localStorage.setItem(COMM_KEY, JSON.stringify(comms));
-          joinOk.textContent = `✓ Joined "${existing.name}" successfully!`;
-        } else {
+        // Check if already a member
+        const mems: any[] = existing.members || [];
+        const isMember = mems.some((m: any) => (typeof m === 'string' ? m : m.id) === uid);
+        if (isMember) {
           joinOk.textContent = `✓ You're already a member of "${existing.name}".`;
+          joinOk.style.display = 'block';
+          setTimeout(() => { hideJoinModal(); render(); }, 1400);
+          return;
         }
+        // Check if already requested
+        const reqs: any[] = existing.join_requests || [];
+        if (reqs.some((r: any) => r.userId === uid)) {
+          joinOk.textContent = `📨 Join request already pending for "${existing.name}". Waiting for approval.`;
+          joinOk.style.display = 'block';
+          return;
+        }
+        // Submit join request
+        if (!existing.join_requests) existing.join_requests = [];
+        existing.join_requests.push({ userId: uid, ts: Date.now() });
+        if (!existing.activityLog) existing.activityLog = [];
+        existing.activityLog.unshift({ ts: Date.now(), action: 'join_request_sent', userId: uid, detail: `${uid} requested to join` });
+        localStorage.setItem(COMM_KEY, JSON.stringify(comms));
+        joinOk.textContent = `📨 Join request sent to "${existing.name}". An admin must approve it.`;
         joinOk.style.display = 'block';
-        setTimeout(() => { hideJoinModal(); render(); }, 1400);
+        setTimeout(() => hideJoinModal(), 2200);
         return;
       }
 
-      // Community not found locally — create a stub
-      const stub = {
+      // Community not found locally — create stub + self-approve (owner scenario)
+      const stub: any = {
         id: code,
         name: `Community ${code}`,
         description: 'Joined via community code',
-        members: [uid],
+        members: [{ id: uid, role: 'member' }],
+        join_requests: [],
+        activityLog: [{ ts: Date.now(), action: 'member_joined', userId: uid, detail: `${uid} joined via code` }],
+        disappearingMessages: false,
         created: new Date().toISOString(),
         isJoined: true,
       };
