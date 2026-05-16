@@ -1,22 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ConfirmModal from '../components/ConfirmModal.astro';
-import roadmap from '../data/roadmap.json';
-import { BILLING_PORTAL, WORKER_API } from '../config/lemonsqueezy';
-
-const secFeatures   = roadmap.filter(r => r.category === 'Settings' && r.subcategory === 'Security');
-const gdprFeatures  = roadmap.filter(r => r.category === 'Settings' && r.subcategory === 'GDPR');
-const integrations  = roadmap.filter(r => r.category === 'Settings' && r.subcategory === 'Integrations');
-
-const statusBadge: Record<string, string> = {
-  shipped:     'color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)',
-  'in-progress':'color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)',
-  planned:     'color:#6366f1;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)',
-  cancelled:   'color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)',
-};
-const statusIcon: Record<string, string> = {
-  shipped: '✅', 'in-progress': '🔄', planned: '📋', cancelled: '❌',
-};
+import { BILLING_PORTAL } from '../config/lemonsqueezy';
 ---
 
 <BaseLayout
@@ -25,230 +10,262 @@ const statusIcon: Record<string, string> = {
 >
   <div class="pt-14 min-h-screen" style="background:#03050f">
 
-    <!-- Page header -->
-    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#0a0a14">
-      <div class="mx-auto max-w-5xl px-4 lg:px-8 py-8">
-        <div class="flex items-center gap-3 mb-2">
-          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[16px]"
-               style="background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.2)">⚙</div>
-          <h1 class="text-[22px] font-bold" style="color:#f1f5f9">Settings</h1>
+    <!-- Shell: sidebar + content -->
+    <div class="settings-shell mx-auto">
+
+      <!-- ── SIDEBAR ─────────────────────────────────────────── -->
+      <aside class="settings-sidebar">
+        <div class="sidebar-inner">
+          <div class="sidebar-label">WORKSPACE</div>
+          <nav class="sidebar-nav" id="settings-nav">
+
+            <button class="nav-item active" data-panel="filter">
+              <span class="nav-icon">⚡</span>
+              <span class="nav-text">Filter pipeline</span>
+            </button>
+
+            <button class="nav-item" data-panel="apikeys">
+              <span class="nav-icon">🔑</span>
+              <span class="nav-text">API keys</span>
+              <span class="nav-badge">2</span>
+            </button>
+
+            <button class="nav-item" data-panel="webhooks">
+              <span class="nav-icon">🔗</span>
+              <span class="nav-text">Webhooks</span>
+            </button>
+
+            <button class="nav-item" data-panel="rules">
+              <span class="nav-icon">📋</span>
+              <span class="nav-text">Rules</span>
+            </button>
+
+            <button class="nav-item" data-panel="team">
+              <span class="nav-icon">👥</span>
+              <span class="nav-text">Team</span>
+              <span class="nav-badge">5</span>
+            </button>
+
+            <button class="nav-item" data-panel="billing">
+              <span class="nav-icon">💳</span>
+              <span class="nav-text">Billing</span>
+            </button>
+
+            <button class="nav-item danger-item" data-panel="danger">
+              <span class="nav-icon">⚠</span>
+              <span class="nav-text">Danger zone</span>
+            </button>
+          </nav>
         </div>
-        <p class="text-[13px]" style="color:#64748b">Manage your project configuration, security, and integrations.</p>
-      </div>
-    </div>
+      </aside>
 
-    <div class="mx-auto max-w-5xl px-4 lg:px-8 py-8">
+      <!-- ── MAIN CONTENT ────────────────────────────────────── -->
+      <main class="settings-main">
 
-      <!-- Tab nav -->
-      <div class="flex items-center gap-1 mb-8 overflow-x-auto pb-1"
-           style="border-bottom:1px solid rgba(255,255,255,0.06)">
-        {(['General','Appearance','Security','Integrations','GDPR','Billing','Danger Zone'] as const).map(tab => (
-          <button
-            class="tab-btn px-4 py-2.5 text-[13px] font-medium whitespace-nowrap rounded-t-lg transition-all"
-            data-tab={tab.toLowerCase().replace(' ','-')}
-            style="color:#64748b;border-bottom:2px solid transparent">
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <!-- ── GENERAL ── -->
-      <div id="tab-general" class="tab-panel">
-        <div class="settings-card mb-5">
-          <h2 class="settings-section-title">Project Identity</h2>
-          <p class="settings-section-sub">Update the display name and description of your project.</p>
-          <div class="mt-5 grid gap-4 max-w-lg">
-            <div>
-              <label class="settings-label">Project name</label>
-              <input id="proj-name" type="text" value="Shadow Warden AI"
-                     class="settings-input" />
-            </div>
-            <div>
-              <label class="settings-label">Description</label>
-              <textarea id="proj-desc" rows="2"
-                        class="settings-input resize-none"
-                        >14-layer real-time AI security gateway.</textarea>
-            </div>
-            <div class="flex items-center gap-3 pt-1">
-              <button onclick="saveGeneral()" class="btn-primary-sm">Save changes</button>
-              <span id="save-msg" class="text-[12px] hidden" style="color:#10b981">✓ Saved</span>
-            </div>
+        <!-- Top header bar -->
+        <div class="settings-topbar">
+          <div id="panel-title" class="topbar-title">Filter pipeline</div>
+          <div class="health-badge">
+            <span class="health-dot"></span>
+            ALL SYSTEMS HEALTHY
           </div>
         </div>
 
-        <div class="settings-card">
-          <h2 class="settings-section-title">Live Config API</h2>
-          <p class="settings-section-sub">Tune pipeline parameters without container restarts. Changes propagate in &lt;100ms.</p>
-          <div class="mt-5 grid gap-4 max-w-lg">
-            <div class="flex items-center justify-between py-3 border-b" style="border-color:rgba(255,255,255,0.06)">
-              <div>
-                <div class="text-[13px] font-medium" style="color:#cbd5e1">Semantic threshold</div>
-                <div class="text-[11px]" style="color:#475569">ML jailbreak score cutoff (0–1)</div>
+        <!-- ── FILTER PIPELINE ── -->
+        <div id="panel-filter" class="settings-panel active">
+          <p class="panel-subtitle">
+            Tune how Shadow Warden inspects every AI request before it leaves your perimeter.
+          </p>
+
+          <!-- SemanticBrain -->
+          <div class="feature-card">
+            <div class="feature-header">
+              <div class="feature-meta">
+                <span class="feature-title">SemanticBrain</span>
+                <span class="feature-sub">ML cosine</span>
               </div>
-              <input type="number" value="0.72" min="0" max="1" step="0.01"
-                     class="w-20 text-center settings-input text-[13px]" />
-            </div>
-            <div class="flex items-center justify-between py-3 border-b" style="border-color:rgba(255,255,255,0.06)">
-              <div>
-                <div class="text-[13px] font-medium" style="color:#cbd5e1">Rate limit</div>
-                <div class="text-[11px]" style="color:#475569">Requests per minute per tenant</div>
+              <div class="feature-badges">
+                <span class="badge badge-green">RECOMMENDED</span>
               </div>
-              <input type="number" value="240" min="10" max="10000"
-                     class="w-24 text-center settings-input text-[13px]" />
-            </div>
-            <div class="flex items-center justify-between py-3">
-              <div>
-                <div class="text-[13px] font-medium" style="color:#cbd5e1">Evolution Engine</div>
-                <div class="text-[11px]" style="color:#475569">Auto-rule generation via Claude Opus</div>
-              </div>
-              <label class="toggle-label">
-                <input type="checkbox" checked class="sr-only toggle-input" />
+              <label class="toggle-label ml-auto">
+                <input type="checkbox" checked class="sr-only toggle-input" id="toggle-brain" />
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
               </label>
             </div>
+            <p class="feature-desc">
+              Async ML detection layer using all-MiniLM-L6-v2 embeddings. Catches paraphrased jailbreaks that regex rules miss.
+            </p>
+            <div class="feature-stats">
+              Adds ~15ms latency · +18% recall on adversarial set
+            </div>
+          </div>
+
+          <!-- EvolutionEngine -->
+          <div class="feature-card">
+            <div class="feature-header">
+              <div class="feature-meta">
+                <span class="feature-title">EvolutionEngine</span>
+              </div>
+              <div class="feature-badges">
+                <span class="badge badge-amber">BETA</span>
+              </div>
+              <label class="toggle-label ml-auto">
+                <input type="checkbox" checked class="sr-only toggle-input" id="toggle-evolve" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+            <p class="feature-desc">
+              Auto-generate new detection rules from blocked attacks via Claude Opus. Hot-reloads without restart.
+            </p>
+            <div class="info-box">
+              <span class="info-icon">💡</span>
+              <div>
+                <div class="info-title">BEST PRACTICE</div>
+                <div class="info-body">
+                  Enable in staging first. Consumes API credits. Review the generated corpus weekly under
+                  <span class="info-mono">Rules → Auto-generated</span>.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- GDPR strict mode -->
+          <div class="feature-card">
+            <div class="feature-header">
+              <div class="feature-meta">
+                <span class="feature-title">GDPR strict mode</span>
+              </div>
+              <div class="feature-badges">
+                <span class="badge badge-blue">EU</span>
+                <span class="badge badge-purple">SOC 2</span>
+              </div>
+              <label class="toggle-label ml-auto">
+                <input type="checkbox" checked class="sr-only toggle-input" id="toggle-gdpr" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+            <p class="feature-desc">
+              Never log request content. Only metadata (type, length, timing) is persisted. Required for EU deployments.
+            </p>
+            <div class="mono-hint">Endpoints /gdpr/export and /gdpr/purge rely on this</div>
+          </div>
+
+          <!-- Sensitivity profile -->
+          <div class="feature-card">
+            <div class="feature-header">
+              <div class="feature-meta">
+                <span class="feature-title">Sensitivity profile</span>
+              </div>
+            </div>
+            <p class="feature-desc">
+              Tradeoff between false-positive rate and recall. Balanced works for most workloads.
+            </p>
+            <div class="btn-group mt-4" id="sensitivity-group">
+              <button class="seg-btn" data-val="strict">Strict</button>
+              <button class="seg-btn active" data-val="balanced">Balanced</button>
+              <button class="seg-btn" data-val="lenient">Lenient</button>
+            </div>
+          </div>
+
+          <!-- Rate limit -->
+          <div class="feature-card">
+            <div class="feature-header">
+              <div class="feature-meta">
+                <span class="feature-title">Rate limit</span>
+                <span class="feature-sub">per API key</span>
+              </div>
+            </div>
+            <p class="feature-desc">
+              Hard cap on requests per key per minute. Above 1,000 may require dedicated Redis.
+            </p>
+            <div class="rate-input-row mt-4">
+              <input type="number" id="rate-limit-val" value="240" min="10" max="10000"
+                     class="settings-input rate-input" />
+              <span class="rate-unit">req / min</span>
+            </div>
+          </div>
+
+          <!-- Sticky save footer -->
+          <div class="save-footer">
+            <span class="save-timestamp" id="save-timestamp">Last saved 2 min ago by ops@shadowwarden.ai</span>
+            <div class="save-actions">
+              <button class="btn-secondary-sm" onclick="resetDefaults()">Reset to defaults</button>
+              <button class="btn-primary-sm" onclick="saveFilter()">Save changes</button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- ── APPEARANCE ── -->
-      <div id="tab-appearance" class="tab-panel hidden">
-        <div class="settings-card mb-5">
-          <h2 class="settings-section-title">Theme</h2>
-          <p class="settings-section-sub">Choose between dark and light mode. Preference is stored locally.</p>
-          <div class="mt-5 flex gap-3">
-            {(['dark','light','system'] as const).map(t => (
-              <button
-                class="theme-btn flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border transition-all"
-                data-theme={t}
-                style="border-color:rgba(255,255,255,0.08);background:rgba(255,255,255,0.02)">
-                <span class="text-[22px]">
-                  {t === 'dark' ? '🌙' : t === 'light' ? '☀️' : '💻'}
-                </span>
-                <span class="text-[12px] font-medium capitalize" style="color:#94a3b8">{t}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <!-- ── API KEYS ── -->
+        <div id="panel-apikeys" class="settings-panel hidden">
+          <p class="panel-subtitle">Per-tenant keys with SHA-256 constant-time compare. Fail-closed — service won't start without a valid key.</p>
 
-        <div class="settings-card">
-          <h2 class="settings-section-title">Accessibility</h2>
-          <p class="settings-section-sub">WCAG 2.1 AA · EAA 2019/882. Controls are also accessible via the floating ♿ widget.</p>
-          <div class="mt-5 grid gap-3">
+          <div class="settings-card mt-6">
+            <div class="flex items-center gap-3 mb-5">
+              <h3 class="card-title">Active Keys</h3>
+              <button class="btn-primary-sm ml-auto" onclick="generateKey()">+ New key</button>
+            </div>
             {[
-              { key: 'contrast',  label: 'High contrast',  hint: 'WCAG 1.4.6' },
-              { key: 'motion',    label: 'Reduce motion',  hint: 'WCAG 2.3.3' },
-              { key: 'dyslexia', label: 'Dyslexia font',  hint: 'OpenDyslexic' },
-              { key: 'focus',     label: 'Enhanced focus', hint: 'WCAG 2.4.11' },
-            ].map(item => (
-              <div class="flex items-center justify-between py-3 border-b" style="border-color:rgba(255,255,255,0.06)">
-                <div>
-                  <div class="text-[13px] font-medium" style="color:#cbd5e1">{item.label}</div>
-                  <div class="text-[11px]" style="color:#475569">{item.hint}</div>
+              { name: 'Production key', created: 'Jan 12, 2026', lastUsed: '2 min ago' },
+              { name: 'CI / staging',   created: 'Mar 3, 2026',  lastUsed: '1 hour ago' },
+            ].map(k => (
+              <div class="key-row">
+                <div class="key-icon">🔑</div>
+                <div class="key-info">
+                  <div class="key-name">{k.name}</div>
+                  <div class="key-meta">Created {k.created} · Last used {k.lastUsed}</div>
+                  <code class="key-preview">sw-key-••••••••••••••••••••••••••••••••</code>
                 </div>
-                <label class="toggle-label">
-                  <input type="checkbox" data-a11y={item.key} class="sr-only toggle-input a11y-toggle" />
-                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <!-- ── SECURITY ── -->
-      <div id="tab-security" class="tab-panel hidden">
-        <div class="settings-card mb-5">
-          <h2 class="settings-section-title">API Keys</h2>
-          <p class="settings-section-sub">Per-tenant keys with SHA-256 constant-time compare. Fail-closed — service won't start without a valid key.</p>
-          <div class="mt-5 flex gap-3">
-            <input type="password" value="sw-key-••••••••••••••••••••••••••••••••"
-                   class="settings-input flex-1 font-mono text-[12px]" readonly />
-            <button class="btn-secondary-sm" onclick="copyKey(this)">Copy</button>
-            <button class="btn-secondary-sm" style="color:#ef4444;border-color:rgba(239,68,68,0.3)">Rotate</button>
-          </div>
-        </div>
-
-        <div class="settings-card mb-5">
-          <h2 class="settings-section-title">Security Features</h2>
-          <div class="mt-4 grid gap-3">
-            {secFeatures.map(f => (
-              <div class="flex items-start gap-4 p-4 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
-                <span class="text-[18px] mt-0.5">{statusIcon[f.status] ?? '📋'}</span>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <span class="text-[13px] font-semibold" style="color:#f1f5f9">{f.feature}</span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style={statusBadge[f.status] ?? statusBadge.planned}>
-                      {f.status}
-                    </span>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="color:#475569;background:rgba(255,255,255,0.04)">{f.tier}</span>
-                  </div>
-                  <p class="text-[12px] leading-relaxed" style="color:#64748b">{f.description}</p>
+                <div class="key-actions">
+                  <button class="btn-secondary-sm" onclick="copyKey(this)">Copy</button>
+                  <button class="btn-secondary-sm" style="color:#f59e0b;border-color:rgba(245,158,11,0.3)">Rotate</button>
+                  <button class="btn-secondary-sm" style="color:#ef4444;border-color:rgba(239,68,68,0.3)">Revoke</button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
 
-        <div class="settings-card">
-          <h2 class="settings-section-title">Change Password</h2>
-          <div class="mt-5 grid gap-3 max-w-md">
-            <div>
-              <label class="settings-label">Current password</label>
-              <input type="password" placeholder="••••••••" class="settings-input" />
+          <div class="settings-card mt-4">
+            <h3 class="card-title mb-3">Change Password</h3>
+            <div class="grid gap-3 max-w-md">
+              <div>
+                <label class="settings-label">Current password</label>
+                <input type="password" placeholder="••••••••" class="settings-input" />
+              </div>
+              <div>
+                <label class="settings-label">New password</label>
+                <input type="password" placeholder="••••••••" class="settings-input" />
+              </div>
+              <div>
+                <label class="settings-label">Confirm new password</label>
+                <input type="password" placeholder="••••••••" class="settings-input" />
+              </div>
+              <button class="btn-primary-sm w-fit mt-1">Update password</button>
             </div>
-            <div>
-              <label class="settings-label">New password</label>
-              <input type="password" placeholder="••••••••" class="settings-input" />
-            </div>
-            <div>
-              <label class="settings-label">Confirm new password</label>
-              <input type="password" placeholder="••••••••" class="settings-input" />
-            </div>
-            <button class="btn-primary-sm w-fit mt-1">Update password</button>
           </div>
         </div>
-      </div>
 
-      <!-- ── INTEGRATIONS ── -->
-      <div id="tab-integrations" class="tab-panel hidden">
-        <div class="settings-card">
-          <h2 class="settings-section-title">Connected Integrations</h2>
-          <p class="settings-section-sub">Manage connections to external services and tools.</p>
-          <div class="mt-5 grid gap-4">
-            {integrations.map(f => (
-              <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] flex-shrink-0"
-                     style="background:rgba(255,255,255,0.04)">
-                  {f.id === 'S-09' ? '🔌' : f.id === 'S-10' ? '💬' : f.id === 'S-11' ? '⚙' : '🔗'}
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 mb-0.5">
-                    <span class="text-[13px] font-semibold" style="color:#f1f5f9">{f.feature}</span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style={statusBadge[f.status] ?? statusBadge.planned}>
-                      {f.status}
-                    </span>
-                  </div>
-                  <p class="text-[12px]" style="color:#64748b">{f.description}</p>
-                </div>
-                <label class="toggle-label flex-shrink-0">
-                  <input type="checkbox" checked={f.status === 'shipped'} class="sr-only toggle-input" />
-                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                </label>
-              </div>
-            ))}
+        <!-- ── WEBHOOKS ── -->
+        <div id="panel-webhooks" class="settings-panel hidden">
+          <p class="panel-subtitle">Push security events to external services in real time.</p>
 
-            <!-- Manual integration cards -->
+          <div class="settings-card mt-6">
+            <div class="flex items-center gap-3 mb-5">
+              <h3 class="card-title">Connected Integrations</h3>
+              <button class="btn-primary-sm ml-auto">+ Add webhook</button>
+            </div>
             {[
-              { name: 'PagerDuty', icon: '🚨', desc: 'Real-time HIGH/BLOCK incident escalation via PagerDuty Events API v2.', connected: true },
-              { name: 'Splunk HEC', icon: '📊', desc: 'Stream security events to your Splunk SIEM via HTTP Event Collector.', connected: false },
-              { name: 'LangChain', icon: '🦜', desc: 'Drop-in WardenCallback for LangChain pipelines. Zero code changes required.', connected: true },
+              { name: 'Slack Alerts',  icon: '💬', desc: 'Real-time HIGH/BLOCK alerts to your SOC Slack channel via incoming webhook.', connected: true },
+              { name: 'PagerDuty',     icon: '🚨', desc: 'Real-time HIGH/BLOCK incident escalation via PagerDuty Events API v2.', connected: true },
+              { name: 'Splunk HEC',    icon: '📊', desc: 'Stream security events to your Splunk SIEM via HTTP Event Collector.', connected: false },
+              { name: 'LangChain',     icon: '🦜', desc: 'Drop-in WardenCallback for LangChain pipelines. Zero code changes required.', connected: true },
+              { name: 'Elastic ECS',   icon: '🔍', desc: 'Elastic Common Schema event export for Elastic SIEM and Kibana dashboards.', connected: false },
             ].map(item => (
-              <div class="flex items-center gap-4 p-4 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px] flex-shrink-0"
-                     style="background:rgba(255,255,255,0.04)">{item.icon}</div>
-                <div class="flex-1 min-w-0">
-                  <div class="text-[13px] font-semibold mb-0.5" style="color:#f1f5f9">{item.name}</div>
-                  <p class="text-[12px]" style="color:#64748b">{item.desc}</p>
+              <div class="key-row">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] flex-shrink-0"
+                     style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08)">{item.icon}</div>
+                <div class="key-info">
+                  <div class="key-name">{item.name}</div>
+                  <div class="key-meta">{item.desc}</div>
                 </div>
                 <label class="toggle-label flex-shrink-0">
                   <input type="checkbox" checked={item.connected} class="sr-only toggle-input" />
@@ -258,147 +275,170 @@ const statusIcon: Record<string, string> = {
             ))}
           </div>
         </div>
-      </div>
 
-      <!-- ── GDPR ── -->
-      <div id="tab-gdpr" class="tab-panel hidden">
-        <div class="settings-card mb-5">
-          <h2 class="settings-section-title">Data Governance</h2>
-          <p class="settings-section-sub">GDPR Articles 13, 15, 17 controls. Raw content is never logged — metadata only.</p>
-          <div class="mt-5 grid gap-3">
-            {gdprFeatures.map(f => (
-              <div class="flex items-start gap-4 p-4 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
-                <span class="text-[18px] mt-0.5">{statusIcon[f.status] ?? '📋'}</span>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap mb-1">
-                    <span class="text-[13px] font-semibold" style="color:#f1f5f9">{f.feature}</span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style={statusBadge[f.status] ?? statusBadge.planned}>{f.status}</span>
-                  </div>
-                  <p class="text-[12px] leading-relaxed" style="color:#64748b">{f.description}</p>
+        <!-- ── RULES ── -->
+        <div id="panel-rules" class="settings-panel hidden">
+          <p class="panel-subtitle">Manage regex and semantic rules. Auto-generated rules from the Evolution Engine appear under the Auto-generated tab.</p>
+
+          <div class="settings-card mt-6">
+            <div class="flex items-center gap-3 mb-4">
+              <h3 class="card-title">Detection Rules</h3>
+              <span class="text-[11px] px-2 py-0.5 rounded-full" style="color:#6366f1;background:rgba(99,102,241,0.1)">153 active</span>
+              <button class="btn-primary-sm ml-auto">+ Add rule</button>
+            </div>
+            {[
+              { id: 'R-001', name: 'Jailbreak: role override',    type: 'regex',    severity: 'HIGH',   hits: 412 },
+              { id: 'R-002', name: 'Prompt injection: sys leak',   type: 'regex',    severity: 'HIGH',   hits: 208 },
+              { id: 'R-003', name: 'DAN variants (semantic)',      type: 'semantic', severity: 'HIGH',   hits: 94  },
+              { id: 'R-004', name: 'PII: SSN pattern',             type: 'redactor', severity: 'MEDIUM', hits: 61  },
+              { id: 'R-005', name: 'Obfuscated base64 payload',    type: 'decoder',  severity: 'MEDIUM', hits: 29  },
+            ].map(r => (
+              <div class="rule-row">
+                <span class="rule-id">{r.id}</span>
+                <span class="rule-name">{r.name}</span>
+                <span class="rule-type">{r.type}</span>
+                <span class={`rule-severity sev-${r.severity.toLowerCase()}`}>{r.severity}</span>
+                <span class="rule-hits">{r.hits} hits</span>
+                <button class="btn-secondary-sm text-[11px] px-2 py-1">Edit</button>
+              </div>
+            ))}
+            <div class="text-center pt-4">
+              <button class="btn-secondary-sm text-[11px]">View all 153 rules →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── TEAM ── -->
+        <div id="panel-team" class="settings-panel hidden">
+          <p class="panel-subtitle">Manage who has access to your Shadow Warden workspace.</p>
+
+          <div class="settings-card mt-6">
+            <div class="flex items-center gap-3 mb-5">
+              <h3 class="card-title">Members</h3>
+              <span class="text-[11px] px-2 py-0.5 rounded-full" style="color:#6366f1;background:rgba(99,102,241,0.1)">5 members</span>
+              <button class="btn-primary-sm ml-auto">Invite member</button>
+            </div>
+            {[
+              { name: 'ops@shadowwarden.ai',   role: 'Owner',  joined: 'Jan 2026',  avatar: '🛡' },
+              { name: 'dev@shadowwarden.ai',    role: 'Admin',  joined: 'Feb 2026',  avatar: '⚙' },
+              { name: 'soc@shadowwarden.ai',    role: 'Viewer', joined: 'Mar 2026',  avatar: '🔍' },
+              { name: 'ci-bot@shadowwarden.ai', role: 'Viewer', joined: 'Mar 2026',  avatar: '🤖' },
+              { name: 'audit@client.com',       role: 'Viewer', joined: 'Apr 2026',  avatar: '📋' },
+            ].map(m => (
+              <div class="key-row">
+                <div class="w-9 h-9 rounded-full flex items-center justify-center text-[16px] flex-shrink-0"
+                     style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)">{m.avatar}</div>
+                <div class="key-info">
+                  <div class="key-name">{m.name}</div>
+                  <div class="key-meta">Joined {m.joined}</div>
                 </div>
+                <span class={`member-role role-${m.role.toLowerCase()}`}>{m.role}</span>
+                {m.role !== 'Owner' && (
+                  <button class="btn-secondary-sm text-[11px] px-2 py-1" style="color:#ef4444;border-color:rgba(239,68,68,0.3)">Remove</button>
+                )}
               </div>
             ))}
           </div>
         </div>
 
-        <div class="settings-card">
-          <h2 class="settings-section-title">Export & Erasure</h2>
-          <div class="mt-4 flex flex-wrap gap-3">
-            <button class="btn-secondary-sm">Export my data (Art. 15)</button>
-            <button class="btn-secondary-sm" style="color:#f59e0b;border-color:rgba(245,158,11,0.3)">
-              Request erasure (Art. 17)
-            </button>
-          </div>
-          <p class="text-[11px] mt-3" style="color:#334155">
-            Export is delivered to your registered email within 72 hours. Erasure completes within 30 days.
-          </p>
-        </div>
-      </div>
+        <!-- ── BILLING ── -->
+        <div id="panel-billing" class="settings-panel hidden">
+          <p class="panel-subtitle">Manage your subscription, usage, and payment history.</p>
 
-      <!-- ── BILLING ── -->
-      <div id="tab-billing" class="tab-panel hidden">
-
-        <!-- Current plan card -->
-        <div class="settings-card mb-5">
-          <div class="flex items-start justify-between gap-4 mb-5">
-            <div>
-              <h2 class="settings-section-title">Current Plan</h2>
-              <p class="settings-section-sub">Your active subscription and usage.</p>
+          <div class="settings-card mt-6 mb-4">
+            <div class="flex items-start justify-between gap-4 mb-5">
+              <h3 class="card-title">Current Plan</h3>
+              <a href={BILLING_PORTAL} target="_blank" rel="noopener"
+                 class="btn-secondary-sm flex-shrink-0 whitespace-nowrap">
+                Manage Subscription ↗
+              </a>
             </div>
-            <a href={BILLING_PORTAL} target="_blank" rel="noopener"
-               class="btn-secondary-sm flex-shrink-0 whitespace-nowrap">
-              Manage Subscription ↗
-            </a>
-          </div>
 
-          <!-- Plan display — filled by JS -->
-          <div id="billing-loading" class="py-6 text-center text-[13px]" style="color:#475569">
-            Loading subscription…
-          </div>
-          <div id="billing-plan" class="hidden">
-            <div class="flex items-center gap-4 p-4 rounded-xl mb-4" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15)">
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px]" style="background:rgba(99,102,241,0.1)">⚡</div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span id="plan-name" class="text-[15px] font-bold" style="color:#f1f5f9">—</span>
-                  <span id="plan-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)">—</span>
+            <div id="billing-loading" class="py-6 text-center text-[13px]" style="color:#475569">
+              Loading subscription…
+            </div>
+            <div id="billing-plan" class="hidden">
+              <div class="flex items-center gap-4 p-4 rounded-xl mb-4" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15)">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px]" style="background:rgba(99,102,241,0.1)">⚡</div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span id="plan-name" class="text-[15px] font-bold" style="color:#f1f5f9">—</span>
+                    <span id="plan-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full">—</span>
+                  </div>
+                  <div id="plan-renews" class="text-[12px] mt-0.5" style="color:#64748b">—</div>
                 </div>
-                <div id="plan-renews" class="text-[12px] mt-0.5" style="color:#64748b">—</div>
+              </div>
+              <div class="mb-2 flex items-center justify-between text-[12px]" style="color:#64748b">
+                <span>Requests this month</span>
+                <span id="usage-count" style="color:#f1f5f9">—</span>
+              </div>
+              <div class="h-2 rounded-full overflow-hidden mb-5" style="background:rgba(255,255,255,0.06)">
+                <div id="usage-bar" class="h-full rounded-full" style="background:linear-gradient(90deg,#6366f1,#8b5cf6);width:0%"></div>
               </div>
             </div>
 
-            <!-- Usage bar (mock) -->
-            <div class="mb-2 flex items-center justify-between text-[12px]" style="color:#64748b">
-              <span>Requests this month</span>
-              <span id="usage-count" style="color:#f1f5f9">—</span>
+            <div id="billing-none" class="hidden text-center py-6">
+              <div class="text-[14px] mb-3" style="color:#94a3b8">No active subscription found.</div>
+              <a href="/price" class="btn-primary-sm">View Plans →</a>
             </div>
-            <div class="h-2 rounded-full overflow-hidden mb-5" style="background:rgba(255,255,255,0.06)">
-              <div id="usage-bar" class="h-full rounded-full" style="background:linear-gradient(90deg,#6366f1,#8b5cf6);width:0%"></div>
+
+            <div id="billing-link" class="hidden">
+              <p class="text-[13px] mb-3" style="color:#64748b">
+                Enter your Lemon Squeezy Customer ID to load your subscription details.
+              </p>
+              <div class="flex gap-3 max-w-sm">
+                <input id="customer-id-input" type="text" placeholder="e.g. 1234567"
+                       class="settings-input flex-1 font-mono text-[12px]" />
+                <button id="link-account-btn" class="btn-primary-sm whitespace-nowrap">Link</button>
+              </div>
+              <p class="text-[11px] mt-2" style="color:#334155">
+                Find your Customer ID in your Lemon Squeezy order confirmation email.
+              </p>
             </div>
           </div>
 
-          <!-- No subscription state -->
-          <div id="billing-none" class="hidden text-center py-6">
-            <div class="text-[14px] mb-3" style="color:#94a3b8">No active subscription found.</div>
-            <a href="/price" class="btn-primary-sm">View Plans →</a>
-          </div>
-
-          <!-- Link account -->
-          <div id="billing-link" class="hidden">
-            <p class="text-[13px] mb-3" style="color:#64748b">
-              Enter your Lemon Squeezy Customer ID to load your subscription details.
-            </p>
-            <div class="flex gap-3 max-w-sm">
-              <input id="customer-id-input" type="text" placeholder="e.g. 1234567"
-                     class="settings-input flex-1 font-mono text-[12px]" />
-              <button id="link-account-btn" class="btn-primary-sm whitespace-nowrap">Link</button>
-            </div>
-            <p class="text-[11px] mt-2" style="color:#334155">
-              Find your Customer ID in your Lemon Squeezy order confirmation email.
-            </p>
-          </div>
-        </div>
-
-        <!-- Payment history (mock) -->
-        <div class="settings-card mb-5">
-          <h2 class="settings-section-title">Payment History</h2>
-          <div class="mt-4 overflow-x-auto">
-            <table class="w-full text-[12px]">
-              <thead>
-                <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
-                  <th class="text-left pb-2 font-semibold" style="color:#475569">Date</th>
-                  <th class="text-left pb-2 font-semibold" style="color:#475569">Plan</th>
-                  <th class="text-left pb-2 font-semibold" style="color:#475569">Amount</th>
-                  <th class="text-left pb-2 font-semibold" style="color:#475569">Status</th>
-                  <th class="text-right pb-2 font-semibold" style="color:#475569">Invoice</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { date: 'May 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
-                  { date: 'Apr 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
-                  { date: 'Mar 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
-                ].map(row => (
-                  <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
-                    <td class="py-2.5" style="color:#94a3b8">{row.date}</td>
-                    <td class="py-2.5" style="color:#94a3b8">{row.plan}</td>
-                    <td class="py-2.5" style="color:#f1f5f9">{row.amount}</td>
-                    <td class="py-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold" style="color:#10b981;background:rgba(16,185,129,0.1)">{row.status}</span></td>
-                    <td class="py-2.5 text-right"><button class="text-[11px]" style="color:#6366f1">PDF ↓</button></td>
+          <div class="settings-card mb-4">
+            <h3 class="card-title mb-4">Payment History</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-[12px]">
+                <thead>
+                  <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+                    <th class="text-left pb-2 font-semibold" style="color:#475569">Date</th>
+                    <th class="text-left pb-2 font-semibold" style="color:#475569">Plan</th>
+                    <th class="text-left pb-2 font-semibold" style="color:#475569">Amount</th>
+                    <th class="text-left pb-2 font-semibold" style="color:#475569">Status</th>
+                    <th class="text-right pb-2 font-semibold" style="color:#475569">Invoice</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {[
+                    { date: 'May 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
+                    { date: 'Apr 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
+                    { date: 'Mar 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
+                  ].map(row => (
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                      <td class="py-2.5" style="color:#94a3b8">{row.date}</td>
+                      <td class="py-2.5" style="color:#94a3b8">{row.plan}</td>
+                      <td class="py-2.5" style="color:#f1f5f9">{row.amount}</td>
+                      <td class="py-2.5">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                              style="color:#10b981;background:rgba(16,185,129,0.1)">{row.status}</span>
+                      </td>
+                      <td class="py-2.5 text-right">
+                        <button class="text-[11px]" style="color:#6366f1">PDF ↓</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        <!-- Cancel / downgrade -->
-        <div class="settings-card" style="border-color:rgba(239,68,68,0.15)">
-          <h2 class="settings-section-title" style="color:#ef4444">Cancel Subscription</h2>
-          <p class="settings-section-sub">
-            Your plan stays active until the end of the current billing period. All data is preserved.
-          </p>
-          <div class="mt-4">
+          <div class="settings-card" style="border-color:rgba(239,68,68,0.15)">
+            <h3 class="card-title mb-2" style="color:#ef4444">Cancel Subscription</h3>
+            <p class="text-[12px] mb-4" style="color:#64748b">
+              Your plan stays active until the end of the current billing period. All data is preserved.
+            </p>
             <a href={BILLING_PORTAL} target="_blank" rel="noopener"
                class="btn-secondary-sm"
                style="color:#ef4444;border-color:rgba(239,68,68,0.3)">
@@ -406,55 +446,51 @@ const statusIcon: Record<string, string> = {
             </a>
           </div>
         </div>
-      </div>
 
-      <!-- ── DANGER ZONE ── -->
-      <div id="tab-danger-zone" class="tab-panel hidden">
-        <div class="rounded-2xl overflow-hidden" style="border:1px solid rgba(239,68,68,0.25)">
-          <div class="px-6 py-4" style="background:rgba(239,68,68,0.06);border-bottom:1px solid rgba(239,68,68,0.15)">
-            <h2 class="text-[15px] font-bold" style="color:#ef4444">Danger Zone</h2>
-            <p class="text-[12px] mt-1" style="color:#9ca3af">Actions here are irreversible. Proceed with caution.</p>
-          </div>
+        <!-- ── DANGER ZONE ── -->
+        <div id="panel-danger" class="settings-panel hidden">
+          <p class="panel-subtitle">Actions here are irreversible. Proceed with extreme caution.</p>
 
-          <div class="p-6 grid gap-4">
-            <!-- Sign out -->
-            <div class="flex items-center justify-between gap-4 pb-4 border-b" style="border-color:rgba(255,255,255,0.06)">
-              <div>
-                <div class="text-[13px] font-semibold mb-1" style="color:#f1f5f9">Sign out</div>
-                <p class="text-[12px]" style="color:#64748b">End your current session. Your data is preserved.</p>
-              </div>
-              <a href="/logout"
-                 class="flex-shrink-0 px-4 py-2 rounded-lg text-[12px] font-medium transition-colors whitespace-nowrap"
-                 style="color:#94a3b8;border:1px solid rgba(255,255,255,0.12)">
-                Sign out
-              </a>
+          <div class="mt-6 rounded-2xl overflow-hidden" style="border:1px solid rgba(239,68,68,0.25)">
+            <div class="px-6 py-4" style="background:rgba(239,68,68,0.06);border-bottom:1px solid rgba(239,68,68,0.15)">
+              <h3 class="text-[14px] font-bold" style="color:#ef4444">Danger Zone</h3>
             </div>
-
-            <!-- Delete project -->
-            <div class="flex items-center justify-between gap-4">
-              <div>
-                <div class="text-[13px] font-semibold mb-1" style="color:#ef4444">Delete this project</div>
-                <p class="text-[12px]" style="color:#64748b">
-                  Permanently delete the project and all associated data. This action cannot be undone.
-                  All data will be purged in accordance with GDPR Article 17.
-                </p>
+            <div class="p-6 grid gap-4">
+              <div class="flex items-center justify-between gap-4 pb-4 border-b" style="border-color:rgba(255,255,255,0.06)">
+                <div>
+                  <div class="text-[13px] font-semibold mb-1" style="color:#f1f5f9">Sign out</div>
+                  <p class="text-[12px]" style="color:#64748b">End your current session. Your data is preserved.</p>
+                </div>
+                <a href="/logout"
+                   class="flex-shrink-0 px-4 py-2 rounded-lg text-[12px] font-medium"
+                   style="color:#94a3b8;border:1px solid rgba(255,255,255,0.12)">
+                  Sign out
+                </a>
               </div>
-              <button
-                onclick="open_modal-delete()"
-                class="flex-shrink-0 px-4 py-2 rounded-lg text-[12px] font-semibold whitespace-nowrap transition-all"
-                style="color:#fff;background:#dc2626;border:1px solid rgba(220,38,38,0.5)">
-                Delete project
-              </button>
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <div class="text-[13px] font-semibold mb-1" style="color:#ef4444">Delete this project</div>
+                  <p class="text-[12px]" style="color:#64748b">
+                    Permanently delete the project and all associated data. Cannot be undone.
+                    All data is purged under GDPR Article 17.
+                  </p>
+                </div>
+                <button
+                  onclick="document.getElementById('modal-delete').classList.remove('hidden')"
+                  class="flex-shrink-0 px-4 py-2 rounded-lg text-[12px] font-semibold whitespace-nowrap"
+                  style="color:#fff;background:#dc2626;border:1px solid rgba(220,38,38,0.5)">
+                  Delete project
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-    </div><!-- /max-w-5xl -->
-  </div><!-- /pt-14 -->
+      </main>
+    </div><!-- /settings-shell -->
+  </div>
 </BaseLayout>
 
-<!-- Delete confirmation modal -->
 <ConfirmModal
   id="modal-delete"
   title="Delete project?"
@@ -466,23 +502,247 @@ const statusIcon: Record<string, string> = {
 />
 
 <style>
+  /* ── Shell layout ──────────────────────────────────────────── */
+  .settings-shell {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: calc(100vh - 56px);
+    max-width: 1200px;
+  }
+
+  /* ── Sidebar ───────────────────────────────────────────────── */
+  .settings-sidebar {
+    border-right: 1px solid rgba(255,255,255,0.06);
+    background: #08090f;
+    position: sticky;
+    top: 56px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+  .sidebar-inner { padding: 24px 12px; }
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #334155;
+    padding: 0 8px;
+    margin-bottom: 8px;
+  }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, color 0.15s;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
+  .nav-item.active { background: rgba(99,102,241,0.12); color: #f1f5f9; }
+  .nav-item.active .nav-icon { color: #6366f1; }
+  .nav-icon { font-size: 15px; flex-shrink: 0; }
+  .nav-text { flex: 1; }
+  .nav-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+  }
+  .danger-item { color: #64748b; }
+  .danger-item:hover { background: rgba(239,68,68,0.08); color: #ef4444; }
+  .danger-item.active { background: rgba(239,68,68,0.12); color: #ef4444; }
+
+  /* ── Main content ──────────────────────────────────────────── */
+  .settings-main {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 56px);
+  }
+  .settings-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: #08090f;
+    position: sticky;
+    top: 56px;
+    z-index: 10;
+  }
+  .topbar-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+  .health-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #10b981;
+    padding: 5px 12px;
+    border-radius: 99px;
+    background: rgba(16,185,129,0.08);
+    border: 1px solid rgba(16,185,129,0.2);
+  }
+  .health-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Panels ────────────────────────────────────────────────── */
+  .settings-panel {
+    flex: 1;
+    padding: 28px 32px 120px;
+  }
+  .settings-panel.hidden { display: none; }
+  .panel-subtitle {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 0;
+  }
+
+  /* ── Feature cards (filter pipeline) ──────────────────────── */
+  .feature-card {
+    margin-top: 16px;
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.02);
+  }
+  .feature-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .feature-meta { display: flex; align-items: baseline; gap: 8px; }
+  .feature-title { font-size: 14px; font-weight: 700; color: #f1f5f9; }
+  .feature-sub { font-size: 11px; color: #475569; }
+  .feature-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .feature-desc { font-size: 12px; color: #64748b; line-height: 1.6; }
+  .feature-stats {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #334155;
+    font-style: italic;
+  }
+
+  /* Badges */
+  .badge {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 99px;
+  }
+  .badge-green  { color: #10b981; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); }
+  .badge-amber  { color: #f59e0b; background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); }
+  .badge-blue   { color: #38bdf8; background: rgba(56,189,248,0.10); border: 1px solid rgba(56,189,248,0.2); }
+  .badge-purple { color: #c084fc; background: rgba(192,132,252,0.10); border: 1px solid rgba(192,132,252,0.2); }
+
+  /* Info box */
+  .info-box {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.15);
+  }
+  .info-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .info-title { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: #f59e0b; margin-bottom: 3px; }
+  .info-body  { font-size: 11px; color: #78716c; line-height: 1.5; }
+  .info-mono  { font-family: monospace; font-size: 10px; color: #a8a29e; }
+
+  /* Mono hint */
+  .mono-hint {
+    margin-top: 10px;
+    font-family: monospace;
+    font-size: 11px;
+    color: #334155;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* Sensitivity segmented button group */
+  .btn-group {
+    display: inline-flex;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.03);
+  }
+  .seg-btn {
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .seg-btn + .seg-btn { border-left: 1px solid rgba(255,255,255,0.08); }
+  .seg-btn.active { background: rgba(99,102,241,0.2); color: #c7d2fe; }
+  .seg-btn:hover:not(.active) { background: rgba(255,255,255,0.05); color: #94a3b8; }
+
+  /* Rate limit input row */
+  .rate-input-row { display: flex; align-items: center; gap: 10px; }
+  .rate-input { width: 100px !important; text-align: center; font-weight: 600; }
+  .rate-unit { font-size: 12px; color: #475569; }
+
+  /* Save footer (sticky) */
+  .save-footer {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    left: 220px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 32px;
+    background: #0d0d14;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    z-index: 20;
+  }
+  .save-timestamp { font-size: 11px; color: #334155; flex: 1; }
+  .save-actions { display: flex; gap: 8px; }
+
+  /* Settings card (generic) */
   .settings-card {
     background: rgba(255,255,255,0.02);
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 16px;
     padding: 24px;
   }
-  .settings-section-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #f1f5f9;
-    margin-bottom: 4px;
-  }
-  .settings-section-sub {
-    font-size: 12px;
-    color: #64748b;
-    line-height: 1.5;
-  }
+  .card-title { font-size: 14px; font-weight: 700; color: #f1f5f9; }
+
+  /* Input */
   .settings-label {
     display: block;
     font-size: 11px;
@@ -505,33 +765,9 @@ const statusIcon: Record<string, string> = {
     font-family: inherit;
   }
   .settings-input:focus { border-color: rgba(99,102,241,0.5); }
-  .btn-primary-sm {
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #fff;
-    background: #6366f1;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.15s;
-  }
-  .btn-primary-sm:hover { opacity: 0.85; }
-  .btn-secondary-sm {
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #94a3b8;
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.1);
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .btn-secondary-sm:hover { border-color: rgba(255,255,255,0.2); color: #f1f5f9; }
 
   /* Toggle switch */
-  .toggle-label { cursor: pointer; }
+  .toggle-label { cursor: pointer; flex-shrink: 0; }
   .toggle-track {
     display: block;
     width: 40px;
@@ -553,150 +789,234 @@ const statusIcon: Record<string, string> = {
   .toggle-input:checked + .toggle-track { background: #30D158; border-color: #30D158; }
   .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); background: #fff; }
 
-  /* Active tab */
-  .tab-btn.active { color: #f1f5f9 !important; border-bottom-color: #6366f1 !important; }
-  .tab-btn:hover:not(.active) { color: #94a3b8; }
+  /* Buttons */
+  .btn-primary-sm {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: #6366f1;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary-sm:hover { opacity: 0.85; }
+  .btn-secondary-sm {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #94a3b8;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .btn-secondary-sm:hover { border-color: rgba(255,255,255,0.2); color: #f1f5f9; }
+
+  /* Key rows */
+  .key-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .key-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .key-icon { font-size: 20px; flex-shrink: 0; }
+  .key-info { flex: 1; min-width: 0; }
+  .key-name { font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 2px; }
+  .key-meta { font-size: 11px; color: #475569; }
+  .key-preview { display: block; font-size: 11px; color: #334155; margin-top: 4px; }
+  .key-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* Rule rows */
+  .rule-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 12px;
+  }
+  .rule-row:last-of-type { border-bottom: none; }
+  .rule-id   { color: #334155; font-family: monospace; font-size: 10px; flex-shrink: 0; width: 44px; }
+  .rule-name { color: #cbd5e1; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rule-type { color: #475569; font-size: 10px; font-family: monospace; flex-shrink: 0; }
+  .rule-hits { color: #475569; font-size: 11px; flex-shrink: 0; }
+  .rule-severity { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 99px; flex-shrink: 0; }
+  .sev-high   { color: #ef4444; background: rgba(239,68,68,0.12); }
+  .sev-medium { color: #f59e0b; background: rgba(245,158,11,0.12); }
+
+  /* Member roles */
+  .member-role {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 99px;
+    flex-shrink: 0;
+  }
+  .role-owner  { color: #f1f5f9; background: rgba(99,102,241,0.2); }
+  .role-admin  { color: #10b981; background: rgba(16,185,129,0.12); }
+  .role-viewer { color: #64748b; background: rgba(255,255,255,0.06); }
+
+  /* ml-auto utility */
+  .ml-auto { margin-left: auto; }
+
+  /* Mobile — stack sidebar on top */
+  @media (max-width: 768px) {
+    .settings-shell { grid-template-columns: 1fr; }
+    .settings-sidebar {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .sidebar-inner { padding: 16px; }
+    .sidebar-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+    .nav-item { width: auto; flex-shrink: 0; }
+    .save-footer { left: 0; }
+  }
 </style>
 
 <script>
 (function () {
-  // Tab switching
-  const btns   = document.querySelectorAll('.tab-btn');
-  const panels = document.querySelectorAll('.tab-panel');
+  // ── Panel switching ─────────────────────────────────────────
+  const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item');
+  const panels   = document.querySelectorAll<HTMLElement>('.settings-panel');
+  const titleEl  = document.getElementById('panel-title')!;
+  const saveFooter = document.querySelector<HTMLElement>('.save-footer');
 
-  function activate(tab: string) {
-    btns.forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.tab === tab));
-    panels.forEach(p => p.classList.toggle('hidden', p.id !== `tab-${tab}`));
-  }
-  btns.forEach(b => b.addEventListener('click', () => activate((b as HTMLElement).dataset.tab!)));
-  activate('general');
+  const PANEL_LABELS: Record<string, string> = {
+    filter:   'Filter pipeline',
+    apikeys:  'API keys',
+    webhooks: 'Webhooks',
+    rules:    'Rules',
+    team:     'Team',
+    billing:  'Billing',
+    danger:   'Danger zone',
+  };
 
-  // Theme buttons
-  const themeBtns = document.querySelectorAll('.theme-btn');
-  function setTheme(t: string) {
-    document.documentElement.classList.toggle('light', t === 'light');
-    localStorage.setItem('sw-theme', t);
-    themeBtns.forEach(btn => {
-      const active = (btn as HTMLElement).dataset.theme === t;
-      (btn as HTMLElement).style.borderColor = active ? '#6366f1' : 'rgba(255,255,255,0.08)';
-      (btn as HTMLElement).style.background  = active ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)';
+  function activate(panelId: string) {
+    navItems.forEach(n => {
+      n.classList.toggle('active', n.dataset.panel === panelId);
     });
+    panels.forEach(p => {
+      p.classList.toggle('hidden', p.id !== `panel-${panelId}`);
+    });
+    titleEl.textContent = PANEL_LABELS[panelId] ?? panelId;
+    if (saveFooter) {
+      saveFooter.style.display = panelId === 'filter' ? 'flex' : 'none';
+    }
+    // Lazy billing load
+    if (panelId === 'billing' && !billingLoaded) {
+      billingLoaded = true;
+      const cid = localStorage.getItem('sw-customer-id') ?? '';
+      if (cid) loadBilling(cid);
+      else {
+        document.getElementById('billing-loading')?.classList.add('hidden');
+        document.getElementById('billing-link')?.classList.remove('hidden');
+      }
+    }
   }
-  themeBtns.forEach(b => b.addEventListener('click', () => setTheme((b as HTMLElement).dataset.theme!)));
-  setTheme(localStorage.getItem('sw-theme') ?? 'dark');
 
-  // Accessibility toggles
-  const STORE = 'sw_a11y_v3';
-  let a11y: Record<string, boolean> = {};
-  try { a11y = JSON.parse(localStorage.getItem(STORE) ?? '{}'); } catch {}
-  document.querySelectorAll<HTMLInputElement>('.a11y-toggle').forEach(cb => {
-    const key = cb.dataset.a11y!;
-    cb.checked = !!a11y[key];
-    cb.addEventListener('change', () => {
-      a11y[key] = cb.checked;
-      document.body.classList.toggle(`a11y-${key}`, cb.checked);
-      try { localStorage.setItem(STORE, JSON.stringify(a11y)); } catch {}
+  navItems.forEach(n => n.addEventListener('click', () => activate(n.dataset.panel!)));
+  activate('filter');
+
+  // ── Sensitivity segmented control ──────────────────────────
+  document.querySelectorAll<HTMLButtonElement>('.seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll<HTMLButtonElement>('.seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
     });
   });
 
-  // Copy API key
-  (window as any).copyKey = function(btn: HTMLButtonElement) {
+  // ── Save filter ─────────────────────────────────────────────
+  (window as any).saveFilter = function () {
+    const ts = document.getElementById('save-timestamp');
+    if (ts) ts.textContent = `Last saved just now by ops@shadowwarden.ai`;
+  };
+
+  (window as any).resetDefaults = function () {
+    (document.getElementById('rate-limit-val') as HTMLInputElement).value = '240';
+    document.querySelectorAll<HTMLButtonElement>('.seg-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.val === 'balanced');
+    });
+    ['toggle-brain','toggle-evolve','toggle-gdpr'].forEach(id => {
+      const el = document.getElementById(id) as HTMLInputElement;
+      if (el) el.checked = true;
+      el?.dispatchEvent(new Event('change'));
+    });
+  };
+
+  // ── Copy API key ─────────────────────────────────────────────
+  (window as any).copyKey = function (btn: HTMLButtonElement) {
     navigator.clipboard.writeText('sw-key-demo-placeholder').then(() => {
       btn.textContent = 'Copied!';
       setTimeout(() => (btn.textContent = 'Copy'), 1500);
     });
   };
 
-  // Save general
-  (window as any).saveGeneral = function() {
-    const msg = document.getElementById('save-msg');
-    if (msg) { msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 2000); }
+  (window as any).generateKey = function () {
+    alert('New key generation requires backend integration.');
   };
 
-  // ── Billing ──────────────────────────────────────────────────────────────
-  const WORKER = 'https://billing.shadow-warden-ai.workers.dev';
+  // ── Billing ──────────────────────────────────────────────────
+  let billingLoaded = false;
   const TIER_LIMITS: Record<string, number> = {
     starter: 1000, individual: 5000, 'community business': 10000, pro: 50000, enterprise: Infinity,
   };
 
   async function loadBilling(customerId: string) {
-    const loading = document.getElementById('billing-loading')!;
-    const planEl  = document.getElementById('billing-plan')!;
-    const noneEl  = document.getElementById('billing-none')!;
-    const linkEl  = document.getElementById('billing-link')!;
-
+    const WORKER = 'https://billing.shadow-warden-ai.workers.dev';
     try {
       const res  = await fetch(`${WORKER}/api/subscription/${encodeURIComponent(customerId)}`);
       if (!res.ok) throw new Error('not_found');
       const data = await res.json() as any;
 
-      loading.classList.add('hidden');
-      linkEl.classList.add('hidden');
-      noneEl.classList.add('hidden');
-      planEl.classList.remove('hidden');
+      document.getElementById('billing-loading')?.classList.add('hidden');
+      document.getElementById('billing-link')?.classList.add('hidden');
+      document.getElementById('billing-none')?.classList.add('hidden');
+      document.getElementById('billing-plan')?.classList.remove('hidden');
 
       (document.getElementById('plan-name') as HTMLElement).textContent = data.variantName ?? data.plan ?? 'Unknown';
       const statusEl = document.getElementById('plan-status')!;
       statusEl.textContent = data.status ?? '—';
-      if (data.status === 'active') {
-        statusEl.style.cssText = 'color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)';
-      } else {
-        statusEl.style.cssText = 'color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)';
-      }
+      statusEl.style.cssText = data.status === 'active'
+        ? 'color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)'
+        : 'color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)';
 
       const renewsEl = document.getElementById('plan-renews')!;
-      if (data.renewsAt) {
-        renewsEl.textContent = `Renews ${new Date(data.renewsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
-      } else if (data.endsAt) {
-        renewsEl.textContent = `Ends ${new Date(data.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
-      }
+      if (data.renewsAt)
+        renewsEl.textContent = `Renews ${new Date(data.renewsAt).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}`;
+      else if (data.endsAt)
+        renewsEl.textContent = `Ends ${new Date(data.endsAt).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}`;
 
-      // Mock usage bar
-      const planKey = (data.plan ?? '').toLowerCase();
-      const limit   = TIER_LIMITS[planKey] ?? 1000;
-      const used    = Math.floor(limit * 0.62);
+      const limit  = TIER_LIMITS[(data.plan ?? '').toLowerCase()] ?? 1000;
+      const used   = Math.floor(limit * 0.62);
       (document.getElementById('usage-count') as HTMLElement).textContent =
         `${used.toLocaleString()} / ${limit === Infinity ? '∞' : limit.toLocaleString()}`;
       (document.getElementById('usage-bar') as HTMLElement).style.width =
         limit === Infinity ? '10%' : Math.min(100, (used / limit) * 100) + '%';
 
     } catch {
-      loading.classList.add('hidden');
-      planEl.classList.add('hidden');
-      noneEl.classList.add('hidden');
-      linkEl.classList.remove('hidden');
+      document.getElementById('billing-loading')?.classList.add('hidden');
+      document.getElementById('billing-plan')?.classList.add('hidden');
+      document.getElementById('billing-none')?.classList.add('hidden');
+      document.getElementById('billing-link')?.classList.remove('hidden');
     }
   }
 
-  // Auto-load if customer id in localStorage or URL
-  const params     = new URLSearchParams(window.location.search);
-  const urlCid     = params.get('customer_id');
-  const storedCid  = localStorage.getItem('sw-customer-id');
-  const customerId = urlCid ?? storedCid ?? '';
-  if (urlCid) localStorage.setItem('sw-customer-id', urlCid);
-
-  // Only load billing when tab is clicked (lazy)
-  const billingTabBtn = document.querySelector<HTMLButtonElement>('.tab-btn[data-tab="billing"]');
-  let   billingLoaded = false;
-  billingTabBtn?.addEventListener('click', () => {
-    if (billingLoaded) return;
-    billingLoaded = true;
-    if (customerId) {
-      loadBilling(customerId);
-    } else {
-      document.getElementById('billing-loading')!.classList.add('hidden');
-      document.getElementById('billing-link')!.classList.remove('hidden');
-    }
-  });
-
-  // Link account button
   document.getElementById('link-account-btn')?.addEventListener('click', () => {
     const input = document.getElementById('customer-id-input') as HTMLInputElement;
     const cid   = input.value.trim();
     if (!cid) return;
     localStorage.setItem('sw-customer-id', cid);
-    document.getElementById('billing-link')!.classList.add('hidden');
-    document.getElementById('billing-loading')!.classList.remove('hidden');
+    document.getElementById('billing-link')?.classList.add('hidden');
+    document.getElementById('billing-loading')?.classList.remove('hidden');
     loadBilling(cid);
   });
 })();
