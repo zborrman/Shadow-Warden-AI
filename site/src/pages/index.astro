@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ConsoleSection from '../components/ConsoleSection.astro';
-import A11yWidget from '../components/A11yWidget.astro';
+import AccessibilityWidget from '../components/AccessibilityWidget.astro';
 import roadmap from '../data/roadmap.json';
 
 const shipped = roadmap.filter(r => r.status === 'shipped').length;
@@ -253,7 +253,7 @@ const catCards = [
     </div>
   </section>
 
-  <!-- ── EU Accessibility Widget (main page only) ── -->
-  <A11yWidget />
+  <!-- ── Accessibility Widget (homepage only · WCAG 2.1 AA · Section 508 · ADA · EN 301 549) ── -->
+  <AccessibilityWidget />
 </BaseLayout>
 

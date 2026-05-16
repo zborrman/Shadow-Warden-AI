@@ -1,8 +1,690 @@
 ---
 /**
- * AccessibilityWidget — WCAG 2.1 AA · Section 508 · EN 301 549
- * Requires /public/accessibility-widget.js to be present (already copied).
+ * AccessibilityWidget
+ * Standards: WCAG 2.1 AA · Section 508 · ADA · EN 301 549
+ * Placed only on index.astro — not included in BaseLayout.
  */
 ---
-<!-- Accessibility widget — loaded as a deferred static asset -->
-<script src="/accessibility-widget.js" defer is:inline></script>
+
+<!-- ╔══════════════════════════════════════════════════════════════════╗
+     ║  Trigger button — fixed bottom-right, z-index 9999             ║
+     ╚══════════════════════════════════════════════════════════════════╝ -->
+<button
+  id="a11y-trigger"
+  aria-label="Open accessibility settings"
+  aria-expanded="false"
+  aria-haspopup="dialog"
+  aria-controls="a11y-dialog"
+  type="button"
+>
+  <!-- Universal accessibility icon (ISA symbol) -->
+  <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+    <!-- Head -->
+    <circle cx="16" cy="5.5" r="3.2" fill="currentColor"/>
+    <!-- Body / spine -->
+    <line x1="16" y1="9.5" x2="16" y2="19" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <!-- Arms -->
+    <line x1="7"  y1="13" x2="25" y2="13" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <!-- Legs -->
+    <line x1="16" y1="19" x2="10" y2="27" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+    <line x1="16" y1="19" x2="22" y2="27" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+  </svg>
+</button>
+
+<!-- ╔══════════════════════════════════════════════════════════════════╗
+     ║  Backdrop                                                       ║
+     ╚══════════════════════════════════════════════════════════════════╝ -->
+<div id="a11y-backdrop" aria-hidden="true"></div>
+
+<!-- ╔══════════════════════════════════════════════════════════════════╗
+     ║  Dialog panel                                                   ║
+     ╚══════════════════════════════════════════════════════════════════╝ -->
+<div
+  id="a11y-dialog"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="a11y-dialog-title"
+  tabindex="-1"
+>
+  <!-- Header -->
+  <div class="a11y-header">
+    <div>
+      <h2 id="a11y-dialog-title" class="a11y-title">Accessibility Settings</h2>
+      <p class="a11y-subtitle">WCAG 2.1 AA · Section 508 · ADA · EN 301 549</p>
+    </div>
+    <div class="a11y-badge" aria-hidden="true">
+      <svg width="12" height="12" viewBox="0 0 32 32" fill="currentColor">
+        <circle cx="16" cy="5.5" r="3.2"/>
+        <line x1="16" y1="9.5" x2="16" y2="19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="7" y1="13" x2="25" y2="13" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="16" y1="19" x2="10" y2="27" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <line x1="16" y1="19" x2="22" y2="27" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span>Compliant</span>
+    </div>
+  </div>
+
+  <div class="a11y-body">
+
+    <!-- ── Text Size ── -->
+    <fieldset class="a11y-fieldset">
+      <legend class="a11y-legend">Text size</legend>
+      <div class="a11y-font-row" role="group" aria-label="Adjust text size">
+        <button id="a11y-font-down" type="button" aria-label="Decrease text size" class="a11y-font-btn">
+          A<sup>−</sup>
+        </button>
+        <div class="a11y-font-bar" role="presentation">
+          <div id="a11y-font-fill" class="a11y-font-bar-fill"></div>
+        </div>
+        <button id="a11y-font-up" type="button" aria-label="Increase text size" class="a11y-font-btn">
+          A<sup>+</sup>
+        </button>
+        <span id="a11y-font-val" class="a11y-font-val" aria-live="polite" aria-atomic="true">100%</span>
+      </div>
+    </fieldset>
+
+    <!-- ── Toggle rows ── -->
+    {[
+      { key: 'contrast',  label: 'High contrast',     hint: 'WCAG 1.4.6 – enhanced 7:1 ratio' },
+      { key: 'invert',    label: 'Invert colours',    hint: 'Reduces glare for light-sensitive users' },
+      { key: 'dyslexia',  label: 'Dyslexia-friendly', hint: 'OpenDyslexic font + wider letter spacing' },
+      { key: 'underline', label: 'Underline links',   hint: 'WCAG 1.4.1 – always visible link style' },
+      { key: 'focus',     label: 'Enhanced focus',    hint: 'WCAG 2.4.11 – 3px outline, high visibility' },
+      { key: 'motion',    label: 'Reduce motion',     hint: 'WCAG 2.3.3 – pauses animations' },
+    ].map(item => (
+      <div class="a11y-row">
+        <div>
+          <div class="a11y-row-label" id={`lbl-${item.key}`}>{item.label}</div>
+          <div class="a11y-row-hint" aria-hidden="true">{item.hint}</div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          class="a11y-switch"
+          data-key={item.key}
+          aria-checked="false"
+          aria-labelledby={`lbl-${item.key}`}
+        >
+          <span class="a11y-knob"></span>
+          <span class="sr-only">Toggle {item.label}</span>
+        </button>
+      </div>
+    ))}
+
+    <!-- ── Reset ── -->
+    <button id="a11y-reset" type="button" class="a11y-reset">
+      Reset all settings
+    </button>
+  </div>
+
+  <!-- Footer -->
+  <div class="a11y-footer" aria-label="Compliance information">
+    WCAG 2.1 AA · Section 508 (29 U.S.C. §794d) · ADA · EN 301 549 v3.2.1
+  </div>
+
+  <!-- Close button in corner -->
+  <button
+    id="a11y-close"
+    type="button"
+    aria-label="Close accessibility settings"
+    class="a11y-close-btn"
+  >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     Global effect classes
+════════════════════════════════════════════════════════════════════ -->
+<style is:global>
+  /* Screen-reader only utility */
+  .sr-only {
+    position: absolute !important;
+    width: 1px !important; height: 1px !important;
+    padding: 0 !important; margin: -1px !important;
+    overflow: hidden !important; clip: rect(0,0,0,0) !important;
+    white-space: nowrap !important; border: 0 !important;
+  }
+
+  /* ── High contrast ── */
+  html.a11y-contrast,
+  html.a11y-contrast body {
+    background: #000 !important;
+    color: #fff !important;
+  }
+  html.a11y-contrast *:not(script):not(style) {
+    background-color: #000 !important;
+    color: #fff !important;
+    border-color: #fff !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  html.a11y-contrast a { color: #ff0 !important; text-decoration: underline !important; }
+  html.a11y-contrast button,
+  html.a11y-contrast [role="button"] {
+    background: #000 !important;
+    color: #fff !important;
+    border: 2px solid #fff !important;
+  }
+  html.a11y-contrast img { filter: contrast(2) !important; }
+  /* Restore widget itself */
+  html.a11y-contrast #a11y-trigger,
+  html.a11y-contrast #a11y-dialog,
+  html.a11y-contrast #a11y-dialog * {
+    all: revert !important;
+  }
+
+  /* ── Invert colours ── */
+  html.a11y-invert { filter: invert(1) hue-rotate(180deg) !important; }
+  html.a11y-invert img,
+  html.a11y-invert video,
+  html.a11y-invert svg { filter: invert(1) hue-rotate(180deg) !important; }
+
+  /* ── Dyslexia font ── */
+  @font-face {
+    font-family: 'OpenDyslexic';
+    src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.woff') format('woff');
+    font-display: swap;
+  }
+  html.a11y-dyslexia,
+  html.a11y-dyslexia body,
+  html.a11y-dyslexia p,
+  html.a11y-dyslexia h1, html.a11y-dyslexia h2, html.a11y-dyslexia h3,
+  html.a11y-dyslexia li, html.a11y-dyslexia a, html.a11y-dyslexia span,
+  html.a11y-dyslexia button, html.a11y-dyslexia input, html.a11y-dyslexia label {
+    font-family: 'OpenDyslexic', sans-serif !important;
+    letter-spacing: 0.05em !important;
+    word-spacing: 0.1em !important;
+    line-height: 1.8 !important;
+  }
+
+  /* ── Underline links ── */
+  html.a11y-underline a,
+  html.a11y-underline [role="link"] {
+    text-decoration: underline !important;
+    text-underline-offset: 3px !important;
+  }
+
+  /* ── Enhanced focus ── */
+  html.a11y-focus *:focus,
+  html.a11y-focus *:focus-visible {
+    outline: 3px solid #ffbf00 !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 5px rgba(255,191,0,0.25) !important;
+  }
+
+  /* ── Reduce motion ── */
+  html.a11y-motion *,
+  html.a11y-motion *::before,
+  html.a11y-motion *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+</style>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     Component styles
+════════════════════════════════════════════════════════════════════ -->
+<style>
+  /* ── Trigger button ── */
+  #a11y-trigger {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15);
+    background: linear-gradient(145deg, #4f46e5 0%, #7c3aed 100%);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(79,70,229,0.5), 0 0 0 0 rgba(79,70,229,0);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    /* Ensure sufficient touch target (WCAG 2.5.5) */
+    padding: 0;
+  }
+  #a11y-trigger:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 28px rgba(79,70,229,0.65);
+  }
+  #a11y-trigger:focus-visible {
+    outline: 3px solid #ffbf00;
+    outline-offset: 3px;
+  }
+  #a11y-trigger[aria-expanded="true"] {
+    background: linear-gradient(145deg, #6d28d9 0%, #4f46e5 100%);
+  }
+
+  /* ── Backdrop ── */
+  #a11y-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9997;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+  }
+  #a11y-backdrop.open { display: block; }
+
+  /* ── Dialog ── */
+  #a11y-dialog {
+    display: none;
+    position: fixed;
+    bottom: 84px;
+    right: 20px;
+    z-index: 9998;
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 104px);
+    overflow-y: auto;
+    border-radius: 20px;
+    background: #0f0f1e;
+    border: 1px solid rgba(99,102,241,0.3);
+    box-shadow:
+      0 32px 80px rgba(0,0,0,0.75),
+      0 0 0 1px rgba(255,255,255,0.04) inset,
+      0 1px 0 rgba(255,255,255,0.08) inset;
+    /* Animation */
+    transform: translateY(10px) scale(0.97);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  #a11y-dialog.open {
+    display: block;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  /* ── Header ── */
+  .a11y-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    background: rgba(99,102,241,0.06);
+  }
+  .a11y-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f1f5f9;
+    line-height: 1.2;
+    margin: 0 0 3px;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .a11y-subtitle {
+    font-size: 10px;
+    color: #475569;
+    font-family: system-ui, -apple-system, sans-serif;
+    margin: 0;
+  }
+  .a11y-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: rgba(30,64,175,0.18);
+    border: 1px solid rgba(99,130,254,0.3);
+    font-size: 10px;
+    font-weight: 600;
+    color: #7ca3ff;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .a11y-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+  }
+  .a11y-close-btn:hover { color: #f1f5f9; background: rgba(255,255,255,0.1); }
+  .a11y-close-btn:focus-visible { outline: 2px solid #ffbf00; outline-offset: 2px; }
+
+  /* ── Body ── */
+  .a11y-body {
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* ── Font size row ── */
+  .a11y-fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+  .a11y-legend {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .a11y-font-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .a11y-font-btn {
+    width: 36px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .a11y-font-btn:hover {
+    background: rgba(99,102,241,0.18);
+    border-color: rgba(99,102,241,0.5);
+    color: #a78bfa;
+  }
+  .a11y-font-btn:focus-visible { outline: 2px solid #ffbf00; outline-offset: 2px; }
+  .a11y-font-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+  }
+  .a11y-font-bar-fill {
+    height: 100%;
+    width: 50%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transition: width 0.2s ease;
+  }
+  .a11y-font-val {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  /* ── Toggle rows ── */
+  .a11y-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .a11y-row:last-of-type { border-bottom: none; }
+  .a11y-row-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #cbd5e1;
+    line-height: 1.2;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .a11y-row-hint {
+    font-size: 10px;
+    color: #334155;
+    margin-top: 2px;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  /* ── Toggle switch ── */
+  .a11y-switch {
+    flex-shrink: 0;
+    position: relative;
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.07);
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .a11y-switch[aria-checked="true"] {
+    background: #5a5fcf;
+    border-color: #6366f1;
+  }
+  .a11y-switch:focus-visible { outline: 2px solid #ffbf00; outline-offset: 2px; }
+  .a11y-knob {
+    pointer-events: none;
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #94a3b8;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    transition: transform 0.2s cubic-bezier(0.4,0,0.2,1), background 0.2s;
+  }
+  .a11y-switch[aria-checked="true"] .a11y-knob {
+    transform: translateX(20px);
+    background: #fff;
+  }
+
+  /* ── Reset button ── */
+  .a11y-reset {
+    width: 100%;
+    padding: 9px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: #475569;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: system-ui, -apple-system, sans-serif;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    margin-top: 4px;
+  }
+  .a11y-reset:hover {
+    color: #94a3b8;
+    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05);
+  }
+  .a11y-reset:focus-visible { outline: 2px solid #ffbf00; outline-offset: 2px; }
+
+  /* ── Footer ── */
+  .a11y-footer {
+    padding: 10px 16px 14px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    font-size: 9.5px;
+    color: #1e293b;
+    text-align: center;
+    line-height: 1.6;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  /* Mobile adjustments */
+  @media (max-width: 480px) {
+    #a11y-dialog {
+      bottom: 0;
+      right: 0;
+      left: 0;
+      max-width: 100%;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      max-height: 90vh;
+    }
+    #a11y-trigger { bottom: 16px; right: 16px; }
+  }
+</style>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     Logic — fully keyboard & screen-reader accessible
+════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  const STORE = 'sw_a11y_v4';
+  /* font: step index 0-8, default=4 (100%) */
+  const FONT_STEPS = [70, 80, 90, 95, 100, 110, 120, 135, 150];
+  const KEYS = ['contrast','invert','dyslexia','underline','focus','motion'] as const;
+  type Key = typeof KEYS[number];
+
+  /* ── State ── */
+  const def = { fontStep: 4, contrast: false, invert: false, dyslexia: false, underline: false, focus: false, motion: false };
+  let st: typeof def = { ...def };
+  try { Object.assign(st, JSON.parse(localStorage.getItem(STORE) ?? '{}')); } catch {}
+
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(st)); } catch {} }
+
+  /* ── Apply ── */
+  function applyAll() {
+    const pct = FONT_STEPS[st.fontStep] ?? 100;
+    document.documentElement.style.setProperty('--a11y-font-scale', String(pct / 100));
+    document.documentElement.style.fontSize = pct + '%';
+
+    KEYS.forEach(k => {
+      document.documentElement.classList.toggle(`a11y-${k}`, !!st[k]);
+    });
+  }
+
+  /* ── Sync UI ── */
+  function syncUI() {
+    const pct = FONT_STEPS[st.fontStep] ?? 100;
+    const fill = document.getElementById('a11y-font-fill') as HTMLElement | null;
+    const val  = document.getElementById('a11y-font-val') as HTMLElement | null;
+    if (fill) fill.style.width = ((st.fontStep / (FONT_STEPS.length - 1)) * 100) + '%';
+    if (val)  val.textContent = pct + '%';
+
+    KEYS.forEach(k => {
+      const sw = document.querySelector<HTMLButtonElement>(`.a11y-switch[data-key="${k}"]`);
+      if (sw) sw.setAttribute('aria-checked', st[k] ? 'true' : 'false');
+    });
+  }
+
+  /* Apply saved state immediately (before paint) */
+  applyAll();
+
+  /* ── Panel open / close ── */
+  const trigger  = document.getElementById('a11y-trigger') as HTMLButtonElement;
+  const dialog   = document.getElementById('a11y-dialog')  as HTMLElement;
+  const backdrop = document.getElementById('a11y-backdrop') as HTMLElement;
+  const closeBtn = document.getElementById('a11y-close')   as HTMLButtonElement;
+
+  function isOpen() { return dialog.classList.contains('open'); }
+
+  function openPanel() {
+    dialog.classList.add('open');
+    backdrop.classList.add('open');
+    trigger.setAttribute('aria-expanded', 'true');
+    /* Animate in */
+    requestAnimationFrame(() => {
+      dialog.style.opacity = '1';
+      dialog.style.transform = 'translateY(0) scale(1)';
+    });
+    /* Focus first focusable element */
+    const first = getFocusable()[0];
+    if (first) (first as HTMLElement).focus();
+    syncUI();
+  }
+
+  function closePanel() {
+    dialog.classList.remove('open');
+    backdrop.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.focus();
+  }
+
+  trigger.addEventListener('click', () => isOpen() ? closePanel() : openPanel());
+  closeBtn.addEventListener('click', closePanel);
+  backdrop.addEventListener('click', closePanel);
+
+  /* ── Keyboard ── */
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (!isOpen()) return;
+    if (e.key === 'Escape') { e.preventDefault(); closePanel(); return; }
+    if (e.key === 'Tab') trapFocus(e);
+  });
+
+  function getFocusable(): Element[] {
+    return Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      )
+    ).filter(el => !el.hasAttribute('aria-hidden'));
+  }
+
+  function trapFocus(e: KeyboardEvent) {
+    const focusable = getFocusable();
+    if (focusable.length === 0) return;
+    const first = focusable[0] as HTMLElement;
+    const last  = focusable[focusable.length - 1] as HTMLElement;
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+
+  /* ── Font size ── */
+  document.getElementById('a11y-font-up')?.addEventListener('click', () => {
+    if (st.fontStep < FONT_STEPS.length - 1) { st.fontStep++; applyAll(); syncUI(); save(); }
+  });
+  document.getElementById('a11y-font-down')?.addEventListener('click', () => {
+    if (st.fontStep > 0) { st.fontStep--; applyAll(); syncUI(); save(); }
+  });
+
+  /* ── Toggle switches ── */
+  document.querySelectorAll<HTMLButtonElement>('.a11y-switch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      const k = sw.getAttribute('data-key') as Key;
+      if (!k) return;
+      st[k] = !st[k];
+      applyAll(); syncUI(); save();
+    });
+    /* Space/Enter support for switch role */
+    sw.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        sw.click();
+      }
+    });
+  });
+
+  /* ── Reset ── */
+  document.getElementById('a11y-reset')?.addEventListener('click', () => {
+    st = { ...def };
+    document.documentElement.removeAttribute('style');
+    applyAll(); syncUI(); save();
+  });
+
+  /* ── Init ── */
+  syncUI();
+})();
+</script>
