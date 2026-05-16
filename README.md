@@ -4,13 +4,13 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.19 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.20 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md)
 
 ---
 
-## Product Tiers — v4.19
+## Product Tiers — v4.20
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -42,6 +42,15 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 **14-day Pro trial:** available to Individual and Community Business tenants — 10,000 requests, no MasterAgent, one-time per account.
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v4.20
+
+| Feature | Description |
+|---------|-------------|
+| **Community & Tunnel Web App** | 7-page Astro SPA at `site/src/pages/community/` — `view.astro` (overview + stats + share-code card), `members.astro` (roster, roles, join requests), `tunnel.astro` (E2EE messaging), `integrations.astro`, `activity.astro` (audit log), `settings.astro` (edit + GDPR export + delete), `new.astro` (create). **7 pro features:** **(1) Member Roles** — Owner/Admin/Member hierarchy, `normalizeMember()` backward-compat shim (handles legacy `string[]` members), role badge display, inline role-change dropdown, Owner-removal guard. **(2) Join Request System** — pending approval flow on `/community` join, Approve/Decline buttons on members page, activityLog entry per action. **(3) E2EE Key Simulation** — `🔐 AES-256-GCM` label on every tunnel message, `SW-PUB-`/`SW-PRV-` keypair generated via `crypto.getRandomValues()` at community creation, fingerprint display (first 8 hex chars of public key), "Export Public Key" → `.asc` download with PEM-style `-----BEGIN SHADOW WARDEN PUBLIC KEY-----` header. **(4) Search** — live community search by name or ID on `/community`; member search by USER-ID or role on `/community/members`. **(5) GDPR Art. 20 Export** — "Export JSON →" button in Settings produces full community snapshot (privateKey excluded), `exportedAt` + legal note embedded. **(6) Audit Log** — `📊 Activity` 6th tab, `activityLog[]` array in community localStorage object, 15+ event-type icons (`community_created`, `member_joined`, `role_changed`, `join_request_approved`, `messages_cleared`, …), owner-only "Clear Log" with confirm(). **(7) Disappearing Messages** — 24h auto-delete toggle in tunnel header, state persisted in `c.disappearingMessages`, messages older than 86 400 000 ms filtered on every render. All data in `localStorage` — zero server persistence. |
+| **Castle Logo on All Pages** | `site/public/logo.png` — Shadow-Warden-AI castle PNG copied from project assets. Replaces SVG shield in `BaseLayout.astro` navbar + footer and `Navbar.astro`. Set as `og:image` default and primary `<link rel="icon">`. Covers all 40 Astro-generated pages. |
 
 ---
 

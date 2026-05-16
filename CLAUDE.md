@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 4.19 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.20 · **License:** Proprietary · **Language:** Python 3.11+
 
 ## Architecture
 
@@ -180,6 +180,9 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `docker/Caddyfile` | Caddy v2 vhosts — api/app/analytics/landing/dash.shadow-warden-ai.com |
 | `warden/testing/scenarios/` | SWFE Scenario DSL — ScenarioRunner, ScenarioStep, build_core_scenarios(), YAML loader |
 | `docs/sla.md` | Formal SLA — Pro 99.9% / Enterprise 99.95% uptime, P99 < 50ms, incident response, credits |
+| `site/src/pages/community/*.astro` | 7-page Community & Tunnel Astro SPA — `view`, `members`, `tunnel`, `integrations`, `activity`, `settings`, `new`; all data in `localStorage` key `sw_communities`; member roles (Owner/Admin/Member), join request flow, E2EE key simulation, audit log, disappearing messages, GDPR export |
+| `site/src/layouts/BaseLayout.astro` | Astro base layout — navbar + footer + mobile menu + `og:image` + favicon; uses `/logo.png` (castle PNG); wraps all 40 site pages |
+| `site/public/logo.png` | Shadow-Warden-AI castle logo PNG — primary brand asset on all 40 Astro pages, og:image, favicon |
 
 ## Build & Test Commands
 

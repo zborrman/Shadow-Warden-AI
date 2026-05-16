@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 4.14 · Proprietary · All rights reserved**
+> **Version 4.20 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
@@ -648,7 +648,7 @@ Violation is caught by the GDPR no-content-log pre-commit hook (Hook §6).
 
 ---
 
-*Rule.md — Shadow Warden AI detection rules reference v4.13 · 2026-05*
+*Rule.md — Shadow Warden AI detection rules reference v4.20 · 2026-05-16*
 
 ---
 

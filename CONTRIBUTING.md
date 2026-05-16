@@ -1,8 +1,8 @@
 # Contributing to Shadow Warden AI
 
-**Version 4.8 · Last updated 2026-04**
+**Version 4.20 · Last updated 2026-05-16**
 
-Shadow Warden is a security-critical project. Every line of code runs in front of real AI workloads across 9 filter layers, 153 modules, and 11 Docker services. These guidelines keep the codebase safe, fast, and reviewable.
+Shadow Warden is a security-critical project. Every line of code runs in front of real AI workloads across 9 filter layers, 153 modules, 11 Docker services, and a 7-page Community & Tunnel Astro SPA. These guidelines keep the codebase safe, fast, and reviewable.
 
 ---
 
@@ -295,7 +295,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
 Types: `feat`, `fix`, `test`, `docs`, `refactor`, `perf`, `ci`, `chore`
 
-Scopes map to subsystems: `filter`, `brain`, `ers`, `sova`, `master`, `sep`, `pqc`, `sovereign`, `shadow-ai`, `xai`, `smb`, `billing`, `ci`, `landing`
+Scopes map to subsystems: `filter`, `brain`, `ers`, `sova`, `master`, `sep`, `pqc`, `sovereign`, `shadow-ai`, `xai`, `smb`, `billing`, `ci`, `landing`, `community-tunnel`, `branding`
 
 Example:
 

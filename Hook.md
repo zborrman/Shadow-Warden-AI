@@ -376,4 +376,4 @@ Add to `.pre-commit-config.yaml`:
 
 ---
 
-*Hook.md last updated: 2026-05-06 — v4.13: OTel, SOC Dashboard, CI/Lint/Type hardening*
+*Hook.md last updated: 2026-05-16 — v4.20: Community & Tunnel web app, castle logo branding*

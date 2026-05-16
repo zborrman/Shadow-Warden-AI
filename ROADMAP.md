@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 4.19 · Last updated 2026-05-07**
+**Version 4.20 · Last updated 2026-05-16**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -307,6 +307,15 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 | FE-15 | Onboarding flow — guided 5-step setup wizard for new tenants | — | All | 📋 |
 | FE-16 | Dark/light theme toggle in portal and SOC dashboard | — | All | 📋 |
 | FE-17 | `shadow-warden-ai.com/pricing` — interactive tier comparison + add-on calculator | — | Public | 📋 |
+| FE-18 | Community & Tunnel 7-page Astro SPA — view / members / tunnel / integrations / activity / settings / new | v4.20 | Community+ | ✅ |
+| FE-19 | Community member roles — Owner / Admin / Member, `normalizeMember()` backward-compat, role badges | v4.20 | Community+ | ✅ |
+| FE-20 | Community join request system — pending approval flow, Approve / Decline on members page | v4.20 | Community+ | ✅ |
+| FE-21 | E2EE key simulation — AES-256-GCM tunnel labels, SW-PUB keypair on creation, fingerprint, .asc export | v4.20 | Community+ | ✅ |
+| FE-22 | Community & member search — live name/ID filter on `/community`, role/ID filter on `/community/members` | v4.20 | Community+ | ✅ |
+| FE-23 | GDPR Art. 20 community export — JSON download in Settings, private key excluded | v4.20 | Community+ | ✅ |
+| FE-24 | Community audit log — Activity tab, activityLog[], 15+ event icons, owner-only Clear Log | v4.20 | Community+ | ✅ |
+| FE-25 | Disappearing messages — 24h auto-delete toggle in tunnel, persisted per-community | v4.20 | Community+ | ✅ |
+| FE-26 | Castle logo PNG — Shadow-Warden-AI castle on all 40 pages, og:image + favicon | v4.20 | Public | ✅ |
 
 ---
 
@@ -433,5 +442,6 @@ Continuous self-improvement and threat intelligence synthesis.
 | v4.16 | 2026-05-07 | MISP connector, Reputation system, Public incident page |
 | v4.17 | 2026-05-07 | SOVA + Obsidian + Slack unification |
 | v4.18 | 2026-05-07 | Obsidian sidebar, frontmatter tagging, local pre-validation |
-| **v4.19** | **2026-05-07** | **Obsidian Dataview dashboard, offline queue, XAI viz, scheduler** |
+| v4.19 | 2026-05-07 | Obsidian Dataview dashboard, offline queue, XAI viz, scheduler |
+| **v4.20** | **2026-05-16** | **Community & Tunnel web app (7 pro features) + castle logo on all pages** |
 | v5.0 | Q3 2026 | Multi-region active-active, ONNX online learning, HIPAA |

@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 4.19 · Last updated 2026-05-07**
+**Version 4.20 · Last updated 2026-05-16**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -245,6 +245,22 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | R-11 | `warden/billing/router.py` — annual pricing in `/billing/tiers` response | ✅ |
 | R-12 | `dashboard/src/components/ui/pricing-calculator.tsx` — interactive tier+addon+bundle calculator with annual toggle | ✅ |
 | R-13 | `dashboard/src/components/ui/usage-progress.tsx` — quota progress bar, 80% upgrade CTA, 60s auto-refresh | ✅ |
+
+---
+
+### Block S — Community & Tunnel Web App (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| S-01 | 7-page Astro SPA: `view`, `members`, `tunnel`, `integrations`, `activity`, `settings`, `new` | ✅ |
+| S-02 | Member Roles — Owner/Admin/Member hierarchy, `normalizeMember()` backward-compat, role badges, Owner-removal guard | ✅ |
+| S-03 | Join Request System — pending approval flow, Approve/Decline on members page, activityLog entry | ✅ |
+| S-04 | E2EE Key Simulation — `🔐 AES-256-GCM` label, `SW-PUB-`/`SW-PRV-` keypair via `crypto.getRandomValues()`, fingerprint, Export `.asc` | ✅ |
+| S-05 | Search — live community search (name/ID) on `/community`; member search (USER-ID/role) on `/community/members` | ✅ |
+| S-06 | GDPR Art. 20 Export — JSON download in Settings, `privateKey` excluded, `exportedAt` + legal note | ✅ |
+| S-07 | Audit Log — `📊 Activity` 6th tab, `activityLog[]` in localStorage, 15+ event-type icons, owner-only Clear Log | ✅ |
+| S-08 | Disappearing Messages — 24h auto-delete toggle in tunnel, persisted as `c.disappearingMessages` | ✅ |
+| S-09 | Castle logo PNG (`site/public/logo.png`) on all 40 Astro pages — navbar + footer + `og:image` + favicon | ✅ |
 
 ---
 
