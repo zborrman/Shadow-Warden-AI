@@ -1,0 +1,13 @@
+name = "shadow-warden-billing"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[kv_namespaces]]
+binding = "BILLING_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_YOUR_PREVIEW_KV_ID"
+
+[vars]
+ALLOWED_ORIGIN = "https://shadow-warden-ai.com"
+
+# Run: npx wrangler secret put LEMONSQUEEZY_WEBHOOK_SECRET

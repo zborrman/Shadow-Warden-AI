@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ConfirmModal from '../components/ConfirmModal.astro';
 import roadmap from '../data/roadmap.json';
+import { BILLING_PORTAL, WORKER_API } from '../config/lemonsqueezy';
 
 const secFeatures   = roadmap.filter(r => r.category === 'Settings' && r.subcategory === 'Security');
 const gdprFeatures  = roadmap.filter(r => r.category === 'Settings' && r.subcategory === 'GDPR');
@@ -41,7 +42,7 @@ const statusIcon: Record<string, string> = {
       <!-- Tab nav -->
       <div class="flex items-center gap-1 mb-8 overflow-x-auto pb-1"
            style="border-bottom:1px solid rgba(255,255,255,0.06)">
-        {(['General','Appearance','Security','Integrations','GDPR','Danger Zone'] as const).map(tab => (
+        {(['General','Appearance','Security','Integrations','GDPR','Billing','Danger Zone'] as const).map(tab => (
           <button
             class="tab-btn px-4 py-2.5 text-[13px] font-medium whitespace-nowrap rounded-t-lg transition-all"
             data-tab={tab.toLowerCase().replace(' ','-')}
@@ -294,6 +295,119 @@ const statusIcon: Record<string, string> = {
         </div>
       </div>
 
+      <!-- ── BILLING ── -->
+      <div id="tab-billing" class="tab-panel hidden">
+
+        <!-- Current plan card -->
+        <div class="settings-card mb-5">
+          <div class="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 class="settings-section-title">Current Plan</h2>
+              <p class="settings-section-sub">Your active subscription and usage.</p>
+            </div>
+            <a href={BILLING_PORTAL} target="_blank" rel="noopener"
+               class="btn-secondary-sm flex-shrink-0 whitespace-nowrap">
+              Manage Subscription ↗
+            </a>
+          </div>
+
+          <!-- Plan display — filled by JS -->
+          <div id="billing-loading" class="py-6 text-center text-[13px]" style="color:#475569">
+            Loading subscription…
+          </div>
+          <div id="billing-plan" class="hidden">
+            <div class="flex items-center gap-4 p-4 rounded-xl mb-4" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15)">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px]" style="background:rgba(99,102,241,0.1)">⚡</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span id="plan-name" class="text-[15px] font-bold" style="color:#f1f5f9">—</span>
+                  <span id="plan-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)">—</span>
+                </div>
+                <div id="plan-renews" class="text-[12px] mt-0.5" style="color:#64748b">—</div>
+              </div>
+            </div>
+
+            <!-- Usage bar (mock) -->
+            <div class="mb-2 flex items-center justify-between text-[12px]" style="color:#64748b">
+              <span>Requests this month</span>
+              <span id="usage-count" style="color:#f1f5f9">—</span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden mb-5" style="background:rgba(255,255,255,0.06)">
+              <div id="usage-bar" class="h-full rounded-full" style="background:linear-gradient(90deg,#6366f1,#8b5cf6);width:0%"></div>
+            </div>
+          </div>
+
+          <!-- No subscription state -->
+          <div id="billing-none" class="hidden text-center py-6">
+            <div class="text-[14px] mb-3" style="color:#94a3b8">No active subscription found.</div>
+            <a href="/price" class="btn-primary-sm">View Plans →</a>
+          </div>
+
+          <!-- Link account -->
+          <div id="billing-link" class="hidden">
+            <p class="text-[13px] mb-3" style="color:#64748b">
+              Enter your Lemon Squeezy Customer ID to load your subscription details.
+            </p>
+            <div class="flex gap-3 max-w-sm">
+              <input id="customer-id-input" type="text" placeholder="e.g. 1234567"
+                     class="settings-input flex-1 font-mono text-[12px]" />
+              <button id="link-account-btn" class="btn-primary-sm whitespace-nowrap">Link</button>
+            </div>
+            <p class="text-[11px] mt-2" style="color:#334155">
+              Find your Customer ID in your Lemon Squeezy order confirmation email.
+            </p>
+          </div>
+        </div>
+
+        <!-- Payment history (mock) -->
+        <div class="settings-card mb-5">
+          <h2 class="settings-section-title">Payment History</h2>
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full text-[12px]">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <th class="text-left pb-2 font-semibold" style="color:#475569">Date</th>
+                  <th class="text-left pb-2 font-semibold" style="color:#475569">Plan</th>
+                  <th class="text-left pb-2 font-semibold" style="color:#475569">Amount</th>
+                  <th class="text-left pb-2 font-semibold" style="color:#475569">Status</th>
+                  <th class="text-right pb-2 font-semibold" style="color:#475569">Invoice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { date: 'May 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
+                  { date: 'Apr 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
+                  { date: 'Mar 1, 2026',  plan: 'Pro — Monthly',  amount: '$69.00', status: 'Paid' },
+                ].map(row => (
+                  <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <td class="py-2.5" style="color:#94a3b8">{row.date}</td>
+                    <td class="py-2.5" style="color:#94a3b8">{row.plan}</td>
+                    <td class="py-2.5" style="color:#f1f5f9">{row.amount}</td>
+                    <td class="py-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold" style="color:#10b981;background:rgba(16,185,129,0.1)">{row.status}</span></td>
+                    <td class="py-2.5 text-right"><button class="text-[11px]" style="color:#6366f1">PDF ↓</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cancel / downgrade -->
+        <div class="settings-card" style="border-color:rgba(239,68,68,0.15)">
+          <h2 class="settings-section-title" style="color:#ef4444">Cancel Subscription</h2>
+          <p class="settings-section-sub">
+            Your plan stays active until the end of the current billing period. All data is preserved.
+          </p>
+          <div class="mt-4">
+            <a href={BILLING_PORTAL} target="_blank" rel="noopener"
+               class="btn-secondary-sm"
+               style="color:#ef4444;border-color:rgba(239,68,68,0.3)">
+              Cancel via Billing Portal ↗
+            </a>
+          </div>
+        </div>
+      </div>
+
       <!-- ── DANGER ZONE ── -->
       <div id="tab-danger-zone" class="tab-panel hidden">
         <div class="rounded-2xl overflow-hidden" style="border:1px solid rgba(239,68,68,0.25)">
@@ -498,5 +612,92 @@ const statusIcon: Record<string, string> = {
     const msg = document.getElementById('save-msg');
     if (msg) { msg.classList.remove('hidden'); setTimeout(() => msg.classList.add('hidden'), 2000); }
   };
+
+  // ── Billing ──────────────────────────────────────────────────────────────
+  const WORKER = 'https://billing.shadow-warden-ai.workers.dev';
+  const TIER_LIMITS: Record<string, number> = {
+    starter: 1000, individual: 5000, 'community business': 10000, pro: 50000, enterprise: Infinity,
+  };
+
+  async function loadBilling(customerId: string) {
+    const loading = document.getElementById('billing-loading')!;
+    const planEl  = document.getElementById('billing-plan')!;
+    const noneEl  = document.getElementById('billing-none')!;
+    const linkEl  = document.getElementById('billing-link')!;
+
+    try {
+      const res  = await fetch(`${WORKER}/api/subscription/${encodeURIComponent(customerId)}`);
+      if (!res.ok) throw new Error('not_found');
+      const data = await res.json() as any;
+
+      loading.classList.add('hidden');
+      linkEl.classList.add('hidden');
+      noneEl.classList.add('hidden');
+      planEl.classList.remove('hidden');
+
+      (document.getElementById('plan-name') as HTMLElement).textContent = data.variantName ?? data.plan ?? 'Unknown';
+      const statusEl = document.getElementById('plan-status')!;
+      statusEl.textContent = data.status ?? '—';
+      if (data.status === 'active') {
+        statusEl.style.cssText = 'color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)';
+      } else {
+        statusEl.style.cssText = 'color:#f59e0b;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)';
+      }
+
+      const renewsEl = document.getElementById('plan-renews')!;
+      if (data.renewsAt) {
+        renewsEl.textContent = `Renews ${new Date(data.renewsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+      } else if (data.endsAt) {
+        renewsEl.textContent = `Ends ${new Date(data.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+      }
+
+      // Mock usage bar
+      const planKey = (data.plan ?? '').toLowerCase();
+      const limit   = TIER_LIMITS[planKey] ?? 1000;
+      const used    = Math.floor(limit * 0.62);
+      (document.getElementById('usage-count') as HTMLElement).textContent =
+        `${used.toLocaleString()} / ${limit === Infinity ? '∞' : limit.toLocaleString()}`;
+      (document.getElementById('usage-bar') as HTMLElement).style.width =
+        limit === Infinity ? '10%' : Math.min(100, (used / limit) * 100) + '%';
+
+    } catch {
+      loading.classList.add('hidden');
+      planEl.classList.add('hidden');
+      noneEl.classList.add('hidden');
+      linkEl.classList.remove('hidden');
+    }
+  }
+
+  // Auto-load if customer id in localStorage or URL
+  const params     = new URLSearchParams(window.location.search);
+  const urlCid     = params.get('customer_id');
+  const storedCid  = localStorage.getItem('sw-customer-id');
+  const customerId = urlCid ?? storedCid ?? '';
+  if (urlCid) localStorage.setItem('sw-customer-id', urlCid);
+
+  // Only load billing when tab is clicked (lazy)
+  const billingTabBtn = document.querySelector<HTMLButtonElement>('.tab-btn[data-tab="billing"]');
+  let   billingLoaded = false;
+  billingTabBtn?.addEventListener('click', () => {
+    if (billingLoaded) return;
+    billingLoaded = true;
+    if (customerId) {
+      loadBilling(customerId);
+    } else {
+      document.getElementById('billing-loading')!.classList.add('hidden');
+      document.getElementById('billing-link')!.classList.remove('hidden');
+    }
+  });
+
+  // Link account button
+  document.getElementById('link-account-btn')?.addEventListener('click', () => {
+    const input = document.getElementById('customer-id-input') as HTMLInputElement;
+    const cid   = input.value.trim();
+    if (!cid) return;
+    localStorage.setItem('sw-customer-id', cid);
+    document.getElementById('billing-link')!.classList.add('hidden');
+    document.getElementById('billing-loading')!.classList.remove('hidden');
+    loadBilling(cid);
+  });
 })();
 </script>

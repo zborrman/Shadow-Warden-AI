@@ -1,193 +1,361 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import LemonSqueezyCheckout from '../components/LemonSqueezyCheckout.astro';
+import { VARIANT_IDS, BILLING_PORTAL, checkoutUrl } from '../config/lemonsqueezy';
 
 const tiers = [
   {
-    name: 'Starter', price: 0, color: '#64748b',
-    cta: 'Get Started Free', ctaHref: 'https://portal.shadow-warden-ai.com',
-    features: ['1,000 req / month','Basic 9-layer pipeline','1 tenant','Community support'],
-    missing: ['XAI Reports','Evolution Engine','MasterAgent SOC','Sovereign Cloud'],
+    key: 'starter',
+    name: 'Starter',
+    price_monthly: 0,
+    price_annual: 0,
+    color: '#64748b',
+    tint: 'rgba(100,116,139,0.08)',
+    tag: null,
+    highlight: false,
+    cta: 'Get Started Free',
+    features: ['1,000 req / month','Basic 9-layer pipeline','1 tenant','Community support','Streamlit dashboard'],
+    missing: ['XAI Reports','Evolution Engine','MasterAgent SOC','Sovereign Cloud','Secrets Vault'],
   },
   {
-    name: 'Individual', price: 5, color: '#10b981',
-    cta: 'Start Free Trial', ctaHref: 'https://portal.shadow-warden-ai.com',
-    features: ['5,000 req / month','Full pipeline','PII & Secret Redaction','Streamlit dashboard','Email support'],
-    addons: ['XAI Reports +$9/mo'],
+    key: 'individual',
+    name: 'Individual',
+    price_monthly: 5,
+    price_annual: 51,
+    color: '#10b981',
+    tint: 'rgba(16,185,129,0.08)',
+    tag: null,
+    highlight: false,
+    cta: 'Start Free Trial',
+    features: ['5,000 req / month','Full 9-layer pipeline','PII & Secret Redaction','Streamlit dashboard','Email support','14-day free trial'],
+    addons: ['XAI Reports add-on available'],
     missing: ['MasterAgent SOC','Evolution Engine'],
   },
   {
-    name: 'Community Business', price: 19, color: '#8b5cf6',
-    cta: 'Start Free Trial', ctaHref: 'https://portal.shadow-warden-ai.com',
-    features: ['10,000 req / month','Everything in Individual','Obsidian Plugin','Secrets Governance (included)','3 communities × 10 members','180-day log retention'],
-    missing: ['MasterAgent SOC','PQC/Sovereign'],
+    key: 'communityBusiness',
+    name: 'Community Business',
+    price_monthly: 19,
+    price_annual: 194,
+    color: '#8b5cf6',
+    tint: 'rgba(139,92,246,0.08)',
+    tag: 'Teams',
+    highlight: false,
+    cta: 'Start Free Trial',
+    features: ['10,000 req / month','Everything in Individual','Obsidian Plugin','Secrets Governance','3 communities × 10 members','180-day log retention','14-day free trial'],
+    missing: ['MasterAgent SOC','PQC / Sovereign'],
   },
   {
-    name: 'Pro', price: 69, color: '#6366f1', highlight: true,
+    key: 'pro',
+    name: 'Pro',
+    price_monthly: 69,
+    price_annual: 705,
+    color: '#6366f1',
+    tint: 'rgba(99,102,241,0.1)',
     tag: 'Most Popular',
-    cta: 'Start Free Trial', ctaHref: 'https://portal.shadow-warden-ai.com',
-    features: ['50,000 req / month','MasterAgent SOC (included)','Evolution Engine','Evidence Vault + STIX 2.1','SOC 2 + GDPR audit package','Priority support'],
-    addons: ['Shadow AI +$15/mo'],
+    highlight: true,
+    cta: 'Start Free Trial',
+    features: ['50,000 req / month','MasterAgent SOC (included)','Evolution Engine','Evidence Vault + STIX 2.1','SOC 2 + GDPR audit package','Priority support','14-day free trial'],
+    addons: ['Shadow AI Discovery add-on available'],
     missing: ['PQC / Sovereign Cloud'],
   },
   {
-    name: 'Enterprise', price: 249, color: '#06b6d4',
+    key: 'enterprise',
+    name: 'Enterprise',
+    price_monthly: 249,
+    price_annual: 2541,
+    color: '#06b6d4',
+    tint: 'rgba(6,182,212,0.08)',
     tag: 'Full Stack',
-    cta: 'Contact Sales', ctaHref: 'mailto:sales@shadow-warden-ai.com',
-    features: ['Unlimited requests','Post-Quantum Crypto (FIPS 203/204)','Sovereign AI Cloud — 8 jurisdictions','Shadow AI Governance (included)','SAML/OIDC SSO + RBAC','Dedicated SLA · 24/7 support','Custom contract'],
+    highlight: false,
+    cta: 'Contact Sales',
+    features: ['Unlimited requests','Post-Quantum Crypto (FIPS 203/204)','Sovereign AI Cloud — 8 jurisdictions','Shadow AI Governance','SAML/OIDC SSO + RBAC','Dedicated SLA · 24/7 support','Custom contract'],
   },
 ];
 
 const addons = [
-  { name: 'Shadow AI Discovery', price: '$15/mo', tier: 'Pro+',   desc: 'Async /24 subnet probe, 18 provider fingerprints, MONITOR/BLOCK/ALLOWLIST policy.' },
-  { name: 'XAI Audit Reports',   price: '$9/mo',  tier: 'Indiv+', desc: '9-stage causal chain, primary cause attribution, PDF reports for SOC 2.' },
-  { name: 'Secrets Vault',       price: '$12/mo', tier: 'Indiv+', desc: 'AWS SM / Azure KV / HashiCorp / GCP SM connectors. Inventory + lifecycle alerts.' },
-  { name: 'On-Prem Pack',        price: '$29/mo', tier: 'Pro+',   desc: 'MinIO on-prem, self-hosted Prometheus/Grafana, air-gapped Evolution Engine.' },
-  { name: 'Community Seats',     price: '$9/mo',  tier: 'CB+',    desc: 'Stackable +5 extra seats. Combine with any tier for unlimited expansion.' },
-  { name: 'Power User Bundle',   price: '$29/mo', tier: 'Indiv+', desc: 'XAI Audit + Secrets Vault + Shadow AI. Saves $7 vs. individual add-ons.' },
+  { key: 'addonShadowAi',    name: 'Shadow AI Discovery', price: 15, tier: 'Pro+',             desc: 'Async /24 subnet probe. 18 provider fingerprints. MONITOR / BLOCK / ALLOWLIST policy.' },
+  { key: 'addonXai',         name: 'XAI Audit Reports',   price: 9,  tier: 'Individual+',      desc: '9-stage causal chain. Primary cause attribution. PDF reports for SOC 2 evidence.' },
+  { key: 'addonSecretsVault',name: 'Secrets Vault',       price: 12, tier: 'Individual+',      desc: 'Multi-cloud vault connectors. SQLite inventory, lifecycle alerts, policy score.' },
+  { key: 'addonOnPrem',      name: 'On-Prem Pack',        price: 29, tier: 'Pro+',             desc: 'MinIO on-prem, self-hosted Prometheus/Grafana, air-gapped Evolution Engine.' },
+  { key: 'addonSeats',       name: 'Extra Seats (+5)',    price: 9,  tier: 'Community Biz+',   desc: 'Stackable. Combine with any higher tier for unlimited seat expansion.' },
+  { key: 'addonPowerBundle', name: 'Power User Bundle',   price: 29, tier: 'Individual+',      desc: 'XAI Audit Reports + Secrets Vault + Shadow AI Discovery. Saves $7/mo.' },
 ];
 ---
 
-<BaseLayout title="Pricing — Shadow Warden AI"
-            description="From free to enterprise. IBM 2024 breach data: Pro plan delivers 782× ROI. 14-day trial, no card required.">
-  <div class="pt-14">
-    <!-- Header -->
-    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
-      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16 text-center">
-        <div class="flex items-center gap-2 mb-6 justify-center">
-          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
-          <span style="color:#1e1e2a">/</span>
-          <span class="text-[13px]" style="color:#94a3b8">Price</span>
+<BaseLayout
+  title="Pricing — Shadow Warden AI"
+  description="Transparent pricing for every team size. From free to enterprise. 14-day trial, no card required."
+>
+  <div class="pt-14" style="background:#03050f">
+
+    <!-- Hero -->
+    <section class="py-20 text-center relative overflow-hidden">
+      <div class="absolute inset-0 pointer-events-none"
+           style="background:radial-gradient(ellipse 800px 400px at 50% 0%,rgba(249,115,22,0.07) 0%,transparent 70%)"></div>
+      <div class="relative z-10 mx-auto max-w-3xl px-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
+             style="color:#f97316;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2)">
+          ◇ Transparent Pricing
         </div>
-        <h1 class="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold mb-3" style="color:#f1f5f9">
-          Pays for Itself in Minutes
+        <h1 class="text-[clamp(32px,5vw,60px)] font-black leading-tight tracking-tight mb-4" style="color:#f1f5f9">
+          The right plan for<br/>
+          <span style="background:linear-gradient(135deg,#f97316,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">every threat model</span>
         </h1>
-        <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
-          IBM 2024: average breach costs <span style="color:#ef4444;font-weight:700">$4.88M</span>.
-          Pro plan ROI: <span style="color:#10b981;font-weight:700">782×</span> annually.
-          14-day trial, no card required.
+        <p class="text-[16px] mb-8 max-w-xl mx-auto" style="color:#94a3b8">
+          14-day trial on all paid plans — no card required. Cancel anytime. IBM 2024 breach data shows Pro ROI of 782×.
         </p>
 
-        <!-- Monthly/Annual toggle -->
-        <div class="flex items-center justify-center gap-3 mt-8">
-          <span id="lbl-monthly" class="text-[13px] font-medium" style="color:#94a3b8">Monthly</span>
-          <button id="toggle"
-                  class="relative w-12 h-6 rounded-full transition-all duration-200 focus:outline-none"
-                  style="background:#1e1e2a;border:1px solid rgba(255,255,255,0.12)"
+        <!-- Monthly / Annual toggle -->
+        <div class="inline-flex items-center gap-3 p-1 rounded-xl" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)">
+          <button id="billing-monthly"
+                  class="billing-toggle active px-5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                  aria-pressed="true">Monthly</button>
+          <button id="billing-annual"
+                  class="billing-toggle px-5 py-2 rounded-lg text-[13px] font-semibold transition-all"
                   aria-pressed="false">
-            <span id="knob" class="absolute left-1 top-1 w-4 h-4 rounded-full transition-all duration-200"
-                  style="background:#64748b"></span>
+            Annual
+            <span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold" style="color:#10b981;background:rgba(16,185,129,0.15)">−15%</span>
           </button>
-          <span class="text-[13px] font-medium" style="color:#94a3b8">Annual</span>
-          <span class="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                style="color:#f97316;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.2)">
-            Save 15%
-          </span>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12">
+    <!-- Tier cards -->
+    <section class="pb-20">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8">
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {tiers.map(t => {
+            const varId    = VARIANT_IDS[t.key];
+            const monthlyId = varId?.monthly ?? varId?.once ?? '';
+            const annualId  = varId?.annual  ?? varId?.once ?? '';
+            const monthlyUrl = monthlyId === 'contact'
+              ? 'mailto:sales@shadow-warden-ai.com'
+              : checkoutUrl(monthlyId, { embed: true });
+            const annualUrl = annualId === 'contact'
+              ? 'mailto:sales@shadow-warden-ai.com'
+              : checkoutUrl(annualId, { embed: true });
 
-      <!-- Tier grid -->
-      <div class="grid lg:grid-cols-5 gap-3 mb-10 items-start">
-        {tiers.map((t, i) => (
-          <div class={`relative rounded-2xl p-5 flex flex-col ${t.highlight ? 'lg:-mt-4 ring-1' : ''}`}
-               style={`background:#111118;border:1px solid ${t.highlight ? t.color + '50' : 'rgba(255,255,255,0.08)'};
-                       ${t.highlight ? `box-shadow:0 0 40px ${t.color}14;ring-color:${t.color}` : ''}`}>
-            {t.tag && (
-              <div class="absolute -top-3 left-1/2 -translate-x-1/2 text-[9px] font-black tracking-wider uppercase px-3 py-0.5 rounded-full whitespace-nowrap"
-                   style={t.highlight
-                     ? `background:${t.color};color:#fff`
-                     : `background:color-mix(in srgb,${t.color} 15%,transparent);color:${t.color};border:1px solid ${t.color}40`}>
-                {t.tag}
+            return (
+              <div class={`tier-card relative rounded-2xl p-5 flex flex-col${t.highlight ? ' highlight' : ''}`}
+                   style={`border:1px solid ${t.highlight ? t.color + '50' : 'rgba(255,255,255,0.07)'};background:${t.highlight ? t.tint : 'rgba(255,255,255,0.02)'}`}>
+
+                {t.tag && (
+                  <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap"
+                       style={`color:${t.color};background:#03050f;border:1px solid ${t.color}60`}>
+                    {t.tag}
+                  </div>
+                )}
+
+                <!-- Header -->
+                <div class="mb-4">
+                  <div class="text-[13px] font-semibold mb-3" style={`color:${t.color}`}>{t.name}</div>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="price-monthly text-[32px] font-black" style="color:#f1f5f9">
+                      {t.price_monthly === 0 ? 'Free' : `$${t.price_monthly}`}
+                    </span>
+                    <span class="price-annual text-[32px] font-black hidden" style="color:#f1f5f9">
+                      {t.price_annual === 0 ? 'Free' : `$${Math.round(t.price_annual / 12)}`}
+                    </span>
+                    {t.price_monthly > 0 && (
+                      <span class="text-[12px]" style="color:#475569">
+                        <span class="price-monthly">/mo</span>
+                        <span class="price-annual hidden">/mo<br/><small style="font-size:10px;color:#334155">(billed ${t.price_annual}/yr)</small></span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <!-- CTA button -->
+                {t.key === 'enterprise' ? (
+                  <a href="mailto:sales@shadow-warden-ai.com"
+                     class="tier-cta block text-center mb-4 py-2.5 rounded-xl text-[13px] font-semibold text-white"
+                     style={`background:linear-gradient(135deg,${t.color}cc,${t.color});box-shadow:0 4px 16px ${t.color}33`}>
+                    Contact Sales
+                  </a>
+                ) : t.key === 'starter' ? (
+                  <a href="https://portal.shadow-warden-ai.com"
+                     class="tier-cta block text-center mb-4 py-2.5 rounded-xl text-[13px] font-semibold"
+                     style={`border:1px solid ${t.color}50;color:${t.color};background:rgba(255,255,255,0.02)`}>
+                    {t.cta}
+                  </a>
+                ) : (
+                  <button
+                    class="tier-cta ls-buy-btn mb-4 py-2.5 rounded-xl text-[13px] font-semibold text-white w-full"
+                    data-monthly-url={monthlyUrl}
+                    data-annual-url={annualUrl}
+                    style={`background:linear-gradient(135deg,${t.color}cc,${t.color});box-shadow:0 4px 16px ${t.color}33`}>
+                    {t.cta}
+                  </button>
+                )}
+
+                <!-- Features -->
+                <ul class="flex-1 space-y-1.5">
+                  {(t.features ?? []).map(f => (
+                    <li class="flex items-start gap-2 text-[12px]" style="color:#94a3b8">
+                      <span style={`color:${t.color};flex-shrink:0`}>✓</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                  {(t.addons ?? []).map(a => (
+                    <li class="flex items-start gap-2 text-[12px]" style="color:#64748b">
+                      <span style="flex-shrink:0">⊕</span>
+                      <span>{a}</span>
+                    </li>
+                  ))}
+                  {(t.missing ?? []).map(m => (
+                    <li class="flex items-start gap-2 text-[12px]" style="color:#2d3748">
+                      <span style="flex-shrink:0">—</span>
+                      <span style="text-decoration:line-through">{m}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            )}
+            );
+          })}
+        </div>
 
-            <div class="mb-4">
-              <div class="text-[10px] font-bold tracking-widest uppercase mb-2" style={`color:${t.color}`}>{t.name}</div>
-              <div class="flex items-end gap-1">
-                <span class="text-[38px] font-black leading-none" style="color:#f1f5f9"
-                      data-name={t.name} data-base={t.price}>${t.price}</span>
-                <span class="text-[12px] mb-1.5" style="color:#64748b">/mo</span>
-              </div>
-              <div class="text-[10px] mt-0.5" style="color:#475569">billed monthly · cancel anytime</div>
-            </div>
-
-            <ul class="space-y-1.5 mb-5 flex-1">
-              {t.features.map(f => (
-                <li class="flex items-start gap-2 text-[12px]" style="color:#f1f5f9">
-                  <span class="font-bold mt-0.5" style={`color:${t.color}`}>✓</span> {f}
-                </li>
-              ))}
-              {t.addons?.map(a => (
-                <li class="flex items-start gap-2 text-[12px]" style="color:#94a3b8">
-                  <span class="font-bold mt-0.5" style="color:#64748b">○</span> {a}
-                </li>
-              ))}
-              {t.missing?.map(m => (
-                <li class="flex items-start gap-2 text-[12px] opacity-30" style="color:#64748b">
-                  <span class="mt-0.5">✗</span> {m}
-                </li>
-              ))}
-            </ul>
-
-            <a href={t.ctaHref} target="_blank" rel="noopener"
-               class="block w-full py-2.5 rounded-xl text-[12px] font-bold text-center transition-all no-underline hover:-translate-y-0.5"
-               style={t.highlight
-                 ? `background:${t.color};color:#fff;box-shadow:0 8px 28px ${t.color}40`
-                 : `background:color-mix(in srgb,${t.color} 12%,transparent);border:1px solid ${t.color}30;color:${t.color}`}>
-              {t.cta}
-            </a>
+        <!-- ROI banner -->
+        <div class="mt-10 py-6 px-8 rounded-2xl text-center"
+             style="background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15)">
+          <div class="text-[13px] font-semibold mb-1" style="color:#f97316">
+            IBM 2024 Cost of a Data Breach Report
           </div>
-        ))}
-      </div>
-
-      <!-- Add-ons -->
-      <div class="rounded-2xl p-6 mb-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
-        <div class="flex items-center gap-3 mb-5">
-          <span class="text-[11px] font-bold tracking-widest uppercase" style="color:#475569">Optional Add-ons</span>
-          <div class="flex-1 h-px" style="background:rgba(255,255,255,0.06)"></div>
+          <p class="text-[12px] max-w-2xl mx-auto" style="color:#64748b">
+            Average breach cost $4.88M · Pro plan $828/yr · Threat-to-breach conversion 1-in-180.
+            For 50,000 requests/month at a 5% threat rate: <strong style="color:#f97316">estimated ROI 782×</strong>
+          </p>
         </div>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {addons.map(a => (
-            <div class="rounded-xl p-4" style="background:#16161f;border:1px solid rgba(255,255,255,0.06)">
-              <div class="flex items-start justify-between gap-2 mb-2">
-                <div class="text-[13px] font-semibold" style="color:#f1f5f9">{a.name}</div>
-                <div class="text-[18px] font-black shrink-0" style="color:#f59e0b">{a.price}</div>
+      </div>
+    </section>
+
+    <!-- Add-ons -->
+    <section class="pb-24 border-t" style="border-color:rgba(255,255,255,0.06)">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 pt-16">
+        <div class="text-center mb-10">
+          <h2 class="text-[22px] font-bold mb-2" style="color:#f1f5f9">Add-ons & Extensions</h2>
+          <p class="text-[13px]" style="color:#64748b">Enhance any paid plan. Cancel independently.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {addons.map(a => {
+            const varId = VARIANT_IDS[a.key];
+            const monthlyId = varId?.monthly ?? '';
+            const url = monthlyId ? checkoutUrl(monthlyId, { embed: true }) : '#';
+            return (
+              <div class="addon-card p-5 rounded-2xl flex flex-col gap-3"
+                   style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="text-[14px] font-semibold mb-0.5" style="color:#f1f5f9">{a.name}</div>
+                    <div class="text-[11px] px-2 py-0.5 rounded-md inline-block" style="color:#f97316;background:rgba(249,115,22,0.1)">{a.tier}</div>
+                  </div>
+                  <div class="text-right flex-shrink-0">
+                    <div class="text-[20px] font-black" style="color:#f97316">${a.price}</div>
+                    <div class="text-[10px]" style="color:#475569">/mo</div>
+                  </div>
+                </div>
+                <p class="text-[12px] leading-relaxed flex-1" style="color:#64748b">{a.desc}</p>
+                <button
+                  class="ls-buy-btn w-full py-2 rounded-lg text-[12px] font-semibold transition-colors"
+                  data-monthly-url={url}
+                  data-annual-url={url}
+                  style="color:#f97316;border:1px solid rgba(249,115,22,0.3);background:rgba(249,115,22,0.05)">
+                  Add to plan →
+                </button>
               </div>
-              <div class="text-[12px] leading-relaxed mb-2" style="color:#64748b">{a.desc}</div>
-              <div class="text-[10px]" style="color:#475569">Available: {a.tier}</div>
-            </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ strip -->
+    <section class="pb-20 border-t" style="border-color:rgba(255,255,255,0.06)">
+      <div class="mx-auto max-w-3xl px-4 pt-16">
+        <h2 class="text-[20px] font-bold mb-8 text-center" style="color:#f1f5f9">Frequently Asked Questions</h2>
+        <div class="space-y-4">
+          {[
+            { q: 'Do you offer a free trial?', a: '14 days on Individual, Community Business, and Pro — no credit card required.' },
+            { q: 'Can I upgrade or downgrade?', a: 'Yes. Upgrades are immediate; downgrades take effect at the next billing date. Managed through the Lemon Squeezy Customer Portal.' },
+            { q: 'What payment methods do you accept?', a: 'All major credit/debit cards, PayPal, and bank transfers for Enterprise. Processed securely by Lemon Squeezy.' },
+            { q: 'Is my data safe during checkout?', a: 'All payments are handled by Lemon Squeezy (PCI-DSS Level 1). Shadow Warden AI never sees your card details.' },
+            { q: 'Can I get a refund?', a: '30-day money-back guarantee on all plans. Contact support@shadow-warden-ai.com.' },
+          ].map(item => (
+            <details class="group rounded-xl p-4 cursor-pointer" style="border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.02)">
+              <summary class="flex items-center justify-between gap-4 text-[13px] font-medium list-none" style="color:#f1f5f9">
+                {item.q}
+                <svg class="flex-shrink-0 group-open:rotate-180 transition-transform" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </summary>
+              <p class="mt-3 text-[13px] leading-relaxed" style="color:#64748b">{item.a}</p>
+            </details>
           ))}
         </div>
       </div>
-
-      <!-- IBM ROI note -->
-      <div class="rounded-xl p-4 text-center text-[12px]" style="color:#475569">
-        * IBM Cost of a Data Breach Report 2024. All prices in USD. Annual billing saves 15%.
-        Enterprise pricing is custom — <a href="mailto:sales@shadow-warden-ai.com" style="color:#6366f1">contact sales</a>.
-      </div>
-    </div>
+    </section>
   </div>
 </BaseLayout>
 
-<script>
-  const toggle = document.getElementById('toggle')!;
-  const knob   = document.getElementById('knob')!;
-  const annualPrices: Record<string, number> = {
-    Individual: 4, 'Community Business': 16, Pro: 59, Enterprise: 212,
-  };
-  let annual = false;
+<!-- Lemon Squeezy checkout modal -->
+<LemonSqueezyCheckout />
 
-  toggle.addEventListener('click', () => {
-    annual = !annual;
-    toggle.setAttribute('aria-pressed', String(annual));
-    knob.style.left       = annual ? '26px' : '4px';
-    knob.style.background = annual ? '#f97316' : '#64748b';
-    document.querySelectorAll<HTMLElement>('[data-name]').forEach(el => {
-      const name = el.dataset.name!;
-      const base = Number(el.dataset.base!);
-      el.textContent = '$' + (annual && annualPrices[name] ? annualPrices[name] : base);
+<style>
+  .billing-toggle {
+    color: #64748b;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+  .billing-toggle.active {
+    color: #f1f5f9;
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .tier-card.highlight {
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.4), 0 16px 48px rgba(99,102,241,0.15);
+  }
+  details summary::-webkit-details-marker { display: none; }
+</style>
+
+<script>
+(function () {
+  // Billing toggle
+  const monthlyBtn = document.getElementById('billing-monthly')!;
+  const annualBtn  = document.getElementById('billing-annual')!;
+  let   isAnnual   = localStorage.getItem('sw-billing') === 'annual';
+
+  function apply(annual: boolean) {
+    isAnnual = annual;
+    localStorage.setItem('sw-billing', annual ? 'annual' : 'monthly');
+    monthlyBtn.classList.toggle('active', !annual);
+    annualBtn.classList.toggle('active', annual);
+    monthlyBtn.setAttribute('aria-pressed', String(!annual));
+    annualBtn.setAttribute('aria-pressed', String(annual));
+    document.querySelectorAll('.price-monthly').forEach(el =>
+      (el as HTMLElement).classList.toggle('hidden', annual));
+    document.querySelectorAll('.price-annual').forEach(el =>
+      (el as HTMLElement).classList.toggle('hidden', !annual));
+  }
+
+  monthlyBtn.addEventListener('click', () => apply(false));
+  annualBtn.addEventListener('click',  () => apply(true));
+  apply(isAnnual);
+
+  // Buy buttons
+  document.querySelectorAll<HTMLButtonElement>('.ls-buy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const url = isAnnual
+        ? (btn.dataset.annualUrl ?? btn.dataset.monthlyUrl ?? '')
+        : (btn.dataset.monthlyUrl ?? '');
+      if (!url || url === '#') return;
+      if (url.startsWith('mailto:')) { window.location.href = url; return; }
+      if (typeof (window as any).lsCheckout === 'function') {
+        (window as any).lsCheckout(url);
+      } else {
+        window.open(url, '_blank', 'noopener');
+      }
     });
   });
+})();
 </script>
