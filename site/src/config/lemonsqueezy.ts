@@ -21,7 +21,7 @@ export const VARIANT_IDS: Record<string, { monthly?: string; annual?: string; on
 
 export const CHECKOUT_BASE   = `https://${LS_STORE}.lemonsqueezy.com/checkout/buy`;
 export const BILLING_PORTAL  = `https://${LS_STORE}.lemonsqueezy.com/billing`;
-export const WORKER_API      = 'https://billing.shadow-warden-ai.workers.dev';
+export const WORKER_API      = 'https://shadow-warden-billing.zbrvladimir.workers.dev';
 
 /** Build a Lemon Squeezy checkout URL with recommended params */
 export function checkoutUrl(variantId: string, opts: { embed?: boolean; customerId?: string } = {}): string {
