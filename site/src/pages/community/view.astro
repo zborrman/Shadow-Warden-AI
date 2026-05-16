@@ -37,7 +37,21 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       </div>
 
       <!-- Quick actions -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="quick-actions">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px" id="quick-actions">
+      </div>
+
+      <!-- Share code card -->
+      <div id="share-card" style="background:#0d1220;border:1px solid rgba(48,209,88,0.15);border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px">
+        <div style="flex:1;min-width:0">
+          <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#475569;margin-bottom:4px;font-weight:600">Share Community Code</p>
+          <p id="share-code-text" style="font-size:18px;font-family:monospace;font-weight:800;color:#30D158;margin:0;letter-spacing:0.05em">—</p>
+          <p style="font-size:11px;color:#475569;margin:4px 0 0">Send this code to anyone you want to invite</p>
+        </div>
+        <button id="copy-code-btn"
+                style="padding:10px 18px;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);border-radius:10px;color:#30D158;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap"
+                onmouseover="this.style.background='rgba(48,209,88,0.2)'" onmouseout="this.style.background='rgba(48,209,88,0.1)'">
+          Copy Code
+        </button>
       </div>
     </div>
   </section>
@@ -169,5 +183,21 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     }
 
     render();
+
+    // Copy community code
+    document.getElementById('copy-code-btn')?.addEventListener('click', () => {
+      const id = new URLSearchParams(window.location.search).get('id') || '';
+      navigator.clipboard.writeText(id).then(() => {
+        const btn = document.getElementById('copy-code-btn') as HTMLButtonElement;
+        if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => { btn.textContent = 'Copy Code'; }, 1800); }
+      });
+    });
+
+    // Populate share code text
+    const shareCodeEl = document.getElementById('share-code-text');
+    if (shareCodeEl) {
+      const id = new URLSearchParams(window.location.search).get('id') || '';
+      if (id) shareCodeEl.textContent = id;
+    }
   </script>
 </BaseLayout>

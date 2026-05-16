@@ -19,11 +19,44 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <h1 class="text-[clamp(28px,4vw,44px)] font-black tracking-tight mb-2" style="color:#f1f5f9">My Communities</h1>
           <p class="text-[15px]" style="color:#64748b">Secure collaboration spaces with end-to-end encrypted data tunnels</p>
         </div>
-        <a id="new-comm-btn" href="/community/new"
-           class="shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-           style="background:linear-gradient(135deg,#06b6d4,#0e7490);white-space:nowrap">
-          + New Community
-        </a>
+        <div class="flex gap-2 shrink-0">
+          <button id="join-comm-btn"
+             class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+             style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:#94a3b8;white-space:nowrap;cursor:pointer"
+             onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+            Join Community
+          </button>
+          <a id="new-comm-btn" href="/community/new"
+             class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+             style="background:linear-gradient(135deg,#06b6d4,#0e7490);white-space:nowrap">
+            + New Community
+          </a>
+        </div>
+      </div>
+
+      <!-- Join modal -->
+      <div id="join-modal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+        <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:32px;max-width:420px;width:90%;margin:auto">
+          <p style="font-size:20px;font-weight:800;color:#f1f5f9;margin-bottom:6px">Join a Community</p>
+          <p style="font-size:13px;color:#64748b;margin-bottom:20px">Enter the community code shared with you (format: COMM-XXXX)</p>
+          <input id="join-input" type="text" placeholder="COMM-XXXX" maxlength="9"
+                 style="width:100%;box-sizing:border-box;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 14px;color:#f1f5f9;font-size:15px;font-family:monospace;font-weight:700;letter-spacing:0.05em;outline:none;margin-bottom:10px;transition:border-color 0.2s"
+                 onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+          <p id="join-err" style="color:#FF2D55;font-size:12px;margin-bottom:14px;display:none"></p>
+          <p id="join-ok" style="color:#30D158;font-size:12px;margin-bottom:14px;display:none"></p>
+          <div style="display:flex;gap:10px">
+            <button id="join-cancel"
+                    style="flex:1;padding:11px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s"
+                    onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+              Cancel
+            </button>
+            <button id="join-confirm"
+                    style="flex:2;padding:11px;background:linear-gradient(135deg,#06b6d4,#0e7490);border:none;border-radius:10px;color:white;font-size:13px;font-weight:700;cursor:pointer;transition:opacity 0.15s"
+                    onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+              Join →
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- User identity -->
@@ -168,8 +201,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
                  onmouseover="this.style.borderColor='rgba(6,182,212,0.25)'"
                  onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-                <div>
-                  <p style="font-size:10px;font-family:monospace;color:#06b6d4;margin-bottom:4px;letter-spacing:0.05em">${esc(c.id)}</p>
+                <div style="min-width:0">
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                    <p style="font-size:10px;font-family:monospace;color:#06b6d4;letter-spacing:0.05em;margin:0">${esc(c.id)}</p>
+                    ${c.isJoined ? `<span style="padding:1px 6px;border-radius:4px;background:rgba(48,209,88,0.12);border:1px solid rgba(48,209,88,0.25);font-size:9px;font-weight:700;color:#30D158;font-family:monospace">JOINED</span>` : ''}
+                  </div>
                   <h3 style="font-size:16px;font-weight:700;color:#f1f5f9;line-height:1.3;margin:0">${esc(c.name)}</h3>
                 </div>
                 <span style="padding:3px 10px;border-radius:20px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.18);font-size:10px;font-weight:700;color:#06b6d4;font-family:monospace;white-space:nowrap;flex-shrink:0">
@@ -203,5 +239,75 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     }
 
     render();
+
+    // Join Community modal
+    const joinModal = document.getElementById('join-modal') as HTMLElement;
+    const joinInput = document.getElementById('join-input') as HTMLInputElement;
+    const joinErr = document.getElementById('join-err') as HTMLElement;
+    const joinOk = document.getElementById('join-ok') as HTMLElement;
+
+    function showJoinModal() {
+      joinInput.value = '';
+      joinErr.style.display = 'none';
+      joinOk.style.display = 'none';
+      joinModal.style.display = 'flex';
+      setTimeout(() => joinInput.focus(), 50);
+    }
+    function hideJoinModal() { joinModal.style.display = 'none'; }
+
+    document.getElementById('join-comm-btn')?.addEventListener('click', showJoinModal);
+    document.getElementById('join-cancel')?.addEventListener('click', hideJoinModal);
+    joinModal.addEventListener('click', (e) => { if (e.target === joinModal) hideJoinModal(); });
+
+    document.getElementById('join-confirm')?.addEventListener('click', () => {
+      const code = joinInput.value.trim().toUpperCase();
+      joinErr.style.display = 'none';
+      joinOk.style.display = 'none';
+
+      if (!code.match(/^COMM-[0-9A-F]{4}$/)) {
+        joinErr.textContent = 'Format must be COMM-XXXX (e.g. COMM-1A2B)';
+        joinErr.style.display = 'block';
+        return;
+      }
+
+      const uid = getOrCreateUserId();
+      const comms = loadCommunities();
+
+      // Already in this community?
+      const existing = comms.find((x: any) => x.id === code);
+      if (existing) {
+        if (!existing.members) existing.members = [];
+        if (!existing.members.includes(uid)) {
+          existing.members.push(uid);
+          localStorage.setItem(COMM_KEY, JSON.stringify(comms));
+          joinOk.textContent = `✓ Joined "${existing.name}" successfully!`;
+        } else {
+          joinOk.textContent = `✓ You're already a member of "${existing.name}".`;
+        }
+        joinOk.style.display = 'block';
+        setTimeout(() => { hideJoinModal(); render(); }, 1400);
+        return;
+      }
+
+      // Community not found locally — create a stub
+      const stub = {
+        id: code,
+        name: `Community ${code}`,
+        description: 'Joined via community code',
+        members: [uid],
+        created: new Date().toISOString(),
+        isJoined: true,
+      };
+      comms.push(stub);
+      localStorage.setItem(COMM_KEY, JSON.stringify(comms));
+      joinOk.textContent = `✓ Joined ${code} — community added to your list.`;
+      joinOk.style.display = 'block';
+      setTimeout(() => { hideJoinModal(); render(); }, 1400);
+    });
+
+    joinInput?.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') document.getElementById('join-confirm')?.click();
+      if (e.key === 'Escape') hideJoinModal();
+    });
   </script>
 </BaseLayout>
