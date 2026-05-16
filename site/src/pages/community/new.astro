@@ -90,6 +90,51 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
   <script>
     const COMM_KEY = 'sw_communities';
+    const TIER_KEY = 'sw_tier';
+
+    const TIERS: Record<string, any> = {
+      starter:           { name:'Starter',           color:'#64748b', maxComm:0,  price:'Free'    },
+      individual:        { name:'Individual',         color:'#06b6d4', maxComm:1,  price:'$5/mo'   },
+      community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3,  price:'$19/mo'  },
+      pro:               { name:'Pro',                color:'#FF8C42', maxComm:10, price:'$69/mo'  },
+      enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1, price:'$249/mo' },
+    };
+    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
+    function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
+
+    function checkTierGate() {
+      const tc = getTC();
+      const comms: any[] = (() => { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } })();
+      if (tc.maxComm === -1) return; // unlimited
+
+      if (comms.length >= tc.maxComm) {
+        const form = document.getElementById('new-comm-form') as HTMLElement;
+        const container = form?.parentElement;
+        if (container) {
+          container.innerHTML = `
+            <div style="text-align:center;padding:32px">
+              <p style="font-size:36px;margin-bottom:12px">🔒</p>
+              <p style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:6px">
+                Community limit reached
+              </p>
+              <p style="font-size:13px;color:#64748b;margin-bottom:4px">
+                Your <strong style="color:${tc.color}">${tc.name}</strong> plan allows up to <strong>${tc.maxComm === 0 ? 'no' : tc.maxComm}</strong> ${tc.maxComm === 1 ? 'community' : 'communities'}.
+              </p>
+              <p style="font-size:13px;color:#64748b;margin-bottom:24px">
+                You currently have ${comms.length}. Upgrade to create more.
+              </p>
+              <div style="display:flex;gap:10px;justify-content:center">
+                <a href="/community" style="padding:11px 20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:13px;font-weight:600">
+                  ← Back
+                </a>
+                <a href="/price" style="padding:11px 24px;background:linear-gradient(135deg,#06b6d4,#0e7490);color:white;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700">
+                  View Plans →
+                </a>
+              </div>
+            </div>`;
+        }
+      }
+    }
 
     function genCommId(): string {
       const bytes = crypto.getRandomValues(new Uint8Array(2));
@@ -113,5 +158,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       window.location.href = `/community/view?id=${encodeURIComponent(id)}`;
     });
+
+    checkTierGate();
   </script>
 </BaseLayout>

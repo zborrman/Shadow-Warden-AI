@@ -39,7 +39,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       <!-- Members list -->
       <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px">
-        <p class="text-[14px] font-semibold mb-4" style="color:#f1f5f9">Members <span id="member-count" style="color:#475569;font-weight:400"></span></p>
+        <p class="text-[14px] font-semibold mb-3" style="color:#f1f5f9">Members <span id="member-count" style="color:#475569;font-weight:400"></span></p>
+        <div id="member-limit-bar" style="display:none"></div>
         <div id="members-list"><p style="color:#475569;font-size:13px">No members yet.</p></div>
       </div>
 
@@ -65,7 +66,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
   <script>
     const COMM_KEY = 'sw_communities';
+    const TIER_KEY = 'sw_tier';
     let communityId = '';
+
+    const TIERS: Record<string, any> = {
+      starter:           { name:'Starter',           color:'#64748b', maxMem:0  },
+      individual:        { name:'Individual',         color:'#06b6d4', maxMem:5  },
+      community_business:{ name:'Community Business', color:'#BF5AF2', maxMem:10 },
+      pro:               { name:'Pro',                color:'#FF8C42', maxMem:50 },
+      enterprise:        { name:'Enterprise',         color:'#FFD60A', maxMem:-1 },
+    };
+    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
+    function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
 
     function getParam(name: string): string {
       return new URLSearchParams(window.location.search).get(name) || '';
@@ -111,10 +123,49 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const c = comms.find((x: any) => x.id === communityId);
       if (!c) return;
 
+      const tc = getTC();
       const members: string[] = c.members || [];
       const el = document.getElementById('members-list');
       const countEl = document.getElementById('member-count');
-      if (countEl) countEl.textContent = `(${members.length})`;
+      const max = tc.maxMem;
+      const atLimit = max !== -1 && members.length >= max;
+
+      if (countEl) {
+        const ratio = max === -1 ? `(${members.length})` : `(${members.length}/${max})`;
+        countEl.textContent = ratio;
+        countEl.style.color = atLimit ? '#FF2D55' : '#475569';
+      }
+
+      // Member limit bar
+      const limitBar = document.getElementById('member-limit-bar');
+      if (limitBar && max > 0) {
+        const pct = Math.min(members.length / max * 100, 100);
+        limitBar.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div style="flex:1;height:4px;border-radius:2px;background:#1e293b;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#FF2D55' : tc.color};border-radius:2px;transition:width 0.5s"></div>
+            </div>
+            <span style="font-size:11px;font-family:monospace;color:${atLimit ? '#FF2D55' : '#475569'};white-space:nowrap">
+              ${members.length}/${max} members · <span style="color:${tc.color}">${tc.name}</span>
+            </span>
+          </div>
+          ${atLimit ? `<div style="padding:10px 14px;background:rgba(255,140,66,0.08);border:1px solid rgba(255,140,66,0.2);border-radius:10px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <p style="font-size:12px;color:#FF8C42;margin:0">Member limit reached. <a href="/price" style="color:#FF8C42;font-weight:700">Upgrade to add more →</a></p>
+          </div>` : ''}`;
+        limitBar.style.display = 'block';
+      }
+
+      // Disable add button if at limit
+      const addBtn = document.getElementById('add-member-btn') as HTMLButtonElement;
+      if (addBtn && atLimit) {
+        addBtn.disabled = true;
+        addBtn.style.cursor = 'not-allowed';
+        addBtn.style.opacity = '0.4';
+      } else if (addBtn) {
+        addBtn.disabled = false;
+        addBtn.style.cursor = 'pointer';
+        addBtn.style.opacity = '1';
+      }
 
       if (!el) return;
       if (members.length === 0) {

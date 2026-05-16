@@ -19,7 +19,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <h1 class="text-[clamp(28px,4vw,44px)] font-black tracking-tight mb-2" style="color:#f1f5f9">My Communities</h1>
           <p class="text-[15px]" style="color:#64748b">Secure collaboration spaces with end-to-end encrypted data tunnels</p>
         </div>
-        <a href="/community/new"
+        <a id="new-comm-btn" href="/community/new"
            class="shrink-0 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
            style="background:linear-gradient(135deg,#06b6d4,#0e7490);white-space:nowrap">
           + New Community
@@ -48,6 +48,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         </div>
       </div>
 
+      <!-- Tier banner -->
+      <div id="tier-banner" class="mb-5 px-4 py-3 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)"></div>
+
       <!-- Communities grid -->
       <div id="communities-list">
         <p class="text-sm" style="color:#475569">Loading…</p>
@@ -58,6 +61,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   <script>
     const COMM_KEY = 'sw_communities';
     const USER_KEY = 'sw_user_id';
+    const TIER_KEY = 'sw_tier';
+
+    const TIERS: Record<string, any> = {
+      starter:           { name:'Starter',           color:'#64748b', maxComm:0,  obs:false, slack:false },
+      individual:        { name:'Individual',         color:'#06b6d4', maxComm:1,  obs:false, slack:false },
+      community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3,  obs:true,  slack:false },
+      pro:               { name:'Pro',                color:'#FF8C42', maxComm:10, obs:true,  slack:true  },
+      enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1, obs:true,  slack:true  },
+    };
+    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
+    function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
 
     function getOrCreateUserId(): string {
       let id = localStorage.getItem(USER_KEY);
@@ -87,9 +101,46 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       const uidEl = document.getElementById('my-user-id');
       if (uidEl) uidEl.textContent = uid;
 
+      const tc = getTC();
       const comms = loadCommunities();
       const el = document.getElementById('communities-list');
       if (!el) return;
+
+      // Tier banner
+      const tierBanner = document.getElementById('tier-banner');
+      if (tierBanner) {
+        const used = comms.length;
+        const max = tc.maxComm;
+        const pct = max <= 0 ? (max === -1 ? 0 : 100) : Math.min(used / max * 100, 100);
+        tierBanner.innerHTML = `
+          <div style="display:flex;align-items:center;gap-12px;gap:12px;flex-wrap:wrap">
+            <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:${tc.color}14;border:1px solid ${tc.color}35;color:${tc.color}">
+              ${tc.name.toUpperCase()}
+            </span>
+            ${max === -1 ? `<span style="font-size:13px;color:#64748b">${used} communities (unlimited)</span>` :
+              max === 0  ? `<span style="font-size:13px;color:#FF2D55">0 private communities on this plan</span>` :
+              `<span style="font-size:13px;color:#64748b">${used} / ${max} communities used</span>`}
+            ${max > 0 ? `
+            <div style="flex:1;min-width:80px;max-width:160px;height:4px;border-radius:2px;background:#1e293b;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#FF2D55' : tc.color};border-radius:2px;transition:width 0.5s"></div>
+            </div>` : ''}
+            <a href="/account" style="margin-left:auto;font-size:12px;color:#475569;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#475569'">
+              Change plan →
+            </a>
+          </div>`;
+      }
+
+      // At-limit banner
+      const atLimit = tc.maxComm !== -1 && comms.length >= tc.maxComm;
+      const newBtn = document.getElementById('new-comm-btn');
+      if (newBtn) {
+        if (atLimit) {
+          newBtn.setAttribute('href', '/price');
+          newBtn.textContent = tc.maxComm === 0 ? 'Upgrade to create' : '↑ Upgrade for more';
+          (newBtn as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+          (newBtn as HTMLElement).style.color = '#94a3b8';
+        }
+      }
 
       if (comms.length === 0) {
         el.innerHTML = `

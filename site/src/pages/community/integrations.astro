@@ -34,7 +34,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </span>
         </div>
 
-        <div style="padding:20px 24px">
+        <div id="obs-panel-body" style="padding:20px 24px">
           <!-- Vault path -->
           <div class="mb-4">
             <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">Vault Path</label>
@@ -80,7 +80,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </span>
         </div>
 
-        <div style="padding:20px 24px">
+        <div id="slack-panel-body" style="padding:20px 24px">
           <!-- Webhook URL -->
           <div class="mb-5">
             <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">Incoming Webhook URL</label>
@@ -120,7 +120,35 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
   <script>
     const COMM_KEY = 'sw_communities';
+    const TIER_KEY = 'sw_tier';
     let communityId = '';
+
+    const TIERS: Record<string, any> = {
+      starter:           { name:'Starter',           color:'#64748b', obs:false, slack:false, pqc:false, price:'Free'    },
+      individual:        { name:'Individual',         color:'#06b6d4', obs:false, slack:false, pqc:false, price:'$5/mo'   },
+      community_business:{ name:'Community Business', color:'#BF5AF2', obs:true,  slack:false, pqc:false, price:'$19/mo'  },
+      pro:               { name:'Pro',                color:'#FF8C42', obs:true,  slack:true,  pqc:false, price:'$69/mo'  },
+      enterprise:        { name:'Enterprise',         color:'#FFD60A', obs:true,  slack:true,  pqc:true,  price:'$249/mo' },
+    };
+    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
+    function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
+
+    function renderLockedPanel(bodyEl: HTMLElement, requiredTierKey: string) {
+      const rt = TIERS[requiredTierKey];
+      bodyEl.innerHTML = `
+        <div style="text-align:center;padding:32px 20px">
+          <p style="font-size:36px;margin-bottom:12px">🔒</p>
+          <p style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:6px">${rt.name} plan required</p>
+          <p style="font-size:13px;color:#64748b;margin-bottom:20px">Upgrade to unlock this integration</p>
+          <a href="/price"
+             style="display:inline-block;padding:11px 28px;background:${rt.color};border-radius:10px;color:${requiredTierKey === 'enterprise' ? '#000' : '#fff'};text-decoration:none;font-size:13px;font-weight:700">
+            Upgrade to ${rt.name} — ${rt.price} →
+          </a>
+          <p style="font-size:11px;color:#334155;margin-top:12px">
+            Change your simulated plan in <a href="/account" style="color:#06b6d4">Account settings</a>
+          </p>
+        </div>`;
+    }
 
     function getParam(name: string): string {
       return new URLSearchParams(window.location.search).get(name) || '';
@@ -376,9 +404,26 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       renderTabs(communityId);
 
+      const tc = getTC();
       const cfg = getIntegrations(communityId);
-      initObsidian(cfg);
-      initSlack(cfg);
+
+      // Obsidian: requires Community Business+
+      const obsBody = document.querySelector('#obs-panel-body') as HTMLElement;
+      if (obsBody && !tc.obs) {
+        renderLockedPanel(obsBody, 'community_business');
+        document.getElementById('obs-status-badge')!.textContent = 'LOCKED';
+      } else {
+        initObsidian(cfg);
+      }
+
+      // Slack: requires Pro+
+      const slackBody = document.querySelector('#slack-panel-body') as HTMLElement;
+      if (slackBody && !tc.slack) {
+        renderLockedPanel(slackBody, 'pro');
+        document.getElementById('slack-status-badge')!.textContent = 'LOCKED';
+      } else {
+        initSlack(cfg);
+      }
     }
 
     init();

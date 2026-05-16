@@ -4,7 +4,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
 <BaseLayout
   title="Account Settings — Shadow Warden AI"
-  description="Manage your account settings and identity."
+  description="Manage your account settings and subscription plan."
 >
   <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
     <div class="mx-auto max-w-2xl px-4 lg:px-8">
@@ -35,7 +35,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       </div>
 
       <!-- Identity card -->
-      <div class="flex items-center gap-4 p-5 rounded-xl mb-6"
+      <div class="flex items-center gap-4 p-5 rounded-xl mb-5"
            style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.18)">
         <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#06b6d4,#0e7490);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">
           🛡️
@@ -50,6 +50,23 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
                 onmouseover="this.style.color='#FF2D55';this.style.borderColor='rgba(255,45,85,0.3)'" onmouseout="this.style.color='#64748b';this.style.borderColor='rgba(255,255,255,0.08)'">
           Regenerate
         </button>
+      </div>
+
+      <!-- Subscription Plan selector -->
+      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <p style="font-size:15px;font-weight:600;color:#f1f5f9;margin:0 0 3px">Subscription Plan</p>
+            <p style="font-size:12px;color:#475569;margin:0">Select any plan to preview feature access across the Community section</p>
+          </div>
+          <a href="/price" style="font-size:12px;color:#06b6d4;text-decoration:none;flex-shrink:0;margin-left:16px;margin-top:2px" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">All plans →</a>
+        </div>
+        <div id="tier-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px"></div>
+      </div>
+
+      <!-- Plan limits summary -->
+      <div id="plan-limits" style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px 20px;margin-bottom:16px">
+        <!-- rendered by JS -->
       </div>
 
       <!-- Account form -->
@@ -86,7 +103,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             </select>
           </div>
 
-          <!-- Security notifications toggle -->
           <div class="flex items-center justify-between p-4 rounded-xl mb-6"
                style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
             <div>
@@ -112,16 +128,30 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   </section>
 
   <script>
-    const ACC_KEY = 'sw_account';
+    const ACC_KEY  = 'sw_account';
     const USER_KEY = 'sw_user_id';
+    const TIER_KEY = 'sw_tier';
 
-    function loadAccount(): any {
-      try { return JSON.parse(localStorage.getItem(ACC_KEY) || '{}'); } catch { return {}; }
-    }
+    const TIERS: Record<string, any> = {
+      starter:           { name: 'Starter',           color: '#64748b', price: 'Free',    maxComm: 0,  maxMem: 0,  obs: false, slack: false, pqc: false,
+                           features: ['Community threat feed (read-only)', 'Public API access'] },
+      individual:        { name: 'Individual',         color: '#06b6d4', price: '$5/mo',   maxComm: 1,  maxMem: 5,  obs: false, slack: false, pqc: false,
+                           features: ['1 private community', '5 members', 'Encrypted tunnel', 'Basic reporting'] },
+      community_business:{ name: 'Community Business', color: '#BF5AF2', price: '$19/mo',  maxComm: 3,  maxMem: 10, obs: true,  slack: false, pqc: false,
+                           features: ['3 communities × 10 members', 'Obsidian vault scanner', 'Shadow AI Monitor', '180-day log retention'] },
+      pro:               { name: 'Pro',                color: '#FF8C42', price: '$69/mo',  maxComm: 10, maxMem: 50, obs: true,  slack: true,  pqc: false,
+                           features: ['10 communities × 50 members', 'Slack alerting', 'MasterAgent SOC', 'XAI audit reports', 'SIEM integration'] },
+      enterprise:        { name: 'Enterprise',         color: '#FFD60A', price: '$249/mo', maxComm: -1, maxMem: -1, obs: true,  slack: true,  pqc: true,
+                           features: ['Unlimited communities & members', 'Post-Quantum Cryptography tunnels', 'Sovereign data routing', 'Dedicated SLA 99.95%', 'On-prem deployment'] },
+    };
 
-    function saveAccount(data: any) {
-      localStorage.setItem(ACC_KEY, JSON.stringify(data));
-    }
+    const TIER_ORDER = ['starter', 'individual', 'community_business', 'pro', 'enterprise'];
+
+    function getCurrentTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
+    function getTC(t?: string): any { return TIERS[t || getCurrentTier()] || TIERS.pro; }
+
+    function loadAccount(): any { try { return JSON.parse(localStorage.getItem(ACC_KEY) || '{}'); } catch { return {}; } }
+    function saveAccount(d: any) { localStorage.setItem(ACC_KEY, JSON.stringify(d)); }
 
     function getOrCreateUserId(): string {
       let id = localStorage.getItem(USER_KEY);
@@ -140,10 +170,79 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       if (thumb) { thumb.style.background = checked ? '#06b6d4' : '#475569'; thumb.style.left = checked ? '24px' : '3px'; }
     }
 
+    function renderTierGrid(selected: string) {
+      const grid = document.getElementById('tier-grid');
+      if (!grid) return;
+      grid.innerHTML = TIER_ORDER.map(key => {
+        const t = TIERS[key];
+        const active = key === selected;
+        return `
+          <button data-tier="${key}"
+                  style="padding:12px 8px;border-radius:12px;text-align:center;cursor:pointer;transition:all 0.15s;
+                         ${active ? `background:${t.color}18;border:1.5px solid ${t.color}60;` : 'background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);'}">
+            <p style="font-size:12px;font-weight:700;color:${active ? t.color : '#94a3b8'};margin:0 0 3px">${t.name}</p>
+            <p style="font-size:11px;font-family:monospace;color:${active ? t.color : '#475569'};margin:0;opacity:${active ? 1 : 0.7}">${t.price}</p>
+            ${active ? `<span style="display:block;margin-top:5px;font-size:9px;font-weight:700;color:${t.color};text-transform:uppercase;letter-spacing:0.08em">Active</span>` : ''}
+          </button>`;
+      }).join('');
+
+      grid.querySelectorAll('[data-tier]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = (btn as HTMLElement).dataset.tier!;
+          localStorage.setItem(TIER_KEY, key);
+          renderTierGrid(key);
+          renderPlanLimits(key);
+        });
+      });
+    }
+
+    function renderPlanLimits(tierKey: string) {
+      const t = getTC(tierKey);
+      const el = document.getElementById('plan-limits');
+      if (!el) return;
+
+      const commLimit = t.maxComm === -1 ? 'Unlimited' : t.maxComm === 0 ? 'None' : `Up to ${t.maxComm}`;
+      const memLimit  = t.maxMem  === -1 ? 'Unlimited' : t.maxMem  === 0 ? 'None' : `Up to ${t.maxMem}`;
+
+      const badge = (on: boolean, label: string) =>
+        `<span style="padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;${on ? `background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.2);color:#30D158` : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);color:#334155;text-decoration:line-through'}">${label}</span>`;
+
+      el.innerHTML = `
+        <p style="font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 12px">
+          <span style="color:${t.color}">${t.name}</span> plan — what's included
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          ${[
+            { icon:'🏛️', label:'Communities', val: commLimit },
+            { icon:'👥', label:'Members/community', val: memLimit },
+            { icon:'🔮', label:'Obsidian scanner',  val: t.obs   ? 'Included' : 'Not included' },
+            { icon:'💬', label:'Slack alerting',    val: t.slack ? 'Included' : 'Not included' },
+            { icon:'🔐', label:'PQC tunnels',       val: t.pqc   ? 'Included' : 'Not included' },
+            { icon:'📊', label:'XAI audit reports', val: (t.obs && t.slack) ? 'Included' : 'Not included' },
+          ].map(r => `
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:14px">${r.icon}</span>
+              <div>
+                <p style="font-size:11px;color:#475569;margin:0">${r.label}</p>
+                <p style="font-size:12px;font-weight:600;color:${r.val.includes('Not') ? '#334155' : '#e2e8f0'};margin:0">${r.val}</p>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${t.features.map((f: string) => badge(true, f)).join('')}
+        </div>
+      `;
+    }
+
     function init() {
       const userId = getOrCreateUserId();
       const uidEl = document.getElementById('display-user-id');
       if (uidEl) uidEl.textContent = userId;
+
+      const currentTier = getCurrentTier();
+      renderTierGrid(currentTier);
+      renderPlanLimits(currentTier);
 
       const acc = loadAccount();
       (document.getElementById('acc-email') as HTMLInputElement).value = acc.email || '';
@@ -152,11 +251,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const checkbox = document.getElementById('acc-security-notif') as HTMLInputElement;
       checkbox.checked = acc.securityNotifications ?? true;
       updateToggle(checkbox.checked);
-
       checkbox.addEventListener('change', () => updateToggle(checkbox.checked));
 
       document.getElementById('regen-id-btn')?.addEventListener('click', () => {
-        if (!confirm('Generate a new USER ID? You will need to re-join communities with the new ID.')) return;
+        if (!confirm('Generate a new USER ID? You will need to re-join communities.')) return;
         const bytes = crypto.getRandomValues(new Uint8Array(2));
         const newId = 'USER-' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
         localStorage.setItem(USER_KEY, newId);

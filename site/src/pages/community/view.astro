@@ -117,21 +117,31 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       }
 
       // Stats
+      const tierKey = localStorage.getItem('sw_tier') || 'pro';
+      const TIERS_V: Record<string, any> = {
+        starter:{ name:'Starter',color:'#64748b' }, individual:{ name:'Individual',color:'#06b6d4' },
+        community_business:{ name:'Community Business',color:'#BF5AF2' },
+        pro:{ name:'Pro',color:'#FF8C42' }, enterprise:{ name:'Enterprise',color:'#FFD60A' },
+      };
+      const tierInfo = TIERS_V[tierKey] || TIERS_V.pro;
+
       const msgCount = tunnelMsgCount(id);
       const statsGrid = document.getElementById('stats-grid');
       if (statsGrid) {
         statsGrid.innerHTML = [
           { label: 'Members', value: mc.toString(), color: '#06b6d4', icon: '👥' },
           { label: 'Tunnel Messages', value: msgCount.toString(), color: '#BF5AF2', icon: '🔒' },
+          { label: 'Current Plan', value: tierInfo.name, color: tierInfo.color, icon: '⭐', link: '/account' },
           { label: 'Community ID', value: c.id, color: '#30D158', icon: '🪪', mono: true },
-          { label: 'Status', value: 'Active', color: '#30D158', icon: '✅' },
         ].map(s => `
           <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               <span style="font-size:16px">${s.icon}</span>
               <span style="font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:0.05em;font-weight:600">${s.label}</span>
             </div>
-            <p style="font-size:${s.mono ? '12px' : '22px'};font-weight:700;color:${s.color};${s.mono ? 'font-family:monospace' : ''};margin:0">${s.value}</p>
+            ${(s as any).link
+              ? `<a href="${(s as any).link}" style="font-size:${s.mono ? '12px' : '18px'};font-weight:700;color:${s.color};${s.mono ? 'font-family:monospace' : ''};margin:0;text-decoration:none" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">${s.value}</a>`
+              : `<p style="font-size:${s.mono ? '12px' : '22px'};font-weight:700;color:${s.color};${s.mono ? 'font-family:monospace' : ''};margin:0">${s.value}</p>`}
           </div>
         `).join('');
       }
