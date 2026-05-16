@@ -617,7 +617,7 @@ jobs:
             "${SSH_USER}@${SSH_HOST}" bash -s << EOF
           set -euo pipefail
           # Fix any root-owned files left by Docker (including .git/FETCH_HEAD)
-          docker run --rm -v "${SSH_PATH}:/r" alpine chmod -R a+rwX /r
+          docker run --rm -v "${SSH_PATH}:/r" alpine chmod -R a+rwX /r 2>/dev/null || true
 
           cd "${SSH_PATH}"
           git fetch origin main
