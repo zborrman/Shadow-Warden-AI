@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 4.20 · Last updated 2026-05-16**
+**Version 4.20 · Last updated 2026-05-17**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -301,12 +301,12 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 | FE-09 | Streamlit analytics dashboard — 6 pages, 6-tab Secrets Governance | v4.9 | All | ✅ |
 | FE-10 | Community public dashboard — animated KPIs, SVG bar chart, 60s refresh | v4.15 | Public | ✅ |
 | FE-11 | Settings HTML panel — SOVA + MasterAgent configuration tabs | v4.11 | Pro+ | ✅ |
-| FE-12 | SOC dashboard DNS A record (`dash.shadow-warden-ai.com → 91.98.234.160`) | — | — | 📋 |
+| FE-12 | SOC dashboard DNS A record (`dash.shadow-warden-ai.com → 91.98.234.160`) | v4.20 | — | ✅ |
 | FE-13 | Analytics API live endpoints in SOC dashboard (replace mock/placeholder data) | — | All | 📋 |
 | FE-14 | Mobile-responsive SOC dashboard | — | All | 📋 |
 | FE-15 | Onboarding flow — guided 5-step setup wizard for new tenants | — | All | 📋 |
 | FE-16 | Dark/light theme toggle in portal and SOC dashboard | — | All | 📋 |
-| FE-17 | `shadow-warden-ai.com/pricing` — interactive tier comparison + add-on calculator | — | Public | 📋 |
+| FE-17 | `shadow-warden-ai.com/pricing` — interactive tier comparison + add-on calculator | v4.20 | Public | ✅ |
 | FE-18 | Community & Tunnel 7-page Astro SPA — view / members / tunnel / integrations / activity / settings / new | v4.20 | Community+ | ✅ |
 | FE-19 | Community member roles — Owner / Admin / Member, `normalizeMember()` backward-compat, role badges | v4.20 | Community+ | ✅ |
 | FE-20 | Community join request system — pending approval flow, Approve / Decline on members page | v4.20 | Community+ | ✅ |
@@ -408,7 +408,7 @@ Continuous self-improvement and threat intelligence synthesis.
 | Redoc API Docs | `https://docs.shadow-warden-ai.com` | ✅ Live |
 | Community Dashboard | `https://shadow-warden-ai.com/community` | ✅ Live (Vercel) |
 | Public Incident Page | `https://shadow-warden-ai.com/incident` | ✅ Live (Vercel) |
-| SOC Dashboard | `https://dash.shadow-warden-ai.com` | ⚠️ Needs DNS A record |
+| SOC Dashboard | `https://dash.shadow-warden-ai.com` | ✅ Live |
 | Grafana | `http://91.98.234.160:3000` | ✅ Live |
 | Jaeger UI | `http://91.98.234.160:16686` | ✅ Live |
 | Hetzner VPS | `91.98.234.160` | ✅ Live |
@@ -443,5 +443,5 @@ Continuous self-improvement and threat intelligence synthesis.
 | v4.17 | 2026-05-07 | SOVA + Obsidian + Slack unification |
 | v4.18 | 2026-05-07 | Obsidian sidebar, frontmatter tagging, local pre-validation |
 | v4.19 | 2026-05-07 | Obsidian Dataview dashboard, offline queue, XAI viz, scheduler |
-| **v4.20** | **2026-05-16** | **Community & Tunnel web app (7 pro features) + castle logo on all pages** |
+| **v4.20** | **2026-05-17** | **Community & Tunnel SPA, castle logo, interactive /pricing, SOC Dashboard DNS live, roadmap: CR-13–15 (PQC/HSM/MASQUE), CP-22–26 (ISO/HIPAA/NIS2/compliance), IN-14–22 (VS Code/GitHub/Jira/Teams/Notion/STIX/OTel/MISP), OB-26–28, IF-19–20, BL-19–20, a11y contrast fix** |
 | v5.0 | Q3 2026 | Multi-region active-active, ONNX online learning, HIPAA |
