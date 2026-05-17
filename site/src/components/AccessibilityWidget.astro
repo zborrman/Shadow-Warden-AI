@@ -171,11 +171,25 @@
     border: 2px solid #fff !important;
   }
   html.a11y-contrast img { filter: contrast(2) !important; }
-  /* Restore widget itself */
-  html.a11y-contrast #a11y-trigger,
+  /* Restore widget itself — targeted overrides, NOT all:revert (which strips position:fixed) */
+  html.a11y-contrast #a11y-trigger {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    background: linear-gradient(145deg,#4f46e5 0%,#7c3aed 100%) !important;
+    color: #fff !important;
+    border: 2px solid #fff !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,.8) !important;
+  }
   html.a11y-contrast #a11y-dialog,
   html.a11y-contrast #a11y-dialog * {
-    all: revert !important;
+    background-color: revert !important;
+    color: revert !important;
+    border-color: revert !important;
+    box-shadow: revert !important;
+    text-shadow: revert !important;
   }
 
   /* ── Invert colours ── */
