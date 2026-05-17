@@ -156,18 +156,24 @@ function slugify(s: string) {
            class="btn-primary text-[12px] px-4 py-1.5">
           Get Started
         </a>
-        <!-- Mobile hamburger -->
-        <button id="mobile-btn" class="lg:hidden p-2 rounded-lg" style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Mobile hamburger / close -->
+        <button id="mobile-btn" class="lg:hidden p-2 rounded-lg transition-colors" aria-label="Toggle menu"
+                style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
+          <!-- hamburger icon -->
+          <svg id="icon-menu" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+          <!-- close icon (hidden by default) -->
+          <svg id="icon-close" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Mobile menu -->
-  <div id="mobile-menu" class="hidden fixed inset-0 z-40 lg:hidden flex-col pt-14"
+  <!-- Mobile menu — z-50 so it sits above content but below navbar (which is also z-50 and renders later) -->
+  <div id="mobile-menu" class="hidden fixed inset-0 z-50 lg:hidden flex-col pt-14"
        style="background:rgba(10,10,15,0.98);backdrop-filter:blur(24px)">
     <div class="flex-1 overflow-y-auto px-4 py-6 space-y-1">
       {categories.map(cat => (
@@ -281,10 +287,33 @@ function slugify(s: string) {
   </footer>
 
   <script>
-    const btn = document.getElementById('mobile-btn');
-    const menu = document.getElementById('mobile-menu');
-    btn?.addEventListener('click', () => menu?.classList.toggle('hidden'));
-    document.querySelectorAll('#mobile-menu a').forEach(a => a.addEventListener('click', () => menu?.classList.add('hidden')));
+    const btn       = document.getElementById('mobile-btn')!;
+    const menu      = document.getElementById('mobile-menu')!;
+    const iconMenu  = document.getElementById('icon-menu')!;
+    const iconClose = document.getElementById('icon-close')!;
+
+    function openMenu() {
+      menu.classList.remove('hidden');
+      menu.style.display = 'flex';
+      menu.style.flexDirection = 'column';
+      iconMenu.style.display  = 'none';
+      iconClose.style.display = 'block';
+      btn.style.color  = '#f1f5f9';
+      btn.style.borderColor = 'rgba(255,255,255,0.25)';
+    }
+
+    function closeMenu() {
+      menu.classList.add('hidden');
+      menu.style.display = '';
+      iconMenu.style.display  = 'block';
+      iconClose.style.display = 'none';
+      btn.style.color  = '#94a3b8';
+      btn.style.borderColor = 'rgba(255,255,255,0.08)';
+    }
+
+    btn.addEventListener('click', () => menu.classList.contains('hidden') ? openMenu() : closeMenu());
+    document.querySelectorAll('#mobile-menu a').forEach(a => a.addEventListener('click', closeMenu));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
   </script>
 </body>
 </html>
