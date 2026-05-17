@@ -1,93 +1,301 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import roadmap from '../../data/roadmap.json';
-
-const features = roadmap.filter(r => r.category === 'Business Community');
-const subcats = [...new Set(features.map(r => r.subcategory))];
-
-function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
-
-const shipped = features.filter(f => f.status === 'shipped').length;
 ---
-
-<BaseLayout title="Business Community — Shadow Warden AI"
-            description="Federated AI knowledge networks with cryptographic identity, sovereign data residency, and tamper-evident audit chains.">
+<BaseLayout title="Business Community — Shadow Warden AI">
   <div class="pt-14">
-    <!-- Header -->
-    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
-      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16">
-        <div class="flex items-center gap-2 mb-4">
-          <a href="/" class="text-[13px] transition-colors hover:text-white" style="color:#475569">Home</a>
-          <span style="color:#1e1e2a">/</span>
-          <span class="text-[13px]" style="color:#94a3b8">Business Community</span>
+
+    <!-- ── Hero ── -->
+    <section class="relative py-20 overflow-hidden">
+      <div class="absolute inset-0 pointer-events-none"
+           style="background-image:linear-gradient(rgba(139,92,246,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.03) 1px,transparent 1px);background-size:56px 56px"></div>
+      <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[500px] pointer-events-none"
+           style="background:radial-gradient(ellipse,rgba(139,92,246,0.08) 0%,transparent 65%)"></div>
+
+      <div class="relative z-10 mx-auto max-w-5xl px-6 text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
+             style="color:#BF5AF2;background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.2)">
+          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#BF5AF2"></span>
+          Federated Knowledge Networks
         </div>
-        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-          <div>
-            <div class="flex items-center gap-3 mb-3">
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] font-bold"
-                   style="background:rgba(139,92,246,.15);color:#8b5cf6">◈</div>
-              <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">Business Community</h1>
-            </div>
-            <p class="text-[15px] max-w-2xl leading-relaxed" style="color:#94a3b8">
-              Build federated knowledge networks with cryptographic identity, sovereign data residency,
-              tamper-evident STIX 2.1 audit chains, and post-quantum keypairs.
-            </p>
-          </div>
-          <div class="flex items-center gap-3 shrink-0">
-            <div class="text-right">
-              <div class="text-[28px] font-black" style="color:#8b5cf6">{shipped}</div>
-              <div class="text-[11px] font-semibold" style="color:#475569">Features Shipped</div>
-            </div>
-          </div>
+        <h1 class="text-[clamp(36px,5vw,68px)] font-black leading-[1.05] tracking-tight mb-5" style="color:#f1f5f9">
+          Secure AI Communities<br/>
+          <span style="background:linear-gradient(135deg,#BF5AF2,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+            Built to Trust
+          </span>
+        </h1>
+        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-8" style="color:#94a3b8">
+          Federated knowledge networks with cryptographic identity, sovereign data residency,
+          tamper-evident STIX 2.1 audit chains, and post-quantum keypairs.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <a href="/community" class="btn-primary text-[14px] px-6 py-3">Open Community Portal</a>
+          <a href="/doc/quick-start" class="btn-ghost text-[14px] px-6 py-3">Read the Docs</a>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12">
-      <!-- Subcategory grid -->
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
-        {subcats.map(sub => {
-          const count = features.filter(f => f.subcategory === sub).length;
-          return (
-            <a href={`/business-community/${slugify(sub)}`}
-               class="group block rounded-xl p-5 transition-all duration-200 no-underline"
-               style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
-               onmouseover="this.style.borderColor='#8b5cf640';this.style.transform='translateY(-1px)'"
-               onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
-              <div class="flex items-start justify-between mb-2">
-                <div class="text-[14px] font-semibold" style="color:#f1f5f9">{sub}</div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     class="group-hover:translate-x-1 transition-transform mt-0.5" style="color:#475569">
-                  <path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-              </div>
-              <div class="text-[11px]" style="color:#475569">{count} features</div>
-            </a>
-          );
-        })}
-      </div>
-
-      <!-- GitHub link -->
-      <div class="rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4"
-           style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
-        <div class="flex-1">
-          <div class="text-[15px] font-semibold mb-1" style="color:#f1f5f9">Open Source on GitHub</div>
-          <p class="text-[13px]" style="color:#94a3b8">
-            Star the repo, open issues, join Discussions, and contribute to the SEP protocol.
+    <!-- ── Feature grid ── -->
+    <section class="py-20">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8">
+        <div class="text-center mb-12">
+          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
+            Nine pillars of community trust
+          </h2>
+          <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
+            Every feature built to production-grade cryptographic standards.
           </p>
         </div>
-        <div class="flex gap-3 shrink-0">
-          <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank"
-             class="btn-primary text-[13px] px-4 py-2 flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-            </svg>
-            View on GitHub
-          </a>
-          <a href="https://github.com/zborrman/Shadow-Warden-AI/discussions" target="_blank"
-             class="btn-ghost text-[13px] px-4 py-2">Discussions</a>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[
+            {
+              icon: '◈', title: 'SEP / UECIID', tier: 'Community Business',
+              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
+              desc: 'Snowflake-based entity IDs encoded as SEP-{11 base-62 chars}. Lexicographic order matches chronological order. Cross-community entity portability without plaintext exposure.',
+              bullets: ['64-bit Snowflake → base-62', 'SEP-{11} lexicographic sort', 'SQLite index + search', 'Sovereign pod tag per entity'],
+            },
+            {
+              icon: '⇄', title: 'Inter-Community Peering', tier: 'Community Business',
+              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
+              desc: 'HMAC-SHA256 handshake establishes a peering channel with one of three data-flow policies. Transfers are Causal-Arbiter-gated to block exfiltration.',
+              bullets: ['MIRROR_ONLY / REWRAP / FULL_SYNC', 'HMAC handshake token', 'Causal Transfer Guard <20ms', 'Duplicate peering guard'],
+            },
+            {
+              icon: '🚪', title: 'Knock-and-Verify', tier: 'Community Business',
+              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
+              desc: '72h Redis-backed one-time invitation tokens. Verifier asserts the invitee tenant ID before accepting. Prevents replay and cross-tenant impersonation.',
+              bullets: ['72h Redis TTL', 'One-time use token', 'Tenant-ID assertion', 'Revoke at any time'],
+            },
+            {
+              icon: '🏛️', title: 'Sovereign Data Pods', tier: 'Pro',
+              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
+              desc: 'Per-jurisdiction MinIO routing across 8 regions. Entity data-class tags determine pod assignment. Fernet-encrypted secret keys. Compliance with EU, US, UK, CA, SG, AU, JP, CH regulations.',
+              bullets: ['8 jurisdiction registry', 'Fernet-encrypted keys', 'data_class routing', 'Pod health probing'],
+            },
+            {
+              icon: '⛓️', title: 'STIX 2.1 Audit Chain', tier: 'Pro',
+              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
+              desc: 'Blockchain-style SHA-256 prev_hash linkage on every transfer event, including REJECTED ones. Tamper-evident ledger exportable as OASIS STIX 2.1 JSONL for SIEM import.',
+              bullets: ['SHA-256 chain (genesis: "0"×64)', 'REJECTED transfers included', 'verify_chain() re-hashes', 'JSONL SIEM export'],
+            },
+            {
+              icon: '🔐', title: 'Post-Quantum Keypairs', tier: 'Enterprise',
+              color: '#ec4899', tint: 'rgba(236,72,153,0.08)',
+              desc: 'HybridSigner (Ed25519 + ML-DSA-65 FIPS 204) and HybridKEM (X25519 + ML-KEM-768 FIPS 203). Classical still works when liboqs-python not installed — fail-open by design.',
+              bullets: ['Ed25519 + ML-DSA-65', 'X25519 + ML-KEM-768', 'liboqs fail-open guard', 'Upgrade existing keypairs'],
+            },
+            {
+              icon: '🏅', title: 'Reputation Engine', tier: 'Community Business',
+              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
+              desc: 'Five-tier badge system from NEWCOMER to ELITE based on contribution activity, transfer history, and behavioral score. Community leaderboard auto-computed on every sync.',
+              bullets: ['NEWCOMER → ELITE (5 tiers)', 'Z-score anomaly detection', '30-day rolling baseline', 'Per-community leaderboard'],
+            },
+            {
+              icon: '📔', title: 'Obsidian Plugin', tier: 'Community Business',
+              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
+              desc: 'Auto-scans notes on modify, classifies data class from frontmatter + content, redacts secrets inline, and shares approved notes as SEP entities. XAI pipeline visualization in-sidebar.',
+              bullets: ['Auto-scan on modify', 'Data class inference', 'SEP share → UECIID', 'XAI 4-stage sidebar'],
+            },
+            {
+              icon: '📜', title: 'Charter & Governance', tier: 'Pro',
+              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
+              desc: 'Versioned governance documents (DRAFT → ACTIVE → SUPERSEDED). Member acceptance tracking. Z-score behavioral anomaly detection. OAuth agent discovery with scope-based risk scoring.',
+              bullets: ['Versioned charter lifecycle', 'Member acceptance tracking', 'OAuth 14-provider catalog', 'ALLOW / MONITOR / BLOCK'],
+            },
+          ].map(f => (
+            <div class="rounded-2xl p-6 transition-all duration-200"
+                 style={`background:#111118;border:1px solid rgba(255,255,255,0.07)`}>
+              <div class="flex items-start gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] flex-shrink-0"
+                     style={`background:${f.tint};color:${f.color}`}>{f.icon}</div>
+                <div>
+                  <div class="text-[15px] font-semibold mb-1" style="color:#f1f5f9">{f.title}</div>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                        style={`color:${f.color};background:${f.tint}`}>{f.tier}</span>
+                </div>
+              </div>
+              <p class="text-[13px] leading-relaxed mb-4" style="color:#64748b">{f.desc}</p>
+              <ul class="space-y-1">
+                {f.bullets.map(b => (
+                  <li class="flex items-center gap-2 text-[12px]" style="color:#475569">
+                    <span style={`color:${f.color}`}>›</span> {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+    </section>
+
+    <!-- ── Peering ring diagram ── -->
+    <section class="py-20 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
+      <div class="mx-auto max-w-4xl px-4 lg:px-8 text-center">
+        <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-bold mb-3" style="color:#f1f5f9">
+          Federated peering topology
+        </h2>
+        <p class="text-[14px] mb-10" style="color:#64748b">
+          Communities peer through HMAC-verified handshakes. Data flows only under the agreed policy.
+        </p>
+
+        <svg viewBox="0 0 520 300" class="w-full max-w-lg mx-auto" aria-hidden="true">
+          <!-- Connector arcs -->
+          <path d="M 140 150 Q 260 60 380 150"  stroke="rgba(191,90,242,0.35)" stroke-width="1.5" fill="none" stroke-dasharray="5,4"/>
+          <path d="M 140 150 Q 260 240 380 150" stroke="rgba(99,102,241,0.35)"  stroke-width="1.5" fill="none" stroke-dasharray="5,4"/>
+          <path d="M 140 150 L 380 150"         stroke="rgba(236,72,153,0.3)"  stroke-width="1" fill="none" stroke-dasharray="3,5"/>
+          <!-- Policy labels -->
+          <text x="260" y="98"  text-anchor="middle" font-size="9" fill="#BF5AF2" font-family="monospace">MIRROR_ONLY</text>
+          <text x="260" y="218" text-anchor="middle" font-size="9" fill="#6366f1" font-family="monospace">FULL_SYNC</text>
+          <text x="260" y="145" text-anchor="middle" font-size="9" fill="#ec4899" font-family="monospace">REWRAP_ALLOWED</text>
+          <!-- Community nodes -->
+          <circle cx="140" cy="150" r="46" fill="rgba(191,90,242,0.07)" stroke="rgba(191,90,242,0.3)" stroke-width="1.5"/>
+          <text x="140" y="144" text-anchor="middle" font-size="20" fill="#BF5AF2">◈</text>
+          <text x="140" y="162" text-anchor="middle" font-size="9" fill="#BF5AF2" font-family="monospace">COMM-A</text>
+          <text x="140" y="174" text-anchor="middle" font-size="8" fill="#475569">12 members</text>
+
+          <circle cx="380" cy="150" r="46" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.3)" stroke-width="1.5"/>
+          <text x="380" y="144" text-anchor="middle" font-size="20" fill="#6366f1">◈</text>
+          <text x="380" y="162" text-anchor="middle" font-size="9" fill="#6366f1" font-family="monospace">COMM-B</text>
+          <text x="380" y="174" text-anchor="middle" font-size="8" fill="#475569">8 members</text>
+
+          <!-- Causal Transfer Guard badge -->
+          <rect x="202" y="130" width="116" height="22" rx="5" fill="rgba(16,185,129,0.08)" stroke="rgba(16,185,129,0.2)" stroke-width="1"/>
+          <text x="260" y="144" text-anchor="middle" font-size="8.5" fill="#10b981" font-family="monospace">✓ Causal Guard &lt;20ms</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- ── SEP / UECIID explainer ── -->
+    <section class="py-20">
+      <div class="mx-auto max-w-5xl px-4 lg:px-8">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-[11px] font-semibold"
+                 style="color:#BF5AF2;background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.2)">
+              ◈ SEP Entity Identity
+            </div>
+            <h2 class="text-[clamp(1.4rem,2.8vw,2.1rem)] font-bold mb-4 leading-tight" style="color:#f1f5f9">
+              Every entity gets a<br/>cryptographic passport
+            </h2>
+            <p class="text-[14px] leading-relaxed mb-6" style="color:#64748b">
+              UECIIDs (Unified Entity Community Identity IDs) encode a 64-bit Snowflake timestamp
+              into 11 base-62 characters. The result is sortable, URL-safe, and globally unique
+              across all federated communities.
+            </p>
+            <div class="space-y-3">
+              {[
+                ['Snowflake epoch', '2024-01-01T00:00:00Z · microsecond precision'],
+                ['Base-62 alphabet', '0-9A-Za-z · case-sensitive · 11 characters'],
+                ['Lexicographic order', 'equals chronological order — no secondary sort needed'],
+                ['Cross-community', 'source UECIID preserved on peering transfer'],
+              ].map(([k, v]) => (
+                <div class="flex gap-3">
+                  <span class="text-[11px] font-bold mt-0.5 px-2 py-0.5 rounded h-fit"
+                        style="color:#BF5AF2;background:rgba(191,90,242,0.08);white-space:nowrap">{k}</span>
+                  <span class="text-[13px]" style="color:#64748b">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div class="rounded-2xl p-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+            <div class="text-[11px] font-bold mb-4 tracking-widest uppercase" style="color:#475569">
+              UECIID format
+            </div>
+            <div class="text-center mb-6">
+              <div class="inline-block px-4 py-3 rounded-xl font-mono text-[22px] font-bold tracking-wider"
+                   style="color:#BF5AF2;background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.2)">
+                SEP-0Xk4aB7mN2p
+              </div>
+            </div>
+            <div class="space-y-3">
+              {[
+                { label: 'Prefix',     val: 'SEP-',         color: '#475569', desc: 'fixed 4-char namespace' },
+                { label: 'Timestamp',  val: '0Xk4a',        color: '#BF5AF2', desc: '≈ first 5 chars encode timestamp' },
+                { label: 'Random',     val: 'B7mN2p',       color: '#6366f1', desc: 'last 6 chars — sequence + machine ID' },
+                { label: 'Total',      val: '11 base-62',   color: '#10b981', desc: '62¹¹ = 52 quadrillion IDs' },
+              ].map(r => (
+                <div class="flex items-center gap-3 text-[12px]">
+                  <span class="font-mono font-bold w-16 shrink-0" style={`color:${r.color}`}>{r.val}</span>
+                  <span class="font-semibold w-20 shrink-0" style="color:#64748b">{r.label}</span>
+                  <span style="color:#334155">{r.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Tier comparison ── -->
+    <section class="py-20 border-t" style="border-color:rgba(255,255,255,0.06)">
+      <div class="mx-auto max-w-5xl px-4 lg:px-8">
+        <div class="text-center mb-10">
+          <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-bold mb-2" style="color:#f1f5f9">
+            Which tier do I need?
+          </h2>
+          <p class="text-[14px]" style="color:#64748b">Community features scale with your plan.</p>
+        </div>
+        <div class="overflow-x-auto rounded-2xl" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-[13px]" style="border-collapse:collapse">
+            <thead>
+              <tr style="background:#131929;border-bottom:1px solid rgba(255,255,255,0.07)">
+                <th class="text-left px-5 py-4 font-semibold" style="color:#94a3b8">Feature</th>
+                {['Starter', 'Community Business', 'Pro', 'Enterprise'].map(t => (
+                  <th class="px-4 py-4 font-bold text-center" style="color:#f1f5f9">{t}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ['Community portal (read)', '✓', '✓', '✓', '✓'],
+                ['Create / manage communities', '—', '✓', '✓', '✓'],
+                ['SEP / UECIID identity', '—', '✓', '✓', '✓'],
+                ['Knock-and-Verify invitations', '—', '✓', '✓', '✓'],
+                ['Inter-community peering', '—', '✓', '✓', '✓'],
+                ['Reputation engine', '—', '✓', '✓', '✓'],
+                ['Obsidian plugin', '—', '✓', '✓', '✓'],
+                ['Charter & governance', '—', '—', '✓', '✓'],
+                ['Sovereign data pods', '—', '—', '✓', '✓'],
+                ['STIX 2.1 audit chain', '—', '—', '✓', '✓'],
+                ['Post-quantum keypairs (PQC)', '—', '—', '—', '✓'],
+              ].map((row, i) => (
+                <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'#0a0a0f':'#111118'}`}>
+                  <td class="px-5 py-3" style="color:#94a3b8">{row[0]}</td>
+                  {row.slice(1).map((v, j) => (
+                    <td class="px-4 py-3 text-center font-semibold"
+                        style={`color:${v==='✓'?['#BF5AF2','#BF5AF2','#6366f1','#ec4899'][j]:'#334155'}`}>
+                      {v}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-8 flex flex-wrap gap-4 justify-center">
+          <a href="/price" class="btn-primary text-[14px] px-6 py-3">View all pricing tiers</a>
+          <a href="/community" class="btn-ghost text-[14px] px-6 py-3">Open Community Portal</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CTA ── -->
+    <section class="py-20 text-center">
+      <div class="mx-auto max-w-2xl px-4">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 text-[28px]"
+             style="background:rgba(191,90,242,0.1);border:1px solid rgba(191,90,242,0.2)">◈</div>
+        <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-4" style="color:#f1f5f9">
+          Ready to build your community?
+        </h2>
+        <p class="text-[15px] mb-8" style="color:#64748b">
+          Community Business plan starts at $19/month. 14-day free trial, no card required.
+        </p>
+        <a href="https://portal.shadow-warden-ai.com" target="_blank" class="btn-primary text-[15px] px-8 py-3.5">
+          Start Free Trial
+        </a>
+      </div>
+    </section>
+
   </div>
 </BaseLayout>
