@@ -9,7 +9,7 @@ function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 const dashboards = [
   { name: 'Grafana',       url: 'http://91.98.234.160:3000', icon: '📊', desc: 'SLO dashboards, Prometheus metrics, loki logs.' },
   { name: 'Jaeger',        url: 'http://91.98.234.160:16686',icon: '🔬', desc: 'Distributed tracing for all 9 pipeline stages.' },
-  { name: 'SOC Dashboard', url: 'https://dash.shadow-warden-ai.com', icon: '🛡️', desc: 'Next.js 14 real-time security operations center.' },
+  { name: 'SOC Dashboard', url: 'https://dash.shadow-warden-ai.com', icon: '🛡️', desc: 'Next.js 14 real-time security operations center.', subdomain: 'dash.shadow-warden-ai.com' },
   { name: 'Streamlit',     url: 'http://91.98.234.160:8501', icon: '📈', desc: 'Threat Radar, Causal Arbiter visualizer, Secrets UI.' },
 ];
 ---
@@ -40,16 +40,28 @@ const dashboards = [
       <!-- Live dashboards -->
       <h2 class="text-[14px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">Live Dashboards</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-        {dashboards.map(d => (
+        {dashboards.map((d: any) => (
           <a href={d.url} target="_blank" rel="noopener"
              class="group block rounded-xl p-5 transition-all duration-200 no-underline"
              style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
-             onmouseover="this.style.borderColor='#6366f140';this.style.transform='translateY(-1px)'"
+             onmouseover={`this.style.borderColor='${d.subdomain ? '#0A84FF40' : '#6366f140'}';this.style.transform='translateY(-1px)'`}
              onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
-            <div class="text-[22px] mb-3">{d.icon}</div>
-            <div class="text-[14px] font-semibold mb-1.5" style="color:#f1f5f9">{d.name}</div>
+            <div class="flex items-start justify-between mb-3">
+              <div class="text-[22px]">{d.icon}</div>
+              {d.subdomain && (
+                <div class="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold"
+                     style="color:#0A84FF;background:rgba(10,132,255,0.12);border:1px solid rgba(10,132,255,0.2)">
+                  <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+                  HTTPS
+                </div>
+              )}
+            </div>
+            <div class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">{d.name}</div>
+            {d.subdomain && (
+              <div class="text-[10px] font-mono mb-1.5" style="color:#475569">{d.subdomain}</div>
+            )}
             <div class="text-[12px] leading-relaxed mb-3" style="color:#64748b">{d.desc}</div>
-            <div class="flex items-center gap-1 text-[11px] font-semibold" style="color:#6366f1">
+            <div class="flex items-center gap-1 text-[11px] font-semibold" style={`color:${d.subdomain ? '#0A84FF' : '#6366f1'}`}>
               Open <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="group-hover:translate-x-0.5 transition-transform"><path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
             </div>
           </a>
