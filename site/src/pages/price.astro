@@ -5,6 +5,7 @@ import { VARIANT_IDS, BILLING_PORTAL, checkoutUrl } from '../config/lemonsqueezy
 import roadmapData from '../data/roadmap.json';
 
 const bl19 = roadmapData.find((r: any) => r.id === 'BL-19')!;
+const bl20 = roadmapData.find((r: any) => r.id === 'BL-20')!;
 
 const tiers = [
   {
@@ -82,6 +83,8 @@ const addons = [
   { key: 'addonOnPrem',      name: 'On-Prem Pack',        price: 29, tier: 'Pro+',             desc: 'MinIO on-prem, self-hosted Prometheus/Grafana, air-gapped Evolution Engine.' },
   { key: 'addonSeats',       name: 'Extra Seats (+5)',    price: 9,  tier: 'Community Biz+',   desc: 'Stackable. Combine with any higher tier for unlimited seat expansion.' },
   { key: 'addonPowerBundle', name: 'Power User Bundle',   price: 29, tier: 'Individual+',      desc: 'XAI Audit Reports + Secrets Vault + Shadow AI Discovery. Saves $7/mo.' },
+  { key: 'addonObsidian',   name: bl20.feature.replace('Add-on: ','').replace(/ — .*/, ''), price: bl20.price, tier: bl20.tier, desc: bl20.description, planned: true, id: bl20.id,
+    bullets: ['Advanced scan scheduler (configurable interval)', 'Offline publish queue + local validation', 'XAI pipeline visualization inside Obsidian', 'Dataview security dashboard for notes', 'Frontmatter auto-tagging + WardenSidebarView'] },
 ];
 ---
 
@@ -240,31 +243,65 @@ const addons = [
         </div>
 
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {addons.map(a => {
+          {addons.map((a: any) => {
             const varId = VARIANT_IDS[a.key];
             const monthlyId = varId?.monthly ?? '';
             const url = monthlyId ? checkoutUrl(monthlyId, { embed: true }) : '#';
             return (
               <div class="addon-card p-5 rounded-2xl flex flex-col gap-3"
-                   style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)">
+                   style={`background:rgba(255,255,255,0.02);border:1px solid ${a.planned ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.07)'}`}>
                 <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <div class="text-[14px] font-semibold mb-0.5" style="color:#f1f5f9">{a.name}</div>
-                    <div class="text-[11px] px-2 py-0.5 rounded-md inline-block" style="color:#f97316;background:rgba(249,115,22,0.1)">{a.tier}</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-0.5">
+                      <div class="text-[14px] font-semibold" style="color:#f1f5f9">{a.name}</div>
+                      {a.planned && (
+                        <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider flex-shrink-0"
+                              style="color:#f59e0b;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25)">
+                          📋 Planned
+                        </span>
+                      )}
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <div class="text-[11px] px-2 py-0.5 rounded-md inline-block" style="color:#f97316;background:rgba(249,115,22,0.1)">{a.tier}</div>
+                      {a.id && <span class="text-[10px] font-mono" style="color:#334155">{a.id}</span>}
+                    </div>
                   </div>
                   <div class="text-right flex-shrink-0">
-                    <div class="text-[20px] font-black" style="color:#f97316">${a.price}</div>
+                    <div class="text-[20px] font-black" style={a.planned ? 'color:#f59e0b' : 'color:#f97316'}>${a.price}</div>
                     <div class="text-[10px]" style="color:#475569">/mo</div>
                   </div>
                 </div>
-                <p class="text-[12px] leading-relaxed flex-1" style="color:#64748b">{a.desc}</p>
-                <button
-                  class="ls-buy-btn w-full py-2 rounded-lg text-[12px] font-semibold transition-colors"
-                  data-monthly-url={url}
-                  data-annual-url={url}
-                  style="color:#f97316;border:1px solid rgba(249,115,22,0.3);background:rgba(249,115,22,0.05)">
-                  Add to plan →
-                </button>
+
+                {a.bullets ? (
+                  <ul class="space-y-1 flex-1">
+                    {a.bullets.map((b: string) => (
+                      <li class="flex items-start gap-1.5 text-[11px]" style="color:#64748b">
+                        <span style="color:#8b5cf6;flex-shrink:0;margin-top:1px">◆</span>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p class="text-[12px] leading-relaxed flex-1" style="color:#64748b">{a.desc}</p>
+                )}
+
+                {a.planned ? (
+                  <a href={`mailto:sales@shadow-warden-ai.com?subject=${a.id}%20${encodeURIComponent(a.name)}%20Availability`}
+                     class="w-full py-2 rounded-lg text-[12px] font-semibold text-center transition-colors block"
+                     style="color:#f59e0b;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.05)"
+                     onmouseover="this.style.background='rgba(245,158,11,0.10)'"
+                     onmouseout="this.style.background='rgba(245,158,11,0.05)'">
+                    Notify me when available →
+                  </a>
+                ) : (
+                  <button
+                    class="ls-buy-btn w-full py-2 rounded-lg text-[12px] font-semibold transition-colors"
+                    data-monthly-url={url}
+                    data-annual-url={url}
+                    style="color:#f97316;border:1px solid rgba(249,115,22,0.3);background:rgba(249,115,22,0.05)">
+                    Add to plan →
+                  </button>
+                )}
               </div>
             );
           })}
