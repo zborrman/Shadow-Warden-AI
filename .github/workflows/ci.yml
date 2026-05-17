@@ -37,7 +37,7 @@ jobs:
         working-directory: site
 
       - name: Upload dist as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site-dist
           path: site/dist/
@@ -145,7 +145,7 @@ jobs:
           MODEL_CACHE_DIR: "/tmp/ci_models"
 
       - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docs-dist
           path: site/dist/docs/
@@ -322,7 +322,7 @@ jobs:
         continue-on-error: true   # informational; set false to block on CVEs
 
       - name: Upload pip-audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-report
@@ -863,7 +863,7 @@ jobs:
 
       - name: Upload k6 results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: k6-smoke-results-${{ github.sha }}
           path: |
