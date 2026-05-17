@@ -1,348 +1,502 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
-
 <BaseLayout
-  title="My Communities — Shadow Warden AI"
+  title="Communities — Shadow Warden AI"
   description="Manage secure collaboration communities with end-to-end encrypted data tunnels."
 >
-  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
-    <div class="mx-auto max-w-5xl px-4 lg:px-8">
+<div class="comm-shell pt-14">
 
-      <!-- Header -->
-      <div class="flex items-start justify-between mb-8 gap-4">
-        <div>
-          <div class="flex items-center gap-2 mb-3">
-            <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#06b6d4"></span>
-            <span class="text-[11px] font-bold tracking-widest uppercase" style="color:#06b6d4">Community & Tunnel</span>
-          </div>
-          <h1 class="text-[clamp(28px,4vw,44px)] font-black tracking-tight mb-2" style="color:#f1f5f9">My Communities</h1>
-          <p class="text-[15px]" style="color:#64748b">Secure collaboration spaces with end-to-end encrypted data tunnels</p>
+  <!-- ── Topbar ── -->
+  <div class="comm-topbar">
+    <nav class="comm-breadcrumb">
+      <a href="/" class="bc-home">Shadow · Warden</a>
+      <span class="bc-sep">/community</span>
+    </nav>
+    <div class="topbar-r">
+      <div class="user-chip" id="user-chip">—</div>
+    </div>
+  </div>
+
+  <!-- ── Main content ── -->
+  <div class="comm-content">
+
+    <!-- Page header -->
+    <div class="page-hdr">
+      <div>
+        <div class="page-eyebrow">
+          <span class="eyebrow-dot"></span>
+          COMMUNITY PORTAL
         </div>
-        <div class="flex gap-2 shrink-0">
-          <button id="join-comm-btn"
-             class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
-             style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:#94a3b8;white-space:nowrap;cursor:pointer"
-             onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
-            Join Community
-          </button>
-          <a id="new-comm-btn" href="/community/new"
-             class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-             style="background:linear-gradient(135deg,#06b6d4,#0e7490);white-space:nowrap">
-            + New Community
-          </a>
-        </div>
+        <h1 class="page-title">Communities</h1>
+        <p class="page-sub">Federated knowledge spaces with cryptographic identity and E2EE tunnels</p>
       </div>
-
-      <!-- Join modal -->
-      <div id="join-modal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
-        <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:32px;max-width:420px;width:90%;margin:auto">
-          <p style="font-size:20px;font-weight:800;color:#f1f5f9;margin-bottom:6px">Join a Community</p>
-          <p style="font-size:13px;color:#64748b;margin-bottom:20px">Enter the community code shared with you (format: COMM-XXXX)</p>
-          <input id="join-input" type="text" placeholder="COMM-XXXX" maxlength="9"
-                 style="width:100%;box-sizing:border-box;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 14px;color:#f1f5f9;font-size:15px;font-family:monospace;font-weight:700;letter-spacing:0.05em;outline:none;margin-bottom:10px;transition:border-color 0.2s"
-                 onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
-          <p id="join-err" style="color:#FF2D55;font-size:12px;margin-bottom:14px;display:none"></p>
-          <p id="join-ok" style="color:#30D158;font-size:12px;margin-bottom:14px;display:none"></p>
-          <div style="display:flex;gap:10px">
-            <button id="join-cancel"
-                    style="flex:1;padding:11px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s"
-                    onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
-              Cancel
-            </button>
-            <button id="join-confirm"
-                    style="flex:2;padding:11px;background:linear-gradient(135deg,#06b6d4,#0e7490);border:none;border-radius:10px;color:white;font-size:13px;font-weight:700;cursor:pointer;transition:opacity 0.15s"
-                    onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-              Join →
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- User identity -->
-      <div class="mb-8 flex items-center gap-3 px-4 py-3 rounded-xl"
-           style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.15)">
-        <span style="font-size:22px">🛡️</span>
-        <div>
-          <p class="text-[10px] font-bold tracking-widest uppercase mb-1" style="color:#06b6d4">Your Identity</p>
-          <p class="text-[13px] font-mono font-bold" style="color:#e2e8f0" id="my-user-id">Initializing…</p>
-        </div>
-        <div class="ml-auto flex items-center gap-4">
-          <a href="/account" class="text-[12px] transition-colors"
-             style="color:#64748b"
-             onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">
-            Account settings →
-          </a>
-          <a href="/account/storage" class="text-[12px] transition-colors"
-             style="color:#64748b"
-             onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">
-            Storage
-          </a>
-        </div>
-      </div>
-
-      <!-- Tier banner -->
-      <div id="tier-banner" class="mb-5 px-4 py-3 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)"></div>
-
-      <!-- Search -->
-      <div class="mb-4">
-        <input id="comm-search" type="text" placeholder="Search communities by name or ID…" maxlength="60"
-               style="width:100%;box-sizing:border-box;background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:11px 16px;color:#f1f5f9;font-size:14px;outline:none;transition:border-color 0.2s"
-               onfocus="this.style.borderColor='rgba(6,182,212,0.4)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'" />
-      </div>
-
-      <!-- Communities grid -->
-      <div id="communities-list">
-        <p class="text-sm" style="color:#475569">Loading…</p>
+      <div class="hdr-actions">
+        <button class="btn-secondary" id="join-btn">Join via code</button>
+        <a href="/community/new" class="btn-primary-violet" id="new-btn">+ New Community</a>
       </div>
     </div>
-  </section>
 
-  <script>
-    const COMM_KEY = 'sw_communities';
-    const USER_KEY = 'sw_user_id';
-    const TIER_KEY = 'sw_tier';
+    <!-- Tier bar -->
+    <div class="tier-bar" id="tier-bar"></div>
 
-    const TIERS: Record<string, any> = {
-      starter:           { name:'Starter',           color:'#64748b', maxComm:0,  obs:false, slack:false },
-      individual:        { name:'Individual',         color:'#06b6d4', maxComm:1,  obs:false, slack:false },
-      community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3,  obs:true,  slack:false },
-      pro:               { name:'Pro',                color:'#FF8C42', maxComm:10, obs:true,  slack:true  },
-      enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1, obs:true,  slack:true  },
-    };
-    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
-    function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
+    <!-- User identity card -->
+    <div class="identity-card">
+      <span class="id-icon">🛡️</span>
+      <div>
+        <div class="id-label">YOUR IDENTITY</div>
+        <div class="id-val" id="my-uid">Initializing…</div>
+      </div>
+    </div>
 
-    function getOrCreateUserId(): string {
-      let id = localStorage.getItem(USER_KEY);
-      if (!id) {
-        const bytes = crypto.getRandomValues(new Uint8Array(2));
-        const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-        id = `USER-${hex}`;
-        localStorage.setItem(USER_KEY, id);
-      }
-      return id;
+    <!-- Search -->
+    <div class="search-row">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="comm-search" class="search-input" placeholder="Search communities…" autocomplete="off" />
+      <span class="search-kbd">⌘K</span>
+    </div>
+
+    <!-- Communities grid -->
+    <div id="comm-grid"></div>
+
+  </div>
+</div>
+
+<!-- ── Join modal ── -->
+<div id="join-modal" class="modal-backdrop" style="display:none;align-items:center;justify-content:center">
+  <div class="modal-box">
+    <button class="modal-close" id="join-close">✕</button>
+    <div class="modal-icon">🚪</div>
+    <h2 class="modal-title">Join a community</h2>
+    <p class="modal-sub">Enter the community code shared with you (format: COMM-XXXX)</p>
+    <input id="join-input" type="text" placeholder="COMM-XXXX" maxlength="9" class="modal-input" autocomplete="off" />
+    <p id="join-err" class="modal-err" style="display:none"></p>
+    <p id="join-ok"  class="modal-ok"  style="display:none"></p>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="join-cancel">Cancel</button>
+      <button class="btn-primary-violet" id="join-confirm">Join →</button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ── Shell ─────────────────────────────────────────────────── */
+.comm-shell {
+  min-height: 100vh;
+  background: #0c1018;
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+/* ── Topbar ─────────────────────────────────────────────────── */
+.comm-topbar {
+  position: sticky; top: 56px; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 42px;
+  background: #0f1420;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.comm-breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+}
+.bc-home { color: #f1f5f9; font-weight: 600; text-decoration: none; }
+.bc-sep  { color: #334155; font-family: monospace; }
+.topbar-r { display: flex; align-items: center; gap: 10px; }
+.user-chip {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #7c3aed; color: white;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: default; user-select: none;
+}
+
+/* ── Content ────────────────────────────────────────────────── */
+.comm-content {
+  max-width: 1000px; margin: 0 auto; padding: 28px 24px 60px;
+}
+
+/* ── Page header ────────────────────────────────────────────── */
+.page-hdr {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+}
+.page-eyebrow {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  color: #BF5AF2; text-transform: uppercase; margin-bottom: 6px;
+}
+.eyebrow-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #BF5AF2; animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.page-title { font-size: clamp(22px,3.5vw,32px); font-weight: 800; color: #f1f5f9; margin: 0 0 4px; }
+.page-sub   { font-size: 13px; color: #475569; margin: 0; }
+.hdr-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn-secondary {
+  padding: 8px 16px; border-radius: 10px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+  color: #94a3b8; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.08); }
+.btn-primary-violet {
+  padding: 8px 18px; border-radius: 10px; border: none;
+  background: #7c3aed; color: white;
+  font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center;
+  transition: background 0.15s;
+}
+.btn-primary-violet:hover { background: #6d28d9; }
+
+/* ── Tier bar ───────────────────────────────────────────────── */
+.tier-bar {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 14px;
+  font-size: 13px;
+}
+
+/* ── Identity card ──────────────────────────────────────────── */
+.identity-card {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(191,90,242,0.05); border: 1px solid rgba(191,90,242,0.15);
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 16px;
+}
+.id-icon  { font-size: 20px; flex-shrink: 0; }
+.id-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #BF5AF2; margin-bottom: 3px; }
+.id-val   { font-size: 13px; font-family: monospace; font-weight: 700; color: #e2e8f0; }
+
+/* ── Search ─────────────────────────────────────────────────── */
+.search-row {
+  display: flex; align-items: center; gap: 10px;
+  background: #131929; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+}
+.search-icon  { font-size: 14px; flex-shrink: 0; }
+.search-input {
+  flex: 1; background: none; border: none; outline: none;
+  color: #f1f5f9; font-size: 13px;
+}
+.search-input::placeholder { color: #475569; }
+.search-kbd {
+  font-size: 11px; color: #334155; font-family: monospace;
+  padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.07);
+}
+
+/* ── Community cards ────────────────────────────────────────── */
+.comm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.comm-card {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px; padding: 18px; cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.comm-card:hover { border-color: rgba(191,90,242,0.35); transform: translateY(-1px); }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.card-id-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.card-id { font-size: 10px; font-family: monospace; color: #7c3aed; letter-spacing: 0.04em; }
+.card-name { font-size: 15px; font-weight: 700; color: #f1f5f9; line-height: 1.3; }
+.card-member-chip {
+  padding: 3px 10px; border-radius: 20px;
+  background: rgba(191,90,242,0.08); border: 1px solid rgba(191,90,242,0.2);
+  font-size: 10px; font-weight: 700; color: #BF5AF2;
+  white-space: nowrap; flex-shrink: 0;
+}
+.card-desc { font-size: 12px; color: #475569; line-height: 1.55; margin: 0 0 12px; }
+.badge-joined {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 8px; border-radius: 6px;
+  background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
+  font-size: 9px; font-weight: 700; color: #34d399; font-family: monospace;
+}
+.badge-pending {
+  padding: 1px 8px; border-radius: 6px;
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);
+  font-size: 9px; font-weight: 700; color: #f59e0b; font-family: monospace;
+}
+.card-stats { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #475569; margin-bottom: 12px; }
+.e2ee-pill {
+  font-size: 9px; font-weight: 700; color: #34d399;
+  background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2);
+  padding: 1px 7px; border-radius: 4px; font-family: monospace;
+}
+.card-actions { display: flex; gap: 6px; }
+.card-btn-main {
+  flex: 1; text-align: center; padding: 8px;
+  background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25);
+  border-radius: 8px; color: #a78bfa; font-size: 12px; font-weight: 600;
+  text-decoration: none; transition: background 0.15s;
+}
+.card-btn-main:hover { background: rgba(124,58,237,0.2); }
+.card-btn-ghost {
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; color: #64748b; font-size: 12px; font-weight: 600;
+  text-decoration: none; transition: background 0.15s; white-space: nowrap;
+}
+.card-btn-ghost:hover { background: rgba(255,255,255,0.07); color: #94a3b8; }
+.card-date { font-size: 10px; font-family: monospace; color: #334155; margin-top: 10px; }
+
+/* ── Empty state ────────────────────────────────────────────── */
+.empty-state {
+  text-align: center; padding: 80px 20px;
+  border: 1px dashed rgba(191,90,242,0.15); border-radius: 20px;
+}
+.empty-icon  { font-size: 52px; margin-bottom: 16px; }
+.empty-title { font-size: 18px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+.empty-sub   { font-size: 14px; color: #475569; margin-bottom: 28px; line-height: 1.65; }
+
+/* ── Modal ──────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+  display: flex;
+}
+.modal-box {
+  background: #0f1420; border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; padding: 32px; max-width: 420px; width: 90%;
+  margin: auto; position: relative;
+}
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none; color: #475569; font-size: 16px;
+  cursor: pointer; padding: 4px; line-height: 1;
+}
+.modal-close:hover { color: #f1f5f9; }
+.modal-icon  { font-size: 32px; margin-bottom: 12px; }
+.modal-title { font-size: 20px; font-weight: 800; color: #f1f5f9; margin: 0 0 6px; }
+.modal-sub   { font-size: 13px; color: #64748b; margin: 0 0 20px; }
+.modal-input {
+  width: 100%; box-sizing: border-box;
+  background: #0a0a12; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 12px 14px;
+  color: #f1f5f9; font-size: 15px; font-family: monospace;
+  font-weight: 700; letter-spacing: 0.06em; outline: none;
+  margin-bottom: 10px; transition: border-color 0.2s;
+}
+.modal-input:focus { border-color: rgba(191,90,242,0.5); }
+.modal-err  { color: #f87171; font-size: 12px; margin-bottom: 12px; }
+.modal-ok   { color: #34d399; font-size: 12px; margin-bottom: 12px; }
+.modal-footer { display: flex; gap: 10px; margin-top: 4px; }
+.btn-cancel {
+  flex: 1; padding: 11px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+  color: #64748b; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-cancel:hover { background: rgba(255,255,255,0.08); }
+.btn-primary-violet.modal-confirm { flex: 2; padding: 11px; border-radius: 10px; justify-content: center; }
+</style>
+
+<script>
+(()=>{
+  const COMM_KEY = 'sw_communities';
+  const USER_KEY = 'sw_user_id';
+  const TIER_KEY = 'sw_tier';
+
+  const TIERS: Record<string,(typeof TIER_MAP)[keyof typeof TIER_MAP]> = {
+    starter:           { name:'Starter',           color:'#64748b', maxComm:0  },
+    individual:        { name:'Individual',         color:'#06b6d4', maxComm:1  },
+    community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3  },
+    pro:               { name:'Pro',                color:'#FF8C42', maxComm:10 },
+    enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1 },
+  } as const;
+  const TIER_MAP = TIERS;
+
+  function getTier() { return localStorage.getItem(TIER_KEY) || 'pro'; }
+  function getTC()   { return TIERS[getTier()] || TIERS.pro; }
+
+  function uid(): string {
+    let id = localStorage.getItem(USER_KEY);
+    if (!id) {
+      const b = crypto.getRandomValues(new Uint8Array(3));
+      id = 'USR-' + Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase().slice(0,4);
+      localStorage.setItem(USER_KEY, id);
     }
+    return id;
+  }
 
-    function loadCommunities(): any[] {
-      try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
-    }
+  function loadComms(): any[] {
+    try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
+  }
+  function saveComms(c: any[]) { localStorage.setItem(COMM_KEY, JSON.stringify(c)); }
 
-    function esc(s: string): string {
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
+  function esc(s: string) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
 
-    function tunnelMsgCount(commId: string): number {
-      try { return JSON.parse(localStorage.getItem(`sw_tunnel_${commId}`) || '[]').length; } catch { return 0; }
-    }
+  function tunnelMsgs(id: string): number {
+    try { return JSON.parse(localStorage.getItem(`sw_tunnel_${id}`) || '[]').length; } catch { return 0; }
+  }
 
-    function render() {
-      const uid = getOrCreateUserId();
-      const uidEl = document.getElementById('my-user-id');
-      if (uidEl) uidEl.textContent = uid;
+  function initials(name: string): string {
+    return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?';
+  }
 
-      const tc = getTC();
-      const comms = loadCommunities();
-      const el = document.getElementById('communities-list');
-      if (!el) return;
+  function render() {
+    const myId = uid();
+    const el = document.getElementById('my-uid');
+    if (el) el.textContent = myId;
 
-      // Tier banner
-      const tierBanner = document.getElementById('tier-banner');
-      if (tierBanner) {
-        const used = comms.length;
-        const max = tc.maxComm;
-        const pct = max <= 0 ? (max === -1 ? 0 : 100) : Math.min(used / max * 100, 100);
-        tierBanner.innerHTML = `
-          <div style="display:flex;align-items:center;gap-12px;gap:12px;flex-wrap:wrap">
-            <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:${tc.color}14;border:1px solid ${tc.color}35;color:${tc.color}">
-              ${tc.name.toUpperCase()}
-            </span>
-            ${max === -1 ? `<span style="font-size:13px;color:#64748b">${used} communities (unlimited)</span>` :
-              max === 0  ? `<span style="font-size:13px;color:#FF2D55">0 private communities on this plan</span>` :
-              `<span style="font-size:13px;color:#64748b">${used} / ${max} communities used</span>`}
-            ${max > 0 ? `
-            <div style="flex:1;min-width:80px;max-width:160px;height:4px;border-radius:2px;background:#1e293b;overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#FF2D55' : tc.color};border-radius:2px;transition:width 0.5s"></div>
-            </div>` : ''}
-            <a href="/account" style="margin-left:auto;font-size:12px;color:#475569;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#475569'">
-              Change plan →
-            </a>
-          </div>`;
-      }
+    // user chip
+    const chip = document.getElementById('user-chip');
+    if (chip) chip.textContent = myId.replace('USR-','').slice(0,2);
 
-      // At-limit banner
-      const atLimit = tc.maxComm !== -1 && comms.length >= tc.maxComm;
-      const newBtn = document.getElementById('new-comm-btn');
-      if (newBtn) {
-        if (atLimit) {
-          newBtn.setAttribute('href', '/price');
-          newBtn.textContent = tc.maxComm === 0 ? 'Upgrade to create' : '↑ Upgrade for more';
-          (newBtn as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
-          (newBtn as HTMLElement).style.color = '#94a3b8';
-        }
-      }
+    const tc   = getTC();
+    const comms= loadComms();
 
-      const search = ((document.getElementById('comm-search') as HTMLInputElement)?.value || '').toLowerCase();
-      const filtered = search ? comms.filter((c: any) => c.name.toLowerCase().includes(search) || c.id.toLowerCase().includes(search)) : comms;
-
-      if (comms.length === 0) {
-        el.innerHTML = `
-          <div style="text-align:center;padding:80px 20px;border:1px dashed rgba(255,255,255,0.08);border-radius:20px">
-            <div style="font-size:52px;margin-bottom:16px">🏛️</div>
-            <p style="color:#e2e8f0;font-size:18px;font-weight:700;margin-bottom:8px">No communities yet</p>
-            <p style="color:#475569;font-size:14px;margin-bottom:28px;line-height:1.65">
-              Create your first secure collaboration space.<br>
-              Each community gets a unique <code style="color:#06b6d4;font-family:monospace">COMM-XXXX</code> identifier.
-            </p>
-            <a href="/community/new" style="display:inline-block;padding:13px 32px;background:linear-gradient(135deg,#06b6d4,#0e7490);color:white;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">
-              + Create First Community
-            </a>
-          </div>`;
-        return;
-      }
-
-      if (filtered.length === 0) {
-        el.innerHTML = `<p style="color:#475569;font-size:14px;padding:24px 0">No communities match "${esc(search)}".</p>`;
-        return;
-      }
-
-      el.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
-          ${filtered.map((c: any) => {
-            const memberCount = (c.members || []).length;
-            const msgCount = tunnelMsgCount(c.id);
-            return `
-            <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color 0.2s"
-                 onmouseover="this.style.borderColor='rgba(6,182,212,0.25)'"
-                 onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-                <div style="min-width:0">
-                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                    <p style="font-size:10px;font-family:monospace;color:#06b6d4;letter-spacing:0.05em;margin:0">${esc(c.id)}</p>
-                    ${c.isJoined ? `<span style="padding:1px 6px;border-radius:4px;background:rgba(48,209,88,0.12);border:1px solid rgba(48,209,88,0.25);font-size:9px;font-weight:700;color:#30D158;font-family:monospace">JOINED</span>` : ''}
-                  </div>
-                  <h3 style="font-size:16px;font-weight:700;color:#f1f5f9;line-height:1.3;margin:0">${esc(c.name)}</h3>
-                </div>
-                <span style="padding:3px 10px;border-radius:20px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.18);font-size:10px;font-weight:700;color:#06b6d4;font-family:monospace;white-space:nowrap;flex-shrink:0">
-                  ${memberCount} member${memberCount !== 1 ? 's' : ''}
-                </span>
-              </div>
-              ${c.description ? `<p style="font-size:13px;color:#64748b;line-height:1.55;margin:0">${esc(c.description)}</p>` : ''}
-              <div style="display:flex;gap:8px">
-                <a href="/community/view?id=${encodeURIComponent(c.id)}"
-                   style="flex:1;text-align:center;padding:9px 8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);border-radius:10px;color:#06b6d4;text-decoration:none;font-size:12px;font-weight:600;transition:background 0.15s"
-                   onmouseover="this.style.background='rgba(6,182,212,0.2)'" onmouseout="this.style.background='rgba(6,182,212,0.1)'">
-                  Overview
-                </a>
-                <a href="/community/tunnel?id=${encodeURIComponent(c.id)}"
-                   style="flex:1;text-align:center;padding:9px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:12px;font-weight:600;transition:background 0.15s"
-                   onmouseover="this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-                  🔒 Tunnel${msgCount > 0 ? ` (${msgCount})` : ''}
-                </a>
-                <a href="/community/members?id=${encodeURIComponent(c.id)}"
-                   style="flex:1;text-align:center;padding:9px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:12px;font-weight:600;transition:background 0.15s"
-                   onmouseover="this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-                  Members
-                </a>
-              </div>
-              <p style="font-size:11px;color:#334155;font-family:monospace;margin:0">
-                Created ${new Date(c.created).toLocaleDateString()}
-              </p>
-            </div>`;
-          }).join('')}
+    // Tier bar
+    const tierBar = document.getElementById('tier-bar');
+    if (tierBar) {
+      const used = comms.length, max = tc.maxComm;
+      const pct  = max <= 0 ? 0 : Math.min(used/max*100, 100);
+      tierBar.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:${tc.color}18;border:1px solid ${tc.color}30;color:${tc.color}">${tc.name.toUpperCase()}</span>
+          ${max===-1
+            ? `<span style="font-size:13px;color:#64748b">${used} communities (unlimited)</span>`
+            : max===0
+              ? `<span style="font-size:13px;color:#f87171">0 private communities on Starter — <a href="/price" style="color:#BF5AF2;text-decoration:none">upgrade</a></span>`
+              : `<span style="font-size:13px;color:#64748b">${used} / ${max} communities</span>`}
+          ${max>0?`<div style="flex:1;min-width:80px;max-width:140px;height:4px;border-radius:2px;background:#1e293b;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct>=100?'#f87171':tc.color};border-radius:2px"></div></div>`:''}
+          <a href="/price" style="margin-left:auto;font-size:12px;color:#475569;text-decoration:none" onmouseover="this.style.color='#BF5AF2'" onmouseout="this.style.color='#475569'">Change plan →</a>
         </div>`;
     }
 
-    render();
-
-    // Search filter
-    document.getElementById('comm-search')?.addEventListener('input', render);
-
-    // Join Community modal
-    const joinModal = document.getElementById('join-modal') as HTMLElement;
-    const joinInput = document.getElementById('join-input') as HTMLInputElement;
-    const joinErr = document.getElementById('join-err') as HTMLElement;
-    const joinOk = document.getElementById('join-ok') as HTMLElement;
-
-    function showJoinModal() {
-      joinInput.value = '';
-      joinErr.style.display = 'none';
-      joinOk.style.display = 'none';
-      joinModal.style.display = 'flex';
-      setTimeout(() => joinInput.focus(), 50);
+    // New button upgrade
+    const atLimit = tc.maxComm !== -1 && comms.length >= tc.maxComm;
+    const newBtn  = document.getElementById('new-btn') as HTMLAnchorElement;
+    if (newBtn && atLimit) {
+      newBtn.href = '/price';
+      newBtn.textContent = tc.maxComm===0 ? 'Upgrade to create' : '↑ Upgrade for more';
+      newBtn.style.background = 'rgba(255,255,255,0.06)';
+      newBtn.style.color = '#94a3b8';
     }
-    function hideJoinModal() { joinModal.style.display = 'none'; }
 
-    document.getElementById('join-comm-btn')?.addEventListener('click', showJoinModal);
-    document.getElementById('join-cancel')?.addEventListener('click', hideJoinModal);
-    joinModal.addEventListener('click', (e) => { if (e.target === joinModal) hideJoinModal(); });
+    const search = ((document.getElementById('comm-search') as HTMLInputElement)?.value||'').toLowerCase();
+    const list = search ? comms.filter((c:any)=>c.name.toLowerCase().includes(search)||c.id.toLowerCase().includes(search)) : comms;
+    const grid = document.getElementById('comm-grid')!;
 
-    document.getElementById('join-confirm')?.addEventListener('click', () => {
-      const code = joinInput.value.trim().toUpperCase();
-      joinErr.style.display = 'none';
-      joinOk.style.display = 'none';
+    if (comms.length===0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <p class="empty-title">No communities yet</p>
+          <p class="empty-sub">Create your first secure collaboration space.<br>
+            Each community gets a unique <code style="color:#BF5AF2;font-family:monospace">COMM-XXXX</code> identifier.</p>
+          <a href="/community/new" class="btn-primary-violet" style="display:inline-flex;text-decoration:none">+ Create First Community</a>
+        </div>`;
+      return;
+    }
 
-      if (!code.match(/^COMM-[0-9A-F]{4}$/)) {
-        joinErr.textContent = 'Format must be COMM-XXXX (e.g. COMM-1A2B)';
-        joinErr.style.display = 'block';
-        return;
+    if (list.length===0) {
+      grid.innerHTML = `<p style="color:#475569;padding:24px 0">No communities match "${esc(search)}".</p>`;
+      return;
+    }
+
+    grid.innerHTML = `<div class="comm-grid">${list.map((c:any)=>{
+      const mems  = (c.members||[]).length;
+      const msgs  = tunnelMsgs(c.id);
+      const isPending = (c.join_requests||[]).some((r:any)=>r.userId===myId);
+      const isOwner   = (c.members||[]).find((m:any)=>m.id===myId)?.role==='owner';
+      return `
+        <div class="comm-card" onclick="location.href='/community/view?id=${encodeURIComponent(c.id)}'">
+          <div class="card-top">
+            <div style="min-width:0">
+              <div class="card-id-row">
+                <span class="card-id">${esc(c.id)}</span>
+                ${c.isJoined||isOwner?`<span class="badge-joined">✓ JOINED</span>`:''}
+                ${isPending?`<span class="badge-pending">PENDING</span>`:''}
+              </div>
+              <div class="card-name">${esc(c.name)}</div>
+            </div>
+            <span class="card-member-chip">${mems} member${mems!==1?'s':''}</span>
+          </div>
+          ${c.description?`<p class="card-desc">${esc(c.description)}</p>`:''}
+          <div class="card-stats">
+            ${msgs>0?`<span>💬 ${msgs} message${msgs!==1?'s':''}</span>`:''}
+            <span class="e2ee-pill">🔐 E2EE</span>
+          </div>
+          <div class="card-actions" onclick="event.stopPropagation()">
+            <a href="/community/view?id=${encodeURIComponent(c.id)}" class="card-btn-main">Open Portal →</a>
+            <a href="/community/view?id=${encodeURIComponent(c.id)}&tab=tunnel" class="card-btn-ghost">🔒 Tunnel${msgs>0?` (${msgs})`:''}</a>
+            <a href="/community/view?id=${encodeURIComponent(c.id)}&tab=members" class="card-btn-ghost">Members</a>
+          </div>
+          <div class="card-date">Created ${new Date(c.created||Date.now()).toLocaleDateString()}</div>
+        </div>`;
+    }).join('')}</div>`;
+  }
+
+  // Search
+  document.getElementById('comm-search')?.addEventListener('input', render);
+
+  // Join modal
+  const modal     = document.getElementById('join-modal') as HTMLElement;
+  const joinInput = document.getElementById('join-input') as HTMLInputElement;
+  const joinErr   = document.getElementById('join-err') as HTMLElement;
+  const joinOk    = document.getElementById('join-ok')  as HTMLElement;
+
+  function openModal() {
+    joinInput.value=''; joinErr.style.display='none'; joinOk.style.display='none';
+    modal.style.display='flex'; setTimeout(()=>joinInput.focus(),50);
+  }
+  function closeModal() { modal.style.display='none'; }
+
+  document.getElementById('join-btn')?.addEventListener('click', openModal);
+  document.getElementById('join-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('join-close')?.addEventListener('click', closeModal);
+  modal.addEventListener('click', e=>{ if(e.target===modal) closeModal(); });
+
+  document.getElementById('join-confirm')?.addEventListener('click',()=>{
+    const code = joinInput.value.trim().toUpperCase();
+    joinErr.style.display='none'; joinOk.style.display='none';
+    if(!code.match(/^COMM-[0-9A-F]{4}$/)) {
+      joinErr.textContent='Format must be COMM-XXXX (e.g. COMM-1A2B)';
+      joinErr.style.display='block'; return;
+    }
+    const myId = uid();
+    const comms = loadComms();
+    const existing = comms.find((x:any)=>x.id===code);
+    if(existing) {
+      const mems:any[] = existing.members||[];
+      if(mems.some((m:any)=>(typeof m==='string'?m:m.id)===myId)) {
+        joinOk.textContent=`✓ You're already a member of "${existing.name}".`;
+        joinOk.style.display='block';
+        setTimeout(()=>{closeModal();render();},1400); return;
       }
-
-      const uid = getOrCreateUserId();
-      const comms = loadCommunities();
-      const existing = comms.find((x: any) => x.id === code);
-
-      if (existing) {
-        // Check if already a member
-        const mems: any[] = existing.members || [];
-        const isMember = mems.some((m: any) => (typeof m === 'string' ? m : m.id) === uid);
-        if (isMember) {
-          joinOk.textContent = `✓ You're already a member of "${existing.name}".`;
-          joinOk.style.display = 'block';
-          setTimeout(() => { hideJoinModal(); render(); }, 1400);
-          return;
-        }
-        // Check if already requested
-        const reqs: any[] = existing.join_requests || [];
-        if (reqs.some((r: any) => r.userId === uid)) {
-          joinOk.textContent = `📨 Join request already pending for "${existing.name}". Waiting for approval.`;
-          joinOk.style.display = 'block';
-          return;
-        }
-        // Submit join request
-        if (!existing.join_requests) existing.join_requests = [];
-        existing.join_requests.push({ userId: uid, ts: Date.now() });
-        if (!existing.activityLog) existing.activityLog = [];
-        existing.activityLog.unshift({ ts: Date.now(), action: 'join_request_sent', userId: uid, detail: `${uid} requested to join` });
-        localStorage.setItem(COMM_KEY, JSON.stringify(comms));
-        joinOk.textContent = `📨 Join request sent to "${existing.name}". An admin must approve it.`;
-        joinOk.style.display = 'block';
-        setTimeout(() => hideJoinModal(), 2200);
-        return;
+      const reqs:any[] = existing.join_requests||[];
+      if(reqs.some((r:any)=>r.userId===myId)) {
+        joinOk.textContent=`📨 Join request already pending for "${existing.name}".`;
+        joinOk.style.display='block'; return;
       }
+      if(!existing.join_requests) existing.join_requests=[];
+      existing.join_requests.push({userId:myId,ts:Date.now()});
+      if(!existing.activityLog) existing.activityLog=[];
+      existing.activityLog.unshift({ts:Date.now(),action:'join_request_sent',userId:myId,detail:`${myId} requested to join`});
+      saveComms(comms);
+      joinOk.textContent=`📨 Join request sent to "${existing.name}". An admin must approve.`;
+      joinOk.style.display='block';
+      setTimeout(()=>closeModal(),2200); return;
+    }
+    const stub:any={
+      id:code, name:`Community ${code}`, description:'Joined via community code',
+      members:[{id:myId,role:'member'}], join_requests:[],
+      activityLog:[{ts:Date.now(),action:'member_joined',userId:myId,detail:`${myId} joined via code`}],
+      disappearingMessages:'off', created:new Date().toISOString(), isJoined:true,
+    };
+    comms.push(stub); saveComms(comms);
+    joinOk.textContent=`✓ Joined ${code} — community added to your list.`;
+    joinOk.style.display='block';
+    setTimeout(()=>{closeModal();render();},1400);
+  });
 
-      // Community not found locally — create stub + self-approve (owner scenario)
-      const stub: any = {
-        id: code,
-        name: `Community ${code}`,
-        description: 'Joined via community code',
-        members: [{ id: uid, role: 'member' }],
-        join_requests: [],
-        activityLog: [{ ts: Date.now(), action: 'member_joined', userId: uid, detail: `${uid} joined via code` }],
-        disappearingMessages: false,
-        created: new Date().toISOString(),
-        isJoined: true,
-      };
-      comms.push(stub);
-      localStorage.setItem(COMM_KEY, JSON.stringify(comms));
-      joinOk.textContent = `✓ Joined ${code} — community added to your list.`;
-      joinOk.style.display = 'block';
-      setTimeout(() => { hideJoinModal(); render(); }, 1400);
-    });
+  joinInput?.addEventListener('keydown',(e:KeyboardEvent)=>{
+    if(e.key==='Enter') document.getElementById('join-confirm')?.click();
+    if(e.key==='Escape') closeModal();
+  });
 
-    joinInput?.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter') document.getElementById('join-confirm')?.click();
-      if (e.key === 'Escape') hideJoinModal();
-    });
-  </script>
+  render();
+})();
+</script>
 </BaseLayout>
