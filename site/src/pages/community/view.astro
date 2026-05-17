@@ -3,202 +3,1382 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout
-  title="Community Overview — Shadow Warden AI"
-  description="View and manage your secure collaboration community."
+  title="Community Portal — Shadow Warden AI"
+  description="Secure community collaboration with end-to-end encrypted tunnel, member management, and GDPR controls."
 >
-  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
-    <div class="mx-auto max-w-4xl px-4 lg:px-8">
+<div class="comm-portal pt-14">
 
-      <!-- Breadcrumb -->
-      <div class="flex items-center gap-2 mb-6 text-[13px]" style="color:#475569">
-        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Communities</a>
-        <span>›</span>
-        <span id="bc-name" style="color:#94a3b8">Loading…</span>
+  <!-- ── BREADCRUMB TOPBAR ─────────────────────────────────── -->
+  <div class="comm-topbar">
+    <nav class="comm-breadcrumb">
+      <a href="/" class="bc-brand">Shadow · Warden</a>
+      <span class="bc-sep">/community</span>
+      <span class="bc-arrow">›</span>
+      <span class="bc-current" id="bc-name">—</span>
+    </nav>
+    <div class="comm-user-chip" id="user-chip">ZB</div>
+  </div>
+
+  <!-- ── TAB NAVIGATION ───────────────────────────────────── -->
+  <div class="comm-tabnav">
+    <button class="comm-tab" data-tab="communities">
+      Communities
+    </button>
+    <button class="comm-tab" data-tab="members">
+      Members <span class="tab-count" id="tab-members-count"></span>
+    </button>
+    <button class="comm-tab" data-tab="tunnel">
+      Tunnel
+    </button>
+    <button class="comm-tab" data-tab="activity">
+      Activity <span class="tab-count" id="tab-activity-count"></span>
+    </button>
+    <button class="comm-tab" data-tab="settings">
+      Settings
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL: COMMUNITIES
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-communities" class="comm-panel comm-two-col hidden">
+
+    <!-- Left: search + results -->
+    <div class="comm-main">
+      <div class="section-header">
+        <h2 class="section-title">Communities</h2>
+        <span class="section-path">/COMMUNITY</span>
+        <span class="section-hint ml-auto">Search by name or ID. Join requests sent to Owner/Admin.</span>
       </div>
 
-      <!-- Community header -->
-      <div id="comm-header" style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:28px;margin-bottom:20px">
-        <p class="text-[10px] font-mono font-bold tracking-widest uppercase mb-2" style="color:#06b6d4" id="comm-id-display">—</p>
-        <h1 class="text-[clamp(24px,3vw,36px)] font-black tracking-tight mb-2" style="color:#f1f5f9" id="comm-name-display">—</h1>
-        <p class="text-[14px] mb-5" style="color:#64748b" id="comm-desc-display"></p>
-        <div class="flex items-center gap-4 flex-wrap">
-          <span class="text-[12px] font-mono" style="color:#475569" id="comm-created">—</span>
-          <span style="padding:3px 10px;border-radius:20px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.18);font-size:11px;font-weight:700;color:#06b6d4;font-family:monospace" id="comm-member-count">0 members</span>
+      <div class="search-wrap">
+        <span class="si">🔍</span>
+        <input type="text" id="comm-search" class="comm-search-input" placeholder="Search communities…" autocomplete="off" />
+        <span class="search-shortcut">⌘K</span>
+      </div>
+
+      <div class="results-hdr" id="results-hdr"></div>
+      <div class="comm-card-grid" id="comm-card-grid"></div>
+    </div>
+
+    <!-- Right: Your activity sidebar -->
+    <aside class="comm-sidebar">
+      <div class="sidebar-card">
+        <p class="sidebar-title">Your activity</p>
+
+        <div class="act-stat">
+          <span class="stat-n" id="stat-joined">—</span>
+          <span class="stat-lbl">Communities joined</span>
+        </div>
+        <div class="act-stat">
+          <span class="stat-n" id="stat-pending">—</span>
+          <span class="stat-lbl">Pending requests</span>
+        </div>
+        <div class="act-stat">
+          <span class="stat-n" id="stat-msgs">—</span>
+          <span class="stat-lbl">Messages this week</span>
+        </div>
+
+        <div class="fp-block">
+          <span class="fp-code" id="my-fp">—</span>
+          <span class="fp-lbl">Your public-key fingerprint</span>
         </div>
       </div>
+    </aside>
+  </div>
 
-      <!-- Tab nav -->
-      <div class="flex gap-2 mb-6" id="tab-nav" style="overflow-x:auto;padding-bottom:4px">
-        <!-- Rendered by JS -->
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL: MEMBERS
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-members" class="comm-panel hidden">
+    <div class="section-header">
+      <h2 class="section-title">Members</h2>
+      <span class="section-path" id="members-path"></span>
+      <span class="section-hint ml-auto">Owner can promote/demote anyone. Owner role is locked — never deletable.</span>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <span class="si" style="color:#475569">🔍</span>
+      <input type="text" id="member-filter" class="filter-input"
+             placeholder="Filter by USER-ID (e.g. USR-018) or role (owner/admin/member)…" />
+      <span class="filter-hint">/</span>
+    </div>
+
+    <!-- Join requests (owner/admin only) -->
+    <div id="join-req-section" style="display:none">
+      <div class="jr-header">
+        <span class="jr-icon">📨</span>
+        <span class="jr-title">Join Requests</span>
+        <span class="jr-count" id="jr-count">0 pending</span>
+        <span class="jr-hint">visible to Owner / Admin · automatic notify enabled</span>
       </div>
+      <div class="jr-list" id="jr-list"></div>
+    </div>
 
-      <!-- Stats grid -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px" id="stats-grid">
+    <!-- Members table -->
+    <div class="members-wrap">
+      <div class="members-hdr">
+        <span id="mem-count-lbl" style="font-size:13px;font-weight:600;color:#f1f5f9">0 members</span>
+        <span style="font-size:11px;color:#334155">Last sync: <span id="sync-time">just now</span></span>
       </div>
-
-      <!-- Quick actions -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px" id="quick-actions">
-      </div>
-
-      <!-- Share code card -->
-      <div id="share-card" style="background:#0d1220;border:1px solid rgba(48,209,88,0.15);border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px">
-        <div style="flex:1;min-width:0">
-          <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#475569;margin-bottom:4px;font-weight:600">Share Community Code</p>
-          <p id="share-code-text" style="font-size:18px;font-family:monospace;font-weight:800;color:#30D158;margin:0;letter-spacing:0.05em">—</p>
-          <p style="font-size:11px;color:#475569;margin:4px 0 0">Send this code to anyone you want to invite</p>
+      <div class="mtable">
+        <div class="mth">
+          <div class="th mc">MEMBER</div>
+          <div class="th uc">USER-ID</div>
+          <div class="th jc">JOINED</div>
+          <div class="th rc">ROLE</div>
+          <div class="th gc">MANAGE</div>
         </div>
-        <button id="copy-code-btn"
-                style="padding:10px 18px;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);border-radius:10px;color:#30D158;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap"
-                onmouseover="this.style.background='rgba(48,209,88,0.2)'" onmouseout="this.style.background='rgba(48,209,88,0.1)'">
-          Copy Code
-        </button>
+        <div id="mtbody"></div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <script>
-    const COMM_KEY = 'sw_communities';
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL: TUNNEL
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-tunnel" class="comm-panel tunnel-panel hidden">
 
-    function getParam(name: string): string {
-      return new URLSearchParams(window.location.search).get(name) || '';
-    }
-
-    function loadCommunities(): any[] {
-      try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
-    }
-
-    function esc(s: string): string {
-      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    function tunnelMsgCount(id: string): number {
-      try { return JSON.parse(localStorage.getItem(`sw_tunnel_${id}`) || '[]').length; } catch { return 0; }
-    }
-
-    function render() {
-      const id = getParam('id');
-      if (!id) {
-        document.getElementById('comm-header')!.innerHTML = `<p style="color:#FF2D55;font-size:14px">No community ID specified. <a href="/community" style="color:#06b6d4">Back to communities</a></p>`;
-        return;
-      }
-
-      const comms = loadCommunities();
-      const c = comms.find((x: any) => x.id === id);
-
-      if (!c) {
-        document.getElementById('comm-header')!.innerHTML = `<p style="color:#FF2D55;font-size:14px">Community <code>${esc(id)}</code> not found. <a href="/community" style="color:#06b6d4">Back to communities</a></p>`;
-        return;
-      }
-
-      // Breadcrumb + header
-      const bcEl = document.getElementById('bc-name');
-      if (bcEl) bcEl.textContent = c.name;
-      document.title = `${c.name} — Shadow Warden AI`;
-
-      const idEl = document.getElementById('comm-id-display');
-      const nameEl = document.getElementById('comm-name-display');
-      const descEl = document.getElementById('comm-desc-display');
-      const createdEl = document.getElementById('comm-created');
-      const memberEl = document.getElementById('comm-member-count');
-
-      if (idEl) idEl.textContent = c.id;
-      if (nameEl) nameEl.textContent = c.name;
-      if (descEl) descEl.textContent = c.description || '';
-      if (createdEl) createdEl.textContent = `Created ${new Date(c.created).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
-      const mc = (c.members || []).length;
-      if (memberEl) memberEl.textContent = `${mc} member${mc !== 1 ? 's' : ''}`;
-
-      // Tab nav
-      const tabs = [
-        { label: '📋 Overview',     href: `/community/view?id=${encodeURIComponent(id)}`, active: true },
-        { label: '👥 Members',     href: `/community/members?id=${encodeURIComponent(id)}` },
-        { label: '🔒 Tunnel',      href: `/community/tunnel?id=${encodeURIComponent(id)}` },
-        { label: '🔌 Integrations', href: `/community/integrations?id=${encodeURIComponent(id)}` },
-        { label: '📊 Activity',    href: `/community/activity?id=${encodeURIComponent(id)}` },
-        { label: '⚙️ Settings',    href: `/community/settings?id=${encodeURIComponent(id)}` },
-      ];
-      const tabNav = document.getElementById('tab-nav');
-      if (tabNav) {
-        tabNav.innerHTML = tabs.map(t => `
-          <a href="${t.href}"
-             style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
-                    ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4'
-                               : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
-                    transition:all 0.15s"
-             ${!t.active ? `onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
-            ${t.label}
-          </a>
-        `).join('');
-      }
-
-      // Stats
-      const tierKey = localStorage.getItem('sw_tier') || 'pro';
-      const TIERS_V: Record<string, any> = {
-        starter:{ name:'Starter',color:'#64748b' }, individual:{ name:'Individual',color:'#06b6d4' },
-        community_business:{ name:'Community Business',color:'#BF5AF2' },
-        pro:{ name:'Pro',color:'#FF8C42' }, enterprise:{ name:'Enterprise',color:'#FFD60A' },
-      };
-      const tierInfo = TIERS_V[tierKey] || TIERS_V.pro;
-
-      const msgCount = tunnelMsgCount(id);
-      const statsGrid = document.getElementById('stats-grid');
-      if (statsGrid) {
-        statsGrid.innerHTML = [
-          { label: 'Members', value: mc.toString(), color: '#06b6d4', icon: '👥' },
-          { label: 'Tunnel Messages', value: msgCount.toString(), color: '#BF5AF2', icon: '🔒' },
-          { label: 'Current Plan', value: tierInfo.name, color: tierInfo.color, icon: '⭐', link: '/account' },
-          { label: 'Community ID', value: c.id, color: '#30D158', icon: '🪪', mono: true },
-        ].map(s => `
-          <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <span style="font-size:16px">${s.icon}</span>
-              <span style="font-size:11px;color:#475569;text-transform:uppercase;letter-spacing:0.05em;font-weight:600">${s.label}</span>
-            </div>
-            ${(s as any).link
-              ? `<a href="${(s as any).link}" style="font-size:${s.mono ? '12px' : '18px'};font-weight:700;color:${s.color};${s.mono ? 'font-family:monospace' : ''};margin:0;text-decoration:none" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">${s.value}</a>`
-              : `<p style="font-size:${s.mono ? '12px' : '22px'};font-weight:700;color:${s.color};${s.mono ? 'font-family:monospace' : ''};margin:0">${s.value}</p>`}
+    <!-- Channel header -->
+    <div class="tunnel-hdr">
+      <div class="tunnel-hdr-l">
+        <div class="tlock">🔒</div>
+        <div>
+          <div class="tchan-name">
+            <span id="tchan-comm">—</span>
+            <span style="color:#64748b"> · #general</span>
+            <span class="enc-badge">+ ENCRYPTED</span>
           </div>
-        `).join('');
-      }
+          <div class="tfp" id="tfp">FP —</div>
+        </div>
+      </div>
+      <div class="tunnel-hdr-r">
+        <button class="btn-outline" id="export-pubkey-btn">↓ Export Public Key</button>
+        <span class="pubkey-chip" id="pubkey-chip">public-USR-0001.asc</span>
+      </div>
+    </div>
 
-      // Quick actions
-      const qa = document.getElementById('quick-actions');
-      if (qa) {
-        qa.innerHTML = `
-          <a href="/community/tunnel?id=${encodeURIComponent(id)}"
-             style="display:block;padding:20px;background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:16px;text-decoration:none;transition:border-color 0.2s"
-             onmouseover="this.style.borderColor='rgba(6,182,212,0.25)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-            <p style="font-size:24px;margin-bottom:8px">🔒</p>
-            <p style="font-size:15px;font-weight:700;color:#f1f5f9;margin:0 0 4px">Open Tunnel</p>
-            <p style="font-size:12px;color:#64748b;margin:0">End-to-end encrypted channel${msgCount > 0 ? ` · ${msgCount} messages` : ''}</p>
-          </a>
-          <a href="/community/members?id=${encodeURIComponent(id)}"
-             style="display:block;padding:20px;background:#0d1220;border:1px solid rgba(255,255,255,0.06);border-radius:16px;text-decoration:none;transition:border-color 0.2s"
-             onmouseover="this.style.borderColor='rgba(191,90,242,0.25)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-            <p style="font-size:24px;margin-bottom:8px">👥</p>
-            <p style="font-size:15px;font-weight:700;color:#f1f5f9;margin:0 0 4px">Manage Members</p>
-            <p style="font-size:12px;color:#64748b;margin:0">Invite, remove, merge communities</p>
-          </a>
-        `;
-      }
+    <div class="tunnel-sub-line">
+      End-to-end encrypted · AES-256-GCM · keys never leave clients
+    </div>
+
+    <!-- Auto-delete banner -->
+    <div class="ad-bar hidden" id="ad-bar">
+      <span class="ad-dot">●</span>
+      <span class="ad-text">24h auto-delete <strong>is ON</strong> — messages older than 24 hours are filtered on load</span>
+      <span class="ad-cnt" id="ad-cnt"></span>
+    </div>
+
+    <!-- Messages -->
+    <div class="tunnel-msgs" id="tunnel-msgs"></div>
+
+    <!-- Compose -->
+    <div class="tunnel-compose">
+      <input type="text" id="tunnel-input" class="t-input"
+             placeholder="Encrypted message · plain-text never leaves your browser…" />
+      <button class="t-send-btn" id="tunnel-send">✈ Send</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL: ACTIVITY
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-activity" class="comm-panel hidden">
+    <div class="section-header">
+      <h2 class="section-title">Activity log</h2>
+      <span class="section-path" id="activity-path"></span>
+      <span class="section-hint ml-auto">Append-only · <span id="act-event-cnt">0</span> events · last 24 hours</span>
+    </div>
+    <div class="act-log" id="act-log"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PANEL: SETTINGS · GDPR
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-settings" class="comm-panel hidden">
+    <div class="section-header">
+      <h2 class="section-title">Settings · GDPR</h2>
+      <span class="section-path" id="settings-path"></span>
+      <span class="section-hint ml-auto">Export everything you control — content, members, audit, public keys. Private keys never leave the device.</span>
+    </div>
+
+    <div class="srows">
+
+      <div class="srow">
+        <div class="srow-info">
+          <div class="srow-title">Export community data (GDPR Article 20)</div>
+          <div class="srow-desc">Bundles community metadata, message metadata (not plaintext bodies), member roster with USER-IDs, role history, and audit log into a single JSON file.</div>
+          <div class="srow-hint">Generated client-side · signed with your private key · private keys excluded</div>
+        </div>
+        <div class="srow-action">
+          <button class="btn-export" id="gdpr-export-btn">↓ Export JSON</button>
+          <span class="export-chip" id="export-chip">community-COMM-0000-export.json</span>
+        </div>
+      </div>
+
+      <div class="srow">
+        <div class="srow-info">
+          <div class="srow-title">Disappearing messages</div>
+          <div class="srow-desc">Auto-delete messages older than the chosen window. Already-decrypted messages on devices remain until the device refreshes.</div>
+          <div class="srow-hint">Current: <span id="disappear-curr">off</span> · enforced on every tunnel load</div>
+        </div>
+        <div class="srow-action">
+          <select class="srow-select" id="disappear-sel">
+            <option value="off">Off</option>
+            <option value="1h">1 hour</option>
+            <option value="6h">6 hours</option>
+            <option value="24h">24 hours</option>
+            <option value="7d">7 days</option>
+            <option value="30d">30 days</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="srow">
+        <div class="srow-info">
+          <div class="srow-title">Rotate public key</div>
+          <div class="srow-desc">Generate a new keypair and republish the public half. All members re-verify the new fingerprint on their next session.</div>
+          <div class="srow-hint">Current FP: <span id="curr-fp">—</span> · created <span id="fp-created">—</span> · <span id="fp-age">—</span></div>
+        </div>
+        <div class="srow-action">
+          <button class="btn-outline" id="rotate-key-btn">Rotate</button>
+        </div>
+      </div>
+
+      <div class="srow danger-srow">
+        <div class="srow-info">
+          <div class="srow-title" style="color:#ef4444">Delete community</div>
+          <div class="srow-desc">All messages, keys, and roles are wiped. USER-IDs of members are anonymized in the audit ledger. Irreversible.</div>
+        </div>
+        <div class="srow-action">
+          <button class="btn-delete" id="delete-comm-btn">Delete community</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /comm-portal -->
+</BaseLayout>
+
+<style>
+/* ── Reset / Portal shell ──────────────────────────────────── */
+.comm-portal {
+  min-height: 100vh;
+  background: #0c1018;
+  font-size: 14px;
+  color: #e2e8f0;
+}
+.ml-auto { margin-left: auto; }
+.hidden { display: none !important; }
+
+/* ── Breadcrumb topbar ─────────────────────────────────────── */
+.comm-topbar {
+  position: sticky;
+  top: 56px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 42px;
+  background: #0f1420;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.comm-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+}
+.bc-brand { color: #f1f5f9; font-weight: 600; text-decoration: none; }
+.bc-sep   { color: #334155; }
+.bc-arrow { color: #334155; }
+.bc-current { color: #94a3b8; font-weight: 500; }
+.comm-user-chip {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: white;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: default; user-select: none;
+}
+
+/* ── Tab nav ───────────────────────────────────────────────── */
+.comm-tabnav {
+  position: sticky;
+  top: 98px;
+  z-index: 29;
+  display: flex;
+  align-items: stretch;
+  background: #0f1420;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding: 0 20px;
+  overflow-x: auto;
+}
+.comm-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  height: 44px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.comm-tab:hover { color: #94a3b8; }
+.comm-tab.active { color: #f1f5f9; border-bottom-color: #f1f5f9; }
+.tab-count {
+  font-size: 11px; font-weight: 700;
+  padding: 1px 7px; border-radius: 99px;
+  background: rgba(255,255,255,0.08); color: #64748b;
+}
+.comm-tab.active .tab-count { background: rgba(255,255,255,0.12); color: #94a3b8; }
+
+/* ── Panel base ────────────────────────────────────────────── */
+.comm-panel { padding: 24px; max-width: 1160px; margin: 0 auto; }
+
+/* ── Section header ────────────────────────────────────────── */
+.section-header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.section-title { font-size: 18px; font-weight: 700; color: #f1f5f9; margin: 0; }
+.section-path  { font-size: 11px; font-family: monospace; color: #334155; }
+.section-hint  { font-size: 12px; color: #475569; }
+
+/* ── Communities panel: two-col grid ───────────────────────── */
+.comm-two-col {
+  display: grid;
+  grid-template-columns: 1fr 270px;
+  gap: 20px;
+  align-items: start;
+}
+.comm-main {}
+
+/* Search */
+.search-wrap {
+  display: flex; align-items: center; gap: 10px;
+  background: #131929; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 12px;
+}
+.si { font-size: 14px; flex-shrink: 0; }
+.comm-search-input {
+  flex: 1; background: none; border: none; outline: none;
+  color: #f1f5f9; font-size: 13px;
+}
+.comm-search-input::placeholder { color: #475569; }
+.search-shortcut {
+  font-size: 11px; color: #334155; font-family: monospace;
+  padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);
+}
+
+.results-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: #64748b; margin-bottom: 12px;
+}
+
+/* Community card grid */
+.comm-card-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.comm-card {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 16px; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.comm-card:hover { border-color: rgba(255,255,255,0.15); }
+.card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.card-av {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: white; flex-shrink: 0;
+}
+.card-meta { flex: 1; min-width: 0; }
+.card-name { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 2px; }
+.card-id   { font-size: 11px; color: #475569; font-family: monospace; }
+.card-act  { flex-shrink: 0; }
+.badge-joined  {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; color: #10b981;
+  background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
+  padding: 3px 10px; border-radius: 6px;
+}
+.badge-pending {
+  font-size: 11px; font-weight: 700; color: #f59e0b;
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);
+  padding: 3px 10px; border-radius: 6px;
+}
+.btn-join {
+  font-size: 11px; font-weight: 600; color: #94a3b8;
+  background: transparent; border: 1px solid rgba(255,255,255,0.15);
+  padding: 3px 12px; border-radius: 6px; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-join:hover { background: rgba(255,255,255,0.06); }
+.card-desc  { font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 10px; }
+.card-stats { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #475569; }
+.e2ee-chip  {
+  font-size: 10px; font-weight: 700; color: #10b981;
+  background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);
+  padding: 1px 7px; border-radius: 4px; font-family: monospace;
+}
+
+/* Sidebar */
+.comm-sidebar { position: sticky; top: 160px; }
+.sidebar-card {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 20px;
+}
+.sidebar-title { font-size: 13px; font-weight: 600; color: #94a3b8; margin: 0 0 18px; }
+.act-stat { margin-bottom: 16px; }
+.stat-n   { display: block; font-size: 36px; font-weight: 800; color: #f1f5f9; line-height: 1; margin-bottom: 4px; }
+.stat-lbl { font-size: 12px; color: #475569; }
+.fp-block {
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.fp-code  { display: block; font-size: 13px; font-family: monospace; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; word-break: break-all; }
+.fp-lbl   { font-size: 11px; color: #475569; }
+
+/* ── Filter bar ────────────────────────────────────────────── */
+.filter-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: #131929; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+}
+.filter-input {
+  flex: 1; background: none; border: none; outline: none;
+  color: #f1f5f9; font-size: 13px;
+}
+.filter-input::placeholder { color: #475569; }
+.filter-hint { font-size: 11px; color: #334155; font-family: monospace; }
+
+/* ── Join requests ─────────────────────────────────────────── */
+.jr-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.jr-icon  { font-size: 14px; }
+.jr-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
+.jr-count { font-size: 12px; font-weight: 700; color: #f59e0b; }
+.jr-hint  { font-size: 11px; color: #334155; margin-left: auto; }
+.jr-list  {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; overflow: hidden; margin-bottom: 16px;
+}
+.jr-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.jr-row:last-child { border-bottom: none; }
+.jr-av {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;
+}
+.jr-info { flex: 1; min-width: 0; }
+.jr-name { font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 2px; }
+.jr-id   { font-size: 11px; color: #475569; font-family: monospace; margin-bottom: 3px; }
+.jr-msg  { font-size: 11px; color: #64748b; font-style: italic; }
+.jr-time { font-size: 11px; color: #334155; white-space: nowrap; flex-shrink: 0; }
+.jr-acts { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-decline {
+  padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  color: #ef4444; background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25); cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-decline:hover { background: rgba(239,68,68,0.16); }
+.btn-approve {
+  padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  color: white; background: #10b981; border: none; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-approve:hover { opacity: 0.85; }
+
+/* ── Members table ─────────────────────────────────────────── */
+.members-wrap {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; overflow: hidden;
+}
+.members-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.mtable {}
+.mth {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 1.2fr 1fr 1fr;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.015);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.th {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+  color: #334155; text-transform: uppercase;
+}
+.mrow {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr 1.2fr 1fr 1fr;
+  padding: 12px 16px; align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.mrow:last-child { border-bottom: none; }
+.mc { display: flex; align-items: center; gap: 10px; }
+.mav {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;
+}
+.mav-name { font-size: 13px; font-weight: 600; color: #f1f5f9; }
+.mav-sub  { font-size: 11px; color: #475569; }
+.uc { font-size: 12px; font-family: monospace; color: #64748b; }
+.jc { font-size: 12px; color: #64748b; }
+.rc {}
+.gc {}
+.role-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700;
+  padding: 3px 9px; border-radius: 6px;
+}
+.role-owner  { color: #fbbf24; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); }
+.role-admin  { color: #a78bfa; background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25); }
+.role-member { color: #64748b; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+.btn-locked { font-size: 11px; color: #475569; display: flex; align-items: center; gap: 4px; }
+.btn-change {
+  font-size: 12px; padding: 4px 12px;
+  border-radius: 6px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1); color: #94a3b8;
+  cursor: pointer; transition: background 0.15s;
+}
+.btn-change:hover { background: rgba(255,255,255,0.08); }
+
+/* ── Tunnel panel ──────────────────────────────────────────── */
+.tunnel-panel {
+  padding: 0;
+  display: flex; flex-direction: column;
+  height: calc(100vh - 144px);
+}
+.tunnel-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: #0f1420; flex-shrink: 0;
+}
+.tunnel-hdr-l { display: flex; align-items: center; gap: 12px; }
+.tlock {
+  width: 44px; height: 44px; border-radius: 10px; font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
+  flex-shrink: 0;
+}
+.tchan-name {
+  font-size: 14px; font-weight: 700; color: #f1f5f9;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+}
+.enc-badge {
+  font-size: 10px; font-weight: 700; color: #10b981;
+  background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
+  padding: 2px 8px; border-radius: 4px;
+}
+.tfp { font-size: 11px; font-family: monospace; color: #475569; }
+.tunnel-hdr-r { display: flex; gap: 8px; align-items: center; }
+.btn-outline {
+  font-size: 12px; font-weight: 500; padding: 6px 14px;
+  border-radius: 7px; background: transparent;
+  border: 1px solid rgba(255,255,255,0.12); color: #94a3b8;
+  cursor: pointer; white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-outline:hover { border-color: rgba(255,255,255,0.25); color: #f1f5f9; }
+.pubkey-chip {
+  font-size: 11px; font-family: monospace; color: #64748b;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  padding: 4px 10px; border-radius: 5px;
+}
+.tunnel-sub-line {
+  padding: 8px 24px; font-size: 11px; color: #334155;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  text-align: right; flex-shrink: 0;
+}
+.ad-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 24px; font-size: 12px; color: #94a3b8;
+  background: rgba(245,158,11,0.06); border-bottom: 1px solid rgba(245,158,11,0.12);
+  flex-shrink: 0;
+}
+.ad-dot { color: #f59e0b; font-size: 10px; }
+.ad-cnt { margin-left: auto; font-size: 11px; color: #475569; }
+
+/* Messages area */
+.tunnel-msgs { flex: 1; overflow-y: auto; padding: 16px 24px; }
+.tmsg { display: flex; gap: 10px; margin-bottom: 16px; }
+.tmsg.mine { flex-direction: row-reverse; }
+.tmsg-av {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: white; margin-top: 2px;
+}
+.tmsg-body { max-width: 65%; min-width: 120px; }
+.tmsg-hdr  {
+  display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px;
+  font-size: 12px; color: #64748b;
+}
+.mine .tmsg-hdr { flex-direction: row-reverse; }
+.tmsg-name { font-weight: 600; color: #94a3b8; }
+.tmsg-time { font-size: 10px; color: #334155; }
+.tmsg-role { font-size: 10px; color: #475569; }
+.tbubble {
+  padding: 10px 14px; font-size: 13px; line-height: 1.5;
+  color: #e2e8f0; word-break: break-word;
+}
+.tbubble-other {
+  background: #1a2035; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px 14px 14px 14px;
+}
+.tbubble-mine {
+  background: #1e1b4b; border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 14px 4px 14px 14px;
+}
+.ci {
+  font-family: monospace; font-size: 11px;
+  background: rgba(255,255,255,0.08); padding: 1px 5px;
+  border-radius: 3px; color: #a5b4fc;
+}
+.tmsg-meta {
+  margin-top: 4px; font-size: 10px; font-family: monospace;
+  color: #334155; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.mine .tmsg-meta { justify-content: flex-end; }
+.meta-ttl { color: #475569; }
+
+/* Compose */
+.tunnel-compose {
+  display: flex; gap: 10px; padding: 14px 24px 20px;
+  border-top: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;
+}
+.t-input {
+  flex: 1; background: #131929; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 12px 16px; color: #f1f5f9; font-size: 13px;
+  outline: none; transition: border-color 0.15s; font-family: inherit;
+}
+.t-input:focus { border-color: rgba(99,102,241,0.4); }
+.t-input::placeholder { color: #334155; }
+.t-send-btn {
+  padding: 12px 22px; background: #4f46e5; border: none;
+  border-radius: 10px; color: white; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: opacity 0.15s;
+}
+.t-send-btn:hover { opacity: 0.85; }
+
+/* ── Activity log ──────────────────────────────────────────── */
+.act-log {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; overflow: hidden;
+}
+.alog-entry {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.alog-entry:last-child { border-bottom: none; }
+.alog-icon {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; background: rgba(255,255,255,0.04);
+}
+.alog-body { flex: 1; min-width: 0; }
+.alog-desc {
+  font-size: 13px; color: #cbd5e1; line-height: 1.45; margin-bottom: 3px;
+}
+.alog-meta { font-size: 10px; font-family: monospace; color: #334155; }
+.ah { color: #a5b4fc; }
+.ac { font-family: monospace; font-size: 11px; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; color: #94a3b8; }
+.arole { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
+.arole-member { color: #64748b; background: rgba(255,255,255,0.06); }
+.arole-admin  { color: #a78bfa; background: rgba(167,139,250,0.1); }
+
+/* ── Settings rows ─────────────────────────────────────────── */
+.srows {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; overflow: hidden;
+}
+.srow {
+  display: flex; align-items: center; gap: 24px;
+  padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.srow:last-child { border-bottom: none; }
+.srow-info { flex: 1; min-width: 0; }
+.srow-title { font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+.srow-desc  { font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 4px; }
+.srow-hint  { font-size: 11px; color: #10b981; }
+.srow-action { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.btn-export {
+  font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3);
+  color: #a5b4fc; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s;
+}
+.btn-export:hover { background: rgba(99,102,241,0.25); }
+.export-chip {
+  font-size: 11px; font-family: monospace; color: #64748b;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  padding: 4px 10px; border-radius: 5px;
+}
+.srow-select {
+  font-size: 12px; padding: 7px 12px; border-radius: 7px;
+  background: #0f1420; border: 1px solid rgba(255,255,255,0.1);
+  color: #f1f5f9; outline: none; cursor: pointer; font-family: inherit;
+}
+.danger-srow { border-top: 1px solid rgba(239,68,68,0.1); }
+.btn-delete {
+  font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 8px;
+  background: transparent; border: 1px solid rgba(239,68,68,0.4);
+  color: #ef4444; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s;
+}
+.btn-delete:hover { background: rgba(239,68,68,0.08); }
+
+/* ── Mobile ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .comm-two-col { grid-template-columns: 1fr; }
+  .comm-card-grid { grid-template-columns: 1fr; }
+  .comm-sidebar { position: static; }
+  .mth, .mrow { grid-template-columns: 1.5fr auto auto; }
+  .uc, .jc { display: none; }
+  .tunnel-panel { height: calc(100vh - 156px); }
+  .srow { flex-direction: column; align-items: flex-start; }
+}
+</style>
+
+<script>
+(function () {
+  /* ─── Constants ─────────────────────────────────────────── */
+  const COMM_KEY   = 'sw_communities';
+  const TIER_KEY   = 'sw_tier';
+  const USER_KEY   = 'sw_user_id';
+  const tKey = (id: string) => `sw_tunnel_${id}`;
+
+  /* ─── State ─────────────────────────────────────────────── */
+  let communityId = '';
+  let myUserId    = '';
+  let activeTab   = 'communities';
+
+  /* ─── Helpers ───────────────────────────────────────────── */
+  function qp(n: string) { return new URLSearchParams(window.location.search).get(n) || ''; }
+
+  function esc(s: string) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  function loadComms(): any[]  { try { return JSON.parse(localStorage.getItem(COMM_KEY)||'[]'); } catch { return []; } }
+  function saveComms(a: any[]) { localStorage.setItem(COMM_KEY, JSON.stringify(a)); }
+  function loadMsgs(id: string): any[]  { try { return JSON.parse(localStorage.getItem(tKey(id))||'[]'); } catch { return []; } }
+  function saveMsgs(id: string, m: any[]){ localStorage.setItem(tKey(id), JSON.stringify(m)); }
+
+  const AV_COLORS = ['#0891b2','#7c3aed','#2563eb','#16a34a','#b45309','#be185d','#0d9488','#9333ea','#dc2626','#0369a1'];
+  function avColor(s: string) {
+    const h = Array.from(s).reduce((a,c) => a + c.charCodeAt(0), 0);
+    return AV_COLORS[h % AV_COLORS.length];
+  }
+  function initials(name: string) {
+    return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
+  }
+  function relTime(ts: number) {
+    const d = (Date.now()-ts)/1000;
+    if (d<60) return 'just now';
+    if (d<3600) return `${Math.floor(d/60)}m ago`;
+    if (d<86400) return `${Math.floor(d/3600)}h ago`;
+    return `${Math.floor(d/86400)}d ago`;
+  }
+  function fmtDate(ts: number) {
+    return new Date(ts).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'2-digit'});
+  }
+  function ttlStr(ts: number, ms: number) {
+    const left = ts + ms - Date.now();
+    if (left<=0) return 'expired';
+    const h = Math.floor(left/3600000), m = Math.floor((left%3600000)/60000);
+    return `${h}h ${m}m left`;
+  }
+  function mkNonce() {
+    return Math.random().toString(16).slice(2,10)+'...';
+  }
+  function mkFP() {
+    const h = ()=>Math.floor(Math.random()*256).toString(16).padStart(2,'0');
+    return Array.from({length:6},h).join(':');
+  }
+  function addLog(c: any, action: string, detail: string) {
+    if (!c.activityLog) c.activityLog=[];
+    c.activityLog.unshift({
+      id:'evt_'+Math.random().toString(36).slice(2,6),
+      ts:Date.now(), action, userId:myUserId, detail
+    });
+    if (c.activityLog.length>500) c.activityLog.length=500;
+  }
+
+  /* ─── Seed demo data ────────────────────────────────────── */
+  function seed() {
+    if (loadComms().length>0) return;
+    const now = Date.now(), day = 86400000;
+    const comms: any[] = [
+      {
+        id:'COMM-1024', name:'Acme Prod Engineering',
+        description:'Production deployments, on-call rotation, AI security rules.',
+        type:'public', created:now-124*day, joined:true,
+        fingerprint:'a3:8f:c2:91:de:4b',
+        disappearingMessages:'24h',
+        members:[
+          {id:'USR-0001',name:'Zach Borrman', email:'ops@shadowwarden.ai',role:'owner', joined:now-124*day},
+          {id:'USR-0014',name:'Elena Wójcik', email:'elena.w@acme.com',  role:'admin', joined:now-93*day },
+          {id:'USR-0018',name:'Devon Rojas',  email:'devon.r@acme.com',  role:'admin', joined:now-75*day },
+          {id:'USR-0091',name:'Sora Itō',     email:'sora.i@acme.com',   role:'member',joined:now-30*day },
+          {id:'USR-0042',name:'Priya Mehta',  email:'priya.m@acme.com',  role:'member',joined:now-28*day },
+          {id:'USR-0055',name:'Kai Nakamura', email:'kai.n@acme.com',    role:'member',joined:now-20*day },
+        ],
+        join_requests:[
+          {userId:'USR-2391',name:'Maya Krishna', email:'maya.k@acme.com',  ts:now-2*3600000, message:'New on the platform team — need access to deployment rules'},
+          {userId:'USR-2482',name:'Jules Laurent',email:'jules.l@acme.com', ts:now-5*3600000, message:'Joining red-team rotation next sprint'},
+          {userId:'USR-2418',name:'Rao Tanaka',   email:'rao.t@acme.com',   ts:now-26*3600000,message:'Auditor — read-only is fine'},
+        ],
+        activityLog:[
+          {id:'evt_a91f',ts:now-1.5*3600000,action:'member_joined',   userId:'USR-0001',detail:'Sora Itō (USR-0091) joined the community · request approved by Zach Borrman (Owner)'},
+          {id:'evt_a91e',ts:now-3*3600000,  action:'role_changed',    userId:'USR-0001',detail:'Role change · Devon Rojas (USR-0018) promoted from MEMBER → ADMIN by Owner'},
+          {id:'evt_a91d',ts:now-6*3600000,  action:'gdpr_export',     userId:'USR-0001',detail:'GDPR export · Zach Borrman downloaded community-COMM-1024-export.json (4.2 MB)'},
+          {id:'evt_a91c',ts:now-15*3600000, action:'key_exported',    userId:'USR-0014',detail:'Public key exported · Elena Wójcik downloaded public-USR-0014.asc (4 KB · ASCII-armored)'},
+          {id:'evt_a91b',ts:now-22*3600000, action:'setting_changed', userId:'USR-0001',detail:'Disappearing messages window changed · off → 24h by Owner — 12 messages older than 24h purged from feed'},
+          {id:'evt_a91a',ts:now-28*3600000, action:'join_requested',  userId:'USR-2391',detail:'Join request · Maya Krishna (USR-2391) requested access — pending review'},
+          {id:'evt_a919',ts:now-50*3600000, action:'member_removed',  userId:'USR-0014',detail:'Member removed · Anonymized (USR-0044) by Elena Wójcik (Admin) — reason: "left the org"'},
+        ]
+      },
+      {
+        id:'COMM-1031',name:'Acme Security Council',
+        description:'Incident triage and red-team review. Invite-only.',
+        type:'private', created:now-90*day, joined:false, pending:true,
+        fingerprint:'b7:2e:a1:45:cd:ff',
+        members:[
+          {id:'USR-0014',name:'Elena Wójcik',role:'owner',email:'elena.w@acme.com',joined:now-90*day},
+          {id:'USR-0018',name:'Devon Rojas', role:'admin',email:'devon.r@acme.com',joined:now-85*day},
+          {id:'USR-1001',name:'Aria Patel',  role:'member',email:'aria.p@acme.com',joined:now-60*day},
+          {id:'USR-1002',name:'Sam Okafor',  role:'member',email:'sam.o@acme.com', joined:now-45*day},
+          {id:'USR-1003',name:'Ryu Sato',    role:'member',email:'ryu.s@acme.com', joined:now-30*day},
+          {id:'USR-1004',name:'Laila Nasser',role:'member',email:'laila.n@acme.com',joined:now-15*day},
+        ],
+        join_requests:[], activityLog:[]
+      },
+      {
+        id:'COMM-1108',name:'Acme Customer Success',
+        description:'Customer-facing AI prompt patterns and approved templates.',
+        type:'public', created:now-60*day, joined:false,
+        fingerprint:'c4:9f:12:88:ab:dc',
+        members: Array.from({length:28},(_,i)=>({id:`USR-${(2000+i).toString().padStart(4,'0')}`,name:`Member ${i+1}`,email:`m${i+1}@acme.com`,role:i===0?'owner':'member',joined:now-(60-i)*day})),
+        join_requests:[], activityLog:[]
+      },
+      {
+        id:'COMM-1156',name:'Acme Research Lab',
+        description:'Open-research: novel jailbreak attempts and rule contributions.',
+        type:'public', created:now-45*day, joined:false,
+        fingerprint:'d2:1e:77:3a:bc:94',
+        members: Array.from({length:47},(_,i)=>({id:`USR-${(3000+i).toString().padStart(4,'0')}`,name:`Researcher ${i+1}`,email:`r${i+1}@lab.acme.com`,role:i===0?'owner':'member',joined:now-(45-i)*day})),
+        join_requests:[], activityLog:[]
+      },
+    ];
+    saveComms(comms);
+
+    // Seed tunnel messages for COMM-1024
+    const msgs = [
+      {id:'msg001',sender:'USR-0014',senderName:'Elena Wójcik',ts:now-4.9*3600000,text:'Pushed the new `OBFUSCATION_DECODE` rule to staging. Catches 87% of base64-wrapped jailbreaks in the eval set.',nonce:'f3a91c'},
+      {id:'msg002',sender:'USR-0018',senderName:'Devon Rojas', ts:now-3*3600000,  text:'Nice. p99 latency budget still `< 25ms`? Want to make sure we don\'t regress on the streaming endpoint.',nonce:'b81cf4'},
+      {id:'msg003',sender:'USR-0001',senderName:'Zach Borrman',ts:now-30*60000,   text:'Confirmed — 22ms p99 on staging. Approving promotion to prod after 24h soak. Activity log entry on the way.',nonce:'de2701'},
+    ];
+    saveMsgs('COMM-1024', msgs);
+    if (!localStorage.getItem(USER_KEY)) localStorage.setItem(USER_KEY,'USR-0001');
+  }
+
+  /* ─── Tab switching ─────────────────────────────────────── */
+  function switchTab(tab: string) {
+    activeTab = tab;
+    document.querySelectorAll<HTMLElement>('.comm-tab').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
+    document.querySelectorAll<HTMLElement>('.comm-panel').forEach(p => p.classList.toggle('hidden', p.id!==`panel-${tab}`));
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    history.replaceState({}, '', url.toString());
+    switch(tab) {
+      case 'communities': renderComms(); break;
+      case 'members':     renderMembers(); break;
+      case 'tunnel':      renderTunnel(); break;
+      case 'activity':    renderActivity(); break;
+      case 'settings':    renderSettings(); break;
+    }
+  }
+
+  /* ─── COMMUNITIES panel ─────────────────────────────────── */
+  function renderComms() {
+    const comms = loadComms();
+    const q = ((document.getElementById('comm-search') as HTMLInputElement)?.value||'').toLowerCase().trim();
+    const filtered = q ? comms.filter((c:any)=>c.name.toLowerCase().includes(q)||c.id.toLowerCase().includes(q)) : comms;
+
+    const hdr = document.getElementById('results-hdr');
+    if (hdr) {
+      hdr.innerHTML = q
+        ? `<span><strong style="color:#f1f5f9">${filtered.length} result${filtered.length!==1?'s':''}</strong> · matching "${esc(q)}"</span><span>${comms.length} communities total</span>`
+        : `<span><strong style="color:#f1f5f9">${comms.length} communit${comms.length!==1?'ies':'y'}</strong></span>`;
     }
 
-    render();
+    const grid = document.getElementById('comm-card-grid');
+    if (!grid) return;
+    if (filtered.length===0) {
+      grid.innerHTML = `<p style="color:#475569;font-size:13px;grid-column:1/-1;padding:20px 0">No communities match your search.</p>`;
+      return;
+    }
 
-    // Copy community code
-    document.getElementById('copy-code-btn')?.addEventListener('click', () => {
-      const id = new URLSearchParams(window.location.search).get('id') || '';
-      navigator.clipboard.writeText(id).then(() => {
-        const btn = document.getElementById('copy-code-btn') as HTMLButtonElement;
-        if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => { btn.textContent = 'Copy Code'; }, 1800); }
+    grid.innerHTML = filtered.map((c: any) => {
+      const abbr = c.name.split(' ').slice(0,2).map((w:string)=>w[0]).join('').toUpperCase();
+      const mc   = (c.members||[]).length;
+      const msgs = loadMsgs(c.id).length;
+      const act  = c.joined ? `<span class="badge-joined">✓ Joined</span>`
+                 : c.pending ? `<span class="badge-pending">Pending</span>`
+                 : `<button class="btn-join" data-join="${esc(c.id)}">Join</button>`;
+      return `
+        <div class="comm-card" data-cid="${esc(c.id)}">
+          <div class="card-top">
+            <div class="card-av" style="background:${avColor(c.id)}">${abbr}</div>
+            <div class="card-meta">
+              <div class="card-name">${esc(c.name)}</div>
+              <div class="card-id">${esc(c.id)} · ${c.type||'public'}</div>
+            </div>
+            <div class="card-act">${act}</div>
+          </div>
+          <div class="card-desc">${esc(c.description||'')}</div>
+          <div class="card-stats">
+            <span>👥 ${mc}</span>
+            <span>💬 ${msgs}</span>
+            <span class="e2ee-chip">E2EE</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Click card → go to members of that community
+    grid.querySelectorAll<HTMLElement>('.comm-card').forEach(card => {
+      card.addEventListener('click', e => {
+        if ((e.target as HTMLElement).classList.contains('btn-join')) return;
+        communityId = card.dataset.cid||'';
+        updateBreadcrumb(); updateBadges();
+        switchTab('members');
       });
     });
 
-    // Populate share code text
-    const shareCodeEl = document.getElementById('share-code-text');
-    if (shareCodeEl) {
-      const id = new URLSearchParams(window.location.search).get('id') || '';
-      if (id) shareCodeEl.textContent = id;
+    // Join button
+    grid.querySelectorAll<HTMLElement>('.btn-join').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const cid = btn.dataset.join||'';
+        const cs = loadComms();
+        const comm = cs.find((x:any)=>x.id===cid);
+        if (!comm) return;
+        if (!comm.join_requests) comm.join_requests=[];
+        if (!comm.join_requests.find((r:any)=>r.userId===myUserId)) {
+          comm.join_requests.push({userId:myUserId,name:'You',email:'',ts:Date.now(),message:'Requesting to join.'});
+          addLog(comm,'join_requested','Join request submitted');
+          comm.pending=true;
+          saveComms(cs);
+          renderComms();
+        }
+      });
+    });
+
+    // Sidebar stats
+    const joined  = comms.filter((c:any)=>c.joined).length;
+    const pending = comms.filter((c:any)=>c.pending&&!c.joined).length;
+    const allMsgs = comms.reduce((s:number,c:any)=>s+loadMsgs(c.id).length,0);
+    el('stat-joined','innerHTML',`<span class="stat-n">${joined}</span><span class="stat-lbl">Communities joined</span>`);
+    el('stat-pending','innerHTML',`<span class="stat-n">${pending}</span><span class="stat-lbl">Pending requests</span>`);
+    el('stat-msgs','innerHTML',`<span class="stat-n">${allMsgs}</span><span class="stat-lbl">Messages this week</span>`);
+
+    const activeCom = comms.find((c:any)=>c.id===communityId);
+    set('my-fp', activeCom?.fingerprint || mkFP());
+  }
+
+  /* ─── MEMBERS panel ─────────────────────────────────────── */
+  function renderMembers() {
+    const comms = loadComms();
+    const c = comms.find((x:any)=>x.id===communityId);
+    if (!c) {
+      el('mtbody','innerHTML','<div style="padding:32px;text-align:center;color:#475569;font-size:13px">No community selected. Click a community card first.</div>');
+      return;
     }
-  </script>
-</BaseLayout>
+
+    set('members-path',`/COMMUNITY/MEMBERS?ID=${communityId}`);
+    const members: any[] = c.members||[];
+    const myMem   = members.find((m:any)=>m.id===myUserId);
+    const myRole  = myMem?.role||'none';
+    const canMgr  = myRole==='owner'||myRole==='admin';
+    const filter  = ((document.getElementById('member-filter') as HTMLInputElement)?.value||'').toLowerCase();
+
+    // Tab badge
+    set('tab-members-count', String(members.length));
+
+    // Join requests
+    const reqs: any[] = c.join_requests||[];
+    const jrSec = document.getElementById('join-req-section');
+    const jrList= document.getElementById('jr-list');
+    if (jrSec && canMgr && reqs.length>0) {
+      jrSec.style.display='block';
+      set('jr-count',`${reqs.length} pending`);
+      if (jrList) {
+        jrList.innerHTML = reqs.map((r:any,i:number)=>`
+          <div class="jr-row">
+            <div class="jr-av" style="background:${avColor(r.userId)}">${initials(r.name||r.userId)}</div>
+            <div class="jr-info">
+              <div class="jr-name">${esc(r.name||r.userId)}</div>
+              <div class="jr-id">${esc(r.userId)} · ${esc(r.email||'')}</div>
+              <div class="jr-msg">"${esc(r.message||'')}"</div>
+            </div>
+            <span class="jr-time">${relTime(r.ts)}</span>
+            <div class="jr-acts">
+              <button class="btn-decline" data-i="${i}" data-act="decline">Decline</button>
+              <button class="btn-approve" data-i="${i}" data-act="approve">Approve</button>
+            </div>
+          </div>`).join('');
+
+        jrList.querySelectorAll<HTMLElement>('[data-act]').forEach(btn=>{
+          btn.addEventListener('click',()=>{
+            const i=parseInt(btn.dataset.i||'0');
+            const act=btn.dataset.act;
+            const cs=loadComms(); const comm=cs.find((x:any)=>x.id===communityId);
+            if(!comm) return;
+            const reqs2=comm.join_requests||[];
+            const req=reqs2[i]; if(!req) return;
+            if(act==='approve'){
+              if(!comm.members.find((m:any)=>m.id===req.userId))
+                comm.members.push({id:req.userId,name:req.name||req.userId,email:req.email||'',role:'member',joined:Date.now()});
+              addLog(comm,'member_joined',`${req.name||req.userId} (${req.userId}) joined the community · request approved by ${myMem?.name||myUserId} (Owner)`);
+            } else {
+              addLog(comm,'join_declined',`Declined join request from ${req.userId}`);
+            }
+            comm.join_requests=reqs2.filter((_:any,j:number)=>j!==i);
+            saveComms(cs); renderMembers();
+          });
+        });
+      }
+    } else if (jrSec) { jrSec.style.display='none'; }
+
+    // Member count
+    set('mem-count-lbl',`${members.length} members`);
+    set('sync-time','just now');
+
+    // Member rows
+    const filtered = filter
+      ? members.filter((m:any)=>m.id.toLowerCase().includes(filter)||(m.name||'').toLowerCase().includes(filter)||m.role.includes(filter))
+      : members;
+
+    const tbody=document.getElementById('mtbody');
+    if (!tbody) return;
+
+    tbody.innerHTML=filtered.map((m:any)=>{
+      const isMe   = m.id===myUserId;
+      const isOwner= m.role==='owner';
+      const color  = avColor(m.id);
+      const ini    = initials(m.name||m.id);
+      const jd     = fmtDate(m.joined||Date.now());
+      const rbadge = isOwner
+        ? `<span class="role-badge role-owner">⭐ OWNER</span>`
+        : m.role==='admin'
+        ? `<span class="role-badge role-admin">⬡ ADMIN</span>`
+        : `<span class="role-badge role-member">▲ MEMBER</span>`;
+      const manage = isOwner
+        ? `<span class="btn-locked">🔒 locked</span>`
+        : canMgr&&!isMe
+        ? `<button class="btn-change" data-mid="${esc(m.id)}" data-cur="${esc(m.role)}">Change ↓</button>`
+        : '';
+      return `
+        <div class="mrow">
+          <div class="mc">
+            <div class="mav" style="background:${color}">${ini}</div>
+            <div>
+              <div class="mav-name">${esc(m.name||m.id)}${isMe?` <span style="font-size:10px;color:#475569">you</span>`:''}</div>
+              <div class="mav-sub">${esc(isMe?'ops@shadowwarden.ai':m.email||m.id)}</div>
+            </div>
+          </div>
+          <div class="uc">${esc(m.id)}</div>
+          <div class="jc">${jd}</div>
+          <div class="rc">${rbadge}</div>
+          <div class="gc">${manage}</div>
+        </div>`;
+    }).join('');
+
+    tbody.querySelectorAll<HTMLElement>('.btn-change').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const mid=btn.dataset.mid; const cur=btn.dataset.cur;
+        const next=cur==='admin'?'member':'admin';
+        const cs=loadComms(); const comm=cs.find((x:any)=>x.id===communityId);
+        if(!comm) return;
+        const target=comm.members.find((m:any)=>m.id===mid);
+        if(target&&target.role!=='owner'){
+          addLog(comm,'role_changed',`Role change · ${target.name||mid} (${mid}) promoted from ${cur!.toUpperCase()} → ${next.toUpperCase()} by Owner`);
+          target.role=next; saveComms(cs); renderMembers();
+        }
+      });
+    });
+  }
+
+  /* ─── TUNNEL panel ──────────────────────────────────────── */
+  function renderTunnel() {
+    const comms = loadComms();
+    const c = comms.find((x:any)=>x.id===communityId);
+    if (!c) return;
+
+    set('tchan-comm', c.name||communityId);
+    const fp=c.fingerprint||mkFP();
+    set('tfp',`FP ${fp}:7c:2e:09:11:fd:33:48:5a:8e:c0 · verified`);
+    set('pubkey-chip',`public-${myUserId}.asc`);
+
+    const windowMap: Record<string,number> = {'1h':3600000,'6h':21600000,'24h':86400000,'7d':604800000,'30d':2592000000};
+    const disappear=c.disappearingMessages||'off';
+    const windowMs=windowMap[disappear]||0;
+
+    let msgs=loadMsgs(communityId);
+    const adBar=document.getElementById('ad-bar');
+    if (windowMs>0&&adBar) {
+      adBar.classList.remove('hidden');
+      const cutoff=Date.now()-windowMs;
+      const hidden=msgs.filter((m:any)=>m.ts<cutoff).length;
+      msgs=msgs.filter((m:any)=>m.ts>=cutoff);
+      set('ad-cnt',`${hidden} hidden · ${msgs.length} visible`);
+    } else { adBar?.classList.add('hidden'); }
+
+    const msgsEl=document.getElementById('tunnel-msgs');
+    if (!msgsEl) return;
+
+    const members:any[]=c.members||[];
+    const myMem=members.find((m:any)=>m.id===myUserId);
+
+    if (msgs.length===0) {
+      msgsEl.innerHTML=`<div style="text-align:center;padding:60px 20px">
+        <div style="font-size:48px;margin-bottom:12px">🔒</div>
+        <div style="color:#475569;font-size:14px">No messages yet</div>
+        <div style="color:#334155;font-size:12px;margin-top:6px">End-to-end encrypted · AES-256-GCM · keys never leave this browser</div>
+      </div>`;
+    } else {
+      msgsEl.innerHTML=msgs.map((m:any)=>{
+        const isMe=m.sender===myUserId;
+        const senderMem=members.find((mb:any)=>mb.id===m.sender);
+        const senderName=m.senderName||senderMem?.name||m.sender;
+        const color=avColor(m.sender);
+        const ini=initials(senderName);
+        const timeStr=new Date(m.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        const role=isMe?myMem?.role:senderMem?.role||'';
+        const roleLabel=role==='owner'?'(Owner)':role==='admin'?'(Admin)':'';
+        const ttl=windowMs?ttlStr(m.ts,windowMs):'';
+        const nonce=m.nonce||mkNonce();
+
+        // Inline code/highlight
+        const proc=(txt:string)=>esc(txt)
+          .replace(/`([^`]+)`/g,(_:string,g:string)=>`<span class="ci">${g}</span>`)
+          .replace(/&lt;([^&]+)&gt;/g,(_:string,g:string)=>`<span style="color:#f87171">&lt;${g}&gt;</span>`);
+
+        if (isMe) return `
+          <div class="tmsg mine">
+            <div class="tmsg-av" style="background:${color}">${ini}</div>
+            <div class="tmsg-body">
+              <div class="tmsg-hdr">
+                <span class="tmsg-time">${timeStr} · ${relTime(m.ts)}</span>
+                <span class="tmsg-name">You</span>
+                ${roleLabel?`<span class="tmsg-role">${roleLabel}</span>`:''}
+              </div>
+              <div class="tbubble tbubble-mine">${proc(m.text)}</div>
+              <div class="tmsg-meta">🔒 AES-256-GCM · nonce ${nonce}${ttl?` · <span class="meta-ttl">⏱ ${ttl}</span>`:''}</div>
+            </div>
+          </div>`;
+        return `
+          <div class="tmsg">
+            <div class="tmsg-av" style="background:${color}">${ini}</div>
+            <div class="tmsg-body">
+              <div class="tmsg-hdr">
+                <span class="tmsg-name">${esc(senderName)}</span>
+                ${roleLabel?`<span class="tmsg-role">${roleLabel}</span>`:''}
+                <span class="tmsg-time">${timeStr} · ${relTime(m.ts)}</span>
+              </div>
+              <div class="tbubble tbubble-other">${proc(m.text)}</div>
+              <div class="tmsg-meta">🔒 AES-256-GCM · 256-bit · nonce ${nonce}${ttl?` · <span class="meta-ttl">⏱ ${ttl}</span>`:''}</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+    msgsEl.scrollTop=msgsEl.scrollHeight;
+
+    // Compose (re-bind each render)
+    const input=document.getElementById('tunnel-input') as HTMLInputElement;
+    const sendBtn=document.getElementById('tunnel-send');
+    const doSend=()=>{
+      const txt=(input?.value||'').trim();
+      if (!txt) return;
+      const all=loadMsgs(communityId);
+      all.push({id:'msg'+Date.now(),sender:myUserId,senderName:myMem?.name||'You',text:txt,ts:Date.now(),nonce:mkNonce()});
+      saveMsgs(communityId,all);
+      if (input) input.value='';
+      renderTunnel();
+    };
+    sendBtn?.replaceWith(sendBtn.cloneNode(true)); // remove old listeners
+    document.getElementById('tunnel-send')?.addEventListener('click',doSend);
+    input?.addEventListener('keydown',(e:KeyboardEvent)=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend();} });
+
+    // Export public key
+    document.getElementById('export-pubkey-btn')?.addEventListener('click',()=>{
+      const content=`-----BEGIN SHADOW WARDEN PUBLIC KEY-----\nCommunity: ${communityId}\nAlgorithm: AES-256-GCM / Ed25519\nFingerprint: ${fp}\n\nSW-PUB-${fp}:7c:2e:09:11:fd:33:48:5a:8e:c0\n-----END SHADOW WARDEN PUBLIC KEY-----`;
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([content],{type:'text/plain'}));
+      a.download=`public-${myUserId}.asc`; a.click(); URL.revokeObjectURL(a.href);
+    });
+  }
+
+  /* ─── ACTIVITY panel ────────────────────────────────────── */
+  function renderActivity() {
+    const comms=loadComms();
+    const c=comms.find((x:any)=>x.id===communityId);
+    if (!c) return;
+
+    const log:any[]=c.activityLog||[];
+    set('activity-path',`/COMMUNITY/ACTIVITY?ID=${communityId}`);
+    set('act-event-cnt',String(log.length));
+    set('tab-activity-count',String(log.length));
+
+    const ICONS:Record<string,string>={member_joined:'👤',role_changed:'↕',gdpr_export:'↓',key_exported:'🔑',setting_changed:'⚙',join_requested:'📨',member_removed:'✕',messages_cleared:'🗑',join_declined:'✕',community_merged:'🔗',key_rotated:'🔑'};
+    const logEl=document.getElementById('act-log');
+    if (!logEl) return;
+    if (log.length===0){
+      logEl.innerHTML=`<div style="padding:40px;text-align:center;color:#475569;font-size:13px">No activity yet.</div>`;
+      return;
+    }
+    logEl.innerHTML=log.map((e:any)=>{
+      const icon=ICONS[e.action]||'●';
+      const d=new Date(e.ts);
+      const ts=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')} · ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}:${String(d.getUTCSeconds()).padStart(2,'0')} UTC · ${e.id||'—'}`;
+      const desc=esc(e.detail||e.action)
+        .replace(/USR-\d+/g,m=>`<span class="ah">${m}</span>`)
+        .replace(/COMM-\d+/g,m=>`<span class="ah">${m}</span>`)
+        .replace(/\bMEMBER\b/g,'<span class="arole arole-member">MEMBER</span>')
+        .replace(/\bADMIN\b/g,'<span class="arole arole-admin">ADMIN</span>')
+        .replace(/→/g,'<span style="color:#94a3b8">→</span>')
+        .replace(/(community-[^\s]+\.json)/g,'<span class="ac">$1</span>')
+        .replace(/(public-USR-[^\s]+\.asc)/g,'<span class="ac">$1</span>');
+      return `<div class="alog-entry"><div class="alog-icon">${icon}</div><div class="alog-body"><div class="alog-desc">${desc}</div><div class="alog-meta">${ts}</div></div></div>`;
+    }).join('');
+  }
+
+  /* ─── SETTINGS panel ────────────────────────────────────── */
+  function renderSettings() {
+    const comms=loadComms();
+    const c=comms.find((x:any)=>x.id===communityId);
+    if (!c) return;
+    set('settings-path',`/COMMUNITY/SETTINGS?ID=${communityId}`);
+    set('export-chip',`community-${communityId}-export.json`);
+    const dis=c.disappearingMessages||'off';
+    set('disappear-curr',dis);
+    const selEl=document.getElementById('disappear-sel') as HTMLSelectElement;
+    if (selEl) selEl.value=dis;
+    set('curr-fp',c.fingerprint||'—');
+    set('fp-created','Jan 04');
+    set('fp-age',`${Math.floor((Date.now()-(c.created||Date.now()))/86400000)} days old`);
+  }
+
+  /* ─── Settings event binding (once) ────────────────────── */
+  function bindSettings() {
+    document.getElementById('disappear-sel')?.addEventListener('change',()=>{
+      const val=(document.getElementById('disappear-sel') as HTMLSelectElement).value;
+      const cs=loadComms(); const comm=cs.find((x:any)=>x.id===communityId);
+      if(!comm) return;
+      const old=comm.disappearingMessages||'off';
+      comm.disappearingMessages=val;
+      addLog(comm,'setting_changed',`Disappearing messages window changed · ${old} → ${val} by Owner — ${val!=='off'?'messages older than '+val+' purged from feed':'auto-delete disabled'}`);
+      saveComms(cs); renderSettings();
+    });
+
+    document.getElementById('gdpr-export-btn')?.addEventListener('click',()=>{
+      const cs=loadComms(); const comm=cs.find((x:any)=>x.id===communityId);
+      if(!comm) return;
+      const data={exported_at:new Date().toISOString(),community_id:communityId,community_name:comm.name,members:(comm.members||[]).map((m:any)=>({id:m.id,role:m.role,joined:m.joined})),message_count:loadMsgs(communityId).length,audit_log:comm.activityLog||[],gdpr_note:'Message bodies are never exported — metadata only. GDPR Article 20.'};
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+      a.download=`community-${communityId}-export.json`; a.click(); URL.revokeObjectURL(a.href);
+      addLog(comm,'gdpr_export',`GDPR export · ${comm.members?.find((m:any)=>m.id===myUserId)?.name||myUserId} downloaded community-${communityId}-export.json`);
+      saveComms(cs);
+    });
+
+    document.getElementById('rotate-key-btn')?.addEventListener('click',()=>{
+      if(!confirm('Generate a new keypair? All members will need to re-verify the new fingerprint.')) return;
+      const cs=loadComms(); const comm=cs.find((x:any)=>x.id===communityId);
+      if(!comm) return;
+      comm.fingerprint=mkFP();
+      addLog(comm,'key_rotated',`Public key rotated · new FP: ${comm.fingerprint}`);
+      saveComms(cs); renderSettings();
+    });
+
+    document.getElementById('delete-comm-btn')?.addEventListener('click',()=>{
+      const comm=loadComms().find((x:any)=>x.id===communityId);
+      if(!confirm(`Delete "${comm?.name}"? This cannot be undone.`)) return;
+      saveComms(loadComms().filter((x:any)=>x.id!==communityId));
+      localStorage.removeItem(tKey(communityId));
+      window.location.href='/community';
+    });
+  }
+
+  /* ─── Breadcrumb + badge helpers ────────────────────────── */
+  function updateBreadcrumb() {
+    const c=loadComms().find((x:any)=>x.id===communityId);
+    set('bc-name',c?c.name.toLowerCase().replace(/\s+/g,'-'):communityId||'—');
+    if (c) document.title=`${c.name} — Shadow Warden AI`;
+  }
+  function updateBadges() {
+    const c=loadComms().find((x:any)=>x.id===communityId);
+    if(!c) return;
+    set('tab-members-count',String((c.members||[]).length));
+    set('tab-activity-count',String((c.activityLog||[]).length));
+  }
+
+  /* ─── Tiny DOM helpers ──────────────────────────────────── */
+  function set(id: string, val: string) { const e=document.getElementById(id); if(e) e.textContent=val; }
+  function el(id: string, prop: string, val: string) { const e=document.getElementById(id) as any; if(e) e[prop]=val; }
+
+  /* ─── Init ──────────────────────────────────────────────── */
+  function init() {
+    seed();
+    communityId = qp('id') || 'COMM-1024';
+    myUserId    = localStorage.getItem(USER_KEY) || 'USR-0001';
+    activeTab   = qp('tab') || 'communities';
+
+    updateBreadcrumb();
+    updateBadges();
+
+    // User chip initials
+    const comms=loadComms();
+    const me=comms.find((c:any)=>c.id===communityId)?.members?.find((m:any)=>m.id===myUserId);
+    if (me?.name) set('user-chip',initials(me.name));
+
+    // Tab clicks
+    document.querySelectorAll<HTMLElement>('.comm-tab').forEach(btn=>{
+      btn.addEventListener('click',()=>switchTab(btn.dataset.tab||'communities'));
+    });
+
+    // Live search
+    document.getElementById('comm-search')?.addEventListener('input',renderComms);
+    document.getElementById('member-filter')?.addEventListener('input',renderMembers);
+
+    // Settings events bound once
+    bindSettings();
+
+    // Activate initial tab
+    switchTab(activeTab);
+  }
+
+  init();
+})();
+</script>
