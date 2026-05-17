@@ -2,6 +2,9 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import LemonSqueezyCheckout from '../components/LemonSqueezyCheckout.astro';
 import { VARIANT_IDS, BILLING_PORTAL, checkoutUrl } from '../config/lemonsqueezy';
+import roadmapData from '../data/roadmap.json';
+
+const bl19 = roadmapData.find((r: any) => r.id === 'BL-19')!;
 
 const tiers = [
   {
@@ -269,6 +272,90 @@ const addons = [
       </div>
     </section>
 
+    <!-- Overage Billing — BL-19 -->
+    <section class="pb-20 border-t" style="border-color:rgba(255,255,255,0.06)">
+      <div class="mx-auto max-w-4xl px-4 pt-16">
+        <div class="rounded-2xl overflow-hidden" style="border:1px solid rgba(249,115,22,0.25);background:rgba(249,115,22,0.03)">
+
+          <!-- Header row -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 pt-6 pb-5"
+               style="border-bottom:1px solid rgba(249,115,22,0.12)">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[16px]"
+                   style="background:rgba(249,115,22,0.12)">⚡</div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-[15px] font-semibold" style="color:#f1f5f9">Overage Billing</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                        style="color:#f59e0b;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25)">
+                    📋 Planned
+                  </span>
+                  <span class="text-[10px] font-mono" style="color:#475569">{bl19.id}</span>
+                </div>
+                <p class="text-[12px] mt-0.5" style="color:#64748b">{bl19.tier} · Billing &amp; Monetization</p>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <div class="text-[26px] font-black" style="color:#f97316">$0.05</div>
+              <div class="text-[11px]" style="color:#64748b">per 1k requests over limit</div>
+            </div>
+          </div>
+
+          <!-- Body -->
+          <div class="px-6 py-5 grid sm:grid-cols-2 gap-6">
+            <!-- Description from roadmap -->
+            <div>
+              <p class="text-[13px] leading-relaxed mb-4" style="color:#94a3b8">
+                {bl19.description}
+              </p>
+              <a href="mailto:sales@shadow-warden-ai.com?subject=BL-19%20Overage%20Billing%20Availability"
+                 class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold transition-all"
+                 style="color:#f97316;border:1px solid rgba(249,115,22,0.3);background:rgba(249,115,22,0.06)"
+                 onmouseover="this.style.background='rgba(249,115,22,0.12)'"
+                 onmouseout="this.style.background='rgba(249,115,22,0.06)'">
+                Get notified when available →
+              </a>
+            </div>
+
+            <!-- How it works -->
+            <div class="space-y-3">
+              {[
+                { icon: '📊', label: 'Track usage', text: 'Real-time request counter in the SOC Dashboard. Visual bar shows % of monthly limit consumed.' },
+                { icon: '⚡', label: 'No interruption', text: 'Requests above the limit are never blocked — service continues unthrottled.' },
+                { icon: '💳', label: 'Auto-charge', text: 'Overage is calculated at period end and charged automatically via Lemon Squeezy. Detailed line-item invoice.' },
+                { icon: '🔔', label: 'Threshold alerts', text: 'SOVA sends a Slack alert at 80% and 100% of monthly limit so you\'re never surprised.' },
+              ].map(row => (
+                <div class="flex items-start gap-2.5">
+                  <span class="text-[15px] flex-shrink-0 mt-0.5">{row.icon}</span>
+                  <div>
+                    <div class="text-[12px] font-semibold" style="color:#f1f5f9">{row.label}</div>
+                    <div class="text-[11px] leading-relaxed" style="color:#64748b">{row.text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <!-- Footer: example calc -->
+          <div class="px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-1"
+               style="background:rgba(0,0,0,0.2);border-top:1px solid rgba(249,115,22,0.1)">
+            <span class="text-[11px]" style="color:#475569">Example:</span>
+            {[
+              { label: 'Pro limit', val: '50,000 req/mo' },
+              { label: 'Your usage', val: '62,000 req' },
+              { label: 'Overage', val: '12,000 req' },
+              { label: 'Overage charge', val: '$0.60', highlight: true },
+            ].map(col => (
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px]" style="color:#475569">{col.label}:</span>
+                <span class="text-[11px] font-semibold" style={col.highlight ? 'color:#f97316' : 'color:#94a3b8'}>{col.val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- FAQ strip -->
     <section class="pb-20 border-t" style="border-color:rgba(255,255,255,0.06)">
       <div class="mx-auto max-w-3xl px-4 pt-16">
@@ -280,6 +367,7 @@ const addons = [
             { q: 'What payment methods do you accept?', a: 'All major credit/debit cards, PayPal, and bank transfers for Enterprise. Processed securely by Lemon Squeezy.' },
             { q: 'Is my data safe during checkout?', a: 'All payments are handled by Lemon Squeezy (PCI-DSS Level 1). Shadow Warden AI never sees your card details.' },
             { q: 'Can I get a refund?', a: '30-day money-back guarantee on all plans. Contact support@shadow-warden-ai.com.' },
+            { q: 'What happens if I exceed my request limit?', a: 'On Pro and above, requests are never blocked when you exceed your monthly limit. Planned: automatic overage billing at $0.05 per 1k additional requests (BL-19, coming soon). You will receive a Slack alert from SOVA at 80% and 100% of your limit. Enterprise plans have unlimited requests with no overage.' },
           ].map(item => (
             <details class="group rounded-xl p-4 cursor-pointer" style="border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.02)">
               <summary class="flex items-center justify-between gap-4 text-[13px] font-medium list-none" style="color:#f1f5f9">
