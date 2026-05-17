@@ -1,9 +1,25 @@
 # Plan.md — Professional Site Build Roadmap
-# Shadow Warden AI · v4.11 · Cowork Build
+# Shadow Warden AI · v4.20 · Cowork Build
 
 > Phased delivery plan for the five-module professional site:
 > Business Community · Cyber Security · Documentation · Settings · Payments.
 > Each phase is independently deployable and builds on the previous.
+
+---
+
+## Status Summary — v4.20 (2026-05-17)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 0 — Foundation | ✅ Complete | Docker Compose, Caddy v2, CI pipeline, Astro base layout |
+| Phase 1 — Business Community | ✅ Complete | SEP/UECIID, peering, knock, data pods, STIX audit, PQC, reputation, Obsidian plugin v4.19, communities SPA, integrations (IN-01–05, IN-14–22) |
+| Phase 2 — Cyber Security Hub | ✅ Complete | 9-layer pipeline, agentic SOC (SOVA/MasterAgent/WardenHealer), shadow AI, XAI, cryptography (CR-01–05, CR-13–15), compliance (CP-01–05, CP-22–26), AI research |
+| Phase 3 — Documentation | ✅ Complete | `/docs` site, API reference, DPIA, SOC 2 evidence, SLA, security model, deployment guides |
+| Phase 4 — Settings | ✅ Complete | Secrets governance, sovereign routing, GDPR controls, multi-tenant auth, key rotation, 6-section SOC dashboard sidebar |
+| Phase 5 — Payments | ✅ Complete | 5-tier billing, 6 add-ons, power bundle, Lemon Squeezy webhooks, annual toggle, /pricing interactive page |
+| **Roadmap (planned)** | 📋 In roadmap | CR-13–15 (PQC/HSM/MASQUE), CP-22–26 (ISO/HIPAA/NIS2/compliance), IN-14–22 (VS Code/GitHub/Jira/Teams/Notion/STIX/OTel/MISP), FE-13–17, OB-26–28, IF-19–20 |
+
+---
 
 ---
 

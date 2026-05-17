@@ -205,4 +205,28 @@ These rules are non-negotiable and violation blocks merge.
 | IF-02 | **Max 100 MISP events per sync.** `MISP_MAX_EVENTS=100` cap prevents runaway corpus growth from a high-volume MISP instance. Increase only with explicit DPIA justification (`docs/dpia.md`). |
 | IF-03 | **MISP connector is opt-in.** `warden/integrations/misp.py` is never imported at startup. `ImportError` at `POST /agent/misp/sync` returns HTTP 503 cleanly. No `MISP_URL` set = silently disabled. |
 
-*Rull.md — Shadow Warden AI engineering standards v4.16 · 2026-05-07*
+---
+
+## §17. Integration Standards
+
+| # | Rule |
+|---|------|
+| IG-01 | **STIX/TAXII consumer is read-only.** `POST /integrations/taxii/sync` only reads from the remote TAXII server. No write-back or status-update calls allowed against external TAXII instances. |
+| IG-02 | **MISP ZMQ bridge fail-open.** Socket disconnections reset `RECONNECT_ATTEMPTS` counter and log a warning; they never raise into the request pipeline. |
+| IG-03 | **VS Code extension must not store note content.** Risk annotations are computed from the API response and rendered as VS Code diagnostics only. No caching of note content locally or in extension state. |
+| IG-04 | **GitHub Actions hook uses short-lived tokens.** `WARDEN_API_KEY` is passed via GitHub secrets; never inlined in workflow YAML or logged in step output. |
+| IG-05 | **Teams/Jira/Notion integrations: metadata only in tickets.** Auto-created Jira issues and Teams messages include risk level, verdict, and XAI causal chain — never raw prompt content or secret values. |
+| IG-06 | **OTel WardenSpanProcessor must be GDPR-safe.** Same attribute allowlist as §14/OB-01. `span.set_attribute("content", ...)` is explicitly prohibited. |
+
+---
+
+## §18. PQC and HSM Rules
+
+| # | Rule |
+|---|------|
+| PQ-01 | **ML-KEM-1024 is Enterprise-only.** `pqc_level5_enabled` gate (Enterprise tier) required before generating ML-KEM-1024 keypairs. ML-KEM-768 remains the default for `pqc_enabled` tenants. |
+| PQ-02 | **HSM PKCS#11 bridge is optional.** `warden/crypto/hsm.py` uses `pkcs11` library with `ImportError` fail-open. If liboqs or PKCS#11 is unavailable, fall back to in-memory key material. Log warning once at startup. |
+| PQ-03 | **TOFU → CA upgrade is non-destructive.** Existing TOFU-pinned tunnels remain ACTIVE during CA migration. `upgrade_to_ca_signed()` adds `ca_cert_fingerprint` without removing `tls_fingerprint`. Both validated until operator explicitly clears TOFU pin. |
+| PQ-04 | **HSM keys never exported.** PKCS#11 objects created with `CKA_EXTRACTABLE = False`. Shadow Warden never calls `C_WrapKey` or `C_GetAttributeValue` for private key material. |
+
+*Rull.md — Shadow Warden AI engineering standards v4.20 · 2026-05-17*

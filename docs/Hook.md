@@ -1,5 +1,5 @@
 # Hook.md — Pre-commit & Automation Hooks
-# Shadow Warden AI Professional Site · v4.11
+# Shadow Warden AI Professional Site · v4.20
 
 > This file documents every automated hook that runs before a commit,
 > before a push, and in CI. Hooks enforce `site-Rule.md` without manual review.
