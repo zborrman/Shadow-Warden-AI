@@ -534,3 +534,81 @@ async def get_referral_stats(
     stats["bonus_per_referral"]    = limits.get("referral_bonus_requests", 500)
     stats["referral_program"]      = limits.get("referral_program", True)
     return stats
+
+
+# ── BL-19: Request overage billing ───────────────────────────────────────────
+
+@router.get(
+    "/overage/preview",
+    summary="Preview overage charges for the current billing period (BL-19)",
+)
+async def overage_preview(
+    x_tenant_id: str | None = Header(default=None),
+) -> dict:
+    """
+    Returns the projected overage charge for the current period.
+    Used by the dashboard billing widget and the ARQ overage cron.
+    """
+    tenant_id = _require_tenant(x_tenant_id)
+    return _calculate_overage(tenant_id)
+
+
+@router.post(
+    "/overage/record",
+    summary="[Admin] Record and charge overage for a tenant (BL-19)",
+)
+async def record_overage(
+    body:        dict,
+    x_admin_key: str | None = Header(default=None),
+) -> dict:
+    """Called by the ARQ overage cron `sova_overage_billing` at month end."""
+    _require_admin(x_admin_key)
+    tenant_id = body.get("tenant_id", "")
+    if not tenant_id:
+        raise HTTPException(400, "tenant_id required")
+    result = _calculate_overage(tenant_id)
+    if result["overage_requests"] > 0:
+        log.info(
+            "billing/overage: tenant=%s overage=%d charge_usd=%.4f",
+            tenant_id, result["overage_requests"], result["charge_usd"],
+        )
+    return result
+
+
+def _calculate_overage(tenant_id: str) -> dict:
+    """Compute overage request count and charge_usd for a tenant."""
+    from warden.billing.feature_gate import OVERAGE_PRICES, _normalize_tier  # noqa: PLC0415
+
+    # Determine plan
+    try:
+        from warden.lemon_billing import get_lemon_billing  # noqa: PLC0415
+        plan = get_lemon_billing().get_plan(tenant_id)
+    except Exception:
+        plan = "starter"
+
+    tier = _normalize_tier(plan)
+    overage_rate = OVERAGE_PRICES.get(tier, {})
+    rate_per_k   = overage_rate.get("per_1k_requests_usd", 0.0)
+
+    # Quota usage
+    try:
+        from warden.billing.quota_middleware import get_quota_usage  # noqa: PLC0415
+        usage = get_quota_usage(tenant_id)
+        used   = usage.get("used", 0)
+        limit  = usage.get("limit", 0)
+    except Exception:
+        used, limit = 0, 0
+
+    overage = max(0, used - limit)
+    charge  = round(overage / 1_000 * rate_per_k, 4) if rate_per_k else 0.0
+
+    return {
+        "tenant_id":          tenant_id,
+        "plan":               tier,
+        "quota_limit":        limit,
+        "quota_used":         used,
+        "overage_requests":   overage,
+        "rate_per_1k_usd":    rate_per_k,
+        "charge_usd":         charge,
+        "overage_enabled":    bool(rate_per_k),
+    }

@@ -1,0 +1,85 @@
+name: Shadow Warden AI Scan
+
+on:
+  pull_request:
+    branches: ["main", "develop"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      content:
+        description: "Text to scan (optional — scans PR diff if omitted)"
+        required: false
+
+jobs:
+  warden-scan:
+    name: Warden Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install scanner
+        run: pip install httpx
+
+      - name: Run Warden scan
+        id: scan
+        env:
+          WARDEN_API_URL: ${{ secrets.WARDEN_API_URL }}
+          WARDEN_API_KEY: ${{ secrets.WARDEN_API_KEY }}
+        run: |
+          python scripts/warden_github_scan.py \
+            --event "${{ github.event_name }}" \
+            --sha   "${{ github.sha }}" \
+            --repo  "${{ github.repository }}" \
+            --pr    "${{ github.event.pull_request.number }}" \
+            --out   scan_result.json
+
+      - name: Upload scan result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: warden-scan-result
+          path: scan_result.json
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const result = JSON.parse(fs.readFileSync('scan_result.json', 'utf8'));
+            const icon   = result.verdict === 'BLOCK' ? '🔴' : result.verdict === 'HIGH' ? '🟠' : '🟢';
+            const body   = [
+              `## ${icon} Shadow Warden AI Scan`,
+              `**Verdict:** \`${result.verdict}\`  |  **Risk:** \`${result.risk_level}\`  |  **Latency:** ${result.latency_ms}ms`,
+              result.flags?.length   ? `**Flags:** ${result.flags.join(', ')}` : '',
+              result.secrets_found?.length ? `**Secrets detected:** ${result.secrets_found.join(', ')}` : '',
+              '',
+              `<details><summary>Full report</summary>\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n</details>`,
+              '',
+              `*[Shadow Warden AI](https://shadow-warden-ai.com) · scan id \`${result.request_id ?? 'n/a'}\`*`,
+            ].filter(Boolean).join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail on BLOCK
+        if: always()
+        run: |
+          VERDICT=$(python -c "import json,sys; d=json.load(open('scan_result.json')); sys.exit(1 if d.get('verdict')=='BLOCK' else 0)")

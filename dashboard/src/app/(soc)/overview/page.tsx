@@ -5,12 +5,12 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
 import { CommunityDefenseWidget } from "@/components/ui/community-defense-widget";
-import { api, type StatsResponse, type ThreatsResponse, type RoiResponse } from "@/lib/api";
+import { api, type StatsResponse, type ThreatsResponse, type RoiResponse, type PostureResponse } from "@/lib/api";
 import { fmtNum, fmtMs, fmtUsd, cn } from "@/lib/utils";
 
 const MOCK_STATS: StatsResponse = {
-  days: 7, total: 184_320, allowed: 181_479, blocked: 2_841,
-  block_rate_pct: 1.54, avg_latency_ms: 38.2, by_day: {},
+  days: 7, total: 0, allowed: 0, blocked: 0,
+  block_rate_pct: 0, avg_latency_ms: 0, by_day: {},
 };
 
 const PIE_COLORS = ["#10b981", "#ef4444", "#f97316", "#f59e0b"];
@@ -30,9 +30,10 @@ function buildTimeline(by_day: Record<string, { total: number; blocked: number }
 }
 
 export default function OverviewPage() {
-  const { data: stats }   = useQuery({ queryKey: ["stats"],   queryFn: api.stats,   placeholderData: MOCK_STATS });
+  const { data: stats }   = useQuery({ queryKey: ["stats"],   queryFn: api.stats,   initialData: MOCK_STATS });
   const { data: threats } = useQuery({ queryKey: ["threats"], queryFn: api.threats });
   const { data: roi }     = useQuery({ queryKey: ["roi"],     queryFn: api.roi });
+  const { data: posture } = useQuery({ queryKey: ["posture"], queryFn: () => api.posture(7), retry: false });
 
   const s = stats ?? MOCK_STATS;
   const timeline = Object.keys(s.by_day).length > 0 ? buildTimeline(s.by_day) : [];
@@ -175,10 +176,23 @@ export default function OverviewPage() {
             <div className="rounded-xl bg-surface-2 border border-border p-5">
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle size={14} className="text-accent-green" />
-                <p className="text-sm font-semibold text-white">Compliance Status</p>
+                <p className="text-sm font-semibold text-white">
+                  Compliance Posture
+                  {posture && (
+                    <span className={cn("ml-2 text-xs font-mono px-1.5 py-0.5 rounded",
+                      posture.overall_status === "PASS" ? "bg-green-900/40 text-green-400" : "bg-yellow-900/40 text-yellow-400"
+                    )}>{posture.overall_score}%</span>
+                  )}
+                </p>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                {["GDPR", "SOC 2", "OWASP LLM"].map(f => (
+                {posture ? posture.standards.map(std => (
+                  <div key={std.short} className="flex flex-col items-center gap-1 bg-surface-3 rounded-lg px-2 py-2">
+                    <CheckCircle size={16} className={std.attestation === "PASS" ? "text-accent-green" : "text-yellow-400"} />
+                    <span className="text-[10px] text-gray-400 font-medium text-center leading-tight">{std.short.toUpperCase()}</span>
+                    <span className="text-[9px] font-mono text-gray-500">{std.score}%</span>
+                  </div>
+                )) : ["GDPR", "ISO 27001", "NIS2", "HIPAA", "SOC 2"].map(f => (
                   <div key={f} className="flex flex-col items-center gap-1 bg-surface-3 rounded-lg px-2 py-2">
                     <CheckCircle size={16} className="text-accent-green" />
                     <span className="text-[10px] text-gray-400 font-medium">{f}</span>

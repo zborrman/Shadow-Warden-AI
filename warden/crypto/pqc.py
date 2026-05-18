@@ -85,7 +85,22 @@ def _require_oqs() -> None:
 # ── Algorithm identifiers ─────────────────────────────────────────────────────
 
 _SIG_ALGO = "ML-DSA-65"    # FIPS 204 — formerly Dilithium3
-_KEM_ALGO = "ML-KEM-768"   # FIPS 203 — formerly Kyber768
+_KEM_ALGO = "ML-KEM-768"   # FIPS 203 Level 3 — formerly Kyber768
+
+# CR-13: ML-KEM-1024 (FIPS 203 Level 5) — "harvest now, decrypt later" protection
+# Select via CRYPTO_KEM_ALGO=ML-KEM-1024 env var.
+# Public key: 1568 bytes  |  Ciphertext: 1568 bytes  |  Secret: 32 bytes
+_KEM_ALGO_1024 = "ML-KEM-1024"
+_KEM_ALGO = os.getenv("CRYPTO_KEM_ALGO", "ML-KEM-768")  # default: 768 (backward compat)
+if _KEM_ALGO not in ("ML-KEM-768", "ML-KEM-1024"):
+    log.warning("pqc: unknown CRYPTO_KEM_ALGO=%r — falling back to ML-KEM-768", _KEM_ALGO)
+    _KEM_ALGO = "ML-KEM-768"
+
+# Ciphertext lengths per KEM variant
+_MLKEM_CT_LEN: dict[str, int] = {
+    "ML-KEM-768":  1088,
+    "ML-KEM-1024": 1568,
+}
 
 # Signature layout in hybrid blob:
 #   bytes 0:64       → Ed25519 signature (64 bytes, fixed)
@@ -94,9 +109,10 @@ _ED25519_SIG_LEN = 64
 
 # KEM ciphertext layout in hybrid blob:
 #   bytes 0:32       → X25519 ephemeral public key (raw, 32 bytes)
-#   bytes 32:32+M    → ML-KEM-768 ciphertext (1088 bytes)
+#   bytes 32:32+M    → ML-KEM-768/1024 ciphertext (1088 or 1568 bytes)
 _X25519_PUB_LEN   = 32
-_MLKEM768_CT_LEN  = 1088
+_MLKEM768_CT_LEN  = 1088   # kept for backward compatibility
+_MLKEM_CT_LEN_ACTIVE = _MLKEM_CT_LEN.get(_KEM_ALGO, 1088)
 
 
 # ── HybridSignature ───────────────────────────────────────────────────────────
@@ -356,15 +372,16 @@ class HybridKEM:
         """
         _require_oqs()
 
-        if len(ciphertext) < _X25519_PUB_LEN + _MLKEM768_CT_LEN:
+        mlkem_ct_len = _MLKEM_CT_LEN.get(_KEM_ALGO, _MLKEM768_CT_LEN)
+        if len(ciphertext) < _X25519_PUB_LEN + mlkem_ct_len:
             raise ValueError(
                 f"HybridKEM ciphertext too short: {len(ciphertext)} bytes, "
-                f"expected >= {_X25519_PUB_LEN + _MLKEM768_CT_LEN}"
+                f"expected >= {_X25519_PUB_LEN + mlkem_ct_len} (algo={_KEM_ALGO})"
             )
 
         # Unpack
         ephem_pub_raw = ciphertext[:_X25519_PUB_LEN]
-        mlkem_ct      = ciphertext[_X25519_PUB_LEN:_X25519_PUB_LEN + _MLKEM768_CT_LEN]
+        mlkem_ct      = ciphertext[_X25519_PUB_LEN:_X25519_PUB_LEN + mlkem_ct_len]
 
         # X25519 ECDH
         our_x_priv  = X25519PrivateKey.from_private_bytes(keypair.x25519_priv_raw)
@@ -460,17 +477,20 @@ def is_pqc_available() -> bool:
 def pqc_status() -> dict:
     """Return a status dict for health checks and dashboard display."""
     status: dict = {
-        "available":     _OQS_AVAILABLE,
-        "sig_algorithm": _SIG_ALGO,
-        "kem_algorithm": _KEM_ALGO,
-        "fips_204":      _SIG_ALGO == "ML-DSA-65",
-        "fips_203":      _KEM_ALGO == "ML-KEM-768",
+        "available":          _OQS_AVAILABLE,
+        "sig_algorithm":      _SIG_ALGO,
+        "kem_algorithm":      _KEM_ALGO,
+        "kem_security_level": "FIPS 203 Level 5" if _KEM_ALGO == _KEM_ALGO_1024 else "FIPS 203 Level 3",
+        "fips_204":           _SIG_ALGO == "ML-DSA-65",
+        "fips_203":           _KEM_ALGO in ("ML-KEM-768", _KEM_ALGO_1024),
+        "ml_kem_1024_mode":   _KEM_ALGO == _KEM_ALGO_1024,
     }
     if _OQS_AVAILABLE:
         try:
             enabled_kems  = oqs.get_enabled_kem_mechanisms()
             enabled_sigs  = oqs.get_enabled_sig_mechanisms()
-            status["ml_kem_768_available"]  = _KEM_ALGO in enabled_kems
+            status["ml_kem_768_available"]  = "ML-KEM-768" in enabled_kems
+            status["ml_kem_1024_available"] = _KEM_ALGO_1024 in enabled_kems
             status["ml_dsa_65_available"]   = _SIG_ALGO in enabled_sigs
         except Exception:
             pass

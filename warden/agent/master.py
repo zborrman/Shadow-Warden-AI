@@ -6,10 +6,11 @@ MasterAgent — multi-agent coordination layer for Shadow Warden AI.
 Architecture
 ────────────
   MasterAgent (Claude Opus 4.6, supervisor)
-      ├── SOVAOperator     — gateway health, quota, billing, rotation
-      ├── ThreatHunter     — CVE triage, ArXiv synthesis, intel
-      ├── ForensicsAgent   — Evidence Vault, agent activity, compliance logs
-      └── ComplianceAgent  — SOC 2 controls, SLA status, GDPR, monitors
+      ├── SOVAOperator      — gateway health, quota, billing, rotation
+      ├── ThreatHunter      — CVE triage, ArXiv synthesis, intel
+      ├── ForensicsAgent    — Evidence Vault, agent activity, compliance logs
+      ├── ComplianceAgent   — SOC 2 controls, SLA status, GDPR, monitors
+      └── DataPrivacyAgent  — GDPR ROPA/DPIA, retention, secrets, PII (AG-23)
 
 Human-in-the-Loop
 ─────────────────
@@ -50,10 +51,11 @@ _TOKEN_SECRET = os.getenv("MASTER_AGENT_SECRET", "shadow-warden-master-v1")
 # ── Sub-agent definitions ─────────────────────────────────────────────────────
 
 class SubAgent(StrEnum):
-    SOVA_OPERATOR  = "sova_operator"
-    THREAT_HUNTER  = "threat_hunter"
-    FORENSICS      = "forensics"
-    COMPLIANCE     = "compliance"
+    SOVA_OPERATOR   = "sova_operator"
+    THREAT_HUNTER   = "threat_hunter"
+    FORENSICS       = "forensics"
+    COMPLIANCE      = "compliance"
+    DATA_PRIVACY    = "data_privacy"    # AG-23
 
 
 # Tools available to each sub-agent
@@ -79,6 +81,15 @@ _AGENT_TOOLS: dict[SubAgent, list[str]] = {
         "list_monitors", "get_monitor_status", "get_monitor_uptime",
         "get_monitor_history", "get_compliance_art30",
         "get_billing_quota", "generate_proposal",
+        "send_slack_alert",
+    ],
+    # AG-23: DataPrivacyAgent — GDPR, data retention, DPIA, PII governance
+    SubAgent.DATA_PRIVACY: [
+        "get_compliance_art30", "get_gdpr_export", "get_gdpr_purge",
+        "get_tenant_impact", "get_stats",
+        "list_secrets_inventory", "get_secrets_report",
+        "get_retention_policy", "run_retention_enforce",
+        "get_compliance_posture",
         "send_slack_alert",
     ],
 }
@@ -112,6 +123,18 @@ _AGENT_PROMPTS: dict[SubAgent, str] = {
         "GDPR compliance, SOC 2 control mapping, and ROI proposals. "
         "Flag any SLA breach immediately. Calculate P99 latency from monitor history. "
         "Tag any monitor deletion as REQUIRES_APPROVAL."
+    ),
+    # AG-23
+    SubAgent.DATA_PRIVACY: (
+        "You are DataPrivacyAgent, the GDPR and data governance specialist. "
+        "Your domain: GDPR Art.30 ROPA, Art.35 DPIA, data retention enforcement, "
+        "secrets inventory hygiene, PII classification, and compliance posture scoring. "
+        "Always start by fetching the current compliance posture across all standards. "
+        "For retention: highlight any data class exceeding its configured retention window. "
+        "For secrets: flag CRITICAL-risk secrets and any past-expiry items immediately. "
+        "For GDPR export/purge requests: confirm tenant_id scope before acting and "
+        "tag every purge as REQUIRES_APPROVAL. "
+        "Report findings in structured tables: standard, status, score, gap, remediation."
     ),
 }
 

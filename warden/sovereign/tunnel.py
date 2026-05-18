@@ -57,6 +57,7 @@ class MASQUETunnel:
     tenant_id:       str | None   # None = shared; else tenant-dedicated tunnel
     tags:            list[str]    # e.g. ["GDPR", "EU_AI_ACT"]
     latency_ms:      float | None # last measured round-trip latency
+    ca_cert_pem:     str          = ""  # CR-15: PEM-encoded CA certificate for full chain verification
 
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────
@@ -125,6 +126,7 @@ def register_tunnel(
     tls_fingerprint: str            = "",
     tenant_id:       str | None     = None,
     tags:            list[str]      = (),   # type: ignore[assignment]
+    ca_cert_pem:     str            = "",   # CR-15: PEM CA cert for full chain verification
 ) -> MASQUETunnel:
     """
     Register a new MASQUE tunnel and persist it to Redis.
@@ -157,6 +159,7 @@ def register_tunnel(
         tenant_id       = tenant_id,
         tags            = list(tags) or list(j.frameworks),
         latency_ms      = None,
+        ca_cert_pem     = ca_cert_pem,
     )
     _save(tunnel)
     log.info("Registered MASQUE tunnel %s → %s (%s)", tunnel.tunnel_id, endpoint, jurisdiction)
@@ -228,11 +231,20 @@ def record_tunnel_failure(tunnel_id: str) -> TunnelStatus:
 
 async def probe_tunnel(tunnel_id: str) -> dict:
     """
-    Health-check a MASQUE tunnel by measuring TCP round-trip to its endpoint.
+    Health-check a MASQUE tunnel.
+
+    CR-15: When ca_cert_pem is set, performs a TLS handshake and validates
+    the server certificate against the pinned CA.  Otherwise falls back to
+    a plain TCP round-trip latency check.
+
     Updates status and latency_ms in Redis.
-    Returns {"tunnel_id", "status", "latency_ms", "error"}.
+    Returns {"tunnel_id", "status", "latency_ms", "ca_verified", "error"}.
     """
     import asyncio
+    import ssl
+    import tempfile
+    import os as _os
+
     t = get_tunnel(tunnel_id)
     if not t:
         return {"tunnel_id": tunnel_id, "status": "OFFLINE", "error": "not found"}
@@ -240,18 +252,52 @@ async def probe_tunnel(tunnel_id: str) -> dict:
     host, _, port_str = t.endpoint.rpartition(":")
     port = int(port_str) if port_str.isdigit() else 443
     t0   = time.perf_counter()
+
+    ca_verified = False
+
     try:
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), timeout=5.0
-        )
+        if t.ca_cert_pem:
+            # CR-15: TLS probe with CA certificate chain verification
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx.check_hostname = True
+            ctx.verify_mode    = ssl.CERT_REQUIRED
+            # Write CA PEM to a temp file (ssl module requires a file path)
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False) as f:
+                f.write(t.ca_cert_pem)
+                ca_path = f.name
+            try:
+                ctx.load_verify_locations(cafile=ca_path)
+            finally:
+                _os.unlink(ca_path)
+
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port, ssl=ctx, server_hostname=host),
+                timeout=8.0,
+            )
+            ca_verified = True
+        else:
+            # Plain TCP latency check
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port), timeout=5.0
+            )
+
         writer.close()
         await writer.wait_closed()
         latency = round((time.perf_counter() - t0) * 1000, 1)
         update_tunnel_status(tunnel_id, "ACTIVE", latency_ms=latency)
-        return {"tunnel_id": tunnel_id, "status": "ACTIVE", "latency_ms": latency}
+        return {
+            "tunnel_id":   tunnel_id,
+            "status":      "ACTIVE",
+            "latency_ms":  latency,
+            "ca_verified": ca_verified,
+        }
+    except ssl.SSLCertVerificationError as exc:
+        log.warning("probe_tunnel: CA verification failed for %s: %s", tunnel_id, exc)
+        new_status = record_tunnel_failure(tunnel_id)
+        return {"tunnel_id": tunnel_id, "status": new_status, "ca_verified": False, "error": f"CA_VERIFY_FAIL: {exc}"}
     except Exception as exc:
         new_status = record_tunnel_failure(tunnel_id)
-        return {"tunnel_id": tunnel_id, "status": new_status, "error": str(exc)}
+        return {"tunnel_id": tunnel_id, "status": new_status, "ca_verified": False, "error": str(exc)}
 
 
 def deactivate_tunnel(tunnel_id: str) -> bool:

@@ -507,7 +507,7 @@ async def nis2_report(days: Annotated[int, Query(ge=1, le=365)] = 30) -> dict:
     }
 
 
-@router.get("/nis2/html", response_class=HTMLResponse, summary="NIS2 compliance report (HTML)")
+@router.get("/nis2/html", response_class=HTMLResponse, summary="NIS2 Directive compliance report (HTML)")
 async def nis2_html(days: Annotated[int, Query(ge=1, le=365)] = 30) -> HTMLResponse:
     data = await nis2_report(days=days)
     rows = "".join(
@@ -539,3 +539,99 @@ footer{{margin-top:32px;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f
 <table><tr><th>Article</th><th>Measure</th><th>Status</th><th>Evidence</th></tr>{rows}</table>
 <footer>Shadow Warden AI · NIS2 Directive · <a href="/compliance/nis2">JSON</a></footer></body></html>"""
     return HTMLResponse(content=html)
+
+
+# ── CP-25: Real-time compliance posture (multi-standard) ─────────────────────
+
+def _score_standard(passed: int, partial: int, total: int) -> float:
+    """Weighted score: PASS=1.0, PARTIAL=0.5, FAIL=0.0 → 0..100"""
+    return round((passed + partial * 0.5) / total * 100, 1) if total else 0.0
+
+
+@router.get("/posture", summary="Real-time compliance posture across all standards (CP-25)")
+async def compliance_posture(days: Annotated[int, Query(ge=1, le=90)] = 7) -> dict:
+    """
+    Aggregates SOC2/GDPR/ISO27001/HIPAA/NIS2 into a single posture score.
+    Designed to be polled by the SOC dashboard (FE-13).
+    """
+    iso_data  = await iso27001_report(days=days)
+    hip_data  = await hipaa_report(days=days)
+    nis_data  = await nis2_report(days=days)
+    stats     = _aggregate_logs(days)
+
+    # GDPR: 8 controls in _build_report, all currently PASS
+    gdpr_report = _build_report(days)
+    gdpr_passed = sum(1 for r in gdpr_report["gdpr"] if r["status"] == "PASS")
+    gdpr_total  = len(gdpr_report["gdpr"])
+
+    # SOC 2 — derive from ISO 27001 Implemented+Partial controls (same evidence base)
+    soc2_passed  = iso_data["implemented"]
+    soc2_partial = iso_data["partial"]
+    soc2_total   = iso_data["controls_total"]
+
+    standards = [
+        {
+            "standard":     "SOC 2 Type II",
+            "short":        "soc2",
+            "passed":       soc2_passed,
+            "partial":      soc2_partial,
+            "failed":       soc2_total - soc2_passed - soc2_partial,
+            "total":        soc2_total,
+            "score":        _score_standard(soc2_passed, soc2_partial, soc2_total),
+            "attestation":  "PASS" if soc2_passed >= soc2_total * 0.85 else "PARTIAL",
+        },
+        {
+            "standard":     "GDPR (Art.5 + Art.30 + Art.35)",
+            "short":        "gdpr",
+            "passed":       gdpr_passed,
+            "partial":      0,
+            "failed":       gdpr_total - gdpr_passed,
+            "total":        gdpr_total,
+            "score":        _score_standard(gdpr_passed, 0, gdpr_total),
+            "attestation":  "PASS" if gdpr_passed == gdpr_total else "PARTIAL",
+        },
+        {
+            "standard":     "ISO/IEC 27001:2022",
+            "short":        "iso27001",
+            "passed":       iso_data["implemented"],
+            "partial":      iso_data["partial"],
+            "failed":       iso_data["controls_total"] - iso_data["implemented"] - iso_data["partial"],
+            "total":        iso_data["controls_total"],
+            "score":        _score_standard(iso_data["implemented"], iso_data["partial"], iso_data["controls_total"]),
+            "attestation":  "PASS" if iso_data["coverage_pct"] >= 85 else "PARTIAL",
+        },
+        {
+            "standard":     "HIPAA Security Rule",
+            "short":        "hipaa",
+            "passed":       hip_data["passed"],
+            "partial":      0,
+            "failed":       hip_data["failed"],
+            "total":        hip_data["safeguards_total"],
+            "score":        _score_standard(hip_data["passed"], 0, hip_data["safeguards_total"]),
+            "attestation":  hip_data["attestation"],
+        },
+        {
+            "standard":     "EU NIS2 Directive",
+            "short":        "nis2",
+            "passed":       nis_data["passed"],
+            "partial":      nis_data["partial"],
+            "failed":       nis_data["failed"],
+            "total":        nis_data["measures_total"],
+            "score":        _score_standard(nis_data["passed"], nis_data["partial"], nis_data["measures_total"]),
+            "attestation":  "PASS" if nis_data["coverage_pct"] >= 80 else "PARTIAL",
+        },
+    ]
+
+    overall_score = round(sum(s["score"] for s in standards) / len(standards), 1)
+    all_pass = all(s["attestation"] == "PASS" for s in standards)
+
+    return {
+        "generated_at":   __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        "period_days":    days,
+        "overall_score":  overall_score,
+        "overall_status": "PASS" if all_pass else "PARTIAL",
+        "standards":      standards,
+        "filter_stats":   stats,
+        "org_name":       _ORG_NAME,
+        "tenant_id":      _TENANT_ID,
+    }

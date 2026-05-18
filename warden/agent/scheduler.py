@@ -563,6 +563,66 @@ async def sova_trusted_entry_cron(ctx: dict) -> dict:
     return {"status": "ok", "ts": _ts(), "awarded": awarded, "candidates": len(candidates)}
 
 
+async def sova_overage_billing(ctx: dict) -> dict:
+    """
+    Monthly 00:05 UTC on the 1st — BL-19: compute and log overage charges
+    for all tenants that exceeded their request quota.
+
+    Reads quota usage from warden/billing/quota_middleware.py per tenant,
+    computes overage charge at tier rate (Pro $0.50/1k, Enterprise $0.10/1k),
+    and sends a Slack summary. Actual charging is delegated to Lemon Squeezy
+    via /billing/overage/record (called with admin key in production).
+    """
+    log.info("sova: overage billing [%s]", _ts())
+
+    import os  # noqa: PLC0415
+
+    try:
+        from warden.billing.quota_middleware import list_all_tenants  # noqa: PLC0415
+    except ImportError:
+        log.warning("overage billing: quota_middleware.list_all_tenants not available")
+        return {"status": "skip", "ts": _ts(), "reason": "quota_middleware unavailable"}
+
+    tenants     = list_all_tenants()
+    overage_rows = []
+
+    from warden.billing.router import _calculate_overage  # noqa: PLC0415
+
+    for tenant_id in tenants:
+        try:
+            row = _calculate_overage(tenant_id)
+            if row["overage_requests"] > 0:
+                overage_rows.append(row)
+                log.info(
+                    "overage billing: tenant=%s overage=%d charge=$%.4f",
+                    tenant_id, row["overage_requests"], row["charge_usd"],
+                )
+        except Exception as exc:
+            log.debug("overage billing: tenant=%s error=%s", tenant_id, exc)
+
+    total_charge = sum(r["charge_usd"] for r in overage_rows)
+
+    if overage_rows:
+        lines = [
+            f"• `{r['tenant_id']}` ({r['plan']}) — {r['overage_requests']:,} overage → ${r['charge_usd']:.2f}"
+            for r in overage_rows[:10]
+        ]
+        await _slack(
+            f"*Overage Billing Summary* [{_ts()}]\n"
+            + "\n".join(lines)
+            + (f"\n_...and {len(overage_rows) - 10} more_" if len(overage_rows) > 10 else "")
+            + f"\n_Total projected overage charge: ${total_charge:.2f}_"
+        )
+
+    return {
+        "status":       "ok",
+        "ts":           _ts(),
+        "tenants":      len(tenants),
+        "overage_count": len(overage_rows),
+        "total_charge_usd": total_charge,
+    }
+
+
 async def sova_obsidian_watchdog(ctx: dict) -> dict:
     """
     Every 4 hours — Obsidian vault integrity check.

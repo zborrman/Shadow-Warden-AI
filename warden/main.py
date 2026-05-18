@@ -1179,6 +1179,13 @@ except ImportError:
     log.warning("compliance_report router not available — /compliance skipped.")
 
 try:
+    from warden.api.retention import router as _retention_router
+    app.include_router(_retention_router)
+    log.info("Retention Policy mounted at /retention (CP-26)")
+except ImportError:
+    log.warning("retention router not available — /retention skipped.")
+
+try:
     from warden.api.public_stats import router as _public_stats_router
     app.include_router(_public_stats_router)
     log.info("Public community stats mounted at /public/community")
@@ -1256,6 +1263,13 @@ try:
     log.info("Lemon Squeezy webhook receiver mounted at POST /billing/webhook")
 except ImportError:
     log.warning("webhook router not available — /billing/webhook skipped.")
+
+try:
+    from warden.api.integrations import router as _integrations_router
+    app.include_router(_integrations_router)
+    log.info("Integrations router mounted at /integrations (IN-16/17/18/20)")
+except ImportError:
+    log.warning("integrations router not available — /integrations skipped.")
 
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────

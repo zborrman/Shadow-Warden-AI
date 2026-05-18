@@ -53,6 +53,27 @@ export type CommunityFeedItem = {
   created_at:  string;
 };
 
+export type PostureStandard = {
+  standard:    string;
+  short:       string;
+  passed:      number;
+  partial:     number;
+  failed:      number;
+  total:       number;
+  score:       number;
+  attestation: "PASS" | "PARTIAL" | "FAIL";
+};
+
+export type PostureResponse = {
+  generated_at:   string;
+  period_days:    number;
+  overall_score:  number;
+  overall_status: "PASS" | "PARTIAL" | "FAIL";
+  standards:      PostureStandard[];
+  org_name:       string;
+  tenant_id:      string;
+};
+
 export type CommunityLookupResponse = {
   query:           string;
   total:           number;
@@ -81,6 +102,7 @@ export const api = {
   event:      (id: string)     => get<EventEntry>(ANALYTICS, `/api/v1/events/${id}`),
   threats:    ()               => get<ThreatsResponse>(ANALYTICS, "/api/v1/threats"),
   roi:        ()               => get<RoiResponse>(ANALYTICS, "/api/v1/compliance/roi"),
+  posture:    (days = 7)       => get<PostureResponse>(API, "/compliance/posture", { days: String(days) }),
   health:     ()               => get<Record<string, unknown>>(API, "/health"),
   xaiExplain: (id: string)     => get<Record<string, unknown>>(API, `/xai/explain/${id}`),
   filter:     (body: { content: string; tenant_id?: string }) =>

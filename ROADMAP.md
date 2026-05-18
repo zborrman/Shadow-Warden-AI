@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 4.20 · Last updated 2026-05-17**
+**Version 4.21 · Last updated 2026-05-18**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -51,7 +51,7 @@ The 9-layer filter that processes every AI request in < 2ms.
 | SP-21 | Adaptive OTel sampling — 10% ALLOW / 100% HIGH+BLOCK, tail-sampling Collector | v4.14 | All | ✅ |
 | SP-22 | Multi-modal content guard — image prompt injection detection | — | Pro+ | 📋 |
 | SP-23 | Audio/video transcription guard — Whisper pre-scan before LLM | — | Enterprise | 📋 |
-| SP-24 | Fine-tuned ONNX model export — <1ms inference, eliminates MiniLM cold start | — | All | 📋 |
+| SP-24 | Fine-tuned ONNX model export — <1ms inference, eliminates MiniLM cold start | v4.21 | All | ✅ |
 
 ---
 
@@ -83,7 +83,7 @@ Autonomous AI operators that monitor, respond, and self-heal.
 | AG-20 | Prompt caching — SOVA agentic loop with Anthropic cache_control | v3.0 | Pro+ | ✅ |
 | AG-21 | SOVA tool #46 — `generate_threat_report` (full PDF/HTML export via XAI renderer) | v4.21 | Pro+ | ✅ |
 | AG-22 | SOVA tool #47 — `block_ip_range` (ERS hard block, tenant-scoped) | v4.21 | Enterprise | ✅ |
-| AG-23 | MasterAgent sub-agent #5 — DataPrivacyAgent (GDPR Art.17 right-to-erasure automation) | — | Enterprise | 📋 |
+| AG-23 | MasterAgent sub-agent #5 — DataPrivacyAgent (GDPR ROPA/DPIA, retention, PII governance) | v4.21 | Enterprise | ✅ |
 | AG-24 | SOVA memory expansion — vector search (pgvector) over past conversations | — | Pro+ | 📋 |
 | AG-25 | Voice-activated SOC operator — WebRTC audio → Whisper → SOVA → TTS response | — | Enterprise | 📋 |
 
@@ -146,14 +146,14 @@ Connectors that bring Shadow Warden into existing developer and analyst workflow
 | IN-12 | Shadow AI syslog sink — UDP listener for dnsmasq/BIND9/Zeek DNS events | v4.7 | Enterprise | ✅ |
 | IN-13 | Browser extension — popup with scan button, verdict badge, UECIID display | v4.11 | Community+ | ✅ |
 | IN-14 | VS Code extension — inline risk annotation on selected text | — | Individual+ | 📋 |
-| IN-15 | GitHub Actions integration — pre-commit hook that scans commit message + diff | — | Pro+ | 📋 |
-| IN-16 | Jira integration — auto-create security tickets on HIGH/BLOCK verdicts | — | Pro+ | 📋 |
-| IN-17 | Microsoft Teams slash command — `/warden` equivalent for Teams channels | — | Pro+ | 📋 |
-| IN-18 | Notion integration — scan Notion pages via API, write risk tags as properties | — | Community+ | 📋 |
+| IN-15 | GitHub Actions integration — `warden-scan.yml` scans PR diff, comments verdict | v4.21 | Pro+ | ✅ |
+| IN-16 | Jira integration — auto-create security tickets on HIGH/BLOCK verdicts | v4.21 | Pro+ | ✅ |
+| IN-17 | Microsoft Teams slash command — Adaptive Card via webhook, `/warden` for Teams | v4.21 | Pro+ | ✅ |
+| IN-18 | Notion integration — scan Notion pages via API, write risk tags as properties | v4.21 | Community+ | ✅ |
 | IN-19 | STIX/TAXII feed consumer — ingest external threat intel from any TAXII 2.1 server | — | Enterprise | 📋 |
-| IN-20 | Zapier / Make connector — webhook trigger + filter action blocks | — | Individual+ | 📋 |
-| IN-21 | OpenTelemetry SDK library — `WardenSpanProcessor` for any OTel-enabled app | — | Pro+ | 📋 |
-| IN-22 | MISP syslog bridge — route MISP ZMQ feed into Shadow Warden syslog sink | — | Pro+ | 📋 |
+| IN-20 | Zapier / Make connector — webhook trigger + filter action blocks | v4.21 | Individual+ | ✅ |
+| IN-21 | OpenTelemetry SDK library — `WardenSpanProcessor` for any OTel-enabled app | v4.21 | Pro+ | ✅ |
+| IN-22 | MISP syslog bridge — ZMQ SUB socket + HTTP poll fallback, topic `misp_json` | v4.21 | Pro+ | ✅ |
 
 ---
 
@@ -187,8 +187,8 @@ Everything needed for regulated industries (GDPR, SOC 2, HIPAA, ISO 27001).
 | CP-22 | ISO 27001 Annex A control mapping | v4.21 | Enterprise | ✅ |
 | CP-23 | HIPAA technical safeguards attestation (encryption, audit, access control) | v4.21 | Enterprise | ✅ |
 | CP-24 | NIS2 Directive compliance report | v4.21 | Enterprise | ✅ |
-| CP-25 | Continuous compliance scoring dashboard — real-time SOC 2 / GDPR / ISO posture | — | Pro+ | 📋 |
-| CP-26 | Data retention policy enforcement — tenant-configurable per data_class | — | Community+ | 📋 |
+| CP-25 | Continuous compliance scoring dashboard — real-time SOC 2 / GDPR / ISO posture | v4.21 | Pro+ | ✅ |
+| CP-26 | Data retention policy enforcement — tenant-configurable per data_class TTL | v4.21 | Community+ | ✅ |
 
 ---
 
@@ -210,9 +210,9 @@ Quantum-resistant and classical cryptographic foundations.
 | CR-10 | PQC Transfer Proof — ML-DSA-65 signature on CTP, both HMAC and PQC must pass | v4.7 | Enterprise | ✅ |
 | CR-11 | MasterAgent HMAC task tokens — `(sub_agent:task_hash:ts:sig)` per delegated task | v4.0 | Pro+ | ✅ |
 | CR-12 | Knock token — Redis `sep:knock:{hmac_hash}` (72h TTL), one-time use | v4.6 | Community+ | ✅ |
-| CR-13 | ML-KEM-1024 upgrade path (FIPS 203 Level 5) | — | Enterprise | 📋 |
+| CR-13 | ML-KEM-1024 upgrade path (FIPS 203 Level 5, `CRYPTO_KEM_ALGO` env var) | v4.21 | Enterprise | ✅ |
 | CR-14 | HSM integration — PKCS#11 bridge for sovereign key material | — | Enterprise | 📋 |
-| CR-15 | Certificate-pinned MASQUE tunnels — TOFU → CA-signed upgrade path | — | Enterprise | 📋 |
+| CR-15 | Certificate-pinned MASQUE tunnels — `ca_cert_pem` TLS full-chain verification | v4.21 | Enterprise | ✅ |
 
 ---
 
@@ -302,10 +302,10 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 | FE-10 | Community public dashboard — animated KPIs, SVG bar chart, 60s refresh | v4.15 | Public | ✅ |
 | FE-11 | Settings HTML panel — SOVA + MasterAgent configuration tabs | v4.11 | Pro+ | ✅ |
 | FE-12 | SOC dashboard DNS A record (`dash.shadow-warden-ai.com → 91.98.234.160`) | v4.20 | — | ✅ |
-| FE-13 | Analytics API live endpoints in SOC dashboard (replace mock/placeholder data) | — | All | 📋 |
-| FE-14 | Mobile-responsive SOC dashboard | — | All | 📋 |
+| FE-13 | Analytics API live endpoints in SOC dashboard (replace mock/placeholder data) | v4.21 | All | ✅ |
+| FE-14 | Mobile-responsive SOC dashboard | v4.21 | All | ✅ |
 | FE-15 | Onboarding flow — guided 5-step setup wizard for new tenants | — | All | 📋 |
-| FE-16 | Dark/light theme toggle in portal and SOC dashboard | — | All | 📋 |
+| FE-16 | Dark/light theme toggle in portal and SOC dashboard | v4.21 | All | ✅ |
 | FE-17 | `shadow-warden-ai.com/pricing` — interactive tier comparison + add-on calculator | v4.20 | Public | ✅ |
 | FE-18 | Community & Tunnel 7-page Astro SPA — view / members / tunnel / integrations / activity / settings / new | v4.20 | Community+ | ✅ |
 | FE-19 | Community member roles — Owner / Admin / Member, `normalizeMember()` backward-compat, role badges | v4.20 | Community+ | ✅ |
@@ -343,7 +343,7 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-16 | 14-day Pro trial — 10k req cap, no MasterAgent, one-time per tenant | v4.20 | Individual+ | ✅ |
 | BL-17 | `PricingCalculator` React component — tier + add-on + bundle + annual/monthly toggle | v4.20 | — | ✅ |
 | BL-18 | `UsageProgress` React component — quota bar, 80% upgrade CTA, 60s refresh | v4.20 | — | ✅ |
-| BL-19 | Request overage billing — automatic charge per 1k requests above Pro tier | — | Pro+ | 📋 |
+| BL-19 | Request overage billing — ARQ monthly cron, Pro $0.50/1k, Enterprise $0.10/1k | v4.21 | Pro+ | ✅ |
 | BL-20 | Add-on: Obsidian Business Pack — bundled plugin features +$8/mo | v4.21 | Individual+ | ✅ |
 | BL-21 | Marketplace listing — AWS / Azure / Google Cloud Marketplace | — | Enterprise | 📋 |
 
@@ -371,7 +371,7 @@ Test suites, coverage gates, mutation testing, adversarial scenarios.
 | TQ-14 | k6 load test — baseline/ramp/spike/soak scenarios against `api.shadow-warden-ai.com` | v4.13 | ✅ |
 | TQ-15 | k6 smoke test — 1 VU, 30s, post-deploy gate | v4.14 | ✅ |
 | TQ-16 | Coverage gate raise to 80% | v4.21 | ✅ |
-| TQ-17 | Property-based testing (Hypothesis) on SecretRedactor + TopologicalGatekeeper | — | 📋 |
+| TQ-17 | Property-based testing (Hypothesis) on SecretRedactor + TopologicalGatekeeper | v4.21 | ✅ |
 | TQ-18 | Integration test suite against live Docker Compose stack | — | 📋 |
 | TQ-19 | Chaos engineering — random service kill + traffic replay, verify fail-open | — | 📋 |
 

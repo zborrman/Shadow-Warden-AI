@@ -46,6 +46,7 @@ from warden.agent.scheduler import (
     sova_corpus_watchdog,
     sova_morning_brief,
     sova_obsidian_watchdog,
+    sova_overage_billing,
     sova_rotation_check,
     sova_sla_report,
     sova_threat_sync,
@@ -97,6 +98,7 @@ class WorkerSettings:
         sova_visual_patrol,
         sova_community_watchdog,
         sova_obsidian_watchdog,
+        sova_overage_billing,        # BL-19
         # Community moderation
         moderate_post,
         # Cyber Security Hub
@@ -163,6 +165,9 @@ class WorkerSettings:
 
         # ── Obsidian vault watchdog — every 4 hours ───────────────────────────
         cron(sova_obsidian_watchdog, hour={0, 4, 8, 12, 16, 20}, minute=45, timeout=60),
+
+        # ── Overage billing — monthly on 1st at 00:05 UTC (BL-19) ─────────────
+        cron(sova_overage_billing, month_day=1, hour=0, minute=5, timeout=300),
     ]
 
     on_startup  = startup

@@ -5,10 +5,11 @@ import {
   Users, Network, Key, Shield, LayoutDashboard, AlertTriangle,
   FlaskConical, Activity, GitBranch, Settings, DollarSign, LogOut,
   BookOpen, ChevronDown, ChevronRight, Cpu, Eye, Zap, Lock,
-  Globe, FileText, TrendingUp, Search,
+  Globe, FileText, TrendingUp, Search, Sun, Moon, X,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/ui/theme-provider";
 
 type NavItem = { href: string; icon: React.ElementType; label: string; soon?: true };
 type NavGroup = {
@@ -91,9 +92,10 @@ function groupIsActive(group: NavGroup, path: string) {
   return group.items.some(i => !i.soon && (path === i.href || path.startsWith(i.href + "/")));
 }
 
-export function Sidebar() {
+export function Sidebar({ onClose }: { onClose?: () => void }) {
   const path = usePathname();
   const router = useRouter();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -118,7 +120,13 @@ export function Sidebar() {
         <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold text-white">
           SW
         </div>
-        <span className="text-sm font-semibold text-white tracking-wide">Shadow Warden</span>
+        <span className="text-sm font-semibold text-white tracking-wide flex-1">Shadow Warden</span>
+        {/* Mobile close */}
+        {onClose && (
+          <button onClick={onClose} className="md:hidden p-1 rounded text-gray-400 hover:text-white" aria-label="Close menu">
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -211,6 +219,15 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-border space-y-2">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+          aria-label="Toggle theme"
+        >
+          {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
+          {theme === "dark" ? "Light mode" : "Dark mode"}
+        </button>
         <button
           onClick={signOut}
           className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
@@ -218,7 +235,7 @@ export function Sidebar() {
           <LogOut size={13} />
           Sign out
         </button>
-        <p className="text-[10px] text-gray-600 px-2">v4.20 · SOC Dashboard</p>
+        <p className="text-[10px] text-gray-600 px-2">v4.21 · SOC Dashboard</p>
       </div>
     </aside>
   );
