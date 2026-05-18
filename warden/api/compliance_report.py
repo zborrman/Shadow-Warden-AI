@@ -435,7 +435,7 @@ async def hipaa_html(days: Annotated[int, Query(ge=1, le=365)] = 30) -> HTMLResp
     data = await hipaa_report(days=days)
     rows = "".join(
         f"<tr><td><code>{s['section']}</code></td><td>{s['requirement']}</td>"
-        f"<td class='status-{s[\"status\"].lower()}'>{s['status']}</td>"
+        f"<td class='status-{s['status'].lower()}'>{s['status']}</td>"
         f"<td>{s['evidence']}</td></tr>"
         for s in data["safeguards"]
     )
@@ -512,7 +512,7 @@ async def nis2_html(days: Annotated[int, Query(ge=1, le=365)] = 30) -> HTMLRespo
     data = await nis2_report(days=days)
     rows = "".join(
         f"<tr><td><code>{m['article']}</code></td><td>{m['measure']}</td>"
-        f"<td class='status-{m[\"status\"].lower()}'>{m['status']}</td>"
+        f"<td class='status-{m['status'].lower()}'>{m['status']}</td>"
         f"<td>{m['evidence']}</td></tr>"
         for m in data["measures"]
     )
