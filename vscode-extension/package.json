@@ -1,0 +1,103 @@
+{
+  "name": "shadow-warden-ai",
+  "displayName": "Shadow Warden AI",
+  "description": "Inline AI security risk annotation — scan selected text through Shadow Warden's 9-layer filter pipeline",
+  "version": "4.22.0",
+  "publisher": "shadow-warden-ai",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other", "Linters"],
+  "keywords": ["AI security", "jailbreak detection", "PII", "GDPR", "Shadow Warden"],
+  "icon": "icon.png",
+  "activationEvents": ["onCommand:shadowWarden.scan"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "shadowWarden.scan",
+        "title": "Shadow Warden: Scan Selection",
+        "category": "Shadow Warden"
+      },
+      {
+        "command": "shadowWarden.scanFile",
+        "title": "Shadow Warden: Scan Entire File",
+        "category": "Shadow Warden"
+      },
+      {
+        "command": "shadowWarden.clearDecorations",
+        "title": "Shadow Warden: Clear Risk Annotations",
+        "category": "Shadow Warden"
+      },
+      {
+        "command": "shadowWarden.openSettings",
+        "title": "Shadow Warden: Open Settings",
+        "category": "Shadow Warden"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "shadowWarden.scan",
+        "key": "ctrl+shift+w",
+        "mac": "cmd+shift+w",
+        "when": "editorHasSelection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "shadowWarden.scan",
+          "when": "editorHasSelection",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Shadow Warden AI",
+      "properties": {
+        "shadowWarden.apiUrl": {
+          "type": "string",
+          "default": "https://api.shadow-warden-ai.com",
+          "description": "Shadow Warden API base URL"
+        },
+        "shadowWarden.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Shadow Warden API key (X-API-Key header)",
+          "secret": true
+        },
+        "shadowWarden.tenantId": {
+          "type": "string",
+          "default": "",
+          "description": "Tenant ID (optional — multi-tenant deployments)"
+        },
+        "shadowWarden.showInlineDecorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show coloured gutter icons for risk verdicts"
+        },
+        "shadowWarden.autoScanOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically scan file on save"
+        },
+        "shadowWarden.minRiskLevel": {
+          "type": "string",
+          "enum": ["LOW", "MEDIUM", "HIGH", "BLOCK"],
+          "default": "MEDIUM",
+          "description": "Minimum risk level to show annotation"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --target=node18 --outfile=dist/extension.js --external:vscode",
+    "watch": "npm run build -- --watch",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {}
+}

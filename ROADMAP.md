@@ -49,7 +49,7 @@ The 9-layer filter that processes every AI request in < 2ms.
 | SP-19 | Fail-closed auth — startup error if both API key vars unset | v4.7 | All | ✅ |
 | SP-20 | Worm Guard — lateral movement detection (agent chain patterns) | v3.5 | Pro+ | ✅ |
 | SP-21 | Adaptive OTel sampling — 10% ALLOW / 100% HIGH+BLOCK, tail-sampling Collector | v4.14 | All | ✅ |
-| SP-22 | Multi-modal content guard — image prompt injection detection | — | Pro+ | 📋 |
+| SP-22 | Multi-modal content guard — image prompt injection detection | v4.22 | Pro+ | ✅ |
 | SP-23 | Audio/video transcription guard — Whisper pre-scan before LLM | — | Enterprise | 📋 |
 | SP-24 | Fine-tuned ONNX model export — <1ms inference, eliminates MiniLM cold start | v4.21 | All | ✅ |
 
@@ -84,7 +84,7 @@ Autonomous AI operators that monitor, respond, and self-heal.
 | AG-21 | SOVA tool #46 — `generate_threat_report` (full PDF/HTML export via XAI renderer) | v4.21 | Pro+ | ✅ |
 | AG-22 | SOVA tool #47 — `block_ip_range` (ERS hard block, tenant-scoped) | v4.21 | Enterprise | ✅ |
 | AG-23 | MasterAgent sub-agent #5 — DataPrivacyAgent (GDPR ROPA/DPIA, retention, PII governance) | v4.21 | Enterprise | ✅ |
-| AG-24 | SOVA memory expansion — vector search (pgvector) over past conversations | — | Pro+ | 📋 |
+| AG-24 | SOVA memory expansion — vector search (pgvector) over past conversations | v4.22 | Pro+ | ✅ |
 | AG-25 | Voice-activated SOC operator — WebRTC audio → Whisper → SOVA → TTS response | — | Enterprise | 📋 |
 
 ---
@@ -120,8 +120,8 @@ Federated knowledge-sharing between Security Operations teams.
 | CM-23 | SEP REST API — 24 endpoints: UECIID, pod-tags, peerings, knock, pods, audit-chain | v4.7 | Community+ | ✅ |
 | CM-24 | `TRUSTED_ENTRY +3` reputation cron — 30-day no-report entries auto-awarded | v4.21 | Community+ | ✅ |
 | CM-25 | `SEARCH_HIT +1` reputation — awarded on `search_community_feed` result match | v4.21 | Community+ | ✅ |
-| CM-26 | Community threat score federation — broadcast verified verdicts to federated peers | — | Enterprise | 📋 |
-| CM-27 | Community AI model sharing — share fine-tuned detection rules as signed UECIID bundles | — | Enterprise | 📋 |
+| CM-26 | Community threat score federation — broadcast verified verdicts to federated peers | v4.22 | Enterprise | ✅ |
+| CM-27 | Community AI model sharing — share fine-tuned detection rules as signed UECIID bundles | v4.22 | Enterprise | ✅ |
 | CM-28 | Community SLA contracts — codify data residency + retention commitments in charter | — | Enterprise | 📋 |
 
 ---
@@ -145,12 +145,12 @@ Connectors that bring Shadow Warden into existing developer and analyst workflow
 | IN-11 | SOVA `sova_obsidian_watchdog` — vault integrity check every 4h | v4.17 | Community+ | ✅ |
 | IN-12 | Shadow AI syslog sink — UDP listener for dnsmasq/BIND9/Zeek DNS events | v4.7 | Enterprise | ✅ |
 | IN-13 | Browser extension — popup with scan button, verdict badge, UECIID display | v4.11 | Community+ | ✅ |
-| IN-14 | VS Code extension — inline risk annotation on selected text | — | Individual+ | 📋 |
+| IN-14 | VS Code extension — inline risk annotation on selected text | v4.22 | Individual+ | ✅ |
 | IN-15 | GitHub Actions integration — `warden-scan.yml` scans PR diff, comments verdict | v4.21 | Pro+ | ✅ |
 | IN-16 | Jira integration — auto-create security tickets on HIGH/BLOCK verdicts | v4.21 | Pro+ | ✅ |
 | IN-17 | Microsoft Teams slash command — Adaptive Card via webhook, `/warden` for Teams | v4.21 | Pro+ | ✅ |
 | IN-18 | Notion integration — scan Notion pages via API, write risk tags as properties | v4.21 | Community+ | ✅ |
-| IN-19 | STIX/TAXII feed consumer — ingest external threat intel from any TAXII 2.1 server | — | Enterprise | 📋 |
+| IN-19 | STIX/TAXII feed consumer — ingest external threat intel from any TAXII 2.1 server | v4.22 | Enterprise | ✅ |
 | IN-20 | Zapier / Make connector — webhook trigger + filter action blocks | v4.21 | Individual+ | ✅ |
 | IN-21 | OpenTelemetry SDK library — `WardenSpanProcessor` for any OTel-enabled app | v4.21 | Pro+ | ✅ |
 | IN-22 | MISP syslog bridge — ZMQ SUB socket + HTTP poll fallback, topic `misp_json` | v4.21 | Pro+ | ✅ |
@@ -211,7 +211,7 @@ Quantum-resistant and classical cryptographic foundations.
 | CR-11 | MasterAgent HMAC task tokens — `(sub_agent:task_hash:ts:sig)` per delegated task | v4.0 | Pro+ | ✅ |
 | CR-12 | Knock token — Redis `sep:knock:{hmac_hash}` (72h TTL), one-time use | v4.6 | Community+ | ✅ |
 | CR-13 | ML-KEM-1024 upgrade path (FIPS 203 Level 5, `CRYPTO_KEM_ALGO` env var) | v4.21 | Enterprise | ✅ |
-| CR-14 | HSM integration — PKCS#11 bridge for sovereign key material | — | Enterprise | 📋 |
+| CR-14 | HSM integration — PKCS#11 bridge for sovereign key material | v4.22 | Enterprise | ✅ |
 | CR-15 | Certificate-pinned MASQUE tunnels — `ca_cert_pem` TLS full-chain verification | v4.21 | Enterprise | ✅ |
 
 ---
@@ -240,7 +240,7 @@ Everything from Docker orchestration to CI/CD to Kubernetes.
 | IF-16 | CI: `--no-cache` pre-build for admin + arq-worker (layer corruption guard) | v4.13 | — | ✅ |
 | IF-17 | GitHub Actions autodeploy — SSH deploy to Hetzner VPS | v4.11 | — | ✅ |
 | IF-18 | py-spy profiling + k6 load harness (`scripts/profile_under_load.sh`) | v4.13 | — | ✅ |
-| IF-19 | Kubernetes horizontal pod autoscaler for warden + dashboard services | — | Enterprise | 📋 |
+| IF-19 | Kubernetes horizontal pod autoscaler for warden + dashboard services | v4.22 | Enterprise | ✅ |
 | IF-20 | Multi-region active-active deployment (EU + US) | — | Enterprise | 📋 |
 | IF-21 | cosign + SBOM CI signing on Docker images | v4.13 | — | ✅ |
 | IF-22 | Mutation testing — mutmut on `secret_redactor.py` + `semantic_guard.py` | v2.0 | — | ✅ |
@@ -278,7 +278,7 @@ Dashboards, metrics, tracing, and alerting across all layers.
 | OB-23 | Anomaly timeline Streamlit dashboard (Page 4 — Community Behavioral tab) | v4.8 | Community+ | ✅ |
 | OB-24 | Threat intelligence Streamlit (Page 2 — Threat Radar + Intel Bridge + Causal Arbiter) | v4.13 | Pro+ | ✅ |
 | OB-25 | AI-generated weekly ROI email — ARQ cron, Friday 08:00 UTC, Pro+ tenants | v3.0 | Pro+ | ✅ |
-| OB-26 | Real-time anomaly WebSocket stream — push XAI events to dashboard without polling | — | Pro+ | 📋 |
+| OB-26 | Real-time anomaly WebSocket stream — push XAI events to dashboard without polling | v4.22 | Pro+ | ✅ |
 | OB-27 | Grafana unified dashboard for all 11 services | v4.21 | All | ✅ |
 | OB-28 | Mobile SOC app — React Native, push alerts for HIGH/BLOCK verdicts | — | Pro+ | 📋 |
 
@@ -304,7 +304,7 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 | FE-12 | SOC dashboard DNS A record (`dash.shadow-warden-ai.com → 91.98.234.160`) | v4.20 | — | ✅ |
 | FE-13 | Analytics API live endpoints in SOC dashboard (replace mock/placeholder data) | v4.21 | All | ✅ |
 | FE-14 | Mobile-responsive SOC dashboard | v4.21 | All | ✅ |
-| FE-15 | Onboarding flow — guided 5-step setup wizard for new tenants | — | All | 📋 |
+| FE-15 | Onboarding flow — guided 5-step setup wizard for new tenants | v4.22 | All | ✅ |
 | FE-16 | Dark/light theme toggle in portal and SOC dashboard | v4.21 | All | ✅ |
 | FE-17 | `shadow-warden-ai.com/pricing` — interactive tier comparison + add-on calculator | v4.20 | Public | ✅ |
 | FE-18 | Community & Tunnel 7-page Astro SPA — view / members / tunnel / integrations / activity / settings / new | v4.20 | Community+ | ✅ |
@@ -372,8 +372,8 @@ Test suites, coverage gates, mutation testing, adversarial scenarios.
 | TQ-15 | k6 smoke test — 1 VU, 30s, post-deploy gate | v4.14 | ✅ |
 | TQ-16 | Coverage gate raise to 80% | v4.21 | ✅ |
 | TQ-17 | Property-based testing (Hypothesis) on SecretRedactor + TopologicalGatekeeper | v4.21 | ✅ |
-| TQ-18 | Integration test suite against live Docker Compose stack | — | 📋 |
-| TQ-19 | Chaos engineering — random service kill + traffic replay, verify fail-open | — | 📋 |
+| TQ-18 | Integration test suite against live Docker Compose stack | v4.22 | ✅ |
+| TQ-19 | Chaos engineering — random service kill + traffic replay, verify fail-open | v4.22 | ✅ |
 
 ---
 
@@ -391,9 +391,9 @@ Continuous self-improvement and threat intelligence synthesis.
 | AR-06 | Threat Radar — OSV API CVE scan + ArXiv paper hunt → `data/intel_report.json` | v3.0 | ✅ |
 | AR-07 | `data/evolution_dataset.jsonl` — persisted training examples for audit | v1.0 | ✅ |
 | AR-08 | Community auto-apply — UECIID → attack example → human-in-the-loop approval | v4.16 | ✅ |
-| AR-09 | Online learning pipeline — nightly ONNX fine-tune from `evolution_dataset.jsonl` | — | 📋 |
-| AR-10 | Federated threat model — share anonymised rule deltas between tenants without raw data | — | 📋 |
-| AR-11 | Red-team autopilot — SOVA generates novel jailbreak probes against own pipeline | — | 📋 |
+| AR-09 | Online learning pipeline — nightly ONNX fine-tune from `evolution_dataset.jsonl` | v4.22 | ✅ |
+| AR-10 | Federated threat model — share anonymised rule deltas between tenants without raw data | v4.22 | ✅ |
+| AR-11 | Red-team autopilot — SOVA generates novel jailbreak probes against own pipeline | v4.22 | ✅ |
 | AR-12 | Curriculum learning scheduler — prioritise training on rarest attack classes | — | 📋 |
 
 ---
@@ -443,5 +443,7 @@ Continuous self-improvement and threat intelligence synthesis.
 | v4.17 | 2026-05-07 | SOVA + Obsidian + Slack unification |
 | v4.18 | 2026-05-07 | Obsidian sidebar, frontmatter tagging, local pre-validation |
 | v4.19 | 2026-05-07 | Obsidian Dataview dashboard, offline queue, XAI viz, scheduler |
-| **v4.20** | **2026-05-17** | **Community & Tunnel SPA, castle logo, interactive /pricing, SOC Dashboard DNS live, roadmap: CR-13–15 (PQC/HSM/MASQUE), CP-22–26 (ISO/HIPAA/NIS2/compliance), IN-14–22 (VS Code/GitHub/Jira/Teams/Notion/STIX/OTel/MISP), OB-26–28, IF-19–20, BL-19–20, a11y contrast fix** |
+| v4.20 | 2026-05-17 | Community & Tunnel SPA, castle logo, interactive /pricing, SOC Dashboard DNS live, roadmap: CR-13–15 (PQC/HSM/MASQUE), CP-22–26 (ISO/HIPAA/NIS2/compliance), IN-14–22 (VS Code/GitHub/Jira/Teams/Notion/STIX/OTel/MISP), OB-26–28, IF-19–20, BL-19–20, a11y contrast fix |
+| v4.21 | 2026-05-18 | DataPrivacyAgent, GitHub Actions integration, Jira/Teams integrations, Grafana unified, mobile SOC, dark/light theme, FE-12–14, AG-23, SP-23 scaffolds |
+| **v4.22** | **2026-05-18** | **Sprint 3: WebSocket stream (OB-26), onboarding wizard (FE-15), integration tests (TQ-18), chaos testing (TQ-19), online learning (AR-09), federated threats (AR-10), red-team autopilot (AR-11), VS Code extension (IN-14), community federation (CM-26), TAXII consumer (IN-19), pgvector memory (AG-24), multi-modal guard (SP-22), HSM PKCS#11 (CR-14), k8s HPA (IF-19), model sharing (CM-27)** |
 | v5.0 | Q3 2026 | Multi-region active-active, ONNX online learning, HIPAA |

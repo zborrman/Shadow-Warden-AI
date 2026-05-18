@@ -62,6 +62,7 @@ from warden.workers.reaper import (
     reap_expired_tunnels,
 )
 from warden.workers.settings_watcher import watch_config_drift
+from warden.brain.online_learner import online_learning_job
 from warden.workers.weekly_report import send_weekly_reports
 
 logging.basicConfig(
@@ -99,6 +100,8 @@ class WorkerSettings:
         sova_community_watchdog,
         sova_obsidian_watchdog,
         sova_overage_billing,        # BL-19
+        # Online learning pipeline
+        online_learning_job,          # AR-09
         # Community moderation
         moderate_post,
         # Cyber Security Hub
@@ -168,6 +171,9 @@ class WorkerSettings:
 
         # ── Overage billing — monthly on 1st at 00:05 UTC (BL-19) ─────────────
         cron(sova_overage_billing, month_day=1, hour=0, minute=5, timeout=300),
+
+        # ── Online learning — nightly at 01:00 UTC (AR-09) ───────────────────
+        cron(online_learning_job, hour=1, minute=0, timeout=600),
     ]
 
     on_startup  = startup

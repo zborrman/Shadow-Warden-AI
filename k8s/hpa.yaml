@@ -1,0 +1,122 @@
+# Shadow Warden AI — Kubernetes Horizontal Pod Autoscalers (IF-19)
+#
+# Autoscales warden (gateway) and dashboard services based on CPU utilisation.
+# Requires:  metrics-server installed in the cluster
+#            kubectl apply -f k8s/hpa.yaml
+#
+# Namespace: shadow-warden  (matches Helm chart default)
+# Min replicas: 2   (HA — no single pod dependency)
+# Max replicas: 10  (cost ceiling per service)
+# CPU target: 70%  (gives headroom before scale-out)
+#
+# Memory-based scale-out is also configured for the warden gateway since
+# sentence-transformers model loading is the main memory driver.
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: warden-hpa
+  namespace: shadow-warden
+  labels:
+    app: warden
+    component: gateway
+    version: v4.22
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: warden
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60      # wait 60s before adding replicas
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60               # add at most 2 pods per minute
+    scaleDown:
+      stabilizationWindowSeconds: 300     # wait 5 min before removing replicas
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120              # remove at most 1 pod per 2 minutes
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dashboard-hpa
+  namespace: shadow-warden
+  labels:
+    app: dashboard
+    component: frontend
+    version: v4.22
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dashboard
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 90
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: arq-worker-hpa
+  namespace: shadow-warden
+  labels:
+    app: arq-worker
+    component: background
+    version: v4.22
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: arq-worker
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120
+    scaleDown:
+      stabilizationWindowSeconds: 600   # arq workers hold long jobs — slow scale-down

@@ -1271,6 +1271,34 @@ try:
 except ImportError:
     log.warning("integrations router not available — /integrations skipped.")
 
+try:
+    from warden.api.ws_events import router as _ws_events_router
+    app.include_router(_ws_events_router)
+    log.info("WebSocket anomaly stream mounted at /ws/events (OB-26)")
+except ImportError:
+    log.warning("ws_events router not available — /ws/events skipped.")
+
+try:
+    from warden.api.red_team import router as _red_team_router
+    app.include_router(_red_team_router)
+    log.info("Red-team autopilot mounted at /agent/red-team (AR-11)")
+except ImportError:
+    log.warning("red_team router not available — /agent/red-team skipped.")
+
+try:
+    from warden.communities.federation import router as _federation_router
+    app.include_router(_federation_router)
+    log.info("Community threat federation mounted at /sep/federation (CM-26)")
+except ImportError:
+    log.warning("federation router not available — /sep/federation skipped.")
+
+try:
+    from warden.communities.model_share import router as _model_share_router
+    app.include_router(_model_share_router)
+    log.info("Community model sharing mounted at /sep/model-bundles (CM-27)")
+except ImportError:
+    log.warning("model_share router not available — /sep/model-bundles skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
