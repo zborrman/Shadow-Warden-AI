@@ -26,6 +26,7 @@ Supported operations
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 
@@ -40,7 +41,7 @@ _KEY_LABEL    = os.getenv("PKCS11_KEY_LABEL", "warden-sign")
 _OQS_AVAILABLE = False  # populated below
 
 try:
-    import pkcs11  # type: ignore[import]
+    import pkcs11 as _pkcs11_mod  # type: ignore[import]  # noqa: F401
     _PKCS11_AVAILABLE = True
 except ImportError:
     _PKCS11_AVAILABLE = False
@@ -88,7 +89,6 @@ class HSMSigner:
     def _init_session(self) -> None:
         try:
             import pkcs11  # type: ignore[import]
-            from pkcs11 import Mechanism  # type: ignore[import]
 
             lib = pkcs11.lib(_PKCS11_LIB)
             token = lib.get_token(token_label=_TOKEN_LABEL)
@@ -113,7 +113,6 @@ class HSMSigner:
             return self._sw_sign(data)
 
         try:
-            import pkcs11  # type: ignore[import]
             from pkcs11 import KeyType, Mechanism  # type: ignore[import]
 
             session = self._session
@@ -135,7 +134,6 @@ class HSMSigner:
             return self._sw_verify(data, signature)
 
         try:
-            import pkcs11  # type: ignore[import]
             from pkcs11 import KeyType, Mechanism  # type: ignore[import]
 
             session = self._session
@@ -177,12 +175,10 @@ class HSMSigner:
     # ── Software fallback ─────────────────────────────────────────────────────
 
     def _sw_sign(self, data: bytes) -> bytes:
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: PLC0415
         key = self._get_sw_key()
         return key.sign(data)
 
     def _sw_verify(self, data: bytes, sig: bytes) -> bool:
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey  # noqa: PLC0415
         try:
             self._get_sw_key().public_key().verify(sig, data)
             return True
@@ -190,7 +186,10 @@ class HSMSigner:
             return False
 
     def _sw_public_key_pem(self) -> str:
-        from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat  # noqa: PLC0415
+        from cryptography.hazmat.primitives.serialization import (  # noqa: PLC0415
+            Encoding,
+            PublicFormat,
+        )
         return self._get_sw_key().public_key().public_bytes(
             Encoding.PEM, PublicFormat.SubjectPublicKeyInfo
         ).decode()
@@ -198,8 +197,11 @@ class HSMSigner:
     def _get_sw_key(self):
         """Lazy-load or generate an in-process Ed25519 key (test / fallback only)."""
         if not hasattr(self, "_sw_key"):
-            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: PLC0415
             import os as _os  # noqa: PLC0415
+
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+                Ed25519PrivateKey,  # noqa: PLC0415
+            )
             seed_hex = _os.getenv("HSM_SW_KEY_HEX", "")
             if seed_hex and len(seed_hex) == 64:
                 self._sw_key = Ed25519PrivateKey.from_private_bytes(bytes.fromhex(seed_hex))
@@ -210,10 +212,8 @@ class HSMSigner:
 
     def close(self) -> None:
         if self._session:
-            try:
+            with contextlib.suppress(Exception):
                 self._session.close()  # type: ignore[union-attr]
-            except Exception:
-                pass
             self._session = None
 
 

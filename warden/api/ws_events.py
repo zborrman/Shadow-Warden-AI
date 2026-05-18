@@ -31,11 +31,10 @@ Payload keys
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
-import time
-from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -56,10 +55,8 @@ def _register() -> asyncio.Queue:
 
 
 def _unregister(q: asyncio.Queue) -> None:
-    try:
+    with contextlib.suppress(ValueError):
         _subscribers.remove(q)
-    except ValueError:
-        pass
 
 
 async def broadcast_event(payload: dict) -> None:
@@ -114,7 +111,7 @@ async def ws_events(websocket: WebSocket) -> None:
         msg = json.loads(raw)
         if isinstance(msg.get("subscribe"), list):
             subscribed = {v.upper() for v in msg["subscribe"]}
-    except (asyncio.TimeoutError, Exception):
+    except (TimeoutError, Exception):
         pass  # no filter message — use defaults
 
     keepalive_task = asyncio.create_task(_keepalive(websocket))
@@ -123,7 +120,7 @@ async def ws_events(websocket: WebSocket) -> None:
         while True:
             try:
                 event = await asyncio.wait_for(q.get(), timeout=_KEEPALIVE_INTERVAL + 5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
 
             verdict = str(event.get("verdict", "")).upper()
@@ -188,10 +185,8 @@ async def redis_subscriber_loop() -> None:
                 try:
                     payload = json.loads(msg["data"])
                     for q in list(_subscribers):
-                        try:
+                        with contextlib.suppress(asyncio.QueueFull):
                             q.put_nowait(payload)
-                        except asyncio.QueueFull:
-                            pass
                 except Exception:
                     pass
 

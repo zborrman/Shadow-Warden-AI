@@ -133,8 +133,9 @@ def test_filter_score_in_range():
 
 @_skip_if_down
 def test_filter_latency_under_2000ms():
-    import httpx  # noqa: PLC0415
     import time  # noqa: PLC0415
+
+    import httpx  # noqa: PLC0415
     t0 = time.perf_counter()
     r = httpx.post(
         f"{_BASE_URL}/filter",
@@ -221,8 +222,9 @@ def test_batch_filter_processes_multiple_requests():
 @_skip_if_down
 def test_concurrent_filter_requests_all_succeed():
     """10 concurrent requests should all return within 5s (fail-open guaranteed)."""
-    import httpx  # noqa: PLC0415
     import concurrent.futures  # noqa: PLC0415
+
+    import httpx  # noqa: PLC0415
 
     def send_request(_):
         with httpx.Client(timeout=5) as client:

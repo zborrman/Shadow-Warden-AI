@@ -13,7 +13,6 @@ Run with:
 """
 from __future__ import annotations
 
-import asyncio
 import os
 from unittest.mock import MagicMock, patch
 
@@ -139,6 +138,7 @@ class TestObfuscationRobustness:
 
     def test_decoder_handles_deeply_nested_encoding(self):
         import base64  # noqa: PLC0415
+
         from warden.obfuscation import ObfuscationDecoder
         d = ObfuscationDecoder()
         # Triple-encoded
@@ -178,11 +178,9 @@ class TestS3FailOpen:
         store._bucket = "test"
 
         # upload_json should not raise even with no client
-        try:
-            # Call in a way that would trigger upload path
-            store._bucket = None
-        except Exception:
-            pass   # setup can fail, what matters is upload doesn't propagate
+        import contextlib  # noqa: PLC0415
+        with contextlib.suppress(Exception):
+            store._bucket = None  # setup can fail, what matters is upload doesn't propagate
 
 
 # ── ERS Redis-down shadow ban ─────────────────────────────────────────────────
@@ -191,13 +189,13 @@ class TestERSFailOpen:
     def test_ers_works_without_redis(self):
         """ERS should not crash when Redis is unavailable."""
         try:
-            from warden.main import _ers_check  # noqa: PLC0415
+            import warden.main  # noqa: PLC0415
+            _ = getattr(warden.main, "_ers_check", None)
         except ImportError:
             pytest.skip("_ers_check not importable")
 
         with patch("warden.main._get_redis_client", return_value=None):
-            # Should return a tuple without raising
-            pass  # Just verifying import doesn't fail
+            pass  # Just verifying the module loads without Redis
 
 
 # ── Alerting fail-open ─────────────────────────────────────────────────────────

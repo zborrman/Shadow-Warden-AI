@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import UTC, datetime
 
 log = logging.getLogger("warden.agent.memory")
@@ -102,9 +103,7 @@ def now_iso() -> str:
 
 # ── pgvector semantic memory (AG-24) ──────────────────────────────────────────
 
-import os as _os
-
-_PG_URL = _os.getenv("PGVECTOR_URL", "")
+_PG_URL = os.getenv("PGVECTOR_URL", "")
 _pgconn = None   # lazy psycopg2 connection
 
 

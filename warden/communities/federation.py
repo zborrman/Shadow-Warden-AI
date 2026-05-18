@@ -24,15 +24,14 @@ Falls back to SQLite `sep_federation_verdicts`.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import json
 import logging
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-
-import httpx
 
 log = logging.getLogger("warden.communities.federation")
 
@@ -214,10 +213,8 @@ def list_verdicts(community_id: str, limit: int = 50) -> list[dict]:
 
     result = []
     for e in entries:
-        try:
+        with contextlib.suppress(Exception):
             result.append(json.loads(e))
-        except Exception:
-            pass
     return result
 
 

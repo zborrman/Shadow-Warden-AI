@@ -44,8 +44,7 @@ import json
 import logging
 import os
 import sqlite3
-import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 log = logging.getLogger("warden.communities.model_share")
@@ -181,7 +180,7 @@ def get_bundle(ueciid: str, include_rules: bool = False) -> dict | None:
         if not row:
             return None
         cols = [d[0] for d in conn.execute("SELECT * FROM sep_model_bundles LIMIT 0").description]
-        d = dict(zip(cols, row))
+        d = dict(zip(cols, row, strict=False))
         d["attack_types"] = json.loads(d.pop("attack_types_json", "[]"))
         rules_json = d.pop("rules_json", "[]")
         if include_rules:
@@ -279,8 +278,9 @@ def activate_bundle(ueciid: str) -> int:
 
 def _pqc_sign_bundle(payload: str, community_id: str) -> str:
     try:
-        from warden.communities.keypair import load_community_keypair  # noqa: PLC0415
         import base64  # noqa: PLC0415
+
+        from warden.communities.keypair import load_community_keypair  # noqa: PLC0415
         kp = load_community_keypair(community_id)
         if kp and kp.is_hybrid:
             sig = kp.hybrid_sign(payload.encode())

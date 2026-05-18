@@ -53,6 +53,7 @@ from warden.agent.scheduler import (
     sova_upgrade_scan,
     sova_visual_patrol,
 )
+from warden.brain.online_learner import online_learning_job
 from warden.workers.content_filter import moderate_post
 from warden.workers.cve_scanner import scan_cves
 from warden.workers.dunning import process_dunning
@@ -62,7 +63,6 @@ from warden.workers.reaper import (
     reap_expired_tunnels,
 )
 from warden.workers.settings_watcher import watch_config_drift
-from warden.brain.online_learner import online_learning_job
 from warden.workers.weekly_report import send_weekly_reports
 
 logging.basicConfig(

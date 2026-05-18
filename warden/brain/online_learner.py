@@ -30,10 +30,11 @@ Environment vars
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -110,10 +111,8 @@ def _load_examples(n: int) -> list[dict]:
             for line in f:
                 line = line.strip()
                 if line:
-                    try:
+                    with contextlib.suppress(Exception):
                         examples.append(json.loads(line))
-                    except Exception:
-                        pass
     except Exception as exc:
         log.warning("online_learner: could not read dataset: %s", exc)
     return examples[-n:]   # most recent N
