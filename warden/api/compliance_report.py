@@ -360,7 +360,7 @@ async def iso27001_html(days: Annotated[int, Query(ge=1, le=365)] = 30) -> HTMLR
     data = await iso27001_report(days=days)
     rows = "".join(
         f"<tr><td><code>{c['control']}</code></td><td>{c['domain']}</td>"
-        f"<td class='status-{c[\"status\"].lower().replace(\" \",\"-\")}'>{c['status']}</td>"
+        f"<td class='status-{c['status'].lower().replace(' ','-')}'>{c['status']}</td>"
         f"<td>{c['evidence']}</td></tr>"
         for c in data["controls"]
     )
