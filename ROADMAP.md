@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 4.21 · Last updated 2026-05-18**
+**Version 4.22 · Last updated 2026-05-18**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -50,7 +50,7 @@ The 9-layer filter that processes every AI request in < 2ms.
 | SP-20 | Worm Guard — lateral movement detection (agent chain patterns) | v3.5 | Pro+ | ✅ |
 | SP-21 | Adaptive OTel sampling — 10% ALLOW / 100% HIGH+BLOCK, tail-sampling Collector | v4.14 | All | ✅ |
 | SP-22 | Multi-modal content guard — image prompt injection detection | v4.22 | Pro+ | ✅ |
-| SP-23 | Audio/video transcription guard — Whisper pre-scan before LLM | — | Enterprise | 📋 |
+| SP-23 | Audio/video transcription guard — Whisper pre-scan before LLM | v5.0 | Enterprise | 📋 |
 | SP-24 | Fine-tuned ONNX model export — <1ms inference, eliminates MiniLM cold start | v4.21 | All | ✅ |
 
 ---
@@ -85,7 +85,7 @@ Autonomous AI operators that monitor, respond, and self-heal.
 | AG-22 | SOVA tool #47 — `block_ip_range` (ERS hard block, tenant-scoped) | v4.21 | Enterprise | ✅ |
 | AG-23 | MasterAgent sub-agent #5 — DataPrivacyAgent (GDPR ROPA/DPIA, retention, PII governance) | v4.21 | Enterprise | ✅ |
 | AG-24 | SOVA memory expansion — vector search (pgvector) over past conversations | v4.22 | Pro+ | ✅ |
-| AG-25 | Voice-activated SOC operator — WebRTC audio → Whisper → SOVA → TTS response | — | Enterprise | 📋 |
+| AG-25 | Voice-activated SOC operator — WebRTC audio → Whisper → SOVA → TTS response | v5.0 | Enterprise | 📋 |
 
 ---
 
@@ -122,7 +122,7 @@ Federated knowledge-sharing between Security Operations teams.
 | CM-25 | `SEARCH_HIT +1` reputation — awarded on `search_community_feed` result match | v4.21 | Community+ | ✅ |
 | CM-26 | Community threat score federation — broadcast verified verdicts to federated peers | v4.22 | Enterprise | ✅ |
 | CM-27 | Community AI model sharing — share fine-tuned detection rules as signed UECIID bundles | v4.22 | Enterprise | ✅ |
-| CM-28 | Community SLA contracts — codify data residency + retention commitments in charter | — | Enterprise | 📋 |
+| CM-28 | Community SLA contracts — codify data residency + retention commitments in charter | v5.0 | Enterprise | 📋 |
 
 ---
 
@@ -241,7 +241,7 @@ Everything from Docker orchestration to CI/CD to Kubernetes.
 | IF-17 | GitHub Actions autodeploy — SSH deploy to Hetzner VPS | v4.11 | — | ✅ |
 | IF-18 | py-spy profiling + k6 load harness (`scripts/profile_under_load.sh`) | v4.13 | — | ✅ |
 | IF-19 | Kubernetes horizontal pod autoscaler for warden + dashboard services | v4.22 | Enterprise | ✅ |
-| IF-20 | Multi-region active-active deployment (EU + US) | — | Enterprise | 📋 |
+| IF-20 | Multi-region active-active deployment (EU + US) | v5.0 | Enterprise | 📋 |
 | IF-21 | cosign + SBOM CI signing on Docker images | v4.13 | — | ✅ |
 | IF-22 | Mutation testing — mutmut on `secret_redactor.py` + `semantic_guard.py` | v2.0 | — | ✅ |
 
@@ -280,7 +280,7 @@ Dashboards, metrics, tracing, and alerting across all layers.
 | OB-25 | AI-generated weekly ROI email — ARQ cron, Friday 08:00 UTC, Pro+ tenants | v3.0 | Pro+ | ✅ |
 | OB-26 | Real-time anomaly WebSocket stream — push XAI events to dashboard without polling | v4.22 | Pro+ | ✅ |
 | OB-27 | Grafana unified dashboard for all 11 services | v4.21 | All | ✅ |
-| OB-28 | Mobile SOC app — React Native, push alerts for HIGH/BLOCK verdicts | — | Pro+ | 📋 |
+| OB-28 | Mobile SOC app — React Native, push alerts for HIGH/BLOCK verdicts | v5.0 | Pro+ | 📋 |
 
 ---
 
@@ -345,7 +345,7 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-18 | `UsageProgress` React component — quota bar, 80% upgrade CTA, 60s refresh | v4.20 | — | ✅ |
 | BL-19 | Request overage billing — ARQ monthly cron, Pro $0.50/1k, Enterprise $0.10/1k | v4.21 | Pro+ | ✅ |
 | BL-20 | Add-on: Obsidian Business Pack — bundled plugin features +$8/mo | v4.21 | Individual+ | ✅ |
-| BL-21 | Marketplace listing — AWS / Azure / Google Cloud Marketplace | — | Enterprise | 📋 |
+| BL-21 | Marketplace listing — AWS / Azure / Google Cloud Marketplace | v5.0 | Enterprise | 📋 |
 
 ---
 
@@ -394,7 +394,7 @@ Continuous self-improvement and threat intelligence synthesis.
 | AR-09 | Online learning pipeline — nightly ONNX fine-tune from `evolution_dataset.jsonl` | v4.22 | ✅ |
 | AR-10 | Federated threat model — share anonymised rule deltas between tenants without raw data | v4.22 | ✅ |
 | AR-11 | Red-team autopilot — SOVA generates novel jailbreak probes against own pipeline | v4.22 | ✅ |
-| AR-12 | Curriculum learning scheduler — prioritise training on rarest attack classes | — | 📋 |
+| AR-12 | Curriculum learning scheduler — prioritise training on rarest attack classes | v5.0 | 📋 |
 
 ---
 
