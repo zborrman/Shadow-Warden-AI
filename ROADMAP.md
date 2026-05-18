@@ -81,8 +81,8 @@ Autonomous AI operators that monitor, respond, and self-heal.
 | AG-18 | `sova_visual_patrol` — nightly 03:00 UTC, ScreencastRecorder + Redis weight decay | v3.3 | Pro+ | ✅ |
 | AG-19 | `sova_obsidian_watchdog` — every 4h, vault integrity check + Slack alert | v4.17 | Community+ | ✅ |
 | AG-20 | Prompt caching — SOVA agentic loop with Anthropic cache_control | v3.0 | Pro+ | ✅ |
-| AG-21 | SOVA tool #46 — `generate_threat_report` (full PDF/HTML export via XAI renderer) | — | Pro+ | 📋 |
-| AG-22 | SOVA tool #47 — `block_ip_range` (ERS hard block, tenant-scoped) | — | Enterprise | 📋 |
+| AG-21 | SOVA tool #46 — `generate_threat_report` (full PDF/HTML export via XAI renderer) | v4.21 | Pro+ | ✅ |
+| AG-22 | SOVA tool #47 — `block_ip_range` (ERS hard block, tenant-scoped) | v4.21 | Enterprise | ✅ |
 | AG-23 | MasterAgent sub-agent #5 — DataPrivacyAgent (GDPR Art.17 right-to-erasure automation) | — | Enterprise | 📋 |
 | AG-24 | SOVA memory expansion — vector search (pgvector) over past conversations | — | Pro+ | 📋 |
 | AG-25 | Voice-activated SOC operator — WebRTC audio → Whisper → SOVA → TTS response | — | Enterprise | 📋 |
@@ -118,8 +118,8 @@ Federated knowledge-sharing between Security Operations teams.
 | CM-21 | Auto-apply recommendations with human-in-the-loop (`POST /agent/sova/community/apply/{ueciid}`) | v4.16 | Pro+ | ✅ |
 | CM-22 | Public incident card (`GET /public/incident/{ueciid}`) — XAI chain, GDPR-safe | v4.16 | Public | ✅ |
 | CM-23 | SEP REST API — 24 endpoints: UECIID, pod-tags, peerings, knock, pods, audit-chain | v4.7 | Community+ | ✅ |
-| CM-24 | `TRUSTED_ENTRY +3` reputation cron — 30-day no-report entries auto-awarded | — | Community+ | 📋 |
-| CM-25 | `SEARCH_HIT +1` reputation — awarded on `search_community_feed` result match | — | Community+ | 📋 |
+| CM-24 | `TRUSTED_ENTRY +3` reputation cron — 30-day no-report entries auto-awarded | v4.21 | Community+ | ✅ |
+| CM-25 | `SEARCH_HIT +1` reputation — awarded on `search_community_feed` result match | v4.21 | Community+ | ✅ |
 | CM-26 | Community threat score federation — broadcast verified verdicts to federated peers | — | Enterprise | 📋 |
 | CM-27 | Community AI model sharing — share fine-tuned detection rules as signed UECIID bundles | — | Enterprise | 📋 |
 | CM-28 | Community SLA contracts — codify data residency + retention commitments in charter | — | Enterprise | 📋 |
@@ -184,9 +184,9 @@ Everything needed for regulated industries (GDPR, SOC 2, HIPAA, ISO 27001).
 | CP-19 | AgentMonitor — INJECTION_CHAIN detection, cryptographic attestation | v3.0 | Pro+ | ✅ |
 | CP-20 | OTel GDPR span rules — raw content, PII, secrets prohibited on spans (Rule.md §21) | v4.13 | All | ✅ |
 | CP-21 | Uptime Monitor — HTTP/SSL/DNS/TCP probes, TimescaleDB hypertable | v3.5 | Community+ | ✅ |
-| CP-22 | ISO 27001 Annex A control mapping | — | Enterprise | 📋 |
-| CP-23 | HIPAA technical safeguards attestation (encryption, audit, access control) | — | Enterprise | 📋 |
-| CP-24 | NIS2 Directive compliance report | — | Enterprise | 📋 |
+| CP-22 | ISO 27001 Annex A control mapping | v4.21 | Enterprise | ✅ |
+| CP-23 | HIPAA technical safeguards attestation (encryption, audit, access control) | v4.21 | Enterprise | ✅ |
+| CP-24 | NIS2 Directive compliance report | v4.21 | Enterprise | ✅ |
 | CP-25 | Continuous compliance scoring dashboard — real-time SOC 2 / GDPR / ISO posture | — | Pro+ | 📋 |
 | CP-26 | Data retention policy enforcement — tenant-configurable per data_class | — | Community+ | 📋 |
 
@@ -279,7 +279,7 @@ Dashboards, metrics, tracing, and alerting across all layers.
 | OB-24 | Threat intelligence Streamlit (Page 2 — Threat Radar + Intel Bridge + Causal Arbiter) | v4.13 | Pro+ | ✅ |
 | OB-25 | AI-generated weekly ROI email — ARQ cron, Friday 08:00 UTC, Pro+ tenants | v3.0 | Pro+ | ✅ |
 | OB-26 | Real-time anomaly WebSocket stream — push XAI events to dashboard without polling | — | Pro+ | 📋 |
-| OB-27 | Grafana unified dashboard for all 11 services | — | All | 📋 |
+| OB-27 | Grafana unified dashboard for all 11 services | v4.21 | All | ✅ |
 | OB-28 | Mobile SOC app — React Native, push alerts for HIGH/BLOCK verdicts | — | Pro+ | 📋 |
 
 ---
@@ -344,7 +344,7 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-17 | `PricingCalculator` React component — tier + add-on + bundle + annual/monthly toggle | v4.20 | — | ✅ |
 | BL-18 | `UsageProgress` React component — quota bar, 80% upgrade CTA, 60s refresh | v4.20 | — | ✅ |
 | BL-19 | Request overage billing — automatic charge per 1k requests above Pro tier | — | Pro+ | 📋 |
-| BL-20 | Add-on: Obsidian Business Pack — bundled plugin features +$8/mo | — | Individual+ | 📋 |
+| BL-20 | Add-on: Obsidian Business Pack — bundled plugin features +$8/mo | v4.21 | Individual+ | ✅ |
 | BL-21 | Marketplace listing — AWS / Azure / Google Cloud Marketplace | — | Enterprise | 📋 |
 
 ---
@@ -370,7 +370,7 @@ Test suites, coverage gates, mutation testing, adversarial scenarios.
 | TQ-13 | test_coverage_boost.py — 55 targeted tests pushing coverage to 75.3% | v4.11 | ✅ |
 | TQ-14 | k6 load test — baseline/ramp/spike/soak scenarios against `api.shadow-warden-ai.com` | v4.13 | ✅ |
 | TQ-15 | k6 smoke test — 1 VU, 30s, post-deploy gate | v4.14 | ✅ |
-| TQ-16 | Coverage gate raise to 80% | — | 📋 |
+| TQ-16 | Coverage gate raise to 80% | v4.21 | ✅ |
 | TQ-17 | Property-based testing (Hypothesis) on SecretRedactor + TopologicalGatekeeper | — | 📋 |
 | TQ-18 | Integration test suite against live Docker Compose stack | — | 📋 |
 | TQ-19 | Chaos engineering — random service kill + traffic replay, verify fail-open | — | 📋 |

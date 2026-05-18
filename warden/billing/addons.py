@@ -118,6 +118,16 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/community-seats",
     },
 
+    "obsidian_business_pack": {
+        "display_name":   "Obsidian Business Pack",
+        "description":    "Full Obsidian plugin feature set: Dataview security dashboard, offline publish queue, XAI pipeline visualizer, scheduled scan, and sidebar reputation panel.",
+        "usd_per_month":  8,
+        "min_tier":       "individual",
+        "ls_variant_id":  os.getenv("LS_VARIANT_OBSIDIAN_PACK", ""),
+        "unlocks":        ["obsidian_business_pack_enabled"],
+        "docs_url":       "/docs/addons/obsidian-business-pack",
+    },
+
 }
 
 # ── Bundle catalog ─────────────────────────────────────────────────────────────

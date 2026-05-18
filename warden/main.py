@@ -3349,6 +3349,42 @@ async def block_ip(body: _BlockIpRequest):
     }
 
 
+@app.post(
+    "/api/ips/block",
+    tags=["threats"],
+    summary="Block a CIDR IP range (SOVA tool #47)",
+    dependencies=[Depends(require_api_key)],
+)
+async def block_ip_range_endpoint(body: dict):
+    """
+    Block all IPs in a CIDR range.  Used by SOVA tool #47 `block_ip_range`.
+    Maximum prefix /24 (256 hosts).  Adds each host to the ThreatStore and
+    global Redis blocklist.
+    """
+    import ipaddress  # noqa: PLC0415
+    if _threat_store is None:
+        raise HTTPException(status_code=503, detail="Threat store not available.")
+    cidr      = body.get("cidr", "")
+    reason    = body.get("reason", "SOVA CIDR block")
+    tenant_id = body.get("tenant_id", "default")
+    try:
+        net = ipaddress.ip_network(cidr, strict=False)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid CIDR: {exc}") from exc
+    if net.prefixlen < 24:
+        raise HTTPException(status_code=422, detail="CIDR too broad — minimum /24 prefix required.")
+    hosts_blocked = 0
+    for host in net.hosts():
+        ip_str = str(host)
+        try:
+            _threat_store.block_ip(ip=ip_str, tenant_id=tenant_id, reason=reason, blocked_by="sova")
+            hosts_blocked += 1
+        except Exception as exc:
+            log.debug("block_ip_range: host=%s error=%s", ip_str, exc)
+    log.info(json.dumps({"event": "cidr_blocked", "cidr": cidr, "hosts": hosts_blocked, "tenant_id": tenant_id}))
+    return {"cidr": cidr, "hosts_blocked": hosts_blocked, "reason": reason, "tenant_id": tenant_id}
+
+
 @app.delete(
     "/threats/blocked-ips/{ip}",
     tags=["threats"],

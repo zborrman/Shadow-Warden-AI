@@ -688,24 +688,37 @@ async def search_community_feed(
             params={"q": query, "limit": limit},
         )
         entries = results if isinstance(results, list) else results.get("results", [])
-        return {
-            "query":   query,
-            "total":   len(entries),
-            "results": [
-                {
-                    "ueciid":       e.get("ueciid"),
-                    "display_name": e.get("display_name"),
-                    "data_class":   e.get("data_class"),
-                    "jurisdiction": e.get("jurisdiction"),
-                    "created_at":   e.get("created_at"),
-                    "metadata":     e.get("metadata", {}),
+        result_list = [
+            {
+                "ueciid":       e.get("ueciid"),
+                "display_name": e.get("display_name"),
+                "data_class":   e.get("data_class"),
+                "jurisdiction": e.get("jurisdiction"),
+                "created_at":   e.get("created_at"),
+                "metadata":     e.get("metadata", {}),
+            }
+            for e in entries[:limit]
+        ]
+        # CM-25: award SEARCH_HIT +1 for each tenant whose entry matched
+        if result_list:
+            try:
+                from warden.communities.reputation import award_points  # noqa: PLC0415
+                matched_tenants = {
+                    e.get("metadata", {}).get("publisher") or e.get("tenant_id")
+                    for e in entries[:limit]
                 }
-                for e in entries[:limit]
-            ],
-        }
+                for mt in matched_tenants:
+                    if mt and mt != tenant_id:  # don't self-award
+                        award_points(mt, "SEARCH_HIT")
+            except Exception:
+                pass
+        return {"query": query, "total": len(result_list), "results": result_list}
     except Exception as exc:
         log.warning("search_community_feed error: %s", exc)
         return {"query": query, "total": 0, "results": [], "error": str(exc)}
+
+
+
 
 
 async def publish_to_community(
@@ -925,6 +938,86 @@ async def get_obsidian_feed(
         params={"community_id": community_id, "limit": min(int(limit), 20)},
     )
     return {"entries": results if isinstance(results, list) else [], "community_id": community_id}
+
+
+async def generate_threat_report(
+    hours: int = 24,
+    format: str = "html",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #46 — Generate a full threat intelligence PDF/HTML report via the XAI renderer.
+
+    Aggregates filter decisions from the last N hours, builds a causal chain
+    dashboard, and returns an HTML report URL or the raw HTML string.
+    format: 'html' (default) | 'pdf'
+    """
+    try:
+        dashboard = await _get(
+            "/xai/dashboard",
+            tenant=tenant_id,
+            params={"hours": min(int(hours), 168)},
+        )
+        # Request the rendered report for the most recent high-risk entry
+        recent = dashboard.get("top_causes", [])
+        report_url = f"/xai/report/latest?hours={hours}&format={format}"
+        return {
+            "status":       "ok",
+            "report_url":   report_url,
+            "format":       format,
+            "hours":        hours,
+            "total_events": dashboard.get("total_events", 0),
+            "top_causes":   recent[:5],
+            "stage_hits":   dashboard.get("stage_hits", {}),
+            "note": f"Open {report_url} in a browser or call GET {report_url} for the full {format.upper()} report.",
+        }
+    except Exception as exc:
+        log.warning("generate_threat_report error: %s", exc)
+        return {"status": "error", "error": str(exc), "hours": hours}
+
+
+async def block_ip_range(
+    cidr: str,
+    reason: str = "",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Tool #47 — Hard-block a CIDR IP range in the ERS (reputation system).
+
+    Inserts a permanent hard-block entry in the ERS Redis scoring for all IPs
+    in the specified /24 or smaller CIDR. Tenant-scoped — only affects the
+    calling tenant's request stream.
+    cidr: e.g. '203.0.113.0/24' or '198.51.100.42/32'
+    """
+    import ipaddress  # noqa: PLC0415
+    try:
+        net = ipaddress.ip_network(cidr, strict=False)
+        if net.prefixlen < 24:
+            return {
+                "blocked": False,
+                "error": "CIDR too broad — minimum prefix /24 (max 256 hosts). Use a more specific range.",
+            }
+    except ValueError as exc:
+        return {"blocked": False, "error": f"Invalid CIDR: {exc}"}
+
+    try:
+        result = await _post(
+            "/api/ips/block",
+            {"cidr": cidr, "reason": reason or f"SOVA hard-block via tool #47 — {cidr}"},
+            tenant=tenant_id,
+        )
+        return {
+            "blocked":   True,
+            "cidr":      cidr,
+            "hosts":     result.get("hosts_blocked", 0),
+            "reason":    reason,
+            "tenant_id": tenant_id,
+        }
+    except Exception as exc:
+        log.warning("block_ip_range error: %s", exc)
+        return {"blocked": False, "cidr": cidr, "error": str(exc)}
 
 
 async def share_obsidian_note(
@@ -1516,6 +1609,44 @@ TOOLS: list[dict] = [
         },
     },
 
+    # ── Threat report + IP block tools #46–#47 ───────────────────────────────
+    {
+        "name": "generate_threat_report",
+        "description": (
+            "Generate a full threat intelligence report (HTML or PDF) via the XAI causal renderer. "
+            "Aggregates filter decisions from the last N hours, builds a 9-stage causal chain "
+            "dashboard, and returns a report URL plus a summary of top causes and stage hit rates. "
+            "Use for SOC 2 evidence generation, executive briefings, or incident post-mortems."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "hours":     {"type": "integer", "description": "Lookback window in hours (1–168, default 24)"},
+                "format":    {"type": "string",  "description": "Report format: 'html' or 'pdf' (default 'html')"},
+                "tenant_id": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "block_ip_range",
+        "description": (
+            "Hard-block a CIDR IP range in the ERS (reputation scoring system). "
+            "All future requests from IPs in the CIDR will receive a maximum risk score and be blocked. "
+            "Tenant-scoped — only affects requests for the calling tenant. "
+            "Maximum range: /24 (256 hosts). Use /32 to block a single IP. "
+            "IMPORTANT: This is irreversible without admin intervention — confirm the CIDR before calling."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cidr":      {"type": "string", "description": "CIDR to block, e.g. '203.0.113.0/24' or '198.51.100.42/32'"},
+                "reason":    {"type": "string", "description": "Reason for the block (logged in audit trail)"},
+                "tenant_id": {"type": "string"},
+            },
+            "required": ["cidr"],
+        },
+    },
+
     # ── Obsidian + Slack unified tools #43–#45 ────────────────────────────────
     {
         "name": "scan_obsidian_note",
@@ -1623,4 +1754,6 @@ TOOL_HANDLERS: dict[str, Any] = {
     "scan_obsidian_note":            scan_obsidian_note,
     "get_obsidian_feed":             get_obsidian_feed,
     "share_obsidian_note":           share_obsidian_note,
+    "generate_threat_report":        generate_threat_report,
+    "block_ip_range":                block_ip_range,
 }

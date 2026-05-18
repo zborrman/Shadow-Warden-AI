@@ -505,6 +505,64 @@ async def sova_visual_patrol(ctx: dict) -> dict:
     }
 
 
+async def sova_trusted_entry_cron(ctx: dict) -> dict:
+    """
+    Daily 01:00 UTC — CM-24: award TRUSTED_ENTRY +3 to tenants whose SEP entries
+    are ≥30 days old with no moderation actions taken against them.
+
+    Only awards once per tenant per calendar day (idempotency via Redis key).
+    """
+    log.info("sova: trusted entry cron [%s]", _ts())
+
+    import os  # noqa: PLC0415
+
+    from warden.communities.reputation import (  # noqa: PLC0415
+        award_trusted_entry_batch,
+        get_trusted_entry_candidates,
+    )
+
+    r = None
+    try:
+        import redis.asyncio as aioredis  # noqa: PLC0415
+        redis_url = os.getenv("REDIS_URL", "")
+        if redis_url and redis_url != "memory://":
+            r = aioredis.from_url(redis_url)
+    except Exception:
+        pass
+
+    today = _ts()[:10]  # YYYY-MM-DD
+    dedup_key = f"sova:trusted_entry_ran:{today}"
+
+    if r:
+        try:
+            already_ran = await r.exists(dedup_key)
+            if already_ran:
+                log.info("trusted entry cron: already ran today, skipping")
+                return {"status": "skipped", "ts": _ts(), "reason": "already_ran"}
+            await r.setex(dedup_key, 86_400, "1")
+        except Exception:
+            pass
+
+    candidates = get_trusted_entry_candidates(min_age_days=30)
+    if not candidates:
+        log.info("trusted entry cron: no qualifying candidates")
+        return {"status": "ok", "ts": _ts(), "awarded": 0}
+
+    results = award_trusted_entry_batch(candidates)
+    awarded = sum(1 for r_ in results if "error" not in r_)
+    log.info("trusted entry cron: awarded TRUSTED_ENTRY +3 to %d tenants", awarded)
+
+    if awarded:
+        await _slack(
+            f"*TRUSTED_ENTRY Cron* [{_ts()}]\n"
+            f"• Awarded +3 TRUSTED_ENTRY to {awarded} community/communities\n"
+            f"• Qualifying criteria: entries ≥30 days old, no moderation actions\n"
+            f"• Candidates: {', '.join(candidates[:5])}{'...' if len(candidates) > 5 else ''}"
+        )
+
+    return {"status": "ok", "ts": _ts(), "awarded": awarded, "candidates": len(candidates)}
+
+
 async def sova_obsidian_watchdog(ctx: dict) -> dict:
     """
     Every 4 hours — Obsidian vault integrity check.

@@ -223,3 +223,40 @@ def force_badge(tenant_id: str, badge: str) -> None:
             ON CONFLICT(tenant_id) DO UPDATE SET forced_badge=?, badge=?, updated_at=datetime('now')
         """, (tenant_id, badge, badge, badge, badge))
         conn.commit()
+
+
+def get_trusted_entry_candidates(min_age_days: int = 30) -> list[str]:
+    """
+    Return community_ids that have entries in sep_ueciid_index older than
+    min_age_days with no prior TRUSTED_ENTRY event in that window.
+
+    Used by sova_trusted_entry_cron to award TRUSTED_ENTRY +3 automatically.
+    """
+    import sqlite3 as _sqlite3
+    sep_db = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+    try:
+        conn = _sqlite3.connect(sep_db, check_same_thread=False)
+        conn.row_factory = _sqlite3.Row
+        rows = conn.execute("""
+            SELECT DISTINCT community_id
+            FROM sep_ueciid_index
+            WHERE created_at <= datetime('now', ?)
+        """, (f"-{min_age_days} days",)).fetchall()
+        conn.close()
+        return [r["community_id"] for r in rows if r["community_id"]]
+    except Exception as exc:
+        log.warning("get_trusted_entry_candidates: %s", exc)
+        return []
+
+
+def award_trusted_entry_batch(tenant_ids: list[str]) -> list[dict]:
+    """Award TRUSTED_ENTRY +3 to a batch of tenants. Returns list of result dicts."""
+    results = []
+    for tid in tenant_ids:
+        try:
+            rec = award_points(tid, "TRUSTED_ENTRY")
+            results.append({"tenant_id": tid, "points": rec.points, "badge": rec.badge})
+        except Exception as exc:
+            log.warning("award_trusted_entry_batch: tenant=%s error=%s", tid, exc)
+            results.append({"tenant_id": tid, "error": str(exc)})
+    return results

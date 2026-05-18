@@ -1,0 +1,172 @@
+{
+  "__inputs": [
+    { "name": "DS_PROMETHEUS", "label": "Prometheus", "type": "datasource", "pluginId": "prometheus" }
+  ],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+    { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+    { "type": "panel", "id": "gauge", "name": "Gauge", "version": "" },
+    { "type": "panel", "id": "table", "name": "Table", "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Shadow Warden AI — Unified service health across all 11 Docker services",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    { "type": "stat", "id": 1, "gridPos": { "h": 4, "w": 3, "x": 0, "y": 0 },
+      "title": "Warden (8001) — Status",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ] } },
+      "targets": [{ "datasource": "${DS_PROMETHEUS}", "expr": "up{job=\"warden\"}", "legendFormat": "warden" }]
+    },
+    { "type": "stat", "id": 2, "gridPos": { "h": 4, "w": 3, "x": 3, "y": 0 },
+      "title": "App (8000) — Status",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ] } },
+      "targets": [{ "datasource": "${DS_PROMETHEUS}", "expr": "up{job=\"app\"}", "legendFormat": "app" }]
+    },
+    { "type": "stat", "id": 3, "gridPos": { "h": 4, "w": 3, "x": 6, "y": 0 },
+      "title": "Dashboard (3002) — Status",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ] } },
+      "targets": [{ "datasource": "${DS_PROMETHEUS}", "expr": "up{job=\"dashboard\"}", "legendFormat": "dashboard" }]
+    },
+    { "type": "stat", "id": 4, "gridPos": { "h": 4, "w": 3, "x": 9, "y": 0 },
+      "title": "Analytics (8002) — Status",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ] } },
+      "targets": [{ "datasource": "${DS_PROMETHEUS}", "expr": "up{job=\"analytics\"}", "legendFormat": "analytics" }]
+    },
+    { "type": "stat", "id": 5, "gridPos": { "h": 4, "w": 3, "x": 12, "y": 0 },
+      "title": "Postgres — Status",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ] } },
+      "targets": [{ "datasource": "${DS_PROMETHEUS}", "expr": "up{job=\"postgres\"}", "legendFormat": "postgres" }]
+    },
+    { "type": "stat", "id": 6, "gridPos": { "h": 4, "w": 3, "x": 15, "y": 0 },
+      "title": "Redis — Status",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ] } },
+      "targets": [{ "datasource": "${DS_PROMETHEUS}", "expr": "up{job=\"redis\"}", "legendFormat": "redis" }]
+    },
+    { "type": "stat", "id": 7, "gridPos": { "h": 4, "w": 3, "x": 18, "y": 0 },
+      "title": "MinIO (9000) — Status",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ] } },
+      "targets": [{ "datasource": "${DS_PROMETHEUS}", "expr": "up{job=\"minio\"}", "legendFormat": "minio" }]
+    },
+    { "type": "stat", "id": 8, "gridPos": { "h": 4, "w": 3, "x": 21, "y": 0 },
+      "title": "Proxy (80/443) — Status",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ] } },
+      "targets": [{ "datasource": "${DS_PROMETHEUS}", "expr": "up{job=\"proxy\"}", "legendFormat": "proxy" }]
+    },
+
+    { "type": "timeseries", "id": 10, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "title": "Request Rate — /filter (req/s)",
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 }, "color": { "mode": "palette-classic" } } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "rate(warden_requests_total[1m])", "legendFormat": "{{tenant_id}}" }
+      ]
+    },
+    { "type": "timeseries", "id": 11, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "title": "Block Rate (BLOCK + HIGH verdicts/s)",
+      "fieldConfig": { "defaults": { "custom": { "lineWidth": 2 }, "color": { "fixedColor": "#FF2D55", "mode": "fixed" } } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "rate(warden_blocks_total[1m])", "legendFormat": "blocks/s" }
+      ]
+    },
+
+    { "type": "timeseries", "id": 20, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "title": "P99 Filter Latency (ms)",
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "lineWidth": 2 } } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "histogram_quantile(0.99, rate(warden_filter_duration_seconds_bucket[5m])) * 1000", "legendFormat": "P99" },
+        { "datasource": "${DS_PROMETHEUS}", "expr": "histogram_quantile(0.50, rate(warden_filter_duration_seconds_bucket[5m])) * 1000", "legendFormat": "P50" }
+      ]
+    },
+    { "type": "timeseries", "id": 21, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "title": "Shadow Ban Rate (%)",
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "lineWidth": 2 } } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "rate(warden_shadow_bans_total[5m]) / rate(warden_requests_total[5m]) * 100", "legendFormat": "shadow ban %" }
+      ]
+    },
+
+    { "type": "gauge", "id": 30, "gridPos": { "h": 6, "w": 6, "x": 0, "y": 20 },
+      "title": "ERS Bypass Rate (last 5m)",
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "minVizWidth": 75, "minVizHeight": 75 },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
+        "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 10 }, { "color": "red", "value": 15 }] }
+      } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "rate(warden_bypass_total[5m]) / rate(warden_requests_total[5m]) * 100" }
+      ]
+    },
+    { "type": "gauge", "id": 31, "gridPos": { "h": 6, "w": 6, "x": 6, "y": 20 },
+      "title": "Corpus Drift Score",
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 1,
+        "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 0.20 }, { "color": "red", "value": 0.25 }] }
+      } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "warden_corpus_drift_score" }
+      ]
+    },
+    { "type": "stat", "id": 32, "gridPos": { "h": 6, "w": 6, "x": 12, "y": 20 },
+      "title": "LLM Cost Saved (USD, cumulative)",
+      "options": { "colorMode": "value", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "color": { "fixedColor": "green", "mode": "fixed" } } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "warden_shadow_ban_cost_saved_usd_total", "legendFormat": "cost saved" }
+      ]
+    },
+    { "type": "stat", "id": 33, "gridPos": { "h": 6, "w": 6, "x": 18, "y": 20 },
+      "title": "Active Circuit Breakers",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": {
+        "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] }
+      } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "sum(warden_circuit_breaker_open)" }
+      ]
+    },
+
+    { "type": "timeseries", "id": 40, "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
+      "title": "5xx Error Rate — All Services",
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2 } } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "rate(http_requests_total{status=~\"5..\"}[1m])", "legendFormat": "{{job}} 5xx" }
+      ]
+    },
+
+    { "type": "table", "id": 50, "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 },
+      "title": "Service Health Summary",
+      "options": { "footer": { "show": false } },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto" } } },
+      "targets": [
+        { "datasource": "${DS_PROMETHEUS}", "expr": "up", "legendFormat": "{{job}}", "instant": true, "format": "table" }
+      ],
+      "transformations": [
+        { "id": "organize", "options": { "renameByName": { "job": "Service", "Value": "Status" } } }
+      ]
+    }
+
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["shadow-warden", "unified", "soc"],
+  "templating": { "list": [] },
+  "time": { "from": "now-3h", "to": "now" },
+  "timepicker": {},
+  "timezone": "UTC",
+  "title": "Shadow Warden AI — Unified Service Health",
+  "uid": "sw-unified-v1",
+  "version": 1
+}
