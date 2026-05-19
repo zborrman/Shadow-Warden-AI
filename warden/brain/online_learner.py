@@ -140,7 +140,7 @@ async def _find_hard_negatives(high_risk: list[dict]) -> list[dict]:
             continue
         try:
             result = guard.check(text)
-            score  = result.get("score", 0.0)
+            score  = result.score
             if score < _THRESHOLD:
                 hard.append(ex)
         except Exception:
@@ -177,12 +177,12 @@ def export_centroids(output_path: str = "data/centroids.npy") -> bool:
         guard = SemanticGuard()
 
         examples = _load_examples(500)
-        classes = {"HIGH_RISK": [], "SAFE": []}
+        classes: dict[str, list] = {"HIGH_RISK": [], "SAFE": []}
         for ex in examples:
             label = ex.get("label", "")
             text  = ex.get("text", "")
             if label in classes and text:
-                emb = guard._embed(text)
+                emb = guard._embed(text)  # type: ignore[attr-defined]
                 if emb is not None:
                     classes[label].append(emb)
 
@@ -191,7 +191,7 @@ def export_centroids(output_path: str = "data/centroids.npy") -> bool:
             if embs:
                 centroids[label] = np.mean(np.stack(embs), axis=0)
 
-        np.save(output_path, centroids)
+        np.save(output_path, centroids)  # type: ignore[arg-type]
         log.info("online_learner: centroids saved to %s", output_path)
         return True
     except Exception as exc:

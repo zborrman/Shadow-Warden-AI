@@ -577,7 +577,9 @@ async def sova_overage_billing(ctx: dict) -> dict:
 
 
     try:
-        from warden.billing.quota_middleware import list_all_tenants  # noqa: PLC0415
+        from warden.billing.quota_middleware import (  # type: ignore[attr-defined]  # noqa: PLC0415
+            list_all_tenants,
+        )
     except ImportError:
         log.warning("overage billing: quota_middleware.list_all_tenants not available")
         return {"status": "skip", "ts": _ts(), "reason": "quota_middleware unavailable"}

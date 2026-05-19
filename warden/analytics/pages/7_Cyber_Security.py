@@ -254,7 +254,7 @@ with TABS[1]:
         st.info("Run a CVE scan first via the Posture tab.")
     else:
         findings = feed.get("findings", []) if isinstance(feed, dict) else []
-        total    = feed.get("total", len(findings))
+        total    = feed.get("total", len(findings))  # type: ignore[union-attr]
 
         if not findings:
             st.info("No CVE findings found. The last scan may not have detected any vulnerabilities, or no scan has run yet.")
@@ -334,14 +334,14 @@ with TABS[2]:
         if _err(health):
             st.error(f"SOC health unavailable: {_err(health)}")
         else:
-            cb     = health.get("circuit_breaker", {})
+            cb     = health.get("circuit_breaker", {})  # type: ignore[union-attr]
             cb_st  = cb.get("status", "unknown")
-            bypass = health.get("bypass_rate_1m", 0.0)
-            bans   = health.get("ers_bans_active", 0)
-            rps    = health.get("requests_1m", 0)
-            block  = health.get("block_rate_1m", 0.0)
-            uptime = health.get("uptime_seconds", 0)
-            ver    = health.get("warden_version", "—")
+            bypass = health.get("bypass_rate_1m", 0.0)  # type: ignore[union-attr]
+            bans   = health.get("ers_bans_active", 0)  # type: ignore[union-attr]
+            rps    = health.get("requests_1m", 0)  # type: ignore[union-attr]
+            block  = health.get("block_rate_1m", 0.0)  # type: ignore[union-attr]
+            uptime = health.get("uptime_seconds", 0)  # type: ignore[union-attr]
+            ver    = health.get("warden_version", "—")  # type: ignore[union-attr]
 
             # Circuit breaker indicator
             cb_color = {"closed": "soc-ok", "open": "soc-crit",
@@ -389,10 +389,10 @@ with TABS[2]:
         if _err(healer_data):
             st.warning("WardenHealer unavailable.")
         else:
-            issues  = healer_data.get("issues", [])
-            actions = healer_data.get("actions", [])
-            clf     = healer_data.get("incident_classification")
-            ts      = healer_data.get("ts", "")
+            issues  = healer_data.get("issues", [])  # type: ignore[union-attr]
+            actions = healer_data.get("actions", [])  # type: ignore[union-attr]
+            clf     = healer_data.get("incident_classification")  # type: ignore[union-attr]
+            ts      = healer_data.get("ts", "")  # type: ignore[union-attr]
 
             if not issues:
                 st.success("✅ No anomalies detected")
@@ -448,7 +448,7 @@ with TABS[3]:
             st.warning(f"Pentest endpoint unavailable: {_err(pentest)}")
         else:
             findings = pentest.get("findings", []) if isinstance(pentest, dict) else []
-            count    = pentest.get("count", len(findings))
+            count    = pentest.get("count", len(findings))  # type: ignore[union-attr]
             st.caption(f"{count} finding(s)")
 
             if not findings:

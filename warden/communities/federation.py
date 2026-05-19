@@ -226,9 +226,9 @@ def _get_peers(community_id: str) -> list[str]:
         from warden.communities.peering import list_peerings  # noqa: PLC0415
         peerings = list_peerings(community_id)
         return [
-            p.get("peer_webhook_url", "")
+            getattr(p, "peer_webhook_url", "")
             for p in peerings
-            if p.get("policy") == "FULL_SYNC" and p.get("peer_webhook_url")
+            if getattr(p, "policy", "") == "FULL_SYNC" and getattr(p, "peer_webhook_url", "")
         ]
     except Exception:
         return []

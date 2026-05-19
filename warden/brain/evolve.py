@@ -309,6 +309,35 @@ class EvolutionEngine:
         self._rules_path.parent.mkdir(parents=True, exist_ok=True)
         self._corpus_count  = self._count_existing_rules()
 
+    # ── Public hot-reload helper ──────────────────────────────────────────────
+
+    def add_examples(self, examples: list) -> None:
+        """Inject new examples into the live brain corpus.
+
+        Accepts ``list[str]`` or ``list[dict]`` (with a ``"text"`` key).
+        Falls back to the global ``_brain_guard`` singleton when this engine
+        was instantiated without an explicit ``semantic_guard``.
+        """
+        guard = self._guard
+        if guard is None:
+            try:
+                import warden.main as _main  # noqa: PLC0415
+                guard = getattr(_main, "_brain_guard", None)
+            except ImportError:
+                return
+        if guard is None:
+            return
+        texts: list[str] = []
+        for ex in examples:
+            if isinstance(ex, str):
+                texts.append(ex)
+            elif isinstance(ex, dict):
+                t = str(ex.get("text", ex.get("value", "")))
+                if t:
+                    texts.append(t)
+        if texts:
+            guard.add_examples(texts)
+
     # ── Corpus protection ────────────────────────────────────────────────────
 
     def _count_existing_rules(self) -> int:

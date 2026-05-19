@@ -179,7 +179,7 @@ async def _generate_probes(attack_class: str, n: int) -> list[str]:
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = response.content[0].text.strip()
+        raw = response.content[0].text.strip()  # type: ignore[union-attr]
         start = raw.find("[")
         end   = raw.rfind("]") + 1
         return json.loads(raw[start:end]) if start >= 0 else []

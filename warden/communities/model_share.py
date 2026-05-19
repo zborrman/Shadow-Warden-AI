@@ -276,7 +276,9 @@ def _pqc_sign_bundle(payload: str, community_id: str) -> str:
     try:
         import base64  # noqa: PLC0415
 
-        from warden.communities.keypair import load_community_keypair  # noqa: PLC0415
+        from warden.communities.keypair import (  # type: ignore[attr-defined]  # noqa: PLC0415
+            load_community_keypair,
+        )
         kp = load_community_keypair(community_id)
         if kp and kp.is_hybrid:
             sig = kp.hybrid_sign(payload.encode())

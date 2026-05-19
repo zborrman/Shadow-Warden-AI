@@ -177,7 +177,7 @@ async def synthesise_objects(objects: list[dict]) -> int:
         if not intel_text or len(intel_text) < 20:
             continue
         try:
-            await engine.synthesize_from_intel(intel_text)
+            await engine.synthesize_from_intel(source=intel_text, title=intel_text[:80], link="")
             ingested += 1
         except Exception as exc:
             log.debug("taxii: synthesize error for %s: %s", obj.get("id"), exc)

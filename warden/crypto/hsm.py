@@ -213,7 +213,7 @@ class HSMSigner:
     def close(self) -> None:
         if self._session:
             with contextlib.suppress(Exception):
-                self._session.close()  # type: ignore[union-attr]
+                self._session.close()  # type: ignore[attr-defined]
             self._session = None
 
 

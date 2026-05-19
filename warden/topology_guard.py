@@ -322,3 +322,17 @@ def scan(text: str) -> TopoResult:
             detail=f"scan error (fail-open): {exc}",
             elapsed_ms=round((time.perf_counter() - t_start) * 1000, 2),
         )
+
+
+class TopologicalGatekeeper:
+    """Thin OO wrapper around the module-level ``scan()`` function."""
+
+    def analyse(self, text: str) -> dict:
+        r = scan(text)
+        return {
+            "verdict": "BLOCK" if r.is_noise else "PASS",
+            "score": r.noise_score,
+            "beta0": r.beta0,
+            "beta1": r.beta1,
+            "detail": r.detail,
+        }

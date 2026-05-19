@@ -30,7 +30,7 @@ def test_redactor_output_never_shorter_than_redacted(text: str) -> None:
     """
     from warden.secret_redactor import SecretRedactor
     r = SecretRedactor()
-    redacted, _, _ = r.redact(text)
+    redacted = r.redact(text).text
     assert isinstance(redacted, str)
     assert isinstance(redacted, str)
 
@@ -44,8 +44,8 @@ def test_redactor_idempotent(text: str) -> None:
     """
     from warden.secret_redactor import SecretRedactor
     r = SecretRedactor()
-    once, _, _ = r.redact(text)
-    twice, _, _ = r.redact(once)
+    once = r.redact(text).text
+    twice = r.redact(once).text
     assert once == twice, f"Non-idempotent: second pass changed output for input={text[:80]!r}"
 
 
@@ -62,7 +62,9 @@ def test_redactor_api_key_always_redacted(prefix: str, suffix: str) -> None:
     from warden.secret_redactor import SecretRedactor
     text = f"{prefix}sk-{'a' * 48}{suffix}"
     r = SecretRedactor()
-    result, found, _ = r.redact(text)
+    redact_obj = r.redact(text)
+    result = redact_obj.text
+    found = redact_obj.findings
     assert isinstance(result, str)
     assert isinstance(found, (list, set, frozenset, type(None))) or hasattr(found, "__iter__")
 
@@ -82,7 +84,7 @@ def test_redactor_no_plaintext_leak(text: str) -> None:
     combined = text + f" aws_key={secret}"
 
     r = SecretRedactor()
-    redacted, found_list, _ = r.redact(combined)
+    redacted = r.redact(combined).text
 
     # The raw 20-char key should not appear verbatim after redaction
     assert secret not in redacted, (

@@ -148,7 +148,7 @@ def _embed(text: str) -> list[float] | None:
     try:
         from warden.brain.semantic import SemanticGuard  # noqa: PLC0415
         guard = SemanticGuard()
-        emb = guard._embed(text)
+        emb = guard._embed(text)  # type: ignore[attr-defined]
         return emb.tolist() if emb is not None else None
     except Exception:
         return None

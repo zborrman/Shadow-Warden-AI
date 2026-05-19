@@ -75,7 +75,7 @@ def _ocr_vision(image_bytes: bytes, media_type: str = "image/png") -> str | None
                 {
                     "role": "user",
                     "content": [
-                        {
+                        {  # type: ignore[list-item]
                             "type": "image",
                             "source": {
                                 "type": "base64",
