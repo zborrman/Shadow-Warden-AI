@@ -156,7 +156,7 @@ def enforce_retention(tenant_id: str = "default") -> dict:
     now     = datetime.now(UTC)
     removed = 0
     kept    = []
-    breakdown: dict[str, int] = {cls: 0 for cls in _ALL_CLASSES}
+    breakdown: dict[str, int] = dict.fromkeys(_ALL_CLASSES, 0)
 
     if not LOGS_PATH.exists():
         stats = {"tenant_id": tenant_id, "removed": 0, "ts": now.isoformat(), "breakdown": breakdown}

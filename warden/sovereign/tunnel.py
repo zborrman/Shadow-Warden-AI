@@ -241,9 +241,9 @@ async def probe_tunnel(tunnel_id: str) -> dict:
     Returns {"tunnel_id", "status", "latency_ms", "ca_verified", "error"}.
     """
     import asyncio
+    import os as _os
     import ssl
     import tempfile
-    import os as _os
 
     t = get_tunnel(tunnel_id)
     if not t:

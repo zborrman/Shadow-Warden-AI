@@ -106,7 +106,7 @@ async def run_session(attack_class: str | None = None) -> SessionResult:
     Returns SessionResult.
     """
     import random  # noqa: PLC0415
-    import uuid    # noqa: PLC0415
+    import uuid  # noqa: PLC0415
 
     if not _ENABLED:
         log.warning("red_team: RED_TEAM_ENABLED != true — session blocked")

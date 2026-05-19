@@ -107,7 +107,7 @@ def _badge_for(points: int, forced: str | None = None) -> str:
 
 @contextmanager
 def _db() -> Generator[sqlite3.Connection, None, None]:
-    conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(os.getenv("SEP_DB_PATH", _DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         conn.execute("""
@@ -174,9 +174,9 @@ def award_points(tenant_id: str, event_type: str, ref_ueciid: str = "") -> Reput
     log.info("reputation: tenant=%s event=%s delta=%d badge=%s", tenant_id, event_type, delta, new_badge)
     return ReputationRecord(
         tenant_id=tenant_id,
-        points=row["points"] + delta,
+        points=row["points"],
         badge=new_badge,
-        entry_count=row["entry_count"] + (1 if event_type == "PUBLISH_ENTRY" else 0),
+        entry_count=row["entry_count"],
     )
 
 

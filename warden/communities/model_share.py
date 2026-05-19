@@ -110,7 +110,7 @@ def create_bundle(
     `rules` should be dicts with at least {"pattern": str, "label": str, ...}.
     Patterns are included only for local storage; they are stripped on transfer.
     """
-    from warden.communities.sep import issue_ueciid  # noqa: PLC0415
+    from warden.communities.sep import new_ueciid  # noqa: PLC0415
 
     # Compute attack type distribution
     attack_types = list({r.get("attack_type", "unknown") for r in rules if r})
@@ -119,11 +119,7 @@ def create_bundle(
     rules_serial = json.dumps(rules, sort_keys=True, ensure_ascii=False)
     rules_hash   = hashlib.sha256(rules_serial.encode()).hexdigest()
 
-    ueciid = issue_ueciid(
-        display_name  = f"model-bundle:{source_community}",
-        source_tenant = source_community,
-        data_class    = "GENERAL",
-    )
+    _, ueciid = new_ueciid()
 
     payload = f"{ueciid}|{rules_hash}|{source_community}|{len(rules)}"
     sig     = _sign(payload)

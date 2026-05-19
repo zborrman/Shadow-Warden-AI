@@ -575,7 +575,6 @@ async def sova_overage_billing(ctx: dict) -> dict:
     """
     log.info("sova: overage billing [%s]", _ts())
 
-    import os  # noqa: PLC0415
 
     try:
         from warden.billing.quota_middleware import list_all_tenants  # noqa: PLC0415

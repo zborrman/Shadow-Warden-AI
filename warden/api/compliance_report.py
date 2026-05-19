@@ -50,7 +50,7 @@ def _aggregate_logs(days: int) -> dict:
     total    = len(entries)
     blocked  = sum(1 for e in entries if e.get("verdict") in ("BLOCK", "HIGH"))
     allowed  = total - blocked
-    pii_hits = sum(1 for e in entries if e.get("secrets_found", 0) > 0)
+    pii_hits = sum(1 for e in entries if bool(e.get("secrets_found", [])))
     inj_hits = sum(1 for e in entries if "INJECTION" in str(e.get("flags", [])))
     avg_ms   = (
         sum(e.get("latency_ms", 0) for e in entries) / total

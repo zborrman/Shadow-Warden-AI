@@ -7,9 +7,14 @@ All tests are fast (no ML model, no live HTTP, no Docker).
 from __future__ import annotations
 
 import ipaddress
-import os
+import uuid
 
 import pytest
+
+
+def _uid() -> str:
+    return uuid.uuid4().hex[:12]
+
 
 # ── CM-24 / CM-25 — Reputation ────────────────────────────────────────────────
 
@@ -20,22 +25,24 @@ def _tmp_db(tmp_path, monkeypatch):
 
 def test_award_trusted_entry():
     from warden.communities.reputation import award_points, get_reputation
-    rec = award_points("t-trust-1", "TRUSTED_ENTRY")
+    tid = f"t-trust-{_uid()}"
+    rec = award_points(tid, "TRUSTED_ENTRY")
     assert rec.points == 3
     assert rec.badge == "NEWCOMER"
-    assert get_reputation("t-trust-1").points == 3
+    assert get_reputation(tid).points == 3
 
 
 def test_award_search_hit():
     from warden.communities.reputation import award_points
-    rec = award_points("t-search-1", "SEARCH_HIT")
+    rec = award_points(f"t-search-{_uid()}", "SEARCH_HIT")
     assert rec.points == 1
 
 
 def test_award_search_hit_accumulates():
     from warden.communities.reputation import award_points
+    tid = f"t-search-acc-{_uid()}"
     for _ in range(25):
-        rec = award_points("t-search-2", "SEARCH_HIT")
+        rec = award_points(tid, "SEARCH_HIT")
     assert rec.points == 25
     assert rec.badge == "CONTRIBUTOR"
 
@@ -54,7 +61,8 @@ def test_award_trusted_entry_batch_empty():
 
 def test_award_trusted_entry_batch_multi():
     from warden.communities.reputation import award_trusted_entry_batch
-    results = award_trusted_entry_batch(["t-a", "t-b"])
+    ids = [f"t-batch-{_uid()}", f"t-batch-{_uid()}"]
+    results = award_trusted_entry_batch(ids)
     assert len(results) == 2
     assert all("error" not in r for r in results)
     assert all(r["points"] == 3 for r in results)
@@ -62,8 +70,9 @@ def test_award_trusted_entry_batch_multi():
 
 def test_force_badge():
     from warden.communities.reputation import force_badge, get_reputation
-    force_badge("t-elite", "ELITE")
-    rec = get_reputation("t-elite")
+    tid = f"t-elite-{_uid()}"
+    force_badge(tid, "ELITE")
+    rec = get_reputation(tid)
     assert rec.badge == "ELITE"
 
 
@@ -96,11 +105,9 @@ def test_cidr_valid_24():
 
 def test_cidr_valid_32():
     net = ipaddress.ip_network("192.168.1.1/32", strict=False)
-    assert list(net.hosts()) == []  # single host — no iterable hosts for /32
-    # Hosts count should be 0 for /32 via hosts()
+    assert net.prefixlen == 32
     hosts = list(net.hosts())
-    # /32 returns the network address itself via hosts() in Python
-    assert len(hosts) <= 1
+    assert len(hosts) <= 1  # Python returns [addr] for /32, not []
 
 
 def test_cidr_too_broad_rejected():
@@ -132,6 +139,7 @@ async def test_iso27001_report_structure():
 @pytest.mark.asyncio
 async def test_iso27001_html_returns_html():
     from fastapi.responses import HTMLResponse
+
     from warden.api.compliance_report import iso27001_html
     resp = await iso27001_html(days=7)
     assert isinstance(resp, HTMLResponse)
@@ -155,7 +163,7 @@ async def test_hipaa_report_structure():
 
 @pytest.mark.asyncio
 async def test_hipaa_all_pass():
-    from warden.api.compliance_report import hipaa_report, _HIPAA_SAFEGUARDS
+    from warden.api.compliance_report import hipaa_report
     data = await hipaa_report(days=1)
     all_statuses = {s["status"] for s in data["safeguards"]}
     # All current safeguards are PASS
@@ -165,6 +173,7 @@ async def test_hipaa_all_pass():
 @pytest.mark.asyncio
 async def test_hipaa_html_returns_html():
     from fastapi.responses import HTMLResponse
+
     from warden.api.compliance_report import hipaa_html
     resp = await hipaa_html(days=7)
     assert isinstance(resp, HTMLResponse)
@@ -190,6 +199,7 @@ async def test_nis2_report_structure():
 @pytest.mark.asyncio
 async def test_nis2_html_returns_html():
     from fastapi.responses import HTMLResponse
+
     from warden.api.compliance_report import nis2_html
     resp = await nis2_html(days=7)
     assert isinstance(resp, HTMLResponse)

@@ -39,7 +39,6 @@ import json
 import logging
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 log = logging.getLogger("warden.integrations.misp_bridge")
 
