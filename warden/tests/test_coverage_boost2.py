@@ -118,7 +118,7 @@ class TestConfigApiCorrect:
             assert "drifted_keys" in data or "drift_count" in data
 
     def test_full_config_internals(self):
-        from warden.api.config_api import _full_config, _compute_drift
+        from warden.api.config_api import _compute_drift, _full_config
         cfg = _full_config()
         assert isinstance(cfg, dict)
         assert "semantic_threshold" in cfg
@@ -130,7 +130,7 @@ class TestConfigApiCorrect:
 
 class TestRotationInternals:
     def test_tracked_secrets(self):
-        from warden.api.rotation import _tracked_secrets, _status_for, _redis_key
+        from warden.api.rotation import _tracked_secrets
         secrets = _tracked_secrets()
         assert isinstance(secrets, list)
 
@@ -141,8 +141,9 @@ class TestRotationInternals:
         assert result["age_days"] is None
 
     def test_status_for_with_redis(self):
-        from unittest.mock import MagicMock, patch
         import time
+        from unittest.mock import MagicMock, patch
+
         from warden.api import rotation
         mock_r = MagicMock()
         mock_r.get.return_value = str(time.time() - 80 * 86400)
@@ -157,6 +158,7 @@ class TestRotationInternals:
 
     def test_record_rotation_with_redis(self):
         from unittest.mock import MagicMock, patch
+
         from warden.api import rotation
         mock_r = MagicMock()
         with patch.object(rotation, "_get_redis", return_value=mock_r):
@@ -179,6 +181,7 @@ class TestAgentMemory:
 
     def test_load_history_no_redis(self):
         from unittest.mock import patch
+
         import warden.agent.memory as memory
         with patch.object(memory, "_redis", return_value=None):
             result = memory.load_history("test-session")
@@ -186,18 +189,21 @@ class TestAgentMemory:
 
     def test_save_history_no_redis(self):
         from unittest.mock import patch
+
         import warden.agent.memory as memory
         with patch.object(memory, "_redis", return_value=None):
             memory.save_history("test-session", [{"role": "user", "content": "hello"}])
 
     def test_clear_history_no_redis(self):
         from unittest.mock import patch
+
         import warden.agent.memory as memory
         with patch.object(memory, "_redis", return_value=None):
             memory.clear_history("test-session")
 
     def test_get_state_no_redis(self):
         from unittest.mock import patch
+
         import warden.agent.memory as memory
         with patch.object(memory, "_redis", return_value=None):
             result = memory.get_state("test-key")
@@ -205,18 +211,21 @@ class TestAgentMemory:
 
     def test_set_state_no_redis(self):
         from unittest.mock import patch
+
         import warden.agent.memory as memory
         with patch.object(memory, "_redis", return_value=None):
             memory.set_state("test-key", {"value": 123})
 
     def test_store_message_embedding_no_pg(self):
         from unittest.mock import patch
+
         import warden.agent.memory as memory
         with patch.object(memory, "_redis", return_value=None):
             memory.store_message_embedding("session-1", "assistant", "Test response")
 
     def test_semantic_search_no_pg(self):
         from unittest.mock import patch
+
         import warden.agent.memory as memory
         with patch.object(memory, "_redis", return_value=None):
             result = memory.semantic_search("test query", limit=5)
@@ -224,6 +233,7 @@ class TestAgentMemory:
 
     def test_load_history_with_redis(self):
         from unittest.mock import MagicMock, patch
+
         import warden.agent.memory as memory
         mock_r = MagicMock()
         mock_r.get.return_value = json.dumps([
@@ -235,6 +245,7 @@ class TestAgentMemory:
 
     def test_save_history_with_redis(self):
         from unittest.mock import MagicMock, patch
+
         import warden.agent.memory as memory
         mock_r = MagicMock()
         mock_r.get.return_value = json.dumps([])
@@ -246,6 +257,7 @@ class TestAgentMemory:
 
     def test_get_state_with_redis(self):
         from unittest.mock import MagicMock, patch
+
         import warden.agent.memory as memory
         mock_r = MagicMock()
         mock_r.get.return_value = json.dumps({"last_ts": "2026-01-01T00:00:00Z"})
@@ -255,6 +267,7 @@ class TestAgentMemory:
 
     def test_set_state_with_redis(self):
         from unittest.mock import MagicMock, patch
+
         import warden.agent.memory as memory
         mock_r = MagicMock()
         with patch.object(memory, "_redis", return_value=mock_r):
@@ -263,6 +276,7 @@ class TestAgentMemory:
 
     def test_clear_history_with_redis(self):
         from unittest.mock import MagicMock, patch
+
         import warden.agent.memory as memory
         mock_r = MagicMock()
         with patch.object(memory, "_redis", return_value=mock_r):
@@ -276,19 +290,20 @@ class TestAlertingAsync:
     @pytest.mark.asyncio
     async def test_send_slack_no_webhook(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
-        with patch.object(alerting, "_SLACK_WEBHOOK", ""):
-            with patch.object(alerting, "_PAGERDUTY_KEY", ""):
-                await alerting.alert_block_event(
-                    attack_type="INJECTION",
-                    risk_level="HIGH",
-                    rule_summary="Test no webhook",
-                    request_id="req-nwh",
-                )
+        with patch.object(alerting, "_SLACK_WEBHOOK", ""), patch.object(alerting, "_PAGERDUTY_KEY", ""):
+            await alerting.alert_block_event(
+                attack_type="INJECTION",
+                risk_level="HIGH",
+                rule_summary="Test no webhook",
+                request_id="req-nwh",
+            )
 
     @pytest.mark.asyncio
     async def test_alert_block_event_no_webhook(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
         with patch.object(alerting, "_SLACK_WEBHOOK", ""):
             await alerting.alert_block_event(
@@ -301,6 +316,7 @@ class TestAlertingAsync:
     @pytest.mark.asyncio
     async def test_alert_poisoning_no_webhook(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
         with patch.object(alerting, "_SLACK_WEBHOOK", ""):
             await alerting.alert_poisoning_event(
@@ -313,19 +329,20 @@ class TestAlertingAsync:
     @pytest.mark.asyncio
     async def test_alert_rollback_no_webhook(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
-        with patch.object(alerting, "_SLACK_WEBHOOK", ""):
-            with patch.object(alerting, "_TELEGRAM_TOKEN", ""):
-                await alerting.alert_corpus_rollback(
-                    failing_canaries=3,
-                    drift=0.45,
-                    detail="Poisoning detected",
-                    tenant_id="test-tenant",
-                )
+        with patch.object(alerting, "_SLACK_WEBHOOK", ""), patch.object(alerting, "_TELEGRAM_TOKEN", ""):
+            await alerting.alert_corpus_rollback(
+                failing_canaries=3,
+                drift=0.45,
+                detail="Poisoning detected",
+                tenant_id="test-tenant",
+            )
 
     @pytest.mark.asyncio
     async def test_alert_obsidian_no_webhook(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
         with patch.object(alerting, "_SLACK_WEBHOOK", ""):
             await alerting.alert_obsidian_event(
@@ -340,13 +357,15 @@ class TestAlertingAsync:
     @pytest.mark.asyncio
     async def test_send_telegram_no_token(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
         with patch.object(alerting, "_TELEGRAM_TOKEN", ""):
             await alerting._send_telegram("test message")
 
     @pytest.mark.asyncio
     async def test_send_slack_with_mocked_httpx(self):
-        from unittest.mock import AsyncMock, MagicMock, patch
+        from unittest.mock import patch
+
         import warden.alerting as alerting
 
         class MockResponse:
@@ -362,9 +381,8 @@ class TestAlertingAsync:
             async def post(self, *args, **kwargs):
                 return MockResponse()
 
-        with patch.object(alerting, "_SLACK_WEBHOOK", "https://hooks.slack.test/test"):
-            with patch("httpx.AsyncClient", return_value=MockClient()):
-                await alerting._send_slack_raw({"text": "test via mock"})
+        with patch.object(alerting, "_SLACK_WEBHOOK", "https://hooks.slack.test/test"), patch("httpx.AsyncClient", return_value=MockClient()):
+            await alerting._send_slack_raw({"text": "test via mock"})
 
 
 # ── SEP API (additional endpoints) ───────────────────────────────────────────
@@ -486,6 +504,7 @@ class TestRetentionCoverage:
 
     def test_get_effective_policy_with_override(self):
         from unittest.mock import patch
+
         import warden.api.retention as ret
         from warden.api.retention import get_effective_policy
         with patch.dict(ret._MEMORY_POLICIES, {"override-t": {"PII": 7}}):
@@ -494,6 +513,7 @@ class TestRetentionCoverage:
 
     def test_enforce_with_logs(self):
         from datetime import UTC, datetime, timedelta
+
         from warden.api.retention import enforce_retention
         old_ts = (datetime.now(UTC) - timedelta(days=100)).isoformat()
         recent = datetime.now(UTC).isoformat()
@@ -540,7 +560,7 @@ class TestGdprWithData:
         assert 100 <= r.status_code < 600
 
     def test_gdpr_internals(self):
-        from warden.api.gdpr import _record_audit, _audit, RETENTION_DAYS
+        from warden.api.gdpr import RETENTION_DAYS, _audit, _record_audit
         initial = len(_audit)
         _record_audit("test_op", "test-subject", "test-tenant", 5)
         assert len(_audit) == initial + 1

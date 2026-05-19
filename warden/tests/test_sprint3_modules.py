@@ -14,8 +14,7 @@ import asyncio
 import json
 import os
 import uuid
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -39,7 +38,6 @@ class TestWsEvents:
 
     def test_unregister_idempotent(self):
         from warden.api.ws_events import _unregister
-        import asyncio
         fake_q = asyncio.Queue()
         _unregister(fake_q)  # should not raise
 
@@ -60,7 +58,6 @@ class TestWsEvents:
 
     @pytest.mark.asyncio
     async def test_broadcast_drops_when_full(self):
-        import asyncio
 
         from warden.api.ws_events import _register, _unregister, broadcast_event
         q = _register()
@@ -84,9 +81,8 @@ class TestWsEvents:
     @pytest.mark.asyncio
     async def test_redis_publish_handles_error(self):
         from warden.api.ws_events import _redis_publish
-        with patch.dict(os.environ, {"REDIS_URL": "redis://localhost:9999"}):
-            with patch("redis.asyncio.from_url", side_effect=Exception("conn refused")):
-                await _redis_publish({"verdict": "HIGH"})  # no exception
+        with patch.dict(os.environ, {"REDIS_URL": "redis://localhost:9999"}), patch("redis.asyncio.from_url", side_effect=Exception("conn refused")):
+            await _redis_publish({"verdict": "HIGH"})  # no exception
 
     @pytest.mark.asyncio
     async def test_redis_subscriber_loop_exits_memory(self):
@@ -183,8 +179,8 @@ class TestFederation:
     def test_score_boost_returns_boost(self):
         import warden.communities.federation as fed
         from warden.communities.federation import (
-            FederatedVerdict,
             _BOOST,
+            FederatedVerdict,
             _store_verdict,
             _threat_hash,
             get_score_boost,
@@ -369,10 +365,9 @@ class TestOnlineLearner:
     @pytest.mark.asyncio
     async def test_run_missing_dataset(self, tmp_path):
         from warden.brain import online_learner as ol
-        with patch.object(ol, "_ENABLED", True):
-            with patch.object(ol, "_DATASET_PATH", tmp_path / "nonexistent.jsonl"):
-                result = await ol.run_online_learning()
-                assert "not found" in result.error
+        with patch.object(ol, "_ENABLED", True), patch.object(ol, "_DATASET_PATH", tmp_path / "nonexistent.jsonl"):
+            result = await ol.run_online_learning()
+            assert "not found" in result.error
 
     @pytest.mark.asyncio
     async def test_run_with_dataset(self, tmp_path):
@@ -384,12 +379,14 @@ class TestOnlineLearner:
             {"text": "bypass safety filters", "label": "HIGH_RISK"},
         ]
         dataset.write_text("\n".join(json.dumps(e) for e in examples))
-        with patch.object(ol, "_ENABLED", True):
-            with patch.object(ol, "_DATASET_PATH", dataset):
-                with patch.object(ol, "_inject_examples", return_value=0):
-                    with patch.object(ol, "_find_hard_negatives", return_value=[]):
-                        result = await ol.run_online_learning()
-                        assert result.examples_loaded == 3
+        with (
+            patch.object(ol, "_ENABLED", True),
+            patch.object(ol, "_DATASET_PATH", dataset),
+            patch.object(ol, "_inject_examples", return_value=0),
+            patch.object(ol, "_find_hard_negatives", return_value=[]),
+        ):
+            result = await ol.run_online_learning()
+            assert result.examples_loaded == 3
 
     def test_load_examples_empty_file(self, tmp_path):
         from warden.brain import online_learner as ol
@@ -422,7 +419,6 @@ class TestOnlineLearner:
         assert count == 0
 
     def test_inject_examples_no_engine(self):
-        from warden.brain.online_learner import _inject_examples
         with patch("warden.brain.online_learner._inject_examples") as m:
             m.side_effect = None
             m.return_value = 0

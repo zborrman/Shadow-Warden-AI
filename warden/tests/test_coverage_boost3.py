@@ -58,7 +58,7 @@ class TestFederatedBrain:
         assert len(delta.rule_hash) == 16
 
     def test_publish_delta_caps_tenants_seen(self):
-        from warden.brain.federated import publish_delta, _MAX_TENANTS_SEEN
+        from warden.brain.federated import _MAX_TENANTS_SEEN, publish_delta
         delta = publish_delta("test", "test_type", 0.5, 0.6, tenants_seen=999)
         assert delta.tenants_seen == _MAX_TENANTS_SEEN
 
@@ -109,8 +109,8 @@ class TestFederatedBrain:
 
     def test_merge_deltas_high_quality_injected(self):
         from unittest.mock import MagicMock, patch
+
         from warden.brain.federated import merge_deltas, publish_delta
-        import warden.brain.federated as fed
         delta = publish_delta("qual", "injection", 0.8, 0.9, 5)
         mock_engine = MagicMock()
         with patch("warden.brain.evolve.EvolutionEngine", return_value=mock_engine):
@@ -128,7 +128,7 @@ class TestFederatedBrain:
         assert result is None
 
     def test_compute_delta_from_rule_valid(self):
-        from warden.brain.federated import compute_delta_from_rule, RuleDelta
+        from warden.brain.federated import RuleDelta, compute_delta_from_rule
         result = compute_delta_from_rule(
             {"regex_pattern": "jailbreak.*bypass", "attack_type": "jailbreak", "score": 0.85}
         )
@@ -189,16 +189,18 @@ class TestSdkOtel:
         p.on_start(None, None)
 
     def test_on_end_no_attrs(self):
-        from warden.sdk.otel import WardenSpanProcessor
         from unittest.mock import MagicMock
+
+        from warden.sdk.otel import WardenSpanProcessor
         p = WardenSpanProcessor()
         span = MagicMock()
         span.attributes = {}
         p.on_end(span)
 
     def test_on_end_none_attrs(self):
-        from warden.sdk.otel import WardenSpanProcessor
         from unittest.mock import MagicMock
+
+        from warden.sdk.otel import WardenSpanProcessor
         p = WardenSpanProcessor()
         span = MagicMock()
         span.attributes = None
@@ -206,6 +208,7 @@ class TestSdkOtel:
 
     def test_on_end_with_attrs_starts_thread(self):
         from unittest.mock import MagicMock, patch
+
         from warden.sdk.otel import WardenSpanProcessor
         p = WardenSpanProcessor()
         span = MagicMock()
@@ -228,6 +231,7 @@ class TestSdkOtel:
 
     def test_scan_success_high_risk(self):
         from unittest.mock import MagicMock, patch
+
         from warden.sdk.otel import WardenSpanProcessor
         p = WardenSpanProcessor(api_url="https://test.example.com", min_risk="MEDIUM")
         mock_resp = MagicMock()
@@ -238,6 +242,7 @@ class TestSdkOtel:
 
     def test_scan_low_risk_no_log(self):
         from unittest.mock import MagicMock, patch
+
         from warden.sdk.otel import WardenSpanProcessor
         p = WardenSpanProcessor(api_url="https://test.example.com", min_risk="HIGH")
         mock_resp = MagicMock()
@@ -248,6 +253,7 @@ class TestSdkOtel:
 
     def test_scan_http_error_fail_open(self):
         from unittest.mock import patch
+
         from warden.sdk.otel import WardenSpanProcessor
         p = WardenSpanProcessor(api_url="https://test.example.com")
         with patch("httpx.post", side_effect=Exception("connection refused")):
@@ -255,6 +261,7 @@ class TestSdkOtel:
 
     def test_scan_non_200_response(self):
         from unittest.mock import MagicMock, patch
+
         from warden.sdk.otel import WardenSpanProcessor
         p = WardenSpanProcessor(api_url="https://test.example.com")
         mock_resp = MagicMock()
@@ -327,7 +334,8 @@ class TestMispConnector:
     async def test_sync_fetch_error(self, monkeypatch):
         monkeypatch.setenv("MISP_URL", "https://misp.example.com")
         monkeypatch.setenv("MISP_API_KEY", "test-key")
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
+
         from warden.integrations.misp import MISPConnector
         c = MISPConnector()
         with patch.object(c, "_fetch_events", side_effect=Exception("connection failed")):
@@ -339,7 +347,8 @@ class TestMispConnector:
     async def test_sync_no_events(self, monkeypatch):
         monkeypatch.setenv("MISP_URL", "https://misp.example.com")
         monkeypatch.setenv("MISP_API_KEY", "test-key")
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
+
         from warden.integrations.misp import MISPConnector
         c = MISPConnector()
         with patch.object(c, "_fetch_events", return_value=[]):
@@ -352,6 +361,7 @@ class TestMispConnector:
         monkeypatch.setenv("MISP_URL", "https://misp.example.com")
         monkeypatch.setenv("MISP_API_KEY", "test-key")
         from unittest.mock import AsyncMock, patch
+
         from warden.integrations.misp import MISPConnector
         events = [
             {"info": "Test event", "Attribute": [
@@ -359,11 +369,10 @@ class TestMispConnector:
             ], "Tag": []},
         ]
         c = MISPConnector()
-        with patch.object(c, "_fetch_events", return_value=events):
-            with patch("warden.brain.evolve.EvolutionEngine") as MockEngine:
-                mock_eng = MockEngine.return_value
-                mock_eng.synthesize_from_intel = AsyncMock(return_value=1)
-                result = await c.sync()
+        with patch.object(c, "_fetch_events", return_value=events), patch("warden.brain.evolve.EvolutionEngine") as mock_engine:
+            mock_eng = mock_engine.return_value
+            mock_eng.synthesize_from_intel = AsyncMock(return_value=1)
+            result = await c.sync()
         assert result.events_fetched == 1
         assert result.attrs_extracted >= 1
 
@@ -381,16 +390,17 @@ class TestMispBridge:
 
     def test_ingest_attribute_ip_dst(self):
         from unittest.mock import MagicMock, patch
+
         from warden.integrations.misp_bridge import _ingest_attribute
         mock_store = MagicMock()
         with patch.dict("sys.modules", {"warden.main": MagicMock(_threat_store=mock_store)}):
             _ingest_attribute({"type": "ip-dst", "value": "1.2.3.4"}, "test event")
 
     def test_ingest_attribute_domain(self):
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
+
         from warden.integrations.misp_bridge import _ingest_attribute
-        with patch("warden.shadow_ai.discovery.ShadowAIDetector") as MockDetector:
-            mock_d = MockDetector.return_value
+        with patch("warden.shadow_ai.discovery.ShadowAIDetector"):
             _ingest_attribute({"type": "domain", "value": "evil.example.com"})
 
     def test_ingest_attribute_url_type(self):
@@ -420,11 +430,14 @@ class TestMispBridge:
     @pytest.mark.asyncio
     async def test_start_misp_bridge_no_config(self):
         from unittest.mock import patch
+
         import warden.integrations.misp_bridge as bridge
-        with patch.object(bridge, "_MISP_ZMQ_URL", ""):
-            with patch.object(bridge, "_MISP_API_URL", ""):
-                with patch.object(bridge, "_MISP_API_KEY", ""):
-                    await bridge.start_misp_bridge()
+        with (
+            patch.object(bridge, "_MISP_ZMQ_URL", ""),
+            patch.object(bridge, "_MISP_API_URL", ""),
+            patch.object(bridge, "_MISP_API_KEY", ""),
+        ):
+            await bridge.start_misp_bridge()
 
 
 # ── threat_sync.py ────────────────────────────────────────────────────────────
@@ -459,30 +472,31 @@ class TestThreatSync:
             ts.SEEN_CAP = original_cap
 
     def test_publish_rule_disabled(self):
-        from unittest.mock import patch
+        from unittest.mock import MagicMock, patch
+
         import warden.threat_sync as ts
         from warden.threat_sync import publish_rule
-        from unittest.mock import MagicMock
         with patch.object(ts, "ENABLED", False):
             mock_rule = MagicMock()
             result = publish_rule(mock_rule)
         assert result is False
 
     def test_publish_rule_no_redis(self):
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
+
         import warden.threat_sync as ts
         from warden.threat_sync import publish_rule
-        with patch.object(ts, "ENABLED", True):
-            with patch.object(ts, "_get_client", return_value=None):
-                mock_rule = MagicMock()
-                result = publish_rule(mock_rule)
+        with patch.object(ts, "ENABLED", True), patch.object(ts, "_get_client", return_value=None):
+            mock_rule = MagicMock()
+            result = publish_rule(mock_rule)
         assert result is False
 
     def test_publish_rule_with_redis_success(self):
         from unittest.mock import MagicMock, patch
+
         import warden.threat_sync as ts
-        from warden.threat_sync import publish_rule
         from warden.brain.evolve import NewRule, RuleRecord
+        from warden.threat_sync import publish_rule
         mock_r = MagicMock()
         rule = RuleRecord(
             id="rule-001", created_at="2026-01-01T00:00:00+00:00",
@@ -491,17 +505,17 @@ class TestThreatSync:
             new_rule=NewRule(rule_type="semantic_example", value="test", description="test"),
             severity="high",
         )
-        with patch.object(ts, "ENABLED", True):
-            with patch.object(ts, "_get_client", return_value=mock_r):
-                result = publish_rule(rule)
+        with patch.object(ts, "ENABLED", True), patch.object(ts, "_get_client", return_value=mock_r):
+            result = publish_rule(rule)
         assert result is True
         mock_r.xadd.assert_called_once()
 
     def test_publish_rule_redis_exception(self):
         from unittest.mock import MagicMock, patch
+
         import warden.threat_sync as ts
-        from warden.threat_sync import publish_rule
         from warden.brain.evolve import NewRule, RuleRecord
+        from warden.threat_sync import publish_rule
         mock_r = MagicMock()
         mock_r.xadd.side_effect = Exception("Redis error")
         rule = RuleRecord(
@@ -511,9 +525,8 @@ class TestThreatSync:
             new_rule=NewRule(rule_type="regex_pattern", value=".*inject.*", description="test"),
             severity="medium",
         )
-        with patch.object(ts, "ENABLED", True):
-            with patch.object(ts, "_get_client", return_value=mock_r):
-                result = publish_rule(rule)
+        with patch.object(ts, "ENABLED", True), patch.object(ts, "_get_client", return_value=mock_r):
+            result = publish_rule(rule)
         assert result is False
 
     def test_apply_rule_own_region(self):
@@ -534,6 +547,7 @@ class TestThreatSync:
 
     def test_apply_rule_semantic_with_guard(self):
         from unittest.mock import MagicMock
+
         from warden.threat_sync import _apply_rule
         mock_guard = MagicMock()
         entry = {
@@ -553,6 +567,7 @@ class TestThreatSync:
 
     def test_apply_rule_persist_to_file(self, tmp_path):
         from unittest.mock import patch
+
         from warden.threat_sync import _apply_rule
         rules_path = tmp_path / "dynamic_rules.json"
         entry = {
@@ -573,6 +588,7 @@ class TestThreatSync:
 
     def test_ensure_group_success(self):
         from unittest.mock import MagicMock
+
         from warden.threat_sync import _ensure_group
         mock_r = MagicMock()
         result = _ensure_group(mock_r)
@@ -581,6 +597,7 @@ class TestThreatSync:
 
     def test_ensure_group_busygroup(self):
         from unittest.mock import MagicMock
+
         from warden.threat_sync import _ensure_group
         mock_r = MagicMock()
         mock_r.xgroup_create.side_effect = Exception("BUSYGROUP Consumer Group already exists")
@@ -589,6 +606,7 @@ class TestThreatSync:
 
     def test_ensure_group_other_error(self):
         from unittest.mock import MagicMock
+
         from warden.threat_sync import _ensure_group
         mock_r = MagicMock()
         mock_r.xgroup_create.side_effect = Exception("WRONGTYPE Operation against a key")
@@ -597,6 +615,7 @@ class TestThreatSync:
 
     def test_poll_once_no_results(self):
         from unittest.mock import MagicMock
+
         from warden.threat_sync import _poll_once
         mock_r = MagicMock()
         mock_r.xreadgroup.return_value = None
@@ -605,6 +624,7 @@ class TestThreatSync:
 
     def test_poll_once_empty_results(self):
         from unittest.mock import MagicMock
+
         from warden.threat_sync import _poll_once
         mock_r = MagicMock()
         mock_r.xreadgroup.return_value = []
@@ -613,6 +633,7 @@ class TestThreatSync:
 
     def test_poll_once_with_messages(self):
         from unittest.mock import MagicMock
+
         import warden.threat_sync as ts
         from warden.threat_sync import _poll_once
         mock_r = MagicMock()
@@ -636,6 +657,7 @@ class TestThreatSync:
 
     def test_poll_once_xreadgroup_error(self):
         from unittest.mock import MagicMock
+
         from warden.threat_sync import _poll_once
         mock_r = MagicMock()
         mock_r.xreadgroup.side_effect = Exception("connection timeout")
@@ -644,6 +666,7 @@ class TestThreatSync:
 
     def test_threatsync_client_start_disabled(self):
         from unittest.mock import patch
+
         import warden.threat_sync as ts
         from warden.threat_sync import ThreatSyncClient
         with patch.object(ts, "ENABLED", False):
@@ -653,13 +676,13 @@ class TestThreatSync:
 
     def test_threatsync_client_start_no_redis(self):
         from unittest.mock import patch
+
         import warden.threat_sync as ts
         from warden.threat_sync import ThreatSyncClient
-        with patch.object(ts, "ENABLED", True):
-            with patch.object(ts, "_get_client", return_value=None):
-                client = ThreatSyncClient()
-                client.start()
-                assert client._thread is None
+        with patch.object(ts, "ENABLED", True), patch.object(ts, "_get_client", return_value=None):
+            client = ThreatSyncClient()
+            client.start()
+            assert client._thread is None
 
     def test_threatsync_client_stop(self):
         from warden.threat_sync import ThreatSyncClient
@@ -669,9 +692,10 @@ class TestThreatSync:
 
     def test_threatsync_publish_static(self):
         from unittest.mock import MagicMock, patch
+
         import warden.threat_sync as ts
-        from warden.threat_sync import ThreatSyncClient
         from warden.brain.evolve import NewRule, RuleRecord
+        from warden.threat_sync import ThreatSyncClient
         mock_r = MagicMock()
         rule = RuleRecord(
             id="rule-pub", created_at="2026-01-01T00:00:00+00:00",
@@ -680,9 +704,8 @@ class TestThreatSync:
             new_rule=NewRule(rule_type="semantic_example", value="test", description="test"),
             severity="medium",
         )
-        with patch.object(ts, "ENABLED", True):
-            with patch.object(ts, "_get_client", return_value=mock_r):
-                result = ThreatSyncClient.publish(rule)
+        with patch.object(ts, "ENABLED", True), patch.object(ts, "_get_client", return_value=mock_r):
+            result = ThreatSyncClient.publish(rule)
         assert result is True
 
 
@@ -724,8 +747,8 @@ class TestSovereignTunnel:
         assert any(x.tunnel_id == t.tunnel_id for x in active)
 
     def test_list_tunnels_filter_tenant(self):
-        t1 = self._register(tenant_id="tenant-a")
-        t2 = self._register(tenant_id="tenant-b")
+        self._register(tenant_id="tenant-a")
+        self._register(tenant_id="tenant-b")
         from warden.sovereign.tunnel import list_tunnels
         a_tunnels = list_tunnels(tenant_id="tenant-a")
         assert all(x.tenant_id == "tenant-a" for x in a_tunnels)
@@ -739,7 +762,7 @@ class TestSovereignTunnel:
 
     def test_record_tunnel_failure_offline(self):
         t = self._register()
-        from warden.sovereign.tunnel import record_tunnel_failure, _OFFLINE_AFTER_FAILS
+        from warden.sovereign.tunnel import _OFFLINE_AFTER_FAILS, record_tunnel_failure
         for _ in range(_OFFLINE_AFTER_FAILS):
             status = record_tunnel_failure(t.tunnel_id)
         assert status == "OFFLINE"
@@ -765,15 +788,13 @@ class TestSovereignTunnel:
     async def test_probe_tunnel_success(self):
         t = self._register()
         from unittest.mock import AsyncMock, MagicMock, patch
-        import asyncio
         mock_writer = AsyncMock()
         mock_writer.wait_closed = AsyncMock()
         async def mock_open(*args, **kwargs):
             return MagicMock(), mock_writer
-        with patch("asyncio.open_connection", side_effect=mock_open):
-            with patch("asyncio.wait_for", side_effect=lambda coro, timeout: coro):
-                from warden.sovereign.tunnel import probe_tunnel
-                result = await probe_tunnel(t.tunnel_id)
+        with patch("asyncio.open_connection", side_effect=mock_open), patch("asyncio.wait_for", side_effect=lambda coro, timeout: coro):
+            from warden.sovereign.tunnel import probe_tunnel
+            result = await probe_tunnel(t.tunnel_id)
         assert result["tunnel_id"] == t.tunnel_id
 
     @pytest.mark.asyncio
@@ -797,6 +818,7 @@ class TestSovereignTunnel:
 class TestWalletShieldRedis:
     def test_check_and_consume_redis_over_budget(self):
         from unittest.mock import MagicMock, patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         mock_r = MagicMock()
@@ -810,6 +832,7 @@ class TestWalletShieldRedis:
 
     def test_check_and_consume_redis_near_limit_alert(self):
         from unittest.mock import MagicMock, patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         mock_r = MagicMock()
@@ -823,6 +846,7 @@ class TestWalletShieldRedis:
 
     def test_check_and_consume_redis_error_fail_open(self):
         from unittest.mock import MagicMock, patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         mock_r = MagicMock()
@@ -836,6 +860,7 @@ class TestWalletShieldRedis:
 
     def test_check_and_consume_inmem_over_budget(self):
         from unittest.mock import patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         ws = WalletShield()
@@ -847,6 +872,7 @@ class TestWalletShieldRedis:
 
     def test_record_actual_redis(self):
         from unittest.mock import MagicMock, patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         mock_r = MagicMock()
@@ -858,6 +884,7 @@ class TestWalletShieldRedis:
 
     def test_record_actual_same_actual_estimated(self):
         from unittest.mock import patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         ws = WalletShield()
@@ -866,6 +893,7 @@ class TestWalletShieldRedis:
 
     def test_record_actual_inmem(self):
         from unittest.mock import patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         ws = WalletShield()
@@ -876,6 +904,7 @@ class TestWalletShieldRedis:
 
     def test_get_usage_redis(self):
         from unittest.mock import MagicMock, patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         mock_r = MagicMock()
@@ -888,6 +917,7 @@ class TestWalletShieldRedis:
 
     def test_get_usage_disabled(self):
         from unittest.mock import patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         ws = WalletShield()
@@ -896,6 +926,7 @@ class TestWalletShieldRedis:
 
     def test_get_usage_inmem(self):
         from unittest.mock import patch
+
         import warden.wallet_shield as wm
         from warden.wallet_shield import WalletShield
         ws = WalletShield()
@@ -923,7 +954,7 @@ class TestSovereignPolicyRedis:
             update_policy("test", {"allowed_jurisdictions": ["MARS"]})
 
     def test_update_policy_success(self):
-        from warden.sovereign.policy import update_policy, get_policy
+        from warden.sovereign.policy import update_policy
         result = update_policy(f"tenant-{_uid()}", {
             "fallback_mode": "BLOCK",
             "allowed_jurisdictions": ["EU", "US"],
@@ -932,13 +963,13 @@ class TestSovereignPolicyRedis:
         assert "EU" in result["allowed_jurisdictions"]
 
     def test_is_jurisdiction_allowed_blocked(self):
-        from warden.sovereign.policy import update_policy, is_jurisdiction_allowed
+        from warden.sovereign.policy import is_jurisdiction_allowed, update_policy
         tid = f"t-{_uid()}"
         update_policy(tid, {"blocked_jurisdictions": ["RU"]})
         assert is_jurisdiction_allowed("RU", tid) is False
 
     def test_is_jurisdiction_allowed_restricted(self):
-        from warden.sovereign.policy import update_policy, is_jurisdiction_allowed
+        from warden.sovereign.policy import is_jurisdiction_allowed, update_policy
         tid = f"t-{_uid()}"
         update_policy(tid, {"allowed_jurisdictions": ["EU"]})
         assert is_jurisdiction_allowed("US", tid) is False

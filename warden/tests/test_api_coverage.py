@@ -882,24 +882,28 @@ class TestAlertingModule:
 
     def test_send_alert_warning(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
         with patch.object(alerting, "_SLACK_WEBHOOK", ""):
             alerting.send_alert("Test warning message")
 
     def test_send_alert_error(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
         with patch.object(alerting, "_SLACK_WEBHOOK", ""):
             alerting.send_alert("Critical alert", level="error")
 
     def test_slack_raw_no_webhook(self):
-        import warden.alerting as alerting
         from unittest.mock import patch
+
+        import warden.alerting as alerting
         with patch.object(alerting, "_SLACK_WEBHOOK", ""):
             alerting._send_slack_raw({"text": "test"})
 
     def test_alert_block_event_no_webhook(self):
         from unittest.mock import patch
+
         import warden.alerting as alerting
         with patch.object(alerting, "_SLACK_WEBHOOK", ""):
             alerting.alert_block_event(
@@ -927,7 +931,7 @@ class TestAgentMonitorCoverage:
         from warden.agent_monitor import AgentMonitor
         m = AgentMonitor()
         sid = self._make_session()
-        result = m.record_request(
+        m.record_request(
             session_id=sid,
             request_id=f"req-{sid[:8]}",
             allowed=True,
@@ -974,6 +978,7 @@ class TestAgentMonitorCoverage:
 class TestWalletShieldCoverage:
     def test_redis_client_initialization(self):
         from unittest.mock import patch
+
         import warden.wallet_shield as ws
         with patch.object(ws, "_ENABLED", True):
             shield = ws.WalletShield()
@@ -981,7 +986,8 @@ class TestWalletShieldCoverage:
             assert result.allowed in (True, False)
 
     def test_window_limit_check(self):
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
+
         import warden.wallet_shield as ws
         mock_client = MagicMock()
         mock_client.get.return_value = None
@@ -994,14 +1000,14 @@ class TestWalletShieldCoverage:
                 assert isinstance(result.allowed, bool)
 
     def test_hard_limit_exceeded(self):
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
+
         import warden.wallet_shield as ws
-        with patch.object(ws, "_ENABLED", True):
-            with patch.object(ws, "_HARD_LIMIT", 100):
-                shield = ws.WalletShield()
-                result = shield.check_and_consume("tenant", "user", 200)
-                assert result.allowed is False
-                assert result.limit_type == "hard_limit"
+        with patch.object(ws, "_ENABLED", True), patch.object(ws, "_HARD_LIMIT", 100):
+            shield = ws.WalletShield()
+            result = shield.check_and_consume("tenant", "user", 200)
+            assert result.allowed is False
+            assert result.limit_type == "hard_limit"
 
 
 # ── XAI Renderer (additional coverage) ───────────────────────────────────────

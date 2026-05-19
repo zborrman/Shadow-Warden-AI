@@ -63,12 +63,11 @@ class TestWalletShield:
 
     def test_check_hard_limit_exceeded(self):
         from warden.wallet_shield import WalletShield
-        with patch("warden.wallet_shield._ENABLED", True):
-            with patch("warden.wallet_shield._HARD_LIMIT", 100):
-                ws = WalletShield()
-                result = ws.check_and_consume("t", "u", 200)
-                assert result.allowed is False
-                assert result.limit_type == "hard_limit"
+        with patch("warden.wallet_shield._ENABLED", True), patch("warden.wallet_shield._HARD_LIMIT", 100):
+            ws = WalletShield()
+            result = ws.check_and_consume("t", "u", 200)
+            assert result.allowed is False
+            assert result.limit_type == "hard_limit"
 
     def test_check_no_redis_fail_open(self):
         from warden.wallet_shield import WalletShield
@@ -169,7 +168,7 @@ class TestRetentionApi:
         assert isinstance(result, dict)
 
     def test_get_effective_policy_defaults(self):
-        from warden.api.retention import DEFAULT_RETENTION_DAYS, get_effective_policy
+        from warden.api.retention import get_effective_policy
         policy = get_effective_policy("unknown-tenant-xyz")
         assert "PII" in policy or isinstance(policy, dict)
 
@@ -287,6 +286,7 @@ class TestBillingRouter:
     def _client(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from warden.billing.router import router
         app = FastAPI()
         app.include_router(router)
@@ -303,7 +303,7 @@ class TestBillingRouter:
     def test_addon_catalog_keys(self):
         from warden.billing.addons import ADDON_CATALOG
         assert len(ADDON_CATALOG) > 0
-        for key, addon in ADDON_CATALOG.items():
+        for _key, addon in ADDON_CATALOG.items():
             assert "usd_per_month" in addon
             assert "min_tier" in addon
 
@@ -340,8 +340,8 @@ class TestFederationExtra:
     def test_score_boost_with_module_patch(self):
         import warden.communities.federation as fed
         from warden.communities.federation import (
-            FederatedVerdict,
             _BOOST,
+            FederatedVerdict,
             _store_verdict,
             _threat_hash,
         )
