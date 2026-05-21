@@ -110,6 +110,7 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
       - WARDEN_API_KEY=${WARDEN_API_KEY:-}
+      - ALLOW_UNAUTHENTICATED=${ALLOW_UNAUTHENTICATED:-false}
       - SUPER_ADMIN_KEY=${SUPER_ADMIN_KEY:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://shadow-warden-ai.com,https://www.shadow-warden-ai.com,http://localhost:3000}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}

@@ -1049,6 +1049,38 @@ async def share_obsidian_note(
     )
 
 
+async def smb_provision_suite(
+    tenant_id:          str,
+    community_id:       str,
+    monthly_budget_usd: float = 0.0,
+    vendors:            list | None = None,
+    **_,
+) -> dict:
+    """Tool #48 — Provision all 7 SMB AI governance modules in one operation."""
+    return await _post(
+        "/smb-suite/provision",
+        {
+            "tenant_id":          tenant_id,
+            "community_id":       community_id,
+            "monthly_budget_usd": monthly_budget_usd,
+            "vendors":            vendors or [],
+        },
+        tenant=tenant_id,
+    )
+
+
+async def smb_suite_health(
+    tenant_id:    str,
+    community_id: str = "",
+    **_,
+) -> dict:
+    """Tool #49 — Health check across all 7 SMB governance modules."""
+    params = f"tenant_id={tenant_id}"
+    if community_id:
+        params += f"&community_id={community_id}"
+    return await _get(f"/smb-suite/health?{params}", tenant=tenant_id)
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -1705,6 +1737,52 @@ TOOLS: list[dict] = [
             "required": ["content", "display_name", "community_id"],
         },
     },
+    {
+        "name": "smb_provision_suite",
+        "description": (
+            "Tool #48 — Provision all 7 SMB AI governance modules (BL-22/23/24, CM-35/36/37/38) "
+            "in a single operation: vendor registry, budget cap, training program, incident register, "
+            "prompt library, supplier risk assessments, and STIX audit chain entry. "
+            "Returns SMBProvisionResult with counts, UECIID, and any errors."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id":          {"type": "string", "description": "Tenant ID to provision for"},
+                "community_id":       {"type": "string", "description": "SEP community ID"},
+                "monthly_budget_usd": {"type": "number", "description": "Monthly AI budget cap in USD (0 = skip)"},
+                "vendors": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "display_name":  {"type": "string"},
+                            "website":       {"type": "string"},
+                            "provider_type": {"type": "string"},
+                        },
+                        "required": ["display_name"],
+                    },
+                    "description": "List of AI vendors to register",
+                },
+            },
+            "required": ["tenant_id", "community_id"],
+        },
+    },
+    {
+        "name": "smb_suite_health",
+        "description": (
+            "Tool #49 — Health check across all 7 SMB governance modules. "
+            "Returns per-module status (ok/error), counts, and an overall healthy/degraded verdict."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id":    {"type": "string", "description": "Tenant ID to check"},
+                "community_id": {"type": "string", "description": "Community ID (optional)"},
+            },
+            "required": ["tenant_id"],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -1756,4 +1834,6 @@ TOOL_HANDLERS: dict[str, Any] = {
     "share_obsidian_note":           share_obsidian_note,
     "generate_threat_report":        generate_threat_report,
     "block_ip_range":                block_ip_range,
+    "smb_provision_suite":           smb_provision_suite,
+    "smb_suite_health":              smb_suite_health,
 }

@@ -177,6 +177,15 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "communities_enabled":         False,
         "max_communities":             0,
         "max_members_per_community":   0,
+        # ── SMB AI Governance ──────────────────────────────────────────────────
+        "vendor_governance_enabled":   False,
+        "cost_allocation_enabled":     False,
+        "budget_dashboard_enabled":    False,
+        "incident_register_enabled":   False,
+        "supplier_risk_enabled":       False,
+        "prompt_library_enabled":      False,
+        "training_records_enabled":    False,
+        "smb_suite_enabled":           False,
         # ── Referral ───────────────────────────────────────────────────────────
         "referral_program":            True,
         "referral_bonus_requests":     500,   # +500 req per referred signup
@@ -221,6 +230,15 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "communities_enabled":         False,
         "max_communities":             0,
         "max_members_per_community":   0,
+        # ── SMB AI Governance ──────────────────────────────────────────────────
+        "vendor_governance_enabled":   True,   # Individual+ can track vendors
+        "cost_allocation_enabled":     False,
+        "budget_dashboard_enabled":    False,
+        "incident_register_enabled":   True,   # Individual+ can log incidents
+        "supplier_risk_enabled":       False,
+        "prompt_library_enabled":      False,
+        "training_records_enabled":    False,
+        "smb_suite_enabled":           False,
         "referral_program":            True,
         "referral_bonus_requests":     500,
         "referral_bonus_bytes":        1 * _GB,   # +1 GB per referred signup
@@ -263,6 +281,15 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "communities_enabled":         True,    # ← Secure Communities
         "max_communities":             10,
         "max_members_per_community":   25,
+        # ── SMB AI Governance ──────────────────────────────────────────────────
+        "vendor_governance_enabled":   True,
+        "cost_allocation_enabled":     True,
+        "budget_dashboard_enabled":    True,
+        "incident_register_enabled":   True,
+        "supplier_risk_enabled":       True,
+        "prompt_library_enabled":      True,
+        "training_records_enabled":    True,
+        "smb_suite_enabled":           True,
         "referral_program":            True,
         "referral_bonus_requests":     2_000,
         "referral_bonus_bytes":        5 * _GB,   # +5 GB per referred signup
@@ -324,6 +351,15 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "smb_onboarding":              True,   # simplified setup wizard
         "smb_allowlist_preset":        True,   # pre-approved AI tool list
         "smb_compliance_report":       True,   # one-click GDPR/compliance PDF
+        # ── SMB AI Governance ──────────────────────────────────────────────────
+        "vendor_governance_enabled":   True,
+        "cost_allocation_enabled":     True,
+        "budget_dashboard_enabled":    True,
+        "incident_register_enabled":   True,
+        "supplier_risk_enabled":       True,
+        "prompt_library_enabled":      True,
+        "training_records_enabled":    True,
+        "smb_suite_enabled":           True,
     },
 
     "enterprise": {
@@ -358,6 +394,15 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "communities_enabled":         True,
         "max_communities":             _UNLIMITED,
         "max_members_per_community":   _UNLIMITED,
+        # ── SMB AI Governance ──────────────────────────────────────────────────
+        "vendor_governance_enabled":   True,
+        "cost_allocation_enabled":     True,
+        "budget_dashboard_enabled":    True,
+        "incident_register_enabled":   True,
+        "supplier_risk_enabled":       True,
+        "prompt_library_enabled":      True,
+        "training_records_enabled":    True,
+        "smb_suite_enabled":           True,
         "referral_program":            False,   # Enterprise pays full price
         "referral_bonus_requests":     0,
         "referral_bonus_bytes":        0,

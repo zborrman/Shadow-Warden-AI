@@ -117,4 +117,10 @@ export const api = {
     ),
   communityLookup: (body: { query: string; auto_publish?: boolean; risk_level?: string }) =>
     post<CommunityLookupResponse>(API, "/agent/sova/community/lookup", body),
+  budgetStatus:    (tenantId: string) =>
+    get<Record<string, unknown>>(API, "/financial/budget/status", { tenant_id: tenantId }),
+  smbProvision:    (body: { tenant_id: string; community_id: string; monthly_budget_usd?: number; vendors?: unknown[] }) =>
+    post<Record<string, unknown>>(API, "/smb-suite/provision", body),
+  smbStatus:       (tenantId: string, communityId = "") =>
+    get<Record<string, unknown>>(API, "/smb-suite/health", { tenant_id: tenantId, ...(communityId ? { community_id: communityId } : {}) }),
 };

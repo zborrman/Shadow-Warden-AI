@@ -128,6 +128,25 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/obsidian-business-pack",
     },
 
+    "smb_governance_suite": {
+        "display_name":   "SMB AI Governance Suite",
+        "description":    "Vendor register + DPA tracking, cost allocation, budget dashboard, incident register, supplier risk assessment, shared prompt library, and employee training records — provisioned in one wizard.",
+        "usd_per_month":  29,
+        "min_tier":       "individual",
+        "ls_variant_id":  os.getenv("LS_VARIANT_SMB_GOVERNANCE", ""),
+        "unlocks":        [
+            "vendor_governance_enabled",
+            "cost_allocation_enabled",
+            "budget_dashboard_enabled",
+            "incident_register_enabled",
+            "supplier_risk_enabled",
+            "prompt_library_enabled",
+            "training_records_enabled",
+            "smb_suite_enabled",
+        ],
+        "docs_url":       "/docs/addons/smb-governance-suite",
+    },
+
 }
 
 # ── Bundle catalog ─────────────────────────────────────────────────────────────

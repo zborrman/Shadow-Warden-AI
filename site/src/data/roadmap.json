@@ -142,5 +142,7 @@
   {"id":"TQ-02","category":"Doc","subcategory":"Testing & Quality","feature":"Scenario DSL","description":"ScenarioRunner + ScenarioStep with smart_retry. YAML loader. XAI causal-chain hint on failure.","version":"v4.11","tier":"All","status":"shipped"},
   {"id":"TQ-03","category":"Doc","subcategory":"Testing & Quality","feature":"Mutation Testing","description":"mutmut on secret_redactor.py + semantic_guard.py. Threshold: 20 surviving mutants. Linux/WSL/CI only.","version":"v2.0","tier":"All","status":"shipped"},
   {"id":"TQ-04","category":"Doc","subcategory":"Testing & Quality","feature":"k6 Load Tests","description":"Realistic traffic simulation. 1000+ RPS sustained. Latency SLO validation. CI-integrated.","version":"v3.5","tier":"All","status":"shipped"},
-  {"id":"TQ-05","category":"Doc","subcategory":"Testing & Quality","feature":"Coverage Gate ≥75%","description":"pytest --cov-fail-under=75. Matrix: Python 3.11 + 3.12. Adversarial tests informational (||true).","version":"v1.0","tier":"All","status":"shipped"}
+  {"id":"TQ-05","category":"Doc","subcategory":"Testing & Quality","feature":"Coverage Gate ≥75%","description":"pytest --cov-fail-under=75. Matrix: Python 3.11 + 3.12. Adversarial tests informational (||true).","version":"v1.0","tier":"All","status":"shipped"},
+
+  {"id":"CM-39","category":"Business Community","subcategory":"Business Intelligence","feature":"Business Intelligence Module","description":"8-category analytics: AI usage, threats, vendor scorecards, cost optimisation, compliance scoring, community benchmarking, predictive incident analytics, custom report builder. SQLite-cached 15min TTL. FastAPI router at /business-intelligence.","version":"v4.30","tier":"Community Business+","status":"planned"}
 ]

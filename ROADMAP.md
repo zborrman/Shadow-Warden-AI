@@ -123,6 +123,10 @@ Federated knowledge-sharing between Security Operations teams.
 | CM-26 | Community threat score federation — broadcast verified verdicts to federated peers | v4.22 | Enterprise | ✅ |
 | CM-27 | Community AI model sharing — share fine-tuned detection rules as signed UECIID bundles | v4.22 | Enterprise | ✅ |
 | CM-28 | Community SLA contracts — codify data residency + retention commitments in charter | v5.0 | Enterprise | 📋 |
+| CM-35 | AI Incident Register — STIX-linked incident journal | v4.25 | Individual+ | 📋 |
+| CM-36 | Supplier AI Risk Assessment — 5-criteria peering-based scoring | v4.26 | Community+ | 📋 |
+| CM-37 | Shared Prompt Library — UECIID provenance + community sharing | v4.27 | Community+ | 📋 |
+| CM-38 | Employee AI Training Records — HMAC attestation + behavioral hooks | v4.28 | Community+ | 📋 |
 
 ---
 
@@ -154,6 +158,8 @@ Connectors that bring Shadow Warden into existing developer and analyst workflow
 | IN-20 | Zapier / Make connector — webhook trigger + filter action blocks | v4.21 | Individual+ | ✅ |
 | IN-21 | OpenTelemetry SDK library — `WardenSpanProcessor` for any OTel-enabled app | v4.21 | Pro+ | ✅ |
 | IN-22 | MISP syslog bridge — ZMQ SUB socket + HTTP poll fallback, topic `misp_json` | v4.21 | Pro+ | ✅ |
+| IN-25 | SMB AI Governance Suite — single-wizard provisioning of all 7 modules | v4.29 | Community+ | 📋 |
+| CM-39 | Business Intelligence Module — 8-category analytics: usage, threats, vendors, costs, compliance, benchmarks, predictions, reports | v4.30 | Community+ | 📋 |
 
 ---
 
@@ -346,6 +352,9 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-19 | Request overage billing — ARQ monthly cron, Pro $0.50/1k, Enterprise $0.10/1k | v4.21 | Pro+ | ✅ |
 | BL-20 | Add-on: Obsidian Business Pack — bundled plugin features +$8/mo | v4.21 | Individual+ | ✅ |
 | BL-21 | Marketplace listing — AWS / Azure / Google Cloud Marketplace | v5.0 | Enterprise | 📋 |
+| BL-22 | AI Vendor Governance Register — DPA tracking + expiry alerts | v4.23 | Individual+ | 📋 |
+| BL-23 | AI Cost Allocation — per-department/vendor spend tracking | v4.24 | Community+ | 📋 |
+| BL-24 | AI Budget Dashboard — real-time spend + approval workflow | v4.24 | Community+ | 📋 |
 
 ---
 

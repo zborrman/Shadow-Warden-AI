@@ -1286,6 +1286,69 @@ except ImportError:
     log.warning("red_team router not available — /agent/red-team skipped.")
 
 try:
+    from warden.api.vendor_gov import router as _vendor_gov_router
+    app.include_router(_vendor_gov_router)
+    log.info("Vendor Governance mounted at /vendor-gov (BL-22)")
+except ImportError:
+    log.warning("vendor_gov router not available — /vendor-gov routes skipped.")
+
+try:
+    from warden.api.cost_allocation import router as _cost_allocation_router
+    app.include_router(_cost_allocation_router)
+    log.info("Cost Allocation mounted at /financial/allocation (BL-23)")
+except ImportError:
+    log.warning("cost_allocation router not available — /financial/allocation routes skipped.")
+
+try:
+    from warden.api.budget import router as _budget_router
+    app.include_router(_budget_router)
+    log.info("Budget Dashboard mounted at /financial/budget (BL-24)")
+except ImportError:
+    log.warning("budget router not available — /financial/budget routes skipped.")
+
+try:
+    from warden.api.incident_register import router as _incident_router
+    app.include_router(_incident_router)
+    log.info("Incident Register mounted at /incidents (CM-35)")
+except ImportError:
+    log.warning("incident_register router not available — /incidents routes skipped.")
+
+try:
+    from warden.api.supplier_risk import router as _supplier_risk_router
+    app.include_router(_supplier_risk_router)
+    log.info("Supplier Risk Assessment mounted at /supplier-risk (CM-36)")
+except ImportError:
+    log.warning("supplier_risk router not available — /supplier-risk routes skipped.")
+
+try:
+    from warden.api.prompt_library import router as _prompt_library_router
+    app.include_router(_prompt_library_router)
+    log.info("Shared Prompt Library mounted at /prompt-library (CM-37)")
+except ImportError:
+    log.warning("prompt_library router not available — /prompt-library routes skipped.")
+
+try:
+    from warden.api.training_records import router as _training_router
+    app.include_router(_training_router)
+    log.info("Employee AI Training Records mounted at /training (CM-38)")
+except ImportError:
+    log.warning("training_records router not available — /training routes skipped.")
+
+try:
+    from warden.api.smb_suite import router as _smb_suite_router
+    app.include_router(_smb_suite_router)
+    log.info("SMB AI Governance Suite mounted at /smb-suite (IN-25)")
+except ImportError:
+    log.warning("smb_suite router not available — /smb-suite routes skipped.")
+
+try:
+    from warden.business_intelligence.router import router as _bi_router
+    app.include_router(_bi_router)
+    log.info("Business Intelligence mounted at /business-intelligence (CM-39)")
+except ImportError:
+    log.warning("business_intelligence router not available — /business-intelligence routes skipped.")
+
+try:
     from warden.communities.federation import router as _federation_router
     app.include_router(_federation_router)
     log.info("Community threat federation mounted at /sep/federation (CM-26)")
