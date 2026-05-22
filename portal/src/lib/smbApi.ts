@@ -34,8 +34,8 @@ export type Incident = {
 
 export type PromptEntry = {
   prompt_id: string; community_id: string; title: string; description: string
-  category: string; tags: string[]; use_count: number; visibility: string
-  version: number; status: string; created_at: string
+  prompt_text: string; category: string; tags: string[]; use_count: number
+  visibility: string; version: number; status: string; created_at: string
 }
 
 export type Training = {
