@@ -65,7 +65,8 @@ class SMBProvisionResult:
 def _assign_ueciid() -> str:
     try:
         from warden.communities.sep import new_ueciid
-        return new_ueciid(db_path=_SEP_DB_PATH)
+        _, ueciid = new_ueciid()
+        return ueciid
     except Exception:
         return f"SMB-{uuid.uuid4().hex[:11].upper()}"
 

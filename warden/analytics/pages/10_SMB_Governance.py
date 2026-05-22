@@ -7,6 +7,7 @@ Tabs: Incidents | Vendors | Training | Prompt Library | Supplier Risk | Budget
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import streamlit as st
 
@@ -20,12 +21,13 @@ def _headers() -> dict:
     return {"X-API-Key": _KEY} if _KEY else {}
 
 
-def _get(path: str) -> dict | list | None:
+def _get(path: str) -> dict[str, Any] | None:
     import requests  # noqa: PLC0415
     try:
         r = requests.get(f"{_API}{path}", headers=_headers(), timeout=5)
         r.raise_for_status()
-        return r.json()
+        result = r.json()
+        return result if isinstance(result, dict) else None
     except Exception as exc:
         st.error(f"API error ({path}): {exc}")
         return None
