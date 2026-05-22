@@ -4,13 +4,13 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.20 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 4.30 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md)
 
 ---
 
-## Product Tiers — v4.20
+## Product Tiers — v4.30
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -42,6 +42,25 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 **14-day Pro trial:** available to Individual and Community Business tenants — 10,000 requests, no MasterAgent, one-time per account.
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v4.30
+
+| Feature | Description |
+|---------|-------------|
+| **SMB AI Governance Suite (IN-25)** | Single-wizard provisioning of all 7 SMB modules via `POST /smb-suite/provision`. `SMBProvisionResult` dataclass tracks vendor count, budget caps, training programs, incident register, prompt library, supplier risk, UECIID provenance, and STIX chain ID. `get_suite_health()` polls all 7 module stats endpoints and returns `overall: healthy \| degraded`. |
+| **AI Vendor Governance Register (BL-22)** | `warden/vendor_gov/registry.py` — SQLite-backed vendor + DPA registry. `VendorRecord`, `DPARecord` dataclasses; `register_vendor()`, `add_dpa()`, `get_expiring_dpas()`, `get_vendor_stats()`. FastAPI router at `/vendor-gov/*` (7 endpoints). Individual+ tier. |
+| **AI Cost Allocation (BL-23)** | `warden/financial/cost_allocation.py` — per-dept/vendor SQLite spend tracking. `record_cost()`, `get_monthly_summary()`, `get_department_breakdown()`, `get_vendor_spend()`. FastAPI router at `/financial/allocation/*` (5 endpoints). Community Business+ tier. |
+| **AI Budget Dashboard (BL-24)** | `warden/financial/budget.py` — budget caps, threshold alerts (configurable `alert_pct`), approval workflow (`request_approval()` / `resolve_approval()`), real-time spend vs cap. FastAPI router at `/financial/budget/*` (5 endpoints). Next.js SOC page at `/budget`. Community Business+ tier. |
+| **AI Incident Register (CM-35)** | `warden/communities/incident_register.py` — STIX 2.1-linked incident journal. `log_incident()` automatically appends to `sep_stix_chain` with `stix_chain_id` backlink. `auto_log_from_filter_event()` called on BLOCK decisions. FastAPI router at `/incidents/*` (5 endpoints). Individual+ tier. |
+| **Supplier AI Risk Assessment (CM-36)** | `warden/communities/supplier_risk.py` — 5-criteria composite scoring (data access, AI capability, compliance posture, peering history, disclosure recency). Pulls velocity from `sep_transfers` and DPA status from `vendor_dpa_records` — no external API calls. FastAPI router at `/supplier-risk/*` (3 endpoints). Community Business+ tier. |
+| **Shared Prompt Library (CM-37)** | `warden/communities/prompt_library.py` — UECIID-provenanced community prompt sharing. `add_prompt()` screens via `POST /filter` before saving (rejects injections). Versioning, `share_to_peer()`, `increment_use()`. FastAPI router at `/prompt-library/*` (6 endpoints). Community Business+ tier. |
+| **Employee AI Training Records (CM-38)** | `warden/communities/training_records.py` — HMAC-SHA256 attested completions (`VAULT_MASTER_KEY`). `record_completion()` calls `behavioral.record_event("ai_training_completed")`. `get_compliance_report()` tracks % complete, expiring, overdue. FastAPI router at `/training/*` (5 endpoints). Community Business+ tier. |
+| **Business Intelligence Module (CM-39)** | `warden/business_intelligence/` — 8 analytics categories: usage, threats, vendors, costs, compliance, benchmarks, predictions, report builder. Pure-Python OLS/moving-average prediction (`predictive.py`), community percentile benchmarking (`benchmarking.py`), SQLite cache with 15-min TTL (`repository.py`). FastAPI router at `/business-intelligence/*` (11 endpoints). Streamlit page `12_Business_Intelligence.py` (8 tabs). |
+| **SMB Governance Streamlit Page** | `warden/analytics/pages/10_SMB_Governance.py` — 6-tab dashboard: Incidents \| Vendors \| Training \| Prompt Library \| Supplier Risk \| Budget. Each tab shows metrics row + data table. |
+| **Portal SMB Pages** | 6 new Next.js portal pages: Vendor Governance, Incident Register, Prompt Library, Training Records, Cost Allocation, Supplier Risk. `smbApi.ts` typed client wrapping all 8 SMB module endpoints. Sidebar wired with SMB Governance group. |
+| **SMB Governance Suite Add-on** | `smb_governance_suite` add-on ($29/mo, Individual+) unlocks all 8 SMB feature flags from the Individual tier. Feature keys: `vendor_governance_enabled`, `cost_allocation_enabled`, `budget_dashboard_enabled`, `incident_register_enabled`, `supplier_risk_enabled`, `prompt_library_enabled`, `training_records_enabled`, `smb_suite_enabled`. |
 
 ---
 
