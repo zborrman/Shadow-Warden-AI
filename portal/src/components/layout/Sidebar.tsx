@@ -8,7 +8,8 @@ import {
   Zap, Eye, FileText, Bot,
   BarChart2, List, Search, Activity, GitBranch,
   Key, Lock, Globe, Trash2, CreditCard,
-  BookOpen, DollarSign,
+  BookOpen, DollarSign, Building2, AlertTriangle,
+  BookMarked, GraduationCap, ShieldAlert,
 } from 'lucide-react'
 import { logout } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
@@ -62,6 +63,20 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    id: 'smb',
+    label: 'SMB Governance',
+    accent: '#FF8C42',
+    icon: '◈',
+    items: [
+      { href: '/vendor-governance/', label: 'Vendor Governance', icon: Building2     },
+      { href: '/incidents/',         label: 'Incident Register', icon: AlertTriangle  },
+      { href: '/prompts/',           label: 'Prompt Library',    icon: BookMarked     },
+      { href: '/training/',          label: 'Training Records',  icon: GraduationCap  },
+      { href: '/cost-allocation/',   label: 'Cost Allocation',   icon: DollarSign     },
+      { href: '/supplier-risk/',     label: 'Supplier Risk',     icon: ShieldAlert    },
+    ],
+  },
+  {
     id: 'settings',
     label: 'Settings',
     accent: '#30D158',
@@ -108,7 +123,7 @@ export function Sidebar() {
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-[13px] font-bold text-white">Shadow Warden</span>
-            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v4.19 · LIVE</span>
+            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v4.30 · LIVE</span>
           </div>
         </Link>
       </div>

@@ -68,6 +68,21 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: "smb",
+    label: "SMB Governance",
+    accent: "#FF8C42",
+    bg: "rgba(255,140,66,0.12)",
+    icon: DollarSign,
+    items: [
+      { href: "/smb",           icon: Shield,        label: "SMB Overview" },
+      { href: "/budget",        icon: DollarSign,    label: "Budget Dashboard" },
+      { href: "/intelligence",  icon: TrendingUp,    label: "Business Intelligence" },
+      { href: "/smb/vendors",   icon: FileText,      label: "Vendor Governance",   soon: true },
+      { href: "/smb/incidents", icon: AlertTriangle, label: "Incident Register",   soon: true },
+      { href: "/smb/training",  icon: BookOpen,      label: "Training Records",    soon: true },
+    ],
+  },
+  {
     key: "settings",
     label: "Settings",
     accent: "#30D158",
@@ -235,7 +250,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <LogOut size={13} />
           Sign out
         </button>
-        <p className="text-[10px] text-gray-600 px-2">v4.21 · SOC Dashboard</p>
+        <p className="text-[10px] text-gray-600 px-2">v4.30 · SOC Dashboard</p>
       </div>
     </aside>
   );
