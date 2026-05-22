@@ -5,7 +5,7 @@ Four tabs:
   1. Threat Radar          — OSV dependency CVE scanner + ArXiv AI threat feed
   2. Intel Bridge          — Auto-Evolution sync status + manual trigger
   3. Causal Arbiter        — Interactive Bayesian DAG probability visualizer
-  4. Enterprise Guide      — Integration & Development Guide v4.9
+  4. Enterprise Guide      — Integration & Development Guide v4.30 (PDF download)
 
 Run with the main dashboard:
     streamlit run warden/analytics/dashboard.py
@@ -431,14 +431,10 @@ Threshold: 65% → {"BLOCK ✗" if result.is_high_risk else "ALLOW ✓"}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — ENTERPRISE INTEGRATION & DEVELOPMENT GUIDE v4.9
+# TAB 4 — ENTERPRISE INTEGRATION & DEPLOYMENT GUIDE v4.30
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_guide:
-    st.markdown(
-        '<p class="section-title">Enterprise Integration & Development Guide — v4.9</p>',
-        unsafe_allow_html=True,
-    )
 
     # ── Guide CSS ─────────────────────────────────────────────────────────────
     st.markdown("""
@@ -485,6 +481,308 @@ with tab_guide:
 
     st.divider()
 
+    # ── PDF download ──────────────────────────────────────────────────────────
+    try:
+        from reportlab.lib import colors as rl_colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import (
+            HRFlowable,
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
+        )
+        _RL_AVAILABLE = True
+    except ImportError:
+        _RL_AVAILABLE = False
+
+    def _build_guide_pdf() -> bytes:  # noqa: PLR0912
+        import io
+        from datetime import UTC, datetime
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4,
+                                leftMargin=20*mm, rightMargin=20*mm,
+                                topMargin=22*mm, bottomMargin=22*mm)
+        sty = getSampleStyleSheet()
+        ns  = sty["Normal"]
+        h1  = sty["Heading1"]
+        h2  = sty["Heading2"]
+        code = sty["Code"]
+        story: list = []
+
+        def p(text, style=ns):  # type: ignore[assignment]
+            story.append(Paragraph(text, style))
+
+        def rule():
+            story.append(HRFlowable(width="100%", thickness=0.5,
+                                    color=rl_colors.HexColor("#4a5568")))
+            story.append(Spacer(1, 4*mm))
+
+        def sp(h: int = 4):
+            story.append(Spacer(1, h*mm))
+
+        def tbl(data: list, col_widths: list | None = None):
+            t = Table(data, colWidths=col_widths, repeatRows=1)
+            t.setStyle(TableStyle([
+                ("BACKGROUND",     (0, 0), (-1, 0), rl_colors.HexColor("#2d3748")),
+                ("TEXTCOLOR",      (0, 0), (-1, 0), rl_colors.white),
+                ("FONTNAME",       (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE",       (0, 0), (-1, -1), 8),
+                ("GRID",           (0, 0), (-1, -1), 0.3, rl_colors.HexColor("#4a5568")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+                 [rl_colors.HexColor("#f8fafc"), rl_colors.white]),
+                ("TOPPADDING",     (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING",  (0, 0), (-1, -1), 3),
+                ("LEFTPADDING",    (0, 0), (-1, -1), 5),
+            ]))
+            story.append(t)
+            sp(3)
+
+        # Cover
+        sp(20)
+        p("<b>Shadow Warden AI</b>", h1)
+        p("Enterprise Integration &amp; Deployment Guide — v4.30", h2)
+        p(f"Generated: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}")
+        sp(6)
+        rule()
+        p("This document covers all 14 integration areas of Shadow Warden AI v4.30, "
+          "from quick-start through post-quantum cryptography and SMB governance.")
+        sp(8)
+
+        # 1 — Quick Start
+        p("1. Quick Start", h2)
+        rule()
+        p("Minimum requirements: Docker 24+, 4 GB RAM, 10 GB disk.")
+        sp()
+        p("<b>Clone &amp; launch:</b>")
+        story.append(Paragraph(
+            "git clone ... &amp;&amp; cp .env.example .env &amp;&amp; docker compose up --build -d",
+            code))
+        sp()
+        p("Service ports:")
+        tbl([["Service", "Port", "Description"],
+             ["proxy (Caddy)", "80/443", "HTTPS entry point (QUIC/HTTP3)"],
+             ["app (FastAPI)", "8000", "Main gateway — /filter, /v1/chat/completions"],
+             ["warden", "8001", "Internal warden API"],
+             ["dashboard", "8501", "Streamlit analytics dashboard"],
+             ["redis", "6379", "Rate limits, ERS, cache, SOVA memory"],
+             ["minio", "9000/9001", "S3-compatible evidence store"]],
+            [30*mm, 22*mm, None])
+        sp(4)
+
+        # 2 — Auth
+        p("2. Authentication &amp; Multi-Tenancy", h2)
+        rule()
+        p("Single key: set WARDEN_API_KEY. Multi-tenant: set WARDEN_API_KEYS_PATH to a JSON "
+          "file mapping tenant_id to sha256(key). Fail-closed: startup raises RuntimeError if "
+          "both are unset (unless ALLOW_UNAUTHENTICATED=true, for dev only).")
+        sp(4)
+
+        # 3 — Filter Pipeline
+        p("3. Filter Pipeline API — POST /filter", h2)
+        rule()
+        tbl([["Stage", "Name", "Description"],
+             ["0", "Auth &amp; Rate-Limit", "Constant-time key compare, Redis 429"],
+             ["1", "Cache", "SHA-256 → 5-min TTL"],
+             ["2", "Obfuscation Decoder", "base64/hex/ROT13/homoglyphs depth-3"],
+             ["3", "Secret Redactor", "15 regex patterns + Shannon entropy"],
+             ["4", "Semantic Guard", "Rule engine + compound escalation"],
+             ["5", "Semantic Brain", "MiniLM → Poincare ball (70/30 blend)"],
+             ["6", "Multimodal Guard", "CLIP image + FFT/Whisper audio"],
+             ["7", "Entity Risk", "Redis sliding window, shadow ban >= 0.75"],
+             ["8", "Decision + Logger", "NDJSON append; payload never logged"]],
+            [10*mm, 38*mm, None])
+        sp(4)
+
+        # 4 — Agents
+        p("4. Agents — SOVA &amp; MasterAgent", h2)
+        rule()
+        p("<b>SOVA</b> (Pro+): Claude Opus 4.6 agentic loop, 10 iter, 30 tools. "
+          "POST /agent/sova. ARQ cron: morning_brief, threat_sync, rotation_check, "
+          "sla_report, upgrade_scan, corpus_watchdog, visual_patrol.")
+        sp()
+        p("<b>MasterAgent</b> (included in Pro): 4 sub-agents (SOVAOperator / ThreatHunter / "
+          "ForensicsAgent / ComplianceAgent). HMAC task tokens + human-in-the-loop Slack approval.")
+        sp(4)
+
+        # 5 — Evolution Engine
+        p("5. Evolution Engine &amp; Corpus", h2)
+        rule()
+        p("On HIGH/BLOCK: Claude Opus synthesises a generalised rule, vetted by "
+          "_validate_regex_safety() (ReDoS protection), then hot-loaded via add_examples(). "
+          "Air-gapped mode: omit ANTHROPIC_API_KEY — all 9 stages still work.")
+        sp(4)
+
+        # 6 — Monitoring
+        p("6. Monitoring &amp; Observability", h2)
+        rule()
+        p("Prometheus at GET /metrics. Grafana SLO alerts (P99, 5xx, availability, "
+          "shadow ban rate, corpus drift). SIEM: Splunk HEC or Elastic ECS. "
+          "OTel tracing: OTEL_ENABLED=true → gRPC → Jaeger.")
+        sp(4)
+
+        # 7 — Billing
+        p("7. Add-Ons &amp; Billing", h2)
+        rule()
+        tbl([["Tier", "Price", "Key Features"],
+             ["Starter", "$0", "Core pipeline, dashboard"],
+             ["Individual", "$5/mo", "+ Audit trail"],
+             ["Community Business", "$19/mo", "+ File Scanner, Shadow AI, 3 communities, Secrets Gov"],
+             ["Pro", "$69/mo", "+ MasterAgent, SIEM, Prometheus, multi-tenant"],
+             ["Enterprise", "$249/mo", "+ PQC, Sovereign AI Cloud, unlimited, on-prem"]],
+            [38*mm, 20*mm, None])
+        sp(4)
+
+        # 8 — Communities & SEP
+        p("8. Communities &amp; SEP", h2)
+        rule()
+        p("UECIID: SEP-{11 base-62} encodes a 64-bit Snowflake. "
+          "Peering: MIRROR_ONLY / REWRAP_ALLOWED / FULL_SYNC. "
+          "Causal Transfer Guard: P(exfiltration) >= 0.70 blocks. "
+          "STIX 2.1 audit chain: SHA-256 prev_hash, every transfer logged.")
+        sp(4)
+
+        # 9 — PQC & Sovereign
+        p("9. PQC &amp; Sovereign AI Cloud (Enterprise)", h2)
+        rule()
+        p("HybridSigner: Ed25519 + ML-DSA-65 (FIPS 204). HybridKEM: X25519 + ML-KEM-768 (FIPS 203). "
+          "Sovereign routing: 8 jurisdictions, MASQUE tunnels, TOFU TLS pinning, "
+          "HMAC-signed attestations (7-year Redis TTL).")
+        sp(4)
+
+        # 10 — SDK
+        p("10. SDK Integrations", h2)
+        rule()
+        p("Python SDK (httpx), LangChain WardenCallback, OpenAI-compatible proxy, "
+          "XAI causal chain reports (HTML + PDF), Financial Impact API (IBM 2024 benchmarks), "
+          "Shadow AI governance subnet scanner.")
+        sp(4)
+
+        # 11 — Env vars
+        p("11. Environment Variable Reference", h2)
+        rule()
+        tbl([["Variable", "Default", "Notes"],
+             ["WARDEN_API_KEY", "—", "Required in production"],
+             ["VAULT_MASTER_KEY", "—", "Fernet key for at-rest encryption"],
+             ["ANTHROPIC_API_KEY", "—", "For Evolution Engine + SOVA; omit for air-gapped"],
+             ["REDIS_URL", "redis://redis:6379", "Use memory:// for tests"],
+             ["SEP_DB_PATH", "/tmp/warden_sep.db", "UECIID, peerings, STIX chain, data pods"],
+             ["BI_DB_PATH", "/tmp/warden_bi.db", "Business Intelligence cache DB"],
+             ["VENDOR_GOV_DB_PATH", "/tmp/warden_vendor.db", "AI vendor governance register"],
+             ["COST_ALLOC_DB_PATH", "/tmp/warden_costs.db", "Cost allocation + budget caps"],
+             ["INTEL_OPS_ENABLED", "false", "Activate ArXiv to Intel Bridge"],
+             ["OTEL_ENABLED", "false", "Distributed tracing via OpenTelemetry"],
+             ["S3_ENABLED", "false", "Enable MinIO/S3 evidence shipping"],
+             ["SHADOW_AI_CONCURRENCY", "50", "Max concurrent subnet probe connections"],
+             ["TRANSFER_RISK_THRESHOLD", "0.70", "Causal Transfer Guard block threshold"]],
+            [52*mm, 35*mm, None])
+        sp(4)
+
+        # 12 — Secrets Governance
+        p("12. Secrets Governance (Community Business+)", h2)
+        rule()
+        p("Connect AWS SM / Azure KV / HashiCorp / GCP SM / env. "
+          "Risk scoring, policy engine (7 violation rules), compliance audit score, "
+          "rotation lifecycle. Secret values NEVER read or stored (GDPR Art. 5).")
+        tbl([["Endpoint", "Method", "Description"],
+             ["/secrets/vaults", "POST/GET", "Register and list vault backends"],
+             ["/secrets/vaults/{id}/sync", "POST", "Pull metadata from vault"],
+             ["/secrets/inventory", "GET", "Full inventory with optional filters"],
+             ["/secrets/rotate/{id}", "POST", "Trigger rotation"],
+             ["/secrets/policy/audit", "GET", "Run compliance audit (returns score)"]],
+            [60*mm, 22*mm, None])
+        sp(4)
+
+        # 13 — SMB Suite
+        p("13. SMB AI Governance Suite (Community Business+)", h2)
+        rule()
+        p("8 modules provisioned by a single wizard call (IN-25). "
+          "Gated by smb_suite_enabled (Community Business+ or $29/mo add-on from Individual).")
+        sp(2)
+        tbl([["Module", "Feature Key", "Description"],
+             ["AI Vendor Governance (BL-22)", "vendor_governance_enabled",
+              "DPA tracking, expiry alerts, /vendor-gov/*"],
+             ["AI Cost Allocation (BL-23)", "cost_allocation_enabled",
+              "Per-dept/vendor spend, /financial/allocation/*"],
+             ["AI Budget Dashboard (BL-24)", "budget_dashboard_enabled",
+              "Caps, threshold alerts, approval workflow"],
+             ["AI Incident Register (CM-35)", "incident_register_enabled",
+              "STIX-linked severity journal, /incidents/*"],
+             ["Supplier AI Risk (CM-36)", "supplier_risk_enabled",
+              "5-criteria composite score, /supplier-risk/*"],
+             ["Shared Prompt Library (CM-37)", "prompt_library_enabled",
+              "UECIID provenance, injection screening, sharing"],
+             ["Employee AI Training (CM-38)", "training_records_enabled",
+              "HMAC-SHA256 attestation, /training/*"],
+             ["SMB Suite Wizard (IN-25)", "smb_suite_enabled",
+              "One-call provisioner, /smb-suite/provision"]],
+            [50*mm, 50*mm, None])
+        sp(2)
+        p("<b>Provision call:</b>")
+        story.append(Paragraph(
+            "POST /smb-suite/provision  {tenant_id, community_id, "
+            "config: {vendors, monthly_budget_usd}}",
+            code))
+        sp(2)
+        p("<b>Health:</b> GET /smb-suite/health returns overall: healthy | degraded.")
+        sp(4)
+
+        # 14 — Business Intelligence
+        p("14. Business Intelligence (CM-39)", h2)
+        rule()
+        p("Read-only analytics. Reads SEP_DB_PATH, VENDOR_GOV_DB_PATH, "
+          "COST_ALLOC_DB_PATH, LOGS_PATH. 15-min SQLite cache (BI_DB_PATH). "
+          "Never writes to peer module databases.")
+        sp(2)
+        tbl([["Endpoint", "Description"],
+             ["GET /business-intelligence/usage", "Request volume, block rate, top flags"],
+             ["GET /business-intelligence/threats", "Threat summary, severity distribution"],
+             ["GET /business-intelligence/vendors", "Vendor stats, DPA expiry, risk tiers"],
+             ["GET /business-intelligence/costs", "Monthly spend, dept + vendor breakdown"],
+             ["GET /business-intelligence/compliance", "Training compliance, policy score"],
+             ["GET /business-intelligence/benchmarks", "Percentile rank vs community peers"],
+             ["GET /business-intelligence/predictions", "OLS forecast: volume/threats/costs"],
+             ["POST /business-intelligence/report", "Full or executive report builder"],
+             ["DELETE /business-intelligence/cache", "Invalidate 15-min cache for tenant"]],
+            [70*mm, None])
+        sp(2)
+        p("<b>Predictive:</b> pure-Python OLS — moving_average, linear_trend, "
+          "predict_next, r_squared, trend_direction.")
+        sp(6)
+
+        rule()
+        p("<i>Shadow Warden AI v4.30 — Enterprise Integration &amp; Deployment Guide. "
+          "Proprietary and confidential. All rights reserved.</i>")
+
+        doc.build(story)
+        return buf.getvalue()
+
+    col_hdr, col_dl = st.columns([3, 1])
+    with col_hdr:
+        st.markdown(
+            '<p class="section-title">Enterprise Integration & Development Guide — v4.30</p>',
+            unsafe_allow_html=True,
+        )
+    with col_dl:
+        if _RL_AVAILABLE:
+            try:
+                pdf_bytes = _build_guide_pdf()
+                st.download_button(
+                    label="⬇ Download PDF",
+                    data=pdf_bytes,
+                    file_name="shadow-warden-enterprise-guide-v4.30.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    type="primary",
+                )
+            except Exception as _pdf_err:
+                st.caption(f"PDF error: {_pdf_err}")
+        else:
+            st.caption("Install reportlab to enable PDF download.")
+
     # ══ Section navigation ════════════════════════════════════════════════════
     sections = [
         "1. Quick Start",
@@ -499,6 +797,8 @@ with tab_guide:
         "10. SDK Integrations",
         "11. Environment Variable Reference",
         "12. Secrets Governance",
+        "13. SMB AI Governance Suite",
+        "14. Business Intelligence",
     ]
     selected = st.selectbox("Jump to section", sections, label_visibility="collapsed")
 
@@ -1437,3 +1737,221 @@ GET /secrets/policy/audit
 }""", language="json")
 
         st.markdown('<div class="guide-warn">⚠ Secret values are <strong>never</strong> fetched, stored, or logged. Only metadata (name, created_at, last_rotated, expires_at, tags) is synced. Vault credentials are Fernet-encrypted at rest using <code>VAULT_MASTER_KEY</code>.</div>', unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # 13 — SMB AI GOVERNANCE SUITE
+    # ══════════════════════════════════════════════════════════════════════════
+    elif selected == sections[12]:
+        st.subheader("13. SMB AI Governance Suite")
+
+        st.markdown("""
+        <span class="guide-badge badge-smb">COMMUNITY $19</span> Included &nbsp;|&nbsp;
+        <span class="guide-badge badge-indiv">INDIVIDUAL $5</span> + smb_governance_suite add-on (+$29/mo)
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        **IN-25** provisions all 7 governance modules in a single wizard call.
+        Each module has its own feature gate; all are unlocked at Community Business+ tier
+        or via the `smb_governance_suite` add-on ($29/mo from Individual tier).
+        """)
+
+        import pandas as pd
+        st.markdown("### Module Overview")
+        module_data = [
+            ("BL-22", "AI Vendor Governance",    "vendor_governance_enabled",   "/vendor-gov/*",             "DPA tracking, expiry alerts, risk tiers"),
+            ("BL-23", "AI Cost Allocation",       "cost_allocation_enabled",     "/financial/allocation/*",   "Per-dept/vendor SQLite spend tracking"),
+            ("BL-24", "AI Budget Dashboard",      "budget_dashboard_enabled",    "/financial/budget/*",       "Budget caps, threshold alerts, approvals"),
+            ("CM-35", "AI Incident Register",     "incident_register_enabled",   "/incidents/*",              "STIX-linked severity journal"),
+            ("CM-36", "Supplier AI Risk",         "supplier_risk_enabled",       "/supplier-risk/*",          "5-criteria composite scoring (peering-based)"),
+            ("CM-37", "Shared Prompt Library",    "prompt_library_enabled",      "/prompt-library/*",         "UECIID provenance + injection screening"),
+            ("CM-38", "Employee AI Training",     "training_records_enabled",    "/training/*",               "HMAC-SHA256 attestation + behavioral hooks"),
+            ("IN-25", "SMB Suite Wizard",         "smb_suite_enabled",           "/smb-suite/*",              "One-call provisioner of all 7 modules"),
+        ]
+        st.dataframe(
+            pd.DataFrame(module_data, columns=["ID", "Module", "Feature Key", "API Prefix", "Description"]),
+            use_container_width=True, hide_index=True,
+        )
+
+        st.divider()
+
+        col_prov, col_health = st.columns(2)
+        with col_prov:
+            st.markdown("### Provision All Modules")
+            st.code("""POST /smb-suite/provision
+{
+  "tenant_id": "acme-corp",
+  "community_id": "comm-abc",
+  "config": {
+    "vendors": [
+      {"display_name": "OpenAI", "website": "https://openai.com",
+       "provider_type": "LLM"},
+      {"display_name": "Pinecone", "website": "https://pinecone.io",
+       "provider_type": "EMBEDDING"}
+    ],
+    "monthly_budget_usd": 500.0
+  }
+}
+# Returns SMBProvisionResult:
+{
+  "vendor_count": 2,
+  "budget_caps_set": 1,
+  "training_programs": 1,
+  "incident_register": true,
+  "prompt_library": true,
+  "supplier_risk": true,
+  "ueciid": "SEP-0K3hGt4rZ2X",
+  "stix_chain_id": "...",
+  "errors": []
+}""", language="json")
+
+        with col_health:
+            st.markdown("### Health Check")
+            st.code("""GET /smb-suite/health
+
+# Returns per-module status:
+{
+  "overall": "healthy",
+  "modules_ok": 7,
+  "modules_total": 7,
+  "modules": {
+    "vendor_governance":  {"status": "ok", "total": 2},
+    "budget_dashboard":   {"status": "ok", "caps": 1},
+    "incident_register":  {"status": "ok", "total": 0},
+    "prompt_library":     {"status": "ok", "total": 0},
+    "training_records":   {"status": "ok", "programs": 1},
+    "supplier_risk":      {"status": "ok", "assessments": 2},
+    "cost_allocation":    {"status": "ok", "total_usd": 0.0}
+  }
+}""", language="json")
+
+        st.divider()
+
+        st.markdown("### Key Design Constraints")
+        st.markdown("""
+| Constraint | Detail |
+|-----------|--------|
+| Incident → STIX | `log_incident()` auto-calls `stix_audit.append_transfer()` — every incident is in the audit chain |
+| Training attestation | `record_completion()` HMAC-SHA256 signs with `VAULT_MASTER_KEY`; unsigned completions are invalid |
+| Prompt screening | `add_prompt()` runs `POST /filter` before saving; `blocked=True` → HTTP 422 |
+| Supplier risk | `assess_supplier()` reads `sep_transfers` velocity + DPA status — no external calls |
+| Budget alert | `check_budget()` returns `status: over_budget / alert / ok` + `pct_used` |
+        """)
+
+        st.markdown("### SQLite Databases")
+        st.code("""# Vendor Governance + Budget (separate DB)
+VENDOR_GOV_DB_PATH=/tmp/warden_vendor.db  # ai_vendors, vendor_dpa_records
+COST_ALLOC_DB_PATH=/tmp/warden_costs.db   # cost_allocations, budget_caps, budget_approvals
+
+# Incidents, Prompts, Training, Supplier Risk, Suite STIX (shared SEP DB)
+SEP_DB_PATH=/tmp/warden_sep.db
+# Tables: ai_incidents, prompt_library, ai_training_programs,
+#         ai_training_completions, supplier_risk_assessments, sep_stix_chain""", language="bash")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # 14 — BUSINESS INTELLIGENCE
+    # ══════════════════════════════════════════════════════════════════════════
+    elif selected == sections[13]:
+        st.subheader("14. Business Intelligence")
+
+        st.markdown("""
+        <span class="guide-badge badge-smb">COMMUNITY $19</span> Included (CM-39)
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        Read-only analytics layer that aggregates data from all SMB governance modules.
+        15-minute SQLite cache per tenant. Never writes to peer module databases.
+        """)
+
+        import pandas as pd
+
+        st.markdown("### API Endpoints (`/business-intelligence/*`)")
+        bi_endpoints = [
+            ("GET", "/business-intelligence/usage",       "Request volume, block rate, top flags, peak hours"),
+            ("GET", "/business-intelligence/threats",     "Threat summary, severity dist., top attack patterns"),
+            ("GET", "/business-intelligence/vendors",     "Vendor stats, DPA expiry count, risk tier breakdown"),
+            ("GET", "/business-intelligence/costs",       "Monthly spend, dept breakdown, vendor spend totals"),
+            ("GET", "/business-intelligence/compliance",  "Incident stats, training compliance %, policy score"),
+            ("GET", "/business-intelligence/benchmarks",  "Percentile rank vs community peers"),
+            ("GET", "/business-intelligence/predictions", "OLS forecast: volume / threats / costs next period"),
+            ("POST","/business-intelligence/report",      "Full or executive report builder (configurable sections)"),
+            ("DELETE","/business-intelligence/cache",     "Invalidate 15-min cache for tenant"),
+            ("GET", "/business-intelligence/health",      "Module health + data source connectivity"),
+        ]
+        st.dataframe(
+            pd.DataFrame(bi_endpoints, columns=["Method", "Endpoint", "Description"]),
+            use_container_width=True, hide_index=True,
+        )
+
+        st.divider()
+
+        col_pred, col_bench = st.columns(2)
+        with col_pred:
+            st.markdown("### Predictive Analytics")
+            st.markdown("""
+            Pure-Python OLS extrapolation — no numpy dependency.
+            """)
+            st.code("""from warden.business_intelligence.predictive import (
+    moving_average, linear_trend, predict_next,
+    r_squared, trend_direction,
+)
+
+# Forecast next period
+series = [120, 135, 128, 142, 155, 160]
+slope, intercept = linear_trend(series)
+next_val = predict_next(series)
+trend = trend_direction(series)  # "increasing" | "decreasing" | "stable"
+r2 = r_squared(series)
+
+# trend_direction thresholds:
+# slope > 0.5/period → increasing
+# slope < -0.5/period → decreasing""", language="python")
+
+        with col_bench:
+            st.markdown("### Community Benchmarking")
+            st.markdown("""
+            Percentile ranking of a tenant metric against a peer list.
+            """)
+            st.code("""from warden.business_intelligence.benchmarking import (
+    benchmark_metric, percentile_rank,
+)
+
+result = benchmark_metric(
+    tenant_value=0.85,
+    peer_values=[0.5, 0.6, 0.7, 0.8, 0.9],  # list[float]
+    metric="compliance_score",
+    tenant_id="acme-corp",
+)
+# Returns:
+{
+  "community_avg": 0.70,
+  "community_p25": 0.60,
+  "community_p75": 0.80,
+  "percentile_rank": 80.0,
+  "status": "above_average"
+}""", language="python")
+
+        st.divider()
+        st.markdown("### Report Builder")
+        st.code("""POST /business-intelligence/report
+{
+  "tenant_id": "acme-corp",
+  "report_type": "executive",       # or "full"
+  "include_sections": [
+    "usage", "threats", "costs", "compliance"
+  ]
+}
+
+# Returns a combined dict with all requested sections
+# plus metadata: generated_at, report_type, tenant_id, period
+# Full report includes all 8 analytics sections""", language="json")
+
+        st.markdown("### Cache Behaviour")
+        st.markdown("""
+| Property | Value |
+|----------|-------|
+| Backend | SQLite (`BI_DB_PATH`, default `/tmp/warden_bi.db`) |
+| TTL | 15 minutes per tenant per report type |
+| Invalidation | `DELETE /business-intelligence/cache?tenant_id=...` |
+| Data sources | Read-only: SEP DB, vendor DB, cost DB, logs.json |
+| Writes to peer DBs | Never |
+        """)
