@@ -17,10 +17,10 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Generator
 
 log = logging.getLogger("warden.communities.incident_register")
 
@@ -251,10 +251,14 @@ def auto_log_from_filter_event(
 
 def _infer_category(event: dict) -> str:
     flags = str(event.get("flags", [])).upper()
-    if "JAILBREAK" in flags:   return "JAILBREAK"
-    if "PII" in flags:         return "PII_LEAK"
-    if "PHISH" in flags:       return "ABUSE"
-    if "SECRET" in flags:      return "COMPLIANCE"
+    if "JAILBREAK" in flags:
+        return "JAILBREAK"
+    if "PII" in flags:
+        return "PII_LEAK"
+    if "PHISH" in flags:
+        return "ABUSE"
+    if "SECRET" in flags:
+        return "COMPLIANCE"
     return "OTHER"
 
 
@@ -293,9 +297,15 @@ def list_incidents(
 ) -> list[dict]:
     sql    = "SELECT * FROM ai_incidents WHERE tenant_id = ?"
     params: list = [tenant_id]
-    if severity: sql += " AND severity = ?"; params.append(severity.upper())
-    if status:   sql += " AND status = ?";   params.append(status)
-    if category: sql += " AND category = ?"; params.append(category.upper())
+    if severity:
+        sql += " AND severity = ?"
+        params.append(severity.upper())
+    if status:
+        sql += " AND status = ?"
+        params.append(status)
+    if category:
+        sql += " AND category = ?"
+        params.append(category.upper())
     sql += f" ORDER BY created_at DESC LIMIT {int(limit)}"
     with _conn(db_path) as con:
         rows = con.execute(sql, params).fetchall()

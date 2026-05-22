@@ -6,6 +6,7 @@ Streamlit Business Intelligence dashboard — 8 tabs.
 from __future__ import annotations
 
 import os
+
 import requests
 import streamlit as st
 

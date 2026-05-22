@@ -8,8 +8,6 @@ import os
 import tempfile
 import uuid
 
-import pytest
-
 os.environ.setdefault("REDIS_URL", "memory://")
 os.environ.setdefault("WARDEN_API_KEY", "")
 os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
@@ -20,9 +18,8 @@ def _tid() -> str:
 
 
 def _tmp_db() -> str:
-    f = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    f.close()
-    return f.name
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        return f.name
 
 
 class TestIncidentLogging:
@@ -33,7 +30,7 @@ class TestIncidentLogging:
         assert iid and len(iid) == 36
 
     def test_log_incident_defaults(self):
-        from warden.communities.incident_register import log_incident, get_incident
+        from warden.communities.incident_register import get_incident, log_incident
         db  = _tmp_db()
         iid = log_incident("t1", "Default incident", db_path=db)
         inc = get_incident(iid, db_path=db)
@@ -43,35 +40,35 @@ class TestIncidentLogging:
         assert inc["status"]   == "open"
 
     def test_log_incident_normalizes_severity(self):
-        from warden.communities.incident_register import log_incident, get_incident
+        from warden.communities.incident_register import get_incident, log_incident
         db  = _tmp_db()
         iid = log_incident("t1", "High risk", severity="high", db_path=db)
         inc = get_incident(iid, db_path=db)
         assert inc is not None and inc["severity"] == "HIGH"
 
     def test_log_incident_invalid_severity_fallback(self):
-        from warden.communities.incident_register import log_incident, get_incident
+        from warden.communities.incident_register import get_incident, log_incident
         db  = _tmp_db()
         iid = log_incident("t1", "Bad severity", severity="EXTREME", db_path=db)
         inc = get_incident(iid, db_path=db)
         assert inc is not None and inc["severity"] == "MEDIUM"
 
     def test_log_incident_normalizes_category(self):
-        from warden.communities.incident_register import log_incident, get_incident
+        from warden.communities.incident_register import get_incident, log_incident
         db  = _tmp_db()
         iid = log_incident("t1", "Jailbreak", category="jailbreak", db_path=db)
         inc = get_incident(iid, db_path=db)
         assert inc is not None and inc["category"] == "JAILBREAK"
 
     def test_log_incident_invalid_category_fallback(self):
-        from warden.communities.incident_register import log_incident, get_incident
+        from warden.communities.incident_register import get_incident, log_incident
         db  = _tmp_db()
         iid = log_incident("t1", "Weird", category="UNKNOWN_CAT", db_path=db)
         inc = get_incident(iid, db_path=db)
         assert inc is not None and inc["category"] == "OTHER"
 
     def test_stix_chain_id_populated(self):
-        from warden.communities.incident_register import log_incident, get_incident
+        from warden.communities.incident_register import get_incident, log_incident
         db  = _tmp_db()
         iid = log_incident("t1", "Chain test", community_id="com-abc", db_path=db)
         inc = get_incident(iid, db_path=db)
@@ -80,6 +77,7 @@ class TestIncidentLogging:
 
     def test_stix_entry_in_db(self):
         import sqlite3
+
         from warden.communities.incident_register import log_incident
         db  = _tmp_db()
         iid = log_incident("t1", "STIX test", community_id="com-xyz", db_path=db)
@@ -93,7 +91,7 @@ class TestIncidentLogging:
 
 class TestStatusTransitions:
     def test_update_status_open_to_investigating(self):
-        from warden.communities.incident_register import log_incident, update_status, get_incident
+        from warden.communities.incident_register import get_incident, log_incident, update_status
         db  = _tmp_db()
         iid = log_incident("t1", "Investigating", db_path=db)
         ok  = update_status(iid, "investigating", db_path=db)
@@ -102,8 +100,9 @@ class TestStatusTransitions:
         assert inc is not None and inc["status"] == "investigating"
 
     def test_update_status_resolved_with_timestamp(self):
-        from warden.communities.incident_register import log_incident, update_status, get_incident
         from datetime import UTC, datetime
+
+        from warden.communities.incident_register import get_incident, log_incident, update_status
         db  = _tmp_db()
         iid = log_incident("t1", "Resolve me", db_path=db)
         ts  = datetime.now(UTC).isoformat()
@@ -126,7 +125,7 @@ class TestStatusTransitions:
 
 class TestIncidentListAndStats:
     def test_list_incidents_by_tenant(self):
-        from warden.communities.incident_register import log_incident, list_incidents
+        from warden.communities.incident_register import list_incidents, log_incident
         db  = _tmp_db()
         t1  = _tid()
         t2  = _tid()
@@ -137,7 +136,7 @@ class TestIncidentListAndStats:
         assert len(list_incidents(t2, db_path=db)) == 1
 
     def test_list_incidents_filter_severity(self):
-        from warden.communities.incident_register import log_incident, list_incidents
+        from warden.communities.incident_register import list_incidents, log_incident
         db  = _tmp_db()
         tid = _tid()
         log_incident(tid, "Low", severity="LOW", db_path=db)
@@ -145,17 +144,17 @@ class TestIncidentListAndStats:
         assert len(list_incidents(tid, severity="CRITICAL", db_path=db)) == 1
 
     def test_list_incidents_filter_status(self):
-        from warden.communities.incident_register import log_incident, update_status, list_incidents
+        from warden.communities.incident_register import list_incidents, log_incident, update_status
         db  = _tmp_db()
         tid = _tid()
-        i1  = log_incident(tid, "Open",   db_path=db)
+        _   = log_incident(tid, "Open",   db_path=db)
         i2  = log_incident(tid, "Closed", db_path=db)
         update_status(i2, "closed", db_path=db)
         assert len(list_incidents(tid, status="open",   db_path=db)) == 1
         assert len(list_incidents(tid, status="closed", db_path=db)) == 1
 
     def test_list_incidents_limit(self):
-        from warden.communities.incident_register import log_incident, list_incidents
+        from warden.communities.incident_register import list_incidents, log_incident
         db  = _tmp_db()
         tid = _tid()
         for i in range(10):
@@ -163,7 +162,7 @@ class TestIncidentListAndStats:
         assert len(list_incidents(tid, limit=3, db_path=db)) == 3
 
     def test_stats_structure(self):
-        from warden.communities.incident_register import log_incident, get_incident_stats
+        from warden.communities.incident_register import get_incident_stats, log_incident
         db  = _tmp_db()
         tid = _tid()
         log_incident(tid, "J1", severity="HIGH", category="JAILBREAK", db_path=db)

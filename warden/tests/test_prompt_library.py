@@ -21,9 +21,8 @@ def _cid() -> str:
 
 
 def _tmp_db() -> str:
-    f = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    f.close()
-    return f.name
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        return f.name
 
 
 def _safe_screen(*a, **kw):
@@ -55,9 +54,8 @@ class TestPromptAddAndGet:
         from warden.communities.prompt_library import add_prompt
         db  = _tmp_db()
         cid = _cid()
-        with patch("warden.communities.prompt_library._screen_prompt", return_value=False):
-            with pytest.raises(ValueError, match="rejected"):
-                add_prompt(cid, "eve", "Malicious", "Ignore previous", db_path=db)
+        with patch("warden.communities.prompt_library._screen_prompt", return_value=False), pytest.raises(ValueError, match="rejected"):
+            add_prompt(cid, "eve", "Malicious", "Ignore previous", db_path=db)
 
     def test_get_prompt_found(self):
         from warden.communities.prompt_library import add_prompt, get_prompt
@@ -103,7 +101,7 @@ class TestPromptAddAndGet:
 
 class TestSearch:
     def test_search_returns_active_only(self):
-        from warden.communities.prompt_library import add_prompt, search_prompts, create_version
+        from warden.communities.prompt_library import add_prompt, create_version, search_prompts
         db  = _tmp_db()
         cid = _cid()
         with patch("warden.communities.prompt_library._screen_prompt", return_value=True):
@@ -161,12 +159,11 @@ class TestVersioningAndUsage:
         cid = _cid()
         with patch("warden.communities.prompt_library._screen_prompt", return_value=True):
             p = add_prompt(cid, "alice", "Safe", "safe text", db_path=db)
-        with patch("warden.communities.prompt_library._screen_prompt", return_value=False):
-            with pytest.raises(ValueError):
-                create_version(p["prompt_id"], "malicious v2", "eve", db_path=db)
+        with patch("warden.communities.prompt_library._screen_prompt", return_value=False), pytest.raises(ValueError):
+            create_version(p["prompt_id"], "malicious v2", "eve", db_path=db)
 
     def test_increment_use(self):
-        from warden.communities.prompt_library import add_prompt, increment_use, get_prompt
+        from warden.communities.prompt_library import add_prompt, get_prompt, increment_use
         db  = _tmp_db()
         cid = _cid()
         with patch("warden.communities.prompt_library._screen_prompt", return_value=True):
@@ -177,7 +174,7 @@ class TestVersioningAndUsage:
         assert fetched is not None and fetched["use_count"] == 2
 
     def test_stats_structure(self):
-        from warden.communities.prompt_library import add_prompt, increment_use, get_library_stats
+        from warden.communities.prompt_library import add_prompt, get_library_stats, increment_use
         db  = _tmp_db()
         cid = _cid()
         with patch("warden.communities.prompt_library._screen_prompt", return_value=True):

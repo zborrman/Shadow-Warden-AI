@@ -7,9 +7,6 @@ from __future__ import annotations
 import os
 import tempfile
 import uuid
-from unittest.mock import patch
-
-import pytest
 
 os.environ.setdefault("REDIS_URL", "memory://")
 os.environ.setdefault("WARDEN_API_KEY", "")
@@ -25,9 +22,8 @@ def _cid() -> str:
 
 
 def _tmp_db() -> str:
-    f = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    f.close()
-    return f.name
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        return f.name
 
 
 class TestProvision:
@@ -135,7 +131,7 @@ class TestHealth:
         assert 0 <= h["modules_ok"] <= h["modules_total"]
 
     def test_health_after_provision(self):
-        from warden.integrations.smb_suite import provision_suite, get_suite_health
+        from warden.integrations.smb_suite import get_suite_health, provision_suite
         db  = _tmp_db()
         tid = _tid()
         cid = _cid()

@@ -8,8 +8,6 @@ import os
 import tempfile
 import uuid
 
-import pytest
-
 os.environ.setdefault("REDIS_URL", "memory://")
 os.environ.setdefault("WARDEN_API_KEY", "")
 os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
@@ -20,9 +18,8 @@ def _tid() -> str:
 
 
 def _tmp_db() -> str:
-    f = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    f.close()
-    return f.name
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        return f.name
 
 
 # ── TestVendorRegistry ────────────────────────────────────────────────────────
@@ -55,7 +52,7 @@ class TestVendorRegistry:
         assert list_vendors("no-such-tenant", db_path=db) == []
 
     def test_list_vendors_filters_by_tenant(self):
-        from warden.vendor_gov.registry import register_vendor, list_vendors
+        from warden.vendor_gov.registry import list_vendors, register_vendor
         db = _tmp_db()
         t1, t2 = _tid(), _tid()
         register_vendor(t1, "Vendor A", db_path=db)
@@ -64,17 +61,17 @@ class TestVendorRegistry:
         assert len(list_vendors(t2, db_path=db)) == 1
 
     def test_list_vendors_filter_status(self):
-        from warden.vendor_gov.registry import register_vendor, update_vendor, list_vendors
+        from warden.vendor_gov.registry import list_vendors, register_vendor, update_vendor
         db  = _tmp_db()
         tid = _tid()
-        v1  = register_vendor(tid, "Active",  db_path=db)
+        _   = register_vendor(tid, "Active",  db_path=db)
         v2  = register_vendor(tid, "Review",  db_path=db)
         update_vendor(v2.vendor_id, tid, status="review", db_path=db)
         assert len(list_vendors(tid, status="active", db_path=db)) == 1
         assert len(list_vendors(tid, status="review", db_path=db)) == 1
 
     def test_list_vendors_filter_risk_tier(self):
-        from warden.vendor_gov.registry import register_vendor, list_vendors
+        from warden.vendor_gov.registry import list_vendors, register_vendor
         db  = _tmp_db()
         tid = _tid()
         register_vendor(tid, "Low",  risk_tier="LOW",  db_path=db)
@@ -82,7 +79,7 @@ class TestVendorRegistry:
         assert len(list_vendors(tid, risk_tier="HIGH", db_path=db)) == 1
 
     def test_get_vendor_found(self):
-        from warden.vendor_gov.registry import register_vendor, get_vendor
+        from warden.vendor_gov.registry import get_vendor, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "Anthropic", db_path=db)
@@ -96,7 +93,7 @@ class TestVendorRegistry:
         assert get_vendor("no-such-id", "t1", db_path=db) is None
 
     def test_get_vendor_wrong_tenant(self):
-        from warden.vendor_gov.registry import register_vendor, get_vendor
+        from warden.vendor_gov.registry import get_vendor, register_vendor
         db  = _tmp_db()
         t1  = _tid()
         t2  = _tid()
@@ -104,7 +101,7 @@ class TestVendorRegistry:
         assert get_vendor(v.vendor_id, t2, db_path=db) is None
 
     def test_update_vendor_display_name(self):
-        from warden.vendor_gov.registry import register_vendor, update_vendor, get_vendor
+        from warden.vendor_gov.registry import get_vendor, register_vendor, update_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "Old Name", db_path=db)
@@ -124,7 +121,7 @@ class TestVendorRegistry:
         assert not update_vendor("x", "t", db_path=db)
 
     def test_vendor_tags_roundtrip(self):
-        from warden.vendor_gov.registry import register_vendor, get_vendor
+        from warden.vendor_gov.registry import get_vendor, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "Tagged", tags={"env": "prod", "gdpr": True}, db_path=db)
@@ -137,7 +134,7 @@ class TestVendorRegistry:
 
 class TestDPATracking:
     def test_add_dpa_basic(self):
-        from warden.vendor_gov.registry import register_vendor, add_dpa
+        from warden.vendor_gov.registry import add_dpa, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "OpenAI", db_path=db)
@@ -147,7 +144,7 @@ class TestDPATracking:
         assert dpa.status == "active"
 
     def test_add_dpa_normalizes_type(self):
-        from warden.vendor_gov.registry import register_vendor, add_dpa
+        from warden.vendor_gov.registry import add_dpa, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "V", db_path=db)
@@ -155,7 +152,7 @@ class TestDPATracking:
         assert dpa.dpa_type == "CCPA"
 
     def test_add_dpa_unknown_type_custom(self):
-        from warden.vendor_gov.registry import register_vendor, add_dpa
+        from warden.vendor_gov.registry import add_dpa, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "V", db_path=db)
@@ -163,7 +160,7 @@ class TestDPATracking:
         assert dpa.dpa_type == "CUSTOM"
 
     def test_list_dpas(self):
-        from warden.vendor_gov.registry import register_vendor, add_dpa, list_dpas
+        from warden.vendor_gov.registry import add_dpa, list_dpas, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "V", db_path=db)
@@ -182,8 +179,9 @@ class TestDPATracking:
 
 class TestExpiryAlerts:
     def test_expiring_dpa_detected(self):
-        from warden.vendor_gov.registry import register_vendor, add_dpa, get_expiring_dpas
         from datetime import UTC, datetime, timedelta
+
+        from warden.vendor_gov.registry import add_dpa, get_expiring_dpas, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "Expiring", db_path=db)
@@ -193,8 +191,9 @@ class TestExpiryAlerts:
         assert len(expiring) == 1
 
     def test_non_expiring_dpa_not_in_list(self):
-        from warden.vendor_gov.registry import register_vendor, add_dpa, get_expiring_dpas
         from datetime import UTC, datetime, timedelta
+
+        from warden.vendor_gov.registry import add_dpa, get_expiring_dpas, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "Long lived", db_path=db)
@@ -203,7 +202,7 @@ class TestExpiryAlerts:
         assert get_expiring_dpas(tid, within_days=30, db_path=db) == []
 
     def test_no_expiry_date_not_in_list(self):
-        from warden.vendor_gov.registry import register_vendor, add_dpa, get_expiring_dpas
+        from warden.vendor_gov.registry import add_dpa, get_expiring_dpas, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v   = register_vendor(tid, "No expiry", db_path=db)
@@ -211,12 +210,13 @@ class TestExpiryAlerts:
         assert get_expiring_dpas(tid, within_days=30, db_path=db) == []
 
     def test_stats_structure(self):
-        from warden.vendor_gov.registry import register_vendor, add_dpa, get_vendor_stats
         from datetime import UTC, datetime, timedelta
+
+        from warden.vendor_gov.registry import add_dpa, get_vendor_stats, register_vendor
         db  = _tmp_db()
         tid = _tid()
         v1  = register_vendor(tid, "A", risk_tier="HIGH",     db_path=db)
-        v2  = register_vendor(tid, "B", risk_tier="CRITICAL", db_path=db)
+        _   = register_vendor(tid, "B", risk_tier="CRITICAL", db_path=db)
         register_vendor(tid, "C", risk_tier="LOW", db_path=db)
         soon = (datetime.now(UTC) + timedelta(days=5)).isoformat()
         add_dpa(v1.vendor_id, tid, expires_at=soon, db_path=db)

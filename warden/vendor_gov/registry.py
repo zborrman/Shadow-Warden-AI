@@ -14,10 +14,10 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Generator
 
 log = logging.getLogger("warden.vendor_gov.registry")
 
@@ -187,12 +187,24 @@ def update_vendor(
     db_path: str = _DB_PATH,
 ) -> bool:
     sets, params = [], []
-    if display_name  is not None: sets.append("display_name = ?");  params.append(display_name)
-    if website       is not None: sets.append("website = ?");       params.append(website)
-    if risk_tier     is not None: sets.append("risk_tier = ?");     params.append(risk_tier.upper())
-    if status        is not None: sets.append("status = ?");        params.append(status)
-    if contact_email is not None: sets.append("contact_email = ?"); params.append(contact_email)
-    if tags          is not None: sets.append("tags = ?");          params.append(json.dumps(tags))
+    if display_name is not None:
+        sets.append("display_name = ?")
+        params.append(display_name)
+    if website is not None:
+        sets.append("website = ?")
+        params.append(website)
+    if risk_tier is not None:
+        sets.append("risk_tier = ?")
+        params.append(risk_tier.upper())
+    if status is not None:
+        sets.append("status = ?")
+        params.append(status)
+    if contact_email is not None:
+        sets.append("contact_email = ?")
+        params.append(contact_email)
+    if tags is not None:
+        sets.append("tags = ?")
+        params.append(json.dumps(tags))
     if not sets:
         return False
     sets.append("updated_at = ?")
@@ -225,9 +237,15 @@ def list_vendors(
 ) -> list[VendorRecord]:
     sql    = "SELECT * FROM ai_vendors WHERE tenant_id = ?"
     params: list = [tenant_id]
-    if status:        sql += " AND status = ?";        params.append(status)
-    if risk_tier:     sql += " AND risk_tier = ?";     params.append(risk_tier.upper())
-    if provider_type: sql += " AND provider_type = ?"; params.append(provider_type.upper())
+    if status:
+        sql += " AND status = ?"
+        params.append(status)
+    if risk_tier:
+        sql += " AND risk_tier = ?"
+        params.append(risk_tier.upper())
+    if provider_type:
+        sql += " AND provider_type = ?"
+        params.append(provider_type.upper())
     sql += " ORDER BY created_at DESC"
     with _conn(db_path) as con:
         rows = con.execute(sql, params).fetchall()

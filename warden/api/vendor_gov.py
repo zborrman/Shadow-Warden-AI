@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from warden.billing.feature_gate import require_feature
@@ -107,7 +107,8 @@ async def update_vendor(vendor_id: str, tenant_id: str, body: VendorUpdateReques
 
 @router.post("/vendors/{vendor_id}/dpa", summary="Add a DPA record to a vendor", dependencies=[_Gate])
 async def add_dpa(vendor_id: str, body: DPACreateRequest) -> dict:
-    from warden.vendor_gov.registry import get_vendor, add_dpa as _add
+    from warden.vendor_gov.registry import add_dpa as _add
+    from warden.vendor_gov.registry import get_vendor
     if not get_vendor(vendor_id, body.tenant_id):
         raise HTTPException(status_code=404, detail=f"Vendor {vendor_id!r} not found")
     dpa = _add(

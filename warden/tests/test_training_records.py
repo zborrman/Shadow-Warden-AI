@@ -25,9 +25,8 @@ def _eid() -> str:
 
 
 def _tmp_db() -> str:
-    f = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    f.close()
-    return f.name
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        return f.name
 
 
 class TestPrograms:
@@ -112,7 +111,11 @@ class TestCompletions:
             record_completion("no-such-program", "com", "emp", score=0.9, db_path=db)
 
     def test_attestation_verifiable(self):
-        from warden.communities.training_records import create_program, record_completion, verify_attestation
+        from warden.communities.training_records import (
+            create_program,
+            record_completion,
+            verify_attestation,
+        )
         db  = _tmp_db()
         cid = _cid()
         p   = create_program(cid, "P", db_path=db)
@@ -121,7 +124,11 @@ class TestCompletions:
         assert verify_attestation(c.to_dict())
 
     def test_attestation_tampered_fails(self):
-        from warden.communities.training_records import create_program, record_completion, verify_attestation
+        from warden.communities.training_records import (
+            create_program,
+            record_completion,
+            verify_attestation,
+        )
         db  = _tmp_db()
         cid = _cid()
         p   = create_program(cid, "P", db_path=db)
@@ -143,7 +150,11 @@ class TestCompletions:
 
 class TestEmployeeStatusAndReport:
     def test_employee_status_compliant(self):
-        from warden.communities.training_records import create_program, record_completion, get_employee_status
+        from warden.communities.training_records import (
+            create_program,
+            get_employee_status,
+            record_completion,
+        )
         db  = _tmp_db()
         cid = _cid()
         eid = _eid()
@@ -165,7 +176,11 @@ class TestEmployeeStatusAndReport:
         assert status["programs"][0]["status"] == "not_completed"
 
     def test_compliance_report_structure(self):
-        from warden.communities.training_records import create_program, record_completion, get_compliance_report
+        from warden.communities.training_records import (
+            create_program,
+            get_compliance_report,
+            record_completion,
+        )
         db  = _tmp_db()
         cid = _cid()
         p   = create_program(cid, "P", db_path=db)

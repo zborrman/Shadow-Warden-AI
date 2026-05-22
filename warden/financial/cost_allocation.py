@@ -16,9 +16,9 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Generator
 
 log = logging.getLogger("warden.financial.cost_allocation")
 
@@ -137,7 +137,6 @@ def get_department_breakdown(
     db_path: str = _DB_PATH,
 ) -> list[dict]:
     """Return per-department totals for the last N months."""
-    from datetime import timedelta  # noqa: PLC0415
     result = []
     now    = datetime.now(UTC)
     for i in range(months):

@@ -8,7 +8,7 @@ Tier:   Community Business+ (prompt_library_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from warden.billing.feature_gate import require_feature
@@ -81,7 +81,7 @@ async def get_prompt(prompt_id: str) -> dict:
 
 @router.post("/{prompt_id}/use", summary="Record a use of a prompt", dependencies=[_Gate])
 async def record_use(prompt_id: str) -> dict:
-    from warden.communities.prompt_library import increment_use, get_prompt
+    from warden.communities.prompt_library import get_prompt, increment_use
     if not get_prompt(prompt_id):
         raise HTTPException(status_code=404, detail=f"Prompt {prompt_id!r} not found")
     increment_use(prompt_id)

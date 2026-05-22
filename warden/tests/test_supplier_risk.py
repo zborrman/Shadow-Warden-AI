@@ -8,8 +8,6 @@ import os
 import tempfile
 import uuid
 
-import pytest
-
 os.environ.setdefault("REDIS_URL", "memory://")
 os.environ.setdefault("WARDEN_API_KEY", "")
 os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
@@ -24,9 +22,8 @@ def _vid() -> str:
 
 
 def _tmp_db() -> str:
-    f = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-    f.close()
-    return f.name
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        return f.name
 
 
 class TestScoring:
@@ -133,9 +130,8 @@ class TestListAndReport:
         from warden.communities.supplier_risk import assess_supplier, list_assessments
         db  = _tmp_db()
         cid = _cid()
-        low_ctx = {k: 0.0 for k in ("data_access", "ai_capability", "compliance_posture",
-                                    "peering_history", "disclosure_recency")}
-        crit_ctx = {k: 1.0 for k in low_ctx}
+        low_ctx = dict.fromkeys(("data_access", "ai_capability", "compliance_posture", "peering_history", "disclosure_recency"), 0.0)
+        crit_ctx = dict.fromkeys(low_ctx, 1.0)
         assess_supplier(cid, _vid(), context=low_ctx,  db_path=db)
         assess_supplier(cid, _vid(), context=crit_ctx, db_path=db)
         lows = list_assessments(cid, risk_label="LOW",      db_path=db)
@@ -156,8 +152,7 @@ class TestListAndReport:
         from warden.communities.supplier_risk import assess_supplier, get_community_supplier_report
         db  = _tmp_db()
         cid = _cid()
-        low_ctx = {k: 0.0 for k in ("data_access", "ai_capability", "compliance_posture",
-                                    "peering_history", "disclosure_recency")}
+        low_ctx = dict.fromkeys(("data_access", "ai_capability", "compliance_posture", "peering_history", "disclosure_recency"), 0.0)
         assess_supplier(cid, _vid(), context=low_ctx, db_path=db)
         report = get_community_supplier_report(cid, db_path=db)
         assert "LOW" in report["by_risk_label"]
@@ -166,9 +161,8 @@ class TestListAndReport:
         from warden.communities.supplier_risk import assess_supplier, get_community_supplier_report
         db   = _tmp_db()
         cid  = _cid()
-        high = {k: 1.0 for k in ("data_access", "ai_capability", "compliance_posture",
-                                  "peering_history", "disclosure_recency")}
-        low  = {k: 0.0 for k in high}
+        high = dict.fromkeys(("data_access", "ai_capability", "compliance_posture", "peering_history", "disclosure_recency"), 1.0)
+        low  = dict.fromkeys(high, 0.0)
         vid_high = _vid()
         assess_supplier(cid, vid_high, context=high, db_path=db)
         assess_supplier(cid, _vid(),   context=low,  db_path=db)

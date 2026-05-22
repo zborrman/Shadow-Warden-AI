@@ -8,7 +8,7 @@ Tier:   Community Business+ (training_records_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from warden.billing.feature_gate import require_feature

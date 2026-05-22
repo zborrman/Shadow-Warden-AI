@@ -8,7 +8,7 @@ Tier:   Community Business+ (supplier_risk_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from warden.billing.feature_gate import require_feature
