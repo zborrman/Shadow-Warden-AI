@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 4.14 · Proprietary · All rights reserved**
+**Version 4.30 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -40,14 +40,16 @@ surface, its observable outputs, and integration patterns.
 28. Skill 27 — Public API Documentation (Redoc)
 29. Skill 28 — Load Profiling + Flamegraph
 30. Skill 29 — SLO Burn-Rate Alerting
-31. Integration Recipes
-32. Configuration Quick-Reference
+31. Skill 30 — SMB AI Governance Suite
+32. Skill 31 — Business Intelligence Module
+33. Integration Recipes
+34. Configuration Quick-Reference
 
 ---
 
 ## 1. Skill Taxonomy
 
-Shadow Warden AI is composed of 29 discrete, independently configurable skills.
+Shadow Warden AI is composed of 31 discrete, independently configurable skills.
 Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–24 are
 background, agentic, or on-demand capabilities.
 
@@ -1044,7 +1046,108 @@ Google SRE-style multi-window burn-rate alerts for the 99.9% SLO (error budget =
 
 ---
 
-## 31. Integration Recipes
+## 31. Skill 30 — SMB AI Governance Suite
+
+**Files:** `warden/vendor_gov/registry.py`, `warden/financial/cost_allocation.py`,
+`warden/financial/budget.py`, `warden/communities/incident_register.py`,
+`warden/communities/supplier_risk.py`, `warden/communities/prompt_library.py`,
+`warden/communities/training_records.py`, `warden/integrations/smb_suite.py`
+
+Eight tightly integrated modules that together form a complete AI governance framework for SMBs. Provisioned in a single operation via `POST /smb-suite/provision`.
+
+### Modules
+
+| Module | Feature key | API prefix | Purpose |
+|--------|-------------|------------|---------|
+| Vendor Governance (BL-22) | `vendor_governance_enabled` | `/vendor-gov` | DPA tracking, risk tiers, expiry alerts |
+| Cost Allocation (BL-23) | `cost_allocation_enabled` | `/financial/allocation` | Per-dept/vendor spend tracking |
+| Budget Dashboard (BL-24) | `budget_dashboard_enabled` | `/financial/budget` | Caps, threshold alerts, approval workflow |
+| Incident Register (CM-35) | `incident_register_enabled` | `/incidents` | STIX-linked AI incident journal |
+| Supplier Risk (CM-36) | `supplier_risk_enabled` | `/supplier-risk` | 5-criteria composite risk scoring |
+| Prompt Library (CM-37) | `prompt_library_enabled` | `/prompt-library` | UECIID provenance + community sharing |
+| Training Records (CM-38) | `training_records_enabled` | `/training` | HMAC-attested employee completion records |
+| Suite Orchestrator (IN-25) | `smb_suite_enabled` | `/smb-suite` | Single-wizard provisioning + health check |
+
+### Suite Provisioning
+
+`POST /smb-suite/provision` runs `provision_suite(tenant_id, community_id, config)`:
+1. Register vendors from `config["vendors"]`
+2. Set default budget cap from `config["monthly_budget_usd"]`
+3. Create "AI Safety Basics" training program
+4. Initialize incident register + prompt library tables
+5. Run supplier risk assessments for known vendors
+6. Issue UECIID for the provisioning event
+7. Append provisioning record to STIX audit chain
+
+Returns `SMBProvisionResult` — lists vendor_count, budget_caps_set, training_programs, and any errors.
+
+### Streamlit dashboard
+
+`warden/analytics/pages/10_SMB_Governance.py` — 6 tabs: **Incidents | Vendors | Training | Prompt Library | Supplier Risk | Budget**
+
+**Tier gate:** Community Business+ (all 8 feature keys). Add-on `smb_governance_suite` $29/mo unlocks from Individual tier.
+
+---
+
+## 32. Skill 31 — Business Intelligence Module
+
+**Files:** `warden/business_intelligence/service.py`, `warden/business_intelligence/repository.py`,
+`warden/business_intelligence/predictive.py`, `warden/business_intelligence/benchmarking.py`,
+`warden/business_intelligence/router.py`, `warden/analytics/pages/12_Business_Intelligence.py`
+
+Cross-module analytics layer that aggregates data from all 8 SMB governance modules plus the core filter pipeline into unified reports, benchmarks, and predictions.
+
+### Analytics Categories (8)
+
+| Category | Endpoint | Data source | Description |
+|----------|----------|-------------|-------------|
+| Usage | `GET /business-intelligence/usage` | `logs.json` | API call volume, block rate, top categories |
+| Threats | `GET /business-intelligence/threats` | `ai_incidents` table | Incident counts by severity + trend |
+| Vendors | `GET /business-intelligence/vendors` | vendor_gov + cost + supplier_risk DBs | Per-vendor scorecards |
+| Costs | `GET /business-intelligence/costs` | `cost_allocations` table | Spend by dept/vendor, month-over-month |
+| Compliance | `GET /business-intelligence/compliance` | training + DPA + incidents + budget | Weighted score → A–F grade |
+| Benchmarks | `GET /business-intelligence/benchmarks` | Synthetic Gaussian peer distribution | Percentile rank vs community |
+| Predictions | `GET /business-intelligence/predictions` | `ai_incidents` history | OLS extrapolation, R² confidence |
+| Reports | `POST /business-intelligence/report` | All above | Custom multi-section report |
+
+### Predictive Analytics
+
+Pure-Python OLS extrapolation — no numpy/scipy required.
+
+```python
+from warden.business_intelligence.predictive import predict_incidents
+
+result = predict_incidents([2, 3, 1, 4, 2, 5], horizon_days=30)
+# {"predicted_count": 45, "confidence": 0.72, "trend_direction": "rising"}
+```
+
+### Compliance Scoring
+
+```
+compliance_score = (training_pct × 0.30) + (dpa_pct × 0.30)
+                 + (closure_rate × 0.20) + (budget_pct × 0.20)
+grade = A(≥0.90) | B(≥0.80) | C(≥0.70) | D(≥0.60) | F
+```
+
+### Cache
+
+All 8 analytics functions cache to SQLite (`BI_DB_PATH`, default `/tmp/warden_bi.db`) with 15-min TTL. Per-tenant invalidation via `DELETE /business-intelligence/cache`.
+
+### Report Types
+
+| `report_type` | Sections included |
+|---------------|-------------------|
+| `full` | usage + threats + vendors + costs + compliance + benchmarks |
+| `executive` | usage + compliance + threats |
+| `compliance` | compliance + vendors + training |
+| `vendor` | vendors + costs |
+| `cost` | costs + budget |
+
+**Tier gate:** Community Business+ (`communities_enabled` feature key).
+
+---
+
+## 33. Integration Recipes
 
 ### Filter a prompt before forwarding to an LLM
 

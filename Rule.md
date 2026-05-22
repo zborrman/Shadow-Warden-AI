@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 4.20 · Proprietary · All rights reserved**
+> **Version 4.30 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
@@ -29,6 +29,11 @@
 18. [Exemptions & Overrides](#18-exemptions--overrides)
 19. [Obsidian Note Scanner Rules](#19-obsidian-note-scanner-rules)
 20. [Secrets Governance Inventory Rules](#20-secrets-governance-inventory-rules)
+21. [OTel Span Attribute Rules](#21-otel-span-attribute-rules)
+22. [Public API Documentation Rules](#22-public-api-documentation-rules)
+23. [SLO Burn-Rate Alerting Rules](#23-slo-burn-rate-alerting-rules)
+24. [SMB AI Governance Rules](#24-smb-ai-governance-rules)
+25. [Business Intelligence Module Rules](#25-business-intelligence-module-rules)
 
 ---
 
@@ -761,3 +766,107 @@ Switch between these modes on request. Default to **collaborative vibe** when no
 | SLO-03 | **Slow burn threshold: 6×.** At 6× budget consumption, 5% of the monthly budget burns per 6h — create a ticket for next-business-day investigation. |
 | SLO-04 | **Labels required.** Every burn-rate alert must carry `category: slo_burn` + `window: fast|slow` labels so dashboards and PagerDuty routing can distinguish from threshold-based alerts. |
 | SLO-05 | **`noDataState: OK` for slow burn.** When Prometheus has no data (service is down), the slow-burn alert must not fire. The availability alert (rule uid `warden-availability`) covers the outage. |
+
+---
+
+## 24. SMB AI Governance Rules
+
+**Files:** `warden/vendor_gov/`, `warden/financial/`, `warden/communities/incident_register.py`,
+`warden/communities/supplier_risk.py`, `warden/communities/prompt_library.py`,
+`warden/communities/training_records.py`, `warden/integrations/smb_suite.py`
+
+### Vendor Governance (BL-22)
+
+| # | Rule |
+|---|------|
+| VG-01 | DPA expiry alerts fire at `within_days=30`. Expired DPAs reduce vendor compliance score. |
+| VG-02 | Vendor `risk_tier` (LOW/MEDIUM/HIGH/CRITICAL) is set at registration. Only explicit update changes it — no auto-promotion. |
+| VG-03 | Terminated vendors (`status=terminated`) are excluded from stats but retained for audit. |
+
+### Cost Allocation (BL-23)
+
+| # | Rule |
+|---|------|
+| CA-01 | `period_month` format is `YYYY-MM`. Summaries aggregate by exact period match. |
+| CA-02 | `import_from_logs()` is idempotent — duplicate `request_id`-tagged entries are skipped. |
+
+### Budget Dashboard (BL-24)
+
+| # | Rule |
+|---|------|
+| BD-01 | Alert fires when `current_spend / cap_usd ≥ alert_pct` (default 0.80). Status levels: `ok` / `warning` / `over`. |
+| BD-02 | Budget approvals: `pending → approved/rejected` only. Resolved approvals cannot be re-opened. |
+
+### Incident Register (CM-35)
+
+| # | Rule |
+|---|------|
+| IR-01 | Every `log_incident()` call appends to the STIX audit chain and stores `stix_chain_id` on the record. |
+| IR-02 | `auto_log_from_filter_event()` only creates an incident when `decision == BLOCK` or `risk_level == HIGH`. |
+| IR-03 | Severity mapping from filter: BLOCK → CRITICAL, HIGH → HIGH, MEDIUM → MEDIUM. |
+| IR-04 | Status transitions: `open → investigating → resolved → closed`. Closed incidents cannot transition back. |
+
+### Supplier Risk Assessment (CM-36)
+
+| # | Rule |
+|---|------|
+| SR-01 | Composite score = weighted average of 5 sub-scores: `data_access (0.3) + ai_capability (0.2) + compliance_posture (0.2) + peering_history (0.2) + disclosure_recency (0.1)`. |
+| SR-02 | Risk labels: 0.0–0.25 LOW · 0.26–0.50 MEDIUM · 0.51–0.75 HIGH · 0.76–1.0 CRITICAL. |
+| SR-03 | `peering_history` sub-score derived from `sep_transfers` rejection rate over last 90 days. |
+
+### Prompt Library (CM-37)
+
+| # | Rule |
+|---|------|
+| PL-01 | `add_prompt()` runs `POST /filter` on prompt text before saving. HIGH/BLOCK verdict → HTTP 422, prompt not stored. |
+| PL-02 | Every prompt receives a UECIID via `sep.new_ueciid()` at creation. |
+| PL-03 | `share_to_peer()` uses the Causal Transfer Guard. PHI-classified prompts cannot cross jurisdictions. |
+
+### Training Records (CM-38)
+
+| # | Rule |
+|---|------|
+| TR-01 | `record_completion()` signs the record with `HMAC-SHA256(VAULT_MASTER_KEY, canonical_json)`. Unsigned completions are treated as invalid. |
+| TR-02 | `expires_at = completed_at + valid_days`. Expired completions contribute to `overdue` count in `get_compliance_report()`. |
+| TR-03 | `behavioral.record_event(community_id, "ai_training_completed", value=score)` is called on every completion for anomaly tracking. |
+
+---
+
+## 25. Business Intelligence Module Rules
+
+**Files:** `warden/business_intelligence/service.py`, `warden/business_intelligence/repository.py`,
+`warden/business_intelligence/predictive.py`, `warden/business_intelligence/benchmarking.py`
+
+### Cache Rules
+
+| # | Rule |
+|---|------|
+| BI-01 | All BI report functions cache via `repository.cache_set()` with 15-minute TTL. Cache key = `{function_name}:{tenant_id}:{params_hash}`. |
+| BI-02 | `cache_get()` returns `None` on miss — caller must regenerate. No stale-while-revalidate. |
+| BI-03 | `DELETE /business-intelligence/cache` invalidates all entries for a tenant. Purge applies to `expires_at < now()`. |
+
+### Analytics Rules
+
+| # | Rule |
+|---|------|
+| BI-04 | `get_usage_summary()` reads `LOGS_PATH` (`logs.json`). Returns `total_requests=0` when file is missing. |
+| BI-05 | `get_threat_summary()` reads `ai_incidents` table in `SEP_DB_PATH`. Returns `total_threats=0` when table is empty. |
+| BI-06 | `get_compliance_score()` weights: training compliance 30%, DPA coverage 30%, incident closure rate 20%, budget adherence 20%. Grade scale: ≥0.90→A, ≥0.80→B, ≥0.70→C, ≥0.60→D, else F. |
+| BI-07 | `get_benchmarks()` uses a Gaussian synthetic peer distribution (μ = tenant_metric, σ = 0.1) when no real peer data exists — clearly labelled `"synthetic": true` in the response. |
+| BI-08 | `get_incident_prediction()` uses a 90-day history window. OLS extrapolation via `predictive.linear_trend()`. Confidence = R² of the smoothed series. |
+
+### Predictive Analytics Rules
+
+| # | Rule |
+|---|------|
+| BI-09 | `trend_direction()` thresholds: slope > 0.1 → "rising", slope < -0.1 → "falling", else "stable". |
+| BI-10 | `predict_next()` clamps all predictions to `max(0.0, value)`. Negative incident counts are impossible. |
+| BI-11 | `r_squared()` returns 1.0 when `ss_tot == 0` (all values identical — perfect flat trend). |
+
+### Report Builder Rules
+
+| # | Rule |
+|---|------|
+| BI-12 | `build_report()` report types: `full` (all 6 sections), `executive` (usage + compliance + threats), `compliance` (compliance + vendors + training), `vendor` (vendors + costs), `cost` (costs + budget). |
+| BI-13 | `include_sections` parameter overrides `report_type` section list when provided. |
+| BI-14 | BI module is read-only across all peer module databases. It must never write to `SEP_DB_PATH`, `VENDOR_GOV_DB_PATH`, or `COST_ALLOC_DB_PATH`. |

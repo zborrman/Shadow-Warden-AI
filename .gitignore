@@ -76,6 +76,17 @@ data/*.db-wal
 .claude/
 =8.0.0
 
+# Test / build artifacts
+coverage.json
+coverage*.json
+shadow_warden_ai.egg-info/
+
+# Misplaced assets
+*.png
+!site/public/*.png
+!landing/**/*.png
+!dashboard/public/*.png
+
 # SSL certificates (generated on server, not committed)
 ssl/
 

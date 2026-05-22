@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 4.20 · Last updated 2026-05-16**
+**Version 4.30 · Last updated 2026-05-22**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -290,3 +290,58 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | Grafana | `http://91.98.234.160:3000` | ✅ Live |
 | Jaeger UI | `http://91.98.234.160:16686` | ✅ Live |
 | Server | Hetzner Ubuntu VPS — `91.98.234.160` | ✅ Live |
+
+---
+
+### Block T — SMB AI Governance Suite v4.23–v4.29 (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| T-01 | Feature gates: 8 new keys in `feature_gate.py` (vendor_governance, cost_allocation, budget_dashboard, incident_register, supplier_risk, prompt_library, training_records, smb_suite) | ✅ |
+| T-02 | Add-on: `smb_governance_suite` $29/mo (Individual+) in `addons.py` | ✅ |
+| T-03 | BL-22: `warden/vendor_gov/registry.py` — VendorRecord + DPARecord, expiry alerts, risk tiers | ✅ |
+| T-04 | BL-22: `warden/api/vendor_gov.py` — 7 endpoints at `/vendor-gov/*` | ✅ |
+| T-05 | BL-22: 30+ tests in `warden/tests/test_vendor_governance.py` | ✅ |
+| T-06 | BL-23: `warden/financial/cost_allocation.py` — per-dept/vendor spend, monthly summaries | ✅ |
+| T-07 | BL-23: `warden/api/cost_allocation.py` — 5 endpoints at `/financial/allocation/*` | ✅ |
+| T-08 | BL-23: 25+ tests in `warden/tests/test_cost_allocation.py` | ✅ |
+| T-09 | BL-24: `warden/financial/budget.py` — caps, threshold alerts, approval workflow | ✅ |
+| T-10 | BL-24: `warden/api/budget.py` — 5 endpoints at `/financial/budget/*` | ✅ |
+| T-11 | BL-24: 20+ tests in `warden/tests/test_budget.py` | ✅ |
+| T-12 | CM-35: `warden/communities/incident_register.py` — STIX-linked severity journal | ✅ |
+| T-13 | CM-35: `warden/api/incident_register.py` — 5 endpoints at `/incidents/*` | ✅ |
+| T-14 | CM-35: 25+ tests in `warden/tests/test_incident_register.py` | ✅ |
+| T-15 | CM-36: `warden/communities/supplier_risk.py` — 5-criteria composite scoring | ✅ |
+| T-16 | CM-36: `warden/api/supplier_risk.py` — 3 endpoints at `/supplier-risk/*` | ✅ |
+| T-17 | CM-36: 20+ tests in `warden/tests/test_supplier_risk.py` | ✅ |
+| T-18 | CM-37: `warden/communities/prompt_library.py` — UECIID + injection screening + versioning | ✅ |
+| T-19 | CM-37: `warden/api/prompt_library.py` — 6 endpoints at `/prompt-library/*` | ✅ |
+| T-20 | CM-37: 25+ tests in `warden/tests/test_prompt_library.py` | ✅ |
+| T-21 | CM-38: `warden/communities/training_records.py` — HMAC-SHA256 attestation + behavioral hooks | ✅ |
+| T-22 | CM-38: `warden/api/training_records.py` — 5 endpoints at `/training/*` | ✅ |
+| T-23 | CM-38: 25+ tests in `warden/tests/test_training_records.py` | ✅ |
+| T-24 | IN-25: `warden/integrations/smb_suite.py` — SMBProvisionResult + provision_suite() + health | ✅ |
+| T-25 | IN-25: `warden/api/smb_suite.py` — 3 endpoints at `/smb-suite/*` | ✅ |
+| T-26 | IN-25: 20+ tests in `warden/tests/test_smb_suite.py` | ✅ |
+| T-27 | Streamlit: `warden/analytics/pages/10_SMB_Governance.py` — 6-tab governance dashboard | ✅ |
+| T-28 | `warden/main.py` — 8 router mounts (vendor_gov, cost_allocation, budget, incidents, supplier_risk, prompt_library, training, smb_suite) | ✅ |
+
+---
+
+### Block U — Business Intelligence Module v4.30 (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| U-01 | `warden/business_intelligence/__init__.py` + `tests/__init__.py` | ✅ |
+| U-02 | `warden/business_intelligence/models.py` — 7 Pydantic models (UsageSummary, ThreatSummary, VendorScorecard, ComplianceScore, BenchmarkResult, IncidentPrediction, ReportRequest) | ✅ |
+| U-03 | `warden/business_intelligence/predictive.py` — pure-Python OLS: moving_average, linear_trend, predict_next, r_squared, trend_direction, predict_incidents | ✅ |
+| U-04 | `warden/business_intelligence/benchmarking.py` — percentile, percentile_rank, benchmark_metric, build_benchmarks | ✅ |
+| U-05 | `warden/business_intelligence/repository.py` — SQLite cache 15-min TTL, cache_get/set/invalidate/purge/stats | ✅ |
+| U-06 | `warden/business_intelligence/service.py` — 8 analytics functions: usage, threats, vendors, costs, compliance, benchmarks, predictions, reports | ✅ |
+| U-07 | `warden/business_intelligence/router.py` — 11 endpoints at `/business-intelligence/*` | ✅ |
+| U-08 | `warden/business_intelligence/tests/test_intelligence.py` — 30 tests (TestPredictive, TestBenchmarking, TestRepository, TestService) | ✅ |
+| U-09 | `warden/analytics/pages/12_Business_Intelligence.py` — 8-tab Streamlit BI dashboard | ✅ |
+| U-10 | `warden/main.py` — BI router mount at `/business-intelligence` | ✅ |
+| U-11 | `ROADMAP.md` — CM-39 row added | ✅ |
+| U-12 | `site/src/data/roadmap.json` — CM-39 entry added | ✅ |
+| U-13 | Lint: all ruff + mypy clean (0 errors) | ✅ |

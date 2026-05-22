@@ -8,7 +8,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 4.20 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-05-17
+**Version:** 4.30 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-05-22
 
 ## Architecture
 
@@ -183,6 +183,29 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `site/src/pages/community/*.astro` | 7-page Community & Tunnel Astro SPA — `view`, `members`, `tunnel`, `integrations`, `activity`, `settings`, `new`; all data in `localStorage` key `sw_communities`; member roles (Owner/Admin/Member), join request flow, E2EE key simulation, audit log, disappearing messages, GDPR export |
 | `site/src/layouts/BaseLayout.astro` | Astro base layout — navbar + footer + mobile menu + `og:image` + favicon; uses `/logo.png` (castle PNG); wraps all 40 site pages |
 | `site/public/logo.png` | Shadow-Warden-AI castle logo PNG — primary brand asset on all 40 Astro pages, og:image, favicon |
+| `warden/vendor_gov/registry.py` | AI Vendor Governance Register — `VendorRecord`, `DPARecord`, expiry alerts, vendor stats (BL-22) |
+| `warden/financial/cost_allocation.py` | AI Cost Allocation — per-dept/vendor SQLite spend tracking, monthly summaries (BL-23) |
+| `warden/financial/budget.py` | AI Budget Dashboard — budget caps, threshold alerts, approval workflow (BL-24) |
+| `warden/communities/incident_register.py` | AI Incident Register — STIX-linked severity journal, auto-log from filter events (CM-35) |
+| `warden/communities/supplier_risk.py` | Supplier AI Risk Assessment — 5-criteria composite scoring, peering-based (CM-36) |
+| `warden/communities/prompt_library.py` | Shared Prompt Library — UECIID provenance, injection screening, community sharing (CM-37) |
+| `warden/communities/training_records.py` | Employee AI Training Records — HMAC-SHA256 attestation, behavioral hooks (CM-38) |
+| `warden/integrations/smb_suite.py` | SMB AI Governance Suite — single-wizard provisioning of all 7 SMB modules (IN-25) |
+| `warden/api/vendor_gov.py` | FastAPI router `/vendor-gov/*` — 7 endpoints (BL-22) |
+| `warden/api/cost_allocation.py` | FastAPI router `/financial/allocation/*` — 5 endpoints (BL-23) |
+| `warden/api/budget.py` | FastAPI router `/financial/budget/*` — 5 endpoints (BL-24) |
+| `warden/api/incident_register.py` | FastAPI router `/incidents/*` — 5 endpoints (CM-35) |
+| `warden/api/supplier_risk.py` | FastAPI router `/supplier-risk/*` — 3 endpoints (CM-36) |
+| `warden/api/prompt_library.py` | FastAPI router `/prompt-library/*` — 6 endpoints (CM-37) |
+| `warden/api/training_records.py` | FastAPI router `/training/*` — 5 endpoints (CM-38) |
+| `warden/api/smb_suite.py` | FastAPI router `/smb-suite/*` — 3 endpoints (IN-25) |
+| `warden/analytics/pages/10_SMB_Governance.py` | Streamlit SMB Governance — 6 tabs: Incidents, Vendors, Training, Prompt Library, Supplier Risk, Budget |
+| `warden/business_intelligence/service.py` | BI analytics — 8 functions: usage, threats, vendors, costs, compliance, benchmarks, predictions, reports (CM-39) |
+| `warden/business_intelligence/repository.py` | BI SQLite cache — 15-min TTL, `cache_get/set/invalidate/purge_expired/stats` |
+| `warden/business_intelligence/predictive.py` | Pure-Python OLS extrapolation — `moving_average`, `linear_trend`, `predict_next`, `r_squared`, `trend_direction` |
+| `warden/business_intelligence/benchmarking.py` | Community benchmarking — `percentile`, `percentile_rank`, `benchmark_metric`, `build_benchmarks` |
+| `warden/business_intelligence/router.py` | FastAPI router `/business-intelligence/*` — 11 endpoints (CM-39) |
+| `warden/analytics/pages/12_Business_Intelligence.py` | Streamlit BI dashboard — 8 tabs: Usage, Threats, Vendors, Costs, Compliance, Benchmarks, Predictions, Report Builder |
 
 ## Build & Test Commands
 
@@ -245,6 +268,13 @@ NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
 
 ## Design Constraints
 
+- **`BI_DB_PATH` env var**: SQLite cache for Business Intelligence module (`/tmp/warden_bi.db` default). Shared by `business_intelligence/repository.py`. 15-minute TTL on all cached reports. Cache is invalidatable per-tenant via `DELETE /business-intelligence/cache`.
+- **BI data sources are read-only**: `business_intelligence/service.py` only reads from `SEP_DB_PATH` (incidents, training, supplier risk), `VENDOR_GOV_DB_PATH` (vendors, DPA), `COST_ALLOC_DB_PATH` (spend), and `LOGS_PATH`. Never writes to peer module DBs.
+- **SMB suite modules**: 8 new feature keys in `TIER_LIMITS` (`vendor_governance_enabled`, `cost_allocation_enabled`, `budget_dashboard_enabled`, `incident_register_enabled`, `supplier_risk_enabled`, `prompt_library_enabled`, `training_records_enabled`, `smb_suite_enabled`). All Community Business+ and above. Add-on `smb_governance_suite` $29/mo unlocks all 8 from Individual tier.
+- **Incident Register STIX linkage**: `log_incident()` in `incident_register.py` calls `stix_audit.append_transfer()` after creation and stores `stix_chain_id` on the incident record. Every AI incident is automatically in the STIX audit trail.
+- **Training attestation**: `record_completion()` in `training_records.py` HMAC-SHA256 signs the completion record with `VAULT_MASTER_KEY`. Unsigned completions are invalid. Calls `behavioral.record_event()` with `"ai_training_completed"` for anomaly tracking.
+- **Prompt library injection screening**: `add_prompt()` in `prompt_library.py` runs `POST /filter` on the prompt text before saving. If the filter returns `blocked=True`, the prompt is rejected with HTTP 422.
+- **Supplier risk is peering-based**: `assess_supplier()` pulls velocity and rejection rate from `sep_transfers` and DPA status from `vendor_dpa_records` to compute composite score. No external API calls.
 - **CPU-only torch**: Two-step Dockerfile pip install (`--index-url` prevents CUDA pull). Target hardware is standard dev machines, not GPU servers.
 - **Playwright base image**: `mcr.microsoft.com/playwright/python:v1.49.0-noble` — do NOT switch to `python:3.x-slim` (Playwright requires OS-level browser deps from MCR). Non-root user uses GID/UID 10001 (1001 is taken by the noble base image).
 - **GDPR**: Content is NEVER logged — only metadata (type, length, timing). This is a hard requirement.

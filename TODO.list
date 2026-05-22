@@ -1,6 +1,6 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               Shadow Warden AI — Project TODO List                         ║
-║               Version 4.14 · Updated 2026-05-07                            ║
+║               Version 4.30 · Updated 2026-05-22                            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 Priority legend:
@@ -218,7 +218,7 @@ Priority legend:
       → Document human oversight measures (Art. 14)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  6. DONE ✓ (v4.14 current)
+  6. DONE ✓ (v4.30 current)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [✓]  Core gateway — 9-stage pipeline (TDA, obfuscation, secrets, semantic, ML, causal, phish, ERS, decision)
@@ -261,5 +261,36 @@ Priority legend:
 [✓]  LangChain callback (WardenCallback)
 [✓]  Production server on Hetzner VPS — api.shadow-warden-ai.com
 [✓]  GitHub Actions CI autodeploy → server
+[✓]  SMB AI Governance Suite (v4.23–v4.29) — 8 modules: vendor gov, cost allocation, budget, incidents, supplier risk, prompt library, training records, suite orchestrator
+[✓]  Business Intelligence Module (v4.30) — CM-39: 8-category analytics, OLS prediction, benchmarking, 15-min SQLite cache, 11 endpoints
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  7. v5.0 ROADMAP — DEFERRED PLANNED ITEMS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ]   FraudScore API backend — POST /fraud-score/evaluate
+      → Landing page UI exists; backend stub returns 404
+      → Gate: Individual+ tier
+
+[ ]   Agent Action Whitelist REST API
+      → warden/agentic/action_whitelist.py logic complete
+      → Needs FastAPI router warden/api/action_whitelist.py
+
+[ ]   BI Dashboard Next.js page — dashboard/src/app/(soc)/business-intelligence/
+      → Wire CM-39 endpoints into SOC dashboard
+      → Compliance score card + incident trend chart
+
+[ ]   SMB Suite Next.js onboarding wizard
+      → dashboard/src/app/(soc)/onboarding/smb/page.tsx
+      → 3-step: Configure → Provision → Done
+
+[ ]   SOVA SMB tools — smb_provision_suite + smb_suite_health
+      → Add to warden/agent/tools.py
+
+[ ]   docs/dpia.md — update to v4.30 (add SMB + BI data flows)
+[ ]   docs/soc2-evidence.md — update to v4.30 (add SMB governance controls)
+[ ]   Kubernetes Helm chart
+[ ]   Terraform cloud deploy module
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
