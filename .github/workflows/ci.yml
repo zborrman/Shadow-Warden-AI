@@ -706,11 +706,13 @@ jobs:
           docker compose pull --quiet --ignore-buildable 2>/dev/null || docker compose pull --quiet || true
 
           echo "── [3/4] Restart services ──────────────────────────────────"
-          # Remove ALL warden-* containers (running or stopped) before starting.
-          # docker compose ps only sees containers in the current project scope,
-          # so it misses containers created under a different project name or via
-          # docker run directly (e.g. warden-loki left from a previous config).
-          # Filtering by name=warden- catches every conflict regardless of origin.
+          # Step 1: compose down removes all project-tracked containers cleanly.
+          # This handles new services (e.g. warden-loki) that weren't running
+          # before but whose name conflicts with a container left by a prior
+          # failed deploy run.
+          docker compose down --remove-orphans 2>/dev/null || true
+          # Step 2: belt-and-suspenders — remove any warden-* stray containers
+          # that live outside compose's project scope (e.g. created by docker run).
           docker ps -aq --filter "name=warden-" | xargs -r docker rm -f 2>/dev/null || true
 
           # Build all services in two passes to avoid corrupted-cache regression:

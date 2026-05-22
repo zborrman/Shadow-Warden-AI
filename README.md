@@ -1308,12 +1308,96 @@ shadow-warden-ai/
 │   ├── alerting.py                    # Slack + PagerDuty alerts on HIGH/BLOCK
 │   ├── metrics.py                     # Prometheus metrics (warden_* namespace)
 │   ├── webhook_dispatch.py            # Outbound webhook delivery
+│   ├── financial/
+│   │   ├── cost_allocation.py         # AI cost allocation — per-dept/vendor SQLite tracking (BL-23)
+│   │   ├── budget.py                  # AI budget dashboard — caps, alerts, approval workflow (BL-24)
+│   │   └── impact_calculator.py       # Dollar impact calculator — IBM benchmarks, ROI tiers
+│   ├── vendor_gov/
+│   │   ├── __init__.py
+│   │   └── registry.py                # AI vendor register — DPA tracking, expiry alerts (BL-22)
+│   ├── communities/
+│   │   ├── sep.py                     # SEP — UECIID codec, Causal Transfer Proof, Pod Tags
+│   │   ├── peering.py                 # Inter-community peering — HMAC handshake, transfers
+│   │   ├── knock.py                   # Knock-and-Verify invitations (Redis, 72h TTL)
+│   │   ├── transfer_guard.py          # Causal Transfer Guard — exfiltration block (<20ms)
+│   │   ├── data_pod.py                # Sovereign Data Pods — per-jurisdiction MinIO routing
+│   │   ├── stix_audit.py              # STIX 2.1 tamper-evident audit chain (SHA-256 prev_hash)
+│   │   ├── keypair.py                 # Community keypair — classical + hybrid PQC
+│   │   ├── charter.py                 # Versioned governance charter lifecycle
+│   │   ├── behavioral.py              # Z-score anomaly detection + event store
+│   │   ├── intelligence.py            # Community risk report (weighted 40/35/25 scoring)
+│   │   ├── oauth_discovery.py         # 14-provider OAuth catalog + scope-based risk
+│   │   ├── incident_register.py       # AI incident register — STIX-linked severity journal (CM-35)
+│   │   ├── supplier_risk.py           # Supplier AI risk — 5-criteria composite scoring (CM-36)
+│   │   ├── prompt_library.py          # Shared prompt library — UECIID provenance (CM-37)
+│   │   └── training_records.py        # Employee AI training — HMAC attestation (CM-38)
+│   ├── business_intelligence/
+│   │   ├── service.py                 # BI analytics — usage, threats, vendors, costs, compliance (CM-39)
+│   │   ├── repository.py              # BI SQLite cache — 15-min TTL
+│   │   ├── predictive.py              # Pure-Python OLS extrapolation + trend detection
+│   │   └── benchmarking.py            # Community benchmarking — percentile ranking
+│   ├── integrations/
+│   │   ├── smb_suite.py               # SMB governance suite — single-wizard provisioning (IN-25)
+│   │   ├── langchain_callback.py      # LangChain duck-typed callback (WardenCallback)
+│   │   └── obsidian/
+│   │       └── note_scanner.py        # Obsidian note scanner — YAML frontmatter + classification
+│   ├── api/
+│   │   ├── vendor_gov.py              # /vendor-gov/* — 7 endpoints (BL-22)
+│   │   ├── cost_allocation.py         # /financial/allocation/* — 5 endpoints (BL-23)
+│   │   ├── budget.py                  # /financial/budget/* — 5 endpoints (BL-24)
+│   │   ├── incident_register.py       # /incidents/* — 5 endpoints (CM-35)
+│   │   ├── supplier_risk.py           # /supplier-risk/* — 3 endpoints (CM-36)
+│   │   ├── prompt_library.py          # /prompt-library/* — 6 endpoints (CM-37)
+│   │   ├── training_records.py        # /training/* — 5 endpoints (CM-38)
+│   │   ├── smb_suite.py               # /smb-suite/* — 3 endpoints (IN-25)
+│   │   ├── business_intelligence.py   # /business-intelligence/* — 11 endpoints (CM-39)
+│   │   ├── financial.py               # /financial/* — impact, cost-saved, roi, proposal
+│   │   ├── secrets.py                 # /secrets/* — 14 endpoints: vaults, inventory, lifecycle
+│   │   ├── obsidian.py                # /obsidian/* — scan, share, feed, ai-filter, stats
+│   │   ├── sep.py                     # /sep/* — 24 endpoints: UECIID, pods, peerings, audit chain
+│   │   ├── shadow_ai.py               # /shadow-ai/* — scan, findings, policy, providers
+│   │   ├── sovereign.py               # /sovereign/* — jurisdictions, tunnels, policy, attest
+│   │   ├── xai.py                     # /xai/* — explain, batch, HTML/PDF report, dashboard
+│   │   └── agent.py                   # /agent/* — SOVA, MasterAgent, approve
 │   ├── analytics/
 │   │   ├── logger.py                  # GDPR-safe NDJSON logger + purge helpers
-│   │   └── siem.py                    # Splunk HEC + Elastic ECS SIEM integration
+│   │   ├── siem.py                    # Splunk HEC + Elastic ECS SIEM integration
+│   │   └── pages/
+│   │       ├── 2_Settings.py          # Streamlit settings — Threat Radar, Intel Bridge, Causal viz
+│   │       ├── 4_Community.py         # Community 7-tab dashboard
+│   │       ├── 5_Community_Settings.py# Community settings + integration guide
+│   │       ├── 6_Secrets_Governance.py# Secrets governance 6-tab dashboard
+│   │       ├── 10_SMB_Governance.py   # SMB governance — 6 tabs (Incidents/Vendors/Training/…)
+│   │       └── 12_Business_Intelligence.py # BI dashboard — 8 tabs (Usage/Threats/…/Report Builder)
 │   └── tests/
 │       ├── pre_release_final_test.py  # 30-test integration suite (L1–L5)
-│       └── ...                        # Unit tests (~86% coverage)
+│       └── ...                        # Unit tests (~82% coverage)
+│
+├── portal/                            # Next.js 14 customer portal (SMB self-service)
+│   └── src/
+│       ├── lib/
+│       │   ├── api.ts                 # API client — stats, events, threats, health
+│       │   └── smbApi.ts              # SMB API client — vendors, incidents, prompts, training, costs
+│       └── app/
+│           ├── vendor-governance/     # Vendor register + DPA tracking UI
+│           ├── incidents/             # AI incident register UI
+│           ├── prompts/               # Shared prompt library UI
+│           ├── training/              # Employee training records UI
+│           ├── cost-allocation/       # Cost allocation UI
+│           └── supplier-risk/         # Supplier risk assessment UI
+│
+├── dashboard/                         # Next.js 14.2 SOC dashboard (TanStack Query, Recharts)
+│   └── src/app/(soc)/
+│       ├── overview/                  # Security overview
+│       ├── events/                    # Event log + [id] detail
+│       ├── threats/                   # Threat map
+│       ├── budget/                    # AI budget dashboard (BL-24)
+│       ├── intelligence/              # Business intelligence (CM-39)
+│       └── smb/                       # SMB onboarding wizard (IN-25)
+│
+├── obsidian-plugin/                   # TypeScript Obsidian plugin (v4.19)
+│   ├── main.ts                        # Ribbon, sidebar, 5 commands, auto-scan, scheduler
+│   └── manifest.json
 │
 └── grafana/
     ├── prometheus.yml
