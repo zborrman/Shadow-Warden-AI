@@ -46,7 +46,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </p>
         </div>
 
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5 stagger-grid">
           {[
             {
               icon: '◈', title: 'SEP / UECIID', tier: 'Community Business',
@@ -276,6 +276,119 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <div class="mt-8 flex flex-wrap gap-4 justify-center">
           <a href="/price" class="btn-primary text-[14px] px-6 py-3">View all pricing tiers</a>
           <a href="/community" class="btn-ghost text-[14px] px-6 py-3">Open Community Portal</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SMB AI Governance Suite ── -->
+    <section class="py-20 border-t" style="border-color:rgba(255,255,255,0.06)">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8">
+        <div class="text-center mb-12">
+          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-5 text-[11px] font-bold tracking-widest uppercase"
+               style="color:#f97316;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2)">
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#f97316"></span>
+            v4.30 — SMB AI Governance Suite
+          </div>
+          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
+            Enterprise AI governance for every business
+          </h2>
+          <p class="text-[15px] max-w-2xl mx-auto" style="color:#94a3b8">
+            Seven modules provisioned in a single wizard. Every module is cryptographically
+            linked via UECIID provenance and STIX 2.1 audit chain.
+          </p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-grid">
+          {[
+            {
+              icon: '🏢', id: 'BL-22', title: 'Vendor Governance', tier: 'Individual+',
+              color: '#f97316', tint: 'rgba(249,115,22,0.08)',
+              desc: 'Register AI vendors with DPA tracking. 30-day expiry alerts. Risk tiers: LOW / MEDIUM / HIGH / CRITICAL. GDPR Art.28 + CCPA + ISO 27001.',
+              href: 'https://app.shadow-warden-ai.com/vendor-governance/',
+            },
+            {
+              icon: '🚨', id: 'CM-35', title: 'Incident Register', tier: 'Individual+',
+              color: '#ef4444', tint: 'rgba(239,68,68,0.08)',
+              desc: 'STIX 2.1-linked AI incident journal. Auto-log from every BLOCK verdict. Severity triage: LOW → CRITICAL. Full status lifecycle.',
+              href: 'https://app.shadow-warden-ai.com/incidents/',
+            },
+            {
+              icon: '📚', id: 'CM-37', title: 'Prompt Library', tier: 'Community Biz+',
+              color: '#8b5cf6', tint: 'rgba(139,92,246,0.08)',
+              desc: 'UECIID provenance on every prompt. Injection screening before save. Versioning + community sharing via Causal Transfer Guard.',
+              href: 'https://app.shadow-warden-ai.com/prompts/',
+            },
+            {
+              icon: '🎓', id: 'CM-38', title: 'Training Records', tier: 'Community Biz+',
+              color: '#10b981', tint: 'rgba(16,185,129,0.08)',
+              desc: 'HMAC-SHA256 attested completion records. Expiry tracking. Compliance report. Behavioral anomaly hook on ai_training_completed.',
+              href: 'https://app.shadow-warden-ai.com/training/',
+            },
+            {
+              icon: '💰', id: 'BL-23', title: 'Cost Allocation', tier: 'Community Biz+',
+              color: '#f59e0b', tint: 'rgba(245,158,11,0.08)',
+              desc: 'Per-department and per-vendor spend tracking. Monthly summaries, department breakdowns. YYYY-MM period granularity.',
+              href: 'https://app.shadow-warden-ai.com/cost-allocation/',
+            },
+            {
+              icon: '📊', id: 'BL-24', title: 'Budget Dashboard', tier: 'Community Biz+',
+              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
+              desc: 'Budget caps with configurable alert thresholds (default 80%). Real-time spend vs cap. Approval workflow: pending / approved / rejected.',
+              href: 'https://portal.shadow-warden-ai.com/budget/',
+            },
+            {
+              icon: '🔍', id: 'CM-36', title: 'Supplier Risk', tier: 'Community Biz+',
+              color: '#ec4899', tint: 'rgba(236,72,153,0.08)',
+              desc: '5-criteria composite score: data access, AI capability, compliance posture, peering history, disclosure recency. Derived from live SEP transfer data.',
+              href: 'https://app.shadow-warden-ai.com/supplier-risk/',
+            },
+            {
+              icon: '⚡', id: 'IN-25', title: 'SMB Suite Wizard', tier: 'Community Biz+',
+              color: '#f97316', tint: 'rgba(249,115,22,0.08)',
+              desc: 'Single POST /smb-suite/provision provisions all 7 modules at once. SMBProvisionResult includes UECIID + STIX chain ID. Live health aggregation.',
+              href: 'https://portal.shadow-warden-ai.com/smb/',
+            },
+          ].map(f => (
+            <a href={f.href} target="_blank" rel="noopener noreferrer"
+               class="group rounded-2xl p-5 block transition-all duration-200 hover:-translate-y-0.5"
+               style={`background:#111118;border:1px solid rgba(255,255,255,0.07)`}
+               onmouseover={`this.style.borderColor='${f.color}33'`}
+               onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+              <div class="flex items-start gap-3 mb-3">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[16px] shrink-0"
+                     style={`background:${f.tint}`}>{f.icon}</div>
+                <div>
+                  <div class="text-[13px] font-semibold mb-0.5" style="color:#f1f5f9">{f.title}</div>
+                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                        style={`color:${f.color};background:${f.tint}`}>{f.id} · {f.tier}</span>
+                </div>
+              </div>
+              <p class="text-[12px] leading-relaxed" style="color:#64748b">{f.desc}</p>
+            </a>
+          ))}
+        </div>
+
+        <!-- Business Intelligence callout -->
+        <div class="rounded-2xl p-8 flex flex-col lg:flex-row items-start lg:items-center gap-6"
+             style="background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(139,92,246,0.06));border:1px solid rgba(99,102,241,0.2)">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-[22px] shrink-0"
+               style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25)">📈</div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-[15px] font-bold" style="color:#f1f5f9">Business Intelligence Module</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded"
+                    style="color:#8b5cf6;background:rgba(139,92,246,0.12)">CM-39 · v4.30</span>
+            </div>
+            <p class="text-[13px] leading-relaxed" style="color:#64748b">
+              8-category analytics: AI usage trends, threat scorecards, vendor performance, cost optimisation, compliance scoring,
+              community benchmarking, predictive incident analytics, and a custom report builder. SQLite-cached 15-min TTL.
+              11 endpoints at <code class="font-mono text-[11px] px-1 rounded" style="color:#8b5cf6;background:rgba(139,92,246,0.1)">/business-intelligence/*</code>.
+            </p>
+          </div>
+          <a href="https://portal.shadow-warden-ai.com/intelligence/" target="_blank"
+             class="btn-primary text-[13px] px-5 py-2.5 shrink-0 whitespace-nowrap">
+            Open BI Dashboard →
+          </a>
         </div>
       </div>
     </section>

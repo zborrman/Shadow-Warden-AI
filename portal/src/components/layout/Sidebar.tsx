@@ -9,7 +9,7 @@ import {
   BarChart2, List, Search, Activity, GitBranch,
   Key, Lock, Globe, Trash2, CreditCard,
   BookOpen, DollarSign, Building2, AlertTriangle,
-  BookMarked, GraduationCap, ShieldAlert,
+  BookMarked, GraduationCap, ShieldAlert, Brain,
 } from 'lucide-react'
 import { logout } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
@@ -74,6 +74,7 @@ const groups: NavGroup[] = [
       { href: '/training/',          label: 'Training Records',  icon: GraduationCap  },
       { href: '/cost-allocation/',   label: 'Cost Allocation',   icon: DollarSign     },
       { href: '/supplier-risk/',     label: 'Supplier Risk',     icon: ShieldAlert    },
+      { href: '/intelligence/',      label: 'Business Intel',    icon: Brain          },
     ],
   },
   {
