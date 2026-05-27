@@ -176,12 +176,12 @@ function slugify(s: string) {
                 style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);background:transparent;cursor:pointer"
                 onmouseover="this.style.borderColor='rgba(99,102,241,0.4)';this.style.color='#818cf8';this.style.background='rgba(99,102,241,0.08)'"
                 onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
-          <svg width="15" height="15" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
-            <circle cx="16" cy="5.5" r="3.2"/>
-            <line x1="16" y1="9.5" x2="16" y2="19" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
-            <line x1="7" y1="13" x2="25" y2="13" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
-            <line x1="16" y1="19" x2="10" y2="27" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
-            <line x1="16" y1="19" x2="22" y2="27" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+          <!-- Universal accessibility person icon (stroke-based, renders cleanly at 16px) -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="4" r="2"/>
+            <path d="M12 6v6"/>
+            <path d="M6 10h12"/>
+            <path d="M9 20l3-8 3 8"/>
           </svg>
         </button>
 
@@ -386,47 +386,31 @@ function slugify(s: string) {
       document.getElementById('a11y-trigger')?.click();
     });
 
-    // ── Sign In / Sign Out toggle (localStorage-based) ──
+    // ── Sign In / Sign Out toggle ──
+    // Auth state is set by portal via: localStorage.setItem('sw_signed_in','1')
+    // Sign In link navigates to portal; clicking it does NOT mark user as signed in.
     (function() {
       const AUTH_KEY = 'sw_signed_in';
-      const signin     = document.getElementById('nav-signin')     as HTMLAnchorElement | null;
-      const signout    = document.getElementById('nav-signout')    as HTMLButtonElement | null;
-      const mSignin    = document.getElementById('mobile-signin')  as HTMLAnchorElement | null;
-      const mSignout   = document.getElementById('mobile-signout') as HTMLButtonElement | null;
+      const signin   = document.getElementById('nav-signin')    as HTMLAnchorElement | null;
+      const signout  = document.getElementById('nav-signout')   as HTMLButtonElement | null;
+      const mSignin  = document.getElementById('mobile-signin') as HTMLAnchorElement | null;
+      const mSignout = document.getElementById('mobile-signout')as HTMLButtonElement | null;
 
-      function setAuth(state: boolean) {
-        if (state) {
-          localStorage.setItem(AUTH_KEY, '1');
-          signin?.style  && (signin.style.display  = 'none');
-          signout?.style && (signout.style.display = 'block');
-          mSignin?.style  && (mSignin.style.display  = 'none');
-          mSignout?.style && (mSignout.style.display = 'block');
-        } else {
-          localStorage.removeItem(AUTH_KEY);
-          signin?.style  && (signin.style.display  = 'block');
-          signout?.style && (signout.style.display = 'none');
-          mSignin?.style  && (mSignin.style.display  = 'block');
-          mSignout?.style && (mSignout.style.display = 'none');
-        }
+      const isSignedIn = localStorage.getItem(AUTH_KEY) === '1';
+
+      if (isSignedIn) {
+        if (signin)  signin.style.display  = 'none';
+        if (signout) signout.style.display = 'block';
+        if (mSignin)  mSignin.style.display  = 'none';
+        if (mSignout) mSignout.style.display = 'block';
       }
 
-      // Restore saved state
-      setAuth(localStorage.getItem(AUTH_KEY) === '1');
-
-      // Clicking Sign In stores auth state before navigating to portal
-      signin?.addEventListener('click', () => { localStorage.setItem(AUTH_KEY, '1'); });
-      mSignin?.addEventListener('click', () => { localStorage.setItem(AUTH_KEY, '1'); });
-
-      // Sign Out clears state
-      signout?.addEventListener('click', () => {
-        setAuth(false);
+      function doSignOut() {
+        localStorage.removeItem(AUTH_KEY);
         window.location.href = 'https://portal.shadow-warden-ai.com/logout';
-      });
-      mSignout?.addEventListener('click', () => {
-        setAuth(false);
-        closeMenu();
-        window.location.href = 'https://portal.shadow-warden-ai.com/logout';
-      });
+      }
+      signout?.addEventListener('click', doSignOut);
+      mSignout?.addEventListener('click', () => { closeMenu(); doSignOut(); });
     })();
   </script>
 
