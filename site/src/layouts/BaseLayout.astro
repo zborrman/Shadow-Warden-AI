@@ -69,6 +69,13 @@ const categories = [
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
+
+const currentPath = Astro.url.pathname;
+function isActive(href: string) {
+  if (href === '/') return currentPath === '/';
+  return currentPath === href || currentPath.startsWith(href + '/');
+}
+const isSettingsActive = isActive('/settings');
 ---
 
 <!doctype html>
@@ -103,13 +110,19 @@ function slugify(s: string) {
 
       <!-- Desktop nav -->
       <nav class="hidden lg:flex items-center gap-1 flex-1">
-        {categories.map(cat => (
+        {categories.map(cat => {
+          const active = isActive(cat.href);
+          return (
           <div class="relative group">
             <a href={cat.href}
                class="flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150"
-               style="color:#94a3b8"
-               onmouseover="this.style.color=this.dataset.color;this.style.background='rgba(255,255,255,0.05)'"
-               onmouseout="this.style.color='#94a3b8';this.style.background='transparent'"
+               style={active
+                 ? `color:${cat.color};background:rgba(255,255,255,0.06)`
+                 : 'color:#94a3b8'}
+               onmouseover={`this.style.color='${cat.color}';this.style.background='rgba(255,255,255,0.05)'`}
+               onmouseout={active
+                 ? `this.style.color='${cat.color}';this.style.background='rgba(255,255,255,0.06)'`
+                 : `this.style.color='#94a3b8';this.style.background='transparent'`}
                data-color={cat.color}>
               {cat.label}
               {cat.sub.length > 0 && (
@@ -133,7 +146,7 @@ function slugify(s: string) {
               </div>
             )}
           </div>
-        ))}
+          ); })}
       </nav>
 
       <!-- Right actions -->
@@ -158,12 +171,16 @@ function slugify(s: string) {
           GitHub
         </a>
 
-        <!-- Settings icon -->
+        <!-- Settings icon (highlighted when on /settings) -->
         <a href="/settings" aria-label="Settings"
            class="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
-           style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)"
-           onmouseover="this.style.borderColor='rgba(48,209,88,0.4)';this.style.color='#30D158';this.style.background='rgba(48,209,88,0.08)'"
-           onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
+           style={isSettingsActive
+             ? 'color:#30D158;border:1px solid rgba(48,209,88,0.4);background:rgba(48,209,88,0.1)'
+             : 'color:#94a3b8;border:1px solid rgba(255,255,255,0.08)'}
+           onmouseover="this.style.borderColor='rgba(48,209,88,0.4)';this.style.color='#30D158';this.style.background='rgba(48,209,88,0.1)'"
+           onmouseout={isSettingsActive
+             ? "this.style.borderColor='rgba(48,209,88,0.4)';this.style.color='#30D158';this.style.background='rgba(48,209,88,0.1)'"
+             : "this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'"}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
