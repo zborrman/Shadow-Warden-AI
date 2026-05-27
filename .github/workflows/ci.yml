@@ -65,15 +65,22 @@ jobs:
           mkdir -p landing/settings landing/cyber-security landing/dashboard \
                    landing/price landing/doc/quick-start \
                    landing/business-community landing/community \
-                   landing/community/view
-          cp site/dist/settings/index.html            landing/settings/index.html
-          cp site/dist/cyber-security/index.html      landing/cyber-security/index.html
-          cp site/dist/dashboard/index.html           landing/dashboard/index.html
-          cp site/dist/price/index.html               landing/price/index.html
-          cp site/dist/doc/quick-start/index.html     landing/doc/quick-start/index.html
-          cp site/dist/business-community/index.html  landing/business-community/index.html
-          cp site/dist/community/index.html           landing/community/index.html
-          cp site/dist/community/view/index.html      landing/community/view/index.html
+                   landing/community/view \
+                   landing/tunnel/masque-tunnels \
+                   landing/tunnel/sovereign-ai-cloud \
+                   landing/tunnel/per-tenant-routing
+          cp site/dist/settings/index.html                              landing/settings/index.html
+          cp site/dist/cyber-security/index.html                        landing/cyber-security/index.html
+          cp site/dist/dashboard/index.html                             landing/dashboard/index.html
+          cp site/dist/price/index.html                                 landing/price/index.html
+          cp site/dist/doc/quick-start/index.html                       landing/doc/quick-start/index.html
+          cp site/dist/business-community/index.html                    landing/business-community/index.html
+          cp site/dist/community/index.html                             landing/community/index.html
+          cp site/dist/community/view/index.html                        landing/community/view/index.html
+          cp site/dist/tunnel/index.html                                landing/tunnel/index.html
+          cp site/dist/tunnel/masque-tunnels/index.html                 landing/tunnel/masque-tunnels/index.html
+          cp site/dist/tunnel/sovereign-ai-cloud/index.html             landing/tunnel/sovereign-ai-cloud/index.html
+          cp site/dist/tunnel/per-tenant-routing/index.html             landing/tunnel/per-tenant-routing/index.html
 
           # Copy _astro assets (content-hashed JS/CSS — Vercel handles CDN)
           mkdir -p landing/_astro
@@ -91,6 +98,10 @@ jobs:
                   landing/business-community/index.html \
                   landing/community/index.html \
                   landing/community/view/index.html \
+                  landing/tunnel/index.html \
+                  landing/tunnel/masque-tunnels/index.html \
+                  landing/tunnel/sovereign-ai-cloud/index.html \
+                  landing/tunnel/per-tenant-routing/index.html \
                   landing/_astro
 
           # Only commit if something changed
