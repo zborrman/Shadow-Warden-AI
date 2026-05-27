@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Shield, Key, Globe, BookOpen, Users, CreditCard, AlertTriangle,
   CheckCircle, Plus, Trash2, Eye, EyeOff, Copy, HelpCircle,
   Activity, RefreshCcw, Zap, Lock, Bot, Cpu, ChevronRight,
-  TriangleAlert, Check,
+  TriangleAlert, Check, Bell, Clock, AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -228,6 +229,136 @@ function SettingRow({
         {showHelp && explain && <ExplainBox>{explain}</ExplainBox>}
       </div>
       <div style={{ paddingTop: 2 }}>{children}</div>
+    </div>
+  );
+}
+
+// ─── Settings monitoring panel ────────────────────────────────────────
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com";
+
+interface SettingsSummary {
+  api_keys:      { total: number; active: number };
+  secrets:       { total: number; expiring_soon: number; expired: number };
+  notifications: { total: number; unverified: number };
+  agent_config:  { sova_enabled: boolean; master_agent_enabled: boolean; evolution_engine_enabled: boolean };
+}
+
+function MonitoringPanel() {
+  const { data, isLoading, isError } = useQuery<SettingsSummary>({
+    queryKey: ["settings-summary"],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/settings`, { cache: "no-store" });
+      if (!r.ok) throw new Error(r.statusText);
+      return r.json();
+    },
+    refetchInterval: 60_000,
+    retry: 1,
+  });
+
+  if (isLoading) return (
+    <div style={{ padding: "40px 0", textAlign: "center", color: sw.fg4, fontSize: 12.5 }}>Loading…</div>
+  );
+
+  if (isError || !data) return (
+    <div style={{
+      padding: "16px 20px", borderRadius: 10, fontSize: 12.5, color: sw.amber,
+      background: "rgba(245,158,11,0.06)", border: `1px solid rgba(245,158,11,0.20)`,
+    }}>
+      <strong>API unreachable</strong> — settings monitoring requires the warden API.
+      Configure <code style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>NEXT_PUBLIC_API_URL</code>.
+    </div>
+  );
+
+  const warnings: { icon: React.ElementType; color: string; msg: string }[] = [];
+  if (data.secrets.expired > 0)
+    warnings.push({ icon: AlertCircle, color: sw.red, msg: `${data.secrets.expired} secret${data.secrets.expired > 1 ? "s" : ""} expired — rotate immediately` });
+  if (data.secrets.expiring_soon > 0)
+    warnings.push({ icon: Clock, color: sw.amber, msg: `${data.secrets.expiring_soon} secret${data.secrets.expiring_soon > 1 ? "s" : ""} expiring within 30 days` });
+  if (data.notifications.unverified > 0)
+    warnings.push({ icon: Bell, color: sw.amber, msg: `${data.notifications.unverified} notification channel${data.notifications.unverified > 1 ? "s" : ""} not yet verified — send a test ping` });
+  if (data.api_keys.active === 0)
+    warnings.push({ icon: Key, color: sw.amber, msg: "No active API keys — create one to authenticate requests" });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Warnings */}
+      {warnings.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {warnings.map((w, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "11px 14px", borderRadius: 8,
+              background: w.color === sw.red ? "rgba(239,68,68,0.06)" : "rgba(245,158,11,0.06)",
+              border: `1px solid ${w.color === sw.red ? "rgba(239,68,68,0.20)" : "rgba(245,158,11,0.20)"}`,
+              fontSize: 12.5, color: w.color,
+            }}>
+              <w.icon size={13} style={{ flexShrink: 0 }} />
+              {w.msg}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {warnings.length === 0 && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "11px 14px", borderRadius: 8, fontSize: 12.5,
+          color: sw.green, background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.18)",
+        }}>
+          <CheckCircle size={13} />
+          All settings healthy — no expiry or verification issues
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        {[
+          { label: "Active Keys",       val: data.api_keys.active,           icon: Key,   accent: sw.indigoLt },
+          { label: "Secrets",           val: data.secrets.total,             icon: Shield, accent: sw.green },
+          { label: "Notif. Channels",   val: data.notifications.total,       icon: Bell,  accent: sw.amber },
+          { label: "Active Agents",     val: [data.agent_config.sova_enabled, data.agent_config.master_agent_enabled, data.agent_config.evolution_engine_enabled].filter(Boolean).length,
+            icon: Bot, accent: "#a78bfa" },
+        ].map(({ label, val, icon: Icon, accent }) => (
+          <div key={label} style={{
+            background: sw.surf2, border: `1px solid ${sw.border}`,
+            borderRadius: 10, padding: "14px 16px",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <Icon size={12} style={{ color: accent }} />
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: sw.fg4, fontFamily: "var(--font-mono, monospace)" }}>{label}</span>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: sw.fg1, fontFamily: "var(--font-mono, monospace)" }}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Agent modules status */}
+      <div style={{ background: sw.surf2, border: `1px solid ${sw.border}`, borderRadius: 10, padding: "14px 18px" }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: sw.fg4, fontFamily: "var(--font-mono, monospace)", marginBottom: 12 }}>
+          Agent Modules
+        </div>
+        <div style={{ display: "flex", gap: 24 }}>
+          {[
+            { key: "sova_enabled", label: "SOVA" },
+            { key: "master_agent_enabled", label: "MasterAgent" },
+            { key: "evolution_engine_enabled", label: "EvolutionEngine" },
+          ].map(({ key, label }) => {
+            const on = data.agent_config[key as keyof typeof data.agent_config] as boolean;
+            return (
+              <div key={key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: on ? sw.green : sw.fg4 }} />
+                <span style={{ fontSize: 12, color: on ? sw.fg1 : sw.fg4 }}>{label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <p style={{ fontSize: 11.5, color: sw.fg4, marginTop: 2 }}>
+        Manage keys, secrets, and channels in the{" "}
+        <a href="/settings" style={{ color: sw.indigoLt, textDecoration: "none" }}>Portal → Settings</a>.
+      </p>
     </div>
   );
 }
@@ -673,11 +804,12 @@ function DangerZonePanel({ onReset }: { onReset: () => void }) {
 }
 
 // ─── Sidebar nav items ────────────────────────────────────────────────
-type Tab = "pipeline" | "apikeys" | "webhooks" | "rules" | "team" | "billing" | "danger";
+type Tab = "monitor" | "pipeline" | "apikeys" | "webhooks" | "rules" | "team" | "billing" | "danger";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType; count?: number; danger?: boolean }[] = [
-  { id: "pipeline", label: "Filter pipeline",  icon: Shield },
-  { id: "apikeys",  label: "API keys",          icon: Key,     count: 2 },
+  { id: "monitor",  label: "Monitor",            icon: Activity },
+  { id: "pipeline", label: "Filter pipeline",    icon: Shield },
+  { id: "apikeys",  label: "API keys",           icon: Key,     count: 2 },
   { id: "webhooks", label: "Webhooks",           icon: Globe },
   { id: "rules",    label: "Rules",              icon: BookOpen },
   { id: "team",     label: "Team",               icon: Users,   count: 5 },
@@ -687,18 +819,19 @@ const TABS: { id: Tab; label: string; icon: React.ElementType; count?: number; d
 
 // ─── Panel titles ─────────────────────────────────────────────────────
 const PANEL_META: Record<Tab, { title: string; sub: string }> = {
-  pipeline: { title: "Filter pipeline",  sub: "Tune how Shadow Warden inspects every AI request before it leaves your perimeter." },
-  apikeys:  { title: "API keys",         sub: "Manage keys used to authenticate requests to /filter and all warden endpoints." },
-  webhooks: { title: "Webhooks",         sub: "Forward BLOCK, HIGH, and SECRET_FOUND events to external systems in real time." },
-  rules:    { title: "Detection rules",  sub: "Semantic guard rules that define what patterns trigger a FLAG or BLOCK verdict." },
-  team:     { title: "Team",             sub: "Members with access to this tenant's dashboard and settings." },
-  billing:  { title: "Billing",          sub: "Subscription tier, usage, and add-on marketplace." },
-  danger:   { title: "Danger zone",      sub: "Destructive operations — proceed with care." },
+  monitor:  { title: "Settings Monitor",  sub: "Live status of API keys, secrets expiry, and notification channel health." },
+  pipeline: { title: "Filter pipeline",   sub: "Tune how Shadow Warden inspects every AI request before it leaves your perimeter." },
+  apikeys:  { title: "API keys",          sub: "Manage keys used to authenticate requests to /filter and all warden endpoints." },
+  webhooks: { title: "Webhooks",          sub: "Forward BLOCK, HIGH, and SECRET_FOUND events to external systems in real time." },
+  rules:    { title: "Detection rules",   sub: "Semantic guard rules that define what patterns trigger a FLAG or BLOCK verdict." },
+  team:     { title: "Team",              sub: "Members with access to this tenant's dashboard and settings." },
+  billing:  { title: "Billing",           sub: "Subscription tier, usage, and add-on marketplace." },
+  danger:   { title: "Danger zone",       sub: "Destructive operations — proceed with care." },
 };
 
 // ─── Main page ────────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const [tab, setTab]           = useState<Tab>("pipeline");
+  const [tab, setTab]           = useState<Tab>("monitor");
   const [settings, setSettings] = useState<PipelineSettings>(DEFAULT_PIPELINE);
   const [health, setHealth]     = useState<"ok" | "warn" | "loading">("loading");
   const [saving, setSaving]     = useState(false);
@@ -843,6 +976,7 @@ export default function SettingsPage() {
 
         {/* Body */}
         <div style={{ padding: "4px 24px 18px", flex: 1 }}>
+          {tab === "monitor"  && <MonitoringPanel />}
           {tab === "pipeline" && <FilterPipelinePanel settings={settings} setSettings={setSettings} />}
           {tab === "apikeys"  && <ApiKeysPanel />}
           {tab === "webhooks" && <WebhooksPanel />}

@@ -1531,5 +1531,85 @@
     "version": "v4.4",
     "tier": "Enterprise",
     "status": "shipped"
+  },
+  {
+    "id": "FE-41",
+    "category": "Settings",
+    "subcategory": "API Keys & Auth",
+    "feature": "API Key Management",
+    "description": "Create, rotate, and revoke per-tenant API keys. SHA-256 hash lookup, prefix display, request count tracking.",
+    "version": "v4.31",
+    "tier": "Individual+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-42",
+    "category": "Settings",
+    "subcategory": "API Keys & Auth",
+    "feature": "Key Rotation & Audit",
+    "description": "Soft-delete revocation, last-used timestamp, request counter. Full STIX audit trail on every key lifecycle event.",
+    "version": "v4.31",
+    "tier": "Individual+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-43",
+    "category": "Settings",
+    "subcategory": "Secrets Vault",
+    "feature": "Fernet-Encrypted Secrets",
+    "description": "Store arbitrary secrets (API keys, tokens, connection strings) with Fernet encryption at rest. CRUD via REST and portal UI.",
+    "version": "v4.31",
+    "tier": "Individual+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-44",
+    "category": "Settings",
+    "subcategory": "Secrets Vault",
+    "feature": "Secret Expiry Tracking",
+    "description": "Optional expiry dates per secret. Dashboard and API warn when secrets expire within 30 days.",
+    "version": "v4.31",
+    "tier": "Individual+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-45",
+    "category": "Settings",
+    "subcategory": "SOVA & Agent Config",
+    "feature": "Agent Thresholds",
+    "description": "Tune HIGH/BLOCK risk thresholds, SOVA iteration cap, scan interval. Changes hot-reload in <100ms via env-var injection.",
+    "version": "v4.31",
+    "tier": "Individual+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-46",
+    "category": "Settings",
+    "subcategory": "SOVA & Agent Config",
+    "feature": "Enable/Disable Agent Modules",
+    "description": "Toggle SOVA, MasterAgent, Evolution Engine, CausalArbiter, PhishGuard independently without container restart.",
+    "version": "v4.31",
+    "tier": "Pro+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-47",
+    "category": "Settings",
+    "subcategory": "Notification Settings",
+    "feature": "Multi-Channel Alerting",
+    "description": "Register Slack webhooks, Teams webhooks, email, generic webhooks, Telegram bots, and PagerDuty routing keys.",
+    "version": "v4.31",
+    "tier": "Individual+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-48",
+    "category": "Settings",
+    "subcategory": "Notification Settings",
+    "feature": "Test & Verify Channels",
+    "description": "One-click test sends a real notification to verify connectivity. Channels marked verified after first successful test.",
+    "version": "v4.31",
+    "tier": "Individual+",
+    "status": "shipped"
   }
 ]

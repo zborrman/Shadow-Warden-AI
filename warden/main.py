@@ -1362,6 +1362,13 @@ try:
 except ImportError:
     log.warning("model_share router not available — /sep/model-bundles skipped.")
 
+try:
+    from warden.api.settings import router as _settings_router
+    app.include_router(_settings_router)
+    log.info("Settings API mounted at /settings (FE-41)")
+except ImportError:
+    log.warning("settings router not available — /settings routes skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /

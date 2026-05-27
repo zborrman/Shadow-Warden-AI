@@ -186,6 +186,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "prompt_library_enabled":      False,
         "training_records_enabled":    False,
         "smb_suite_enabled":           False,
+        "settings_enabled":            False,
         # ── Referral ───────────────────────────────────────────────────────────
         "referral_program":            True,
         "referral_bonus_requests":     500,   # +500 req per referred signup
@@ -239,6 +240,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "prompt_library_enabled":      False,
         "training_records_enabled":    False,
         "smb_suite_enabled":           False,
+        "settings_enabled":            True,
         "referral_program":            True,
         "referral_bonus_requests":     500,
         "referral_bonus_bytes":        1 * _GB,   # +1 GB per referred signup
@@ -290,6 +292,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "prompt_library_enabled":      True,
         "training_records_enabled":    True,
         "smb_suite_enabled":           True,
+        "settings_enabled":            True,
         "referral_program":            True,
         "referral_bonus_requests":     2_000,
         "referral_bonus_bytes":        5 * _GB,   # +5 GB per referred signup
@@ -360,6 +363,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "prompt_library_enabled":      True,
         "training_records_enabled":    True,
         "smb_suite_enabled":           True,
+        "settings_enabled":            True,
     },
 
     "enterprise": {
@@ -403,6 +407,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "prompt_library_enabled":      True,
         "training_records_enabled":    True,
         "smb_suite_enabled":           True,
+        "settings_enabled":            True,
         "referral_program":            False,   # Enterprise pays full price
         "referral_bonus_requests":     0,
         "referral_bonus_bytes":        0,

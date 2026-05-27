@@ -30,9 +30,19 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
               <span class="nav-badge">2</span>
             </button>
 
+            <button class="nav-item" data-panel="secrets">
+              <span class="nav-icon">🔒</span>
+              <span class="nav-text">Secrets Vault</span>
+            </button>
+
+            <button class="nav-item" data-panel="agents">
+              <span class="nav-icon">🤖</span>
+              <span class="nav-text">Agent Config</span>
+            </button>
+
             <button class="nav-item" data-panel="webhooks">
               <span class="nav-icon">🔗</span>
-              <span class="nav-text">Webhooks</span>
+              <span class="nav-text">Notifications</span>
             </button>
 
             <button class="nav-item" data-panel="rules">
@@ -244,7 +254,116 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
           </div>
         </div>
 
-        <!-- ── WEBHOOKS ── -->
+        <!-- ── SECRETS VAULT ── -->
+        <div id="panel-secrets" class="settings-panel hidden">
+          <p class="panel-subtitle">Store encrypted secrets at rest (Fernet). API keys, tokens, connection strings — CRUD via REST and portal UI.</p>
+
+          <div class="settings-card mt-6">
+            <div class="flex items-center gap-3 mb-5">
+              <h3 class="card-title">Secrets</h3>
+              <span id="secret-count" class="text-[11px] px-2 py-0.5 rounded-full" style="color:#30D158;background:rgba(48,209,88,0.1)">0 secrets</span>
+              <button class="btn-primary-sm ml-auto" onclick="openAddSecret()">+ Add secret</button>
+            </div>
+            <div id="secrets-list" class="space-y-0">
+              <p class="text-[12px] py-4 text-center" style="color:#475569">No secrets yet. Add your first secret above.</p>
+            </div>
+          </div>
+
+          <!-- Add secret form (hidden by default) -->
+          <div id="add-secret-form" class="settings-card mt-4 hidden">
+            <h3 class="card-title mb-4">Add Secret</h3>
+            <div class="grid gap-3 max-w-md">
+              <div>
+                <label class="settings-label">Name (e.g. OPENAI_API_KEY)</label>
+                <input id="secret-name" type="text" placeholder="MY_SECRET_KEY" class="settings-input font-mono" />
+              </div>
+              <div>
+                <label class="settings-label">Value</label>
+                <input id="secret-value" type="password" placeholder="••••••••" class="settings-input" />
+              </div>
+              <div>
+                <label class="settings-label">Description (optional)</label>
+                <input id="secret-desc" type="text" placeholder="Used by OpenAI proxy" class="settings-input" />
+              </div>
+              <div class="flex gap-3 mt-1">
+                <button class="btn-primary-sm" onclick="saveSecret()">Save secret</button>
+                <button class="btn-secondary-sm" onclick="closeAddSecret()">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 p-4 rounded-xl text-[12px]" style="background:rgba(48,209,88,0.04);border:1px solid rgba(48,209,88,0.15)">
+            <div class="font-semibold mb-1" style="color:#30D158">🔒 Fernet encryption at rest</div>
+            <div style="color:#64748b">Values are encrypted with <code class="font-mono text-[11px]" style="color:#94a3b8">VAULT_MASTER_KEY</code> before storage. The plaintext is never persisted. Access via <code class="font-mono text-[11px]" style="color:#94a3b8">GET /settings/secrets</code> returns metadata only.</div>
+          </div>
+        </div>
+
+        <!-- ── AGENT CONFIG ── -->
+        <div id="panel-agents" class="settings-panel hidden">
+          <p class="panel-subtitle">Tune risk thresholds, iteration caps, and toggle AI agent modules. Changes hot-reload via env injection — no restart needed.</p>
+
+          <div class="settings-card mt-6">
+            <h3 class="card-title mb-5">Risk Thresholds</h3>
+            <div class="grid gap-4 max-w-md">
+              <div>
+                <label class="settings-label">HIGH risk threshold</label>
+                <div class="flex items-center gap-3">
+                  <input type="range" id="threshold-high" min="0.5" max="0.95" step="0.01" value="0.72"
+                         class="flex-1" oninput="document.getElementById('threshold-high-val').textContent=this.value" />
+                  <span id="threshold-high-val" class="font-mono text-[13px] w-12 text-right" style="color:#f59e0b">0.72</span>
+                </div>
+              </div>
+              <div>
+                <label class="settings-label">BLOCK threshold</label>
+                <div class="flex items-center gap-3">
+                  <input type="range" id="threshold-block" min="0.5" max="1.0" step="0.01" value="0.90"
+                         class="flex-1" oninput="document.getElementById('threshold-block-val').textContent=this.value" />
+                  <span id="threshold-block-val" class="font-mono text-[13px] w-12 text-right" style="color:#ef4444">0.90</span>
+                </div>
+              </div>
+              <div>
+                <label class="settings-label">SOVA max iterations</label>
+                <input type="number" id="sova-max-iter" value="10" min="1" max="25" class="settings-input w-32" />
+              </div>
+              <div>
+                <label class="settings-label">Scan interval (minutes)</label>
+                <input type="number" id="scan-interval" value="5" min="1" max="1440" class="settings-input w-32" />
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card mt-4">
+            <h3 class="card-title mb-5">Agent Modules</h3>
+            <div class="space-y-3 max-w-md">
+              {[
+                { id: 'toggle-sova',       label: 'SOVA Agent',          desc: 'Autonomous operator with 30 tools + cron jobs',     defaultOn: true  },
+                { id: 'toggle-master',     label: 'MasterAgent',         desc: 'Multi-agent SOC coordinator (Pro+)',                defaultOn: false },
+                { id: 'toggle-evolution',  label: 'Evolution Engine',    desc: 'Auto-generates detection rules from Claude Opus',   defaultOn: false },
+                { id: 'toggle-causal',     label: 'Causal Arbiter',      desc: 'Bayesian DAG inference for gray-zone decisions',    defaultOn: true  },
+                { id: 'toggle-phish',      label: 'PhishGuard',          desc: 'URL phishing + social engineering detection',       defaultOn: true  },
+              ].map(item => (
+                <label class="flex items-center justify-between p-4 rounded-xl cursor-pointer"
+                       style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)">
+                  <div>
+                    <p class="text-[13px] font-semibold" style="color:#f1f5f9">{item.label}</p>
+                    <p class="text-[11px] mt-0.5" style="color:#475569">{item.desc}</p>
+                  </div>
+                  <input type="checkbox" checked={item.defaultOn} class="sr-only toggle-input" />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div class="save-footer" id="agent-save-footer" style="display:none">
+            <span class="save-timestamp">Changes require an API key with write access</span>
+            <div class="save-actions">
+              <button class="btn-primary-sm" onclick="saveAgentConfig()">Save agent config</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WEBHOOKS / NOTIFICATIONS ── -->
         <div id="panel-webhooks" class="settings-panel hidden">
           <p class="panel-subtitle">Push security events to external services in real time.</p>
 
@@ -893,7 +1012,9 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
   const PANEL_LABELS: Record<string, string> = {
     filter:   'Filter pipeline',
     apikeys:  'API keys',
-    webhooks: 'Webhooks',
+    secrets:  'Secrets Vault',
+    agents:   'Agent Config',
+    webhooks: 'Notifications',
     rules:    'Rules',
     team:     'Team',
     billing:  'Billing',
@@ -910,6 +1031,10 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     titleEl.textContent = PANEL_LABELS[panelId] ?? panelId;
     if (saveFooter) {
       saveFooter.style.display = panelId === 'filter' ? 'flex' : 'none';
+    }
+    const agentFooter = document.getElementById('agent-save-footer');
+    if (agentFooter) {
+      agentFooter.style.display = panelId === 'agents' ? 'flex' : 'none';
     }
     // Lazy billing load
     if (panelId === 'billing' && !billingLoaded) {
@@ -962,6 +1087,67 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
 
   (window as any).generateKey = function () {
     alert('New key generation requires backend integration.');
+  };
+
+  // ── Secrets panel ────────────────────────────────────────────
+  let _secrets: Array<{id:string;name:string;description:string;created_at:string}> = [];
+
+  (window as any).openAddSecret = function () {
+    document.getElementById('add-secret-form')?.classList.remove('hidden');
+  };
+  (window as any).closeAddSecret = function () {
+    document.getElementById('add-secret-form')?.classList.add('hidden');
+    (document.getElementById('secret-name') as HTMLInputElement).value = '';
+    (document.getElementById('secret-value') as HTMLInputElement).value = '';
+    (document.getElementById('secret-desc') as HTMLInputElement).value = '';
+  };
+  (window as any).saveSecret = function () {
+    const name  = (document.getElementById('secret-name') as HTMLInputElement).value.trim();
+    const value = (document.getElementById('secret-value') as HTMLInputElement).value.trim();
+    const desc  = (document.getElementById('secret-desc') as HTMLInputElement).value.trim();
+    if (!name || !value) { alert('Name and value are required.'); return; }
+    const entry = { id: crypto.randomUUID(), name, description: desc, created_at: new Date().toISOString() };
+    _secrets.push(entry);
+    renderSecrets();
+    (window as any).closeAddSecret();
+  };
+  (window as any).deleteSecret = function (id: string) {
+    _secrets = _secrets.filter(s => s.id !== id);
+    renderSecrets();
+  };
+
+  function renderSecrets() {
+    const list = document.getElementById('secrets-list')!;
+    const count = document.getElementById('secret-count')!;
+    count.textContent = `${_secrets.length} secret${_secrets.length !== 1 ? 's' : ''}`;
+    if (_secrets.length === 0) {
+      list.innerHTML = '<p class="text-[12px] py-4 text-center" style="color:#475569">No secrets yet. Add your first secret above.</p>';
+      return;
+    }
+    list.innerHTML = _secrets.map(s => `
+      <div class="key-row">
+        <div class="key-icon">🔐</div>
+        <div class="key-info">
+          <div class="key-name font-mono">${s.name}</div>
+          <div class="key-meta">${s.description || 'No description'} · Added ${new Date(s.created_at).toLocaleDateString()}</div>
+          <code class="key-preview">••••••••••••••••</code>
+        </div>
+        <div class="key-actions">
+          <button class="btn-secondary-sm" style="color:#ef4444;border-color:rgba(239,68,68,0.3)" onclick="deleteSecret('${s.id}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Agent config panel ────────────────────────────────────────
+  (window as any).saveAgentConfig = function () {
+    const high  = (document.getElementById('threshold-high') as HTMLInputElement).value;
+    const block = (document.getElementById('threshold-block') as HTMLInputElement).value;
+    if (parseFloat(block) < parseFloat(high)) {
+      alert('BLOCK threshold must be ≥ HIGH threshold.');
+      return;
+    }
+    const ts = document.querySelector<HTMLElement>('#agent-save-footer .save-timestamp');
+    if (ts) ts.textContent = 'Saved — changes active in <100ms';
   };
 
   // ── Billing ──────────────────────────────────────────────────

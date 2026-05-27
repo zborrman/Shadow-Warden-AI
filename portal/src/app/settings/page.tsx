@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   User, Bell, Lock, CreditCard, CheckCircle2, AlertCircle, Copy, Check,
-  Shield, Database, DollarSign, Package, Trash2,
+  Shield, Database, DollarSign, Package, Trash2, Key, Bot, ChevronRight,
 } from 'lucide-react'
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -552,6 +552,36 @@ docker compose up --build -d`}</CodeBlock>
   )
 }
 
+// ── Quick-nav cards for sub-sections ─────────────────────────────────────────
+function QuickNav() {
+  const items = [
+    { href: '/settings/api-keys',      icon: Key,    label: 'API Keys',          desc: 'Create, rotate, revoke per-tenant keys',           color: 'text-brand-400', bg: 'bg-brand-400/10' },
+    { href: '/settings/secrets',       icon: Shield, label: 'Secrets Vault',     desc: 'Fernet-encrypted secrets at rest',                 color: 'text-green-400', bg: 'bg-green-400/10' },
+    { href: '/settings/agents',        icon: Bot,    label: 'Agent Config',      desc: 'Tune thresholds and toggle AI agents',             color: 'text-purple-400', bg: 'bg-purple-400/10' },
+    { href: '/settings/notifications', icon: Bell,   label: 'Notifications',     desc: 'Slack, Teams, PagerDuty, Telegram, Email',         color: 'text-amber-400', bg: 'bg-amber-400/10' },
+  ]
+  return (
+    <div className="card p-6">
+      <h2 className="font-semibold text-white mb-4">Settings Sections</h2>
+      <div className="grid grid-cols-2 gap-3">
+        {items.map(({ href, icon: Icon, label, desc, color, bg }) => (
+          <a key={href} href={href}
+             className="flex items-start gap-3 p-4 rounded-xl hover:bg-white/[0.03] transition-colors border border-white/[0.06]">
+            <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center shrink-0 mt-0.5`}>
+              <Icon className={`w-4 h-4 ${color}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white">{label}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+          </a>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   return (
@@ -559,6 +589,7 @@ export default function SettingsPage() {
       <TopBar title="Settings" />
       <div className="flex-1 p-6">
         <div className="max-w-2xl space-y-5">
+          <QuickNav />
           <ProfileSection />
           <NotificationsSection />
           <SecuritySection />
