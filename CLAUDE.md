@@ -4,6 +4,9 @@
 - **Keep responses under 100 words.** Code and tool calls don't count — only prose.
 - No summaries after completing tasks. No filler phrases.
 
+## Language Rule
+- **All project content is English-only.** Every page, UI string, comment, label, and copy on the site (`site/`), dashboard (`dashboard/`), and portal (`portal/`) must be written in English. Never write Russian, Hebrew, or any other language in project files.
+
 ## Project Overview
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
