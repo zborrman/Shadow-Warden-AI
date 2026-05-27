@@ -1,0 +1,252 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import roadmap from '../../data/roadmap.json';
+
+const features = roadmap.filter(r => r.category === 'Tunnel');
+const subcats = [...new Set(features.map(r => r.subcategory))];
+function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+const shipped = features.filter(f => f.status === 'shipped').length;
+
+const subIcons: Record<string, string> = {
+  'MASQUE Tunnels': '🌐',
+  'Sovereign AI Cloud': '🏛️',
+  'Per-Tenant Routing': '🗺️',
+};
+const subDescs: Record<string, string> = {
+  'MASQUE Tunnels': 'MASQUE_H3/H2/CONNECT_TCP protocols with TOFU TLS pinning and async health probing.',
+  'Sovereign AI Cloud': '8-jurisdiction data residency with classification matrix, DPIA, and adequacy decisions.',
+  'Per-Tenant Routing': 'Per-tenant routing policy, HMAC-SHA256 attestations, and cross-border transfer rules.',
+};
+---
+
+<BaseLayout title="Tunnel & Sovereign AI Cloud — Shadow Warden AI"
+            description="MASQUE-protocol sovereign routing across 8 jurisdictions. Per-tenant data residency, cross-border transfer rules, and sovereignty attestations.">
+  <div class="pt-14">
+
+    <!-- Hero -->
+    <section class="relative py-20 overflow-hidden">
+      <div class="absolute inset-0 pointer-events-none"
+           style="background-image:linear-gradient(rgba(6,182,212,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,0.03) 1px,transparent 1px);background-size:56px 56px"></div>
+      <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[500px] pointer-events-none"
+           style="background:radial-gradient(ellipse,rgba(6,182,212,0.07) 0%,transparent 65%)"></div>
+
+      <div class="relative z-10 mx-auto max-w-5xl px-6 text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
+             style="color:#06b6d4;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2)">
+          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#06b6d4"></span>
+          Sovereign AI Cloud · {shipped} features shipped
+        </div>
+        <h1 class="text-[clamp(36px,5vw,68px)] font-black leading-[1.05] tracking-tight mb-5" style="color:#f1f5f9">
+          Your AI Traffic.<br/>
+          <span style="background:linear-gradient(135deg,#06b6d4,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+            Your Jurisdiction.
+          </span>
+        </h1>
+        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-8" style="color:#94a3b8">
+          MASQUE-protocol encrypted tunnels across 8 jurisdictions. Every AI request is routed to a
+          jurisdiction-compliant tunnel with a cryptographically signed attestation.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <a href="https://portal.shadow-warden-ai.com" target="_blank" class="btn-primary text-[14px] px-6 py-3">Activate Sovereign Routing</a>
+          <a href="/doc/quick-start" class="btn-ghost text-[14px] px-6 py-3">Read the Docs</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Jurisdiction map -->
+    <section class="py-16 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
+      <div class="mx-auto max-w-5xl px-4 lg:px-8 text-center">
+        <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-bold mb-3" style="color:#f1f5f9">
+          8 Jurisdictions · Always Compliant
+        </h2>
+        <p class="text-[14px] mb-10" style="color:#64748b">
+          Traffic is routed to the lowest-latency ACTIVE tunnel in an allowed jurisdiction for the request's data class.
+        </p>
+        <div class="grid grid-cols-4 sm:grid-cols-8 gap-3 max-w-3xl mx-auto mb-10">
+          {[
+            {code:'EU',name:'European Union',color:'#06b6d4'},
+            {code:'US',name:'United States',color:'#06b6d4'},
+            {code:'UK',name:'United Kingdom',color:'#06b6d4'},
+            {code:'CA',name:'Canada',color:'#06b6d4'},
+            {code:'SG',name:'Singapore',color:'#10b981'},
+            {code:'AU',name:'Australia',color:'#10b981'},
+            {code:'JP',name:'Japan',color:'#10b981'},
+            {code:'CH',name:'Switzerland',color:'#06b6d4'},
+          ].map(j => (
+            <div class="flex flex-col items-center gap-2">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-[13px] font-black"
+                   style={`color:${j.color};background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.15)`}>
+                {j.code}
+              </div>
+              <span class="text-[9px] font-semibold uppercase tracking-wide text-center leading-tight" style="color:#475569">{j.name}</span>
+            </div>
+          ))}
+        </div>
+
+        <!-- Transfer rules matrix -->
+        <div class="rounded-2xl overflow-x-auto" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-[12px]" style="border-collapse:collapse">
+            <thead>
+              <tr style="background:#131929;border-bottom:1px solid rgba(255,255,255,0.07)">
+                <th class="text-left px-4 py-3 font-semibold" style="color:#94a3b8">Data Class</th>
+                {['EU','US','UK','CA','SG','AU','JP','CH'].map(j => (
+                  <th class="px-3 py-3 font-bold text-center" style="color:#f1f5f9">{j}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                {cls:'GENERAL',   cells:['✓','✓','✓','✓','✓','✓','✓','✓'], color:'#10b981'},
+                {cls:'PII',       cells:['✓','✓','✓','✓','~','~','~','✓'], color:'#f59e0b'},
+                {cls:'FINANCIAL', cells:['✓','✓','✓','✓','~','~','~','✓'], color:'#f59e0b'},
+                {cls:'PHI',       cells:['✓','✓','✓','✓','✗','✗','✗','✓'], color:'#ef4444'},
+                {cls:'CLASSIFIED',cells:['✗','✗','✗','✗','✗','✗','✗','✗'], color:'#ef4444'},
+              ].map((row, i) => (
+                <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'#0a0a0f':'#111118'}`}>
+                  <td class="px-4 py-3 font-mono font-bold text-[11px]" style={`color:${row.color}`}>{row.cls}</td>
+                  {row.cells.map(v => (
+                    <td class="px-3 py-3 text-center font-bold"
+                        style={`color:${v==='✓'?'#10b981':v==='~'?'#f59e0b':'#334155'}`}>{v}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div class="px-4 py-2 text-[11px] flex gap-4" style="background:#0a0a0f;color:#475569">
+            <span><span style="color:#10b981">✓</span> Allowed</span>
+            <span><span style="color:#f59e0b">~</span> Adequacy check required</span>
+            <span><span style="color:#334155">✗</span> Blocked</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Subcategory cards -->
+    <section class="py-20">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8">
+        <div class="grid md:grid-cols-3 gap-6 mb-16">
+          {subcats.map(sub => {
+            const count = features.filter(f => f.subcategory === sub).length;
+            return (
+              <a href={`/tunnel/${slugify(sub)}`}
+                 class="group block rounded-2xl p-6 transition-all duration-200"
+                 style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+                 onmouseover="this.style.borderColor='rgba(6,182,212,0.35)';this.style.transform='translateY(-2px)'"
+                 onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+                <div class="text-[28px] mb-3">{subIcons[sub] ?? '🔗'}</div>
+                <div class="text-[16px] font-bold mb-2" style="color:#f1f5f9">{sub}</div>
+                <p class="text-[13px] leading-relaxed mb-4" style="color:#64748b">{subDescs[sub] ?? ''}</p>
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                        style="color:#06b6d4;background:rgba(6,182,212,0.1)">{count} features</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"
+                       class="group-hover:translate-x-1 transition-transform">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+
+        <!-- Feature grid -->
+        <div class="text-center mb-10">
+          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">All Tunnel Features</h2>
+          <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">Enterprise-only sovereign routing layer.</p>
+        </div>
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {features.map(f => (
+            <div class="rounded-xl p-5 transition-all duration-200"
+                 style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[10px] font-bold font-mono px-2 py-0.5 rounded"
+                      style="color:#06b6d4;background:rgba(6,182,212,0.1)">{f.id}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded"
+                      style={`color:${f.status==='shipped'?'#10b981':'#f59e0b'};background:${f.status==='shipped'?'rgba(16,185,129,0.1)':'rgba(245,158,11,0.1)'}`}>
+                  {f.status === 'shipped' ? '✓ Shipped' : f.status}
+                </span>
+              </div>
+              <div class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">{f.feature}</div>
+              <div class="text-[11px] mb-2" style="color:#475569">{f.subcategory} · {f.version}</div>
+              <p class="text-[12px] leading-relaxed" style="color:#64748b">{f.description}</p>
+              <div class="mt-3">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded"
+                      style="color:#8b5cf6;background:rgba(139,92,246,0.1)">{f.tier}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Attestation explainer -->
+    <section class="py-20 border-t" style="border-color:rgba(255,255,255,0.06)">
+      <div class="mx-auto max-w-5xl px-4 lg:px-8">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-[11px] font-semibold"
+                 style="color:#06b6d4;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2)">
+              🔏 Sovereignty Attestation
+            </div>
+            <h2 class="text-[clamp(1.4rem,2.8vw,2.1rem)] font-bold mb-4 leading-tight" style="color:#f1f5f9">
+              Every routing decision<br/>gets a signed receipt
+            </h2>
+            <p class="text-[14px] leading-relaxed mb-6" style="color:#64748b">
+              Each request routed through a sovereign tunnel generates an HMAC-SHA256 signed attestation
+              stored in Redis with a 7-year TTL. Auditors can verify any historical routing decision.
+            </p>
+            <div class="space-y-3">
+              {[
+                ['Signature', 'HMAC-SHA256 over attest_id|request_id|tenant_id|jurisdiction'],
+                ['Storage', 'Redis 7yr TTL · 10,000 cap per tenant'],
+                ['Verification', 'GET /sovereign/attest/{id}/verify — re-derives signature'],
+                ['Key', 'SOVEREIGN_ATTEST_KEY → fallback VAULT_MASTER_KEY'],
+              ].map(([k, v]) => (
+                <div class="flex gap-3">
+                  <span class="text-[11px] font-bold mt-0.5 px-2 py-0.5 rounded h-fit shrink-0"
+                        style="color:#06b6d4;background:rgba(6,182,212,0.08)">{k}</span>
+                  <span class="text-[13px]" style="color:#64748b">{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div class="rounded-2xl p-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+            <div class="text-[11px] font-bold mb-4 tracking-widest uppercase" style="color:#475569">
+              Attestation object
+            </div>
+            <pre class="text-[11px] font-mono leading-relaxed overflow-auto" style="color:#94a3b8">{`{
+  "attest_id": "att_0Xk4aB7mN2p",
+  "request_id": "req_8f3a2c1d",
+  "tenant_id":  "acme-corp",
+  "jurisdiction": "EU",
+  "tunnel_id":  "tun_eu_h3_01",
+  "data_class": "PHI",
+  "compliant":  true,
+  "issued_at":  "2026-05-27T14:32:01Z",
+  "signature":  "sha256:a3f9b2..."
+}`}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="py-20 text-center">
+      <div class="mx-auto max-w-2xl px-4">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 text-[28px]"
+             style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2)">🌐</div>
+        <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-4" style="color:#f1f5f9">
+          Sovereign AI Cloud is Enterprise-only
+        </h2>
+        <p class="text-[15px] mb-8" style="color:#64748b">
+          Enterprise plan at $249/month. Includes PQC, Sovereign AI Cloud, MasterAgent, and unlimited requests.
+        </p>
+        <div class="flex flex-wrap gap-3 justify-center">
+          <a href="/price" class="btn-primary text-[15px] px-8 py-3.5">View Enterprise Pricing</a>
+          <a href="/doc/quick-start" class="btn-ghost text-[15px] px-8 py-3.5">Read the Docs</a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</BaseLayout>

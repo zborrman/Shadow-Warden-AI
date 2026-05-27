@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ConsoleSection from '../components/ConsoleSection.astro';
-import AccessibilityWidget from '../components/AccessibilityWidget.astro';
 import roadmap from '../data/roadmap.json';
 
 const shipped = roadmap.filter(r => r.status === 'shipped').length;
@@ -28,6 +27,16 @@ const catCards = [
     desc: '9-stage causal defense pipeline. Every AI request is topologically analyzed, obfuscated decoded, and ML-scored in <2ms.',
     count: featCount('Cyber Security'),
     pills: ['SOVA Agent', 'MasterAgent', 'PQC', 'XAI Reports'],
+  },
+  {
+    label: 'Tunnel',
+    href: '/tunnel',
+    color: '#06b6d4',
+    tint: 'rgba(6,182,212,.1)',
+    icon: '🌐',
+    desc: 'MASQUE-protocol encrypted tunnels across 8 jurisdictions. Per-tenant data residency, cross-border transfer rules, and sovereignty attestations.',
+    count: featCount('Tunnel'),
+    pills: ['MASQUE H3/H2', 'Sovereign AI Cloud', 'Per-Tenant Routing', 'Attestations'],
   },
   {
     label: 'Dashboard',
@@ -253,7 +262,5 @@ const catCards = [
     </div>
   </section>
 
-  <!-- ── Accessibility Widget (homepage only · WCAG 2.1 AA · Section 508 · ADA · EN 301 549) ── -->
-  <AccessibilityWidget />
 </BaseLayout>
 

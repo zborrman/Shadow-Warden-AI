@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import roadmap from '../data/roadmap.json';
+import AccessibilityWidget from '../components/AccessibilityWidget.astro';
 
 interface Props {
   title?: string;
@@ -26,6 +27,12 @@ const categories = [
     href: '/cyber-security',
     color: '#ef4444',
     sub: [...new Set(roadmap.filter(r => r.category === 'Cyber Security').map(r => r.subcategory))],
+  },
+  {
+    label: 'Tunnel',
+    href: '/tunnel',
+    color: '#06b6d4',
+    sub: [...new Set(roadmap.filter(r => r.category === 'Tunnel').map(r => r.subcategory))],
   },
   {
     label: 'Dashboard',
@@ -88,9 +95,10 @@ function slugify(s: string) {
     <div class="mx-auto max-w-7xl px-4 lg:px-8 h-14 flex items-center gap-6">
 
       <!-- Logo -->
-      <a href="/" class="flex items-center shrink-0">
+      <a href="/" class="flex items-center gap-2.5 shrink-0">
         <img src="/logo.png" alt="Shadow Warden AI"
-             style="height:44px;width:auto;border-radius:8px;display:block" />
+             style="height:38px;width:auto;display:block" />
+        <span class="hidden md:block text-[13px] font-black tracking-tight leading-none" style="color:#f1f5f9;letter-spacing:-0.3px">Shadow-<span style="color:#6366f1">Warden</span>-AI</span>
       </a>
 
       <!-- Desktop nav -->
@@ -130,11 +138,15 @@ function slugify(s: string) {
 
       <!-- Right actions -->
       <div class="ml-auto flex items-center gap-2">
+
+        <!-- Live badge -->
         <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
              style="color:#10b981;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2)">
           <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#10b981"></span>
           Live
         </div>
+
+        <!-- GitHub -->
         <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener"
            class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
            style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)"
@@ -145,25 +157,64 @@ function slugify(s: string) {
           </svg>
           GitHub
         </a>
-        <a href="https://portal.shadow-warden-ai.com/login"
+
+        <!-- Settings icon -->
+        <a href="/settings" aria-label="Settings"
+           class="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
+           style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)"
+           onmouseover="this.style.borderColor='rgba(48,209,88,0.4)';this.style.color='#30D158';this.style.background='rgba(48,209,88,0.08)'"
+           onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </a>
+
+        <!-- Accessibility icon -->
+        <button id="a11y-nav-btn" type="button" aria-label="Accessibility settings"
+                class="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
+                style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);background:transparent;cursor:pointer"
+                onmouseover="this.style.borderColor='rgba(99,102,241,0.4)';this.style.color='#818cf8';this.style.background='rgba(99,102,241,0.08)'"
+                onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
+          <svg width="15" height="15" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+            <circle cx="16" cy="5.5" r="3.2"/>
+            <line x1="16" y1="9.5" x2="16" y2="19" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+            <line x1="7" y1="13" x2="25" y2="13" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+            <line x1="16" y1="19" x2="10" y2="27" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+            <line x1="16" y1="19" x2="22" y2="27" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <!-- Sign In (shown when logged out) -->
+        <a id="nav-signin" href="https://portal.shadow-warden-ai.com/login"
            class="hidden sm:block px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
            style="color:#94a3b8"
            onmouseover="this.style.color='#f1f5f9'"
            onmouseout="this.style.color='#94a3b8'">
           Sign In
         </a>
+
+        <!-- Sign Out (shown when logged in, hidden by default) -->
+        <button id="nav-signout" type="button"
+                class="hidden px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+                style="color:#ef4444;background:transparent;border:none;cursor:pointer"
+                onmouseover="this.style.color='#f87171'"
+                onmouseout="this.style.color='#ef4444'">
+          Sign Out
+        </button>
+
+        <!-- Get Started -->
         <a href="https://portal.shadow-warden-ai.com"
            class="btn-primary text-[12px] px-4 py-1.5">
           Get Started
         </a>
+
         <!-- Mobile hamburger / close -->
         <button id="mobile-btn" class="lg:hidden p-2 rounded-lg transition-colors" aria-label="Toggle menu"
                 style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
-          <!-- hamburger icon -->
           <svg id="icon-menu" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/>
           </svg>
-          <!-- close icon (hidden by default) -->
           <svg id="icon-close" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
           </svg>
@@ -192,16 +243,30 @@ function slugify(s: string) {
           ))}
         </div>
       ))}
-      <div class="pt-4 border-t mt-4" style="border-color:rgba(255,255,255,0.06)">
+      <div class="pt-4 border-t mt-4 space-y-2" style="border-color:rgba(255,255,255,0.06)">
         <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank"
            class="block px-4 py-3 rounded-xl text-[13px] font-medium" style="color:#94a3b8">
           ⭐ Star on GitHub
         </a>
-        <a href="https://portal.shadow-warden-ai.com/login"
-           class="block mt-2 px-4 py-3 rounded-xl text-[13px] font-medium text-center"
+        <a href="/settings"
+           class="flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-medium"
+           style="color:#94a3b8">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Settings
+        </a>
+        <a id="mobile-signin" href="https://portal.shadow-warden-ai.com/login"
+           class="block px-4 py-3 rounded-xl text-[13px] font-medium text-center"
            style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
           Sign In
         </a>
+        <button id="mobile-signout" type="button"
+                class="hidden w-full px-4 py-3 rounded-xl text-[13px] font-medium text-center"
+                style="color:#ef4444;border:1px solid rgba(239,68,68,0.25);background:transparent;cursor:pointer">
+          Sign Out
+        </button>
         <a href="https://portal.shadow-warden-ai.com"
            class="block mt-2 px-4 py-3 rounded-xl text-[13px] font-semibold text-center text-white"
            style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
@@ -287,6 +352,7 @@ function slugify(s: string) {
   </footer>
 
   <script>
+    // ── Mobile menu ──
     const btn       = document.getElementById('mobile-btn')!;
     const menu      = document.getElementById('mobile-menu')!;
     const iconMenu  = document.getElementById('icon-menu')!;
@@ -314,6 +380,57 @@ function slugify(s: string) {
     btn.addEventListener('click', () => menu.classList.contains('hidden') ? openMenu() : closeMenu());
     document.querySelectorAll('#mobile-menu a').forEach(a => a.addEventListener('click', closeMenu));
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+    // ── Accessibility nav button → forward click to the fixed widget trigger ──
+    document.getElementById('a11y-nav-btn')?.addEventListener('click', () => {
+      document.getElementById('a11y-trigger')?.click();
+    });
+
+    // ── Sign In / Sign Out toggle (localStorage-based) ──
+    (function() {
+      const AUTH_KEY = 'sw_signed_in';
+      const signin     = document.getElementById('nav-signin')     as HTMLAnchorElement | null;
+      const signout    = document.getElementById('nav-signout')    as HTMLButtonElement | null;
+      const mSignin    = document.getElementById('mobile-signin')  as HTMLAnchorElement | null;
+      const mSignout   = document.getElementById('mobile-signout') as HTMLButtonElement | null;
+
+      function setAuth(state: boolean) {
+        if (state) {
+          localStorage.setItem(AUTH_KEY, '1');
+          signin?.style  && (signin.style.display  = 'none');
+          signout?.style && (signout.style.display = 'block');
+          mSignin?.style  && (mSignin.style.display  = 'none');
+          mSignout?.style && (mSignout.style.display = 'block');
+        } else {
+          localStorage.removeItem(AUTH_KEY);
+          signin?.style  && (signin.style.display  = 'block');
+          signout?.style && (signout.style.display = 'none');
+          mSignin?.style  && (mSignin.style.display  = 'block');
+          mSignout?.style && (mSignout.style.display = 'none');
+        }
+      }
+
+      // Restore saved state
+      setAuth(localStorage.getItem(AUTH_KEY) === '1');
+
+      // Clicking Sign In stores auth state before navigating to portal
+      signin?.addEventListener('click', () => { localStorage.setItem(AUTH_KEY, '1'); });
+      mSignin?.addEventListener('click', () => { localStorage.setItem(AUTH_KEY, '1'); });
+
+      // Sign Out clears state
+      signout?.addEventListener('click', () => {
+        setAuth(false);
+        window.location.href = 'https://portal.shadow-warden-ai.com/logout';
+      });
+      mSignout?.addEventListener('click', () => {
+        setAuth(false);
+        closeMenu();
+        window.location.href = 'https://portal.shadow-warden-ai.com/logout';
+      });
+    })();
   </script>
+
+  <!-- Accessibility widget — fixed bottom-right, on every page -->
+  <AccessibilityWidget />
 </body>
 </html>
