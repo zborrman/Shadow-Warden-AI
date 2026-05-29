@@ -142,7 +142,8 @@ async def query_intent(
         system=system,
         messages=[{"role": "user", "content": user}],
     )
-    raw = msg.content[0].text.strip()
+    block = msg.content[0]
+    raw = (block.text if hasattr(block, "text") else "").strip()
 
     import json
     import re as _re

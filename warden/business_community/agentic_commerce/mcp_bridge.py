@@ -117,7 +117,7 @@ class MCPBridge:
         workflow_id = f"mcp-approval-{_uuid.uuid4().hex[:12]}"
 
         try:
-            from warden.alerting import send_slack_alert
+            from warden.alerting import send_alert as send_slack_alert
             msg = (
                 f"*MCP Commerce Approval Required*\n"
                 f"Tenant: `{tenant_id}`\n"
@@ -126,7 +126,7 @@ class MCPBridge:
                 f"Workflow: `{workflow_id}`\n"
                 f"Approve: `POST /business-community/commerce/approve/{workflow_id}`"
             )
-            await send_slack_alert(msg)
+            send_slack_alert(msg)
         except Exception as exc:
             log.warning("MCP approval Slack alert failed: %s", exc)
 

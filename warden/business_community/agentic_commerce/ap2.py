@@ -30,9 +30,8 @@ from warden.business_community.agentic_commerce.models import Mandate, Receipt
 log = logging.getLogger("warden.commerce.ap2")
 
 _DB_PATH  = os.getenv("COMMERCE_DB_PATH", "/tmp/warden_commerce.db")
-_FERNET   = Fernet(os.getenv("VAULT_MASTER_KEY", Fernet.generate_key()).encode()
-                   if len(os.getenv("VAULT_MASTER_KEY", "")) > 0
-                   else Fernet.generate_key())
+_vault_key = os.getenv("VAULT_MASTER_KEY", "")
+_FERNET   = Fernet(_vault_key.encode() if _vault_key else Fernet.generate_key())
 _HMAC_KEY = os.getenv("VAULT_MASTER_KEY", "insecure-default").encode()
 _db_lock  = threading.RLock()
 

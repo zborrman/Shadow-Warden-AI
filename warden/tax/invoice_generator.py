@@ -131,7 +131,10 @@ class InvoiceGenerator:
         try:
             from warden.storage.s3 import get_storage
             storage = get_storage()
-            storage.put_object(key, data, content_type="application/pdf")
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(
+                storage.put_object_async("warden-invoices", key, data)
+            )
             return f"/invoices/{key}"
         except Exception as exc:
             log.debug("Invoice S3 store skipped: %s", exc)

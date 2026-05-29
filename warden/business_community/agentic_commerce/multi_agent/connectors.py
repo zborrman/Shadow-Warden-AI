@@ -57,7 +57,8 @@ async def claude_proposal(request: str) -> AgentProposal | None:
             max_tokens=256,
             messages=[{"role": "user", "content": _PROPOSAL_PROMPT.format(request=request)}],
         )
-        data = _json.loads(msg.content[0].text)
+        block = msg.content[0]
+        data = _json.loads(block.text if hasattr(block, "text") else "{}")
         return AgentProposal("claude", data)
     except Exception as exc:
         log.debug("Claude proposal failed: %s", exc)

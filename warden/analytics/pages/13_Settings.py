@@ -206,7 +206,8 @@ with tabs[2]:
     st.header("Agent Config")
 
     cfg = _get("/settings/agents")
-    if isinstance(cfg, dict) and "error" in cfg:
+    cfg = cfg if isinstance(cfg, dict) else {}
+    if "error" in cfg:
         st.error(f"API error: {cfg['error']}")
     else:
         with st.form("agent_config_form"):

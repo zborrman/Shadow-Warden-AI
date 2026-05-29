@@ -79,7 +79,10 @@ class MultiAgentOrchestrator:
             gpt_proposal(purchase_request),
             return_exceptions=True,
         )
-        proposals = [p for p in results if p and not isinstance(p, Exception)]
+        from warden.business_community.agentic_commerce.multi_agent.connectors import AgentProposal
+        proposals: list[AgentProposal] = [
+            p for p in results if isinstance(p, AgentProposal)
+        ]
 
         # Apply budget filter
         if budget_usd is not None:

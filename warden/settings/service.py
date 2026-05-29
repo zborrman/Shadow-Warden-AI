@@ -98,7 +98,7 @@ class SettingsService:
 
     def get_agents(self, tenant_id: str) -> AgentSettings:
         raw = _get(tenant_id, "agents")
-        if raw:
+        if isinstance(raw, dict):
             return AgentSettings(**raw)
         return AgentSettings()
 
@@ -158,7 +158,7 @@ class SettingsService:
 
     def get_commerce(self, tenant_id: str) -> CommerceSettings:
         raw = _get(tenant_id, "commerce")
-        if raw:
+        if isinstance(raw, dict):
             return CommerceSettings(**raw)
         return CommerceSettings()
 
@@ -172,7 +172,7 @@ class SettingsService:
 
     def get_semantic(self, tenant_id: str) -> SemanticSettings:
         raw = _get(tenant_id, "semantic")
-        if raw:
+        if isinstance(raw, dict):
             return SemanticSettings(**raw)
         return SemanticSettings()
 
@@ -188,3 +188,157 @@ _svc = SettingsService()
 
 def get_service() -> SettingsService:
     return _svc
+
+
+# ── Module-level shims used by warden/api/settings.py ────────────────────────
+
+def get_settings_summary(tenant_id: str) -> dict[str, Any]:
+    all_s = _svc.get_all(tenant_id)
+    return {
+        "tenant_id": tenant_id,
+        "api_key_count": 0,
+        "secret_count": 0,
+        "channel_count": len(all_s.notifications),
+        "agents": all_s.agents.model_dump(),
+    }
+
+
+def get_api_keys(tenant_id: str) -> list[dict[str, Any]]:
+    raw = _get(tenant_id, "api_keys")
+    return raw if isinstance(raw, list) else []
+
+
+def create_api_key(tenant_id: str, label: str) -> dict[str, Any]:
+    import hashlib
+    import secrets as _secrets
+    import uuid
+    from datetime import UTC, datetime
+    raw_key = f"sw_{_secrets.token_urlsafe(32)}"
+    record: dict[str, Any] = {
+        "id": str(uuid.uuid4()),
+        "label": label,
+        "prefix": raw_key[:10],
+        "key_hash": hashlib.sha256(raw_key.encode()).hexdigest(),
+        "active": True,
+        "created_at": datetime.now(UTC).isoformat(),
+        "last_used_at": None,
+        "request_count": 0,
+    }
+    keys = get_api_keys(tenant_id)
+    keys.append(record)
+    _set(tenant_id, "api_keys", keys)
+    return {**record, "key": raw_key}
+
+
+def revoke_api_key(tenant_id: str, key_id: str) -> bool:
+    keys = get_api_keys(tenant_id)
+    for k in keys:
+        if k.get("id") == key_id:
+            k["active"] = False
+            _set(tenant_id, "api_keys", keys)
+            return True
+    return False
+
+
+def get_secrets(tenant_id: str) -> list[dict[str, Any]]:
+    raw = _get(tenant_id, "secrets")
+    if not isinstance(raw, list):
+        return []
+    return [{k: v for k, v in s.items() if k != "value"} for s in raw]
+
+
+def create_secret(
+    tenant_id: str,
+    name: str,
+    value: str,
+    description: str = "",
+    expires_at: str | None = None,
+) -> dict[str, Any]:
+    import uuid
+    from datetime import UTC, datetime
+    record: dict[str, Any] = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "description": description,
+        "value": value,
+        "created_at": datetime.now(UTC).isoformat(),
+        "expires_at": expires_at,
+        "active": True,
+    }
+    raw = _get(tenant_id, "secrets")
+    secrets_list: list[dict[str, Any]] = raw if isinstance(raw, list) else []
+    secrets_list.append(record)
+    _set(tenant_id, "secrets", secrets_list)
+    return {k: v for k, v in record.items() if k != "value"}
+
+
+def update_secret(
+    tenant_id: str,
+    secret_id: str,
+    value: str | None,
+    description: str | None = None,
+    expires_at: str | None = None,
+) -> dict[str, Any] | None:
+    raw = _get(tenant_id, "secrets")
+    secrets_list: list[dict[str, Any]] = raw if isinstance(raw, list) else []
+    for s in secrets_list:
+        if s.get("id") == secret_id:
+            if value is not None:
+                s["value"] = value
+            if description is not None:
+                s["description"] = description
+            if expires_at is not None:
+                s["expires_at"] = expires_at
+            _set(tenant_id, "secrets", secrets_list)
+            return {k: v for k, v in s.items() if k != "value"}
+    return None
+
+
+def delete_secret(tenant_id: str, secret_id: str) -> bool:
+    raw = _get(tenant_id, "secrets")
+    secrets_list: list[dict[str, Any]] = raw if isinstance(raw, list) else []
+    new_list = [s for s in secrets_list if s.get("id") != secret_id]
+    if len(new_list) == len(secrets_list):
+        return False
+    _set(tenant_id, "secrets", new_list)
+    return True
+
+
+def get_agent_config(tenant_id: str) -> dict[str, Any]:
+    return _svc.get_agents(tenant_id).model_dump()
+
+
+def update_agent_config(tenant_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    from warden.settings.models import AgentSettingsPatch
+    patch = AgentSettingsPatch(**{k: v for k, v in data.items() if v is not None})
+    return _svc.update_agents(tenant_id, patch).model_dump()
+
+
+def get_notification_channels(tenant_id: str) -> list[dict[str, Any]]:
+    return [c.model_dump() for c in _svc.list_notifications(tenant_id)]
+
+
+def add_notification_channel(
+    tenant_id: str, channel_type: str, label: str, config: dict[str, Any]
+) -> dict[str, Any]:
+    from warden.settings.models import NotificationChannel
+    ch = NotificationChannel(
+        kind=channel_type if channel_type in ("slack", "teams", "email", "webhook") else "webhook",
+        label=label,
+        url=config.get("url"),
+        email=config.get("email"),
+    )
+    return _svc.add_notification(tenant_id, ch).model_dump()
+
+
+def test_notification_channel(tenant_id: str, channel_id: str) -> dict[str, Any]:
+    try:
+        return _svc.test_notification(tenant_id, channel_id)
+    except KeyError:
+        return {"ok": False, "error": "Channel not found"}
+
+
+def delete_notification_channel(tenant_id: str, channel_id: str) -> bool:
+    channels_before = _svc.list_notifications(tenant_id)
+    _svc.delete_notification(tenant_id, channel_id)
+    return len(_svc.list_notifications(tenant_id)) < len(channels_before)

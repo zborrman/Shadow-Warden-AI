@@ -5,6 +5,7 @@ Pydantic models for each Settings section.
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -100,3 +101,70 @@ class AllSettings(BaseModel):
     commerce: CommerceSettings = Field(default_factory=CommerceSettings)
     semantic: SemanticSettings = Field(default_factory=SemanticSettings)
     meta: dict[str, Any] = Field(default_factory=dict)
+
+
+# ── API-router–compatible aliases & models ────────────────────────────────────
+# warden/api/settings.py imports these names; keep them in sync with above.
+
+AgentConfig = AgentSettings  # alias used by /api/settings.py
+
+
+class ApiKeyCreate(BaseModel):
+    label: str = Field(..., max_length=80)
+
+
+class ApiKeyOut(BaseModel):
+    id: str
+    label: str
+    prefix: str
+    active: bool
+    created_at: str
+    last_used_at: str | None = None
+    request_count: int = 0
+
+
+class ApiKeyCreated(ApiKeyOut):
+    key: str  # full key, returned once
+
+
+class SecretCreate(BaseModel):
+    name: str = Field(..., max_length=120)
+    value: str
+    description: str = ""
+    expires_at: datetime | None = None
+
+
+class SecretOut(BaseModel):
+    id: str
+    name: str
+    description: str = ""
+    created_at: str
+    expires_at: str | None = None
+    active: bool = True
+
+
+class SecretUpdate(BaseModel):
+    value: str | None = None
+    description: str | None = None
+    expires_at: datetime | None = None
+
+
+class ChannelCreate(BaseModel):
+    type: str = Field(..., pattern="^(slack|teams|email|webhook|pagerduty)$")
+    label: str = Field(..., max_length=80)
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class SettingsSummary(BaseModel):
+    tenant_id: str
+    api_key_count: int = 0
+    secret_count: int = 0
+    channel_count: int = 0
+    agents: AgentSettings = Field(default_factory=AgentSettings)
+
+
+class TestResult(BaseModel):
+    ok: bool
+    status: int | str = "ok"
+    note: str = ""
+    error: str = ""

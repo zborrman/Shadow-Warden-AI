@@ -81,7 +81,7 @@ class AgenticCommerceService:
             for vendor in vendors:
                 if domain and (domain in (vendor.website or "") or vendor.website in store_url):
                     if vendor.status == "ACTIVE":
-                        return {"allowed": True, "vendor_id": vendor.id}
+                        return {"allowed": True, "vendor_id": vendor.vendor_id}
                     return {"allowed": False, "reason": f"vendor_status_{vendor.status.lower()}"}
             # Not registered → auto-register with MEDIUM risk for discovery
             log.warning("Merchant %s not in vendor registry for tenant %s", domain, tenant_id)
@@ -95,7 +95,7 @@ class AgenticCommerceService:
     def _check_budget(self, tenant_id: str, amount: float, currency: str) -> dict[str, Any]:
         """Check AI budget cap before authorizing payment."""
         try:
-            from warden.financial.budget import get_budget_status
+            from warden.financial.budget import get_budget_status  # type: ignore[attr-defined]
             status = get_budget_status(tenant_id)
             remaining = status.get("remaining_usd", float("inf"))
             if amount > remaining:
@@ -108,7 +108,7 @@ class AgenticCommerceService:
 
     def _record_spend(self, tenant_id: str, amount: float, merchant: str, order_id: str) -> None:
         try:
-            from warden.financial.cost_allocation import record_spend
+            from warden.financial.cost_allocation import record_spend  # type: ignore[attr-defined]
             record_spend(
                 tenant_id=tenant_id,
                 department="AI_Procurement",
@@ -125,19 +125,16 @@ class AgenticCommerceService:
     def _append_audit(self, tenant_id: str, order: PurchaseOrder) -> str:
         try:
             from warden.communities.stix_audit import append_transfer
-            chain_id = append_transfer(
-                community_id=tenant_id,
-                entity_id=order.ueciid or order.id,
-                source_community=tenant_id,
-                target_community=order.store_url,
-                proof_dict={
-                    "order_id": order.id,
-                    "mandate_id": order.mandate_id,
-                    "total": order.total,
-                    "status": order.status,
-                },
+            entry = append_transfer(
+                transfer_id=order.id,
+                source_community_id=tenant_id,
+                target_community_id=order.store_url,
+                entity_ueciid=order.ueciid or order.id,
+                initiator_mid=tenant_id,
+                purpose="agentic_procurement",
+                ctp_hmac_signature="",
             )
-            return chain_id or ""
+            return str(getattr(entry, "transfer_id", order.id))
         except Exception as exc:
             log.debug("STIX audit append skipped: %s", exc)
             return ""
@@ -146,8 +143,9 @@ class AgenticCommerceService:
 
     def _assign_ueciid(self) -> str:
         try:
-            from warden.communities.sep import generate_ueciid
-            return generate_ueciid()
+            from warden.communities.sep import new_ueciid
+            _snowflake, ueciid = new_ueciid()
+            return ueciid
         except Exception:
             return f"ORD-{uuid.uuid4().hex[:11].upper()}"
 

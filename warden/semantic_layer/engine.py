@@ -82,7 +82,7 @@ for _raw in [
         ],
     },
 ]:
-    m = SemanticModel(**_raw)
+    m = SemanticModel(**_raw)  # type: ignore[arg-type]
     _BUILTIN_MODELS[m.id] = m
 
 
@@ -140,13 +140,13 @@ class SemanticEngine:
     def _resolve_metric(self, model: SemanticModel, name: str) -> str:
         for m in model.metrics:
             if m.name == name:
-                return m.expression
+                return m.effective_expression()
         raise KeyError(f"Unknown metric {name!r} in model {model.id!r}")
 
     def _resolve_dimension(self, model: SemanticModel, name: str) -> str:
         for d in model.dimensions:
             if d.name == name:
-                return d.column
+                return d.effective_column()
         raise KeyError(f"Unknown dimension {name!r} in model {model.id!r}")
 
     def _build_filter_sql(
