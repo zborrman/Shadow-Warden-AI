@@ -155,6 +155,13 @@ Pillow>=10.0.0
 # Uses int8 quantization for 2-4x faster CPU inference vs openai/whisper.
 faster-whisper>=1.0.0
 
+# ── Web3 / Agentic Commerce (optional — required for on-chain mandates) ───────
+# web3 — Ethereum JSON-RPC client for MandateContract (Sepolia/Polygon).
+# py-solc-x — Solidity compiler wrapper (used by deploy_sepolia.py only).
+# Falls back to eth_tester simulation when WEB3_RPC_URL is not set.
+web3>=7.0.0
+ipfshttpclient>=0.8.0a2
+
 # soundfile — audio decoding fallback (WAV/FLAC/OGG) for AudioGuard.
 # librosa is preferred but adds heavier scipy dependency; soundfile is lighter.
 soundfile>=0.12.0

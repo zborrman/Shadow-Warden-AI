@@ -91,3 +91,4 @@ shadow_warden_ai.egg-info/
 ssl/
 
 .vercel
+.env.sepolia
