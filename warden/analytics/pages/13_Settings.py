@@ -7,6 +7,7 @@ Streamlit Settings dashboard — 4 tabs:
 from __future__ import annotations
 
 import os
+from datetime import UTC
 
 import requests
 import streamlit as st
@@ -82,7 +83,7 @@ with tabs[0]:
                 if submitted and label.strip():
                     result = _post("/settings/api-keys", {"label": label.strip()})
                     if "key" in result:
-                        st.success(f"Created! Key (copy now — shown once):")
+                        st.success("Created! Key (copy now — shown once):")
                         st.code(result["key"], language=None)
                         st.session_state["show_create_key"] = False
                         st.rerun()
@@ -105,13 +106,12 @@ with tabs[0]:
             revoke_id = st.selectbox("Revoke key →", ["— select —"] + [k["id"] for k in active],
                                      format_func=lambda x: x if x == "— select —" else
                                      next((k["label"] for k in active if k["id"] == x), x))
-            if revoke_id != "— select —":
-                if st.button(f"Revoke selected key", type="primary"):
-                    if _delete(f"/settings/api-keys/{revoke_id}"):
-                        st.success("Key revoked.")
-                        st.rerun()
-                    else:
-                        st.error("Revoke failed.")
+            if revoke_id != "— select —" and st.button("Revoke selected key", type="primary"):
+                if _delete(f"/settings/api-keys/{revoke_id}"):
+                    st.success("Key revoked.")
+                    st.rerun()
+                else:
+                    st.error("Revoke failed.")
 
         if revoked:
             with st.expander(f"Revoked keys ({len(revoked)})"):
@@ -130,14 +130,14 @@ with tabs[1]:
     if isinstance(secrets, dict) and "error" in secrets:
         st.error(f"API error: {secrets['error']}")
     else:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         def _status(s: dict) -> str:
             exp = s.get("expires_at")
             if not exp:
                 return "✅ Active"
-            dt = datetime.fromisoformat(exp.rstrip("Z")).replace(tzinfo=timezone.utc)
-            diff = (dt - datetime.now(timezone.utc)).days
+            dt = datetime.fromisoformat(exp.rstrip("Z")).replace(tzinfo=UTC)
+            diff = (dt - datetime.now(UTC)).days
             if diff < 0:
                 return "🔴 Expired"
             if diff < 30:
@@ -192,13 +192,12 @@ with tabs[1]:
             del_id = st.selectbox("Delete secret →", ["— select —"] + [s["id"] for s in secrets],
                                   format_func=lambda x: x if x == "— select —" else
                                   next((s["name"] for s in secrets if s["id"] == x), x))
-            if del_id != "— select —":
-                if st.button("Delete selected secret", type="primary"):
-                    if _delete(f"/settings/secrets/{del_id}"):
-                        st.success("Secret deleted.")
-                        st.rerun()
-                    else:
-                        st.error("Delete failed.")
+            if del_id != "— select —" and st.button("Delete selected secret", type="primary"):
+                if _delete(f"/settings/secrets/{del_id}"):
+                    st.success("Secret deleted.")
+                    st.rerun()
+                else:
+                    st.error("Delete failed.")
         else:
             st.info("No secrets yet.")
 
@@ -350,8 +349,7 @@ with tabs[3]:
                     else:
                         st.error(res.get("message", "Test failed"))
             with col_del:
-                if st.button("🗑", key=f"del_{ch['id']}"):
-                    if _delete(f"/settings/notifications/channels/{ch['id']}"):
-                        st.rerun()
+                if st.button("🗑", key=f"del_{ch['id']}") and _delete(f"/settings/notifications/channels/{ch['id']}"):
+                    st.rerun()
     else:
         st.info("No channels yet. Add Slack, Teams, PagerDuty, or any webhook.")

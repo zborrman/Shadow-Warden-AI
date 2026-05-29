@@ -90,7 +90,9 @@ class FIDOProvider:
         try:
             from webauthn import generate_registration_options as _gen  # type: ignore
             from webauthn.helpers.structs import (
-                AuthenticatorSelectionCriteria, ResidentKeyRequirement, UserVerificationRequirement,
+                AuthenticatorSelectionCriteria,
+                ResidentKeyRequirement,
+                UserVerificationRequirement,
             )
             opts = _gen(
                 rp_id=_RP_ID,

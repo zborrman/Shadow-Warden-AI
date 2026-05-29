@@ -74,6 +74,7 @@ class AgenticCommerceService:
         """
         try:
             from urllib.parse import urlparse
+
             from warden.vendor_gov.registry import list_vendors
             domain = urlparse(store_url if "://" in store_url else f"https://{store_url}").netloc
             vendors = list_vendors(tenant_id)

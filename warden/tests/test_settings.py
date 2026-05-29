@@ -27,7 +27,9 @@ HEADERS = {"X-Tenant-ID": TENANT}
 
 def test_settings_models_import():
     from warden.settings.models import (
-        AgentSettings, CommerceSettings, NotificationChannel, SemanticSettings,
+        AgentSettings,
+        CommerceSettings,
+        SemanticSettings,
     )
     assert AgentSettings().sova_enabled is True
     assert CommerceSettings().enabled is False
@@ -43,8 +45,8 @@ def test_settings_service_import():
 # ── 2. Service layer (in-process) ─────────────────────────────────────────────
 
 def test_service_get_all_defaults():
-    from warden.settings.service import SettingsService
     from warden.settings.models import AllSettings
+    from warden.settings.service import SettingsService
     svc = SettingsService()
     result = svc.get_all("t_default")
     assert isinstance(result, AllSettings)
@@ -61,8 +63,8 @@ def test_service_agents_defaults():
 
 
 def test_service_update_agents():
-    from warden.settings.service import SettingsService
     from warden.settings.models import AgentSettingsPatch
+    from warden.settings.service import SettingsService
     svc = SettingsService()
     patch = AgentSettingsPatch(sova_max_iterations=15, auto_approve_low_risk=True)
     updated = svc.update_agents("t_agents_upd", patch)
@@ -72,8 +74,8 @@ def test_service_update_agents():
 
 
 def test_service_notifications_crud():
-    from warden.settings.service import SettingsService
     from warden.settings.models import NotificationChannel, NotificationChannelPatch
+    from warden.settings.service import SettingsService
     svc = SettingsService()
     tid = "t_notif"
 
@@ -94,8 +96,8 @@ def test_service_notifications_crud():
 
 
 def test_service_notification_not_found_raises():
-    from warden.settings.service import SettingsService
     from warden.settings.models import NotificationChannelPatch
+    from warden.settings.service import SettingsService
     svc = SettingsService()
     with pytest.raises(KeyError):
         svc.update_notification("t_404", "nonexistent-id", NotificationChannelPatch(label="x"))
@@ -110,8 +112,8 @@ def test_service_commerce_defaults():
 
 
 def test_service_update_commerce():
-    from warden.settings.service import SettingsService
     from warden.settings.models import CommerceSettingsPatch
+    from warden.settings.service import SettingsService
     svc = SettingsService()
     patch = CommerceSettingsPatch(
         enabled=True,
@@ -133,8 +135,8 @@ def test_service_semantic_defaults():
 
 
 def test_service_update_semantic():
-    from warden.settings.service import SettingsService
     from warden.settings.models import SemanticSettingsPatch
+    from warden.settings.service import SettingsService
     svc = SettingsService()
     updated = svc.update_semantic("t_sem_upd", SemanticSettingsPatch(osi_export_enabled=True, default_row_limit=5000))
     assert updated.osi_export_enabled is True

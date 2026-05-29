@@ -130,8 +130,8 @@ async def list_orders(tenant_id: str, limit: int = 50) -> dict:
 
 @router.get("/orders/{order_id}", summary="Get order details + receipt", dependencies=[_Gate])
 async def get_order(order_id: str, tenant_id: str) -> dict:
-    from warden.business_community.agentic_commerce.service import AgenticCommerceService
     from warden.business_community.agentic_commerce.ap2 import AP2Processor
+    from warden.business_community.agentic_commerce.service import AgenticCommerceService
     orders = AgenticCommerceService().get_order_history(tenant_id, limit=1000)
     order = next((o for o in orders if o["id"] == order_id), None)
     if not order:
@@ -201,7 +201,9 @@ class AuctionRequest(BaseModel):
 
 @router.post("/auctions", summary="Launch multi-agent procurement auction", dependencies=[_Gate])
 async def create_auction(body: AuctionRequest) -> dict:
-    from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+        MultiAgentOrchestrator,
+    )
     orch = MultiAgentOrchestrator()
     auction_id = await orch.run_auction(
         tenant_id=body.tenant_id,
@@ -213,14 +215,18 @@ async def create_auction(body: AuctionRequest) -> dict:
 
 @router.get("/auctions", summary="List auctions for a tenant", dependencies=[_Gate])
 async def list_auctions(tenant_id: str, limit: int = 20) -> dict:
-    from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+        MultiAgentOrchestrator,
+    )
     auctions = MultiAgentOrchestrator().list_auctions(tenant_id, limit=limit)
     return {"auctions": auctions, "count": len(auctions)}
 
 
 @router.get("/auctions/{auction_id}", summary="Get auction result", dependencies=[_Gate])
 async def get_auction(auction_id: str, tenant_id: str) -> dict:
-    from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+        MultiAgentOrchestrator,
+    )
     result = MultiAgentOrchestrator().get_auction(auction_id, tenant_id)
     if not result:
         raise HTTPException(status_code=404, detail="Auction not found")

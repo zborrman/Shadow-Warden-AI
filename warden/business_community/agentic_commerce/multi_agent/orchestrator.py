@@ -69,7 +69,9 @@ class MultiAgentOrchestrator:
 
         # Fire all agents concurrently; collect non-None proposals
         from warden.business_community.agentic_commerce.multi_agent.connectors import (
-            claude_proposal, gemini_proposal, gpt_proposal,
+            claude_proposal,
+            gemini_proposal,
+            gpt_proposal,
         )
         results = await asyncio.gather(
             claude_proposal(purchase_request),

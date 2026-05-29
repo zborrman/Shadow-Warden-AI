@@ -121,7 +121,9 @@ with tab_auctions:
             submit  = st.form_submit_button("Launch", type="primary")
             if submit and request:
                 try:
-                    from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+                    from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+                        MultiAgentOrchestrator,
+                    )
                     orch = MultiAgentOrchestrator()
                     with st.spinner("Running auction across AI agents…"):
                         aid = asyncio.get_event_loop().run_until_complete(
@@ -140,8 +142,11 @@ with tab_auctions:
     with col_list:
         st.markdown("**Recent Auctions**")
         try:
-            from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
             import pandas as pd
+
+            from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+                MultiAgentOrchestrator,
+            )
             auctions = MultiAgentOrchestrator().list_auctions(TENANT, limit=20)
             if auctions:
                 rows = [
@@ -169,8 +174,9 @@ with tab_risk:
     domain = st.text_input("Merchant domain", placeholder="shop.example.com")
     if st.button("Check Risk") and domain:
         try:
-            from warden.vendor_gov.registry import list_vendors
             from urllib.parse import urlparse
+
+            from warden.vendor_gov.registry import list_vendors
             parsed = urlparse(domain if "://" in domain else f"https://{domain}")
             check_domain = parsed.netloc or domain
             vendors = list_vendors(TENANT)

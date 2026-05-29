@@ -5,6 +5,7 @@ Agentic Commerce (UCP/AP2/MCP) — 15 tests
 from __future__ import annotations
 
 import os
+
 import pytest
 
 os.environ.setdefault("COMMERCE_DB_PATH", "/tmp/test_commerce.db")

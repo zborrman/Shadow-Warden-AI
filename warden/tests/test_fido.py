@@ -5,6 +5,7 @@ FIDO2/WebAuthn Passkey authentication.
 from __future__ import annotations
 
 import os
+
 import pytest
 
 os.environ.setdefault("FIDO_DB_PATH", "/tmp/test_fido.db")

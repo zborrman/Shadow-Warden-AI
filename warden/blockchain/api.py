@@ -6,9 +6,7 @@ Tier:   Pro+ (agentic_commerce_enabled)
 """
 from __future__ import annotations
 
-import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -34,8 +32,8 @@ class Web3PaymentRequest(BaseModel):
 
 @router.post("/create", summary="Create on-chain mandate", dependencies=[_Gate])
 async def create_onchain_mandate(body: Web3MandateRequest) -> dict:
-    from warden.blockchain.mandate_contract import MandateContract
     from warden.blockchain.ipfs_storage import IPFSStorage
+    from warden.blockchain.mandate_contract import MandateContract
 
     ipfs = IPFSStorage()
     cid = ipfs.store_mandate({

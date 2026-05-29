@@ -5,6 +5,7 @@ Web3 decentralized mandate layer with mocked blockchain.
 from __future__ import annotations
 
 import os
+
 import pytest
 
 os.environ.setdefault("WEB3_RPC_URL", "")          # force eth_tester

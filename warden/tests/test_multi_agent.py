@@ -4,8 +4,8 @@ Multi-agent procurement orchestration with mocked AI responses.
 """
 from __future__ import annotations
 
-import asyncio
 import os
+
 import pytest
 
 os.environ.setdefault("COMMERCE_DB_PATH", "/tmp/test_ma_commerce.db")
@@ -50,7 +50,9 @@ class TestMultiAgentOrchestrator:
             os.remove(db)
 
     def _orch(self):
-        from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+        from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+            MultiAgentOrchestrator,
+        )
         return MultiAgentOrchestrator()
 
     def test_select_winner_empty(self):

@@ -39,8 +39,9 @@ _mem: dict[str, str] = {}
 
 def _redis():
     try:
-        import redis as _redis_lib
         import os
+
+        import redis as _redis_lib
         url = os.getenv("REDIS_URL", "redis://localhost:6379")
         if url == "memory://":
             return None

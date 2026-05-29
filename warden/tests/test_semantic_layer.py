@@ -5,6 +5,7 @@ Semantic Layer — 12 tests covering models, engine, repository, OSI.
 from __future__ import annotations
 
 import os
+
 import pytest
 
 os.environ.setdefault("SEMANTIC_DB_PATH", "/tmp/test_semantic.db")
