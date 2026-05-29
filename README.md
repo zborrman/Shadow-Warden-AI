@@ -4,13 +4,13 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 4.30 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 5.1 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md)
 
 ---
 
-## Product Tiers — v4.30
+## Product Tiers — v5.1
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|
@@ -42,6 +42,17 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 **14-day Pro trial:** available to Individual and Community Business tenants — 10,000 requests, no MasterAgent, one-time per account.
 
 Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+
+---
+
+## What's New in v5.1
+
+| Feature | Description |
+|---------|-------------|
+| **Semantic Layer — Headless BI (FE-42)** | `warden/semantic_layer/` — centralized metric contracts, dimension mappings, and per-tenant access rules. `SemanticEngine` generates deterministic parameterised SQL. 3 built-in models: `filter_events`, `ers_scores`, `billing_usage`. `SemanticQueryEngine` for direct (query, model) compilation. Claude Haiku AI query at `/semantic-layer/query/intent` (Pro+). OSI 1.0 export/import. FastAPI router at `/semantic-layer/*` (5 endpoints). Streamlit `15_Semantic_Layer.py` (4 tabs). SOC Dashboard `/semantic-layer` page. |
+| **Settings Hub (FE-43)** | `warden/settings/` — unified config for Agents (SOVA/MasterAgent), Notifications, Agentic Commerce, Semantic Layer. `SettingsService` uses Redis + in-process fallback. 10 module-level shims for `/api/settings.py` compatibility. Streamlit `16_Settings.py` (6 tabs: API Keys, Secrets, Agents, Notifications, Commerce, Semantic). SOC Dashboard `/settings` status page. Portal settings extended with AgentsSection, CommerceSection, SemanticLayerSection. |
+| **Site 15-Layer Refresh** | All version badges updated from `v4.x` → `v5.1`, layer count `14` → `15` across Navbar, Footer, Hero, AuthModal, ZeroTrustDiagram, FeaturesGrid, Pricing. New `WhatsNew.astro` changelog section on homepage. New `/roadmap` page with 22 shipped + 3 planned features, JS filter by status/tier. |
+| **CI Hardening** | 48 ruff lint errors + 47 mypy type errors resolved across 12 files. All CI checks now pass: ruff `All checks passed`, mypy `no issues found in 22 source files`. Coverage gate restored to ≥80% with 8 new shim + engine tests. |
 
 ---
 
