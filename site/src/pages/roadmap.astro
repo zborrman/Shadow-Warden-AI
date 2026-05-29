@@ -1,0 +1,197 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+
+const features = [
+  // ── Shipped ───────────────────────────────────────────────────────────────
+  { id: 'FE-01', title: 'Topological Gatekeeper',       version: 'v1.0', tier: 'All',                status: 'shipped',    category: 'Core Pipeline',     desc: 'TDA n-gram point cloud, Betti numbers β₀/β₁ via persistent homology. <2ms.' },
+  { id: 'FE-02', title: 'Obfuscation Decoder',           version: 'v1.0', tier: 'All',                status: 'shipped',    category: 'Core Pipeline',     desc: 'Depth-3 recursive: Base64, hex, ROT13, Caesar, UUencode, homoglyphs.' },
+  { id: 'FE-03', title: 'PII & Secret Redactor',         version: 'v1.0', tier: 'All',                status: 'shipped',    category: 'Core Pipeline',     desc: '15 regex patterns + Shannon entropy scan for unknown secrets.' },
+  { id: 'FE-04', title: 'Semantic Rule Engine',          version: 'v1.0', tier: 'All',                status: 'shipped',    category: 'Core Pipeline',     desc: '420 rules, compound risk escalation: 3× MEDIUM → HIGH.' },
+  { id: 'FE-05', title: 'Hyperbolic Brain',              version: 'v2.0', tier: 'All',                status: 'shipped',    category: 'Core Pipeline',     desc: 'MiniLM ONNX + Poincaré ball: 70% cosine + 30% hyperbolic blend.' },
+  { id: 'FE-06', title: 'Causal Arbiter',                version: 'v2.0', tier: 'All',                status: 'shipped',    category: 'Core Pipeline',     desc: '5-node Bayesian DAG, Pearl do-calculus, backdoor correction. <3ms.' },
+  { id: 'FE-07', title: 'PhishGuard + SE-Arbiter',       version: 'v3.0', tier: 'All',                status: 'shipped',    category: 'Core Pipeline',     desc: 'URL phishing detection + semantic social-engineering classifier.' },
+  { id: 'FE-08', title: 'Entity Risk Scoring',           version: 'v2.0', tier: 'All',                status: 'shipped',    category: 'Core Pipeline',     desc: 'Redis sliding window ERS. Score ≥0.75 → Shadow Ban (gaslight/delay/standard).' },
+  { id: 'FE-09', title: 'Evolution Engine',              version: 'v2.0', tier: 'Pro+',               status: 'shipped',    category: 'AI Intelligence',   desc: 'Claude Opus auto-generates examples from BLOCK events. Hot-reload without restart.' },
+  { id: 'FE-10', title: 'Sovereign AI Cloud',            version: 'v4.4', tier: 'Enterprise',         status: 'shipped',    category: 'Compliance',        desc: '8 jurisdictions, MASQUE_H3 tunnels, TOFU TLS pinning, cross-border enforcement.' },
+  { id: 'FE-11', title: 'Post-Quantum Crypto',           version: 'v4.1', tier: 'Enterprise',         status: 'shipped',    category: 'Security',          desc: 'HybridSigner (Ed25519+ML-DSA-65), HybridKEM (X25519+ML-KEM-768). FIPS 203/204.' },
+  { id: 'FE-12', title: 'Shadow AI Discovery',           version: 'v4.2', tier: 'Pro+',               status: 'shipped',    category: 'Governance',        desc: '18-provider fingerprint DB. Async /24 subnet probe, DNS telemetry classifier.' },
+  { id: 'FE-13', title: 'Explainable AI (XAI)',          version: 'v4.3', tier: 'Pro+',               status: 'shipped',    category: 'Observability',     desc: '9-stage DAG, causal attribution, counterfactuals, HTML + PDF reports.' },
+  { id: 'FE-14', title: 'MasterAgent SOC',               version: 'v4.0', tier: 'Pro+',               status: 'shipped',    category: 'Agents',            desc: '4 sub-agents (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent). HMAC tokens.' },
+  { id: 'FE-15', title: 'SOVA Agent',                    version: 'v3.x', tier: 'Pro+',               status: 'shipped',    category: 'Agents',            desc: 'Claude Opus 4.6 autonomous operator. 30 tools, 7 ARQ cron jobs, Redis memory.' },
+  { id: 'FE-16', title: 'SEP — Syndicate Exchange',      version: 'v4.6', tier: 'Community Business+', status: 'shipped',   category: 'Communities',       desc: 'UECIID business identity, STIX 2.1 audit chain, Knock-and-Verify invitations.' },
+  { id: 'FE-17', title: 'Secrets Governance',            version: 'v4.9', tier: 'Community Business+', status: 'shipped',   category: 'Security',          desc: 'Multi-cloud vault connectors. SQLite inventory, risk scoring, rotation scheduling.' },
+  { id: 'FE-18', title: 'Obsidian Plugin',               version: 'v4.19', tier: 'Pro+',              status: 'shipped',    category: 'Integrations',      desc: 'Scan, share, XAI pipeline visualizer, Dataview dashboard, offline publish queue.' },
+  { id: 'FE-19', title: 'OTel Collector Pipeline',       version: 'v4.20', tier: 'All',               status: 'shipped',    category: 'Observability',     desc: 'Per-layer spans across all 9 filter stages. Jaeger UI at :16686.' },
+  { id: 'FE-42', title: 'Semantic Layer (Headless BI)',   version: 'v5.1', tier: 'Pro+',               status: 'shipped',    category: 'Analytics',         desc: 'Centralized metric contracts, dimension mappings, access rules. LLM → deterministic SQL.' },
+  { id: 'FE-43', title: 'Settings Hub',                  version: 'v5.1', tier: 'All',                status: 'shipped',    category: 'Platform',          desc: 'Unified settings: Agents, Notifications, Agentic Commerce, Semantic Layer. Portal + Streamlit + SOC.' },
+  // ── Planned ───────────────────────────────────────────────────────────────
+  { id: 'FE-44', title: 'Metric Alerts',                 version: 'v5.2', tier: 'Pro+',               status: 'planned',    category: 'Analytics',         desc: 'Threshold triggers from Semantic Layer metrics. Slack/PagerDuty integration.' },
+  { id: 'FE-45', title: 'Dashboard Builder',             version: 'v5.3', tier: 'Pro+',               status: 'planned',    category: 'Analytics',         desc: 'Drag-and-drop chart builder from QueryObjects. Embed in Portal.' },
+  { id: 'FE-46', title: 'Federated Query',               version: 'v5.4', tier: 'Enterprise',         status: 'planned',    category: 'Analytics',         desc: 'Cross-tenant metric aggregation with per-tenant access isolation.' },
+];
+
+const tiers      = ['All', 'Community Business+', 'Pro+', 'Enterprise'];
+const categories = [...new Set(features.map(f => f.category))];
+const statuses   = ['shipped', 'planned'];
+
+const statusColor: Record<string, string> = {
+  shipped: '#30D158',
+  planned: '#FFD60A',
+};
+const tierColor: Record<string, string> = {
+  'All':                  '#8E8E9E',
+  'Community Business+':  '#30D158',
+  'Pro+':                 '#FF2D55',
+  'Enterprise':           '#BF5AF2',
+};
+---
+
+<Layout title="Roadmap — Shadow Warden AI" description="Full roadmap for Shadow Warden AI. Filter shipped, planned features by tier and category.">
+  <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen">
+    <Navbar />
+
+    <main class="mx-auto max-w-7xl px-6 lg:px-8 py-20">
+
+      <!-- Header -->
+      <div class="mb-12">
+        <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FF2D55] mb-3">Product</p>
+        <h1 class="text-[48px] lg:text-[64px] font-black tracking-[-3px] mb-4">Roadmap</h1>
+        <p class="text-[16px] text-[#8E8E9E] max-w-lg leading-relaxed">
+          {features.filter(f => f.status === 'shipped').length} features shipped ·{' '}
+          {features.filter(f => f.status === 'planned').length} in the pipeline.
+          Ships every two weeks.
+        </p>
+      </div>
+
+      <!-- Filters (static — JS-driven in client) -->
+      <div id="filters" class="flex flex-wrap gap-2 mb-10">
+        <button data-filter="all" data-type="status"
+          class="filter-btn active px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all">
+          All
+        </button>
+        {statuses.map(s => (
+          <button data-filter={s} data-type="status"
+            class="filter-btn px-3 py-1.5 rounded-full text-[11px] font-semibold border border-white/10 text-[#8E8E9E] hover:border-white/30 transition-all"
+            style={`--accent:${statusColor[s]}`}>
+            {s === 'shipped' ? '✅ Shipped' : '🔜 Planned'}
+          </button>
+        ))}
+        <div class="w-px bg-white/10 mx-1"></div>
+        {tiers.map(t => (
+          <button data-filter={t} data-type="tier"
+            class="filter-btn px-3 py-1.5 rounded-full text-[11px] font-semibold border border-white/10 text-[#8E8E9E] hover:border-white/30 transition-all"
+            style={`--accent:${tierColor[t]}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <!-- Feature grid -->
+      <div id="feature-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {features.map(f => (
+          <div
+            class="feature-card rounded-xl border border-white/[0.07] bg-[#080D1E] p-5
+                   hover:border-white/[0.18] transition-all duration-200 hover:-translate-y-0.5"
+            data-status={f.status}
+            data-tier={f.tier}
+            data-category={f.category}
+          >
+            <!-- Top row -->
+            <div class="flex items-start justify-between gap-2 mb-3">
+              <span class="font-mono text-[10px] text-[#48485A]">{f.id}</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[9px] font-bold tracking-[1px] uppercase px-2 py-0.5 rounded-full"
+                      style={`background:${statusColor[f.status]}15;color:${statusColor[f.status]};border:1px solid ${statusColor[f.status]}30`}>
+                  {f.status}
+                </span>
+                <span class="text-[9px] font-bold tracking-[1px] uppercase px-2 py-0.5 rounded-full"
+                      style={`background:${tierColor[f.tier] ?? '#48485A'}15;color:${tierColor[f.tier] ?? '#8E8E9E'};border:1px solid ${tierColor[f.tier] ?? '#48485A'}30`}>
+                  {f.tier}
+                </span>
+              </div>
+            </div>
+
+            <!-- Title + version -->
+            <div class="mb-2">
+              <h3 class="text-[14px] font-bold leading-snug">{f.title}</h3>
+              <span class="text-[10px] text-[#48485A] font-mono">{f.version} · {f.category}</span>
+            </div>
+
+            <!-- Description -->
+            <p class="text-[11px] text-[#8E8E9E] leading-[1.65]">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <!-- Legend -->
+      <div class="flex flex-wrap gap-6 mt-12 text-[11px] text-[#48485A]">
+        {Object.entries(statusColor).map(([s, c]) => (
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" style={`background:${c}`}></span>
+            {s.charAt(0).toUpperCase() + s.slice(1)}
+          </span>
+        ))}
+        {Object.entries(tierColor).map(([t, c]) => (
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" style={`background:${c}`}></span>
+            {t}
+          </span>
+        ))}
+      </div>
+    </main>
+
+    <Footer />
+  </div>
+</Layout>
+
+<style>
+  .filter-btn.active {
+    background: color-mix(in srgb, var(--accent, #FF2D55) 15%, transparent);
+    color: var(--accent, #FF2D55);
+    border-color: color-mix(in srgb, var(--accent, #FF2D55) 40%, transparent);
+  }
+  .filter-btn[data-filter="all"].active {
+    background: rgba(255,255,255,0.06);
+    color: #F5F5F7;
+    border-color: rgba(255,255,255,0.2);
+  }
+  .feature-card[hidden] { display: none; }
+</style>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.filter-btn');
+  const cards   = document.querySelectorAll<HTMLElement>('.feature-card');
+
+  let activeStatus = 'all';
+  let activeTier   = 'all';
+
+  function applyFilters() {
+    cards.forEach(card => {
+      const matchStatus = activeStatus === 'all' || card.dataset.status === activeStatus;
+      const matchTier   = activeTier   === 'all' || card.dataset.tier   === activeTier;
+      card.hidden = !(matchStatus && matchTier);
+    });
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type   = btn.dataset.type!;
+      const filter = btn.dataset.filter!;
+
+      if (type === 'status') {
+        activeStatus = filter;
+        buttons.forEach(b => { if (b.dataset.type === 'status') b.classList.remove('active') });
+      } else {
+        activeTier = filter;
+        buttons.forEach(b => { if (b.dataset.type === 'tier') b.classList.remove('active') });
+      }
+      btn.classList.add('active');
+      applyFilters();
+    });
+  });
+
+  // Initialise "All" button active state
+  document.querySelector<HTMLButtonElement>('[data-filter="all"]')?.classList.add('active');
+</script>

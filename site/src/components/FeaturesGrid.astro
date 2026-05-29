@@ -84,6 +84,12 @@ const layers = [
     tag: '4 Sub-agents · HMAC Tokens',
     desc: '4 specialized sub-agents (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent) running in parallel. HMAC task tokens prevent cross-agent injection.',
   },
+  {
+    num: '15', icon: '🗃️', color: 'blue',
+    title: 'Semantic Layer',
+    tag: 'Headless BI · OSI Compatible',
+    desc: 'Centralized metric contracts, dimension mappings, and per-tenant access rules. LLM translates natural-language intent to a QueryObject; engine generates deterministic SQL.',
+  },
 ];
 
 const colorMap: Record<string, { icon: string; tag: string; border: string }> = {
@@ -103,7 +109,7 @@ const colorMap: Record<string, { icon: string; tag: string; border: string }> = 
     <!-- Header -->
     <div class="mb-16 lg:mb-20">
       <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FF2D55] mb-3">
-        14-Layer Defense Stack
+        15-Layer Defense Stack
       </p>
       <h2 class="text-[42px] lg:text-[52px] font-bold tracking-[-2px] mb-4">
         Built for adversarial AI.

@@ -1,0 +1,157 @@
+---
+const releases = [
+  {
+    version: 'v5.1',
+    date: 'May 2026',
+    badge: 'Latest',
+    badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '🗃️',
+        title: 'Semantic Layer (FE-42)',
+        tier: 'Pro+',
+        desc: 'Headless BI with centralized metric contracts. LLM translates natural language into deterministic SQL. 3 built-in models: filter events, ERS scores, billing usage.',
+        tags: ['Headless BI', 'AI Query', 'OSI Compatible'],
+      },
+      {
+        icon: '⚙️',
+        title: 'Settings Hub (FE-43)',
+        tier: 'All Plans',
+        desc: 'Unified settings across Agents (SOVA/MasterAgent), Notifications, Agentic Commerce, and Semantic Layer. Available in Streamlit, Portal, and SOC Dashboard.',
+        tags: ['SOVA Config', 'Commerce', 'Notifications'],
+      },
+    ],
+  },
+  {
+    version: 'v4.20',
+    date: 'Apr 2026',
+    badge: 'Previous',
+    badgeColor: '#0A84FF',
+    items: [
+      {
+        icon: '📡',
+        title: 'OTel Collector Pipeline',
+        tier: 'All Plans',
+        desc: 'Per-layer OpenTelemetry spans across all 9 filter stages. Jaeger UI at :16686. Activate with OTEL_ENABLED=true.',
+        tags: ['Tracing', 'Jaeger', 'Observability'],
+      },
+      {
+        icon: '📊',
+        title: 'GDPR Scrub API',
+        tier: 'Community+',
+        desc: 'GDPR Art. 17 right-to-erasure endpoint. ARQ cron for automated retention enforcement. SBOM/SLSA CI attestation.',
+        tags: ['GDPR', 'Compliance', 'CI/CD'],
+      },
+    ],
+  },
+  {
+    version: 'v4.19',
+    date: 'Mar 2026',
+    badge: '',
+    badgeColor: '#30D158',
+    items: [
+      {
+        icon: '📝',
+        title: 'Obsidian Plugin Full Integration',
+        tier: 'Pro+',
+        desc: 'Dataview dashboard, offline publish queue, XAI pipeline visualizer, scheduled scans. Sidebar with real-time reputation feed.',
+        tags: ['Obsidian', 'XAI', 'Sidebar'],
+      },
+    ],
+  },
+];
+
+const tierColor: Record<string, string> = {
+  'Pro+': '#FF2D55',
+  'All Plans': '#30D158',
+  'Enterprise': '#BF5AF2',
+  'Community+': '#0A84FF',
+};
+---
+
+<section id="whats-new" class="relative py-24 lg:py-32 bg-[#080D1E]">
+  <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"></div>
+
+  <div class="mx-auto max-w-7xl px-6 lg:px-8">
+
+    <!-- Header -->
+    <div class="mb-14">
+      <div class="flex items-center gap-3 mb-4">
+        <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FF2D55]">Changelog</p>
+        <div class="flex-1 h-px bg-white/[0.05]"></div>
+        <a href="/roadmap"
+           class="text-[11px] font-semibold text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors">
+          Full roadmap →
+        </a>
+      </div>
+      <h2 class="text-[38px] lg:text-[48px] font-black tracking-[-2px] mb-3">
+        What's New
+      </h2>
+      <p class="text-[15px] text-[#8E8E9E] max-w-lg leading-relaxed">
+        Shadow Warden ships every two weeks. Here's what landed recently.
+      </p>
+    </div>
+
+    <!-- Timeline -->
+    <div class="space-y-10">
+      {releases.map((release) => (
+        <div class="relative pl-8 border-l border-white/[0.07]">
+
+          <!-- Version marker -->
+          <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-[#080D1E]"
+               style={`background:${release.badgeColor}`}></div>
+
+          <div class="flex flex-wrap items-center gap-3 mb-5">
+            <span class="text-[22px] font-black tracking-[-1px]">{release.version}</span>
+            <span class="text-[11px] text-[#48485A]">{release.date}</span>
+            {release.badge && (
+              <span class="text-[9px] font-black tracking-[1.5px] uppercase px-2.5 py-1 rounded-full"
+                    style={`background:${release.badgeColor}15;color:${release.badgeColor};border:1px solid ${release.badgeColor}30`}>
+                {release.badge}
+              </span>
+            )}
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-3">
+            {release.items.map((item) => (
+              <div class="rounded-xl border border-white/[0.06] bg-[#03050F] p-5 hover:border-white/[0.12] transition-colors">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-lg">{item.icon}</span>
+                    <span class="text-[14px] font-bold">{item.title}</span>
+                  </div>
+                  <span class="text-[9px] font-bold tracking-[1px] uppercase px-2 py-0.5 rounded-full flex-shrink-0"
+                        style={`background:${tierColor[item.tier] ?? '#48485A'}15;color:${tierColor[item.tier] ?? '#8E8E9E'};border:1px solid ${tierColor[item.tier] ?? '#48485A'}30`}>
+                    {item.tier}
+                  </span>
+                </div>
+                <p class="text-[12px] text-[#8E8E9E] leading-[1.65] mb-3">{item.desc}</p>
+                <div class="flex flex-wrap gap-1.5">
+                  {item.tags.map((tag) => (
+                    <span class="text-[9px] font-semibold px-2 py-0.5 rounded-md bg-white/[0.04] text-[#48485A] border border-white/[0.05]">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <!-- CTA row -->
+    <div class="flex items-center justify-center gap-4 mt-12">
+      <a href="/roadmap"
+         class="px-6 py-3 rounded-xl text-[13px] font-bold text-white bg-white/[0.05] border border-white/[0.1]
+                hover:bg-white/[0.09] hover:-translate-y-0.5 transition-all duration-200">
+        View Full Roadmap
+      </a>
+      <a href="https://github.com/zborrman/Shadow-Warden-AI/releases"
+         target="_blank" rel="noopener noreferrer"
+         class="text-[12px] text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors">
+        GitHub Releases →
+      </a>
+    </div>
+  </div>
+</section>

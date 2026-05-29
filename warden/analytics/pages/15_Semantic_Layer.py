@@ -1,206 +1,251 @@
 """
-warden/analytics/pages/15_Semantic_Layer.py  (FE-42)
-Streamlit — Headless BI Semantic Layer
-Tabs: Model Editor | Query Builder | AI Query | Usage Analytics
+Streamlit page: Semantic Layer (Headless BI) — FE-42
+
+Tabs
+────
+  Models      — registered semantic models + their metrics/dimensions
+  Query       — interactive QueryObject builder → live SQL preview
+  AI Query    — natural-language intent → SQL (Pro+, requires ANTHROPIC_API_KEY)
+  Docs        — architecture overview
 """
 from __future__ import annotations
 
-import json
 import os
+import time
 
+import requests
 import streamlit as st
 
-st.set_page_config(page_title="Semantic Layer", page_icon="🧠", layout="wide")
+st.set_page_config(page_title="Semantic Layer", page_icon="🗃️", layout="wide")
 
-TENANT = os.getenv("DEFAULT_TENANT_ID", "default")
+_BASE     = os.getenv("WARDEN_INTERNAL_URL", "http://localhost:8001")
+_API_KEY  = os.getenv("WARDEN_API_KEY", "")
+_HEADERS  = {"X-API-Key": _API_KEY} if _API_KEY else {}
 
+# ── CSS ───────────────────────────────────────────────────────────────────────
 
-def _engine():
-    from warden.semantic_layer.engine import SemanticQueryEngine
-    return SemanticQueryEngine()
+st.markdown("""
+<style>
+.metric-chip {
+    display:inline-block; background:#1e293b; color:#7dd3fc;
+    border-radius:6px; padding:2px 8px; font-size:0.75rem;
+    margin:2px; font-family:monospace;
+}
+.dim-chip {
+    display:inline-block; background:#1e293b; color:#86efac;
+    border-radius:6px; padding:2px 8px; font-size:0.75rem;
+    margin:2px; font-family:monospace;
+}
+.sql-block {
+    background:#0f172a; color:#e2e8f0; border-radius:8px;
+    padding:16px; font-family:monospace; font-size:0.85rem;
+    white-space:pre; overflow-x:auto;
+}
+.shipped-badge {
+    display:inline-block; background:#16a34a22; color:#4ade80;
+    border:1px solid #4ade8040; border-radius:12px;
+    padding:2px 10px; font-size:0.75rem; font-weight:600;
+}
+</style>
+""", unsafe_allow_html=True)
 
-
-def _repo():
-    return None  # imported inline below
-
-
-tab_editor, tab_query, tab_ai, tab_usage = st.tabs(
-    ["Model Editor", "Query Builder", "AI Query", "Usage Analytics"]
+st.title("🗃️ Semantic Layer (Headless BI)")
+st.markdown(
+    '<span class="shipped-badge">✅ Shipped · v5.1 · Pro+</span>',
+    unsafe_allow_html=True,
+)
+st.caption(
+    "Centralized semantic contract for metrics, dimensions, and access rules. "
+    "LLM translates natural-language intent to a QueryObject; "
+    "the engine generates deterministic SQL."
 )
 
-# ── Model Editor ──────────────────────────────────────────────────────────────
-with tab_editor:
-    st.subheader("Semantic Model Editor")
-    st.caption("Define metrics, dimensions and joins as a deterministic contract")
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    col_list, col_form = st.columns([1, 2])
+@st.cache_data(ttl=30)
+def _load_models() -> list[dict]:
+    try:
+        r = requests.get(f"{_BASE}/semantic-layer/models", headers=_HEADERS, timeout=5)
+        r.raise_for_status()
+        return r.json()
+    except Exception as exc:
+        st.warning(f"Could not reach warden API: {exc}")
+        return []
 
-    with col_list:
-        st.markdown("**Existing Models**")
-        try:
-            from warden.semantic_layer.repository import list_models
-            models = list_models(TENANT)
-            if models:
-                selected = st.selectbox("Select model", [m.name for m in models])
-                sel_model = next((m for m in models if m.name == selected), None)
-                if sel_model:
-                    st.json(sel_model.to_dict(), expanded=False)
-            else:
-                st.info("No models yet.")
-        except Exception as e:
-            st.error(str(e))
 
-    with col_form:
-        st.markdown("**Create New Model**")
-        with st.form("new_model"):
-            name         = st.text_input("Model name", placeholder="security_events")
-            source_table = st.text_input("Source table", placeholder="events")
-            description  = st.text_area("Description", height=60)
-            metrics_json = st.text_area("Metrics (JSON)", height=120,
-                value='[{"name":"total","sql_expression":"COUNT(*)","description":"Total requests"}]')
-            dims_json    = st.text_area("Dimensions (JSON)", height=80,
-                value='[{"name":"tenant","sql_field":"tenant_id","type":"string"}]')
-            submit = st.form_submit_button("Create Model", type="primary")
+@st.cache_data(ttl=60)
+def _load_model_detail(model_id: str) -> dict:
+    try:
+        r = requests.get(f"{_BASE}/semantic-layer/models/{model_id}", headers=_HEADERS, timeout=5)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return {}
 
-            if submit and name and source_table:
-                try:
-                    from warden.semantic_layer.models import Dimension, Metric, SemanticModel
-                    from warden.semantic_layer.repository import create_model
-                    metrics    = [Metric(**m) for m in json.loads(metrics_json)]
-                    dimensions = [Dimension(**d) for d in json.loads(dims_json)]
-                    model = SemanticModel(
-                        name=name, description=description, owner_tenant=TENANT,
-                        source_table=source_table, metrics=metrics, dimensions=dimensions,
-                    )
-                    ok, errors = _engine().validate_model(model)
-                    if not ok:
-                        st.error("Validation: " + "; ".join(errors))
-                    else:
-                        created = create_model(model)
-                        st.success(f"Created: {created.id}")
-                        st.rerun()
-                except Exception as e:
-                    st.error(str(e))
 
-# ── Query Builder ─────────────────────────────────────────────────────────────
+# ── Tabs ──────────────────────────────────────────────────────────────────────
+
+tab_models, tab_query, tab_ai, tab_docs = st.tabs(
+    ["📋 Models", "🔍 Query Builder", "🤖 AI Query", "📖 Docs"]
+)
+
+# ── Tab: Models ───────────────────────────────────────────────────────────────
+with tab_models:
+    models = _load_models()
+    if not models:
+        st.info("No models loaded — ensure warden API is running.")
+    else:
+        st.subheader(f"{len(models)} Semantic Models")
+        for m in models:
+            with st.expander(f"**{m['name']}** — `{m['id']}`"):
+                st.caption(m.get("description", ""))
+                detail = _load_model_detail(m["id"])
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("**Metrics**")
+                    for met in detail.get("metrics", []):
+                        st.markdown(
+                            f'<span class="metric-chip">{met["name"]}</span>'
+                            f' <small style="color:#94a3b8">{met.get("description","")}</small>',
+                            unsafe_allow_html=True,
+                        )
+                with c2:
+                    st.markdown("**Dimensions**")
+                    for dim in detail.get("dimensions", []):
+                        st.markdown(
+                            f'<span class="dim-chip">{dim["name"]}</span>'
+                            f' <small style="color:#94a3b8">{dim.get("description","")}</small>',
+                            unsafe_allow_html=True,
+                        )
+
+# ── Tab: Query Builder ────────────────────────────────────────────────────────
 with tab_query:
-    st.subheader("Query Builder")
-    st.caption("Deterministic metric calculation — no LLM in the query path")
+    models_list = _load_models()
+    if not models_list:
+        st.info("Load models first.")
+    else:
+        model_ids = [m["id"] for m in models_list]
+        sel_id = st.selectbox("Semantic model", model_ids, key="qb_model")
+        detail = _load_model_detail(sel_id) if sel_id else {}
 
-    try:
-        from warden.semantic_layer.repository import list_models
-        models = list_models(TENANT)
-        if not models:
-            st.info("Create a model first.")
-        else:
-            import pandas as pd
-            model_name = st.selectbox("Model", [m.name for m in models], key="qb_model")
-            model = next((m for m in models if m.name == model_name), None)
-            if model:
-                col_m, col_d = st.columns(2)
-                with col_m:
-                    sel_metrics = st.multiselect("Metrics", model.metric_names(),
-                                                  default=model.metric_names()[:1])
-                with col_d:
-                    sel_dims    = st.multiselect("Dimensions", model.dimension_names())
-                limit = st.slider("Limit", 10, 1000, 100)
+        metric_names = [m["name"] for m in detail.get("metrics", [])]
+        dim_names    = [d["name"] for d in detail.get("dimensions", [])]
 
-                if st.button("Run Query", type="primary"):
-                    from warden.semantic_layer.models import QueryObject
-                    q      = QueryObject(model_id=model.id, metrics=sel_metrics,
-                                         dimensions=sel_dims, limit=limit)
-                    result = _engine().execute_query(q, model)
-                    st.code(result.sql, language="sql")
-                    if result.rows:
-                        st.dataframe(pd.DataFrame(result.rows), use_container_width=True)
-                        st.caption(f"{result.row_count} rows · {result.execution_ms:.1f} ms")
-                    else:
-                        st.info("No rows returned.")
-    except Exception as e:
-        st.error(str(e))
+        sel_metrics = st.multiselect("Metrics", metric_names, default=metric_names[:2], key="qb_metrics")
+        sel_dims    = st.multiselect("Dimensions", dim_names, default=dim_names[:1] if dim_names else [], key="qb_dims")
+        limit       = st.slider("Row limit", 10, 5000, 1000, step=10, key="qb_limit")
 
-# ── AI Query ──────────────────────────────────────────────────────────────────
+        if st.button("Generate SQL", key="qb_run"):
+            if not sel_metrics:
+                st.error("Select at least one metric.")
+            else:
+                payload = {
+                    "model_id":   sel_id,
+                    "metrics":    sel_metrics,
+                    "dimensions": sel_dims,
+                    "filters":    [],
+                    "limit":      limit,
+                }
+                t0 = time.perf_counter()
+                try:
+                    r = requests.post(
+                        f"{_BASE}/semantic-layer/query",
+                        json=payload,
+                        headers=_HEADERS,
+                        timeout=10,
+                    )
+                    r.raise_for_status()
+                    result = r.json()
+                    ms = round((time.perf_counter() - t0) * 1000, 1)
+                    st.success(f"SQL generated in {result.get('generation_ms', ms)} ms")
+                    st.markdown(
+                        f'<div class="sql-block">{result["sql"]}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.caption("Copy and run against your PostgreSQL / TimescaleDB instance.")
+                except Exception as exc:
+                    st.error(f"Query failed: {exc}")
+
+# ── Tab: AI Query ─────────────────────────────────────────────────────────────
 with tab_ai:
-    st.subheader("AI Natural Language Query")
-    st.caption("SOVA converts your question to a QueryObject — SQL is generated by the engine, not the LLM")
+    st.markdown("**Natural-language → SQL** via Claude Haiku (Pro+ tier required).")
+    models_list2 = _load_models()
+    if not models_list2:
+        st.info("Load models first.")
+    else:
+        ai_model_id = st.selectbox("Model", [m["id"] for m in models_list2], key="ai_model")
+        intent = st.text_area(
+            "Describe what you want",
+            placeholder='e.g. "Show me total blocked requests by tenant for the last 7 days"',
+            height=80,
+            key="ai_intent",
+        )
+        ai_limit = st.number_input("Limit", min_value=1, max_value=10000, value=1000, key="ai_limit")
 
-    try:
-        from warden.semantic_layer.repository import list_models
-        models = list_models(TENANT)
-        if not models:
-            st.info("Create a model first.")
-        else:
-            model_name = st.selectbox("Model", [m.name for m in models], key="ai_model")
-            model = next((m for m in models if m.name == model_name), None)
-            question = st.text_area("Your question", placeholder="Show me total events by tenant for the last 7 days")
-
-            if st.button("Ask AI", type="primary") and question and model:
-                with st.spinner("SOVA is generating QueryObject..."):
-                    try:
-                        import anthropic
-                        ctx = _engine().get_context_for_llm(model)
-                        prompt = (
-                            f"Given this semantic model:\n{json.dumps(ctx, indent=2)}\n\n"
-                            f"Convert this question to a QueryObject JSON:\n{question}\n\n"
-                            "Return ONLY a valid JSON object with fields: "
-                            "model_id, metrics (list of names), dimensions (list of names), "
-                            "filters (list of {dimension, operator, value}), limit (int)."
+        if st.button("Translate & Generate SQL", key="ai_run"):
+            if not intent.strip():
+                st.error("Enter an intent.")
+            else:
+                payload = {"model_id": ai_model_id, "intent": intent, "limit": int(ai_limit)}
+                try:
+                    r = requests.post(
+                        f"{_BASE}/semantic-layer/query/intent",
+                        json=payload,
+                        headers=_HEADERS,
+                        timeout=30,
+                    )
+                    if r.status_code == 503:
+                        st.warning("ANTHROPIC_API_KEY not set or anthropic package missing — AI Query unavailable.")
+                    elif r.status_code == 402:
+                        st.warning("Pro+ plan required for AI Query.")
+                    else:
+                        r.raise_for_status()
+                        result = r.json()
+                        st.success(f"SQL generated in {result.get('generation_ms', '?')} ms")
+                        st.markdown(
+                            f'<div class="sql-block">{result["sql"]}</div>',
+                            unsafe_allow_html=True,
                         )
-                        client = anthropic.Anthropic()
-                        msg = client.messages.create(
-                            model="claude-haiku-4-5-20251001",
-                            max_tokens=512,
-                            messages=[{"role": "user", "content": prompt}],
-                        )
-                        raw = msg.content[0].text.strip()
-                        if raw.startswith("```"):
-                            raw = raw.split("```")[1].lstrip("json").strip()
-                        query_data = json.loads(raw)
-                        query_data["model_id"] = model.id
+                except Exception as exc:
+                    st.error(f"Request failed: {exc}")
 
-                        from warden.semantic_layer.models import Filter, QueryObject
-                        q = QueryObject(
-                            model_id=model.id,
-                            metrics=query_data.get("metrics", []),
-                            dimensions=query_data.get("dimensions", []),
-                            filters=[Filter(**f) for f in query_data.get("filters", [])],
-                            limit=query_data.get("limit", 100),
-                        )
-                        result = _engine().execute_query(q, model)
+# ── Tab: Docs ─────────────────────────────────────────────────────────────────
+with tab_docs:
+    st.markdown("""
+## Architecture
 
-                        st.markdown("**Generated QueryObject:**")
-                        st.json(query_data, expanded=False)
-                        st.markdown("**SQL (generated by engine, not LLM):**")
-                        st.code(result.sql, language="sql")
-                        if result.rows:
-                            import pandas as pd
-                            st.dataframe(pd.DataFrame(result.rows), use_container_width=True)
-                        else:
-                            st.info("No rows returned.")
-                    except ImportError:
-                        st.warning("Anthropic API key not configured — AI Query unavailable.")
-                    except Exception as e:
-                        st.error(f"AI Query failed: {e}")
-    except Exception as e:
-        st.error(str(e))
+```
+NL Intent
+    ↓
+Claude Haiku  →  QueryObject (model_id, metrics[], dimensions[], filters[])
+    ↓
+SemanticEngine.generate()
+    ↓
+Deterministic SQL  →  PostgreSQL / TimescaleDB
+```
 
-# ── Usage Analytics ───────────────────────────────────────────────────────────
-with tab_usage:
-    st.subheader("Query Usage Analytics")
-    try:
-        from warden.semantic_layer.repository import query_usage_stats
-        import pandas as pd
-        stats = query_usage_stats(TENANT, limit=50)
-        if stats:
-            df = pd.DataFrame(stats)
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Total Queries", len(df))
-            col2.metric("Avg Exec Time", f"{df['exec_ms'].mean():.1f} ms")
-            col3.metric("Total Rows", int(df['row_count'].sum()))
-            st.dataframe(df[["model_id", "metrics", "dimensions", "exec_ms",
-                              "row_count", "created_at"]],
-                         use_container_width=True, hide_index=True)
-        else:
-            st.info("No queries executed yet.")
-    except Exception as e:
-        st.error(str(e))
+### Key concepts
+
+| Concept | Description |
+|---------|-------------|
+| **SemanticModel** | Named contract: source table, metrics (aggregation expressions), dimensions (column mappings), access rules |
+| **QueryObject** | Structured query: which model, which metrics, which dimensions, optional filters + row limit |
+| **AccessRule** | Per-tenant allow-list of metrics/dimensions — enforced before SQL generation |
+| **IntentRequest** | Raw NL text → Claude Haiku → QueryObject (Pro+ only) |
+
+### API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/semantic-layer/models` | List models |
+| GET | `/semantic-layer/models/{id}` | Model detail |
+| POST | `/semantic-layer/models` | Register custom model (Pro+) |
+| POST | `/semantic-layer/query` | Generate SQL from QueryObject |
+| POST | `/semantic-layer/query/intent` | NL → SQL via LLM (Pro+) |
+
+### Built-in models
+
+- **filter_events** — security filter decisions (total_requests, block_count, flag_count, avg_latency_ms, p99_latency_ms)
+- **ers_scores** — entity risk scores (avg_score, max_score, shadow_bans)
+- **billing_usage** — per-tenant billing (requests_used, cost_usd, quota_pct)
+""")

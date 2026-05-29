@@ -1,1 +1,1 @@
-# warden/semantic_layer — Headless BI Semantic Layer (FE-42)
+"Semantic Layer (Headless BI) — FE-42."

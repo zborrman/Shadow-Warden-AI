@@ -1,266 +1,220 @@
-"""Tests for the Settings module — service layer + REST API."""
-from __future__ import annotations
+"""
+warden/tests/test_settings.py
+───────────────────────────────
+Settings Hub test suite (18 tests).
 
-import os
-import uuid
+Sections covered: agents, notifications, commerce, semantic, API router.
+Uses ALLOW_UNAUTHENTICATED=true (set in conftest.py).
+Redis is replaced by the in-memory limiter, so all Redis ops fall back gracefully.
+"""
+from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("ANTHROPIC_API_KEY", "")
-os.environ.setdefault("WARDEN_API_KEY", "")
-os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
-os.environ.setdefault("REDIS_URL", "memory://")
-os.environ.setdefault("LOGS_PATH", "/tmp/test_settings_logs.json")
-os.environ.setdefault("DYNAMIC_RULES_PATH", "/tmp/test_settings_rules.json")
-os.environ.setdefault("MODEL_CACHE_DIR", "/tmp/warden-test-models")
-os.environ.setdefault("SEMANTIC_THRESHOLD", "0.72")
-
-
-def _tid() -> str:
-    return f"test-{uuid.uuid4().hex[:8]}"
-
-
-# ── Service layer ─────────────────────────────────────────────────────────────
-
-class TestApiKeys:
-    def test_create_returns_full_key_once(self):
-        from warden.settings.service import create_api_key
-        tid = _tid()
-        result = create_api_key(tid, "prod-key")
-        assert result["key"].startswith("sw_")
-        assert len(result["key"]) > 20
-        assert "key_hash" not in result  # hash must not be returned
-
-    def test_list_keys_hides_key_value(self):
-        from warden.settings.service import create_api_key, get_api_keys
-        tid = _tid()
-        create_api_key(tid, "my-key")
-        keys = get_api_keys(tid)
-        assert len(keys) == 1
-        assert "key" not in keys[0]
-        assert "key_hash" not in keys[0]
-        assert keys[0]["label"] == "my-key"
-
-    def test_prefix_stored(self):
-        from warden.settings.service import create_api_key, get_api_keys
-        tid = _tid()
-        created = create_api_key(tid, "pfx-test")
-        keys = get_api_keys(tid)
-        assert keys[0]["prefix"] == created["key"][:10]
-
-    def test_revoke_sets_active_false(self):
-        from warden.settings.service import create_api_key, get_api_keys, revoke_api_key
-        tid = _tid()
-        created = create_api_key(tid, "to-revoke")
-        assert revoke_api_key(tid, created["id"])
-        keys = get_api_keys(tid)
-        assert not keys[0]["active"]
-
-    def test_revoke_unknown_returns_false(self):
-        from warden.settings.service import revoke_api_key
-        assert not revoke_api_key(_tid(), "does-not-exist")
-
-    def test_multiple_keys(self):
-        from warden.settings.service import create_api_key, get_api_keys
-        tid = _tid()
-        create_api_key(tid, "k1")
-        create_api_key(tid, "k2")
-        assert len(get_api_keys(tid)) == 2
-
-
-class TestSecrets:
-    def test_create_and_list(self):
-        from warden.settings.service import create_secret, get_secrets
-        tid = _tid()
-        create_secret(tid, "MY_API_KEY", "supersecret")
-        secs = get_secrets(tid)
-        assert len(secs) == 1
-        assert secs[0]["name"] == "MY_API_KEY"
-        assert "encrypted_value" not in secs[0]
-
-    def test_update_secret(self):
-        from warden.settings.service import create_secret, get_secret_value, update_secret
-        tid = _tid()
-        sec = create_secret(tid, "DB_PASS", "old-value")
-        result = update_secret(tid, sec["id"], "new-value")
-        assert result is not None
-        assert get_secret_value(tid, sec["id"]) == "new-value"
-
-    def test_delete_secret(self):
-        from warden.settings.service import create_secret, delete_secret, get_secrets
-        tid = _tid()
-        sec = create_secret(tid, "TEMP_KEY", "abc")
-        assert delete_secret(tid, sec["id"])
-        assert len(get_secrets(tid)) == 0
-
-    def test_delete_unknown_returns_false(self):
-        from warden.settings.service import delete_secret
-        assert not delete_secret(_tid(), "nonexistent")
-
-    def test_get_secret_value_returns_plaintext(self):
-        from warden.settings.service import create_secret, get_secret_value
-        tid = _tid()
-        sec = create_secret(tid, "RAW_KEY", "plaintext-value")
-        assert get_secret_value(tid, sec["id"]) == "plaintext-value"
-
-
-class TestAgentConfig:
-    def test_default_config(self):
-        from warden.settings.service import get_agent_config
-        cfg = get_agent_config(_tid())
-        assert cfg["high_risk_threshold"] == 0.72
-        assert cfg["sova_max_iterations"] == 10
-        assert cfg["sova_enabled"] is True
-
-    def test_update_config(self):
-        from warden.settings.service import get_agent_config, update_agent_config
-        tid = _tid()
-        update_agent_config(tid, {"high_risk_threshold": 0.80, "sova_max_iterations": 5})
-        cfg = get_agent_config(tid)
-        assert cfg["high_risk_threshold"] == 0.80
-        assert cfg["sova_max_iterations"] == 5
-
-    def test_partial_update_preserves_other_keys(self):
-        from warden.settings.service import get_agent_config, update_agent_config
-        tid = _tid()
-        update_agent_config(tid, {"master_agent_enabled": True})
-        cfg = get_agent_config(tid)
-        assert cfg["master_agent_enabled"] is True
-        assert cfg["sova_enabled"] is True  # untouched
-
-
-class TestNotificationChannels:
-    def test_add_slack_channel(self):
-        from warden.settings.service import add_notification_channel, get_notification_channels
-        tid = _tid()
-        add_notification_channel(tid, "slack", "Alerts", {"url": "https://hooks.slack.com/test"})
-        channels = get_notification_channels(tid)
-        assert len(channels) == 1
-        assert channels[0]["type"] == "slack"
-        assert "***" in channels[0]["config"]["url"]  # masked
-
-    def test_delete_channel(self):
-        from warden.settings.service import (
-            add_notification_channel,
-            delete_notification_channel,
-            get_notification_channels,
-        )
-        tid = _tid()
-        ch = add_notification_channel(tid, "webhook", "Ops", {"url": "https://example.com/hook"})
-        assert delete_notification_channel(tid, ch["id"])
-        assert len(get_notification_channels(tid)) == 0
-
-    def test_test_channel_unknown_returns_false(self):
-        from warden.settings.service import test_notification_channel
-        result = test_notification_channel(_tid(), "nonexistent-id")
-        assert not result["ok"]
-
-    def test_test_channel_email_type_skips_live_send(self):
-        from warden.settings.service import add_notification_channel, test_notification_channel
-        tid = _tid()
-        ch = add_notification_channel(tid, "email", "Email", {"email": "ops@example.com"})
-        result = test_notification_channel(tid, ch["id"])
-        assert result["ok"] is True   # email skipped in dev mode, returns ok
-
-
-# ── REST API ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="module")
 def client():
     from warden.main import app
-    return TestClient(app, raise_server_exceptions=True)
+    return TestClient(app)
 
 
-class TestSettingsApi:
-    def test_get_settings_summary(self, client):
-        r = client.get("/settings")
-        assert r.status_code == 200
-        body = r.json()
-        assert "api_key_count" in body
-        assert "agent_config" in body
+TENANT = "test_settings_tenant"
+HEADERS = {"X-Tenant-ID": TENANT}
 
-    def test_create_api_key_via_api(self, client):
-        r = client.post("/settings/api-keys", json={"label": "ci-test-key"})
-        assert r.status_code == 201
-        body = r.json()
-        assert body["key"].startswith("sw_")
-        assert body["label"] == "ci-test-key"
 
-    def test_list_api_keys_via_api(self, client):
-        r = client.get("/settings/api-keys")
-        assert r.status_code == 200
-        assert isinstance(r.json(), list)
+# ── 1. Module import ──────────────────────────────────────────────────────────
 
-    def test_revoke_api_key_via_api(self, client):
-        create_r = client.post("/settings/api-keys", json={"label": "to-revoke"})
-        key_id = create_r.json()["id"]
-        r = client.delete(f"/settings/api-keys/{key_id}")
-        assert r.status_code == 204
+def test_settings_models_import():
+    from warden.settings.models import (
+        AgentSettings, CommerceSettings, NotificationChannel, SemanticSettings,
+    )
+    assert AgentSettings().sova_enabled is True
+    assert CommerceSettings().enabled is False
+    assert SemanticSettings().ai_query_enabled is True
 
-    def test_revoke_unknown_key_404(self, client):
-        r = client.delete("/settings/api-keys/nonexistent-key-id")
-        assert r.status_code == 404
 
-    def test_create_secret_via_api(self, client):
-        r = client.post("/settings/secrets", json={"name": "TEST_TOKEN", "value": "abc123"})
-        assert r.status_code == 201
-        body = r.json()
-        assert body["name"] == "TEST_TOKEN"
-        assert "value" not in body  # never returned
+def test_settings_service_import():
+    from warden.settings.service import SettingsService
+    svc = SettingsService()
+    assert svc is not None
 
-    def test_get_agent_config_via_api(self, client):
-        r = client.get("/settings/agents")
-        assert r.status_code == 200
-        body = r.json()
-        assert "high_risk_threshold" in body
-        assert "sova_enabled" in body
 
-    def test_update_agent_config_via_api(self, client):
-        r = client.patch("/settings/agents", json={
-            "high_risk_threshold": 0.75,
-            "block_threshold": 0.92,
-            "sova_max_iterations": 8,
-            "sova_enabled": True,
-            "master_agent_enabled": False,
-            "evolution_engine_enabled": False,
-            "scan_interval_minutes": 5,
-            "causal_arbiter_enabled": True,
-            "phish_guard_enabled": True,
-        })
-        assert r.status_code == 200
-        assert r.json()["high_risk_threshold"] == 0.75
+# ── 2. Service layer (in-process) ─────────────────────────────────────────────
 
-    def test_list_notifications_via_api(self, client):
-        r = client.get("/settings/notifications")
-        assert r.status_code == 200
-        assert isinstance(r.json(), list)
+def test_service_get_all_defaults():
+    from warden.settings.service import SettingsService
+    from warden.settings.models import AllSettings
+    svc = SettingsService()
+    result = svc.get_all("t_default")
+    assert isinstance(result, AllSettings)
+    assert result.tenant_id == "t_default"
+    assert result.agents.sova_enabled is True
 
-    def test_add_notification_channel_via_api(self, client):
-        r = client.post("/settings/notifications/channels", json={
-            "type": "slack",
-            "label": "test-slack",
-            "config": {"url": "https://hooks.slack.com/services/T00/B00/test"},
-        })
-        assert r.status_code == 201
-        body = r.json()
-        assert body["type"] == "slack"
-        assert "***" in body["config"]["url"]
 
-    def test_delete_channel_via_api(self, client):
-        create_r = client.post("/settings/notifications/channels", json={
-            "type": "webhook",
-            "label": "del-test",
-            "config": {"url": "https://example.com/hook"},
-        })
-        channel_id = create_r.json()["id"]
-        r = client.delete(f"/settings/notifications/channels/{channel_id}")
-        assert r.status_code == 204
+def test_service_agents_defaults():
+    from warden.settings.service import SettingsService
+    svc = SettingsService()
+    agents = svc.get_agents("t_agents")
+    assert agents.sova_max_iterations == 10
+    assert agents.master_max_sub_iter == 5
 
-    def test_delete_unknown_channel_404(self, client):
-        r = client.delete("/settings/notifications/channels/nonexistent")
-        assert r.status_code == 404
 
-    def test_patch_unknown_section_400(self, client):
-        r = client.patch("/settings/unknown-section", json={"key": "val"})
-        assert r.status_code == 400
+def test_service_update_agents():
+    from warden.settings.service import SettingsService
+    from warden.settings.models import AgentSettingsPatch
+    svc = SettingsService()
+    patch = AgentSettingsPatch(sova_max_iterations=15, auto_approve_low_risk=True)
+    updated = svc.update_agents("t_agents_upd", patch)
+    assert updated.sova_max_iterations == 15
+    assert updated.auto_approve_low_risk is True
+    assert updated.sova_enabled is True  # unchanged
+
+
+def test_service_notifications_crud():
+    from warden.settings.service import SettingsService
+    from warden.settings.models import NotificationChannel, NotificationChannelPatch
+    svc = SettingsService()
+    tid = "t_notif"
+
+    ch = svc.add_notification(tid, NotificationChannel(kind="slack", label="Ops", url="https://hooks.slack.com/test"))
+    assert ch.id != ""
+    assert ch.kind == "slack"
+
+    channels = svc.list_notifications(tid)
+    assert any(c.id == ch.id for c in channels)
+
+    updated = svc.update_notification(tid, ch.id, NotificationChannelPatch(label="Ops-v2", on_healer=True))
+    assert updated.label == "Ops-v2"
+    assert updated.on_healer is True
+
+    svc.delete_notification(tid, ch.id)
+    channels_after = svc.list_notifications(tid)
+    assert all(c.id != ch.id for c in channels_after)
+
+
+def test_service_notification_not_found_raises():
+    from warden.settings.service import SettingsService
+    from warden.settings.models import NotificationChannelPatch
+    svc = SettingsService()
+    with pytest.raises(KeyError):
+        svc.update_notification("t_404", "nonexistent-id", NotificationChannelPatch(label="x"))
+
+
+def test_service_commerce_defaults():
+    from warden.settings.service import SettingsService
+    svc = SettingsService()
+    commerce = svc.get_commerce("t_commerce")
+    assert commerce.enabled is False
+    assert commerce.per_transaction_limit_usd == 50.0
+
+
+def test_service_update_commerce():
+    from warden.settings.service import SettingsService
+    from warden.settings.models import CommerceSettingsPatch
+    svc = SettingsService()
+    patch = CommerceSettingsPatch(
+        enabled=True,
+        monthly_budget_usd=500.0,
+        approved_stores=["store-a.com", "store-b.com"],
+    )
+    updated = svc.update_commerce("t_commerce_upd", patch)
+    assert updated.enabled is True
+    assert updated.monthly_budget_usd == 500.0
+    assert "store-a.com" in updated.approved_stores
+
+
+def test_service_semantic_defaults():
+    from warden.settings.service import SettingsService
+    svc = SettingsService()
+    sem = svc.get_semantic("t_sem")
+    assert sem.osi_export_enabled is False
+    assert sem.default_row_limit == 1000
+
+
+def test_service_update_semantic():
+    from warden.settings.service import SettingsService
+    from warden.settings.models import SemanticSettingsPatch
+    svc = SettingsService()
+    updated = svc.update_semantic("t_sem_upd", SemanticSettingsPatch(osi_export_enabled=True, default_row_limit=5000))
+    assert updated.osi_export_enabled is True
+    assert updated.default_row_limit == 5000
+
+
+# ── 3. API layer ──────────────────────────────────────────────────────────────
+
+def test_api_get_all(client: TestClient):
+    r = client.get("/settings", headers=HEADERS)
+    assert r.status_code == 200
+    data = r.json()
+    assert "agents" in data
+    assert "notifications" in data
+    assert "commerce" in data
+    assert "semantic" in data
+
+
+def test_api_get_agents(client: TestClient):
+    r = client.get("/settings/agents", headers=HEADERS)
+    assert r.status_code == 200
+    assert "sova_enabled" in r.json()
+
+
+def test_api_patch_agents(client: TestClient):
+    r = client.patch("/settings/agents", json={"sova_max_iterations": 7}, headers=HEADERS)
+    assert r.status_code == 200
+    assert r.json()["sova_max_iterations"] == 7
+
+
+def test_api_notifications_lifecycle(client: TestClient):
+    # Add
+    r = client.post(
+        "/settings/notifications",
+        json={"kind": "webhook", "label": "Test Webhook", "url": "https://example.com/hook"},
+        headers=HEADERS,
+    )
+    assert r.status_code == 201
+    ch_id = r.json()["id"]
+    assert ch_id
+
+    # List
+    r2 = client.get("/settings/notifications", headers=HEADERS)
+    assert any(c["id"] == ch_id for c in r2.json())
+
+    # Patch
+    r3 = client.patch(f"/settings/notifications/{ch_id}", json={"label": "Updated"}, headers=HEADERS)
+    assert r3.status_code == 200
+    assert r3.json()["label"] == "Updated"
+
+    # Delete
+    r4 = client.delete(f"/settings/notifications/{ch_id}", headers=HEADERS)
+    assert r4.status_code == 204
+
+
+def test_api_get_commerce(client: TestClient):
+    r = client.get("/settings/commerce", headers=HEADERS)
+    assert r.status_code == 200
+    assert "enabled" in r.json()
+
+
+def test_api_patch_commerce(client: TestClient):
+    r = client.patch(
+        "/settings/commerce",
+        json={"enabled": True, "monthly_budget_usd": 100.0, "approved_stores": ["shop.example.com"]},
+        headers=HEADERS,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["enabled"] is True
+    assert "shop.example.com" in data["approved_stores"]
+
+
+def test_api_get_semantic(client: TestClient):
+    r = client.get("/settings/semantic", headers=HEADERS)
+    assert r.status_code == 200
+    assert "ai_query_enabled" in r.json()
+
+
+def test_api_patch_semantic(client: TestClient):
+    r = client.patch("/settings/semantic", json={"osi_export_enabled": True}, headers=HEADERS)
+    assert r.status_code == 200
+    assert r.json()["osi_export_enabled"] is True
