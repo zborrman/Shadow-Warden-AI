@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 4.22 · Last updated 2026-05-18**
+**Version 5.1 · Last updated 2026-05-30**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -322,6 +322,10 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 | FE-24 | Community audit log — Activity tab, activityLog[], 15+ event icons, owner-only Clear Log | v4.20 | Community+ | ✅ |
 | FE-25 | Disappearing messages — 24h auto-delete toggle in tunnel, persisted per-community | v4.20 | Community+ | ✅ |
 | FE-26 | Castle logo PNG — Shadow-Warden-AI castle on all 40 pages, og:image + favicon | v4.20 | Public | ✅ |
+| FE-27 | Agentic Commerce (UCP/AP2/MCP) — multi-agent procurement, FIDO2 passkeys, Web3 mandates | v5.0 | Community+ | ✅ |
+| FE-42 | Semantic Layer (Headless BI) — metric contracts, deterministic SQL, AI query via Claude Haiku | v5.1 | Pro+ | ✅ |
+| FE-43 | Settings Hub — unified Agents/Notifications/Commerce/Semantic config; Streamlit + Portal + SOC | v5.1 | All | ✅ |
+| FE-44 | Site v5.1 refresh — 15-layer badge, WhatsNew section, /roadmap page with JS filters | v5.1 | Public | ✅ |
 
 ---
 
@@ -455,4 +459,7 @@ Continuous self-improvement and threat intelligence synthesis.
 | v4.20 | 2026-05-17 | Community & Tunnel SPA, castle logo, interactive /pricing, SOC Dashboard DNS live, roadmap: CR-13–15 (PQC/HSM/MASQUE), CP-22–26 (ISO/HIPAA/NIS2/compliance), IN-14–22 (VS Code/GitHub/Jira/Teams/Notion/STIX/OTel/MISP), OB-26–28, IF-19–20, BL-19–20, a11y contrast fix |
 | v4.21 | 2026-05-18 | DataPrivacyAgent, GitHub Actions integration, Jira/Teams integrations, Grafana unified, mobile SOC, dark/light theme, FE-12–14, AG-23, SP-23 scaffolds |
 | **v4.22** | **2026-05-18** | **Sprint 3: WebSocket stream (OB-26), onboarding wizard (FE-15), integration tests (TQ-18), chaos testing (TQ-19), online learning (AR-09), federated threats (AR-10), red-team autopilot (AR-11), VS Code extension (IN-14), community federation (CM-26), TAXII consumer (IN-19), pgvector memory (AG-24), multi-modal guard (SP-22), HSM PKCS#11 (CR-14), k8s HPA (IF-19), model sharing (CM-27)** |
-| v5.0 | Q3 2026 | Multi-region active-active, ONNX online learning, HIPAA |
+| v4.30 | 2026-05-22 | Business Intelligence (CM-39): 8-category analytics, OLS prediction, benchmarking, 15-min SQLite cache |
+| v5.0 | 2026-05-25 | Agentic Commerce (UCP/AP2/MCP), FIDO2 passkeys, Web3 Sepolia mandates |
+| **v5.1** | **2026-05-29** | **Semantic Layer Headless BI (FE-42), Settings Hub (FE-43), site 15-layer refresh, /roadmap page, CI lint+mypy 0-error** |
+| v5.2 | Q3 2026 | Metric Alerts, Dashboard Builder, Federated Query |

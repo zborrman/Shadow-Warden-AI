@@ -1,6 +1,6 @@
 # Roadmap & Release Cadence
 
-**Version 4.19 · Last updated 2026-05-07**
+**Version 5.1 · Last updated 2026-05-30**
 
 This page is the authoritative public roadmap for Shadow Warden AI. It is updated every sprint and reflects the current state of shipped, in-progress, and planned features across all 12 product categories.
 

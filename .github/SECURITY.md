@@ -1,6 +1,6 @@
 # Security Policy
 
-**Version 4.8 · Last updated 2026-04**
+**Version 5.1 · Last updated 2026-05-30**
 
 ## Reporting a Vulnerability
 

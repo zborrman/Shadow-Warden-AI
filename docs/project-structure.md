@@ -1,6 +1,6 @@
 # Shadow Warden AI — Project Structure
 
-**Version 4.30 · Updated 2026-05-22**
+**Version 5.1 · Updated 2026-05-30**
 
 ## Top-Level Layout
 
