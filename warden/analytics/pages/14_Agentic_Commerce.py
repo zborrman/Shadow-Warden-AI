@@ -1,10 +1,11 @@
 """
 warden/analytics/pages/14_Agentic_Commerce.py  (CM-40)
 Streamlit dashboard — E-commerce AI / Agentic Commerce
-Tabs: Mandates | Orders | Risk Analysis | Spend Analytics
+Tabs: Mandates | Orders | Auctions | Risk Analysis | Spend Analytics
 """
 from __future__ import annotations
 
+import asyncio
 import os
 
 import streamlit as st
@@ -27,8 +28,8 @@ def _svc():
 st.title("🛒 Agentic Commerce")
 st.caption("UCP · AP2 · MCP — AI-driven procurement with mandate controls")
 
-tab_mandates, tab_orders, tab_risk, tab_spend = st.tabs(
-    ["Mandates", "Orders", "Risk Analysis", "Spend Analytics"]
+tab_mandates, tab_orders, tab_auctions, tab_risk, tab_spend = st.tabs(
+    ["Mandates", "Orders", "Auctions", "Risk Analysis", "Spend Analytics"]
 )
 
 # ── Mandates ──────────────────────────────────────────────────────────────────
@@ -104,6 +105,61 @@ with tab_orders:
             st.info("No orders yet.")
     except Exception as e:
         st.error(f"Error loading orders: {e}")
+
+# ── Auctions ─────────────────────────────────────────────────────────────────
+with tab_auctions:
+    st.subheader("Multi-Agent Procurement Auctions")
+    st.caption("Claude · Gemini · GPT compete to find the best vendor for your purchase")
+
+    col_new, col_list = st.columns([1, 2])
+
+    with col_new:
+        st.markdown("**Launch Auction**")
+        with st.form("new_auction"):
+            request = st.text_area("Purchase request", placeholder="Buy a cloud monitoring subscription under $100/mo", height=100)
+            budget  = st.number_input("Budget (USD)", min_value=0.0, value=0.0, step=10.0)
+            submit  = st.form_submit_button("Launch", type="primary")
+            if submit and request:
+                try:
+                    from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+                    orch = MultiAgentOrchestrator()
+                    with st.spinner("Running auction across AI agents…"):
+                        aid = asyncio.get_event_loop().run_until_complete(
+                            orch.run_auction(TENANT, request, budget_usd=budget or None)
+                        )
+                    result = orch.get_auction(aid, TENANT)
+                    winner = result.get("winner")
+                    if winner:
+                        st.success(f"Winner: **{winner.get('recommended_vendor', 'N/A')}** — ${winner.get('estimated_price_usd', 0):.2f}")
+                    else:
+                        st.info("Auction complete — no AI agents available (configure API keys to enable).")
+                    st.rerun()
+                except Exception as e:
+                    st.error(str(e))
+
+    with col_list:
+        st.markdown("**Recent Auctions**")
+        try:
+            from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+            import pandas as pd
+            auctions = MultiAgentOrchestrator().list_auctions(TENANT, limit=20)
+            if auctions:
+                rows = [
+                    {
+                        "ID": a["id"][:12] + "…",
+                        "Status": a["status"],
+                        "Request": (a.get("request") or "")[:50],
+                        "Winner": (a.get("winner") or {}).get("recommended_vendor", "—") if a.get("winner") else "—",
+                        "Created": (a.get("created_at") or "")[:10],
+                    }
+                    for a in auctions
+                ]
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            else:
+                st.info("No auctions yet.")
+        except Exception as e:
+            st.error(str(e))
+
 
 # ── Risk Analysis ─────────────────────────────────────────────────────────────
 with tab_risk:

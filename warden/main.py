@@ -1376,6 +1376,27 @@ try:
 except ImportError:
     log.warning("Agentic Commerce router not available — /business-community/commerce skipped.")
 
+try:
+    from warden.web3.api import router as _web3_router
+    app.include_router(_web3_router)
+    log.info("Web3 on-chain mandates mounted at /web3/mandates (Phase 1)")
+except ImportError:
+    log.warning("Web3 router not available — /web3/mandates skipped.")
+
+try:
+    from warden.tax.api import router as _tax_router
+    app.include_router(_tax_router)
+    log.info("Tax & Compliance mounted at /tax (Phase 3)")
+except ImportError:
+    log.warning("Tax router not available — /tax skipped.")
+
+try:
+    from warden.api.fido_auth import router as _fido_router
+    app.include_router(_fido_router)
+    log.info("FIDO2 Passkey auth mounted at /auth/fido (Phase 4)")
+except ImportError:
+    log.warning("FIDO2 router not available — /auth/fido skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /

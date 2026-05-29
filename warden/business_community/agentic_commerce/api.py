@@ -189,3 +189,39 @@ async def approve_workflow(workflow_id: str, tenant_id: str, action: str = "appr
 async def spend_summary(tenant_id: str) -> dict:
     from warden.business_community.agentic_commerce.service import AgenticCommerceService
     return AgenticCommerceService().get_mandate_usage(tenant_id)
+
+
+# ── Multi-agent auctions ──────────────────────────────────────────────────────
+
+class AuctionRequest(BaseModel):
+    tenant_id:        str
+    purchase_request: str
+    budget_usd:       float | None = None
+
+
+@router.post("/auctions", summary="Launch multi-agent procurement auction", dependencies=[_Gate])
+async def create_auction(body: AuctionRequest) -> dict:
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+    orch = MultiAgentOrchestrator()
+    auction_id = await orch.run_auction(
+        tenant_id=body.tenant_id,
+        purchase_request=body.purchase_request,
+        budget_usd=body.budget_usd,
+    )
+    return {"auction_id": auction_id, "status": "completed"}
+
+
+@router.get("/auctions", summary="List auctions for a tenant", dependencies=[_Gate])
+async def list_auctions(tenant_id: str, limit: int = 20) -> dict:
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+    auctions = MultiAgentOrchestrator().list_auctions(tenant_id, limit=limit)
+    return {"auctions": auctions, "count": len(auctions)}
+
+
+@router.get("/auctions/{auction_id}", summary="Get auction result", dependencies=[_Gate])
+async def get_auction(auction_id: str, tenant_id: str) -> dict:
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import MultiAgentOrchestrator
+    result = MultiAgentOrchestrator().get_auction(auction_id, tenant_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    return result
