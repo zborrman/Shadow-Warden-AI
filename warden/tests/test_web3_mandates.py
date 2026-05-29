@@ -12,7 +12,7 @@ os.environ.setdefault("WEB3_RPC_URL", "")          # force eth_tester
 
 class TestChainConnector:
     def _connector(self):
-        from warden.web3.chain_connector import ChainConnector
+        from warden.blockchain.chain_connector import ChainConnector
         return ChainConnector()
 
     def test_available_with_tester(self):
@@ -46,19 +46,19 @@ class TestChainConnector:
 
 class TestIPFSStorage:
     def test_store_returns_cid(self):
-        from warden.web3.ipfs_storage import IPFSStorage
+        from warden.blockchain.ipfs_storage import IPFSStorage
         cid = IPFSStorage().store_mandate({"id": "m1", "max_amount": 100})
         assert cid.startswith("Qm") or len(cid) > 10
 
     def test_store_deterministic(self):
-        from warden.web3.ipfs_storage import IPFSStorage
+        from warden.blockchain.ipfs_storage import IPFSStorage
         s = IPFSStorage()
         cid1 = s.store_mandate({"id": "x", "amount": 50})
         cid2 = s.store_mandate({"id": "x", "amount": 50})
         assert cid1 == cid2  # same data → same simulated CID
 
     def test_fetch_unavailable_returns_dict(self):
-        from warden.web3.ipfs_storage import IPFSStorage
+        from warden.blockchain.ipfs_storage import IPFSStorage
         data = IPFSStorage().fetch_mandate("Qmabc123")
         assert isinstance(data, dict)
 
@@ -68,7 +68,7 @@ class TestMandateContract:
         monkeypatch.setenv("WEB3_RPC_URL", "")
         # Without web3/eth_tester, should fail gracefully
         try:
-            from warden.web3.mandate_contract import MandateContract
+            from warden.blockchain.mandate_contract import MandateContract
             mc = MandateContract()
             result = mc.create("uuid-1", "tenant", 10000, 9999999999, [])
             # Either success (eth_tester) or graceful failure
@@ -77,20 +77,20 @@ class TestMandateContract:
             pytest.skip("web3 not available")
 
     def test_mandate_id_deterministic(self):
-        from warden.web3.mandate_contract import MandateContract
+        from warden.blockchain.mandate_contract import MandateContract
         id1 = MandateContract._mandate_id("abc")
         id2 = MandateContract._mandate_id("abc")
         assert id1 == id2
 
     def test_mandate_id_different_inputs(self):
-        from warden.web3.mandate_contract import MandateContract
+        from warden.blockchain.mandate_contract import MandateContract
         id1 = MandateContract._mandate_id("abc")
         id2 = MandateContract._mandate_id("xyz")
         assert id1 != id2
 
     def test_get_returns_empty_when_unavailable(self, monkeypatch):
         try:
-            from warden.web3.mandate_contract import MandateContract
+            from warden.blockchain.mandate_contract import MandateContract
             mc = MandateContract()
             if not mc._address:
                 result = mc.get("nonexistent-uuid")

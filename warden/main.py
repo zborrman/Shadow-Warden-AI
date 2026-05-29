@@ -1377,7 +1377,14 @@ except ImportError:
     log.warning("Agentic Commerce router not available — /business-community/commerce skipped.")
 
 try:
-    from warden.web3.api import router as _web3_router
+    from warden.semantic_layer.api import router as _semantic_router
+    app.include_router(_semantic_router)
+    log.info("Semantic Layer mounted at /semantic-layer (FE-42)")
+except ImportError:
+    log.warning("Semantic Layer router not available — /semantic-layer skipped.")
+
+try:
+    from warden.blockchain.api import router as _web3_router
     app.include_router(_web3_router)
     log.info("Web3 on-chain mandates mounted at /web3/mandates (Phase 1)")
 except ImportError:

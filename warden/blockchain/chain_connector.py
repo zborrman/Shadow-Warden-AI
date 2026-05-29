@@ -9,7 +9,7 @@ import logging
 import os
 from typing import Any
 
-log = logging.getLogger("warden.web3.chain")
+log = logging.getLogger("warden.blockchain.chain")
 
 _RPC_URL  = os.getenv("WEB3_RPC_URL", "")          # e.g. https://sepolia.infura.io/v3/KEY
 _CHAIN_ID = int(os.getenv("WEB3_CHAIN_ID", "11155111"))  # Sepolia default

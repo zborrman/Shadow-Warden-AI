@@ -92,3 +92,18 @@ ssl/
 
 .vercel
 .env.sepolia
+
+# Build artifacts — never commit
+dashboard/.next/
+dashboard/node_modules/
+dashboard/tsconfig.tsbuildinfo
+dashboard/next-env.d.ts
+dashboard/package-lock.json
+worker/node_modules/
+worker/package-lock.json
+obsidian-plugin/node_modules/
+obsidian-plugin/package-lock.json
+portal/tsconfig.tsbuildinfo
+data/evolution_dataset.jsonl
+data/corpus_snapshot.json
+.env.sepolia

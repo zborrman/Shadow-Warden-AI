@@ -187,6 +187,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "training_records_enabled":    False,
         "smb_suite_enabled":           False,
         "agentic_commerce_enabled":    False,
+        "semantic_layer_enabled":      False,
         "settings_enabled":            False,
         # ── Referral ───────────────────────────────────────────────────────────
         "referral_program":            True,
@@ -242,6 +243,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "training_records_enabled":    False,
         "smb_suite_enabled":           False,
         "agentic_commerce_enabled":    False,
+        "semantic_layer_enabled":      False,
         "settings_enabled":            True,
         "referral_program":            True,
         "referral_bonus_requests":     500,
@@ -295,6 +297,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "training_records_enabled":    True,
         "smb_suite_enabled":           True,
         "agentic_commerce_enabled":    True,
+        "semantic_layer_enabled":      True,
         "settings_enabled":            True,
         "referral_program":            True,
         "referral_bonus_requests":     2_000,
@@ -367,6 +370,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "training_records_enabled":    True,
         "smb_suite_enabled":           True,
         "agentic_commerce_enabled":    True,
+        "semantic_layer_enabled":      False,
         "settings_enabled":            True,
     },
 
@@ -412,6 +416,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "training_records_enabled":    True,
         "smb_suite_enabled":           True,
         "agentic_commerce_enabled":    True,
+        "semantic_layer_enabled":      True,
         "settings_enabled":            True,
         "referral_program":            False,   # Enterprise pays full price
         "referral_bonus_requests":     0,

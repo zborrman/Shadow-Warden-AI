@@ -34,8 +34,8 @@ class Web3PaymentRequest(BaseModel):
 
 @router.post("/create", summary="Create on-chain mandate", dependencies=[_Gate])
 async def create_onchain_mandate(body: Web3MandateRequest) -> dict:
-    from warden.web3.mandate_contract import MandateContract
-    from warden.web3.ipfs_storage import IPFSStorage
+    from warden.blockchain.mandate_contract import MandateContract
+    from warden.blockchain.ipfs_storage import IPFSStorage
 
     ipfs = IPFSStorage()
     cid = ipfs.store_mandate({
@@ -60,7 +60,7 @@ async def create_onchain_mandate(body: Web3MandateRequest) -> dict:
 
 @router.get("/{mandate_id}", summary="Read on-chain mandate status", dependencies=[_Gate])
 async def get_onchain_mandate(mandate_id: str) -> dict:
-    from warden.web3.mandate_contract import MandateContract
+    from warden.blockchain.mandate_contract import MandateContract
     data = MandateContract().get(mandate_id)
     if not data:
         raise HTTPException(status_code=404, detail="Mandate not found on chain")
@@ -69,7 +69,7 @@ async def get_onchain_mandate(mandate_id: str) -> dict:
 
 @router.post("/{mandate_id}/execute", summary="Execute payment on-chain", dependencies=[_Gate])
 async def execute_onchain_payment(mandate_id: str, body: Web3PaymentRequest) -> dict:
-    from warden.web3.mandate_contract import MandateContract
+    from warden.blockchain.mandate_contract import MandateContract
     result = MandateContract().execute_payment(
         mandate_uuid=mandate_id,
         amount_cents=int(body.amount_usd * 100),
@@ -82,7 +82,7 @@ async def execute_onchain_payment(mandate_id: str, body: Web3PaymentRequest) -> 
 
 @router.delete("/{mandate_id}", summary="Revoke on-chain mandate", dependencies=[_Gate])
 async def revoke_onchain_mandate(mandate_id: str) -> dict:
-    from warden.web3.mandate_contract import MandateContract
+    from warden.blockchain.mandate_contract import MandateContract
     result = MandateContract().revoke(mandate_id)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result)

@@ -10,7 +10,7 @@ import logging
 import os
 from typing import Any
 
-log = logging.getLogger("warden.web3.mandate")
+log = logging.getLogger("warden.blockchain.mandate")
 
 # Minimal ABI for compiled Mandate.sol
 MANDATE_ABI = [
@@ -82,7 +82,7 @@ class MandateContract:
     """
 
     def __init__(self) -> None:
-        from warden.web3.chain_connector import get_connector
+        from warden.blockchain.chain_connector import get_connector
         self._chain = get_connector()
         self._address: str | None = _CONTRACT_ADDRESS or None
         self._ensure_deployed()
