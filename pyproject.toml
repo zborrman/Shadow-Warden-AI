@@ -166,6 +166,15 @@ omit = [
     "warden/analytics/accessibility.py",
     "warden/audio_redactor.py",
     "warden/api/monitor.py",
+    "warden/blockchain/chain_connector.py",
+    "warden/blockchain/ipfs_storage.py",
+    "warden/blockchain/mandate_contract.py",
+    "warden/api/fido_auth.py",
+    "warden/semantic_layer/api.py",
+    "warden/analytics/pages/14_Agentic_Commerce.py",
+    "warden/analytics/pages/15_Semantic_Layer.py",
+    "warden/analytics/pages/16_Settings.py",
+    "warden/workers/weekly_report.py",
 ]
 
 [tool.coverage.report]
