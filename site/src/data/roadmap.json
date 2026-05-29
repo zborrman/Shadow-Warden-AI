@@ -636,7 +636,7 @@
     "feature": "Real-time anomaly WebSocket stream — push XAI events to dashboard without polling",
     "version": "",
     "tier": "Pro+",
-    "status": "planned",
+    "status": "shipped",
     "description": "WebSocket-based push of XAI anomaly events and incident alerts directly to the SOC dashboard and other observability surfaces. Eliminates polling — latency drops to near-zero. Backed by FastAPI WebSocket endpoint + Redis Pub/Sub fan-out. Client auto-reconnects on disconnect."
   },
   {
@@ -877,7 +877,7 @@
     "description": "Tenant-configurable data retention policies per data_class with automatic enforcement and deletion schedules to meet compliance requirements.",
     "version": "",
     "tier": "Community+",
-    "status": "planned"
+    "status": "shipped"
   },
   {
     "id": "IF-01",
@@ -1108,7 +1108,7 @@
     "description": "Automatic charge per 1k requests above Pro tier limit. Estimated $0.05 per 1k requests. Charged automatically at end of billing period via Lemon Squeezy. No service interruption — usage continues unthrottled. Detailed overage report available in the SOC dashboard.",
     "version": "",
     "tier": "Pro+",
-    "status": "planned",
+    "status": "shipped",
     "price_per_1k": 0.05
   },
   {
@@ -1118,7 +1118,7 @@
     "feature": "Add-on: Obsidian Business Pack — bundled plugin features +$8/mo",
     "version": "",
     "tier": "Individual+",
-    "status": "planned",
+    "status": "shipped",
     "description": "Bundled Obsidian plugin features: advanced scheduling, offline queue, XAI viz, Dataview dashboard, sidebar.",
     "price": 8
   },
@@ -1620,6 +1620,56 @@
     "description": "One-click test sends a real notification to verify connectivity. Channels marked verified after first successful test.",
     "version": "v4.31",
     "tier": "Individual+",
+    "status": "shipped"
+  },
+  {
+    "id": "CM-41",
+    "category": "Business Community",
+    "subcategory": "Community & Collaboration",
+    "feature": "Web3 On-Chain Mandates (Ethereum/Polygon)",
+    "description": "SmartContract mandate deployment via eth_tester/Sepolia. IPFS metadata storage. Immutable on-chain audit trail for AI spending.",
+    "version": "v5.0",
+    "tier": "Pro+",
+    "status": "shipped"
+  },
+  {
+    "id": "CM-42",
+    "category": "Business Community",
+    "subcategory": "Community & Collaboration",
+    "feature": "Multi-Agent Procurement Auction (Claude/Gemini/GPT)",
+    "description": "Parallel vendor proposals from 3 AI providers. Supplier risk scoring. Winner selection by composite score.",
+    "version": "v5.0",
+    "tier": "Community Business+",
+    "status": "shipped"
+  },
+  {
+    "id": "CM-43",
+    "category": "Business Community",
+    "subcategory": "Community & Collaboration",
+    "feature": "Tax & Invoice Engine (VAT/GST/Sales Tax)",
+    "description": "EU VAT OSS, US Sales Tax (50 states), UK VAT, SG GST, AU GST. PDF invoices via ReportLab stored in MinIO.",
+    "version": "v5.0",
+    "tier": "Community Business+",
+    "status": "shipped"
+  },
+  {
+    "id": "CM-44",
+    "category": "Business Community",
+    "subcategory": "Community & Collaboration",
+    "feature": "FIDO2 Passkeys for AP2 Mandate Signing",
+    "description": "WebAuthn Passkey registration and authentication. Optional FIDO gate on mandate execution. Phishing-resistant.",
+    "version": "v5.0",
+    "tier": "Pro+",
+    "status": "shipped"
+  },
+  {
+    "id": "CM-45",
+    "category": "Business Community",
+    "subcategory": "Community & Collaboration",
+    "feature": "shadow-warden-sdk Python Package",
+    "description": "pip install shadow-warden-sdk. ShadowWardenClient + SecureAgent mixin. Any AI agent gets mandate controls in 3 lines.",
+    "version": "v5.0",
+    "tier": "All",
     "status": "shipped"
   }
 ]
