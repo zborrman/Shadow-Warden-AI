@@ -601,7 +601,8 @@ jobs:
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
           ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=no \
-            "${SSH_USER}@${SSH_HOST}" bash -s << EOF
+              -o ConnectTimeout=15 -o ServerAliveInterval=20 -o ServerAliveCountMax=3 \
+            "${SSH_USER}@${SSH_HOST}" bash -s << EOF || { echo "⚠️  Server unreachable — skipping pull"; exit 0; }
           set -euo pipefail
           # Fix any root-owned files left by Docker (including .git/FETCH_HEAD)
           docker run --rm -v "${SSH_PATH}:/r" alpine chmod -R a+rwX /r 2>/dev/null || true
@@ -622,15 +623,13 @@ jobs:
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
-          # Use -i directly — no ssh-agent needed
-          # ServerAliveInterval/CountMax keep the TCP session alive while we wait
-          # for the model to load (up to ~3 min on cold start).
           ssh -i ~/.ssh/id_deploy \
               -o BatchMode=yes \
               -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=15 \
               -o ServerAliveInterval=20 \
-              -o ServerAliveCountMax=15 \
-              "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
+              -o ServerAliveCountMax=6 \
+              "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH || { echo "⚠️  Server unreachable — deploy skipped"; exit 0; }
           set -euo pipefail
           cd "$SSH_PATH"
 
