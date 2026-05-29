@@ -578,87 +578,15 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
 
         <!-- ── ENTERPRISE GUIDE ── -->
         <div id="panel-guide" class="settings-panel hidden">
-          <p class="panel-subtitle">Enterprise Integration &amp; Deployment Guide — architecture, configuration, API reference, compliance, and HA deployment.</p>
-
-          <!-- Main download card -->
-          <div class="settings-card mt-6" style="border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.03)">
-            <div class="flex items-start gap-5">
-              <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-[28px] flex-shrink-0"
-                   style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)">
-                📄
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                  <h3 class="card-title">Enterprise Integration &amp; Deployment Guide</h3>
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                        style="color:#f59e0b;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.25)">
-                    v4.30
-                  </span>
-                </div>
-                <p class="text-[12px] mb-4 leading-relaxed" style="color:#64748b">
-                  Complete deployment playbook — Docker Compose, configuration, 9-layer pipeline, Agentic SOC, Post-Quantum Crypto,
-                  Sovereign Cloud, SEP Communities, API integration, auth, billing, monitoring, and SOC 2 compliance.
-                  22 sections · ~8,000 words.
-                </p>
-                <div class="flex flex-wrap gap-3">
-                  <a href="/enterprise-guide" target="_blank"
-                     class="btn-primary-sm flex items-center gap-2">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                    </svg>
-                    Open Guide
-                  </a>
-                  <button onclick="(function(){var w=window.open('/enterprise-guide','_blank');if(w){w.addEventListener('load',function(){w.print()},true)}})()"
-                          class="btn-secondary-sm flex items-center gap-2">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                    </svg>
-                    Download PDF
-                  </button>
-                </div>
-              </div>
+          <div class="settings-card mt-6 flex items-center gap-4">
+            <span style="font-size:28px;flex-shrink:0">📄</span>
+            <div class="flex-1 min-w-0">
+              <div class="card-title">Enterprise Integration &amp; Deployment Guide</div>
+              <div class="text-[12px] mt-0.5" style="color:#64748b">v4.3 · May 2026 · 10 sections</div>
             </div>
-          </div>
-
-          <!-- Table of contents -->
-          <div class="settings-card mt-4">
-            <h3 class="card-title mb-4">Contents</h3>
-            <div class="grid sm:grid-cols-2 gap-x-8 gap-y-1.5">
-              {[
-                ['🛡️', 'Overview & Architecture'],
-                ['⚡', 'Quick Deploy (Docker Compose)'],
-                ['⚙️', 'Configuration Reference'],
-                ['🔴', '9-Layer Filter Pipeline'],
-                ['🧠', 'Brain / ML (MiniLM + Hyperbolic)'],
-                ['🤖', 'Agentic SOC — SOVA & MasterAgent'],
-                ['🧬', 'Post-Quantum Cryptography'],
-                ['🌐', 'Sovereign AI Cloud (8 jurisdictions)'],
-                ['🔗', 'SEP Communities & Peering'],
-                ['👁️', 'Shadow AI Governance'],
-                ['📡', 'API Integration Guide'],
-                ['🔐', 'Auth & Identity (per-tenant keys)'],
-                ['💳', 'Billing & Tier Limits'],
-                ['📊', 'Monitoring (OTel + Grafana + Jaeger)'],
-                ['✅', 'Compliance (GDPR · SOC 2 · ISO 27001)'],
-                ['🔁', 'High Availability & Scaling'],
-                ['🎯', 'FraudScore Sovereign'],
-                ['⚡', 'NVIDIA Nemotron Integration'],
-                ['🔧', 'Troubleshooting'],
-                ['📝', 'Changelog'],
-              ].map(([icon, label]) => (
-                <div class="flex items-center gap-2 py-1 text-[12px]" style="color:#94a3b8">
-                  <span class="text-[13px] flex-shrink-0">{icon}</span>
-                  {label}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div class="mt-4 p-4 rounded-xl text-[12px]" style="background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.15)">
-            <div class="font-semibold mb-1" style="color:#6366f1">💡 Save as PDF</div>
-            <div style="color:#64748b">
-              Click <strong style="color:#f1f5f9">Download PDF</strong> to open the guide in a new tab and trigger the print dialog.
-              Choose <strong style="color:#f1f5f9">Save as PDF</strong> in your browser's print destination.
+            <div class="flex gap-2 flex-shrink-0">
+              <a href="/enterprise-guide" target="_blank" class="btn-primary-sm">Open ↗</a>
+              <button onclick="(function(){var w=window.open('/enterprise-guide','_blank');if(w){w.addEventListener('load',function(){w.print()},true)}})()" class="btn-secondary-sm">Save PDF</button>
             </div>
           </div>
         </div>
