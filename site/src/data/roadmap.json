@@ -1418,7 +1418,7 @@
     "subcategory": "Business Intelligence",
     "feature": "Business Intelligence Module",
     "description": "8-category analytics: AI usage, threats, vendor scorecards, cost optimisation, compliance scoring, community benchmarking, predictive incident analytics, custom report builder. SQLite-cached 15min TTL. FastAPI router at /business-intelligence.",
-    "version": "v4.30",
+    "version": "v5.1",
     "tier": "Community Business+",
     "status": "shipped"
   },
