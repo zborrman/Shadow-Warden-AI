@@ -1423,6 +1423,16 @@
     "status": "shipped"
   },
   {
+    "id": "CM-40",
+    "category": "Business Community",
+    "subcategory": "Community & Collaboration",
+    "feature": "Agentic Commerce Protocols (UCP/AP2/MCP) integration",
+    "description": "Secure AI-driven procurement with mandate controls, vendor validation, and BI analytics. UCP store discovery, AP2 signed spending mandates, MCP agent intent bridge, Vendor Governance integration, Cost Allocation recording, STIX audit chain per order.",
+    "version": "v5.0",
+    "tier": "Community Business+",
+    "status": "shipped"
+  },
+  {
     "id": "CP-12",
     "category": "Tunnel",
     "subcategory": "Sovereign AI Cloud",

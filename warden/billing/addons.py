@@ -147,6 +147,16 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/smb-governance-suite",
     },
 
+    "agentic_commerce_pack": {
+        "display_name":   "Agentic Commerce Pack",
+        "description":    "AI-driven procurement with mandate controls, UCP store discovery, AP2 payment execution, MCP agent intents, vendor validation, and BI spend analytics.",
+        "usd_per_month":  15,
+        "min_tier":       "community_business",
+        "ls_variant_id":  os.getenv("LS_VARIANT_AGENTIC_COMMERCE", ""),
+        "unlocks":        ["agentic_commerce_enabled"],
+        "docs_url":       "/docs/addons/agentic-commerce-pack",
+    },
+
 }
 
 # ── Bundle catalog ─────────────────────────────────────────────────────────────

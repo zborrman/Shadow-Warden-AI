@@ -1369,6 +1369,13 @@ try:
 except ImportError:
     log.warning("settings router not available — /settings routes skipped.")
 
+try:
+    from warden.business_community.agentic_commerce.api import router as _commerce_router
+    app.include_router(_commerce_router)
+    log.info("Agentic Commerce mounted at /business-community/commerce (CM-40)")
+except ImportError:
+    log.warning("Agentic Commerce router not available — /business-community/commerce skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /
