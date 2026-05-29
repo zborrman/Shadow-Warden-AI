@@ -60,13 +60,33 @@ class SemanticModel(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump()
 
+    def metric_names(self) -> list[str]:
+        return [m.name for m in self.metrics]
+
+    def dimension_names(self) -> list[str]:
+        return [d.name for d in self.dimensions]
+
 
 # ── Query ─────────────────────────────────────────────────────────────────────
+
+_OP_MAP: dict[str, str] = {
+    "eq": "=", "ne": "!=", "neq": "!=",
+    "gt": ">", "lt": "<", "gte": ">=", "lte": "<=",
+    "like": "LIKE", "in": "IN",
+}
+
 
 class FilterClause(BaseModel):
     dimension: str
     operator: str = "="     # =, !=, >, <, IN, LIKE
     value: Any
+
+    def sql_operator(self) -> str:
+        return _OP_MAP.get(self.operator.lower(), self.operator)
+
+
+# Alias used by tests
+Filter = FilterClause
 
 
 class QueryObject(BaseModel):

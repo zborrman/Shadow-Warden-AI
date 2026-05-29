@@ -17,7 +17,9 @@ import time
 from typing import Any
 
 from warden.semantic_layer.models import (
+    Dimension,
     FilterClause,
+    Metric,
     QueryObject,
     QueryResult,
     SemanticModel,
@@ -220,3 +222,143 @@ _engine = SemanticEngine()
 
 def get_engine() -> SemanticEngine:
     return _engine
+
+
+# ── SemanticQueryEngine — test-facing API ─────────────────────────────────────
+
+class SemanticQueryEngine:
+    """Higher-level engine: takes (QueryObject, SemanticModel) directly.
+
+    Used by tests and the repository layer. `SemanticEngine` is the
+    registry-aware engine used by the FastAPI router.
+    """
+
+    def compile_query(self, query: QueryObject, model: SemanticModel) -> str:
+        """Return deterministic SQL for the given query against the given model."""
+        select_parts: list[str] = []
+        group_by: list[str] = []
+
+        for dim_name in query.dimensions:
+            col = next(
+                (d.effective_column() for d in model.dimensions if d.name == dim_name), dim_name
+            )
+            select_parts.append(f"{col} AS {_SAFE_IDENT.match(dim_name) and dim_name or dim_name}")
+            group_by.append(col)
+
+        for met_name in query.metrics:
+            expr = next(
+                (m.effective_expression() for m in model.metrics if m.name == met_name), met_name
+            )
+            select_parts.append(f"{expr} AS {met_name}")
+
+        where_parts: list[str] = []
+        for f in query.filters:
+            col = next(
+                (d.effective_column() for d in model.dimensions if d.name == f.dimension),
+                f.dimension,
+            )
+            op = f.sql_operator()
+            if op.upper() == "IN":
+                vals = ", ".join(f"'{v}'" for v in f.value)
+                where_parts.append(f"({col} IN ({vals}))")
+            else:
+                where_parts.append(f"({col} {op} '{f.value}')")
+
+        select_sql  = ",\n    ".join(select_parts)
+        table       = model.source_table
+        where_sql   = f"WHERE {' AND '.join(where_parts)}" if where_parts else ""
+        group_sql   = f"GROUP BY {', '.join(group_by)}" if group_by else ""
+        limit_sql   = f"LIMIT {query.limit}"
+
+        return (
+            f"SELECT\n    {select_sql}\nFROM {table}\n"
+            f"{where_sql}\n{group_sql}\n{limit_sql}"
+        ).strip()
+
+    def validate_model(self, model: SemanticModel) -> tuple[bool, list[str]]:
+        """Return (ok, errors). A model is valid if it has at least one metric."""
+        errors: list[str] = []
+        if not model.name:
+            errors.append("Model must have a name.")
+        if not model.metrics:
+            errors.append("Model must define at least one metric.")
+        for m in model.metrics:
+            if not m.effective_expression():
+                errors.append(f"Metric '{m.name}' has no expression.")
+        for d in model.dimensions:
+            if not d.effective_column():
+                errors.append(f"Dimension '{d.name}' has no column/sql_field.")
+        return (len(errors) == 0, errors)
+
+    def get_context_for_llm(self, model: SemanticModel) -> dict[str, Any]:
+        """Return model context safe for LLM prompts — no raw SQL exposed."""
+        return {
+            "model_id":    model.id,
+            "model_name":  model.name,
+            "description": model.description,
+            "metrics": [
+                {"name": m.name, "description": m.description, "format": m.format}
+                for m in model.metrics
+            ],
+            "dimensions": [
+                {"name": d.name, "description": d.description, "type": d.type}
+                for d in model.dimensions
+            ],
+        }
+
+    def export_osi(self, model: SemanticModel) -> dict[str, Any]:
+        """Export model to OSI 1.0 interchange format."""
+        return {
+            "osi_version":   "1.0",
+            "id":            model.id,
+            "name":          model.name,
+            "description":   model.description,
+            "source_table":  model.source_table,
+            "owner_tenant":  model.owner_tenant,
+            "metrics": [
+                {
+                    "name":        m.name,
+                    "expression":  m.effective_expression(),
+                    "description": m.description,
+                    "format":      m.format,
+                }
+                for m in model.metrics
+            ],
+            "dimensions": [
+                {
+                    "name":        d.name,
+                    "column":      d.effective_column(),
+                    "description": d.description,
+                    "type":        d.type,
+                }
+                for d in model.dimensions
+            ],
+        }
+
+    def import_osi(self, data: dict[str, Any], tenant_id: str) -> SemanticModel:
+        """Import from OSI 1.0 interchange format into a SemanticModel."""
+        return SemanticModel(
+            id=data.get("id", ""),
+            name=data["name"],
+            description=data.get("description", ""),
+            source_table=data.get("source_table", ""),
+            owner_tenant=tenant_id,
+            metrics=[
+                Metric(
+                    name=m["name"],
+                    expression=m.get("expression", ""),
+                    description=m.get("description", ""),
+                    format=m.get("format", "number"),
+                )
+                for m in data.get("metrics", [])
+            ],
+            dimensions=[
+                Dimension(
+                    name=d["name"],
+                    column=d.get("column", ""),
+                    description=d.get("description", ""),
+                    type=d.get("type", "string"),
+                )
+                for d in data.get("dimensions", [])
+            ],
+        )
