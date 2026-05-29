@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 4.30 · Last updated 2026-05-22**
+**Version 5.1 · Last updated 2026-05-29**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -345,3 +345,74 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | U-11 | `ROADMAP.md` — CM-39 row added | ✅ |
 | U-12 | `site/src/data/roadmap.json` — CM-39 entry added | ✅ |
 | U-13 | Lint: all ruff + mypy clean (0 errors) | ✅ |
+
+---
+
+### Block V — Agentic Commerce & Web3 v5.0 (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| V-01 | `warden/business_community/agentic_commerce/` — UCP/AP2/MCP procurement protocols | ✅ |
+| V-02 | `warden/business_community/agentic_commerce/multi_agent/` — MultiAgentOrchestrator, claude/gemini/gpt connectors | ✅ |
+| V-03 | `warden/business_community/agentic_commerce/api.py` — 10 endpoints at `/business-community/commerce/*` | ✅ |
+| V-04 | `warden/business_community/agentic_commerce/ap2.py` — AP2 payment authorization protocol | ✅ |
+| V-05 | `warden/business_community/agentic_commerce/mcp_bridge.py` — Model Context Protocol bridge | ✅ |
+| V-06 | `warden/auth/fido.py` — FIDO2/WebAuthn passkey registration + authentication | ✅ |
+| V-07 | `warden/blockchain/` — Sepolia Web3 mandate contract deployment + IPFS storage | ✅ |
+| V-08 | `warden/analytics/pages/14_Agentic_Commerce.py` — Streamlit commerce dashboard | ✅ |
+| V-09 | `site/src/components/` — Agentic Commerce + Web3 landing sections | ✅ |
+| V-10 | `site/src/data/roadmap.json` — CM-40 Agentic Commerce entry | ✅ |
+
+---
+
+### Block W — Semantic Layer + Settings Hub v5.1 (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| W-01 | `warden/semantic_layer/models.py` — `SemanticModel`, `Metric`, `Dimension`, `QueryObject`, `QueryResult`; dual field-name aliases | ✅ |
+| W-02 | `warden/semantic_layer/engine.py` — `SemanticEngine`: 3 built-in models, access-rule enforcement, deterministic SQL | ✅ |
+| W-03 | `warden/semantic_layer/api.py` — 5 endpoints at `/semantic-layer/*`; Claude Haiku AI query (Pro+) | ✅ |
+| W-04 | `warden/analytics/pages/15_Semantic_Layer.py` — Streamlit 4-tab page (Models, Query Builder, AI Query, Docs) | ✅ |
+| W-05 | `dashboard/src/app/(soc)/semantic-layer/page.tsx` — SOC model cards + AI query widget | ✅ |
+| W-06 | `warden/settings/models.py` — `AgentSettings`, `CommerceSettings`, `SemanticSettings`, `NotificationChannel` + 9 API aliases | ✅ |
+| W-07 | `warden/settings/service.py` — `SettingsService` class + 10 module-level shims; Redis + in-memory fallback | ✅ |
+| W-08 | `warden/settings/api.py` — 12 endpoints at `/settings/*` (agents, notifications, commerce, semantic) | ✅ |
+| W-09 | `warden/analytics/pages/16_Settings.py` — Streamlit 6-tab Settings Hub | ✅ |
+| W-10 | `dashboard/src/app/(soc)/settings/page.tsx` — SOC config status + quick links | ✅ |
+| W-11 | `portal/src/app/settings/page.tsx` — +AgentsSection, +CommerceSection, +SemanticLayerSection | ✅ |
+| W-12 | `warden/tests/test_settings.py` — 19 tests (models, service, API) | ✅ |
+| W-13 | `ROADMAP.md` — FE-42 + FE-43 entries | ✅ |
+
+---
+
+### Block X — Site v5.1 Refresh (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| X-01 | Version bump v4.x → v5.1 across Navbar, Footer, Hero, AuthModal, ZeroTrustDiagram, fraud-score | ✅ |
+| X-02 | Layer count 14 → 15 in Hero, Navbar, Footer, ZeroTrustDiagram, FeaturesGrid, smb.astro, Layout.astro meta | ✅ |
+| X-03 | `FeaturesGrid.astro` — layer #15 Semantic Layer added; "15-Layer Defense Stack" header | ✅ |
+| X-04 | `Pricing.astro` — 14-layer → 15-layer, +Semantic Layer AI Query, +Settings Hub add-on entries | ✅ |
+| X-05 | `site/src/components/WhatsNew.astro` — changelog timeline (v5.1, v4.20, v4.19); wired into index.astro | ✅ |
+| X-06 | `site/src/pages/roadmap.astro` — `/roadmap` page: 22 shipped + 3 planned, JS filter by status/tier | ✅ |
+| X-07 | `site/src/data/roadmap.json` — CM-39 bumped to v5.1 | ✅ |
+| X-08 | `site/src/pages/business-community/index.astro` — v4.30 → v5.1 badges | ✅ |
+| X-09 | `@astrojs/sitemap` installed — sitemap-index.xml now generated (53 pages) | ✅ |
+
+---
+
+### Block Y — CI Lint + Mypy Hardening v5.1 (✅ Complete)
+
+| ID | Fix | Status |
+|----|-----|--------|
+| Y-01 | 48 ruff errors fixed (45 auto-fix + 3 manual SIM102 nested-if → `and`) in 13_Settings.py and others | ✅ |
+| Y-02 | 47 mypy errors resolved across 7 files | ✅ |
+| Y-03 | `warden/api/settings.py` — 22 attr-defined errors fixed by adding missing model types + service shims | ✅ |
+| Y-04 | `warden/settings/service.py` — `isinstance(raw, dict)` narrowing × 3 (arg-type errors) | ✅ |
+| Y-05 | `warden/semantic_layer/models.py` — `SemanticModel` extended with `owner_tenant`, `created_at`, `updated_at`, `to_dict()`; Metric/Dimension dual aliases | ✅ |
+| Y-06 | `warden/semantic_layer/api.py` + `engine.py` — `hasattr(block,"text")` SDK union narrowing; `type: ignore[arg-type]` | ✅ |
+| Y-07 | `warden/business_community/agentic_commerce/orchestrator.py` — `isinstance(p, AgentProposal)` narrows gather results | ✅ |
+| Y-08 | `warden/business_community/agentic_commerce/service.py` — vendor_id, append_transfer kwargs, new_ueciid(), type: ignore for missing financial functions | ✅ |
+| Y-09 | `warden/business_community/agentic_commerce/ap2.py` — Fernet key init split to avoid bytes.encode() | ✅ |
+| Y-10 | `warden/tax/invoice_generator.py` — `put_object` → `put_object_async` via asyncio.run() | ✅ |
+| Y-11 | `warden/business_community/agentic_commerce/mcp_bridge.py` — `send_alert` alias; removed spurious await | ✅ |

@@ -1,6 +1,6 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               Shadow Warden AI — Project TODO List                         ║
-║               Version 4.30 · Updated 2026-05-22                            ║
+║               Version 5.1  · Updated 2026-05-29                            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 Priority legend:
@@ -218,7 +218,7 @@ Priority legend:
       → Document human oversight measures (Art. 14)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  6. DONE ✓ (v4.30 current)
+  6. DONE ✓ (v5.1 current)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [✓]  Core gateway — 9-stage pipeline (TDA, obfuscation, secrets, semantic, ML, causal, phish, ERS, decision)
@@ -263,10 +263,17 @@ Priority legend:
 [✓]  GitHub Actions CI autodeploy → server
 [✓]  SMB AI Governance Suite (v4.23–v4.29) — 8 modules: vendor gov, cost allocation, budget, incidents, supplier risk, prompt library, training records, suite orchestrator
 [✓]  Business Intelligence Module (v4.30) — CM-39: 8-category analytics, OLS prediction, benchmarking, 15-min SQLite cache, 11 endpoints
+[✓]  Agentic Commerce (v5.0) — UCP/AP2/MCP protocols, MultiAgentOrchestrator, FIDO2 passkeys, Sepolia Web3 contracts
+[✓]  Semantic Layer (v5.1 FE-42) — SemanticEngine, 3 built-in models, AI query (Haiku), Pro+ gate, Streamlit + SOC pages
+[✓]  Settings Hub (v5.1 FE-43) — AgentSettings/Commerce/Semantic/Notifications; 10 service shims; Streamlit + SOC + Portal
+[✓]  Site v5.1 refresh — 15-layer, v5.1 badges, WhatsNew.astro, /roadmap page (22 shipped + 3 planned, JS filters)
+[✓]  CI lint hardening (v5.1) — 48 ruff errors + 47 mypy errors resolved; ruff: All checks passed; mypy: no issues
+[✓]  Settings models schema — 9 API-router alias types added; isinstance narrowing in service.py × 3
+[✓]  Commerce type fixes — orchestrator AgentProposal narrowing, ap2 Fernet init, mcp_bridge send_alert, service kwargs
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  7. v5.0 ROADMAP — DEFERRED PLANNED ITEMS
+  7. v5.2 ROADMAP — NEXT PLANNED ITEMS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [ ]   FraudScore API backend — POST /fraud-score/evaluate

@@ -11,7 +11,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 4.30 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-05-22
+**Version:** 5.1 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-05-29
 
 ## Architecture
 
@@ -209,6 +209,22 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/business_intelligence/benchmarking.py` | Community benchmarking — `percentile`, `percentile_rank`, `benchmark_metric`, `build_benchmarks` |
 | `warden/business_intelligence/router.py` | FastAPI router `/business-intelligence/*` — 11 endpoints (CM-39) |
 | `warden/analytics/pages/12_Business_Intelligence.py` | Streamlit BI dashboard — 8 tabs: Usage, Threats, Vendors, Costs, Compliance, Benchmarks, Predictions, Report Builder |
+| `warden/semantic_layer/__init__.py` | Semantic Layer (Headless BI) package — FE-42 |
+| `warden/semantic_layer/models.py` | Pydantic models — `SemanticModel`, `Metric`, `Dimension`, `QueryObject`, `QueryResult`; dual field-name aliases for repo/engine compat |
+| `warden/semantic_layer/engine.py` | `SemanticEngine` — deterministic SQL generator, 3 built-in models, access-rule enforcement, parameterised output |
+| `warden/semantic_layer/api.py` | FastAPI router `/semantic-layer/*` — 5 endpoints: list/get/register models, query, AI query (Pro+ gate) |
+| `warden/analytics/pages/15_Semantic_Layer.py` | Streamlit Semantic Layer — 4 tabs: Models, Query Builder, AI Query, Docs |
+| `dashboard/src/app/(soc)/semantic-layer/page.tsx` | SOC Dashboard semantic-layer page — model cards, AI query widget, architecture panel |
+| `warden/settings/__init__.py` | Settings Hub package — FE-43 |
+| `warden/settings/models.py` | Settings Pydantic models — `AgentSettings`, `CommerceSettings`, `SemanticSettings`, `NotificationChannel` + API-router aliases |
+| `warden/settings/service.py` | `SettingsService` — Redis + in-process fallback; 10 module-level shims for `/api/settings.py` compatibility |
+| `warden/settings/api.py` | FastAPI router `/settings/*` — agents, notifications, commerce, semantic config |
+| `warden/api/settings.py` | Original settings router — API keys, secrets, agent config, notification channels; imports shims from `warden/settings/service` |
+| `warden/analytics/pages/16_Settings.py` | Streamlit Settings Hub — 6 tabs: API Keys, Secrets, Agents, Notifications, Commerce, Semantic |
+| `dashboard/src/app/(soc)/settings/page.tsx` | SOC Dashboard settings status page — config snapshot, quick links |
+| `site/src/components/WhatsNew.astro` | Changelog section — v5.1 / v4.20 / v4.19 entries, wired into index.astro |
+| `site/src/pages/roadmap.astro` | /roadmap page — 22 shipped + 3 planned features, JS filter by status + tier |
+| `ROADMAP.md` | Machine-readable feature registry — FE-01…FE-43, status, tier, version |
 
 ## Build & Test Commands
 
@@ -342,6 +358,11 @@ NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
 - **PQC Enterprise-only**: `pqc_enabled: True` only in the `enterprise` TIER_LIMITS entry. `POST /communities/{id}/upgrade-pqc` requires `_require_tier(mcp)` + `gate.require("pqc_enabled")`. Raises HTTP 503 if liboqs not installed.
 - **Hybrid signature layout**: 3373 bytes = Ed25519 sig (64 B) + ML-DSA-65 sig (3309 B). `HybridSignature.pack()` / `unpack()` handle serialization. `hybrid_verify()` falls back to Ed25519-only if liboqs unavailable.
 - **Hybrid KEM shared secret**: `HKDF-SHA256(X25519_ss XOR mlkem_ss[:32])` — XOR-then-HKDF pattern; if one algorithm is broken the other provides full security. Ciphertext = ephem_pub (32 B) + ML-KEM-768 ct (1088 B).
+- **Semantic Layer (FE-42, v5.1)**: `warden/semantic_layer/` — Headless BI module. `SemanticEngine` generates deterministic SQL from `QueryObject`. 3 built-in models (filter_events, ers_scores, billing_usage). `Metric.effective_expression()` / `Dimension.effective_column()` handle dual field-name schemas. FastAPI router at `/semantic-layer/*` (Pro+). Streamlit page `15_Semantic_Layer.py`. SOC page at `dashboard/(soc)/semantic-layer/`.
+- **Settings Hub (FE-43, v5.1)**: `warden/settings/` — unified config for Agents (SOVA/MasterAgent), Notifications, Agentic Commerce, Semantic Layer. `service.py` uses Redis + in-memory fallback. `warden/api/settings.py` router at `/settings/*`. 10 module-level shims bridge class methods to flat API. Streamlit page `16_Settings.py`. SOC page at `dashboard/(soc)/settings/`. Portal page extended with AgentsSection, CommerceSection, SemanticLayerSection.
+- **Settings models schema**: `warden/settings/models.py` exports both new models (`AgentSettings`, `CommerceSettings`, `SemanticSettings`) and API-router aliases (`AgentConfig`, `ApiKeyCreate/Out/Created`, `SecretCreate/Out/Update`, `ChannelCreate`, `SettingsSummary`, `TestResult`). Never import API-alias names from outside `warden/api/settings.py`.
+- **Agentic Commerce (CM-40, v5.0)**: `warden/business_community/agentic_commerce/` — UCP/AP2/MCP procurement protocols, multi-agent auction (`MultiAgentOrchestrator`), FIDO2 passkeys (`warden/auth/fido.py`), Sepolia Web3 mandate contract (`warden/blockchain/`). Commerce settings stored in Redis via Settings Hub.
+- **Site version**: `v5.1` across all Astro components (Navbar, Footer, Hero, AuthModal, ZeroTrustDiagram). Layer count: `15`. `/roadmap` page at `site/src/pages/roadmap.astro` — 22 shipped + 3 planned, JS filter by status/tier. `WhatsNew.astro` changelog section in index.
 
 ## Code Style
 

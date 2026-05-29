@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 4.30 · Proprietary · All rights reserved**
+**Version 5.1 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -1360,3 +1360,97 @@ Each entry in `GET /public/community` → `recent[].ueciid` can be linked to `/i
 | `MISP_MAX_EVENTS` | `100` | 31 |
 | `MISP_TAG_FILTER` | — | 31 (comma-separated) |
 | `MISP_VERIFY_SSL` | `true` | 31 |
+| `SEMANTIC_DB_PATH` | `/tmp/warden_semantic.db` | 32 |
+| `SETTINGS_REDIS_PREFIX` | `settings:` | 33 |
+| `COMMERCE_DB_PATH` | `/tmp/warden_commerce.db` | 34 |
+| `FIDO_DB_PATH` | `/tmp/warden_fido.db` | 34 |
+| `WEB3_RPC_URL` | — | 35 (Sepolia RPC endpoint) |
+| `TRANSFER_RISK_THRESHOLD` | `0.70` | SEP Transfer Guard |
+
+---
+
+## Skill 32 — Semantic Layer (Headless BI)
+
+**Module:** `warden/semantic_layer/` · **Tier:** Pro+ · **Version:** v5.1
+
+Centralized semantic contract for metrics, dimensions, and access rules. Generates deterministic, parameterised SQL from a structured `QueryObject`. Claude Haiku translates natural-language intent into QueryObjects at the Pro+ tier.
+
+### Built-in Models
+
+| Model ID | Source Table | Metrics | Dimensions |
+|----------|-------------|---------|------------|
+| `filter_events` | `filter_log` | total_requests, block_count, flag_count, avg_latency_ms, p99_latency_ms | tenant_id, verdict, stage, date, hour |
+| `ers_scores` | `ers_log` | avg_score, max_score, shadow_bans | tenant_id, date |
+| `billing_usage` | `billing_usage` | requests_used, cost_usd, quota_pct | tenant_id, plan, month |
+
+### API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/semantic-layer/models` | X-API-Key | List registered models |
+| GET | `/semantic-layer/models/{id}` | X-API-Key | Model detail |
+| POST | `/semantic-layer/models` | X-API-Key + Pro+ | Register custom model |
+| POST | `/semantic-layer/query` | X-API-Key | Generate SQL from QueryObject |
+| POST | `/semantic-layer/query/intent` | X-API-Key + Pro+ | NL → SQL via Claude Haiku |
+
+### Interfaces
+
+- **Streamlit:** `15_Semantic_Layer.py` — Models / Query Builder / AI Query / Docs tabs
+- **SOC Dashboard:** `dashboard/(soc)/semantic-layer/page.tsx`
+- **Settings Hub:** semantic section in `16_Settings.py` + portal settings page
+
+---
+
+## Skill 33 — Settings Hub
+
+**Module:** `warden/settings/` · **Tier:** All · **Version:** v5.1
+
+Unified configuration surface for all platform modules. Settings persist in Redis with an in-process fallback dict. The API layer (`warden/api/settings.py`) provides typed endpoints for API keys, secrets, agent config, and notification channels.
+
+### Configuration Sections
+
+| Section | Store | Scope |
+|---------|-------|-------|
+| API Keys | Redis hash `settings:{tid}:api_keys` | Per-tenant |
+| Secrets | Redis hash `settings:{tid}:secrets` (values Fernet-encrypted) | Per-tenant |
+| Agents | Redis key `settings:{tid}:agents` (JSON blob) | Per-tenant |
+| Notifications | Redis key `settings:{tid}:notifications` (JSON list) | Per-tenant |
+| Commerce | Redis key `settings:{tid}:commerce` (JSON blob) | Per-tenant |
+| Semantic | Redis key `settings:{tid}:semantic` (JSON blob) | Per-tenant |
+
+### Interfaces
+
+- **REST API:** `warden/api/settings.py` — 20+ endpoints at `/settings/*`
+- **Streamlit:** `16_Settings.py` — 6 tabs: API Keys, Secrets, Agents, Notifications, Commerce, Semantic
+- **SOC Dashboard:** `dashboard/(soc)/settings/page.tsx` — config snapshot + quick links
+- **Portal:** `portal/src/app/settings/page.tsx` — AgentsSection, CommerceSection, SemanticLayerSection appended
+
+---
+
+## Skill 34 — Agentic Commerce (UCP/AP2/MCP)
+
+**Module:** `warden/business_community/agentic_commerce/` · **Tier:** Community Business+ · **Version:** v5.0
+
+Multi-protocol procurement layer. FIDO2 passkeys authenticate purchasing agents. Multi-agent auction runs Claude/Gemini/GPT concurrently and selects the best proposal.
+
+### Protocols
+
+| Protocol | Description |
+|----------|-------------|
+| UCP (Universal Commerce Protocol) | Mandate-based purchase authorization |
+| AP2 (Agent Procurement Protocol v2) | HMAC-signed payment authorization, Fernet-encrypted vault |
+| MCP (Model Context Protocol) bridge | Human-in-the-loop approval via Slack webhook |
+
+### Interfaces
+
+- **API:** `warden/business_community/agentic_commerce/api.py` — 10 endpoints at `/business-community/commerce/*`
+- **Streamlit:** `14_Agentic_Commerce.py`
+- **Settings:** Commerce section in Settings Hub
+
+---
+
+## Skill 35 — Web3 Mandate Contract
+
+**Module:** `warden/blockchain/` · **Tier:** Enterprise · **Version:** v5.0
+
+Decentralized mandate layer on Sepolia testnet. Mandates are stored on-chain (EVM) and in IPFS. Falls back to AP2 HMAC path when `WEB3_RPC_URL` is not set.

@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 4.16 · Last updated 2026-05-07**
+**Version 5.1 · Last updated 2026-05-29**
 
 ---
 
@@ -23,6 +23,9 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - **Collective immunity network**: SEP community threat feed, reputation system (badges + points), public storytelling dashboard
 - **ISAC/MISP integration**: MISPConnector → EvolutionEngine synthesis, SOVA tool #41
 - **Auto-apply community recommendations**: one-click UECIID → corpus import with human-in-the-loop approval
+- **Semantic Layer (Headless BI)**: centralized metric contracts (filter events, ERS scores, billing) — LLM translates natural language to deterministic SQL; OSI-compatible export
+- **Settings Hub**: unified config surface across Agents (SOVA/MasterAgent), Notifications, Agentic Commerce, Semantic Layer — accessible from Streamlit, Portal, and SOC Dashboard
+- **Agentic Commerce**: UCP/AP2/MCP procurement protocols; multi-agent auction (Claude/Gemini/GPT); FIDO2 passkey auth; Web3 Sepolia mandate contracts
 
 **Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
 Enterprise AI teams deploying LLM-backed products.
@@ -46,6 +49,8 @@ Enterprise AI teams deploying LLM-backed products.
 | Shadow AI Discovery | +$15/mo | Pro+ | Shadow AI subnet probe + DNS telemetry |
 | XAI Audit Reports | +$9/mo | Individual+ | /xai/* HTML + PDF reports |
 | Secrets Vault | +$12/mo | Individual+ | Secrets Governance (all 14 endpoints) |
+| Semantic Layer AI Query | Included Pro+ | Pro+ | NL → SQL via Claude Haiku |
+| Settings Hub | Included All | All | Unified agent/notification/commerce/semantic config |
 
 **Included in base tier** (not sold as add-ons):
 - MasterAgent SOC — included in Pro ($69)
@@ -198,7 +203,11 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 | MISP server unreachable | `MISPConnector.sync()` catches httpx errors and returns `MISPSyncResult` with errors list; no crash |
 | Reputation DB corruption | SQLite `community_reputation` is append-only ledger; worst case: `DROP TABLE` and rebuild from `reputation_events` log |
 | Community feed spam/abuse | UECIID publication requires PII gate (`/filter` check); display_name capped at 200 chars; rate-limited by ERS |
+| Semantic Layer SQL injection | `_SAFE_IDENT` regex rejects unsafe identifiers; all values use `%s` parameterisation (psycopg2/asyncpg safe) |
+| Settings Hub Redis unavailability | `_mem` in-process dict fallback in `settings/service.py`; all CRUD survives Redis outage |
+| Agentic Commerce runaway spend | Per-transaction + monthly budget caps in `CommerceSettings`; approval gate above threshold; STIX audit chain |
+| Web3 Sepolia contract failure | Blockchain calls wrapped in try/except; mandate validation falls back to AP2 HMAC path |
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v4.16 · 2026-05-07*
+*Strategy.md — Shadow Warden AI business strategy v5.1 · 2026-05-29*

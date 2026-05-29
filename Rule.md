@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 4.30 · Proprietary · All rights reserved**
+> **Version 5.1 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
@@ -870,3 +870,64 @@ Switch between these modes on request. Default to **collaborative vibe** when no
 | BI-12 | `build_report()` report types: `full` (all 6 sections), `executive` (usage + compliance + threats), `compliance` (compliance + vendors + training), `vendor` (vendors + costs), `cost` (costs + budget). |
 | BI-13 | `include_sections` parameter overrides `report_type` section list when provided. |
 | BI-14 | BI module is read-only across all peer module databases. It must never write to `SEP_DB_PATH`, `VENDOR_GOV_DB_PATH`, or `COST_ALLOC_DB_PATH`. |
+
+---
+
+## 20. Semantic Layer Rules (v5.1)
+
+### SQL Safety Rules
+
+| # | Rule |
+|---|------|
+| SL-01 | All identifiers (table, column, alias) must match `^[A-Za-z_][A-Za-z0-9_.]*$`. Anything else raises `ValueError`. |
+| SL-02 | All filter values use `%s` positional placeholders — never string interpolation. |
+| SL-03 | Operator whitelist: `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `IN`. Unsupported operators raise `ValueError`. |
+| SL-04 | `SemanticEngine.generate()` is deterministic: identical `QueryObject` inputs always produce identical SQL. |
+| SL-05 | Row limit range: 1 ≤ limit ≤ 10,000. |
+
+### Access Control Rules
+
+| # | Rule |
+|---|------|
+| SL-06 | `AccessRule.tenant_id = None` → global rule (applies to all tenants). |
+| SL-07 | If any `AccessRule` exists for a model, all metrics/dimensions must pass the allow-list. Empty allow-list = open. |
+| SL-08 | Access check runs before SQL generation. `PermissionError` → HTTP 403. |
+
+### AI Query Rules
+
+| # | Rule |
+|---|------|
+| SL-09 | AI Query endpoint (`/semantic-layer/query/intent`) requires Pro+ gate via `master_agent_enabled` feature. |
+| SL-10 | If `ANTHROPIC_API_KEY` is not set, AI Query returns HTTP 503 (not 403). |
+| SL-11 | LLM model used for intent translation: `claude-haiku-4-5-20251001` only. Never Opus or Sonnet for this path. |
+| SL-12 | If LLM returns unparseable JSON, HTTP 500 is returned with the raw response truncated to 200 chars. |
+
+---
+
+## 21. Settings Hub Rules (v5.1)
+
+### Storage Rules
+
+| # | Rule |
+|---|------|
+| ST-01 | All settings keys follow the pattern `settings:{tenant_id}:{section}` in Redis. |
+| ST-02 | When Redis is unavailable, the `_mem` in-process dict is used. Data is lost on process restart — this is intentional (ephemeral fallback). |
+| ST-03 | Agent config TTL: no TTL (persistent). All settings keys have no expiry. |
+| ST-04 | Secret values in `settings:{tid}:secrets` are not encrypted by the Settings Hub itself — use Secrets Governance (`warden/secrets_gov/`) for Fernet-encrypted at-rest storage. |
+
+### Commerce Rules
+
+| # | Rule |
+|---|------|
+| ST-05 | `per_transaction_limit_usd` ≥ 0. A value of 0 means no limit is applied by the Settings Hub (upstream AP2 may still enforce limits). |
+| ST-06 | `require_approval_above_usd`: any purchase above this threshold must pass MCP human-in-the-loop approval before execution. |
+| ST-07 | `approved_stores` list: empty list means all stores are permitted. Non-empty list is an allow-list. |
+| ST-08 | `audit_all_transactions = true` by default. When true, every commerce action is appended to the STIX audit chain. |
+
+### Notification Rules
+
+| # | Rule |
+|---|------|
+| ST-09 | Channel kinds: `slack`, `teams`, `email`, `webhook`. Pattern validated by Pydantic. |
+| ST-10 | Slack test sends `{"text": "..."}` POST to channel URL. Non-200 response → `{"ok": false, "status": <code>}`. |
+| ST-11 | Channel IDs are UUID v4 strings, assigned at creation. Client must store the ID to update or delete. |
