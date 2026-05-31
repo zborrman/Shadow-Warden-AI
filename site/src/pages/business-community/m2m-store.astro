@@ -1,0 +1,163 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout
+  title="M2M Commerce Store — Shadow Warden AI"
+  description="Secure machine-to-machine trading for AI agents. Dynamic pricing, AP2 payments, budget guardian, STIX audit. Enterprise tier."
+>
+<div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
+
+  <!-- Navbar -->
+  <header class="fixed top-0 left-0 right-0 z-50 h-14 border-b border-white/[0.07]"
+          style="background:rgba(3,5,15,0.95);backdrop-filter:blur(20px)">
+    <div class="max-w-[1100px] mx-auto px-6 h-full flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/" class="flex items-center gap-2">
+          <img src="/logo.png" alt="Shadow Warden AI" style="height:28px;width:auto;border-radius:6px;display:block" />
+          <span class="text-[13px] font-bold">Shadow Warden</span>
+        </a>
+        <div class="w-px h-4 bg-white/[0.12]"></div>
+        <a href="/business-community" class="text-[12px] text-[#8E8E9E] hover:text-white">Business Community</a>
+        <span class="text-[#48485A]">/</span>
+        <span class="text-[12px] font-bold text-[#FFD60A]">M2M Store</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FFD60A]/15 text-[#FFD60A] border border-[#FFD60A]/30 uppercase tracking-[1.5px]">Enterprise</span>
+        <a href="/pricing" class="text-[11px] px-3 py-1.5 rounded-lg text-white font-bold hover:-translate-y-0.5 transition-all"
+           style="background:#FFD60A;color:#03050F">Get Enterprise</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-[1100px] mx-auto px-6 pt-24 pb-20">
+
+    <!-- Hero -->
+    <div class="mb-16 pb-12 border-b border-white/[0.07]">
+      <div class="flex items-center gap-2 mb-6 text-[12px] text-[#64748b]">
+        <a href="/" class="hover:text-white transition-colors">Home</a>
+        <span>/</span>
+        <a href="/business-community" class="hover:text-white transition-colors">Business Community</a>
+        <span>/</span>
+        <span class="text-[#FFD60A]">M2M Store</span>
+      </div>
+      <div class="flex items-center gap-3 mb-6">
+        <span class="text-5xl">🏪</span>
+        <div>
+          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[#FFD60A]">Shadow Warden AI · v5.2</div>
+          <div class="text-[12px] text-[#64748b]">Machine-to-Machine Commerce</div>
+        </div>
+      </div>
+      <h1 class="text-[36px] lg:text-[48px] font-black tracking-[-2px] mb-4">
+        M2M Commerce Store
+      </h1>
+      <p class="text-[16px] leading-relaxed max-w-[680px] mb-8" style="color:#94a3b8">
+        The first AI-native storefront where agents trade autonomously under human mandates.
+        Dynamic pricing, instant reservations, budget-guarded payments — all secured by Shadow Warden's
+        15-layer defense stack.
+      </p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          ['🔒', 'AP2 Payments', 'Mandate-backed, cryptographically verified'],
+          ['⚡', '45s Reservations', 'Redis-backed, auto-expired'],
+          ['💰', 'Budget Guardian', 'Semantic Layer pre-flight check'],
+          ['📋', 'STIX Audit', 'Every order in the audit chain'],
+        ].map(([icon, title, desc]) => (
+          <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(255,215,10,0.04);border-color:rgba(255,215,10,0.15)">
+            <div class="text-xl mb-2">{icon}</div>
+            <div class="text-[13px] font-bold mb-1">{title}</div>
+            <div class="text-[11px] text-[#64748b]">{desc}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="mb-16">
+      <h2 class="text-[22px] font-bold mb-6">Architecture</h2>
+      <div class="rounded-2xl border border-white/[0.07] p-6" style="background:rgba(255,255,255,0.02)">
+        <pre class="text-[12px] leading-relaxed overflow-x-auto" style="color:#94a3b8;font-family:'JetBrains Mono',monospace">{`
+Buyer Agent                          M2M Store (Seller)
+─────────────────────────────────────────────────────────────────
+GET  /m2m-store/catalog         →   AICatalog.search()
+POST /m2m-store/offers          →   StoreAgent.generate_offer()
+                                     ├─ demand_factor (stock level)
+                                     └─ loyalty_factor (order history)
+                                         ↓
+                                    InventoryManager.reserve()   ← Redis 45s TTL
+
+POST /m2m-store/orders          →   security.validate_fido2_token()
+  {offer_id, mandate_id,             ↓
+   payment_token}                   semantic_budget.check_budget()   ← Semantic Layer
+                                         ↓ allowed
+                                    AP2Processor.execute_payment()
+                                         ↓ success
+                                    InventoryManager.update_stock()
+                                    stix_audit.append_transfer()
+                                    Order(status=PAID) → SQLite
+        `}</pre>
+      </div>
+    </div>
+
+    <!-- API -->
+    <div class="mb-16">
+      <h2 class="text-[22px] font-bold mb-4">API Reference</h2>
+      <div class="rounded-xl border border-white/[0.07] overflow-hidden">
+        {[
+          { method: 'GET',  path: '/m2m-store/catalog',              auth: 'API Key', desc: 'Search products. Params: q, category, min_price, max_price, in_stock_only.' },
+          { method: 'GET',  path: '/m2m-store/catalog/ucp',          auth: 'API Key', desc: 'UCP-compatible catalog JSON for external agent discovery.' },
+          { method: 'GET',  path: '/m2m-store/catalog/{id}',         auth: 'API Key', desc: 'Product detail including stock and reserved count.' },
+          { method: 'POST', path: '/m2m-store/products',             auth: 'API Key', desc: 'Admin: add product to catalog.' },
+          { method: 'POST', path: '/m2m-store/offers',               auth: 'API Key', desc: 'Request dynamic offer. Body: {product_id, qty, agent_id}. Returns Offer with reservation_id.' },
+          { method: 'POST', path: '/m2m-store/offers/{id}/reserve',  auth: 'API Key', desc: 'Extend reservation TTL by 45 seconds.' },
+          { method: 'POST', path: '/m2m-store/orders',               auth: 'FIDO2',   desc: 'Create order. Budget check → AP2 payment → stock deduction → STIX audit.' },
+          { method: 'GET',  path: '/m2m-store/orders/{id}',          auth: 'API Key', desc: 'Order status.' },
+          { method: 'GET',  path: '/m2m-store/orders/history',       auth: 'API Key', desc: 'Agent order history. Params: agent_id, limit.' },
+        ].map((ep, i) => (
+          <div class={`flex items-start gap-4 px-5 py-3 text-[12px] ${i % 2 === 0 ? 'bg-white/[0.01]' : ''} ${i < 8 ? 'border-b border-white/[0.05]' : ''}`}>
+            <span class={`font-black w-10 flex-shrink-0 text-[10px] ${ep.method === 'GET' ? 'text-[#30D158]' : 'text-[#FFD60A]'}`}>
+              {ep.method}
+            </span>
+            <span class="font-mono text-[#BF5AF2] w-64 flex-shrink-0">{ep.path}</span>
+            <span class="text-[#48485A] w-16 flex-shrink-0 text-[10px]">{ep.auth}</span>
+            <span class="text-[#94a3b8]">{ep.desc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Security -->
+    <div class="mb-16">
+      <h2 class="text-[22px] font-bold mb-4">Security</h2>
+      <div class="grid sm:grid-cols-3 gap-4">
+        {[
+          { icon: '🛡️', title: 'Prompt Injection Guard', desc: 'All request strings validated against injection patterns (SQL, template, script). Fields exceeding 500 chars rejected. Pydantic strict schema — extra fields ignored.' },
+          { icon: '⏱️', title: 'Rate Limiter', desc: 'Redis sliding window: 100 req/min per agent_id. Returns 429 with Retry-After. Falls back to in-process counter when Redis unavailable.' },
+          { icon: '🔐', title: 'FIDO2 Auth', desc: 'Order creation and finalization require FIDO2 assertion token. Agent public keys registered in StoreConfig. Dev mode bypass for local testing.' },
+        ].map(s => (
+          <div class="rounded-xl border border-white/[0.07] p-5" style="background:rgba(255,255,255,0.02)">
+            <div class="text-2xl mb-3">{s.icon}</div>
+            <h3 class="text-[14px] font-bold mb-2">{s.title}</h3>
+            <p class="text-[12px] text-[#94a3b8] leading-relaxed">{s.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="rounded-2xl border border-[#FFD60A]/25 p-8 text-center" style="background:rgba(255,215,10,0.04)">
+      <h2 class="text-[24px] font-bold mb-3">Ready to open your M2M Store?</h2>
+      <p class="text-[14px] text-[#94a3b8] max-w-lg mx-auto mb-6">
+        M2M Commerce Store is available on the Enterprise plan ($249/mo). Includes dynamic pricing engine,
+        AP2 payment processing, budget guardian, STIX audit chain, and Streamlit admin dashboard.
+      </p>
+      <a href="/pricing"
+         class="inline-block px-8 py-3 rounded-xl text-[14px] font-bold hover:-translate-y-0.5 transition-all"
+         style="background:#FFD60A;color:#03050F;box-shadow:0 8px 32px rgba(255,215,10,0.3)">
+        Get Enterprise — $249/mo
+      </a>
+    </div>
+
+  </div>
+</div>
+</Layout>

@@ -1395,6 +1395,13 @@ except ImportError:
     log.warning("Web3 router not available — /web3/mandates skipped.")
 
 try:
+    from warden.m2m_store.api import router as _m2m_router
+    app.include_router(_m2m_router)
+    log.info("M2M Commerce Store mounted at /m2m-store (Enterprise)")
+except ImportError:
+    log.warning("m2m_store router not available — /m2m-store skipped.")
+
+try:
     from warden.tax.api import router as _tax_router
     app.include_router(_tax_router)
     log.info("Tax & Compliance mounted at /tax (Phase 3)")
