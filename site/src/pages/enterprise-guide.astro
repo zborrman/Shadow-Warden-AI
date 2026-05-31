@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout
-  title="Enterprise Integration &amp; Deployment Guide v4.3 — Shadow Warden AI"
-  description="Complete enterprise deployment guide for Shadow Warden AI v4.3. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, compliance."
+  title="Enterprise Integration &amp; Deployment Guide v5.1 — Shadow Warden AI"
+  description="Complete enterprise deployment guide for Shadow Warden AI v5.1. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, Semantic Layer, Settings Hub, compliance."
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
@@ -14,8 +14,7 @@ import Layout from '../layouts/Layout.astro';
     <div class="max-w-[1100px] mx-auto px-6 h-full flex items-center justify-between">
       <div class="flex items-center gap-4">
         <a href="/" class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FF2D55] to-[#FF6B35] flex items-center justify-center text-xs"
-               style="box-shadow:0 0 14px rgba(255,45,85,0.4)">🛡️</div>
+          <img src="/logo.png" alt="Shadow Warden AI" style="height:28px;width:auto;border-radius:6px;display:block" />
           <span class="text-[13px] font-bold">Shadow Warden</span>
         </a>
         <div class="w-px h-4 bg-white/[0.12]"></div>
@@ -24,7 +23,7 @@ import Layout from '../layouts/Layout.astro';
         <span class="text-[12px] font-bold">Enterprise Guide</span>
       </div>
       <div class="flex items-center gap-3">
-        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v4.3</span>
+        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v5.1</span>
         <a href="/" class="text-[12px] text-[#8E8E9E] hover:text-white transition-colors">← Back</a>
         <button onclick="window.print()" class="text-[11px] px-3 py-1.5 rounded-lg border border-white/10 text-[#8E8E9E] hover:text-white hover:border-white/20 transition-colors">Save PDF</button>
       </div>
@@ -36,8 +35,7 @@ import Layout from '../layouts/Layout.astro';
     <!-- Cover -->
     <div class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FF2D55] to-[#FF6B35] flex items-center justify-center text-xl"
-             style="box-shadow:0 0 24px rgba(255,45,85,0.35)">🛡️</div>
+        <img src="/logo.png" alt="Shadow Warden AI" style="width:48px;height:48px;border-radius:12px;display:block;object-fit:cover" />
         <div>
           <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[#FF2D55]">Shadow Warden AI</div>
           <div class="text-[12px] text-[#64748b]">Enterprise Documentation</div>
@@ -47,16 +45,16 @@ import Layout from '../layouts/Layout.astro';
         Enterprise Integration &amp;<br/>Deployment Guide
       </h1>
       <div class="flex items-center gap-4 mb-6">
-        <span class="text-[13px] font-semibold text-[#FF2D55]">Version 4.3</span>
+        <span class="text-[13px] font-semibold text-[#FF2D55]">Version 5.1</span>
         <span class="text-[#48485A]">·</span>
         <span class="text-[13px] text-[#64748b]">May 2026</span>
         <span class="text-[#48485A]">·</span>
         <span class="text-[13px] text-[#64748b]">Confidential</span>
       </div>
       <p class="text-[15px] leading-relaxed max-w-[680px]" style="color:#94a3b8">
-        Complete deployment playbook covering the 9-layer filter pipeline, Agentic SOC (SOVA + MasterAgent),
+        Complete deployment playbook covering the 15-layer filter pipeline, Agentic SOC (SOVA + MasterAgent),
         Post-Quantum Cryptography, Shadow AI Governance, Explainable AI 2.0, Sovereign Cloud routing,
-        SEP Communities, API integration, compliance, and high-availability configuration.
+        SEP Communities, Semantic Layer (Headless BI), Settings Hub, API integration, compliance, and high-availability configuration.
       </p>
 
       <!-- Key metrics row -->
@@ -64,7 +62,7 @@ import Layout from '../layouts/Layout.astro';
         {[
           ['97.3%', 'Detection Rate'],
           ['< 8 ms', 'P99 Latency'],
-          ['9 Layers', 'Defense Depth'],
+          ['15 Layers', 'Defense Depth'],
           ['SOC 2 + GDPR', 'Compliance'],
         ].map(([val, label]) => (
           <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
@@ -82,7 +80,7 @@ import Layout from '../layouts/Layout.astro';
         <div class="grid sm:grid-cols-2 p-6 gap-x-12 gap-y-2">
           {[
             ['1', 'Executive Summary & Business Case'],
-            ['2', '9-Layer Defense Architecture'],
+            ['2', '15-Layer Defense Architecture'],
             ['3', 'Client Segment Playbooks'],
             ['4', 'Integration Patterns'],
             ['5', 'Deployment Architecture'],
@@ -126,7 +124,7 @@ import Layout from '../layouts/Layout.astro';
         ))}
       </div>
       <div class="rounded-xl p-6 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
-        <div class="text-[13px] font-semibold mb-4 text-white">v4.3 Key Additions</div>
+        <div class="text-[13px] font-semibold mb-4 text-white">v5.1 Key Additions</div>
         <div class="grid sm:grid-cols-2 gap-3">
           {[
             ['🤖', 'MasterAgent SOC Coordinator', 'Multi-agent supervisor with 4 specialized sub-agents, HMAC task tokens, and human-in-the-loop approval gate'],
@@ -150,7 +148,7 @@ import Layout from '../layouts/Layout.astro';
     <section id="s2" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
         <span class="text-[11px] font-mono text-[#FF2D55]">02</span>
-        <h2 class="text-[24px] font-bold">9-Layer Defense Architecture</h2>
+        <h2 class="text-[24px] font-bold">15-Layer Defense Architecture</h2>
       </div>
       <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
         Every request passes through a deterministic, ordered pipeline. Each layer fails open on non-fatal errors
@@ -393,7 +391,7 @@ curl http://localhost:8001/health
         <h2 class="text-[24px] font-bold">Agentic SOC — SOVA &amp; MasterAgent</h2>
       </div>
       <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
-        Shadow Warden v4.3 ships two autonomous AI operators running on Claude Opus 4.6. SOVA handles scheduled
+        Shadow Warden v5.1 ships two autonomous AI operators running on Claude Opus 4.6. SOVA handles scheduled
         threat intelligence and health tasks. MasterAgent decomposes complex SOC investigations into parallel
         sub-agent workstreams with human approval gates for high-impact actions.
       </p>
@@ -633,10 +631,10 @@ curl http://localhost:8001/health
       <div class="mt-16 pt-8 border-t border-white/[0.07] flex items-center justify-between flex-wrap gap-4">
         <div>
           <div class="text-[13px] font-bold text-white mb-1">Shadow Warden AI — Enterprise Integration &amp; Deployment Guide</div>
-          <div class="text-[11px] text-[#64748b]">Version 4.3 · May 2026 · Proprietary &amp; Confidential</div>
+          <div class="text-[11px] text-[#64748b]">Version 5.1 · May 2026 · Proprietary &amp; Confidential</div>
         </div>
         <div class="flex items-center gap-3">
-          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v4.3</span>
+          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v5.1</span>
           <a href="/" class="text-[12px] text-[#64748b] hover:text-white transition-colors">shadow-warden-ai.com</a>
         </div>
       </div>
