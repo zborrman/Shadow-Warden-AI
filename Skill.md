@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 5.1 · Proprietary · All rights reserved**
+**Version 5.2 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -1454,3 +1454,98 @@ Multi-protocol procurement layer. FIDO2 passkeys authenticate purchasing agents.
 **Module:** `warden/blockchain/` · **Tier:** Enterprise · **Version:** v5.0
 
 Decentralized mandate layer on Sepolia testnet. Mandates are stored on-chain (EVM) and in IPFS. Falls back to AP2 HMAC path when `WEB3_RPC_URL` is not set.
+
+---
+
+## Skill 36 — AI Analytics Hub
+
+**Module:** `warden/semantic_layer/` · **Tier:** Pro+ · **Version:** v5.2
+
+Central analytics hub — 9 built-in semantic models, Redis cache, and SOVA tool integration. Every dashboard and AI agent queries through a single deterministic SQL interface.
+
+### Built-in Models (v5.2)
+
+| Model | Table | Domain | Key Metrics |
+|-------|-------|--------|-------------|
+| `filter_events` | `filter_log` | Security | total_requests, block_count, block_rate, avg_latency_ms, p99_latency_ms |
+| `ers_scores` | `ers_log` | Security | avg_score, max_score, shadow_bans, high_risk_sessions |
+| `billing_usage` | `billing_usage` | Revenue | requests_used, cost_usd, quota_pct, overage_usd |
+| `incidents` | `ai_incidents` | Security | incident_count, high_count, critical_count, open_count, avg_resolution_hrs |
+| `vendor_contracts` | `vendor_dpa_records` | Governance | vendor_count, active_dpas, expiring_30d, high_risk_count |
+| `agentic_orders` | `commerce_orders` | Commerce | order_count, total_spent_usd, avg_order_usd, approved_count |
+| `tunnel_sessions` | `sovereign_attestations` | Sovereignty | transfer_count, compliant_count, compliance_rate |
+| `compliance_attestations` | `training_completions` | Compliance | completion_count, unique_employees, overdue_count, compliance_pct |
+| `ai_spend` | `cost_allocation_entries` | Revenue | total_cost_usd, avg_cost_usd, transaction_count, vendor_count |
+
+### Redis Cache
+
+- Key: `sl:query:{sha256(QueryObject)[:24]}`
+- TTL: `SEMANTIC_CACHE_TTL` env var (default 600s / 10 min)
+- Fail-open: Redis unavailability never blocks SQL generation
+- Cache invalidation: not automatic — use `use_cache=False` for real-time queries
+
+### SOVA Tools
+
+| Tool | Description |
+|------|-------------|
+| `semantic_query(model_id, metrics, dimensions, filters, limit)` | Execute any semantic model query |
+| `list_semantic_models()` | Discover all registered models with metrics/dimensions |
+| `check_commerce_budget(tenant_id, amount_usd, merchant)` | Pre-flight payment budget check |
+| `get_spend_summary(tenant_id)` | MTD spend + budget utilisation + Semantic Layer SQL |
+
+---
+
+## Skill 37 — Commerce Budget Guardian
+
+**Module:** `warden/business_community/agentic_commerce/semantic_budget.py` · **Tier:** Pro+ · **Version:** v5.2
+
+Semantic Layer–backed pre-flight budget check before every AP2 payment.
+
+### Decision Flow
+
+```
+check_budget(tenant_id, amount_usd, merchant)
+  1. GET CommerceSettings from Settings Hub
+     → monthly_budget_usd, per_transaction_limit_usd, require_approval_above_usd
+  2. Query 'ai_spend' Semantic Layer model → actual MTD spend (SQLite fallback / TimescaleDB)
+  3. amount > per_tx_limit?      → BudgetDecision(allowed=False, action="block")
+  4. amount > remaining budget?  → BudgetDecision(allowed=False, action="block") + Slack alert
+  5. amount > approval_threshold?→ BudgetDecision(allowed=True, action="require_approval")
+  6. OK                          → BudgetDecision(allowed=True, action="allow")
+```
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/business-community/commerce/budget` | MTD spend summary + Semantic Layer SQL |
+| GET | `/business-community/commerce/budget/check?amount_usd=X` | Pre-flight check for proposed payment |
+
+### Fail-open guarantee
+
+Budget check failures (Redis down, Semantic Layer unavailable) return `allowed=True` with a warning log — commerce is never halted by infrastructure issues.
+
+---
+
+## Skill 38 — Self-Service Model Catalog
+
+**Module:** `warden/semantic_layer/catalog.py` · **Tier:** Pro+ · **Version:** v5.2
+
+Tenants register, update, and delete custom semantic models without developer involvement.
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/semantic-layer/models/catalog` | List tenant-owned models |
+| POST | `/semantic-layer/models/catalog` | Register new model (persisted + hot-loaded) |
+| PUT | `/semantic-layer/models/catalog/{id}` | Update existing model |
+| DELETE | `/semantic-layer/models/catalog/{id}` | Remove model |
+| GET | `/semantic-layer/models/{id}/export/osi` | Export to OSI 1.0 JSON |
+| POST | `/semantic-layer/models/import/osi` | Import from OSI 1.0 JSON |
+
+### Lifecycle
+
+1. `POST /models/catalog` → SQLite persistence (`SEMANTIC_DB_PATH`) + `engine.register_model()` (in-process, instant)
+2. On warden restart → `bootstrap_tenant_models()` restores all persisted models
+3. OSI export/import enables sharing models with external BI tools (PowerBI, Grafana, Metabase)

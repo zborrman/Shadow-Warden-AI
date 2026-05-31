@@ -1,6 +1,6 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               Shadow Warden AI — Project TODO List                         ║
-║               Version 5.1  · Updated 2026-05-29                            ║
+║               Version 5.2  · Updated 2026-05-31                            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 Priority legend:
@@ -270,10 +270,14 @@ Priority legend:
 [✓]  CI lint hardening (v5.1) — 48 ruff errors + 47 mypy errors resolved; ruff: All checks passed; mypy: no issues
 [✓]  Settings models schema — 9 API-router alias types added; isinstance narrowing in service.py × 3
 [✓]  Commerce type fixes — orchestrator AgentProposal narrowing, ap2 Fernet init, mcp_bridge send_alert, service kwargs
+[✓]  AI Analytics Hub (v5.2 FE-47) — 9 semantic models, Redis cache 10 min TTL, SOVA tools: semantic_query + list_semantic_models
+[✓]  Commerce Budget Guardian (v5.2 FE-48) — semantic_budget.py; check_budget() queries ai_spend model for MTD spend; per-tx + monthly + approval gate + Slack alert; replaces non-existent get_budget_status()
+[✓]  Self-Service Model Catalog (v5.2 FE-49) — catalog.py; POST/PUT/DELETE /models/catalog; hot-reload; OSI export/import
+[✓]  Site v5.2 refresh — AI Analytics Hub page (/analytics), WhatsNew v5.2 Latest, Hero v5.2/190 modules, FE-47/48/49 in roadmap
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  7. v5.2 ROADMAP — NEXT PLANNED ITEMS
+  7. v5.3 ROADMAP — NEXT PLANNED ITEMS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [ ]   FraudScore API backend — POST /fraud-score/evaluate

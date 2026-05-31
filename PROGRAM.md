@@ -1,6 +1,6 @@
 # Shadow Warden AI — Program Reference
 
-**Version:** 4.14.0
+**Version:** 5.2.0
 **Language:** Python 3.11+
 **License:** Proprietary
 **Target:** US / EU marketplace · GDPR Article 30 compliant
@@ -1033,3 +1033,41 @@ Set `MODEL_CACHE_DIR` to your offline model path. The gateway operates fully off
 | redis | 0.25 vCPU | 256 MB | Cache + rate limiter |
 | postgres | 0.5 vCPU | 512 MB | Persistent store |
 | **Total** | **~3 vCPU** | **~3.5 GB** | Excludes Grafana/Prometheus |
+
+---
+
+## Appendix — v5.2 New Modules
+
+### AI Analytics Hub (FE-47)
+
+Central analytics layer. All dashboards and AI agents query through `/semantic-layer/query` rather than direct SQL.
+
+**9 Built-in Models:** `filter_events`, `ers_scores`, `billing_usage`, `incidents`, `vendor_contracts`, `agentic_orders`, `tunnel_sessions`, `compliance_attestations`, `ai_spend`
+
+**Environment variables:**
+- `SEMANTIC_DB_PATH` — SQLite path for tenant model registry (default `/warden/data/semantic.db`)
+- `SEMANTIC_CACHE_TTL` — Redis cache TTL in seconds (default `600`)
+
+**Key endpoints:**
+- `POST /semantic-layer/query` — QueryObject → deterministic SQL
+- `POST /semantic-layer/query/intent` — NL → Claude Haiku → SQL (Pro+)
+- `GET/POST /semantic-layer/models/catalog` — Self-Service model CRUD (Pro+)
+- `GET /semantic-layer/models/{id}/export/osi` — OSI 1.0 export
+- `POST /semantic-layer/models/import/osi` — OSI 1.0 import
+
+### Commerce Budget Guardian (FE-48)
+
+Pre-flight budget check before every AP2 payment. Replaces stub `get_budget_status()`.
+
+**Flow:** `check_budget(tenant_id, amount_usd)` → Settings Hub limits → `ai_spend` Semantic Layer MTD query → allow / require_approval / block
+
+**Key endpoints:**
+- `GET /business-community/commerce/budget` — MTD spend summary
+- `GET /business-community/commerce/budget/check?amount_usd=X` — pre-flight check
+
+### Self-Service Model Catalog (FE-49)
+
+Tenants register custom semantic models without developer involvement.
+- Persisted to `SEMANTIC_DB_PATH` SQLite
+- Hot-loaded into `SemanticEngine` singleton without restart
+- `bootstrap_tenant_models()` restores models on FastAPI startup

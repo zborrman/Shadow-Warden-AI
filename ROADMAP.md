@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 5.1 · Last updated 2026-05-30**
+**Version 5.2 · Last updated 2026-05-31**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -462,4 +462,5 @@ Continuous self-improvement and threat intelligence synthesis.
 | v4.30 | 2026-05-22 | Business Intelligence (CM-39): 8-category analytics, OLS prediction, benchmarking, 15-min SQLite cache |
 | v5.0 | 2026-05-25 | Agentic Commerce (UCP/AP2/MCP), FIDO2 passkeys, Web3 Sepolia mandates |
 | **v5.1** | **2026-05-29** | **Semantic Layer Headless BI (FE-42), Settings Hub (FE-43), site 15-layer refresh, /roadmap page, CI lint+mypy 0-error** |
-| v5.2 | Q3 2026 | Metric Alerts, Dashboard Builder, Federated Query |
+| **v5.2** | **2026-05-31** | **AI Analytics Hub (FE-47): 9 semantic models, Redis cache, SOVA tools; Commerce Budget Guardian (FE-48): Semantic Layer–backed AP2 pre-flight; Self-Service Catalog (FE-49): tenant model registration; /analytics landing page** |
+| v5.3 | Q3 2026 | Metric Alerts, Dashboard Builder, Federated Query |

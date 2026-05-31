@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 5.1 · Last updated 2026-05-29**
+**Version 5.2 · Last updated 2026-05-31**
 
 ---
 
@@ -26,6 +26,9 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - **Semantic Layer (Headless BI)**: centralized metric contracts (filter events, ERS scores, billing) — LLM translates natural language to deterministic SQL; OSI-compatible export
 - **Settings Hub**: unified config surface across Agents (SOVA/MasterAgent), Notifications, Agentic Commerce, Semantic Layer — accessible from Streamlit, Portal, and SOC Dashboard
 - **Agentic Commerce**: UCP/AP2/MCP procurement protocols; multi-agent auction (Claude/Gemini/GPT); FIDO2 passkey auth; Web3 Sepolia mandate contracts
+- **AI Analytics Hub (v5.2)**: 9 semantic models covering security, risk, billing, incidents, vendors, commerce, sovereignty, compliance, and AI spend — single deterministic SQL interface for all dashboards + AI agents; Redis 10-min cache
+- **Commerce Budget Guardian (v5.2)**: every AP2 payment pre-checked against actual MTD spend via Semantic Layer; per-transaction + monthly caps + approval gate + Slack alert; Semantic Layer as active business logic participant
+- **Self-Service Model Catalog (v5.2)**: Pro+ tenants register custom semantic models via API or Streamlit; persisted to SQLite, hot-loaded without restart; OSI 1.0 export/import for external BI systems
 
 **Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
 Enterprise AI teams deploying LLM-backed products.

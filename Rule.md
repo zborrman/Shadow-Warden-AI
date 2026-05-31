@@ -931,3 +931,39 @@ Switch between these modes on request. Default to **collaborative vibe** when no
 | ST-09 | Channel kinds: `slack`, `teams`, `email`, `webhook`. Pattern validated by Pydantic. |
 | ST-10 | Slack test sends `{"text": "..."}` POST to channel URL. Non-200 response → `{"ok": false, "status": <code>}`. |
 | ST-11 | Channel IDs are UUID v4 strings, assigned at creation. Client must store the ID to update or delete. |
+
+---
+
+## 22. AI Analytics Hub Rules (v5.2)
+
+### Cache Rules
+
+| # | Rule |
+|---|------|
+| AH-01 | Cache key = `sl:query:{sha256(sorted QueryObject)[:24]}`. Sort is applied to `metrics` and `dimensions` lists before hashing — order-independent caching. |
+| AH-02 | Minimum limit for caching is 10 rows. Queries with `limit < 10` bypass cache (assumed exploratory/debug). |
+| AH-03 | Cache TTL = `SEMANTIC_CACHE_TTL` env var (default 600s). Increase for stable daily reports; decrease for real-time dashboards. |
+| AH-04 | Cache is fail-open: Redis unavailability must never block SQL generation. All Redis exceptions are caught and logged at DEBUG level. |
+| AH-05 | `use_cache=False` parameter bypasses cache entirely (for real-time `/budget/check` calls). |
+
+### Model Registration Rules
+
+| # | Rule |
+|---|------|
+| AH-06 | Built-in model IDs are reserved: `filter_events`, `ers_scores`, `billing_usage`, `incidents`, `vendor_contracts`, `agentic_orders`, `tunnel_sessions`, `compliance_attestations`, `ai_spend`. |
+| AH-07 | Tenant model IDs must not collide with built-in IDs. `register_tenant_model()` raises `ValueError` on collision. |
+| AH-08 | `bootstrap_tenant_models()` is called once at FastAPI startup to restore persisted models into the engine. |
+| AH-09 | Model deletion removes from engine registry immediately. Cached queries for the deleted model may still return results until TTL expiry. |
+
+---
+
+## 23. Commerce Budget Guardian Rules (v5.2)
+
+| # | Rule |
+|---|------|
+| BG-01 | Budget check is fail-open: exceptions in `check_budget()` log a WARNING and return `allowed=True`. Commerce must never be blocked by infrastructure failures. |
+| BG-02 | Per-transaction limit is checked BEFORE monthly budget. Blocks immediately if exceeded — no monthly spend query needed. |
+| BG-03 | MTD spend is queried from `ai_spend` Semantic Layer model (SQLite fallback in dev, TimescaleDB in prod). |
+| BG-04 | `require_approval` flag propagates through the purchase workflow response so MCP bridge can trigger human-in-the-loop. |
+| BG-05 | Slack alert fires on budget exceeded via `send_alert()`. Alert never blocks payment decision. |
+| BG-06 | `get_spend_summary()` returns the generated Semantic Layer SQL in `semantic_layer_sql` field for transparency and audit.

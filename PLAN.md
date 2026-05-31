@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 5.1 · Last updated 2026-05-29**
+**Version 5.2 · Last updated 2026-05-31**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -416,3 +416,25 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | Y-09 | `warden/business_community/agentic_commerce/ap2.py` — Fernet key init split to avoid bytes.encode() | ✅ |
 | Y-10 | `warden/tax/invoice_generator.py` — `put_object` → `put_object_async` via asyncio.run() | ✅ |
 | Y-11 | `warden/business_community/agentic_commerce/mcp_bridge.py` — `send_alert` alias; removed spurious await | ✅ |
+
+---
+
+### Block Z — AI Analytics Hub + Commerce Budget Guardian v5.2 (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| Z-01 | `warden/semantic_layer/engine.py` — 9 built-in models: filter_events (expanded), ers_scores (expanded), billing_usage (expanded), incidents, vendor_contracts, agentic_orders, tunnel_sessions, compliance_attestations, ai_spend | ✅ |
+| Z-02 | `warden/semantic_layer/engine.py` — Redis query cache on `generate()`: SHA-256 key from QueryObject, TTL=`SEMANTIC_CACHE_TTL` (default 600s), fail-open | ✅ |
+| Z-03 | `warden/semantic_layer/catalog.py` (NEW) — Self-Service tenant model registry: register/update/delete/list with SQLite persistence + hot-reload into running SemanticEngine singleton | ✅ |
+| Z-04 | `warden/semantic_layer/api.py` — Catalog CRUD: GET/POST `/models/catalog`, PUT/DELETE `/models/catalog/{id}` (Pro+ gate) | ✅ |
+| Z-05 | `warden/agent/tools.py` — `semantic_query()`: SOVA queries any semantic model; `list_semantic_models()`: SOVA discovers models | ✅ |
+| Z-06 | `warden/business_community/agentic_commerce/semantic_budget.py` (NEW) — `check_budget()`: reads limits from Settings Hub, queries `ai_spend` Semantic Layer model for MTD spend, returns allow/require_approval/block | ✅ |
+| Z-07 | `warden/business_community/agentic_commerce/service.py` — `_check_budget()` replaced with `semantic_budget.check_budget()`; `requires_approval` flag propagated through purchase workflow | ✅ |
+| Z-08 | `warden/business_community/agentic_commerce/api.py` — `GET /commerce/budget`, `GET /commerce/budget/check` endpoints | ✅ |
+| Z-09 | `warden/agent/tools.py` — `check_commerce_budget()`, `get_spend_summary()` SOVA tools | ✅ |
+| Z-10 | `site/src/pages/analytics.astro` (NEW) — AI Analytics Hub landing page: architecture flow, 9 model grid, three pillars, SQL example, CTA | ✅ |
+| Z-11 | `site/src/components/WhatsNew.astro` — v5.2 Latest: AI Analytics Hub, Budget Guardian, Self-Service Catalog | ✅ |
+| Z-12 | `site/src/components/FeaturesGrid.astro` — Layer #15 updated to AI Analytics Hub (9 Models · Redis Cache · Self-Service) | ✅ |
+| Z-13 | `site/src/components/Pricing.astro` — Pro+ tier: +AI Analytics Hub, +Budget Guardian, +Self-Service | ✅ |
+| Z-14 | `site/src/pages/roadmap.astro` — FE-47/48/49 shipped v5.2 | ✅ |
+| Z-15 | `site/src/components/Hero.astro` — v4.19 → v5.2, 170 → 190 modules, subtext updated | ✅ |

@@ -11,7 +11,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 5.1 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-05-29
+**Version:** 5.2 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-05-31
 
 ## Architecture
 
@@ -222,6 +222,9 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/api/settings.py` | Original settings router — API keys, secrets, agent config, notification channels; imports shims from `warden/settings/service` |
 | `warden/analytics/pages/16_Settings.py` | Streamlit Settings Hub — 6 tabs: API Keys, Secrets, Agents, Notifications, Commerce, Semantic |
 | `dashboard/src/app/(soc)/settings/page.tsx` | SOC Dashboard settings status page — config snapshot, quick links |
+| `warden/semantic_layer/catalog.py` | Self-Service tenant model registry — register/update/delete/list with SQLite persistence + hot-reload into SemanticEngine singleton; `bootstrap_tenant_models()` on startup |
+| `warden/business_community/agentic_commerce/semantic_budget.py` | Commerce Budget Guardian — `check_budget()` reads limits from Settings Hub, queries `ai_spend` Semantic Layer model for MTD spend, returns allow/require_approval/block; `get_spend_summary()` for dashboards |
+| `site/src/pages/analytics.astro` | AI Analytics Hub landing page — /analytics; 9-model grid, architecture flow, Budget Guardian + Self-Service + SOVA tool docs, SQL example, CTA |
 | `site/src/components/WhatsNew.astro` | Changelog section — v5.1 / v4.20 / v4.19 entries, wired into index.astro |
 | `site/src/pages/roadmap.astro` | /roadmap page — 22 shipped + 3 planned features, JS filter by status + tier |
 | `ROADMAP.md` | Machine-readable feature registry — FE-01…FE-43, status, tier, version |
@@ -362,7 +365,10 @@ NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
 - **Settings Hub (FE-43, v5.1)**: `warden/settings/` — unified config for Agents (SOVA/MasterAgent), Notifications, Agentic Commerce, Semantic Layer. `service.py` uses Redis + in-memory fallback. `warden/api/settings.py` router at `/settings/*`. 10 module-level shims bridge class methods to flat API. Streamlit page `16_Settings.py`. SOC page at `dashboard/(soc)/settings/`. Portal page extended with AgentsSection, CommerceSection, SemanticLayerSection.
 - **Settings models schema**: `warden/settings/models.py` exports both new models (`AgentSettings`, `CommerceSettings`, `SemanticSettings`) and API-router aliases (`AgentConfig`, `ApiKeyCreate/Out/Created`, `SecretCreate/Out/Update`, `ChannelCreate`, `SettingsSummary`, `TestResult`). Never import API-alias names from outside `warden/api/settings.py`.
 - **Agentic Commerce (CM-40, v5.0)**: `warden/business_community/agentic_commerce/` — UCP/AP2/MCP procurement protocols, multi-agent auction (`MultiAgentOrchestrator`), FIDO2 passkeys (`warden/auth/fido.py`), Sepolia Web3 mandate contract (`warden/blockchain/`). Commerce settings stored in Redis via Settings Hub.
-- **Site version**: `v5.1` across all Astro components (Navbar, Footer, Hero, AuthModal, ZeroTrustDiagram). Layer count: `15`. `/roadmap` page at `site/src/pages/roadmap.astro` — 22 shipped + 3 planned, JS filter by status/tier. `WhatsNew.astro` changelog section in index.
+- **AI Analytics Hub (FE-47, v5.2)**: `warden/semantic_layer/` expanded to 9 built-in models. Redis cache in `SemanticEngine.generate()` — key = `sl:query:{sha256[:24]}`, TTL = `SEMANTIC_CACHE_TTL` (default 600s), fail-open. Self-Service Catalog at `/semantic-layer/models/catalog` (Pro+). SOVA tools: `semantic_query`, `list_semantic_models`, `check_commerce_budget`, `get_spend_summary`.
+- **Commerce Budget Guardian (FE-48, v5.2)**: `warden/business_community/agentic_commerce/semantic_budget.py` — `check_budget()` is called in every AP2 payment; reads `CommerceSettings` from Settings Hub, queries `ai_spend` Semantic Layer model for actual MTD spend. Fail-open: exceptions return `allowed=True`. Slack alert on budget exceeded. `_check_budget()` in `service.py` no longer calls non-existent `get_budget_status`.
+- **Self-Service Catalog (FE-49, v5.2)**: `catalog.py` — `bootstrap_tenant_models()` restores persisted models on FastAPI startup. `register_tenant_model()` persists to SQLite + hot-loads into engine. Model IDs must not collide with built-in IDs (`filter_events`, `ers_scores`, `billing_usage`, `incidents`, `vendor_contracts`, `agentic_orders`, `tunnel_sessions`, `compliance_attestations`, `ai_spend`).
+- **Site version**: `v5.2` across all Astro components. Layer count: `15`. `/analytics` page (AI Analytics Hub) at `site/src/pages/analytics.astro`. `/roadmap` has 25 shipped + 3 planned features. `WhatsNew.astro` shows v5.2 Latest / v5.1 / v4.20.
 
 ## Code Style
 
