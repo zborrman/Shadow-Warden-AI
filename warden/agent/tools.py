@@ -474,6 +474,86 @@ async def visual_diff(
     }
 
 
+# ── Semantic Layer tool ───────────────────────────────────────────────────────
+
+async def semantic_query(
+    model_id: str,
+    metrics: list,
+    dimensions: list | None = None,
+    filters: list | None = None,
+    limit: int = 1000,
+    intent: str | None = None,
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Semantic Layer — generate deterministic SQL from a QueryObject.
+
+    Args:
+        model_id:   Built-in model ID (filter_events / ers_scores / billing_usage /
+                    incidents / vendor_contracts / agentic_orders / tunnel_sessions /
+                    compliance_attestations / ai_spend) or a custom model ID.
+        metrics:    List of metric names to include.
+        dimensions: Optional list of dimension names to group by.
+        filters:    Optional list of {dimension, operator, value} dicts.
+        limit:      Max rows (default 1000).
+        intent:     Original natural-language question (for audit log only).
+
+    Returns:
+        {"sql": "...", "model_id": "...", "generation_ms": 1.2, "metrics": [...], "dimensions": [...]}
+    """
+    try:
+        from warden.semantic_layer.engine import get_engine
+        from warden.semantic_layer.models import FilterClause, QueryObject
+        q = QueryObject(
+            model_id=model_id,
+            metrics=list(metrics),
+            dimensions=list(dimensions or []),
+            filters=[FilterClause(**f) for f in (filters or [])],
+            limit=int(limit),
+            intent=intent,
+        )
+        result = get_engine().generate(q, tenant_id=tenant_id)
+        return {
+            "sql":           result.sql,
+            "model_id":      result.model_id,
+            "metrics":       result.metrics,
+            "dimensions":    result.dimensions,
+            "generation_ms": result.generation_ms,
+        }
+    except KeyError as exc:
+        return {"error": f"Unknown model or field: {exc}"}
+    except PermissionError as exc:
+        return {"error": f"Access denied: {exc}"}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+async def list_semantic_models(
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """List all registered Semantic Layer models with their metrics and dimensions."""
+    try:
+        from warden.semantic_layer.engine import get_engine
+        models = get_engine().list_models()
+        return {
+            "models": [
+                {
+                    "id":          m.id,
+                    "name":        m.name,
+                    "description": m.description,
+                    "metrics":     [{"name": x.name, "description": x.description} for x in m.metrics],
+                    "dimensions":  [{"name": x.name, "description": x.description} for x in m.dimensions],
+                }
+                for m in models
+            ],
+            "count": len(models),
+        }
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 # ── Community tool handlers (#32–#37) ────────────────────────────────────────
 
 async def get_community_feed(
@@ -1836,4 +1916,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     "block_ip_range":                block_ip_range,
     "smb_provision_suite":           smb_provision_suite,
     "smb_suite_health":              smb_suite_health,
+    # Semantic Layer
+    "semantic_query":                semantic_query,
+    "list_semantic_models":          list_semantic_models,
 }

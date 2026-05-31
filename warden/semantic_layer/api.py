@@ -25,6 +25,12 @@ from pydantic import BaseModel, Field
 
 from warden.auth_guard import AuthResult, require_api_key
 from warden.billing.addons import require_addon_or_feature
+from warden.semantic_layer.catalog import (
+    delete_tenant_model,
+    list_tenant_models,
+    register_tenant_model,
+    update_tenant_model,
+)
 from warden.semantic_layer.engine import get_engine
 from warden.semantic_layer.models import QueryObject, QueryResult, SemanticModel
 
@@ -170,6 +176,47 @@ async def query_intent(
 
     result.generation_ms = round((time.perf_counter() - t0) * 1000, 2)
     return result
+
+
+# ── Self-Service catalog (tenant-owned models) ────────────────────────────────
+
+@router.get("/models/catalog", response_model=list[dict], dependencies=[_ProGate])
+async def list_catalog(auth: AuthResult = AuthDep):
+    """List models owned/registered by this tenant."""
+    return list_tenant_models(auth.tenant_id)
+
+
+@router.post("/models/catalog", response_model=dict, status_code=201,
+             dependencies=[_ProGate])
+async def register_catalog_model(model: SemanticModel, auth: AuthResult = AuthDep):
+    """Register a custom model — persisted to DB and hot-loaded into engine."""
+    try:
+        saved = register_tenant_model(model, auth.tenant_id)
+        return {"registered": saved.id, "name": saved.name}
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.put("/models/catalog/{model_id}", response_model=dict,
+            dependencies=[_ProGate])
+async def update_catalog_model(
+    model_id: str, model: SemanticModel, auth: AuthResult = AuthDep
+):
+    """Update a tenant-owned model."""
+    model.id = model_id
+    try:
+        saved = update_tenant_model(model, auth.tenant_id)
+        return {"updated": saved.id}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/models/catalog/{model_id}", status_code=204,
+               dependencies=[_ProGate])
+async def delete_catalog_model(model_id: str, auth: AuthResult = AuthDep):
+    """Remove a tenant-owned model."""
+    if not delete_tenant_model(model_id, auth.tenant_id):
+        raise HTTPException(status_code=404, detail=f"Model {model_id!r} not found")
 
 
 # ── OSI export / import ───────────────────────────────────────────────────────
