@@ -1143,19 +1143,9 @@ try:
 except ImportError:
     log.warning("sovereign router not available — /sovereign routes skipped.")
 
-try:
-    from warden.semantic_layer.api import router as _semantic_layer_router
-    app.include_router(_semantic_layer_router)
-    log.info("Semantic Layer (Headless BI) mounted at /semantic-layer")
-except ImportError:
-    log.warning("semantic_layer router not available — /semantic-layer routes skipped.")
+# Semantic Layer mounted below at /semantic-layer (FE-42) — single mount point
 
-try:
-    from warden.settings.api import router as _settings_router
-    app.include_router(_settings_router)
-    log.info("Settings Hub mounted at /settings")
-except ImportError:
-    log.warning("settings router not available — /settings routes skipped.")
+# Settings Hub: commerce + semantic endpoints merged into warden/api/settings.py (single mount below)
 
 try:
     from warden.api.file_scan import router as _file_scan_router

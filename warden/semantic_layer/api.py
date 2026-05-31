@@ -7,12 +7,14 @@ Routes
 ──────
   GET  /semantic-layer/models              — list registered semantic models
   GET  /semantic-layer/models/{id}         — model detail (metrics + dimensions)
+  POST /semantic-layer/models              — register a custom semantic model (Pro+)
   POST /semantic-layer/query               — generate SQL from QueryObject
   POST /semantic-layer/query/intent        — LLM translates NL intent → QueryObject → SQL
-  POST /semantic-layer/models              — register a custom semantic model (Enterprise)
+  GET  /semantic-layer/models/{id}/export/osi  — export model to OSI 1.0 format
+  POST /semantic-layer/models/import/osi   — import model from OSI 1.0 format
 
 Auth: standard X-API-Key.
-Tier gate: Pro+ for /query/intent (LLM feature).
+Tier gate: Pro+ for /query/intent, /models (POST), OSI import.
 """
 from __future__ import annotations
 
@@ -168,3 +170,33 @@ async def query_intent(
 
     result.generation_ms = round((time.perf_counter() - t0) * 1000, 2)
     return result
+
+
+# ── OSI export / import ───────────────────────────────────────────────────────
+
+@router.get("/models/{model_id}/export/osi", response_model=dict)
+async def export_osi(model_id: str, auth: AuthResult = AuthDep):
+    """Export a registered model to OSI 1.0 interchange format (JSON)."""
+    from warden.semantic_layer.engine import SemanticQueryEngine
+    eng_direct = SemanticQueryEngine()
+    base_engine = get_engine()
+    try:
+        model = base_engine.get_model(model_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return eng_direct.export_osi(model)
+
+
+@router.post("/models/import/osi", response_model=dict, status_code=201,
+             dependencies=[_ProGate])
+async def import_osi(body: dict, auth: AuthResult = AuthDep):
+    """Import a model from OSI 1.0 interchange format and register it."""
+    from warden.semantic_layer.engine import SemanticQueryEngine
+    eng_direct = SemanticQueryEngine()
+    try:
+        model = eng_direct.import_osi(body, tenant_id=auth.tenant_id)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    get_engine().register_model(model)
+    return {"imported": model.id, "name": model.name, "metrics": len(model.metrics),
+            "dimensions": len(model.dimensions)}

@@ -199,6 +199,7 @@ services:
       # v0.9 — Cryptographic Audit Trail (SOC 2 Type II)
       - AUDIT_TRAIL_ENABLED=${AUDIT_TRAIL_ENABLED:-true}
       - AUDIT_TRAIL_PATH=/warden/data/audit_trail.db
+      - SEMANTIC_DB_PATH=/warden/data/semantic.db
       # v1.1 — Enterprise resilience & ML hardening
       - WARDEN_FAIL_STRATEGY=${WARDEN_FAIL_STRATEGY:-open}
       - PIPELINE_TIMEOUT_MS=${PIPELINE_TIMEOUT_MS:-0}

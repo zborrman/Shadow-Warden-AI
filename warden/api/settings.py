@@ -137,6 +137,38 @@ async def delete_channel(channel_id: str, auth: AuthResult = Depends(require_api
         raise HTTPException(404, detail="Channel not found")
 
 
+# ── Commerce ──────────────────────────────────────────────────────────────────
+
+@router.get("/commerce", summary="Get Agentic Commerce config")
+async def get_commerce(auth: AuthResult = Depends(require_api_key)):
+    from warden.settings.service import get_service
+    return get_service().get_commerce(_tid(auth)).model_dump()
+
+
+@router.patch("/commerce", summary="Update Agentic Commerce config")
+async def patch_commerce(body: dict[str, Any], auth: AuthResult = Depends(require_api_key)):
+    from warden.settings.models import CommerceSettingsPatch
+    from warden.settings.service import get_service
+    patch = CommerceSettingsPatch(**{k: v for k, v in body.items() if v is not None})
+    return get_service().update_commerce(_tid(auth), patch).model_dump()
+
+
+# ── Semantic Layer config ──────────────────────────────────────────────────────
+
+@router.get("/semantic", summary="Get Semantic Layer config")
+async def get_semantic_cfg(auth: AuthResult = Depends(require_api_key)):
+    from warden.settings.service import get_service
+    return get_service().get_semantic(_tid(auth)).model_dump()
+
+
+@router.patch("/semantic", summary="Update Semantic Layer config")
+async def patch_semantic_cfg(body: dict[str, Any], auth: AuthResult = Depends(require_api_key)):
+    from warden.settings.models import SemanticSettingsPatch
+    from warden.settings.service import get_service
+    patch = SemanticSettingsPatch(**{k: v for k, v in body.items() if v is not None})
+    return get_service().update_semantic(_tid(auth), patch).model_dump()
+
+
 # ── PATCH /settings/{section} convenience endpoint ───────────────────────────
 
 @router.patch("/{section}", summary="Update named settings section")
@@ -148,4 +180,8 @@ async def patch_section(
     tid = _tid(auth)
     if section == "agents":
         return svc.update_agent_config(tid, body)
-    raise HTTPException(400, detail=f"Unknown section '{section}'. Use /settings/agents, etc.")
+    if section == "commerce":
+        return await patch_commerce(body, auth)
+    if section == "semantic":
+        return await patch_semantic_cfg(body, auth)
+    raise HTTPException(400, detail=f"Unknown section '{section}'. Use /settings/agents|commerce|semantic.")
