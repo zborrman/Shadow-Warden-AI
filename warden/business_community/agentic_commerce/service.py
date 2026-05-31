@@ -90,19 +90,41 @@ class AgenticCommerceService:
             log.debug("Vendor governance check skipped: %s", exc)
             return {"allowed": True, "reason": "governance_unavailable"}
 
-    # ── Budget check ──────────────────────────────────────────────────────────
+    # ── Budget check (Semantic Layer–backed) ──────────────────────────────────
 
     def _check_budget(self, tenant_id: str, amount: float, currency: str) -> dict[str, Any]:
-        """Check AI budget cap before authorizing payment."""
+        """
+        Check AI budget cap before authorizing payment.
+
+        Uses SemanticBudget which:
+          - Reads limits from Settings Hub (CommerceSettings)
+          - Queries `ai_spend` Semantic Layer model for actual MTD spend
+          - Returns allow / require_approval / block decision
+        """
         try:
-            from warden.financial.budget import get_budget_status  # type: ignore[attr-defined]
-            status = get_budget_status(tenant_id)
-            remaining = status.get("remaining_usd", float("inf"))
-            if amount > remaining:
-                return {"allowed": False, "reason": "budget_exceeded", "remaining": remaining}
+            from warden.business_community.agentic_commerce.semantic_budget import check_budget
+            decision = check_budget(tenant_id, amount)
+            if not decision.allowed:
+                return {
+                    "allowed":   False,
+                    "reason":    decision.reason,
+                    "remaining": decision.remaining_usd,
+                    "mtd_spend": decision.mtd_spend_usd,
+                    "budget":    decision.monthly_budget_usd,
+                }
+            if decision.action == "require_approval":
+                # Commerce can proceed but flag for human-in-the-loop
+                return {
+                    "allowed":            True,
+                    "requires_approval":  True,
+                    "reason":             decision.reason,
+                    "remaining":          decision.remaining_usd,
+                    "mtd_spend":          decision.mtd_spend_usd,
+                }
+            return {"allowed": True, "remaining": decision.remaining_usd, "mtd_spend": decision.mtd_spend_usd}
         except Exception as exc:
-            log.debug("Budget check skipped: %s", exc)
-        return {"allowed": True}
+            log.warning("semantic_budget check failed (fail-open): %s", exc)
+            return {"allowed": True}
 
     # ── Record spend ──────────────────────────────────────────────────────────
 
@@ -187,11 +209,17 @@ class AgenticCommerceService:
         if not vendor_check["allowed"]:
             return {"success": False, "reason": vendor_check.get("reason", "vendor_blocked")}
 
-        # 2. Budget check
+        # 2. Budget check (Semantic Layer–backed)
         budget_check = self._check_budget(tenant_id, total, currency)
         if not budget_check["allowed"]:
-            return {"success": False, "reason": budget_check.get("reason", "budget_blocked"),
-                    "remaining_budget": budget_check.get("remaining")}
+            return {
+                "success": False,
+                "reason": budget_check.get("reason", "budget_blocked"),
+                "remaining_budget": budget_check.get("remaining"),
+                "mtd_spend": budget_check.get("mtd_spend"),
+                "budget": budget_check.get("budget"),
+            }
+        requires_approval = budget_check.get("requires_approval", False)
 
         # 3. Mandate check
         if mandate_id:
@@ -234,12 +262,15 @@ class AgenticCommerceService:
 
         log.info("Purchase workflow complete: order=%s tenant=%s total=%.2f", order_id, tenant_id, total)
         return {
-            "success": True,
-            "order_id": order_id,
-            "ueciid": order.ueciid,
-            "transaction_id": payment["transaction_id"],
-            "total": total,
-            "mandate_remaining": payment["remaining"],
+            "success":            True,
+            "order_id":           order_id,
+            "ueciid":             order.ueciid,
+            "transaction_id":     payment["transaction_id"],
+            "total":              total,
+            "mandate_remaining":  payment["remaining"],
+            "requires_approval":  requires_approval,
+            "mtd_spend":          budget_check.get("mtd_spend"),
+            "remaining_budget":   budget_check.get("remaining"),
         }
 
     def get_order_history(self, tenant_id: str, limit: int = 50) -> list[dict]:

@@ -231,3 +231,39 @@ async def get_auction(auction_id: str, tenant_id: str) -> dict:
     if not result:
         raise HTTPException(status_code=404, detail="Auction not found")
     return result
+
+
+# ── Semantic Layer–backed budget endpoints ────────────────────────────────────
+
+@router.get("/budget", summary="MTD spend summary (Semantic Layer)", dependencies=[_Gate])
+async def get_budget_summary(tenant_id: str) -> dict:
+    """
+    Return month-to-date spend, remaining budget, utilisation %, and the
+    Semantic Layer SQL used — all in one response.
+    """
+    from warden.business_community.agentic_commerce.semantic_budget import get_spend_summary
+    return get_spend_summary(tenant_id)
+
+
+@router.get("/budget/check", summary="Pre-flight budget check", dependencies=[_Gate])
+async def budget_check(
+    tenant_id: str,
+    amount_usd: float,
+    merchant: str = "",
+) -> dict:
+    """
+    Check whether a payment of *amount_usd* USD would exceed budget limits.
+    Returns action: allow | require_approval | block.
+    """
+    from warden.business_community.agentic_commerce.semantic_budget import check_budget
+    decision = check_budget(tenant_id, amount_usd, merchant)
+    return {
+        "action":             decision.action,
+        "allowed":            decision.allowed,
+        "reason":             decision.reason,
+        "amount_usd":         amount_usd,
+        "mtd_spend_usd":      decision.mtd_spend_usd,
+        "monthly_budget_usd": decision.monthly_budget_usd,
+        "remaining_usd":      decision.remaining_usd,
+        "per_tx_limit_usd":   decision.per_tx_limit_usd,
+    }

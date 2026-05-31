@@ -529,6 +529,60 @@ async def semantic_query(
         return {"error": str(exc)}
 
 
+async def check_commerce_budget(
+    tenant_id: str = "default",
+    amount_usd: float = 0.0,
+    merchant: str = "",
+    department: str = "AI_Procurement",
+    **_,
+) -> dict:
+    """
+    Check whether a proposed Agentic Commerce payment fits within budget.
+
+    Queries the `ai_spend` Semantic Layer model for actual MTD spend,
+    reads budget limits from Settings Hub, and returns allow/require_approval/block.
+
+    Args:
+        tenant_id:   Tenant to check.
+        amount_usd:  Proposed payment amount in USD.
+        merchant:    Merchant domain (for logging/audit).
+        department:  Cost center (default: AI_Procurement).
+    """
+    try:
+        from warden.business_community.agentic_commerce.semantic_budget import check_budget
+        decision = check_budget(tenant_id, amount_usd, merchant, department)
+        return {
+            "action":               decision.action,
+            "allowed":              decision.allowed,
+            "reason":               decision.reason,
+            "amount_usd":           amount_usd,
+            "mtd_spend_usd":        decision.mtd_spend_usd,
+            "monthly_budget_usd":   decision.monthly_budget_usd,
+            "remaining_usd":        decision.remaining_usd,
+            "per_tx_limit_usd":     decision.per_tx_limit_usd,
+            "approval_threshold":   decision.approval_threshold_usd,
+        }
+    except Exception as exc:
+        return {"error": str(exc), "allowed": True, "action": "allow"}
+
+
+async def get_spend_summary(
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Return MTD spend summary for a tenant via Semantic Layer.
+    Includes budget utilisation %, remaining budget, and the SQL query used.
+    """
+    try:
+        from warden.business_community.agentic_commerce.semantic_budget import (
+            get_spend_summary as _summary,
+        )
+        return _summary(tenant_id)
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 async def list_semantic_models(
     tenant_id: str = "default",
     **_,
@@ -1919,4 +1973,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     # Semantic Layer
     "semantic_query":                semantic_query,
     "list_semantic_models":          list_semantic_models,
+    # Commerce budget (Semantic Layer–backed)
+    "check_commerce_budget":         check_commerce_budget,
+    "get_spend_summary":             get_spend_summary,
 }
