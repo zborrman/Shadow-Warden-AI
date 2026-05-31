@@ -1,16 +1,45 @@
 ---
 const releases = [
   {
-    version: 'v5.1',
+    version: 'v5.2',
     date: 'May 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
     items: [
       {
+        icon: '🧠',
+        title: 'AI Analytics Hub',
+        tier: 'Pro+',
+        desc: '9 built-in semantic models covering security, risk, billing, incidents, vendors, commerce, sovereignty, compliance, and AI spend. Redis cache (10 min TTL). SOVA can query any model with natural language.',
+        tags: ['9 Models', 'Redis Cache', 'SOVA Tools'],
+      },
+      {
+        icon: '💰',
+        title: 'Commerce Budget Guardian',
+        tier: 'Pro+',
+        desc: 'Every AP2 payment passes a Semantic Layer budget check before execution. Reads actual MTD spend from ai_spend model, enforces per-transaction limits, approval thresholds, and monthly caps. Slack alert on block.',
+        tags: ['Budget Control', 'Pre-flight Check', 'Slack Alert'],
+      },
+      {
+        icon: '🗂️',
+        title: 'Self-Service Model Catalog',
+        tier: 'Pro+',
+        desc: 'Tenants register custom semantic models via API or Streamlit. Persisted to SQLite, hot-loaded into engine without restart. Access rules enforce per-tenant data isolation.',
+        tags: ['Self-Service', 'Hot-reload', 'Access Rules'],
+      },
+    ],
+  },
+  {
+    version: 'v5.1',
+    date: 'May 2026',
+    badge: '',
+    badgeColor: '#BF5AF2',
+    items: [
+      {
         icon: '🗃️',
         title: 'Semantic Layer (FE-42)',
         tier: 'Pro+',
-        desc: 'Headless BI with centralized metric contracts. LLM translates natural language into deterministic SQL. 3 built-in models: filter events, ERS scores, billing usage.',
+        desc: 'Headless BI: centralized metric contracts, dimension mappings, access rules. LLM translates natural language into deterministic SQL. OSI 1.0 export/import for external BI systems.',
         tags: ['Headless BI', 'AI Query', 'OSI Compatible'],
       },
       {
