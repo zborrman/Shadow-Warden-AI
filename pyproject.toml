@@ -187,7 +187,7 @@ exclude_lines = [
 # ── Pytest ────────────────────────────────────────────────────────────────────
 
 [tool.pytest.ini_options]
-testpaths    = ["warden/tests"]
+testpaths    = ["warden/tests", "warden/m2m_store/tests", "warden/business_intelligence/tests"]
 addopts      = "-v --tb=short --strict-markers --cov=warden --cov-report=term-missing --cov-fail-under=80"
 markers      = [
     "adversarial: adversarial corpus tests (may be slow)",

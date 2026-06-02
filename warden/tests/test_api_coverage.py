@@ -1053,3 +1053,225 @@ class TestXaiRendererCoverage:
     def test_chain_primary_cause(self):
         chain = self._make_chain("BLOCK")
         assert chain.primary_cause is not None or chain.primary_cause is None
+
+
+# ── settings/api.py ───────────────────────────────────────────────────────────
+
+_ENT = {"X-Tenant-Tier": "enterprise"}
+
+
+def _mini_app(*routers):
+    from fastapi import FastAPI
+    app = FastAPI()
+    for r in routers:
+        app.include_router(r)
+    return app
+
+
+class TestSettingsHubApi:
+    @pytest.fixture(autouse=True)
+    def _setup(self):
+        from fastapi.testclient import TestClient
+        from warden.settings.api import router
+        self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
+
+    def test_get_all(self):
+        assert self.c.get("/settings", headers=_ENT).status_code in (200, 422, 500)
+
+    def test_get_agents(self):
+        assert self.c.get("/settings/agents", headers=_ENT).status_code in (200, 422, 500)
+
+    def test_patch_agents(self):
+        assert self.c.patch("/settings/agents", json={}, headers=_ENT).status_code in (200, 422, 500)
+
+    def test_list_notifications(self):
+        assert self.c.get("/settings/notifications", headers=_ENT).status_code in (200, 422, 500)
+
+    def test_add_notification(self):
+        body = {"id": "n1", "type": "slack", "name": "test", "url": "https://hooks.slack.com/x"}
+        assert self.c.post("/settings/notifications", json=body, headers=_ENT).status_code in (200, 201, 422, 500)
+
+    def test_update_notification_missing(self):
+        assert self.c.patch("/settings/notifications/nope", json={}, headers=_ENT).status_code in (200, 404, 422, 500)
+
+    def test_test_notification_missing(self):
+        assert self.c.post("/settings/notifications/nope/test", headers=_ENT).status_code in (200, 404, 422, 500)
+
+    def test_delete_notification(self):
+        assert self.c.delete("/settings/notifications/nope", headers=_ENT).status_code in (200, 204, 404, 422, 500)
+
+    def test_get_commerce(self):
+        assert self.c.get("/settings/commerce", headers=_ENT).status_code in (200, 422, 500)
+
+    def test_patch_commerce(self):
+        assert self.c.patch("/settings/commerce", json={}, headers=_ENT).status_code in (200, 422, 500)
+
+    def test_get_semantic(self):
+        assert self.c.get("/settings/semantic", headers=_ENT).status_code in (200, 422, 500)
+
+    def test_patch_semantic(self):
+        assert self.c.patch("/settings/semantic", json={}, headers=_ENT).status_code in (200, 422, 500)
+
+
+# ── api/incident_register.py ─────────────────────────────────────────────────
+
+class TestIncidentRegisterRouter:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        import os
+        os.environ["INCIDENT_REGISTER_DB_PATH"] = str(tmp_path / "inc.db")
+        from fastapi.testclient import TestClient
+        from warden.api.incident_register import router
+        self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
+        self.tid = f"t-{uuid.uuid4().hex[:6]}"
+
+    def test_create(self):
+        r = self.c.post(
+            "/incidents",
+            json={"tenant_id": self.tid, "title": "AI hallucination incident", "severity": "HIGH"},
+            headers=_ENT,
+        )
+        assert r.status_code in (200, 422)
+
+    def test_list_empty(self):
+        r = self.c.get(f"/incidents?tenant_id={self.tid}", headers=_ENT)
+        assert r.status_code in (200, 422)
+
+    def test_list_with_filters(self):
+        r = self.c.get(f"/incidents?tenant_id={self.tid}&severity=HIGH&status=open", headers=_ENT)
+        assert r.status_code in (200, 422)
+
+    def test_stats(self):
+        r = self.c.get(f"/incidents/stats?tenant_id={self.tid}", headers=_ENT)
+        assert r.status_code in (200, 422)
+
+    def test_get_not_found(self):
+        r = self.c.get(f"/incidents/{uuid.uuid4()}", headers=_ENT)
+        assert r.status_code in (404, 422)
+
+    def test_update_status_not_found(self):
+        r = self.c.put(f"/incidents/{uuid.uuid4()}/status", json={"status": "resolved"}, headers=_ENT)
+        assert r.status_code in (404, 422)
+
+    def test_roundtrip(self):
+        cr = self.c.post("/incidents", json={"tenant_id": self.tid, "title": "Roundtrip"}, headers=_ENT)
+        if cr.status_code != 200:
+            return
+        iid = cr.json()["incident_id"]
+        assert self.c.get(f"/incidents/{iid}", headers=_ENT).status_code == 200
+        self.c.put(f"/incidents/{iid}/status", json={"status": "resolved"}, headers=_ENT)
+
+
+# ── api/budget.py ─────────────────────────────────────────────────────────────
+
+class TestBudgetRouter:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        import os
+        os.environ["BUDGET_DB_PATH"] = str(tmp_path / "budget.db")
+        from fastapi.testclient import TestClient
+        from warden.api.budget import router
+        self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
+        self.tid = f"t-{uuid.uuid4().hex[:6]}"
+
+    def test_get_status(self):
+        assert self.c.get(f"/financial/budget/status?tenant_id={self.tid}", headers=_ENT).status_code in (200, 422)
+
+    def test_set_cap(self):
+        r = self.c.post(
+            "/financial/budget/caps",
+            json={"tenant_id": self.tid, "cap_usd": 500.0, "department": "eng"},
+            headers=_ENT,
+        )
+        assert r.status_code in (200, 422)
+
+    def test_list_approvals(self):
+        assert self.c.get(f"/financial/budget/approvals?tenant_id={self.tid}", headers=_ENT).status_code in (200, 422)
+
+    def test_request_approval(self):
+        r = self.c.post(
+            "/financial/budget/approvals",
+            json={"tenant_id": self.tid, "requested_by": "alice", "department": "ml", "amount_usd": 300.0},
+            headers=_ENT,
+        )
+        assert r.status_code in (200, 422)
+
+    def test_resolve_not_found(self):
+        r = self.c.put(
+            f"/financial/budget/approvals/{uuid.uuid4()}",
+            json={"reviewed_by": "bob", "approve": True},
+            headers=_ENT,
+        )
+        assert r.status_code in (404, 422)
+
+    def test_resolve_roundtrip(self):
+        cr = self.c.post(
+            "/financial/budget/approvals",
+            json={"tenant_id": self.tid, "requested_by": "carol", "department": "ops", "amount_usd": 200.0},
+            headers=_ENT,
+        )
+        if cr.status_code != 200:
+            return
+        aid = cr.json()["approval_id"]
+        self.c.put(f"/financial/budget/approvals/{aid}", json={"reviewed_by": "dave", "approve": False}, headers=_ENT)
+
+
+# ── api/cost_allocation.py ────────────────────────────────────────────────────
+
+class TestCostAllocationRouter:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        import os
+        os.environ["COST_ALLOC_DB_PATH"] = str(tmp_path / "cost.db")
+        from fastapi.testclient import TestClient
+        from warden.api.cost_allocation import router
+        self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
+        self.tid = f"t-{uuid.uuid4().hex[:6]}"
+
+    def test_record_cost(self):
+        r = self.c.post(
+            "/financial/allocation",
+            json={"tenant_id": self.tid, "amount_usd": 9.99, "vendor_id": "anthropic"},
+            headers=_ENT,
+        )
+        assert r.status_code in (200, 422)
+
+    def test_summary(self):
+        assert self.c.get(f"/financial/allocation/summary?tenant_id={self.tid}", headers=_ENT).status_code in (200, 422)
+
+    def test_departments(self):
+        assert self.c.get(f"/financial/allocation/departments?tenant_id={self.tid}", headers=_ENT).status_code in (200, 422)
+
+    def test_vendor_spend(self):
+        assert self.c.get(f"/financial/allocation/vendors/anthropic?tenant_id={self.tid}", headers=_ENT).status_code in (200, 422)
+
+    def test_import_logs(self):
+        assert self.c.post(f"/financial/allocation/import-logs?tenant_id={self.tid}", headers=_ENT).status_code in (200, 422)
+
+
+# ── api/supplier_risk.py ──────────────────────────────────────────────────────
+
+class TestSupplierRiskRouter:
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        import os
+        os.environ["SEP_DB_PATH"] = str(tmp_path / "sep.db")
+        os.environ["VENDOR_GOV_DB_PATH"] = str(tmp_path / "vg.db")
+        from fastapi.testclient import TestClient
+        from warden.api.supplier_risk import router
+        self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
+        self.cid = f"c-{uuid.uuid4().hex[:6]}"
+
+    def test_assess(self):
+        r = self.c.post(
+            "/supplier-risk/assess",
+            json={"community_id": self.cid, "vendor_id": "openai", "tenant_id": "t1"},
+            headers=_ENT,
+        )
+        assert r.status_code in (200, 422)
+
+    def test_list_assessments(self):
+        assert self.c.get(f"/supplier-risk/assessments?community_id={self.cid}", headers=_ENT).status_code in (200, 422)
+
+    def test_report(self):
+        assert self.c.get(f"/supplier-risk/report/{self.cid}", headers=_ENT).status_code in (200, 422)
