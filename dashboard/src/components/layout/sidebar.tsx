@@ -99,7 +99,7 @@ const GROUPS: NavGroup[] = [
 ];
 
 const TOP_LINKS = [
-  { href: "https://docs.shadow-warden-ai.com", icon: BookOpen, label: "Docs", accent: "#FFD60A", bg: "rgba(255,214,10,0.12)", external: true },
+  { href: "https://shadow-warden-ai.com/doc", icon: BookOpen, label: "Docs", accent: "#FFD60A", bg: "rgba(255,214,10,0.12)", external: true },
   { href: "/roi", icon: DollarSign, label: "Pricing", accent: "#FF8C42", bg: "rgba(255,140,66,0.12)", external: false },
 ];
 
