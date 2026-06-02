@@ -249,9 +249,19 @@ export default function LoginPage() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black text-white"
-                 style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)" }}>SW</div>
-            <span className="text-white font-bold text-xl tracking-tight">Shadow Warden</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Shadow Warden AI"
+                 style={{ width:40, height:40, borderRadius:10, objectFit:"contain" }} />
+            <div>
+              <div className="text-white font-bold text-[15px] tracking-tight leading-none">Shadow Warden AI</div>
+              <div className="text-[10px] font-semibold tracking-widest mt-0.5"
+                   style={{ color:"#6366f1" }}>ZERO-TRUST AI GATEWAY</div>
+            </div>
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest mb-5"
+               style={{ color:"#6366f1", background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)" }}>
+            ◇ VERSION 5.2 — LATEST
           </div>
 
           <h2 className="text-[38px] font-black leading-[1.1] mb-4" style={{ color: T.text }}>
@@ -262,16 +272,16 @@ export default function LoginPage() {
             </span>
           </h2>
           <p className="text-[14px] mb-12 leading-relaxed" style={{ color: T.muted }}>
-            Real-time AI security gateway with post-quantum cryptography,<br/>
-            sovereign data routing, and self-improving ML.
+            15-layer real-time AI security gateway with post-quantum<br/>
+            cryptography, sovereign routing, and self-improving ML.
           </p>
 
           <div className="space-y-3">
             {[
-              { icon:"⬡", accent:"#FF2D55", label:"9-stage causal defense pipeline",  sub:"< 2ms end-to-end latency" },
-              { icon:"🔐", accent:"#6366f1", label:"Post-quantum cryptography",         sub:"Ed25519 + ML-DSA-65 hybrid" },
-              { icon:"🌍", accent:"#10b981", label:"Sovereign AI Cloud",                sub:"8 jurisdictions, GDPR Art. 35" },
-              { icon:"🧠", accent:"#8b5cf6", label:"Self-improving ML",                 sub:"Claude Opus Evolution Engine" },
+              { icon:"⬡", accent:"#FF2D55", label:"15-layer causal defense pipeline", sub:"< 2ms end-to-end latency" },
+              { icon:"🔐", accent:"#6366f1", label:"Post-Quantum Cryptography",        sub:"FIPS 203/204 — ML-KEM-768 + ML-DSA-65" },
+              { icon:"🌍", accent:"#10b981", label:"Sovereign AI Cloud",               sub:"8 jurisdictions · GDPR Art. 35 DPIA" },
+              { icon:"🧠", accent:"#8b5cf6", label:"Self-improving ML",                sub:"Claude Opus 4.6 Evolution Engine" },
             ].map(f => (
               <div key={f.label} className="flex items-center gap-4 p-4 rounded-2xl"
                    style={{ background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.05)" }}>
@@ -290,7 +300,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold"
                style={{ color:"#10b981", background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.2)" }}>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            v4.19 · Production
+            v5.2 · Production
           </div>
           <p className="text-[11px]" style={{ color: T.subtle }}>99.95% SLA · SOC 2 Type II</p>
         </div>
@@ -301,10 +311,14 @@ export default function LoginPage() {
            style={{ borderLeft:`1px solid ${T.border}` }}>
 
         {/* Mobile logo */}
-        <div className="flex lg:hidden items-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black text-white"
-               style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)" }}>SW</div>
-          <span className="text-white font-bold">Shadow Warden</span>
+        <div className="flex lg:hidden items-center gap-2.5 mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Shadow Warden AI"
+               style={{ width:32, height:32, borderRadius:8, objectFit:"contain" }} />
+          <div>
+            <div className="text-white font-bold text-[13px] leading-none">Shadow Warden AI</div>
+            <div className="text-[9px] font-semibold tracking-widest" style={{ color:"#6366f1" }}>v5.2</div>
+          </div>
         </div>
 
         <div className="w-full max-w-[380px]">
@@ -706,7 +720,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-[11px] mt-10" style={{ color: T.subtle }}>
-          Shadow Warden AI · SOC Operations Centre
+          Shadow Warden AI v5.2 · SOC Operations Centre
         </p>
       </div>
     </div>
