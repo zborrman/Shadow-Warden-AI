@@ -15,7 +15,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
-from warden.m2m_store.models import Product
+from warden.m2m_store.models import Order, Product
 
 log = logging.getLogger("warden.m2m_store.inventory")
 _DB_PATH = os.getenv("M2M_STORE_DB_PATH", "/tmp/warden_m2m_store.db")
@@ -177,21 +177,19 @@ class InventoryManager:
 
     # ── Orders ────────────────────────────────────────────────────────────────
 
-    def save_order(self, order: Order) -> None:  # noqa: F821
+    def save_order(self, order: Order) -> None:
         with _db_lock, _conn() as con:
             con.execute(
                 "INSERT OR REPLACE INTO m2m_orders(id, data_json, created_at) VALUES(?,?,?)",
                 (order.id, order.model_dump_json(), order.created_at or datetime.now(UTC).isoformat()),
             )
 
-    def get_order(self, order_id: str) -> Order | None:  # noqa: F821
-        from warden.m2m_store.models import Order
+    def get_order(self, order_id: str) -> Order | None:
         with _db_lock, _conn() as con:
             row = con.execute("SELECT data_json FROM m2m_orders WHERE id=?", (order_id,)).fetchone()
         return Order(**json.loads(row["data_json"])) if row else None
 
-    def list_orders(self, agent_id: str | None = None, limit: int = 50) -> list[Order]:  # noqa: F821
-        from warden.m2m_store.models import Order
+    def list_orders(self, agent_id: str | None = None, limit: int = 50) -> list[Order]:
         with _db_lock, _conn() as con:
             rows = con.execute(
                 "SELECT data_json FROM m2m_orders ORDER BY created_at DESC LIMIT ?",
