@@ -5,8 +5,8 @@ __pycache__/
 *.pyd
 .Python
 *.egg-info/
-dist/
-build/
+/dist/
+/build/
 .eggs/
 venv/
 env/
@@ -21,7 +21,7 @@ warden/models/
 *.safetensors
 
 # Data / logs
-data/
+/data/
 *.json.log
 
 # Docker
@@ -46,9 +46,9 @@ mutmut-cache/
 .DS_Store
 Thumbs.db
 
-# Vercel only needs the landing/ folder
-warden/
-analytics/
-grafana/
-postgres/
-redis/
+# Vercel only needs the landing/ folder (root-anchored so landing/dashboard/analytics/ is NOT excluded)
+/warden/
+/analytics/
+/grafana/
+/postgres/
+/redis/
