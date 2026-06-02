@@ -1,0 +1,123 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+const effectiveDate = 'June 2, 2026';
+---
+
+<BaseLayout
+  title="Terms of Service — Shadow Warden AI"
+  description="Terms of Service for Shadow Warden AI, the zero-trust AI security gateway."
+>
+  <div class="pt-14" style="background:#03050f">
+    <div class="mx-auto max-w-3xl px-4 lg:px-8 py-20">
+
+      <div class="mb-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[11px] font-bold tracking-widest uppercase"
+             style="color:#6366f1;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
+          Legal
+        </div>
+        <h1 class="text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-tight mb-2" style="color:#f1f5f9">
+          Terms of Service
+        </h1>
+        <p class="text-[13px]" style="color:#64748b">Effective date: {effectiveDate}</p>
+      </div>
+
+      <div class="prose-section space-y-8 text-[14px] leading-relaxed" style="color:#94a3b8">
+
+        <section>
+          <h2>1. Acceptance of Terms</h2>
+          <p>By accessing or using Shadow Warden AI (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree, do not use the Service. These Terms apply to all users, including free-tier users, paying subscribers, and API integrators.</p>
+        </section>
+
+        <section>
+          <h2>2. Description of Service</h2>
+          <p>Shadow Warden AI is a SaaS-based AI security gateway that provides real-time request filtering, jailbreak detection, PII/secret redaction, agentic SOC monitoring, and compliance tooling. The Service is delivered via API and web interfaces hosted by Anthropic-compatible cloud infrastructure.</p>
+        </section>
+
+        <section>
+          <h2>3. Account Registration</h2>
+          <p>You must create an account to access paid features. You are responsible for maintaining the confidentiality of your API keys and account credentials. You agree to notify us immediately at <a href="mailto:support@shadow-warden-ai.com" style="color:#6366f1">support@shadow-warden-ai.com</a> of any unauthorized access or breach.</p>
+        </section>
+
+        <section>
+          <h2>4. Subscriptions and Billing</h2>
+          <p>Paid plans are billed on a monthly or annual basis through <strong style="color:#f1f5f9">Lemon Squeezy</strong>, our authorized merchant of record. By purchasing a subscription, you also agree to <a href="https://www.lemonsqueezy.com/terms" target="_blank" rel="noopener" style="color:#6366f1">Lemon Squeezy's Terms of Service</a>. Shadow Warden AI never stores your payment card details.</p>
+          <p>Prices are shown in USD. Taxes may be added by Lemon Squeezy based on your jurisdiction.</p>
+        </section>
+
+        <section>
+          <h2>5. Acceptable Use</h2>
+          <p>You agree not to:</p>
+          <ul>
+            <li>Use the Service to facilitate illegal activity, distribute malware, or attack third-party systems.</li>
+            <li>Attempt to reverse-engineer, scrape, or extract the underlying ML models or rule corpora.</li>
+            <li>Resell or sublicense the Service without explicit written permission.</li>
+            <li>Circumvent rate limits, authentication, or billing mechanisms.</li>
+          </ul>
+          <p>Violations may result in immediate account suspension without refund.</p>
+        </section>
+
+        <section>
+          <h2>6. Data and Privacy</h2>
+          <p>Shadow Warden AI is designed to be GDPR-compliant. Request content is <strong style="color:#f1f5f9">never logged</strong> — only metadata (request type, length, timing, verdict) is retained. A full Data Protection Impact Assessment (DPIA) is available at <a href="/doc/compliance" style="color:#6366f1">/doc/compliance</a>.</p>
+          <p>We process only the data necessary to deliver the Service. You may request deletion of your data by contacting <a href="mailto:privacy@shadow-warden-ai.com" style="color:#6366f1">privacy@shadow-warden-ai.com</a>.</p>
+        </section>
+
+        <section>
+          <h2>7. Intellectual Property</h2>
+          <p>All software, models, documentation, and trademarks associated with Shadow Warden AI are proprietary and protected by applicable intellectual property laws. These Terms do not grant you any ownership rights in the Service.</p>
+        </section>
+
+        <section>
+          <h2>8. Disclaimer of Warranties</h2>
+          <p>The Service is provided "as is" and "as available." We make no warranties, express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, or non-infringement. We do not guarantee that the Service will be error-free or uninterrupted.</p>
+        </section>
+
+        <section>
+          <h2>9. Limitation of Liability</h2>
+          <p>To the maximum extent permitted by applicable law, Shadow Warden AI and its owners shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Service. Our total liability to you for any claim shall not exceed the amount you paid to us in the 12 months preceding the claim.</p>
+        </section>
+
+        <section>
+          <h2>10. Termination</h2>
+          <p>You may cancel your subscription at any time through the Lemon Squeezy Customer Portal. We reserve the right to suspend or terminate your account for violations of these Terms, with or without notice.</p>
+          <p>Upon termination, your access to paid features will cease at the end of the current billing period. Refunds are subject to our <a href="/refund" style="color:#6366f1">Refund Policy</a>.</p>
+        </section>
+
+        <section>
+          <h2>11. Changes to Terms</h2>
+          <p>We may update these Terms from time to time. Material changes will be communicated via email or a notice on the Service. Continued use of the Service after changes take effect constitutes acceptance of the revised Terms.</p>
+        </section>
+
+        <section>
+          <h2>12. Governing Law</h2>
+          <p>These Terms are governed by the laws of the State of Israel, without regard to conflict-of-law principles. Any disputes shall be resolved in the competent courts of Tel Aviv, Israel.</p>
+        </section>
+
+        <section>
+          <h2>13. Contact</h2>
+          <p>For legal inquiries, contact us at <a href="mailto:legal@shadow-warden-ai.com" style="color:#6366f1">legal@shadow-warden-ai.com</a>.</p>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .prose-section h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .prose-section p { margin-bottom: 10px; }
+  .prose-section ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 10px;
+    space-y: 4px;
+  }
+  .prose-section li { margin-bottom: 4px; }
+</style>
