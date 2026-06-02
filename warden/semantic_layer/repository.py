@@ -18,12 +18,17 @@ from warden.semantic_layer.models import SemanticModel
 
 log = logging.getLogger("warden.semantic_layer.repository")
 
-_DB_PATH = os.getenv("SEMANTIC_DB_PATH", "/tmp/warden_semantic.db")
 _db_lock = threading.RLock()
 
 
+def _db_path() -> str:
+    return os.getenv("SEMANTIC_DB_PATH", "/tmp/warden_semantic.db")
+
+
 @contextmanager
-def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    if db_path is None:
+        db_path = _db_path()
     with _db_lock:
         con = sqlite3.connect(db_path, check_same_thread=False)
         con.row_factory = sqlite3.Row
