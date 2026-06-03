@@ -96,9 +96,31 @@ const isSettingsActive = isActive('/settings');
 </head>
 
 <body>
+  <!-- Top announcement banner -->
+  <div id="top-banner" style="background:linear-gradient(90deg,#6366f1 0%,#8b5cf6 50%,#6366f1 100%);background-size:200% 100%;animation:banner-shimmer 4s linear infinite;position:fixed;top:0;left:0;right:0;z-index:60;height:36px">
+    <a href="/doc/api-reference"
+       class="flex items-center justify-center gap-2 px-4 py-2 text-white transition-opacity hover:opacity-90"
+       style="text-decoration:none">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      <span style="font-size:12px;font-weight:600;letter-spacing:0.01em">Shadow Warden AI — Gateway <span style="opacity:0.75;font-weight:400">v5.2</span> — Explore the API Reference</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.75"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+    <button id="banner-close" aria-label="Dismiss" type="button"
+            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:rgba(255,255,255,0.6);cursor:pointer;padding:4px;line-height:1"
+            onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <style>
+    @keyframes banner-shimmer {
+      0%   { background-position: 0% 0 }
+      100% { background-position: 200% 0 }
+    }
+  </style>
+
   <!-- Navbar -->
-  <header id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-          style="background:rgba(10,10,15,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)">
+  <header id="navbar" class="fixed left-0 right-0 z-50 transition-all duration-300"
+          style="top:36px;background:rgba(10,10,15,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)">
     <div class="mx-auto max-w-7xl px-4 lg:px-8 h-14 flex items-center gap-6">
 
       <!-- Logo -->
@@ -278,6 +300,7 @@ const isSettingsActive = isActive('/settings');
   </div>
 
   <!-- Page content -->
+  <div id="page-spacer" style="height:92px"></div>
   <main>
     <slot />
   </main>
@@ -347,13 +370,43 @@ const isSettingsActive = isActive('/settings');
         <p class="text-[12px]" style="color:#475569">© 2026 Shadow Warden AI. All rights reserved.</p>
         <div class="flex items-center gap-2">
           <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#10b981"></span>
-          <span class="text-[12px]" style="color:#475569">All systems operational · v4.19</span>
+          <span class="text-[12px]" style="color:#475569">All systems operational · v5.2</span>
         </div>
       </div>
     </div>
   </footer>
 
   <script>
+    // ── Top banner dismiss ──
+    (function() {
+      const BANNER_KEY = 'sw_banner_v52_dismissed';
+      const banner  = document.getElementById('top-banner')!;
+      const navbar  = document.getElementById('navbar')!;
+      const BANNER_H = 36;
+
+      const spacer = document.getElementById('page-spacer');
+
+      function applyBannerState(dismissed: boolean) {
+        if (dismissed) {
+          banner.style.display = 'none';
+          navbar.style.top = '0';
+          if (spacer) spacer.style.height = '56px';
+        } else {
+          banner.style.display = '';
+          navbar.style.top = BANNER_H + 'px';
+          if (spacer) spacer.style.height = '92px';
+        }
+      }
+
+      const dismissed = sessionStorage.getItem(BANNER_KEY) === '1';
+      applyBannerState(dismissed);
+
+      document.getElementById('banner-close')?.addEventListener('click', () => {
+        sessionStorage.setItem(BANNER_KEY, '1');
+        applyBannerState(true);
+      });
+    })();
+
     // ── Mobile menu ──
     const btn       = document.getElementById('mobile-btn')!;
     const menu      = document.getElementById('mobile-menu')!;
