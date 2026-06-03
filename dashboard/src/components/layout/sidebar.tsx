@@ -62,6 +62,7 @@ const GROUPS: NavGroup[] = [
       { href: "/overview",         icon: LayoutDashboard, label: "Overview" },
       { href: "/events",           icon: FileText,        label: "Event Log" },
       { href: "/threats",          icon: Search,          label: "Threat Intel" },
+      { href: "/compliance",       icon: Shield,          label: "Compliance" },
       { href: "/platform/metrics", icon: Activity,        label: "Metrics" },
       { href: "/platform/traces",  icon: GitBranch,       label: "Traces" },
       { href: "/roi",              icon: DollarSign,      label: "Dollar Impact" },
@@ -250,7 +251,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <LogOut size={13} />
           Sign out
         </button>
-        <p className="text-[10px] text-gray-600 px-2">v5.1 · SOC Dashboard</p>
+        <p className="text-[10px] text-gray-600 px-2">v5.2 · SOC Dashboard</p>
       </div>
     </aside>
   );

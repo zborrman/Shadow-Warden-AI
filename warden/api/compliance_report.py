@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -543,6 +544,11 @@ footer{{margin-top:32px;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f
 
 # ── CP-25: Real-time compliance posture (multi-standard) ─────────────────────
 
+# Ring buffer: up to 168 hourly snapshots (one week) stored in-process.
+# Populated on every /posture call so the /history endpoint has data.
+_posture_history: deque[dict] = deque(maxlen=168)
+
+
 def _score_standard(passed: int, partial: int, total: int) -> float:
     """Weighted score: PASS=1.0, PARTIAL=0.5, FAIL=0.0 → 0..100"""
     return round((passed + partial * 0.5) / total * 100, 1) if total else 0.0
@@ -625,8 +631,9 @@ async def compliance_posture(days: Annotated[int, Query(ge=1, le=90)] = 7) -> di
     overall_score = round(sum(s["score"] for s in standards) / len(standards), 1)
     all_pass = all(s["attestation"] == "PASS" for s in standards)
 
-    return {
-        "generated_at":   __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+    now = datetime.now(UTC)
+    result = {
+        "generated_at":   now.isoformat(),
         "period_days":    days,
         "overall_score":  overall_score,
         "overall_status": "PASS" if all_pass else "PARTIAL",
@@ -634,4 +641,35 @@ async def compliance_posture(days: Annotated[int, Query(ge=1, le=90)] = 7) -> di
         "filter_stats":   stats,
         "org_name":       _ORG_NAME,
         "tenant_id":      _TENANT_ID,
+    }
+
+    # Append lightweight snapshot to history ring buffer
+    _posture_history.append({
+        "ts":             now.isoformat(),
+        "overall_score":  overall_score,
+        "overall_status": result["overall_status"],
+        "scores":         {s["short"]: s["score"] for s in standards},
+    })
+
+    return result
+
+
+@router.get("/history", summary="Compliance score history — last N snapshots (CP-25)")
+async def compliance_history(
+    hours: Annotated[int, Query(ge=1, le=168, description="Number of past hours to return")] = 24,
+) -> dict:
+    """
+    Returns up to `hours` compliance posture snapshots collected by /compliance/posture.
+    Snapshots are stored in a 168-entry (1-week) ring buffer per process.
+    Call /compliance/posture first to seed data.
+    """
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    snapshots = [
+        s for s in _posture_history
+        if datetime.fromisoformat(s["ts"]) >= cutoff
+    ]
+    return {
+        "hours":     hours,
+        "count":     len(snapshots),
+        "snapshots": snapshots,
     }

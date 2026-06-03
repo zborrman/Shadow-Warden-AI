@@ -74,6 +74,19 @@ export type PostureResponse = {
   tenant_id:      string;
 };
 
+export type ComplianceSnapshot = {
+  ts:             string;
+  overall_score:  number;
+  overall_status: "PASS" | "PARTIAL" | "FAIL";
+  scores:         Record<string, number>;
+};
+
+export type ComplianceHistoryResponse = {
+  hours:     number;
+  count:     number;
+  snapshots: ComplianceSnapshot[];
+};
+
 export type CommunityLookupResponse = {
   query:           string;
   total:           number;
@@ -186,6 +199,7 @@ export const api = {
   threats:    ()               => get<ThreatsResponse>(ANALYTICS, "/api/v1/threats"),
   roi:        ()               => get<RoiResponse>(ANALYTICS, "/api/v1/compliance/roi"),
   posture:    (days = 7)       => get<PostureResponse>(API, "/compliance/posture", { days: String(days) }),
+  complianceHistory: (hours = 24) => get<ComplianceHistoryResponse>(API, "/compliance/history", { hours: String(hours) }),
   health:     ()               => get<Record<string, unknown>>(API, "/health"),
   xaiExplain: (id: string)     => get<Record<string, unknown>>(API, `/xai/explain/${id}`),
   filter:     (body: { content: string; tenant_id?: string }) =>
