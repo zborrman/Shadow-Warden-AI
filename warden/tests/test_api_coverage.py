@@ -1072,6 +1072,7 @@ class TestSettingsHubApi:
     @pytest.fixture(autouse=True)
     def _setup(self):
         from fastapi.testclient import TestClient
+
         from warden.settings.api import router
         self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
 
@@ -1121,6 +1122,7 @@ class TestIncidentRegisterRouter:
         import os
         os.environ["INCIDENT_REGISTER_DB_PATH"] = str(tmp_path / "inc.db")
         from fastapi.testclient import TestClient
+
         from warden.api.incident_register import router
         self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
         self.tid = f"t-{uuid.uuid4().hex[:6]}"
@@ -1170,6 +1172,7 @@ class TestBudgetRouter:
         import os
         os.environ["BUDGET_DB_PATH"] = str(tmp_path / "budget.db")
         from fastapi.testclient import TestClient
+
         from warden.api.budget import router
         self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
         self.tid = f"t-{uuid.uuid4().hex[:6]}"
@@ -1224,6 +1227,7 @@ class TestCostAllocationRouter:
         import os
         os.environ["COST_ALLOC_DB_PATH"] = str(tmp_path / "cost.db")
         from fastapi.testclient import TestClient
+
         from warden.api.cost_allocation import router
         self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
         self.tid = f"t-{uuid.uuid4().hex[:6]}"
@@ -1258,6 +1262,7 @@ class TestSupplierRiskRouter:
         os.environ["SEP_DB_PATH"] = str(tmp_path / "sep.db")
         os.environ["VENDOR_GOV_DB_PATH"] = str(tmp_path / "vg.db")
         from fastapi.testclient import TestClient
+
         from warden.api.supplier_risk import router
         self.c = TestClient(_mini_app(router), raise_server_exceptions=False)
         self.cid = f"c-{uuid.uuid4().hex[:6]}"
