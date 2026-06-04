@@ -1,6 +1,6 @@
 [project]
 name = "shadow-warden-ai"
-version = "4.30.0"
+version = "5.3.0"
 description = "AI security gateway — jailbreak detection, PII/secret redaction, STIX 2.1 audit chain, SMB AI governance suite, business intelligence, post-quantum cryptography, sovereign cloud routing, and self-improving rules powered by Claude Opus"
 readme = "README.md"
 requires-python = ">=3.11,<4.0"

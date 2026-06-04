@@ -252,7 +252,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <LogOut size={13} />
           Sign out
         </button>
-        <p className="text-[10px] text-gray-600 px-2">v5.2 · SOC Dashboard</p>
+        <p className="text-[10px] text-gray-600 px-2">v5.3 · SOC Dashboard</p>
       </div>
     </aside>
   );

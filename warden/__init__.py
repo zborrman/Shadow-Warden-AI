@@ -12,5 +12,5 @@ All legacy flat-module import paths remain available for backward
 compatibility (e.g. ``from warden.semantic_guard import SemanticGuard``).
 """
 
-__version__ = "4.30.0"
+__version__ = "5.3.0"
 __all__ = ["__version__"]
