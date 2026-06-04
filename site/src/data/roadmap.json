@@ -344,10 +344,10 @@
     "category": "Business Community",
     "subcategory": "Integrations",
     "feature": "VS Code extension — inline risk annotation on selected text",
-    "description": "Scan selected text directly within VS Code and receive instant risk annotations, catching secrets, injection patterns, and data leaks before they reach the pipeline.",
-    "version": "",
+    "description": "5 commands (Ctrl+Shift+W scan selection, scan file concurrent, scan clipboard, clear, settings). 4 decoration tiers (LOW/MEDIUM/HIGH/BLOCK) with coloured gutter, background tint, and inline after-text verdict. Code Lens above HIGH/BLOCK lines. Concurrent file scan (configurable 1–16 workers). Rich hover: flags + secrets found + request ID. Output channel log. Auto-scan on save. v5.2.0.",
+    "version": "v5.2",
     "tier": "Individual+",
-    "status": "planned"
+    "status": "shipped"
   },
   {
     "id": "IN-15",

@@ -1,214 +1,342 @@
-import * as vscode from "vscode";
+/**
+ * Shadow Warden AI — VS Code Extension  (IN-14)
+ * ───────────────────────────────────────────────
+ * Inline risk annotation for selected text, files, and clipboard.
+ *
+ * Commands
+ * ────────
+ *   Ctrl+Shift+W  → shadowWarden.scan           — scan selection
+ *   (context menu) → shadowWarden.scanFile       — scan whole file (concurrent)
+ *                  → shadowWarden.scanClipboard  — scan clipboard text
+ *                  → shadowWarden.clearDecorations
+ *                  → shadowWarden.openSettings
+ *
+ * Decorations (4 tiers)
+ * ─────────────────────
+ *   LOW / PASS / ALLOW  → subtle green tint
+ *   MEDIUM / FLAG       → yellow tint  + `⚠ MEDIUM` after text
+ *   HIGH                → orange tint  + `⛔ HIGH`   after text
+ *   BLOCK               → red tint+border + `🚫 BLOCK` after text
+ *
+ * Code Lens
+ * ─────────
+ *   HIGH and BLOCK annotated lines get a code lens above them:
+ *     ⚠ Shadow Warden: HIGH — jailbreak_attempt  [details]
+ */
+
+import * as http  from "http";
 import * as https from "https";
-import * as http from "http";
-import { URL } from "url";
+import { URL }    from "url";
+import * as vscode from "vscode";
 
-// ── Decoration types ──────────────────────────────────────────────────────────
-
-const _decorAllow = vscode.window.createTextEditorDecorationType({
-  gutterIconPath: undefined,
-  overviewRulerColor: "#30D158",
-  overviewRulerLane: vscode.OverviewRulerLane.Left,
-  backgroundColor: "rgba(48,209,88,0.06)",
-});
-
-const _decorMedium = vscode.window.createTextEditorDecorationType({
-  overviewRulerColor: "#FFD60A",
-  overviewRulerLane: vscode.OverviewRulerLane.Left,
-  backgroundColor: "rgba(255,214,10,0.08)",
-});
-
-const _decorHigh = vscode.window.createTextEditorDecorationType({
-  overviewRulerColor: "#FF2D55",
-  overviewRulerLane: vscode.OverviewRulerLane.Left,
-  backgroundColor: "rgba(255,45,85,0.1)",
-});
-
-// ── Config helpers ─────────────────────────────────────────────────────────────
-
-function cfg() {
-  return vscode.workspace.getConfiguration("shadowWarden");
-}
-
-function apiUrl(): string {
-  return cfg().get<string>("apiUrl", "https://api.shadow-warden-ai.com");
-}
-
-function apiKey(): string {
-  return cfg().get<string>("apiKey", "");
-}
-
-function minRisk(): string {
-  return cfg().get<string>("minRiskLevel", "MEDIUM");
-}
-
-// ── HTTP helper ───────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface FilterResponse {
-  verdict: string;
-  score: number;
-  flags?: string[];
-  processing_ms?: number;
+  allowed:        boolean;
+  risk_level:     string;   // ALLOW | LOW | MEDIUM | HIGH | BLOCK
+  flags:          string[];
+  secrets_found:  string[];
+  processing_ms:  number;
+  request_id?:    string;
+  blocked?:       boolean;
 }
 
-function postFilter(text: string): Promise<FilterResponse> {
+interface Annotation {
+  range:    vscode.Range;
+  verdict:  string;
+  score:    number;
+  flags:    string[];
+  secrets:  string[];
+  reqId?:   string;
+}
+
+// ── Config ────────────────────────────────────────────────────────────────────
+
+const cfg     = () => vscode.workspace.getConfiguration("shadowWarden");
+const apiUrl  = () => cfg().get<string>("apiUrl",      "https://api.shadow-warden-ai.com");
+const apiKey  = () => cfg().get<string>("apiKey",      "");
+const tenantId= () => cfg().get<string>("tenantId",    "");
+const minRisk = () => cfg().get<string>("minRiskLevel","MEDIUM");
+const showDec = () => cfg().get<boolean>("showInlineDecorations", true);
+const showLens= () => cfg().get<boolean>("showCodeLens", true);
+const conc    = () => Math.max(1, Math.min(16, cfg().get<number>("concurrency", 4)));
+
+// ── Risk ordering ─────────────────────────────────────────────────────────────
+
+const RISK_ORDER: Record<string, number> = {
+  ALLOW: 0, PASS: 0, LOW: 1, MEDIUM: 2, FLAG: 2, HIGH: 3, BLOCK: 4,
+};
+
+function riskNum(v: string): number {
+  return RISK_ORDER[v.toUpperCase()] ?? 1;
+}
+
+function meetsMin(v: string): boolean {
+  return riskNum(v) >= riskNum(minRisk());
+}
+
+// ── Decoration types (4 tiers) ────────────────────────────────────────────────
+
+const _dLow = vscode.window.createTextEditorDecorationType({
+  overviewRulerColor: "#30D158",
+  overviewRulerLane:   vscode.OverviewRulerLane.Left,
+  backgroundColor:     "rgba(48,209,88,0.05)",
+});
+
+const _dMedium = vscode.window.createTextEditorDecorationType({
+  overviewRulerColor: "#FFD60A",
+  overviewRulerLane:   vscode.OverviewRulerLane.Left,
+  backgroundColor:     "rgba(255,214,10,0.08)",
+});
+
+const _dHigh = vscode.window.createTextEditorDecorationType({
+  overviewRulerColor: "#FF8C42",
+  overviewRulerLane:   vscode.OverviewRulerLane.Right,
+  backgroundColor:     "rgba(255,140,66,0.10)",
+  borderWidth:         "0 0 0 2px",
+  borderStyle:         "solid",
+  borderColor:         "rgba(255,140,66,0.40)",
+});
+
+const _dBlock = vscode.window.createTextEditorDecorationType({
+  overviewRulerColor: "#FF2D55",
+  overviewRulerLane:   vscode.OverviewRulerLane.Right,
+  backgroundColor:     "rgba(255,45,85,0.12)",
+  borderWidth:         "0 0 0 3px",
+  borderStyle:         "solid",
+  borderColor:         "rgba(255,45,85,0.60)",
+});
+
+// Inline after-text showing verdict (per-decoration renderOptions)
+const _afterMedium: vscode.DecorationInstanceRenderOptions = {
+  after: { contentText: "  ⚠ MEDIUM", color: "#FFD60A", fontStyle: "italic", margin: "0 0 0 4px" },
+};
+const _afterHigh: vscode.DecorationInstanceRenderOptions = {
+  after: { contentText: "  ⛔ HIGH", color: "#FF8C42", fontStyle: "italic", margin: "0 0 0 4px" },
+};
+const _afterBlock: vscode.DecorationInstanceRenderOptions = {
+  after: { contentText: "  🚫 BLOCK", color: "#FF2D55", fontWeight: "bold", margin: "0 0 0 4px" },
+};
+
+// ── Output channel ────────────────────────────────────────────────────────────
+
+const _out = vscode.window.createOutputChannel("Shadow Warden AI");
+
+function log(msg: string) {
+  _out.appendLine(`[${new Date().toISOString()}] ${msg}`);
+}
+
+// ── Diagnostics ───────────────────────────────────────────────────────────────
+
+const _diag = vscode.languages.createDiagnosticCollection("shadowWarden");
+
+function addDiagnostic(doc: vscode.TextDocument, ann: Annotation) {
+  const v = ann.verdict.toUpperCase();
+  if (v !== "HIGH" && v !== "BLOCK") { return; }
+  const sev = v === "BLOCK"
+    ? vscode.DiagnosticSeverity.Error
+    : vscode.DiagnosticSeverity.Warning;
+  const detail = [
+    ann.flags.length   ? `flags: ${ann.flags.join(", ")}`   : "",
+    ann.secrets.length ? `secrets: ${ann.secrets.join(", ")}` : "",
+  ].filter(Boolean).join(" · ");
+  const d = new vscode.Diagnostic(
+    ann.range,
+    `Shadow Warden: ${v}${detail ? " — " + detail : ""}`,
+    sev,
+  );
+  d.source = "Shadow Warden AI";
+  const prev = _diag.get(doc.uri) ?? [];
+  _diag.set(doc.uri, [...prev, d]);
+}
+
+// ── Annotation store ──────────────────────────────────────────────────────────
+
+const _store = new Map<string, Annotation[]>();
+
+function getAnns(uri: vscode.Uri): Annotation[] {
+  return _store.get(uri.toString()) ?? [];
+}
+
+function addAnn(uri: vscode.Uri, ann: Annotation) {
+  const key = uri.toString();
+  _store.set(key, [...(_store.get(key) ?? []), ann]);
+}
+
+function clearAnns(uri: vscode.Uri) {
+  _store.delete(uri.toString());
+}
+
+// ── Apply decorations ─────────────────────────────────────────────────────────
+
+function applyDecorations(editor: vscode.TextEditor) {
+  const anns = getAnns(editor.document.uri);
+  const low:    vscode.DecorationOptions[] = [];
+  const medium: vscode.DecorationOptions[] = [];
+  const high:   vscode.DecorationOptions[] = [];
+  const block:  vscode.DecorationOptions[] = [];
+
+  for (const a of anns) {
+    const v = a.verdict.toUpperCase();
+    const hover = buildHover(a);
+    const opt: vscode.DecorationOptions = { range: a.range, hoverMessage: hover };
+
+    if (v === "BLOCK") {
+      block.push({ ...opt, renderOptions: _afterBlock });
+    } else if (v === "HIGH") {
+      high.push({ ...opt, renderOptions: _afterHigh });
+    } else if (v === "MEDIUM" || v === "FLAG") {
+      medium.push({ ...opt, renderOptions: _afterMedium });
+    } else {
+      low.push(opt);
+    }
+  }
+
+  editor.setDecorations(_dLow,    low);
+  editor.setDecorations(_dMedium, medium);
+  editor.setDecorations(_dHigh,   high);
+  editor.setDecorations(_dBlock,  block);
+}
+
+function buildHover(a: Annotation): vscode.MarkdownString {
+  const v    = a.verdict.toUpperCase();
+  const icon = v === "BLOCK" ? "🚫" : v === "HIGH" ? "⛔" : v === "MEDIUM" ? "⚠" : "✅";
+  const md   = new vscode.MarkdownString("", true);
+  md.isTrusted = true;
+  md.appendMarkdown(`**Shadow Warden AI — ${icon} ${v}**\n\n`);
+  if (a.score)   { md.appendMarkdown(`Score: \`${a.score.toFixed(3)}\`\n\n`); }
+  if (a.flags.length)   { md.appendMarkdown(`Flags: ${a.flags.map(f => `\`${f}\``).join(", ")}\n\n`); }
+  if (a.secrets.length) { md.appendMarkdown(`Secrets detected: ${a.secrets.map(s => `\`${s}\``).join(", ")}\n\n`); }
+  if (a.reqId)   { md.appendMarkdown(`Request ID: \`${a.reqId}\`\n\n`); }
+  md.appendMarkdown(`[Clear annotations](command:shadowWarden.clearDecorations)`);
+  return md;
+}
+
+// ── Code Lens provider ────────────────────────────────────────────────────────
+
+class WardenCodeLensProvider implements vscode.CodeLensProvider {
+  private _emitter = new vscode.EventEmitter<void>();
+  readonly onDidChangeCodeLenses = this._emitter.event;
+
+  fire() { this._emitter.fire(); }
+
+  provideCodeLenses(doc: vscode.TextDocument): vscode.CodeLens[] {
+    if (!showLens()) { return []; }
+    return getAnns(doc.uri)
+      .filter(a => riskNum(a.verdict) >= riskNum("HIGH"))
+      .map(a => {
+        const v     = a.verdict.toUpperCase();
+        const icon  = v === "BLOCK" ? "🚫" : "⛔";
+        const flags = a.flags.length ? ` — ${a.flags.slice(0, 2).join(", ")}` : "";
+        const title = `${icon} Shadow Warden: ${v}${flags}`;
+        return new vscode.CodeLens(a.range, {
+          title,
+          command: "shadowWarden.clearDecorations",
+          tooltip: "Click to clear all annotations",
+        });
+      });
+  }
+}
+
+const _lensProvider = new WardenCodeLensProvider();
+
+// ── Status bar ────────────────────────────────────────────────────────────────
+
+let _bar: vscode.StatusBarItem;
+
+function status(msg: string, color?: string) {
+  _bar.text  = `$(shield) ${msg}`;
+  _bar.color = color;
+  _bar.show();
+}
+
+// ── HTTP (no extra dependencies) ──────────────────────────────────────────────
+
+function postFilter(text: string, context = "vscode_selection"): Promise<FilterResponse> {
   return new Promise((resolve, reject) => {
+    if (!apiKey()) {
+      reject(new Error("API key not configured — open Shadow Warden settings (Ctrl+Shift+W)"));
+      return;
+    }
     const base = apiUrl();
-    const url = new URL("/filter", base);
-    const body = JSON.stringify({ text });
+    const url  = new URL("/filter", base);
+    const body = JSON.stringify({
+      content:   text,
+      context,
+      ...(tenantId() ? { tenant_id: tenantId() } : {}),
+    });
     const opts: http.RequestOptions = {
       hostname: url.hostname,
-      port: url.port || (url.protocol === "https:" ? 443 : 80),
-      path: url.pathname,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+      port:     url.port || (url.protocol === "https:" ? "443" : "80"),
+      path:     url.pathname,
+      method:   "POST",
+      headers:  {
+        "Content-Type":   "application/json",
         "Content-Length": Buffer.byteLength(body),
-        ...(apiKey() ? { "X-API-Key": apiKey() } : {}),
+        "X-API-Key":      apiKey(),
       },
-      timeout: 10000,
+      timeout: 10_000,
     };
     const transport = url.protocol === "https:" ? https : http;
     const req = transport.request(opts, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
+      let raw = "";
+      res.on("data", (c) => (raw += c));
       res.on("end", () => {
-        try {
-          resolve(JSON.parse(data) as FilterResponse);
-        } catch {
-          reject(new Error(`Invalid JSON: ${data.slice(0, 100)}`));
-        }
+        try { resolve(JSON.parse(raw) as FilterResponse); }
+        catch { reject(new Error(`Bad JSON from API: ${raw.slice(0, 120)}`)); }
       });
     });
     req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("Request timed out"));
-    });
+    req.on("timeout", () => { req.destroy(); reject(new Error("Request timed out (10 s)")); });
     req.write(body);
     req.end();
   });
 }
 
-// ── Risk classification ───────────────────────────────────────────────────────
+// ── Semaphore for concurrent file scan ────────────────────────────────────────
 
-const _RISK_ORDER = ["ALLOW", "PASS", "LOW", "MEDIUM", "FLAG", "HIGH", "BLOCK"];
-
-function riskLevel(verdict: string): number {
-  const idx = _RISK_ORDER.indexOf(verdict.toUpperCase());
-  return idx === -1 ? 3 : idx;
-}
-
-function meetsMinRisk(verdict: string): boolean {
-  return riskLevel(verdict) >= riskLevel(minRisk());
-}
-
-function decorFor(verdict: string) {
-  const v = verdict.toUpperCase();
-  if (v === "HIGH" || v === "BLOCK") return _decorHigh;
-  if (v === "MEDIUM" || v === "FLAG") return _decorMedium;
-  return _decorAllow;
-}
-
-// ── Diagnostics ───────────────────────────────────────────────────────────────
-
-const _diagCollection = vscode.languages.createDiagnosticCollection("shadowWarden");
-
-function pushDiagnostic(
-  doc: vscode.TextDocument,
-  range: vscode.Range,
-  verdict: string,
-  score: number
-) {
-  const v = verdict.toUpperCase();
-  if (v !== "HIGH" && v !== "BLOCK") return;
-  const sev = v === "BLOCK" ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning;
-  const diag = new vscode.Diagnostic(
-    range,
-    `Shadow Warden: ${verdict} (score ${score.toFixed(2)}) — potential AI security risk`,
-    sev
-  );
-  diag.source = "Shadow Warden AI";
-  const existing = _diagCollection.get(doc.uri) ?? [];
-  _diagCollection.set(doc.uri, [...existing, diag]);
-}
-
-// ── Status bar ────────────────────────────────────────────────────────────────
-
-let _statusBar: vscode.StatusBarItem;
-
-function showStatus(msg: string, color?: string) {
-  _statusBar.text = `$(shield) ${msg}`;
-  _statusBar.color = color;
-  _statusBar.show();
-}
-
-// ── Core scan logic ───────────────────────────────────────────────────────────
-
-interface ScanAnnotation {
-  range: vscode.Range;
-  verdict: string;
-  score: number;
-}
-
-const _annotations = new Map<string, ScanAnnotation[]>();
-
-function applyAnnotations(editor: vscode.TextEditor) {
-  const key = editor.document.uri.toString();
-  const ann = _annotations.get(key) ?? [];
-  const allow: vscode.DecorationOptions[] = [];
-  const medium: vscode.DecorationOptions[] = [];
-  const high: vscode.DecorationOptions[] = [];
-  for (const a of ann) {
-    const opts: vscode.DecorationOptions = {
-      range: a.range,
-      hoverMessage: `Shadow Warden: **${a.verdict}** (score ${a.score.toFixed(2)})`,
-    };
-    const v = a.verdict.toUpperCase();
-    if (v === "HIGH" || v === "BLOCK") high.push(opts);
-    else if (v === "MEDIUM" || v === "FLAG") medium.push(opts);
-    else allow.push(opts);
+class Semaphore {
+  private slots: number;
+  private queue: (() => void)[] = [];
+  constructor(n: number) { this.slots = n; }
+  acquire(): Promise<void> {
+    if (this.slots > 0) { this.slots--; return Promise.resolve(); }
+    return new Promise<void>((r) => this.queue.push(r));
   }
-  editor.setDecorations(_decorAllow, allow);
-  editor.setDecorations(_decorMedium, medium);
-  editor.setDecorations(_decorHigh, high);
+  release() {
+    if (this.queue.length > 0) { (this.queue.shift()!)(); } else { this.slots++; }
+  }
 }
+
+// ── Core scan ─────────────────────────────────────────────────────────────────
 
 async function scanRange(
   editor: vscode.TextEditor,
-  range: vscode.Range
-): Promise<void> {
-  const text = editor.document.getText(range);
-  if (!text.trim()) {
-    vscode.window.showWarningMessage("Shadow Warden: no text selected.");
-    return;
-  }
-  showStatus("Scanning…", "#FFD60A");
+  range:  vscode.Range,
+  context = "vscode_selection",
+): Promise<Annotation | null> {
+  const text = editor.document.getText(range).trim();
+  if (!text) { return null; }
+
   try {
-    const result = await postFilter(text);
-    const { verdict, score } = result;
-
-    if (cfg().get<boolean>("showInlineDecorations", true) && meetsMinRisk(verdict)) {
-      const key = editor.document.uri.toString();
-      const existing = _annotations.get(key) ?? [];
-      existing.push({ range, verdict, score });
-      _annotations.set(key, existing);
-      applyAnnotations(editor);
-    }
-
-    pushDiagnostic(editor.document, range, verdict, score);
-
-    const color =
-      verdict.toUpperCase() === "BLOCK" || verdict.toUpperCase() === "HIGH"
-        ? "#FF2D55"
-        : verdict.toUpperCase() === "MEDIUM" || verdict.toUpperCase() === "FLAG"
-        ? "#FFD60A"
-        : "#30D158";
-    showStatus(`${verdict} · ${score.toFixed(2)}`, color);
+    const res = await postFilter(text, context);
+    const verdict = res.risk_level ?? "ALLOW";
+    const ann: Annotation = {
+      range,
+      verdict,
+      score:   res.processing_ms ? +(res.processing_ms / 100).toFixed(3) : 0,
+      flags:   res.flags   ?? [],
+      secrets: res.secrets_found ?? [],
+      reqId:   res.request_id,
+    };
+    log(
+      `${verdict} | flags=[${ann.flags.join(",")}] secrets=[${ann.secrets.join(",")}]` +
+      ` | ${res.processing_ms?.toFixed(1) ?? "?"}ms | ${text.slice(0, 80).replace(/\n/g, "↵")}`,
+    );
+    return ann;
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    showStatus("Error", "#FF2D55");
-    vscode.window.showErrorMessage(`Shadow Warden scan failed: ${msg}`);
+    log(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    throw err;
   }
 }
 
@@ -216,109 +344,188 @@ async function scanRange(
 
 async function cmdScan() {
   const editor = vscode.window.activeTextEditor;
-  if (!editor) return;
+  if (!editor) { return; }
   const sel = editor.selection;
   if (sel.isEmpty) {
-    vscode.window.showWarningMessage("Shadow Warden: select text to scan.");
+    vscode.window.showWarningMessage("Shadow Warden: select text first (or use Scan File).");
     return;
   }
-  await scanRange(editor, sel);
+  status("Scanning…", "#FFD60A");
+  try {
+    const ann = await scanRange(editor, sel);
+    if (!ann) { status("Empty selection", "#8E8E9E"); return; }
+
+    if (showDec() && meetsMin(ann.verdict)) {
+      addAnn(editor.document.uri, ann);
+      applyDecorations(editor);
+      addDiagnostic(editor.document, ann);
+      _lensProvider.fire();
+    }
+
+    const v = ann.verdict.toUpperCase();
+    const color =
+      v === "BLOCK"  ? "#FF2D55" :
+      v === "HIGH"   ? "#FF8C42" :
+      v === "MEDIUM" || v === "FLAG" ? "#FFD60A" : "#30D158";
+    status(`${ann.verdict}${ann.flags.length ? " · " + ann.flags[0] : ""}`, color);
+
+    if (v === "BLOCK" || v === "HIGH") {
+      const detail = ann.flags.length ? ` (${ann.flags.join(", ")})` : "";
+      vscode.window.showWarningMessage(
+        `Shadow Warden: ${v} risk detected${detail}`,
+        "Show Output",
+      ).then(s => { if (s) { _out.show(); } });
+    }
+  } catch (err: unknown) {
+    status("Error", "#FF2D55");
+    vscode.window.showErrorMessage(`Shadow Warden: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 async function cmdScanFile() {
   const editor = vscode.window.activeTextEditor;
-  if (!editor) return;
+  if (!editor) { return; }
   const doc = editor.document;
-  showStatus("Scanning file…", "#FFD60A");
 
-  // Chunk into lines; scan each non-empty line individually
-  const lineCount = doc.lineCount;
-  let highCount = 0;
-  let blockCount = 0;
+  const lines = Array.from({ length: doc.lineCount }, (_, i) => doc.lineAt(i))
+    .filter(l => !l.isEmptyOrWhitespace);
 
-  for (let i = 0; i < lineCount; i++) {
-    const line = doc.lineAt(i);
-    if (line.isEmptyOrWhitespace) continue;
-    try {
-      const result = await postFilter(line.text);
-      const { verdict, score } = result;
-      if (meetsMinRisk(verdict)) {
-        const key = doc.uri.toString();
-        const existing = _annotations.get(key) ?? [];
-        existing.push({ range: line.range, verdict, score });
-        _annotations.set(key, existing);
-        pushDiagnostic(doc, line.range, verdict, score);
-        if (verdict.toUpperCase() === "HIGH") highCount++;
-        if (verdict.toUpperCase() === "BLOCK") blockCount++;
-      }
-    } catch {
-      // fail-open: continue scanning remaining lines
-    }
+  if (lines.length === 0) {
+    vscode.window.showInformationMessage("Shadow Warden: file is empty.");
+    return;
   }
 
-  applyAnnotations(editor);
-  const color = blockCount > 0 ? "#FF2D55" : highCount > 0 ? "#FF8C42" : "#30D158";
-  showStatus(`File scan done — ${blockCount} BLOCK, ${highCount} HIGH`, color);
+  status(`Scanning ${lines.length} lines…`, "#FFD60A");
+  _diag.delete(doc.uri);
+  clearAnns(doc.uri);
+
+  const sem = new Semaphore(conc());
+  let high = 0, block = 0, errors = 0;
+
+  await Promise.all(lines.map(async (line) => {
+    await sem.acquire();
+    try {
+      const ann = await scanRange(editor, line.range, "vscode_file");
+      if (ann && meetsMin(ann.verdict)) {
+        addAnn(doc.uri, ann);
+        addDiagnostic(doc, ann);
+        const v = ann.verdict.toUpperCase();
+        if (v === "HIGH")  { high++; }
+        if (v === "BLOCK") { block++; }
+      }
+    } catch { errors++; }
+    finally { sem.release(); }
+  }));
+
+  applyDecorations(editor);
+  _lensProvider.fire();
+
+  const col = block > 0 ? "#FF2D55" : high > 0 ? "#FF8C42" : "#30D158";
+  const summary = `File done — ${block} BLOCK, ${high} HIGH${errors ? `, ${errors} err` : ""}`;
+  status(summary, col);
+  log(`File scan complete: ${lines.length} lines, ${block} BLOCK, ${high} HIGH, ${errors} errors`);
 }
 
-function cmdClearDecorations() {
+async function cmdScanClipboard() {
+  const text = await vscode.env.clipboard.readText();
+  if (!text.trim()) {
+    vscode.window.showWarningMessage("Shadow Warden: clipboard is empty.");
+    return;
+  }
+  status("Scanning clipboard…", "#FFD60A");
+  try {
+    const res = await postFilter(text, "vscode_clipboard");
+    const verdict = res.risk_level ?? "ALLOW";
+    const flags   = res.flags ?? [];
+    const secrets = res.secrets_found ?? [];
+    log(`Clipboard: ${verdict} | flags=[${flags.join(",")}] secrets=[${secrets.join(",")}]`);
+
+    const v = verdict.toUpperCase();
+    const detail = [
+      flags.length   ? `Flags: ${flags.join(", ")}` : "",
+      secrets.length ? `Secrets: ${secrets.join(", ")}` : "",
+    ].filter(Boolean).join(" · ");
+    const msg = `Shadow Warden: clipboard is **${v}**${detail ? " — " + detail : ""}`;
+
+    const color = v === "BLOCK" ? "#FF2D55" : v === "HIGH" ? "#FF8C42" :
+                  v === "MEDIUM" ? "#FFD60A" : "#30D158";
+    status(`Clipboard: ${verdict}`, color);
+    vscode.window.showInformationMessage(msg, "Show Output").then(s => { if (s) { _out.show(); } });
+  } catch (err: unknown) {
+    status("Error", "#FF2D55");
+    vscode.window.showErrorMessage(`Shadow Warden clipboard scan failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+function cmdClear() {
   const editor = vscode.window.activeTextEditor;
-  if (!editor) return;
-  const key = editor.document.uri.toString();
-  _annotations.delete(key);
-  editor.setDecorations(_decorAllow, []);
-  editor.setDecorations(_decorMedium, []);
-  editor.setDecorations(_decorHigh, []);
-  _diagCollection.delete(editor.document.uri);
-  showStatus("Cleared", "#30D158");
-  setTimeout(() => _statusBar.hide(), 2000);
+  if (!editor) { return; }
+  clearAnns(editor.document.uri);
+  editor.setDecorations(_dLow,    []);
+  editor.setDecorations(_dMedium, []);
+  editor.setDecorations(_dHigh,   []);
+  editor.setDecorations(_dBlock,  []);
+  _diag.delete(editor.document.uri);
+  _lensProvider.fire();
+  status("Cleared", "#30D158");
+  setTimeout(() => _bar.hide(), 2000);
 }
 
 function cmdOpenSettings() {
   vscode.commands.executeCommand(
     "workbench.action.openSettings",
-    "@ext:shadow-warden-ai.shadow-warden-ai"
+    "@ext:shadow-warden-ai.shadow-warden-ai",
   );
 }
 
 // ── Auto-scan on save ─────────────────────────────────────────────────────────
 
-function onDidSave(doc: vscode.TextDocument) {
-  if (!cfg().get<boolean>("autoScanOnSave", false)) return;
+function onSave(doc: vscode.TextDocument) {
+  if (!cfg().get<boolean>("autoScanOnSave", false)) { return; }
   const editor = vscode.window.visibleTextEditors.find(
-    (e) => e.document.uri.toString() === doc.uri.toString()
+    e => e.document.uri.toString() === doc.uri.toString(),
   );
-  if (!editor) return;
-  const fullRange = new vscode.Range(
-    doc.positionAt(0),
-    doc.positionAt(doc.getText().length)
-  );
-  scanRange(editor, fullRange);
+  if (!editor) { return; }
+  cmdScanFile();
 }
 
 // ── Activation ────────────────────────────────────────────────────────────────
 
-export function activate(context: vscode.ExtensionContext) {
-  _statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  _statusBar.command = "shadowWarden.scan";
-  context.subscriptions.push(_statusBar);
+export function activate(ctx: vscode.ExtensionContext) {
+  _bar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  _bar.command = "shadowWarden.scan";
+  _bar.tooltip = "Shadow Warden AI — click to scan selection";
+  ctx.subscriptions.push(_bar);
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("shadowWarden.scan", cmdScan),
-    vscode.commands.registerCommand("shadowWarden.scanFile", cmdScanFile),
-    vscode.commands.registerCommand("shadowWarden.clearDecorations", cmdClearDecorations),
-    vscode.commands.registerCommand("shadowWarden.openSettings", cmdOpenSettings),
-    vscode.workspace.onDidSaveTextDocument(onDidSave),
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor) applyAnnotations(editor);
-    }),
-    _diagCollection
+  // Show "configure" hint if no API key
+  if (!apiKey()) {
+    status("Configure API key", "#FF8C42");
+  }
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("shadowWarden.scan",              cmdScan),
+    vscode.commands.registerCommand("shadowWarden.scanFile",          cmdScanFile),
+    vscode.commands.registerCommand("shadowWarden.scanClipboard",     cmdScanClipboard),
+    vscode.commands.registerCommand("shadowWarden.clearDecorations",  cmdClear),
+    vscode.commands.registerCommand("shadowWarden.openSettings",      cmdOpenSettings),
+
+    vscode.workspace.onDidSaveTextDocument(onSave),
+    vscode.window.onDidChangeActiveTextEditor(e => { if (e) { applyDecorations(e); } }),
+
+    vscode.languages.registerCodeLensProvider({ scheme: "*" }, _lensProvider),
+
+    _diag,
+    _out,
   );
+
+  log(`Shadow Warden AI activated (api=${apiUrl()}, key=${apiKey() ? "set" : "MISSING"})`);
 }
 
 export function deactivate() {
-  _decorAllow.dispose();
-  _decorMedium.dispose();
-  _decorHigh.dispose();
-  _diagCollection.dispose();
+  _dLow.dispose();
+  _dMedium.dispose();
+  _dHigh.dispose();
+  _dBlock.dispose();
+  _diag.dispose();
+  _out.dispose();
 }
