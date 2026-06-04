@@ -2,10 +2,17 @@
 const releases = [
   {
     version: 'v5.2',
-    date: 'May 2026',
+    date: 'May–Jun 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
     items: [
+      {
+        icon: '🔗',
+        title: 'GitHub Actions Integration (IN-15)',
+        tier: 'Pro+',
+        desc: 'Pre-merge security gate: scans every commit message and diff against the 9-layer filter pipeline. Composite action posts a risk table as a PR comment, uploads a 90-day JSON audit artifact, and fails CI on BLOCK (or HIGH). Local git pre-commit hook mode included.',
+        tags: ['CI/CD', 'Pre-commit', 'PR Comment', 'Audit Trail'],
+      },
       {
         icon: '🧠',
         title: 'AI Analytics Hub',

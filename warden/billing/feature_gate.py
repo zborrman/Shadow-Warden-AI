@@ -201,6 +201,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "ratchet_interval":            None,
         "misp_bridge_enabled":         False,
         "sdk_otel_enabled":            False,
+        "github_actions_scan_enabled": False,
     },
 
     "individual": {
@@ -257,6 +258,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "ratchet_interval":            None,
         "misp_bridge_enabled":         False,
         "sdk_otel_enabled":            False,
+        "github_actions_scan_enabled": False,
     },
 
     "pro": {
@@ -313,6 +315,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "ratchet_interval":            10,
         "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Pro+)
         "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Pro+)
+        "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Pro+)
     },
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
@@ -380,6 +383,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "settings_enabled":            True,
         "misp_bridge_enabled":         False,
         "sdk_otel_enabled":            False,
+        "github_actions_scan_enabled": False,
     },
 
     "enterprise": {
@@ -436,6 +440,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "ratchet_interval":            50,
         "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Enterprise)
         "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Enterprise)
+        "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Enterprise)
     },
 }
 

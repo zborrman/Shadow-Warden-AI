@@ -1,85 +1,124 @@
-name: Shadow Warden AI Scan
+name: Shadow Warden AI — Commit Scan (IN-15)
+
+# Scans every PR diff and commit message for secrets, injection patterns,
+# and policy violations using Shadow Warden's 9-layer filter pipeline.
+#
+# Secrets required (Settings → Secrets → Actions):
+#   WARDEN_API_KEY   — your Shadow Warden API key (Pro+)
+#   WARDEN_API_URL   — override if self-hosted (default: https://api.shadow-warden-ai.com)
 
 on:
   pull_request:
-    branches: ["main", "develop"]
+    branches: ["main", "develop", "master"]
   push:
-    branches: ["main"]
+    branches: ["main", "develop", "master"]
   workflow_dispatch:
     inputs:
       content:
-        description: "Text to scan (optional — scans PR diff if omitted)"
+        description: "Text to scan (leave empty to scan commit diff automatically)"
         required: false
+        default: ""
+      fail_on:
+        description: "Minimum risk level to fail the job"
+        type: choice
+        options: ["BLOCK", "HIGH"]
+        default: "BLOCK"
 
 jobs:
   warden-scan:
     name: Warden Security Scan
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
-      contents: read
+      pull-requests: write   # post PR comment
+      contents:      read    # checkout + git diff
 
     steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0   # full history so HEAD~1 diff works on all events
 
-      - name: Set up Python
+      # ── 2. Python + httpx ────────────────────────────────────────────────────
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install scanner
-        run: pip install httpx
+      - name: Install scanner dependencies
+        run: pip install httpx --quiet
 
-      - name: Run Warden scan
+      # ── 3. Run scan (commit message + per-file diff) ──────────────────────────
+      - name: Scan commit message and diff
         id: scan
         env:
-          WARDEN_API_URL: ${{ secrets.WARDEN_API_URL }}
-          WARDEN_API_KEY: ${{ secrets.WARDEN_API_KEY }}
+          WARDEN_API_URL:  ${{ vars.WARDEN_API_URL || 'https://api.shadow-warden-ai.com' }}
+          WARDEN_API_KEY:  ${{ secrets.WARDEN_API_KEY }}
+          WARDEN_FAIL_ON:  ${{ github.event.inputs.fail_on || 'BLOCK' }}
         run: |
           python scripts/warden_github_scan.py \
-            --event "${{ github.event_name }}" \
-            --sha   "${{ github.sha }}" \
-            --repo  "${{ github.repository }}" \
-            --pr    "${{ github.event.pull_request.number }}" \
-            --out   scan_result.json
+            --mode    ci \
+            --event   "${{ github.event_name }}" \
+            --sha     "${{ github.sha }}" \
+            --repo    "${{ github.repository }}" \
+            --pr      "${{ github.event.pull_request.number || '' }}" \
+            --fail-on "${{ github.event.inputs.fail_on || 'BLOCK' }}" \
+            --content "${{ github.event.inputs.content || '' }}" \
+            --out     scan_result.json \
+            --summary-file "$GITHUB_STEP_SUMMARY"
 
+      # ── 4. Upload artifact (always, for audit trail) ──────────────────────────
       - name: Upload scan result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: warden-scan-result
-          path: scan_result.json
-          retention-days: 30
+          name:            warden-scan-${{ github.sha }}
+          path:            scan_result.json
+          retention-days:  90
 
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
+      # ── 5. Post PR comment ────────────────────────────────────────────────────
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const result = JSON.parse(fs.readFileSync('scan_result.json', 'utf8'));
-            const icon   = result.verdict === 'BLOCK' ? '🔴' : result.verdict === 'HIGH' ? '🟠' : '🟢';
-            const body   = [
-              `## ${icon} Shadow Warden AI Scan`,
-              `**Verdict:** \`${result.verdict}\`  |  **Risk:** \`${result.risk_level}\`  |  **Latency:** ${result.latency_ms}ms`,
-              result.flags?.length   ? `**Flags:** ${result.flags.join(', ')}` : '',
-              result.secrets_found?.length ? `**Secrets detected:** ${result.secrets_found.join(', ')}` : '',
-              '',
-              `<details><summary>Full report</summary>\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n</details>`,
-              '',
-              `*[Shadow Warden AI](https://shadow-warden-ai.com) · scan id \`${result.request_id ?? 'n/a'}\`*`,
-            ].filter(Boolean).join('\n');
+
+            // Read the comment body written by the scan script
+            let body;
+            try {
+              body = fs.readFileSync('warden_pr_comment.md', 'utf8');
+            } catch {
+              // Fallback: build from scan_result.json
+              const result = JSON.parse(fs.readFileSync('scan_result.json', 'utf8'));
+              const agg    = result.aggregate_verdict ?? 'UNKNOWN';
+              const icon   = agg === 'BLOCK' ? '🔴' : agg === 'HIGH' ? '🟠' : '🟢';
+              body = `## ${icon} Shadow Warden AI — ${agg}\n\n` +
+                     `${result.files_scanned ?? 0} files scanned · ` +
+                     `scan id \`${result._meta?.sha?.slice(0,12) ?? 'n/a'}\`\n\n` +
+                     `_[Shadow Warden AI](https://shadow-warden-ai.com)_`;
+            }
+
+            // Delete any previous Warden comment on this PR (keep thread clean)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            for (const c of comments) {
+              if (c.user.login === 'github-actions[bot]' && c.body.includes('Shadow Warden AI')) {
+                await github.rest.issues.deleteComment({
+                  owner:      context.repo.owner,
+                  repo:       context.repo.repo,
+                  comment_id: c.id,
+                });
+              }
+            }
+
+            // Post fresh comment
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
               issue_number: context.issue.number,
               body,
             });
-
-      - name: Fail on BLOCK
-        if: always()
-        run: |
-          VERDICT=$(python -c "import json,sys; d=json.load(open('scan_result.json')); sys.exit(1 if d.get('verdict')=='BLOCK' else 0)")
