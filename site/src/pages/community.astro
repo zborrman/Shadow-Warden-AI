@@ -49,6 +49,53 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       </div>
     </div>
 
+    <!-- ── Community Tools ── -->
+    <div class="tools-section">
+      <div class="tools-hdr">
+        <span class="tools-label">COMMUNITY TOOLS</span>
+        <span class="tools-line"></span>
+      </div>
+      <div class="tools-grid">
+
+        <!-- Business Intelligence -->
+        <a href="/communities/intelligence" class="tool-card">
+          <div class="tool-card-l">
+            <div class="tool-icon" style="background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.25)">🧠</div>
+            <div>
+              <div class="tool-name">Business Intelligence</div>
+              <div class="tool-desc">8-category analytics: Usage, Threats, Vendors, Costs, Compliance, Benchmarks, Predictions, Reports</div>
+              <div class="tool-tags">
+                <span class="tool-tag">Usage</span>
+                <span class="tool-tag">Threats</span>
+                <span class="tool-tag">Compliance</span>
+                <span class="tool-tag">Predictions</span>
+                <span class="tool-tag">+4 more</span>
+              </div>
+            </div>
+          </div>
+          <div class="tool-arrow">Open →</div>
+        </a>
+
+        <!-- SMB Suite Wizard -->
+        <a href="/communities/smb-setup" class="tool-card">
+          <div class="tool-card-l">
+            <div class="tool-icon" style="background:rgba(16,185,129,0.10);border-color:rgba(16,185,129,0.25)">🧙</div>
+            <div>
+              <div class="tool-name">SMB Suite Wizard</div>
+              <div class="tool-desc">Provision all 7 governance modules in one step: Vendors, Incidents, Prompts, Training, Costs, Supplier Risk, BI</div>
+              <div class="tool-tags">
+                <span class="tool-tag">7 Modules</span>
+                <span class="tool-tag">4-Step Wizard</span>
+                <span class="tool-tag">Idempotent</span>
+              </div>
+            </div>
+          </div>
+          <div class="tool-arrow" style="color:#34d399">Launch →</div>
+        </a>
+
+      </div>
+    </div>
+
     <!-- Search -->
     <div class="search-row">
       <span class="search-icon">🔍</span>
@@ -238,6 +285,46 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 }
 .card-btn-ghost:hover { background: rgba(255,255,255,0.07); color: #94a3b8; }
 .card-date { font-size: 10px; font-family: monospace; color: #334155; margin-top: 10px; }
+
+/* ── Community Tools ────────────────────────────────────────── */
+.tools-section { margin-bottom: 24px; }
+.tools-hdr {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.tools-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: #475569; white-space: nowrap;
+}
+.tools-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
+.tools-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+@media (max-width: 680px) { .tools-grid { grid-template-columns: 1fr; } }
+.tool-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 16px 18px;
+  text-decoration: none; color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.tool-card:hover { border-color: rgba(191,90,242,0.3); transform: translateY(-1px); }
+.tool-card-l { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.tool-icon {
+  width: 40px; height: 40px; border-radius: 10px; border: 1px solid;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.tool-name { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+.tool-desc { font-size: 12px; color: #475569; line-height: 1.5; margin-bottom: 8px; }
+.tool-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tool-tag {
+  font-size: 10px; font-weight: 600; color: #334155;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+  padding: 1px 7px; border-radius: 4px;
+}
+.tool-arrow {
+  font-size: 13px; font-weight: 700; color: #BF5AF2;
+  white-space: nowrap; flex-shrink: 0;
+}
 
 /* ── Empty state ────────────────────────────────────────────── */
 .empty-state {
