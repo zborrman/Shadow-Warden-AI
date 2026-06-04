@@ -199,6 +199,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "max_entity_bytes":            0,
         "retention_days":              30,
         "ratchet_interval":            None,
+        "misp_bridge_enabled":         False,
     },
 
     "individual": {
@@ -253,6 +254,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "max_entity_bytes":            100 * 1024 * 1024,
         "retention_days":              90,
         "ratchet_interval":            None,
+        "misp_bridge_enabled":         False,
     },
 
     "pro": {
@@ -307,6 +309,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "max_entity_bytes":            1 * _GB,
         "retention_days":              365,
         "ratchet_interval":            10,
+        "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Pro+)
     },
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
@@ -372,6 +375,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "agentic_commerce_enabled":    True,
         "semantic_layer_enabled":      False,
         "settings_enabled":            True,
+        "misp_bridge_enabled":         False,
     },
 
     "enterprise": {
@@ -426,6 +430,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "max_entity_bytes":            5 * _GB,
         "retention_days":              -1,      # unlimited
         "ratchet_interval":            50,
+        "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Enterprise)
     },
 }
 

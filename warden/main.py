@@ -849,10 +849,27 @@ async def lifespan(app: FastAPI):
     except Exception as _sl_err:
         log.warning("syslog_sink failed to start (non-fatal): %s", _sl_err)
 
+    # ── MISP ZMQ → syslog bridge (opt-in) ───────────────────────────────────
+    _misp_task = None
+    try:
+        import os as _os  # noqa: PLC0415
+        from warden.integrations.misp_bridge import start_misp_bridge  # noqa: PLC0415
+        if _os.getenv("MISP_ZMQ_URL") or (_os.getenv("MISP_API_URL") and _os.getenv("MISP_API_KEY")):
+            _misp_task = asyncio.create_task(start_misp_bridge())
+            log.info(
+                "misp_bridge started (syslog_forward=%s)",
+                _os.getenv("MISP_SYSLOG_ENABLED", "true"),
+            )
+    except Exception as _misp_err:
+        log.warning("misp_bridge failed to start (non-fatal): %s", _misp_err)
+
     yield
 
     if _syslog_transport is not None:
         _syslog_transport.close()
+
+    if _misp_task is not None:
+        _misp_task.cancel()
 
     _retirement_task.cancel()
     _billing_task.cancel()
@@ -1128,6 +1145,13 @@ try:
     log.info("Shadow AI Governance mounted at /shadow-ai")
 except ImportError:
     log.warning("shadow_ai router not available — /shadow-ai routes skipped.")
+
+try:
+    from warden.api.misp import router as _misp_router
+    app.include_router(_misp_router)
+    log.info("MISP ZMQ bridge mounted at /misp")
+except ImportError:
+    log.warning("misp router not available — /misp routes skipped.")
 
 try:
     from warden.api.xai import router as _xai_router

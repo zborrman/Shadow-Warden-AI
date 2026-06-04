@@ -414,10 +414,10 @@
     "category": "Business Community",
     "subcategory": "Integrations",
     "feature": "MISP syslog bridge — route MISP ZMQ feed into Shadow Warden syslog sink",
-    "description": "Bridge MISP's ZMQ event feed directly into Shadow Warden's syslog sink, enabling real-time ingestion and correlation of threat intelligence with pipeline detections.",
-    "version": "",
+    "description": "Bridge MISP's ZMQ event feed directly into Shadow Warden's syslog sink. ZMQ subscriber (pyzmq, multipart frame support) + HTTP pull fallback. Domain IoCs forwarded as dnsmasq-style syslog lines to UDP 5514 for real-time correlation with passive DNS telemetry. Stats at GET /misp/stats. One-shot sync via POST /misp/sync. Auto-starts in lifespan when MISP_ZMQ_URL or MISP_API_URL+KEY is set.",
+    "version": "v5.2",
     "tier": "Pro+",
-    "status": "planned"
+    "status": "shipped"
   },
   {
     "id": "CR-01",
