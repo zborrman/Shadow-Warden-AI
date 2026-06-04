@@ -10,10 +10,12 @@ import {
   Key, Lock, Globe, Trash2, CreditCard,
   BookOpen, DollarSign, Building2, AlertTriangle,
   BookMarked, GraduationCap, ShieldAlert, Brain,
+  Sun, Moon,
 } from 'lucide-react'
 import { logout } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import clsx from 'clsx'
+import { useTheme } from '@/components/ui/ThemeProvider'
 
 type NavItem = { href: string; label: string; icon: React.ElementType }
 type NavGroup = {
@@ -100,7 +102,14 @@ const singleLinks = [
 export function Sidebar() {
   const pathname = usePathname()
   const router   = useRouter()
+  const { theme, toggle } = useTheme()
   const [open, setOpen] = useState<Record<string, boolean>>({ dashboard: true })
+
+  const isDark = theme === 'dark'
+  const sidebarBg    = isDark ? '#0D0D14' : '#ffffff'
+  const borderColor  = isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0'
+  const textMuted    = isDark ? '#8E8E9E' : '#64748b'
+  const dividerBg    = isDark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'
 
   async function handleLogout() {
     await logout()
@@ -113,18 +122,18 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 h-screen flex flex-col shrink-0 overflow-y-auto"
-           style={{ background: '#0D0D14', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+           style={{ background: sidebarBg, borderRight: `1px solid ${borderColor}` }}>
 
       {/* Logo */}
-      <div className="px-5 py-4 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-5 py-4 shrink-0" style={{ borderBottom: `1px solid ${borderColor}` }}>
         <Link href="/dashboard/" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm"
                style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6B35)', boxShadow: '0 0 14px rgba(255,45,85,0.35)' }}>
             🛡️
           </div>
           <div className="flex flex-col leading-none">
-            <span className="text-[13px] font-bold text-white">Shadow Warden</span>
-            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v5.1 · LIVE</span>
+            <span className="text-[13px] font-bold" style={{ color: isDark ? '#ffffff' : '#0f172a' }}>Shadow Warden</span>
+            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v5.2 · LIVE</span>
           </div>
         </Link>
       </div>
@@ -141,7 +150,7 @@ export function Sidebar() {
                 onClick={() => setOpen(s => ({ ...s, [group.id]: !isOpen }))}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-bold transition-all duration-150"
                 style={{
-                  color: active || isOpen ? group.accent : '#8E8E9E',
+                  color: active || isOpen ? group.accent : textMuted,
                   background: active || isOpen ? `color-mix(in srgb,${group.accent} 8%,transparent)` : 'transparent',
                 }}
               >
@@ -166,7 +175,7 @@ export function Sidebar() {
                         href={href}
                         className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-100"
                         style={{
-                          color: isActive ? group.accent : '#8E8E9E',
+                          color: isActive ? group.accent : textMuted,
                           background: isActive ? `color-mix(in srgb,${group.accent} 10%,transparent)` : 'transparent',
                         }}
                       >
@@ -182,7 +191,7 @@ export function Sidebar() {
         })}
 
         {/* Divider */}
-        <div className="my-2 mx-3 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
+        <div className="my-2 mx-3 h-px" style={{ background: dividerBg }} />
 
         {/* Single links: Docs + Price */}
         {singleLinks.map(({ href, label, accent, icon: Icon, external }) => (
@@ -202,12 +211,26 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom actions */}
-      <div className="px-2 py-3 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-2 py-3 shrink-0" style={{ borderTop: `1px solid ${borderColor}` }}>
+        {/* Theme toggle */}
+        <button
+          onClick={toggle}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] transition-all duration-150"
+          style={{ color: textMuted }}
+          aria-label="Toggle theme"
+        >
+          {isDark
+            ? <Sun className="w-3.5 h-3.5 shrink-0" />
+            : <Moon className="w-3.5 h-3.5 shrink-0" />}
+          {isDark ? 'Light mode' : 'Dark mode'}
+        </button>
+
         <a
           href="https://shadow-warden-ai.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition-all"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] transition-all"
+          style={{ color: textMuted }}
         >
           <ExternalLink className="w-3.5 h-3.5" />
           Back to Website
@@ -215,7 +238,6 @@ export function Sidebar() {
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] text-slate-400 hover:text-red-400 transition-all"
-          style={{ ['--hover-bg' as string]: 'rgba(239,68,68,0.06)' }}
         >
           <LogOut className="w-3.5 h-3.5" />
           Sign out
