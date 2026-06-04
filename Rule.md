@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 5.1 · Proprietary · All rights reserved**
+> **Version 5.3 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
@@ -34,6 +34,8 @@
 23. [SLO Burn-Rate Alerting Rules](#23-slo-burn-rate-alerting-rules)
 24. [SMB AI Governance Rules](#24-smb-ai-governance-rules)
 25. [Business Intelligence Module Rules](#25-business-intelligence-module-rules)
+26. [GitHub Actions CI Scan Rules](#26-github-actions-ci-scan-rules-v53--in-15)
+27. [ISO 27001:2022 Annex A Control Mapping Rules](#27-iso-270012022-annex-a-control-mapping-rules-v53--cp-22)
 
 ---
 
@@ -967,3 +969,45 @@ Switch between these modes on request. Default to **collaborative vibe** when no
 | BG-04 | `require_approval` flag propagates through the purchase workflow response so MCP bridge can trigger human-in-the-loop. |
 | BG-05 | Slack alert fires on budget exceeded via `send_alert()`. Alert never blocks payment decision. |
 | BG-06 | `get_spend_summary()` returns the generated Semantic Layer SQL in `semantic_layer_sql` field for transparency and audit.
+
+---
+
+## 26. GitHub Actions CI Scan Rules (v5.3 · IN-15)
+
+The GitHub Actions scan gate (`scripts/warden_github_scan.py`) applies the following content rules in addition to the standard 9-stage filter pipeline.
+
+| # | Rule |
+|---|------|
+| CI-01 | Commit messages and per-file diffs are scanned separately. Each item produces its own verdict. Aggregate verdict = highest individual verdict. |
+| CI-02 | Files matching `_SKIP_EXTENSIONS` (`.lock`, `.pb`, `.pyc`, image/font/binary extensions) are silently skipped — no verdict recorded, no false positives from non-scannable content. |
+| CI-03 | Lockfiles (`package-lock.json`, `yarn.lock`, `poetry.lock`, `go.sum`, `Gemfile.lock`, `composer.lock`) are always skipped regardless of extension. |
+| CI-04 | Generated directory prefixes (`dist/`, `build/`, `vendor/`, `node_modules/`, `.git/`) cause the file to be skipped. |
+| CI-05 | Per-file diff is capped at 6,000 bytes. Content beyond the cap is truncated before scanning (not skipped). |
+| CI-06 | Commit message is capped at 2,000 characters. |
+| CI-07 | A maximum of 30 files are scanned per CI run. Files beyond the cap are counted as `files_skipped` but not scanned. |
+| CI-08 | `fail_on=BLOCK` (default): job fails only on BLOCK verdict. `fail_on=HIGH`: job fails on HIGH or BLOCK. MEDIUM/LOW always pass regardless of setting. |
+| CI-09 | Empty content (blank commit message or empty diff) returns `SKIP` verdict — never contributes to aggregate. |
+| CI-10 | API errors (connection refused, HTTP 4xx/5xx) return `ERROR` verdict. ERROR does not trigger fail-on threshold — scan is fail-open on infrastructure failure. |
+| CI-11 | PR comment is posted only when `github.event.pull_request.number` is non-empty. Push events produce a step summary but no PR comment. |
+| CI-12 | Warden scan result is always uploaded as a 90-day GitHub Actions artifact (`warden-scan-{sha}`), regardless of pass/fail outcome. This constitutes the CI audit trail. |
+| CI-13 | In pre-commit mode (`--mode pre-commit`), the script exits 1 (blocking the commit) when aggregate verdict meets `fail_on` threshold. Git client receives a clear terminal message identifying the flagged content. |
+| CI-14 | `context` field sent to `/filter`: `"github_ci"` for CI mode commit message, `"github_diff"` for CI mode diff, `"git_pre_commit_message"` / `"git_pre_commit_diff"` for pre-commit mode. |
+| CI-15 | `tenant_id` defaults to `"github-ci"`. Override via `WARDEN_TENANT_ID` env var or `tenant-id` composite action input. |
+
+---
+
+## 27. ISO 27001:2022 Annex A Control Mapping Rules (v5.3 · CP-22)
+
+| # | Rule |
+|---|------|
+| ISO-01 | The canonical control list is `_ISO27001_CONTROLS_V2` in `warden/api/compliance_report.py` — a Python list of 5-tuples `(control_id, theme, domain, status, evidence)`. It must contain exactly 93 entries. CI tests enforce this count. |
+| ISO-02 | Valid statuses: `"Implemented"`, `"Partial"`, `"Delegated"`. No other values are permitted. `"Implemented"` means the platform actively provides the control. `"Partial"` means partial implementation with a known gap documented in the evidence string. `"Delegated"` means the control responsibility rests with the infrastructure provider (Hetzner VPS) or a third party. |
+| ISO-03 | Valid themes: `"Organizational"`, `"People"`, `"Physical"`, `"Technological"`. Theme counts must be exactly 37 / 8 / 14 / 34. CI tests enforce these counts. |
+| ISO-04 | Every control must have a non-empty evidence string. The string must reference specific platform files, endpoints, or configuration — not generic assertions. |
+| ISO-05 | Coverage score formula: `(implemented + partial × 0.5) / total × 100`. This weighted score counts partial compliance at half value — never round up. |
+| ISO-06 | The `_ISO27001_CONTROLS` legacy alias exposes 4-tuples `(control_id, domain, status, evidence)` for backward compatibility with callers written before the `theme` field was added. The alias must stay in sync with `_ISO27001_CONTROLS_V2`. |
+| ISO-07 | The `/compliance/iso27001` endpoint requires `iso27001_enabled` feature flag. Only Enterprise tier receives `True`. Requests from Pro or lower tiers receive HTTP 403. |
+| ISO-08 | The HTML report (`/compliance/iso27001/html`) groups rows by theme with a theme-level header showing implemented/total counts. Individual control rows must be present for all 93 controls — no pagination or truncation in the HTML output. |
+| ISO-09 | The `by_theme` response field maps each theme to a list of its controls. All four themes must be present. The union of all theme lists must equal all 93 controls with no duplicates. |
+| ISO-10 | Physical controls (A.7.x) should be status `Delegated` unless a specific platform-level control justifies otherwise (e.g., A.7.9 off-premises asset security maps to MinIO encryption). Evidence must justify any non-Delegated status for A.7.x. |
+| ISO-11 | Test fixtures for `/compliance/iso27001` must pass `X-Tenant-Tier: enterprise` header. Tests using the default tier (`starter`) will receive HTTP 403 and should assert that status code explicitly if testing the gate behaviour. |

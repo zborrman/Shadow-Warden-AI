@@ -150,7 +150,7 @@ Connectors that bring Shadow Warden into existing developer and analyst workflow
 | IN-12 | Shadow AI syslog sink — UDP listener for dnsmasq/BIND9/Zeek DNS events | v4.7 | Enterprise | ✅ |
 | IN-13 | Browser extension — popup with scan button, verdict badge, UECIID display | v4.11 | Community+ | ✅ |
 | IN-14 | VS Code extension — inline risk annotation on selected text | v4.22 | Individual+ | ✅ |
-| IN-15 | GitHub Actions integration — `warden-scan.yml` scans PR diff, comments verdict | v4.21 | Pro+ | ✅ |
+| IN-15 | GitHub Actions integration — CI gate scans commit message + per-file diff (30 files, 93 controls), PR comment, 90-day audit artifact, composite action, pre-commit hook mode | v5.3 | Pro+ | ✅ |
 | IN-16 | Jira integration — auto-create security tickets on HIGH/BLOCK verdicts | v4.21 | Pro+ | ✅ |
 | IN-17 | Microsoft Teams slash command — Adaptive Card via webhook, `/warden` for Teams | v4.21 | Pro+ | ✅ |
 | IN-18 | Notion integration — scan Notion pages via API, write risk tags as properties | v4.21 | Community+ | ✅ |
@@ -190,10 +190,10 @@ Everything needed for regulated industries (GDPR, SOC 2, HIPAA, ISO 27001).
 | CP-19 | AgentMonitor — INJECTION_CHAIN detection, cryptographic attestation | v3.0 | Pro+ | ✅ |
 | CP-20 | OTel GDPR span rules — raw content, PII, secrets prohibited on spans (Rule.md §21) | v4.13 | All | ✅ |
 | CP-21 | Uptime Monitor — HTTP/SSL/DNS/TCP probes, TimescaleDB hypertable | v3.5 | Community+ | ✅ |
-| CP-22 | ISO 27001 Annex A control mapping | v4.21 | Enterprise | ✅ |
+| CP-22 | ISO 27001:2022 Annex A control mapping — 93 controls across 4 themes (Org/People/Physical/Tech), per-theme coverage %, HTML report, Streamlit page, SOC dashboard drilldown | v5.3 | Enterprise | ✅ |
 | CP-23 | HIPAA technical safeguards attestation (encryption, audit, access control) | v4.21 | Enterprise | ✅ |
 | CP-24 | NIS2 Directive compliance report | v4.21 | Enterprise | ✅ |
-| CP-25 | Continuous compliance scoring dashboard — real-time SOC 2 / GDPR / ISO posture | v4.21 | Pro+ | ✅ |
+| CP-25 | Continuous compliance scoring dashboard — 30s auto-refresh, 168-snapshot ring buffer, 5-standard SVG gauge, timeline chart, Streamlit + SOC dashboard pages | v5.3 | Pro+ | ✅ |
 | CP-26 | Data retention policy enforcement — tenant-configurable per data_class TTL | v4.21 | Community+ | ✅ |
 
 ---
@@ -463,4 +463,5 @@ Continuous self-improvement and threat intelligence synthesis.
 | v5.0 | 2026-05-25 | Agentic Commerce (UCP/AP2/MCP), FIDO2 passkeys, Web3 Sepolia mandates |
 | **v5.1** | **2026-05-29** | **Semantic Layer Headless BI (FE-42), Settings Hub (FE-43), site 15-layer refresh, /roadmap page, CI lint+mypy 0-error** |
 | **v5.2** | **2026-05-31** | **AI Analytics Hub (FE-47): 9 semantic models, Redis cache, SOVA tools; Commerce Budget Guardian (FE-48): Semantic Layer–backed AP2 pre-flight; Self-Service Catalog (FE-49): tenant model registration; /analytics landing page** |
-| v5.3 | Q3 2026 | Metric Alerts, Dashboard Builder, Federated Query |
+| **v5.3** | **2026-06-05** | **GitHub Actions CI gate (IN-15): composite action + pre-commit hook, 93-control scan, PR comment, 90-day audit; ISO 27001:2022 Annex A full mapping (CP-22): 93 controls × 4 themes, HTML report, Streamlit + SOC drilldown, Enterprise gate; Continuous Compliance Scoring (CP-25): 5-standard posture, 168-snapshot ring buffer, 30s auto-refresh, Streamlit + SOC page, Pro+ gate; lint fixes: ruff I001/F401/SIM105/SIM117/B904/N812/C408/B007/E401** |
+| v5.4 | Q3 2026 | Metric Alerts, Dashboard Builder, Federated Query |

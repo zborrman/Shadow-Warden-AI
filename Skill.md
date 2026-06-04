@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 5.2 · Proprietary · All rights reserved**
+**Version 5.3 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -49,8 +49,8 @@ surface, its observable outputs, and integration patterns.
 
 ## 1. Skill Taxonomy
 
-Shadow Warden AI is composed of 31 discrete, independently configurable skills.
-Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–24 are
+Shadow Warden AI is composed of 41 discrete, independently configurable skills.
+Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–41 are
 background, agentic, or on-demand capabilities.
 
 ```
@@ -111,6 +111,9 @@ Background / On-demand:
 | 27 | Public API Documentation | Static Redoc | ✅ | All (public) |
 | 28 | Load Profiling + Flamegraph | On-demand (script) | ✅ | Ops |
 | 29 | SLO Burn-Rate Alerting | Grafana provisioned | ✅ | All |
+| 39 | GitHub Actions CI Security Gate | On-demand (CI) | ✅ | Pro+ |
+| 40 | Continuous Compliance Scoring | On-demand / 30s poll | ✅ | Pro+ |
+| 41 | ISO 27001:2022 Annex A Mapping | On-demand | ✅ | Enterprise |
 
 *PQC requires liboqs-python system package; classical fallback if unavailable.
 
@@ -1549,3 +1552,116 @@ Tenants register, update, and delete custom semantic models without developer in
 1. `POST /models/catalog` → SQLite persistence (`SEMANTIC_DB_PATH`) + `engine.register_model()` (in-process, instant)
 2. On warden restart → `bootstrap_tenant_models()` restores all persisted models
 3. OSI export/import enables sharing models with external BI tools (PowerBI, Grafana, Metabase)
+
+---
+
+## Skill 39 — GitHub Actions CI Security Gate
+
+**Files:** `scripts/warden_github_scan.py`, `.github/workflows/warden-scan.yml`, `.github/actions/warden-scan/action.yml` · **Tier:** Pro+ · **Version:** v5.3
+
+Pre-merge security gate that scans every commit message and diff through Shadow Warden's 9-layer filter pipeline before code is merged. Posts a risk table as a PR comment, uploads a 90-day JSON audit artifact, and fails CI when the configured threshold is reached.
+
+### Modes
+
+| Mode | Trigger | Content scanned |
+|------|---------|-----------------|
+| `ci` | GitHub Actions push/PR | Commit message + per-file unified diff (max 30 files, 6 kB/file) |
+| `pre-commit` | Local git hook | Staged diff + `COMMIT_EDITMSG` |
+
+### Skip patterns
+
+Binary files (`.pb`, `.pyc`, images, fonts, archives), lockfiles (`package-lock.json`, `go.sum`, `poetry.lock`), and generated directories (`dist/`, `node_modules/`, `build/`, `vendor/`) are silently skipped.
+
+### Composite action outputs
+
+| Output | Type | Description |
+|--------|------|-------------|
+| `verdict` | string | Aggregate risk level (ALLOW/LOW/MEDIUM/HIGH/BLOCK) |
+| `files-scanned` | number | Count of diff files scanned |
+| `high-risk-count` | number | COUNT of findings rated HIGH or BLOCK |
+
+### Configuration
+
+| Secret / Variable | Default | Required |
+|-------------------|---------|----------|
+| `WARDEN_API_KEY` | — | Yes (Pro+) |
+| `WARDEN_API_URL` | `https://api.shadow-warden-ai.com` | No (self-hosted override) |
+| `fail-on` input | `BLOCK` | No (`BLOCK` or `HIGH`) |
+| `tenant-id` input | `github-ci` | No |
+
+### Tier gate
+
+`github_actions_scan_enabled` — `True` for Pro+/Enterprise; `False` for Starter/Individual/Community Business.
+
+---
+
+## Skill 40 — Continuous Compliance Scoring Dashboard
+
+**Files:** `warden/api/compliance_report.py` (`/posture`, `/history`), `warden/analytics/pages/17_Compliance_Scoring.py`, `dashboard/src/app/(soc)/compliance/page.tsx` · **Tier:** Pro+ · **Version:** v5.3
+
+Real-time posture dashboard that continuously scores compliance against five regulatory standards. Polls the live filter pipeline to derive evidence-based scores, not static assertions.
+
+### Standards scored
+
+| Standard | Short | Controls basis |
+|----------|-------|----------------|
+| SOC 2 Type II | `soc2` | Derived from ISO 27001 Implemented+Partial controls |
+| GDPR (Art.5+30+35) | `gdpr` | 8 Art.5 / Art.30 / Art.35 checklist items |
+| ISO/IEC 27001:2022 | `iso27001` | 93 Annex A controls |
+| HIPAA Security Rule | `hipaa` | 12 § 164.312 safeguards |
+| EU NIS2 Directive | `nis2` | NIS2 security measures |
+
+### Ring buffer
+
+168-entry `_posture_history` deque (one week of hourly snapshots). Populated on every `GET /compliance/posture` call. History accessible via `GET /compliance/history?hours=N` (1–168).
+
+### Endpoints
+
+```
+GET /compliance/posture?days=N    overall_score + 5 per-standard objects + filter_stats
+GET /compliance/history?hours=N   snapshot list with per-standard score breakdown
+```
+
+### Tier gate
+
+`compliance_scoring_enabled` — `True` for Pro+/Enterprise; `False` below.
+
+---
+
+## Skill 41 — ISO 27001:2022 Annex A Control Mapping
+
+**Files:** `warden/api/compliance_report.py` (`_ISO27001_CONTROLS_V2`), `warden/analytics/pages/18_ISO27001.py`, `dashboard/src/app/(soc)/compliance/iso27001/page.tsx` · **Tier:** Enterprise · **Version:** v5.3
+
+Complete mapping of all 93 ISO/IEC 27001:2022 Annex A controls to Shadow Warden platform capabilities with per-control evidence strings, theme grouping, and coverage scoring.
+
+### Control themes
+
+| Theme | Controls | Description |
+|-------|----------|-------------|
+| Organizational | 37 (A.5.1–A.5.37) | Policies, identity, supplier management, incident management |
+| People | 8 (A.6.1–A.6.8) | Screening, training, remote working, event reporting |
+| Physical | 14 (A.7.1–A.7.14) | Physical security — mostly Delegated to Hetzner |
+| Technological | 34 (A.8.1–A.8.34) | Access control, crypto, logging, vuln management, DevSecOps |
+
+### Status definitions
+
+| Status | Meaning |
+|--------|---------|
+| `Implemented` | Platform actively provides this control |
+| `Partial` | Partial implementation; gap noted in evidence string |
+| `Delegated` | Responsibility held by infrastructure provider (Hetzner VPS) |
+
+### Coverage score
+
+`coverage_pct = (implemented + partial × 0.5) / total × 100`
+
+### Endpoints
+
+```
+GET /compliance/iso27001?days=N        JSON — 93 controls + by_theme + themes summary
+GET /compliance/iso27001/html?days=N   Print-ready HTML with theme-grouped table + KPI grid
+```
+
+### Tier gate
+
+`iso27001_enabled` — `True` for Enterprise only; `False` for all lower tiers.

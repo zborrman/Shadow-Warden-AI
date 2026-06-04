@@ -11,7 +11,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 5.2 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-05-31
+**Version:** 5.3 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-06-05
 
 ## Architecture
 
@@ -225,9 +225,16 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/semantic_layer/catalog.py` | Self-Service tenant model registry — register/update/delete/list with SQLite persistence + hot-reload into SemanticEngine singleton; `bootstrap_tenant_models()` on startup |
 | `warden/business_community/agentic_commerce/semantic_budget.py` | Commerce Budget Guardian — `check_budget()` reads limits from Settings Hub, queries `ai_spend` Semantic Layer model for MTD spend, returns allow/require_approval/block; `get_spend_summary()` for dashboards |
 | `site/src/pages/analytics.astro` | AI Analytics Hub landing page — /analytics; 9-model grid, architecture flow, Budget Guardian + Self-Service + SOVA tool docs, SQL example, CTA |
-| `site/src/components/WhatsNew.astro` | Changelog section — v5.1 / v4.20 / v4.19 entries, wired into index.astro |
-| `site/src/pages/roadmap.astro` | /roadmap page — 22 shipped + 3 planned features, JS filter by status + tier |
-| `ROADMAP.md` | Machine-readable feature registry — FE-01…FE-43, status, tier, version |
+| `site/src/components/WhatsNew.astro` | Changelog section — v5.3/v5.2/v5.1 entries, wired into index.astro |
+| `site/src/pages/roadmap.astro` | /roadmap page — 25 shipped + 3 planned features, JS filter by status + tier |
+| `ROADMAP.md` | Machine-readable feature registry — FE-01…FE-49, CP-22/25, IN-15, status, tier, version |
+| `scripts/warden_github_scan.py` | GitHub Actions & pre-commit scan driver — `ci` mode (commit message + per-file diff, skip binaries) + `pre-commit` mode (staged diff + COMMIT_EDITMSG); `build_step_summary()` + `build_pr_comment()` renderers |
+| `.github/workflows/warden-scan.yml` | GitHub Actions CI gate — triggers on push/PR to main/develop/master; per-file diff scanning, step summary table, PR comment, 90-day audit artifact, `workflow_dispatch` with `fail-on` choice |
+| `.github/actions/warden-scan/action.yml` | Reusable composite action — `verdict`, `files-scanned`, `high-risk-count` outputs; wraps `warden_github_scan.py` |
+| `warden/analytics/pages/17_Compliance_Scoring.py` | Streamlit compliance scoring — 4 tabs: Posture (SVG ring + Altair bar), Timeline (area chart + sparklines), Standards (drilldown cards), Evidence (download links); 30s auto-refresh |
+| `warden/analytics/pages/18_ISO27001.py` | Streamlit ISO 27001:2022 — 4 tabs: Overview (KPI + theme coverage), Controls (searchable 93-item matrix), Themes (per-theme drilldown), Report (HTML + JSON links) |
+| `dashboard/src/app/(soc)/compliance/page.tsx` | SOC Dashboard compliance page — real-time 5-standard posture, SVG score ring, bar chart, timeline, evidence download section |
+| `dashboard/src/app/(soc)/compliance/iso27001/page.tsx` | SOC Dashboard ISO 27001 drilldown — KPI tiles, theme bars, Recharts bar chart, full 93-control searchable matrix with theme/status filters |
 
 ## Build & Test Commands
 
@@ -368,7 +375,14 @@ NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
 - **AI Analytics Hub (FE-47, v5.2)**: `warden/semantic_layer/` expanded to 9 built-in models. Redis cache in `SemanticEngine.generate()` — key = `sl:query:{sha256[:24]}`, TTL = `SEMANTIC_CACHE_TTL` (default 600s), fail-open. Self-Service Catalog at `/semantic-layer/models/catalog` (Pro+). SOVA tools: `semantic_query`, `list_semantic_models`, `check_commerce_budget`, `get_spend_summary`.
 - **Commerce Budget Guardian (FE-48, v5.2)**: `warden/business_community/agentic_commerce/semantic_budget.py` — `check_budget()` is called in every AP2 payment; reads `CommerceSettings` from Settings Hub, queries `ai_spend` Semantic Layer model for actual MTD spend. Fail-open: exceptions return `allowed=True`. Slack alert on budget exceeded. `_check_budget()` in `service.py` no longer calls non-existent `get_budget_status`.
 - **Self-Service Catalog (FE-49, v5.2)**: `catalog.py` — `bootstrap_tenant_models()` restores persisted models on FastAPI startup. `register_tenant_model()` persists to SQLite + hot-loads into engine. Model IDs must not collide with built-in IDs (`filter_events`, `ers_scores`, `billing_usage`, `incidents`, `vendor_contracts`, `agentic_orders`, `tunnel_sessions`, `compliance_attestations`, `ai_spend`).
-- **Site version**: `v5.2` across all Astro components. Layer count: `15`. `/analytics` page (AI Analytics Hub) at `site/src/pages/analytics.astro`. `/roadmap` has 25 shipped + 3 planned features. `WhatsNew.astro` shows v5.2 Latest / v5.1 / v4.20.
+- **Self-Service Catalog (FE-49, v5.2)**: `catalog.py` — `bootstrap_tenant_models()` restores persisted models on FastAPI startup. `register_tenant_model()` persists to SQLite + hot-loads into engine. Model IDs must not collide with built-in IDs (`filter_events`, `ers_scores`, `billing_usage`, `incidents`, `vendor_contracts`, `agentic_orders`, `tunnel_sessions`, `compliance_attestations`, `ai_spend`).
+- **GitHub Actions CI gate (IN-15, v5.3)**: `scripts/warden_github_scan.py` — two modes: `ci` (commit message + per-file diff, max 30 files, skip binaries/lockfiles) + `pre-commit` (staged diff + COMMIT_EDITMSG). `build_step_summary()` writes to `$GITHUB_STEP_SUMMARY`; `build_pr_comment()` writes `warden_pr_comment.md`. `fail_on` threshold: `BLOCK` (default) or `HIGH`. `github_actions_scan_enabled` feature key: `True` for Pro+/Enterprise, `False` below.
+- **Continuous compliance scoring (CP-25, v5.3)**: `GET /compliance/posture` + `GET /compliance/history` gated by `compliance_scoring_enabled` (Pro+). 168-entry `_posture_history` deque stores hourly snapshots. Tier gate uses `_POSTURE_GATE = [require_feature("compliance_scoring_enabled")]` with try/except fail-open import. Tests must pass `X-Tenant-Tier: pro` header to `TestClient`.
+- **ISO 27001:2022 full mapping (CP-22, v5.3)**: `_ISO27001_CONTROLS_V2` — 93 5-tuples `(control_id, theme, domain, status, evidence)`. Themes: Organizational (37), People (8), Physical (14), Technological (34). Statuses: Implemented | Partial | Delegated. `_ISO27001_CONTROLS` legacy 4-tuple alias preserved. `iso27001_enabled`: `True` Enterprise only. `_ISO_GATE` fail-open same pattern as posture gate. Tests must pass `X-Tenant-Tier: enterprise`.
+- **`_BLOCK_TYPES` alias**: `warden/integrations/misp_bridge.py` exposes `_BLOCK_TYPES = _ALL_TYPES` as a public alias. Import the alias — not `_ALL_TYPES` directly — in external callers and tests.
+- **`_span_meta` integer guard**: `format(value, "032x")` must be guarded by `isinstance(value, int)` check before calling. MagicMock-backed spans will set `trace_id`/`span_id` to non-int; guard returns `None` instead of raising `TypeError`.
+- **`_scan(meta=None)` default**: `WardenSpanProcessor._scan()` and `_async_scan()` accept `meta: dict | None = None`; callers that omit `meta` get `{}` silently. Do not call with positional-only syntax assuming `meta` is required.
+- **Site version**: `v5.3` across all Astro components. Layer count: `15`. `/analytics` page (AI Analytics Hub) at `site/src/pages/analytics.astro`. `/roadmap` has 28 shipped + 3 planned features. `WhatsNew.astro` shows v5.2 Latest (including IN-15 GitHub Actions entry) / v5.1 / v4.20.
 
 ## Code Style
 

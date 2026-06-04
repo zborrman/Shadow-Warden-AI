@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 5.2 · Last updated 2026-05-31**
+**Version 5.3 · Last updated 2026-06-05**
 
 ---
 
@@ -29,6 +29,9 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - **AI Analytics Hub (v5.2)**: 9 semantic models covering security, risk, billing, incidents, vendors, commerce, sovereignty, compliance, and AI spend — single deterministic SQL interface for all dashboards + AI agents; Redis 10-min cache
 - **Commerce Budget Guardian (v5.2)**: every AP2 payment pre-checked against actual MTD spend via Semantic Layer; per-transaction + monthly caps + approval gate + Slack alert; Semantic Layer as active business logic participant
 - **Self-Service Model Catalog (v5.2)**: Pro+ tenants register custom semantic models via API or Streamlit; persisted to SQLite, hot-loaded without restart; OSI 1.0 export/import for external BI systems
+- **GitHub Actions CI Security Gate (v5.3)**: pre-merge gate scans every commit message + diff through the 9-layer pipeline; composite action with PR comment + 90-day artifact; local pre-commit hook mode; Pro+ tier
+- **Continuous Compliance Scoring (v5.3)**: real-time posture across SOC 2, GDPR, ISO 27001, HIPAA, NIS2 — auto-refresh every 30s, 168-snapshot ring buffer, SVG score gauge, SOC dashboard + Streamlit page; Pro+ tier
+- **ISO 27001:2022 Annex A mapping (v5.3)**: all 93 Annex A controls mapped to platform capabilities across 4 themes with evidence pointers; per-theme coverage %, print-ready HTML report, SOC dashboard drilldown; Enterprise tier
 
 **Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
 Enterprise AI teams deploying LLM-backed products.
@@ -89,6 +92,9 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 | Community threat feed (SEP + reputation) | ✅ | ❌ | ❌ | ❌ |
 | ISAC/MISP feed connector | ✅ | ❌ | ❌ | ❌ |
 | Public storytelling dashboard | ✅ | ❌ | ❌ | ❌ |
+| GitHub Actions CI security gate | ✅ | ❌ | ⚠️ | ❌ |
+| ISO 27001:2022 control mapping (93 controls) | ✅ | ⚠️ | ❌ | ❌ |
+| Real-time compliance scoring (5 standards) | ✅ | ❌ | ⚠️ | ❌ |
 | Open source core | ❌ (proprietary) | ✅ | ❌ | ✅ |
 
 **Key moats:**
@@ -210,7 +216,10 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 | Settings Hub Redis unavailability | `_mem` in-process dict fallback in `settings/service.py`; all CRUD survives Redis outage |
 | Agentic Commerce runaway spend | Per-transaction + monthly budget caps in `CommerceSettings`; approval gate above threshold; STIX audit chain |
 | Web3 Sepolia contract failure | Blockchain calls wrapped in try/except; mandate validation falls back to AP2 HMAC path |
+| CI gate false positives block merges | `fail_on` defaults to `BLOCK` only; `HIGH` opt-in; individual file cap 30 + 6 kB; binary/lockfile skip patterns prevent noisy findings |
+| ISO 27001 audit delta between releases | `_ISO27001_CONTROLS_V2` is version-controlled; diffs are auditable; "Partial" status tracked honestly per control |
+| Compliance posture drift undetected | 168-snapshot ring buffer + 30s auto-refresh; Grafana `corpus_drift` alert fires when detection quality drops below baseline |
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v5.1 · 2026-05-29*
+*Strategy.md — Shadow Warden AI business strategy v5.3 · 2026-06-05*
