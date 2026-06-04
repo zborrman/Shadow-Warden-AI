@@ -67,16 +67,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <p class="sidebar-title">Your activity</p>
 
         <div class="act-stat">
-          <span class="stat-n" id="stat-joined">—</span>
           <span class="stat-lbl">Communities joined</span>
+          <span class="stat-n" id="stat-joined">—</span>
         </div>
         <div class="act-stat">
-          <span class="stat-n" id="stat-pending">—</span>
           <span class="stat-lbl">Pending requests</span>
+          <span class="stat-n" id="stat-pending">—</span>
         </div>
         <div class="act-stat">
-          <span class="stat-n" id="stat-msgs">—</span>
           <span class="stat-lbl">Messages this week</span>
+          <span class="stat-n" id="stat-msgs">—</span>
         </div>
 
         <div class="fp-block">
@@ -438,10 +438,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   background: #131929; border: 1px solid rgba(255,255,255,0.07);
   border-radius: 14px; padding: 20px;
 }
-.sidebar-title { font-size: 13px; font-weight: 600; color: #94a3b8; margin: 0 0 18px; }
-.act-stat { margin-bottom: 16px; }
-.stat-n   { display: block; font-size: 36px; font-weight: 800; color: #f1f5f9; line-height: 1; margin-bottom: 4px; }
-.stat-lbl { font-size: 12px; color: #475569; }
+.sidebar-title { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #475569; margin: 0 0 12px; }
+.act-stat {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.act-stat:last-of-type { border-bottom: none; }
+.stat-n   { font-size: 18px; font-weight: 700; color: #f1f5f9; line-height: 1; flex-shrink: 0; }
+.stat-n.zero { color: #334155; }
+.stat-lbl { font-size: 12px; color: #64748b; }
 .fp-block {
   margin-top: 18px; padding-top: 16px;
   border-top: 1px solid rgba(255,255,255,0.06);
@@ -999,9 +1005,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const joined  = comms.filter((c:any)=>c.joined).length;
     const pending = comms.filter((c:any)=>c.pending&&!c.joined).length;
     const allMsgs = comms.reduce((s:number,c:any)=>s+loadMsgs(c.id).length,0);
-    el('stat-joined','innerHTML',`<span class="stat-n">${joined}</span><span class="stat-lbl">Communities joined</span>`);
-    el('stat-pending','innerHTML',`<span class="stat-n">${pending}</span><span class="stat-lbl">Pending requests</span>`);
-    el('stat-msgs','innerHTML',`<span class="stat-n">${allMsgs}</span><span class="stat-lbl">Messages this week</span>`);
+    set('stat-joined', String(joined));
+    set('stat-pending', String(pending));
+    set('stat-msgs', String(allMsgs));
+    ['stat-joined','stat-pending','stat-msgs'].forEach(id => {
+      const e = document.getElementById(id);
+      if (e) e.classList.toggle('zero', e.textContent === '0');
+    });
 
     const activeCom = comms.find((c:any)=>c.id===communityId);
     set('my-fp', activeCom?.fingerprint || mkFP());
