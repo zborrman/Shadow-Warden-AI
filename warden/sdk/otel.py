@@ -49,9 +49,10 @@ import asyncio
 import logging
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from dataclasses import dataclass
+from typing import Any
 
 log = logging.getLogger("warden.sdk.otel")
 
@@ -84,7 +85,7 @@ class ProcessorStats:
     last_finding_ts:    float | None = None
 
     def to_dict(self) -> dict:
-        return {k: v for k, v in self.__dict__.items()}
+        return dict(self.__dict__)
 
 
 # ── Span text / metadata extraction ──────────────────────────────────────────
@@ -132,11 +133,13 @@ def _span_meta(span: Any) -> dict:
     ctx = getattr(span, "context", None)
     resource = getattr(span, "resource", None)
     resource_attrs: dict = getattr(resource, "attributes", {}) or {}
+    _tid = getattr(ctx, "trace_id", None) if ctx else None
+    _sid = getattr(ctx, "span_id",  None) if ctx else None
     return {
         "span_name":  getattr(span, "name", "unknown"),
         "service":    str(resource_attrs.get("service.name", "unknown")),
-        "trace_id":   format(getattr(ctx, "trace_id", 0), "032x") if ctx else None,
-        "span_id":    format(getattr(ctx, "span_id",  0), "016x") if ctx else None,
+        "trace_id":   format(_tid, "032x") if isinstance(_tid, int) else None,
+        "span_id":    format(_sid, "016x") if isinstance(_sid, int) else None,
         "status":     str(getattr(getattr(span, "status", None), "status_code", "UNSET")),
     }
 
@@ -218,10 +221,9 @@ class WardenSpanProcessor:
     def shutdown(self) -> None:
         """Drain pending scans then shut down the thread pool."""
         self._executor.shutdown(wait=True, cancel_futures=False)
-        try:
+        import contextlib
+        with contextlib.suppress(ValueError):
             _REGISTRY.remove(self)
-        except ValueError:
-            pass
 
     def force_flush(self, timeout_millis: int = 30_000) -> bool:
         """Block until all queued scans complete or timeout is reached."""
@@ -243,7 +245,9 @@ class WardenSpanProcessor:
             with self._lock:
                 self._pending -= 1
 
-    def _scan(self, text: str, meta: dict) -> None:
+    def _scan(self, text: str, meta: dict | None = None) -> None:
+        if meta is None:
+            meta = {}
         try:
             import httpx  # noqa: PLC0415
             resp = httpx.post(
@@ -357,7 +361,9 @@ class WardenAsyncSpanProcessor(WardenSpanProcessor):
             with self._lock:
                 self._pending -= 1
 
-    async def _async_scan(self, text: str, meta: dict) -> None:
+    async def _async_scan(self, text: str, meta: dict | None = None) -> None:
+        if meta is None:
+            meta = {}
         try:
             import httpx  # noqa: PLC0415
             async with httpx.AsyncClient(timeout=self._timeout) as client:

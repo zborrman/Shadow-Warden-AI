@@ -61,6 +61,7 @@ _SYSLOG_TARGET_PORT  = int(os.getenv("SHADOW_AI_SYSLOG_PORT","5514"))
 _DOMAIN_TYPES = {"domain", "hostname", "domain|ip"}
 _IP_TYPES     = {"ip-dst", "ip-src", "ip-dst|port", "ip-src|port"}
 _ALL_TYPES    = _DOMAIN_TYPES | _IP_TYPES | {"url"}
+_BLOCK_TYPES  = _ALL_TYPES  # public alias used by tests + external consumers
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
@@ -181,8 +182,8 @@ def _process_misp_event(event_json: dict, source: str = "zmq") -> int:
 async def _zmq_loop() -> None:
     """Subscribe to MISP ZMQ and process events indefinitely."""
     try:
-        import zmq                   # noqa: PLC0415
-        import zmq.asyncio as azmq   # noqa: PLC0415
+        import zmq  # noqa: PLC0415
+        import zmq.asyncio as azmq  # noqa: PLC0415
     except ImportError:
         log.warning("misp_bridge: pyzmq not installed — ZMQ mode unavailable")
         return
