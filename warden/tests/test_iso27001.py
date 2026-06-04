@@ -38,7 +38,7 @@ class TestControlCatalog:
     def test_valid_themes(self):
         from warden.api.compliance_report import _ISO27001_CONTROLS_V2
         valid = {"Organizational", "People", "Physical", "Technological"}
-        for ctrl_id, theme, _, status, _ in _ISO27001_CONTROLS_V2:
+        for ctrl_id, theme, _, _status, _ in _ISO27001_CONTROLS_V2:
             assert theme in valid, f"{ctrl_id}: unknown theme '{theme}'"
 
     def test_valid_statuses(self):
@@ -58,8 +58,9 @@ class TestControlCatalog:
             assert evidence.strip(), f"{ctrl_id}: empty evidence string"
 
     def test_theme_counts(self):
-        from warden.api.compliance_report import _ISO27001_CONTROLS_V2
         from collections import Counter
+
+        from warden.api.compliance_report import _ISO27001_CONTROLS_V2
         counts = Counter(th for _, th, *_ in _ISO27001_CONTROLS_V2)
         assert counts["Organizational"] == 37
         assert counts["People"]         == 8

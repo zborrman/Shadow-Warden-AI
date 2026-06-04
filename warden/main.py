@@ -853,6 +853,7 @@ async def lifespan(app: FastAPI):
     _misp_task = None
     try:
         import os as _os  # noqa: PLC0415
+
         from warden.integrations.misp_bridge import start_misp_bridge  # noqa: PLC0415
         if _os.getenv("MISP_ZMQ_URL") or (_os.getenv("MISP_API_URL") and _os.getenv("MISP_API_KEY")):
             _misp_task = asyncio.create_task(start_misp_bridge())

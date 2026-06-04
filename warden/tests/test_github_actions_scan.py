@@ -10,8 +10,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 # Add scripts/ to path so the module is importable without installation.
 _SCRIPTS = Path(__file__).parents[2] / "scripts"
 if str(_SCRIPTS) not in sys.path:
@@ -19,15 +17,14 @@ if str(_SCRIPTS) not in sys.path:
 
 import warden_github_scan as scan  # noqa: E402
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _args(**kwargs) -> argparse.Namespace:
-    defaults = dict(
-        mode="ci", event="push", sha="abc123def456",
-        repo="owner/repo", pr="", content="", fail_on="BLOCK",
-        out="scan_result.json", summary_file="",
-    )
+    defaults = {
+        "mode": "ci", "event": "push", "sha": "abc123def456",
+        "repo": "owner/repo", "pr": "", "content": "", "fail_on": "BLOCK",
+        "out": "scan_result.json", "summary_file": "",
+    }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
 

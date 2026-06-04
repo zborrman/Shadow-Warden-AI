@@ -153,7 +153,8 @@ with tab_overview:
     # Status distribution chart
     st.subheader("Status Distribution")
     try:
-        import pandas as pd, altair as alt
+        import altair as alt
+        import pandas as pd
         dist_data = pd.DataFrame([
             {"Status": "Implemented", "Count": data["implemented"],  "Color": "#4ade80"},
             {"Status": "Partial",     "Count": data["partial"],      "Color": "#fb923c"},

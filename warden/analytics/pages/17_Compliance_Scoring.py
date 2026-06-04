@@ -227,7 +227,8 @@ with tab_posture:
 
     with bar_col:
         try:
-            import altair as alt, pandas as pd
+            import altair as alt
+            import pandas as pd
             df = pd.DataFrame([
                 {"Standard": s["short"].upper(), "Score": s["score"], "Color": _STD_COLOR.get(s["short"], "#6b7280")}
                 for s in standards
@@ -286,7 +287,8 @@ with tab_timeline:
     if history and history.get("count", 0) > 0:
         snapshots = history["snapshots"]
         try:
-            import pandas as pd, altair as alt
+            import altair as alt
+            import pandas as pd
             rows_h = []
             for snap in snapshots:
                 ts = datetime.fromisoformat(snap["ts"]).strftime("%H:%M")

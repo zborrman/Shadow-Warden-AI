@@ -13,7 +13,7 @@ Tier gate: Pro+  (require_feature("misp_bridge_enabled"))
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from warden.billing.feature_gate import require_feature
 from warden.integrations.misp_bridge import (
@@ -67,6 +67,6 @@ async def misp_sync() -> dict:
         result = await MISPConnector().sync()
         return result.to_dict()
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

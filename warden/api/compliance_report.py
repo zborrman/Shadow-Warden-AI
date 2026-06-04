@@ -25,7 +25,7 @@ from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, Response
 
 try:

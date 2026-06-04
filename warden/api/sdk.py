@@ -13,16 +13,16 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from warden.billing.feature_gate import require_feature
+from warden.sdk import __version__ as _sdk_version
 from warden.sdk.otel import (
-    WardenSpanProcessor,
     WardenAsyncSpanProcessor,
+    WardenSpanProcessor,
     get_sdk_stats,
 )
-from warden.sdk import __version__ as _SDK_VERSION
 
 router = APIRouter(
     prefix="/sdk",
@@ -40,7 +40,7 @@ class PingRequest(BaseModel):
 @router.get("/status", summary="OTel SDK version and aggregate processor stats")
 async def sdk_status() -> dict:
     return {
-        "sdk_version":    _SDK_VERSION,
+        "sdk_version":    _sdk_version,
         "processor_types": [
             WardenSpanProcessor.__name__,
             WardenAsyncSpanProcessor.__name__,
@@ -91,4 +91,4 @@ async def sdk_ping(body: PingRequest) -> dict:
         )
         return {"text_sent": text, "warden_response": resp.json(), "status_code": resp.status_code}
     except Exception as exc:
-        raise HTTPException(503, detail=f"Warden /filter unreachable: {exc}")
+        raise HTTPException(503, detail=f"Warden /filter unreachable: {exc}") from exc
