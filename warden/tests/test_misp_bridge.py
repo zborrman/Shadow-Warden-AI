@@ -198,6 +198,9 @@ class TestStats:
 
 # ── 5. REST API ───────────────────────────────────────────────────────────────
 
+_PRO_HEADERS = {"X-Tenant-Tier": "pro"}
+
+
 class TestMispApi:
     @pytest.fixture()
     def client(self):
@@ -210,22 +213,26 @@ class TestMispApi:
         return TestClient(app, raise_server_exceptions=False)
 
     def test_status_200(self, client):
-        r = client.get("/misp/status")
+        r = client.get("/misp/status", headers=_PRO_HEADERS)
         assert r.status_code == 200
 
     def test_status_schema(self, client):
-        data = client.get("/misp/status").json()
+        data = client.get("/misp/status", headers=_PRO_HEADERS).json()
         assert "zmq_mode" in data
         assert "syslog_forwarding" in data
         assert "syslog_target" in data
 
     def test_stats_200(self, client):
-        r = client.get("/misp/stats")
+        r = client.get("/misp/stats", headers=_PRO_HEADERS)
         assert r.status_code == 200
         data = r.json()
         assert "attrs_ingested" in data
 
     def test_sync_422_without_config(self, client):
-        r = client.post("/misp/sync")
+        r = client.post("/misp/sync", headers=_PRO_HEADERS)
         # Without MISP_API_URL+KEY configured, should return 422
         assert r.status_code in (422, 503)
+
+    def test_gated_for_starter(self, client):
+        r = client.get("/misp/status", headers={"X-Tenant-Tier": "starter"})
+        assert r.status_code == 403

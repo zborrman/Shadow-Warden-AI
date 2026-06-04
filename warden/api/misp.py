@@ -29,7 +29,7 @@ from warden.integrations.misp_bridge import (
 router = APIRouter(
     prefix="/misp",
     tags=["MISP"],
-    dependencies=[Depends(require_feature("misp_bridge_enabled"))],
+    dependencies=[require_feature("misp_bridge_enabled")],
 )
 
 
