@@ -764,10 +764,10 @@
     "category": "Dashboard",
     "subcategory": "Frontend & Product Surfaces",
     "feature": "Dark/light theme toggle in portal and SOC dashboard",
-    "version": "",
+    "version": "v5.1",
     "tier": "All",
-    "status": "planned",
-    "description": "User-controlled theme switcher in the Tenant Portal and SOC dashboard. Preference persisted in localStorage. System theme detected on first load via prefers-color-scheme media query. Supports both dark and light modes for accessibility and user comfort."
+    "status": "shipped",
+    "description": "User-controlled theme switcher in the Tenant Portal and SOC dashboard. Preference persisted in localStorage with anti-FOUT inline script. Portal Sidebar adapts inline styles via useTheme; CSS var override for all Tailwind v4 utilities. Supports both dark and light modes for accessibility and user comfort."
   },
   {
     "id": "FE-17",
