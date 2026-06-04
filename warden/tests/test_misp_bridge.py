@@ -10,14 +10,9 @@ Covers:
 """
 from __future__ import annotations
 
-import json
-import socket
-import threading
-import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -70,11 +65,11 @@ class TestAttributeExtraction:
         })
 
     def test_domain_attr_increments_attrs_ingested(self):
-        from warden.integrations.misp_bridge import _ingest_attribute, _BRIDGE_STATS
+        from warden.integrations.misp_bridge import _BRIDGE_STATS, _ingest_attribute
 
-        with patch("warden.integrations.misp_bridge._forward_domain_to_syslog"):
-            with patch("warden.integrations.misp_bridge.ShadowAIDetector", create=True):
-                _ingest_attribute(_make_attr("domain", "malware-c2.example.com"), "Test")
+        with (patch("warden.integrations.misp_bridge._forward_domain_to_syslog"),
+              patch("warden.integrations.misp_bridge.ShadowAIDetector", create=True)):
+            _ingest_attribute(_make_attr("domain", "malware-c2.example.com"), "Test")
 
         assert _BRIDGE_STATS["attrs_ingested"] >= 1
 
@@ -90,14 +85,14 @@ class TestAttributeExtraction:
         assert forwarded == [], "IP IoCs must not be forwarded to the DNS syslog sink"
 
     def test_unknown_type_is_ignored(self):
-        from warden.integrations.misp_bridge import _ingest_attribute, _BRIDGE_STATS
+        from warden.integrations.misp_bridge import _BRIDGE_STATS, _ingest_attribute
 
         before = _BRIDGE_STATS["attrs_ingested"]
         _ingest_attribute(_make_attr("btc", "1A2B3C4D"), "Test")
         assert _BRIDGE_STATS["attrs_ingested"] == before
 
     def test_empty_value_is_ignored(self):
-        from warden.integrations.misp_bridge import _ingest_attribute, _BRIDGE_STATS
+        from warden.integrations.misp_bridge import _BRIDGE_STATS, _ingest_attribute
 
         before = _BRIDGE_STATS["attrs_ingested"]
         _ingest_attribute(_make_attr("domain", ""), "Test")
@@ -108,10 +103,10 @@ class TestAttributeExtraction:
         from warden.integrations.misp_bridge import _ingest_attribute
 
         forwarded: list[str] = []
-        with patch("warden.integrations.misp_bridge._forward_domain_to_syslog",
-                   side_effect=lambda d: forwarded.append(d)):
-            with patch("warden.integrations.misp_bridge.ShadowAIDetector", create=True):
-                _ingest_attribute(_make_attr("domain|ip", "evil.com|10.0.0.1"), "Test")
+        with (patch("warden.integrations.misp_bridge._forward_domain_to_syslog",
+                    side_effect=lambda d: forwarded.append(d)),
+              patch("warden.integrations.misp_bridge.ShadowAIDetector", create=True)):
+            _ingest_attribute(_make_attr("domain|ip", "evil.com|10.0.0.1"), "Test")
 
         if forwarded:
             assert forwarded[0] == "evil.com"
@@ -129,7 +124,7 @@ class TestEventProcessing:
         })
 
     def test_process_event_counts_zmq(self):
-        from warden.integrations.misp_bridge import _process_misp_event, _BRIDGE_STATS
+        from warden.integrations.misp_bridge import _BRIDGE_STATS, _process_misp_event
 
         event = _make_event([_make_attr("domain", "test.example.com")])
         with patch("warden.integrations.misp_bridge._ingest_attribute"):
@@ -139,7 +134,7 @@ class TestEventProcessing:
         assert _BRIDGE_STATS["http_events"] == 0
 
     def test_process_event_counts_http(self):
-        from warden.integrations.misp_bridge import _process_misp_event, _BRIDGE_STATS
+        from warden.integrations.misp_bridge import _BRIDGE_STATS, _process_misp_event
 
         event = _make_event([_make_attr("ip-dst", "5.6.7.8")])
         with patch("warden.integrations.misp_bridge._ingest_attribute"):
@@ -166,7 +161,7 @@ class TestEventProcessing:
         assert ingested[0]["value"] == "nested.example.com"
 
     def test_last_event_ts_updated(self):
-        from warden.integrations.misp_bridge import _process_misp_event, _BRIDGE_STATS
+        from warden.integrations.misp_bridge import _BRIDGE_STATS, _process_misp_event
 
         assert _BRIDGE_STATS["last_event_ts"] is None
         event = _make_event([])
@@ -179,7 +174,7 @@ class TestEventProcessing:
 
 class TestStats:
     def test_get_bridge_stats_returns_copy(self):
-        from warden.integrations.misp_bridge import get_bridge_stats, _BRIDGE_STATS
+        from warden.integrations.misp_bridge import _BRIDGE_STATS, get_bridge_stats
 
         snap = get_bridge_stats()
         snap["zmq_events"] = 99999
@@ -206,6 +201,7 @@ class TestMispApi:
     def client(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from warden.api.misp import router
 
         app = FastAPI()

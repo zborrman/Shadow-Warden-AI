@@ -12,13 +12,9 @@ Covers:
 """
 from __future__ import annotations
 
-import threading
-import time
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ── Fake span helpers ─────────────────────────────────────────────────────────
 
@@ -96,7 +92,7 @@ class TestSpanToText:
         assert result is None
 
     def test_default_skip_names_applied(self):
-        from warden.sdk.otel import _span_to_text, _DEFAULT_SKIP
+        from warden.sdk.otel import _DEFAULT_SKIP, _span_to_text
         for name in list(_DEFAULT_SKIP)[:3]:
             result = _span_to_text(_FakeSpan(name))
             assert result is None, f"Expected skip for {name!r}"
@@ -168,14 +164,13 @@ class TestRiskGte:
 
 class TestWardenSpanProcessor:
     def _make_processor(self, **kwargs):
-        from warden.sdk.otel import WardenSpanProcessor, _REGISTRY
+        from warden.sdk.otel import _REGISTRY, WardenSpanProcessor
         p = WardenSpanProcessor(api_url="http://fake", api_key="test", **kwargs)
         yield p
         p.shutdown()
-        try:
+        import contextlib
+        with contextlib.suppress(ValueError):
             _REGISTRY.remove(p)
-        except ValueError:
-            pass
 
     def test_on_start_is_noop(self):
         proc = next(self._make_processor())
@@ -249,7 +244,7 @@ class TestSdkStats:
             assert key in stats
 
     def test_per_processor_list(self):
-        from warden.sdk.otel import get_sdk_stats, WardenSpanProcessor
+        from warden.sdk.otel import WardenSpanProcessor, get_sdk_stats
         p = WardenSpanProcessor(api_url="http://x")
         try:
             stats = get_sdk_stats()
@@ -269,6 +264,7 @@ class TestSdkApi:
     def client(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from warden.api.sdk import router
         app = FastAPI()
         app.include_router(router)
