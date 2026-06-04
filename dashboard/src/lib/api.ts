@@ -87,6 +87,36 @@ export type ComplianceHistoryResponse = {
   snapshots: ComplianceSnapshot[];
 };
 
+export type Iso27001Control = {
+  control:  string;
+  theme:    "Organizational" | "People" | "Physical" | "Technological";
+  domain:   string;
+  status:   "Implemented" | "Partial" | "Delegated";
+  evidence: string;
+};
+
+export type Iso27001Theme = {
+  total:       number;
+  implemented: number;
+  partial:     number;
+  delegated:   number;
+};
+
+export type Iso27001Response = {
+  standard:       string;
+  org_name:       string;
+  tenant_id:      string;
+  generated_at:   string;
+  controls_total: number;
+  implemented:    number;
+  partial:        number;
+  delegated:      number;
+  coverage_pct:   number;
+  period_days:    number;
+  controls:       Iso27001Control[];
+  themes:         Record<string, Iso27001Theme>;
+};
+
 export type CommunityLookupResponse = {
   query:           string;
   total:           number;
@@ -200,6 +230,7 @@ export const api = {
   roi:        ()               => get<RoiResponse>(ANALYTICS, "/api/v1/compliance/roi"),
   posture:    (days = 7)       => get<PostureResponse>(API, "/compliance/posture", { days: String(days) }),
   complianceHistory: (hours = 24) => get<ComplianceHistoryResponse>(API, "/compliance/history", { hours: String(hours) }),
+  iso27001:   (days = 30)      => get<Iso27001Response>(API, "/compliance/iso27001", { days: String(days) }),
   health:     ()               => get<Record<string, unknown>>(API, "/health"),
   xaiExplain: (id: string)     => get<Record<string, unknown>>(API, `/xai/explain/${id}`),
   filter:     (body: { content: string; tenant_id?: string }) =>

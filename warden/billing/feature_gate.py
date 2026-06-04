@@ -203,6 +203,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "sdk_otel_enabled":            False,
         "github_actions_scan_enabled": False,
         "compliance_scoring_enabled":  False,
+        "iso27001_enabled":            False,
     },
 
     "individual": {
@@ -261,6 +262,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "sdk_otel_enabled":            False,
         "github_actions_scan_enabled": False,
         "compliance_scoring_enabled":  False,
+        "iso27001_enabled":            False,
     },
 
     "pro": {
@@ -319,6 +321,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Pro+)
         "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Pro+)
         "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Pro+)
+        "iso27001_enabled":            False,  # ← ISO 27001 Annex A mapping is Enterprise-only
     },
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
@@ -388,6 +391,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "sdk_otel_enabled":            False,
         "github_actions_scan_enabled": False,
         "compliance_scoring_enabled":  False,
+        "iso27001_enabled":            False,
     },
 
     "enterprise": {
@@ -446,6 +450,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Enterprise)
         "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Enterprise)
         "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Enterprise)
+        "iso27001_enabled":            True,   # ← ISO 27001:2022 Annex A control mapping (Enterprise)
     },
 }
 
