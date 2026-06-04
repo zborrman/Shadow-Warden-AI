@@ -9,7 +9,7 @@ import {
   BarChart2, List, Search, Activity, GitBranch,
   Key, Lock, Globe, Trash2, CreditCard,
   BookOpen, DollarSign, Building2, AlertTriangle,
-  BookMarked, GraduationCap, ShieldAlert, Brain,
+  BookMarked, GraduationCap, ShieldAlert, Brain, Package,
   Sun, Moon,
 } from 'lucide-react'
 import { logout } from '@/lib/auth'
@@ -35,8 +35,10 @@ const groups: NavGroup[] = [
     items: [
       { href: '/communities/',  label: 'Communities',   icon: Users    },
       { href: '/hub/',          label: 'SEP Hub',        icon: Network  },
-      { href: '/dashboard/?tab=reputation', label: 'Reputation', icon: Star },
-      { href: '/dashboard/?tab=pods',       label: 'Data Pods',  icon: Database },
+      { href: '/dashboard/?tab=reputation',    label: 'Reputation',          icon: Star    },
+      { href: '/dashboard/?tab=pods',           label: 'Data Pods',           icon: Database },
+      { href: '/communities/intelligence',      label: 'Business Intelligence',icon: Brain    },
+      { href: '/communities/smb-setup',         label: 'SMB Suite Wizard',    icon: Package  },
     ],
   },
   {
