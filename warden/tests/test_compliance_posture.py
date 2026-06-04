@@ -17,7 +17,9 @@ def _make_app():
 
 @pytest.fixture()
 def client():
-    return TestClient(_make_app(), raise_server_exceptions=False)
+    # X-Tenant-Tier: pro — compliance_scoring_enabled is True at Pro+
+    return TestClient(_make_app(), raise_server_exceptions=False,
+                      headers={"X-Tenant-Tier": "pro"})
 
 
 # ── /compliance/posture ───────────────────────────────────────────────────────

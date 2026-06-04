@@ -25,8 +25,14 @@ from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse, Response
+
+try:
+    from warden.billing.feature_gate import require_feature as _require_feature
+    _POSTURE_GATE = [_require_feature("compliance_scoring_enabled")]
+except Exception:
+    _POSTURE_GATE = []
 
 log = logging.getLogger("warden.api.compliance_report")
 
@@ -554,7 +560,7 @@ def _score_standard(passed: int, partial: int, total: int) -> float:
     return round((passed + partial * 0.5) / total * 100, 1) if total else 0.0
 
 
-@router.get("/posture", summary="Real-time compliance posture across all standards (CP-25)")
+@router.get("/posture", summary="Real-time compliance posture across all standards (CP-25)", dependencies=_POSTURE_GATE)
 async def compliance_posture(days: Annotated[int, Query(ge=1, le=90)] = 7) -> dict:
     """
     Aggregates SOC2/GDPR/ISO27001/HIPAA/NIS2 into a single posture score.
@@ -654,7 +660,7 @@ async def compliance_posture(days: Annotated[int, Query(ge=1, le=90)] = 7) -> di
     return result
 
 
-@router.get("/history", summary="Compliance score history — last N snapshots (CP-25)")
+@router.get("/history", summary="Compliance score history — last N snapshots (CP-25)", dependencies=_POSTURE_GATE)
 async def compliance_history(
     hours: Annotated[int, Query(ge=1, le=168, description="Number of past hours to return")] = 24,
 ) -> dict:

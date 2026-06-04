@@ -202,6 +202,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "misp_bridge_enabled":         False,
         "sdk_otel_enabled":            False,
         "github_actions_scan_enabled": False,
+        "compliance_scoring_enabled":  False,
     },
 
     "individual": {
@@ -259,6 +260,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "misp_bridge_enabled":         False,
         "sdk_otel_enabled":            False,
         "github_actions_scan_enabled": False,
+        "compliance_scoring_enabled":  False,
     },
 
     "pro": {
@@ -316,6 +318,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Pro+)
         "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Pro+)
         "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Pro+)
+        "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Pro+)
     },
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
@@ -384,6 +387,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "misp_bridge_enabled":         False,
         "sdk_otel_enabled":            False,
         "github_actions_scan_enabled": False,
+        "compliance_scoring_enabled":  False,
     },
 
     "enterprise": {
@@ -441,6 +445,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Enterprise)
         "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Enterprise)
         "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Enterprise)
+        "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Enterprise)
     },
 }
 
