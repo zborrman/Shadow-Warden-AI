@@ -1154,6 +1154,13 @@ except ImportError:
     log.warning("misp router not available — /misp routes skipped.")
 
 try:
+    from warden.api.sdk import router as _sdk_router
+    app.include_router(_sdk_router)
+    log.info("OTel SDK mounted at /sdk")
+except ImportError:
+    log.warning("sdk router not available — /sdk routes skipped.")
+
+try:
     from warden.api.xai import router as _xai_router
     app.include_router(_xai_router)
     log.info("Explainable AI 2.0 mounted at /xai")

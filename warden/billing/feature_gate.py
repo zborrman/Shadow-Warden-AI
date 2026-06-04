@@ -200,6 +200,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "retention_days":              30,
         "ratchet_interval":            None,
         "misp_bridge_enabled":         False,
+        "sdk_otel_enabled":            False,
     },
 
     "individual": {
@@ -255,6 +256,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "retention_days":              90,
         "ratchet_interval":            None,
         "misp_bridge_enabled":         False,
+        "sdk_otel_enabled":            False,
     },
 
     "pro": {
@@ -310,6 +312,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "retention_days":              365,
         "ratchet_interval":            10,
         "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Pro+)
+        "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Pro+)
     },
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
@@ -376,6 +379,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "semantic_layer_enabled":      False,
         "settings_enabled":            True,
         "misp_bridge_enabled":         False,
+        "sdk_otel_enabled":            False,
     },
 
     "enterprise": {
@@ -431,6 +435,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "retention_days":              -1,      # unlimited
         "ratchet_interval":            50,
         "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Enterprise)
+        "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Enterprise)
     },
 }
 

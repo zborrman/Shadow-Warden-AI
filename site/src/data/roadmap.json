@@ -404,10 +404,10 @@
     "category": "Business Community",
     "subcategory": "Integrations",
     "feature": "OpenTelemetry SDK library — WardenSpanProcessor for any OTel-enabled app",
-    "description": "A dedicated OpenTelemetry SDK library with a WardenSpanProcessor that seamlessly exports traces from any OTel-instrumented application to Shadow Warden for real-time security analysis.",
-    "version": "",
+    "description": "WardenSpanProcessor (sync ThreadPoolExecutor) + WardenAsyncSpanProcessor (asyncio tasks). Extracts span name, string/numeric attributes, event messages — forwarded to /filter. Bounded queue (max 512), shutdown drain, force_flush(), on_finding callback, configurable min_risk + skip_span_names. REST: GET /sdk/status, GET /sdk/stats, POST /sdk/ping. Tier: Pro+.",
+    "version": "v5.2",
     "tier": "Pro+",
-    "status": "planned"
+    "status": "shipped"
   },
   {
     "id": "IN-22",
