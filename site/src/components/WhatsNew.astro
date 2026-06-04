@@ -31,7 +31,7 @@ const releases = [
   },
   {
     version: 'v5.1',
-    date: 'May 2026',
+    date: 'May–Jun 2026',
     badge: '',
     badgeColor: '#BF5AF2',
     items: [
@@ -48,6 +48,34 @@ const releases = [
         tier: 'All Plans',
         desc: 'Unified settings across Agents (SOVA/MasterAgent), Notifications, Agentic Commerce, and Semantic Layer. Available in Streamlit, Portal, and SOC Dashboard.',
         tags: ['SOVA Config', 'Commerce', 'Notifications'],
+      },
+      {
+        icon: '🌗',
+        title: 'Dark / Light Theme Toggle',
+        tier: 'All Plans',
+        desc: 'System-wide dark/light mode in the Portal and SOC Dashboard. Preference persisted to localStorage with anti-FOUT inline script. Portal sidebar adapts inline styles; CSS var override for all Tailwind utilities.',
+        tags: ['Portal', 'SOC Dashboard', 'localStorage'],
+      },
+      {
+        icon: '📊',
+        title: 'Compliance Scoring Dashboard (CP-25)',
+        tier: 'Pro+',
+        desc: 'Real-time SOC 2 / GDPR / ISO 27001 / HIPAA / NIS2 posture in the SOC Dashboard. SVG gauge, per-standard progress bars, 168-snapshot in-process ring buffer for trend timeline, evidence download panel.',
+        tags: ['SOC 2', 'GDPR', 'ISO 27001', 'Real-time'],
+      },
+      {
+        icon: '🧩',
+        title: 'Community BI Module — 8 Categories',
+        tier: 'Community+',
+        desc: 'Business Intelligence hub inside the Community portal: Usage, Threats, Vendors, Costs, Compliance, Benchmarks, Predictions, Reports. Each tab lazy-fetches live data with mock fallback. Recharts + SVG gauge.',
+        tags: ['8 Analytics Tabs', 'Benchmarks', 'Predictions'],
+      },
+      {
+        icon: '🧙',
+        title: 'SMB AI Governance Suite Wizard',
+        tier: 'Community+',
+        desc: 'Single 4-step wizard provisions all 7 SMB governance modules (Vendor Governance, Incident Register, Prompt Library, Training Records, Cost Allocation, Supplier Risk, Business Intelligence). Idempotent — safe to re-run.',
+        tags: ['7 Modules', '4-Step Wizard', 'Idempotent'],
       },
     ],
   },
