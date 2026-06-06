@@ -10,6 +10,7 @@ Tabs: Overview · GDPR · SOC 2 · ISO 27001 · HIPAA
 """
 from __future__ import annotations
 
+import contextlib
 import time
 
 import requests
@@ -97,15 +98,13 @@ if col_ref.button("Recalculate"):
     _fetch.clear()
     _fetch_report.clear()
     _fetch_framework.clear()
-    try:
+    with contextlib.suppress(Exception):
         requests.post(
             f"{WARDEN_URL}/compliance/posture/recalculate",
             params={"tenant_id": tenant_id},
             headers=HEADERS,
             timeout=5,
         )
-    except Exception:
-        pass
     st.rerun()
 auto_refresh = col_auto.checkbox("Auto-refresh 30s", value=True)
 
@@ -167,7 +166,6 @@ def _render_gaps(fw: str) -> None:
 
     for gap in fw_gaps:
         sev   = gap["severity"]
-        color = _SEV_COLOR.get(sev, "#94a3b8")
         with st.expander(f"🔴 {gap['control_id']} — {gap['description']}" if sev == "high"
                          else f"🟡 {gap['control_id']} — {gap['description']}", expanded=sev == "high"):
             st.markdown(f"**Severity:** :{('red' if sev == 'high' else 'orange' if sev == 'medium' else 'grey')}[{sev.upper()}]")

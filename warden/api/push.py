@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from warden.billing.feature_gate import require_feature
@@ -52,7 +52,7 @@ async def unregister_device(device_token: str) -> dict:
 
 @router.get("/devices", summary="List registered devices for a tenant", dependencies=[_Gate])
 async def list_devices(tenant_id: str = "default") -> dict:
-    from warden.push.registry import device_count, list_devices as _list
+    from warden.push.registry import list_devices as _list
     devices = _list(tenant_id)
     return {
         "tenant_id": tenant_id,

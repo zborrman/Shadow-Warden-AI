@@ -8,8 +8,6 @@ convert to Markdown via MarkItDown, and run SecretRedactor + SemanticGuard.
 """
 from __future__ import annotations
 
-import os
-
 import streamlit as st
 
 st.set_page_config(
@@ -44,9 +42,6 @@ if uploaded and st.button("Convert & Scan", type="primary"):
 
     with st.spinner("Converting …"):
         try:
-            import sys
-            from unittest.mock import MagicMock
-
             # Use real converter; fall back to unavailable message
             from warden.document_intel.converter import MarkItDownUnavailable, get_converter
 

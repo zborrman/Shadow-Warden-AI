@@ -8,15 +8,11 @@ All tests mock MarkItDown so the suite runs without the real package.
 from __future__ import annotations
 
 import base64
-import hashlib
-import json
 import sys
-from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # ── MarkItDown mock ──────────────────────────────────────────────────────────
 

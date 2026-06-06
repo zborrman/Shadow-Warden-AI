@@ -340,7 +340,7 @@ async def alert_push_verdict(
     """Send FCM push notification to registered SOC mobile devices (MO-01)."""
     try:
         from warden.push.registry import get_tokens_for_tenant
-        from warden.push.service  import get_push_service
+        from warden.push.service import get_push_service
 
         tokens = get_tokens_for_tenant(tenant_id)
         if not tokens:

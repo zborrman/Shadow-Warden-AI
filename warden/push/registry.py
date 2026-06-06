@@ -20,9 +20,9 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Generator
 
 log = logging.getLogger("warden.push.registry")
 

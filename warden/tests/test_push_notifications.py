@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
@@ -40,6 +39,7 @@ class TestDeviceRegistry:
         monkeypatch.setenv("PUSH_DB_PATH", db)
         # Force re-import with new DB path
         import importlib
+
         import warden.push.registry as reg
         importlib.reload(reg)
         return reg
@@ -114,10 +114,8 @@ class TestFCMPushService:
         svc = FCMPushService.__new__(FCMPushService)
         svc._app = MagicMock()   # simulate initialized Firebase app
 
-        with patch("warden.push.service.messaging", mock_messaging, create=True):
-            import warden.push.service as svc_mod
-            original_available = svc_mod.FCMPushService.available.fget
-            with patch.object(type(svc), "available", new_callable=lambda: property(lambda _: True)):
+        with (patch("warden.push.service.messaging", mock_messaging, create=True),
+              patch.object(type(svc), "available", new_callable=lambda: property(lambda _: True))):
                 # Directly call the send logic with mocked messaging
                 import sys
                 sys.modules["firebase_admin.messaging"] = mock_messaging

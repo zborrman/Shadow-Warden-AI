@@ -1016,9 +1016,9 @@ async def compliance_recalculate(tenant_id: str = "default") -> dict:
 
 # ── WebSocket: real-time compliance updates ───────────────────────────────────
 
-from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402 — placed after guard
+import asyncio as _asyncio  # noqa: E402 — placed after guard
 
-import asyncio as _asyncio
+from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402
 
 
 @router.websocket("/ws")

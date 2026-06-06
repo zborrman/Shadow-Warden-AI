@@ -2770,7 +2770,7 @@ async def filter_content(
     # ── Document Intelligence: convert file_base64 to Markdown before pipeline ──
     if payload.file_base64:
         try:
-            import base64 as _b64
+            import base64 as _b64  # noqa: I001
             from warden.document_intel.converter import get_converter
             _file_bytes = _b64.b64decode(payload.file_base64)
             _conv = get_converter().convert_bytes(_file_bytes, payload.file_filename)

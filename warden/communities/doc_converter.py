@@ -34,7 +34,7 @@ _FINANCIAL_KEYWORDS = {"account number", "routing number", "credit card", "iban"
 _CLASSIFIED_KEYWORDS = {"top secret", "classified", "confidential", "restricted"}
 
 
-class DocConverterUnavailable(RuntimeError):
+class DocConverterUnavailable(RuntimeError):  # noqa: N818
     """Raised when markitdown is not installed."""
 
 

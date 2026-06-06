@@ -112,7 +112,7 @@ async def convert_batch(files: list[UploadFile] = File(...)) -> dict:
 @router.get("/health", summary="Check MarkItDown availability")
 async def health() -> dict:
     try:
-        from markitdown import MarkItDown as _MI  # noqa: F401
+        import markitdown as _mi_mod  # noqa: F401
         return {"status": "ok", "markitdown": "available"}
     except Exception as exc:
         return {"status": "degraded", "markitdown": "unavailable", "error": str(exc)}

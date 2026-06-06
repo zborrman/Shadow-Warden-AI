@@ -24,6 +24,7 @@ Other                          → DOC_INTEL_CACHE_TTL  (default 3 600 s)
 from __future__ import annotations
 
 import concurrent.futures as _cf
+import contextlib
 import hashlib
 import json
 import logging
@@ -62,7 +63,7 @@ _FINANCIAL_KEYWORDS = {"account number", "routing number", "credit card", "iban"
 _CLASSIFIED_KEYWORDS = {"top secret", "classified", "confidential", "restricted"}
 
 
-class MarkItDownUnavailable(RuntimeError):
+class MarkItDownUnavailable(RuntimeError):  # noqa: N818
     """Raised when markitdown is not installed or fails to import."""
 
 
@@ -216,19 +217,15 @@ class MarkItDownConverter:
         r = self._get_redis()
         if not r:
             return
-        try:
+        with contextlib.suppress(Exception):
             r.setex(f"{_CACHE_PREFIX}{file_hash}", ttl, json.dumps(result.to_dict()))
-        except Exception:
-            pass
 
     def _incr_stat(self, field_name: str, amount: int = 1) -> None:
         r = self._get_redis()
         if not r:
             return
-        try:
+        with contextlib.suppress(Exception):
             r.hincrby(_STATS_KEY, field_name, amount)
-        except Exception:
-            pass
 
     def convert_bytes(self, file_bytes: bytes, filename: str) -> ConversionResult:
         """Convert raw bytes to Markdown, checking size limit and Redis cache first."""

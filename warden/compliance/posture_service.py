@@ -30,6 +30,7 @@ HIPAA     — 4 controls: Fernet encryption, TLS enforcement, STIX audit
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -405,10 +406,8 @@ class CompliancePostureService:
     def invalidate_cache(self, tenant_id: str = "default") -> None:
         r = _get_redis()
         if r:
-            try:
+            with contextlib.suppress(Exception):
                 r.delete(f"{_CACHE_PREFIX}{tenant_id}")
-            except Exception:
-                pass
 
     @staticmethod
     def _from_cache(raw: str, tenant_id: str) -> ComplianceReport:
