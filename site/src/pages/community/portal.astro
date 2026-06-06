@@ -1,0 +1,589 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+<BaseLayout
+  title="Communities — Shadow Warden AI"
+  description="Manage secure collaboration communities with end-to-end encrypted data tunnels."
+>
+<div class="comm-shell pt-14">
+
+  <!-- ── Topbar ── -->
+  <div class="comm-topbar">
+    <nav class="comm-breadcrumb">
+      <a href="/" class="bc-home">Shadow · Warden</a>
+      <span class="bc-sep">/community</span>
+    </nav>
+    <div class="topbar-r">
+      <div class="user-chip" id="user-chip">—</div>
+    </div>
+  </div>
+
+  <!-- ── Main content ── -->
+  <div class="comm-content">
+
+    <!-- Page header -->
+    <div class="page-hdr">
+      <div>
+        <div class="page-eyebrow">
+          <span class="eyebrow-dot"></span>
+          COMMUNITY PORTAL
+        </div>
+        <h1 class="page-title">Communities</h1>
+        <p class="page-sub">Federated knowledge spaces with cryptographic identity and E2EE tunnels</p>
+      </div>
+      <div class="hdr-actions">
+        <button class="btn-secondary" id="join-btn">Join via code</button>
+        <a href="/community/new" class="btn-primary-violet" id="new-btn">+ New Community</a>
+      </div>
+    </div>
+
+    <!-- Tier bar -->
+    <div class="tier-bar" id="tier-bar"></div>
+
+    <!-- User identity card -->
+    <div class="identity-card">
+      <span class="id-icon">🛡️</span>
+      <div>
+        <div class="id-label">YOUR IDENTITY</div>
+        <div class="id-val" id="my-uid">Initializing…</div>
+      </div>
+    </div>
+
+    <!-- ── Community Tools ── -->
+    <div class="tools-section">
+      <div class="tools-hdr">
+        <span class="tools-label">COMMUNITY TOOLS</span>
+        <span class="tools-line"></span>
+      </div>
+      <div class="tools-grid">
+
+        <!-- Business Intelligence -->
+        <a href="https://app.shadow-warden-ai.com/communities/intelligence" class="tool-card" target="_blank" rel="noopener noreferrer">
+          <div class="tool-card-l">
+            <div class="tool-icon" style="background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.25)">🧠</div>
+            <div>
+              <div class="tool-name">Business Intelligence</div>
+              <div class="tool-desc">8-category analytics: Usage, Threats, Vendors, Costs, Compliance, Benchmarks, Predictions, Reports</div>
+              <div class="tool-tags">
+                <span class="tool-tag">Usage</span>
+                <span class="tool-tag">Threats</span>
+                <span class="tool-tag">Compliance</span>
+                <span class="tool-tag">Predictions</span>
+                <span class="tool-tag">+4 more</span>
+              </div>
+            </div>
+          </div>
+          <div class="tool-arrow">Open →</div>
+        </a>
+
+        <!-- SMB Suite Wizard -->
+        <a href="https://app.shadow-warden-ai.com/communities/smb-setup" class="tool-card" target="_blank" rel="noopener noreferrer">
+          <div class="tool-card-l">
+            <div class="tool-icon" style="background:rgba(16,185,129,0.10);border-color:rgba(16,185,129,0.25)">🧙</div>
+            <div>
+              <div class="tool-name">SMB Suite Wizard</div>
+              <div class="tool-desc">Provision all 7 governance modules in one step: Vendors, Incidents, Prompts, Training, Costs, Supplier Risk, BI</div>
+              <div class="tool-tags">
+                <span class="tool-tag">7 Modules</span>
+                <span class="tool-tag">4-Step Wizard</span>
+                <span class="tool-tag">Idempotent</span>
+              </div>
+            </div>
+          </div>
+          <div class="tool-arrow" style="color:#34d399">Launch →</div>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-row">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="comm-search" class="search-input" placeholder="Search communities…" autocomplete="off" />
+      <span class="search-kbd">⌘K</span>
+    </div>
+
+    <!-- Communities grid -->
+    <div id="comm-grid"></div>
+
+  </div>
+</div>
+
+<!-- ── Join modal ── -->
+<div id="join-modal" class="modal-backdrop" style="display:none;align-items:center;justify-content:center">
+  <div class="modal-box">
+    <button class="modal-close" id="join-close">✕</button>
+    <div class="modal-icon">🚪</div>
+    <h2 class="modal-title">Join a community</h2>
+    <p class="modal-sub">Enter the community code shared with you (format: COMM-XXXX)</p>
+    <input id="join-input" type="text" placeholder="COMM-XXXX" maxlength="9" class="modal-input" autocomplete="off" />
+    <p id="join-err" class="modal-err" style="display:none"></p>
+    <p id="join-ok"  class="modal-ok"  style="display:none"></p>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="join-cancel">Cancel</button>
+      <button class="btn-primary-violet" id="join-confirm">Join →</button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ── Shell ─────────────────────────────────────────────────── */
+.comm-shell {
+  min-height: 100vh;
+  background: #0c1018;
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+/* ── Topbar ─────────────────────────────────────────────────── */
+.comm-topbar {
+  position: sticky; top: 56px; z-index: 30;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 42px;
+  background: #0f1420;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.comm-breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px;
+}
+.bc-home { color: #f1f5f9; font-weight: 600; text-decoration: none; }
+.bc-sep  { color: #334155; font-family: monospace; }
+.topbar-r { display: flex; align-items: center; gap: 10px; }
+.user-chip {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #7c3aed; color: white;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: default; user-select: none;
+}
+
+/* ── Content ────────────────────────────────────────────────── */
+.comm-content {
+  max-width: 1000px; margin: 0 auto; padding: 28px 24px 60px;
+}
+
+/* ── Page header ────────────────────────────────────────────── */
+.page-hdr {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+}
+.page-eyebrow {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  color: #BF5AF2; text-transform: uppercase; margin-bottom: 6px;
+}
+.eyebrow-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #BF5AF2; animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.page-title { font-size: clamp(22px,3.5vw,32px); font-weight: 800; color: #f1f5f9; margin: 0 0 4px; }
+.page-sub   { font-size: 13px; color: #475569; margin: 0; }
+.hdr-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn-secondary {
+  padding: 8px 16px; border-radius: 10px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+  color: #94a3b8; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.08); }
+.btn-primary-violet {
+  padding: 8px 18px; border-radius: 10px; border: none;
+  background: #7c3aed; color: white;
+  font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center;
+  transition: background 0.15s;
+}
+.btn-primary-violet:hover { background: #6d28d9; }
+
+/* ── Tier bar ───────────────────────────────────────────────── */
+.tier-bar {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 14px;
+  font-size: 13px;
+}
+
+/* ── Identity card ──────────────────────────────────────────── */
+.identity-card {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(191,90,242,0.05); border: 1px solid rgba(191,90,242,0.15);
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 16px;
+}
+.id-icon  { font-size: 20px; flex-shrink: 0; }
+.id-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #BF5AF2; margin-bottom: 3px; }
+.id-val   { font-size: 13px; font-family: monospace; font-weight: 700; color: #e2e8f0; }
+
+/* ── Search ─────────────────────────────────────────────────── */
+.search-row {
+  display: flex; align-items: center; gap: 10px;
+  background: #131929; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+}
+.search-icon  { font-size: 14px; flex-shrink: 0; }
+.search-input {
+  flex: 1; background: none; border: none; outline: none;
+  color: #f1f5f9; font-size: 13px;
+}
+.search-input::placeholder { color: #475569; }
+.search-kbd {
+  font-size: 11px; color: #334155; font-family: monospace;
+  padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.07);
+}
+
+/* ── Community cards ────────────────────────────────────────── */
+.comm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.comm-card {
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px; padding: 18px; cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.comm-card:hover { border-color: rgba(191,90,242,0.35); transform: translateY(-1px); }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.card-id-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.card-id { font-size: 10px; font-family: monospace; color: #7c3aed; letter-spacing: 0.04em; }
+.card-name { font-size: 15px; font-weight: 700; color: #f1f5f9; line-height: 1.3; }
+.card-member-chip {
+  padding: 3px 10px; border-radius: 20px;
+  background: rgba(191,90,242,0.08); border: 1px solid rgba(191,90,242,0.2);
+  font-size: 10px; font-weight: 700; color: #BF5AF2;
+  white-space: nowrap; flex-shrink: 0;
+}
+.card-desc { font-size: 12px; color: #475569; line-height: 1.55; margin: 0 0 12px; }
+.badge-joined {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 8px; border-radius: 6px;
+  background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
+  font-size: 9px; font-weight: 700; color: #34d399; font-family: monospace;
+}
+.badge-pending {
+  padding: 1px 8px; border-radius: 6px;
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);
+  font-size: 9px; font-weight: 700; color: #f59e0b; font-family: monospace;
+}
+.card-stats { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #475569; margin-bottom: 12px; }
+.e2ee-pill {
+  font-size: 9px; font-weight: 700; color: #34d399;
+  background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2);
+  padding: 1px 7px; border-radius: 4px; font-family: monospace;
+}
+.card-actions { display: flex; gap: 6px; }
+.card-btn-main {
+  flex: 1; text-align: center; padding: 8px;
+  background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25);
+  border-radius: 8px; color: #a78bfa; font-size: 12px; font-weight: 600;
+  text-decoration: none; transition: background 0.15s;
+}
+.card-btn-main:hover { background: rgba(124,58,237,0.2); }
+.card-btn-ghost {
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; color: #64748b; font-size: 12px; font-weight: 600;
+  text-decoration: none; transition: background 0.15s; white-space: nowrap;
+}
+.card-btn-ghost:hover { background: rgba(255,255,255,0.07); color: #94a3b8; }
+.card-date { font-size: 10px; font-family: monospace; color: #334155; margin-top: 10px; }
+
+/* ── Community Tools ────────────────────────────────────────── */
+.tools-section { margin-bottom: 24px; }
+.tools-hdr {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.tools-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: #475569; white-space: nowrap;
+}
+.tools-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
+.tools-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+@media (max-width: 680px) { .tools-grid { grid-template-columns: 1fr; } }
+.tool-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #131929; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 16px 18px;
+  text-decoration: none; color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.tool-card:hover { border-color: rgba(191,90,242,0.3); transform: translateY(-1px); }
+.tool-card-l { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.tool-icon {
+  width: 40px; height: 40px; border-radius: 10px; border: 1px solid;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.tool-name { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+.tool-desc { font-size: 12px; color: #475569; line-height: 1.5; margin-bottom: 8px; }
+.tool-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tool-tag {
+  font-size: 10px; font-weight: 600; color: #334155;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+  padding: 1px 7px; border-radius: 4px;
+}
+.tool-arrow {
+  font-size: 13px; font-weight: 700; color: #BF5AF2;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* ── Empty state ────────────────────────────────────────────── */
+.empty-state {
+  text-align: center; padding: 80px 20px;
+  border: 1px dashed rgba(191,90,242,0.15); border-radius: 20px;
+}
+.empty-icon  { font-size: 52px; margin-bottom: 16px; }
+.empty-title { font-size: 18px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+.empty-sub   { font-size: 14px; color: #475569; margin-bottom: 28px; line-height: 1.65; }
+
+/* ── Modal ──────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+  display: flex;
+}
+.modal-box {
+  background: #0f1420; border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px; padding: 32px; max-width: 420px; width: 90%;
+  margin: auto; position: relative;
+}
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none; color: #475569; font-size: 16px;
+  cursor: pointer; padding: 4px; line-height: 1;
+}
+.modal-close:hover { color: #f1f5f9; }
+.modal-icon  { font-size: 32px; margin-bottom: 12px; }
+.modal-title { font-size: 20px; font-weight: 800; color: #f1f5f9; margin: 0 0 6px; }
+.modal-sub   { font-size: 13px; color: #64748b; margin: 0 0 20px; }
+.modal-input {
+  width: 100%; box-sizing: border-box;
+  background: #0a0a12; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 12px 14px;
+  color: #f1f5f9; font-size: 15px; font-family: monospace;
+  font-weight: 700; letter-spacing: 0.06em; outline: none;
+  margin-bottom: 10px; transition: border-color 0.2s;
+}
+.modal-input:focus { border-color: rgba(191,90,242,0.5); }
+.modal-err  { color: #f87171; font-size: 12px; margin-bottom: 12px; }
+.modal-ok   { color: #34d399; font-size: 12px; margin-bottom: 12px; }
+.modal-footer { display: flex; gap: 10px; margin-top: 4px; }
+.btn-cancel {
+  flex: 1; padding: 11px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+  color: #64748b; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-cancel:hover { background: rgba(255,255,255,0.08); }
+.btn-primary-violet.modal-confirm { flex: 2; padding: 11px; border-radius: 10px; justify-content: center; }
+</style>
+
+<script>
+(()=>{
+  const COMM_KEY = 'sw_communities';
+  const USER_KEY = 'sw_user_id';
+  const TIER_KEY = 'sw_tier';
+
+  const TIERS: Record<string,(typeof TIER_MAP)[keyof typeof TIER_MAP]> = {
+    starter:           { name:'Starter',           color:'#64748b', maxComm:0  },
+    individual:        { name:'Individual',         color:'#06b6d4', maxComm:1  },
+    community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3  },
+    pro:               { name:'Pro',                color:'#FF8C42', maxComm:10 },
+    enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1 },
+  } as const;
+  const TIER_MAP = TIERS;
+
+  function getTier() { return localStorage.getItem(TIER_KEY) || 'pro'; }
+  function getTC()   { return TIERS[getTier()] || TIERS.pro; }
+
+  function uid(): string {
+    let id = localStorage.getItem(USER_KEY);
+    if (!id) {
+      const b = crypto.getRandomValues(new Uint8Array(3));
+      id = 'USR-' + Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase().slice(0,4);
+      localStorage.setItem(USER_KEY, id);
+    }
+    return id;
+  }
+
+  function loadComms(): any[] {
+    try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
+  }
+  function saveComms(c: any[]) { localStorage.setItem(COMM_KEY, JSON.stringify(c)); }
+
+  function esc(s: string) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function tunnelMsgs(id: string): number {
+    try { return JSON.parse(localStorage.getItem(`sw_tunnel_${id}`) || '[]').length; } catch { return 0; }
+  }
+
+  function initials(name: string): string {
+    return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?';
+  }
+
+  function render() {
+    const myId = uid();
+    const el = document.getElementById('my-uid');
+    if (el) el.textContent = myId;
+
+    // user chip
+    const chip = document.getElementById('user-chip');
+    if (chip) chip.textContent = myId.replace('USR-','').slice(0,2);
+
+    const tc   = getTC();
+    const comms= loadComms();
+
+    // Tier bar
+    const tierBar = document.getElementById('tier-bar');
+    if (tierBar) {
+      const used = comms.length, max = tc.maxComm;
+      const pct  = max <= 0 ? 0 : Math.min(used/max*100, 100);
+      tierBar.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:${tc.color}18;border:1px solid ${tc.color}30;color:${tc.color}">${tc.name.toUpperCase()}</span>
+          ${max===-1
+            ? `<span style="font-size:13px;color:#64748b">${used} communities (unlimited)</span>`
+            : max===0
+              ? `<span style="font-size:13px;color:#f87171">0 private communities on Starter — <a href="/price" style="color:#BF5AF2;text-decoration:none">upgrade</a></span>`
+              : `<span style="font-size:13px;color:#64748b">${used} / ${max} communities</span>`}
+          ${max>0?`<div style="flex:1;min-width:80px;max-width:140px;height:4px;border-radius:2px;background:#1e293b;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct>=100?'#f87171':tc.color};border-radius:2px"></div></div>`:''}
+          <a href="/price" style="margin-left:auto;font-size:12px;color:#475569;text-decoration:none" onmouseover="this.style.color='#BF5AF2'" onmouseout="this.style.color='#475569'">Change plan →</a>
+        </div>`;
+    }
+
+    // New button upgrade
+    const atLimit = tc.maxComm !== -1 && comms.length >= tc.maxComm;
+    const newBtn  = document.getElementById('new-btn') as HTMLAnchorElement;
+    if (newBtn && atLimit) {
+      newBtn.href = '/price';
+      newBtn.textContent = tc.maxComm===0 ? 'Upgrade to create' : '↑ Upgrade for more';
+      newBtn.style.background = 'rgba(255,255,255,0.06)';
+      newBtn.style.color = '#94a3b8';
+    }
+
+    const search = ((document.getElementById('comm-search') as HTMLInputElement)?.value||'').toLowerCase();
+    const list = search ? comms.filter((c:any)=>c.name.toLowerCase().includes(search)||c.id.toLowerCase().includes(search)) : comms;
+    const grid = document.getElementById('comm-grid')!;
+
+    if (comms.length===0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">◈</div>
+          <p class="empty-title">No communities yet</p>
+          <p class="empty-sub">Create your first secure collaboration space.<br>
+            Each community gets a unique <code style="color:#BF5AF2;font-family:monospace">COMM-XXXX</code> identifier.</p>
+          <a href="/community/new" class="btn-primary-violet" style="display:inline-flex;text-decoration:none">+ Create First Community</a>
+        </div>`;
+      return;
+    }
+
+    if (list.length===0) {
+      grid.innerHTML = `<p style="color:#475569;padding:24px 0">No communities match "${esc(search)}".</p>`;
+      return;
+    }
+
+    grid.innerHTML = `<div class="comm-grid">${list.map((c:any)=>{
+      const mems  = (c.members||[]).length;
+      const msgs  = tunnelMsgs(c.id);
+      const isPending = (c.join_requests||[]).some((r:any)=>r.userId===myId);
+      const isOwner   = (c.members||[]).find((m:any)=>m.id===myId)?.role==='owner';
+      return `
+        <div class="comm-card" onclick="location.href='/community/view?id=${encodeURIComponent(c.id)}'">
+          <div class="card-top">
+            <div style="min-width:0">
+              <div class="card-id-row">
+                <span class="card-id">${esc(c.id)}</span>
+                ${c.isJoined||isOwner?`<span class="badge-joined">✓ JOINED</span>`:''}
+                ${isPending?`<span class="badge-pending">PENDING</span>`:''}
+              </div>
+              <div class="card-name">${esc(c.name)}</div>
+            </div>
+            <span class="card-member-chip">${mems} member${mems!==1?'s':''}</span>
+          </div>
+          ${c.description?`<p class="card-desc">${esc(c.description)}</p>`:''}
+          <div class="card-stats">
+            ${msgs>0?`<span>💬 ${msgs} message${msgs!==1?'s':''}</span>`:''}
+            <span class="e2ee-pill">🔐 E2EE</span>
+          </div>
+          <div class="card-actions" onclick="event.stopPropagation()">
+            <a href="/community/view?id=${encodeURIComponent(c.id)}" class="card-btn-main">Open Portal →</a>
+            <a href="/community/view?id=${encodeURIComponent(c.id)}&tab=tunnel" class="card-btn-ghost">🔒 Tunnel${msgs>0?` (${msgs})`:''}</a>
+            <a href="/community/view?id=${encodeURIComponent(c.id)}&tab=members" class="card-btn-ghost">Members</a>
+          </div>
+          <div class="card-date">Created ${new Date(c.created||Date.now()).toLocaleDateString()}</div>
+        </div>`;
+    }).join('')}</div>`;
+  }
+
+  // Search
+  document.getElementById('comm-search')?.addEventListener('input', render);
+
+  // Join modal
+  const modal     = document.getElementById('join-modal') as HTMLElement;
+  const joinInput = document.getElementById('join-input') as HTMLInputElement;
+  const joinErr   = document.getElementById('join-err') as HTMLElement;
+  const joinOk    = document.getElementById('join-ok')  as HTMLElement;
+
+  function openModal() {
+    joinInput.value=''; joinErr.style.display='none'; joinOk.style.display='none';
+    modal.style.display='flex'; setTimeout(()=>joinInput.focus(),50);
+  }
+  function closeModal() { modal.style.display='none'; }
+
+  document.getElementById('join-btn')?.addEventListener('click', openModal);
+  document.getElementById('join-cancel')?.addEventListener('click', closeModal);
+  document.getElementById('join-close')?.addEventListener('click', closeModal);
+  modal.addEventListener('click', e=>{ if(e.target===modal) closeModal(); });
+
+  document.getElementById('join-confirm')?.addEventListener('click',()=>{
+    const code = joinInput.value.trim().toUpperCase();
+    joinErr.style.display='none'; joinOk.style.display='none';
+    if(!code.match(/^COMM-[0-9A-F]{4}$/)) {
+      joinErr.textContent='Format must be COMM-XXXX (e.g. COMM-1A2B)';
+      joinErr.style.display='block'; return;
+    }
+    const myId = uid();
+    const comms = loadComms();
+    const existing = comms.find((x:any)=>x.id===code);
+    if(existing) {
+      const mems:any[] = existing.members||[];
+      if(mems.some((m:any)=>(typeof m==='string'?m:m.id)===myId)) {
+        joinOk.textContent=`✓ You're already a member of "${existing.name}".`;
+        joinOk.style.display='block';
+        setTimeout(()=>{closeModal();render();},1400); return;
+      }
+      const reqs:any[] = existing.join_requests||[];
+      if(reqs.some((r:any)=>r.userId===myId)) {
+        joinOk.textContent=`📨 Join request already pending for "${existing.name}".`;
+        joinOk.style.display='block'; return;
+      }
+      if(!existing.join_requests) existing.join_requests=[];
+      existing.join_requests.push({userId:myId,ts:Date.now()});
+      if(!existing.activityLog) existing.activityLog=[];
+      existing.activityLog.unshift({ts:Date.now(),action:'join_request_sent',userId:myId,detail:`${myId} requested to join`});
+      saveComms(comms);
+      joinOk.textContent=`📨 Join request sent to "${existing.name}". An admin must approve.`;
+      joinOk.style.display='block';
+      setTimeout(()=>closeModal(),2200); return;
+    }
+    const stub:any={
+      id:code, name:`Community ${code}`, description:'Joined via community code',
+      members:[{id:myId,role:'member'}], join_requests:[],
+      activityLog:[{ts:Date.now(),action:'member_joined',userId:myId,detail:`${myId} joined via code`}],
+      disappearingMessages:'off', created:new Date().toISOString(), isJoined:true,
+    };
+    comms.push(stub); saveComms(comms);
+    joinOk.textContent=`✓ Joined ${code} — community added to your list.`;
+    joinOk.style.display='block';
+    setTimeout(()=>{closeModal();render();},1400);
+  });
+
+  joinInput?.addEventListener('keydown',(e:KeyboardEvent)=>{
+    if(e.key==='Enter') document.getElementById('join-confirm')?.click();
+    if(e.key==='Escape') closeModal();
+  });
+
+  render();
+})();
+</script>
+</BaseLayout>
