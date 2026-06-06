@@ -66,9 +66,8 @@ def _get_redis() -> Any | None:
 def _check_dpa_coverage(tenant_id: str) -> tuple[bool, Gap | None]:
     """GDPR-01: all AI vendors have a signed DPA."""
     try:
-        from warden.vendor_gov.registry import VendorRegistry
-        reg = VendorRegistry()
-        vendors = reg.list_vendors(tenant_id) if hasattr(reg, "list_vendors") else []
+        from warden.vendor_gov.registry import list_vendors
+        vendors = list_vendors(tenant_id)
         missing = [v for v in vendors if not getattr(v, "dpa_signed", True)]
         if missing:
             return False, Gap(
@@ -140,8 +139,11 @@ def _check_doc_intel_active() -> tuple[bool, Gap | None]:
 def _check_secret_rotation() -> tuple[bool, Gap | None]:
     """GDPR-04: no secrets are past their rotation deadline."""
     try:
-        from warden.secrets_gov.lifecycle import get_expiring_secrets
-        expiring = get_expiring_secrets(within_days=30)
+        from warden.secrets_gov.lifecycle import LifecycleManager
+        from warden.secrets_gov.inventory import SecretsInventory
+        mgr = LifecycleManager(SecretsInventory())
+        sched = mgr.get_rotation_schedule(tenant_id="default", interval_days=30)
+        expiring = sched
         if expiring:
             return False, Gap(
                 control_id="GDPR-04",
@@ -213,7 +215,7 @@ def _check_notifications() -> tuple[bool, Gap | None]:
 def _check_fido2() -> tuple[bool, Gap | None]:
     """SOC2-03: FIDO2 / MFA is available for administrative actions."""
     try:
-        from warden.auth.fido import is_fido2_enabled  # type: ignore[import]
+        from warden.auth.fido import is_fido2_enabled  # type: ignore[import,attr-defined]
         if is_fido2_enabled():
             return True, None
     except Exception:
@@ -305,8 +307,8 @@ def _check_training_records(tenant_id: str) -> tuple[bool, Gap | None]:
 def _check_supplier_risk(tenant_id: str) -> tuple[bool, Gap | None]:
     """ISO-03: supplier AI risk assessments are documented."""
     try:
-        from warden.communities.supplier_risk import get_supplier_report
-        report = get_supplier_report(community_id=tenant_id)
+        from warden.communities.supplier_risk import get_community_supplier_report
+        report = get_community_supplier_report(community_id=tenant_id)
         if report and report.get("total", 0) > 0:
             return True, None
     except Exception as exc:
