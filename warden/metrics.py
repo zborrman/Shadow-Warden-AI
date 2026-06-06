@@ -439,6 +439,18 @@ try:
             "warden_doc_intel_cache_hits_total"
         )
 
+    # ── Mobile SOC push notifications (MO-01) ──────────────────────────────────
+    try:
+        PUSH_NOTIFICATIONS_SENT = Counter(
+            "warden_push_notifications_sent_total",
+            "FCM push notifications successfully delivered to mobile SOC devices",
+            ["risk_level"],
+        )
+    except ValueError:
+        PUSH_NOTIFICATIONS_SENT = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_push_notifications_sent_total"
+        )
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -488,3 +500,4 @@ except ImportError:
     DOC_INTEL_CONVERT_TOTAL         = _Noop()  # type: ignore[assignment]
     DOC_INTEL_CONVERT_ERRORS_TOTAL  = _Noop()  # type: ignore[assignment]
     DOC_INTEL_CACHE_HITS_TOTAL      = _Noop()  # type: ignore[assignment]
+    PUSH_NOTIFICATIONS_SENT         = _Noop()  # type: ignore[assignment]

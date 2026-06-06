@@ -1371,6 +1371,13 @@ except ImportError:
     log.warning("doc_converter router not available — /doc-converter routes skipped.")
 
 try:
+    from warden.api.push import router as _push_router
+    app.include_router(_push_router)
+    log.info("Mobile SOC push notification API mounted at /push (MO-01)")
+except ImportError:
+    log.warning("push router not available — /push routes skipped.")
+
+try:
     from warden.document_intel.api import router as _doc_intel_router
     app.include_router(_doc_intel_router)
     log.info("Document Intelligence (MarkItDown) mounted at /document-intel (FE-50)")
@@ -2390,6 +2397,19 @@ async def _run_filter_pipeline(
                 risk_level   = guard_result.risk_level.value,
                 rule_summary = reason,
                 request_id   = rid,
+            )
+        except ImportError:
+            pass
+        # Mobile SOC push notifications (MO-01)
+        try:
+            from warden.alerting import alert_push_verdict
+            background_tasks.add_task(
+                alert_push_verdict,
+                tenant_id    = tenant_id,
+                risk_level   = guard_result.risk_level.value,
+                attack_type  = top_flag.flag.value if top_flag else "unknown",
+                request_id   = rid,
+                rule_summary = reason,
             )
         except ImportError:
             pass

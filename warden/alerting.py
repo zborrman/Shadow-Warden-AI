@@ -328,3 +328,30 @@ async def _send_telegram(text: str) -> None:
         resp = await client.post(url, json=payload)
         resp.raise_for_status()
     log.debug("Telegram alert sent")
+
+
+async def alert_push_verdict(
+    tenant_id:    str,
+    risk_level:   str,
+    attack_type:  str,
+    request_id:   str,
+    rule_summary: str = "",
+) -> None:
+    """Send FCM push notification to registered SOC mobile devices (MO-01)."""
+    try:
+        from warden.push.registry import get_tokens_for_tenant
+        from warden.push.service  import get_push_service
+
+        tokens = get_tokens_for_tenant(tenant_id)
+        if not tokens:
+            return
+
+        get_push_service().send_verdict_alert(tokens, {
+            "risk_level":   risk_level,
+            "attack_type":  attack_type,
+            "request_id":   request_id,
+            "rule_summary": rule_summary,
+            "tenant_id":    tenant_id,
+        })
+    except Exception as exc:
+        log.debug("push notification failed (fail-open): %s", exc)

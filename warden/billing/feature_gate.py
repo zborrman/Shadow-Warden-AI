@@ -204,6 +204,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "github_actions_scan_enabled": False,
         "compliance_scoring_enabled":  False,
         "iso27001_enabled":            False,
+        "mobile_push_enabled":         False,
     },
 
     "individual": {
@@ -263,6 +264,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "github_actions_scan_enabled": False,
         "compliance_scoring_enabled":  False,
         "iso27001_enabled":            False,
+        "mobile_push_enabled":         False,
     },
 
     "pro": {
@@ -322,6 +324,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Pro+)
         "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Pro+)
         "iso27001_enabled":            False,  # ← ISO 27001 Annex A mapping is Enterprise-only
+        "mobile_push_enabled":         True,   # ← Mobile SOC push alerts (Pro+)
     },
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
@@ -392,6 +395,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "github_actions_scan_enabled": False,
         "compliance_scoring_enabled":  False,
         "iso27001_enabled":            False,
+        "mobile_push_enabled":         False,
     },
 
     "enterprise": {
@@ -451,6 +455,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Enterprise)
         "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Enterprise)
         "iso27001_enabled":            True,   # ← ISO 27001:2022 Annex A control mapping (Enterprise)
+        "mobile_push_enabled":         True,   # ← Mobile SOC push alerts (Enterprise)
     },
 }
 

@@ -1761,5 +1761,15 @@
     "version": "v5.5",
     "tier": "Pro+",
     "status": "shipped"
+  },
+  {
+    "id": "MO-01",
+    "category": "Cyber Security",
+    "subcategory": "Agentic SOC",
+    "feature": "Mobile SOC App — React Native push alerts for HIGH/BLOCK verdicts",
+    "description": "iOS + Android React Native app for on-the-go SOC operators. FCM/APNs push alerts fire on every HIGH/BLOCK verdict via the SOVA alerting pipeline. Alert feed, detail view with 9-stage XAI pipeline, one-tap deep-link to full XAI report. Device token registry (SQLite, max 50/tenant). Prometheus counter for delivered notifications.",
+    "version": "v5.6",
+    "tier": "Pro+",
+    "status": "shipped"
   }
 ]

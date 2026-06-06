@@ -90,6 +90,7 @@ Autonomous AI operators that monitor, respond, and self-heal.
 | AG-26 | SOVA tool #50 — `scan_document` (base64 file → MarkItDown → full FilterResponse via /filter hook) | v5.4 | Pro+ | ✅ |
 | AG-27 | SOVA tool #51 — `get_compliance_report` (live GDPR/SOC2/ISO27001/HIPAA posture + gap list) | v5.5 | Pro+ | ✅ |
 | AG-28 | SOVA tool #52 — `remediate_gap` (acknowledge fix, invalidate posture cache, return updated score) | v5.5 | Pro+ | ✅ |
+| MO-01 | Mobile SOC App — React Native (iOS + Android), FCM/APNs push alerts for HIGH/BLOCK; alert feed, 9-stage XAI detail, one-tap deep-link; SQLite device registry (50/tenant); `warden/push/` backend; `mobile_push_enabled` Pro+ gate | v5.6 | Pro+ | ✅ |
 
 ---
 
@@ -475,4 +476,5 @@ Continuous self-improvement and threat intelligence synthesis.
 | **v5.3** | **2026-06-05** | **GitHub Actions CI gate (IN-15): composite action + pre-commit hook, 93-control scan, PR comment, 90-day audit; ISO 27001:2022 Annex A full mapping (CP-22): 93 controls × 4 themes, HTML report, Streamlit + SOC drilldown, Enterprise gate; Continuous Compliance Scoring (CP-25): 5-standard posture, 168-snapshot ring buffer, 30s auto-refresh, Streamlit + SOC page, Pro+ gate; lint fixes: ruff I001/F401/SIM105/SIM117/B904/N812/C408/B007/E401** |
 | **v5.4** | **2026-06-06** | **Document Intelligence (FE-50, SP-25, AG-26): MarkItDown converter — file-type TTLs (PDF 24h/audio 7d/images 1h), 50 MB gate, 30s thread timeout, SHA-256 Redis cache; 6 `/document-intel/*` endpoints; `file_base64` filter hook in POST /filter (fail-open); Prometheus counters × 3; SOVA tool #50 `scan_document`; Portal `/doc-scanner/` + server proxy; Streamlit page 19; Site `/cyber-security/document-intelligence`; 10 tests green** |
 | **v5.5** | **2026-06-06** | **Real-time Compliance Gap Dashboard (CP-30, AG-27/28): `CompliancePostureService` — 19 controls (GDPR/SOC2/ISO27001/HIPAA), all checks fail-safe; Redis cache 5min TTL + Pub/Sub; 4 new `/compliance/*` endpoints; WebSocket `/compliance/ws`; SOVA tools #51 `get_compliance_report` + #52 `remediate_gap`; Portal `/compliance/` SVG score ring + gap list + "Fix →" deep-links; Streamlit 5-tab gap manager; 28 compliance tests (16 CP-25 + 12 CP-30)** |
-| v5.6 | Q3 2026 | Real-time Document Firehose (Google Drive/SharePoint), Pub/Sub-driven compliance invalidation, BI Dashboard Next.js page, Terraform cloud deploy |
+| **v5.6** | **2026-06-06** | **Mobile SOC App (MO-01): React Native iOS/Android, FCM/APNs push for HIGH/BLOCK, alert feed + XAI detail screen, SQLite device registry (50/tenant), `warden/push/` backend, `mobile_push_enabled` Pro+ gate, Prometheus counter, 9 tests green** |
+| v5.7 | Q3 2026 | Real-time Document Firehose (Google Drive/SharePoint), Pub/Sub-driven compliance invalidation, BI Dashboard Next.js page, Terraform cloud deploy |
