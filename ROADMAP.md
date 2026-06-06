@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 5.2 · Last updated 2026-05-31**
+**Version 5.5 · Last updated 2026-06-06**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -52,6 +52,7 @@ The 9-layer filter that processes every AI request in < 2ms.
 | SP-22 | Multi-modal content guard — image prompt injection detection | v4.22 | Pro+ | ✅ |
 | SP-23 | Audio/video transcription guard — Whisper pre-scan before LLM | v5.0 | Enterprise | 📋 |
 | SP-24 | Fine-tuned ONNX model export — <1ms inference, eliminates MiniLM cold start | v4.21 | All | ✅ |
+| SP-25 | Document Intelligence filter hook — `file_base64` + `file_filename` on `FilterRequest`; MarkItDown converts file to Markdown before 9-layer pipeline (fail-open) | v5.4 | All | ✅ |
 
 ---
 
@@ -86,6 +87,9 @@ Autonomous AI operators that monitor, respond, and self-heal.
 | AG-23 | MasterAgent sub-agent #5 — DataPrivacyAgent (GDPR ROPA/DPIA, retention, PII governance) | v4.21 | Enterprise | ✅ |
 | AG-24 | SOVA memory expansion — vector search (pgvector) over past conversations | v4.22 | Pro+ | ✅ |
 | AG-25 | Voice-activated SOC operator — WebRTC audio → Whisper → SOVA → TTS response | v5.0 | Enterprise | 📋 |
+| AG-26 | SOVA tool #50 — `scan_document` (base64 file → MarkItDown → full FilterResponse via /filter hook) | v5.4 | Pro+ | ✅ |
+| AG-27 | SOVA tool #51 — `get_compliance_report` (live GDPR/SOC2/ISO27001/HIPAA posture + gap list) | v5.5 | Pro+ | ✅ |
+| AG-28 | SOVA tool #52 — `remediate_gap` (acknowledge fix, invalidate posture cache, return updated score) | v5.5 | Pro+ | ✅ |
 
 ---
 
@@ -158,8 +162,8 @@ Connectors that bring Shadow Warden into existing developer and analyst workflow
 | IN-20 | Zapier / Make connector — webhook trigger + filter action blocks | v4.21 | Individual+ | ✅ |
 | IN-21 | OpenTelemetry SDK library — `WardenSpanProcessor` for any OTel-enabled app | v4.21 | Pro+ | ✅ |
 | IN-22 | MISP syslog bridge — ZMQ SUB socket + HTTP poll fallback, topic `misp_json` | v4.21 | Pro+ | ✅ |
-| IN-25 | SMB AI Governance Suite — single-wizard provisioning of all 7 modules | v4.29 | Community+ | 📋 |
-| CM-39 | Business Intelligence Module — 8-category analytics: usage, threats, vendors, costs, compliance, benchmarks, predictions, reports | v4.30 | Community+ | 📋 |
+| IN-25 | SMB AI Governance Suite — single-wizard provisioning of all 7 modules | v4.29 | Community+ | ✅ |
+| CM-39 | Business Intelligence Module — 8-category analytics: usage, threats, vendors, costs, compliance, benchmarks, predictions, reports | v4.30 | Community+ | ✅ |
 
 ---
 
@@ -195,6 +199,7 @@ Everything needed for regulated industries (GDPR, SOC 2, HIPAA, ISO 27001).
 | CP-24 | NIS2 Directive compliance report | v4.21 | Enterprise | ✅ |
 | CP-25 | Continuous compliance scoring dashboard — 30s auto-refresh, 168-snapshot ring buffer, 5-standard SVG gauge, timeline chart, Streamlit + SOC dashboard pages | v5.3 | Pro+ | ✅ |
 | CP-26 | Data retention policy enforcement — tenant-configurable per data_class TTL | v4.21 | Community+ | ✅ |
+| CP-30 | Real-time Compliance Gap Dashboard — `CompliancePostureService` aggregates 19 controls (GDPR/SOC2/ISO27001/HIPAA) from Vendor Gov + Incidents + Secrets + Doc Intel + STIX + Training; per-gap remediation guidance; Redis cache (5min); Pub/Sub invalidation; WebSocket `/compliance/ws`; 4 new endpoints; portal self-service page; Streamlit 5-tab gap manager; SOVA tools #51 + #52 | v5.5 | Pro+ | ✅ |
 
 ---
 
@@ -360,9 +365,9 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-19 | Request overage billing — ARQ monthly cron, Pro $0.50/1k, Enterprise $0.10/1k | v4.21 | Pro+ | ✅ |
 | BL-20 | Add-on: Obsidian Business Pack — bundled plugin features +$8/mo | v4.21 | Individual+ | ✅ |
 | BL-21 | Marketplace listing — AWS / Azure / Google Cloud Marketplace | v5.0 | Enterprise | 📋 |
-| BL-22 | AI Vendor Governance Register — DPA tracking + expiry alerts | v4.23 | Individual+ | 📋 |
-| BL-23 | AI Cost Allocation — per-department/vendor spend tracking | v4.24 | Community+ | 📋 |
-| BL-24 | AI Budget Dashboard — real-time spend + approval workflow | v4.24 | Community+ | 📋 |
+| BL-22 | AI Vendor Governance Register — DPA tracking + expiry alerts | v4.23 | Individual+ | ✅ |
+| BL-23 | AI Cost Allocation — per-department/vendor spend tracking | v4.24 | Community+ | ✅ |
+| BL-24 | AI Budget Dashboard — real-time spend + approval workflow | v4.24 | Community+ | ✅ |
 
 ---
 
@@ -468,5 +473,6 @@ Continuous self-improvement and threat intelligence synthesis.
 | **v5.1** | **2026-05-29** | **Semantic Layer Headless BI (FE-42), Settings Hub (FE-43), site 15-layer refresh, /roadmap page, CI lint+mypy 0-error** |
 | **v5.2** | **2026-05-31** | **AI Analytics Hub (FE-47): 9 semantic models, Redis cache, SOVA tools; Commerce Budget Guardian (FE-48): Semantic Layer–backed AP2 pre-flight; Self-Service Catalog (FE-49): tenant model registration; /analytics landing page** |
 | **v5.3** | **2026-06-05** | **GitHub Actions CI gate (IN-15): composite action + pre-commit hook, 93-control scan, PR comment, 90-day audit; ISO 27001:2022 Annex A full mapping (CP-22): 93 controls × 4 themes, HTML report, Streamlit + SOC drilldown, Enterprise gate; Continuous Compliance Scoring (CP-25): 5-standard posture, 168-snapshot ring buffer, 30s auto-refresh, Streamlit + SOC page, Pro+ gate; lint fixes: ruff I001/F401/SIM105/SIM117/B904/N812/C408/B007/E401** |
-| **v5.4** | **2026-06-06** | **Document Intelligence (FE-50): MarkItDown integration, /document-intel API (5 endpoints), /doc-converter community API, file_base64 filter hook in POST /filter, Redis cache (DOC_INTEL_CACHE_TTL), Streamlit Document Scanner page 19, 10-test suite** |
-| v5.5 | Q3 2026 | Metric Alerts, Dashboard Builder, Federated Query |
+| **v5.4** | **2026-06-06** | **Document Intelligence (FE-50, SP-25, AG-26): MarkItDown converter — file-type TTLs (PDF 24h/audio 7d/images 1h), 50 MB gate, 30s thread timeout, SHA-256 Redis cache; 6 `/document-intel/*` endpoints; `file_base64` filter hook in POST /filter (fail-open); Prometheus counters × 3; SOVA tool #50 `scan_document`; Portal `/doc-scanner/` + server proxy; Streamlit page 19; Site `/cyber-security/document-intelligence`; 10 tests green** |
+| **v5.5** | **2026-06-06** | **Real-time Compliance Gap Dashboard (CP-30, AG-27/28): `CompliancePostureService` — 19 controls (GDPR/SOC2/ISO27001/HIPAA), all checks fail-safe; Redis cache 5min TTL + Pub/Sub; 4 new `/compliance/*` endpoints; WebSocket `/compliance/ws`; SOVA tools #51 `get_compliance_report` + #52 `remediate_gap`; Portal `/compliance/` SVG score ring + gap list + "Fix →" deep-links; Streamlit 5-tab gap manager; 28 compliance tests (16 CP-25 + 12 CP-30)** |
+| v5.6 | Q3 2026 | Real-time Document Firehose (Google Drive/SharePoint), Pub/Sub-driven compliance invalidation, BI Dashboard Next.js page, Terraform cloud deploy |
