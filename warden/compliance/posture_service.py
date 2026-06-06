@@ -139,8 +139,8 @@ def _check_doc_intel_active() -> tuple[bool, Gap | None]:
 def _check_secret_rotation() -> tuple[bool, Gap | None]:
     """GDPR-04: no secrets are past their rotation deadline."""
     try:
-        from warden.secrets_gov.lifecycle import LifecycleManager
         from warden.secrets_gov.inventory import SecretsInventory
+        from warden.secrets_gov.lifecycle import LifecycleManager
         mgr = LifecycleManager(SecretsInventory())
         sched = mgr.get_rotation_schedule(tenant_id="default", interval_days=30)
         expiring = sched
