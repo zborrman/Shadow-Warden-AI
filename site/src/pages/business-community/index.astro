@@ -1,414 +1,669 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import roadmapRaw from '../../data/roadmap.json';
+
+const bcFeatures = (roadmapRaw as any[]).filter(f => f.category === 'Business Community');
+
+const moduleConfig = [
+  {
+    id: 'sep', icon: '◈', title: 'SEP / UECIID', color: '#BF5AF2', tint: 'rgba(191,90,242,0.1)',
+    desc: 'Cryptographic entity IDs, inter-community peering, Knock invitations, sovereign data pods, and STIX 2.1 audit chain.',
+    ids: ['CM-01','CM-02','CM-03','CM-04','CM-05','CM-09'],
+  },
+  {
+    id: 'pqc', icon: '🛡', title: 'Post-Quantum Crypto', color: '#6366f1', tint: 'rgba(99,102,241,0.1)',
+    desc: 'HybridSigner Ed25519+ML-DSA-65 and HybridKEM X25519+ML-KEM-768. Enterprise-grade FIPS 204/203 compliance.',
+    ids: [],
+    extra: 4,
+  },
+  {
+    id: 'governance', icon: '🏛', title: 'Governance & Intel', color: '#6366f1', tint: 'rgba(99,102,241,0.1)',
+    desc: 'Versioned community charter, Z-score behavioral anomaly detection, intelligence reports, OAuth agent discovery.',
+    ids: ['CM-05','CM-06','CM-07','CM-08'],
+  },
+  {
+    id: 'smb', icon: '🏢', title: 'SMB Governance Suite', color: '#10b981', tint: 'rgba(16,185,129,0.1)',
+    desc: 'Eight-module governance toolkit: vendor DPA tracking, cost allocation, budget dashboard, incident register, supplier risk, prompt library, training records, suite wizard.',
+    ids: ['CM-35','CM-36','CM-37','CM-38','IN-25'],
+  },
+  {
+    id: 'secrets', icon: '🔑', title: 'Secrets Governance', color: '#f59e0b', tint: 'rgba(245,158,11,0.1)',
+    desc: 'Multi-vault connectors (AWS SM, Azure KV, HashiCorp, GCP SM), SQLite inventory, policy engine, lifecycle rotation alerts.',
+    ids: [],
+    extra: 4,
+  },
+  {
+    id: 'obsidian', icon: '📔', title: 'Obsidian Integration', color: '#BF5AF2', tint: 'rgba(191,90,242,0.1)',
+    desc: 'Auto-scan notes on modify, data class inference, SEP share with UECIID provenance, XAI pipeline sidebar, offline queue.',
+    ids: ['IN-01'],
+    extra: 10,
+  },
+  {
+    id: 'bi', icon: '📊', title: 'Business Intelligence', color: '#06b6d4', tint: 'rgba(6,182,212,0.1)',
+    desc: 'Eight analytics functions, OLS trend predictions, community benchmarking, 15-min SQLite cache, PDF report builder.',
+    ids: ['CM-39'],
+    extra: 7,
+  },
+  {
+    id: 'semantic', icon: '⬡', title: 'Semantic Layer', color: '#06b6d4', tint: 'rgba(6,182,212,0.1)',
+    desc: 'Nine built-in BI models, deterministic SQL generator, self-service tenant catalog, Redis query cache, AI query endpoint.',
+    ids: [],
+    extra: 5,
+  },
+  {
+    id: 'commerce', icon: '⚡', title: 'Agentic Commerce', color: '#f97316', tint: 'rgba(249,115,22,0.1)',
+    desc: 'UCP/AP2/MCP procurement protocols, multi-agent auction, FIDO2 passkeys, Web3 mandate contract, Commerce Budget Guardian.',
+    ids: ['CM-40','CM-41','CM-42','CM-43','CM-44'],
+  },
+  {
+    id: 'docintel', icon: '📄', title: 'Document Intelligence', color: '#ec4899', tint: 'rgba(236,72,153,0.1)',
+    desc: 'MarkItDown converter with SHA-256 Redis cache, data class inference, 50 MB gate, community doc-converter endpoint.',
+    ids: [],
+    extra: 6,
+  },
+  {
+    id: 'compliance', icon: '✅', title: 'Compliance Dashboard', color: '#10b981', tint: 'rgba(16,185,129,0.1)',
+    desc: '19 controls across GDPR/SOC2/ISO27001/HIPAA, real-time gap manager, WebSocket push, SOVA remediation tools.',
+    ids: [],
+    extra: 5,
+  },
+] as const;
+
+const modules = moduleConfig.map(m => ({
+  ...m,
+  count: bcFeatures.filter(f => (m.ids as readonly string[]).includes(f.id)).length + ('extra' in m ? (m as any).extra : 0),
+}));
+
+const allBcJson = JSON.stringify(bcFeatures);
 ---
-<BaseLayout title="Business Community — Shadow Warden AI">
+
+<BaseLayout
+  title="Business Community — Shadow Warden AI"
+  description="70+ features: federated entity IDs, post-quantum crypto, SMB governance suite, business intelligence, agentic commerce and compliance — all in one ecosystem."
+>
   <div class="pt-14">
 
     <!-- ── Hero ── -->
-    <section class="relative py-20 overflow-hidden">
+    <section class="relative py-24 overflow-hidden">
       <div class="absolute inset-0 pointer-events-none"
-           style="background-image:linear-gradient(rgba(139,92,246,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.03) 1px,transparent 1px);background-size:56px 56px"></div>
-      <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[900px] h-[500px] pointer-events-none"
-           style="background:radial-gradient(ellipse,rgba(139,92,246,0.08) 0%,transparent 65%)"></div>
-
+           style="background-image:linear-gradient(rgba(139,92,246,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.04) 1px,transparent 1px);background-size:56px 56px"></div>
+      <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[1000px] h-[560px] pointer-events-none"
+           style="background:radial-gradient(ellipse,rgba(139,92,246,0.1) 0%,transparent 65%)"></div>
       <div class="relative z-10 mx-auto max-w-5xl px-6 text-center">
         <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
              style="color:#BF5AF2;background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.2)">
           <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#BF5AF2"></span>
-          Federated Knowledge Networks
+          Business Community Ecosystem
         </div>
         <h1 class="text-[clamp(36px,5vw,68px)] font-black leading-[1.05] tracking-tight mb-5" style="color:#f1f5f9">
           Secure AI Communities<br/>
           <span style="background:linear-gradient(135deg,#BF5AF2,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
-            Built to Trust
+            Built for Business
           </span>
         </h1>
-        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-8" style="color:#94a3b8">
-          Federated knowledge networks with cryptographic identity, sovereign data residency,
-          tamper-evident STIX 2.1 audit chains, and post-quantum keypairs.
+        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-10" style="color:#94a3b8">
+          70+ features across 11 modules — federated entity IDs, post-quantum cryptography,
+          SMB governance, agentic commerce, and real-time compliance — all in one ecosystem.
         </p>
         <div class="flex flex-wrap items-center justify-center gap-3">
-          <a href="/community" class="btn-primary text-[14px] px-6 py-3">Open Community Portal</a>
-          <a href="/doc/quick-start" class="btn-ghost text-[14px] px-6 py-3">Read the Docs</a>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Feature grid ── -->
-    <section class="py-20">
-      <div class="mx-auto max-w-7xl px-4 lg:px-8">
-        <div class="text-center mb-12">
-          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
-            Nine pillars of community trust
-          </h2>
-          <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
-            Every feature built to production-grade cryptographic standards.
-          </p>
-        </div>
-
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5 stagger-grid">
-          {[
-            {
-              icon: '◈', title: 'SEP / UECIID', tier: 'Community Business',
-              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
-              desc: 'Snowflake-based entity IDs encoded as SEP-{11 base-62 chars}. Lexicographic order matches chronological order. Cross-community entity portability without plaintext exposure.',
-              bullets: ['64-bit Snowflake → base-62', 'SEP-{11} lexicographic sort', 'SQLite index + search', 'Sovereign pod tag per entity'],
-            },
-            {
-              icon: '⇄', title: 'Inter-Community Peering', tier: 'Community Business',
-              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
-              desc: 'HMAC-SHA256 handshake establishes a peering channel with one of three data-flow policies. Transfers are Causal-Arbiter-gated to block exfiltration.',
-              bullets: ['MIRROR_ONLY / REWRAP / FULL_SYNC', 'HMAC handshake token', 'Causal Transfer Guard <20ms', 'Duplicate peering guard'],
-            },
-            {
-              icon: '🚪', title: 'Knock-and-Verify', tier: 'Community Business',
-              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
-              desc: '72h Redis-backed one-time invitation tokens. Verifier asserts the invitee tenant ID before accepting. Prevents replay and cross-tenant impersonation.',
-              bullets: ['72h Redis TTL', 'One-time use token', 'Tenant-ID assertion', 'Revoke at any time'],
-            },
-            {
-              icon: '🏛️', title: 'Sovereign Data Pods', tier: 'Pro',
-              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
-              desc: 'Per-jurisdiction MinIO routing across 8 regions. Entity data-class tags determine pod assignment. Fernet-encrypted secret keys. Compliance with EU, US, UK, CA, SG, AU, JP, CH regulations.',
-              bullets: ['8 jurisdiction registry', 'Fernet-encrypted keys', 'data_class routing', 'Pod health probing'],
-            },
-            {
-              icon: '⛓️', title: 'STIX 2.1 Audit Chain', tier: 'Pro',
-              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
-              desc: 'Blockchain-style SHA-256 prev_hash linkage on every transfer event, including REJECTED ones. Tamper-evident ledger exportable as OASIS STIX 2.1 JSONL for SIEM import.',
-              bullets: ['SHA-256 chain (genesis: "0"×64)', 'REJECTED transfers included', 'verify_chain() re-hashes', 'JSONL SIEM export'],
-            },
-            {
-              icon: '🔐', title: 'Post-Quantum Keypairs', tier: 'Enterprise',
-              color: '#ec4899', tint: 'rgba(236,72,153,0.08)',
-              desc: 'HybridSigner (Ed25519 + ML-DSA-65 FIPS 204) and HybridKEM (X25519 + ML-KEM-768 FIPS 203). Classical still works when liboqs-python not installed — fail-open by design.',
-              bullets: ['Ed25519 + ML-DSA-65', 'X25519 + ML-KEM-768', 'liboqs fail-open guard', 'Upgrade existing keypairs'],
-            },
-            {
-              icon: '🏅', title: 'Reputation Engine', tier: 'Community Business',
-              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
-              desc: 'Five-tier badge system from NEWCOMER to ELITE based on contribution activity, transfer history, and behavioral score. Community leaderboard auto-computed on every sync.',
-              bullets: ['NEWCOMER → ELITE (5 tiers)', 'Z-score anomaly detection', '30-day rolling baseline', 'Per-community leaderboard'],
-            },
-            {
-              icon: '📔', title: 'Obsidian Plugin', tier: 'Community Business',
-              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
-              desc: 'Auto-scans notes on modify, classifies data class from frontmatter + content, redacts secrets inline, and shares approved notes as SEP entities. XAI pipeline visualization in-sidebar.',
-              bullets: ['Auto-scan on modify', 'Data class inference', 'SEP share → UECIID', 'XAI 4-stage sidebar'],
-            },
-            {
-              icon: '📜', title: 'Charter & Governance', tier: 'Pro',
-              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
-              desc: 'Versioned governance documents (DRAFT → ACTIVE → SUPERSEDED). Member acceptance tracking. Z-score behavioral anomaly detection. OAuth agent discovery with scope-based risk scoring.',
-              bullets: ['Versioned charter lifecycle', 'Member acceptance tracking', 'OAuth 14-provider catalog', 'ALLOW / MONITOR / BLOCK'],
-            },
-          ].map(f => (
-            <div class="rounded-2xl p-6 transition-all duration-200"
-                 style={`background:#111118;border:1px solid rgba(255,255,255,0.07)`}>
-              <div class="flex items-start gap-3 mb-4">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] flex-shrink-0"
-                     style={`background:${f.tint};color:${f.color}`}>{f.icon}</div>
-                <div>
-                  <div class="text-[15px] font-semibold mb-1" style="color:#f1f5f9">{f.title}</div>
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md"
-                        style={`color:${f.color};background:${f.tint}`}>{f.tier}</span>
-                </div>
-              </div>
-              <p class="text-[13px] leading-relaxed mb-4" style="color:#64748b">{f.desc}</p>
-              <ul class="space-y-1">
-                {f.bullets.map(b => (
-                  <li class="flex items-center gap-2 text-[12px]" style="color:#475569">
-                    <span style={`color:${f.color}`}>›</span> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Peering ring diagram ── -->
-    <section class="py-20 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
-      <div class="mx-auto max-w-4xl px-4 lg:px-8 text-center">
-        <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-bold mb-3" style="color:#f1f5f9">
-          Federated peering topology
-        </h2>
-        <p class="text-[14px] mb-10" style="color:#64748b">
-          Communities peer through HMAC-verified handshakes. Data flows only under the agreed policy.
-        </p>
-
-        <svg viewBox="0 0 520 300" class="w-full max-w-lg mx-auto" aria-hidden="true">
-          <!-- Connector arcs -->
-          <path d="M 140 150 Q 260 60 380 150"  stroke="rgba(191,90,242,0.35)" stroke-width="1.5" fill="none" stroke-dasharray="5,4"/>
-          <path d="M 140 150 Q 260 240 380 150" stroke="rgba(99,102,241,0.35)"  stroke-width="1.5" fill="none" stroke-dasharray="5,4"/>
-          <path d="M 140 150 L 380 150"         stroke="rgba(236,72,153,0.3)"  stroke-width="1" fill="none" stroke-dasharray="3,5"/>
-          <!-- Policy labels -->
-          <text x="260" y="98"  text-anchor="middle" font-size="9" fill="#BF5AF2" font-family="monospace">MIRROR_ONLY</text>
-          <text x="260" y="218" text-anchor="middle" font-size="9" fill="#6366f1" font-family="monospace">FULL_SYNC</text>
-          <text x="260" y="145" text-anchor="middle" font-size="9" fill="#ec4899" font-family="monospace">REWRAP_ALLOWED</text>
-          <!-- Community nodes -->
-          <circle cx="140" cy="150" r="46" fill="rgba(191,90,242,0.07)" stroke="rgba(191,90,242,0.3)" stroke-width="1.5"/>
-          <text x="140" y="144" text-anchor="middle" font-size="20" fill="#BF5AF2">◈</text>
-          <text x="140" y="162" text-anchor="middle" font-size="9" fill="#BF5AF2" font-family="monospace">COMM-A</text>
-          <text x="140" y="174" text-anchor="middle" font-size="8" fill="#475569">12 members</text>
-
-          <circle cx="380" cy="150" r="46" fill="rgba(99,102,241,0.07)" stroke="rgba(99,102,241,0.3)" stroke-width="1.5"/>
-          <text x="380" y="144" text-anchor="middle" font-size="20" fill="#6366f1">◈</text>
-          <text x="380" y="162" text-anchor="middle" font-size="9" fill="#6366f1" font-family="monospace">COMM-B</text>
-          <text x="380" y="174" text-anchor="middle" font-size="8" fill="#475569">8 members</text>
-
-          <!-- Causal Transfer Guard badge -->
-          <rect x="202" y="130" width="116" height="22" rx="5" fill="rgba(16,185,129,0.08)" stroke="rgba(16,185,129,0.2)" stroke-width="1"/>
-          <text x="260" y="144" text-anchor="middle" font-size="8.5" fill="#10b981" font-family="monospace">✓ Causal Guard &lt;20ms</text>
-        </svg>
-      </div>
-    </section>
-
-    <!-- ── SEP / UECIID explainer ── -->
-    <section class="py-20">
-      <div class="mx-auto max-w-5xl px-4 lg:px-8">
-        <div class="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-[11px] font-semibold"
-                 style="color:#BF5AF2;background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.2)">
-              ◈ SEP Entity Identity
-            </div>
-            <h2 class="text-[clamp(1.4rem,2.8vw,2.1rem)] font-bold mb-4 leading-tight" style="color:#f1f5f9">
-              Every entity gets a<br/>cryptographic passport
-            </h2>
-            <p class="text-[14px] leading-relaxed mb-6" style="color:#64748b">
-              UECIIDs (Unified Entity Community Identity IDs) encode a 64-bit Snowflake timestamp
-              into 11 base-62 characters. The result is sortable, URL-safe, and globally unique
-              across all federated communities.
-            </p>
-            <div class="space-y-3">
-              {[
-                ['Snowflake epoch', '2024-01-01T00:00:00Z · microsecond precision'],
-                ['Base-62 alphabet', '0-9A-Za-z · case-sensitive · 11 characters'],
-                ['Lexicographic order', 'equals chronological order — no secondary sort needed'],
-                ['Cross-community', 'source UECIID preserved on peering transfer'],
-              ].map(([k, v]) => (
-                <div class="flex gap-3">
-                  <span class="text-[11px] font-bold mt-0.5 px-2 py-0.5 rounded h-fit"
-                        style="color:#BF5AF2;background:rgba(191,90,242,0.08);white-space:nowrap">{k}</span>
-                  <span class="text-[13px]" style="color:#64748b">{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div class="rounded-2xl p-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
-            <div class="text-[11px] font-bold mb-4 tracking-widest uppercase" style="color:#475569">
-              UECIID format
-            </div>
-            <div class="text-center mb-6">
-              <div class="inline-block px-4 py-3 rounded-xl font-mono text-[22px] font-bold tracking-wider"
-                   style="color:#BF5AF2;background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.2)">
-                SEP-0Xk4aB7mN2p
-              </div>
-            </div>
-            <div class="space-y-3">
-              {[
-                { label: 'Prefix',     val: 'SEP-',         color: '#475569', desc: 'fixed 4-char namespace' },
-                { label: 'Timestamp',  val: '0Xk4a',        color: '#BF5AF2', desc: '≈ first 5 chars encode timestamp' },
-                { label: 'Random',     val: 'B7mN2p',       color: '#6366f1', desc: 'last 6 chars — sequence + machine ID' },
-                { label: 'Total',      val: '11 base-62',   color: '#10b981', desc: '62¹¹ = 52 quadrillion IDs' },
-              ].map(r => (
-                <div class="flex items-center gap-3 text-[12px]">
-                  <span class="font-mono font-bold w-16 shrink-0" style={`color:${r.color}`}>{r.val}</span>
-                  <span class="font-semibold w-20 shrink-0" style="color:#64748b">{r.label}</span>
-                  <span style="color:#334155">{r.desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Tier comparison ── -->
-    <section class="py-20 border-t" style="border-color:rgba(255,255,255,0.06)">
-      <div class="mx-auto max-w-5xl px-4 lg:px-8">
-        <div class="text-center mb-10">
-          <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-bold mb-2" style="color:#f1f5f9">
-            Which tier do I need?
-          </h2>
-          <p class="text-[14px]" style="color:#64748b">Community features scale with your plan.</p>
-        </div>
-        <div class="overflow-x-auto rounded-2xl" style="border:1px solid rgba(255,255,255,0.07)">
-          <table class="w-full text-[13px]" style="border-collapse:collapse">
-            <thead>
-              <tr style="background:#131929;border-bottom:1px solid rgba(255,255,255,0.07)">
-                <th class="text-left px-5 py-4 font-semibold" style="color:#94a3b8">Feature</th>
-                {['Starter', 'Community Business', 'Pro', 'Enterprise'].map(t => (
-                  <th class="px-4 py-4 font-bold text-center" style="color:#f1f5f9">{t}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ['Community portal (read)', '✓', '✓', '✓', '✓'],
-                ['Create / manage communities', '—', '✓', '✓', '✓'],
-                ['SEP / UECIID identity', '—', '✓', '✓', '✓'],
-                ['Knock-and-Verify invitations', '—', '✓', '✓', '✓'],
-                ['Inter-community peering', '—', '✓', '✓', '✓'],
-                ['Reputation engine', '—', '✓', '✓', '✓'],
-                ['Obsidian plugin', '—', '✓', '✓', '✓'],
-                ['Charter & governance', '—', '—', '✓', '✓'],
-                ['Sovereign data pods', '—', '—', '✓', '✓'],
-                ['STIX 2.1 audit chain', '—', '—', '✓', '✓'],
-                ['Post-quantum keypairs (PQC)', '—', '—', '—', '✓'],
-              ].map((row, i) => (
-                <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'#0a0a0f':'#111118'}`}>
-                  <td class="px-5 py-3" style="color:#94a3b8">{row[0]}</td>
-                  {row.slice(1).map((v, j) => (
-                    <td class="px-4 py-3 text-center font-semibold"
-                        style={`color:${v==='✓'?['#BF5AF2','#BF5AF2','#6366f1','#ec4899'][j]:'#334155'}`}>
-                      {v}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div class="mt-8 flex flex-wrap gap-4 justify-center">
-          <a href="/price" class="btn-primary text-[14px] px-6 py-3">View all pricing tiers</a>
-          <a href="/community" class="btn-ghost text-[14px] px-6 py-3">Open Community Portal</a>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── SMB AI Governance Suite ── -->
-    <section class="py-20 border-t" style="border-color:rgba(255,255,255,0.06)">
-      <div class="mx-auto max-w-7xl px-4 lg:px-8">
-        <div class="text-center mb-12">
-          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-5 text-[11px] font-bold tracking-widest uppercase"
-               style="color:#f97316;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2)">
-            <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#f97316"></span>
-            v5.1 — SMB AI Governance Suite
-          </div>
-          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
-            Enterprise AI governance for every business
-          </h2>
-          <p class="text-[15px] max-w-2xl mx-auto" style="color:#94a3b8">
-            Seven modules provisioned in a single wizard. Every module is cryptographically
-            linked via UECIID provenance and STIX 2.1 audit chain.
-          </p>
-        </div>
-
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-grid">
-          {[
-            {
-              icon: '🏢', id: 'BL-22', title: 'Vendor Governance', tier: 'Individual+',
-              color: '#f97316', tint: 'rgba(249,115,22,0.08)',
-              desc: 'Register AI vendors with DPA tracking. 30-day expiry alerts. Risk tiers: LOW / MEDIUM / HIGH / CRITICAL. GDPR Art.28 + CCPA + ISO 27001.',
-              href: 'https://app.shadow-warden-ai.com/vendor-governance/',
-            },
-            {
-              icon: '🚨', id: 'CM-35', title: 'Incident Register', tier: 'Individual+',
-              color: '#ef4444', tint: 'rgba(239,68,68,0.08)',
-              desc: 'STIX 2.1-linked AI incident journal. Auto-log from every BLOCK verdict. Severity triage: LOW → CRITICAL. Full status lifecycle.',
-              href: 'https://app.shadow-warden-ai.com/incidents/',
-            },
-            {
-              icon: '📚', id: 'CM-37', title: 'Prompt Library', tier: 'Community Biz+',
-              color: '#8b5cf6', tint: 'rgba(139,92,246,0.08)',
-              desc: 'UECIID provenance on every prompt. Injection screening before save. Versioning + community sharing via Causal Transfer Guard.',
-              href: 'https://app.shadow-warden-ai.com/prompts/',
-            },
-            {
-              icon: '🎓', id: 'CM-38', title: 'Training Records', tier: 'Community Biz+',
-              color: '#10b981', tint: 'rgba(16,185,129,0.08)',
-              desc: 'HMAC-SHA256 attested completion records. Expiry tracking. Compliance report. Behavioral anomaly hook on ai_training_completed.',
-              href: 'https://app.shadow-warden-ai.com/training/',
-            },
-            {
-              icon: '💰', id: 'BL-23', title: 'Cost Allocation', tier: 'Community Biz+',
-              color: '#f59e0b', tint: 'rgba(245,158,11,0.08)',
-              desc: 'Per-department and per-vendor spend tracking. Monthly summaries, department breakdowns. YYYY-MM period granularity.',
-              href: 'https://app.shadow-warden-ai.com/cost-allocation/',
-            },
-            {
-              icon: '📊', id: 'BL-24', title: 'Budget Dashboard', tier: 'Community Biz+',
-              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
-              desc: 'Budget caps with configurable alert thresholds (default 80%). Real-time spend vs cap. Approval workflow: pending / approved / rejected.',
-              href: 'https://portal.shadow-warden-ai.com/budget/',
-            },
-            {
-              icon: '🔍', id: 'CM-36', title: 'Supplier Risk', tier: 'Community Biz+',
-              color: '#ec4899', tint: 'rgba(236,72,153,0.08)',
-              desc: '5-criteria composite score: data access, AI capability, compliance posture, peering history, disclosure recency. Derived from live SEP transfer data.',
-              href: 'https://app.shadow-warden-ai.com/supplier-risk/',
-            },
-            {
-              icon: '⚡', id: 'IN-25', title: 'SMB Suite Wizard', tier: 'Community Biz+',
-              color: '#f97316', tint: 'rgba(249,115,22,0.08)',
-              desc: 'Single POST /smb-suite/provision provisions all 7 modules at once. SMBProvisionResult includes UECIID + STIX chain ID. Live health aggregation.',
-              href: 'https://portal.shadow-warden-ai.com/smb/',
-            },
-          ].map(f => (
-            <a href={f.href} target="_blank" rel="noopener noreferrer"
-               class="group rounded-2xl p-5 block transition-all duration-200 hover:-translate-y-0.5"
-               style={`background:#111118;border:1px solid rgba(255,255,255,0.07)`}
-               onmouseover={`this.style.borderColor='${f.color}33'`}
-               onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
-              <div class="flex items-start gap-3 mb-3">
-                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[16px] shrink-0"
-                     style={`background:${f.tint}`}>{f.icon}</div>
-                <div>
-                  <div class="text-[13px] font-semibold mb-0.5" style="color:#f1f5f9">{f.title}</div>
-                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                        style={`color:${f.color};background:${f.tint}`}>{f.id} · {f.tier}</span>
-                </div>
-              </div>
-              <p class="text-[12px] leading-relaxed" style="color:#64748b">{f.desc}</p>
-            </a>
-          ))}
-        </div>
-
-        <!-- Business Intelligence callout -->
-        <div class="rounded-2xl p-8 flex flex-col lg:flex-row items-start lg:items-center gap-6"
-             style="background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(139,92,246,0.06));border:1px solid rgba(99,102,241,0.2)">
-          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-[22px] shrink-0"
-               style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25)">📈</div>
-          <div class="flex-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-[15px] font-bold" style="color:#f1f5f9">Business Intelligence Module</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded"
-                    style="color:#8b5cf6;background:rgba(139,92,246,0.12)">CM-39 · v5.1</span>
-            </div>
-            <p class="text-[13px] leading-relaxed" style="color:#64748b">
-              8-category analytics: AI usage trends, threat scorecards, vendor performance, cost optimisation, compliance scoring,
-              community benchmarking, predictive incident analytics, and a custom report builder. SQLite-cached 15-min TTL.
-              11 endpoints at <code class="font-mono text-[11px] px-1 rounded" style="color:#8b5cf6;background:rgba(139,92,246,0.1)">/business-intelligence/*</code>.
-            </p>
-          </div>
-          <a href="https://portal.shadow-warden-ai.com/intelligence/" target="_blank"
-             class="btn-primary text-[13px] px-5 py-2.5 shrink-0 whitespace-nowrap">
-            Open BI Dashboard →
+          <a href="/community" class="btn-primary text-[14px] px-7 py-3 rounded-xl" style="active-scale:0.97">
+            Open Community Portal
+          </a>
+          <a href="/price" class="btn-ghost text-[14px] px-7 py-3 rounded-xl">
+            View Pricing
           </a>
         </div>
       </div>
     </section>
 
-    <!-- ── CTA ── -->
-    <section class="py-20 text-center">
-      <div class="mx-auto max-w-2xl px-4">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 text-[28px]"
-             style="background:rgba(191,90,242,0.1);border:1px solid rgba(191,90,242,0.2)">◈</div>
-        <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-4" style="color:#f1f5f9">
-          Ready to build your community?
-        </h2>
-        <p class="text-[15px] mb-8" style="color:#64748b">
-          Community Business plan starts at $19/month. 14-day free trial, no card required.
+    <!-- ── Stats ── -->
+    <section class="py-10 border-y" style="border-color:rgba(255,255,255,0.06);background:#0d0d14">
+      <div class="mx-auto max-w-6xl px-4 lg:px-8">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="stats-grid">
+          {[
+            { id: 'members_count',     label: 'Active Members',      val: '1,240',  unit: 'users',   icon: '👥', color: '#BF5AF2' },
+            { id: 'monthly_transfers', label: 'SEP Transfers / Mo',  val: '8,340',  unit: 'tx',      icon: '⇄',  color: '#6366f1' },
+            { id: 'published_ueciid',  label: 'Published UECIIDs',   val: '24,500', unit: 'records', icon: '◈',  color: '#06b6d4' },
+            { id: 'avg_reputation',    label: 'Avg. Reputation',     val: '4.7',    unit: '/ 5.0',   icon: '🏅', color: '#10b981' },
+          ].map(s => (
+            <div class="rounded-2xl p-6 stat-card"
+                 style="background:#111118;border:1px solid rgba(255,255,255,0.07);transition:border-color 200ms cubic-bezier(0.23,1,0.32,1),transform 200ms cubic-bezier(0.23,1,0.32,1)"
+                 onmouseover="this.style.borderColor='rgba(139,92,246,0.3)';this.style.transform='translateY(-2px)'"
+                 onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+              <div class="text-[20px] mb-3">{s.icon}</div>
+              <div class="text-[28px] font-black mb-1" style={`color:${s.color}`} data-stat={s.id}>{s.val}</div>
+              <div class="text-[11px] uppercase tracking-widest font-semibold mb-1" style="color:#64748b">{s.label}</div>
+              <div class="text-[11px]" style="color:#475569">{s.unit}</div>
+            </div>
+          ))}
+        </div>
+        <p class="text-center text-[11px] mt-4" style="color:#334155">
+          Production data · Updated every 5 minutes
         </p>
-        <a href="https://portal.shadow-warden-ai.com" target="_blank" class="btn-primary text-[15px] px-8 py-3.5">
-          Start Free Trial
-        </a>
+      </div>
+    </section>
+
+    <!-- ── Module Gallery ── -->
+    <section class="py-24">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8">
+        <div class="text-center mb-14">
+          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:#BF5AF2">11 Modules</p>
+          <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-black mb-4" style="color:#f1f5f9">
+            The full ecosystem at a glance
+          </h2>
+          <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
+            Every module ships production-ready. Click any card to explore features and documentation.
+          </p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5 stagger-grid">
+          {modules.map(m => (
+            <a href={`/business-community#${m.id}`}
+               class="rounded-2xl p-6 module-card block"
+               style="background:#111118;border:1px solid rgba(255,255,255,0.07);text-decoration:none;transition:border-color 200ms cubic-bezier(0.23,1,0.32,1),transform 200ms cubic-bezier(0.23,1,0.32,1)"
+               onmouseover={`this.style.borderColor='${m.color}44';this.style.transform='translateY(-3px)'`}
+               onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+              <div class="flex items-center justify-between mb-4">
+                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[20px]"
+                     style={`background:${m.tint};color:${m.color}`}>{m.icon}</div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg"
+                      style={`color:${m.color};background:${m.tint}`}>{m.count} features</span>
+              </div>
+              <div class="text-[15px] font-bold mb-2" style="color:#f1f5f9">{m.title}</div>
+              <p class="text-[13px] leading-relaxed" style="color:#64748b">{m.desc}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Architecture Diagram ── -->
+    <section id="architecture" class="py-20 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
+      <div class="mx-auto max-w-6xl px-4 lg:px-8">
+        <div class="text-center mb-12">
+          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:#6366f1">Architecture</p>
+          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-black mb-4" style="color:#f1f5f9">
+            How the modules connect
+          </h2>
+          <p class="text-[14px] max-w-xl mx-auto" style="color:#94a3b8">
+            Click any node to jump to that module's detail section.
+          </p>
+        </div>
+
+        <div class="rounded-2xl p-6 overflow-x-auto" style="background:#0e0e18;border:1px solid rgba(255,255,255,0.08)">
+          <div id="mermaid-diagram" class="mermaid flex justify-center">
+graph TB
+    subgraph Core["Core Protocols"]
+        SEP["◈ SEP / UECIID"]
+        PQC["🛡 Post-Quantum Crypto"]
+    end
+    subgraph Gov["Governance & Risk"]
+        Charter["🏛 Charter & Intel"]
+        Behavioral["📡 Anomaly Detection"]
+    end
+    subgraph SMB["SMB Suite"]
+        Vendor["🏢 Vendor Gov"]
+        Cost["💰 Cost Allocation"]
+        Budget["📈 Budget Dashboard"]
+        Incidents["⚠ Incident Register"]
+        Supplier["🔍 Supplier Risk"]
+        Prompts["📚 Prompt Library"]
+        Training["🎓 Training Records"]
+    end
+    subgraph Data["Data & Secrets"]
+        Secrets["🔑 Secrets Gov"]
+        Obsidian["📔 Obsidian"]
+    end
+    subgraph Advanced["Analytics & Commerce"]
+        BI["📊 Business Intel"]
+        Semantic["⬡ Semantic Layer"]
+        Commerce["⚡ Agentic Commerce"]
+        DocIntel["📄 Doc Intelligence"]
+        Compliance["✅ Compliance"]
+    end
+    SEP --> Charter
+    SEP --> PQC
+    Vendor --> BI
+    Incidents --> BI
+    Cost --> Budget
+    Prompts --> Obsidian
+    Training --> Behavioral
+    Semantic --> BI
+    Semantic --> Budget
+    Commerce --> Budget
+    DocIntel --> Incidents
+    Compliance --> Vendor
+    Compliance --> Incidents
+    Charter --> Behavioral
+          </div>
+        </div>
+
+        <!-- Node tooltip -->
+        <div id="arch-tooltip" class="hidden fixed z-50 rounded-xl p-4 shadow-2xl max-w-xs"
+             style="background:#1e1e2a;border:1px solid rgba(139,92,246,0.3);pointer-events:none">
+          <div id="arch-tooltip-title" class="text-[14px] font-bold mb-1" style="color:#f1f5f9"></div>
+          <div id="arch-tooltip-desc" class="text-[12px]" style="color:#94a3b8"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Feature Search ── -->
+    <section id="search-section" class="py-20">
+      <div class="mx-auto max-w-4xl px-4 lg:px-8">
+        <div class="text-center mb-10">
+          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:#06b6d4">35 Features</p>
+          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-black mb-4" style="color:#f1f5f9">
+            Find any feature instantly
+          </h2>
+        </div>
+
+        <div class="relative mb-6">
+          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color:#64748b" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input id="feature-search" type="text" placeholder="Search features — e.g. UECIID, audit chain, budget..."
+                 class="w-full pl-11 pr-4 py-4 rounded-xl text-[14px] outline-none"
+                 style="background:#111118;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;transition:border-color 200ms cubic-bezier(0.23,1,0.32,1)"
+                 onfocus="this.style.borderColor='rgba(139,92,246,0.5)'"
+                 onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+        </div>
+
+        <div id="search-results" class="space-y-3">
+          <!-- populated by JS -->
+        </div>
+        <div id="search-empty" class="hidden text-center py-10 text-[14px]" style="color:#475569">
+          No features matched your query.
+        </div>
+        <div id="search-placeholder" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+          {['SEP Peering','SMB Suite','Budget Guardian','Compliance'].map(q => (
+            <button class="search-chip px-3 py-2 rounded-lg text-[12px] font-medium"
+                    style="background:#111118;border:1px solid rgba(255,255,255,0.07);color:#94a3b8;cursor:pointer;transition:border-color 150ms cubic-bezier(0.23,1,0.32,1)"
+                    data-query={q}
+                    onmouseover="this.style.borderColor='rgba(139,92,246,0.3)'"
+                    onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">{q}</button>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Feature list by subcategory ── -->
+    <section class="py-8 pb-20">
+      <div class="mx-auto max-w-5xl px-4 lg:px-8">
+        {(['Community & Collaboration','Integrations','Business Intelligence','Agentic Commerce'] as const).map(sub => {
+          const items = bcFeatures.filter(f => f.subcategory === sub);
+          if (!items.length) return null;
+          return (
+            <details class="mb-4 rounded-2xl overflow-hidden" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+              <summary class="flex items-center justify-between px-6 py-4 cursor-pointer select-none"
+                       style="color:#f1f5f9;list-style:none"
+                       onmouseover="this.style.background='rgba(139,92,246,0.04)'"
+                       onmouseout="this.style.background='transparent'">
+                <span class="font-semibold text-[15px]">{sub}</span>
+                <span class="text-[12px] px-2.5 py-1 rounded-lg font-bold"
+                      style="background:rgba(139,92,246,0.1);color:#BF5AF2">{items.length} features</span>
+              </summary>
+              <div class="px-6 pb-5 pt-1">
+                <div class="grid md:grid-cols-2 gap-2">
+                  {items.map(f => (
+                    <div class="flex items-start gap-3 rounded-xl px-4 py-3"
+                         style="background:#0e0e18;border:1px solid rgba(255,255,255,0.05)">
+                      <span class="text-[10px] font-mono mt-0.5 shrink-0 px-1.5 py-0.5 rounded"
+                            style="color:#64748b;background:#1a1a28">{f.id}</span>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="text-[13px] font-semibold" style="color:#e2e8f0">{f.feature}</span>
+                          <span class={`status-${f.status} text-[10px]`}>{f.status}</span>
+                        </div>
+                        <p class="text-[12px] mt-0.5 line-clamp-2" style="color:#64748b">{f.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </details>
+          );
+        })}
+      </div>
+    </section>
+
+    <!-- ── Activity Chart ── -->
+    <section class="py-20 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
+      <div class="mx-auto max-w-5xl px-4 lg:px-8">
+        <div class="text-center mb-10">
+          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:#10b981">Activity</p>
+          <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-black mb-3" style="color:#f1f5f9">
+            Community growth
+          </h2>
+          <p class="text-[14px]" style="color:#94a3b8">New members, SEP transfers, and incidents — last 6 months.</p>
+        </div>
+        <div class="rounded-2xl p-6" style="background:#0e0e18;border:1px solid rgba(255,255,255,0.08)">
+          <canvas id="activity-chart" height="280"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Portal Links ── -->
+    <section class="py-20">
+      <div class="mx-auto max-w-5xl px-4 lg:px-8">
+        <div class="text-center mb-12">
+          <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-black mb-3" style="color:#f1f5f9">
+            Where to work with communities
+          </h2>
+          <p class="text-[14px]" style="color:#94a3b8">Three interfaces — pick the one that fits your workflow.</p>
+        </div>
+        <div class="grid md:grid-cols-3 gap-5">
+          {[
+            {
+              icon: '🌐', title: 'Tenant Portal', badge: 'portal',
+              desc: 'Full community management — join, peer, share, manage members, configure governance.',
+              href: '/community', cta: 'Open Portal',
+              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
+            },
+            {
+              icon: '📟', title: 'SOC Dashboard', badge: 'dashboard',
+              desc: 'Real-time community activity, SEP transfer timeline, incident feed, compliance posture.',
+              href: '/dashboard', cta: 'Open Dashboard',
+              color: '#6366f1', tint: 'rgba(99,102,241,0.08)',
+            },
+            {
+              icon: '📈', title: 'Streamlit Analytics', badge: 'analytics',
+              desc: 'Deep-dive BI: 8-tab community intelligence, benchmark percentiles, predictive trend charts.',
+              href: 'http://91.98.234.160:8501', cta: 'Open Analytics',
+              color: '#06b6d4', tint: 'rgba(6,182,212,0.08)',
+            },
+          ].map(p => (
+            <div class="rounded-2xl p-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+              <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[20px] mb-4"
+                   style={`background:${p.tint};color:${p.color}`}>{p.icon}</div>
+              <div class="text-[15px] font-bold mb-2" style="color:#f1f5f9">{p.title}</div>
+              <p class="text-[13px] leading-relaxed mb-5" style="color:#64748b">{p.desc}</p>
+              <a href={p.href}
+                 class="inline-flex items-center gap-1.5 text-[13px] font-semibold"
+                 style={`color:${p.color}`}>
+                {p.cta}
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </a>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CTA ── -->
+    <section class="py-24 border-t" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
+      <div class="mx-auto max-w-3xl px-4 lg:px-8 text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
+             style="color:#10b981;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+          <span class="w-1.5 h-1.5 rounded-full" style="background:#10b981"></span>
+          No credit card required for Starter
+        </div>
+        <h2 class="text-[clamp(2rem,4vw,3.25rem)] font-black leading-tight mb-5" style="color:#f1f5f9">
+          Ready to join a secure<br/>AI community?
+        </h2>
+        <p class="text-[16px] leading-relaxed mb-10 max-w-xl mx-auto" style="color:#94a3b8">
+          Start free with Starter and upgrade when your community needs more members, SEP transfers, or advanced compliance controls.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <a href="/community" class="btn-primary text-[15px] px-8 py-3.5 rounded-xl">
+            Start Free (Starter)
+          </a>
+          <a href="/price" class="btn-ghost text-[15px] px-8 py-3.5 rounded-xl"
+             style="border:1px solid rgba(139,92,246,0.3);color:#BF5AF2">
+            Community+ · $19/mo
+          </a>
+        </div>
       </div>
     </section>
 
   </div>
 </BaseLayout>
+
+<!-- ── Feature data injected at build time ── -->
+<script define:vars={{ allBcJson }}>
+  window.__BC_FEATURES__ = JSON.parse(allBcJson);
+</script>
+
+<!-- ── Mermaid architecture diagram ── -->
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#0e0e18',
+      primaryColor: '#1e1e2a',
+      primaryBorderColor: '#3f3f5a',
+      primaryTextColor: '#e2e8f0',
+      lineColor: '#8b5cf6',
+      edgeLabelBackground: '#111118',
+      clusterBkg: '#14141e',
+      clusterBorder: '#2d2d44',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSize: '13px',
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+  });
+
+  const nodeDescriptions = {
+    SEP: 'Cryptographic entity IDs, peering, STIX 2.1 audit chain, sovereign pods.',
+    PQC: 'Ed25519+ML-DSA-65 HybridSigner, X25519+ML-KEM-768 HybridKEM.',
+    Charter: 'Versioned charter lifecycle, OAuth agent discovery, community intelligence.',
+    Behavioral: 'Z-score anomaly detection, 30-day baseline, NORMAL/ELEVATED/CRITICAL.',
+    Vendor: 'AI vendor DPA tracking, expiry alerts, risk tier classification.',
+    Cost: 'Per-dept/vendor spend tracking, monthly summaries.',
+    Budget: 'Budget caps, threshold alerts, approval workflow.',
+    Incidents: 'STIX-linked incident journal, auto-log from BLOCK events.',
+    Supplier: '5-criteria composite scoring from peering data.',
+    Prompts: 'UECIID provenance, injection screening before save, community sharing.',
+    Training: 'HMAC-SHA256 attestation, behavioral hooks, compliance report.',
+    Secrets: 'Multi-vault connectors, SQLite inventory, lifecycle rotation.',
+    Obsidian: 'Auto-scan notes, data class inference, SEP share, XAI pipeline sidebar.',
+    BI: 'Eight analytics functions, OLS trend predictions, PDF report builder.',
+    Semantic: 'Nine BI models, deterministic SQL, self-service catalog, Redis cache.',
+    Commerce: 'UCP/AP2/MCP protocols, multi-agent auction, FIDO2, Web3 mandate.',
+    DocIntel: 'MarkItDown converter, 50 MB gate, SHA-256 Redis cache.',
+    Compliance: '19 controls GDPR/SOC2/ISO27001/HIPAA, WebSocket push, gap manager.',
+  };
+
+  const tooltip = document.getElementById('arch-tooltip');
+  const ttTitle = document.getElementById('arch-tooltip-title');
+  const ttDesc  = document.getElementById('arch-tooltip-desc');
+
+  function attachTooltips() {
+    document.querySelectorAll('#mermaid-diagram .node').forEach(node => {
+      const textEl = node.querySelector('text,span');
+      const raw    = textEl ? textEl.textContent.trim() : '';
+      const key    = raw.replace(/[^\w]/g, '').replace(/^.*?([A-Z][a-zA-Z]+).*$/, '$1');
+      const desc   = nodeDescriptions[key];
+      if (!desc) return;
+
+      node.style.cursor = 'pointer';
+      node.addEventListener('mousemove', e => {
+        ttTitle.textContent = raw;
+        ttDesc.textContent  = desc;
+        tooltip.style.left  = (e.clientX + 16) + 'px';
+        tooltip.style.top   = (e.clientY - 40) + 'px';
+        tooltip.classList.remove('hidden');
+      });
+      node.addEventListener('mouseleave', () => tooltip.classList.add('hidden'));
+      node.addEventListener('click', () => {
+        const sec = document.getElementById(key.toLowerCase());
+        if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  }
+
+  // Wait for mermaid render then attach handlers
+  const observer = new MutationObserver(() => {
+    if (document.querySelector('#mermaid-diagram svg')) {
+      observer.disconnect();
+      attachTooltips();
+    }
+  });
+  observer.observe(document.getElementById('mermaid-diagram'), { childList: true, subtree: true });
+</script>
+
+<!-- ── Feature search ── -->
+<script>
+  const input     = document.getElementById('feature-search');
+  const results   = document.getElementById('search-results');
+  const empty     = document.getElementById('search-empty');
+  const chips     = document.getElementById('search-placeholder');
+  const features  = window.__BC_FEATURES__ || [];
+
+  const statusColors = {
+    shipped:     { bg: 'rgba(16,185,129,0.1)',  text: '#10b981' },
+    in_progress: { bg: 'rgba(245,158,11,0.1)',  text: '#f59e0b' },
+    planned:     { bg: 'rgba(99,102,241,0.1)',   text: '#6366f1' },
+    cancelled:   { bg: 'rgba(100,116,139,0.1)', text: '#64748b' },
+  };
+
+  function renderResults(query) {
+    const q = query.toLowerCase().trim();
+    if (!q) { results.innerHTML = ''; empty.classList.add('hidden'); chips.classList.remove('hidden'); return; }
+    chips.classList.add('hidden');
+    const matched = features.filter(f =>
+      f.feature.toLowerCase().includes(q) ||
+      f.description.toLowerCase().includes(q) ||
+      f.id.toLowerCase().includes(q) ||
+      (f.subcategory || '').toLowerCase().includes(q)
+    );
+    if (!matched.length) { results.innerHTML = ''; empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    results.innerHTML = matched.map(f => {
+      const sc = statusColors[f.status] || statusColors.planned;
+      return `<div class="flex items-start gap-4 rounded-xl px-5 py-4" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+        <span class="text-[11px] font-mono shrink-0 mt-0.5 px-2 py-1 rounded" style="color:#64748b;background:#1a1a28">${f.id}</span>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap mb-1">
+            <span class="text-[14px] font-semibold" style="color:#f1f5f9">${f.feature}</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md" style="color:${sc.text};background:${sc.bg}">${f.status}</span>
+            <span class="text-[10px]" style="color:#475569">${f.tier}</span>
+          </div>
+          <p class="text-[13px]" style="color:#64748b">${f.description}</p>
+        </div>
+        <span class="text-[11px] shrink-0" style="color:#334155">${f.version || ''}</span>
+      </div>`;
+    }).join('');
+  }
+
+  let debounce;
+  input.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => renderResults(input.value), 120);
+  });
+
+  document.querySelectorAll('.search-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      input.value = btn.dataset.query;
+      input.dispatchEvent(new Event('input'));
+      input.focus();
+    });
+  });
+</script>
+
+<!-- ── Chart.js activity chart ── -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
+<script>
+  window.addEventListener('load', () => {
+    const ctx = document.getElementById('activity-chart');
+    if (!ctx || !window.Chart) return;
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: 'New Members',
+            data: [120, 195, 280, 390, 510, 650],
+            borderColor: '#BF5AF2',
+            backgroundColor: 'rgba(191,90,242,0.08)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#BF5AF2',
+          },
+          {
+            label: 'SEP Transfers',
+            data: [340, 720, 1100, 2300, 4800, 8340],
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99,102,241,0.05)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#6366f1',
+          },
+          {
+            label: 'Incidents Logged',
+            data: [4, 7, 12, 9, 18, 23],
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245,158,11,0.05)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointBackgroundColor: '#f59e0b',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 12 } },
+          tooltip: {
+            backgroundColor: '#1e1e2a',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            titleColor: '#f1f5f9',
+            bodyColor: '#94a3b8',
+            padding: 12,
+          },
+        },
+        scales: {
+          x: { ticks: { color: '#64748b', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#64748b', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
+        },
+      },
+    });
+  });
+</script>
+
+<!-- ── Live stats fetch ── -->
+<script>
+  async function fetchStats() {
+    try {
+      const r = await fetch('/api/public/community', { signal: AbortSignal.timeout(3000) });
+      if (!r.ok) return;
+      const d = await r.json();
+      const map = {
+        members_count:     d.members_count,
+        monthly_transfers: d.monthly_transfers,
+        published_ueciid:  d.published_ueciid,
+        avg_reputation:    d.average_reputation,
+      };
+      document.querySelectorAll('[data-stat]').forEach(el => {
+        const val = map[el.dataset.stat];
+        if (val != null) el.textContent = typeof val === 'number' && val > 100
+          ? val.toLocaleString()
+          : String(val);
+      });
+    } catch {
+      // fail-open: static values remain
+    }
+  }
+  fetchStats();
+</script>
+
+<style>
+  summary::-webkit-details-marker { display: none; }
+  details[open] summary { border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 0; }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .btn-primary:active, .btn-ghost:active { transform: scale(0.97); }
+</style>
