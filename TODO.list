@@ -1,6 +1,6 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║               Shadow Warden AI — Project TODO List                         ║
-║               Version 5.2  · Updated 2026-05-31                            ║
+║               Version 5.5  · Updated 2026-06-06                            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 Priority legend:
@@ -277,7 +277,21 @@ Priority legend:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  7. v5.3 ROADMAP — NEXT PLANNED ITEMS
+  7. v5.4 / v5.5 COMPLETED ✓
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[✓]  Document Intelligence (FE-50, v5.4) — MarkItDown converter, /document-intel API,
+     file_base64 filter hook, Redis cache with file-type TTLs, Prometheus metrics, 10 tests,
+     Streamlit 19_Document_Scanner, Portal /doc-scanner/, Site /cyber-security/document-intelligence,
+     SOC Dashboard Document Scans widget, SOVA tool #50 scan_document
+[✓]  Real-time Compliance Dashboard (CP-30, v5.5) — CompliancePostureService with 19 controls
+     (GDPR/SOC2/ISO27001/HIPAA), gap detection + remediation guidance, Redis cache 5min,
+     4 new /compliance/* endpoints, WebSocket /compliance/ws, SOVA tools #51/#52,
+     Streamlit 21_Compliance_Dashboard, Portal /compliance/ self-service page, 28 tests green
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  8. v5.6 ROADMAP — NEXT PLANNED ITEMS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [ ]   FraudScore API backend — POST /fraud-score/evaluate
@@ -290,17 +304,17 @@ Priority legend:
 
 [ ]   BI Dashboard Next.js page — dashboard/src/app/(soc)/business-intelligence/
       → Wire CM-39 endpoints into SOC dashboard
-      → Compliance score card + incident trend chart
 
-[ ]   SMB Suite Next.js onboarding wizard
-      → dashboard/src/app/(soc)/onboarding/smb/page.tsx
-      → 3-step: Configure → Provision → Done
+[ ]   Real-time Document Firehose — stream-check all files entering cloud storage
+      → Integration: Google Drive webhook + SharePoint Graph API event
+      → Auto-scan on upload → verdict → quarantine if BLOCK
 
-[ ]   SOVA SMB tools — smb_provision_suite + smb_suite_health
-      → Add to warden/agent/tools.py
+[ ]   CompliancePostureService: add Redis Pub/Sub listeners
+      → Vendor DPA change, new incident, expired secret → auto-invalidate posture cache
+      → Replace 30s poll with true event-driven WebSocket push
 
-[ ]   docs/dpia.md — update to v4.30 (add SMB + BI data flows)
-[ ]   docs/soc2-evidence.md — update to v4.30 (add SMB governance controls)
+[ ]   docs/dpia.md — update to v5.5 (Document Intel + Compliance Dashboard data flows)
+[ ]   docs/soc2-evidence.md — update to v5.5 (add CP-30 gap evidence mapping)
 [ ]   Kubernetes Helm chart
 [ ]   Terraform cloud deploy module
 

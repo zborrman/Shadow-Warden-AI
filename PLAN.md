@@ -419,6 +419,42 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
+### Block AA — Document Intelligence v5.4 (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| AA-01 | `warden/document_intel/converter.py` — MarkItDownConverter: file-type TTLs (PDF 24h, audio 7d, images 1h), 50 MB gate, 30s thread timeout, SHA-256 Redis cache, Prometheus metrics | ✅ |
+| AA-02 | `warden/document_intel/api.py` — 6 endpoints at `/document-intel/*`: convert, convert-and-scan, convert-batch, health, formats, stats | ✅ |
+| AA-03 | `warden/schemas.py` — `file_base64` + `file_filename` fields on `FilterRequest`; filter hook converts doc before 9-layer pipeline (fail-open) | ✅ |
+| AA-04 | `warden/communities/doc_converter.py` — lightweight community converter; `warden/api/doc_converter.py` — `/doc-converter/*` community API | ✅ |
+| AA-05 | `POST /obsidian/scan-attachment` — upload file, convert + scan; `POST /prompt-library/from-file` — convert + inject-screen + add | ✅ |
+| AA-06 | SOVA tool #50 `scan_document` — base64 file → full FilterResponse via `/filter` hook | ✅ |
+| AA-07 | `warden/metrics.py` — 3 Prometheus counters: `warden_doc_intel_convert_total{ext,data_class}`, `warden_doc_intel_convert_errors_total{ext,error}`, `warden_doc_intel_cache_hits_total` | ✅ |
+| AA-08 | Streamlit `19_Document_Scanner.py` — upload, convert, scan, dark/light themed | ✅ |
+| AA-09 | Portal `/doc-scanner/` — drag-and-drop page + server proxy (X-API-Key server-side); Sidebar: Document Scanner link | ✅ |
+| AA-10 | Site `/cyber-security/document-intelligence` — dedicated static Astro page: pipeline flow, 3 integration cards, cache TTL table, env vars, Prometheus section, feature list, CTA | ✅ |
+| AA-11 | `site/src/data/roadmap.json` — 6 FE-50 entries under `Cyber Security / Document Intelligence`; `site/src/pages/cyber-security/index.astro` — 📄 icon added | ✅ |
+| AA-12 | `warden/tests/test_document_intel.py` — 10 tests (data-class × 3, cache, batch, error, unavailable, empty) | ✅ |
+| AA-13 | SOC Dashboard `overview/page.tsx` — Document Scans widget (5 metrics); `dashboard/src/lib/api.ts` — `DocScanStats` type + `api.docScans()` | ✅ |
+
+---
+
+### Block AB — Real-time Compliance Dashboard v5.5 (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| AB-01 | `warden/compliance/models.py` — `Gap`, `FrameworkScore`, `ComplianceReport` dataclasses with `to_dict()` and derived `status` | ✅ |
+| AB-02 | `warden/compliance/posture_service.py` — `CompliancePostureService`: 19 controls across GDPR(6)/SOC2(5)/ISO27001(4)/HIPAA(4); Redis cache 5min TTL; Pub/Sub publish on recompute | ✅ |
+| AB-03 | `warden/api/compliance_report.py` — 4 new endpoints: `GET /compliance/posture/gaps`, `GET /compliance/posture/{framework}`, `POST /compliance/posture/recalculate`, `WebSocket /compliance/ws` | ✅ |
+| AB-04 | SOVA tool #51 `get_compliance_report` + tool #52 `remediate_gap` | ✅ |
+| AB-05 | Streamlit `21_Compliance_Dashboard.py` — 5-tab gap management (Overview/GDPR/SOC2/ISO27001/HIPAA), per-severity filter, auto-refresh 30s | ✅ |
+| AB-06 | Portal `/compliance/` — SVG score ring, 4 framework cards with progress bars, gap list with "Fix →" deep-links, 30s auto-refetch | ✅ |
+| AB-07 | `portal/src/app/api/compliance/route.ts` — server proxy (X-API-Key injected); Sidebar: Compliance link (ShieldCheck icon) under Settings | ✅ |
+| AB-08 | `site/src/data/roadmap.json` — CP-30 entry under `Cyber Security / Compliance & Privacy` | ✅ |
+| AB-09 | `warden/tests/test_compliance_posture.py` — 12 new CP-30 tests (28 total) | ✅ |
+
+---
+
 ### Block Z — AI Analytics Hub + Commerce Budget Guardian v5.2 (✅ Complete)
 
 | ID | Feature | Status |

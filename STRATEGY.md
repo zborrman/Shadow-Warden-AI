@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 5.3 · Last updated 2026-06-05**
+**Version 5.5 · Last updated 2026-06-06**
 
 ---
 
@@ -32,6 +32,8 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - **GitHub Actions CI Security Gate (v5.3)**: pre-merge gate scans every commit message + diff through the 9-layer pipeline; composite action with PR comment + 90-day artifact; local pre-commit hook mode; Pro+ tier
 - **Continuous Compliance Scoring (v5.3)**: real-time posture across SOC 2, GDPR, ISO 27001, HIPAA, NIS2 — auto-refresh every 30s, 168-snapshot ring buffer, SVG score gauge, SOC dashboard + Streamlit page; Pro+ tier
 - **ISO 27001:2022 Annex A mapping (v5.3)**: all 93 Annex A controls mapped to platform capabilities across 4 themes with evidence pointers; per-theme coverage %, print-ready HTML report, SOC dashboard drilldown; Enterprise tier
+- **Document Intelligence (v5.4)**: Microsoft MarkItDown converts PDF/DOCX/PPTX/XLSX/HTML/images/audio/ZIP to Markdown before the 9-layer pipeline runs; file-type-aware Redis cache (24h/7d/1h TTLs); 50 MB gate; SOVA tool #50; portal Document Scanner; `/document-intel` API; Prometheus counters; Community Business+ tier
+- **Real-time Compliance Gap Dashboard (v5.5)**: `CompliancePostureService` aggregates 19 controls from Vendor Governance, Incident Register, Secrets Vault, Document Intelligence, STIX Audit, Training Records into live GDPR/SOC2/ISO27001/HIPAA scores with per-gap remediation guidance; Redis cache + Pub/Sub; WebSocket `/compliance/ws`; SOVA tools #51/#52; portal self-service page; Pro+ tier
 
 **Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
 Enterprise AI teams deploying LLM-backed products.
@@ -95,6 +97,8 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 | GitHub Actions CI security gate | ✅ | ❌ | ⚠️ | ❌ |
 | ISO 27001:2022 control mapping (93 controls) | ✅ | ⚠️ | ❌ | ❌ |
 | Real-time compliance scoring (5 standards) | ✅ | ❌ | ⚠️ | ❌ |
+| Document Intelligence (PDF/DOCX/audio → scan) | ✅ | ❌ | ❌ | ❌ |
+| Live compliance gap detection + remediation | ✅ | ❌ | ❌ | ❌ |
 | Open source core | ❌ (proprietary) | ✅ | ❌ | ✅ |
 
 **Key moats:**
@@ -222,4 +226,4 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v5.3 · 2026-06-05*
+*Strategy.md — Shadow Warden AI business strategy v5.5 · 2026-06-06*

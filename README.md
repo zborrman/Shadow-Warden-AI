@@ -4,13 +4,29 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 5.1 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 5.5 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md)
 
 ---
 
-## Product Tiers — v5.1
+## What's New in v5.5
+
+| Feature | Description |
+|---------|-------------|
+| **Real-time Compliance Gap Dashboard (CP-30)** | `CompliancePostureService` aggregates 19 controls from Vendor Governance, Incident Register, Secrets Vault, Document Intelligence, STIX Audit, and Training Records into live GDPR/SOC2/ISO27001/HIPAA scores. Per-gap remediation guidance with `affected_module` deep-link. Redis cache (5 min TTL), Pub/Sub invalidation, WebSocket `/compliance/ws` for real-time push. SOVA tools #51 `get_compliance_report` + #52 `remediate_gap`. Portal self-service page at `/compliance/` with SVG score ring + "Fix →" links. Streamlit `21_Compliance_Dashboard.py` (5 tabs). 28 tests green. |
+
+---
+
+## What's New in v5.4
+
+| Feature | Description |
+|---------|-------------|
+| **Document Intelligence (FE-50)** | Microsoft MarkItDown converts PDF/DOCX/PPTX/XLSX/HTML/images/audio/ZIP to Markdown before any channel (filter pipeline, prompt library, Obsidian feed). File-type-aware Redis cache (PDF 24h · audio 7d · images 1h), 50 MB gate, 30s thread timeout. `POST /filter` accepts `file_base64` field — converts doc then runs 9-layer pipeline (fail-open). 6 `/document-intel/*` endpoints. SOVA tool #50 `scan_document`. 3 Prometheus counters. Portal `/doc-scanner/` drag-and-drop. Streamlit scanner page. Static site page at `/cyber-security/document-intelligence`. 10 tests green. |
+
+---
+
+## Product Tiers — v5.5
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|

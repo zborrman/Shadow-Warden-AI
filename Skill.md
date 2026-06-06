@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 5.3 · Proprietary · All rights reserved**
+**Version 5.5 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -49,7 +49,7 @@ surface, its observable outputs, and integration patterns.
 
 ## 1. Skill Taxonomy
 
-Shadow Warden AI is composed of 41 discrete, independently configurable skills.
+Shadow Warden AI is composed of 43 discrete, independently configurable skills.
 Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–41 are
 background, agentic, or on-demand capabilities.
 
@@ -114,6 +114,8 @@ Background / On-demand:
 | 39 | GitHub Actions CI Security Gate | On-demand (CI) | ✅ | Pro+ |
 | 40 | Continuous Compliance Scoring | On-demand / 30s poll | ✅ | Pro+ |
 | 41 | ISO 27001:2022 Annex A Mapping | On-demand | ✅ | Enterprise |
+| 42 | Document Intelligence (MarkItDown) | On-demand | ⚠️ markitdown pkg | Community Business+ |
+| 43 | Real-time Compliance Gap Dashboard | On-demand / 30s poll | ✅ | Pro+ |
 
 *PQC requires liboqs-python system package; classical fallback if unavailable.
 
@@ -1665,3 +1667,113 @@ GET /compliance/iso27001/html?days=N   Print-ready HTML with theme-grouped table
 ### Tier gate
 
 `iso27001_enabled` — `True` for Enterprise only; `False` for all lower tiers.
+
+---
+
+## Skill 42 — Document Intelligence (MarkItDown)
+
+**Module:** `warden/document_intel/` · **Tier:** Community Business+ · **Version:** v5.4
+
+Converts any uploaded file (PDF, DOCX, PPTX, XLSX, HTML, images, audio, ZIP, EPUB) to Markdown via Microsoft MarkItDown, then runs SecretRedactor + data-class inference before the content enters any channel (filter pipeline, prompt library, Obsidian feed, SEP transfer).
+
+### Converter
+
+`MarkItDownConverter.convert_bytes(file_bytes, filename)` → `ConversionResult`:
+1. Size gate — rejects files > `DOC_INTEL_MAX_BYTES` (default 50 MB)
+2. SHA-256 Redis cache check (`doc_intel:md:{hash}`)
+3. MarkItDown → Markdown (runs in `ThreadPoolExecutor` with `DOC_INTEL_TIMEOUT_S` = 30s wall-clock limit)
+4. SecretRedactor — secrets redacted in-place
+5. Data-class inference: CLASSIFIED → PHI → PII → FINANCIAL → GENERAL
+6. Cache write with file-type TTL (PDF/DOCX 24h · audio 7d · images 1h)
+
+### Filter Hook
+
+`POST /filter` accepts `file_base64` + `file_filename` fields. The gateway decodes and converts the file to Markdown **before** the 9-layer pipeline. Fail-open: conversion errors fall back to original `content`.
+
+### SOVA Tool #50 — `scan_document`
+
+Accepts `file_base64` + `filename`, calls `POST /filter` with the hook, returns full `FilterResponse`.
+
+### Prometheus Counters
+
+| Metric | Labels |
+|--------|--------|
+| `warden_doc_intel_convert_total` | `{ext, data_class}` |
+| `warden_doc_intel_convert_errors_total` | `{ext, error}` |
+| `warden_doc_intel_cache_hits_total` | — |
+
+### Endpoints
+
+```
+POST  /document-intel/convert            File → Markdown + data class + secrets
+POST  /document-intel/convert-and-scan  File → Markdown + SemanticGuard verdict
+POST  /document-intel/convert-batch     Multiple files → list of results
+GET   /document-intel/health            MarkItDown availability check
+GET   /document-intel/formats           Supported extensions list
+GET   /document-intel/stats             Redis stats (total, cache_hits, errors, sensitive)
+```
+
+### Config
+
+| Env Var | Default | Effect |
+|---------|---------|--------|
+| `DOC_INTEL_MAX_BYTES` | `52428800` | 50 MB size gate |
+| `DOC_INTEL_TIMEOUT_S` | `30` | Thread timeout per conversion |
+| `DOC_INTEL_CACHE_TTL` | `3600` | Fallback TTL for unknown extensions |
+
+### Interfaces
+
+- **Portal:** `/doc-scanner/` — drag-and-drop, verdict banner, metadata grid, markdown preview
+- **Streamlit:** `19_Document_Scanner.py`
+- **Community API:** `/doc-converter/convert`, `/prompt-library/from-file`, `/obsidian/scan-attachment`
+- **Site:** `shadow-warden-ai.com/cyber-security/document-intelligence`
+
+---
+
+## Skill 43 — Real-time Compliance Gap Dashboard
+
+**Module:** `warden/compliance/posture_service.py` · **Tier:** Pro+ · **Version:** v5.5
+
+Aggregates live data from Vendor Governance, Incident Register, Secrets Vault, Document Intelligence, STIX Audit, and Training Records into scored, actionable compliance posture reports with per-control gap analysis and remediation guidance.
+
+### Frameworks + Controls
+
+| Framework | Controls | Sources |
+|-----------|----------|---------|
+| GDPR | 6 | Vendor DPA coverage, incident register, doc intel active, secret rotation, log retention, data minimisation |
+| SOC 2 | 5 | STIX audit, alert notifications, FIDO2/MFA, Prometheus metrics, incident procedure |
+| ISO 27001 | 4 | Community charters, training records, supplier risk, API key rotation |
+| HIPAA | 4 | Fernet encryption, TLS, STIX audit trail, PHI enforcement |
+
+### Scoring
+
+- `score = passed_controls / total_controls × 100`
+- Status: ≥80% → `compliant` · 50–80% → `at_risk` · <50% → `non_compliant`
+- Overall = mean of 4 framework scores
+
+### Cache + Pub/Sub
+
+- Redis key: `compliance:posture:{tenant_id}` · TTL: `COMPLIANCE_CACHE_TTL` (default 300s)
+- On recompute: publishes to `compliance:events` channel (downstream WebSocket clients notified)
+
+### SOVA Tools
+
+| Tool | Description |
+|------|-------------|
+| `get_compliance_report` (#51) | Returns live ComplianceReport with scores + gap list |
+| `remediate_gap` (#52) | Acknowledges a gap fix, invalidates cache, returns updated posture |
+
+### Endpoints
+
+```
+GET  /compliance/posture/gaps              All gaps (filterable by severity/framework)
+GET  /compliance/posture/{framework}       Single-framework detail
+POST /compliance/posture/recalculate       Force cache invalidation + recompute
+WS   /compliance/ws                        Real-time push every 30s
+```
+
+### Interfaces
+
+- **Portal:** `/compliance/` — SVG score ring, 4 framework cards, gap list with "Fix →" deep-links
+- **Streamlit:** `21_Compliance_Dashboard.py` — 5-tab gap manager
+- **Settings:** `COMPLIANCE_CACHE_TTL` env var
