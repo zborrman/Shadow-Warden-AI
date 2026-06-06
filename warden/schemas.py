@@ -84,6 +84,19 @@ class FilterRequest(BaseModel):
             "matches, risk control hierarchy recommendations, and immediate remediation actions."
         ),
     )
+    file_base64: str | None = Field(
+        default=None,
+        description=(
+            "Optional base64-encoded file to scan (FE-50 Document Intelligence). "
+            "When set, the file is converted to Markdown via MarkItDown and replaces 'content' "
+            "before entering the 9-layer pipeline. "
+            "Supported: PDF, DOCX, PPTX, XLSX, HTML, images, ZIP, EPUB, audio."
+        ),
+    )
+    file_filename: str = Field(
+        default="upload.bin",
+        description="Original filename (with extension) when file_base64 is provided.",
+    )
 
 
 # ── Response pieces ───────────────────────────────────────────────────────────

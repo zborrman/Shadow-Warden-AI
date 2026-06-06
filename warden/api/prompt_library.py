@@ -8,7 +8,7 @@ Tier:   Community Business+ (prompt_library_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from warden.billing.feature_gate import require_feature
@@ -95,3 +95,58 @@ async def version_prompt(prompt_id: str, body: VersionRequest) -> dict:
         return create_version(prompt_id, body.new_text, body.updated_by)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/from-file", summary="Convert a file to Markdown and add it to the Prompt Library", dependencies=[_Gate])
+async def create_prompt_from_file(
+    file: UploadFile = File(...),
+    community_id: str = Form(...),
+    created_by: str = Form(...),
+    title: str = Form(...),
+    category: str = Form("general"),
+    tags: str = Form(""),
+    visibility: str = Form("community"),
+    description: str = Form(""),
+) -> dict:
+    """Upload any supported file (PDF, DOCX, PPTX …), convert it to Markdown, and add it
+    to the community Prompt Library with injection screening applied automatically."""
+    from warden.communities.doc_converter import DocConverterUnavailable, convert_to_markdown
+    from warden.communities.prompt_library import add_prompt
+
+    try:
+        file_bytes = await file.read()
+        converted = convert_to_markdown(file_bytes, file.filename or "upload.tmp")
+    except DocConverterUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if converted.data_class == "CLASSIFIED":
+        raise HTTPException(status_code=422, detail="CLASSIFIED documents cannot be added to the Prompt Library.")
+
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+
+    try:
+        entry = add_prompt(
+            community_id=community_id,
+            created_by=created_by,
+            title=title,
+            prompt_text=converted.markdown,
+            category=category,
+            tags=tag_list,
+            visibility=visibility,
+            description=description or f"Converted from {converted.filename}",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return {
+        **entry,
+        "conversion": {
+            "filename": converted.filename,
+            "data_class": converted.data_class,
+            "secrets_found": converted.secrets_found,
+            "redacted": converted.redacted,
+            "word_count": converted.word_count,
+        },
+    }

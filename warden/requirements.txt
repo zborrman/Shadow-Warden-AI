@@ -147,6 +147,12 @@ python-docx>=1.1.0
 # openpyxl — read cell values from .xlsx spreadsheets
 openpyxl>=3.1.0
 
+# ── MarkItDown (community document converter) ─────────────────────────────────
+# Microsoft MarkItDown — converts PDF/DOCX/PPTX/XLSX/HTML/images/ZIP/EPUB to
+# Markdown for the community document workflow (/doc-converter, /prompt-library/from-file,
+# /obsidian/scan-attachment).  Install separately if community features are not needed.
+markitdown>=0.0.1
+
 # ── v1.4 Multi-Modal Guard ────────────────────────────────────────────────────
 # Pillow — image decoding for ImageGuard (CLIP input preprocessing)
 Pillow>=10.0.0

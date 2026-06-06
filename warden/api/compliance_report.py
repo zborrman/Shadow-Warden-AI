@@ -943,3 +943,100 @@ async def compliance_history(
         "count":     len(snapshots),
         "snapshots": snapshots,
     }
+
+
+# ── CP-30: Real-time Compliance Gap Analysis ─────────────────────────────────
+#
+# These endpoints build on the existing /posture infrastructure but add live
+# multi-source aggregation, per-gap remediation guidance, and a WebSocket
+# channel for real-time dashboard updates.
+
+try:
+    _CP30_GATE = [_require_feature("compliance_scoring_enabled")]
+except Exception:
+    _CP30_GATE = []
+
+
+@router.get("/posture/gaps", summary="List all compliance gaps with remediation guidance (CP-30)", dependencies=_CP30_GATE)
+async def compliance_gaps(
+    tenant_id: str = "default",
+    severity:  str | None = None,
+    framework: str | None = None,
+) -> dict:
+    """
+    Returns all currently detected compliance gaps across GDPR, SOC 2,
+    ISO 27001, and HIPAA, with remediation instructions for each.
+    Filtered by `severity` (high/medium/low) or `framework` (gdpr/soc2/iso27001/hipaa).
+    """
+    from warden.compliance.posture_service import CompliancePostureService
+    report = CompliancePostureService().get_current_posture(tenant_id)
+    all_gaps = [g for f in report.frameworks for g in f.gaps]
+    if severity:
+        all_gaps = [g for g in all_gaps if g.severity == severity.lower()]
+    if framework:
+        all_gaps = [
+            g for f in report.frameworks for g in f.gaps
+            if f.framework == framework.lower()
+        ]
+    return {
+        "tenant_id": tenant_id,
+        "total":     len(all_gaps),
+        "gaps":      [g.to_dict() for g in all_gaps],
+    }
+
+
+@router.get("/posture/{framework}", summary="Per-framework compliance detail (CP-30)", dependencies=_CP30_GATE)
+async def compliance_framework_detail(
+    framework: str,
+    tenant_id: str = "default",
+) -> dict:
+    """
+    Returns score, status, passed/total controls, and gap list for a single
+    framework: gdpr | soc2 | iso27001 | hipaa
+    """
+    from warden.compliance.posture_service import CompliancePostureService
+    report = CompliancePostureService().get_current_posture(tenant_id)
+    match = next((f for f in report.frameworks if f.framework == framework.lower()), None)
+    if not match:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=f"Framework {framework!r} not found. "
+                            "Valid: gdpr, soc2, iso27001, hipaa")
+    return match.to_dict()
+
+
+@router.post("/posture/recalculate", summary="Force cache invalidation and recompute posture (CP-30)", dependencies=_CP30_GATE)
+async def compliance_recalculate(tenant_id: str = "default") -> dict:
+    """Clears the Redis cache and recomputes the posture report immediately."""
+    from warden.compliance.posture_service import CompliancePostureService
+    svc = CompliancePostureService()
+    svc.invalidate_cache(tenant_id)
+    report = svc.get_current_posture(tenant_id)
+    return {"status": "recomputed", **report.to_dict()}
+
+
+# ── WebSocket: real-time compliance updates ───────────────────────────────────
+
+from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402 — placed after guard
+
+import asyncio as _asyncio
+
+
+@router.websocket("/ws")
+async def compliance_ws(ws: WebSocket, tenant_id: str = "default") -> None:
+    """
+    WebSocket endpoint — sends a ComplianceReport immediately on connect,
+    then re-sends every 30 s (or when /posture/recalculate is called and
+    publishes to the compliance:events Redis channel).
+    """
+    await ws.accept()
+    try:
+        from warden.compliance.posture_service import CompliancePostureService
+        svc = CompliancePostureService()
+        await ws.send_json(svc.get_current_posture(tenant_id).to_dict())
+        while True:
+            await _asyncio.sleep(30)
+            await ws.send_json(svc.get_current_posture(tenant_id).to_dict())
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass

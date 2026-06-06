@@ -326,6 +326,10 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 | FE-42 | Semantic Layer (Headless BI) — metric contracts, deterministic SQL, AI query via Claude Haiku | v5.1 | Pro+ | ✅ |
 | FE-43 | Settings Hub — unified Agents/Notifications/Commerce/Semantic config; Streamlit + Portal + SOC | v5.1 | All | ✅ |
 | FE-44 | Site v5.1 refresh — 15-layer badge, WhatsNew section, /roadmap page with JS filters | v5.1 | Public | ✅ |
+| FE-47 | AI Analytics Hub — 9 semantic models, Redis cache, SOVA tools, /analytics landing page | v5.2 | Pro+ | ✅ |
+| FE-48 | Commerce Budget Guardian — Semantic Layer-backed AP2 pre-flight check | v5.2 | Community+ | ✅ |
+| FE-49 | Self-Service Catalog — tenant model registration, SQLite persistence, hot-reload | v5.2 | Pro+ | ✅ |
+| FE-50 | Document Intelligence (MarkItDown) — PDF/DOCX/PPTX/XLSX/audio/image → Markdown + 9-layer scan, Redis cache, `file_base64` filter hook, `/document-intel` API (5 endpoints), Streamlit scanner page | v5.4 | Community+ | ✅ |
 
 ---
 
@@ -464,4 +468,5 @@ Continuous self-improvement and threat intelligence synthesis.
 | **v5.1** | **2026-05-29** | **Semantic Layer Headless BI (FE-42), Settings Hub (FE-43), site 15-layer refresh, /roadmap page, CI lint+mypy 0-error** |
 | **v5.2** | **2026-05-31** | **AI Analytics Hub (FE-47): 9 semantic models, Redis cache, SOVA tools; Commerce Budget Guardian (FE-48): Semantic Layer–backed AP2 pre-flight; Self-Service Catalog (FE-49): tenant model registration; /analytics landing page** |
 | **v5.3** | **2026-06-05** | **GitHub Actions CI gate (IN-15): composite action + pre-commit hook, 93-control scan, PR comment, 90-day audit; ISO 27001:2022 Annex A full mapping (CP-22): 93 controls × 4 themes, HTML report, Streamlit + SOC drilldown, Enterprise gate; Continuous Compliance Scoring (CP-25): 5-standard posture, 168-snapshot ring buffer, 30s auto-refresh, Streamlit + SOC page, Pro+ gate; lint fixes: ruff I001/F401/SIM105/SIM117/B904/N812/C408/B007/E401** |
-| v5.4 | Q3 2026 | Metric Alerts, Dashboard Builder, Federated Query |
+| **v5.4** | **2026-06-06** | **Document Intelligence (FE-50): MarkItDown integration, /document-intel API (5 endpoints), /doc-converter community API, file_base64 filter hook in POST /filter, Redis cache (DOC_INTEL_CACHE_TTL), Streamlit Document Scanner page 19, 10-test suite** |
+| v5.5 | Q3 2026 | Metric Alerts, Dashboard Builder, Federated Query |

@@ -1,0 +1,324 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FeatureList from '../../components/FeatureList.astro';
+import roadmap from '../../data/roadmap.json';
+
+const features = roadmap.filter(r =>
+  r.category === 'Cyber Security' && r.subcategory === 'Document Intelligence'
+);
+
+const PORTAL_URL  = 'https://app.shadow-warden-ai.com/doc-scanner/';
+const API_URL     = 'https://api.shadow-warden-ai.com';
+
+const FLOW = [
+  { step: '1', label: 'Upload',    detail: 'PDF / DOCX / PPTX / XLSX / HTML / image / audio / ZIP',  color: '#3b82f6' },
+  { step: '2', label: 'Convert',   detail: 'Microsoft MarkItDown → clean Markdown',                    color: '#8b5cf6' },
+  { step: '3', label: 'Redact',    detail: 'SecretRedactor — 15 patterns + entropy scan',             color: '#f59e0b' },
+  { step: '4', label: 'Classify',  detail: 'Data class: PHI / PII / FINANCIAL / CLASSIFIED / GENERAL', color: '#06b6d4' },
+  { step: '5', label: 'Filter',    detail: '9-layer pipeline — Topology → Brain → Causal → Decision',  color: '#ef4444' },
+  { step: '6', label: 'Verdict',   detail: 'ALLOW · MEDIUM · HIGH · BLOCK  +  STIX audit entry',      color: '#10b981' },
+];
+
+const ENV_VARS = [
+  { name: 'DOC_INTEL_MAX_BYTES',   default: '52428800',  desc: 'Max file size before rejection (50 MB default)' },
+  { name: 'DOC_INTEL_TIMEOUT_S',   default: '30',        desc: 'Per-conversion thread timeout in seconds' },
+  { name: 'DOC_INTEL_CACHE_TTL',   default: '3600',      desc: 'Fallback Redis cache TTL (overridden by file type)' },
+  { name: 'REDIS_URL',             default: 'redis://…', desc: 'Cache and stats store — set to memory:// for tests' },
+];
+
+const CACHE_TTLS = [
+  { types: 'PDF, DOCX, PPTX, XLSX',  ttl: '24 h',  reason: 'Office documents rarely change' },
+  { types: 'MP3, WAV, FLAC, M4A',    ttl: '7 days', reason: 'Transcription is expensive' },
+  { types: 'JPG, PNG, WEBP, GIF',    ttl: '1 h',    reason: 'Images update more frequently' },
+  { types: 'All others',             ttl: 'DOC_INTEL_CACHE_TTL', reason: 'Configurable fallback' },
+];
+---
+
+<BaseLayout
+  title="Document Intelligence — Cyber Security — Shadow Warden AI"
+  description="Scan any file through the 9-layer Warden pipeline. Microsoft MarkItDown converts PDF, DOCX, PPTX, audio, images to Markdown before SecretRedactor and SemanticGuard run.">
+
+  <div class="pt-14">
+
+    <!-- ── Breadcrumb + Hero ─────────────────────────────────────────── -->
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16">
+
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/cyber-security" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Cyber Security</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Document Intelligence</span>
+        </div>
+
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+          <div class="max-w-2xl">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                   style="background:rgba(239,68,68,.15)">📄</div>
+              <div class="flex items-center gap-2">
+                <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">
+                  Document Intelligence
+                </h1>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                      style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.25)">
+                  FE-50 · v5.4
+                </span>
+              </div>
+            </div>
+            <p class="text-[15px] leading-relaxed" style="color:#94a3b8">
+              Convert <strong style="color:#f1f5f9">any file</strong> — PDF, DOCX, PPTX, XLSX, HTML, images, audio, ZIP —
+              to Markdown via <strong style="color:#f1f5f9">Microsoft MarkItDown</strong>, then pipe the extracted text
+              through the full 9-layer Warden security pipeline before it touches an LLM or a corporate data store.
+            </p>
+            <div class="flex flex-wrap gap-2 mt-5">
+              {['MarkItDown', 'SecretRedactor', 'SemanticGuard', 'Redis Cache', 'Prometheus', 'SOVA Tool #50'].map(tag => (
+                <span class="text-[11px] font-semibold px-2.5 py-1 rounded-lg"
+                      style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.15)">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="shrink-0 flex flex-col gap-3">
+            <a href={PORTAL_URL}
+               class="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[14px] font-bold no-underline transition-all"
+               style="background:#ef4444;color:#fff;box-shadow:0 0 20px rgba(239,68,68,.35)"
+               onmouseover="this.style.transform='translateY(-1px)'"
+               onmouseout="this.style.transform='translateY(0)'">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+              Try in Portal
+            </a>
+            <a href={`${API_URL}/docs#/Document%20Intelligence`}
+               class="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-semibold no-underline text-center justify-center"
+               style="background:rgba(255,255,255,.05);color:#94a3b8;border:1px solid rgba(255,255,255,.08)">
+              API Reference ↗
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Main content ──────────────────────────────────────────────── -->
+    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12 space-y-14">
+
+      <!-- Data flow -->
+      <section>
+        <h2 class="text-[13px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">
+          Processing Pipeline
+        </h2>
+        <div class="rounded-2xl p-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+          <!-- Mobile: vertical stack; desktop: horizontal flow -->
+          <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 items-stretch sm:items-center">
+            {FLOW.map((s, i) => (
+              <>
+                <div class="flex flex-col gap-1.5 rounded-xl px-4 py-3 min-w-[140px] flex-1"
+                     style={`background:${s.color}12;border:1px solid ${s.color}22`}>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0"
+                          style={`background:${s.color}20;color:${s.color}`}>{s.step}</span>
+                    <span class="text-[13px] font-bold" style={`color:${s.color}`}>{s.label}</span>
+                  </div>
+                  <p class="text-[11px] leading-snug" style="color:#64748b">{s.detail}</p>
+                </div>
+                {i < FLOW.length - 1 && (
+                  <span class="hidden sm:block text-[16px]" style="color:#1e293b">→</span>
+                )}
+              </>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- Integration points -->
+      <section>
+        <h2 class="text-[13px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">
+          Three Ways to Use It
+        </h2>
+        <div class="grid sm:grid-cols-3 gap-4">
+
+          {[
+            {
+              icon: '🖥️',
+              title: 'Portal — No-code UI',
+              color: '#3b82f6',
+              lines: [
+                'Visit /doc-scanner/ in the tenant portal.',
+                'Drag and drop any file.',
+                'Get a verdict, data class, secrets found, and extracted Markdown — instantly.',
+              ],
+              cta: { label: 'Open Portal', href: PORTAL_URL },
+            },
+            {
+              icon: '🔗',
+              title: 'REST API',
+              color: '#8b5cf6',
+              lines: [
+                'POST /document-intel/convert-and-scan',
+                'POST /document-intel/convert',
+                'POST /document-intel/convert-batch',
+                'GET  /document-intel/stats',
+              ],
+              cta: { label: 'API Docs', href: `${API_URL}/docs` },
+            },
+            {
+              icon: '⚡',
+              title: 'Filter Hook',
+              color: '#ef4444',
+              lines: [
+                'Add file_base64 + file_filename to any POST /filter request.',
+                'The gateway converts the file and replaces content before the pipeline.',
+                'Fail-open: conversion errors fall back to original content.',
+              ],
+              cta: null,
+            },
+          ].map(card => (
+            <div class="rounded-2xl p-5 flex flex-col gap-3"
+                 style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+              <div class="flex items-center gap-2.5">
+                <span class="text-[20px]">{card.icon}</span>
+                <h3 class="text-[14px] font-bold" style="color:#f1f5f9">{card.title}</h3>
+              </div>
+              <ul class="space-y-1.5 flex-1">
+                {card.lines.map(l => (
+                  <li class="text-[12px] font-mono leading-snug" style="color:#64748b">{l}</li>
+                ))}
+              </ul>
+              {card.cta && (
+                <a href={card.cta.href}
+                   class="mt-1 inline-flex items-center gap-1.5 text-[12px] font-semibold no-underline transition-opacity hover:opacity-80"
+                   style={`color:${card.color}`}>
+                  {card.cta.label}
+                  <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- Cache TTLs -->
+      <section>
+        <h2 class="text-[13px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">
+          File-Type Cache TTLs
+        </h2>
+        <div class="rounded-2xl overflow-hidden" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-[13px]">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+                <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style="color:#475569">File Types</th>
+                <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style="color:#475569">Cache TTL</th>
+                <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style="color:#475569">Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CACHE_TTLS.map((r, i) => (
+                <tr style={i < CACHE_TTLS.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.04)' : ''}>
+                  <td class="px-5 py-3 font-mono" style="color:#94a3b8">{r.types}</td>
+                  <td class="px-5 py-3 font-bold" style="color:#10b981">{r.ttl}</td>
+                  <td class="px-5 py-3" style="color:#64748b">{r.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="text-[12px] mt-3" style="color:#475569">
+          Cache key: <code class="font-mono px-1.5 py-0.5 rounded text-[11px]" style="background:rgba(255,255,255,.06);color:#94a3b8">doc_intel:md:{'{'}sha256_of_file_bytes{'}'}</code>
+          — identical files are never converted twice, regardless of filename.
+        </p>
+      </section>
+
+      <!-- Env vars -->
+      <section>
+        <h2 class="text-[13px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">
+          Configuration
+        </h2>
+        <div class="rounded-2xl overflow-hidden" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-[13px]">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.06)">
+                <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style="color:#475569">Variable</th>
+                <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style="color:#475569">Default</th>
+                <th class="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style="color:#475569">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ENV_VARS.map((v, i) => (
+                <tr style={i < ENV_VARS.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.04)' : ''}>
+                  <td class="px-5 py-3">
+                    <code class="font-mono text-[12px]" style="color:#ef4444">{v.name}</code>
+                  </td>
+                  <td class="px-5 py-3">
+                    <code class="font-mono text-[12px]" style="color:#94a3b8">{v.default}</code>
+                  </td>
+                  <td class="px-5 py-3" style="color:#64748b">{v.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Prometheus metrics -->
+      <section>
+        <h2 class="text-[13px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">
+          Observability
+        </h2>
+        <div class="grid sm:grid-cols-3 gap-3">
+          {[
+            { metric: 'warden_doc_intel_convert_total', labels: '{ext, data_class}', desc: 'Total conversions by file type and inferred data class' },
+            { metric: 'warden_doc_intel_convert_errors_total', labels: '{ext, error}',    desc: 'Conversion errors — use for SLO alerting on error rate' },
+            { metric: 'warden_doc_intel_cache_hits_total',  labels: '',                desc: 'Redis cache hits — use to track cache efficiency' },
+          ].map(m => (
+            <div class="rounded-xl p-4" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+              <code class="text-[11px] font-mono block mb-1" style="color:#ef4444">{m.metric}</code>
+              {m.labels && <code class="text-[10px] font-mono block mb-2" style="color:#475569">{m.labels}</code>}
+              <p class="text-[12px]" style="color:#64748b">{m.desc}</p>
+            </div>
+          ))}
+        </div>
+        <p class="text-[12px] mt-3" style="color:#475569">
+          Stats also available at <code class="font-mono text-[11px] px-1.5 py-0.5 rounded" style="background:rgba(255,255,255,.06);color:#94a3b8">GET /document-intel/stats</code>
+          — returns <code style="color:#94a3b8">total</code>, <code style="color:#94a3b8">cache_hits</code>, <code style="color:#94a3b8">errors</code>, <code style="color:#94a3b8">sensitive</code>, <code style="color:#94a3b8">secrets_found</code> from Redis.
+        </p>
+      </section>
+
+      <!-- Feature list -->
+      <section>
+        <h2 class="text-[13px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">
+          Shipped Features
+        </h2>
+        <FeatureList features={features} accent="#ef4444" />
+      </section>
+
+      <!-- Bottom CTA -->
+      <section class="rounded-2xl p-8 text-center"
+               style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15)">
+        <p class="text-[18px] font-bold mb-2" style="color:#f1f5f9">
+          Ready to scan your first document?
+        </p>
+        <p class="text-[14px] mb-6" style="color:#94a3b8">
+          No API key needed — the portal handles authentication and proxies securely.
+        </p>
+        <a href={PORTAL_URL}
+           class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-bold no-underline transition-all"
+           style="background:#ef4444;color:#fff;box-shadow:0 0 24px rgba(239,68,68,.4)"
+           onmouseover="this.style.transform='translateY(-2px)'"
+           onmouseout="this.style.transform='translateY(0)'">
+          Open Document Scanner
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
+      </section>
+
+    </div>
+  </div>
+</BaseLayout>

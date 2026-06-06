@@ -1215,6 +1215,65 @@ async def smb_suite_health(
     return await _get(f"/smb-suite/health?{params}", tenant=tenant_id)
 
 
+async def get_compliance_report(
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """Tool #51 — Return the live compliance posture report (CP-30).
+    Includes overall_score, per-framework scores, gap list, and recommendations.
+    """
+    return await _post(
+        "/compliance/posture/recalculate",
+        {"tenant_id": tenant_id},
+        tenant=tenant_id,
+    )
+
+
+async def remediate_gap(
+    control_id: str,
+    tenant_id:  str = "default",
+    note:       str = "",
+    **_,
+) -> dict:
+    """Tool #52 — Acknowledge a compliance gap and force cache recompute.
+    Use after the operator has remediated the control to get an updated score.
+    """
+    result = await _post(
+        "/compliance/posture/recalculate",
+        {"tenant_id": tenant_id},
+        tenant=tenant_id,
+    )
+    return {
+        "acknowledged_control": control_id,
+        "note":                 note,
+        "updated_posture":      result,
+    }
+
+
+async def scan_document(
+    file_base64: str,
+    filename:    str = "upload.bin",
+    tenant_id:   str = "default",
+    **_,
+) -> dict:
+    """Tool #50 — Scan a base64-encoded document through the full 9-layer Warden pipeline.
+
+    Converts the file to Markdown via MarkItDown, then runs SecretRedactor +
+    TopologicalGatekeeper + SemanticGuard + HyperbolicBrain + CausalArbiter.
+    Returns the standard FilterResponse: allowed, risk_level, secrets_found, semantic_flags.
+    """
+    return await _post(
+        "/filter",
+        {
+            "content":       filename,
+            "file_base64":   file_base64,
+            "file_filename": filename,
+            "tenant_id":     tenant_id,
+        },
+        tenant=tenant_id,
+    )
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -1917,6 +1976,58 @@ TOOLS: list[dict] = [
             "required": ["tenant_id"],
         },
     },
+    {
+        "name": "get_compliance_report",
+        "description": (
+            "Tool #51 — Retrieve the live compliance posture report (CP-30). "
+            "Returns overall_score (0–100), per-framework scores (GDPR/SOC2/ISO27001/HIPAA), "
+            "gap list with remediation instructions, and recommendations. "
+            "Use for morning briefs, compliance audits, or when a user asks about their security posture."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id": {"type": "string", "description": "Tenant ID (default: 'default')"},
+            },
+        },
+    },
+    {
+        "name": "remediate_gap",
+        "description": (
+            "Tool #52 — Acknowledge that a compliance gap has been remediated and recompute the posture score. "
+            "Call this after an operator fixes a control (e.g. uploads a missing DPA, sets SLACK_WEBHOOK_URL). "
+            "Returns the updated ComplianceReport with the new score."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "control_id": {"type": "string", "description": "ID of the remediated control (e.g. 'GDPR-01')"},
+                "tenant_id":  {"type": "string", "description": "Tenant ID"},
+                "note":       {"type": "string", "description": "Optional operator note on the remediation action"},
+            },
+            "required": ["control_id"],
+        },
+    },
+    {
+        "name": "scan_document",
+        "description": (
+            "Tool #50 — Scan a base64-encoded file through the full 9-layer Warden security pipeline. "
+            "Converts PDF/DOCX/PPTX/XLSX/HTML/image/audio/ZIP to Markdown via MarkItDown, "
+            "then runs SecretRedactor, SemanticGuard, HyperbolicBrain, and CausalArbiter. "
+            "Returns allowed (bool), risk_level (LOW/MEDIUM/HIGH/BLOCK), secrets_found, and semantic_flags. "
+            "Use when a user asks to check a document, analyse an attachment, or scan a file for threats. "
+            "The file_base64 must be a standard base64-encoded string of the raw file bytes."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_base64": {"type": "string", "description": "Base64-encoded file content"},
+                "filename":    {"type": "string", "description": "Original filename with extension (e.g. 'report.pdf')"},
+                "tenant_id":   {"type": "string", "description": "Tenant ID (default: 'default')"},
+            },
+            "required": ["file_base64"],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -1976,4 +2087,9 @@ TOOL_HANDLERS: dict[str, Any] = {
     # Commerce budget (Semantic Layer–backed)
     "check_commerce_budget":         check_commerce_budget,
     "get_spend_summary":             get_spend_summary,
+    # Document Intelligence (FE-50)
+    "scan_document":                 scan_document,
+    # Compliance Posture (CP-30)
+    "get_compliance_report":         get_compliance_report,
+    "remediate_gap":                 remediate_gap,
 }

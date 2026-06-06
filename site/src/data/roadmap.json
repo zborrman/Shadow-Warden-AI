@@ -1691,5 +1691,75 @@
     "tier": "Enterprise",
     "status": "shipped",
     "description": "Full seller-side architecture for AI agents to trade autonomously. Dynamic pricing, Redis reservations, AP2 payments, STIX audit, budget guardian integration."
+  },
+  {
+    "id": "FE-50-0",
+    "category": "Cyber Security",
+    "subcategory": "Document Intelligence",
+    "feature": "Filter Pipeline — file_base64 Hook",
+    "description": "POST /filter accepts file_base64 + file_filename fields. Before the 9-layer pipeline runs, the file is converted to Markdown via MarkItDown and replaces content. Fail-open: conversion errors fall back to original content. Supports PDF, DOCX, PPTX, XLSX, HTML, images, audio, ZIP, EPUB.",
+    "version": "v5.4",
+    "tier": "All",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-50-1",
+    "category": "Cyber Security",
+    "subcategory": "Document Intelligence",
+    "feature": "MarkItDown Converter",
+    "description": "Microsoft MarkItDown converts any office or media file to clean Markdown. File-type-aware cache TTLs: PDF/DOCX/XLSX 24h, audio 7 days, images 1h. 50 MB size gate (DOC_INTEL_MAX_BYTES). 30s thread-pool timeout (DOC_INTEL_TIMEOUT_S). Redis cache keyed by SHA-256 hash.",
+    "version": "v5.4",
+    "tier": "Community+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-50-2",
+    "category": "Cyber Security",
+    "subcategory": "Document Intelligence",
+    "feature": "Prometheus Metrics",
+    "description": "3 Grafana-ready counters: warden_doc_intel_convert_total{ext,data_class}, warden_doc_intel_convert_errors_total{ext,error}, warden_doc_intel_cache_hits_total. Ready for SLO alerting on conversion error rate and cache efficiency.",
+    "version": "v5.4",
+    "tier": "All",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-50-3",
+    "category": "Cyber Security",
+    "subcategory": "Document Intelligence",
+    "feature": "Document Intel API — 6 Endpoints",
+    "description": "/document-intel: POST /convert, POST /convert-and-scan (SecretRedactor + SemanticGuard), POST /convert-batch, GET /health, GET /formats, GET /stats. Gated at Community Business+. Stats endpoint reads Redis hash (total, cache_hits, errors, sensitive, secrets_found).",
+    "version": "v5.4",
+    "tier": "Community+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-50-4",
+    "category": "Cyber Security",
+    "subcategory": "Document Intelligence",
+    "feature": "SOVA Tool #50 — scan_document",
+    "description": "SOVA agent can scan base64-encoded files through the full pipeline. Converts PDF/DOCX/PPTX to Markdown via MarkItDown, then runs SecretRedactor + SemanticGuard + HyperbolicBrain + CausalArbiter. Returns full FilterResponse: allowed, risk_level, secrets_found, semantic_flags.",
+    "version": "v5.4",
+    "tier": "Pro+",
+    "status": "shipped"
+  },
+  {
+    "id": "FE-50-5",
+    "category": "Cyber Security",
+    "subcategory": "Document Intelligence",
+    "feature": "SOC Dashboard — Document Scans Widget",
+    "description": "5-metric row on the SOC overview: Total Scanned, Cache Hits, Sensitive Docs, Secrets Found, Errors. Queries GET /document-intel/stats via DocScanStats type. Widget hidden gracefully when endpoint is unreachable.",
+    "version": "v5.4",
+    "tier": "All",
+    "status": "shipped"
+  },
+  {
+    "id": "CP-30",
+    "category": "Cyber Security",
+    "subcategory": "Compliance & Privacy",
+    "feature": "Real-time Compliance Dashboard",
+    "description": "Live multi-source compliance scoring (GDPR/SOC2/ISO27001/HIPAA) with automated gap detection, remediation guidance, WebSocket updates, portal self-service page, and SOVA tools for AI-assisted compliance management.",
+    "version": "v5.5",
+    "tier": "Pro+",
+    "status": "shipped"
   }
 ]

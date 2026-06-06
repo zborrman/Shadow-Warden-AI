@@ -1,7 +1,9 @@
 """
-Tests for CP-25 compliance posture + history endpoints.
+Tests for CP-25 compliance posture + history endpoints, and CP-30 gap analysis.
 """
 from __future__ import annotations
+
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -157,3 +159,133 @@ class TestComplianceHistory:
     def test_count_matches_snapshots_len(self, client):
         data = client.get("/compliance/history").json()
         assert data["count"] == len(data["snapshots"])
+
+
+# ── CP-30: CompliancePostureService unit tests ────────────────────────────────
+
+class TestCompliancePostureService:
+    def _svc(self):
+        from warden.compliance.posture_service import CompliancePostureService
+        return CompliancePostureService()
+
+    def test_gdpr_all_pass_score_100(self, monkeypatch):
+        import warden.compliance.posture_service as ps
+        monkeypatch.setattr(ps, "_check_dpa_coverage",      lambda _: (True, None))
+        monkeypatch.setattr(ps, "_check_incident_register", lambda _: (True, None))
+        monkeypatch.setattr(ps, "_check_doc_intel_active",  lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_secret_rotation",   lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_log_retention",     lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_data_minimisation", lambda: (True, None))
+        fs = self._svc()._score_gdpr("t")
+        assert fs.score == 100.0
+        assert fs.gaps == []
+
+    def test_gdpr_missing_dpa_creates_high_gap(self, monkeypatch):
+        import warden.compliance.posture_service as ps
+        from warden.compliance.models import Gap, Severity
+        g = Gap("GDPR-01", "Missing DPA", Severity.HIGH, "Upload DPA", "vendor_governance")
+        monkeypatch.setattr(ps, "_check_dpa_coverage",      lambda _: (False, g))
+        monkeypatch.setattr(ps, "_check_incident_register", lambda _: (True, None))
+        monkeypatch.setattr(ps, "_check_doc_intel_active",  lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_secret_rotation",   lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_log_retention",     lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_data_minimisation", lambda: (True, None))
+        fs = self._svc()._score_gdpr("t")
+        assert fs.score < 100
+        assert any(x.control_id == "GDPR-01" for x in fs.gaps)
+
+    def test_soc2_missing_notifications_gap(self, monkeypatch):
+        import warden.compliance.posture_service as ps
+        from warden.compliance.models import Gap, Severity
+        g = Gap("SOC2-02", "No alert", Severity.MEDIUM, "Set SLACK_WEBHOOK_URL", "alerting")
+        monkeypatch.setattr(ps, "_check_stix_audit",         lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_notifications",      lambda: (False, g))
+        monkeypatch.setattr(ps, "_check_fido2",              lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_prometheus",         lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_incident_procedure", lambda _: (True, None))
+        fs = self._svc()._score_soc2("t")
+        assert any(x.control_id == "SOC2-02" for x in fs.gaps)
+
+    def test_iso27001_training_gap(self, monkeypatch):
+        import warden.compliance.posture_service as ps
+        from warden.compliance.models import Gap, Severity
+        g = Gap("ISO-02", "No training", Severity.MEDIUM, "Set up training", "training_records")
+        monkeypatch.setattr(ps, "_check_community_charter", lambda _: (True, None))
+        monkeypatch.setattr(ps, "_check_training_records",  lambda _: (False, g))
+        monkeypatch.setattr(ps, "_check_supplier_risk",     lambda _: (True, None))
+        monkeypatch.setattr(ps, "_check_api_key_rotation",  lambda: (True, None))
+        fs = self._svc()._score_iso27001("t")
+        assert any(x.control_id == "ISO-02" for x in fs.gaps)
+
+    def test_hipaa_fernet_missing_gap(self, monkeypatch):
+        import warden.compliance.posture_service as ps
+        from warden.compliance.models import Gap, Severity
+        g = Gap("HIPAA-01", "No VAULT_MASTER_KEY", Severity.HIGH, "Set key", "secrets")
+        monkeypatch.setattr(ps, "_check_fernet_encryption", lambda: (False, g))
+        monkeypatch.setattr(ps, "_check_tls",               lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_stix_audit",        lambda: (True, None))
+        monkeypatch.setattr(ps, "_check_phi_enforcement",   lambda: (True, None))
+        fs = self._svc()._score_hipaa("t")
+        assert any(x.control_id == "HIPAA-01" for x in fs.gaps)
+
+    def test_overall_score_is_mean_of_frameworks(self, monkeypatch):
+        import warden.compliance.posture_service as ps
+        from warden.compliance.models import FrameworkScore
+        monkeypatch.setattr(ps.CompliancePostureService, "_score_gdpr",     lambda s, t: FrameworkScore("gdpr",     80.0, 6, 5))
+        monkeypatch.setattr(ps.CompliancePostureService, "_score_soc2",     lambda s, t: FrameworkScore("soc2",     60.0, 5, 3))
+        monkeypatch.setattr(ps.CompliancePostureService, "_score_iso27001", lambda s, t: FrameworkScore("iso27001", 100.0, 4, 4))
+        monkeypatch.setattr(ps.CompliancePostureService, "_score_hipaa",    lambda s, t: FrameworkScore("hipaa",    80.0, 4, 3))
+        monkeypatch.setattr(ps, "_get_redis", lambda: None)
+        report = self._svc()._compute("default")
+        assert report.overall_score == pytest.approx(80.0)
+
+    def test_cache_invalidation_calls_delete(self, monkeypatch):
+        import warden.compliance.posture_service as ps
+        r = MagicMock()
+        r.delete.return_value = 1
+        monkeypatch.setattr(ps, "_get_redis", lambda: r)
+        self._svc().invalidate_cache("default")
+        r.delete.assert_called_once()
+
+    def test_recommendations_added_for_high_gaps(self, monkeypatch):
+        import warden.compliance.posture_service as ps
+        from warden.compliance.models import FrameworkScore, Gap, Severity
+        g = Gap("GDPR-01", "Missing DPA", Severity.HIGH, "Fix", "vendor_gov")
+        fs = FrameworkScore("gdpr", 83.33, 6, 5, [g])
+        monkeypatch.setattr(ps.CompliancePostureService, "_score_gdpr",     lambda s, t: fs)
+        monkeypatch.setattr(ps.CompliancePostureService, "_score_soc2",     lambda s, t: FrameworkScore("soc2",     100.0, 5, 5))
+        monkeypatch.setattr(ps.CompliancePostureService, "_score_iso27001", lambda s, t: FrameworkScore("iso27001", 100.0, 4, 4))
+        monkeypatch.setattr(ps.CompliancePostureService, "_score_hipaa",    lambda s, t: FrameworkScore("hipaa",    100.0, 4, 4))
+        monkeypatch.setattr(ps, "_get_redis", lambda: None)
+        report = self._svc()._compute("default")
+        assert any("HIGH" in r for r in report.recommendations)
+
+
+# ── CP-30: API integration ─────────────────────────────────────────────────────
+
+@pytest.mark.integration
+def test_gaps_endpoint_structure(client):
+    resp = client.get("/compliance/posture/gaps")
+    assert resp.status_code in (200, 403, 503)
+    if resp.status_code == 200:
+        data = resp.json()
+        assert "gaps" in data and isinstance(data["gaps"], list)
+
+@pytest.mark.integration
+def test_framework_detail_gdpr(client):
+    resp = client.get("/compliance/posture/gdpr")
+    assert resp.status_code in (200, 403, 404, 503)
+    if resp.status_code == 200:
+        assert resp.json()["framework"] == "gdpr"
+
+@pytest.mark.integration
+def test_framework_detail_unknown_404(client):
+    resp = client.get("/compliance/posture/unknown_framework")
+    assert resp.status_code in (404, 403, 503)
+
+@pytest.mark.integration
+def test_smb_pdf_content_type(client):
+    resp = client.get("/compliance/smb-report/pdf?days=7")
+    assert resp.status_code == 200
+    ct = resp.headers.get("content-type", "")
+    assert "pdf" in ct or "html" in ct

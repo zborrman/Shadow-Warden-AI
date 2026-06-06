@@ -406,6 +406,39 @@ try:
             "warden_shadow_ban_cost_saved_usd_total"
         )
 
+    # ── Document Intelligence (FE-50) ─────────────────────────────────────────
+    try:
+        DOC_INTEL_CONVERT_TOTAL = Counter(
+            "warden_doc_intel_convert_total",
+            "Document Intelligence conversions",
+            ["ext", "data_class"],
+        )
+    except ValueError:
+        DOC_INTEL_CONVERT_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_doc_intel_convert_total"
+        )
+
+    try:
+        DOC_INTEL_CONVERT_ERRORS_TOTAL = Counter(
+            "warden_doc_intel_convert_errors_total",
+            "Document Intelligence conversion errors",
+            ["ext", "error"],
+        )
+    except ValueError:
+        DOC_INTEL_CONVERT_ERRORS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_doc_intel_convert_errors_total"
+        )
+
+    try:
+        DOC_INTEL_CACHE_HITS_TOTAL = Counter(
+            "warden_doc_intel_cache_hits_total",
+            "Document Intelligence Redis cache hits",
+        )
+    except ValueError:
+        DOC_INTEL_CACHE_HITS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_doc_intel_cache_hits_total"
+        )
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -452,3 +485,6 @@ except ImportError:
     SHADOW_BAN_TOTAL                = _Noop()  # type: ignore[assignment]
     SHADOW_BAN_COST_SAVED_USD       = _Noop()  # type: ignore[assignment]
     NEMOTRON_EVOLUTION_TOTAL        = _Noop()  # type: ignore[assignment]
+    DOC_INTEL_CONVERT_TOTAL         = _Noop()  # type: ignore[assignment]
+    DOC_INTEL_CONVERT_ERRORS_TOTAL  = _Noop()  # type: ignore[assignment]
+    DOC_INTEL_CACHE_HITS_TOTAL      = _Noop()  # type: ignore[assignment]

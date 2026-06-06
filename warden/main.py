@@ -1364,6 +1364,20 @@ except ImportError:
     log.warning("prompt_library router not available — /prompt-library routes skipped.")
 
 try:
+    from warden.api.doc_converter import router as _doc_converter_router
+    app.include_router(_doc_converter_router)
+    log.info("Document Converter (MarkItDown) mounted at /doc-converter")
+except ImportError:
+    log.warning("doc_converter router not available — /doc-converter routes skipped.")
+
+try:
+    from warden.document_intel.api import router as _doc_intel_router
+    app.include_router(_doc_intel_router)
+    log.info("Document Intelligence (MarkItDown) mounted at /document-intel (FE-50)")
+except ImportError:
+    log.warning("document_intel router not available — /document-intel routes skipped.")
+
+try:
     from warden.api.training_records import router as _training_router
     app.include_router(_training_router)
     log.info("Employee AI Training Records mounted at /training (CM-38)")
@@ -2732,6 +2746,26 @@ async def filter_content(
                 payload.content, auth.entity_key, auth.ers_score, auth.last_flag
             )
         )
+
+    # ── Document Intelligence: convert file_base64 to Markdown before pipeline ──
+    if payload.file_base64:
+        try:
+            import base64 as _b64
+            from warden.document_intel.converter import get_converter
+            _file_bytes = _b64.b64decode(payload.file_base64)
+            _conv = get_converter().convert_bytes(_file_bytes, payload.file_filename)
+            _md = _conv.markdown[:32_000] or payload.content
+            payload = payload.model_copy(update={"content": _md})
+            log.info(json.dumps({
+                "event":      "doc_intel_conversion",
+                "request_id": rid,
+                "filename":   payload.file_filename,
+                "data_class": _conv.data_class,
+                "word_count": _conv.word_count,
+                "from_cache": _conv.from_cache,
+            }))
+        except Exception as _exc:
+            log.warning("doc_intel file_base64 conversion failed (fail-open): %s", _exc)
 
     coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
     if _PIPELINE_TIMEOUT_MS > 0:

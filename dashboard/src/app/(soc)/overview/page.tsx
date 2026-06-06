@@ -5,7 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
 import { CommunityDefenseWidget } from "@/components/ui/community-defense-widget";
-import { api, type StatsResponse, type ThreatsResponse, type RoiResponse, type PostureResponse } from "@/lib/api";
+import { api, type StatsResponse, type ThreatsResponse, type RoiResponse, type PostureResponse, type DocScanStats } from "@/lib/api";
 import { fmtNum, fmtMs, fmtUsd, cn } from "@/lib/utils";
 
 const MOCK_STATS: StatsResponse = {
@@ -30,10 +30,11 @@ function buildTimeline(by_day: Record<string, { total: number; blocked: number }
 }
 
 export default function OverviewPage() {
-  const { data: stats }   = useQuery({ queryKey: ["stats"],   queryFn: api.stats,   initialData: MOCK_STATS });
-  const { data: threats } = useQuery({ queryKey: ["threats"], queryFn: api.threats });
-  const { data: roi }     = useQuery({ queryKey: ["roi"],     queryFn: api.roi });
-  const { data: posture } = useQuery({ queryKey: ["posture"], queryFn: () => api.posture(7), retry: false });
+  const { data: stats }    = useQuery({ queryKey: ["stats"],    queryFn: api.stats,    initialData: MOCK_STATS });
+  const { data: threats }  = useQuery({ queryKey: ["threats"],  queryFn: api.threats });
+  const { data: roi }      = useQuery({ queryKey: ["roi"],      queryFn: api.roi });
+  const { data: posture }  = useQuery({ queryKey: ["posture"],  queryFn: () => api.posture(7), retry: false });
+  const { data: docScans } = useQuery({ queryKey: ["docScans"], queryFn: api.docScans, retry: false });
 
   const s = stats ?? MOCK_STATS;
   const timeline = Object.keys(s.by_day).length > 0 ? buildTimeline(s.by_day) : [];
@@ -149,6 +150,33 @@ export default function OverviewPage() {
             )}
           </div>
         </div>
+
+        {/* Document Intelligence row */}
+        {docScans?.available !== false && (
+          <div className="rounded-xl bg-surface-2 border border-border p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <svg className="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="text-sm font-semibold text-white">Document Scans</p>
+              <span className="ml-auto text-[10px] text-gray-500 uppercase tracking-wider">FE-50 · MarkItDown</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { label: "Total Scanned",    value: String(docScans?.total         ?? 0), color: "text-accent-blue"   },
+                { label: "Cache Hits",       value: String(docScans?.cache_hits    ?? 0), color: "text-accent-green"  },
+                { label: "Sensitive Docs",   value: String(docScans?.sensitive     ?? 0), color: "text-yellow-400"    },
+                { label: "Secrets Found",    value: String(docScans?.secrets_found ?? 0), color: "text-orange-400"    },
+                { label: "Errors",           value: String(docScans?.errors        ?? 0), color: "text-gray-500"      },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="bg-surface-3 rounded-lg px-3 py-2">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</p>
+                  <p className={cn("text-base font-bold mt-0.5", color)}>{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bottom row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

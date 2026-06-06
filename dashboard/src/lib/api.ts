@@ -211,6 +211,15 @@ export type BIPredictive = {
   predicted_value: number; trend_direction: string; r_squared: number;
 };
 
+export type DocScanStats = {
+  total:         number;
+  cache_hits:    number;
+  errors:        number;
+  sensitive:     number;
+  secrets_found: number;
+  available:     boolean;
+};
+
 async function post<T>(base: string, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method:  "POST",
@@ -297,4 +306,7 @@ export const api = {
     get<BICompliance>(API, "/business-intelligence/compliance", { tenant_id: tenantId }),
   biPredictive:    (tenantId: string, metric = "block_rate") =>
     get<BIPredictive>(API, "/business-intelligence/predictions", { tenant_id: tenantId, metric }),
+
+  // ── FE-50 Document Intelligence ───────────────────────────────────────────
+  docScans:        () => get<DocScanStats>(API, "/document-intel/stats"),
 };

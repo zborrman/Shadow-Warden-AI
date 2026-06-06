@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   ShieldCheck, LogOut, ExternalLink, ChevronDown,
   Users, Network, Star, Database,
-  Zap, Eye, FileText, Bot,
+  Zap, Eye, FileText, Bot, ScanSearch,
   BarChart2, List, Search, Activity, GitBranch,
   Key, Lock, Globe, Trash2, CreditCard,
   BookOpen, DollarSign, Building2, AlertTriangle,
@@ -47,10 +47,11 @@ const groups: NavGroup[] = [
     accent: '#FF2D55',
     icon: '◈',
     items: [
-      { href: '/dashboard/?tab=events',    label: 'Filter Events',  icon: Zap      },
-      { href: '/dashboard/?tab=shadow-ai', label: 'Shadow AI',      icon: Eye      },
-      { href: '/dashboard/?tab=xai',       label: 'XAI Reports',    icon: FileText },
-      { href: '/dashboard/?tab=agents',    label: 'Agent Monitor',  icon: Bot      },
+      { href: '/dashboard/?tab=events',    label: 'Filter Events',     icon: Zap        },
+      { href: '/dashboard/?tab=shadow-ai', label: 'Shadow AI',         icon: Eye        },
+      { href: '/dashboard/?tab=xai',       label: 'XAI Reports',       icon: FileText   },
+      { href: '/dashboard/?tab=agents',    label: 'Agent Monitor',     icon: Bot        },
+      { href: '/doc-scanner/',             label: 'Document Scanner',  icon: ScanSearch },
     ],
   },
   {
@@ -87,11 +88,12 @@ const groups: NavGroup[] = [
     accent: '#30D158',
     icon: '◈',
     items: [
-      { href: '/api-keys/',                label: 'API Keys',         icon: Key       },
-      { href: '/settings/?tab=secrets',    label: 'Secrets Vault',    icon: Lock      },
-      { href: '/settings/?tab=sovereign',  label: 'Sovereign Routing',icon: Globe     },
-      { href: '/settings/?tab=gdpr',       label: 'GDPR Controls',    icon: Trash2    },
-      { href: '/settings/',                label: 'Billing',          icon: CreditCard},
+      { href: '/api-keys/',                label: 'API Keys',         icon: Key         },
+      { href: '/settings/?tab=secrets',    label: 'Secrets Vault',    icon: Lock        },
+      { href: '/settings/?tab=sovereign',  label: 'Sovereign Routing',icon: Globe       },
+      { href: '/settings/?tab=gdpr',       label: 'GDPR Controls',    icon: Trash2      },
+      { href: '/settings/',                label: 'Billing',          icon: CreditCard  },
+      { href: '/compliance/',              label: 'Compliance',       icon: ShieldCheck },
     ],
   },
 ]

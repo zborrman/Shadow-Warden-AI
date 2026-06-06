@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from warden.integrations.obsidian.note_scanner import scan_note as _scan
@@ -221,12 +221,61 @@ async def obsidian_reputation(tenant_id: str = Depends(_get_tenant)):
         }
 
 
+@router.post("/scan-attachment")
+async def scan_attachment(
+    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    tenant_id: str = Depends(_get_tenant),
+):
+    """Convert a non-markdown file (PDF, DOCX, PPTX …) to Markdown, then scan it."""
+    from warden.communities.doc_converter import DocConverterUnavailable, convert_to_markdown
+
+    try:
+        file_bytes = await file.read()
+        converted = convert_to_markdown(file_bytes, file.filename or "attachment")
+    except DocConverterUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    scan_result = _scan(converted.markdown)
+    risk, flags = _risk_from_scan(scan_result)
+    if converted.secrets_found:
+        flags.append("secrets_redacted_pre_scan")
+        if _RISK_ORDER.index(risk) < _RISK_ORDER.index("MEDIUM"):
+            risk = "MEDIUM"
+
+    if risk in ("HIGH", "BLOCK"):
+        from warden import alerting  # noqa: PLC0415
+        background_tasks.add_task(
+            alerting.alert_obsidian_event,
+            filename=file.filename or "attachment",
+            risk_level=risk,
+            flags=flags,
+            data_class=converted.data_class,
+            tenant_id=tenant_id,
+        )
+
+    return {
+        "allowed": risk not in ("HIGH", "BLOCK"),
+        "risk_level": risk,
+        "secrets_found": converted.secrets_found,
+        "flags": flags,
+        "data_class": converted.data_class,
+        "word_count": converted.word_count,
+        "redacted_content": converted.markdown,
+        "filename": file.filename or "attachment",
+        "tenant_id": tenant_id,
+        "scanned_at": datetime.now(UTC).isoformat(),
+    }
+
+
 @router.get("/stats")
 async def obsidian_stats(tenant_id: str = Depends(_get_tenant)):
     return {
         "integration": "obsidian",
         "version": "1.0.0",
         "tenant_id": tenant_id,
-        "endpoints": ["scan", "share", "feed", "ai-filter", "reputation", "stats"],
+        "endpoints": ["scan", "scan-attachment", "share", "feed", "ai-filter", "reputation", "stats"],
         "status": "active",
     }
