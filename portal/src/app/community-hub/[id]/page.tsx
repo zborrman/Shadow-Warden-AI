@@ -685,11 +685,19 @@ export default function CommunityDetailPage() {
       <TopBar title={c?.name || 'Community'} />
 
       <div className="p-6 max-w-4xl mx-auto space-y-5">
-        {/* Back link */}
-        <Link href="/community-hub/"
-          className="flex items-center gap-1.5 text-sm text-dark-400 hover:text-brand-400 transition-colors w-fit">
-          <ChevronLeft className="w-4 h-4" /> All Communities
-        </Link>
+        {/* Back link + Edit button */}
+        <div className="flex items-center justify-between">
+          <Link href="/community-hub/"
+            className="flex items-center gap-1.5 text-sm text-dark-400 hover:text-brand-400 transition-colors">
+            <ChevronLeft className="w-4 h-4" /> All Communities
+          </Link>
+          <Link
+            href={`/community-hub/create?edit=true&id=${communityId}`}
+            className="flex items-center gap-1.5 text-sm btn-secondary py-1.5 px-3"
+          >
+            <Edit2 className="w-3.5 h-3.5" /> Edit Settings
+          </Link>
+        </div>
 
         {/* Tab bar */}
         <div className="flex gap-1 bg-dark-800 rounded-lg p-1 overflow-x-auto">

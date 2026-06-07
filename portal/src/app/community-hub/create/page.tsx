@@ -5,17 +5,19 @@
  * Step 4: Peering   · Step 5: Compliance · Step 6: Integrations
  */
 
-import React, { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useCallback, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import {
   Building2, Shield, Users, Network, BookOpen, Settings2,
   ChevronRight, ChevronLeft, Check, Plus, X, Globe, Lock,
-  Zap, Info, ArrowLeft, Loader2, Bell,
+  Zap, Info, ArrowLeft, Loader2, Bell, LockKeyhole,
 } from 'lucide-react'
 import {
   createCommunity,
+  getCommunity,
+  patchCommunity,
   addMember,
   upgradeToPQC,
   uploadCharter,
@@ -288,7 +290,35 @@ function Step1({ d, set }: { d: WizardData; set: (k: keyof WizardData, v: unknow
 
 // ── Step 2: Security ────────────────────────────────────────────────────────
 
-function Step2({ d, set }: { d: WizardData; set: (k: keyof WizardData, v: unknown) => void }) {
+function Step2({
+  d, set, locked = false,
+}: {
+  d: WizardData; set: (k: keyof WizardData, v: unknown) => void; locked?: boolean
+}) {
+  if (locked) {
+    const label = d.cryptoMode === 'classical' ? 'Classical Ed25519' : 'Hybrid PQC — Ed25519 + ML-DSA-65'
+    return (
+      <div className="space-y-4">
+        <div className="flex gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs text-amber-300">
+          <LockKeyhole size={13} className="shrink-0 mt-0.5" />
+          <span>
+            Cryptographic mode cannot be changed after community creation. The keypair is
+            permanently bound to the community identity.
+          </span>
+        </div>
+        <div className="rounded-xl border border-slate-700 bg-slate-800/20 p-4 space-y-1">
+          <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">Current Mode</p>
+          <p className="text-sm font-medium text-white">{label}</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Key ID: <span className="font-mono text-slate-400">
+              {d.cryptoMode === 'classical' ? 'v1' : 'v1-hybrid'}
+            </span>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5">
       <InfoBox>
@@ -708,11 +738,45 @@ function SuccessScreen({ name, communityId, onView, onList }: {
 // ── Main wizard page ────────────────────────────────────────────────────────
 
 export default function CreateCommunityPage() {
-  const router = useRouter()
-  const [step,    setStep]    = useState(0)
-  const [data,    setData]    = useState<WizardData>(INIT)
-  const [loading, setLoading] = useState(false)
-  const [createdId, setCreatedId] = useState('')
+  const router  = useRouter()
+  const params  = useSearchParams()
+  const isEdit  = params.get('edit') === 'true'
+  const editId  = params.get('id') ?? ''
+
+  const [step,        setStep]        = useState(0)
+  const [data,        setData]        = useState<WizardData>(INIT)
+  const [loading,     setLoading]     = useState(false)
+  const [loadingData, setLoadingData] = useState(isEdit && !!editId)
+  const [createdId,   setCreatedId]   = useState('')
+
+  // Pre-fill state when editing an existing community
+  useEffect(() => {
+    if (!isEdit || !editId) return
+    getCommunity(editId)
+      .then(c => {
+        const s = (c.settings ?? {}) as Record<string, unknown>
+        setData(prev => ({
+          ...prev,
+          name:        c.name,
+          description: c.description,
+          visibility:  (c.visibility as WizardData['visibility']) ?? 'private',
+          joinPolicy:  (c.join_policy as WizardData['joinPolicy']) ?? 'invite',
+          cryptoMode:  (s.crypto_mode as WizardData['cryptoMode']) ?? 'classical',
+          peeringEnabled:       Boolean(s.peering_enabled),
+          peeringPolicy:        (s.peering_policy as WizardData['peeringPolicy']) ?? 'MIRROR_ONLY',
+          tunnelRegions:        Array.isArray(s.tunnel_regions) ? (s.tunnel_regions as string[]) : [],
+          stixAudit:            s.stix_audit !== false,
+          docIntel:             s.doc_intel !== false,
+          complianceFrameworks: Array.isArray(s.compliance_frameworks)
+            ? (s.compliance_frameworks as string[]) : [],
+          evolutionEnabled: Boolean(s.evolution_enabled),
+          slackWebhook:     String(s.slack_webhook ?? ''),
+          teamsWebhook:     String(s.teams_webhook ?? ''),
+        }))
+      })
+      .catch(() => {/* community might not have settings yet — use defaults */})
+      .finally(() => setLoadingData(false))
+  }, [isEdit, editId])
 
   const set = useCallback((k: keyof WizardData, v: unknown) => {
     setData(prev => ({ ...prev, [k]: v }))
@@ -737,7 +801,42 @@ export default function CreateCommunityPage() {
     setLoading(true)
 
     try {
-      // 1. Create community
+      if (isEdit && editId) {
+        // ── Edit mode ───────────────────────────────────────────
+        await patchCommunity(editId, {
+          name:        data.name.trim(),
+          description: data.description.trim(),
+        }).catch(() => {/* fail-open */})
+
+        for (const inv of data.invitations) {
+          await addMember(editId, inv.tenantId, inv.role).catch(() =>
+            toast(`Could not add ${inv.tenantId}`, { icon: '⚠️' })
+          )
+        }
+
+        const settings: Record<string, unknown> = {
+          peering_enabled:       data.peeringEnabled,
+          peering_policy:        data.peeringPolicy,
+          tunnel_regions:        data.tunnelRegions,
+          stix_audit:            data.stixAudit,
+          doc_intel:             data.docIntel,
+          compliance_frameworks: data.complianceFrameworks,
+          evolution_enabled:     data.evolutionEnabled,
+        }
+        if (data.slackWebhook) settings.slack_webhook = data.slackWebhook
+        if (data.teamsWebhook) settings.teams_webhook = data.teamsWebhook
+        await updateSettings(editId, settings).catch(() => {/* fail-open */})
+
+        if (data.charterEnabled && data.charterText.trim()) {
+          await uploadCharter(editId, data.charterText.trim()).catch(() => {/* fail-open */})
+        }
+
+        toast.success('Settings saved.')
+        router.push(`/community-hub/${editId}`)
+        return
+      }
+
+      // ── Create mode ─────────────────────────────────────────
       const community = await createCommunity(
         data.name.trim(),
         data.description.trim(),
@@ -746,35 +845,31 @@ export default function CreateCommunityPage() {
       )
       const cid = community.community_id
 
-      // 2. PQC key upgrade (Enterprise tier)
       if (data.cryptoMode === 'hybrid_pqc') {
         await upgradeToPQC(cid).catch(() =>
           toast('PQC upgrade skipped — requires Enterprise tier', { icon: '⚠️' })
         )
       }
 
-      // 3. Invite members
       for (const inv of data.invitations) {
         await addMember(cid, inv.tenantId, inv.role).catch(() =>
           toast(`Could not invite ${inv.tenantId}`, { icon: '⚠️' })
         )
       }
 
-      // 4. Apply settings (peering, compliance, evolution, webhooks)
       const settings: Record<string, unknown> = {
-        peering_enabled:      data.peeringEnabled,
-        peering_policy:       data.peeringPolicy,
-        tunnel_regions:       data.tunnelRegions,
-        stix_audit:           data.stixAudit,
-        doc_intel:            data.docIntel,
+        peering_enabled:       data.peeringEnabled,
+        peering_policy:        data.peeringPolicy,
+        tunnel_regions:        data.tunnelRegions,
+        stix_audit:            data.stixAudit,
+        doc_intel:             data.docIntel,
         compliance_frameworks: data.complianceFrameworks,
-        evolution_enabled:    data.evolutionEnabled,
+        evolution_enabled:     data.evolutionEnabled,
       }
-      if (data.slackWebhook)  settings.slack_webhook  = data.slackWebhook
-      if (data.teamsWebhook)  settings.teams_webhook  = data.teamsWebhook
+      if (data.slackWebhook) settings.slack_webhook = data.slackWebhook
+      if (data.teamsWebhook) settings.teams_webhook = data.teamsWebhook
       await updateSettings(cid, settings).catch(() => {/* fail-open */})
 
-      // 5. Charter upload
       if (data.charterEnabled && data.charterText.trim()) {
         await uploadCharter(cid, data.charterText.trim()).catch(() => {/* fail-open */})
       }
@@ -783,14 +878,13 @@ export default function CreateCommunityPage() {
       toast.success('Community created successfully!')
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })
-        .response?.data?.detail ?? 'Failed to create community'
+        .response?.data?.detail ?? (isEdit ? 'Failed to save changes' : 'Failed to create community')
       toast.error(msg)
     } finally {
       setLoading(false)
     }
   }
 
-  // Show success screen after creation
   if (createdId) {
     return (
       <SuccessScreen
@@ -802,6 +896,14 @@ export default function CreateCommunityPage() {
     )
   }
 
+  if (loadingData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-brand-400" />
+      </div>
+    )
+  }
+
   const StepIcon = STEPS[step].icon
   const pct      = ((step + 1) / STEPS.length) * 100
 
@@ -810,15 +912,17 @@ export default function CreateCommunityPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Back link */}
         <Link
-          href="/community-hub"
+          href={isEdit ? `/community-hub/${editId}` : '/community-hub'}
           className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-white transition mb-6"
         >
-          <ArrowLeft size={15} /> Community Hub
+          <ArrowLeft size={15} /> {isEdit ? 'Back to Community' : 'Community Hub'}
         </Link>
 
         {/* Title */}
         <div className="mb-6">
-          <h1 className="text-xl font-semibold text-white">Create Community</h1>
+          <h1 className="text-xl font-semibold text-white">
+            {isEdit ? 'Edit Community Settings' : 'Create Community'}
+          </h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Step {step + 1} of {STEPS.length} — {STEPS[step].subtitle}
           </p>
@@ -870,7 +974,7 @@ export default function CreateCommunityPage() {
           </div>
 
           {step === 0 && <Step1 d={data} set={set} />}
-          {step === 1 && <Step2 d={data} set={set} />}
+          {step === 1 && <Step2 d={data} set={set} locked={isEdit} />}
           {step === 2 && <Step3 d={data} set={set} />}
           {step === 3 && <Step4 d={data} set={set} />}
           {step === 4 && <Step5 d={data} set={set} />}
@@ -904,9 +1008,9 @@ export default function CreateCommunityPage() {
               className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition"
             >
               {loading ? (
-                <><Loader2 size={15} className="animate-spin" /> Creating…</>
+                <><Loader2 size={15} className="animate-spin" /> {isEdit ? 'Saving…' : 'Creating…'}</>
               ) : (
-                <><Check size={15} /> Create Community</>
+                <><Check size={15} /> {isEdit ? 'Save Changes' : 'Create Community'}</>
               )}
             </button>
           )}

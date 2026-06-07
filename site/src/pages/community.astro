@@ -324,6 +324,31 @@ const commJson = JSON.stringify(COMMUNITIES);
   .s-val { font-size: 26px; font-weight: 800; font-family: ui-monospace,'SF Mono',monospace; font-variant-numeric: tabular-nums; line-height: 1; }
   .s-tr  { font-size: 10.5px; margin-top: 4px; }
 
+  /* ── 6-step section ───────────────────────────── */
+  .steps-sec { padding: 80px 24px; }
+  .steps-inner { max-width: 960px; margin: 0 auto; text-align: center; }
+  .steps-h { font-size: clamp(24px,4vw,36px); font-weight: 700; color: #f1f5f9; margin: 0 0 14px; }
+  .steps-sub { font-size: 15px; color: #64748b; line-height: 1.6; max-width: 560px; margin: 0 auto 48px; }
+  .steps-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 40px;
+  }
+  .step-card {
+    background: rgba(15,22,40,.7); border: 1px solid rgba(129,140,248,.10);
+    border-radius: 16px; padding: 24px 20px; text-align: left; transition: border-color .2s;
+  }
+  .step-card:hover { border-color: rgba(129,140,248,.28); }
+  .step-num {
+    font-size: 11px; font-weight: 700; color: #818cf8; letter-spacing: .08em;
+    margin-bottom: 10px; font-family: monospace;
+  }
+  .step-title { font-size: 15px; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; }
+  .step-desc { font-size: 13px; color: #64748b; line-height: 1.55; margin: 0; }
+  .steps-cta { text-align: center; }
+  .steps-btn { font-size: 15px; padding: 13px 32px; text-decoration: none; display: inline-block; }
+  .steps-note { font-size: 12px; color: #475569; margin-top: 12px; }
+  @media (max-width: 720px) { .steps-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .steps-grid { grid-template-columns: 1fr; } }
+
   /* ── CTA ──────────────────────────────────────── */
   .cta-sec { padding: 80px 24px; text-align: center; }
   .cta-box {
@@ -631,6 +656,55 @@ const commJson = JSON.stringify(COMMUNITIES);
     </div>
   </div>
 
+  <!-- 6-step section -->
+  <section class="steps-sec">
+    <div class="steps-inner">
+      <div class="lbl" style="margin:0 0 14px">Full-Platform Wizard</div>
+      <h2 class="steps-h">Build your community in 6 steps</h2>
+      <p class="steps-sub">Deploy a governed AI community with cryptographic keys, STIX audit, sovereign data pods, and compliance monitoring — in under 60 seconds.</p>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <div class="step-title">Identity</div>
+          <p class="step-desc">Name, description, and join policy — invite only, approval, or open access.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <div class="step-title">Security</div>
+          <p class="step-desc">Ed25519 keypair generated automatically. Upgrade to Hybrid PQC (ML-DSA-65) for quantum resistance.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <div class="step-title">Members</div>
+          <p class="step-desc">Invite participants by Tenant ID. Assign admin, member, or observer roles before launch.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">04</div>
+          <div class="step-title">Peering &amp; Tunnels</div>
+          <p class="step-desc">Federate with other communities via MASQUE tunnels. Choose transfer policy and jurisdiction routing.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">05</div>
+          <div class="step-title">Compliance</div>
+          <p class="step-desc">STIX 2.1 audit chain, Document Intelligence auto-scan, charter, and GDPR / SOC 2 / ISO 27001 / HIPAA monitoring.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">06</div>
+          <div class="step-title">Integrations</div>
+          <p class="step-desc">Enable Evolution Engine for federated rule sharing. Connect Slack and Teams for real-time security alerts.</p>
+        </div>
+      </div>
+
+      <div class="steps-cta">
+        <a href="https://app.shadow-warden-ai.com/community-hub/create" class="btn-pr steps-btn">
+          Launch the Wizard →
+        </a>
+        <p class="steps-note">Available on Community Business+, Pro, and Enterprise plans.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- CTA -->
   <div class="cta-sec">
     <div class="cta-box">
@@ -638,7 +712,7 @@ const commJson = JSON.stringify(COMMUNITIES);
       <div class="lbl" style="margin:0 0 10px">Get Started</div>
       <h2>Launch Your Community</h2>
       <p>Deploy a governed AI community in under 60 seconds. Cryptographic keypairs, STIX audit chain, and sovereign data pods provisioned automatically.</p>
-      <button class="btn-pr" id="btn-cta" style="font-size:15px;padding:13px 30px">+ Create Community</button>
+      <a href="https://app.shadow-warden-ai.com/community-hub/create" class="btn-pr" style="font-size:15px;padding:13px 30px;text-decoration:none;display:inline-block">+ Create Community</a>
     </div>
   </div>
 
