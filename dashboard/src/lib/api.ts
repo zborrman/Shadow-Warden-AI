@@ -220,6 +220,37 @@ export type DocScanStats = {
   available:     boolean;
 };
 
+// ── Community Hub Types ───────────────────────────────────────────────────────
+export type HubStats = { total: number; active: number; public: number; private: number; suspended: number };
+export type HubCommunity = {
+  community_id: string; name: string; description: string;
+  creator_tenant_id: string; created_at: string; status: string;
+  visibility: string; join_policy: string;
+  member_count?: number;
+  data_stats?: { total_files: number; total_mb: number; total_downloads: number; total_bytes: number };
+};
+export type HubMember = {
+  member_id: string; tenant_id: string; community_id: string;
+  role: string; joined_at: string; display_name: string; status: string;
+};
+export type HubFile = {
+  file_id: string; community_id: string; filename: string;
+  content_type: string; size_bytes: number; uploaded_at: string;
+  download_count: number; status: string; context: string;
+};
+export type HubCompliance = {
+  community_id: string; score: number; status: string;
+  controls: Array<{ control: string; status: string; detail: string }>;
+  gaps: Array<{ control: string; detail: string }>; generated_at: string;
+};
+export type HubEvolutionStats = {
+  total: number; approved: number; pending: number; rejected: number; total_imports: number;
+};
+export type HubBundle = {
+  bundle_id: string; community_id: string; rule_type: string;
+  rule_content: string; status: string; published_at: string; threat_score: number;
+};
+
 async function post<T>(base: string, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method:  "POST",
@@ -309,4 +340,15 @@ export const api = {
 
   // ── FE-50 Document Intelligence ───────────────────────────────────────────
   docScans:        () => get<DocScanStats>(API, "/document-intel/stats"),
+
+  // ── Community Hub ─────────────────────────────────────────────────────────
+  hubStats:        () => get<HubStats>(API, "/communities/stats"),
+  hubList:         (tenantId: string) => get<HubCommunity[]>(API, "/communities", { tenant_id: tenantId }),
+  hubGet:          (id: string) => get<HubCommunity>(API, `/communities/${id}`),
+  hubMembers:      (id: string) => get<HubMember[]>(API, `/communities/${id}/members`),
+  hubFiles:        (id: string) => get<HubFile[]>(API, `/communities/${id}/data`),
+  hubCompliance:   (id: string) => get<HubCompliance>(API, `/communities/${id}/compliance`),
+  hubEvolutionStats: (id: string) => get<HubEvolutionStats>(API, `/communities/${id}/evolution/stats`),
+  hubBundles:      (id: string, status?: string) =>
+    get<HubBundle[]>(API, `/communities/${id}/evolution/bundles`, status ? { status } : undefined),
 };

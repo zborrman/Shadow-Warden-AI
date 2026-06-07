@@ -1,26 +1,14 @@
 /**
  * portal/src/app/api/communities/[...path]/route.ts
- * ───────────────────────────────────────────────────
- * Server-side proxy for the Business Communities API.
- *
- * Frontend calls /api/communities/... → this handler forwards to
- * warden's /communities/... endpoints, injecting X-Tenant-ID and
- * X-Tenant-Tier from the user's JWT so the gateway can authorise.
- *
- * The JWT secret never leaves the server; the browser only holds the token.
- *
- * Env vars (server-side only):
- *   WARDEN_INTERNAL_URL  — warden gateway (e.g. http://warden:8001)
- *   PORTAL_JWT_SECRET    — shared secret used to sign/verify portal JWTs
+ * Server-side proxy — forwards /api/communities/* to warden /communities/*.
+ * Auto-injects tenant_id / requester_tenant_id from JWT so hub pages
+ * don't need to handle auth plumbing themselves.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 
-const WARDEN_URL  = process.env.WARDEN_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://warden:8001'
-const JWT_SECRET  = process.env.PORTAL_JWT_SECRET   || process.env.JWT_SECRET || ''
+const WARDEN_URL = process.env.WARDEN_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://warden:8001'
 
-/** Decode JWT payload without verifying — used only to extract claims.
- *  The warden gateway re-validates X-Tenant-ID against its own store.  */
 function jwtPayload(token: string): Record<string, string> {
   try {
     const b64 = token.split('.')[1]
@@ -31,17 +19,13 @@ function jwtPayload(token: string): Record<string, string> {
   }
 }
 
-async function proxy(
-  req: NextRequest,
-  params: { path: string[] },
-): Promise<NextResponse> {
-  // Extract bearer token from Authorization header
+async function proxy(req: NextRequest, params: { path: string[] }): Promise<NextResponse> {
   const authHeader = req.headers.get('authorization') || ''
   if (!authHeader.startsWith('Bearer ')) {
     return NextResponse.json({ detail: 'Unauthorised' }, { status: 401 })
   }
-  const token   = authHeader.slice(7)
-  const claims  = jwtPayload(token)
+  const token    = authHeader.slice(7)
+  const claims   = jwtPayload(token)
   const tenantId = claims['tid'] || ''
   const role     = claims['role'] || 'member'
 
@@ -49,30 +33,50 @@ async function proxy(
     return NextResponse.json({ detail: 'Invalid session token.' }, { status: 401 })
   }
 
-  // Map role → tier.  'owner' gets business tier; otherwise individual.
-  // In production this should be read from the subscription DB.
-  const tier = role === 'owner' ? 'business' : 'business'  // default business for demo
+  const tier = role === 'owner' ? 'business' : 'business'
 
-  // Build upstream URL
-  const segments = params.path
-  const rest     = segments.join('/')
-  const qs       = req.nextUrl.search || ''
-  const target   = `${WARDEN_URL}/communities/${rest}${qs}`
+  // Build query string — auto-inject tenant_id for GET, requester_tenant_id for DELETE
+  const rawQs = req.nextUrl.search || ''
+  const urlParams = new URLSearchParams(rawQs.startsWith('?') ? rawQs.slice(1) : rawQs)
 
-  // Forward body
+  if (req.method === 'GET' && !urlParams.has('tenant_id')) {
+    urlParams.set('tenant_id', tenantId)
+  }
+  if (req.method === 'DELETE' && !urlParams.has('requester_tenant_id')) {
+    urlParams.set('requester_tenant_id', tenantId)
+  }
+
+  const qs     = urlParams.toString() ? `?${urlParams.toString()}` : ''
+  const rest   = params.path.join('/')
+  const target = `${WARDEN_URL}/communities/${rest}${qs}`
+
+  // Detect multipart to preserve Content-Type boundary
+  const contentType = req.headers.get('content-type') ?? ''
+  const isMultipart = contentType.includes('multipart/form-data')
+
+  const fwdHeaders: Record<string, string> = {
+    'X-Tenant-ID':   tenantId,
+    'X-Tenant-Tier': tier,
+  }
+  if (isMultipart) {
+    fwdHeaders['Content-Type'] = contentType   // includes boundary=...
+  } else if (req.method !== 'GET' && req.method !== 'DELETE') {
+    fwdHeaders['Content-Type'] = 'application/json'
+  }
+
   let body: BodyInit | undefined
   if (req.method !== 'GET' && req.method !== 'DELETE') {
-    body = await req.text()
+    if (isMultipart) {
+      body = Buffer.from(await req.arrayBuffer())
+    } else {
+      body = await req.text()
+    }
   }
 
   try {
     const upstream = await fetch(target, {
       method: req.method,
-      headers: {
-        'Content-Type':   'application/json',
-        'X-Tenant-ID':    tenantId,
-        'X-Tenant-Tier':  tier,
-      },
+      headers: fwdHeaders,
       body,
     })
 
@@ -94,6 +98,9 @@ export async function POST(req: NextRequest, { params }: { params: { path: strin
   return proxy(req, params)
 }
 export async function PATCH(req: NextRequest, { params }: { params: { path: string[] } }) {
+  return proxy(req, params)
+}
+export async function PUT(req: NextRequest, { params }: { params: { path: string[] } }) {
   return proxy(req, params)
 }
 export async function DELETE(req: NextRequest, { params }: { params: { path: string[] } }) {

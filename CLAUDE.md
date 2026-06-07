@@ -11,7 +11,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 5.5 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-06-06
+**Version:** 5.6 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-06-07
 
 ## Architecture
 
@@ -235,6 +235,10 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/analytics/pages/18_ISO27001.py` | Streamlit ISO 27001:2022 — 4 tabs: Overview (KPI + theme coverage), Controls (searchable 93-item matrix), Themes (per-theme drilldown), Report (HTML + JSON links) |
 | `dashboard/src/app/(soc)/compliance/page.tsx` | SOC Dashboard compliance page — real-time 5-standard posture, SVG score ring, bar chart, timeline, evidence download section |
 | `dashboard/src/app/(soc)/compliance/iso27001/page.tsx` | SOC Dashboard ISO 27001 drilldown — KPI tiles, theme bars, Recharts bar chart, full 93-control searchable matrix with theme/status filters |
+| `dashboard/src/app/(soc)/community/page.tsx` | SOC Dashboard Community Hub list — 4 StatCards (total/active/public/suspended), community cards sorted desc by `created_at`, click → detail; `NEXT_PUBLIC_TENANT_ID` fallback |
+| `dashboard/src/app/(soc)/community/[id]/page.tsx` | SOC Dashboard Community Hub detail — 6 tabs: Overview/Members/Data/Compliance/Evolution/Analytics; WebSocket live-metrics banner (`useCommunityWebSocket`); members sorted desc by `joined_at`; dates in `dd/mm/yy` |
+| `dashboard/src/hooks/useCommunityWebSocket.ts` | Community WebSocket hook — connects `wss://.../ws/community/{id}`, `WsStatus` type, 30s auto-reconnect on unclean close, unmount cleanup |
+| `warden/analytics/pages/22_Community_Hub.py` | Streamlit Community Hub — 7 tabs: My Communities / Explore / Members / Data / Compliance / Evolution / Settings; `fmt_date()` dd/mm/yy helper; `st_toast()` fallback wrapper; descending date sort on all lists |
 
 ## Build & Test Commands
 

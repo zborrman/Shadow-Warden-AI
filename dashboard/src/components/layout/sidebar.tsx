@@ -29,7 +29,7 @@ const GROUPS: NavGroup[] = [
     bg: "rgba(191,90,242,0.12)",
     icon: Users,
     items: [
-      { href: "/community",           icon: Users,    label: "Communities",      soon: true },
+      { href: "/community",           icon: Users,    label: "Communities" },
       { href: "/community/sep",       icon: Network,  label: "SEP Hub",          soon: true },
       { href: "/community/peering",   icon: Zap,      label: "Peering",          soon: true },
       { href: "/community/knock",     icon: Key,      label: "Knock Invitations",soon: true },

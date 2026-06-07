@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 5.5 · Last updated 2026-06-06**
+**Version 5.6 · Last updated 2026-06-07**
 
 ---
 
@@ -34,6 +34,7 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - **ISO 27001:2022 Annex A mapping (v5.3)**: all 93 Annex A controls mapped to platform capabilities across 4 themes with evidence pointers; per-theme coverage %, print-ready HTML report, SOC dashboard drilldown; Enterprise tier
 - **Document Intelligence (v5.4)**: Microsoft MarkItDown converts PDF/DOCX/PPTX/XLSX/HTML/images/audio/ZIP to Markdown before the 9-layer pipeline runs; file-type-aware Redis cache (24h/7d/1h TTLs); 50 MB gate; SOVA tool #50; portal Document Scanner; `/document-intel` API; Prometheus counters; Community Business+ tier
 - **Real-time Compliance Gap Dashboard (v5.5)**: `CompliancePostureService` aggregates 19 controls from Vendor Governance, Incident Register, Secrets Vault, Document Intelligence, STIX Audit, Training Records into live GDPR/SOC2/ISO27001/HIPAA scores with per-gap remediation guidance; Redis cache + Pub/Sub; WebSocket `/compliance/ws`; SOVA tools #51/#52; portal self-service page; Pro+ tier
+- **Community Hub SOC Integration (v5.6)**: full Community Hub surface across all 3 client layers — SOC Next.js dashboard (list + 6-tab detail with live WebSocket metrics, `useCommunityWebSocket` hook, 30s auto-reconnect), Portal UX upgrade (`react-hot-toast` notifications on all actions, `dd/mm/yy` dates, descending chronological sort), Streamlit 7-tab Hub (`fmt_date()`, `st_toast()`, sorted member/community lists); Community Business+ tier
 
 **Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
 Enterprise AI teams deploying LLM-backed products.

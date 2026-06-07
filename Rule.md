@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 5.3 · Proprietary · All rights reserved**
+> **Version 5.6 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
@@ -36,6 +36,7 @@
 25. [Business Intelligence Module Rules](#25-business-intelligence-module-rules)
 26. [GitHub Actions CI Scan Rules](#26-github-actions-ci-scan-rules-v53--in-15)
 27. [ISO 27001:2022 Annex A Control Mapping Rules](#27-iso-270012022-annex-a-control-mapping-rules-v53--cp-22)
+28. [Community Hub Rules](#28-community-hub-rules-v56--cm-53-cm-54)
 
 ---
 
@@ -1011,3 +1012,23 @@ The GitHub Actions scan gate (`scripts/warden_github_scan.py`) applies the follo
 | ISO-09 | The `by_theme` response field maps each theme to a list of its controls. All four themes must be present. The union of all theme lists must equal all 93 controls with no duplicates. |
 | ISO-10 | Physical controls (A.7.x) should be status `Delegated` unless a specific platform-level control justifies otherwise (e.g., A.7.9 off-premises asset security maps to MinIO encryption). Evidence must justify any non-Delegated status for A.7.x. |
 | ISO-11 | Test fixtures for `/compliance/iso27001` must pass `X-Tenant-Tier: enterprise` header. Tests using the default tier (`starter`) will receive HTTP 403 and should assert that status code explicitly if testing the gate behaviour. |
+
+---
+
+## 28. Community Hub Rules (v5.6 · CM-53, CM-54)
+
+| # | Rule |
+|---|------|
+| HUB-01 | All Community Hub API calls use the existing `/communities/*` router — no separate hub router. Community Hub UI is a presentation layer over those endpoints. |
+| HUB-02 | SOC Dashboard community pages use `NEXT_PUBLIC_TENANT_ID` env var (fallback `"default"`) to identify the acting tenant. This is a SOC-level config, not per-user auth. |
+| HUB-03 | The `useCommunityWebSocket` hook derives the WS URL from `NEXT_PUBLIC_API_URL` via regex replace: `https://` → `wss://`, `http://` → `ws://`. The negative lookahead `(?!s)` prevents double-replacing `https`. |
+| HUB-04 | WebSocket reconnect: only reconnect on unclean close (`!ev.wasClean`). Clean server-side closes (code 1000) do not trigger retry. Retry delay is exactly 30 seconds. |
+| HUB-05 | On component unmount the WebSocket is closed with code 1000 + reason `"unmount"`. The pending `retryTimer` is cleared before close to prevent a reconnect after unmount. |
+| HUB-06 | Community lists (My Communities, public Explore, Members tab) are always sorted descending by their primary date field (`created_at` for communities, `joined_at` for members). The sort is performed client-side — APIs may return any order. |
+| HUB-07 | All dates displayed in Community Hub UI (portal, SOC dashboard, Streamlit) use `dd/mm/yy` format. ISO 8601 strings are formatted client-side; never display raw ISO strings. |
+| HUB-08 | Portal Community Hub toast notifications use `react-hot-toast`. Toasts must not be shown alongside legacy inline flash messages (`{msg && ...}` blocks). All legacy flash blocks are removed when toasts are added to a page. |
+| HUB-09 | The `<Toaster>` component is rendered once in `portal/src/app/community-hub/layout.tsx` — not per-page. All pages in the `community-hub/` route group inherit it. |
+| HUB-10 | Streamlit `st_toast()` wrapper: calls `st.toast(msg, icon=icon)` and catches `AttributeError` to fall back to `st.success()` for Streamlit < 1.28. This shim must remain until the minimum Streamlit version is raised to 1.28. |
+| HUB-11 | `fmt_date()` in `22_Community_Hub.py` handles `Z`-suffix UTC strings via `.replace("Z", "+00:00")` before `datetime.fromisoformat()`. On parse failure it returns `iso[:10]` (not an empty string). |
+| HUB-12 | Member removal in the Streamlit Hub requires the "Enable member removal" toggle to be active. Removal buttons are not rendered when the toggle is off — no accidental removals from list rendering. |
+| HUB-13 | The SOC Dashboard `fmtDate` function guards against invalid ISO strings with a `try/catch` block returning `iso.slice(0, 10)` on failure — matches the Streamlit `fmt_date()` fallback behaviour. |

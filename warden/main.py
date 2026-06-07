@@ -1243,6 +1243,13 @@ except ImportError:
     log.warning("community_intel router not available — /community-intel routes skipped.")
 
 try:
+    from warden.api.communities_v2 import router as _communities_v2_router
+    app.include_router(_communities_v2_router)
+    log.info("Community Hub mounted at /communities")
+except ImportError:
+    log.warning("communities_v2 router not available — /communities routes skipped.")
+
+try:
     from warden.api.secrets import router as _secrets_router
     app.include_router(_secrets_router, prefix="/secrets")
     log.info("Secrets Governance mounted at /secrets")

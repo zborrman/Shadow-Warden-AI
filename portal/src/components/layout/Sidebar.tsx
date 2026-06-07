@@ -33,7 +33,8 @@ const groups: NavGroup[] = [
     accent: '#BF5AF2',
     icon: '◈',
     items: [
-      { href: '/communities/',  label: 'Communities',   icon: Users    },
+      { href: '/community-hub/', label: 'Community Hub',  icon: Users    },
+      { href: '/communities/',  label: 'Secure Vault',   icon: Database },
       { href: '/hub/',          label: 'SEP Hub',        icon: Network  },
       { href: '/dashboard/?tab=reputation',    label: 'Reputation',          icon: Star    },
       { href: '/dashboard/?tab=pods',           label: 'Data Pods',           icon: Database },

@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 5.5 · Last updated 2026-06-06**
+**Version 5.6 · Last updated 2026-06-07**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -336,6 +336,10 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 | FE-48 | Commerce Budget Guardian — Semantic Layer-backed AP2 pre-flight check | v5.2 | Community+ | ✅ |
 | FE-49 | Self-Service Catalog — tenant model registration, SQLite persistence, hot-reload | v5.2 | Pro+ | ✅ |
 | FE-50 | Document Intelligence (MarkItDown) — PDF/DOCX/PPTX/XLSX/audio/image → Markdown + 9-layer scan, Redis cache, `file_base64` filter hook, `/document-intel` API (5 endpoints), Streamlit scanner page | v5.4 | Community+ | ✅ |
+| CM-51 | Community Hub — 11-category federated collaboration platform: community CRUD (32-char SHA-256 ID), Ed25519 member keypairs, shared data pods (UECIID provenance), Document Intelligence scan, MASQUE peering, network federation (meta-communities), BI analytics, per-community compliance (5-control), HTML report export, AI evolution rule sharing with human-in-the-loop approval; unified `/communities` router (38 endpoints), Streamlit 6-tab page `22_Community_Hub.py`, 27 tests | v5.6 | Community Business+ | ✅ |
+| CM-52 | Community Hub Actions — delete community (owner only, inline confirmation), remove individual member (toggle guard), file upload from computer (`st.file_uploader` + context notes, multipart), community description/name editing (`PATCH /communities/{id}`), 7-tab Streamlit Hub, danger-zone UI; `context` column on `community_files` table (auto-migration) | v5.6 | Community Business+ | ✅ |
+| CM-53 | SOC Dashboard Community Hub — list page (4 StatCards + community grid sorted desc by `created_at`); 6-tab detail (Overview/Members/Data/Compliance/Evolution/Analytics); `useCommunityWebSocket` hook with live-metrics banner + green/red `WsStatus` indicator + 30s auto-reconnect; members sorted desc by `joined_at`; dates in `dd/mm/yy` | v5.6 | Community Business+ | ✅ |
+| CM-54 | Portal Community Hub UX — `react-hot-toast` notifications on all community actions (create/delete community, invite/remove member, upload, edit description); `fmtDateShort()` dd/mm/yy across list + members tab; descending sort by `created_at`/`joined_at`; `<Toaster>` in layout | v5.6 | Community Business+ | ✅ |
 
 ---
 

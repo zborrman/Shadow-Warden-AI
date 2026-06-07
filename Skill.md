@@ -1,6 +1,6 @@
 # Shadow Warden AI — Skill Reference
 
-**Version 5.5 · Proprietary · All rights reserved**
+**Version 5.6 · Proprietary · All rights reserved**
 
 This document catalogues every capability Shadow Warden AI exposes to developers,
 operators, and integrators. Each section defines the skill, its configuration
@@ -42,14 +42,15 @@ surface, its observable outputs, and integration patterns.
 30. Skill 29 — SLO Burn-Rate Alerting
 31. Skill 30 — SMB AI Governance Suite
 32. Skill 31 — Business Intelligence Module
-33. Integration Recipes
-34. Configuration Quick-Reference
+33. Skill 32 — Community Hub (SOC + Portal + Streamlit)
+34. Integration Recipes
+35. Configuration Quick-Reference
 
 ---
 
 ## 1. Skill Taxonomy
 
-Shadow Warden AI is composed of 43 discrete, independently configurable skills.
+Shadow Warden AI is composed of 44 discrete, independently configurable skills.
 Skills 1–3 execute synchronously in the `/filter` pipeline. Skills 4–41 are
 background, agentic, or on-demand capabilities.
 
@@ -116,6 +117,7 @@ Background / On-demand:
 | 41 | ISO 27001:2022 Annex A Mapping | On-demand | ✅ | Enterprise |
 | 42 | Document Intelligence (MarkItDown) | On-demand | ⚠️ markitdown pkg | Community Business+ |
 | 43 | Real-time Compliance Gap Dashboard | On-demand / 30s poll | ✅ | Pro+ |
+| 44 | Community Hub (SOC + Portal + Streamlit) | On-demand / WebSocket | ✅ | Community Business+ |
 
 *PQC requires liboqs-python system package; classical fallback if unavailable.
 
@@ -1777,3 +1779,45 @@ WS   /compliance/ws                        Real-time push every 30s
 - **Portal:** `/compliance/` — SVG score ring, 4 framework cards, gap list with "Fix →" deep-links
 - **Streamlit:** `21_Compliance_Dashboard.py` — 5-tab gap manager
 - **Settings:** `COMPLIANCE_CACHE_TTL` env var
+
+
+---
+
+## Skill 32 — Community Hub (SOC + Portal + Streamlit)
+
+**Tier:** Community Business+ · **Version:** v5.6
+
+Unified Community Hub surface across all three client layers: SOC Next.js dashboard, tenant portal, and Streamlit analytics.
+
+### SOC Dashboard (`dashboard/src/app/(soc)/community/`)
+
+| File | Role |
+|------|------|
+| `community/page.tsx` | List page — 4 StatCards (total/active/public/suspended), community cards grid sorted desc by `created_at`, click-to-detail navigation |
+| `community/[id]/page.tsx` | Detail page — 6 tabs: Overview, Members, Data, Compliance, Evolution, Analytics; live WebSocket metrics banner; members sorted desc by `joined_at` |
+| `hooks/useCommunityWebSocket.ts` | WebSocket hook — `wss://{API_URL}/ws/community/{id}`, `WsStatus` type (`connecting`/`open`/`closed`/`error`), 30s auto-reconnect on unclean close |
+
+### Portal (`portal/src/app/community-hub/`)
+
+- `react-hot-toast` notifications on: create community, delete community, invite member, remove member, upload file, edit description
+- `fmtDateShort()` — `dd/mm/yy` format helper in `communityHubApi.ts`
+- Communities sorted descending by `created_at`; members sorted descending by `joined_at`
+- `<Toaster>` rendered once in `community-hub/layout.tsx` (client component)
+
+### Streamlit (`warden/analytics/pages/22_Community_Hub.py`)
+
+7 tabs: My Communities / Explore / Members / Data / Compliance / Evolution / Settings
+
+| Helper | Description |
+|--------|-------------|
+| `fmt_date(iso)` | Converts ISO 8601 string → `dd/mm/yy`; catches `Z`-suffix and parse errors |
+| `st_toast(msg, icon)` | Calls `st.toast()`, falls back to `st.success()` on Streamlit < 1.28 |
+
+All lists (communities, members) are sorted descending by primary date field before rendering.
+
+### Configuration
+
+| Env Var | Default | Effect |
+|---------|---------|--------|
+| `NEXT_PUBLIC_TENANT_ID` | `"default"` | Acting tenant for SOC Dashboard community queries |
+| `NEXT_PUBLIC_API_URL` | `https://api.shadow-warden-ai.com` | Used to derive WS URL (`https` → `wss`) |
