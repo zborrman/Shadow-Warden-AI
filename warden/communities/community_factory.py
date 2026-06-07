@@ -8,10 +8,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sqlite3
 import threading
 import time
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any
 
 COMM_DB_PATH = os.getenv("COMM_DB_PATH", "/tmp/warden_communities.db")

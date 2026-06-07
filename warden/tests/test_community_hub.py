@@ -4,7 +4,6 @@ data, network, compliance, evolution, and the API router.
 """
 from __future__ import annotations
 
-import os
 import uuid
 
 import pytest
@@ -24,7 +23,7 @@ def _tmp_db(tmp_path, monkeypatch):
         "warden.communities.community_evolution",
     ]:
         try:
-            import importlib, sys
+            import sys
             if mod in sys.modules:
                 m = sys.modules[mod]
                 m.COMM_DB_PATH = db
@@ -96,7 +95,7 @@ def test_list_public_communities():
 
 
 def test_update_community_settings():
-    from warden.communities.community_factory import (
+    from warden.communities.community_factory import (  # noqa: I001
         create_community, get_community, update_community_settings,
     )
     c = create_community("S", "", _tid())
@@ -106,7 +105,7 @@ def test_update_community_settings():
 
 
 def test_delete_community_authorized():
-    from warden.communities.community_factory import (
+    from warden.communities.community_factory import (  # noqa: I001
         create_community, delete_community, get_community,
     )
     t = _tid()
@@ -294,7 +293,7 @@ def test_list_bundles_by_status():
     from warden.communities.community_evolution import approve_rule, list_bundles, share_rule
     cid = _cid_new()
     b1 = share_rule(cid, _tid(), "jailbreak_signature", "rule1")
-    b2 = share_rule(cid, _tid(), "jailbreak_signature", "rule2")
+    share_rule(cid, _tid(), "jailbreak_signature", "rule2")
     approve_rule(b1.bundle_id, _tid())
     approved = list_bundles(community_id=cid, status="approved")
     pending = list_bundles(community_id=cid, status="pending_review")
@@ -310,7 +309,7 @@ def test_list_bundles_by_status():
 def client(monkeypatch):
     monkeypatch.setenv("ALLOW_UNAUTHENTICATED", "true")
     monkeypatch.setenv("WARDEN_API_KEY", "")
-    from fastapi import FastAPI
+    from fastapi import FastAPI  # noqa: I001
     from fastapi.testclient import TestClient
     from warden.api.communities_v2 import router
     app = FastAPI()

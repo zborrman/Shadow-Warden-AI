@@ -55,7 +55,7 @@ def _check_member_audit(community_id: str) -> ComplianceControl:
 
 def _check_data_encryption(community_id: str) -> ComplianceControl:
     try:
-        from warden.communities.data_pod import get_pod_for_entity  # type: ignore[import]
+        import warden.communities.data_pod  # noqa: F401  # type: ignore[import]
         # Sovereign data pods always use Fernet AES-256
         return ComplianceControl(
             "data_encryption", "PASS", 1.0,
@@ -64,7 +64,7 @@ def _check_data_encryption(community_id: str) -> ComplianceControl:
     except Exception:
         # Fallback: check if community_data module is available
         try:
-            from warden.communities.community_data import get_data_stats
+            import warden.communities.community_data  # noqa: F401
             return ComplianceControl(
                 "data_encryption", "PASS", 0.8,
                 "File storage active; sovereign data pod not confirmed",

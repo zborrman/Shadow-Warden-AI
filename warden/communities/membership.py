@@ -19,8 +19,11 @@ ROLES = ("owner", "admin", "member", "observer")
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-    from cryptography.hazmat.primitives.serialization import (
-        Encoding, NoEncryption, PrivateFormat, PublicFormat,
+    from cryptography.hazmat.primitives.serialization import (  # noqa: I001
+        Encoding,
+        NoEncryption,
+        PrivateFormat,
+        PublicFormat,
     )
     _CRYPTO_OK = True
 except ImportError:

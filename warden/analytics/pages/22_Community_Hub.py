@@ -215,15 +215,14 @@ with tabs[0]:
     st.subheader("Networks (Meta-Communities)")
     net_col_l, net_col_r = st.columns([2, 1])
 
-    with net_col_r:
-        with st.form("create_net"):
-            nn = st.text_input("Network Name")
-            nd = st.text_input("Description")
-            if st.form_submit_button("Create Network"):
-                api_post("/communities/networks/create", {
-                    "name": nn, "description": nd, "creator_tenant_id": tenant_id
-                })
-                st.rerun()
+    with net_col_r, st.form("create_net"):
+        nn = st.text_input("Network Name")
+        nd = st.text_input("Description")
+        if st.form_submit_button("Create Network"):
+            api_post("/communities/networks/create", {
+                "name": nn, "description": nd, "creator_tenant_id": tenant_id
+            })
+            st.rerun()
 
     with net_col_l:
         nets = api_get("/communities/networks/list")
@@ -260,11 +259,10 @@ with tabs[1]:
                         f'{c.get("join_policy","")}',
                         unsafe_allow_html=True,
                     )
-                    if c.get("join_policy") == "open":
-                        if st.button("Join", key=f"join_{c['community_id']}"):
-                            api_post(f"/communities/{c['community_id']}/join",
-                                     {"tenant_id": tenant_id})
-                            st.success("Joined!")
+                    if c.get("join_policy") == "open" and st.button("Join", key=f"join_{c['community_id']}"):
+                        api_post(f"/communities/{c['community_id']}/join",
+                                 {"tenant_id": tenant_id})
+                        st.success("Joined!")
         else:
             st.info("No public communities found.")
     else:

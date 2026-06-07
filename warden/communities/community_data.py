@@ -79,7 +79,8 @@ def _assign_ueciid() -> str:
 
 def _upload_to_s3(content: bytes, s3_key: str, content_type: str) -> bool:
     try:
-        import io
+        import io  # noqa: PLC0415
+
         from warden.storage.s3 import get_s3_client
         client = get_s3_client()
         if client:
