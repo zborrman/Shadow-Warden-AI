@@ -307,3 +307,23 @@ export async function importRule(communityId: string, bundleId: string): Promise
     {},
   )
 }
+
+// ── Wizard helpers (Create Community Wizard) ──────────────────────────────────
+
+/** Upgrade community keypair to Hybrid PQC (Ed25519 + ML-DSA-65). Enterprise only. */
+export async function upgradeToPQC(communityId: string): Promise<void> {
+  await api.post(`/api/communities/${communityId}/upgrade-pqc`, {})
+}
+
+/** Upload or update the community charter text. */
+export async function uploadCharter(communityId: string, content: string): Promise<void> {
+  await api.post(`/api/communities/${communityId}/charter`, { content, version: 1 })
+}
+
+/** Apply extended community settings (peering, compliance, evolution, webhooks). */
+export async function updateSettings(
+  communityId: string,
+  settings: Record<string, unknown>,
+): Promise<void> {
+  await api.patch(`/api/communities/${communityId}`, { settings })
+}
