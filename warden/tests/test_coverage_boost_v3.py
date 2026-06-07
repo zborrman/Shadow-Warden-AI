@@ -56,10 +56,6 @@ class TestSemanticBudgetExtra:
 
     def test_get_commerce_settings_success_path(self, monkeypatch):
         """Cover the success branch (lines that return model_dump())."""
-        from warden.business_community.agentic_commerce.semantic_budget import (
-            _get_commerce_settings,
-        )
-
         class _FakeSettings:
             def model_dump(self) -> dict:
                 return {"enabled": True, "monthly_budget_usd": 500.0}
@@ -151,13 +147,13 @@ class TestCommunityCompliancePaths:
 
     def test_stix_pass_path(self, monkeypatch):
         """When stix verify_chain returns (True, msg), result is PASS."""
+        import importlib
+        import sys
         import types
         fake_stix = types.ModuleType("warden.communities.stix_audit")
         fake_stix.verify_chain = lambda cid: (True, "Chain OK — 0 entries")
-        import sys
         monkeypatch.setitem(sys.modules, "warden.communities.stix_audit", fake_stix)
         from warden.communities import community_compliance
-        import importlib
         importlib.reload(community_compliance)
         ctrl = community_compliance._check_stix_audit("cid-stix")
         assert ctrl.control == "stix_audit_chain"
@@ -165,13 +161,13 @@ class TestCommunityCompliancePaths:
 
     def test_stix_fail_path(self, monkeypatch):
         """When stix verify_chain returns (False, msg), result is FAIL."""
+        import importlib
+        import sys
         import types
         fake_stix = types.ModuleType("warden.communities.stix_audit")
         fake_stix.verify_chain = lambda cid: (False, "Hash mismatch at entry 3")
-        import sys
         monkeypatch.setitem(sys.modules, "warden.communities.stix_audit", fake_stix)
         from warden.communities import community_compliance
-        import importlib
         importlib.reload(community_compliance)
         ctrl = community_compliance._check_stix_audit("cid-fail")
         assert ctrl.control == "stix_audit_chain"
@@ -179,6 +175,8 @@ class TestCommunityCompliancePaths:
 
     def test_peering_pass_path(self, monkeypatch):
         """When peering has ACTIVE entries, _check_peering returns PASS."""
+        import importlib
+        import sys
         import types
         fake_peering = types.ModuleType("warden.communities.peering")
 
@@ -186,10 +184,8 @@ class TestCommunityCompliancePaths:
             status = "ACTIVE"
 
         fake_peering.list_peerings = lambda cid: [_FakePeering(), _FakePeering()]
-        import sys
         monkeypatch.setitem(sys.modules, "warden.communities.peering", fake_peering)
         from warden.communities import community_compliance
-        import importlib
         importlib.reload(community_compliance)
         ctrl = community_compliance._check_peering("cid-peer")
         assert ctrl.control == "peering_verified"
@@ -197,14 +193,13 @@ class TestCommunityCompliancePaths:
 
     def test_data_encryption_fallback_path(self, monkeypatch):
         """When data_pod import fails but community_data succeeds → 0.8 score."""
+        import importlib
         import sys
         import types
-        # Remove data_pod to force except path
         monkeypatch.setitem(sys.modules, "warden.communities.data_pod", None)
         fake_cd = types.ModuleType("warden.communities.community_data")
         monkeypatch.setitem(sys.modules, "warden.communities.community_data", fake_cd)
         from warden.communities import community_compliance
-        import importlib
         importlib.reload(community_compliance)
         ctrl = community_compliance._check_data_encryption("cid-enc")
         assert ctrl.control == "data_encryption"
