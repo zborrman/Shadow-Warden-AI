@@ -296,7 +296,7 @@ async def scan_document(
     try:
         from warden.document_intel.converter import MarkItDownConverter  # type: ignore
         conv = MarkItDownConverter()
-        md_text = conv.convert_bytes(content, filename=file.filename or "upload.bin")
+        md_text = conv.convert_bytes(content, filename=file.filename or "upload.bin").markdown
         result["markdown_chars"] = len(md_text)
         result["preview"] = md_text[:400]
     except Exception as exc:
@@ -360,7 +360,7 @@ def get_peers(community_id: str):
     try:
         from warden.communities.peering import list_peerings  # type: ignore
         peerings = list_peerings(community_id)
-        return [_dc(p) if hasattr(p, "__dataclass_fields__") else dict(p) for p in peerings]
+        return [_dc(p) for p in peerings]
     except Exception:
         return []
 

@@ -62,7 +62,7 @@ def _assign_ueciid() -> str:
     try:
         from warden.communities.sep import new_ueciid  # type: ignore[import]
         result = new_ueciid()
-        return result[0] if isinstance(result, tuple) else str(result)
+        return str(result[0]) if isinstance(result, tuple) else str(result)
     except Exception:
         return f"SEP-{uuid.uuid4().hex[:11]}"
 

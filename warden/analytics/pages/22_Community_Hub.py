@@ -271,7 +271,7 @@ with tabs[1]:
     st.divider()
     st.subheader("Global Stats")
     stats = api_get("/communities/stats")
-    if stats:
+    if stats and isinstance(stats, dict):
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total", stats.get("total", 0))
         c2.metric("Active", stats.get("active", 0))

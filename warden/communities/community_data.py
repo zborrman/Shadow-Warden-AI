@@ -72,7 +72,7 @@ def _assign_ueciid() -> str:
     try:
         from warden.communities.sep import new_ueciid
         result = new_ueciid()
-        return result[0] if isinstance(result, tuple) else str(result)
+        return str(result[0]) if isinstance(result, tuple) else str(result)
     except Exception:
         return f"SEP-{uuid.uuid4().hex[:11]}"
 
@@ -81,7 +81,7 @@ def _upload_to_s3(content: bytes, s3_key: str, content_type: str) -> bool:
     try:
         import io  # noqa: PLC0415
 
-        from warden.storage.s3 import get_s3_client
+        from warden.storage.s3 import _get_client as get_s3_client
         client = get_s3_client()
         if client:
             client.upload_fileobj(
