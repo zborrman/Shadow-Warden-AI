@@ -361,6 +361,8 @@ jobs:
       # layers, keeping cold-start time reasonable.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker   # built-in daemon driver; no moby/buildkit pull from Docker Hub
 
       # ── Build warden image ────────────────────────────────────────────────────
       - name: Build warden image
@@ -370,8 +372,6 @@ jobs:
           push: false
           load: true
           tags: warden-ci:${{ github.sha }}
-          cache-from: type=gha,scope=warden
-          cache-to: type=gha,scope=warden,mode=max
           build-args: GIT_SHA=${{ github.sha }}
 
       # ── Build analytics image ─────────────────────────────────────────────────
@@ -381,8 +381,6 @@ jobs:
           context: analytics/
           push: false
           tags: analytics-ci:${{ github.sha }}
-          cache-from: type=gha,scope=analytics
-          cache-to: type=gha,scope=analytics,mode=max
 
       # ── Phase 1: Import smoke test ────────────────────────────────────────────
       # Run a one-shot Python script inside the built image.
