@@ -66,9 +66,12 @@ def _get_redis() -> Any | None:
 def _check_dpa_coverage(tenant_id: str) -> tuple[bool, Gap | None]:
     """GDPR-01: all AI vendors have a signed DPA."""
     try:
-        from warden.vendor_gov.registry import list_vendors
+        from warden.vendor_gov.registry import list_dpas, list_vendors
         vendors = list_vendors(tenant_id)
-        missing = [v for v in vendors if not getattr(v, "dpa_signed", True)]
+        missing = [
+            v for v in vendors
+            if not any(d.status == "active" for d in list_dpas(v.vendor_id, v.tenant_id))
+        ]
         if missing:
             return False, Gap(
                 control_id="GDPR-01",
@@ -142,8 +145,7 @@ def _check_secret_rotation() -> tuple[bool, Gap | None]:
         from warden.secrets_gov.inventory import SecretsInventory
         from warden.secrets_gov.lifecycle import LifecycleManager
         mgr = LifecycleManager(SecretsInventory())
-        sched = mgr.get_rotation_schedule(tenant_id="default", interval_days=30)
-        expiring = sched
+        expiring = mgr.get_rotation_schedule(tenant_id="default", interval_days=30)
         if expiring:
             return False, Gap(
                 control_id="GDPR-04",
@@ -398,8 +400,37 @@ class CompliancePostureService:
 
         if r:
             try:
+                # Compare with previous cached score before overwriting
+                _prev_score: float | None = None
+                try:
+                    _raw_prev = r.get(cache_key)
+                    if _raw_prev:
+                        _prev_score = json.loads(_raw_prev).get("overall_score")
+                except Exception:
+                    pass
+
                 r.setex(cache_key, _CACHE_TTL, json.dumps(report.to_dict()))
                 r.publish(_PUBSUB_CHANNEL, json.dumps({"tenant_id": tenant_id, "event": "posture_updated"}))
+
+                # Fire community notification when score changes meaningfully (≥3 pts)
+                if _prev_score is not None and abs(report.overall_score - _prev_score) >= 3:
+                    try:
+                        import asyncio as _asyncio  # noqa: PLC0415
+                        from warden.communities.notifications import fire_event as _fn  # noqa: PLC0415
+                        _payload = {
+                            "tenant_id":  tenant_id,
+                            "old_score":  round(_prev_score, 1),
+                            "new_score":  round(report.overall_score, 1),
+                            "status":     "COMPLIANT" if report.overall_score >= 80 else "PARTIAL",
+                        }
+                        try:
+                            _asyncio.get_running_loop().create_task(
+                                _fn(tenant_id, "compliance_changed", _payload, "")
+                            )
+                        except RuntimeError:
+                            pass
+                    except Exception:
+                        pass
             except Exception:
                 pass
 

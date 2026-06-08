@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from warden.communities.clearance import ClearanceLevel
@@ -61,6 +61,11 @@ from warden.communities.registry import (
     update_clearance,
 )
 from warden.communities.rotation import get_rotation_progress, initiate_rotation
+
+try:
+    from warden.communities.notifications import fire_event as _fire_notif
+except Exception:
+    async def _fire_notif(*_a, **_kw): return 0  # type: ignore[misc]
 
 log = logging.getLogger("warden.communities.router")
 
@@ -230,9 +235,10 @@ async def get_community_endpoint(
 
 @router.post("/{community_id}/members", status_code=201)
 async def invite_member_endpoint(
-    community_id: str,
-    body:         InviteMemberRequest,
-    request:      Request,
+    community_id:     str,
+    body:             InviteMemberRequest,
+    request:          Request,
+    background_tasks: BackgroundTasks,
 ) -> MemberResponse:
     """Invite a member to a community (generates scoped Member_ID)."""
     ctx = _get_tenant(request)
@@ -264,6 +270,19 @@ async def invite_member_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    background_tasks.add_task(
+        _fire_notif,
+        community_id   = community_id,
+        event_type     = "member_joined",
+        payload        = {
+            "member_id":    member.member_id,
+            "tenant_id":    member.tenant_id,
+            "display_name": member.display_name,
+            "role":         member.role,
+            "clearance":    member.clearance.value if hasattr(member.clearance, "value") else str(member.clearance),
+        },
+        community_name = community.name if community else "",
+    )
     return MemberResponse.from_record(member)
 
 

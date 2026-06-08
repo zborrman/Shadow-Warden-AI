@@ -538,6 +538,27 @@ def transfer_entity(
         transfer_id[:8], source_id[:8], target_id[:8], entity_id[:8],
         status, guard_risk_score,
     )
+
+    # ── Community event notification (fire-and-forget) ─────────────────────
+    try:
+        import asyncio as _asyncio  # noqa: PLC0415
+        from warden.communities.notifications import fire_event as _fn  # noqa: PLC0415
+        _payload = {
+            "transfer_id":          transfer_id,
+            "ueciid":               source_ueciid,
+            "target_community_id":  target_id,
+            "status":               status,
+            "risk_score":           round(guard_risk_score, 3),
+            "data_class":           data_class,
+        }
+        try:
+            loop = _asyncio.get_running_loop()
+            loop.create_task(_fn(source_id, "transfer_completed", _payload))
+        except RuntimeError:
+            pass  # no event loop — skip notification
+    except Exception as _ne:
+        log.debug("transfer notification skipped: %s", _ne)
+
     return TransferRecord(
         transfer_id         = transfer_id,
         peering_id          = peering_id,

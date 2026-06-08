@@ -1243,6 +1243,13 @@ except ImportError:
     log.warning("community_intel router not available — /community-intel routes skipped.")
 
 try:
+    from warden.api.community_notifications import router as _community_notif_router
+    app.include_router(_community_notif_router)
+    log.info("Community Notifications mounted at /communities/{id}/notifications")
+except ImportError:
+    log.warning("community_notifications router not available — notification routes skipped.")
+
+try:
     from warden.api.communities_v2 import router as _communities_v2_router
     app.include_router(_communities_v2_router)
     log.info("Community Hub mounted at /communities")

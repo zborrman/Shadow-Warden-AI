@@ -149,6 +149,10 @@ services:
       - ALERT_MIN_RISK_LEVEL=${ALERT_MIN_RISK_LEVEL:-high}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      # Community Event Notifications (email / Slack / Teams) — SMTP_HOST/PORT/USER/PASS already above
+      - COMMUNITY_NOTIF_DB_PATH=${COMMUNITY_NOTIF_DB_PATH:-/warden/data/community_notif.db}
+      - SMTP_FROM=${SMTP_FROM:-noreply@shadow-warden.ai}
+      - SMTP_TLS=${SMTP_TLS:-true}
       # ONNX Runtime (optional — set after running scripts/export_onnx.py --quantize)
       # Thread tuning for 8 vCPU / 4 uvicorn workers:
       #   inter_op = 1 (ops run sequentially — avoids thread contention between workers)
