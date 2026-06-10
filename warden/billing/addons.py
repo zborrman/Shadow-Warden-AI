@@ -153,7 +153,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "usd_per_month":  15,
         "min_tier":       "community_business",
         "ls_variant_id":  os.getenv("LS_VARIANT_AGENTIC_COMMERCE", ""),
-        "unlocks":        ["agentic_commerce_enabled"],
+        "unlocks":        ["agentic_commerce_enabled", "marketplace_enabled"],
         "docs_url":       "/docs/addons/agentic-commerce-pack",
     },
 

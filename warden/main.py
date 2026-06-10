@@ -1482,6 +1482,13 @@ try:
 except ImportError:
     log.warning("FIDO2 router not available — /auth/fido skipped.")
 
+try:
+    from warden.marketplace.api import router as _marketplace_router
+    app.include_router(_marketplace_router)
+    log.info("Community M2M Agentic Marketplace mounted at /marketplace (Phase 1)")
+except ImportError:
+    log.warning("marketplace router not available — /marketplace skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /

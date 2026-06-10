@@ -338,6 +338,60 @@ class EvolutionEngine:
         if texts:
             guard.add_examples(texts)
 
+    def inject_rule(
+        self,
+        rule_text: str,
+        source:    str = "marketplace",
+        metadata:  dict | None = None,
+    ) -> tuple[bool, str]:
+        """
+        Inject an externally-provided rule directly into the corpus.
+
+        Supported rule types (from metadata["rule_type"]):
+          "semantic_example" (default) — embedded via add_examples()
+          "regex_pattern"              — ReDoS gate applied first
+
+        Returns (True, rule_id) on success, (False, reason) on rejection.
+        """
+        meta         = metadata or {}
+        rule_type    = meta.get("rule_type", "semantic_example")
+        content_hash = hashlib.sha256(rule_text.encode()).hexdigest()
+
+        if content_hash in self._seen_hashes:
+            return False, "duplicate: already in corpus"
+
+        if rule_type == "regex_pattern":
+            ok, reason = self._validate_regex_safety(rule_text)
+            if not ok:
+                return False, f"ReDoS gate rejected: {reason}"
+
+        rule_id = str(uuid.uuid4())
+        record  = RuleRecord(
+            id=rule_id,
+            created_at=datetime.now(UTC).isoformat(),
+            source_hash=content_hash,
+            attack_type=str(meta.get("attack_type", source))[:120],
+            explanation=str(meta.get("explanation", f"Injected from {source}"))[:500],
+            evasion_variants=list(meta.get("evasion_variants", [])),
+            new_rule=NewRule(
+                rule_type=rule_type,  # type: ignore[arg-type]
+                value=rule_text,
+                description=str(meta.get("description", f"Rule injected from {source}"))[:200],
+            ),
+            severity=str(meta.get("severity", "medium")),
+        )
+        self._seen_hashes.add(content_hash)
+        self._persist(record)
+
+        if rule_type == "semantic_example":
+            self.add_examples([rule_text])
+
+        log.info(
+            "EvolutionEngine.inject_rule: rule_id=%s source=%s type=%s",
+            rule_id, source, rule_type,
+        )
+        return True, rule_id
+
     # ── Corpus protection ────────────────────────────────────────────────────
 
     def _count_existing_rules(self) -> int:
