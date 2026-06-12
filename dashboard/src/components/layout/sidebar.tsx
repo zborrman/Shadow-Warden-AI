@@ -6,6 +6,7 @@ import {
   FlaskConical, Activity, GitBranch, Settings, DollarSign, LogOut,
   BookOpen, ChevronDown, ChevronRight, Cpu, Eye, Zap, Lock,
   Globe, FileText, TrendingUp, Search, Sun, Moon, X, ArrowLeftRight,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,8 @@ const GROUPS: NavGroup[] = [
     bg: "rgba(191,90,242,0.12)",
     icon: Users,
     items: [
-      { href: "/community",           icon: Users,    label: "Communities" },
+      { href: "/community",           icon: Users,        label: "Communities" },
+      { href: "/community/governance",icon: ShieldCheck, label: "Governance" },
       { href: "/community/sep",       icon: Network,  label: "SEP Hub",          soon: true },
       { href: "/community/peering",   icon: Zap,      label: "Peering",          soon: true },
       { href: "/community/knock",     icon: Key,      label: "Knock Invitations",soon: true },

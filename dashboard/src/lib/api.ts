@@ -1,10 +1,10 @@
 const ANALYTICS = process.env.NEXT_PUBLIC_ANALYTICS_URL ?? "http://localhost:8002";
 const API       = process.env.NEXT_PUBLIC_API_URL       ?? "https://api.shadow-warden-ai.com";
 
-async function get<T>(base: string, path: string, params?: Record<string, string>): Promise<T> {
+async function get<T>(base: string, path: string, params?: Record<string, string>, headers?: Record<string, string>): Promise<T> {
   const url = new URL(`${base}${path}`);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), { next: { revalidate: 0 } });
+  const res = await fetch(url.toString(), { next: { revalidate: 0 }, ...(headers ? { headers } : {}) });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json() as Promise<T>;
 }
@@ -252,6 +252,37 @@ export type HubBundle = {
 };
 
 // ── Marketplace Analytics Types ───────────────────────────────────────────────
+// ── Community Governance types ────────────────────────────────────────────────
+export type CommunityIntelReport = {
+  community_id: string;
+  generated_at: string;
+  risk: {
+    overall: number;
+    anomaly_score: number;
+    transfer_rejection_rate: number;
+    governance_gap: number;
+    label: string;
+  };
+  transfers: {
+    total: number;
+    accepted: number;
+    rejected: number;
+    by_data_class: Record<string, number>;
+    top_target_communities: { community_id: string; count: number }[];
+  };
+  peerings: { total: number; active: number; revoked: number; by_policy: Record<string, number> };
+  governance: { charter_active: boolean; charter_version: number; acceptance_rate: number; pending_acceptances: number };
+  recent_anomalies: { member_id: string; event_type: string; severity: string; z_score: number; detected_at: string }[];
+  recommendations: string[];
+};
+export type OAuthRiskSummary = {
+  community_id: string;
+  total: number;
+  by_verdict: Record<string, number>;
+  high_risk_providers: string[];
+  risk_score: number;
+};
+
 export type MktAnalyticsSummary = {
   period_days:         number;
   total_volume_usd:    number;
@@ -361,6 +392,10 @@ export const api = {
   mktSummary:  (p?: Record<string, string>) => get<MktAnalyticsSummary>(API, "/marketplace/analytics/summary", p),
   mktVolume:   (p?: Record<string, string>) => get<MktVolumePoint[]>(API, "/marketplace/analytics/volume", p),
   mktAgents:   (p?: Record<string, string>) => get<{ top_sellers: MktAgentRank[]; top_buyers: MktAgentRank[] }>(API, "/marketplace/analytics/agents", p),
+
+  // ── Community Governance ──────────────────────────────────────────────────
+  communityIntel:       (id: string, tenantId: string) => get<CommunityIntelReport>(API, `/community-intel/${id}`, undefined, { "X-Tenant-ID": tenantId }),
+  communityOAuthSummary:(id: string, tenantId: string) => get<OAuthRiskSummary>(API, `/community-intel/${id}/oauth/summary`, undefined, { "X-Tenant-ID": tenantId }),
 
   // ── Community Hub ─────────────────────────────────────────────────────────
   hubStats:        () => get<HubStats>(API, "/communities/stats"),
