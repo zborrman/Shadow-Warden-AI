@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "shadow-warden"
+version = "1.0.0"
+description = "Official Python SDK for the Shadow Warden AI security gateway"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Shadow Warden AI", email = "api@shadow-warden-ai.com" }]
+keywords = ["ai", "security", "llm", "filtering", "jailbreak"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = ["httpx>=0.27"]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "respx"]
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["warden_sdk*"]
+
+[project.urls]
+Homepage = "https://shadow-warden-ai.com/sdk"
+Documentation = "https://docs.shadow-warden-ai.com"
+Repository = "https://github.com/zborrman/Shadow-Warden-AI"

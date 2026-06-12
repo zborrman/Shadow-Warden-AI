@@ -101,8 +101,9 @@ const groups: NavGroup[] = [
 ]
 
 const singleLinks = [
-  { href: 'https://shadow-warden-ai.com#docs',  label: 'Docs',  accent: '#FFD60A', icon: BookOpen,    external: true },
-  { href: '/settings/?tab=billing',              label: 'Price', accent: '#FF8C42', icon: DollarSign,  external: false },
+  { href: '/sdk/',                               label: 'SDK & API', accent: '#30D158', icon: BookOpen,    external: false },
+  { href: 'https://shadow-warden-ai.com#docs',  label: 'Docs',      accent: '#FFD60A', icon: BookOpen,    external: true  },
+  { href: '/settings/?tab=billing',             label: 'Price',     accent: '#FF8C42', icon: DollarSign,  external: false },
 ]
 
 export function Sidebar() {
