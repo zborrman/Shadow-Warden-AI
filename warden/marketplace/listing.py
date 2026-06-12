@@ -365,6 +365,75 @@ def finalize_purchase(
     return cur.rowcount > 0
 
 
+def list_purchases(
+    buyer_agent: str | None = None,
+    seller_agent: str | None = None,
+    tenant_id: str | None = None,
+    limit: int = 50,
+    db_path: str = _DB_PATH,
+) -> list[Purchase]:
+    query = "SELECT * FROM marketplace_purchases WHERE 1=1"
+    params: list = []
+    if buyer_agent:
+        query += " AND buyer_agent=?"
+        params.append(buyer_agent)
+    if seller_agent:
+        query += " AND seller_agent=?"
+        params.append(seller_agent)
+    query += " ORDER BY purchased_at DESC LIMIT ?"
+    params.append(limit)
+    with _conn(db_path) as con:
+        rows = con.execute(query, params).fetchall()
+    return [_row_to_purchase(r) for r in rows]
+
+
+def purchase_listing(
+    listing_id: str,
+    buyer_agent_id: str,
+    db_path: str = _DB_PATH,
+) -> dict:
+    """Atomically buy a listing: create purchase record + escrow + trigger import."""
+    listing = get_listing(listing_id, db_path=db_path)
+    if listing is None:
+        raise ValueError(f"Listing '{listing_id}' not found.")
+    if listing.status != "active":
+        raise ValueError(f"Listing '{listing_id}' is not active (status={listing.status}).")
+
+    purchase = create_purchase(
+        listing_id=listing_id,
+        asset_id=listing.asset_id,
+        buyer_agent=buyer_agent_id,
+        seller_agent=listing.seller_agent,
+        price_paid=listing.price_usd,
+        db_path=db_path,
+    )
+
+    try:
+        from warden.marketplace.escrow import EscrowService  # noqa: PLC0415
+        escrow = EscrowService().create_escrow(
+            listing_id=listing_id,
+            buyer_agent_id=buyer_agent_id,
+            seller_agent_id=listing.seller_agent,
+            amount_usd=listing.price_usd,
+            purchase_id=purchase.purchase_id,
+            db_path=db_path,
+        )
+        escrow_id = escrow.escrow_id
+    except Exception as exc:
+        log.warning("Escrow creation failed for %s: %s", purchase.purchase_id, exc)
+        escrow_id = ""
+
+    return {
+        "purchase_id": purchase.purchase_id,
+        "listing_id":  listing_id,
+        "asset_id":    listing.asset_id,
+        "asset_type":  listing.asset_type,
+        "price_paid":  listing.price_usd,
+        "escrow_id":   escrow_id,
+        "status":      "pending",
+    }
+
+
 def _trigger_asset_import(purchase_id: str, db_path: str) -> None:
     """Fire-and-forget asset import after escrow confirmation. Always fail-open."""
     try:

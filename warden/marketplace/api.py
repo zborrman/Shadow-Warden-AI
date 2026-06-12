@@ -93,6 +93,16 @@ def _resolve_keypair(community_id: str):
 
 # ── Agent endpoints ───────────────────────────────────────────────────────────
 
+@router.get("/agents")
+async def list_agents(
+    tenant_id:    str | None = Query(default=None),
+    community_id: str | None = Query(default=None),
+    limit:        int        = Query(default=50, le=100),
+) -> list[dict]:
+    from warden.marketplace.agent import list_agents as _list
+    return [a.to_dict() for a in _list(tenant_id=tenant_id, community_id=community_id, limit=limit)]
+
+
 @router.post("/agents/register", status_code=201)
 async def register_agent(body: AgentRegisterRequest) -> dict:
     from warden.marketplace.agent import register_agent as _register
@@ -387,6 +397,17 @@ async def raise_dispute(escrow_id: str, body: DisputeRequest) -> dict:
     return {"disputed": True, "reason": body.reason}
 
 
+@router.post("/escrow/{escrow_id}/resolve")
+async def resolve_dispute(escrow_id: str, body: dict) -> dict:
+    from warden.marketplace.escrow import EscrowService
+    release_to_buyer = bool(body.get("release_to_buyer", True))
+    ok = EscrowService().resolve_dispute(escrow_id, release_to_buyer)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Cannot resolve dispute in current state.")
+    verdict = "resolved_buyer" if release_to_buyer else "resolved_seller"
+    return {"resolved": True, "verdict": verdict}
+
+
 @router.get("/escrow/{escrow_id}")
 async def get_escrow(escrow_id: str) -> dict:
     from warden.marketplace.escrow import EscrowService
@@ -394,3 +415,71 @@ async def get_escrow(escrow_id: str) -> dict:
     if escrow is None:
         raise HTTPException(status_code=404, detail=f"Escrow '{escrow_id}' not found.")
     return escrow.to_dict()
+
+
+@router.get("/escrows")
+async def list_escrows(
+    agent_id: str | None = Query(default=None),
+    role:     str        = Query(default="any"),
+    status:   str | None = Query(default=None),
+    limit:    int        = Query(default=50, le=100),
+) -> list[dict]:
+    from warden.marketplace.escrow import EscrowService
+    svc = EscrowService()
+    if agent_id:
+        return [e.to_dict() for e in svc.list_escrows(agent_id, role=role, limit=limit)]
+    return [e.to_dict() for e in svc.list_all_escrows(status=status, limit=limit)]
+
+
+# ── Purchase endpoints ────────────────────────────────────────────────────────
+
+class PurchaseRequest(BaseModel):
+    buyer_agent_id: str
+
+
+@router.post("/listings/{listing_id}/purchase", status_code=201)
+async def buy_listing(listing_id: str, body: PurchaseRequest) -> dict:
+    from warden.marketplace.listing import purchase_listing as _buy
+    try:
+        return _buy(listing_id=listing_id, buyer_agent_id=body.buyer_agent_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/purchases")
+async def list_purchases(
+    buyer_agent:  str | None = Query(default=None),
+    seller_agent: str | None = Query(default=None),
+    limit:        int        = Query(default=50, le=100),
+) -> list[dict]:
+    from warden.marketplace.listing import list_purchases as _list
+    return [p.to_dict() for p in _list(buyer_agent=buyer_agent, seller_agent=seller_agent, limit=limit)]
+
+
+# ── Stats endpoint ────────────────────────────────────────────────────────────
+
+@router.get("/stats")
+async def marketplace_stats(
+    tenant_id: str | None = Query(default=None),
+) -> dict:
+    from warden.marketplace.agent import list_agents as _list_agents
+    from warden.marketplace.listing import get_listings
+    from warden.marketplace.listing import list_purchases as _list_pur
+
+    agents   = _list_agents(tenant_id=tenant_id, limit=1000)
+    listings = get_listings(limit=1000)
+    purchases = _list_pur(limit=1000)
+
+    active_listings  = sum(1 for lst in listings if lst.status == "active")
+    completed_trades = sum(1 for p in purchases if p.status == "completed")
+    pending_trades   = sum(1 for p in purchases if p.status == "pending")
+    total_volume_usd = sum(p.price_paid for p in purchases if p.status == "completed")
+
+    return {
+        "agents":          len(agents),
+        "active_listings": active_listings,
+        "total_listings":  len(listings),
+        "completed_trades": completed_trades,
+        "pending_trades":   pending_trades,
+        "total_volume_usd": round(total_volume_usd, 2),
+    }

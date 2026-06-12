@@ -303,6 +303,42 @@ class EscrowService:
     def get_escrow(self, escrow_id: str, db_path: str = _DB_PATH) -> Escrow | None:
         return self._get(escrow_id, db_path)
 
+    def list_escrows(
+        self,
+        agent_id: str,
+        role: str = "any",
+        limit: int = 50,
+        db_path: str = _DB_PATH,
+    ) -> list[Escrow]:
+        if role == "buyer":
+            query = "SELECT * FROM marketplace_escrow WHERE buyer_agent=? ORDER BY created_at DESC LIMIT ?"
+            params: list = [agent_id, limit]
+        elif role == "seller":
+            query = "SELECT * FROM marketplace_escrow WHERE seller_agent=? ORDER BY created_at DESC LIMIT ?"
+            params = [agent_id, limit]
+        else:
+            query = "SELECT * FROM marketplace_escrow WHERE buyer_agent=? OR seller_agent=? ORDER BY created_at DESC LIMIT ?"
+            params = [agent_id, agent_id, limit]
+        with _conn(db_path) as con:
+            rows = con.execute(query, params).fetchall()
+        return [_row_to_escrow(r) for r in rows]
+
+    def list_all_escrows(
+        self,
+        status: str | None = None,
+        limit: int = 50,
+        db_path: str = _DB_PATH,
+    ) -> list[Escrow]:
+        if status:
+            query = "SELECT * FROM marketplace_escrow WHERE status=? ORDER BY created_at DESC LIMIT ?"
+            params: list = [status, limit]
+        else:
+            query = "SELECT * FROM marketplace_escrow ORDER BY created_at DESC LIMIT ?"
+            params = [limit]
+        with _conn(db_path) as con:
+            rows = con.execute(query, params).fetchall()
+        return [_row_to_escrow(r) for r in rows]
+
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _deploy_contract(

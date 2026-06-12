@@ -10,7 +10,7 @@ import {
   Key, Lock, Globe, Trash2, CreditCard,
   BookOpen, DollarSign, Building2, AlertTriangle,
   BookMarked, GraduationCap, ShieldAlert, Brain, Package,
-  Sun, Moon,
+  Sun, Moon, ArrowLeftRight,
 } from 'lucide-react'
 import { logout } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
@@ -33,13 +33,14 @@ const groups: NavGroup[] = [
     accent: '#BF5AF2',
     icon: '◈',
     items: [
-      { href: '/community-hub/', label: 'Community Hub',  icon: Users    },
-      { href: '/communities/',  label: 'Secure Vault',   icon: Database },
-      { href: '/hub/',          label: 'SEP Hub',        icon: Network  },
-      { href: '/dashboard/?tab=reputation',    label: 'Reputation',          icon: Star    },
-      { href: '/dashboard/?tab=pods',           label: 'Data Pods',           icon: Database },
-      { href: '/communities/intelligence',      label: 'Business Intelligence',icon: Brain    },
-      { href: '/communities/smb-setup',         label: 'SMB Suite Wizard',    icon: Package  },
+      { href: '/community-hub/',                       label: 'Community Hub',      icon: Users          },
+      { href: '/community-hub/agentic-commerce',       label: 'Agentic Commerce',    icon: ArrowLeftRight },
+      { href: '/communities/',                         label: 'Secure Vault',        icon: Database       },
+      { href: '/hub/',                                 label: 'SEP Hub',             icon: Network        },
+      { href: '/dashboard/?tab=reputation',            label: 'Reputation',          icon: Star           },
+      { href: '/dashboard/?tab=pods',                  label: 'Data Pods',           icon: Database       },
+      { href: '/communities/intelligence',             label: 'Business Intelligence',icon: Brain         },
+      { href: '/communities/smb-setup',                label: 'SMB Suite Wizard',    icon: Package        },
     ],
   },
   {

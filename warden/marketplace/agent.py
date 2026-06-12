@@ -235,3 +235,36 @@ def suspend_agent(
             (agent_id, tenant_id),
         )
         return cur.rowcount > 0
+
+
+def list_agents(
+    tenant_id: str | None = None,
+    community_id: str | None = None,
+    limit: int = 50,
+    db_path: str = _DB_PATH,
+) -> list[MarketplaceAgent]:
+    query = "SELECT * FROM marketplace_agents WHERE 1=1"
+    params: list = []
+    if tenant_id:
+        query += " AND tenant_id=?"
+        params.append(tenant_id)
+    if community_id:
+        query += " AND community_id=?"
+        params.append(community_id)
+    query += " ORDER BY created_at DESC LIMIT ?"
+    params.append(limit)
+    with _conn(db_path) as con:
+        rows = con.execute(query, params).fetchall()
+    return [_row_to_agent(r) for r in rows]
+
+
+def get_agent_stats(tenant_id: str, db_path: str = _DB_PATH) -> dict:
+    with _conn(db_path) as con:
+        total = con.execute(
+            "SELECT COUNT(*) FROM marketplace_agents WHERE tenant_id=?", (tenant_id,)
+        ).fetchone()[0]
+        active = con.execute(
+            "SELECT COUNT(*) FROM marketplace_agents WHERE tenant_id=? AND status='active'",
+            (tenant_id,),
+        ).fetchone()[0]
+    return {"total": total, "active": active}

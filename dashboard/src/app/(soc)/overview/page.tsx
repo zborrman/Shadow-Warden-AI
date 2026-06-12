@@ -230,6 +230,51 @@ export default function OverviewPage() {
             </div>
           </div>
         </div>
+
+        {/* M2M Marketplace Activity widget */}
+        <M2MWidget />
+      </div>
+    </div>
+  );
+}
+
+function M2MWidget() {
+  const { data } = useQuery({
+    queryKey: ["mkt-stats-soc"],
+    queryFn: async () => {
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+      const r = await fetch(`${API}/marketplace/stats`);
+      if (!r.ok) return null;
+      return r.json() as Promise<{ agents: number; active_listings: number; completed_trades: number; total_volume_usd: number }>;
+    },
+    retry: false,
+  });
+
+  if (!data) return null;
+
+  const items = [
+    { label: "Agents",          value: data.agents.toString(),           color: "text-purple-400"  },
+    { label: "Active Listings", value: data.active_listings.toString(),  color: "text-blue-400"    },
+    { label: "Trades (all time)", value: data.completed_trades.toString(), color: "text-emerald-400" },
+    { label: "Volume",
+      value: `$${data.total_volume_usd.toLocaleString("en-US", { maximumFractionDigits: 0 })}`,
+      color: "text-amber-400" },
+  ];
+
+  return (
+    <div className="rounded-xl bg-surface-2 border border-border p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Users size={14} className="text-purple-400" />
+        <p className="text-sm font-semibold text-white">M2M Marketplace Activity</p>
+        <span className="ml-auto text-[10px] text-gray-500 uppercase tracking-wider">Agentic Commerce</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {items.map(({ label, value, color }) => (
+          <div key={label} className="bg-surface-3 rounded-lg px-3 py-2">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</p>
+            <p className={cn("text-base font-bold mt-0.5", color)}>{value}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
