@@ -66,6 +66,17 @@ api.shadow-warden-ai.com {
 		reverse_proxy warden:8001
 	}
 
+	# WebSocket connections (community live metrics, compliance push)
+	handle /ws/* {
+		reverse_proxy warden:8001 {
+			header_up X-Real-IP        {remote_host}
+			header_up X-Forwarded-For  {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up Connection        {>Connection}
+			header_up Upgrade           {>Upgrade}
+		}
+	}
+
 	# All API traffic → Warden FastAPI gateway
 	handle {
 		reverse_proxy warden:8001 {

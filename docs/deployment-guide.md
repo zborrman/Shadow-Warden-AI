@@ -2038,3 +2038,167 @@ curl -H "X-API-Key: $WARDEN_API_KEY" \
 
 MinIO colocation typically costs $50–200/month for a dedicated storage node
 with 10 TB NVMe — breaking even at ~40M requests/month vs AWS S3.
+
+---
+
+## 24. v5.6 Quick-Start (Docker Compose — Single VPS)
+
+Covers the full v5.6 stack: gateway, portal, SOC dashboard, marketplace, community M2M,
+compliance push, document intelligence, and Caddy reverse proxy.
+
+### 24.1 Prerequisites
+
+| Requirement | Minimum |
+|-------------|---------|
+| OS | Ubuntu 22.04 LTS or Debian 12 |
+| Docker | 24.0+ |
+| Docker Compose | v2.20+ (bundled with Docker Desktop) |
+| CPU / RAM | 4 vCPU / 8 GB (8 vCPU / 16 GB recommended) |
+| Disk | 40 GB SSD |
+| DNS | A records for all four subdomains pointing at server IP |
+| TLS certs | `./ssl/cert.pem` + `./ssl/key.pem` (or use Caddy ACME — see §9) |
+
+### 24.2 Quick Start
+
+```bash
+git clone https://github.com/zborrman/Shadow-Warden-AI.git
+cd Shadow-Warden-AI
+
+# Copy and fill in secrets
+cp .env.example .env
+$EDITOR .env          # set WARDEN_API_KEY, DB_PASSWORD, ANTHROPIC_API_KEY, etc.
+
+# First boot — builds all images (~10 min on cold cache)
+docker compose up --build -d
+
+# Tail logs until warden is healthy (ML model load takes ~2-3 min)
+docker compose logs -f warden
+```
+
+### 24.3 Health Verification
+
+After `docker compose up`, confirm all services are healthy:
+
+```bash
+docker compose ps            # all State = running, Health = healthy
+
+# Gateway
+curl -s http://localhost:8001/health | python3 -m json.tool
+
+# Tenant portal
+curl -o /dev/null -sw "%{http_code}\n" http://localhost:3001/login/
+
+# SOC dashboard
+curl -o /dev/null -sw "%{http_code}\n" http://localhost:3002/
+
+# Streamlit admin
+curl -o /dev/null -sw "%{http_code}\n" http://localhost:8501/_stcore/health
+
+# Marketplace endpoint
+curl -s http://localhost:8001/marketplace/agents?community_id=test \
+     -H "X-API-Key: $WARDEN_API_KEY"
+```
+
+Expected: all return HTTP 200.
+
+### 24.4 DNS and Caddy TLS
+
+| Subdomain | Upstream | Notes |
+|-----------|----------|-------|
+| `api.shadow-warden-ai.com` | `warden:8001` | REST + WebSocket `/ws/*` |
+| `app.shadow-warden-ai.com` | `portal:3001` | Tenant portal |
+| `dash.shadow-warden-ai.com` | `dashboard:3002` | SOC dashboard |
+| `analytics.shadow-warden-ai.com` | `analytics:8002` | Analytics API |
+| `docs.shadow-warden-ai.com` | `/srv/docs` | Redoc static |
+| `shadow-warden-ai.com` | `/srv/landing` | Astro marketing site |
+
+**Bring-your-own certs** (default): place `cert.pem` + `key.pem` in `./ssl/`.
+
+**Caddy ACME** (automatic Let's Encrypt): remove `tls` directives from `docker/Caddyfile`
+and add `email you@example.com` to the global block.
+
+WebSocket connections (`/ws/community/*`, `/ws/compliance`) route correctly — the
+Caddyfile `handle /ws/*` block passes `Connection` and `Upgrade` headers upstream.
+
+### 24.5 New Environment Variables (v5.4–v5.6)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DOC_INTEL_MAX_BYTES` | `52428800` | Max upload size for Document Intelligence (50 MB) |
+| `DOC_INTEL_CACHE_TTL` | `86400` | Redis TTL for converted documents (24 h) |
+| `DOC_INTEL_TIMEOUT_S` | `30` | Per-conversion thread timeout |
+| `SEMANTIC_CACHE_TTL` | `600` | Redis TTL for Semantic Layer SQL results (10 min) |
+| `MARKETPLACE_CONTRACT_ADDRESS` | _(empty)_ | Sepolia contract for AP2 escrow; blank = off-chain |
+| `MARKETPLACE_DEFAULT_MANDATE_USD` | `1000` | Default AP2 budget per marketplace agent |
+| `TEAMS_WEBHOOK_URL` | _(empty)_ | Teams Incoming Webhook for community notifications |
+| `WARDEN_INTERNAL_URL` | `http://warden:8001` | Portal server-side proxy target |
+
+### 24.6 Cloudflare Pages (Astro Marketing Site)
+
+The `site/` directory is an Astro v6 static site deployed separately to Cloudflare Pages.
+
+```bash
+# Build locally
+cd site && npm ci && npm run build
+
+# Deploy via Wrangler
+npx wrangler pages deploy dist --project-name shadow-warden-ai
+```
+
+Or connect the GitHub repo in the Cloudflare Pages dashboard:
+- **Build command:** `cd site && npm run build`
+- **Build output:** `site/dist`
+- **Root directory:** `/` (repo root)
+
+The Astro `dist/` is also synced to `landing/` on every main push via CI
+(see `.github/workflows/ci.yml` site-build job) for Vercel auto-deploy.
+
+### 24.7 Update Procedure
+
+```bash
+# On the server
+cd /opt/shadow-warden
+git pull origin main
+
+# Rebuild changed services only (Docker layer cache handles unchanged ones)
+docker compose build warden analytics portal dashboard
+docker compose up -d --no-build --remove-orphans
+
+# Verify
+docker compose ps
+curl -s http://localhost:8001/health
+```
+
+CI auto-deploys to the VPS on every push to main via the `deploy` GitHub Actions job
+(requires `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH` secrets).
+
+### 24.8 Monitoring
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Grafana | `http://<server>:3001` | `GRAFANA_USER` / `GRAFANA_PASSWORD` |
+| Jaeger tracing | `http://<server>:16686` | none |
+| MinIO console | `http://<server>:9091` | `S3_ACCESS_KEY` / `S3_SECRET_KEY` |
+| Prometheus | internal only (`:9090`) | none |
+
+Enable tracing: set `OTEL_ENABLED=true` in `.env` and restart warden.
+
+### 24.9 Backup
+
+```bash
+# PostgreSQL dump
+docker compose exec postgres pg_dump -U warden_user warden | gzip > backup-$(date +%F).sql.gz
+
+# Redis snapshot (AOF + RDB already enabled via `--appendonly yes`)
+docker compose exec redis redis-cli BGSAVE
+
+# MinIO data volume
+docker run --rm -v shadow-warden_minio-data:/data -v $(pwd)/backups:/out \
+  alpine tar czf /out/minio-$(date +%F).tar.gz /data
+
+# All named volumes (belt-and-suspenders)
+for v in postgres-data redis-data minio-data warden-models; do
+  docker run --rm -v shadow-warden_${v}:/data -v $(pwd)/backups:/out \
+    alpine tar czf /out/${v}-$(date +%F).tar.gz /data
+done
+```
