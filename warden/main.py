@@ -1489,6 +1489,13 @@ try:
 except ImportError:
     log.warning("marketplace router not available — /marketplace skipped.")
 
+try:
+    from warden.api.deploy_health import router as _deploy_health_router
+    app.include_router(_deploy_health_router)
+    log.info("Deploy health endpoint mounted at /deploy/status")
+except ImportError:
+    log.warning("deploy_health router not available — /deploy routes skipped.")
+
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────
 # POST /admin/weekly-report   — fire off weekly reports immediately (testing /

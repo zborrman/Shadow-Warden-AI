@@ -67,6 +67,7 @@ const GROUPS: NavGroup[] = [
       { href: "/threats",          icon: Search,          label: "Threat Intel" },
       { href: "/compliance",           icon: Shield,    label: "Compliance" },
       { href: "/compliance/iso27001",  icon: FileText,  label: "ISO 27001" },
+      { href: "/platform/status",  icon: Shield,          label: "Service Status" },
       { href: "/platform/metrics", icon: Activity,        label: "Metrics" },
       { href: "/platform/traces",  icon: GitBranch,       label: "Traces" },
       { href: "/roi",              icon: DollarSign,      label: "Dollar Impact" },

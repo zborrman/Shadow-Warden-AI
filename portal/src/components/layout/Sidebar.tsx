@@ -65,6 +65,7 @@ const groups: NavGroup[] = [
       { href: '/dashboard/',               label: 'Overview',       icon: BarChart2  },
       { href: '/dashboard/?tab=log',       label: 'Event Log',      icon: List       },
       { href: '/dashboard/?tab=intel',     label: 'Threat Intel',   icon: Search     },
+      { href: '/deployment/',              label: 'Infrastructure', icon: Activity   },
       { href: '/dashboard/?tab=metrics',   label: 'Metrics',        icon: Activity   },
       { href: '/dashboard/?tab=traces',    label: 'Traces',         icon: GitBranch  },
     ],

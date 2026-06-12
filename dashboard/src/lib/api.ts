@@ -220,6 +220,22 @@ export type DocScanStats = {
   available:     boolean;
 };
 
+// ── Deploy Status Types ───────────────────────────────────────────────────────
+export type ServiceHealth = {
+  name:        string;
+  display:     string;
+  status:      "ok" | "degraded" | "down" | "unknown" | "partial";
+  latency_ms:  number | null;
+  detail:      string;
+};
+export type DeployStatusResponse = {
+  checked_at: string;
+  overall:    "ok" | "degraded" | "down" | "partial";
+  ok_count:   number;
+  total:      number;
+  services:   ServiceHealth[];
+};
+
 // ── Community Hub Types ───────────────────────────────────────────────────────
 export type HubStats = { total: number; active: number; public: number; private: number; suspended: number };
 export type HubCommunity = {
@@ -396,6 +412,9 @@ export const api = {
   // ── Community Governance ──────────────────────────────────────────────────
   communityIntel:       (id: string, tenantId: string) => get<CommunityIntelReport>(API, `/community-intel/${id}`, undefined, { "X-Tenant-ID": tenantId }),
   communityOAuthSummary:(id: string, tenantId: string) => get<OAuthRiskSummary>(API, `/community-intel/${id}/oauth/summary`, undefined, { "X-Tenant-ID": tenantId }),
+
+  // ── Deploy & Monitoring ───────────────────────────────────────────────────
+  deployStatus:    () => get<DeployStatusResponse>(API, "/deploy/status"),
 
   // ── Community Hub ─────────────────────────────────────────────────────────
   hubStats:        () => get<HubStats>(API, "/communities/stats"),
