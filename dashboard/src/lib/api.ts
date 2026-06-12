@@ -251,6 +251,22 @@ export type HubBundle = {
   rule_content: string; status: string; published_at: string; threat_score: number;
 };
 
+// ── Marketplace Analytics Types ───────────────────────────────────────────────
+export type MktAnalyticsSummary = {
+  period_days:         number;
+  total_volume_usd:    number;
+  total_trades:        number;
+  avg_price_usd:       number;
+  active_listings:     number;
+  registered_agents:   number;
+  dispute_rate:        number;
+  top_asset_types:     { type: string; count: number; volume_usd: number }[];
+  escrow_pipeline:     { funded: number; delivered: number; confirmed: number; disputed: number };
+  pricing_strategy_dist: Record<string, number>;
+};
+export type MktVolumePoint = { date: string; volume_usd: number; trades: number };
+export type MktAgentRank   = { agent_id: string; trades: number; volume_usd: number };
+
 async function post<T>(base: string, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method:  "POST",
@@ -340,6 +356,11 @@ export const api = {
 
   // ── FE-50 Document Intelligence ───────────────────────────────────────────
   docScans:        () => get<DocScanStats>(API, "/document-intel/stats"),
+
+  // ── Marketplace Analytics ─────────────────────────────────────────────────
+  mktSummary:  (p?: Record<string, string>) => get<MktAnalyticsSummary>(API, "/marketplace/analytics/summary", p),
+  mktVolume:   (p?: Record<string, string>) => get<MktVolumePoint[]>(API, "/marketplace/analytics/volume", p),
+  mktAgents:   (p?: Record<string, string>) => get<{ top_sellers: MktAgentRank[]; top_buyers: MktAgentRank[] }>(API, "/marketplace/analytics/agents", p),
 
   // ── Community Hub ─────────────────────────────────────────────────────────
   hubStats:        () => get<HubStats>(API, "/communities/stats"),

@@ -5,7 +5,7 @@ import {
   Users, Network, Key, Shield, LayoutDashboard, AlertTriangle,
   FlaskConical, Activity, GitBranch, Settings, DollarSign, LogOut,
   BookOpen, ChevronDown, ChevronRight, Cpu, Eye, Zap, Lock,
-  Globe, FileText, TrendingUp, Search, Sun, Moon, X,
+  Globe, FileText, TrendingUp, Search, Sun, Moon, X, ArrowLeftRight,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -60,6 +60,7 @@ const GROUPS: NavGroup[] = [
     icon: LayoutDashboard,
     items: [
       { href: "/overview",         icon: LayoutDashboard, label: "Overview" },
+      { href: "/marketplace",      icon: ArrowLeftRight,  label: "Marketplace" },
       { href: "/events",           icon: FileText,        label: "Event Log" },
       { href: "/threats",          icon: Search,          label: "Threat Intel" },
       { href: "/compliance",           icon: Shield,    label: "Compliance" },

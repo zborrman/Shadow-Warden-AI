@@ -483,3 +483,35 @@ async def marketplace_stats(
         "pending_trades":   pending_trades,
         "total_volume_usd": round(total_volume_usd, 2),
     }
+
+
+# ── Analytics endpoints ───────────────────────────────────────────────────────
+
+@router.get("/analytics/summary")
+async def marketplace_analytics_summary(
+    tenant_id:    str | None = Query(default=None),
+    community_id: str | None = Query(default=None),
+    period_days:  int        = Query(default=30, ge=1, le=365),
+) -> dict:
+    from warden.marketplace.analytics import get_summary
+    return get_summary(tenant_id=tenant_id, community_id=community_id, period_days=period_days)
+
+
+@router.get("/analytics/volume")
+async def marketplace_volume_series(
+    tenant_id:    str | None = Query(default=None),
+    community_id: str | None = Query(default=None),
+    period_days:  int        = Query(default=30, ge=7, le=365),
+) -> list[dict]:
+    from warden.marketplace.analytics import get_volume_series
+    return get_volume_series(tenant_id=tenant_id, community_id=community_id, period_days=period_days)
+
+
+@router.get("/analytics/agents")
+async def marketplace_agent_leaderboard(
+    tenant_id:    str | None = Query(default=None),
+    community_id: str | None = Query(default=None),
+    limit:        int        = Query(default=10, le=50),
+) -> dict:
+    from warden.marketplace.analytics import get_agent_leaderboard
+    return get_agent_leaderboard(tenant_id=tenant_id, community_id=community_id, limit=limit)
