@@ -1,0 +1,419 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const MOCK_TRADES = [
+  { from:'CyberSec Research Hub', to:'FinTech Alliance',      type:'Detection Rule',  price:'$2.50',  age:'2s',  target:'Evolution Engine' },
+  { from:'Healthcare AI Consortium', to:'EdTech Safety',      type:'Signal Bundle',   price:'$0.80',  age:'14s', target:'Threat Radar'     },
+  { from:'Supply Chain AI Guild', to:'LegalTech Exchange',    type:'Semantic Model',  price:'$12.00', age:'31s', target:'Semantic Layer'   },
+  { from:'FinTech Alliance', to:'CyberSec Research Hub',      type:'Signal Bundle',   price:'$1.20',  age:'58s', target:'Threat Radar'     },
+  { from:'EdTech Safety Network', to:'Healthcare Consortium', type:'Detection Rule',  price:'$3.75',  age:'2m',  target:'Evolution Engine' },
+  { from:'LegalTech Exchange', to:'Supply Chain AI Guild',    type:'Detection Rule',  price:'$1.50',  age:'4m',  target:'Evolution Engine' },
+];
+---
+
+<BaseLayout title="M2M Intelligence Marketplace — Shadow Warden AI"
+  description="Communities buy and sell detection assets autonomously. Rules, models, and signal bundles tokenized, signed, and auto-imported into your security stack.">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --pr:   #80b4fd;
+    --pr-d: rgba(128,180,253,.1);
+    --grn:  #34d399;
+    --amb:  #fbbf24;
+    --cyn:  #22d3ee;
+    --pur:  #c084fc;
+    --ease: cubic-bezier(0.23,1,0.32,1);
+  }
+
+  .mkt-page { background: #070910; min-height: 100vh; color: #e2e8f0; }
+
+  /* ── Section common ─────────────────────────────────────── */
+  .sec-inner { max-width: 1100px; margin: 0 auto; padding: 80px 32px; }
+  .sec-pre { font-size: 11px; font-weight: 700; color: var(--pr); margin-bottom: 10px; letter-spacing: .08em; }
+  .sec-title { font-size: clamp(22px,3.2vw,34px); font-weight: 700; color: #f0f4fc; margin-bottom: 10px; line-height: 1.2; }
+  .sec-sub { font-size: 14px; color: #4d5e78; max-width: 520px; line-height: 1.6; margin-bottom: 44px; }
+
+  /* ── Hero ───────────────────────────────────────────────── */
+  .hero { position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #mkt-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hero-inner { position: relative; z-index: 1; text-align: center; padding: 80px 24px 60px; max-width: 820px; margin: 0 auto; }
+  .live-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; color: var(--amb); letter-spacing: .1em; background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.2); border-radius: 20px; padding: 4px 12px; margin-bottom: 28px; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amb); animation: pulse 2s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .hero-title { font-size: clamp(32px,5vw,62px); font-weight: 800; color: #f0f4fc; line-height: 1.1; margin: 0 0 16px; }
+  .grad { color: var(--amb); }
+  .hero-sub { font-size: 15px; color: #4d5e78; line-height: 1.65; max-width: 540px; margin: 0 auto 36px; }
+  .hero-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; max-width: 700px; margin: 0 auto 36px; }
+  .h-stat { background: rgba(4,7,16,.85); border: 1px solid rgba(128,180,253,.1); border-radius: 12px; padding: 14px 10px; }
+  .h-stat-n { display: block; font-size: 22px; font-weight: 800; color: var(--pr); line-height: 1; }
+  .h-stat-l { display: block; font-size: 10.5px; color: #3d4f66; margin-top: 4px; }
+  .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-pr { background: var(--pr); color: #07090f; font-weight: 700; border: 1px solid var(--pr); border-radius: 9px; padding: 11px 22px; font-size: 13.5px; cursor: pointer; text-decoration: none; transition: background 150ms var(--ease), border-color 150ms; display: inline-block; }
+  .btn-pr:hover { background: #a3cbff; border-color: #a3cbff; }
+  .btn-ghost { background: none; border: 1px solid rgba(128,180,253,.22); color: #64748b; border-radius: 9px; padding: 11px 22px; font-size: 13.5px; text-decoration: none; transition: border-color 150ms, color 150ms; display: inline-block; }
+  .btn-ghost:hover { border-color: rgba(128,180,253,.4); color: #94a3b8; }
+
+  /* ── Ecosystem flow ─────────────────────────────────────── */
+  .eco-sec { background: #060810; border-top: 1px solid rgba(128,180,253,.06); border-bottom: 1px solid rgba(128,180,253,.06); }
+  .eco-hd { max-width: 540px; margin-bottom: 48px; }
+  .eco-flow { display: flex; align-items: center; gap: 0; overflow-x: auto; padding-bottom: 8px; }
+  .eco-node { flex: 1; min-width: 160px; background: rgba(4,7,16,.9); border: 1px solid rgba(128,180,253,.1); border-radius: 14px; padding: 20px 16px; text-align: center; }
+  .eco-node-center { border-color: rgba(251,191,36,.25); background: rgba(251,191,36,.04); }
+  .eco-arrow { font-size: 18px; color: #1e2d40; padding: 0 10px; flex-shrink: 0; }
+  .eco-node-ic { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; margin: 0 auto 10px; }
+  .eco-ic-blue { background: rgba(128,180,253,.12); border: 1px solid rgba(128,180,253,.25); color: var(--pr); }
+  .eco-ic-cyan { background: rgba(34,211,238,.1); border: 1px solid rgba(34,211,238,.22); color: var(--cyn); }
+  .eco-ic-amber { background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.25); color: var(--amb); }
+  .eco-ic-green { background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.22); color: var(--grn); }
+  .eco-ic-purple { background: rgba(192,132,252,.1); border: 1px solid rgba(192,132,252,.22); color: var(--pur); }
+  .eco-node-name { font-size: 12.5px; font-weight: 700; color: #c4d4ea; margin-bottom: 6px; }
+  .eco-node-desc { font-size: 10px; color: #2d3a4e; line-height: 1.5; }
+
+  /* ── Asset types ────────────────────────────────────────── */
+  .assets-sec { background: #070910; }
+  .asset-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .asset-card { border-radius: 14px; border: 1px solid rgba(128,180,253,.1); background: rgba(4,7,16,.9); padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; }
+  .asset-card-blue  { border-color: rgba(128,180,253,.18); }
+  .asset-card-green { border-color: rgba(52,211,153,.15); }
+  .asset-card-amber { border-color: rgba(251,191,36,.14); }
+  .asset-card-top { display: flex; align-items: center; gap: 10px; }
+  .asset-type-ic { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; background: rgba(128,180,253,.12); border: 1px solid rgba(128,180,253,.25); color: var(--pr); flex-shrink: 0; }
+  .asset-type-ic-green { background: rgba(52,211,153,.1); border-color: rgba(52,211,153,.22); color: var(--grn); }
+  .asset-type-ic-amber { background: rgba(251,191,36,.09); border-color: rgba(251,191,36,.2); color: var(--amb); }
+  .asset-type-name { font-size: 15px; font-weight: 700; color: #e2e8f0; }
+  .asset-card-desc { font-size: 12.5px; color: #3d4f66; line-height: 1.6; flex: 1; }
+  .asset-card-meta { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(128,180,253,.07); padding-top: 14px; }
+  .asset-meta-row { display: flex; justify-content: space-between; align-items: center; }
+  .meta-label { font-size: 10px; color: #2d3a4e; font-weight: 600; }
+  .meta-val { font-size: 10.5px; color: #64748b; font-family: ui-monospace,'SF Mono',monospace; }
+  .asset-card-stat { font-size: 11px; font-weight: 700; color: var(--pr); border-top: 1px solid rgba(128,180,253,.07); padding-top: 12px; }
+  .asset-card-stat-green { color: var(--grn); }
+  .asset-card-stat-amber { color: var(--amb); }
+
+  /* ── How it works ───────────────────────────────────────── */
+  .how-sec { background: #060810; border-top: 1px solid rgba(128,180,253,.06); }
+  .how-steps { display: flex; flex-direction: column; gap: 0; max-width: 680px; }
+  .how-step { display: flex; gap: 20px; padding: 28px 0; border-bottom: 1px solid rgba(128,180,253,.06); }
+  .how-step:last-child { border-bottom: none; }
+  .how-step-n { width: 32px; height: 32px; border-radius: 50%; background: rgba(128,180,253,.1); border: 1px solid rgba(128,180,253,.22); color: var(--pr); font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .how-step-body { flex: 1; }
+  .how-step-title { font-size: 14.5px; font-weight: 700; color: #c4d4ea; margin-bottom: 6px; }
+  .how-step-desc { font-size: 13px; color: #3d4f66; line-height: 1.6; }
+
+  /* ── Activity feed ──────────────────────────────────────── */
+  .activity-sec { background: #070910; border-top: 1px solid rgba(128,180,253,.06); }
+  .act-inner { display: grid; grid-template-columns: 1fr 1.6fr; gap: 60px; align-items: start; }
+  .act-feed { display: flex; flex-direction: column; gap: 2px; }
+  .act-row { display: grid; grid-template-columns: 28px 1fr auto auto; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(128,180,253,.07); background: rgba(4,7,16,.9); font-size: 11.5px; }
+  .act-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--grn); flex-shrink: 0; }
+  .act-body { min-width: 0; }
+  .act-from { color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .act-route { color: #2d3a4e; font-size: 10px; margin-top: 1px; }
+  .act-price { font-weight: 700; color: var(--amb); white-space: nowrap; }
+  .act-badge { font-size: 9.5px; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+  .act-badge-rule { background: rgba(128,180,253,.08); border: 1px solid rgba(128,180,253,.18); color: var(--pr); }
+  .act-badge-model { background: rgba(52,211,153,.07); border: 1px solid rgba(52,211,153,.18); color: var(--grn); }
+  .act-badge-signal { background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.18); color: var(--amb); }
+  .act-age { font-size: 10px; color: #1e2d40; white-space: nowrap; }
+
+  /* ── CTA ────────────────────────────────────────────────── */
+  .cta-sec { background: #060810; border-top: 1px solid rgba(128,180,253,.06); }
+  .cta-inner { text-align: center; padding: 100px 32px; }
+  .cta-title { font-size: clamp(22px,3vw,36px); font-weight: 700; color: #f0f4fc; margin-bottom: 12px; }
+  .cta-sub { font-size: 14px; color: #4d5e78; max-width: 480px; margin: 0 auto 36px; line-height: 1.6; }
+  .cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .cta-btn { padding: 13px 26px; font-size: 14px; }
+
+  /* ── Responsive ─────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .eco-flow { flex-direction: column; gap: 4px; }
+    .eco-arrow { transform: rotate(90deg); }
+    .asset-grid { grid-template-columns: 1fr; }
+    .act-inner { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .hero-stats { grid-template-columns: repeat(2,1fr); }
+    .sec-inner { padding: 60px 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .live-dot { animation: none; }
+  }
+</style>
+
+<div class="mkt-page">
+
+  <!-- HERO -->
+  <section class="hero">
+    <canvas id="mkt-canvas"></canvas>
+    <div class="hero-inner">
+      <div class="live-badge"><span class="live-dot"></span> M2M LIVE</div>
+      <h1 class="hero-title">Intelligence <span class="grad">Marketplace</span></h1>
+      <p class="hero-sub">
+        Communities buy and sell detection assets autonomously.
+        Rules, models, signal bundles — tokenized, signed, auto-imported.
+      </p>
+      <div class="hero-stats">
+        <div class="h-stat"><span class="h-stat-n" data-to="2847">0</span><span class="h-stat-l">Communities</span></div>
+        <div class="h-stat"><span class="h-stat-n" data-to="18400">0</span><span class="h-stat-l">Assets listed</span></div>
+        <div class="h-stat"><span class="h-stat-n" data-to="94200">0</span><span class="h-stat-l">Trades</span></div>
+        <div class="h-stat"><span class="h-stat-n" data-to="99">0</span><span class="h-stat-l">% Auto-imported</span></div>
+      </div>
+      <div class="hero-btns">
+        <a href="/community" class="btn-pr">Create Community →</a>
+        <a href="#how" class="btn-ghost">How It Works</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ECOSYSTEM FLOW -->
+  <section class="eco-sec">
+    <div class="sec-inner">
+      <div class="eco-hd">
+        <div class="sec-pre">Ecosystem</div>
+        <h2 class="sec-title">Community meets Economy</h2>
+        <p class="sec-sub">Every community is also a marketplace node. Detection intelligence flows where it is needed — automatically, cryptographically, without manual steps.</p>
+      </div>
+      <div class="eco-flow">
+        <div class="eco-node">
+          <div class="eco-node-ic eco-ic-blue">C</div>
+          <div class="eco-node-name">Community</div>
+          <div class="eco-node-desc">UECIID identity, Ed25519 keypair, STIX 2.1 audit chain</div>
+        </div>
+        <div class="eco-arrow">→</div>
+        <div class="eco-node">
+          <div class="eco-node-ic eco-ic-cyan">A</div>
+          <div class="eco-node-name">Agent</div>
+          <div class="eco-node-desc">DID:shadow identity, AP2 mandate, buy/sell capabilities</div>
+        </div>
+        <div class="eco-arrow">→</div>
+        <div class="eco-node eco-node-center">
+          <div class="eco-node-ic eco-ic-amber">M</div>
+          <div class="eco-node-name">Marketplace</div>
+          <div class="eco-node-desc">Tokenized assets, sealed escrow, signed UECIID containers</div>
+        </div>
+        <div class="eco-arrow">→</div>
+        <div class="eco-node">
+          <div class="eco-node-ic eco-ic-green">E</div>
+          <div class="eco-node-name">Escrow</div>
+          <div class="eco-node-desc">AP2 payment, confirm receipt, cryptographic transfer proof</div>
+        </div>
+        <div class="eco-arrow">→</div>
+        <div class="eco-node">
+          <div class="eco-node-ic eco-ic-purple">I</div>
+          <div class="eco-node-name">Auto-Import</div>
+          <div class="eco-node-desc">Hot-reload into Evolution Engine, Semantic Layer, Threat Radar</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ASSET TYPES -->
+  <section class="assets-sec" id="assets">
+    <div class="sec-inner">
+      <div class="sec-pre">Asset Types</div>
+      <h2 class="sec-title">What communities trade</h2>
+      <p class="sec-sub">Three classes of detection intelligence — each tokenized with a UECIID, signed by the seller's Ed25519 keypair, and pinned to IPFS.</p>
+      <div class="asset-grid">
+        <div class="asset-card asset-card-blue">
+          <div class="asset-card-top">
+            <div class="asset-type-ic">R</div>
+            <div class="asset-type-name">Detection Rules</div>
+          </div>
+          <div class="asset-card-desc">
+            Semantic examples, regex patterns, compound rules, and jailbreak signatures.
+            The buyer's Evolution Engine hot-reloads the rule on import with no restart required.
+          </div>
+          <div class="asset-card-meta">
+            <div class="asset-meta-row"><span class="meta-label">Target</span><span class="meta-val">Evolution Engine</span></div>
+            <div class="asset-meta-row"><span class="meta-label">Gate</span><span class="meta-val">ReDoS + signature check</span></div>
+            <div class="asset-meta-row"><span class="meta-label">Format</span><span class="meta-val">JSON (rule_text + metadata)</span></div>
+          </div>
+          <div class="asset-card-stat"><span data-to="11240">0</span> rules listed</div>
+        </div>
+
+        <div class="asset-card asset-card-green">
+          <div class="asset-card-top">
+            <div class="asset-type-ic asset-type-ic-green">M</div>
+            <div class="asset-type-name">Semantic Models</div>
+          </div>
+          <div class="asset-card-desc">
+            OSI 1.0 models with metrics and dimensions. Automatically registered in the buyer's
+            Semantic Layer catalog — queryable via /semantic-layer/query immediately.
+          </div>
+          <div class="asset-card-meta">
+            <div class="asset-meta-row"><span class="meta-label">Target</span><span class="meta-val">Semantic Layer catalog</span></div>
+            <div class="asset-meta-row"><span class="meta-label">Gate</span><span class="meta-val">OSI schema validation</span></div>
+            <div class="asset-meta-row"><span class="meta-label">Format</span><span class="meta-val">OSI 1.0 JSON</span></div>
+          </div>
+          <div class="asset-card-stat asset-card-stat-green"><span data-to="4870">0</span> models listed</div>
+        </div>
+
+        <div class="asset-card asset-card-amber">
+          <div class="asset-card-top">
+            <div class="asset-type-ic asset-type-ic-amber">S</div>
+            <div class="asset-type-name">Signal Bundles</div>
+          </div>
+          <div class="asset-card-desc">
+            Threat indicator batches — IPs, domains, attack signatures, behavioral patterns.
+            Ingested into Threat Radar and semantic corpus for SOVA analysis.
+          </div>
+          <div class="asset-card-meta">
+            <div class="asset-meta-row"><span class="meta-label">Target</span><span class="meta-val">Threat Radar + corpus</span></div>
+            <div class="asset-meta-row"><span class="meta-label">Gate</span><span class="meta-val">Dedup + corpus check</span></div>
+            <div class="asset-meta-row"><span class="meta-label">Format</span><span class="meta-val">UECIID batch (value/type/score)</span></div>
+          </div>
+          <div class="asset-card-stat asset-card-stat-amber"><span data-to="2290">0</span> bundles listed</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-sec" id="how">
+    <div class="sec-inner">
+      <div class="sec-pre">How it works</div>
+      <h2 class="sec-title">From community to traded asset in four steps</h2>
+      <div class="how-steps">
+        <div class="how-step">
+          <div class="how-step-n">1</div>
+          <div class="how-step-body">
+            <div class="how-step-title">Create a Community</div>
+            <div class="how-step-desc">Your community receives a UECIID, an Ed25519 (or ML-DSA-65 hybrid) keypair, and a STIX 2.1 audit chain. All three are prerequisites for marketplace participation — no extra setup needed.</div>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-n">2</div>
+          <div class="how-step-body">
+            <div class="how-step-title">Deploy a Marketplace Agent</div>
+            <div class="how-step-desc">Register a DID:shadow: agent with <code>marketplace_sell</code>, <code>marketplace_buy</code>, or <code>marketplace_negotiate</code> capabilities. The agent gets an AP2 mandate with configurable spending limits.</div>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-n">3</div>
+          <div class="how-step-body">
+            <div class="how-step-title">Tokenize and List</div>
+            <div class="how-step-desc">Wrap your detection asset in a signed UECIID container. The ReDoS gate screens rules. The asset is pinned to IPFS with a SHA-256 content hash — immutable and verifiable.</div>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-step-n">4</div>
+          <div class="how-step-body">
+            <div class="how-step-title">Trade and Auto-Import</div>
+            <div class="how-step-desc">The buyer's agent discovers, negotiates if the price exceeds mandate, and purchases. After escrow confirm, the asset hot-loads into Evolution Engine, Semantic Layer, or Threat Radar — zero manual steps.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACTIVITY FEED -->
+  <section class="activity-sec">
+    <div class="sec-inner act-inner">
+      <div>
+        <div class="sec-pre">Live Network</div>
+        <h2 class="sec-title">Recent trades</h2>
+        <p class="sec-sub">M2M transactions across the network. Every trade produces a cryptographic transfer proof in the seller's STIX audit chain.</p>
+      </div>
+      <div class="act-feed">
+        {MOCK_TRADES.map(t => (
+          <div class="act-row">
+            <div class="act-dot"></div>
+            <div class="act-body">
+              <div class="act-from">{t.from} → {t.to}</div>
+              <div class="act-route">{t.target}</div>
+            </div>
+            <div>
+              <span class={`act-badge ${t.type === 'Detection Rule' ? 'act-badge-rule' : t.type === 'Semantic Model' ? 'act-badge-model' : 'act-badge-signal'}`}>{t.type}</span>
+            </div>
+            <div class="act-price">{t.price}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-sec">
+    <div class="sec-inner cta-inner">
+      <h2 class="cta-title">Your community is one step from the marketplace</h2>
+      <p class="cta-sub">Create a community to activate your marketplace node. Deploy an agent. Start trading detection intelligence in under five minutes.</p>
+      <div class="cta-btns">
+        <a href="/community" class="btn-pr cta-btn">Create Community →</a>
+        <a href="/pricing" class="btn-ghost cta-btn">View Pricing</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // ── Canvas particle network ──────────────────────────────
+  const cv  = document.getElementById('mkt-canvas');
+  const ctx = cv.getContext('2d');
+  const pRM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  function rsz() { cv.width = cv.offsetWidth || window.innerWidth; cv.height = cv.offsetHeight || window.innerHeight; }
+  rsz(); window.addEventListener('resize', rsz);
+
+  const COLS = ['#80b4fd','#fbbf24','#34d399','#22d3ee','#c084fc','#4d9cfc'];
+  const pts = Array.from({length:60}, () => ({
+    x: Math.random()*cv.width, y: Math.random()*cv.height,
+    vx: (Math.random()-.5)*.2, vy: (Math.random()-.5)*.2,
+    r: Math.random()*1.4+.5,
+    c: COLS[Math.floor(Math.random()*COLS.length)],
+    ph: Math.random()*Math.PI*2,
+  }));
+
+  let lt = 0;
+  (function draw(ts) {
+    const dt = Math.min((ts-lt)/16.67, 3); lt = ts;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!pRM) {
+      for (const p of pts) {
+        p.x += p.vx*dt; p.y += p.vy*dt; p.ph += .012*dt;
+        if (p.x < -8) p.x = cv.width+8; else if (p.x > cv.width+8) p.x = -8;
+        if (p.y < -8) p.y = cv.height+8; else if (p.y > cv.height+8) p.y = -8;
+      }
+    }
+    const MD = 120;
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i+1; j < pts.length; j++) {
+        const dx = pts[i].x-pts[j].x, dy = pts[i].y-pts[j].y, d2 = dx*dx+dy*dy;
+        if (d2 < MD*MD) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(251,191,36,${(1-Math.sqrt(d2)/MD)*.05})`;
+          ctx.lineWidth = .5;
+          ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    for (const p of pts) {
+      const pulse = pRM ? 1 : (Math.sin(p.ph)+1)/2;
+      const rr = p.r + pulse*1.4;
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr*4);
+      g.addColorStop(0, p.c+'22'); g.addColorStop(1, p.c+'00');
+      ctx.beginPath(); ctx.arc(p.x, p.y, rr*4, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, Math.PI*2);
+      ctx.fillStyle = p.c; ctx.globalAlpha = .55+pulse*.35; ctx.fill(); ctx.globalAlpha = 1;
+    }
+    requestAnimationFrame(draw);
+  })(0);
+
+  // ── Counter animation ────────────────────────────────────
+  const cObs = new IntersectionObserver(en => {
+    if (!en[0].isIntersecting) return; cObs.disconnect();
+    const els = document.querySelectorAll('[data-to]');
+    const t0 = performance.now();
+    (function tick(now) {
+      const p = Math.min((now-t0)/1800, 1), e = 1-Math.pow(1-p, 3);
+      els.forEach(el => { el.textContent = Math.round(+el.dataset.to*e).toLocaleString(); });
+      if (p < 1) requestAnimationFrame(tick);
+    })(t0);
+  }, {threshold:.3});
+  cObs.observe(document.querySelector('.hero'));
+</script>
+
+</BaseLayout>

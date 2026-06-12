@@ -11,6 +11,7 @@ import {
   Users, FileText, ShieldCheck, Zap, Info,
   Plus, Trash2, Upload, Download, CheckCircle2, XCircle,
   AlertTriangle, MinusCircle, ChevronLeft, Edit2, Check, X,
+  ShoppingCart, Tag, ArrowLeftRight, Bot,
 } from 'lucide-react'
 import Link from 'next/link'
 import clsx from 'clsx'
@@ -29,14 +30,15 @@ import {
 
 // ── Shared tab type ───────────────────────────────────────────────────────────
 
-type Tab = 'overview' | 'members' | 'data' | 'compliance' | 'evolution'
+type Tab = 'overview' | 'members' | 'data' | 'compliance' | 'evolution' | 'marketplace'
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'overview',   label: 'Overview',   icon: Info         },
-  { id: 'members',    label: 'Members',    icon: Users        },
-  { id: 'data',       label: 'Data',       icon: FileText     },
-  { id: 'compliance', label: 'Compliance', icon: ShieldCheck  },
-  { id: 'evolution',  label: 'Evolution',  icon: Zap          },
+  { id: 'overview',    label: 'Overview',    icon: Info         },
+  { id: 'members',     label: 'Members',     icon: Users        },
+  { id: 'data',        label: 'Data',        icon: FileText     },
+  { id: 'compliance',  label: 'Compliance',  icon: ShieldCheck  },
+  { id: 'evolution',   label: 'Evolution',   icon: Zap          },
+  { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
 ]
 
 // ── Flash helper ─────────────────────────────────────────────────────────────
@@ -668,6 +670,140 @@ function EvolutionTab({ communityId }: { communityId: string }) {
   )
 }
 
+// ── Marketplace tab ───────────────────────────────────────────────────────────
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+
+async function mktFetch(path: string) {
+  const res = await fetch(`${API}${path}`, { headers: { 'X-API-Key': '' } })
+  if (!res.ok) throw new Error(`${res.status}`)
+  return res.json()
+}
+
+function MarketplaceTab({ communityId }: { communityId: string }) {
+  const { data: agents = [], isLoading: loadingAgents } = useQuery({
+    queryKey: ['mkt-agents', communityId],
+    queryFn:  () => mktFetch(`/marketplace/agents?community_id=${communityId}&limit=20`).catch(() => []),
+  })
+  const { data: assetsRaw, isLoading: loadingAssets } = useQuery({
+    queryKey: ['mkt-assets', communityId],
+    queryFn:  () => mktFetch(`/marketplace/assets?community_id=${communityId}&limit=20`).catch(() => ({ items: [], total: 0 })),
+  })
+  const assets: unknown[] = (assetsRaw as { items?: unknown[] })?.items ?? (Array.isArray(assetsRaw) ? assetsRaw as unknown[] : [])
+
+  const agentCount  = Array.isArray(agents) ? (agents as unknown[]).length : 0
+  const assetCount  = assets.length
+
+  type AssetRow = { asset_id: string; asset_type: string; seller_agent_id: string; created_at: string }
+
+  return (
+    <div className="space-y-5">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { icon: Bot,            label: 'Agents',         value: loadingAgents ? '…' : agentCount  },
+          { icon: Tag,            label: 'Assets Listed',  value: loadingAssets ? '…' : assetCount  },
+          { icon: ArrowLeftRight, label: 'Trades',         value: '—'                               },
+        ].map(s => (
+          <div key={s.label} className="card text-center py-4">
+            <s.icon className="w-4 h-4 text-amber-400 mx-auto mb-1" />
+            <p className="font-semibold text-brand-400 text-lg">{String(s.value)}</p>
+            <p className="text-xs text-dark-400 mt-1">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Agents */}
+      <div className="card space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Marketplace Agents</p>
+          <a href="/marketplace#agent"
+            className="text-xs text-brand-400 hover:underline flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Deploy Agent
+          </a>
+        </div>
+        {loadingAgents ? (
+          <p className="text-xs text-dark-500 py-2">Loading…</p>
+        ) : agentCount === 0 ? (
+          <div className="text-center py-6 space-y-3">
+            <Bot className="w-8 h-8 text-dark-600 mx-auto" />
+            <p className="text-sm text-dark-400">No agents deployed yet.</p>
+            <a href="/marketplace#agent"
+              className="btn-primary text-xs py-1.5 px-4 inline-block">
+              Deploy First Agent →
+            </a>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {(agents as { agent_id: string; capabilities: string[]; status: string; created_at: string }[]).map(a => (
+              <div key={a.agent_id} className="bg-dark-800 rounded-lg p-3 flex items-center gap-3">
+                <Bot className="w-4 h-4 text-brand-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-mono text-dark-300 truncate">{a.agent_id}</p>
+                  <p className="text-xs text-dark-500 mt-0.5">{(a.capabilities ?? []).join(' · ')}</p>
+                </div>
+                <span className={clsx('badge text-xs',
+                  a.status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-dark-600 text-dark-400')}>
+                  {a.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Listed assets */}
+      <div className="card space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Listed Assets</p>
+          <a href="/marketplace#assets"
+            className="text-xs text-brand-400 hover:underline flex items-center gap-1">
+            <Tag className="w-3 h-3" /> List Asset
+          </a>
+        </div>
+        {loadingAssets ? (
+          <p className="text-xs text-dark-500 py-2">Loading…</p>
+        ) : assetCount === 0 ? (
+          <div className="text-center py-6 space-y-3">
+            <Tag className="w-8 h-8 text-dark-600 mx-auto" />
+            <p className="text-sm text-dark-400">No assets listed yet.</p>
+            <a href="/marketplace#assets"
+              className="btn-primary text-xs py-1.5 px-4 inline-block">
+              List First Asset →
+            </a>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {(assets as AssetRow[]).map(a => (
+              <div key={a.asset_id} className="bg-dark-800 rounded-lg p-3 flex items-center gap-3">
+                <div className={clsx('w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0',
+                  a.asset_type === 'rule'    ? 'bg-brand-400/10 text-brand-400' :
+                  a.asset_type === 'model'   ? 'bg-emerald-500/10 text-emerald-400' :
+                                              'bg-amber-500/10 text-amber-400')}>
+                  {a.asset_type === 'rule' ? 'R' : a.asset_type === 'model' ? 'M' : 'S'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-mono text-dark-300 truncate">{a.asset_id}</p>
+                  <p className="text-xs text-dark-500 mt-0.5 capitalize">{a.asset_type}</p>
+                </div>
+                <span className="text-xs text-dark-500">{fmtDate(a.created_at)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Link to full marketplace */}
+      <a href="/marketplace"
+        className="flex items-center justify-center gap-2 py-3 rounded-lg border border-amber-500/20
+                   bg-amber-500/5 text-amber-400 text-sm font-medium hover:bg-amber-500/10 transition-colors">
+        <ShoppingCart className="w-4 h-4" />
+        Browse Full Marketplace
+      </a>
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function CommunityDetailPage() {
@@ -725,6 +861,7 @@ export default function CommunityDetailPage() {
         {tab === 'data'       && <DataTab       communityId={communityId} />}
         {tab === 'compliance' && <ComplianceTab communityId={communityId} />}
         {tab === 'evolution'  && <EvolutionTab  communityId={communityId} />}
+        {tab === 'marketplace' && <MarketplaceTab communityId={communityId} />}
       </div>
     </>
   )

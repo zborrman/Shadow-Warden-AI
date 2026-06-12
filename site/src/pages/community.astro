@@ -568,6 +568,24 @@ const commJson = JSON.stringify(COMMUNITIES);
   .ok-data-label { font-size: 10px; color: #6b7c96; }
   .ok-data-value { font-size: 11.5px; color: #a8b8d0; font-weight: 600; margin-top: 2px; word-break: break-all; }
 
+  /* ── Marketplace activation (Step 7) ────────── */
+  .ok-mkt { margin-top: 14px; border: 1px solid rgba(251,191,36,.18); border-radius: 12px; overflow: hidden; background: rgba(251,191,36,.025); }
+  .ok-mkt-hd { padding: 10px 14px 9px; border-bottom: 1px solid rgba(251,191,36,.1); display: flex; align-items: center; gap: 10px; }
+  .ok-mkt-badge { font-size: 9.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.28); color: #fbbf24; flex-shrink: 0; letter-spacing: .04em; }
+  .ok-mkt-line { font-size: 10.5px; color: #334155; }
+  .ok-mkt-cards { display: grid; grid-template-columns: repeat(3,1fr); }
+  .ok-mkt-card { display: flex; flex-direction: column; align-items: center; padding: 12px 8px; text-align: center; text-decoration: none; border-right: 1px solid rgba(251,191,36,.08); transition: background 150ms; }
+  .ok-mkt-card:last-child { border-right: none; }
+  .ok-mkt-card:hover { background: rgba(251,191,36,.04); }
+  .ok-mkt-ic { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; margin-bottom: 5px; }
+  .ok-mkt-ic-a { background: rgba(128,180,253,.1); border: 1px solid rgba(128,180,253,.22); color: #80b4fd; }
+  .ok-mkt-ic-l { background: rgba(52,211,153,.09); border: 1px solid rgba(52,211,153,.2); color: #34d399; }
+  .ok-mkt-ic-b { background: rgba(251,191,36,.09); border: 1px solid rgba(251,191,36,.22); color: #fbbf24; }
+  .ok-mkt-name { font-size: 11px; font-weight: 700; color: #94a3b8; }
+  .ok-mkt-desc { font-size: 9.5px; color: #2d3a4e; margin-top: 2px; line-height: 1.4; }
+  .ok-btn-mkt { background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.3); color: #fbbf24; text-decoration: none; }
+  .ok-btn-mkt:hover { background: rgba(251,191,36,.2); border-color: rgba(251,191,36,.45); }
+
   /* ── Responsive ──────────────────────────────── */
   @media (max-width: 640px) {
     dialog { width: calc(100vw - 12px); border-radius: 16px; }
@@ -1194,7 +1212,31 @@ const commJson = JSON.stringify(COMMUNITIES);
             <div class="ok-data-item"><div class="ok-data-label">Frameworks</div><div class="ok-data-value" id="ok-frameworks">GDPR</div></div>
             <div class="ok-data-item"><div class="ok-data-label">Evolution Engine</div><div class="ok-data-value" id="ok-evo">Disabled</div></div>
           </div>
-          <div class="ok-actions">
+          <div class="ok-mkt">
+            <div class="ok-mkt-hd">
+              <span class="ok-mkt-badge">Marketplace Active</span>
+              <span class="ok-mkt-line">Your community is now part of the M2M intelligence ecosystem</span>
+            </div>
+            <div class="ok-mkt-cards">
+              <a href="/marketplace#agent" class="ok-mkt-card" onclick="document.getElementById('mdl').close();_reset()">
+                <div class="ok-mkt-ic ok-mkt-ic-a">A</div>
+                <div class="ok-mkt-name">Deploy Agent</div>
+                <div class="ok-mkt-desc">DID-based agent to trade assets</div>
+              </a>
+              <a href="/marketplace#assets" class="ok-mkt-card" onclick="document.getElementById('mdl').close();_reset()">
+                <div class="ok-mkt-ic ok-mkt-ic-l">L</div>
+                <div class="ok-mkt-name">List Assets</div>
+                <div class="ok-mkt-desc">Tokenize rules, models, signals</div>
+              </a>
+              <a href="/marketplace#browse" class="ok-mkt-card" onclick="document.getElementById('mdl').close();_reset()">
+                <div class="ok-mkt-ic ok-mkt-ic-b">B</div>
+                <div class="ok-mkt-name">Browse Market</div>
+                <div class="ok-mkt-desc">2,800+ community assets</div>
+              </a>
+            </div>
+          </div>
+          <div class="ok-actions" style="grid-template-columns:1fr 1fr 1fr">
+            <a href="/marketplace" class="ok-btn ok-btn-mkt" onclick="document.getElementById('mdl').close();_reset()">Marketplace →</a>
             <button class="ok-btn ok-btn-p" onclick="document.getElementById('mdl').close();_reset()">View Community</button>
             <button class="ok-btn ok-btn-g" onclick="document.getElementById('mdl').close();_reset()">Invite Members</button>
           </div>
