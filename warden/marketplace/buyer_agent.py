@@ -96,8 +96,8 @@ class BuyerAgent:
           {"status": "purchased"|"negotiating"|"budget_blocked"|"price_rejected",
            "purchase_id": str, "negotiation_id": str, ...}
         """
-        from warden.marketplace.listing import get_listing, create_purchase, finalize_purchase
         from warden.marketplace.escrow import EscrowService
+        from warden.marketplace.listing import create_purchase, get_listing
         from warden.marketplace.negotiation import NegotiationEngine
 
         listing = get_listing(listing_id, db_path=self.db_path)

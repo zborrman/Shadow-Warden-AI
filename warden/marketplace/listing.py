@@ -10,16 +10,15 @@ Tables (shared MARKETPLACE_DB_PATH)
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Generator
 
 log = logging.getLogger("warden.marketplace.listing")
 
@@ -370,7 +369,7 @@ def _trigger_asset_import(purchase_id: str, db_path: str) -> None:
     """Fire-and-forget asset import after escrow confirmation. Always fail-open."""
     try:
         from warden.marketplace.importer import AssetImporter  # noqa: PLC0415
-        from warden.marketplace.service import get_asset       # noqa: PLC0415
+        from warden.marketplace.service import get_asset  # noqa: PLC0415
 
         purchase = get_purchase(purchase_id, db_path=db_path)
         if purchase is None:

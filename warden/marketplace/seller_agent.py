@@ -133,8 +133,8 @@ class SellerAgent:
         if listing.asset_type != "signals" or listing.status != "active":
             return False
 
-        from datetime import UTC, datetime, timedelta
         import os as _os
+        from datetime import UTC, datetime, timedelta
         stale_h = int(_os.getenv("MARKETPLACE_SIGNAL_STALE_HOURS", "48"))
         listed  = datetime.fromisoformat(listing.listed_at)
         if datetime.now(UTC) - listed > timedelta(hours=stale_h):

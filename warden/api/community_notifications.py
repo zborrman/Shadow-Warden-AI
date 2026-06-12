@@ -103,9 +103,8 @@ async def patch_sub(
     req:          PatchSubRequest,
     tenant_id:    str = Query(...),
 ) -> dict[str, Any]:
-    if req.active is not None:
-        if not set_active(sub_id, tenant_id, req.active):
-            raise HTTPException(404, "Subscription not found or not owned by tenant")
+    if req.active is not None and not set_active(sub_id, tenant_id, req.active):
+        raise HTTPException(404, "Subscription not found or not owned by tenant")
     subs = [s for s in list_subscriptions(community_id, tenant_id) if s.sub_id == sub_id]
     if not subs:
         raise HTTPException(404, "Subscription not found")

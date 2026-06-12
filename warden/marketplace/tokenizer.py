@@ -45,7 +45,7 @@ def _sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _sign_b64(keypair: "CommunityKeypair", data: bytes) -> str:
+def _sign_b64(keypair: CommunityKeypair, data: bytes) -> str:
     sig_bytes = keypair.sign(data)
     return base64.b64encode(sig_bytes).decode()
 
@@ -62,7 +62,7 @@ def _upload_ipfs(payload: dict) -> str:
 def _build_container(
     asset_type: str,
     payload: dict,
-    keypair: "CommunityKeypair",
+    keypair: CommunityKeypair,
     agent_id: str,
     community_id: str,
 ) -> dict:
@@ -98,7 +98,7 @@ class AssetTokenizer:
     def tokenize_rule(
         self,
         rule_data: dict,
-        keypair: "CommunityKeypair",
+        keypair: CommunityKeypair,
         agent_id: str,
         community_id: str,
     ) -> dict:
@@ -120,7 +120,7 @@ class AssetTokenizer:
     def tokenize_model(
         self,
         model_data: dict,
-        keypair: "CommunityKeypair",
+        keypair: CommunityKeypair,
         agent_id: str,
         community_id: str,
     ) -> dict:
@@ -136,7 +136,7 @@ class AssetTokenizer:
     def tokenize_signals(
         self,
         signals: list[dict],
-        keypair: "CommunityKeypair",
+        keypair: CommunityKeypair,
         agent_id: str,
         community_id: str,
     ) -> dict:

@@ -542,6 +542,7 @@ def transfer_entity(
     # ── Community event notification (fire-and-forget) ─────────────────────
     try:
         import asyncio as _asyncio  # noqa: PLC0415
+
         from warden.communities.notifications import fire_event as _fn  # noqa: PLC0415
         _payload = {
             "transfer_id":          transfer_id,

@@ -18,9 +18,10 @@ import logging
 import os
 import sqlite3
 import threading
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import Generator, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from warden.marketplace.agent import get_agent
 from warden.marketplace.tokenizer import AssetTokenizer
@@ -79,7 +80,7 @@ def register_asset(
     seller_agent_id: str,
     asset_type: str,
     raw_data: dict | list,
-    keypair: "CommunityKeypair",
+    keypair: CommunityKeypair,
     db_path: str = _DB_PATH,
 ) -> str:
     """Tokenize and register an asset. Returns the UECIID (asset_id).

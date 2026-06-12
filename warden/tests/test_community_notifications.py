@@ -29,7 +29,7 @@ def _tid() -> str:
 
 class TestSubscribeCRUD:
     def test_subscribe_slack(self):
-        from warden.communities.notifications import subscribe, list_subscriptions, unsubscribe
+        from warden.communities.notifications import list_subscriptions, subscribe, unsubscribe
         cid, tid = _cid(), _tid()
         sub = subscribe(cid, tid, "slack", "https://hooks.slack.com/test", "My Slack")
         assert sub.sub_id
@@ -92,7 +92,7 @@ class TestSubscribeCRUD:
         assert removed is False
 
     def test_list_by_tenant(self):
-        from warden.communities.notifications import subscribe, list_subscriptions
+        from warden.communities.notifications import list_subscriptions, subscribe
         cid = _cid()
         tid1, tid2 = _tid(), _tid()
         subscribe(cid, tid1, "slack", "https://hooks.slack.com/t1")
@@ -101,7 +101,7 @@ class TestSubscribeCRUD:
         assert all(s.tenant_id == tid1 for s in t1_subs)
 
     def test_set_active_toggle(self):
-        from warden.communities.notifications import subscribe, set_active, list_subscriptions
+        from warden.communities.notifications import list_subscriptions, set_active, subscribe
         cid, tid = _cid(), _tid()
         sub = subscribe(cid, tid, "slack", "https://hooks.slack.com/tog")
         assert sub.active is True
@@ -126,7 +126,7 @@ class TestFireEvent:
 
     @pytest.mark.asyncio
     async def test_fire_inactive_sub_skipped(self):
-        from warden.communities.notifications import subscribe, set_active, fire_event
+        from warden.communities.notifications import fire_event, set_active, subscribe
         cid, tid = _cid(), _tid()
         sub = subscribe(cid, tid, "slack", "https://hooks.slack.com/inactive")
         set_active(sub.sub_id, tid, False)
@@ -135,7 +135,7 @@ class TestFireEvent:
 
     @pytest.mark.asyncio
     async def test_fire_event_not_in_sub_events(self):
-        from warden.communities.notifications import subscribe, fire_event
+        from warden.communities.notifications import fire_event, subscribe
         cid, tid = _cid(), _tid()
         subscribe(cid, tid, "slack", "https://hooks.slack.com/limited",
                   events=["compliance_changed"])

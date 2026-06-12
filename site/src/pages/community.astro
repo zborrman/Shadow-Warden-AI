@@ -2,7 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 
 const COMMUNITIES = [
-  { id:'c1', name:'FinTech Alliance', tier:'Enterprise', members:47, transfers:12840, peerings:6, risk:'LOW', icon:'🏦', color:'#818cf8', joined:false, category:'finance', desc:'Secure AI exchange for regulated financial institutions. GDPR Art.30 compliant, ISO 27001 certified.' },
+  { id:'c1', name:'FinTech Alliance', tier:'Enterprise', members:47, transfers:12840, peerings:6, risk:'LOW', icon:'🏦', color:'#80b4fd', joined:false, category:'finance', desc:'Secure AI exchange for regulated financial institutions. GDPR Art.30 compliant, ISO 27001 certified.' },
   { id:'c2', name:'Healthcare AI Consortium', tier:'Pro', members:31, transfers:8420, peerings:4, risk:'LOW', icon:'🏥', color:'#34d399', joined:false, category:'health', desc:'HIPAA-aligned AI governance for clinical data exchange across hospital networks.' },
   { id:'c3', name:'CyberSec Research Hub', tier:'Enterprise', members:89, transfers:31200, peerings:12, risk:'MEDIUM', icon:'🔬', color:'#fbbf24', joined:true, category:'security', desc:'Collaborative threat intelligence sharing. ArXiv-synced attack corpus, live CVE feeds.' },
   { id:'c4', name:'LegalTech Exchange', tier:'Community', members:22, transfers:4100, peerings:3, risk:'LOW', icon:'⚖️', color:'#f472b6', joined:false, category:'legal', desc:'AI-assisted legal document processing with PII protection and attorney-client privilege.' },
@@ -19,8 +19,8 @@ const commJson = JSON.stringify(COMMUNITIES);
   *, *::before, *::after { box-sizing: border-box; }
 
   :root {
-    --pr: #818cf8;
-    --pr-dim: rgba(129,140,248,0.1);
+    --pr: #80b4fd;
+    --pr-dim: rgba(128,180,253,0.1);
     --green: #34d399;
     --cyan: #22d3ee;
     --pink: #f472b6;
@@ -76,7 +76,7 @@ const commJson = JSON.stringify(COMMUNITIES);
     line-height: 1.05; margin-bottom: 20px; letter-spacing: -.02em;
   }
   .grad {
-    background: linear-gradient(135deg,#818cf8 0%,#c084fc 50%,#f472b6 100%);
+    background: linear-gradient(135deg,#80b4fd 0%,#c084fc 50%,#f472b6 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
   }
@@ -84,8 +84,8 @@ const commJson = JSON.stringify(COMMUNITIES);
 
   .hero-stats {
     display: grid; grid-template-columns: repeat(4,1fr);
-    gap: 1px; background: rgba(129,140,248,.08);
-    border: 1px solid rgba(129,140,248,.1); border-radius: 16px;
+    gap: 1px; background: rgba(128,180,253,.08);
+    border: 1px solid rgba(128,180,253,.1); border-radius: 16px;
     overflow: hidden; margin-bottom: 36px;
   }
   .h-stat { background: rgba(7,11,20,.92); padding: 18px 14px; text-align: center; }
@@ -108,9 +108,9 @@ const commJson = JSON.stringify(COMMUNITIES);
     text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
   }
   .btn-ghost {
-    background: rgba(129,140,248,.07); color: var(--pr); font-size: 14px;
+    background: rgba(128,180,253,.07); color: var(--pr); font-size: 14px;
     font-weight: 500; padding: 12px 28px; border-radius: 10px;
-    border: 1px solid rgba(129,140,248,.2); cursor: pointer;
+    border: 1px solid rgba(128,180,253,.2); cursor: pointer;
     transition: border-color 160ms var(--ease), background 160ms var(--ease), transform 160ms var(--ease);
     text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
   }
@@ -124,13 +124,13 @@ const commJson = JSON.stringify(COMMUNITIES);
   .disc-toolbar { display: flex; flex-direction: column; gap: 14px; margin-bottom: 32px; }
   .search-wrap {
     display: flex; align-items: center; gap: 10px;
-    background: rgba(8,13,26,.9); border: 1px solid rgba(129,140,248,.16);
+    background: rgba(8,13,26,.9); border: 1px solid rgba(128,180,253,.16);
     border-radius: 12px; padding: 12px 18px;
     transition: border-color 180ms var(--ease), box-shadow 180ms var(--ease);
   }
   .search-wrap:focus-within {
-    border-color: rgba(129,140,248,.42);
-    box-shadow: 0 0 0 3px rgba(129,140,248,.06);
+    border-color: rgba(128,180,253,.42);
+    box-shadow: 0 0 0 3px rgba(128,180,253,.06);
   }
   .srch-ic { color: #3d4a5c; flex-shrink: 0; }
   .srch-inp {
@@ -140,7 +140,7 @@ const commJson = JSON.stringify(COMMUNITIES);
   .srch-inp::placeholder { color: #2d3a4e; }
   .srch-ct {
     font-size: 10.5px; color: #3d4a5c; font-family: ui-monospace,monospace;
-    background: rgba(129,140,248,.07); border: 1px solid rgba(129,140,248,.1);
+    background: rgba(128,180,253,.07); border: 1px solid rgba(128,180,253,.1);
     padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
   }
   .filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -161,28 +161,28 @@ const commJson = JSON.stringify(COMMUNITIES);
     font-weight: 700; padding: 0 5px; border-radius: 3px;
     font-family: ui-monospace,monospace; min-width: 16px; text-align: center;
   }
-  .pill.on { background: rgba(129,140,248,.1); border-color: rgba(129,140,248,.32); color: var(--pr); }
-  .pill.on .pill-n { background: rgba(129,140,248,.14); color: #a5b4fc; }
+  .pill.on { background: rgba(128,180,253,.1); border-color: rgba(128,180,253,.32); color: var(--pr); }
+  .pill.on .pill-n { background: rgba(128,180,253,.14); color: #80b4fd; }
 
   /* ── Community grid ───────────────────────────── */
   .c-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(340px,1fr)); gap: 20px; }
   .c-card {
     background: rgba(9,14,26,.9); border: 1px solid rgba(255,255,255,.055);
-    border-left: 3px solid var(--cc,#818cf8);
+    border-left: 3px solid var(--cc,#80b4fd);
     border-radius: 14px; display: flex; flex-direction: column;
     overflow: hidden; position: relative;
     transition: transform 200ms var(--ease), box-shadow 200ms var(--ease);
   }
   .c-card-bg {
     position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(ellipse at 0% 40%, var(--cc-dim,rgba(129,140,248,.05)) 0%, transparent 55%);
+    background: radial-gradient(ellipse at 0% 40%, var(--cc-dim,rgba(128,180,253,.05)) 0%, transparent 55%);
   }
   .c-body { padding: 20px 20px 0; display: flex; flex-direction: column; gap: 14px; flex: 1; position: relative; }
   .c-header { display: flex; align-items: flex-start; gap: 14px; }
   .c-avatar {
     width: 52px; height: 52px; border-radius: 13px; flex-shrink: 0;
-    background: var(--cc-dim,rgba(129,140,248,.1));
-    border: 1px solid var(--cc-bdr,rgba(129,140,248,.22));
+    background: var(--cc-dim,rgba(128,180,253,.1));
+    border: 1px solid var(--cc-bdr,rgba(128,180,253,.22));
     display: flex; align-items: center; justify-content: center; font-size: 24px;
   }
   .c-info { flex: 1; min-width: 0; }
@@ -192,7 +192,7 @@ const commJson = JSON.stringify(COMMUNITIES);
   }
   .c-badges { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
   .bdg { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; letter-spacing: .03em; line-height: 1.6; }
-  .bdg-ent  { background: rgba(129,140,248,.1);  color: #a5b4fc; border: 1px solid rgba(129,140,248,.2); }
+  .bdg-ent  { background: rgba(128,180,253,.1);  color: #80b4fd; border: 1px solid rgba(128,180,253,.2); }
   .bdg-pro  { background: rgba(34,211,238,.08);  color: #67e8f9; border: 1px solid rgba(34,211,238,.18); }
   .bdg-com  { background: rgba(255,255,255,.05); color: #94a3b8; border: 1px solid rgba(255,255,255,.1); }
   .bdg-low  { background: rgba(52,211,153,.08);  color: #6ee7b7; border: 1px solid rgba(52,211,153,.18); }
@@ -209,7 +209,7 @@ const commJson = JSON.stringify(COMMUNITIES);
   .av-more {
     width: 22px; height: 22px; border-radius: 50%;
     border: 2px solid #090e1a; margin-left: -7px;
-    background: rgba(129,140,248,.14); color: #818cf8;
+    background: rgba(128,180,253,.14); color: #80b4fd;
     font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center;
   }
   .c-mlbl { font-size: 12px; color: #64748b; }
@@ -233,16 +233,16 @@ const commJson = JSON.stringify(COMMUNITIES);
   .c-ml { font-size: 9px; color: #2d3a4e; text-transform: uppercase; letter-spacing: .07em; }
 
   .c-bar { height: 3px; background: rgba(255,255,255,.04); border-radius: 2px; overflow: hidden; margin-top: 2px; }
-  .c-bar-f { height: 100%; background: var(--cc,#818cf8); border-radius: 2px; opacity: .55; }
+  .c-bar-f { height: 100%; background: var(--cc,#80b4fd); border-radius: 2px; opacity: .55; }
 
   .c-foot {
     display: flex; gap: 8px; padding: 16px 20px;
     border-top: 1px solid rgba(255,255,255,.04); margin-top: 6px; position: relative;
   }
   .btn-jn {
-    flex: 1; background: var(--cc-dim,rgba(129,140,248,.08));
-    border: 1px solid var(--cc-bdr,rgba(129,140,248,.22));
-    color: var(--cc,#818cf8); font-size: 12.5px; font-weight: 600;
+    flex: 1; background: var(--cc-dim,rgba(128,180,253,.08));
+    border: 1px solid var(--cc-bdr,rgba(128,180,253,.22));
+    color: var(--cc,#80b4fd); font-size: 12.5px; font-weight: 600;
     padding: 9px 16px; border-radius: 9px; cursor: pointer;
     transition: background 140ms var(--ease), transform 140ms var(--ease);
     text-align: center; text-decoration: none;
@@ -260,8 +260,8 @@ const commJson = JSON.stringify(COMMUNITIES);
   .netmap-band {
     padding: 80px 24px;
     background: linear-gradient(180deg,#070b14 0%,#07102a 50%,#070b14 100%);
-    border-top: 1px solid rgba(129,140,248,.07);
-    border-bottom: 1px solid rgba(129,140,248,.07);
+    border-top: 1px solid rgba(128,180,253,.07);
+    border-bottom: 1px solid rgba(128,180,253,.07);
   }
   .netmap-in { max-width: 1200px; margin: 0 auto; }
   .netmap-hdr {
@@ -273,13 +273,13 @@ const commJson = JSON.stringify(COMMUNITIES);
   .leg-ln { width: 20px; height: 2px; border-radius: 1px; }
   .netmap-box {
     height: 440px; position: relative;
-    background: rgba(4,7,16,.92); border: 1px solid rgba(129,140,248,.1);
+    background: rgba(4,7,16,.92); border: 1px solid rgba(128,180,253,.1);
     border-radius: 20px; overflow: hidden;
   }
   #topo-canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
   .topo-tip {
     position: absolute; pointer-events: none; opacity: 0;
-    background: rgba(8,14,28,.96); border: 1px solid rgba(129,140,248,.22);
+    background: rgba(8,14,28,.96); border: 1px solid rgba(128,180,253,.22);
     border-radius: 10px; padding: 10px 14px; z-index: 10;
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     transition: opacity 120ms var(--ease); white-space: nowrap;
@@ -291,16 +291,16 @@ const commJson = JSON.stringify(COMMUNITIES);
   /* ── Activity ─────────────────────────────────── */
   .act-cols { display: grid; grid-template-columns: 1fr 340px; gap: 22px; align-items: start; }
   .act-panel {
-    background: rgba(12,18,34,.72); border: 1px solid rgba(129,140,248,.09);
+    background: rgba(12,18,34,.72); border: 1px solid rgba(128,180,253,.09);
     border-radius: 16px; overflow: hidden;
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   }
   .act-head {
-    padding: 15px 18px; border-bottom: 1px solid rgba(129,140,248,.07);
+    padding: 15px 18px; border-bottom: 1px solid rgba(128,180,253,.07);
     display: flex; align-items: center; justify-content: space-between;
   }
   .act-ttl { font-size: 12px; font-weight: 600; color: #94a3b8; display: flex; align-items: center; gap: 8px; }
-  .feed { max-height: 340px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(129,140,248,.15) transparent; }
+  .feed { max-height: 340px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(128,180,253,.15) transparent; }
   .feed-row {
     display: flex; align-items: flex-start; gap: 11px;
     padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,.025);
@@ -316,7 +316,7 @@ const commJson = JSON.stringify(COMMUNITIES);
   /* ── Stat sidebar ─────────────────────────────── */
   .stat-cards { display: flex; flex-direction: column; gap: 11px; }
   .s-card {
-    background: rgba(12,18,34,.72); border: 1px solid rgba(129,140,248,.09);
+    background: rgba(12,18,34,.72); border: 1px solid rgba(128,180,253,.09);
     border-radius: 12px; padding: 15px 18px;
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   }
@@ -333,12 +333,12 @@ const commJson = JSON.stringify(COMMUNITIES);
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 40px;
   }
   .step-card {
-    background: rgba(15,22,40,.7); border: 1px solid rgba(129,140,248,.10);
+    background: rgba(15,22,40,.7); border: 1px solid rgba(128,180,253,.10);
     border-radius: 16px; padding: 24px 20px; text-align: left; transition: border-color .2s;
   }
-  .step-card:hover { border-color: rgba(129,140,248,.28); }
+  .step-card:hover { border-color: rgba(128,180,253,.28); }
   .step-num {
-    font-size: 11px; font-weight: 700; color: #818cf8; letter-spacing: .08em;
+    font-size: 11px; font-weight: 700; color: #80b4fd; letter-spacing: .08em;
     margin-bottom: 10px; font-family: monospace;
   }
   .step-title { font-size: 15px; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; }
@@ -353,14 +353,14 @@ const commJson = JSON.stringify(COMMUNITIES);
   .cta-sec { padding: 80px 24px; text-align: center; }
   .cta-box {
     max-width: 560px; margin: 0 auto;
-    background: rgba(12,18,34,.65); border: 1px solid rgba(129,140,248,.14);
+    background: rgba(12,18,34,.65); border: 1px solid rgba(128,180,253,.14);
     border-radius: 24px; padding: 52px 36px;
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     position: relative; overflow: hidden;
   }
   .cta-glow {
     position: absolute; width: 280px; height: 280px;
-    background: radial-gradient(circle,rgba(129,140,248,.07) 0%,transparent 70%);
+    background: radial-gradient(circle,rgba(128,180,253,.07) 0%,transparent 70%);
     top: -90px; left: 50%; transform: translateX(-50%); pointer-events: none;
   }
   .cta-box h2 { font-size: 28px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px; }
@@ -368,10 +368,10 @@ const commJson = JSON.stringify(COMMUNITIES);
 
   /* ── Modal — Cloudflare-inspired redesign ──────── */
   dialog {
-    background: #0b1120; border: 1px solid rgba(129,140,248,.14);
+    background: #0b1120; border: 1px solid rgba(128,180,253,.14);
     border-radius: 20px; padding: 0; width: min(960px,calc(100vw - 24px));
     color: #e2e8f0; max-height: min(700px,calc(100vh - 40px)); overflow: hidden;
-    box-shadow: 0 28px 90px rgba(0,0,0,.85), 0 0 0 1px rgba(129,140,248,.05), 0 0 120px rgba(129,140,248,.03);
+    box-shadow: 0 28px 90px rgba(0,0,0,.85), 0 0 0 1px rgba(128,180,253,.05), 0 0 120px rgba(128,180,253,.03);
     display: flex; flex-direction: column;
     transform: scale(.97) translateY(6px); opacity: 0;
     transition: transform 220ms var(--ease), opacity 220ms var(--ease);
@@ -381,15 +381,15 @@ const commJson = JSON.stringify(COMMUNITIES);
     background: rgba(2,5,12,.93); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   }
   .m-head {
-    padding: 16px 18px 14px; border-bottom: 1px solid rgba(129,140,248,.07);
+    padding: 16px 18px 14px; border-bottom: 1px solid rgba(128,180,253,.07);
     display: flex; align-items: center; gap: 12px;
-    background: linear-gradient(180deg,rgba(5,8,18,.8) 0%,rgba(5,8,18,.3) 100%);
+    background: rgba(7,9,16,.95);
   }
   .m-icon-wrap {
     width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; font-size: 17px;
-    background: linear-gradient(135deg,rgba(129,140,248,.18) 0%,rgba(192,132,252,.06) 100%);
-    border: 1px solid rgba(129,140,248,.2);
+    background: rgba(128,180,253,.1);
+    border: 1px solid rgba(128,180,253,.2);
     transition: background .2s var(--ease), border-color .2s var(--ease);
   }
   .m-head-text { flex: 1; min-width: 0; }
@@ -397,8 +397,8 @@ const commJson = JSON.stringify(COMMUNITIES);
   .m-sub { font-size: 11px; color: #3d4f63; margin-top: 2px; }
   .m-step-badge {
     padding: 4px 11px; border-radius: 20px; flex-shrink: 0;
-    background: rgba(129,140,248,.09); border: 1px solid rgba(129,140,248,.16);
-    font-size: 10.5px; color: #818cf8; font-weight: 600; white-space: nowrap; display: none;
+    background: rgba(128,180,253,.09); border: 1px solid rgba(128,180,253,.16);
+    font-size: 10.5px; color: #80b4fd; font-weight: 600; white-space: nowrap; display: none;
   }
   .m-step-badge.show { display: block; }
   .m-cls {
@@ -409,13 +409,13 @@ const commJson = JSON.stringify(COMMUNITIES);
   }
   .m-cls:hover { background: rgba(248,113,113,.08); color: #f87171; border-color: rgba(248,113,113,.2); }
   /* progress bar */
-  .m-prog { height: 3px; background: rgba(129,140,248,.07); }
-  .m-prog-fill { height: 100%; background: linear-gradient(90deg,#818cf8 0%,#a78bfa 100%); border-radius: 0 2px 2px 0; transition: width 350ms var(--ease); }
+  .m-prog { height: 3px; background: rgba(128,180,253,.07); }
+  .m-prog-fill { height: 100%; background: #80b4fd; border-radius: 0 2px 2px 0; transition: width 350ms var(--ease); }
   .m-body { flex: 1; min-height: 0; display: flex; overflow: hidden; }
 
   /* step label */
-  .step-label { font-size: 10px; color: #334155; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; gap: 7px; }
-  .step-label .step-num { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg,rgba(129,140,248,.2),rgba(129,140,248,.06)); border: 1px solid rgba(129,140,248,.25); color: #a5b4fc; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .step-label { font-size: 12px; font-weight: 600; color: #a8b8d0; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .step-label .step-num { width: 20px; height: 20px; border-radius: 50%; background: rgba(128,180,253,.1); border: 1px solid rgba(128,180,253,.22); color: #80b4fd; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 
   /* steps */
   .mstep { display: none; }
@@ -425,11 +425,11 @@ const commJson = JSON.stringify(COMMUNITIES);
   .f-lbl { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 600; color: #94a3b8; margin-bottom: 7px; letter-spacing: .03em; }
   .f-cnt { font-size: 10.5px; color: #2d3a4e; font-variant-numeric: tabular-nums; }
   .f-inp, .f-ta {
-    width: 100%; background: rgba(4,7,16,.95); border: 1px solid rgba(129,140,248,.14);
+    width: 100%; background: rgba(4,7,16,.95); border: 1px solid rgba(128,180,253,.14);
     border-radius: 9px; padding: 10px 13px; color: #e2e8f0; font-size: 13.5px;
     outline: none; transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease); font-family: inherit;
   }
-  .f-inp:focus, .f-ta:focus { border-color: rgba(129,140,248,.42); box-shadow: 0 0 0 3px rgba(129,140,248,.07), inset 0 1px 3px rgba(0,0,0,.2); }
+  .f-inp:focus, .f-ta:focus { border-color: rgba(128,180,253,.42); box-shadow: 0 0 0 3px rgba(128,180,253,.07), inset 0 1px 3px rgba(0,0,0,.2); }
   .f-inp.err { border-color: rgba(248,113,113,.45); box-shadow: 0 0 0 3px rgba(248,113,113,.07); }
   .f-ta { resize: none; min-height: 82px; line-height: 1.55; }
   .f-err { font-size: 11px; color: var(--red); margin-top: 5px; display: none; }
@@ -445,65 +445,62 @@ const commJson = JSON.stringify(COMMUNITIES);
   .toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
   .toggle-row-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 4px; }
   .tog-card {
-    padding: 12px 12px; border-radius: 11px; border: 1px solid rgba(129,140,248,.1);
+    padding: 12px 12px; border-radius: 11px; border: 1px solid rgba(128,180,253,.1);
     background: rgba(4,7,16,.85); cursor: pointer; position: relative; overflow: hidden;
     transition: border-color 140ms var(--ease), background 140ms, transform 120ms var(--ease);
     user-select: none;
   }
-  .tog-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg,rgba(129,140,248,.05),transparent); opacity: 0; transition: opacity 140ms; border-radius: 11px; }
-  .tog-card:hover { border-color: rgba(129,140,248,.24); background: rgba(129,140,248,.04); }
-  .tog-card:hover::before { opacity: 1; }
-  .tog-card.sel { border-color: rgba(129,140,248,.5); background: rgba(129,140,248,.09); }
-  .tog-card.sel::before { opacity: 1; background: linear-gradient(135deg,rgba(129,140,248,.1),transparent); }
+  .tog-card:hover { border-color: rgba(128,180,253,.28); background: rgba(128,180,253,.04); }
+  .tog-card.sel { border-color: rgba(128,180,253,.5); background: rgba(128,180,253,.09); }
   .tog-card:active { transform: scale(.98); }
   .tog-ico { font-size: 18px; margin-bottom: 7px; }
   .tog-name { font-size: 12.5px; font-weight: 700; color: #e2e8f0; }
   .tog-hint { font-size: 10px; color: #3d4f63; margin-top: 3px; line-height: 1.4; }
-  .tog-card.sel .tog-name { color: #c7d2fe; }
+  .tog-card.sel .tog-name { color: #a8b8d0; }
   .tog-card.sel .tog-hint { color: #475569; }
   .tog-card.sel::after { content: '✓'; position: absolute; top: 8px; right: 9px; width: 16px; height: 16px; border-radius: 50%; background: var(--pr); color: #07090f; font-size: 8px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 
   /* category pills */
   .cat-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-  .cat-pill { padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(129,140,248,.12); background: rgba(4,7,16,.8); font-size: 11.5px; color: #475569; cursor: pointer; transition: border-color 120ms, color 120ms, background 120ms, transform 100ms var(--ease); }
-  .cat-pill:hover { border-color: rgba(129,140,248,.28); color: #94a3b8; }
-  .cat-pill.sel { border-color: rgba(129,140,248,.5); background: rgba(129,140,248,.14); color: #c7d2fe; font-weight: 600; }
+  .cat-pill { padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(128,180,253,.12); background: rgba(4,7,16,.8); font-size: 11.5px; color: #475569; cursor: pointer; transition: border-color 120ms, color 120ms, background 120ms, transform 100ms var(--ease); }
+  .cat-pill:hover { border-color: rgba(128,180,253,.28); color: #94a3b8; }
+  .cat-pill.sel { border-color: rgba(128,180,253,.5); background: rgba(128,180,253,.14); color: #a8b8d0; font-weight: 600; }
   .cat-pill:active { transform: scale(.96); }
 
   /* actions */
-  .m-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; padding-top: 14px; border-top: 1px solid rgba(129,140,248,.06); }
-  .btn-sm-g { background: none; border: 1px solid rgba(129,140,248,.15); color: #475569; font-size: 12.5px; padding: 9px 18px; border-radius: 9px; cursor: pointer; transition: border-color 120ms, color 120ms, transform 120ms var(--ease); font-weight: 500; }
-  .btn-sm-g:hover { border-color: rgba(129,140,248,.3); color: #94a3b8; }
+  .m-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; padding-top: 14px; border-top: 1px solid rgba(128,180,253,.06); }
+  .btn-sm-g { background: none; border: 1px solid rgba(128,180,253,.15); color: #6b7c96; font-size: 12.5px; padding: 9px 18px; border-radius: 8px; cursor: pointer; transition: border-color 150ms ease, color 150ms ease, transform 120ms var(--ease); font-weight: 500; }
+  .btn-sm-g:hover { border-color: rgba(128,180,253,.32); color: #a8b8d0; }
   .btn-sm-g:active { transform: scale(.97); }
-  .btn-sm-p { background: linear-gradient(135deg,#818cf8 0%,#9ea5fb 100%); border: none; color: #07090f; font-size: 12.5px; font-weight: 700; padding: 9px 20px; border-radius: 9px; cursor: pointer; transition: transform 120ms var(--ease), filter 120ms, box-shadow 120ms; letter-spacing: .02em; box-shadow: 0 4px 14px rgba(129,140,248,.25); }
-  .btn-sm-p:hover { filter: brightness(1.07); box-shadow: 0 6px 20px rgba(129,140,248,.35); }
+  .btn-sm-p { background: #80b4fd; border: 1px solid #80b4fd; color: #07090f; font-size: 12.5px; font-weight: 700; padding: 9px 20px; border-radius: 8px; cursor: pointer; transition: background 150ms ease, border-color 150ms ease, transform 120ms var(--ease); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .btn-sm-p:hover { background: #a3cbff; border-color: #a3cbff; }
   .btn-sm-p:active { transform: scale(.97); }
   .btn-sm-p:disabled { opacity: .4; cursor: default; filter: none; box-shadow: none; }
 
   /* success */
   .ok-ico { width: 52px; height: 52px; background: rgba(52,211,153,.09); border: 1.5px solid rgba(52,211,153,.22); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto 16px; }
-  .ueciid { font-family: ui-monospace,'SF Mono',monospace; font-size: 12px; background: rgba(4,7,16,.95); border: 1px solid rgba(129,140,248,.16); border-radius: 9px; padding: 10px 14px; color: var(--pr); text-align: center; letter-spacing: .06em; margin-top: 14px; }
+  .ueciid { font-family: ui-monospace,'SF Mono',monospace; font-size: 12px; background: rgba(4,7,16,.95); border: 1px solid rgba(128,180,253,.16); border-radius: 9px; padding: 10px 14px; color: var(--pr); text-align: center; letter-spacing: .06em; margin-top: 14px; }
   .ok-badges { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
   .ok-badge { font-size: 10.5px; padding: 3px 9px; border-radius: 20px; background: rgba(52,211,153,.07); border: 1px solid rgba(52,211,153,.18); color: #34d399; }
   .ok-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
   .ok-btn { padding: 10px; border-radius: 9px; font-size: 12.5px; font-weight: 600; cursor: pointer; text-align: center; transition: transform 120ms var(--ease), filter 120ms; }
   .ok-btn:active { transform: scale(.97); }
-  .ok-btn-p { background: linear-gradient(135deg,#818cf8,#9ea5fb); border: none; color: #07090f; box-shadow: 0 4px 14px rgba(129,140,248,.2); }
-  .ok-btn-p:hover { filter: brightness(1.08); }
-  .ok-btn-g { background: none; border: 1px solid rgba(129,140,248,.2); color: #64748b; }
-  .ok-btn-g:hover { border-color: rgba(129,140,248,.35); color: #94a3b8; }
+  .ok-btn-p { background: #80b4fd; border: 1px solid #80b4fd; color: #07090f; }
+  .ok-btn-p:hover { background: #a3cbff; border-color: #a3cbff; }
+  .ok-btn-g { background: none; border: 1px solid rgba(128,180,253,.2); color: #64748b; }
+  .ok-btn-g:hover { border-color: rgba(128,180,253,.35); color: #94a3b8; }
 
   /* ── Sidebar — step numbers ────────────────────── */
-  .m-side { width: 235px; flex-shrink: 0; border-right: 1px solid rgba(129,140,248,.08); overflow-y: auto; background: rgba(4,7,16,.7); display: flex; flex-direction: column; }
-  .m-side-hdr { padding: 14px 16px 10px; font-size: 9px; font-weight: 700; color: #243042; text-transform: uppercase; letter-spacing: .14em; border-bottom: 1px solid rgba(129,140,248,.06); }
+  .m-side { width: 235px; flex-shrink: 0; border-right: 1px solid rgba(128,180,253,.08); overflow-y: auto; background: rgba(4,7,16,.7); display: flex; flex-direction: column; }
+  .m-side-hdr { padding: 14px 16px 10px; font-size: 11px; font-weight: 600; color: #6b7c96; border-bottom: 1px solid rgba(128,180,253,.06); }
   .m-side-items { flex: 1; padding: 6px 0; }
   .m-side-item { display: flex; align-items: flex-start; gap: 11px; padding: 9px 16px 9px 14px; position: relative; cursor: pointer; transition: background 140ms var(--ease); user-select: none; }
-  .m-side-item:hover { background: rgba(129,140,248,.04); }
-  .m-side-item.active { background: rgba(129,140,248,.06); }
+  .m-side-item:hover { background: rgba(128,180,253,.04); }
+  .m-side-item.active { background: rgba(128,180,253,.06); }
   .m-side-item.future { opacity: .55; }
   .m-side-item.future:hover { opacity: .75; }
-  .m-si-num { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; border: 1.5px solid rgba(129,140,248,.16); background: rgba(4,7,16,.95); color: #2d3a4e; transition: all 180ms var(--ease); }
-  .m-side-item.active .m-si-num { background: var(--pr); color: #07090f; border-color: var(--pr); box-shadow: 0 0 0 4px rgba(129,140,248,.1); }
+  .m-si-num { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; border: 1.5px solid rgba(128,180,253,.16); background: rgba(4,7,16,.95); color: #2d3a4e; transition: all 180ms var(--ease); }
+  .m-side-item.active .m-si-num { background: var(--pr); color: #07090f; border-color: var(--pr); box-shadow: 0 0 0 4px rgba(128,180,253,.1); }
   .m-side-item.done .m-si-num { background: rgba(52,211,153,.12); color: var(--green); border-color: rgba(52,211,153,.3); }
   .m-si-text { flex: 1; min-width: 0; }
   .m-si-label { font-size: 12px; font-weight: 600; color: #475569; line-height: 1.2; margin-bottom: 2px; }
@@ -513,51 +510,51 @@ const commJson = JSON.stringify(COMMUNITIES);
   .m-side-item.active .m-si-sub { color: #334155; }
 
   /* ── Content panel ───────────────────────────── */
-  .m-content { flex: 1; overflow-y: auto; padding: 22px 22px 20px; scrollbar-width: thin; scrollbar-color: rgba(129,140,248,.12) transparent; }
+  .m-content { flex: 1; overflow-y: auto; padding: 22px 22px 20px; scrollbar-width: thin; scrollbar-color: rgba(128,180,253,.12) transparent; }
 
   /* ── Architecture step — Cloudflare-style metrics ── */
   .arch-metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 18px; }
-  .arch-metric { background: rgba(4,7,16,.95); border: 1px solid rgba(129,140,248,.1); border-radius: 10px; padding: 10px 12px; text-align: center; transition: border-color 150ms; }
-  .arch-metric:hover { border-color: rgba(129,140,248,.22); }
+  .arch-metric { background: rgba(4,7,16,.95); border: 1px solid rgba(128,180,253,.1); border-radius: 10px; padding: 10px 12px; text-align: center; transition: border-color 150ms; }
+  .arch-metric:hover { border-color: rgba(128,180,253,.22); }
   .arch-metric-n { font-size: 22px; font-weight: 800; color: var(--pr); font-variant-numeric: tabular-nums; font-family: ui-monospace,'SF Mono',monospace; line-height: 1; }
-  .arch-metric-l { font-size: 9px; color: #2d3a4e; margin-top: 4px; text-transform: uppercase; letter-spacing: .07em; }
+  .arch-metric-l { font-size: 10px; color: #6b7c96; margin-top: 4px; }
   .arch-flow { display: flex; align-items: stretch; gap: 0; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
-  .arch-node { flex: 1; min-width: 96px; background: rgba(4,7,16,.95); border: 1px solid rgba(129,140,248,.12); border-radius: 10px; padding: 12px 10px; display: flex; flex-direction: column; gap: 5px; transition: border-color 150ms var(--ease), background 150ms; }
-  .arch-node:hover { border-color: rgba(129,140,248,.35); background: rgba(129,140,248,.04); }
+  .arch-node { flex: 1; min-width: 96px; background: rgba(4,7,16,.95); border: 1px solid rgba(128,180,253,.12); border-radius: 10px; padding: 12px 10px; display: flex; flex-direction: column; gap: 5px; transition: border-color 150ms var(--ease), background 150ms; }
+  .arch-node:hover { border-color: rgba(128,180,253,.35); background: rgba(128,180,253,.04); }
   .arch-arrow { display: flex; align-items: center; padding: 0 4px; color: #1e293b; font-size: 14px; flex-shrink: 0; align-self: center; }
   .arch-node-icon { font-size: 16px; }
-  .arch-node-label { font-size: 11px; font-weight: 700; color: #c7d2fe; }
+  .arch-node-label { font-size: 11px; font-weight: 700; color: #a8b8d0; }
   .arch-node-bullets { list-style: none; margin: 0; padding: 0; }
   .arch-node-bullets li { font-size: 9px; color: #2d3a4e; line-height: 1.5; padding-left: 8px; position: relative; }
-  .arch-node-bullets li::before { content: '·'; position: absolute; left: 1px; color: rgba(129,140,248,.4); }
-  .arch-comm-title { font-size: 9.5px; font-weight: 700; color: #2d3a4e; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; margin-top: 4px; display: flex; align-items: center; gap: 5px; }
-  .arch-comm-title::before { content: ''; display: inline-block; width: 3px; height: 9px; background: rgba(129,140,248,.35); border-radius: 2px; }
+  .arch-node-bullets li::before { content: '·'; position: absolute; left: 1px; color: rgba(128,180,253,.4); }
+  .arch-comm-title { font-size: 11px; font-weight: 600; color: #6b7c96; margin-bottom: 8px; margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+  .arch-comm-title::before { content: ''; display: inline-block; width: 3px; height: 9px; background: rgba(128,180,253,.35); border-radius: 2px; }
   .comm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .comm-row { background: rgba(4,7,16,.9); border: 1px solid rgba(129,140,248,.08); border-radius: 9px; padding: 9px 11px; transition: border-color 140ms; }
-  .comm-row:hover { border-color: rgba(129,140,248,.18); }
-  .comm-row-from { font-size: 10px; font-weight: 700; color: rgba(129,140,248,.65); margin-bottom: 3px; }
+  .comm-row { background: rgba(4,7,16,.9); border: 1px solid rgba(128,180,253,.08); border-radius: 9px; padding: 9px 11px; transition: border-color 140ms; }
+  .comm-row:hover { border-color: rgba(128,180,253,.18); }
+  .comm-row-from { font-size: 10px; font-weight: 700; color: rgba(128,180,253,.65); margin-bottom: 3px; }
   .comm-row-desc { font-size: 9.5px; color: #2d3a4e; line-height: 1.4; }
 
   /* ── Region pills ────────────────────────────── */
   .region-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-  .region-pill { padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(129,140,248,.12); background: rgba(4,7,16,.8); font-size: 11.5px; color: #475569; cursor: pointer; transition: border-color 120ms, color 120ms, background 120ms; }
-  .region-pill.sel { border-color: rgba(129,140,248,.5); background: rgba(129,140,248,.14); color: #c7d2fe; font-weight: 600; }
+  .region-pill { padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(128,180,253,.12); background: rgba(4,7,16,.8); font-size: 11.5px; color: #475569; cursor: pointer; transition: border-color 120ms, color 120ms, background 120ms; }
+  .region-pill.sel { border-color: rgba(128,180,253,.5); background: rgba(128,180,253,.14); color: #a8b8d0; font-weight: 600; }
 
   /* ── Checkbox rows ───────────────────────────── */
   .check-list { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
-  .check-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(129,140,248,.1); background: rgba(4,7,16,.85); cursor: pointer; transition: border-color 120ms, background 120ms; user-select: none; }
-  .check-row:hover { border-color: rgba(129,140,248,.22); }
-  .check-row.sel { border-color: rgba(129,140,248,.4); background: rgba(129,140,248,.08); }
-  .check-box { width: 17px; height: 17px; border-radius: 5px; flex-shrink: 0; border: 1.5px solid rgba(129,140,248,.3); background: rgba(4,7,16,.95); display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--pr); transition: border-color 120ms, background 120ms; }
+  .check-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(128,180,253,.1); background: rgba(4,7,16,.85); cursor: pointer; transition: border-color 120ms, background 120ms; user-select: none; }
+  .check-row:hover { border-color: rgba(128,180,253,.22); }
+  .check-row.sel { border-color: rgba(128,180,253,.4); background: rgba(128,180,253,.08); }
+  .check-box { width: 17px; height: 17px; border-radius: 5px; flex-shrink: 0; border: 1.5px solid rgba(128,180,253,.3); background: rgba(4,7,16,.95); display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--pr); transition: border-color 120ms, background 120ms; }
   .check-row.sel .check-box { background: var(--pr); border-color: var(--pr); color: #07090f; font-weight: 800; }
   .check-label { font-size: 12.5px; font-weight: 600; color: #cbd5e1; flex: 1; }
   .check-hint { font-size: 10px; color: #2d3a4e; }
   .check-row.sel .check-label { color: #e2e8f0; }
 
   /* ── Toggle switch ───────────────────────────── */
-  .toggle-switch-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(129,140,248,.1); background: rgba(4,7,16,.85); cursor: pointer; margin-top: 4px; margin-bottom: 8px; transition: border-color 120ms, background 120ms; }
-  .toggle-switch-row:hover { border-color: rgba(129,140,248,.22); }
-  .toggle-switch-row.on { border-color: rgba(129,140,248,.35); background: rgba(129,140,248,.07); }
+  .toggle-switch-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(128,180,253,.1); background: rgba(4,7,16,.85); cursor: pointer; margin-top: 4px; margin-bottom: 8px; transition: border-color 120ms, background 120ms; }
+  .toggle-switch-row:hover { border-color: rgba(128,180,253,.22); }
+  .toggle-switch-row.on { border-color: rgba(128,180,253,.35); background: rgba(128,180,253,.07); }
   .ts-label { font-size: 12.5px; font-weight: 600; color: #94a3b8; }
   .ts-hint { font-size: 10.5px; color: #334155; margin-top: 1px; }
   .ts-pill { width: 36px; height: 20px; border-radius: 10px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); position: relative; flex-shrink: 0; transition: background 200ms, border-color 200ms; }
@@ -567,9 +564,9 @@ const commJson = JSON.stringify(COMMUNITIES);
 
   /* ── Success data grid ───────────────────────── */
   .ok-data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px; }
-  .ok-data-item { background: rgba(4,7,16,.95); border: 1px solid rgba(129,140,248,.1); border-radius: 9px; padding: 9px 11px; }
-  .ok-data-label { font-size: 9px; color: #2d3a4e; text-transform: uppercase; letter-spacing: .08em; }
-  .ok-data-value { font-size: 11.5px; color: #c7d2fe; font-weight: 600; margin-top: 2px; word-break: break-all; }
+  .ok-data-item { background: rgba(4,7,16,.95); border: 1px solid rgba(128,180,253,.1); border-radius: 9px; padding: 9px 11px; }
+  .ok-data-label { font-size: 10px; color: #6b7c96; }
+  .ok-data-value { font-size: 11.5px; color: #a8b8d0; font-weight: 600; margin-top: 2px; word-break: break-all; }
 
   /* ── Responsive ──────────────────────────────── */
   @media (max-width: 640px) {
@@ -586,14 +583,14 @@ const commJson = JSON.stringify(COMMUNITIES);
 
   /* ── Hover states (touch-safe) ────────────────── */
   @media (hover: hover) and (pointer: fine) {
-    .btn-pr:hover    { background: #9ea5fb; box-shadow: 0 0 18px rgba(129,140,248,.28); }
-    .btn-ghost:hover { border-color: rgba(129,140,248,.38); background: rgba(129,140,248,.1); }
-    .pill:hover      { border-color: rgba(129,140,248,.22); color: #94a3b8; }
+    .btn-pr:hover    { background: #9ea5fb; box-shadow: 0 0 18px rgba(128,180,253,.28); }
+    .btn-ghost:hover { border-color: rgba(128,180,253,.38); background: rgba(128,180,253,.1); }
+    .pill:hover      { border-color: rgba(128,180,253,.22); color: #94a3b8; }
     .c-card:hover    { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.35); }
-    .btn-jn:hover    { background: var(--cc-dim,rgba(129,140,248,.14)); }
+    .btn-jn:hover    { background: var(--cc-dim,rgba(128,180,253,.14)); }
     .btn-vw:hover    { border-color: rgba(255,255,255,.14); color: #94a3b8; }
     .m-cls:hover     { background: rgba(255,255,255,.09); color: #e2e8f0; }
-    .btn-sm-g:hover  { border-color: rgba(129,140,248,.28); color: #94a3b8; }
+    .btn-sm-g:hover  { border-color: rgba(128,180,253,.28); color: #94a3b8; }
   }
 
   /* ── Reduced motion ───────────────────────────── */
@@ -677,7 +674,7 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="netmap-legend">
           <div class="leg-item"><div class="leg-ln" style="background:#34d399"></div>Full Sync</div>
           <div class="leg-item"><div class="leg-ln" style="background:#fbbf24"></div>Rewrap</div>
-          <div class="leg-item"><div class="leg-ln" style="background:#818cf8"></div>Mirror</div>
+          <div class="leg-item"><div class="leg-ln" style="background:#80b4fd"></div>Mirror</div>
         </div>
       </div>
       <div class="netmap-box">
@@ -795,7 +792,7 @@ const commJson = JSON.stringify(COMMUNITIES);
 
   <!-- Header -->
   <div class="m-head">
-    <div class="m-icon-wrap" id="m-icon-wrap">🗺️</div>
+    <div class="m-icon-wrap" id="m-icon-wrap">0</div>
     <div class="m-head-text">
       <div class="m-ttl" id="m-ttl-text">Create Community</div>
       <div class="m-sub" id="m-step-sub">Architecture Overview</div>
@@ -816,49 +813,49 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="m-side-item active" id="si-0">
           <div class="m-si-num">0</div>
           <div class="m-si-text">
-            <div class="m-si-label">🗺️ Architecture</div>
+            <div class="m-si-label">Architecture</div>
             <div class="m-si-sub">Feature map overview</div>
           </div>
         </div>
         <div class="m-side-item future" id="si-1">
           <div class="m-si-num">1</div>
           <div class="m-si-text">
-            <div class="m-si-label">🏛️ Identity</div>
+            <div class="m-si-label">Identity</div>
             <div class="m-si-sub">Name · Visibility · Color</div>
           </div>
         </div>
         <div class="m-side-item future" id="si-2">
           <div class="m-si-num">2</div>
           <div class="m-si-text">
-            <div class="m-si-label">🔐 Security</div>
+            <div class="m-si-label">Security</div>
             <div class="m-si-sub">Crypto mode · Keypair</div>
           </div>
         </div>
         <div class="m-side-item future" id="si-3">
           <div class="m-si-num">3</div>
           <div class="m-si-text">
-            <div class="m-si-label">👥 Members</div>
+            <div class="m-si-label">Members</div>
             <div class="m-si-sub">Invites · Roles</div>
           </div>
         </div>
         <div class="m-side-item future" id="si-4">
           <div class="m-si-num">4</div>
           <div class="m-si-text">
-            <div class="m-si-label">🌐 Federation</div>
+            <div class="m-si-label">Federation</div>
             <div class="m-si-sub">Peering · Regions</div>
           </div>
         </div>
         <div class="m-side-item future" id="si-5">
           <div class="m-si-num">5</div>
           <div class="m-si-text">
-            <div class="m-si-label">🛡️ Compliance</div>
+            <div class="m-si-label">Compliance</div>
             <div class="m-si-sub">Frameworks · STIX audit</div>
           </div>
         </div>
         <div class="m-side-item future" id="si-6">
           <div class="m-si-num">6</div>
           <div class="m-si-text">
-            <div class="m-si-label">🔗 Integrations</div>
+            <div class="m-si-label">Integrations</div>
             <div class="m-si-sub">Evolution · Slack</div>
           </div>
         </div>
@@ -881,7 +878,6 @@ const commJson = JSON.stringify(COMMUNITIES);
 
         <div class="arch-flow">
           <div class="arch-node">
-            <div class="arch-node-icon">🏛️</div>
             <div class="arch-node-label">Identity</div>
             <ul class="arch-node-bullets">
               <li>UECIID issued</li>
@@ -891,7 +887,6 @@ const commJson = JSON.stringify(COMMUNITIES);
           </div>
           <div class="arch-arrow">→</div>
           <div class="arch-node">
-            <div class="arch-node-icon">🔐</div>
             <div class="arch-node-label">Security</div>
             <ul class="arch-node-bullets">
               <li>PQC upgrade path</li>
@@ -901,7 +896,6 @@ const commJson = JSON.stringify(COMMUNITIES);
           </div>
           <div class="arch-arrow">→</div>
           <div class="arch-node">
-            <div class="arch-node-icon">👥</div>
             <div class="arch-node-label">Members</div>
             <ul class="arch-node-bullets">
               <li>Knock-and-Verify</li>
@@ -911,7 +905,6 @@ const commJson = JSON.stringify(COMMUNITIES);
           </div>
           <div class="arch-arrow">→</div>
           <div class="arch-node">
-            <div class="arch-node-icon">🌐</div>
             <div class="arch-node-label">Federation</div>
             <ul class="arch-node-bullets">
               <li>MASQUE tunnels</li>
@@ -921,7 +914,6 @@ const commJson = JSON.stringify(COMMUNITIES);
           </div>
           <div class="arch-arrow">→</div>
           <div class="arch-node">
-            <div class="arch-node-icon">🛡️</div>
             <div class="arch-node-label">Compliance</div>
             <ul class="arch-node-bullets">
               <li>GDPR / SOC 2</li>
@@ -931,7 +923,6 @@ const commJson = JSON.stringify(COMMUNITIES);
           </div>
           <div class="arch-arrow">→</div>
           <div class="arch-node">
-            <div class="arch-node-icon">🔗</div>
             <div class="arch-node-label">Integrations</div>
             <ul class="arch-node-bullets">
               <li>Evolution Engine</li>
@@ -993,7 +984,7 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="f-row">
           <label class="f-lbl">Accent Color</label>
           <div class="swatches" id="swatches">
-            <div class="swatch sel" data-c="#818cf8" style="background:#818cf8" title="Indigo"></div>
+            <div class="swatch sel" data-c="#80b4fd" style="background:#80b4fd" title="Blue"></div>
             <div class="swatch" data-c="#34d399" style="background:#34d399" title="Emerald"></div>
             <div class="swatch" data-c="#22d3ee" style="background:#22d3ee" title="Cyan"></div>
             <div class="swatch" data-c="#f472b6" style="background:#f472b6" title="Pink"></div>
@@ -1005,8 +996,8 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="f-row">
           <label class="f-lbl">Visibility</label>
           <div class="toggle-row" id="vis-row">
-            <div class="tog-card sel" data-v="private"><div class="tog-ico">🔒</div><div class="tog-name">Private</div><div class="tog-hint">Invite-only. Hidden from explore.</div></div>
-            <div class="tog-card" data-v="public"><div class="tog-ico">🌐</div><div class="tog-name">Public</div><div class="tog-hint">Listed in Community Network.</div></div>
+            <div class="tog-card sel" data-v="private"><div class="tog-name">Private</div><div class="tog-hint">Invite-only. Hidden from explore.</div></div>
+            <div class="tog-card" data-v="public"><div class="tog-name">Public</div><div class="tog-hint">Listed in Community Network.</div></div>
           </div>
         </div>
 
@@ -1026,9 +1017,9 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="f-row">
           <label class="f-lbl">Join Policy</label>
           <div class="toggle-row-3" id="join-row">
-            <div class="tog-card sel" data-j="invite"><div class="tog-ico">✉️</div><div class="tog-name">Invite Only</div><div class="tog-hint">Members join via signed invite token.</div></div>
-            <div class="tog-card" data-j="approval"><div class="tog-ico">✅</div><div class="tog-name">Approval</div><div class="tog-hint">Requests reviewed by owner.</div></div>
-            <div class="tog-card" data-j="open"><div class="tog-ico">🔓</div><div class="tog-name">Open</div><div class="tog-hint">Anyone can join instantly.</div></div>
+            <div class="tog-card sel" data-j="invite"><div class="tog-name">Invite Only</div><div class="tog-hint">Members join via signed invite token.</div></div>
+            <div class="tog-card" data-j="approval"><div class="tog-name">Approval</div><div class="tog-hint">Requests reviewed by owner.</div></div>
+            <div class="tog-card" data-j="open"><div class="tog-name">Open</div><div class="tog-hint">Anyone can join instantly.</div></div>
           </div>
         </div>
 
@@ -1046,21 +1037,19 @@ const commJson = JSON.stringify(COMMUNITIES);
           <label class="f-lbl">Cryptographic Mode</label>
           <div class="toggle-row" id="crypto-row">
             <div class="tog-card sel" data-crypto="classical">
-              <div class="tog-ico">🔑</div>
               <div class="tog-name">Classical</div>
               <div class="tog-hint">Ed25519 keypair. Fast, battle-tested.</div>
             </div>
             <div class="tog-card" data-crypto="pqc">
-              <div class="tog-ico">⚛️</div>
               <div class="tog-name">Hybrid PQC</div>
               <div class="tog-hint">Ed25519 + ML-DSA-65. Quantum-resistant.</div>
             </div>
           </div>
         </div>
 
-        <div class="f-row" style="background:rgba(129,140,248,.04);border:1px solid rgba(129,140,248,.1);border-radius:10px;padding:14px 16px">
-          <div style="font-size:11.5px;font-weight:600;color:#a5b4fc;margin-bottom:6px">Ed25519 Keypair</div>
-          <div style="font-size:12px;color:#475569;line-height:1.6">A cryptographic keypair is generated automatically. The private key is Fernet-encrypted in your Sovereign Data Pod. The public key is published to the SEP UECIID index for verifiable peering.</div>
+        <div class="f-row" style="background:rgba(128,180,253,.04);border:1px solid rgba(128,180,253,.1);border-radius:8px;padding:14px 16px">
+          <div style="font-size:11.5px;font-weight:600;color:#80b4fd;margin-bottom:6px">Ed25519 Keypair</div>
+          <div style="font-size:12px;color:#6b7c96;line-height:1.6">A cryptographic keypair is generated automatically. The private key is Fernet-encrypted in your Sovereign Data Pod. The public key is published to the SEP UECIID index for verifiable peering.</div>
           <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
             <span class="ok-badge" style="font-size:9.5px">Ed25519</span>
             <span class="ok-badge" style="font-size:9.5px">STIX 2.1</span>
@@ -1088,9 +1077,9 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="f-row">
           <label class="f-lbl">Default Role for Invitees</label>
           <div class="toggle-row-3" id="role-row">
-            <div class="tog-card" data-role="admin"><div class="tog-ico">⚡</div><div class="tog-name">Admin</div><div class="tog-hint">Full management access.</div></div>
-            <div class="tog-card sel" data-role="member"><div class="tog-ico">👤</div><div class="tog-name">Member</div><div class="tog-hint">Can exchange entities.</div></div>
-            <div class="tog-card" data-role="observer"><div class="tog-ico">👁️</div><div class="tog-name">Observer</div><div class="tog-hint">Read-only access.</div></div>
+            <div class="tog-card" data-role="admin"><div class="tog-name">Admin</div><div class="tog-hint">Full management access.</div></div>
+            <div class="tog-card sel" data-role="member"><div class="tog-name">Member</div><div class="tog-hint">Can exchange entities.</div></div>
+            <div class="tog-card" data-role="observer"><div class="tog-name">Observer</div><div class="tog-hint">Read-only access.</div></div>
           </div>
         </div>
 
@@ -1107,9 +1096,9 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="f-row">
           <label class="f-lbl">Peering Policy</label>
           <div class="toggle-row-3" id="peer-row">
-            <div class="tog-card sel" data-p="mirror"><div class="tog-ico">🪞</div><div class="tog-name">Mirror Only</div><div class="tog-hint">Read-only cross-community access.</div></div>
-            <div class="tog-card" data-p="rewrap"><div class="tog-ico">🔁</div><div class="tog-name">Rewrap</div><div class="tog-hint">Re-key documents on transfer.</div></div>
-            <div class="tog-card" data-p="full"><div class="tog-ico">⟷</div><div class="tog-name">Full Sync</div><div class="tog-hint">Bidirectional entity exchange.</div></div>
+            <div class="tog-card sel" data-p="mirror"><div class="tog-name">Mirror Only</div><div class="tog-hint">Read-only cross-community access.</div></div>
+            <div class="tog-card" data-p="rewrap"><div class="tog-name">Rewrap</div><div class="tog-hint">Re-key documents on transfer.</div></div>
+            <div class="tog-card" data-p="full"><div class="tog-name">Full Sync</div><div class="tog-hint">Bidirectional entity exchange.</div></div>
           </div>
         </div>
 
@@ -1190,8 +1179,8 @@ const commJson = JSON.stringify(COMMUNITIES);
       <div class="mstep" id="s7">
         <div style="text-align:center;padding:8px 0 4px">
           <div class="ok-ico">✓</div>
-          <div style="font-size:17px;font-weight:700;color:#f1f5f9;margin-bottom:6px" id="ok-name">Community Created</div>
-          <div style="font-size:13px;color:#64748b;line-height:1.5">Keypair generated · STIX chain initialized · UECIID issued</div>
+          <div style="font-size:17px;font-weight:700;color:#f0f4fc;margin-bottom:6px" id="ok-name">Community Created</div>
+          <div style="font-size:13px;color:#6b7c96;line-height:1.5">Keypair generated · STIX chain initialized · UECIID issued</div>
           <div class="ueciid" id="new-uid">SEP-___________</div>
           <div class="ok-badges">
             <span class="ok-badge" id="ok-crypto-badge">Ed25519 keypair</span>
@@ -1227,7 +1216,7 @@ const pRM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 function rsz() { cv.width = cv.offsetWidth || window.innerWidth; cv.height = cv.offsetHeight || window.innerHeight; }
 rsz(); window.addEventListener('resize', rsz);
 
-const COLS = ['#818cf8','#34d399','#22d3ee','#f472b6','#c084fc','#fbbf24'];
+const COLS = ['#80b4fd','#34d399','#38bdf8','#4d9cfc','#a8b8d0','#fbbf24'];
 const pts = Array.from({length:55}, () => ({
   x: Math.random()*cv.width, y: Math.random()*cv.height,
   vx: (Math.random()-.5)*.22, vy: (Math.random()-.5)*.22,
@@ -1253,7 +1242,7 @@ let lt = 0;
       const dx = pts[i].x-pts[j].x, dy = pts[i].y-pts[j].y, d2 = dx*dx+dy*dy;
       if (d2 < MD*MD) {
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(129,140,248,${(1-Math.sqrt(d2)/MD)*.11})`;
+        ctx.strokeStyle = `rgba(128,180,253,${(1-Math.sqrt(d2)/MD)*.08})`;
         ctx.lineWidth = .55;
         ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
         ctx.stroke();
@@ -1287,7 +1276,7 @@ cObs.observe(document.querySelector('.hero'));
 
 // ── Community cards ─────────────────────────────────────────
 const MAXTR = Math.max(...COMMS.map(c => c.transfers));
-const AVC = ['#818cf8','#34d399','#22d3ee','#f472b6','#c084fc','#fbbf24'];
+const AVC = ['#80b4fd','#34d399','#22d3ee','#f472b6','#c084fc','#fbbf24'];
 function fmt(n) { return n >= 1000 ? (n/1000).toFixed(1)+'k' : n.toLocaleString(); }
 function tierBdg(t) {
   if (t === 'Enterprise') return `<span class="bdg bdg-ent">Enterprise</span>`;
@@ -1384,7 +1373,7 @@ document.getElementById('srch').addEventListener('input', e => {
   window.addEventListener('resize', rsz2);
 
   const TNS = [
-    {id:'c1',label:'FinTech Alliance', sub:'47 members · 6 peerings', icon:'🏦', color:'#818cf8', members:47, rx:.15, ry:.52},
+    {id:'c1',label:'FinTech Alliance', sub:'47 members · 6 peerings', icon:'🏦', color:'#80b4fd', members:47, rx:.15, ry:.52},
     {id:'c2',label:'Healthcare AI',    sub:'31 members · 4 peerings', icon:'🏥', color:'#34d399', members:31, rx:.34, ry:.24},
     {id:'c3',label:'CyberSec Hub',     sub:'89 members · 12 peerings',icon:'🔬', color:'#fbbf24', members:89, rx:.56, ry:.52},
     {id:'c4',label:'LegalTech',        sub:'22 members · 3 peerings', icon:'⚖️', color:'#f472b6', members:22, rx:.32, ry:.78},
@@ -1402,7 +1391,7 @@ document.getElementById('srch').addEventListener('input', e => {
     {a:'c4',b:'c3',pol:'MIRROR', vol:1800},
     {a:'c5',b:'c6',pol:'REWRAP', vol:5000},
   ];
-  const POLC = {FULL:'#34d399', REWRAP:'#fbbf24', MIRROR:'#818cf8'};
+  const POLC = {FULL:'#34d399', REWRAP:'#fbbf24', MIRROR:'#80b4fd'};
   const MXVL = Math.max(...TES.map(e => e.vol));
   const NM = Object.fromEntries(TNS.map(n => [n.id, n]));
 
@@ -1426,7 +1415,7 @@ document.getElementById('srch').addEventListener('input', e => {
     for (let x=0; x<tc.width; x+=sp)
       for (let y=0; y<tc.height; y+=sp) {
         cx.beginPath(); cx.arc(x,y,.65,0,Math.PI*2);
-        cx.fillStyle = 'rgba(129,140,248,.06)'; cx.fill();
+        cx.fillStyle = 'rgba(128,180,253,.06)'; cx.fill();
       }
     cx.restore();
   }
@@ -1535,7 +1524,7 @@ document.getElementById('srch').addEventListener('input', e => {
 
 // ── Activity feed ───────────────────────────────────────────
 const TPLS = [
-  {ico:'⇄',c:'#818cf8',ms:['FinTech → Healthcare · {n} entities','CyberSec → EdTech · {n} entities','Supply Chain → FinTech · {n} entities']},
+  {ico:'⇄',c:'#80b4fd',ms:['FinTech → Healthcare · {n} entities','CyberSec → EdTech · {n} entities','Supply Chain → FinTech · {n} entities']},
   {ico:'⊘',c:'#f87171',ms:['BLOCK: prompt injection · req-{h}','BLOCK: jailbreak attempt · req-{h}','BLOCK: PII exfiltration · req-{h}']},
   {ico:'+',c:'#34d399',ms:['New member joined EdTech Network','New member joined FinTech Alliance']},
   {ico:'✓',c:'#fbbf24',ms:['DPA renewed · LegalTech ↔ Anthropic','DPA signed · Supply Chain ↔ OpenAI']},
@@ -1549,7 +1538,7 @@ function genEvt() {
 }
 
 let items = [
-  {ico:'⇄',c:'#818cf8',msg:'FinTech Alliance → Healthcare · 3 entities',time:'2s ago'},
+  {ico:'⇄',c:'#80b4fd',msg:'FinTech Alliance → Healthcare · 3 entities',time:'2s ago'},
   {ico:'⊘',c:'#f87171',msg:'BLOCK: prompt injection · req-7f3a',time:'18s ago'},
   {ico:'+',c:'#34d399',msg:'New member joined EdTech Safety Network',time:'1m ago'},
   {ico:'✓',c:'#fbbf24',msg:'DPA renewed · LegalTech Exchange ↔ Anthropic',time:'4m ago'},
@@ -1576,7 +1565,7 @@ renderFeed();
 
 // ── Modal state ─────────────────────────────────────────────
 let cs = 0;
-let _color = '#818cf8', _vis = 'private', _cat = 'finance', _join = 'invite', _peer = 'mirror';
+let _color = '#80b4fd', _vis = 'private', _cat = 'finance', _join = 'invite', _peer = 'mirror';
 let _crypto = 'classical', _role = 'member', _regions = ['EU'], _frameworks = ['gdpr'];
 let _stix = true, _evo = false;
 
@@ -1592,14 +1581,14 @@ const mIconWrap = document.getElementById('m-icon-wrap');
 const stepBadge = document.getElementById('m-step-badge');
 
 const STEP_META = [
-  { sub: 'Architecture Overview',      icon: '🗺️' },
-  { sub: 'Step 1 of 6 — Identity',     icon: '🏛️' },
-  { sub: 'Step 2 of 6 — Security',     icon: '🔐' },
-  { sub: 'Step 3 of 6 — Members',      icon: '👥' },
-  { sub: 'Step 4 of 6 — Federation',   icon: '🌐' },
-  { sub: 'Step 5 of 6 — Compliance',   icon: '🛡️' },
-  { sub: 'Step 6 of 6 — Integrations', icon: '🔗' },
-  { sub: 'Done',                        icon: '✓'  },
+  { sub: 'Architecture Overview',      icon: '0' },
+  { sub: 'Step 1 of 6 — Identity',     icon: '1' },
+  { sub: 'Step 2 of 6 — Security',     icon: '2' },
+  { sub: 'Step 3 of 6 — Members',      icon: '3' },
+  { sub: 'Step 4 of 6 — Federation',   icon: '4' },
+  { sub: 'Step 5 of 6 — Compliance',   icon: '5' },
+  { sub: 'Step 6 of 6 — Integrations', icon: '6' },
+  { sub: 'Done',                        icon: '✓' },
 ];
 
 const CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -1608,7 +1597,7 @@ function _uid() { return 'SEP-' + Array.from({length:11}, () => CHARS[Math.floor
 function _open() { _reset(); modal.showModal(); }
 
 function _reset() {
-  cs = 0; _color = '#818cf8'; _vis = 'private'; _cat = 'finance'; _join = 'invite'; _peer = 'mirror';
+  cs = 0; _color = '#80b4fd'; _vis = 'private'; _cat = 'finance'; _join = 'invite'; _peer = 'mirror';
   _crypto = 'classical'; _role = 'member'; _regions = ['EU']; _frameworks = ['gdpr'];
   _stix = true; _evo = false;
   fnEl.value = ''; fdEl.value = '';
@@ -1618,7 +1607,7 @@ function _reset() {
   const slk = document.getElementById('f-slack');   if (slk) slk.value = '';
   document.querySelectorAll('.mstep').forEach(s => s.classList.remove('act'));
   document.getElementById('s0').classList.add('act');
-  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('sel', s.dataset.c === '#818cf8'));
+  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('sel', s.dataset.c === '#80b4fd'));
   document.querySelectorAll('#vis-row .tog-card').forEach(c => c.classList.toggle('sel', c.dataset.v === 'private'));
   document.querySelectorAll('#cat-row .cat-pill').forEach(p => p.classList.toggle('sel', p.dataset.cat === 'finance'));
   document.querySelectorAll('#join-row .tog-card').forEach(c => c.classList.toggle('sel', c.dataset.j === 'invite'));
@@ -1634,9 +1623,9 @@ function _reset() {
   const stixEl = document.getElementById('stix-toggle'); if (stixEl) stixEl.classList.add('on');
   const evoEl  = document.getElementById('evo-toggle');  if (evoEl)  evoEl.classList.remove('on');
   const pqcEl  = document.getElementById('pqc-badge');   if (pqcEl)  pqcEl.style.display = 'none';
-  mIconWrap.style.background   = 'rgba(129,140,248,.1)';
-  mIconWrap.style.borderColor  = 'rgba(129,140,248,.15)';
-  mIconWrap.textContent        = '🗺️';
+  mIconWrap.style.background   = 'rgba(128,180,253,.1)';
+  mIconWrap.style.borderColor  = 'rgba(128,180,253,.2)';
+  mIconWrap.textContent        = '0';
   progFill.style.width         = '0%';
   stepSub.textContent          = 'Architecture Overview';
   _updateSidebar(0);
@@ -1650,8 +1639,8 @@ window._ns = function(n) {
   const meta = STEP_META[n] || STEP_META[0];
   stepSub.textContent         = meta.sub;
   mIconWrap.textContent       = meta.icon;
-  mIconWrap.style.background  = n === 7 ? 'rgba(52,211,153,.1)' : 'rgba(129,140,248,.1)';
-  mIconWrap.style.borderColor = n === 7 ? 'rgba(52,211,153,.2)' : 'rgba(129,140,248,.15)';
+  mIconWrap.style.background  = n === 7 ? 'rgba(52,211,153,.1)' : 'rgba(128,180,253,.1)';
+  mIconWrap.style.borderColor = n === 7 ? 'rgba(52,211,153,.2)' : 'rgba(128,180,253,.2)';
   progFill.style.width = (n === 0 ? 0 : n >= 7 ? 100 : Math.round((n / 7) * 100)) + '%';
   if (stepBadge) {
     if (n >= 1 && n <= 6) { stepBadge.textContent = n + ' of 6'; stepBadge.classList.add('show'); }

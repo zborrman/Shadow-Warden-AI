@@ -133,9 +133,9 @@ def test_seller_agent_auto_list(seller_id, keypair_a):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_buyer_agent_search_assets(seller_id, buyer_id, keypair_a):
+    from warden.marketplace.buyer_agent import BuyerAgent
     from warden.marketplace.seller_agent import SellerAgent
     from warden.marketplace.service import register_asset
-    from warden.marketplace.buyer_agent import BuyerAgent
 
     asset_id = register_asset(
         tenant_id=_tid(), seller_agent_id=seller_id,
@@ -171,8 +171,8 @@ def test_buyer_agent_evaluate_seller_risk(seller_id, buyer_id):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_auto_buy_success(seller_id, buyer_id, keypair_a):
-    from warden.marketplace.seller_agent import SellerAgent
     from warden.marketplace.buyer_agent import BuyerAgent
+    from warden.marketplace.seller_agent import SellerAgent
     from warden.marketplace.service import register_asset
 
     asset_id = register_asset(
@@ -197,8 +197,8 @@ def test_auto_buy_success(seller_id, buyer_id, keypair_a):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_auto_buy_budget_blocked(seller_id, buyer_id, keypair_a):
-    from warden.marketplace.seller_agent import SellerAgent
     from warden.marketplace.buyer_agent import BuyerAgent
+    from warden.marketplace.seller_agent import SellerAgent
     from warden.marketplace.service import register_asset
 
     asset_id = register_asset(
@@ -225,8 +225,8 @@ def test_auto_buy_budget_blocked(seller_id, buyer_id, keypair_a):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_negotiation_opens_when_price_too_high(seller_id, buyer_id, keypair_a, keypair_b):
-    from warden.marketplace.seller_agent import SellerAgent
     from warden.marketplace.buyer_agent import BuyerAgent
+    from warden.marketplace.seller_agent import SellerAgent
     from warden.marketplace.service import register_asset
 
     asset_id = register_asset(
@@ -252,8 +252,8 @@ def test_negotiation_opens_when_price_too_high(seller_id, buyer_id, keypair_a, k
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_negotiation_counter_offer(seller_id, buyer_id, keypair_a, keypair_b):
-    from warden.marketplace.negotiation import NegotiationEngine
     from warden.marketplace.listing import publish_listing
+    from warden.marketplace.negotiation import NegotiationEngine
 
     listing = publish_listing(
         asset_id="SEP-countertest", seller_agent=seller_id,
@@ -281,8 +281,8 @@ def test_negotiation_counter_offer(seller_id, buyer_id, keypair_a, keypair_b):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_negotiation_accept(seller_id, buyer_id, keypair_a, keypair_b):
-    from warden.marketplace.negotiation import NegotiationEngine
     from warden.marketplace.listing import publish_listing
+    from warden.marketplace.negotiation import NegotiationEngine
 
     listing = publish_listing(
         asset_id="SEP-accepttest", seller_agent=seller_id,
@@ -309,8 +309,8 @@ def test_negotiation_accept(seller_id, buyer_id, keypair_a, keypair_b):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_negotiation_rejection(seller_id, buyer_id):
-    from warden.marketplace.negotiation import NegotiationEngine
     from warden.marketplace.listing import publish_listing
+    from warden.marketplace.negotiation import NegotiationEngine
 
     listing = publish_listing(
         asset_id="SEP-rejecttest", seller_agent=seller_id,
@@ -424,7 +424,7 @@ def test_escrow_dispute_and_resolution(seller_id, buyer_id):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_escrow_cancel_after_timeout(seller_id, buyer_id):
-    from warden.marketplace.escrow import EscrowService, _conn, _ensure_schema
+    from warden.marketplace.escrow import EscrowService
     svc = EscrowService()
 
     escrow = svc.create_escrow(

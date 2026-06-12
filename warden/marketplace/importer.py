@@ -18,10 +18,10 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Generator
 
 log = logging.getLogger("warden.marketplace.importer")
 
@@ -192,11 +192,6 @@ class AssetImporter:
 
     def _import_rule(self, asset_data: dict, source: str) -> None:
         """Inject rule into EvolutionEngine corpus via inject_rule()."""
-        try:
-            from warden.brain.evolve import EvolutionEngine  # noqa: PLC0415
-        except ImportError as exc:
-            raise RuntimeError(f"EvolutionEngine unavailable: {exc}") from exc
-
         payload   = asset_data.get("payload", asset_data)
         rule_text = str(
             payload.get("value")
@@ -223,8 +218,7 @@ class AssetImporter:
     def _import_model(self, asset_data: dict, tenant_id: str) -> None:
         """Register a semantic model into SemanticEngine."""
         try:
-            from warden.semantic_layer.engine import SemanticEngine  # noqa: PLC0415
-            from warden.semantic_layer.models import SemanticModel   # noqa: PLC0415
+            from warden.semantic_layer.models import SemanticModel  # noqa: PLC0415
         except ImportError as exc:
             raise RuntimeError(f"SemanticLayer unavailable: {exc}") from exc
 

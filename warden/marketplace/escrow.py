@@ -33,10 +33,10 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Generator
 
 log = logging.getLogger("warden.marketplace.escrow")
 

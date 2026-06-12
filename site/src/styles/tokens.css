@@ -1,141 +1,145 @@
-/* Shadow Warden AI — Design System v4.19 */
+/* Shadow Warden AI — Design Tokens v5.6 — Cloudflare Edition */
 :root {
-  /* ── Surfaces ────────────────────────────────── */
-  --sw-bg:      #030712;
-  --sw-surf-1:  #0a0f1e;
-  --sw-surf-2:  #0f172a;
-  --sw-surf-3:  #1e293b;
+  /* ── Surfaces — deep navy-black ──────────────────── */
+  --sw-bg:      #070910;
+  --sw-surf-1:  #0c1020;
+  --sw-surf-2:  #111827;
+  --sw-surf-3:  #1a2236;
 
-  /* ── Borders (indigo-tinted) ─────────────────── */
-  --sw-border:        rgba(99,102,241,0.14);
-  --sw-border-strong: rgba(99,102,241,0.30);
-  --sw-border-hover:  rgba(99,102,241,0.40);
+  /* ── Borders — Cloudflare blue-tinted ────────────── */
+  --sw-border:        rgba(128,180,253,0.09);
+  --sw-border-strong: rgba(128,180,253,0.20);
+  --sw-border-hover:  rgba(128,180,253,0.32);
 
-  /* ── Brand trio ──────────────────────────────── */
-  --sw-indigo: #6366f1;
-  --sw-violet: #8b5cf6;
-  --sw-cyan:   #06b6d4;
+  /* ── Brand — Cloudflare blue palette ─────────────── */
+  --sw-blue:    #80b4fd;   /* Cloudflare light blue — primary on dark */
+  --sw-blue-2:  #4d9cfc;   /* mid blue — secondary accent */
+  --sw-blue-dk: #0051c3;   /* deep blue */
+  --sw-cyan:    #38bdf8;   /* status / pipeline color */
 
-  /* ── Semantic state ──────────────────────────── */
+  /* ── Semantic state ──────────────────────────────── */
   --sw-green:    #34d399;
   --sw-amber:    #fbbf24;
   --sw-orange:   #fb923c;
   --sw-red:      #f87171;
   --sw-red-deep: #ef4444;
 
-  /* ── Text scale ──────────────────────────────── */
-  --sw-fg-1: #f1f5f9;
-  --sw-fg-2: #cbd5e1;
-  --sw-fg-3: #94a3b8;
-  --sw-fg-4: #64748b;
+  /* ── Text scale ──────────────────────────────────── */
+  --sw-fg-1: #f0f4fc;
+  --sw-fg-2: #a8b8d0;
+  --sw-fg-3: #6b7c96;
+  --sw-fg-4: #404e66;
 
-  /* ── Gradients ───────────────────────────────── */
-  --sw-gradient-brand:   linear-gradient(135deg,#6366f1,#8b5cf6,#06b6d4);
-  --sw-gradient-primary: linear-gradient(135deg,#6366f1,#8b5cf6);
-  --sw-gradient-mark:    linear-gradient(135deg,#6366f1,#06b6d4);
-  --sw-gradient-hero:    radial-gradient(ellipse 60% 50% at 20% 20%,rgba(99,102,241,.12) 0%,transparent 70%),
-                         radial-gradient(ellipse 40% 40% at 80% 80%,rgba(139,92,246,.08) 0%,transparent 70%);
+  /* ── Legacy aliases ──────────────────────────────── */
+  --sw-indigo: var(--sw-blue);
+  --sw-violet: var(--sw-blue-2);
 
-  /* ── Tinted fills ────────────────────────────── */
-  --sw-tint-indigo: rgba(99,102,241,0.12);
-  --sw-tint-violet: rgba(139,92,246,0.12);
-  --sw-tint-cyan:   rgba(6,182,212,0.12);
-  --sw-tint-green:  rgba(52,211,153,0.12);
-  --sw-tint-amber:  rgba(251,191,36,0.12);
-  --sw-tint-red:    rgba(248,113,113,0.15);
+  /* ── Gradients — minimal, Cloudflare-aligned ─────── */
+  --sw-gradient-brand:   linear-gradient(135deg,#80b4fd,#38bdf8);
+  --sw-gradient-primary: linear-gradient(135deg,#80b4fd,#4d9cfc);
+  --sw-gradient-mark:    linear-gradient(135deg,#80b4fd,#38bdf8);
+  --sw-gradient-hero:    radial-gradient(ellipse 60% 40% at 50% 0%,rgba(128,180,253,0.07) 0%,transparent 70%);
 
-  /* ── Radii ───────────────────────────────────── */
-  --sw-r-sm:   6px;
-  --sw-r-md:   8px;
-  --sw-r-lg:   12px;
-  --sw-r-xl:   16px;
+  /* ── Tinted fills ────────────────────────────────── */
+  --sw-tint-blue:   rgba(128,180,253,0.09);
+  --sw-tint-blue-2: rgba(77,156,252,0.09);
+  --sw-tint-cyan:   rgba(56,189,248,0.09);
+  --sw-tint-green:  rgba(52,211,153,0.09);
+  --sw-tint-amber:  rgba(251,191,36,0.09);
+  --sw-tint-red:    rgba(248,113,113,0.10);
+
+  --sw-tint-indigo: var(--sw-tint-blue);
+  --sw-tint-violet: var(--sw-tint-blue-2);
+
+  /* ── Radii — Cloudflare precise ─────────────────── */
+  --sw-r-sm:   3px;
+  --sw-r-md:   6px;
+  --sw-r-lg:   8px;
+  --sw-r-xl:   10px;
   --sw-r-pill: 100px;
 
-  /* ── Shadows ─────────────────────────────────── */
-  --sw-shadow-sm:   0 1px 4px rgba(0,0,0,.30), 0 0 0 1px var(--sw-border);
-  --sw-shadow-md:   0 4px 16px rgba(0,0,0,.40);
-  --sw-shadow-lg:   0 12px 40px rgba(0,0,0,.50);
-  --sw-shadow-glow: 0 0 0 3px rgba(99,102,241,.12);
-  --sw-shadow-cta:  0 12px 40px rgba(99,102,241,.20);
+  /* ── Shadows — flat, minimal ─────────────────────── */
+  --sw-shadow-sm:   0 1px 2px rgba(0,0,0,.35);
+  --sw-shadow-md:   0 2px 8px rgba(0,0,0,.40);
+  --sw-shadow-lg:   0 4px 20px rgba(0,0,0,.50);
+  --sw-shadow-glow: 0 0 0 2px rgba(128,180,253,.10);
+  --sw-shadow-cta:  0 4px 14px rgba(128,180,253,.12);
 
-  /* ── Spacing (4px base) ──────────────────────── */
+  /* ── Spacing (4px base) ──────────────────────────── */
   --sw-sp-1:  4px;  --sw-sp-2:  8px;  --sw-sp-3: 12px;
   --sw-sp-4: 16px;  --sw-sp-5: 20px;  --sw-sp-6: 24px;
   --sw-sp-8: 32px;  --sw-sp-10:40px;  --sw-sp-12:48px;
   --sw-sp-16:64px;
 
-  /* ── Fonts ───────────────────────────────────── */
+  /* ── Fonts ───────────────────────────────────────── */
   --sw-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --sw-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  /* ── Type scale ──────────────────────────────── */
-  --sw-text-display: clamp(2.5rem,5vw,4.5rem);
-  --sw-text-h1:   1.875rem;
-  --sw-text-h2:   1.5rem;
-  --sw-text-h3:   1.125rem;
-  --sw-text-body: 0.9375rem;
-  --sw-text-sm:   0.875rem;
-  --sw-text-xs:   0.8125rem;
-  --sw-text-2xs:  0.75rem;
-  --sw-text-micro:0.6875rem;
+  /* ── Type scale — Cloudflare compact ────────────── */
+  --sw-text-display: clamp(2rem,4.5vw,3.5rem);
+  --sw-text-h1:   1.5rem;     /* 24px */
+  --sw-text-h2:   1.25rem;    /* 20px */
+  --sw-text-h3:   1rem;       /* 16px */
+  --sw-text-body: 0.875rem;   /* 14px */
+  --sw-text-sm:   0.8125rem;  /* 13px */
+  --sw-text-xs:   0.75rem;    /* 12px */
+  --sw-text-2xs:  0.6875rem;  /* 11px */
+  --sw-text-micro:0.625rem;   /* 10px */
 
-  /* ── Legacy aliases (backward compat with old tokens.css) ── */
+  /* ── Category colors ─────────────────────────────── */
   --surface-900: var(--sw-bg);
   --surface-800: var(--sw-surf-1);
   --surface-700: var(--sw-surf-2);
   --surface-600: var(--sw-surf-3);
   --surface-border: var(--sw-border);
-  --brand: var(--sw-indigo);
-  --brand-glow: rgba(99,102,241,.40);
-  --cat-community: var(--sw-violet);
-  --cat-community-glow: rgba(139,92,246,.30);
+  --brand: var(--sw-blue);
+  --brand-glow: rgba(128,180,253,.25);
+  --cat-community: var(--sw-blue-2);
+  --cat-community-glow: rgba(77,156,252,.22);
   --cat-security:  var(--sw-red);
-  --cat-security-glow: rgba(248,113,113,.30);
-  --cat-dashboard: var(--sw-indigo);
-  --cat-dashboard-glow: rgba(99,102,241,.30);
+  --cat-security-glow: rgba(248,113,113,.22);
+  --cat-dashboard: var(--sw-blue);
+  --cat-dashboard-glow: rgba(128,180,253,.22);
   --cat-settings:  var(--sw-green);
-  --cat-settings-glow: rgba(52,211,153,.30);
+  --cat-settings-glow: rgba(52,211,153,.22);
   --cat-docs:      var(--sw-amber);
-  --cat-docs-glow: rgba(251,191,36,.25);
+  --cat-docs-glow: rgba(251,191,36,.18);
   --cat-price:     var(--sw-orange);
-  --cat-price-glow:rgba(251,146,60,.30);
+  --cat-price-glow:rgba(251,146,60,.22);
 }
 
-/* ── Global base ───────────────────────────────── */
+/* ── Global base ─────────────────────────────────────── */
 body {
   font-family: var(--sw-font-sans);
   background: var(--sw-bg);
   color: var(--sw-fg-1);
   -webkit-font-smoothing: antialiased;
 }
-::selection { background: rgba(99,102,241,.25); }
+::selection { background: rgba(128,180,253,.18); }
 
-/* ── Scrollbar ─────────────────────────────────── */
-::-webkit-scrollbar { width:6px; height:6px; }
+/* ── Scrollbar ───────────────────────────────────────── */
+::-webkit-scrollbar { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background: var(--sw-surf-1); }
 ::-webkit-scrollbar-thumb { background: var(--sw-surf-3); border-radius:3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--sw-border-strong); }
 
-/* ── Gradient text ─────────────────────────────── */
+/* ── Gradient text — kept for backward compat, use sparingly ── */
 .sw-gradient-text {
-  background: var(--sw-gradient-brand);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--sw-blue);
 }
-.text-grad-red    { background:linear-gradient(135deg,var(--sw-red),var(--sw-orange));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent; }
-.text-grad-blue   { background:var(--sw-gradient-primary);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent; }
-.text-grad-brand  { background:var(--sw-gradient-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent; }
+.text-grad-red    { color: var(--sw-red); }
+.text-grad-blue   { color: var(--sw-blue); }
+.text-grad-brand  { color: var(--sw-blue); }
 
-/* ── Card hover ────────────────────────────────── */
-.card-hover { transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
-.card-hover:hover { transform:translateY(-2px); border-color:var(--sw-border-strong) !important; box-shadow:var(--sw-shadow-md); }
+/* ── Card hover ──────────────────────────────────────── */
+.card-hover { transition: border-color 180ms ease; }
+.card-hover:hover { border-color: var(--sw-border-strong) !important; }
 
-/* ── Code inline ───────────────────────────────── */
+/* ── Code inline ─────────────────────────────────────── */
 code {
   font-family: var(--sw-font-mono);
   font-size: 0.8em;
-  color: var(--sw-indigo);
+  color: var(--sw-blue);
   background: var(--sw-surf-2);
   border: 1px solid var(--sw-border);
   padding: 1px 5px;

@@ -133,8 +133,8 @@ async def update_capabilities(agent_id: str, body: CapabilitiesUpdateRequest) ->
 
 @router.post("/assets", status_code=201)
 async def register_asset(body: AssetRegisterRequest) -> dict:
-    from warden.marketplace.service import register_asset as _register
     from warden.marketplace.agent import get_agent as _get_agent
+    from warden.marketplace.service import register_asset as _register
 
     agent = _get_agent(body.seller_agent_id)
     if agent is None:
@@ -266,8 +266,8 @@ class OfferRequest(BaseModel):
 
 @router.post("/negotiations", status_code=201)
 async def start_negotiation(body: NegotiationStartRequest) -> dict:
-    from warden.marketplace.negotiation import NegotiationEngine
     from warden.marketplace.listing import get_listing as _get_listing
+    from warden.marketplace.negotiation import NegotiationEngine
     listing = _get_listing(body.listing_id)
     if listing is None:
         raise HTTPException(status_code=404, detail=f"Listing '{body.listing_id}' not found.")

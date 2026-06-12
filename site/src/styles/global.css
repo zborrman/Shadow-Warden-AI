@@ -5,43 +5,41 @@
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --color-bg:      #0a0a0f;
-  --color-surf-1:  #111118;
-  --color-surf-2:  #16161f;
-  --color-surf-3:  #1e1e2a;
-  --color-border:  rgba(255,255,255,0.07);
-  --color-border-2:rgba(255,255,255,0.12);
+  --color-bg:      #070910;
+  --color-surf-1:  #0c1020;
+  --color-surf-2:  #111827;
+  --color-surf-3:  #1a2236;
+  --color-border:  rgba(128,180,253,0.09);
+  --color-border-2:rgba(128,180,253,0.20);
 
-  --color-brand:   #6366f1;
-  --color-violet:  #8b5cf6;
-  --color-cyan:    #06b6d4;
-  --color-green:   #10b981;
-  --color-amber:   #f59e0b;
-  --color-orange:  #f97316;
+  --color-brand:   #80b4fd;
+  --color-blue-2:  #4d9cfc;
+  --color-cyan:    #38bdf8;
+  --color-green:   #34d399;
+  --color-amber:   #fbbf24;
+  --color-orange:  #fb923c;
   --color-red:     #ef4444;
 
-  --color-text-1:  #f1f5f9;
-  --color-text-2:  #cbd5e1;
-  --color-text-3:  #94a3b8;
-  --color-text-4:  #64748b;
+  --color-text-1:  #f0f4fc;
+  --color-text-2:  #a8b8d0;
+  --color-text-3:  #6b7c96;
+  --color-text-4:  #404e66;
 }
 
 @layer base {
   :root { color-scheme: dark; }
   html { scroll-behavior: smooth; font-feature-settings: 'cv02','cv03','cv04','cv11'; }
-  body { background: var(--color-bg); color: var(--color-text-1); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
-  ::selection { background: rgba(99,102,241,.25); }
+  body { background: var(--color-bg); color: var(--color-text-1); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; font-size: 14px; }
+  ::selection { background: rgba(128,180,253,.18); }
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: var(--color-surf-1); }
   ::-webkit-scrollbar-thumb { background: var(--color-surf-3); border-radius: 3px; }
 }
 
 @layer utilities {
+  /* Solid accent text — no gradient (Cloudflare precise) */
   .text-gradient {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #80b4fd;
   }
   .border-gradient {
     border: 1px solid transparent;
@@ -50,93 +48,78 @@
   .card {
     background: var(--color-surf-1);
     border: 1px solid var(--color-border);
-    border-radius: 12px;
+    border-radius: 8px;
   }
   .card:hover {
     border-color: var(--color-border-2);
   }
+
+  /* Cloudflare-style primary button — flat, blue, 1px border */
   .btn-primary {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
+    background: #80b4fd;
+    color: #070910;
     font-weight: 600;
     border-radius: 8px;
     padding: 10px 20px;
-    transition: all 150ms;
-    box-shadow: 0 8px 32px rgba(99,102,241,.25);
+    border: 1px solid #80b4fd;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    transition: background 150ms ease, border-color 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1);
   }
-  .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+  .btn-primary:hover { background: #a3cbff; border-color: #a3cbff; }
+  .btn-primary:active { transform: scale(0.97); }
+
+  /* Ghost button — 1px Cloudflare blue border */
   .btn-ghost {
-    background: rgba(255,255,255,.04);
-    border: 1px solid var(--color-border);
+    background: transparent;
+    border: 1px solid rgba(128,180,253,0.22);
     color: var(--color-text-2);
     font-weight: 500;
     border-radius: 8px;
     padding: 10px 20px;
-    transition: all 150ms;
+    transition: background 150ms ease, border-color 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1);
   }
-  .btn-ghost:hover { background: rgba(255,255,255,.07); border-color: var(--color-border-2); }
-  .status-shipped    { color: #10b981; background: rgba(16,185,129,.10); border: 1px solid rgba(16,185,129,.2); }
-  .status-in_progress{ color: #f59e0b; background: rgba(245,158,11,.10); border: 1px solid rgba(245,158,11,.2); }
-  .status-planned    { color: #6366f1; background: rgba(99,102,241,.10); border: 1px solid rgba(99,102,241,.2); }
-  .status-cancelled  { color: #94a3b8; background: rgba(148,163,184,.08); border: 1px solid rgba(148,163,184,.15); text-decoration: line-through; }
+  .btn-ghost:hover { background: rgba(128,180,253,0.07); border-color: rgba(128,180,253,0.35); color: #f0f4fc; }
+  .btn-ghost:active { transform: scale(0.97); }
+
+  .status-shipped    { color: #34d399; background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.18); }
+  .status-in_progress{ color: #fbbf24; background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.18); }
+  .status-planned    { color: #80b4fd; background: rgba(128,180,253,.08); border: 1px solid rgba(128,180,253,.18); }
+  .status-cancelled  { color: #6b7c96; background: rgba(107,124,150,.06); border: 1px solid rgba(107,124,150,.12); text-decoration: line-through; }
   .tier-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 100px; white-space: nowrap; }
 }
 
-/* ── Emil-quality interactions ──────────────────────────────────────────────── */
-
-/* Custom easing curves — stronger than CSS defaults */
+/* ── Easing ──────────────────────────────────────────── */
 :root {
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
-/* Buttons: immediate press feedback (scale, not opacity jitter) */
-.btn-primary {
-  transition: transform 160ms var(--ease-out-strong),
-              opacity 160ms var(--ease-out-strong),
-              box-shadow 160ms var(--ease-out-strong);
-}
-.btn-primary:active { transform: scale(0.97); }
-
-.btn-ghost {
-  transition: background 150ms ease, border-color 150ms ease, transform 160ms var(--ease-out-strong);
-}
-.btn-ghost:active { transform: scale(0.97); }
-
-/* Cards: subtle lift — only on devices with hover (no false-positive on touch) */
+/* ── Cards: no transform lift — Cloudflare uses border only ─ */
 @media (hover: hover) and (pointer: fine) {
   .card {
-    transition: border-color 200ms ease, transform 200ms var(--ease-out-strong),
-                box-shadow 200ms var(--ease-out-strong);
-  }
-  .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    transition: border-color 180ms ease;
   }
 }
 
-/* Feature grid stagger — cards enter with cascading fade+rise */
+/* ── Stagger grid entrance ────────────────────────────── */
 @keyframes sw-fade-up {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Applied to direct children of .stagger-grid; nth-child delays cascade */
-.stagger-grid > *:nth-child(1)  { animation: sw-fade-up 400ms var(--ease-out-strong) 0ms   both; }
-.stagger-grid > *:nth-child(2)  { animation: sw-fade-up 400ms var(--ease-out-strong) 50ms  both; }
-.stagger-grid > *:nth-child(3)  { animation: sw-fade-up 400ms var(--ease-out-strong) 100ms both; }
-.stagger-grid > *:nth-child(4)  { animation: sw-fade-up 400ms var(--ease-out-strong) 150ms both; }
-.stagger-grid > *:nth-child(5)  { animation: sw-fade-up 400ms var(--ease-out-strong) 200ms both; }
-.stagger-grid > *:nth-child(6)  { animation: sw-fade-up 400ms var(--ease-out-strong) 250ms both; }
-.stagger-grid > *:nth-child(7)  { animation: sw-fade-up 400ms var(--ease-out-strong) 300ms both; }
-.stagger-grid > *:nth-child(8)  { animation: sw-fade-up 400ms var(--ease-out-strong) 350ms both; }
-.stagger-grid > *:nth-child(9)  { animation: sw-fade-up 400ms var(--ease-out-strong) 400ms both; }
-.stagger-grid > *:nth-child(n+10) { animation: sw-fade-up 400ms var(--ease-out-strong) 450ms both; }
+.stagger-grid > *:nth-child(1)  { animation: sw-fade-up 350ms var(--ease-out-strong) 0ms   both; }
+.stagger-grid > *:nth-child(2)  { animation: sw-fade-up 350ms var(--ease-out-strong) 40ms  both; }
+.stagger-grid > *:nth-child(3)  { animation: sw-fade-up 350ms var(--ease-out-strong) 80ms  both; }
+.stagger-grid > *:nth-child(4)  { animation: sw-fade-up 350ms var(--ease-out-strong) 120ms both; }
+.stagger-grid > *:nth-child(5)  { animation: sw-fade-up 350ms var(--ease-out-strong) 160ms both; }
+.stagger-grid > *:nth-child(6)  { animation: sw-fade-up 350ms var(--ease-out-strong) 200ms both; }
+.stagger-grid > *:nth-child(7)  { animation: sw-fade-up 350ms var(--ease-out-strong) 240ms both; }
+.stagger-grid > *:nth-child(8)  { animation: sw-fade-up 350ms var(--ease-out-strong) 280ms both; }
+.stagger-grid > *:nth-child(9)  { animation: sw-fade-up 350ms var(--ease-out-strong) 320ms both; }
+.stagger-grid > *:nth-child(n+10) { animation: sw-fade-up 350ms var(--ease-out-strong) 360ms both; }
 
-/* Respect reduced motion — no position animations, keep opacity fade */
 @media (prefers-reduced-motion: reduce) {
   .stagger-grid > * { animation: none; }
   .btn-primary:active,
   .btn-ghost:active { transform: none; }
-  .card:hover { transform: none; }
 }

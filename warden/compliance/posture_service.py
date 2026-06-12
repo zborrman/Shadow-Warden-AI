@@ -416,19 +416,20 @@ class CompliancePostureService:
                 if _prev_score is not None and abs(report.overall_score - _prev_score) >= 3:
                     try:
                         import asyncio as _asyncio  # noqa: PLC0415
-                        from warden.communities.notifications import fire_event as _fn  # noqa: PLC0415
+
+                        from warden.communities.notifications import (
+                            fire_event as _fn,  # noqa: PLC0415
+                        )
                         _payload = {
                             "tenant_id":  tenant_id,
                             "old_score":  round(_prev_score, 1),
                             "new_score":  round(report.overall_score, 1),
                             "status":     "COMPLIANT" if report.overall_score >= 80 else "PARTIAL",
                         }
-                        try:
+                        with contextlib.suppress(RuntimeError):
                             _asyncio.get_running_loop().create_task(
                                 _fn(tenant_id, "compliance_changed", _payload, "")
                             )
-                        except RuntimeError:
-                            pass
                     except Exception:
                         pass
             except Exception:

@@ -10,7 +10,6 @@ Covers:
 """
 from __future__ import annotations
 
-import base64
 import os
 import re
 import tempfile
@@ -81,7 +80,7 @@ def test_register_agent_generates_did(pub_b64):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_register_agent_stores_capabilities(pub_b64):
-    from warden.marketplace.agent import register_agent, get_agent
+    from warden.marketplace.agent import get_agent, register_agent
     agent = register_agent(
         tenant_id=_tid(), community_id=_cid(),
         public_key_b64=pub_b64,
@@ -113,7 +112,7 @@ def test_register_agent_creates_ap2_mandate(pub_b64):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_get_agent_returns_correct_data(pub_b64):
-    from warden.marketplace.agent import register_agent, get_agent
+    from warden.marketplace.agent import get_agent, register_agent
     tid, cid = _tid(), _cid()
     agent = register_agent(
         tenant_id=tid, community_id=cid,
@@ -132,7 +131,7 @@ def test_get_agent_returns_correct_data(pub_b64):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_update_capabilities(pub_b64):
-    from warden.marketplace.agent import register_agent, update_capabilities, get_agent
+    from warden.marketplace.agent import get_agent, register_agent, update_capabilities
     tid = _tid()
     agent = register_agent(
         tenant_id=tid, community_id=_cid(),
@@ -222,7 +221,7 @@ def test_upload_to_ipfs_returns_cid_shaped_string(keypair):
 
 def test_register_asset_creates_ueciid(keypair, pub_b64):
     from warden.marketplace.agent import register_agent
-    from warden.marketplace.service import register_asset, get_asset
+    from warden.marketplace.service import get_asset, register_asset
     tid, cid = _tid(), _cid()
     agent = register_agent(
         tenant_id=tid, community_id=cid,
@@ -248,11 +247,10 @@ def test_register_asset_creates_ueciid(keypair, pub_b64):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_agent_without_sell_capability_blocked(keypair, pub_b64):
-    from warden.marketplace.agent import register_agent
-    from warden.marketplace.service import register_asset
-
     # Register with a second keypair so we get a distinct agent_id
     from warden.communities.keypair import generate_community_keypair
+    from warden.marketplace.agent import register_agent
+    from warden.marketplace.service import register_asset
     kp2 = generate_community_keypair("test-comm-2", kid="v1")
 
     tid = _tid()
@@ -280,33 +278,33 @@ def test_agent_without_sell_capability_blocked(keypair, pub_b64):
 def test_list_assets_by_agent_filters_correctly(keypair):
     from warden.communities.keypair import generate_community_keypair
     from warden.marketplace.agent import register_agent
-    from warden.marketplace.service import register_asset, list_assets_by_agent
+    from warden.marketplace.service import list_assets_by_agent, register_asset
 
-    kpA = generate_community_keypair("comm-agent-a", kid="v1")
-    kpB = generate_community_keypair("comm-agent-b", kid="v1")
+    kp_a = generate_community_keypair("comm-agent-a", kid="v1")
+    kp_b = generate_community_keypair("comm-agent-b", kid="v1")
     tid = _tid()
 
-    agentA = register_agent(
+    agent_a = register_agent(
         tenant_id=tid, community_id=_cid(),
-        public_key_b64=kpA.ed25519_pub_b64, capabilities=["marketplace_sell"],
+        public_key_b64=kp_a.ed25519_pub_b64, capabilities=["marketplace_sell"],
         db_path=_MKTDB,
     )
-    agentB = register_agent(
+    agent_b = register_agent(
         tenant_id=tid, community_id=_cid(),
-        public_key_b64=kpB.ed25519_pub_b64, capabilities=["marketplace_sell"],
+        public_key_b64=kp_b.ed25519_pub_b64, capabilities=["marketplace_sell"],
         db_path=_MKTDB,
     )
 
     for _ in range(2):
-        register_asset(tid, agentA.agent_id, "rule", {"keyword": "a"}, kpA, db_path=_MKTDB)
-    register_asset(tid, agentB.agent_id, "rule", {"keyword": "b"}, kpB, db_path=_MKTDB)
+        register_asset(tid, agent_a.agent_id, "rule", {"keyword": "a"}, kp_a, db_path=_MKTDB)
+    register_asset(tid, agent_b.agent_id, "rule", {"keyword": "b"}, kp_b, db_path=_MKTDB)
 
-    assets_a = list_assets_by_agent(agentA.agent_id, db_path=_MKTDB)
-    assets_b = list_assets_by_agent(agentB.agent_id, db_path=_MKTDB)
+    assets_a = list_assets_by_agent(agent_a.agent_id, db_path=_MKTDB)
+    assets_b = list_assets_by_agent(agent_b.agent_id, db_path=_MKTDB)
 
     assert len(assets_a) == 2
     assert len(assets_b) == 1
-    assert all(r["seller_agent_id"] == agentA.agent_id for r in assets_a)
+    assert all(r["seller_agent_id"] == agent_a.agent_id for r in assets_a)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -314,9 +312,10 @@ def test_list_assets_by_agent_filters_correctly(keypair):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_api_register_agent_201():
-    from fastapi.testclient import TestClient
-    from warden.marketplace.api import router
     from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from warden.marketplace.api import router
 
     mini_app = FastAPI()
     mini_app.include_router(router)

@@ -31,10 +31,10 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Generator
 
 log = logging.getLogger("warden.marketplace.negotiation")
 
@@ -193,9 +193,9 @@ def _verify_offer_signature(
     if not signature_b64 or not public_key_b64:
         return False
     try:
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-        from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
         import base64 as _b64
+
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
         pub_bytes = _b64.b64decode(public_key_b64)
         pub_key = Ed25519PublicKey.from_public_bytes(pub_bytes)
         sig = _b64.b64decode(signature_b64)
