@@ -1,46 +1,59 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
+const ALL_COLOR  = '#30D158';
+const PRO_COLOR  = '#BF5AF2';
+
 const methods = [
   {
     name: 'client.filter(content)',
     returns: 'FilterResponse',
     desc: 'Run content through the full 9-layer pipeline. Returns blocked, risk_level, flags, secrets_found, processing_ms.',
     tier: 'All',
+    tierColor: ALL_COLOR,
+    tierStyle: `background:${ALL_COLOR}18;color:${ALL_COLOR};border-color:${ALL_COLOR}40`,
   },
   {
     name: 'client.chat.completions.create(messages)',
     returns: 'dict (OpenAI-compatible)',
     desc: 'Proxy to any LLM through Shadow Warden. Every message is filtered before it reaches the model.',
     tier: 'All',
+    tierColor: ALL_COLOR,
+    tierStyle: `background:${ALL_COLOR}18;color:${ALL_COLOR};border-color:${ALL_COLOR}40`,
   },
   {
     name: 'client.agent(query)',
     returns: 'AgentResponse',
     desc: 'Query SOVA — the autonomous security agent. Multi-turn memory via session_id (6 h TTL).',
     tier: 'Pro+',
+    tierColor: PRO_COLOR,
+    tierStyle: `background:${PRO_COLOR}18;color:${PRO_COLOR};border-color:${PRO_COLOR}40`,
   },
   {
     name: 'client.marketplace.listings()',
     returns: 'list[MarketplaceListing]',
     desc: 'Browse M2M marketplace listings. Filter by community_id, asset_type, status.',
     tier: 'Pro+',
+    tierColor: PRO_COLOR,
+    tierStyle: `background:${PRO_COLOR}18;color:${PRO_COLOR};border-color:${PRO_COLOR}40`,
   },
   {
     name: 'client.marketplace.stats()',
     returns: 'dict',
     desc: 'Aggregate marketplace stats: volume, trade count, active listings, escrow pipeline.',
     tier: 'Pro+',
+    tierColor: PRO_COLOR,
+    tierStyle: `background:${PRO_COLOR}18;color:${PRO_COLOR};border-color:${PRO_COLOR}40`,
   },
   {
     name: 'client.health()',
     returns: 'dict',
     desc: 'Check gateway health, version, and pipeline readiness.',
     tier: 'All',
+    tierColor: ALL_COLOR,
+    tierStyle: `background:${ALL_COLOR}18;color:${ALL_COLOR};border-color:${ALL_COLOR}40`,
   },
 ];
-
-const tierColor: Record<string, string> = { 'All': '#30D158', 'Pro+': '#BF5AF2' };
 ---
 
 <Layout
@@ -127,7 +140,7 @@ result = client.filter(
 
 <span style="color:#8b949e"># OpenAI-compatible chat — filtered end-to-end</span>
 response = client.chat.completions.create(
-    messages=[{<span style="color:#a5d6ff">"role"</span>: <span style="color:#a5d6ff">"user"</span>, <span style="color:#a5d6ff">"content"</span>: <span style="color:#a5d6ff">"Hello"</span>}],
+    messages=[&#123;<span style="color:#a5d6ff">"role"</span>: <span style="color:#a5d6ff">"user"</span>, <span style="color:#a5d6ff">"content"</span>: <span style="color:#a5d6ff">"Hello"</span>&#125;],
     model=<span style="color:#a5d6ff">"gpt-4o"</span>,
 )
 
@@ -141,24 +154,24 @@ reply = client.agent(<span style="color:#a5d6ff">"What is our current threat lev
           <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06]">
             <span class="text-[11px] font-bold text-[#0A84FF]">TypeScript</span>
           </div>
-          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">import</span> { WardenClient } <span style="color:#79c0ff">from</span> <span style="color:#a5d6ff">"@shadow-warden/sdk"</span>
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">import</span> &#123; WardenClient &#125; <span style="color:#79c0ff">from</span> <span style="color:#a5d6ff">"@shadow-warden/sdk"</span>
 
-<span style="color:#79c0ff">const</span> client = <span style="color:#79c0ff">new</span> <span style="color:#d2a8ff">WardenClient</span>({
+<span style="color:#79c0ff">const</span> client = <span style="color:#79c0ff">new</span> <span style="color:#d2a8ff">WardenClient</span>(&#123;
   apiKey: <span style="color:#a5d6ff">"sk-..."</span>,
-})
+&#125;)
 
 <span style="color:#8b949e">// Filter a prompt</span>
 <span style="color:#79c0ff">const</span> result = <span style="color:#79c0ff">await</span> client.filter(
   <span style="color:#a5d6ff">"Ignore previous instructions..."</span>,
-  { raiseOnBlocked: <span style="color:#79c0ff">true</span> },
+  &#123; raiseOnBlocked: <span style="color:#79c0ff">true</span> &#125;,
 )
 console.log(result.riskLevel)  <span style="color:#8b949e">// "HIGH"</span>
 
 <span style="color:#8b949e">// OpenAI-compatible — fully filtered</span>
-<span style="color:#79c0ff">const</span> chat = <span style="color:#79c0ff">await</span> client.chat.completions.create({
+<span style="color:#79c0ff">const</span> chat = <span style="color:#79c0ff">await</span> client.chat.completions.create(&#123;
   model: <span style="color:#a5d6ff">"gpt-4o"</span>,
-  messages: [{ role: <span style="color:#a5d6ff">"user"</span>, content: <span style="color:#a5d6ff">"Hello"</span> }],
-})
+  messages: [&#123; role: <span style="color:#a5d6ff">"user"</span>, content: <span style="color:#a5d6ff">"Hello"</span> &#125;],
+&#125;)
 
 <span style="color:#8b949e">// SOVA agent</span>
 <span style="color:#79c0ff">const</span> reply = <span style="color:#79c0ff">await</span> client.agent(<span style="color:#a5d6ff">"Threat summary"</span>)
@@ -216,7 +229,7 @@ asyncio.run(main())</pre>
                 <td class="px-4 py-3.5 text-[#8E8E9E] leading-snug hidden md:table-cell">{m.desc}</td>
                 <td class="px-4 py-3.5">
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-                    style={`background:${tierColor[m.tier]}18;color:${tierColor[m.tier]};border-color:${tierColor[m.tier]}40`}>
+                    style={m.tierStyle}>
                     {m.tier}
                   </span>
                 </td>
