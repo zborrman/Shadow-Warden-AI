@@ -7,7 +7,7 @@ Public API
   WardenAsyncSpanProcessor  — async OTel span processor (asyncio tasks)
   get_sdk_stats             — aggregate stats across all active processors
 
-Version: 1.0.0  (IN-21 / Shadow Warden AI v5.2)
+Version: 1.0.0  (IN-21 / Shadow Warden AI v5.6)
 """
 from warden.sdk.otel import (
     WardenAsyncSpanProcessor,

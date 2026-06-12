@@ -5,7 +5,7 @@ Four tabs:
   1. Threat Radar          — OSV dependency CVE scanner + ArXiv AI threat feed
   2. Intel Bridge          — Auto-Evolution sync status + manual trigger
   3. Causal Arbiter        — Interactive Bayesian DAG probability visualizer
-  4. Enterprise Guide      — Integration & Development Guide v5.1 (PDF download)
+  4. Enterprise Guide      — Integration & Development Guide v5.6 (PDF download)
 
 Run with the main dashboard:
     streamlit run warden/analytics/dashboard.py
@@ -431,7 +431,7 @@ Threshold: 65% → {"BLOCK ✗" if result.is_high_risk else "ALLOW ✓"}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — ENTERPRISE INTEGRATION & DEPLOYMENT GUIDE v5.1
+# TAB 4 — ENTERPRISE INTEGRATION & DEPLOYMENT GUIDE v5.6
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_guide:
@@ -544,11 +544,11 @@ with tab_guide:
         # Cover
         sp(20)
         p("<b>Shadow Warden AI</b>", h1)
-        p("Enterprise Integration &amp; Deployment Guide — v5.1", h2)
+        p("Enterprise Integration &amp; Deployment Guide — v5.6", h2)
         p(f"Generated: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}")
         sp(6)
         rule()
-        p("This document covers all 14 integration areas of Shadow Warden AI v5.1, "
+        p("This document covers all 14 integration areas of Shadow Warden AI v5.6, "
           "from quick-start through post-quantum cryptography and SMB governance.")
         sp(8)
 
@@ -754,7 +754,7 @@ with tab_guide:
         sp(6)
 
         rule()
-        p("<i>Shadow Warden AI v5.1 — Enterprise Integration &amp; Deployment Guide. "
+        p("<i>Shadow Warden AI v5.6 — Enterprise Integration &amp; Deployment Guide. "
           "Proprietary and confidential. All rights reserved.</i>")
 
         doc.build(story)
@@ -763,7 +763,7 @@ with tab_guide:
     col_hdr, col_dl = st.columns([3, 1])
     with col_hdr:
         st.markdown(
-            '<p class="section-title">Enterprise Integration & Development Guide — v5.1</p>',
+            '<p class="section-title">Enterprise Integration & Development Guide — v5.6</p>',
             unsafe_allow_html=True,
         )
     with col_dl:
@@ -773,7 +773,7 @@ with tab_guide:
                 st.download_button(
                     label="⬇ Download PDF",
                     data=pdf_bytes,
-                    file_name="shadow-warden-enterprise-guide-v5.1.pdf",
+                    file_name="shadow-warden-enterprise-guide-v5.6.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                     type="primary",

@@ -4,9 +4,20 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 5.5 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 5.6 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md)
+
+---
+
+## What's New in v5.6
+
+| Feature | Description |
+|---------|-------------|
+| **Community M2M Agentic Marketplace (Phases 1-3)** | Agent DID registration (`did:shadow:{32 base62}`), asset tokenization (rules/models/signals with ReDoS gate + UECIID provenance), escrow flow (funded→delivered→confirmed), full marketplace commerce API with multi-agent auctions. 9 analytics endpoints, Streamlit `13_Marketplace_Analytics.py`, SOC Dashboard `/marketplace/` page with Recharts charts. |
+| **Community Event Notifications** | Real-time email, Slack, and Microsoft Teams notifications for all community events: member joins, transfers, peering changes, compliance events, incident escalations. Configurable per-community, per-event-type subscription model. |
+| **Deploy & Infrastructure Monitoring** | `GET /deploy/status` probes all 11 Docker services concurrently (proxy, warden, app, analytics, dashboard, postgres, redis, prometheus, grafana, minio, minio-init) with latency. SOC Dashboard `/platform/status` page auto-refreshes every 30s. Portal `/deployment/` infrastructure view with quick-links to Grafana, Jaeger, MinIO, and Prometheus. |
+| **Public SDK & Developer Reference** | `site/src/pages/sdk.astro` — syntax-highlighted Python and TypeScript SDK installation and usage docs. OTel span processor, streaming proxy, LangChain callback, and agent monitor covered with live code examples. Portal `/sdk/` page. |
 
 ---
 
@@ -26,7 +37,7 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 
 ---
 
-## Product Tiers — v5.5
+## Product Tiers — v5.6
 
 | Tier | Price | Requests/mo | Key Features |
 |------|-------|-------------|--------------|

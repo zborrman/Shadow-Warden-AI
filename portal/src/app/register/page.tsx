@@ -248,7 +248,7 @@ export default function RegisterPage() {
           </p>
 
           <p className="text-center text-[10px] mt-8" style={{ color: '#1e293b' }}>
-            Shadow Warden AI v5.2 · All systems operational
+            Shadow Warden AI v5.6 · All systems operational
           </p>
         </div>
       </div>

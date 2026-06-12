@@ -141,7 +141,7 @@ export function Sidebar() {
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-[13px] font-bold" style={{ color: isDark ? '#ffffff' : '#0f172a' }}>Shadow Warden</span>
-            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v5.2 · LIVE</span>
+            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v5.6 · LIVE</span>
           </div>
         </Link>
       </div>

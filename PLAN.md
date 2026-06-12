@@ -439,6 +439,19 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
+### Block AC — v5.6 (✅ Complete)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| AC-01 | Community M2M Agentic Marketplace Phases 1-3: agent DID registration, asset tokenization (rule/model/signals), escrow flow, multi-agent auctions | ✅ |
+| AC-02 | Marketplace analytics: 3 endpoints (`/analytics/summary`, `/analytics/volume`, `/analytics/agents`), Streamlit `13_Marketplace_Analytics.py`, SOC Dashboard `/marketplace/` page | ✅ |
+| AC-03 | Community Event Notifications: email/Slack/Teams real-time event delivery for member joins, transfers, peering changes, incidents | ✅ |
+| AC-04 | Deploy & Infrastructure Monitoring: `GET /deploy/status` concurrent health probe for 11 services, SOC `/platform/status` 30s auto-refresh, Portal `/deployment/` view | ✅ |
+| AC-05 | Public SDK & Developer Reference: `site/src/pages/sdk.astro` syntax-highlighted Python/TypeScript docs, Portal `/sdk/` page | ✅ |
+| AC-06 | v5.6 version bump across all site/dashboard/portal/server files | ✅ |
+
+---
+
 ### Block AB — Real-time Compliance Dashboard v5.5 (✅ Complete)
 
 | ID | Feature | Status |

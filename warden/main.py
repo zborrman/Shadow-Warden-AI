@@ -926,7 +926,7 @@ app = FastAPI(
         "**Rate limiting:** Per-tenant sliding window (default 60 req/min). "
         "Shadow-ban at ERS score ≥ 0.75."
     ),
-    version="5.3.0",
+    version="5.6.0",
     contact={"name": "Shadow Warden AI", "url": "https://shadow-warden-ai.com", "email": "security@shadow-warden-ai.com"},
     license_info={"name": "Proprietary", "url": "https://shadow-warden-ai.com/terms"},
     openapi_tags=[
@@ -1495,6 +1495,13 @@ try:
     log.info("Deploy health endpoint mounted at /deploy/status")
 except ImportError:
     log.warning("deploy_health router not available — /deploy routes skipped.")
+
+try:
+    from warden.api.action_whitelist import router as _action_whitelist_router
+    app.include_router(_action_whitelist_router)
+    log.info("Agent Action Whitelist mounted at /admin/agents")
+except ImportError:
+    log.warning("action_whitelist router not available — /admin/agents routes skipped.")
 
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────

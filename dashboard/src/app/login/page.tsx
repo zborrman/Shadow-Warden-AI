@@ -300,7 +300,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold"
                style={{ color:"#10b981", background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.2)" }}>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            v5.2 · Production
+            v5.6 · Production
           </div>
           <p className="text-[11px]" style={{ color: T.subtle }}>99.95% SLA · SOC 2 Type II</p>
         </div>
@@ -317,7 +317,7 @@ export default function LoginPage() {
                style={{ width:32, height:32, borderRadius:8, objectFit:"contain" }} />
           <div>
             <div className="text-white font-bold text-[13px] leading-none">Shadow Warden AI</div>
-            <div className="text-[9px] font-semibold tracking-widest" style={{ color:"#6366f1" }}>v5.2</div>
+            <div className="text-[9px] font-semibold tracking-widest" style={{ color:"#6366f1" }}>v5.6</div>
           </div>
         </div>
 
@@ -720,7 +720,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-[11px] mt-10" style={{ color: T.subtle }}>
-          Shadow Warden AI v5.2 · SOC Operations Centre
+          Shadow Warden AI v5.6 · SOC Operations Centre
         </p>
       </div>
     </div>
