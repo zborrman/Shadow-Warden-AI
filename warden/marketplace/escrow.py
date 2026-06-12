@@ -309,18 +309,22 @@ class EscrowService:
         self, buyer: str, seller: str, listing_id: str, nonce: str
     ) -> str:
         try:
-            from warden.blockchain.chain_connector import ChainConnector
-            cc = ChainConnector()
+            from typing import Any  # noqa: PLC0415
+
+            from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
+            cc: Any = ChainConnector()
             if cc.is_connected():
-                return cc.deploy_escrow(buyer, seller)
+                return cc.deploy_escrow(buyer, seller)  # type: ignore[no-any-return]
         except Exception:
             pass
         return _sim_contract_address(buyer, seller, listing_id, nonce)
 
     def _call_contract(self, contract_address: str, fn_name: str, params: dict) -> None:
         try:
-            from warden.blockchain.chain_connector import ChainConnector
-            cc = ChainConnector()
+            from typing import Any  # noqa: PLC0415
+
+            from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
+            cc: Any = ChainConnector()
             if cc.is_connected():
                 cc.call(contract_address, fn_name, params)
         except Exception:

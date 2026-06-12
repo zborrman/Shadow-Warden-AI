@@ -386,7 +386,7 @@ with tabs[3]:
         if uploaded_file and st.button("Upload →", key="upload_btn"):
             with st.spinner("Uploading…"):
                 try:
-                    r = httpx.post(
+                    _resp_up = httpx.post(
                         f"{BASE}/communities/{sel_cid4}/data/upload",
                         files={
                             "file": (
@@ -400,12 +400,12 @@ with tabs[3]:
                         headers=HEADERS,
                         timeout=30.0,
                     )
-                    if r.status_code == 201:
+                    if _resp_up.status_code == 201:
                         st_toast(f"Uploaded: {uploaded_file.name}", "📁")
                         time.sleep(0.5)
                         st.rerun()
                     else:
-                        st.error(f"Upload failed ({r.status_code}): {r.text[:200]}")
+                        st.error(f"Upload failed ({_resp_up.status_code}): {_resp_up.text[:200]}")
                 except Exception as exc:
                     st.error(f"Upload error: {exc}")
 
@@ -433,7 +433,7 @@ with tabs[4]:
                 "Compliance Score",
                 f"{score:.0%}",
                 delta=status,
-                delta_color=sc_color.get(status, "off"),
+                delta_color=sc_color.get(status, "off"),  # type: ignore[arg-type]
             )
 
             st.markdown("### Controls")
@@ -447,14 +447,14 @@ with tabs[4]:
                     st.warning(f"**{g['control']}**: {g['detail']}")
 
             if st.button("📄 Export HTML Report"):
-                r = httpx.post(
+                _resp = httpx.post(
                     f"{BASE}/communities/{sel_cid5}/compliance/export",
                     headers=HEADERS, timeout=10.0,
                 )
-                if r.status_code == 200:
+                if _resp.status_code == 200:
                     st.download_button(
                         "Download Report",
-                        data=r.text,
+                        data=_resp.text,
                         file_name=f"compliance-{sel_cid5[:8]}.html",
                         mime="text/html",
                     )

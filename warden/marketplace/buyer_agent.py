@@ -188,6 +188,6 @@ class BuyerAgent:
         try:
             from warden.business_community.agentic_commerce.semantic_budget import check_budget
             result = check_budget(tenant_id or "default", amount)
-            return result.get("status") != "block"
+            return result.allowed
         except Exception:
             return True

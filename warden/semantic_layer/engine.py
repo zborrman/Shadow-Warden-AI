@@ -56,7 +56,7 @@ def _redis_get(key: str) -> QueryResult | None:
             return None
         r = _r.from_url(url, decode_responses=True, socket_connect_timeout=1)
         raw = r.get(key)
-        if raw:
+        if raw and isinstance(raw, str):
             from warden.semantic_layer.models import QueryResult
             return QueryResult(**json.loads(raw))
     except Exception:

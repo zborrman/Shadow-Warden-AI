@@ -281,7 +281,7 @@ async def invite_member_endpoint(
             "role":         member.role,
             "clearance":    member.clearance.value if hasattr(member.clearance, "value") else str(member.clearance),
         },
-        community_name = community.name if community else "",
+        community_name = community.display_name if community else "",
     )
     return MemberResponse.from_record(member)
 

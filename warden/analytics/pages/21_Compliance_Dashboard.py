@@ -53,9 +53,8 @@ def _fetch(tenant_id: str) -> dict | None:
 @st.cache_data(ttl=30, show_spinner=False)
 def _fetch_report(tenant_id: str) -> dict | None:
     try:
-        r = requests.get(
+        r = requests.post(
             f"{WARDEN_URL}/compliance/posture/recalculate",
-            method="POST",
         )
         if not r.ok:
             r = requests.get(

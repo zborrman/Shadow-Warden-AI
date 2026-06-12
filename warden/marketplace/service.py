@@ -102,9 +102,11 @@ def register_asset(
     community_id = agent.community_id
 
     if asset_type == "rule":
-        container = tokenizer.tokenize_rule(raw_data, keypair, seller_agent_id, community_id)
+        rule_data = raw_data if isinstance(raw_data, dict) else {}
+        container = tokenizer.tokenize_rule(rule_data, keypair, seller_agent_id, community_id)
     elif asset_type == "model":
-        container = tokenizer.tokenize_model(raw_data, keypair, seller_agent_id, community_id)
+        model_data = raw_data if isinstance(raw_data, dict) else {}
+        container = tokenizer.tokenize_model(model_data, keypair, seller_agent_id, community_id)
     else:  # signals
         signals = raw_data if isinstance(raw_data, list) else [raw_data]
         container = tokenizer.tokenize_signals(signals, keypair, seller_agent_id, community_id)

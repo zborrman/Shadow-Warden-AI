@@ -36,7 +36,7 @@ with tab_catalog:
     with col_cat:
         cat_filter = st.text_input("Category filter")
 
-    params = {"q": q, "category": cat_filter, "in_stock_only": False}
+    params: dict[str, str] = {"q": q, "category": cat_filter, "in_stock_only": "false"}
     try:
         r = requests.get(f"{_BASE}/m2m-store/catalog", headers=_HDRS, params=params, timeout=5)
         products = r.json() if r.status_code == 200 else []
@@ -107,7 +107,7 @@ with tab_orders:
     try:
         r = requests.get(
             f"{_BASE}/m2m-store/orders/history",
-            headers=_HDRS, params={"agent_id": agent_id_filter, "limit": 50}, timeout=5,
+            headers=_HDRS, params={"agent_id": agent_id_filter, "limit": "50"}, timeout=5,
         )
         orders = r.json() if r.status_code == 200 else []
     except Exception:

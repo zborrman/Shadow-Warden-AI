@@ -334,8 +334,8 @@ def ingest_marketplace_signals(signals: list[dict], tenant_id: str = "") -> int:
     # Persist to Redis for future sessions (fail-open)
     if tenant_id:
         try:
-            from warden.cache import _get_redis  # noqa: PLC0415
-            r = _get_redis()
+            from warden.cache import _get_client  # noqa: PLC0415
+            r = _get_client()
             if r:
                 key  = f"marketplace:signals:{tenant_id}"
                 pipe = r.pipeline()
