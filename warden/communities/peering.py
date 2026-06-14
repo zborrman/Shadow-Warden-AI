@@ -560,6 +560,12 @@ def transfer_entity(
     except Exception as _ne:
         log.debug("transfer notification skipped: %s", _ne)
 
+    try:
+        from warden.metrics import COMMUNITY_SEP_TRANSFERS_TOTAL  # noqa: PLC0415
+        COMMUNITY_SEP_TRANSFERS_TOTAL.labels(status=status).inc()
+    except Exception:
+        pass
+
     return TransferRecord(
         transfer_id         = transfer_id,
         peering_id          = peering_id,

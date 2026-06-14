@@ -1,0 +1,52 @@
+{
+  "name": "@shadow-warden/sdk",
+  "version": "1.0.0",
+  "description": "Official Node.js / TypeScript SDK for Shadow Warden AI",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "generate": "openapi-typescript-codegen --input ../../openapi.json --output ./src/generated --client fetch",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "shadow-warden",
+    "ai-security",
+    "jailbreak",
+    "compliance",
+    "marketplace"
+  ],
+  "author": "Shadow Warden AI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shadow-warden-ai/shadow-warden-sdk-node.git"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "openapi-typescript-codegen": "^0.27.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

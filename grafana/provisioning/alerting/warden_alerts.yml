@@ -548,3 +548,220 @@ groups:
             File a ticket and investigate during business hours.
             Runbook: docs.shadow-warden-ai.com/guides/slo-burn-runbook
             Dashboard: http://localhost:3000/d/warden-overview
+
+  - orgId: 1
+    name: warden_domain
+    folder: Shadow Warden
+    interval: 1m
+    rules:
+
+      # ── 1. Marketplace — Escrow Stuck ─────────────────────────────────────────
+      - uid: warden-marketplace-escrow-stuck
+        title: "Warden — Marketplace escrow count stuck (> 50 for 30 min)"
+        condition: B
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "warden_marketplace_escrow_active"
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 50"
+
+        noDataState: OK
+        execErrState: OK
+        for: 30m
+        labels:
+          severity: critical
+          team: warden
+          category: marketplace
+        annotations:
+          summary: "Marketplace escrow queue stuck above 50 active escrows"
+          description: >
+            The number of active escrows has exceeded 50 for 30 consecutive
+            minutes. Indicates a processing backlog or settlement bug.
+            Dashboard: http://localhost:3000/d/sw-marketplace
+
+      # ── 2. Compliance — Score Drop ────────────────────────────────────────────
+      - uid: warden-compliance-score-drop
+        title: "Warden — Overall compliance score dropped below 70"
+        condition: B
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "min(warden_compliance_overall_score)"
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A < 70"
+
+        noDataState: OK
+        execErrState: OK
+        for: 10m
+        labels:
+          severity: warning
+          team: warden
+          category: compliance
+        annotations:
+          summary: "Compliance posture score dropped below 70%"
+          description: >
+            Overall compliance score is below 70 for 10 minutes. Review the
+            Compliance dashboard and remediate HIGH-severity gaps.
+            Dashboard: http://localhost:3000/d/sw-compliance
+
+      # ── 3. Compliance — Critical Gap Spike ───────────────────────────────────
+      - uid: warden-compliance-gap-critical
+        title: "Warden — More than 5 compliance gaps open"
+        condition: B
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "max(warden_compliance_gaps_open)"
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 5"
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        labels:
+          severity: critical
+          team: warden
+          category: compliance
+        annotations:
+          summary: "More than 5 compliance gaps are open"
+          description: >
+            Total open compliance gaps exceeds 5. May indicate a regression or
+            a deployment that has not been validated against governance rules.
+            Dashboard: http://localhost:3000/d/sw-compliance
+
+      # ── 4. Community — Peering Down ───────────────────────────────────────────
+      - uid: warden-community-peer-down
+        title: "Warden — All community peerings lost"
+        condition: B
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "warden_community_peering_connections"
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A == 0"
+
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        labels:
+          severity: critical
+          team: warden
+          category: community
+        annotations:
+          summary: "All community peering connections have dropped to zero"
+          description: >
+            No active inter-community peering connections detected. SEP entity
+            transfers will fail. Check the peering registry and MASQUE tunnels.
+            Dashboard: http://localhost:3000/d/sw-community
+
+      # ── 5. Community — No SEP Transfers ──────────────────────────────────────
+      - uid: warden-community-sep-silent
+        title: "Warden — No SEP transfers in 1 hour"
+        condition: B
+
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "increase(warden_community_sep_transfers_total[1h])"
+              intervalMs: 60000
+              maxDataPoints: 720
+              instant: true
+
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A == 0"
+
+        noDataState: OK
+        execErrState: OK
+        for: 0s
+        labels:
+          severity: warning
+          team: warden
+          category: community
+        annotations:
+          summary: "No SEP entity transfers in the last 1 hour"
+          description: >
+            Zero SEP transfers recorded in the last hour. May indicate a pipeline
+            freeze, peering misconfiguration, or TransferGuard blocking all
+            transfers at the Causal Arbiter stage.
+            Dashboard: http://localhost:3000/d/sw-community

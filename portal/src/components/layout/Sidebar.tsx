@@ -10,7 +10,7 @@ import {
   Key, Lock, Globe, Trash2, CreditCard,
   BookOpen, DollarSign, Building2, AlertTriangle,
   BookMarked, GraduationCap, ShieldAlert, Brain, Package,
-  Sun, Moon, ArrowLeftRight,
+  Sun, Moon, ArrowLeftRight, LayoutDashboard,
 } from 'lucide-react'
 import { logout } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
@@ -34,6 +34,7 @@ const groups: NavGroup[] = [
     icon: '◈',
     items: [
       { href: '/community-hub/',                       label: 'Community Hub',      icon: Users          },
+      { href: '/community-hub/hub',                    label: 'My Hub',              icon: LayoutDashboard},
       { href: '/community-hub/agentic-commerce',       label: 'Agentic Commerce',    icon: ArrowLeftRight },
       { href: '/communities/',                         label: 'Secure Vault',        icon: Database       },
       { href: '/hub/',                                 label: 'SEP Hub',             icon: Network        },

@@ -98,6 +98,11 @@ def add_member(
             (mid, tenant_id, community_id, role, ts, pub_key, dn, "active"),
         )
         db.commit()
+    try:
+        from warden.metrics import COMMUNITY_MEMBERS_TOTAL  # noqa: PLC0415
+        COMMUNITY_MEMBERS_TOTAL.inc()
+    except Exception:
+        pass
     return get_member(community_id, tenant_id)  # type: ignore[return-value]
 
 

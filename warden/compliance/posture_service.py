@@ -398,6 +398,23 @@ class CompliancePostureService:
 
         report = self._compute(tenant_id)
 
+        try:
+            from warden.metrics import (  # noqa: PLC0415
+                COMPLIANCE_CONTROLS_PASSED,
+                COMPLIANCE_FRAMEWORK_SCORE,
+                COMPLIANCE_GAPS_OPEN,
+                COMPLIANCE_OVERALL_SCORE,
+            )
+            all_gaps = [g for f in report.frameworks for g in f.gaps]
+            passed = sum(len(f.gaps) == 0 for f in report.frameworks)
+            COMPLIANCE_OVERALL_SCORE.labels(tenant_id=tenant_id).set(round(report.overall_score, 2))
+            COMPLIANCE_GAPS_OPEN.labels(tenant_id=tenant_id).set(len(all_gaps))
+            COMPLIANCE_CONTROLS_PASSED.labels(tenant_id=tenant_id).set(passed)
+            for fw in report.frameworks:
+                COMPLIANCE_FRAMEWORK_SCORE.labels(tenant_id=tenant_id, framework=fw.framework).set(round(fw.score, 2))
+        except Exception:
+            pass
+
         if r:
             try:
                 # Compare with previous cached score before overwriting

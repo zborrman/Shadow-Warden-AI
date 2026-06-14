@@ -1,15 +1,23 @@
 /**
- * shadow-warden-client
- * ━━━━━━━━━━━━━━━━━━━
+ * @shadow-warden/sdk
+ * ━━━━━━━━━━━━━━━━━
  * TypeScript/JavaScript SDK for the Shadow Warden AI security gateway.
  *
  * @example
  * ```ts
- * import { WardenClient } from "shadow-warden-client";
+ * import { WardenClient } from "@shadow-warden/sdk";
  *
- * const warden = new WardenClient({ gatewayUrl: "http://localhost:8001", apiKey: "sk_..." });
- * const result = await warden.filter("user prompt");
+ * const client = new WardenClient({ apiKey: "sk_...", gatewayUrl: "https://api.shadow-warden-ai.com" });
+ *
+ * // Filter user input before forwarding to an LLM
+ * const result = await client.filter(userPrompt);
  * if (result.allowed) { ... }
+ *
+ * // M2M marketplace
+ * const listings = await client.marketplace.listings.list({ community_id: "c1" });
+ *
+ * // SOVA autonomous agent
+ * const reply = await client.agent("What is our current threat level?");
  * ```
  */
 
@@ -21,14 +29,21 @@ export {
   WardenTimeoutError,
 } from "./errors.js";
 export type {
+  AgentResponse,
   BatchItem,
   BillingStatus,
   FilterOptions,
   FilterResult,
+  MktAgent,
+  MktAgentTrust,
+  MktListing,
+  MktPurchase,
+  MktStats,
+  RetryConfig,
   RiskLevel,
   SecretFinding,
   SemanticFlag,
   WardenClientConfig,
 } from "./types.js";
 
-export const VERSION = "0.5.0";
+export const VERSION = "1.0.0";

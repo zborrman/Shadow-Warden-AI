@@ -27,7 +27,6 @@ Table: marketplace_escrow (shared MARKETPLACE_DB_PATH)
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import sqlite3
@@ -41,6 +40,10 @@ from datetime import UTC, datetime, timedelta
 log = logging.getLogger("warden.marketplace.escrow")
 
 _DB_PATH   = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+
+
+class EscrowDeploymentError(RuntimeError):
+    """Raised when the target blockchain RPC node is unreachable after retries."""
 _db_lock   = threading.RLock()
 _DELIVERY_TIMEOUT_HOURS = int(os.getenv("ESCROW_DELIVERY_TIMEOUT_HOURS", "48"))
 
@@ -60,6 +63,7 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
             status           TEXT NOT NULL DEFAULT 'pending_deposit',
             asset_hash       TEXT NOT NULL DEFAULT '',
             dispute_reason   TEXT NOT NULL DEFAULT '',
+            chain            TEXT NOT NULL DEFAULT 'sepolia',
             created_at       TEXT NOT NULL,
             funded_at        TEXT,
             delivered_at     TEXT,
@@ -69,7 +73,18 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_esc_buyer  ON marketplace_escrow(buyer_agent);
         CREATE INDEX IF NOT EXISTS idx_esc_seller ON marketplace_escrow(seller_agent);
         CREATE INDEX IF NOT EXISTS idx_esc_listing ON marketplace_escrow(listing_id);
+        CREATE INDEX IF NOT EXISTS idx_esc_chain  ON marketplace_escrow(chain);
     """)
+
+
+def _migrate_chain_column(con: sqlite3.Connection) -> None:
+    """Add chain column to existing escrow tables that predate cross-chain support."""
+    try:
+        con.execute(
+            "ALTER TABLE marketplace_escrow ADD COLUMN chain TEXT NOT NULL DEFAULT 'sepolia'"
+        )
+    except Exception:
+        pass  # already exists
 
 
 @contextmanager
@@ -78,6 +93,7 @@ def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     _ensure_schema(con)
+    _migrate_chain_column(con)
     try:
         yield con
         con.commit()
@@ -99,6 +115,7 @@ class Escrow:
     status:           str
     asset_hash:       str
     dispute_reason:   str
+    chain:            str
     created_at:       str
     funded_at:        str | None
     delivered_at:     str | None
@@ -117,6 +134,7 @@ class Escrow:
 
 
 def _row_to_escrow(row: sqlite3.Row) -> Escrow:
+    keys = row.keys()
     return Escrow(
         escrow_id=row["escrow_id"],
         purchase_id=row["purchase_id"],
@@ -128,6 +146,7 @@ def _row_to_escrow(row: sqlite3.Row) -> Escrow:
         status=row["status"],
         asset_hash=row["asset_hash"],
         dispute_reason=row["dispute_reason"],
+        chain=row["chain"] if "chain" in keys else "sepolia",
         created_at=row["created_at"],
         funded_at=row["funded_at"],
         delivered_at=row["delivered_at"],
@@ -136,11 +155,6 @@ def _row_to_escrow(row: sqlite3.Row) -> Escrow:
     )
 
 
-# ── Simulated contract address ────────────────────────────────────────────────
-
-def _sim_contract_address(buyer: str, seller: str, listing_id: str, nonce: str) -> str:
-    raw = f"{buyer}:{seller}:{listing_id}:{nonce}".encode()
-    return "0x" + hashlib.sha256(raw).hexdigest()[:40]
 
 
 # ── EscrowService ─────────────────────────────────────────────────────────────
@@ -161,12 +175,15 @@ class EscrowService:
         seller_agent_id: str,
         amount_usd: float,
         purchase_id: str = "",
+        chain: str = "sepolia",
         db_path: str = _DB_PATH,
     ) -> Escrow:
         escrow_id = f"ESC-{uuid.uuid4().hex[:12].upper()}"
         now       = datetime.now(UTC).isoformat()
         expires   = (datetime.now(UTC) + timedelta(hours=_DELIVERY_TIMEOUT_HOURS)).isoformat()
-        contract  = self._deploy_contract(buyer_agent_id, seller_agent_id, listing_id, escrow_id)
+        contract  = self._deploy_contract(
+            buyer_agent_id, seller_agent_id, listing_id, escrow_id, chain
+        )
 
         escrow = Escrow(
             escrow_id=escrow_id,
@@ -179,6 +196,7 @@ class EscrowService:
             status="pending_deposit",
             asset_hash="",
             dispute_reason="",
+            chain=chain,
             created_at=now,
             funded_at=None,
             delivered_at=None,
@@ -190,17 +208,18 @@ class EscrowService:
                 """INSERT INTO marketplace_escrow
                    (escrow_id, purchase_id, listing_id, buyer_agent, seller_agent,
                     amount_usd, contract_address, status, asset_hash, dispute_reason,
-                    created_at, funded_at, delivered_at, confirmed_at, expires_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    chain, created_at, funded_at, delivered_at, confirmed_at, expires_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     escrow.escrow_id, escrow.purchase_id, escrow.listing_id,
                     escrow.buyer_agent, escrow.seller_agent, escrow.amount_usd,
                     escrow.contract_address, escrow.status, escrow.asset_hash,
-                    escrow.dispute_reason, escrow.created_at, escrow.funded_at,
-                    escrow.delivered_at, escrow.confirmed_at, escrow.expires_at,
+                    escrow.dispute_reason, escrow.chain, escrow.created_at,
+                    escrow.funded_at, escrow.delivered_at, escrow.confirmed_at,
+                    escrow.expires_at,
                 ),
             )
-        log.info("Escrow created: %s contract=%s", escrow_id, contract)
+        log.info("Escrow created: %s contract=%s chain=%s", escrow_id, contract, chain)
         return escrow
 
     def fund_escrow(self, escrow_id: str, db_path: str = _DB_PATH) -> bool:
@@ -268,17 +287,47 @@ class EscrowService:
                 "UPDATE marketplace_escrow SET status='disputed', dispute_reason=? WHERE escrow_id=?",
                 (reason, escrow_id),
             )
+        # When DAO is enabled, auto-create a dispute_resolution proposal.
+        try:
+            from warden.marketplace.governance import GovernanceService, _DAO_ENABLED  # noqa: PLC0415
+            if _DAO_ENABLED:
+                GovernanceService().create_proposal(
+                    community_id=esc.listing_id,
+                    proposer_id=esc.buyer_agent,
+                    proposal_type="dispute_resolution",
+                    target_id=escrow_id,
+                    title=f"Dispute: {escrow_id}",
+                    description=reason[:200],
+                    db_path=db_path,
+                )
+        except Exception as exc:
+            log.warning("DAO auto-proposal failed for escrow %s: %s", escrow_id, exc)
         return True
 
     def resolve_dispute(
         self,
         escrow_id: str,
         release_to_buyer: bool,
+        bypass_dao_check: bool = False,
         db_path: str = _DB_PATH,
     ) -> bool:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "disputed":
             return False
+        # Block direct resolution when an active DAO proposal exists (unless caller is the DAO).
+        if not bypass_dao_check:
+            try:
+                from warden.marketplace.governance import GovernanceService, _DAO_ENABLED  # noqa: PLC0415
+                if _DAO_ENABLED:
+                    prop = GovernanceService().check_active_proposal_for_escrow(escrow_id, db_path)
+                    if prop is not None:
+                        log.warning(
+                            "resolve_dispute blocked: active DAO proposal %s exists for escrow %s",
+                            prop.proposal_id, escrow_id,
+                        )
+                        return False
+            except Exception as exc:
+                log.warning("DAO check failed: %s", exc)
         verdict = "resolved_buyer" if release_to_buyer else "resolved_seller"
         self._call_contract(
             esc.contract_address, "resolveDispute", {"releaseToBuyer": release_to_buyer}
@@ -341,24 +390,100 @@ class EscrowService:
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
+    def _check_rpc_with_retry(self, chain: str, max_retries: int = 3) -> bool:
+        """
+        Check that the RPC node for *chain* is reachable.
+
+        Retries up to max_retries times with exponential back-off (2, 4, 8 s).
+        Returns True if connected, False if no RPC URL is configured (simulation
+        mode — caller should proceed without raising).
+        Raises EscrowDeploymentError after all retries if RPC is configured but
+        unreachable.
+        """
+        import time as _time  # noqa: PLC0415
+
+        try:
+            from warden.web3.chains import get_chain  # noqa: PLC0415
+            cfg = get_chain(chain)
+        except Exception:
+            return False  # unknown chain → simulation mode
+
+        rpc_url = cfg.get("rpc_url", "")
+        if not rpc_url:
+            return False  # no RPC configured → simulation mode (fail-open)
+
+        delays = [2 ** i for i in range(max_retries)]  # 2, 4, 8 seconds
+        last_error: str = ""
+        for attempt, delay in enumerate(delays, start=1):
+            try:
+                from web3 import Web3  # noqa: PLC0415
+                w3 = Web3(Web3.HTTPProvider(rpc_url))
+                if w3.is_connected():
+                    try:
+                        from warden.metrics import ESCROW_RPC_CHECK_TOTAL
+                        ESCROW_RPC_CHECK_TOTAL.labels(chain=chain, status="ok").inc()
+                    except Exception:
+                        pass
+                    log.debug("_check_rpc_with_retry: connected to %s on attempt %d", chain, attempt)
+                    return True
+                last_error = "is_connected() returned False"
+            except ImportError:
+                return False  # web3 not installed → simulation mode
+            except Exception as exc:
+                last_error = str(exc)
+            log.warning("RPC check for %s attempt %d/%d failed: %s — retrying in %ds",
+                        chain, attempt, max_retries, last_error, delay)
+            _time.sleep(delay)
+
+        # All retries exhausted
+        try:
+            from warden.metrics import ESCROW_RPC_CHECK_TOTAL
+            ESCROW_RPC_CHECK_TOTAL.labels(chain=chain, status="fail").inc()
+        except Exception:
+            pass
+        raise EscrowDeploymentError(
+            f"Blockchain network '{chain}' is not reachable after {max_retries} retries. "
+            f"Last error: {last_error}"
+        )
+
     def _deploy_contract(
-        self, buyer: str, seller: str, listing_id: str, nonce: str
+        self, buyer: str, seller: str, listing_id: str, nonce: str, chain: str = "sepolia"
     ) -> str:
+        # Validate RPC connectivity before attempting deployment.
+        # Returns False when no RPC is configured (simulation mode) — proceed.
+        # Raises EscrowDeploymentError when RPC is configured but unreachable.
+        self._check_rpc_with_retry(chain)
+
+        try:
+            from warden.web3.smart_contract import deploy_escrow  # noqa: PLC0415
+            return deploy_escrow(buyer, seller, listing_id, nonce, chain)
+        except EscrowDeploymentError:
+            raise
+        except Exception as exc:
+            log.debug("deploy_escrow failed, using legacy sim: %s", exc)
+        # Legacy fallback — ChainConnector without chain awareness
         try:
             from typing import Any  # noqa: PLC0415
-
             from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
             cc: Any = ChainConnector()
             if cc.is_connected():
                 return cc.deploy_escrow(buyer, seller)  # type: ignore[no-any-return]
         except Exception:
             pass
-        return _sim_contract_address(buyer, seller, listing_id, nonce)
+        import hashlib  # noqa: PLC0415
+        raw = f"{buyer}:{seller}:{listing_id}:{nonce}:{chain}".encode()
+        return "0x" + hashlib.sha256(raw).hexdigest()[:40] + f":{chain}"
 
     def _call_contract(self, contract_address: str, fn_name: str, params: dict) -> None:
         try:
+            from warden.web3.smart_contract import call_escrow, strip_chain_suffix  # noqa: PLC0415
+            addr, chain = strip_chain_suffix(contract_address)
+            call_escrow(addr, fn_name, params, chain)
+            return
+        except Exception as exc:
+            log.debug("call_escrow (web3) failed: %s", exc)
+        try:
             from typing import Any  # noqa: PLC0415
-
             from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
             cc: Any = ChainConnector()
             if cc.is_connected():

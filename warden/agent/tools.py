@@ -1250,6 +1250,38 @@ async def remediate_gap(
     }
 
 
+async def start_onboarding(tenant_id: str = "default", **_) -> dict:
+    """Tool #53 — Start a 5-step AI-assisted onboarding session for a new tenant."""
+    try:
+        from warden.integrations.onboarding import OnboardingWizard
+        return OnboardingWizard().start_onboarding(tenant_id)
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+async def onboarding_status(onboarding_id: str, **_) -> dict:
+    """Tool #54 — Get the current progress of an onboarding session."""
+    try:
+        from warden.integrations.onboarding import OnboardingWizard
+        return OnboardingWizard().get_status(onboarding_id)
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+async def continue_onboarding(
+    onboarding_id: str,
+    step:          str,
+    params:        dict | None = None,
+    **_,
+) -> dict:
+    """Tool #55 — Execute a specific onboarding step with the provided parameters."""
+    try:
+        from warden.integrations.onboarding import OnboardingWizard
+        return OnboardingWizard().execute_step(onboarding_id, step, params or {})
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 async def scan_document(
     file_base64: str,
     filename:    str = "upload.bin",
@@ -2028,6 +2060,53 @@ TOOLS: list[dict] = [
             "required": ["file_base64"],
         },
     },
+    {
+        "name": "start_onboarding",
+        "description": (
+            "Tool #53 — Start an AI-assisted 5-step onboarding session for a new tenant. "
+            "Steps: community → members → marketplace → compliance → integrations. "
+            "Returns an onboarding_id for use with onboarding_status and continue_onboarding."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id": {"type": "string", "description": "Tenant ID to onboard (default: 'default')"},
+            },
+        },
+    },
+    {
+        "name": "onboarding_status",
+        "description": (
+            "Tool #54 — Check the progress of an active onboarding session. "
+            "Returns current step, % complete, and per-step done/pending status."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "onboarding_id": {"type": "string", "description": "ID returned by start_onboarding"},
+            },
+            "required": ["onboarding_id"],
+        },
+    },
+    {
+        "name": "continue_onboarding",
+        "description": (
+            "Tool #55 — Execute a specific onboarding step with parameters. "
+            "Steps: 'community' (name, visibility, description), 'members' (emails[], role), "
+            "'marketplace' (enabled, chain), 'compliance' (frameworks[]), "
+            "'integrations' (slack_webhook, evolution_enabled). "
+            "Returns the result and the next_step to execute."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "onboarding_id": {"type": "string", "description": "Onboarding session ID"},
+                "step":          {"type": "string", "description": "Step name: community|members|marketplace|compliance|integrations"},
+                "params":        {"type": "object", "description": "Step-specific parameters"},
+            },
+            "required": ["onboarding_id", "step"],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -2092,4 +2171,8 @@ TOOL_HANDLERS: dict[str, Any] = {
     # Compliance Posture (CP-30)
     "get_compliance_report":         get_compliance_report,
     "remediate_gap":                 remediate_gap,
+    # AI-assisted onboarding (ONB-01)
+    "start_onboarding":              start_onboarding,
+    "onboarding_status":             onboarding_status,
+    "continue_onboarding":           continue_onboarding,
 }

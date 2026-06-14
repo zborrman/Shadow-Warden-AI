@@ -1565,6 +1565,75 @@ kubectl rollout restart deployment/shadow-warden-warden -n shadow-warden
 
 ---
 
+### Troubleshooting: Preflight Checks
+
+MASQUE tunnel creation runs three preflight checks before registering the tunnel:
+MinIO health, Warden API health, and Redis connectivity. If any check fails the
+`POST /sovereign/tunnels` endpoint returns **HTTP 503** with a `checks` array
+listing which service failed and the measured latency.
+
+**Common causes and remedies**
+
+| Symptom | Check | Fix |
+|---------|-------|-----|
+| `minio` status `fail` | `MINIO_ENDPOINT` env var | Verify MinIO is running: `curl $MINIO_ENDPOINT/minio/health/live` |
+| `warden_api` status `fail` | `WARDEN_INTERNAL_URL` | Confirm the internal API is reachable from the warden container |
+| `redis` status `fail` | `REDIS_URL` | Check Redis is up: `redis-cli -u $REDIS_URL ping` |
+| All three fail | Network isolation | Ensure the warden container is on the same Docker network as minio + redis |
+| Timeout (latency_ms > 5000) | `PREFLIGHT_TIMEOUT_S` | Increase timeout: `PREFLIGHT_TIMEOUT_S=10` or fix network latency |
+
+**Emergency bypass**
+
+If you need to register a tunnel while a dependency is temporarily down (e.g.
+MinIO maintenance), set `skip_preflight: true` in the request body:
+
+```bash
+curl -s -X POST https://api.shadow-warden-ai.com/sovereign/tunnels \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $WARDEN_API_KEY" \
+  -d '{"label":"eu-fallback","jurisdiction":"EU","protocol":"MASQUE_H3","skip_preflight":true}'
+```
+
+This is an emergency escape hatch — the tunnel will be created in `PENDING`
+state and must be manually probed (`POST /sovereign/tunnels/{id}/probe`) once
+services recover.
+
+**Preflight metric**
+
+`warden_tunnel_preflight_total{region, status}` (Prometheus Counter) is
+incremented on every preflight call. Alert on `status="fail"` rate to detect
+infrastructure drift before it blocks tunnel creation:
+
+```yaml
+# Grafana alert rule
+expr: |
+  rate(warden_tunnel_preflight_total{status="fail"}[5m]) > 0.1
+annotations:
+  summary: "Tunnel preflight failing — check MinIO / Redis / internal API"
+```
+
+**RPC node validation for escrow**
+
+When deploying a marketplace escrow contract to a real blockchain (Sepolia /
+mainnet), `EscrowService._check_rpc_with_retry()` probes the configured RPC
+node with up to 3 attempts (2 s → 4 s → 8 s back-off). If the node is
+unreachable, `POST /marketplace/escrow` returns **HTTP 502**.
+
+```bash
+# Check the configured RPC
+curl -s -X POST $RPC_URL \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+```
+
+If you are running in simulation mode (no `rpc_url` set in `warden/web3/chains.py`
+for the chain), the check is skipped automatically — escrows are tracked in
+SQLite without on-chain deployment.
+
+Prometheus metric: `warden_escrow_rpc_check_total{chain, status}`.
+
+---
+
 ## 21. Air-Gapped / Offline Deployments
 
 Shadow Warden functions fully without external network access:
@@ -2130,6 +2199,9 @@ Caddyfile `handle /ws/*` block passes `Connection` and `Upgrade` headers upstrea
 | `SEMANTIC_CACHE_TTL` | `600` | Redis TTL for Semantic Layer SQL results (10 min) |
 | `MARKETPLACE_CONTRACT_ADDRESS` | _(empty)_ | Sepolia contract for AP2 escrow; blank = off-chain |
 | `MARKETPLACE_DEFAULT_MANDATE_USD` | `1000` | Default AP2 budget per marketplace agent |
+| `SEPOLIA_RPC_URL` | _(empty)_ | Ethereum Sepolia RPC (fallback: `WEB3_RPC_URL`); blank = simulation |
+| `POLYGON_AMOY_RPC_URL` | _(empty)_ | Polygon Amoy RPC for cross-chain escrow; blank = simulation |
+| `ARBITRUM_SEPOLIA_RPC_URL` | _(empty)_ | Arbitrum Sepolia RPC for cross-chain escrow; blank = simulation |
 | `TEAMS_WEBHOOK_URL` | _(empty)_ | Teams Incoming Webhook for community notifications |
 | `WARDEN_INTERNAL_URL` | `http://warden:8001` | Portal server-side proxy target |
 
@@ -2182,6 +2254,84 @@ CI auto-deploys to the VPS on every push to main via the `deploy` GitHub Actions
 | Prometheus | internal only (`:9090`) | none |
 
 Enable tracing: set `OTEL_ENABLED=true` in `.env` and restart warden.
+
+#### Grafana Dashboards (v5.6 — auto-provisioned)
+
+Three new dashboards are automatically loaded from `grafana/dashboards/` on Grafana startup (no manual import required — the file provisioner in `grafana/provisioning/dashboards/default.yml` watches the directory every 30 seconds):
+
+| Dashboard | UID | Folder | Purpose |
+|-----------|-----|--------|---------|
+| Marketplace Analytics | `sw-marketplace` | Shadow Warden | Agent registrations, listing/purchase rate, escrow pipeline, trade volume |
+| Compliance Posture | `sw-compliance` | Shadow Warden | Overall score gauge, per-framework scores (GDPR/SOC2/ISO27001/HIPAA), open gaps timeline |
+| Community Hub | `sw-community` | Shadow Warden | Active communities, members, peering connections, SEP transfer rate, document scan rate |
+
+Access them at `http://<server>:3001/dashboards` → folder "Shadow Warden".
+
+#### Prometheus Metrics Added (v5.6)
+
+**Marketplace** — all exposed at `/metrics` by the warden service:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `warden_marketplace_listings_total` | Counter | `asset_type` | Listings created |
+| `warden_marketplace_purchases_total` | Counter | `asset_type` | Completed purchases |
+| `warden_marketplace_trade_volume_usd` | Counter | — | Cumulative USD volume |
+| `warden_marketplace_escrow_active` | Gauge | — | Non-terminal escrow count |
+| `warden_marketplace_agents_active` | Gauge | — | Registered active agents |
+| `warden_marketplace_negotiations_active` | Gauge | — | Open negotiations |
+
+**Compliance** — updated on every `CompliancePostureService.get_current_posture()` call:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `warden_compliance_overall_score` | Gauge | `tenant_id` | Overall posture score (0–100) |
+| `warden_compliance_gaps_open` | Gauge | `tenant_id` | Open compliance gaps |
+| `warden_compliance_controls_passed` | Gauge | `tenant_id` | Controls currently passing |
+| `warden_compliance_framework_score` | Gauge | `tenant_id`, `framework` | Per-framework score |
+
+**Community** — incremented by membership and peering modules:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `warden_community_members_total` | Gauge | — | Active members (cumulative inc on join) |
+| `warden_community_communities_active` | Gauge | — | Active community count |
+| `warden_community_peering_connections` | Gauge | — | Active peerings |
+| `warden_community_sep_transfers_total` | Counter | `status` | SEP entity transfers (TRANSFERRED / REJECTED) |
+| `warden_community_documents_scanned_total` | Counter | — | Documents scanned via community doc intel |
+
+#### Alert Rules (v5.6 — added to `grafana/provisioning/alerting/warden_alerts.yml`)
+
+Five new alert rules in the `warden_domain` group (evaluated every 1 minute):
+
+| Alert UID | Severity | Trigger | For |
+|-----------|----------|---------|-----|
+| `warden-marketplace-escrow-stuck` | critical | `warden_marketplace_escrow_active > 50` | 30 min |
+| `warden-compliance-score-drop` | warning | `min(warden_compliance_overall_score) < 70` | 10 min |
+| `warden-compliance-gap-critical` | critical | `max(warden_compliance_gaps_open) > 5` | immediate |
+| `warden-community-peer-down` | critical | `warden_community_peering_connections == 0` | 5 min |
+| `warden-community-sep-silent` | warning | `increase(warden_community_sep_transfers_total[1h]) == 0` | immediate |
+
+All alerts route to the `WardenAlerts` contact point configured in `grafana/provisioning/alerting/contact_points.yml`. Wire Slack/PagerDuty there.
+
+#### Notification Setup
+
+To receive alerts via Slack, set `SLACK_WEBHOOK_URL` in `.env` and update `contact_points.yml`:
+
+```yaml
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: WardenAlerts
+    receivers:
+      - uid: warden-slack
+        type: slack
+        settings:
+          url: "${SLACK_WEBHOOK_URL}"
+          title: "Shadow Warden — {{ .GroupLabels.alertname }}"
+          text: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}"
+```
+
+For PagerDuty, add a second receiver with `type: pagerduty` and `settings.integrationKey: "${PAGERDUTY_KEY}"`.
 
 ### 24.9 Backup
 

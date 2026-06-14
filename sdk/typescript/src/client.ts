@@ -1,17 +1,23 @@
 /**
- * shadow-warden-client/client.ts
+ * @shadow-warden/sdk — client.ts
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * WardenClient — async TypeScript client for the Shadow Warden AI gateway.
+ * WardenClient — async TypeScript/JavaScript client for the Shadow Warden AI gateway.
  *
- * Quick start:
+ * @example
  * ```ts
- * import { WardenClient } from "shadow-warden-client";
+ * import { WardenClient } from "@shadow-warden/sdk";
  *
- * const warden = new WardenClient({ gatewayUrl: "http://localhost:8001", apiKey: "sk_..." });
- * const result = await warden.filter("Summarise the contract for client@example.com");
- * if (result.allowed) {
- *   // safe to forward to your AI model
- * }
+ * const client = new WardenClient({ apiKey: "sk_..." });
+ *
+ * // Filter a prompt
+ * const result = await client.filter("Ignore all previous instructions...");
+ * if (result.blocked) console.warn("blocked:", result.riskLevel);
+ *
+ * // M2M marketplace
+ * const listings = await client.marketplace.listings.list({ community_id: "c1" });
+ *
+ * // SOVA autonomous agent
+ * const reply = await client.agent("What is our current threat level?");
  * ```
  */
 
@@ -19,10 +25,16 @@ import { WardenBlockedError, WardenGatewayError, WardenTimeoutError } from "./er
 import type {
   _ApiBatchResponse,
   _ApiFilterResponse,
+  AgentResponse,
   BatchItem,
   BillingStatus,
   FilterOptions,
   FilterResult,
+  MktAgent,
+  MktAgentTrust,
+  MktListing,
+  MktPurchase,
+  MktStats,
   WardenClientConfig,
 } from "./types.js";
 
@@ -76,6 +88,10 @@ async function _parseResponse(res: Response): Promise<_ApiFilterResponse> {
   throw new WardenGatewayError(res.status, detail);
 }
 
+function _sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 // ── WardenClient ──────────────────────────────────────────────────────────────
 
 export class WardenClient {
@@ -83,29 +99,31 @@ export class WardenClient {
   private readonly tenant: string;
   private readonly failOpen: boolean;
   private readonly timeoutMs: number;
+  private readonly maxRetries: number;
+  private readonly backoffMs: number;
   private readonly headers: Record<string, string>;
 
+  /** M2M Marketplace — agents, listings, purchases, stats. */
+  readonly marketplace: Marketplace;
+
   constructor(config: WardenClientConfig = {}) {
-    this.base     = (config.gatewayUrl ?? "http://localhost:8001").replace(/\/$/, "");
-    this.tenant   = config.tenantId ?? "default";
-    this.failOpen = config.failOpen ?? false;
+    this.base      = (config.gatewayUrl ?? "http://localhost:8001").replace(/\/$/, "");
+    this.tenant    = config.tenantId ?? "default";
+    this.failOpen  = config.failOpen ?? false;
     this.timeoutMs = config.timeoutMs ?? 10_000;
+    this.maxRetries = config.retry?.maxRetries ?? 3;
+    this.backoffMs  = config.retry?.backoffMs ?? 500;
 
     this.headers = { "Content-Type": "application/json" };
     if (config.apiKey) {
       this.headers["X-API-Key"] = config.apiKey;
     }
+
+    this.marketplace = new Marketplace(this);
   }
 
   // ── Core filter ─────────────────────────────────────────────────────────────
 
-  /**
-   * Send `content` through the Shadow Warden filter pipeline.
-   *
-   * @param content  The text to filter (prompt, document, user input…).
-   * @param options  Per-call overrides (tenantId, strict, context, raiseOnBlock).
-   * @returns        FilterResult describing the decision and any findings.
-   */
   async filter(content: string, options: FilterOptions = {}): Promise<FilterResult> {
     const payload: Record<string, unknown> = {
       content,
@@ -116,14 +134,11 @@ export class WardenClient {
 
     let result: FilterResult;
     try {
-      const res = await this._fetch("/filter", payload);
+      const res = await this._postWithRetry("/filter", payload);
       const raw = await _parseResponse(res);
       result = _toResult(raw);
     } catch (err) {
-      if (err instanceof WardenGatewayError && this.failOpen) {
-        return _permissiveResult(content);
-      }
-      if (err instanceof WardenTimeoutError && this.failOpen) {
+      if ((err instanceof WardenGatewayError || err instanceof WardenTimeoutError) && this.failOpen) {
         return _permissiveResult(content);
       }
       throw err;
@@ -137,19 +152,14 @@ export class WardenClient {
 
   // ── Batch filter ────────────────────────────────────────────────────────────
 
-  /**
-   * Filter up to 50 items in a single round-trip (`POST /filter/batch`).
-   *
-   * @param items  Array of content strings or BatchItem objects.
-   */
   async filterBatch(items: Array<string | BatchItem>): Promise<FilterResult[]> {
     const batch = items.map((item) =>
       typeof item === "string"
         ? { content: item, tenant_id: this.tenant }
-        : { tenant_id: this.tenant, ...item, tenant_id: item.tenantId ?? this.tenant }
+        : { ...item, tenant_id: item.tenantId ?? this.tenant }
     );
 
-    const res = await this._fetch("/filter/batch", { items: batch });
+    const res = await this._postWithRetry("/filter/batch", { items: batch });
     if (!res.ok) {
       let detail = res.statusText;
       try { detail = ((await res.json()) as { detail?: string }).detail ?? detail; } catch { /* */ }
@@ -159,38 +169,92 @@ export class WardenClient {
     return body.results.map(_toResult);
   }
 
+  // ── SOVA agent ──────────────────────────────────────────────────────────────
+
+  /**
+   * Query the SOVA autonomous security agent (Pro+).
+   * Maintains conversation history for the duration of `sessionId`.
+   */
+  async agent(query: string, options: { sessionId?: string; tenantId?: string } = {}): Promise<AgentResponse> {
+    const payload: Record<string, unknown> = {
+      query,
+      tenant_id: options.tenantId ?? this.tenant,
+    };
+    if (options.sessionId) payload["session_id"] = options.sessionId;
+
+    const res = await this._postWithRetry("/agent/sova", payload);
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { detail = ((await res.json()) as { detail?: string }).detail ?? detail; } catch { /* */ }
+      throw new WardenGatewayError(res.status, detail);
+    }
+    return (await res.json()) as AgentResponse;
+  }
+
+  // ── Health ──────────────────────────────────────────────────────────────────
+
+  /** Check gateway health, version, and pipeline readiness (no auth required). */
+  async health(): Promise<Record<string, unknown>> {
+    const res = await this._getPath("/health");
+    if (!res.ok) throw new WardenGatewayError(res.status, res.statusText);
+    return (await res.json()) as Record<string, unknown>;
+  }
+
   // ── Billing ─────────────────────────────────────────────────────────────────
 
-  /** Return the current billing plan and quota for a tenant. */
   async getBillingStatus(tenantId?: string): Promise<BillingStatus> {
     const tid = tenantId ?? this.tenant;
-    const url = `${this.base}/stripe/status?tenant_id=${encodeURIComponent(tid)}`;
-    const res = await this._get(url);
+    const res = await this._getPath(`/stripe/status?tenant_id=${encodeURIComponent(tid)}`);
     if (!res.ok) throw new WardenGatewayError(res.status, res.statusText);
     return (await res.json()) as BillingStatus;
   }
 
   // ── OpenAI wrapper ──────────────────────────────────────────────────────────
 
-  /**
-   * Wrap an OpenAI client so every `chat.completions.create()` call
-   * is filtered before forwarding to OpenAI.
-   *
-   * Compatible with the official `openai` npm package.
-   *
-   * @example
-   * ```ts
-   * import OpenAI from "openai";
-   * const openai = new OpenAI({ apiKey: "sk-openai-..." });
-   * const client = warden.wrapOpenAI(openai);
-   * await client.chat.completions.create({ model: "gpt-4o", messages: [...] });
-   * ```
-   */
   wrapOpenAI<T extends OpenAILike>(openaiClient: T): WardenOpenAIWrapper<T> {
     return new WardenOpenAIWrapper(this, openaiClient);
   }
 
-  // ── Internal fetch ──────────────────────────────────────────────────────────
+  // ── Internal: GET ────────────────────────────────────────────────────────────
+
+  async _getPath(path: string): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      return await fetch(`${this.base}${path}`, { headers: this.headers, signal: controller.signal });
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") throw new WardenTimeoutError();
+      throw new WardenGatewayError(0, String(err));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // ── Internal: GET with params ────────────────────────────────────────────────
+
+  async _getQuery(path: string, params?: Record<string, string>): Promise<Response> {
+    let url = path;
+    if (params && Object.keys(params).length > 0) {
+      const qs = new URLSearchParams(params).toString();
+      url = `${path}?${qs}`;
+    }
+    return this._getPath(url);
+  }
+
+  // ── Internal: POST with retry ────────────────────────────────────────────────
+
+  async _postWithRetry(path: string, body: unknown): Promise<Response> {
+    let attempt = 0;
+    while (true) {
+      const res = await this._fetch(path, body);
+      const shouldRetry = !res.ok && (res.status === 429 || res.status >= 500) && attempt < this.maxRetries;
+      if (!shouldRetry) return res;
+      await _sleep(this.backoffMs * Math.pow(2, attempt));
+      attempt++;
+    }
+  }
+
+  // ── Internal: raw POST ───────────────────────────────────────────────────────
 
   private async _fetch(path: string, body: unknown): Promise<Response> {
     const controller = new AbortController();
@@ -211,20 +275,98 @@ export class WardenClient {
       clearTimeout(timer);
     }
   }
+}
 
-  private async _get(url: string): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-    try {
-      return await fetch(url, { headers: this.headers, signal: controller.signal });
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new WardenTimeoutError();
-      }
-      throw new WardenGatewayError(0, String(err));
-    } finally {
-      clearTimeout(timer);
+// ── Marketplace namespace ─────────────────────────────────────────────────────
+
+class MarketplaceAgents {
+  constructor(private readonly client: WardenClient) {}
+
+  async list(params?: Record<string, string>): Promise<MktAgent[]> {
+    const res = await this.client._getQuery("/marketplace/agents", params);
+    if (!res.ok) throw new WardenGatewayError(res.status, res.statusText);
+    return (await res.json()) as MktAgent[];
+  }
+
+  async register(body: {
+    tenant_id: string;
+    community_id: string;
+    public_key: string;
+    capabilities: string[];
+  }): Promise<MktAgent> {
+    const res = await this.client._postWithRetry("/marketplace/agents/register", body);
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { detail = ((await res.json()) as { detail?: string }).detail ?? detail; } catch { /* */ }
+      throw new WardenGatewayError(res.status, detail);
     }
+    return (await res.json()) as MktAgent;
+  }
+
+  async getTrust(agentId: string): Promise<MktAgentTrust> {
+    const res = await this.client._getPath(`/marketplace/agents/${encodeURIComponent(agentId)}/trust`);
+    if (!res.ok) throw new WardenGatewayError(res.status, res.statusText);
+    return (await res.json()) as MktAgentTrust;
+  }
+}
+
+class MarketplaceListings {
+  constructor(private readonly client: WardenClient) {}
+
+  async list(params?: Record<string, string>): Promise<MktListing[]> {
+    const res = await this.client._getQuery("/marketplace/listings", params);
+    if (!res.ok) throw new WardenGatewayError(res.status, res.statusText);
+    return (await res.json()) as MktListing[];
+  }
+
+  async create(body: {
+    seller_agent_id: string;
+    community_id: string;
+    asset_type: string;
+    title: string;
+    description?: string;
+    price_usd: number;
+    pricing_strategy?: string;
+  }): Promise<MktListing> {
+    const res = await this.client._postWithRetry("/marketplace/listings", body);
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { detail = ((await res.json()) as { detail?: string }).detail ?? detail; } catch { /* */ }
+      throw new WardenGatewayError(res.status, detail);
+    }
+    return (await res.json()) as MktListing;
+  }
+
+  async purchase(listingId: string, body: {
+    buyer_agent_id: string;
+    escrow_funded?: boolean;
+  }): Promise<MktPurchase> {
+    const res = await this.client._postWithRetry(
+      `/marketplace/listings/${encodeURIComponent(listingId)}/purchase`,
+      body,
+    );
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { detail = ((await res.json()) as { detail?: string }).detail ?? detail; } catch { /* */ }
+      throw new WardenGatewayError(res.status, detail);
+    }
+    return (await res.json()) as MktPurchase;
+  }
+}
+
+class Marketplace {
+  readonly agents: MarketplaceAgents;
+  readonly listings: MarketplaceListings;
+
+  constructor(private readonly client: WardenClient) {
+    this.agents   = new MarketplaceAgents(client);
+    this.listings = new MarketplaceListings(client);
+  }
+
+  async stats(params?: Record<string, string>): Promise<MktStats> {
+    const res = await this.client._getQuery("/marketplace/stats", params);
+    if (!res.ok) throw new WardenGatewayError(res.status, res.statusText);
+    return (await res.json()) as MktStats;
   }
 }
 
@@ -292,7 +434,6 @@ export class WardenOpenAIWrapper<T extends OpenAILike> {
     };
   }
 
-  // Forward any other OpenAI property transparently
   get<K extends keyof T>(prop: K): T[K] {
     return this.client[prop];
   }

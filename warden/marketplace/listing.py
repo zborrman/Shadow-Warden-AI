@@ -47,12 +47,14 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
             demand_score     REAL NOT NULL DEFAULT 0.5,
             listed_at        TEXT NOT NULL,
             expires_at       TEXT,
-            sold_at          TEXT
+            sold_at          TEXT,
+            chain            TEXT NOT NULL DEFAULT 'sepolia'
         );
         CREATE INDEX IF NOT EXISTS idx_ml_seller   ON marketplace_listings(seller_agent);
         CREATE INDEX IF NOT EXISTS idx_ml_status   ON marketplace_listings(status);
         CREATE INDEX IF NOT EXISTS idx_ml_type     ON marketplace_listings(asset_type);
         CREATE INDEX IF NOT EXISTS idx_ml_community ON marketplace_listings(community_id);
+        CREATE INDEX IF NOT EXISTS idx_ml_chain    ON marketplace_listings(chain);
 
         CREATE TABLE IF NOT EXISTS marketplace_purchases (
             purchase_id    TEXT PRIMARY KEY,
@@ -73,12 +75,23 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
     """)
 
 
+def _migrate_chain_column(con: sqlite3.Connection) -> None:
+    """Add chain column to existing databases that predate cross-chain support."""
+    try:
+        con.execute(
+            "ALTER TABLE marketplace_listings ADD COLUMN chain TEXT NOT NULL DEFAULT 'sepolia'"
+        )
+    except Exception:
+        pass  # column already exists
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     con = sqlite3.connect(db_path, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     _ensure_schema(con)
+    _migrate_chain_column(con)
     try:
         yield con
         con.commit()
@@ -104,6 +117,7 @@ class Listing:
     listed_at:        str
     expires_at:       str | None
     sold_at:          str | None
+    chain:            str = "sepolia"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -128,6 +142,7 @@ class Purchase:
 
 
 def _row_to_listing(row: sqlite3.Row) -> Listing:
+    keys = row.keys()
     return Listing(
         listing_id=row["listing_id"],
         asset_id=row["asset_id"],
@@ -143,6 +158,7 @@ def _row_to_listing(row: sqlite3.Row) -> Listing:
         listed_at=row["listed_at"],
         expires_at=row["expires_at"],
         sold_at=row["sold_at"],
+        chain=row["chain"] if "chain" in keys else "sepolia",
     )
 
 
@@ -174,8 +190,13 @@ def publish_listing(
     pricing_strategy: str = "fixed",
     demand_score: float = 0.5,
     expires_hours: int | None = None,
+    chain: str = "sepolia",
     db_path: str = _DB_PATH,
 ) -> Listing:
+    from warden.web3.chains import VALID_CHAINS  # noqa: PLC0415
+    if chain not in VALID_CHAINS:
+        raise ValueError(f"Unknown chain '{chain}'. Valid options: {sorted(VALID_CHAINS)}.")
+
     listing_id = f"LST-{uuid.uuid4().hex[:12].upper()}"
     now = datetime.now(UTC).isoformat()
     expires_at = (
@@ -197,23 +218,25 @@ def publish_listing(
         listed_at=now,
         expires_at=expires_at,
         sold_at=None,
+        chain=chain,
     )
     with _db_lock, _conn(db_path) as con:
         con.execute(
             """INSERT OR REPLACE INTO marketplace_listings
                (listing_id, asset_id, seller_agent, community_id, tenant_id,
                 asset_type, price_usd, currency, pricing_strategy, status,
-                demand_score, listed_at, expires_at, sold_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                demand_score, listed_at, expires_at, sold_at, chain)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 listing.listing_id, listing.asset_id, listing.seller_agent,
                 listing.community_id, listing.tenant_id, listing.asset_type,
                 listing.price_usd, listing.currency, listing.pricing_strategy,
                 listing.status, listing.demand_score, listing.listed_at,
-                listing.expires_at, listing.sold_at,
+                listing.expires_at, listing.sold_at, listing.chain,
             ),
         )
-    log.info("Listing published: %s asset=%s price=%.2f", listing_id, asset_id, price_usd)
+    log.info("Listing published: %s asset=%s price=%.2f chain=%s",
+             listing_id, asset_id, price_usd, chain)
     return listing
 
 
@@ -416,6 +439,7 @@ def purchase_listing(
             seller_agent_id=listing.seller_agent,
             amount_usd=listing.price_usd,
             purchase_id=purchase.purchase_id,
+            chain=listing.chain,
             db_path=db_path,
         )
         escrow_id = escrow.escrow_id
@@ -430,6 +454,7 @@ def purchase_listing(
         "asset_type":  listing.asset_type,
         "price_paid":  listing.price_usd,
         "escrow_id":   escrow_id,
+        "chain":       listing.chain,
         "status":      "pending",
     }
 

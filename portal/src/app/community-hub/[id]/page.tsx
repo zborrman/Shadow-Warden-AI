@@ -4,8 +4,8 @@
  * Tabs: Overview · Members · Data · Compliance · Evolution
  */
 
-import { useState, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Users, FileText, ShieldCheck, Zap, Info,
@@ -809,7 +809,18 @@ function MarketplaceTab({ communityId }: { communityId: string }) {
 export default function CommunityDetailPage() {
   const params      = useParams<{ id: string }>()
   const communityId = params.id
+  const router      = useRouter()
   const [tab, setTab] = useState<Tab>('overview')
+
+  // Redirect legacy /community-hub/[id] URLs to the new hub page.
+  // Guard against reserved path segments that match static routes (create, hub)
+  // to prevent trailingSlash redirect edge cases from intercepting those pages.
+  useEffect(() => {
+    const reserved = new Set(['create', 'hub', 'agentic-commerce'])
+    if (communityId && !reserved.has(communityId)) {
+      router.replace(`/community-hub/hub/${communityId}`)
+    }
+  }, [communityId, router])
 
   const { data: c } = useQuery({
     queryKey: ['hub-community', communityId],

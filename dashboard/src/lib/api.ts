@@ -313,6 +313,14 @@ export type MktAnalyticsSummary = {
 };
 export type MktVolumePoint = { date: string; volume_usd: number; trades: number };
 export type MktAgentRank   = { agent_id: string; trades: number; volume_usd: number };
+export type MktAgentTrust  = {
+  agent_id: string;
+  trust_score: number;
+  trust_rank: number;
+  sybil_flag: boolean;
+  sybil_reason: string;
+  transitive_peers: { agent_id: string; trust_rank: number; transitive_trust: number }[];
+};
 
 async function post<T>(base: string, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
@@ -408,6 +416,8 @@ export const api = {
   mktSummary:  (p?: Record<string, string>) => get<MktAnalyticsSummary>(API, "/marketplace/analytics/summary", p),
   mktVolume:   (p?: Record<string, string>) => get<MktVolumePoint[]>(API, "/marketplace/analytics/volume", p),
   mktAgents:   (p?: Record<string, string>) => get<{ top_sellers: MktAgentRank[]; top_buyers: MktAgentRank[] }>(API, "/marketplace/analytics/agents", p),
+  mktAgentList:(p?: Record<string, string>) => get<{ agent_id: string; status: string; community_id: string }[]>(API, "/marketplace/agents", p),
+  mktAgentTrust: (agentId: string)          => get<MktAgentTrust>(API, `/marketplace/agents/${encodeURIComponent(agentId)}/trust`),
 
   // ── Community Governance ──────────────────────────────────────────────────
   communityIntel:       (id: string, tenantId: string) => get<CommunityIntelReport>(API, `/community-intel/${id}`, undefined, { "X-Tenant-ID": tenantId }),

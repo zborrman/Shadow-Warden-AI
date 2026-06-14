@@ -75,7 +75,8 @@ print(reply.reply)`,
 
 const client = new WardenClient({
   apiKey: "YOUR_API_KEY",
-  baseUrl: "${BASE_URL}",
+  gatewayUrl: "${BASE_URL}",
+  retry: { maxRetries: 3, backoffMs: 500 },
 })
 
 // Filter a prompt
@@ -88,7 +89,16 @@ const chat = await client.chat.completions.create({
   messages: [{ role: "user", content: "Hello" }],
 })
 
-// Query SOVA agent
+// Marketplace — browse listings
+const listings = await client.marketplace.listings.list({
+  community_id: "my-community",
+})
+
+// Get agent trust score
+const trust = await client.marketplace.agents.getTrust(agentId)
+console.log(trust.trust_score, trust.sybil_flag)
+
+// SOVA agent
 const reply = await client.agent("Threat summary")
 console.log(reply.reply)`,
   },
@@ -118,13 +128,19 @@ curl -X POST ${BASE_URL}/agent/sova \\
 ]
 
 const endpoints = [
-  { method: 'POST', path: '/filter',               desc: '9-layer content filter pipeline',          auth: true  },
-  { method: 'POST', path: '/v1/chat/completions',  desc: 'OpenAI-compatible filtered chat proxy',    auth: true  },
-  { method: 'POST', path: '/agent/sova',           desc: 'SOVA autonomous agent (Pro+)',             auth: true  },
-  { method: 'GET',  path: '/marketplace/listings', desc: 'Browse M2M marketplace listings (Pro+)',   auth: true  },
-  { method: 'GET',  path: '/marketplace/stats',    desc: 'Marketplace analytics summary',            auth: true  },
-  { method: 'GET',  path: '/health',               desc: 'Gateway health and version info',          auth: false },
-  { method: 'GET',  path: '/compliance/posture',   desc: 'Compliance posture across frameworks',     auth: true  },
+  { method: 'POST', path: '/filter',                                     desc: '9-layer content filter pipeline',                  auth: true  },
+  { method: 'POST', path: '/filter/batch',                               desc: 'Batch filter — up to 50 items per call',           auth: true  },
+  { method: 'POST', path: '/v1/chat/completions',                        desc: 'OpenAI-compatible filtered chat proxy',            auth: true  },
+  { method: 'POST', path: '/agent/sova',                                 desc: 'SOVA autonomous agent (Pro+)',                     auth: true  },
+  { method: 'POST', path: '/marketplace/agents/register',                desc: 'Register a DID-based marketplace agent',          auth: true  },
+  { method: 'GET',  path: '/marketplace/agents',                         desc: 'List marketplace agents by community',             auth: true  },
+  { method: 'GET',  path: '/marketplace/agents/{agent_id}/trust',        desc: 'Get trust score + sybil flag for an agent',       auth: true  },
+  { method: 'GET',  path: '/marketplace/listings',                       desc: 'Browse M2M marketplace listings (Pro+)',           auth: true  },
+  { method: 'POST', path: '/marketplace/listings',                       desc: 'Create a new asset listing',                      auth: true  },
+  { method: 'POST', path: '/marketplace/listings/{id}/purchase',         desc: 'Purchase a listing (triggers escrow flow)',        auth: true  },
+  { method: 'GET',  path: '/marketplace/stats',                          desc: 'Marketplace volume, trades, and agent metrics',   auth: true  },
+  { method: 'GET',  path: '/compliance/posture',                         desc: 'Compliance posture across 4 frameworks (Pro+)',   auth: true  },
+  { method: 'GET',  path: '/health',                                     desc: 'Gateway health and pipeline readiness',           auth: false },
 ]
 
 const methodColor: Record<string, string> = {

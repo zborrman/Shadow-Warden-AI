@@ -60,6 +60,7 @@ class RegisterTunnelRequest(BaseModel):
     tls_fingerprint: str  = Field("", description="SHA-256 of server leaf cert (TOFU)")
     tenant_id:       str | None = None
     tags:            list[str]  = Field(default_factory=list)
+    skip_preflight:  bool = Field(False, description="Skip preflight checks (emergency use only)")
 
 
 class RouteRequest(BaseModel):
@@ -228,19 +229,43 @@ async def register_tunnel(body: RegisterTunnelRequest, auth: AuthResult = AuthDe
     """
     Register a new MASQUE-over-HTTP/3 proxy tunnel.
 
+    Runs preflight checks (MinIO, Redis, Warden API) before creating the tunnel
+    unless `skip_preflight=true` is passed (emergency use only).
+    Returns 503 with check details if any dependency is unreachable.
+
     The tunnel is created in `PENDING` status.  Use
     `POST /sovereign/tunnels/{id}/probe` to perform the first health-check
     and transition it to `ACTIVE`.
-
-    `tls_fingerprint` — SHA-256 hex of the server's leaf certificate.
-    If omitted, a placeholder is derived from the endpoint string.
-    Shadow Warden uses this for Trust-On-First-Use (TOFU) certificate
-    pinning to prevent MITM attacks on the sovereign routing path.
     """
     from dataclasses import asdict
 
     from warden.sovereign.tunnel import register_tunnel as _reg
 
+    # ── Preflight ──────────────────────────────────────────────────────────────
+    if not body.skip_preflight:
+        try:
+            from warden.sovereign.preflight import preflight_check
+            pf = await preflight_check(body.jurisdiction)
+            if not pf["all_ok"]:
+                failed = [c["service"] for c in pf["checks"] if c["status"] == "fail"]
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "message": "Preflight check failed — tunnel not created",
+                        "failed_services": failed,
+                        "checks": pf["checks"],
+                    },
+                )
+        except HTTPException:
+            raise
+        except Exception as pf_exc:
+            # Preflight module unavailable — log and proceed (fail-open)
+            import logging as _log
+            _log.getLogger("warden.api.sovereign").warning(
+                "preflight_check import/run error (proceeding): %s", pf_exc
+            )
+
+    # ── Register ───────────────────────────────────────────────────────────────
     try:
         t = _reg(
             jurisdiction    = body.jurisdiction,

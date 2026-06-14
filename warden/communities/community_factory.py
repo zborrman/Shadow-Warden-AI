@@ -30,6 +30,8 @@ class Community:
     visibility: str = "private"     # private / public
     join_policy: str = "invite"     # invite / open / approval
     settings: dict = field(default_factory=dict)
+    keypair_generated: bool = False
+    audit_enabled: bool = False
 
 
 def _db():
@@ -58,7 +60,10 @@ def _db():
 
 def _row_to_community(row: sqlite3.Row) -> Community:
     d = dict(row)
-    d["settings"] = json.loads(d["settings"] or "{}")
+    settings = json.loads(d["settings"] or "{}")
+    d["settings"] = settings
+    d["keypair_generated"] = settings.get("keypair_generated", False)
+    d["audit_enabled"] = settings.get("audit_enabled", False)
     return Community(**d)
 
 
@@ -77,6 +82,24 @@ def create_community(
 ) -> Community:
     cid = generate_community_id(creator_tenant_id)
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    kp_generated = False
+    try:
+        from warden.communities.keypair import generate_community_keypair
+        kp = generate_community_keypair(cid, kid="v1")
+        try:
+            from warden.communities.key_archive import KeyStatus, store_keypair
+            store_keypair(kp, status=KeyStatus.ACTIVE)
+        except Exception:
+            pass  # PostgreSQL not available; keypair still generated in memory
+        kp_generated = True
+    except Exception:
+        pass
+
+    final_settings: dict = dict(settings or {})
+    final_settings["keypair_generated"] = kp_generated
+    final_settings["audit_enabled"] = True  # STIX audit chain enabled for all new communities
+
     c = Community(
         community_id=cid,
         name=name,
@@ -86,14 +109,16 @@ def create_community(
         status="active",
         visibility=visibility,
         join_policy=join_policy,
-        settings=settings or {},
+        settings=final_settings,
+        keypair_generated=kp_generated,
+        audit_enabled=True,
     )
     with _lock:
         db = _db()
         db.execute(
             "INSERT INTO communities VALUES (?,?,?,?,?,?,?,?,?)",
             (cid, name, description, creator_tenant_id, ts,
-             "active", visibility, join_policy, json.dumps(settings or {})),
+             "active", visibility, join_policy, json.dumps(final_settings)),
         )
         db.commit()
     return c

@@ -15,6 +15,7 @@ import {
   api,
   type HubCommunity, type HubMember, type HubFile,
   type HubCompliance, type HubEvolutionStats, type HubBundle,
+  type MktAgentTrust,
 } from "@/lib/api";
 import { cn, fmtNum } from "@/lib/utils";
 
@@ -399,6 +400,93 @@ function EvolutionTab({ communityId }: { communityId: string }) {
   );
 }
 
+function TopTrustedAgentsWidget({ communityId }: { communityId: string }) {
+  const { data: agentList, isLoading } = useQuery({
+    queryKey: ["mkt-agent-list", communityId],
+    queryFn:  () => api.mktAgentList({ community_id: communityId, limit: "10" }),
+    retry: false,
+  });
+
+  const [trustScores, setTrustScores] = useState<MktAgentTrust[]>([]);
+
+  // Fetch trust for first 5 agents once the list is available
+  useQuery({
+    queryKey: ["mkt-trust-batch", communityId, agentList?.map(a => a.agent_id).join(",")],
+    queryFn: async () => {
+      if (!agentList || agentList.length === 0) return [];
+      const top5 = agentList.slice(0, 5);
+      const results = await Promise.all(
+        top5.map(a => api.mktAgentTrust(a.agent_id).catch(() => null))
+      );
+      const valid = results.filter((r): r is MktAgentTrust => r !== null);
+      valid.sort((a, b) => b.trust_score - a.trust_score);
+      setTrustScores(valid);
+      return valid;
+    },
+    enabled: !!agentList && agentList.length > 0,
+    retry: false,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl bg-surface-2 border border-border p-4 animate-pulse">
+        <div className="h-3 w-32 bg-surface-4 rounded mb-3" />
+        <div className="space-y-2">
+          {[1,2,3].map(i => <div key={i} className="h-8 bg-surface-4 rounded" />)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-surface-2 border border-border p-4">
+      <p className="text-xs text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+        <Zap size={11} className="text-yellow-400" /> Top Trusted Agents
+      </p>
+      {trustScores.length === 0 ? (
+        <p className="text-xs text-gray-600">No marketplace agents in this community yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {trustScores.map((agent, idx) => (
+            <div key={agent.agent_id} className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-gray-600 w-4">{idx + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-300 font-mono truncate">
+                  {agent.agent_id.slice(0, 22)}…
+                </p>
+              </div>
+              {agent.sybil_flag && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-semibold">
+                  Sybil
+                </span>
+              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="w-16 h-1.5 rounded-full bg-surface-4 overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      agent.trust_score >= 0.7 ? "bg-emerald-400" :
+                      agent.trust_score >= 0.4 ? "bg-yellow-400" : "bg-red-400"
+                    )}
+                    style={{ width: `${agent.trust_score * 100}%` }}
+                  />
+                </div>
+                <span className={cn(
+                  "text-[11px] font-mono font-semibold",
+                  agent.trust_score >= 0.7 ? "text-emerald-400" :
+                  agent.trust_score >= 0.4 ? "text-yellow-400" : "text-red-400"
+                )}>
+                  {(agent.trust_score * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AnalyticsTab({ communityId }: { communityId: string }) {
   const { data: supplier } = useQuery({
     queryKey: ["supplier-report", communityId],
@@ -422,6 +510,9 @@ function AnalyticsTab({ communityId }: { communityId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Top Trusted Agents */}
+      <TopTrustedAgentsWidget communityId={communityId} />
+
       {/* Training compliance */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-xl bg-surface-2 border border-border p-4">
@@ -586,11 +677,21 @@ export default function CommunityDetailPage() {
       </div>
 
       <div className="p-6 space-y-5 animate-fade-in">
-        {/* Back */}
-        <button onClick={() => router.push("/community")}
-          className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors">
-          <ChevronLeft size={12} /> Communities
-        </button>
+        {/* Back + Open in Hub */}
+        <div className="flex items-center justify-between">
+          <button onClick={() => router.push("/community")}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors">
+            <ChevronLeft size={12} /> Communities
+          </button>
+          <a
+            href={`https://app.shadow-warden-ai.com/community-hub/hub/${id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-accent-purple/15 text-accent-purple hover:bg-accent-purple/25 transition-colors font-medium"
+          >
+            Open in Hub ↗
+          </a>
+        </div>
 
         {/* Tab bar */}
         <div className="flex gap-1 bg-surface-3 rounded-xl p-1 w-fit">

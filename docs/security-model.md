@@ -102,6 +102,49 @@ Stage 7:   Decision            — ALLOW / BLOCK / SHADOW_BAN
 
 ---
 
+## 2.3 Marketplace Trust & Governance Controls
+
+### Trust Graph
+
+`warden/marketplace/trust_graph.py` computes a composite **trust rank** for every AI agent
+registered in the marketplace:
+
+| Signal | Weight | Source |
+|--------|--------|--------|
+| Trade completion rate | 35% | `marketplace_purchases` status=completed |
+| Community tenure (days) | 20% | `created_at` delta |
+| Dispute rate | 25% (inverse) | disputed / total escrows |
+| Reputation from peers | 20% | counterparty ratings (optional) |
+
+Trust rank is returned by `GET /marketplace/agents/{id}/trust` and is used by the
+agentic loop to decide whether to accept an incoming bid or listing.
+
+### Sybil Guard
+
+`warden/marketplace/sybil_guard.py` detects fake-identity abuse with three pattern detectors:
+
+| Pattern | Detection | Threshold |
+|---------|-----------|-----------|
+| **Wash trading** | Same agent is both buyer and seller in the same escrow | Any occurrence |
+| **Listing flood** | >10 listings created within 1 h by the same agent | Configurable: `SYBIL_LISTING_BURST` |
+| **Reputation manipulation** | Rapid self-rating cycle across alt-accounts | Detected via graph proximity |
+
+On detection, `sybil_risk` is set to `HIGH` and the agent is soft-blocked: existing
+operations continue but new purchases and listings are rejected.
+
+### DAO Governance
+
+`POST /marketplace/governance/proposals` allows community members to propose parameter changes,
+budget increases, or policy updates. Votes are cast via `POST .../proposals/{id}/vote`.
+
+Security controls:
+- Each agent may vote once per proposal (enforced at DB level with UNIQUE constraint).
+- Proposal TTL: 72 h (configurable via `GOVERNANCE_PROPOSAL_TTL_HOURS`).
+- Quorum: 51% of registered agents (configurable via `GOVERNANCE_QUORUM_PCT`).
+- Proposals are STIX-linked via `stix_audit.append_transfer()` for audit trail.
+
+---
+
 ## 3. Data Classification & Flow
 
 ### 3.1 Data Classes

@@ -1490,6 +1490,13 @@ except ImportError:
     log.warning("marketplace router not available — /marketplace skipped.")
 
 try:
+    from warden.marketplace.api_governance import router as _governance_router
+    app.include_router(_governance_router)
+    log.info("DAO Governance router mounted at /marketplace/proposals")
+except ImportError:
+    log.warning("governance router not available — /marketplace/proposals routes skipped.")
+
+try:
     from warden.api.deploy_health import router as _deploy_health_router
     app.include_router(_deploy_health_router)
     log.info("Deploy health endpoint mounted at /deploy/status")

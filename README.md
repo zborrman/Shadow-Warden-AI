@@ -6,7 +6,7 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 
 **Version:** 5.6 · **License:** Proprietary · **Language:** Python 3.11+
 
-📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md)
+📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
 
 ---
 

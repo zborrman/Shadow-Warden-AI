@@ -62,7 +62,78 @@ export interface BillingStatus {
   [key: string]: unknown;
 }
 
+// ── Marketplace types ─────────────────────────────────────────────────────────
+
+export interface MktAgent {
+  agent_id: string;
+  community_id: string;
+  tenant_id: string;
+  capabilities: string[];
+  status: string;
+  mandate_id: string;
+  created_at: string;
+}
+
+export interface MktListing {
+  listing_id: string;
+  seller_agent_id: string;
+  community_id: string;
+  asset_type: string;
+  title: string;
+  description: string;
+  price_usd: number;
+  pricing_strategy: string;
+  status: string;
+  created_at: string;
+}
+
+export interface MktPurchase {
+  purchase_id: string;
+  listing_id: string;
+  buyer_agent_id: string;
+  seller_agent_id: string;
+  price_paid: number;
+  status: string;
+  escrow_id: string;
+  purchased_at: string;
+}
+
+export interface MktAgentTrust {
+  agent_id: string;
+  trust_score: number;
+  trust_rank: number;
+  sybil_flag: boolean;
+  sybil_reason: string;
+  transitive_peers: { agent_id: string; trust_rank: number; transitive_trust: number }[];
+}
+
+export interface MktStats {
+  total_listings: number;
+  active_listings: number;
+  total_trades: number;
+  total_volume_usd: number;
+  registered_agents: number;
+  avg_price_usd: number;
+  [key: string]: unknown;
+}
+
+// ── SOVA agent types ──────────────────────────────────────────────────────────
+
+export interface AgentResponse {
+  session_id: string;
+  reply: string;
+  tool_calls: number;
+  iterations: number;
+}
+
 // ── Client config ─────────────────────────────────────────────────────────────
+
+export interface RetryConfig {
+  /** Max number of retry attempts on 429 / 5xx. Default: 3 */
+  maxRetries?: number;
+  /** Base backoff in ms (doubles each attempt). Default: 500 */
+  backoffMs?: number;
+}
 
 export interface WardenClientConfig {
   /** Base URL of the Warden gateway. Default: `http://localhost:8001` */
@@ -79,6 +150,8 @@ export interface WardenClientConfig {
    * Default: false.
    */
   failOpen?: boolean;
+  /** Automatic retry config for 429 / 5xx responses. */
+  retry?: RetryConfig;
 }
 
 // ── Wire format (snake_case from the API) ────────────────────────────────────

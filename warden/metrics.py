@@ -451,6 +451,189 @@ try:
             "warden_push_notifications_sent_total"
         )
 
+    # ── Marketplace metrics (v5.6) ────────────────────────────────────────────
+    try:
+        MARKETPLACE_LISTINGS_TOTAL = Counter(
+            "warden_marketplace_listings_total",
+            "Total marketplace listings created",
+            ["asset_type"],
+        )
+    except ValueError:
+        MARKETPLACE_LISTINGS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_marketplace_listings_total"
+        )
+
+    try:
+        MARKETPLACE_PURCHASES_TOTAL = Counter(
+            "warden_marketplace_purchases_total",
+            "Total completed marketplace purchases",
+            ["asset_type"],
+        )
+    except ValueError:
+        MARKETPLACE_PURCHASES_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_marketplace_purchases_total"
+        )
+
+    try:
+        MARKETPLACE_TRADE_VOLUME_USD = Counter(
+            "warden_marketplace_trade_volume_usd",
+            "Cumulative marketplace trade volume in USD",
+        )
+    except ValueError:
+        MARKETPLACE_TRADE_VOLUME_USD = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_marketplace_trade_volume_usd"
+        )
+
+    try:
+        MARKETPLACE_ESCROW_ACTIVE = Gauge(
+            "warden_marketplace_escrow_active",
+            "Escrows in a non-terminal state",
+        )
+    except ValueError:
+        MARKETPLACE_ESCROW_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_marketplace_escrow_active"
+        )
+
+    try:
+        MARKETPLACE_AGENTS_ACTIVE = Gauge(
+            "warden_marketplace_agents_active",
+            "Registered marketplace agents with status=active",
+        )
+    except ValueError:
+        MARKETPLACE_AGENTS_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_marketplace_agents_active"
+        )
+
+    try:
+        MARKETPLACE_NEGOTIATIONS_ACTIVE = Gauge(
+            "warden_marketplace_negotiations_active",
+            "Open marketplace negotiations",
+        )
+    except ValueError:
+        MARKETPLACE_NEGOTIATIONS_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_marketplace_negotiations_active"
+        )
+
+    # ── Compliance metrics (v5.6) ─────────────────────────────────────────────
+    try:
+        COMPLIANCE_OVERALL_SCORE = Gauge(
+            "warden_compliance_overall_score",
+            "Overall compliance posture score (0-100)",
+            ["tenant_id"],
+        )
+    except ValueError:
+        COMPLIANCE_OVERALL_SCORE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_compliance_overall_score"
+        )
+
+    try:
+        COMPLIANCE_GAPS_OPEN = Gauge(
+            "warden_compliance_gaps_open",
+            "Number of open compliance gaps",
+            ["tenant_id"],
+        )
+    except ValueError:
+        COMPLIANCE_GAPS_OPEN = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_compliance_gaps_open"
+        )
+
+    try:
+        COMPLIANCE_CONTROLS_PASSED = Gauge(
+            "warden_compliance_controls_passed",
+            "Number of compliance controls currently passing",
+            ["tenant_id"],
+        )
+    except ValueError:
+        COMPLIANCE_CONTROLS_PASSED = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_compliance_controls_passed"
+        )
+
+    try:
+        COMPLIANCE_FRAMEWORK_SCORE = Gauge(
+            "warden_compliance_framework_score",
+            "Per-framework compliance score (0-100)",
+            ["tenant_id", "framework"],
+        )
+    except ValueError:
+        COMPLIANCE_FRAMEWORK_SCORE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_compliance_framework_score"
+        )
+
+    # ── Community metrics (v5.6) ──────────────────────────────────────────────
+    try:
+        COMMUNITY_MEMBERS_TOTAL = Gauge(
+            "warden_community_members_total",
+            "Active community members across all communities",
+        )
+    except ValueError:
+        COMMUNITY_MEMBERS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_community_members_total"
+        )
+
+    try:
+        COMMUNITY_COMMUNITIES_ACTIVE = Gauge(
+            "warden_community_communities_active",
+            "Number of active communities",
+        )
+    except ValueError:
+        COMMUNITY_COMMUNITIES_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_community_communities_active"
+        )
+
+    try:
+        COMMUNITY_PEERING_CONNECTIONS = Gauge(
+            "warden_community_peering_connections",
+            "Active inter-community peering connections",
+        )
+    except ValueError:
+        COMMUNITY_PEERING_CONNECTIONS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_community_peering_connections"
+        )
+
+    try:
+        COMMUNITY_SEP_TRANSFERS_TOTAL = Counter(
+            "warden_community_sep_transfers_total",
+            "Total SEP entity transfers",
+            ["status"],
+        )
+    except ValueError:
+        COMMUNITY_SEP_TRANSFERS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_community_sep_transfers_total"
+        )
+
+    try:
+        COMMUNITY_DOCUMENTS_SCANNED = Counter(
+            "warden_community_documents_scanned_total",
+            "Documents scanned via community document intelligence",
+        )
+    except ValueError:
+        COMMUNITY_DOCUMENTS_SCANNED = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_community_documents_scanned_total"
+        )
+
+    # ── Infrastructure preflight metrics (INFRA-01, v6.4) ────────────────────
+    try:
+        TUNNEL_PREFLIGHT_TOTAL = Counter(
+            "warden_tunnel_preflight_total",
+            "Preflight check outcomes for MASQUE tunnel creation",
+            ["region", "status"],
+        )
+    except ValueError:
+        TUNNEL_PREFLIGHT_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_tunnel_preflight_total"
+        )
+
+    try:
+        ESCROW_RPC_CHECK_TOTAL = Counter(
+            "warden_escrow_rpc_check_total",
+            "RPC node reachability check outcomes before escrow contract deployment",
+            ["chain", "status"],
+        )
+    except ValueError:
+        ESCROW_RPC_CHECK_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_escrow_rpc_check_total"
+        )
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -501,3 +684,20 @@ except ImportError:
     DOC_INTEL_CONVERT_ERRORS_TOTAL  = _Noop()  # type: ignore[assignment]
     DOC_INTEL_CACHE_HITS_TOTAL      = _Noop()  # type: ignore[assignment]
     PUSH_NOTIFICATIONS_SENT         = _Noop()  # type: ignore[assignment]
+    MARKETPLACE_LISTINGS_TOTAL      = _Noop()  # type: ignore[assignment]
+    MARKETPLACE_PURCHASES_TOTAL     = _Noop()  # type: ignore[assignment]
+    MARKETPLACE_TRADE_VOLUME_USD    = _Noop()  # type: ignore[assignment]
+    MARKETPLACE_ESCROW_ACTIVE       = _Noop()  # type: ignore[assignment]
+    MARKETPLACE_AGENTS_ACTIVE       = _Noop()  # type: ignore[assignment]
+    MARKETPLACE_NEGOTIATIONS_ACTIVE = _Noop()  # type: ignore[assignment]
+    COMPLIANCE_OVERALL_SCORE        = _Noop()  # type: ignore[assignment]
+    COMPLIANCE_GAPS_OPEN            = _Noop()  # type: ignore[assignment]
+    COMPLIANCE_CONTROLS_PASSED      = _Noop()  # type: ignore[assignment]
+    COMPLIANCE_FRAMEWORK_SCORE      = _Noop()  # type: ignore[assignment]
+    COMMUNITY_MEMBERS_TOTAL         = _Noop()  # type: ignore[assignment]
+    COMMUNITY_COMMUNITIES_ACTIVE    = _Noop()  # type: ignore[assignment]
+    COMMUNITY_PEERING_CONNECTIONS   = _Noop()  # type: ignore[assignment]
+    COMMUNITY_SEP_TRANSFERS_TOTAL   = _Noop()  # type: ignore[assignment]
+    COMMUNITY_DOCUMENTS_SCANNED     = _Noop()  # type: ignore[assignment]
+    TUNNEL_PREFLIGHT_TOTAL          = _Noop()  # type: ignore[assignment]
+    ESCROW_RPC_CHECK_TOTAL          = _Noop()  # type: ignore[assignment]

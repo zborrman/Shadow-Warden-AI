@@ -1,0 +1,1143 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Shadow Warden AI API",
+    "version": "5.6.0",
+    "description": "GDPR-compliant AI security gateway — 9-layer jailbreak filter, community M2M marketplace, compliance posture, and document intelligence.",
+    "contact": {
+      "name": "Shadow Warden AI",
+      "url": "https://shadow-warden-ai.com"
+    },
+    "license": {
+      "name": "Proprietary"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.shadow-warden-ai.com",
+      "description": "Production"
+    },
+    {
+      "url": "http://localhost:8001",
+      "description": "Local development"
+    }
+  ],
+  "security": [
+    { "ApiKeyAuth": [] }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "FilterRequest": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content":       { "type": "string" },
+          "tenant_id":     { "type": "string", "default": "default" },
+          "file_base64":   { "type": "string", "nullable": true },
+          "file_filename": { "type": "string", "default": "upload.bin" }
+        }
+      },
+      "FilterResult": {
+        "type": "object",
+        "properties": {
+          "allowed":       { "type": "boolean" },
+          "blocked":       { "type": "boolean" },
+          "risk_level":    { "type": "string", "enum": ["low","medium","high","block"] },
+          "risk_score":    { "type": "number" },
+          "flags":         { "type": "array", "items": { "type": "string" } },
+          "processing_ms": { "type": "number" },
+          "request_id":    { "type": "string" },
+          "action":        { "type": "string" }
+        }
+      },
+      "HealthResult": {
+        "type": "object",
+        "properties": {
+          "status":         { "type": "string", "enum": ["ok","degraded"] },
+          "version":        { "type": "string" },
+          "uptime_seconds": { "type": "number" }
+        }
+      },
+      "Community": {
+        "type": "object",
+        "properties": {
+          "id":           { "type": "string" },
+          "name":         { "type": "string" },
+          "description":  { "type": "string" },
+          "visibility":   { "type": "string", "enum": ["public","private"] },
+          "member_count": { "type": "integer" },
+          "created_at":   { "type": "string", "format": "date-time" },
+          "status":       { "type": "string" }
+        }
+      },
+      "CommunityCreateRequest": {
+        "type": "object",
+        "required": ["name", "tenant_id"],
+        "properties": {
+          "name":        { "type": "string" },
+          "description": { "type": "string" },
+          "visibility":  { "type": "string", "enum": ["public","private"], "default": "private" },
+          "category":    { "type": "string" },
+          "join_policy": { "type": "string", "enum": ["open","invite","request"] },
+          "tenant_id":   { "type": "string" }
+        }
+      },
+      "CommunityMember": {
+        "type": "object",
+        "properties": {
+          "member_id":    { "type": "string" },
+          "community_id": { "type": "string" },
+          "role":         { "type": "string", "enum": ["owner","admin","member"] },
+          "joined_at":    { "type": "string", "format": "date-time" },
+          "status":       { "type": "string" }
+        }
+      },
+      "MarketplaceAgent": {
+        "type": "object",
+        "properties": {
+          "agent_id":     { "type": "string" },
+          "community_id": { "type": "string" },
+          "tenant_id":    { "type": "string" },
+          "public_key":   { "type": "string" },
+          "capabilities": { "type": "array", "items": { "type": "string" } },
+          "status":       { "type": "string" },
+          "mandate_id":   { "type": "string" },
+          "created_at":   { "type": "string", "format": "date-time" }
+        }
+      },
+      "AgentRegisterRequest": {
+        "type": "object",
+        "required": ["tenant_id", "community_id", "public_key", "capabilities"],
+        "properties": {
+          "tenant_id":    { "type": "string" },
+          "community_id": { "type": "string" },
+          "public_key":   { "type": "string" },
+          "capabilities": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Listing": {
+        "type": "object",
+        "properties": {
+          "listing_id":       { "type": "string" },
+          "asset_id":         { "type": "string" },
+          "seller_agent_id":  { "type": "string" },
+          "community_id":     { "type": "string" },
+          "asset_type":       { "type": "string" },
+          "price_usd":        { "type": "number" },
+          "chain":            { "type": "string" },
+          "status":           { "type": "string" },
+          "created_at":       { "type": "string", "format": "date-time" }
+        }
+      },
+      "ListingCreateRequest": {
+        "type": "object",
+        "required": ["asset_id", "seller_agent_id", "community_id", "tenant_id", "price_usd"],
+        "properties": {
+          "asset_id":        { "type": "string" },
+          "seller_agent_id": { "type": "string" },
+          "community_id":    { "type": "string" },
+          "tenant_id":       { "type": "string" },
+          "asset_type":      { "type": "string" },
+          "price_usd":       { "type": "number" },
+          "chain":           { "type": "string", "default": "sepolia" }
+        }
+      },
+      "Escrow": {
+        "type": "object",
+        "properties": {
+          "escrow_id":         { "type": "string" },
+          "listing_id":        { "type": "string" },
+          "buyer_agent_id":    { "type": "string" },
+          "seller_agent_id":   { "type": "string" },
+          "amount_usd":        { "type": "number" },
+          "chain":             { "type": "string" },
+          "contract_address":  { "type": "string" },
+          "status":            { "type": "string" },
+          "created_at":        { "type": "string", "format": "date-time" }
+        }
+      },
+      "GovernanceProposal": {
+        "type": "object",
+        "properties": {
+          "proposal_id":  { "type": "string" },
+          "community_id": { "type": "string" },
+          "title":        { "type": "string" },
+          "description":  { "type": "string" },
+          "status":       { "type": "string" },
+          "votes_for":    { "type": "integer" },
+          "votes_against":{ "type": "integer" },
+          "created_at":   { "type": "string", "format": "date-time" }
+        }
+      },
+      "MarketplaceStats": {
+        "type": "object",
+        "properties": {
+          "total_agents":    { "type": "integer" },
+          "active_listings": { "type": "integer" },
+          "total_trades":    { "type": "integer" },
+          "total_volume_usd":{ "type": "number" }
+        }
+      },
+      "CompliancePosture": {
+        "type": "object",
+        "properties": {
+          "tenant_id":     { "type": "string" },
+          "overall_score": { "type": "number" },
+          "grade":         { "type": "string" },
+          "frameworks":    { "type": "object" },
+          "gaps":          { "type": "array", "items": { "$ref": "#/components/schemas/ComplianceGap" } },
+          "computed_at":   { "type": "string", "format": "date-time" }
+        }
+      },
+      "ComplianceGap": {
+        "type": "object",
+        "properties": {
+          "control_id":   { "type": "string" },
+          "framework":    { "type": "string" },
+          "severity":     { "type": "string", "enum": ["LOW","MEDIUM","HIGH","CRITICAL"] },
+          "description":  { "type": "string" },
+          "remediation":  { "type": "string" }
+        }
+      },
+      "ComplianceHistory": {
+        "type": "object",
+        "properties": {
+          "tenant_id": { "type": "string" },
+          "snapshots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "score":      { "type": "number" },
+                "grade":      { "type": "string" },
+                "recorded_at":{ "type": "string", "format": "date-time" }
+              }
+            }
+          }
+        }
+      },
+      "SemanticModel": {
+        "type": "object",
+        "properties": {
+          "id":          { "type": "string" },
+          "name":        { "type": "string" },
+          "description": { "type": "string" },
+          "metrics":     { "type": "array", "items": { "type": "object" } },
+          "dimensions":  { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "SemanticQueryRequest": {
+        "type": "object",
+        "required": ["model_id", "metrics"],
+        "properties": {
+          "model_id":   { "type": "string" },
+          "metrics":    { "type": "array", "items": { "type": "string" } },
+          "dimensions": { "type": "array", "items": { "type": "string" } },
+          "filters":    { "type": "object" },
+          "limit":      { "type": "integer", "default": 100 },
+          "tenant_id":  { "type": "string" }
+        }
+      },
+      "SemanticQueryResult": {
+        "type": "object",
+        "properties": {
+          "sql":     { "type": "string" },
+          "rows":    { "type": "array", "items": { "type": "object" } },
+          "columns": { "type": "array", "items": { "type": "string" } },
+          "row_count":{ "type": "integer" }
+        }
+      },
+      "DocumentConvertResult": {
+        "type": "object",
+        "properties": {
+          "text":          { "type": "string" },
+          "word_count":    { "type": "integer" },
+          "secrets_found": { "type": "boolean" },
+          "data_class":    { "type": "string" },
+          "cache_hit":     { "type": "boolean" },
+          "ext":           { "type": "string" }
+        }
+      },
+      "DocumentScanResult": {
+        "type": "object",
+        "properties": {
+          "allowed":       { "type": "boolean" },
+          "blocked":       { "type": "boolean" },
+          "risk_level":    { "type": "string" },
+          "secrets_found": { "type": "boolean" },
+          "flags":         { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/filter": {
+      "post": {
+        "operationId": "filterContent",
+        "summary": "Run the 9-layer AI security filter",
+        "tags": ["Core"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FilterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Filter decision",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FilterResult" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Gateway health check",
+        "tags": ["Core"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Health status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResult" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/communities": {
+      "get": {
+        "operationId": "listCommunities",
+        "summary": "List communities for a tenant",
+        "tags": ["Community"],
+        "parameters": [
+          { "name": "tenant_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Community list",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Community" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/communities/create": {
+      "post": {
+        "operationId": "createCommunity",
+        "summary": "Create a new community",
+        "tags": ["Community"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CommunityCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created community",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Community" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/communities/{communityId}": {
+      "get": {
+        "operationId": "getCommunity",
+        "summary": "Get community by ID",
+        "tags": ["Community"],
+        "parameters": [
+          { "name": "communityId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Community",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Community" } }
+            }
+          }
+        }
+      }
+    },
+    "/communities/{communityId}/members": {
+      "get": {
+        "operationId": "listCommunityMembers",
+        "summary": "List community members",
+        "tags": ["Community"],
+        "parameters": [
+          { "name": "communityId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Members",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CommunityMember" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/communities/{communityId}/rotate": {
+      "post": {
+        "operationId": "rotateCommunityKey",
+        "summary": "Rotate community keypair",
+        "tags": ["Community"],
+        "parameters": [
+          { "name": "communityId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "New key ID",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "new_kid": { "type": "string" } } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/communities/{communityId}/upgrade-pqc": {
+      "post": {
+        "operationId": "upgradeToHybridPQC",
+        "summary": "Upgrade community keypair to Post-Quantum (ML-DSA-65)",
+        "tags": ["Community"],
+        "parameters": [
+          { "name": "communityId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "PQC upgrade result",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "is_hybrid": { "type": "boolean" } } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sep/knock/issue": {
+      "post": {
+        "operationId": "issueKnockToken",
+        "summary": "Issue a Knock-and-Verify invitation token",
+        "tags": ["Community"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["community_id", "invitee_tenant_id"],
+                "properties": {
+                  "community_id":       { "type": "string" },
+                  "invitee_tenant_id":  { "type": "string" },
+                  "suggested_role":     { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Knock token",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "knock_token": { "type": "string" } } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/agents/register": {
+      "post": {
+        "operationId": "registerMarketplaceAgent",
+        "summary": "Register an AI agent for M2M marketplace",
+        "tags": ["Marketplace"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AgentRegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered agent with DID",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/MarketplaceAgent" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/agents/{agentId}": {
+      "get": {
+        "operationId": "getMarketplaceAgent",
+        "summary": "Get marketplace agent",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/MarketplaceAgent" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/agents/{agentId}/trust": {
+      "get": {
+        "operationId": "getAgentTrust",
+        "summary": "Get agent trust rank and Sybil risk score",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "agentId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trust score",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "trust_rank":  { "type": "number" },
+                    "sybil_risk":  { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/listings": {
+      "get": {
+        "operationId": "listMarketplaceListings",
+        "summary": "List marketplace listings",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "community_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "asset_type",   "in": "query", "schema": { "type": "string" } },
+          { "name": "status",       "in": "query", "schema": { "type": "string" } },
+          { "name": "limit",        "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listing array",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Listing" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createListing",
+        "summary": "Create a marketplace listing",
+        "tags": ["Marketplace"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ListingCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created listing",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Listing" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/listings/{listingId}": {
+      "get": {
+        "operationId": "getListing",
+        "summary": "Get listing by ID",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "listingId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listing",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Listing" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/listings/{listingId}/purchase": {
+      "post": {
+        "operationId": "purchaseListing",
+        "summary": "Purchase a listing — creates an escrow",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "listingId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["buyer_agent_id"],
+                "properties": { "buyer_agent_id": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Escrow created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Escrow" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/escrow/{escrowId}": {
+      "get": {
+        "operationId": "getEscrow",
+        "summary": "Get escrow by ID",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "escrowId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Escrow",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Escrow" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/escrow/{escrowId}/fund": {
+      "post": {
+        "operationId": "fundEscrow",
+        "summary": "Fund an escrow (buyer confirms payment)",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "escrowId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated escrow",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Escrow" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/escrow/{escrowId}/confirm": {
+      "post": {
+        "operationId": "confirmReceipt",
+        "summary": "Buyer confirms delivery — releases funds to seller",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "escrowId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Settled escrow",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Escrow" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/escrow/{escrowId}/dispute": {
+      "post": {
+        "operationId": "raiseDispute",
+        "summary": "Raise a dispute on an escrow",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "escrowId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "reason": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Disputed escrow",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Escrow" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/governance/proposals": {
+      "get": {
+        "operationId": "listProposals",
+        "summary": "List governance proposals",
+        "tags": ["Marketplace"],
+        "parameters": [
+          { "name": "community_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposals",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/GovernanceProposal" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createProposal",
+        "summary": "Create a governance proposal",
+        "tags": ["Marketplace"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["community_id", "title"],
+                "properties": {
+                  "community_id": { "type": "string" },
+                  "title":        { "type": "string" },
+                  "description":  { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created proposal",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/GovernanceProposal" } }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/stats": {
+      "get": {
+        "operationId": "getMarketplaceStats",
+        "summary": "Marketplace aggregate statistics",
+        "tags": ["Marketplace"],
+        "responses": {
+          "200": {
+            "description": "Stats",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/MarketplaceStats" } }
+            }
+          }
+        }
+      }
+    },
+    "/compliance/posture": {
+      "get": {
+        "operationId": "getCompliancePosture",
+        "summary": "Get real-time compliance posture",
+        "tags": ["Compliance"],
+        "parameters": [
+          { "name": "tenant_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compliance posture",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CompliancePosture" } }
+            }
+          }
+        }
+      }
+    },
+    "/compliance/posture/gaps": {
+      "get": {
+        "operationId": "getComplianceGaps",
+        "summary": "Get compliance gap list",
+        "tags": ["Compliance"],
+        "parameters": [
+          { "name": "tenant_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gap list",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ComplianceGap" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compliance/history": {
+      "get": {
+        "operationId": "getComplianceHistory",
+        "summary": "Get compliance score history (168-hour ring buffer)",
+        "tags": ["Compliance"],
+        "parameters": [
+          { "name": "tenant_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "History snapshots",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ComplianceHistory" } }
+            }
+          }
+        }
+      }
+    },
+    "/compliance/posture/{framework}": {
+      "get": {
+        "operationId": "getFrameworkScore",
+        "summary": "Get score for a single compliance framework",
+        "tags": ["Compliance"],
+        "parameters": [
+          {
+            "name": "framework",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "enum": ["gdpr","soc2","iso27001","hipaa"] }
+          },
+          { "name": "tenant_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Framework score",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "framework": { "type": "string" },
+                    "score":     { "type": "number" },
+                    "controls":  { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compliance/posture/recalculate": {
+      "post": {
+        "operationId": "recalculatePosture",
+        "summary": "Force compliance posture recompute and flush cache",
+        "tags": ["Compliance"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "properties": { "tenant_id": { "type": "string" } } }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fresh posture",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CompliancePosture" } }
+            }
+          }
+        }
+      }
+    },
+    "/compliance/iso27001": {
+      "get": {
+        "operationId": "getISO27001",
+        "summary": "Get ISO 27001:2022 full control matrix (93 controls)",
+        "tags": ["Compliance"],
+        "parameters": [
+          { "name": "tenant_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "ISO 27001 controls",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "score":    { "type": "number" },
+                    "controls": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compliance/soc2/evidence": {
+      "get": {
+        "operationId": "getSOC2Evidence",
+        "summary": "Get SOC 2 Type II evidence guide",
+        "tags": ["Compliance"],
+        "responses": {
+          "200": {
+            "description": "SOC 2 controls",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "controls": { "type": "array", "items": { "type": "object" } } } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/semantic-layer/models": {
+      "get": {
+        "operationId": "listSemanticModels",
+        "summary": "List all registered Semantic Layer models",
+        "tags": ["Semantic"],
+        "responses": {
+          "200": {
+            "description": "Model list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": { "type": "array", "items": { "$ref": "#/components/schemas/SemanticModel" } },
+                    "count":  { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/semantic-layer/models/{modelId}": {
+      "get": {
+        "operationId": "getSemanticModel",
+        "summary": "Get Semantic Layer model by ID",
+        "tags": ["Semantic"],
+        "parameters": [
+          { "name": "modelId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SemanticModel" } }
+            }
+          }
+        }
+      }
+    },
+    "/semantic-layer/query": {
+      "post": {
+        "operationId": "semanticQuery",
+        "summary": "Run a Semantic Layer query (generates SQL, returns rows)",
+        "tags": ["Semantic"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SemanticQueryRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query result with SQL",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SemanticQueryResult" } }
+            }
+          }
+        }
+      }
+    },
+    "/semantic-layer/ai-query": {
+      "post": {
+        "operationId": "semanticAiQuery",
+        "summary": "Natural-language Semantic Layer query (Pro+)",
+        "tags": ["Semantic"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["question"],
+                "properties": {
+                  "question":  { "type": "string" },
+                  "tenant_id": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query result with NL intent",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SemanticQueryResult" } }
+            }
+          }
+        }
+      }
+    },
+    "/semantic-layer/models/catalog": {
+      "post": {
+        "operationId": "registerSemanticModel",
+        "summary": "Register a custom tenant Semantic Layer model",
+        "tags": ["Semantic"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SemanticModel" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered model",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SemanticModel" } }
+            }
+          }
+        }
+      }
+    },
+    "/document-intel/convert": {
+      "post": {
+        "operationId": "convertDocument",
+        "summary": "Convert a document to Markdown via MarkItDown",
+        "tags": ["Documents"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["file_base64", "filename"],
+                "properties": {
+                  "file_base64": { "type": "string" },
+                  "filename":    { "type": "string" },
+                  "tenant_id":   { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Converted document",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DocumentConvertResult" } }
+            }
+          }
+        }
+      }
+    },
+    "/document-intel/scan": {
+      "post": {
+        "operationId": "scanDocument",
+        "summary": "Scan document content through the security pipeline",
+        "tags": ["Documents"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content":   { "type": "string" },
+                  "source":    { "type": "string" },
+                  "tenant_id": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Scan result",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DocumentScanResult" } }
+            }
+          }
+        }
+      }
+    },
+    "/document-intel/stats": {
+      "get": {
+        "operationId": "getDocumentStats",
+        "summary": "Document Intelligence conversion statistics",
+        "tags": ["Documents"],
+        "responses": {
+          "200": {
+            "description": "Stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_conversions": { "type": "integer" },
+                    "cache_hit_rate":    { "type": "number" },
+                    "supported_formats": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

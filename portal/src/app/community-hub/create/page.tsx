@@ -5,7 +5,7 @@
  * Step 4: Peering   · Step 5: Compliance · Step 6: Integrations
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -13,6 +13,7 @@ import {
   Building2, Shield, Users, Network, BookOpen, Settings2,
   ChevronRight, ChevronLeft, Check, Plus, X, Globe, Lock,
   Zap, Info, ArrowLeft, Loader2, Bell, LockKeyhole,
+  ShoppingCart, Bot, CheckCircle2,
 } from 'lucide-react'
 import {
   createCommunity,
@@ -48,6 +49,8 @@ interface WizardData {
   stixAudit:            boolean
   docIntel:             boolean
   complianceFrameworks: string[]
+  // Step 5.5
+  createDefaultAgent: boolean
   // Step 6
   evolutionEnabled: boolean
   slackWebhook:     string
@@ -61,6 +64,7 @@ const INIT: WizardData = {
   peeringEnabled: false, peeringPolicy: 'MIRROR_ONLY', tunnelRegions: [],
   charterEnabled: false, charterText: '', stixAudit: true, docIntel: true,
   complianceFrameworks: [],
+  createDefaultAgent: true,
   evolutionEnabled: false, slackWebhook: '', teamsWebhook: '',
 }
 
@@ -68,12 +72,13 @@ const TUNNEL_REGIONS  = ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH']
 const COMPLIANCE_FW   = ['GDPR', 'SOC 2', 'ISO 27001', 'HIPAA']
 
 const STEPS = [
-  { label: 'Identity',     icon: Building2, subtitle: 'Name and access policy'    },
-  { label: 'Security',     icon: Shield,    subtitle: 'Cryptographic keys'         },
-  { label: 'Members',      icon: Users,     subtitle: 'Invite participants'         },
-  { label: 'Peering',      icon: Network,   subtitle: 'Federation and tunnels'      },
-  { label: 'Compliance',   icon: BookOpen,  subtitle: 'Audit and frameworks'        },
-  { label: 'Integrations', icon: Settings2, subtitle: 'Finish and activate'         },
+  { label: 'Identity',          icon: Building2,   subtitle: 'Name and access policy'    },
+  { label: 'Security',          icon: Shield,       subtitle: 'Cryptographic keys'         },
+  { label: 'Members',           icon: Users,        subtitle: 'Invite participants'         },
+  { label: 'Peering',           icon: Network,      subtitle: 'Federation and tunnels'      },
+  { label: 'Compliance',        icon: BookOpen,     subtitle: 'Audit and frameworks'        },
+  { label: 'Marketplace Setup', icon: ShoppingCart, subtitle: 'Register default agent'      },
+  { label: 'Integrations',      icon: Settings2,    subtitle: 'Finish and activate'         },
 ]
 
 // ── Reusable primitives ─────────────────────────────────────────────────────
@@ -567,12 +572,20 @@ function Step5({ d, set }: { d: WizardData; set: (k: keyof WizardData, v: unknow
   return (
     <div className="space-y-5">
       <div className="space-y-3.5">
-        <SwToggle
-          checked={d.stixAudit}
-          onChange={v => set('stixAudit', v)}
-          label="STIX 2.1 Tamper-Evident Audit Chain"
-          desc="Every transfer is appended to a SHA-256 prev_hash blockchain-style audit trail. Recommended: on."
-        />
+        {/* STIX audit is mandatory — always on */}
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+          <CheckCircle2 size={16} className="text-emerald-400 mt-0.5 shrink-0" />
+          <div>
+            <div className="text-sm font-medium text-white flex items-center gap-2">
+              STIX 2.1 Tamper-Evident Audit Chain
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-normal">Required</span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Every transfer is appended to a SHA-256 prev_hash blockchain-style audit trail.
+              Mandatory for all communities — cannot be disabled.
+            </p>
+          </div>
+        </div>
         <SwToggle
           checked={d.docIntel}
           onChange={v => set('docIntel', v)}
@@ -613,6 +626,54 @@ function Step5({ d, set }: { d: WizardData; set: (k: keyof WizardData, v: unknow
           Selected frameworks are continuously monitored via the compliance scoring engine (Pro+).
         </p>
       </Field>
+    </div>
+  )
+}
+
+// ── Step 5.5: Marketplace Setup ─────────────────────────────────────────────
+
+function Step5_5({ d, set }: { d: WizardData; set: (k: keyof WizardData, v: unknown) => void }) {
+  return (
+    <div className="space-y-5">
+      <InfoBox icon={ShoppingCart} color="blue">
+        A marketplace agent gives your community a DID identity to buy and sell detection assets.
+        The agent is registered automatically when you create the community.
+      </InfoBox>
+
+      <div
+        onClick={() => set('createDefaultAgent', !d.createDefaultAgent)}
+        className={[
+          'flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all',
+          d.createDefaultAgent
+            ? 'border-violet-500/40 bg-violet-500/8'
+            : 'border-white/8 bg-white/3 hover:border-white/15',
+        ].join(' ')}
+      >
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-violet-500/15 border border-violet-500/25 mt-0.5">
+          <Bot size={16} className="text-violet-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-white">Register default marketplace agent</div>
+            <div className={[
+              'w-4 h-4 rounded border flex items-center justify-center shrink-0',
+              d.createDefaultAgent ? 'bg-violet-500 border-violet-500' : 'border-slate-600 bg-slate-800',
+            ].join(' ')}>
+              {d.createDefaultAgent && <Check size={10} className="text-white" />}
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Capabilities: <code className="text-slate-300">marketplace_sell</code> + <code className="text-slate-300">marketplace_buy</code>
+            <br />Spending limit: $100/mo · DID derived from ephemeral Ed25519 keypair
+          </p>
+        </div>
+      </div>
+
+      {!d.createDefaultAgent && (
+        <p className="text-xs text-slate-500">
+          You can register agents later from the Marketplace tab in the Community Hub.
+        </p>
+      )}
     </div>
   )
 }
@@ -737,7 +798,7 @@ function SuccessScreen({ name, communityId, onView, onList }: {
 
 // ── Main wizard page ────────────────────────────────────────────────────────
 
-export default function CreateCommunityPage() {
+function CreateCommunityWizard() {
   const router  = useRouter()
   const params  = useSearchParams()
   const isEdit  = params.get('edit') === 'true'
@@ -874,6 +935,25 @@ export default function CreateCommunityPage() {
         await uploadCharter(cid, data.charterText.trim()).catch(() => {/* fail-open */})
       }
 
+      if (data.createDefaultAgent) {
+        try {
+          const WARDEN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001'
+          const pub = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+          await fetch(`${WARDEN}/marketplace/agents/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tenant_id:    community.creator_tenant_id ?? 'portal',
+              community_id: cid,
+              public_key:   pub,
+              capabilities: ['marketplace_sell', 'marketplace_buy'],
+            }),
+          })
+        } catch {
+          /* fail-open — agent can be registered later from hub */
+        }
+      }
+
       setCreatedId(cid)
       toast.success('Community created successfully!')
     } catch (e: unknown) {
@@ -890,7 +970,7 @@ export default function CreateCommunityPage() {
       <SuccessScreen
         name={data.name}
         communityId={createdId}
-        onView={() => router.push(`/community-hub/${createdId}`)}
+        onView={() => router.push(`/community-hub/hub/${createdId}`)}
         onList={() => router.push('/community-hub')}
       />
     )
@@ -978,7 +1058,8 @@ export default function CreateCommunityPage() {
           {step === 2 && <Step3 d={data} set={set} />}
           {step === 3 && <Step4 d={data} set={set} />}
           {step === 4 && <Step5 d={data} set={set} />}
-          {step === 5 && <Step6 d={data} set={set} />}
+          {step === 5 && <Step5_5 d={data} set={set} />}
+          {step === 6 && <Step6 d={data} set={set} />}
         </div>
 
         {/* Navigation */}
@@ -1017,5 +1098,17 @@ export default function CreateCommunityPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CreateCommunityPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-brand-400" />
+      </div>
+    }>
+      <CreateCommunityWizard />
+    </Suspense>
   )
 }
