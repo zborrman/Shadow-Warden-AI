@@ -193,6 +193,7 @@ markers      = [
     "adversarial: adversarial corpus tests (may be slow)",
     "slow: tests that load the ML model",
     "integration: end-to-end FastAPI tests",
+    "chaos: chaos/fault-injection tests",
 ]
 asyncio_mode = "auto"
 
