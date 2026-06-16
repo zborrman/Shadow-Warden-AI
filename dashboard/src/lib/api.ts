@@ -351,6 +351,7 @@ export type MktAgentTrust  = {
   sybil_flag: boolean;
   sybil_reason: string;
   transitive_peers: { agent_id: string; trust_rank: number; transitive_trust: number }[];
+  recent_trades?: { trade_id: string; status: string; amount_usd: number }[];
 };
 
 async function post<T>(base: string, path: string, body: unknown): Promise<T> {
