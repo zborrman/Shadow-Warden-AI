@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import os
-import pytest
 
 os.environ.setdefault("USDC_SIMULATE", "true")
 
-from warden.payments.usdc import USDCService, get_usdc_service, PaymentIntent
+from warden.payments.usdc import PaymentIntent, USDCService, get_usdc_service
 
 
 class TestUSDCService:

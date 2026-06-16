@@ -326,6 +326,72 @@ Pass `"skip_preflight": true` in the request body to bypass (emergency use only)
 
 ---
 
+## Event Streaming (`/streams`)
+
+> **Tier gate:** Pro+ or `event_streaming_pack` add-on.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/streams/health` | Kafka/Redis pub-sub connection health |
+| `POST` | `/streams/events` | Publish a raw marketplace event to the bus |
+| `GET` | `/streams/flink/jobs` | List active FlinkAgentRunner stateful jobs |
+
+---
+
+## Agent Tokenomics (`/tokenomics`)
+
+> **Tier gate:** Enterprise or `agent_tokenomics_pack` add-on.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/tokenomics/mint` | Mint WAT tokens to an agent wallet |
+| `POST` | `/tokenomics/transfer` | Transfer WAT between agent wallets |
+| `GET` | `/tokenomics/balance/{agent_id}` | Current WAT balance for an agent |
+| `GET` | `/tokenomics/ledger/{agent_id}` | Full transaction history |
+| `POST` | `/tokenomics/outcome-price` | Calculate outcome-based price for a task |
+
+---
+
+## USDC Payments (`/payments/usdc`)
+
+> **Tier gate:** Enterprise or `usdc_payments_pack` add-on.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/payments/usdc/intents` | Create a USDC payment intent |
+| `GET` | `/payments/usdc/intents/{intent_id}` | Poll intent status (`PENDING` / `CONFIRMED` / `FAILED`) |
+
+---
+
+## ANS Certificates (`/marketplace`)
+
+> **Tier gate:** Enterprise or `ans_certificate_pack` add-on.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/marketplace/agents/{agent_id}/certificate` | Issue an X.509 ANS certificate for an agent |
+| `DELETE` | `/marketplace/agents/{agent_id}/certificate` | Revoke agent certificate (adds to CRL) |
+| `GET` | `/marketplace/agents/{agent_id}/certificate` | Download current certificate PEM |
+| `POST` | `/marketplace/certificates/verify` | Verify a PEM certificate (chain + CRL check) |
+
+Subject CN format: `agent-{agent_id}.{community_id}.shadow-warden.ai`
+
+---
+
+## Edge Agent Packs (`/agents`)
+
+> **Tier gate:** Pro+ or `edge_agent_packs` add-on.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/agents/packs` | List all registered edge agent packs |
+| `POST` | `/agents/packs/{name}/deploy` | Deploy a pack to a target endpoint |
+| `POST` | `/agents/packs/{name}/analyze` | Run analysis with sensor data |
+
+Built-in packs: `crop_health_monitor`, `yield_optimizer`, `disease_detector`.
+
+---
+
 ## Pagination
 
 Endpoints returning lists accept `?limit=` (default 50, max 200) and `?offset=` query params.

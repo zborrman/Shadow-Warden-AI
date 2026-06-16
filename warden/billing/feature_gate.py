@@ -206,6 +206,12 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "compliance_scoring_enabled":  False,
         "iso27001_enabled":            False,
         "mobile_push_enabled":         False,
+        # ── New modules (MKT-10 → MKT-14) ────────────────────────────────────
+        "streams_enabled":             False,
+        "tokenomics_enabled":          False,
+        "usdc_payments_enabled":       False,
+        "ans_certificates_enabled":    False,
+        "edge_packs_enabled":          False,
     },
 
     "individual": {
@@ -267,6 +273,12 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "compliance_scoring_enabled":  False,
         "iso27001_enabled":            False,
         "mobile_push_enabled":         False,
+        # ── New modules (MKT-10 → MKT-14) ────────────────────────────────────
+        "streams_enabled":             False,
+        "tokenomics_enabled":          False,
+        "usdc_payments_enabled":       False,
+        "ans_certificates_enabled":    False,
+        "edge_packs_enabled":          False,
     },
 
     "pro": {
@@ -328,6 +340,12 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Pro+)
         "iso27001_enabled":            False,  # ← ISO 27001 Annex A mapping is Enterprise-only
         "mobile_push_enabled":         True,   # ← Mobile SOC push alerts (Pro+)
+        # ── New modules (MKT-10 → MKT-14) ────────────────────────────────────
+        "streams_enabled":             True,   # Kafka/Flink Event Streaming (Pro+)
+        "tokenomics_enabled":          False,  # WAT ERC-20 (Enterprise)
+        "usdc_payments_enabled":       False,  # USDC multi-rail (Enterprise)
+        "ans_certificates_enabled":    False,  # ANS X.509 CA (Enterprise)
+        "edge_packs_enabled":          True,   # ARC edge agent packs (Pro+)
     },
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
@@ -400,6 +418,12 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "compliance_scoring_enabled":  False,
         "iso27001_enabled":            False,
         "mobile_push_enabled":         False,
+        # ── New modules (MKT-10 → MKT-14) ────────────────────────────────────
+        "streams_enabled":             False,
+        "tokenomics_enabled":          False,
+        "usdc_payments_enabled":       False,
+        "ans_certificates_enabled":    False,
+        "edge_packs_enabled":          False,
     },
 
     "enterprise": {
@@ -461,8 +485,42 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Enterprise)
         "iso27001_enabled":            True,   # ← ISO 27001:2022 Annex A control mapping (Enterprise)
         "mobile_push_enabled":         True,   # ← Mobile SOC push alerts (Enterprise)
+        # ── New modules (MKT-10 → MKT-14) ────────────────────────────────────
+        "streams_enabled":             True,   # Kafka/Flink Event Streaming (Enterprise)
+        "tokenomics_enabled":          True,   # WAT ERC-20 Tokenomics (Enterprise)
+        "usdc_payments_enabled":       True,   # USDC Multi-Rail Payments (Enterprise)
+        "ans_certificates_enabled":    True,   # ANS X.509 Certificate Authority (Enterprise)
+        "edge_packs_enabled":          True,   # ARC Edge Agent Packs (Enterprise)
     },
 }
+
+# ── Feature key constants (use these instead of raw strings) ─────────────────
+FEATURE_MARKETPLACE        = "marketplace_enabled"
+FEATURE_AGENTIC_COMMERCE   = "agentic_commerce_enabled"
+FEATURE_SEMANTIC_LAYER     = "semantic_layer_enabled"
+FEATURE_COMPLIANCE_SCORING = "compliance_scoring_enabled"
+FEATURE_ISO27001           = "iso27001_enabled"
+FEATURE_MASTER_AGENT       = "master_agent_enabled"
+FEATURE_SOVEREIGN          = "sovereign_enabled"
+FEATURE_SHADOW_AI          = "shadow_ai_enabled"
+FEATURE_XAI_REPORTS        = "xai_reports_enabled"
+FEATURE_PQC                = "pqc_enabled"
+FEATURE_SECRETS_GOV        = "secrets_governance"
+FEATURE_COMMUNITIES        = "communities_enabled"
+FEATURE_GITHUB_CI          = "github_actions_scan_enabled"
+FEATURE_MOBILE_PUSH        = "mobile_push_enabled"
+# Marketplace sub-features
+FEATURE_DAO_GOVERNANCE     = "marketplace_enabled"   # gated by marketplace_enabled
+FEATURE_TRUST_GRAPH        = "marketplace_enabled"
+FEATURE_MAESTRO            = "marketplace_enabled"
+FEATURE_CROSS_CHAIN        = "marketplace_enabled"
+FEATURE_A2A                = "marketplace_enabled"
+# New MKT-10 → MKT-14
+FEATURE_STREAMS            = "streams_enabled"
+FEATURE_TOKENOMICS         = "tokenomics_enabled"
+FEATURE_USDC_PAYMENTS      = "usdc_payments_enabled"
+FEATURE_ANS_CERTS          = "ans_certificates_enabled"
+FEATURE_EDGE_PACKS         = "edge_packs_enabled"
 
 # ── Legacy aliases ─────────────────────────────────────────────────────────────
 TIER_LIMITS["free"]     = TIER_LIMITS["starter"]

@@ -19,8 +19,8 @@ import json
 import logging
 import os
 import uuid
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from dataclasses import dataclass, asdict
 
 log = logging.getLogger("warden.payments.usdc")
 

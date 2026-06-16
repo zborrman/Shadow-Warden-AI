@@ -157,6 +157,58 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/agentic-commerce-pack",
     },
 
+    # ── New module add-ons (MKT-10 → MKT-14, v6.6) ──────────────────────────
+
+    "event_streaming_pack": {
+        "display_name":   "Event Streaming Pack",
+        "description":    "Kafka/Flink real-time agent event bus: produce/consume marketplace events, auto-dispute watchdog for timed-out escrows, Redis pub/sub fallback.",
+        "usd_per_month":  19,
+        "min_tier":       "pro",
+        "ls_variant_id":  os.getenv("LS_VARIANT_EVENT_STREAMING", ""),
+        "unlocks":        ["streams_enabled"],
+        "docs_url":       "/docs/addons/event-streaming",
+    },
+
+    "agent_tokenomics_pack": {
+        "display_name":   "Agent Tokenomics (WAT)",
+        "description":    "ERC-20 Warden Agent Token on Polygon Amoy: mint, transfer, outcome-based pricing settlements. Simulation mode included for testing.",
+        "usd_per_month":  39,
+        "min_tier":       "enterprise",
+        "ls_variant_id":  os.getenv("LS_VARIANT_TOKENOMICS", ""),
+        "unlocks":        ["tokenomics_enabled"],
+        "docs_url":       "/docs/addons/agent-tokenomics",
+    },
+
+    "usdc_payments_pack": {
+        "display_name":   "USDC Multi-Rail Payments",
+        "description":    "USDC payment intents via Coinbase Commerce or on-chain Polygon: create intent, verify confirmation, multi-rail settlement. Simulation auto-confirms for testing.",
+        "usd_per_month":  29,
+        "min_tier":       "enterprise",
+        "ls_variant_id":  os.getenv("LS_VARIANT_USDC_PAYMENTS", ""),
+        "unlocks":        ["usdc_payments_enabled"],
+        "docs_url":       "/docs/addons/usdc-payments",
+    },
+
+    "ans_certificate_pack": {
+        "display_name":   "ANS Certificate Authority",
+        "description":    "Issue X.509 agent identity certificates (subject: agent-{id}.{community}.shadow-warden.ai), Redis CRL revocation, cryptography library with JSON fallback.",
+        "usd_per_month":  25,
+        "min_tier":       "enterprise",
+        "ls_variant_id":  os.getenv("LS_VARIANT_ANS_CERTS", ""),
+        "unlocks":        ["ans_certificates_enabled"],
+        "docs_url":       "/docs/addons/ans-certificates",
+    },
+
+    "edge_agent_packs": {
+        "display_name":   "ARC Edge Agent Packs",
+        "description":    "Plug-and-play edge analytics: Crop Health Monitor (NDVI), Yield Optimizer (irrigation scheduling), Disease Detector (Claude Vision). Deploy as marketplace agents.",
+        "usd_per_month":  15,
+        "min_tier":       "community_business",
+        "ls_variant_id":  os.getenv("LS_VARIANT_EDGE_PACKS", ""),
+        "unlocks":        ["edge_packs_enabled"],
+        "docs_url":       "/docs/addons/edge-agent-packs",
+    },
+
 }
 
 # ── Bundle catalog ─────────────────────────────────────────────────────────────

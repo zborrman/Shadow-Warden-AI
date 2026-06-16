@@ -15,7 +15,6 @@ Routes
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -26,7 +25,6 @@ from warden.protocols.a2a.agent_card import build_agent_card
 from warden.protocols.a2a.task_lifecycle import (
     _HANDLERS,
     _mem_store,
-    _redis,
     append_message,
     cancel_task,
     create_task,

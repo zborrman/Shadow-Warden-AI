@@ -11,9 +11,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 
-from warden.web3.chains import CHAINS, DEFAULT_CHAIN, get_chain
+from warden.web3.chains import DEFAULT_CHAIN, get_chain
 
 log = logging.getLogger("warden.web3.smart_contract")
 

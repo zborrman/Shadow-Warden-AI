@@ -2,12 +2,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import pytest
 
-from warden.streams.event_bus import KafkaEventBus, get_event_bus
 from warden.streams.agent_runner import FlinkAgentRunner, get_runner
-
+from warden.streams.event_bus import KafkaEventBus, get_event_bus
 
 # ── KafkaEventBus ─────────────────────────────────────────────────────────────
 

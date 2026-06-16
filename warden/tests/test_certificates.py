@@ -1,8 +1,6 @@
 """Tests for ANS Certificate Authority (MKT-13)."""
 from __future__ import annotations
 
-import pytest
-
 from warden.security.certificate_authority import CertificateAuthority, get_ca
 
 

@@ -505,6 +505,76 @@ async def sova_visual_patrol(ctx: dict) -> dict:
     }
 
 
+async def sova_tunnel_health_check(ctx: dict) -> dict:
+    """
+    Every 5 minutes — probe all ACTIVE and DEGRADED MASQUE sovereign tunnels.
+
+    Calls probe_tunnel() for each tunnel and updates its status
+    (ACTIVE → DEGRADED after 2 failures, DEGRADED → OFFLINE after 5).
+    Sends a Slack alert when any tunnel transitions to DEGRADED or OFFLINE.
+    """
+    log.info("sova: tunnel health check [%s]", _ts())
+
+    try:
+        from warden.sovereign.tunnel import list_tunnels, probe_tunnel  # noqa: PLC0415
+    except ImportError:
+        log.debug("tunnel health check: sovereign module unavailable")
+        return {"status": "skip", "ts": _ts(), "reason": "sovereign unavailable"}
+
+    tunnels = [t for t in list_tunnels() if t.status in ("ACTIVE", "DEGRADED")]
+    if not tunnels:
+        return {"status": "ok", "ts": _ts(), "probed": 0}
+
+    results: list[dict] = []
+    degraded: list[str] = []
+    offline:  list[str] = []
+
+    for tunnel in tunnels:
+        try:
+            ok = await probe_tunnel(tunnel.tunnel_id)
+            results.append({"id": tunnel.tunnel_id, "ok": ok, "jurisdiction": tunnel.jurisdiction})
+            if not ok:
+                if tunnel.status == "ACTIVE":
+                    degraded.append(tunnel.tunnel_id)
+                else:
+                    offline.append(tunnel.tunnel_id)
+        except Exception as exc:
+            log.warning("tunnel health check: probe failed tunnel=%s err=%s", tunnel.tunnel_id, exc)
+
+    import os as _os  # noqa: PLC0415
+
+    import redis.asyncio as aioredis  # noqa: PLC0415
+    redis_url = _os.getenv("REDIS_URL", "")
+    if redis_url and redis_url != "memory://":
+        try:
+            r = aioredis.from_url(redis_url)
+            await r.set("sova:tunnel_probe:last_run", _ts(), ex=600)
+        except Exception:
+            pass
+
+    if degraded or offline:
+        lines = []
+        if degraded:
+            lines.append(f"• DEGRADED: {', '.join(degraded)}")
+        if offline:
+            lines.append(f"• OFFLINE:  {', '.join(offline)}")
+        await _slack(
+            f"*MASQUE Tunnel Alert* [{_ts()}]\n"
+            + "\n".join(lines)
+            + f"\n_Probed {len(tunnels)} tunnel(s)_"
+        )
+
+    log.info("tunnel health check: probed=%d degraded=%d offline=%d",
+             len(tunnels), len(degraded), len(offline))
+    return {
+        "status":  "alerted" if (degraded or offline) else "ok",
+        "ts":      _ts(),
+        "probed":  len(tunnels),
+        "degraded": degraded,
+        "offline":  offline,
+    }
+
+
 async def sova_trusted_entry_cron(ctx: dict) -> dict:
     """
     Daily 01:00 UTC — CM-24: award TRUSTED_ENTRY +3 to tenants whose SEP entries

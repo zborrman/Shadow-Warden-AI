@@ -7,14 +7,12 @@ from __future__ import annotations
 import os
 import uuid
 
-import pytest
-
 os.environ.setdefault("REDIS_URL", "memory://")
 os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
 os.environ.setdefault("WARDEN_API_KEY", "")
 
 
-from warden.integrations.onboarding import OnboardingWizard, _load, _store
+from warden.integrations.onboarding import OnboardingWizard, _load
 
 
 def _wizard() -> OnboardingWizard:

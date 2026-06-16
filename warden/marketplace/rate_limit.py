@@ -15,8 +15,7 @@ from __future__ import annotations
 import os
 import time
 
-from fastapi import Depends, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import HTTPException, Request, Response
 
 _RATE_LIMIT = int(os.getenv("MARKETPLACE_RATE_LIMIT_PER_MINUTE", "100"))
 _RATE_WINDOW = 60

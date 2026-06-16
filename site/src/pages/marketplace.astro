@@ -1,7 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 
-const MOCK_TRADES = [
+const API_URL = import.meta.env.API_URL ?? 'https://api.shadow-warden-ai.com';
+
+const FALLBACK_TRADES = [
   { from:'CyberSec Research Hub', to:'FinTech Alliance',      type:'Detection Rule',  price:'$2.50',  age:'2s',  target:'Evolution Engine' },
   { from:'Healthcare AI Consortium', to:'EdTech Safety',      type:'Signal Bundle',   price:'$0.80',  age:'14s', target:'Threat Radar'     },
   { from:'Supply Chain AI Guild', to:'LegalTech Exchange',    type:'Semantic Model',  price:'$12.00', age:'31s', target:'Semantic Layer'   },
@@ -9,6 +11,64 @@ const MOCK_TRADES = [
   { from:'EdTech Safety Network', to:'Healthcare Consortium', type:'Detection Rule',  price:'$3.75',  age:'2m',  target:'Evolution Engine' },
   { from:'LegalTech Exchange', to:'Supply Chain AI Guild',    type:'Detection Rule',  price:'$1.50',  age:'4m',  target:'Evolution Engine' },
 ];
+
+type TradeRow = typeof FALLBACK_TRADES[0];
+type LiveTrade = {
+  buyer_agent: string; seller_agent: string; asset_type?: string; price_usd?: number;
+  created_at?: string; listing_name?: string;
+};
+
+function assetTypeLabel(t: string): string {
+  if (t.includes('detect') || t.includes('rule'))  return 'Detection Rule';
+  if (t.includes('model') || t.includes('semantic')) return 'Semantic Model';
+  return 'Signal Bundle';
+}
+function targetLabel(t: string): string {
+  if (t.includes('rule') || t.includes('detect')) return 'Evolution Engine';
+  if (t.includes('model'))                         return 'Semantic Layer';
+  return 'Threat Radar';
+}
+function ageLabel(ts: string): string {
+  const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (diff < 60) return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  return `${Math.floor(diff / 3600)}h`;
+}
+
+let trades: TradeRow[] = FALLBACK_TRADES;
+let summaryStats = { communities: 2847, assets: 18400, totalTrades: 94200 };
+
+try {
+  const [tradesResp, summaryResp] = await Promise.allSettled([
+    fetch(`${API_URL}/marketplace/analytics/recent-trades?limit=6`, { signal: AbortSignal.timeout(3000) }),
+    fetch(`${API_URL}/marketplace/analytics/summary`, { signal: AbortSignal.timeout(3000) }),
+  ]);
+
+  if (tradesResp.status === 'fulfilled' && tradesResp.value.ok) {
+    const raw: LiveTrade[] = await tradesResp.value.json();
+    if (Array.isArray(raw) && raw.length > 0) {
+      trades = raw.map((t) => ({
+        from:   t.buyer_agent  ?? 'Unknown Buyer',
+        to:     t.seller_agent ?? 'Unknown Seller',
+        type:   assetTypeLabel(t.asset_type ?? ''),
+        price:  t.price_usd != null ? `$${t.price_usd.toFixed(2)}` : '—',
+        age:    t.created_at ? ageLabel(t.created_at) : '—',
+        target: targetLabel(t.asset_type ?? ''),
+      }));
+    }
+  }
+
+  if (summaryResp.status === 'fulfilled' && summaryResp.value.ok) {
+    const s = await summaryResp.value.json();
+    summaryStats = {
+      communities: s.active_agents ?? summaryStats.communities,
+      assets:      s.total_trades  ? s.total_trades * 3 : summaryStats.assets,
+      totalTrades: s.total_trades  ?? summaryStats.totalTrades,
+    };
+  }
+} catch {
+  // fail-open: use fallback data
+}
 ---
 
 <BaseLayout title="M2M Intelligence Marketplace — Shadow Warden AI"
@@ -155,13 +215,13 @@ const MOCK_TRADES = [
         Rules, models, signal bundles — tokenized, signed, auto-imported.
       </p>
       <div class="hero-stats">
-        <div class="h-stat"><span class="h-stat-n" data-to="2847">0</span><span class="h-stat-l">Communities</span></div>
-        <div class="h-stat"><span class="h-stat-n" data-to="18400">0</span><span class="h-stat-l">Assets listed</span></div>
-        <div class="h-stat"><span class="h-stat-n" data-to="94200">0</span><span class="h-stat-l">Trades</span></div>
-        <div class="h-stat"><span class="h-stat-n" data-to="99">0</span><span class="h-stat-l">% Auto-imported</span></div>
+        <div class="h-stat"><span class="h-stat-n" data-to={summaryStats.communities}>{summaryStats.communities.toLocaleString()}</span><span class="h-stat-l">Communities</span></div>
+        <div class="h-stat"><span class="h-stat-n" data-to={summaryStats.assets}>{summaryStats.assets.toLocaleString()}</span><span class="h-stat-l">Assets listed</span></div>
+        <div class="h-stat"><span class="h-stat-n" data-to={summaryStats.totalTrades}>{summaryStats.totalTrades.toLocaleString()}</span><span class="h-stat-l">Trades</span></div>
+        <div class="h-stat"><span class="h-stat-n" data-to="99">99</span><span class="h-stat-l">% Auto-imported</span></div>
       </div>
       <div class="hero-btns">
-        <a href="/community" class="btn-pr">Create Community →</a>
+        <a href="/community/new" class="btn-pr">Create Community →</a>
         <a href="#how" class="btn-ghost">How It Works</a>
       </div>
     </div>
@@ -317,7 +377,7 @@ const MOCK_TRADES = [
         <p class="sec-sub">M2M transactions across the network. Every trade produces a cryptographic transfer proof in the seller's STIX audit chain.</p>
       </div>
       <div class="act-feed">
-        {MOCK_TRADES.map(t => (
+        {trades.map(t => (
           <div class="act-row">
             <div class="act-dot"></div>
             <div class="act-body">
@@ -340,7 +400,7 @@ const MOCK_TRADES = [
       <h2 class="cta-title">Your community is one step from the marketplace</h2>
       <p class="cta-sub">Create a community to activate your marketplace node. Deploy an agent. Start trading detection intelligence in under five minutes.</p>
       <div class="cta-btns">
-        <a href="/community" class="btn-pr cta-btn">Create Community →</a>
+        <a href="/community/new" class="btn-pr cta-btn">Create Community →</a>
         <a href="/pricing" class="btn-ghost cta-btn">View Pricing</a>
       </div>
     </div>

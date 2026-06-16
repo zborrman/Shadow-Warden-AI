@@ -13,16 +13,16 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from warden.marketplace.governance import GovernanceService, PROPOSAL_TYPES
+from warden.marketplace.governance import PROPOSAL_TYPES, GovernanceService
+from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_governance")
 
-router = APIRouter(prefix="/marketplace", tags=["Marketplace Governance"])
+router = APIRouter(prefix="/marketplace", tags=["Marketplace Governance"], dependencies=[Depends(marketplace_rate_limit)])
 _svc = GovernanceService()
 
 
@@ -35,7 +35,7 @@ class ProposalCreate(BaseModel):
     target_id:     str
     title:         str
     description:   str = ""
-    options:       Optional[list[str]] = None
+    options:       list[str] | None = None
 
 
 class VoteCast(BaseModel):
@@ -70,7 +70,7 @@ async def create_proposal(body: ProposalCreate):
 @router.get("/proposals")
 async def list_proposals(
     community_id: str = Query(...),
-    status: Optional[str] = Query(default=None),
+    status: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
 ):
     proposals = _svc.get_proposals(

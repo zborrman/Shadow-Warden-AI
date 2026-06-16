@@ -58,7 +58,9 @@ def _get_stable_ca_key():
         from warden.crypto.hsm import get_signer
         return get_signer()._get_sw_key()
     except Exception:
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: PLC0415
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+            Ed25519PrivateKey,  # noqa: PLC0415
+        )
         return Ed25519PrivateKey.generate()
 
 
@@ -159,7 +161,9 @@ class CertificateAuthority:
         try:
             from cryptography import x509  # noqa: PLC0415
             from cryptography.hazmat.primitives import hashes, serialization  # noqa: PLC0415
-            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: PLC0415
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+                Ed25519PrivateKey,  # noqa: PLC0415
+            )
             from cryptography.x509.oid import NameOID  # noqa: PLC0415
 
             ca_key = _get_stable_ca_key()

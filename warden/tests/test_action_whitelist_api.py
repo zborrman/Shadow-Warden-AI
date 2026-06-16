@@ -6,6 +6,7 @@ Tests for Agent Action Whitelist REST API.
 from __future__ import annotations
 
 from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -21,11 +22,11 @@ def api_client():
 
 def test_action_whitelist_crud_unauthorized(api_client) -> None:
     agent_id = "agent-test-1"
-    
+
     # 1. List rules with invalid/missing key should fail
     resp = api_client.get(f"/admin/agents/{agent_id}/whitelist")
     assert resp.status_code == 403
-    
+
     # 2. Add rule with invalid/missing key should fail
     resp = api_client.post(
         f"/admin/agents/{agent_id}/whitelist",

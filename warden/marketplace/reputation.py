@@ -1,21 +1,25 @@
 """
 warden/marketplace/reputation.py
 ──────────────────────────────────
-ReputationEngine — 5-component trust score for marketplace agents.
+ReputationEngine — 6-component trust score for marketplace agents.
 
-Score formula (v2)
-──────────────────
-  score = completed_rate  * 0.50
-        + volume_factor   * 0.15
-        + dispute_penalty * 0.10
+Score formula (v3 — MAESTRO integrated)
+────────────────────────────────────────
+  score = completed_rate  * 0.45
+        + volume_factor   * 0.12
+        + dispute_penalty * 0.08
         + trust_rank      * 0.15
         + sybil_component * 0.10
+        + maestro_factor  * 0.10
 
   completed_rate  = completed / max(total, 1)
   volume_factor   = min(completed / 10, 1.0)      [caps at 10 trades]
   dispute_penalty = max(0, 1 - disputes / max(total,1))
   trust_rank      = TrustGraph.get_trust_score()  [0.0–1.0]
   sybil_component = 1.0 - SybilGuard.compute_sybil_penalty()
+  maestro_factor  = 1.0 - maestro_penalty          [MAESTRO threat penalty]
+
+  maestro_penalty = max(misalignment_score, collusion_score, poisoning_flag ? 1.0 : 0.0)
 
 Post-trade side-effects (called externally after confirmed purchase):
   • TrustGraph.update_graph(purchase)
@@ -37,33 +41,35 @@ _MIN_TRADES_FOR_SCORE = 3
 
 @dataclass
 class ReputationScore:
-    agent_id:       str
-    score:          float
-    band:           str           # UNKNOWN | LOW | MEDIUM | HIGH
-    total_trades:   int
-    completed:      int
-    disputes:       int
-    as_seller:      int
-    as_buyer:       int
-    trust_rank:     float = 0.5
-    sybil_penalty:  float = 0.0
-    sybil_flagged:  bool  = False
-    components:     dict  = field(default_factory=dict)
+    agent_id:         str
+    score:            float
+    band:             str           # UNKNOWN | LOW | MEDIUM | HIGH
+    total_trades:     int
+    completed:        int
+    disputes:         int
+    as_seller:        int
+    as_buyer:         int
+    trust_rank:       float = 0.5
+    sybil_penalty:    float = 0.0
+    sybil_flagged:    bool  = False
+    maestro_penalty:  float = 0.0
+    components:       dict  = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
-            "agent_id":      self.agent_id,
-            "score":         round(self.score, 4),
-            "band":          self.band,
-            "total_trades":  self.total_trades,
-            "completed":     self.completed,
-            "disputes":      self.disputes,
-            "as_seller":     self.as_seller,
-            "as_buyer":      self.as_buyer,
-            "trust_rank":    round(self.trust_rank, 4),
-            "sybil_penalty": round(self.sybil_penalty, 4),
-            "sybil_flagged": self.sybil_flagged,
-            "components":    self.components,
+            "agent_id":        self.agent_id,
+            "score":           round(self.score, 4),
+            "band":            self.band,
+            "total_trades":    self.total_trades,
+            "completed":       self.completed,
+            "disputes":        self.disputes,
+            "as_seller":       self.as_seller,
+            "as_buyer":        self.as_buyer,
+            "trust_rank":      round(self.trust_rank, 4),
+            "sybil_penalty":   round(self.sybil_penalty, 4),
+            "sybil_flagged":   self.sybil_flagged,
+            "maestro_penalty": round(self.maestro_penalty, 4),
+            "components":      self.components,
         }
 
 
@@ -72,10 +78,11 @@ class ReputationEngine:
 
     def get_score(
         self,
-        agent_id: str,
-        db_path: str = _DB_PATH,
-        trust_graph=None,       # TrustGraph instance (optional)
-        sybil_guard=None,       # SybilGuard instance (optional)
+        agent_id:      str,
+        db_path:       str  = _DB_PATH,
+        trust_graph    = None,       # TrustGraph instance (optional)
+        sybil_guard    = None,       # SybilGuard instance (optional)
+        maestro_service= None,       # MaestroService instance (optional)
     ) -> ReputationScore:
         stats     = self._fetch_stats(agent_id, db_path)
         total     = stats["total"]
@@ -84,10 +91,11 @@ class ReputationEngine:
         as_seller = stats["as_seller"]
         as_buyer  = stats["as_buyer"]
 
-        # Trust graph + Sybil signals (fail-open)
-        trust_rank    = 0.5
-        sybil_penalty = 0.0
-        sybil_flagged = False
+        # Trust graph + Sybil + MAESTRO signals (all fail-open)
+        trust_rank     = 0.5
+        sybil_penalty  = 0.0
+        sybil_flagged  = False
+        maestro_penalty = 0.0
         try:
             if trust_graph is not None:
                 trust_rank = trust_graph.get_trust_score(agent_id)
@@ -99,6 +107,15 @@ class ReputationEngine:
                 sybil_flagged = sybil_guard.is_flagged(agent_id)
         except Exception:
             pass
+        try:
+            if maestro_service is not None:
+                maestro_penalty = maestro_service.get_maestro_penalty(agent_id)
+            else:
+                # Lazy import so reputation works without MAESTRO in tests
+                from warden.marketplace.maestro import get_maestro_service as _gms  # noqa: PLC0415
+                maestro_penalty = _gms(db_path).get_maestro_penalty(agent_id)
+        except Exception:
+            pass
 
         if total < _MIN_TRADES_FOR_SCORE:
             return ReputationScore(
@@ -106,20 +123,22 @@ class ReputationEngine:
                 total_trades=total, completed=completed, disputes=disputes,
                 as_seller=as_seller, as_buyer=as_buyer,
                 trust_rank=trust_rank, sybil_penalty=sybil_penalty,
-                sybil_flagged=sybil_flagged,
+                sybil_flagged=sybil_flagged, maestro_penalty=maestro_penalty,
             )
 
         completed_rate  = completed / total
         volume_factor   = min(completed / 10.0, 1.0)
         dispute_penalty = max(0.0, 1.0 - disputes / total)
         sybil_component = 1.0 - sybil_penalty
+        maestro_factor  = 1.0 - maestro_penalty
 
         score = (
-            completed_rate  * 0.50
-            + volume_factor   * 0.15
-            + dispute_penalty * 0.10
+            completed_rate  * 0.45
+            + volume_factor   * 0.12
+            + dispute_penalty * 0.08
             + trust_rank      * 0.15
             + sybil_component * 0.10
+            + maestro_factor  * 0.10
         )
         score = max(0.0, min(1.0, score))
 
@@ -137,12 +156,14 @@ class ReputationEngine:
             trust_rank=trust_rank,
             sybil_penalty=sybil_penalty,
             sybil_flagged=sybil_flagged,
+            maestro_penalty=maestro_penalty,
             components={
                 "completed_rate":  round(completed_rate, 4),
                 "volume_factor":   round(volume_factor, 4),
                 "dispute_penalty": round(dispute_penalty, 4),
                 "trust_rank":      round(trust_rank, 4),
                 "sybil_component": round(sybil_component, 4),
+                "maestro_factor":  round(maestro_factor, 4),
             },
         )
 

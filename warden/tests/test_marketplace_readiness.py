@@ -28,6 +28,7 @@ os.environ.setdefault("REDIS_URL",               "memory://")
 @pytest.fixture(scope="module")
 def client():
     from fastapi.testclient import TestClient
+
     from warden.main import app
     return TestClient(app)
 

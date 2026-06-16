@@ -14,9 +14,9 @@ Falls back to pure-Python PageRank when networkx is unavailable.
 from __future__ import annotations
 
 import logging
-import math
 import os
 import sqlite3
+import threading
 from collections import defaultdict, deque
 
 log = logging.getLogger("warden.marketplace.trust_graph")
@@ -44,6 +44,7 @@ class TrustGraph:
     def __init__(self) -> None:
         self._rank: dict[str, float] = {}
         self._updates = 0
+        self._updates_lock = threading.Lock()
         if _NX:
             self._g: object = nx.DiGraph()
         else:
@@ -103,7 +104,7 @@ class TrustGraph:
         n = len(nodes)
         if n == 0:
             return {}
-        rank = {v: 1.0 / n for v in nodes}
+        rank = dict.fromkeys(nodes, 1.0 / n)
         for _ in range(_MAX_ITER):
             new: dict[str, float] = {}
             for v in nodes:
@@ -186,8 +187,10 @@ class TrustGraph:
                 old["trades"] += 1
             else:
                 self._g[buyer][seller] = {"weight": w, "trades": 1}
-        self._updates += 1
-        if self._updates % _RECALC_EVERY == 0:
+        with self._updates_lock:
+            self._updates += 1
+            do_recompute = self._updates % _RECALC_EVERY == 0
+        if do_recompute:
             self._recompute()
 
     # ── Leaderboard ───────────────────────────────────────────────────────────

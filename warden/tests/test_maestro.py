@@ -5,10 +5,6 @@ Tests for MAESTRO Threat Detection (MKT-09).
 """
 from __future__ import annotations
 
-import json
-import os
-import tempfile
-
 import pytest
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -191,7 +187,7 @@ class TestMaestroService:
         assert isinstance(flags, list)
 
     def test_get_maestro_service_singleton(self, db_path):
-        from warden.marketplace.maestro import get_maestro_service, _service
+        from warden.marketplace.maestro import get_maestro_service
         svc1 = get_maestro_service(db_path)
         svc2 = get_maestro_service(db_path)
         # Same object

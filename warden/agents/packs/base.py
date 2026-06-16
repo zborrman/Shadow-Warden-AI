@@ -20,10 +20,10 @@ from typing import ClassVar
 log = logging.getLogger("warden.agents.packs")
 
 # Global pack registry: {pack_name: EdgeAgentPack class}
-_REGISTRY: dict[str, type["EdgeAgentPack"]] = {}
+_REGISTRY: dict[str, type[EdgeAgentPack]] = {}
 
 
-def register(cls: type["EdgeAgentPack"]) -> type["EdgeAgentPack"]:
+def register(cls: type[EdgeAgentPack]) -> type[EdgeAgentPack]:
     """Class decorator that registers a pack in the global registry."""
     _REGISTRY[cls.name] = cls
     log.debug("EdgeAgentPack registered: %s", cls.name)
@@ -43,7 +43,7 @@ def list_packs() -> list[dict]:
     ]
 
 
-def get_pack(name: str) -> type["EdgeAgentPack"] | None:
+def get_pack(name: str) -> type[EdgeAgentPack] | None:
     return _REGISTRY.get(name)
 
 

@@ -22,12 +22,13 @@ from __future__ import annotations
 
 import logging
 
+from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from warden.auth_guard import AuthResult, require_api_key
 from warden.m2m_store.catalog import get_catalog
 from warden.m2m_store.inventory import get_inventory
-from warden.m2m_store.models import Offer, OfferRequest, OrderRequest, Product
+from warden.m2m_store.models import OfferRequest, OrderRequest, Product
 from warden.m2m_store.security import (
     PromptInjectionError,
     check_rate_limit,
@@ -42,8 +43,8 @@ log = logging.getLogger("warden.m2m_store.api")
 router = APIRouter(prefix="/m2m-store", tags=["M2M Store"])
 AuthDep = Depends(require_api_key)
 
-# In-process offer cache (offer_id → Offer) — small enough for now
-_offers: dict[str, Offer] = {}  # type: ignore[name-defined]
+# In-process offer cache with 45-second TTL to prevent memory leak from abandoned offers
+_offers: TTLCache = TTLCache(maxsize=10_000, ttl=45)
 
 
 def _rate_guard(agent_id: str) -> None:

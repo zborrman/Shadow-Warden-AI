@@ -17,8 +17,8 @@ from pydantic import BaseModel
 
 # Trigger pack registration by importing the concrete packs
 import warden.agents.packs.crop_health_monitor  # noqa: F401
-import warden.agents.packs.disease_detector      # noqa: F401
-import warden.agents.packs.yield_optimizer       # noqa: F401
+import warden.agents.packs.disease_detector  # noqa: F401
+import warden.agents.packs.yield_optimizer  # noqa: F401
 from warden.agents.packs.base import get_pack, list_packs
 
 log = logging.getLogger("warden.agents.packs.api")

@@ -271,7 +271,7 @@ class GovernanceService:
                 "SELECT choice, weight FROM dao_votes WHERE proposal_id=?", (proposal_id,)
             ).fetchall()
 
-        totals: dict[int, float] = {i: 0.0 for i in range(len(prop.options))}
+        totals: dict[int, float] = dict.fromkeys(range(len(prop.options)), 0.0)
         for row in rows:
             idx = int(row["choice"])
             totals[idx] = totals.get(idx, 0.0) + float(row["weight"])

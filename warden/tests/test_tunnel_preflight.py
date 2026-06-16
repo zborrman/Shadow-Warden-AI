@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import sys
 
 import pytest
 
@@ -15,9 +14,6 @@ os.environ.setdefault("DYNAMIC_RULES_PATH", "/tmp/warden_test_preflight_rules.js
 os.environ.setdefault("MODEL_CACHE_DIR", "/tmp/warden_test_models")
 
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

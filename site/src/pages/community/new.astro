@@ -6,81 +6,441 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   title="New Community — Shadow Warden AI"
   description="Create a new secure collaboration community."
 >
-  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
-    <div class="mx-auto max-w-xl px-4 lg:px-8">
+  <style>
+    .wizard-wrap { background:#0a0a0f; min-height:100vh; padding:112px 0 80px; }
+    .wizard-inner { max-width:640px; margin:0 auto; padding:0 20px; }
 
-      <div class="flex items-center gap-2 mb-8 text-[13px]" style="color:#475569">
-        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Communities</a>
+    /* breadcrumb */
+    .breadcrumb { display:flex; align-items:center; gap:6px; font-size:13px; color:#475569; margin-bottom:32px; }
+    .breadcrumb a { color:#64748b; text-decoration:none; transition:color .15s; }
+    .breadcrumb a:hover { color:#06b6d4; }
+
+    /* stepper */
+    .stepper { display:flex; align-items:center; gap:0; margin-bottom:40px; }
+    .step-item { display:flex; align-items:center; flex:1; }
+    .step-circle {
+      width:34px; height:34px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:13px; font-weight:700; flex-shrink:0;
+      border:2px solid rgba(255,255,255,0.1);
+      color:#475569; background:#0d1220; transition:all .3s;
+    }
+    .step-circle.active { border-color:#06b6d4; color:#06b6d4; background:rgba(6,182,212,0.1); }
+    .step-circle.done { border-color:#10b981; color:white; background:#10b981; }
+    .step-line { flex:1; height:2px; background:rgba(255,255,255,0.07); transition:background .3s; margin:0 4px; }
+    .step-line.done { background:#10b981; }
+
+    /* card */
+    .wizard-card {
+      background:#0d1220;
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:20px;
+      padding:36px;
+    }
+    .step-panel { display:none; }
+    .step-panel.active { display:block; }
+
+    .step-head { margin-bottom:28px; }
+    .step-pre { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#06b6d4; margin-bottom:6px; }
+    .step-title { font-size:22px; font-weight:900; color:#f1f5f9; margin:0 0 6px; }
+    .step-sub { font-size:13px; color:#475569; margin:0; }
+
+    /* form fields */
+    .field { margin-bottom:20px; }
+    .field label { display:block; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#64748b; margin-bottom:8px; }
+    .field-req { color:#f43f5e; }
+    .field input, .field textarea, .field select {
+      width:100%; box-sizing:border-box;
+      background:#0a0a12; border:1px solid rgba(255,255,255,0.1);
+      border-radius:10px; padding:12px 14px;
+      color:#f1f5f9; font-size:14px; outline:none;
+      transition:border-color .2s; font-family:inherit;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color:rgba(6,182,212,0.5); }
+    .field select option { background:#0d1220; }
+    .field textarea { resize:vertical; }
+    .field-hint { font-size:12px; color:#334155; margin-top:6px; }
+
+    /* radio cards */
+    .radio-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .radio-card {
+      padding:14px 16px; border:2px solid rgba(255,255,255,0.07);
+      border-radius:12px; cursor:pointer; transition:all .2s;
+      background:rgba(255,255,255,0.02);
+    }
+    .radio-card:hover { border-color:rgba(6,182,212,0.3); background:rgba(6,182,212,0.04); }
+    .radio-card.selected { border-color:#06b6d4; background:rgba(6,182,212,0.08); }
+    .radio-card input { display:none; }
+    .rc-icon { font-size:22px; margin-bottom:6px; }
+    .rc-label { font-size:13px; font-weight:700; color:#f1f5f9; margin-bottom:2px; }
+    .rc-sub { font-size:11px; color:#475569; }
+
+    /* toggle row */
+    .toggle-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px; border:1px solid rgba(255,255,255,0.07);
+      border-radius:12px; margin-bottom:10px;
+      background:rgba(255,255,255,0.02);
+    }
+    .toggle-info { }
+    .toggle-label { font-size:13px; font-weight:600; color:#f1f5f9; }
+    .toggle-desc { font-size:11px; color:#475569; margin-top:2px; }
+    .toggle-sw { position:relative; width:44px; height:24px; flex-shrink:0; }
+    .toggle-sw input { opacity:0; width:0; height:0; }
+    .toggle-sw .slider {
+      position:absolute; inset:0; border-radius:24px;
+      background:rgba(255,255,255,0.1); transition:.25s; cursor:pointer;
+    }
+    .toggle-sw input:checked + .slider { background:#06b6d4; }
+    .toggle-sw .slider:before {
+      content:''; position:absolute; width:18px; height:18px;
+      left:3px; top:3px; border-radius:50%;
+      background:white; transition:.25s;
+    }
+    .toggle-sw input:checked + .slider:before { transform:translateX(20px); }
+
+    /* tag chips */
+    .tag-input-wrap { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px;
+      background:#0a0a12; border:1px solid rgba(255,255,255,0.1);
+      border-radius:10px; min-height:46px; cursor:text; }
+    .tag-chip { background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.3);
+      border-radius:6px; padding:3px 10px; font-size:12px; color:#06b6d4;
+      display:flex; align-items:center; gap:4px; }
+    .tag-chip button { background:none; border:none; color:#06b6d4; cursor:pointer; font-size:14px; line-height:1; padding:0; }
+    .tag-input-wrap input { background:none; border:none; outline:none; color:#f1f5f9; font-size:13px; min-width:120px; flex:1; padding:2px 4px; }
+
+    /* review table */
+    .review-table { width:100%; border-collapse:collapse; }
+    .review-table tr td { padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px; }
+    .review-table tr:last-child td { border-bottom:none; }
+    .review-table td:first-child { color:#64748b; width:40%; }
+    .review-table td:last-child { color:#f1f5f9; font-weight:600; }
+    .review-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; }
+
+    /* info note */
+    .info-note { padding:12px 14px; border-radius:12px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); font-size:12px; color:#475569; line-height:1.6; margin-bottom:24px; }
+
+    /* nav buttons */
+    .nav-row { display:flex; gap:10px; margin-top:28px; }
+    .btn-back {
+      flex:1; padding:13px; background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.08); border-radius:12px;
+      color:#94a3b8; font-size:14px; font-weight:600; cursor:pointer;
+      transition:background .15s; font-family:inherit;
+    }
+    .btn-back:hover { background:rgba(255,255,255,0.07); }
+    .btn-next {
+      flex:2; padding:13px; background:linear-gradient(135deg,#06b6d4,#0e7490);
+      border:none; border-radius:12px; color:white;
+      font-size:14px; font-weight:700; cursor:pointer; transition:opacity .15s; font-family:inherit;
+    }
+    .btn-next:hover { opacity:.9; }
+    .btn-next:disabled { opacity:.4; cursor:not-allowed; }
+    .btn-create {
+      flex:2; padding:13px; background:linear-gradient(135deg,#10b981,#059669);
+      border:none; border-radius:12px; color:white;
+      font-size:14px; font-weight:700; cursor:pointer; transition:opacity .15s; font-family:inherit;
+    }
+    .btn-create:hover { opacity:.9; }
+
+    /* tier gate */
+    .tier-gate { text-align:center; padding:32px; }
+    .tier-gate-icon { font-size:40px; margin-bottom:14px; }
+  </style>
+
+  <div class="wizard-wrap">
+    <div class="wizard-inner">
+
+      <div class="breadcrumb">
+        <a href="/community">Communities</a>
         <span>›</span>
         <span style="color:#94a3b8">New Community</span>
       </div>
 
-      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:36px">
-        <div class="flex items-center gap-3 mb-8">
-          <div style="width:40px;height:40px;border-radius:12px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);display:flex;align-items:center;justify-content:center;font-size:20px">
-            🏛️
+      <!-- Stepper -->
+      <div class="stepper" id="stepper">
+        <div class="step-item">
+          <div class="step-circle active" id="sc-0">1</div>
+          <div class="step-line" id="sl-0"></div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle" id="sc-1">2</div>
+          <div class="step-line" id="sl-1"></div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle" id="sc-2">3</div>
+          <div class="step-line" id="sl-2"></div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle" id="sc-3">4</div>
+          <div class="step-line" id="sl-3"></div>
+        </div>
+        <div class="step-item">
+          <div class="step-circle" id="sc-4">5</div>
+          <div class="step-line" id="sl-4"></div>
+        </div>
+        <div class="step-item" style="flex:0">
+          <div class="step-circle" id="sc-5">6</div>
+        </div>
+      </div>
+
+      <!-- Wizard card -->
+      <div class="wizard-card" id="wizard-card">
+
+        <!-- Step 1: Basic Info -->
+        <div class="step-panel active" id="panel-0">
+          <div class="step-head">
+            <div class="step-pre">Step 1 of 6</div>
+            <h1 class="step-title">Basic Information</h1>
+            <p class="step-sub">Name your community and describe its purpose.</p>
           </div>
-          <div>
-            <h1 class="text-[22px] font-black" style="color:#f1f5f9">Create Community</h1>
-            <p class="text-[13px]" style="color:#475569">Your community gets a unique COMM-XXXX identifier</p>
+          <div class="field">
+            <label>Community Name <span class="field-req">*</span></label>
+            <input id="f-name" type="text" maxlength="60" placeholder="e.g. Security Research Hub" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label>Description <span style="color:#334155;text-transform:none;font-weight:400">(optional)</span></label>
+            <textarea id="f-desc" rows="3" maxlength="200" placeholder="What is this community for?"></textarea>
+          </div>
+          <div class="field">
+            <label>Website / Docs URL <span style="color:#334155;text-transform:none;font-weight:400">(optional)</span></label>
+            <input id="f-url" type="url" placeholder="https://docs.example.com" />
+          </div>
+          <div class="nav-row">
+            <a href="/community" class="btn-back" style="text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center">Cancel</a>
+            <button class="btn-next" id="next-0">Next: Visibility →</button>
           </div>
         </div>
 
-        <form id="new-comm-form">
-          <div class="mb-5">
-            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">
-              Community Name <span style="color:#FF2D55">*</span>
-            </label>
-            <input
-              id="comm-name"
-              type="text"
-              required
-              maxlength="60"
-              placeholder="e.g. Security Research Hub"
-              style="width:100%;box-sizing:border-box;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 14px;color:#f1f5f9;font-size:14px;outline:none;transition:border-color 0.2s"
-              onfocus="this.style.borderColor='rgba(6,182,212,0.5)'"
-              onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
-            />
+        <!-- Step 2: Visibility & Type -->
+        <div class="step-panel" id="panel-1">
+          <div class="step-head">
+            <div class="step-pre">Step 2 of 6</div>
+            <h1 class="step-title">Visibility & Type</h1>
+            <p class="step-sub">Who can find and join your community?</p>
           </div>
+          <div class="field">
+            <label>Visibility</label>
+            <div class="radio-grid">
+              <label class="radio-card selected" id="rc-public">
+                <input type="radio" name="visibility" value="public" checked />
+                <div class="rc-icon">🌐</div>
+                <div class="rc-label">Public</div>
+                <div class="rc-sub">Discoverable on the marketplace</div>
+              </label>
+              <label class="radio-card" id="rc-private">
+                <input type="radio" name="visibility" value="private" />
+                <div class="rc-icon">🔒</div>
+                <div class="rc-label">Private</div>
+                <div class="rc-sub">Invite-only, not listed</div>
+              </label>
+            </div>
+          </div>
+          <div class="field" style="margin-top:20px">
+            <label>Community Type</label>
+            <div class="radio-grid">
+              <label class="radio-card selected" id="rc-security">
+                <input type="radio" name="comm-type" value="security" checked />
+                <div class="rc-icon">🛡️</div>
+                <div class="rc-label">Security</div>
+                <div class="rc-sub">Threat intel & detection</div>
+              </label>
+              <label class="radio-card" id="rc-research">
+                <input type="radio" name="comm-type" value="research" />
+                <div class="rc-icon">🔬</div>
+                <div class="rc-label">Research</div>
+                <div class="rc-sub">Academic & open-source</div>
+              </label>
+              <label class="radio-card" id="rc-enterprise">
+                <input type="radio" name="comm-type" value="enterprise" />
+                <div class="rc-icon">🏢</div>
+                <div class="rc-label">Enterprise</div>
+                <div class="rc-sub">Internal org teams</div>
+              </label>
+              <label class="radio-card" id="rc-marketplace">
+                <input type="radio" name="comm-type" value="marketplace" />
+                <div class="rc-icon">🛒</div>
+                <div class="rc-label">Marketplace</div>
+                <div class="rc-sub">Buy & sell AI assets</div>
+              </label>
+            </div>
+          </div>
+          <div class="nav-row">
+            <button class="btn-back" id="back-1">← Back</button>
+            <button class="btn-next" id="next-1">Next: Security →</button>
+          </div>
+        </div>
 
-          <div class="mb-5">
-            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">
-              Description <span style="color:#334155">(optional)</span>
-            </label>
-            <textarea
-              id="comm-desc"
-              rows="3"
-              maxlength="200"
-              placeholder="What is this community for?"
-              style="width:100%;box-sizing:border-box;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 14px;color:#f1f5f9;font-size:14px;outline:none;resize:vertical;transition:border-color 0.2s;font-family:inherit"
-              onfocus="this.style.borderColor='rgba(6,182,212,0.5)'"
-              onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
-            ></textarea>
+        <!-- Step 3: Security -->
+        <div class="step-panel" id="panel-2">
+          <div class="step-head">
+            <div class="step-pre">Step 3 of 6</div>
+            <h1 class="step-title">Security Settings</h1>
+            <p class="step-sub">Configure encryption and access controls.</p>
           </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">End-to-End Encryption</div>
+              <div class="toggle-desc">All messages encrypted with community keypair</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-e2e" checked /><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Disappearing Messages</div>
+              <div class="toggle-desc">Auto-delete messages after 7 days</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-disappear" /><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Join Approval Required</div>
+              <div class="toggle-desc">Admins must approve all join requests</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-approval" checked /><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Post-Quantum Cryptography</div>
+              <div class="toggle-desc">ML-DSA-65 hybrid signing — Enterprise plan</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-pqc" disabled /><span class="slider"></span></label>
+          </div>
+          <div class="nav-row">
+            <button class="btn-back" id="back-2">← Back</button>
+            <button class="btn-next" id="next-2">Next: Governance →</button>
+          </div>
+        </div>
 
-          <div class="mb-8 px-4 py-3 rounded-xl" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05)">
-            <p class="text-[12px]" style="color:#475569;line-height:1.6">
-              🔐 Community data is stored locally in your browser. Tunnel messages use end-to-end encrypted channels. No data is sent to external servers without your explicit action.
-            </p>
+        <!-- Step 4: Governance -->
+        <div class="step-panel" id="panel-3">
+          <div class="step-head">
+            <div class="step-pre">Step 4 of 6</div>
+            <h1 class="step-title">Governance</h1>
+            <p class="step-sub">Set member limits, roles, and charter defaults.</p>
           </div>
+          <div class="field">
+            <label>Max Members</label>
+            <select id="f-maxmembers">
+              <option value="10">10 members</option>
+              <option value="25">25 members</option>
+              <option value="50" selected>50 members</option>
+              <option value="100">100 members</option>
+              <option value="0">Unlimited</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Default Member Role</label>
+            <select id="f-role">
+              <option value="member" selected>Member — read &amp; post</option>
+              <option value="viewer">Viewer — read only</option>
+              <option value="contributor">Contributor — read, post &amp; upload</option>
+            </select>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Enable Charter</div>
+              <div class="toggle-desc">Require members to accept governance charter</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-charter" /><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">GDPR Export on Request</div>
+              <div class="toggle-desc">Members can export their data at any time</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-gdpr" checked /><span class="slider"></span></label>
+          </div>
+          <div class="nav-row">
+            <button class="btn-back" id="back-3">← Back</button>
+            <button class="btn-next" id="next-3">Next: Integrations →</button>
+          </div>
+        </div>
 
-          <div class="flex gap-3">
-            <a href="/community"
-               style="flex:1;text-align:center;padding:13px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#94a3b8;text-decoration:none;font-size:14px;font-weight:600;transition:all 0.15s"
-               onmouseover="this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-              Cancel
-            </a>
-            <button
-              type="submit"
-              style="flex:2;padding:13px;background:linear-gradient(135deg,#06b6d4,#0e7490);border:none;border-radius:12px;color:white;font-size:14px;font-weight:700;cursor:pointer;transition:opacity 0.15s"
-              onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-              Create Community →
-            </button>
+        <!-- Step 5: Integrations -->
+        <div class="step-panel" id="panel-4">
+          <div class="step-head">
+            <div class="step-pre">Step 5 of 6</div>
+            <h1 class="step-title">Integrations</h1>
+            <p class="step-sub">Connect your community to external tools.</p>
           </div>
-        </form>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Marketplace Node</div>
+              <div class="toggle-desc">List assets for trading on the Intelligence Marketplace</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-market" checked /><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">SOVA Agent</div>
+              <div class="toggle-desc">Autonomous threat analyst assigned to this community</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-sova" /><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Slack Alerts</div>
+              <div class="toggle-desc">Real-time HIGH/BLOCK event notifications</div>
+            </div>
+            <label class="toggle-sw"><input type="checkbox" id="t-slack" /><span class="slider"></span></label>
+          </div>
+          <div class="field" style="margin-top:16px">
+            <label>Tags <span style="color:#334155;text-transform:none;font-weight:400">(optional — press Enter)</span></label>
+            <div class="tag-input-wrap" id="tags-wrap">
+              <input id="tag-input" type="text" placeholder="e.g. threat-intel, jailbreak..." maxlength="24" />
+            </div>
+            <div class="field-hint">Tags help others discover your community in the marketplace.</div>
+          </div>
+          <div class="nav-row">
+            <button class="btn-back" id="back-4">← Back</button>
+            <button class="btn-next" id="next-4">Review →</button>
+          </div>
+        </div>
+
+        <!-- Step 6: Review -->
+        <div class="step-panel" id="panel-5">
+          <div class="step-head">
+            <div class="step-pre">Step 6 of 6</div>
+            <h1 class="step-title">Review & Create</h1>
+            <p class="step-sub">Confirm your settings before launching.</p>
+          </div>
+          <table class="review-table" id="review-table">
+            <tr><td>Name</td><td id="rv-name">—</td></tr>
+            <tr><td>Description</td><td id="rv-desc" style="color:#64748b;font-weight:400">—</td></tr>
+            <tr><td>Visibility</td><td id="rv-vis">—</td></tr>
+            <tr><td>Type</td><td id="rv-type">—</td></tr>
+            <tr><td>Encryption</td><td id="rv-enc">—</td></tr>
+            <tr><td>Join Approval</td><td id="rv-approval">—</td></tr>
+            <tr><td>Max Members</td><td id="rv-members">—</td></tr>
+            <tr><td>Marketplace</td><td id="rv-market">—</td></tr>
+            <tr><td>Tags</td><td id="rv-tags" style="color:#64748b;font-weight:400">—</td></tr>
+          </table>
+          <div class="info-note" style="margin-top:20px">
+            🔐 Community data is stored in your browser. Tunnel messages use end-to-end encrypted channels. No data is sent to external servers without your explicit action.
+          </div>
+          <div class="nav-row">
+            <button class="btn-back" id="back-5">← Back</button>
+            <button class="btn-create" id="btn-create">🚀 Launch Community</button>
+          </div>
+        </div>
+
+        <!-- Tier gate (shown instead of wizard if limit reached) -->
+        <div class="step-panel" id="panel-gate">
+          <div class="tier-gate">
+            <div class="tier-gate-icon">🔒</div>
+            <p style="font-size:16px;font-weight:700;color:#f1f5f9;margin:0 0 8px">Community limit reached</p>
+            <p style="font-size:13px;color:#64748b;margin:0 0 24px" id="gate-msg"></p>
+            <div style="display:flex;gap:10px;justify-content:center">
+              <a href="/community" style="padding:11px 20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:13px;font-weight:600">← Back</a>
+              <a href="/price" style="padding:11px 24px;background:linear-gradient(135deg,#06b6d4,#0e7490);color:white;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700">View Plans →</a>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
-  </section>
+  </div>
 
   <script>
     const COMM_KEY = 'sw_communities';
@@ -88,109 +448,220 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const USER_KEY = 'sw_user_id';
 
     const TIERS: Record<string, any> = {
-      starter:           { name:'Starter',           color:'#64748b', maxComm:0,  price:'Free'    },
-      individual:        { name:'Individual',         color:'#06b6d4', maxComm:1,  price:'$5/mo'   },
-      community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3,  price:'$19/mo'  },
-      pro:               { name:'Pro',                color:'#FF8C42', maxComm:10, price:'$69/mo'  },
-      enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1, price:'$249/mo' },
+      starter:           { name:'Starter',           color:'#64748b', maxComm:0  },
+      individual:        { name:'Individual',         color:'#06b6d4', maxComm:1  },
+      community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3  },
+      pro:               { name:'Pro',                color:'#FF8C42', maxComm:10 },
+      enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1 },
     };
 
     function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
     function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
+    function getComms(): any[] { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } }
 
-    function getCurrentUserId(): string {
+    function getUserId(): string {
       let uid = localStorage.getItem(USER_KEY);
       if (!uid) {
-        const bytes = crypto.getRandomValues(new Uint8Array(8));
-        uid = 'user-' + Array.from(bytes).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+        const b = crypto.getRandomValues(new Uint8Array(8));
+        uid = 'user-' + Array.from(b).map((x: number) => x.toString(16).padStart(2,'0')).join('');
         localStorage.setItem(USER_KEY, uid);
       }
       return uid;
     }
 
     function genHex(len: number): string {
-      const bytes = crypto.getRandomValues(new Uint8Array(len / 2));
-      return Array.from(bytes).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+      const b = crypto.getRandomValues(new Uint8Array(len / 2));
+      return Array.from(b).map((x: number) => x.toString(16).padStart(2,'0')).join('');
     }
 
-    function genPublicKey(): string { return 'SW-PUB-' + genHex(32); }
-    function genPrivateKey(): string { return 'SW-PRV-' + genHex(32); }
+    function genCommId(): string {
+      const b = crypto.getRandomValues(new Uint8Array(2));
+      return 'COMM-' + Array.from(b).map((x: number) => x.toString(16).padStart(2,'0')).join('').toUpperCase();
+    }
 
-    function checkTierGate(): void {
-      const tc = getTC();
-      const comms: any[] = (() => { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } })();
-      if (tc.maxComm === -1) return;
+    // ── Tier gate check ─────────────────────────────────────
+    const tc = getTC();
+    const comms = getComms();
+    if (tc.maxComm !== -1 && comms.length >= tc.maxComm) {
+      for (let i = 0; i < 6; i++) showPanel(-1);
+      (document.getElementById('panel-gate') as HTMLElement).classList.add('active');
+      (document.getElementById('gate-msg') as HTMLElement).textContent =
+        `Your ${tc.name} plan allows up to ${tc.maxComm === 0 ? 'no' : tc.maxComm} ${tc.maxComm === 1 ? 'community' : 'communities'}. You have ${comms.length}.`;
+    }
 
-      if (comms.length >= tc.maxComm) {
-        const form = document.getElementById('new-comm-form') as HTMLElement;
-        const container = form?.parentElement;
-        if (container) {
-          container.innerHTML = `
-            <div style="text-align:center;padding:32px">
-              <p style="font-size:36px;margin-bottom:12px">🔒</p>
-              <p style="font-size:16px;font-weight:700;color:#f1f5f9;margin-bottom:6px">
-                Community limit reached
-              </p>
-              <p style="font-size:13px;color:#64748b;margin-bottom:4px">
-                Your <strong style="color:${tc.color}">${tc.name}</strong> plan allows up to <strong>${tc.maxComm === 0 ? 'no' : tc.maxComm}</strong> ${tc.maxComm === 1 ? 'community' : 'communities'}.
-              </p>
-              <p style="font-size:13px;color:#64748b;margin-bottom:24px">
-                You currently have ${comms.length}. Upgrade to create more.
-              </p>
-              <div style="display:flex;gap:10px;justify-content:center">
-                <a href="/community" style="padding:11px 20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:13px;font-weight:600">
-                  ← Back
-                </a>
-                <a href="/price" style="padding:11px 24px;background:linear-gradient(135deg,#06b6d4,#0e7490);color:white;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700">
-                  View Plans →
-                </a>
-              </div>
-            </div>`;
+    // ── Step state ──────────────────────────────────────────
+    let current = 0;
+    const TOTAL = 6;
+    const tags: string[] = [];
+
+    function showPanel(step: number) {
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+      if (step >= 0) (document.getElementById(`panel-${step}`) as HTMLElement)?.classList.add('active');
+    }
+
+    function updateStepper(step: number) {
+      for (let i = 0; i < TOTAL; i++) {
+        const circle = document.getElementById(`sc-${i}`) as HTMLElement;
+        if (i < step) {
+          circle.classList.remove('active'); circle.classList.add('done');
+          circle.textContent = '✓';
+        } else if (i === step) {
+          circle.classList.add('active'); circle.classList.remove('done');
+          circle.textContent = String(i + 1);
+        } else {
+          circle.classList.remove('active','done');
+          circle.textContent = String(i + 1);
+        }
+        if (i < TOTAL - 1) {
+          const line = document.getElementById(`sl-${i}`) as HTMLElement;
+          if (i < step) line.classList.add('done'); else line.classList.remove('done');
         }
       }
     }
 
-    function genCommId(): string {
-      const bytes = crypto.getRandomValues(new Uint8Array(2));
-      return 'COMM-' + Array.from(bytes).map((b: number) => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    function goTo(step: number) {
+      current = step;
+      showPanel(step);
+      updateStepper(step);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    document.getElementById('new-comm-form')?.addEventListener('submit', (e: Event) => {
-      e.preventDefault();
-      const name = (document.getElementById('comm-name') as HTMLInputElement)?.value.trim();
-      const desc = (document.getElementById('comm-desc') as HTMLTextAreaElement)?.value.trim();
-      if (!name) return;
+    // ── Navigation ──────────────────────────────────────────
+    document.getElementById('next-0')?.addEventListener('click', () => {
+      const name = (document.getElementById('f-name') as HTMLInputElement).value.trim();
+      if (!name) {
+        (document.getElementById('f-name') as HTMLInputElement).focus();
+        return;
+      }
+      goTo(1);
+    });
 
-      const comms: any[] = (() => {
-        try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; }
-      })();
+    document.getElementById('back-1')?.addEventListener('click', () => goTo(0));
+    document.getElementById('next-1')?.addEventListener('click', () => goTo(2));
+    document.getElementById('back-2')?.addEventListener('click', () => goTo(1));
+    document.getElementById('next-2')?.addEventListener('click', () => goTo(3));
+    document.getElementById('back-3')?.addEventListener('click', () => goTo(2));
+    document.getElementById('next-3')?.addEventListener('click', () => goTo(4));
+    document.getElementById('back-4')?.addEventListener('click', () => goTo(3));
+    document.getElementById('next-4')?.addEventListener('click', () => { populateReview(); goTo(5); });
+    document.getElementById('back-5')?.addEventListener('click', () => goTo(4));
 
-      const id = genCommId();
-      const currentUserId = getCurrentUserId();
+    // ── Radio cards ─────────────────────────────────────────
+    document.querySelectorAll('.radio-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const input = card.querySelector('input[type=radio]') as HTMLInputElement;
+        const name = input?.name;
+        document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+          r.closest('.radio-card')?.classList.remove('selected');
+        });
+        card.classList.add('selected');
+        input.checked = true;
+      });
+    });
+
+    // ── Tags ────────────────────────────────────────────────
+    const tagInput = document.getElementById('tag-input') as HTMLInputElement;
+    const tagsWrap = document.getElementById('tags-wrap') as HTMLElement;
+
+    function addTag(val: string) {
+      const t = val.trim().toLowerCase().replace(/[^a-z0-9\-_]/g,'');
+      if (!t || tags.includes(t) || tags.length >= 8) return;
+      tags.push(t);
+      const chip = document.createElement('div');
+      chip.className = 'tag-chip';
+      chip.innerHTML = `${t} <button type="button" aria-label="remove">×</button>`;
+      chip.querySelector('button')?.addEventListener('click', () => {
+        tags.splice(tags.indexOf(t), 1);
+        chip.remove();
+      });
+      tagsWrap.insertBefore(chip, tagInput);
+    }
+
+    tagInput.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        addTag(tagInput.value);
+        tagInput.value = '';
+      }
+    });
+    tagsWrap.addEventListener('click', () => tagInput.focus());
+
+    // ── Review ──────────────────────────────────────────────
+    function populateReview() {
+      const get = (id: string) => (document.getElementById(id) as HTMLInputElement)?.value.trim() || '—';
+      const chk = (id: string) => (document.getElementById(id) as HTMLInputElement)?.checked;
+      const radio = (name: string) => (document.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement)?.value || '—';
+
+      (document.getElementById('rv-name') as HTMLElement).textContent = get('f-name') || '—';
+      const desc = get('f-desc');
+      (document.getElementById('rv-desc') as HTMLElement).textContent = desc !== '—' ? desc : 'None';
+
+      const vis = radio('visibility');
+      (document.getElementById('rv-vis') as HTMLElement).innerHTML =
+        vis === 'public' ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)">🌐 Public</span>'
+                         : '<span class="review-badge" style="background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.2)">🔒 Private</span>';
+
+      const typeMap: Record<string,string> = { security:'🛡️ Security', research:'🔬 Research', enterprise:'🏢 Enterprise', marketplace:'🛒 Marketplace' };
+      (document.getElementById('rv-type') as HTMLElement).textContent = typeMap[radio('comm-type')] || '—';
+
+      (document.getElementById('rv-enc') as HTMLElement).innerHTML = chk('t-e2e')
+        ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)">✓ E2E Enabled</span>'
+        : '<span style="color:#64748b">Disabled</span>';
+
+      (document.getElementById('rv-approval') as HTMLElement).textContent = chk('t-approval') ? 'Required' : 'Open join';
+
+      const maxEl = document.getElementById('f-maxmembers') as HTMLSelectElement;
+      (document.getElementById('rv-members') as HTMLElement).textContent =
+        maxEl.value === '0' ? 'Unlimited' : maxEl.value;
+
+      (document.getElementById('rv-market') as HTMLElement).innerHTML = chk('t-market')
+        ? '<span class="review-badge" style="background:rgba(6,182,212,0.1);color:#06b6d4;border:1px solid rgba(6,182,212,0.2)">Active node</span>'
+        : '<span style="color:#64748b">Not listed</span>';
+
+      (document.getElementById('rv-tags') as HTMLElement).textContent = tags.length ? tags.join(', ') : 'None';
+    }
+
+    // ── Create ───────────────────────────────────────────────
+    document.getElementById('btn-create')?.addEventListener('click', () => {
+      const name = (document.getElementById('f-name') as HTMLInputElement).value.trim();
+      if (!name) { goTo(0); return; }
+
+      const maxEl = document.getElementById('f-maxmembers') as HTMLSelectElement;
+      const uid = getUserId();
       const now = Date.now();
+      const id = genCommId();
 
       const newComm = {
         id,
         name,
-        description: desc,
-        publicKey: genPublicKey(),
-        privateKey: genPrivateKey(),
-        members: [{ id: currentUserId, role: 'owner' as const }],
+        description: (document.getElementById('f-desc') as HTMLTextAreaElement).value.trim(),
+        website: (document.getElementById('f-url') as HTMLInputElement).value.trim(),
+        visibility: (document.querySelector('input[name="visibility"]:checked') as HTMLInputElement)?.value || 'public',
+        type: (document.querySelector('input[name="comm-type"]:checked') as HTMLInputElement)?.value || 'security',
+        e2e: (document.getElementById('t-e2e') as HTMLInputElement).checked,
+        disappearingMessages: (document.getElementById('t-disappear') as HTMLInputElement).checked,
+        approvalRequired: (document.getElementById('t-approval') as HTMLInputElement).checked,
+        pqc: false,
+        maxMembers: parseInt(maxEl.value) || 0,
+        charterEnabled: (document.getElementById('t-charter') as HTMLInputElement).checked,
+        gdprExport: (document.getElementById('t-gdpr') as HTMLInputElement).checked,
+        marketplaceNode: (document.getElementById('t-market') as HTMLInputElement).checked,
+        sovaEnabled: (document.getElementById('t-sova') as HTMLInputElement).checked,
+        slackAlerts: (document.getElementById('t-slack') as HTMLInputElement).checked,
+        tags: [...tags],
+        publicKey: 'SW-PUB-' + genHex(32),
+        privateKey: 'SW-PRV-' + genHex(32),
+        members: [{ id: uid, role: 'owner' as const, joined_at: new Date(now).toISOString() }],
         join_requests: [] as any[],
-        activityLog: [
-          { ts: now, action: 'community_created', userId: currentUserId, detail: 'Community created' }
-        ],
-        disappearingMessages: false,
+        activityLog: [{ ts: now, action: 'community_created', userId: uid, detail: 'Community created' }],
         created: new Date(now).toISOString(),
         tabs: ['👥 Members', '💬 Messages', '🔗 Integrations', '📊 Activity', '⚙️ Settings'],
       };
 
-      comms.push(newComm);
-      localStorage.setItem(COMM_KEY, JSON.stringify(comms));
-
+      const all = getComms();
+      all.push(newComm);
+      localStorage.setItem(COMM_KEY, JSON.stringify(all));
       window.location.href = `/community/view?id=${encodeURIComponent(id)}`;
     });
-
-    checkTierGate();
   </script>
 </BaseLayout>

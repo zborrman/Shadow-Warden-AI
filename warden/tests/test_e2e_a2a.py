@@ -10,8 +10,8 @@ Covers:
   - get_server_e2e_pubkey() returns a non-empty key
 """
 import json
-import pytest
 
+import pytest
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -93,7 +93,7 @@ class TestA2AE2E:
         assert isinstance(pub, str) and len(pub) > 0
 
     def test_create_task_with_e2e_input_decrypts(self):
-        from warden.protocols.a2a.task_lifecycle import create_task, get_server_e2e_pubkey
+        from warden.protocols.a2a.task_lifecycle import get_server_e2e_pubkey
 
         server_pub = get_server_e2e_pubkey()
         payload = {"content": "classified payload", "tenant_id": "test"}

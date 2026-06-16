@@ -50,6 +50,7 @@ from warden.agent.scheduler import (
     sova_rotation_check,
     sova_sla_report,
     sova_threat_sync,
+    sova_tunnel_health_check,
     sova_upgrade_scan,
     sova_visual_patrol,
 )
@@ -96,6 +97,7 @@ class WorkerSettings:
         sova_sla_report,
         sova_upgrade_scan,
         sova_corpus_watchdog,
+        sova_tunnel_health_check,
         sova_visual_patrol,
         sova_community_watchdog,
         sova_obsidian_watchdog,
@@ -150,6 +152,13 @@ class WorkerSettings:
 
         # ── SOVA Agent — corpus watchdog every 30 minutes ────────────────────
         cron(sova_corpus_watchdog, minute={0, 30}, timeout=30),
+
+        # ── MASQUE tunnel health check — every 5 minutes ──────────────────────
+        cron(
+            sova_tunnel_health_check,
+            minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
+            timeout=60,
+        ),
 
         # ── SOVA Agent — visual patrol nightly 03:00 UTC ─────────────────────
         cron(sova_visual_patrol, hour=3, minute=0, timeout=300),

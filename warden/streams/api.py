@@ -12,11 +12,11 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from warden.streams.event_bus import TOPICS, get_event_bus
 from warden.streams.agent_runner import get_runner
+from warden.streams.event_bus import TOPICS, get_event_bus
 
 log = logging.getLogger("warden.streams.api")
 router = APIRouter(prefix="/streams", tags=["Streams"])

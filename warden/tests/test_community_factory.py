@@ -9,8 +9,6 @@ from __future__ import annotations
 import os
 import uuid
 
-import pytest
-
 _TEST_DB = f"/tmp/test_comm_factory_{uuid.uuid4().hex[:8]}.db"
 os.environ.setdefault("COMM_DB_PATH", _TEST_DB)
 os.environ.setdefault("MODEL_CACHE_DIR", "/tmp/warden_test_models")

@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_negotiations")
 
-router = APIRouter(tags=["Marketplace Negotiations"])
+router = APIRouter(tags=["Marketplace Negotiations"], dependencies=[Depends(marketplace_rate_limit)])
 
 
 class NegotiationStartRequest(BaseModel):

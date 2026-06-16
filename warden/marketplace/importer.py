@@ -127,15 +127,35 @@ class AssetImporter:
         now         = datetime.now(UTC).isoformat()
         status, error, module = "failed", "", ""
 
+        community_id = asset_data.get("community_id", "")
         try:
             if asset_type == "rule":
                 module = "evolution"
-                self._import_rule(asset_data, source=f"marketplace:{purchase_id}")
-                status = "success"
+                # MAESTRO poisoning gate — fail-open; pending_review if flagged
+                rule_text = str(
+                    asset_data.get("payload", asset_data).get("value", "")
+                    or asset_data.get("payload", asset_data).get("rule_text", "")
+                    or ""
+                )
+                poison_report = self._run_poisoning_check(rule_text, community_id, "rule")
+                if poison_report and poison_report.get("flagged"):
+                    status = "pending_review"
+                    error  = f"MAESTRO: rule flagged for poisoning ({poison_report.get('reasons')})"
+                    self._notify_admin(asset_id, community_id, poison_report)
+                else:
+                    self._import_rule(asset_data, source=f"marketplace:{purchase_id}")
+                    status = "success"
             elif asset_type == "model":
                 module = "semantic_layer"
-                self._import_model(asset_data, tenant_id=tenant_id)
-                status = "success"
+                model_payload = asset_data.get("payload", asset_data).get("model") or asset_data
+                poison_report = self._run_poisoning_check(model_payload, community_id, "model")
+                if poison_report and poison_report.get("flagged"):
+                    status = "pending_review"
+                    error  = f"MAESTRO: model flagged for poisoning ({poison_report.get('reasons')})"
+                    self._notify_admin(asset_id, community_id, poison_report)
+                else:
+                    self._import_model(asset_data, tenant_id=tenant_id)
+                    status = "success"
             elif asset_type == "signals":
                 module = "intel_bridge"
                 self._import_signals(asset_data, tenant_id=tenant_id)
@@ -250,6 +270,41 @@ class AssetImporter:
         count = ingest_marketplace_signals(signals, tenant_id=tenant_id)
         if count == 0:
             raise ValueError("no valid signals extracted from asset data")
+
+    # ── MAESTRO poisoning gate ────────────────────────────────────────────────
+
+    def _run_poisoning_check(
+        self,
+        content:      object,
+        community_id: str,
+        check_type:   str,
+    ) -> dict | None:
+        """Call ModelPoisoningDetector; fail-open (returns None on error)."""
+        try:
+            from warden.marketplace.maestro import ModelPoisoningDetector  # noqa: PLC0415
+            det = ModelPoisoningDetector(self.db_path)
+            if check_type == "rule":
+                report = det.validate_imported_rule(str(content), community_id)
+            else:
+                model_dict = content if isinstance(content, dict) else {}
+                report = det.validate_imported_model(model_dict, community_id)
+            return report.to_dict()
+        except Exception as exc:
+            log.debug("AssetImporter: poisoning check fail-open: %s", exc)
+            return None
+
+    def _notify_admin(self, asset_id: str, community_id: str, report: dict) -> None:
+        """Send Slack alert when an asset is held for manual review. Fail-open."""
+        try:
+            from warden.alerting import send_alert  # noqa: PLC0415
+            send_alert(
+                f"[MAESTRO] Asset `{asset_id}` in community `{community_id}` held for review. "
+                f"Score: {report.get('score', 0):.2f} "
+                f"Reasons: {', '.join(report.get('reasons', []))}",
+                level="warning",
+            )
+        except Exception:
+            pass
 
     # ── DB ────────────────────────────────────────────────────────────────────
 

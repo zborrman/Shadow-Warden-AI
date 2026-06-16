@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 
-from warden.agents.packs.base import list_packs, get_pack, _REGISTRY
 # Import packs so they self-register
 import warden.agents.packs.crop_health_monitor  # noqa: F401
-import warden.agents.packs.yield_optimizer       # noqa: F401
-import warden.agents.packs.disease_detector      # noqa: F401
+import warden.agents.packs.disease_detector  # noqa: F401
+import warden.agents.packs.yield_optimizer  # noqa: F401
+from warden.agents.packs.base import get_pack, list_packs
 
 
 class TestPackRegistry:

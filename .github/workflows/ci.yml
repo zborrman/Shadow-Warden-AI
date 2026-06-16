@@ -334,6 +334,68 @@ jobs:
       # Mutation testing disabled — run locally only (too slow for CI minutes)
       # mutmut run --no-progress (targets: secret_redactor, semantic_guard)
 
+  # ── Integration Tests (production readiness) ────────────────────────────────
+  #
+  # Runs all 12 test_production_readiness.py tests via FastAPI TestClient.
+  # Acts as the end-to-end gate for the full M2M Agentic Marketplace stack.
+  # Depends on test job passing first (unit gate must be green before integration).
+  #
+  integration-test:
+    name: Integration Tests (marketplace readiness)
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install CPU-only PyTorch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install project dependencies
+        run: pip install -e ".[dev]" -r warden/requirements.txt
+
+      - name: Cache ML model (all-MiniLM-L6-v2)
+        uses: actions/cache@v4
+        with:
+          path: /tmp/warden-model-cache
+          key: warden-model-all-minilm-l6-v2-v1
+
+      - name: Run production readiness integration tests
+        run: |
+          pytest warden/tests/test_production_readiness.py -v --tb=short \
+            --junitxml=results/integration-test.xml
+        env:
+          ALLOW_UNAUTHENTICATED: "true"
+          WARDEN_API_KEY: ""
+          ANTHROPIC_API_KEY: ""
+          REDIS_URL: "memory://"
+          LOGS_PATH: "/tmp/int_test_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/int_test_rules.json"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          SEMANTIC_THRESHOLD: "0.72"
+          WAT_SIMULATE: "true"
+          USDC_SIMULATE: "true"
+          DAO_GOVERNANCE_ENABLED: "true"
+          AUDIT_TRAIL_PATH: "/tmp/int_test_audit.db"
+          COMMUNITY_REGISTRY_PATH: "/tmp/int_test_communities.db"
+          COMMUNITY_KEY_ARCHIVE_PATH: "/tmp/int_test_keys.db"
+          S3_ENABLED: "false"
+          SEP_DB_PATH: "/tmp/int_test_sep.db"
+          MARKETPLACE_CONTRACT_ADDRESS: ""
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: results/integration-test.xml
+          retention-days: 30
+
   # ── pip-audit (SCA — Python dependency CVEs) ────────────────────────────────
   pip-audit:
     name: pip-audit (SCA)

@@ -634,6 +634,94 @@ try:
             "warden_escrow_rpc_check_total"
         )
 
+    # ── MAESTRO Threat Detection (MKT-09, v6.5) ──────────────────────────────────
+    try:
+        MAESTRO_MISALIGNMENT_TOTAL = Counter(
+            "warden_maestro_misalignment_total",
+            "Goal misalignment detections in M2M marketplace agents",
+        )
+    except ValueError:
+        MAESTRO_MISALIGNMENT_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_maestro_misalignment_total"
+        )
+
+    try:
+        MAESTRO_COLLUSION_TOTAL = Counter(
+            "warden_maestro_collusion_total",
+            "Collusion pattern detections in M2M marketplace negotiation pairs",
+        )
+    except ValueError:
+        MAESTRO_COLLUSION_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_maestro_collusion_total"
+        )
+
+    try:
+        MAESTRO_POISONING_TOTAL = Counter(
+            "warden_maestro_poisoning_total",
+            "Model/rule poisoning detections during marketplace asset import",
+        )
+    except ValueError:
+        MAESTRO_POISONING_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_maestro_poisoning_total"
+        )
+
+    # ── Event Streaming (MKT-10, v6.6) ──────────────────────────────────────
+    try:
+        STREAMS_EVENTS_TOTAL = Counter(
+            "warden_streams_events_total",
+            "Total events produced/consumed by the Kafka/Flink event bus",
+            ["topic", "direction"],
+        )
+    except ValueError:
+        STREAMS_EVENTS_TOTAL = REGISTRY._names_to_collectors.get("warden_streams_events_total")  # type: ignore[attr-defined, assignment]
+
+    # ── Tokenomics (MKT-11, v6.6) ───────────────────────────────────────────
+    try:
+        WAT_TRANSFERS_TOTAL = Counter(
+            "warden_wat_transfers_total",
+            "Total WAT token transfers (on-chain + simulation)",
+            ["rail"],
+        )
+    except ValueError:
+        WAT_TRANSFERS_TOTAL = REGISTRY._names_to_collectors.get("warden_wat_transfers_total")  # type: ignore[attr-defined, assignment]
+
+    # ── USDC Payments (MKT-12, v6.6) ─────────────────────────────────────────
+    try:
+        USDC_INTENTS_TOTAL = Counter(
+            "warden_usdc_intents_total",
+            "Total USDC payment intents created",
+            ["chain", "status"],
+        )
+    except ValueError:
+        USDC_INTENTS_TOTAL = REGISTRY._names_to_collectors.get("warden_usdc_intents_total")  # type: ignore[attr-defined, assignment]
+
+    # ── ANS Certificates (MKT-13, v6.6) ──────────────────────────────────────
+    try:
+        ANS_CERTS_ISSUED_TOTAL = Counter(
+            "warden_ans_certs_issued_total",
+            "Total ANS X.509 certificates issued",
+        )
+    except ValueError:
+        ANS_CERTS_ISSUED_TOTAL = REGISTRY._names_to_collectors.get("warden_ans_certs_issued_total")  # type: ignore[attr-defined, assignment]
+
+    try:
+        ANS_CERTS_REVOKED_TOTAL = Counter(
+            "warden_ans_certs_revoked_total",
+            "Total ANS X.509 certificates revoked",
+        )
+    except ValueError:
+        ANS_CERTS_REVOKED_TOTAL = REGISTRY._names_to_collectors.get("warden_ans_certs_revoked_total")  # type: ignore[attr-defined, assignment]
+
+    # ── Edge Agent Packs (MKT-14, v6.6) ──────────────────────────────────────
+    try:
+        EDGE_PACK_ANALYZE_TOTAL = Counter(
+            "warden_edge_pack_analyze_total",
+            "Total edge agent pack analyze() calls",
+            ["pack"],
+        )
+    except ValueError:
+        EDGE_PACK_ANALYZE_TOTAL = REGISTRY._names_to_collectors.get("warden_edge_pack_analyze_total")  # type: ignore[attr-defined, assignment]
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -701,3 +789,12 @@ except ImportError:
     COMMUNITY_DOCUMENTS_SCANNED     = _Noop()  # type: ignore[assignment]
     TUNNEL_PREFLIGHT_TOTAL          = _Noop()  # type: ignore[assignment]
     ESCROW_RPC_CHECK_TOTAL          = _Noop()  # type: ignore[assignment]
+    MAESTRO_MISALIGNMENT_TOTAL      = _Noop()  # type: ignore[assignment]
+    MAESTRO_COLLUSION_TOTAL         = _Noop()  # type: ignore[assignment]
+    MAESTRO_POISONING_TOTAL         = _Noop()  # type: ignore[assignment]
+    STREAMS_EVENTS_TOTAL            = _Noop()  # type: ignore[assignment]
+    WAT_TRANSFERS_TOTAL             = _Noop()  # type: ignore[assignment]
+    USDC_INTENTS_TOTAL              = _Noop()  # type: ignore[assignment]
+    ANS_CERTS_ISSUED_TOTAL          = _Noop()  # type: ignore[assignment]
+    ANS_CERTS_REVOKED_TOTAL         = _Noop()  # type: ignore[assignment]
+    EDGE_PACK_ANALYZE_TOTAL         = _Noop()  # type: ignore[assignment]

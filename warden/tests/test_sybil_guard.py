@@ -13,7 +13,6 @@ os.environ.setdefault("STRICT_MODE", "false")
 
 from warden.marketplace.sybil_guard import SybilGuard, _mem_flags
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)

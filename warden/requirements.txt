@@ -141,6 +141,15 @@ PyJWT>=2.8.0
 # Install separately if needed: pip install faiss-cpu
 # faiss-cpu>=1.8.0
 
+# ── TTL-aware in-process cache (used by m2m_store offer dict) ────────────────
+cachetools>=5.3.0
+
+# ── WebAuthn / FIDO2 passkey authentication ───────────────────────────────────
+# py-webauthn — server-side WebAuthn library for FIDO2 passkey registration and
+# authentication.  Required by warden/auth/fido.py for production passkey flows.
+# Falls back to stub mode when not installed (returns _stub:true in responses).
+webauthn>=2.0.0
+
 # ── Office document parsing (C2 Local File Scanner — docx/xlsx) ───────────────
 # python-docx — extract paragraphs + table cells from .docx files
 python-docx>=1.1.0

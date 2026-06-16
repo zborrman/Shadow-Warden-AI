@@ -18,8 +18,8 @@ import os
 import sqlite3
 import threading
 import uuid
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from dataclasses import dataclass, asdict
 
 log = logging.getLogger("warden.tokenomics.outcome_pricing")
 
@@ -209,7 +209,6 @@ class OutcomePricingService:
             return None
 
     def list_listings(self, community_id: str = "", limit: int = 50) -> list[dict]:
-        import json  # noqa: PLC0415
         try:
             with _db_lock:
                 con = _conn(self.db_path)

@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 log = logging.getLogger("warden.onboarding")
 
@@ -21,7 +21,7 @@ _ONBOARDING_DB: dict[str, dict] = {}  # in-process fallback
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # ── Redis helpers (fail-open) ─────────────────────────────────────────────────

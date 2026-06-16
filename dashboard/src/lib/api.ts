@@ -299,6 +299,37 @@ export type OAuthRiskSummary = {
   risk_score: number;
 };
 
+export type MktListing = {
+  listing_id:    string;
+  asset_type:    string;
+  name:          string;
+  description:   string;
+  price_usd:     number;
+  seller_agent:  string;
+  trust_score:   number;
+  status:        "active" | "sold" | "delisted";
+  created_at:    string;
+  ipfs_hash?:    string;
+};
+
+export type MktEscrow = {
+  escrow_id:   string;
+  listing_id:  string;
+  buyer_agent: string;
+  seller_agent: string;
+  amount_usd:  number;
+  state:       "funded" | "delivered" | "confirmed" | "disputed" | "resolved" | "refunded";
+  created_at:  string;
+  chain_tx_hash?: string;
+  dispute_proposal_id?: string;
+};
+
+export type MktTrustGraph = {
+  nodes: { id: string; trust_score: number; sybil_flag: boolean }[];
+  edges: { source: string; target: string; weight: number }[];
+  computed_at: string;
+};
+
 export type MktAnalyticsSummary = {
   period_days:         number;
   total_volume_usd:    number;
@@ -418,6 +449,11 @@ export const api = {
   mktAgents:   (p?: Record<string, string>) => get<{ top_sellers: MktAgentRank[]; top_buyers: MktAgentRank[] }>(API, "/marketplace/analytics/agents", p),
   mktAgentList:(p?: Record<string, string>) => get<{ agent_id: string; status: string; community_id: string }[]>(API, "/marketplace/agents", p),
   mktAgentTrust: (agentId: string)          => get<MktAgentTrust>(API, `/marketplace/agents/${encodeURIComponent(agentId)}/trust`),
+  mktListings: (p?: Record<string, string>) => get<MktListing[]>(API, "/marketplace/listings", p),
+  mktEscrowList:(p?: Record<string, string>) => get<MktEscrow[]>(API, "/marketplace/escrow", p),
+  mktEscrowGet:  (id: string)               => get<MktEscrow>(API, `/marketplace/escrow/${id}`),
+  mktTrustGraph: ()                         => get<MktTrustGraph>(API, "/marketplace/trust/graph"),
+  mktTopAgents:  (limit?: number)           => get<MktAgentTrust[]>(API, "/marketplace/trust/leaderboard", limit ? { limit: String(limit) } : undefined),
 
   // ── Community Governance ──────────────────────────────────────────────────
   communityIntel:       (id: string, tenantId: string) => get<CommunityIntelReport>(API, `/community-intel/${id}`, undefined, { "X-Tenant-ID": tenantId }),

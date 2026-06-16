@@ -4,12 +4,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_assets")
 
-router = APIRouter(tags=["Marketplace Assets"])
+router = APIRouter(tags=["Marketplace Assets"], dependencies=[Depends(marketplace_rate_limit)])
 
 
 class AssetRegisterRequest(BaseModel):

@@ -11,10 +11,8 @@ ERC-20 ABI subset (mint, transfer, balanceOf) is embedded below.
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
-from decimal import Decimal
 
 log = logging.getLogger("warden.tokenomics.agent_token")
 

@@ -2061,6 +2061,118 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "a2a_submit_task",
+        "description": (
+            "Tool #56 — Submit an A2A v1.0 task to the local Shadow Warden gateway or an external A2A agent. "
+            "Supported task_types: marketplace_search, security_filter, threat_analysis, compliance_report. "
+            "Returns task_id and initial state ('submitted'). Poll with a2a_submit_task action='poll'. "
+            "Use when coordinating with external agents, delegating cross-platform tasks, or running async filters."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task_type":    {"type": "string", "description": "A2A task type (e.g. 'marketplace_search')"},
+                "input":        {"type": "object", "description": "Task-specific input payload"},
+                "action":       {"type": "string", "enum": ["submit", "poll", "cancel"], "description": "submit | poll | cancel"},
+                "task_id":      {"type": "string", "description": "Task ID (required for poll/cancel)"},
+                "caller_did":   {"type": "string", "description": "Caller DID (optional, e.g. 'did:shadow:tenant1')"},
+            },
+            "required": ["task_type"],
+        },
+    },
+    {
+        "name": "list_marketplace_listings",
+        "description": (
+            "Tool #57 — Query active listings in the Shadow Warden Agentic Marketplace. "
+            "Filter by asset_type (detection_rule | semantic_model | signal_bundle | threat_intel), "
+            "price range, or free-text query. Returns listing cards with id, name, price, seller, trust_score. "
+            "Use before purchasing to discover available assets or check supply."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "q":            {"type": "string", "description": "Free-text search query"},
+                "asset_type":   {"type": "string", "description": "Asset type filter"},
+                "min_price":    {"type": "number", "description": "Minimum price in USD"},
+                "max_price":    {"type": "number", "description": "Maximum price in USD"},
+                "limit":        {"type": "integer", "description": "Max results (default 20)"},
+            },
+        },
+    },
+    {
+        "name": "purchase_listing",
+        "description": (
+            "Tool #58 — Purchase a marketplace listing and open an escrow in one call. "
+            "Creates an AP2 mandate, funds the escrow, and returns escrow_id + mandate_id. "
+            "The asset is auto-imported to the tenant's corpus after escrow confirmation. "
+            "Requires the buyer_agent_id and listing_id from list_marketplace_listings."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "listing_id":     {"type": "string", "description": "Listing ID from list_marketplace_listings"},
+                "buyer_agent_id": {"type": "string", "description": "Buyer's agent DID or internal agent_id"},
+                "tenant_id":      {"type": "string", "description": "Tenant ID (default: 'default')"},
+                "quantity":       {"type": "integer", "description": "Quantity (default 1)"},
+            },
+            "required": ["listing_id", "buyer_agent_id"],
+        },
+    },
+    {
+        "name": "check_escrow_status",
+        "description": (
+            "Tool #59 — Poll the current state of a marketplace escrow. "
+            "States: funded → delivered → confirmed → disputed → resolved → refunded. "
+            "Returns escrow_id, state, buyer, seller, amount_usd, created_at, chain_tx_hash. "
+            "Use to monitor pending purchases or verify delivery before asset import."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "escrow_id": {"type": "string", "description": "Escrow ID returned by purchase_listing"},
+            },
+            "required": ["escrow_id"],
+        },
+    },
+    {
+        "name": "resolve_dispute",
+        "description": (
+            "Tool #60 — Cast a DAO governance vote to resolve a disputed marketplace escrow. "
+            "Creates a DAO proposal if none exists, then votes 'approve' (release to seller) or 'reject' (refund buyer). "
+            "Returns proposal_id, vote_weight, current_tally, and resolution_status. "
+            "Only call after check_escrow_status confirms state='disputed'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "escrow_id":  {"type": "string", "description": "Disputed escrow ID"},
+                "vote":       {"type": "string", "enum": ["approve", "reject"], "description": "approve = release to seller; reject = refund buyer"},
+                "voter_id":   {"type": "string", "description": "Voter agent_id (must have governance rights)"},
+                "rationale":  {"type": "string", "description": "Plain-English rationale for the vote (stored on-chain)"},
+            },
+            "required": ["escrow_id", "vote", "voter_id"],
+        },
+    },
+    {
+        "name": "acp_search_catalog",
+        "description": (
+            "Tool #61 — Search any ACP-compatible (Agentic Commerce Protocol) external catalog. "
+            "Sends a UCP/ACP catalog search request to an external agent endpoint and returns normalized results. "
+            "Use to discover products/services from partner Shadow Warden nodes or third-party ACP marketplaces. "
+            "Returns listings in ACP format with name, price, seller_did, and capabilities."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "catalog_url": {"type": "string", "description": "Base URL of the ACP-compatible catalog (e.g. https://partner.example.com/m2m-store/catalog/ucp)"},
+                "query":       {"type": "string", "description": "Search query string"},
+                "category":    {"type": "string", "description": "Category filter"},
+                "max_results": {"type": "integer", "description": "Max results to return (default 20)"},
+            },
+            "required": ["catalog_url"],
+        },
+    },
+    {
         "name": "start_onboarding",
         "description": (
             "Tool #53 — Start an AI-assisted 5-step onboarding session for a new tenant. "
@@ -2108,6 +2220,121 @@ TOOLS: list[dict] = [
         },
     },
 ]
+
+# ── A2A + Marketplace tools (#56–61) ─────────────────────────────────────────
+
+async def a2a_submit_task(
+    task_type:  str,
+    input:      dict | None = None,
+    action:     str         = "submit",
+    task_id:    str         = "",
+    caller_did: str         = "",
+    **_,
+) -> dict:
+    """Tool #56 — Submit / poll / cancel an A2A v1.0 task."""
+    try:
+        import asyncio  # noqa: PLC0415
+
+        from warden.protocols.a2a.task_lifecycle import (  # noqa: PLC0415
+            cancel_task,
+            create_task,
+            get_task,
+            run_task,
+        )
+        if action == "poll":
+            if not task_id:
+                return {"error": "task_id required for poll"}
+            return get_task(task_id) or {"error": "task_not_found"}
+        if action == "cancel":
+            if not task_id:
+                return {"error": "task_id required for cancel"}
+            return cancel_task(task_id) or {"error": "task_not_found"}
+        task = create_task(task_type=task_type, input_data=input or {}, caller_did=caller_did)
+        asyncio.ensure_future(run_task(task["task_id"]))
+        return {"task_id": task["task_id"], "state": task["state"]}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+async def list_marketplace_listings(
+    q:          str   = "",
+    asset_type: str   = "",
+    min_price:  float = 0.0,
+    max_price:  float = 1_000_000.0,
+    limit:      int   = 20,
+    **_,
+) -> dict:
+    """Tool #57 — Search active marketplace listings."""
+    result = await _get(
+        "/marketplace/listings",
+        params={
+            "q": q, "asset_type": asset_type,
+            "min_price": min_price, "max_price": max_price,
+            "limit": limit,
+        },
+    )
+    return result if isinstance(result, dict) else {"listings": result}
+
+
+async def purchase_listing(
+    listing_id:     str,
+    buyer_agent_id: str,
+    tenant_id:      str = "default",
+    quantity:       int = 1,
+    **_,
+) -> dict:
+    """Tool #58 — Purchase a listing and open escrow in one call."""
+    return await _post(
+        "/marketplace/purchases",
+        {
+            "listing_id":     listing_id,
+            "buyer_agent_id": buyer_agent_id,
+            "tenant_id":      tenant_id,
+            "quantity":       quantity,
+        },
+    )
+
+
+async def check_escrow_status(escrow_id: str, **_) -> dict:
+    """Tool #59 — Poll escrow state."""
+    return await _get(f"/marketplace/escrow/{escrow_id}")
+
+
+async def resolve_dispute(
+    escrow_id: str,
+    vote:      str,
+    voter_id:  str,
+    rationale: str = "",
+    **_,
+) -> dict:
+    """Tool #60 — Cast DAO vote to resolve a disputed escrow."""
+    return await _post(
+        f"/marketplace/escrow/{escrow_id}/dispute/vote",
+        {"vote": vote, "voter_id": voter_id, "rationale": rationale},
+    )
+
+
+async def acp_search_catalog(
+    catalog_url: str,
+    query:       str = "",
+    category:    str = "",
+    max_results: int = 20,
+    **_,
+) -> dict:
+    """Tool #61 — Search an ACP-compatible external catalog endpoint."""
+    import httpx  # noqa: PLC0415
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                catalog_url,
+                params={"q": query, "category": category, "limit": max_results},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return {"source": catalog_url, "results": data}
+    except Exception as exc:
+        return {"error": str(exc), "source": catalog_url}
+
 
 TOOL_HANDLERS: dict[str, Any] = {
     "get_health":             get_health,
@@ -2175,4 +2402,11 @@ TOOL_HANDLERS: dict[str, Any] = {
     "start_onboarding":              start_onboarding,
     "onboarding_status":             onboarding_status,
     "continue_onboarding":           continue_onboarding,
+    # A2A v1.0 + Marketplace tools (#56–61)
+    "a2a_submit_task":               a2a_submit_task,
+    "list_marketplace_listings":     list_marketplace_listings,
+    "purchase_listing":              purchase_listing,
+    "check_escrow_status":           check_escrow_status,
+    "resolve_dispute":               resolve_dispute,
+    "acp_search_catalog":            acp_search_catalog,
 }

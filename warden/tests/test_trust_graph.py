@@ -1,7 +1,6 @@
 """Tests for warden.marketplace.trust_graph."""
 import os
 import sqlite3
-import tempfile
 from datetime import UTC, datetime
 
 import pytest
@@ -13,7 +12,6 @@ os.environ.setdefault("REDIS_URL", "memory://")
 os.environ.setdefault("STRICT_MODE", "false")
 
 from warden.marketplace.trust_graph import TrustGraph, _trade_weight
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

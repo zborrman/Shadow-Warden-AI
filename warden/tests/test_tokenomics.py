@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import os
+
 import pytest
 
 os.environ.setdefault("WAT_SIMULATE", "true")
 
 from warden.tokenomics.agent_token import AgentToken, get_agent_token
 from warden.tokenomics.outcome_pricing import OutcomePricingService
-
 
 # ── AgentToken (simulation mode) ─────────────────────────────────────────────
 

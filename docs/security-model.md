@@ -137,6 +137,62 @@ operations continue but new purchases and listings are rejected.
 `POST /marketplace/governance/proposals` allows community members to propose parameter changes,
 budget increases, or policy updates. Votes are cast via `POST .../proposals/{id}/vote`.
 
+### MAESTRO Threat Detection (MKT-09)
+
+`warden/marketplace/maestro.py` adds a dedicated M2M security layer covering three threat domains:
+
+#### Goal Misalignment Detection
+
+`GoalMisalignmentDetector` computes a z-score comparing each agent's trading behaviour against
+community-stated goals (fair pricing, volume optimisation, risk minimisation). An agent exceeding
+**2σ deviation** on any active goal is flagged and a `misalignment` record is written to
+`maestro_flags`.
+
+| Signal | Threshold | Goal Checked |
+|--------|-----------|--------------|
+| Average discount % vs. peers | z > 2.0 | `fair_pricing` |
+| Unverified seller buy ratio | > 30% | `risk_minimisation` |
+
+#### Collusion Detection
+
+`CollusionDetector` tracks every negotiation pair in `maestro_negotiations`. A pair is
+considered suspicious when ≥ 60% of observed negotiations share **both** of:
+
+- Accepted in fewer than **2 counter-offer rounds**
+- Final price within **5%** of initial offer
+
+This pattern indicates pre-arranged trades that circumvent legitimate price discovery.
+Detected agents are flagged in Redis (`collusion:flagged:{agent_id}`) with a **90-day TTL**.
+
+#### Model Poisoning Detection
+
+`ModelPoisoningDetector` validates imported assets (rules and semantic models) before hot-load
+into the live corpus. Features extracted:
+
+| Feature | Description |
+|---------|-------------|
+| `length` | Character count of rule text |
+| `word_count` | Token count |
+| `complexity` | Count of regex metacharacters |
+
+Assets deviating more than **3σ** from the community baseline on any feature are held in
+`pending_review` status and a Slack alert is sent to the community admin. They are **never
+imported** without manual approval.
+
+#### Integration Points
+
+| Component | Effect |
+|-----------|--------|
+| `ReputationEngine` v3 | `maestro_penalty` (10% weight) = `max(misalignment_score, collusion_flag ? 1.0 : 0.0)` |
+| `AssetImporter` | Poisoning gate runs before `_import_rule()` / `_import_model()` |
+| Prometheus | `warden_maestro_misalignment_total`, `warden_maestro_collusion_total`, `warden_maestro_poisoning_total` |
+| API | `GET /marketplace/agents/{id}/maestro-report`, `GET /marketplace/maestro/flags` |
+| Streamlit | MAESTRO Threats tab in page `23_Marketplace_Admin.py` |
+| SOC Dashboard | MAESTRO alerts section in `/marketplace/trust` |
+
+All three detectors are **fail-open**: exceptions return `score=0.0` and never block
+marketplace operations.
+
 Security controls:
 - Each agent may vote once per proposal (enforced at DB level with UNIQUE constraint).
 - Proposal TTL: 72 h (configurable via `GOVERNANCE_PROPOSAL_TTL_HOURS`).
