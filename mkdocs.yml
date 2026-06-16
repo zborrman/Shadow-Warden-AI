@@ -9,6 +9,9 @@ repo_name: Shadow-Warden-AI
 repo_url: https://github.com/zborrman/Shadow-Warden-AI
 edit_uri: edit/main/docs/
 
+exclude_docs: |
+  README.md
+
 theme:
   name: material
   palette:
