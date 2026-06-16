@@ -104,6 +104,8 @@ worker/node_modules/
 worker/package-lock.json
 obsidian-plugin/node_modules/
 obsidian-plugin/package-lock.json
+sdk/typescript/node_modules/
+.playwright-mcp/
 portal/tsconfig.tsbuildinfo
 data/evolution_dataset.jsonl
 data/corpus_snapshot.json

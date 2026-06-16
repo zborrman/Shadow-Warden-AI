@@ -78,8 +78,18 @@ class OutcomePricingService:
 
     def __init__(self, db_path: str = _DB_PATH) -> None:
         self.db_path = db_path
-        with _conn(db_path):
-            pass  # ensure schema
+        # Keep a persistent connection for :memory: databases (per-connection scope)
+        self._mem_conn: sqlite3.Connection | None = None
+        if db_path == ":memory:":
+            self._mem_conn = _conn(db_path)
+        else:
+            with _conn(db_path):
+                pass  # ensure schema
+
+    def _get_conn(self) -> sqlite3.Connection:
+        if self._mem_conn is not None:
+            return self._mem_conn
+        return _conn(self.db_path)
 
     def create_listing(
         self,
@@ -95,8 +105,8 @@ class OutcomePricingService:
         listing_id = f"OL-{uuid.uuid4().hex[:12].upper()}"
         now = datetime.now(UTC).isoformat()
         kpi_json = json.dumps(kpi_definition) if isinstance(kpi_definition, dict) else json.dumps({"definition": kpi_definition})
+        con = self._get_conn()
         with _db_lock:
-            con = _conn(self.db_path)
             con.execute(
                 """INSERT INTO outcome_listings
                    (listing_id, base_price_usd, kpi_definition, oracle_address, target_value,
@@ -108,7 +118,8 @@ class OutcomePricingService:
                 ),
             )
             con.commit()
-            con.close()
+            if self._mem_conn is None:
+                con.close()
         log.info("OutcomeListing created: %s seller=%s", listing_id, seller_agent_id)
         return listing_id
 
@@ -145,8 +156,8 @@ class OutcomePricingService:
             tx = {"error": str(exc)}
 
         # Persist settlement
+        con = self._get_conn()
         with _db_lock:
-            con = _conn(self.db_path)
             con.execute(
                 """UPDATE outcome_listings SET
                    status='settled', settled_price=?, achieved_value=?, settled_at=?
@@ -154,7 +165,8 @@ class OutcomePricingService:
                 (final_price, achieved_value, now, listing_id),
             )
             con.commit()
-            con.close()
+            if self._mem_conn is None:
+                con.close()
 
         result = {
             "listing_id":      listing_id,
@@ -172,17 +184,18 @@ class OutcomePricingService:
         return result
 
     def get_listing(self, listing_id: str) -> dict | None:
+        import contextlib  # noqa: PLC0415
         import json  # noqa: PLC0415
         try:
+            con = self._get_conn()
             with _db_lock:
-                con = _conn(self.db_path)
                 row = con.execute(
                     "SELECT * FROM outcome_listings WHERE listing_id=?", (listing_id,)
                 ).fetchone()
-                con.close()
+                if self._mem_conn is None:
+                    con.close()
             if not row:
                 return None
-            import contextlib  # noqa: PLC0415
             d = dict(row)
             with contextlib.suppress(Exception):
                 d["kpi_definition"] = json.loads(d.get("kpi_definition") or "{}")
@@ -193,8 +206,8 @@ class OutcomePricingService:
 
     def list_listings(self, community_id: str = "", limit: int = 50) -> list[dict]:
         try:
+            con = self._get_conn()
             with _db_lock:
-                con = _conn(self.db_path)
                 if community_id:
                     rows = con.execute(
                         "SELECT * FROM outcome_listings WHERE community_id=? ORDER BY created_at DESC LIMIT ?",
@@ -205,7 +218,8 @@ class OutcomePricingService:
                         "SELECT * FROM outcome_listings ORDER BY created_at DESC LIMIT ?",
                         (limit,),
                     ).fetchall()
-                con.close()
+                if self._mem_conn is None:
+                    con.close()
             return [dict(r) for r in rows]
         except Exception:
             return []

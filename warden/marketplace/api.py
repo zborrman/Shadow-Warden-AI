@@ -15,21 +15,12 @@ import logging
 
 from fastapi import APIRouter, Query
 
-from warden.marketplace.api_agents import router as _agents_router
-from warden.marketplace.api_assets import router as _assets_router
-from warden.marketplace.api_escrow import router as _escrow_router
-from warden.marketplace.api_listings import router as _listings_router
-from warden.marketplace.api_negotiations import router as _negotiations_router
-
 log = logging.getLogger("warden.marketplace.api")
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
-router.include_router(_agents_router)
-router.include_router(_assets_router)
-router.include_router(_listings_router)
-router.include_router(_negotiations_router)
-router.include_router(_escrow_router)
+# Sub-routers are included directly on the FastAPI app (in main.py) with
+# prefix="/marketplace" to avoid FastAPI _IncludedRouter nesting issues.
 
 
 def _require_marketplace_gate() -> None:

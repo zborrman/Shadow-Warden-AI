@@ -38,10 +38,16 @@ def _uid() -> str:
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def engine():
-    """Fresh EvolutionEngine with no semantic guard (air-gapped)."""
+def engine(tmp_path):
+    """Fresh EvolutionEngine backed by a fresh temp rules file (no cross-run state)."""
+    import pathlib
+    from warden.brain import evolve as _evolve_mod
+    orig = _evolve_mod.DYNAMIC_RULES_PATH
+    _evolve_mod.DYNAMIC_RULES_PATH = pathlib.Path(tmp_path / "test_rules.json")
     from warden.brain.evolve import EvolutionEngine
-    return EvolutionEngine(semantic_guard=None)
+    eng = EvolutionEngine(semantic_guard=None)
+    yield eng
+    _evolve_mod.DYNAMIC_RULES_PATH = orig
 
 
 @pytest.fixture

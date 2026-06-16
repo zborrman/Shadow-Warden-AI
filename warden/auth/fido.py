@@ -106,6 +106,8 @@ class FIDOProvider:
                     user_verification=UserVerificationRequirement.REQUIRED,
                 ),
             )
+            if hasattr(opts, "model_dump_json"):
+                return json.loads(opts.model_dump_json())
             return json.loads(opts.json())
         except ImportError:
             return {

@@ -97,8 +97,21 @@ class CertificateAuthority:
 
     def __init__(self, db_path: str = _DB_PATH) -> None:
         self.db_path = db_path
-        with _conn(db_path):
-            pass
+        self._mem_conn: sqlite3.Connection | None = None
+        if db_path == ":memory:":
+            self._mem_conn = _conn(db_path)
+        else:
+            with _conn(db_path):
+                pass
+
+    def _get_conn(self) -> sqlite3.Connection:
+        if self._mem_conn is not None:
+            return self._mem_conn
+        return _conn(self.db_path)
+
+    def _close_conn(self, con: sqlite3.Connection) -> None:
+        if self._mem_conn is None:
+            con.close()
 
     # ── Issue ─────────────────────────────────────────────────────────────────
 
@@ -135,7 +148,7 @@ class CertificateAuthority:
             "revoked_at":   None,
         }
         with _db_lock:
-            con = _conn(self.db_path)
+            con = self._get_conn()
             con.execute(
                 """INSERT OR REPLACE INTO ans_certificates
                    (cert_id, agent_id, community_id, subject_cn, cert_pem,
@@ -145,7 +158,7 @@ class CertificateAuthority:
                 row,
             )
             con.commit()
-            con.close()
+            self._close_conn(con)
 
         log.info("ANS: cert issued cert_id=%s agent=%s cn=%s", cert_id, agent_id, subject_cn)
         return {k: v for k, v in row.items() if k != "revoked"}
@@ -180,12 +193,12 @@ class CertificateAuthority:
                 .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, subject_cn)]))
                 .issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Shadow Warden Community CA")]))
                 .public_key(subject_pub)  # type: ignore[arg-type]
-                .serial_number(uuid.UUID(cert_id.replace("CERT-", "").ljust(32, "0")).int % (2**64))
+                .serial_number(int.from_bytes(hashlib.sha256(cert_id.encode()).digest()[:16], "big") | 1)
                 .not_valid_before(issued_at.replace(tzinfo=None))
                 .not_valid_after(expires_at.replace(tzinfo=None))
                 .add_extension(x509.SubjectAlternativeName([x509.DNSName(subject_cn)]), critical=False)
             )
-            cert = builder.sign(ca_key, hashes.SHA256())
+            cert = builder.sign(ca_key, None)
             return cert.public_bytes(serialization.Encoding.PEM).decode()
         except ImportError:
             # cryptography not installed — return a signed JSON envelope
@@ -206,13 +219,13 @@ class CertificateAuthority:
         try:
             now  = datetime.now(UTC).isoformat()
             with _db_lock:
-                con = _conn(self.db_path)
+                con = self._get_conn()
                 row = con.execute(
                     "SELECT cert_id, community_id FROM ans_certificates WHERE agent_id=? AND revoked=0",
                     (agent_id,),
                 ).fetchone()
                 if not row:
-                    con.close()
+                    self._close_conn(con)
                     return False
                 cert_id      = row["cert_id"]
                 community_id = row["community_id"]
@@ -221,7 +234,7 @@ class CertificateAuthority:
                     (now, cert_id),
                 )
                 con.commit()
-                con.close()
+                self._close_conn(con)
 
             # Redis CRL set
             r = _redis()
@@ -255,11 +268,11 @@ class CertificateAuthority:
 
         try:
             with _db_lock:
-                con = _conn(self.db_path)
+                con = self._get_conn()
                 row = con.execute(
                     "SELECT * FROM ans_certificates WHERE cert_id=?", (cert_id,)
                 ).fetchone()
-                con.close()
+                self._close_conn(con)
             if not row:
                 return {"valid": False, "reason": "not_found"}
             if row["revoked"]:
@@ -279,11 +292,11 @@ class CertificateAuthority:
         """Try to extract cert_id by looking up cert_pem in DB. Fail-open → empty."""
         try:
             with _db_lock:
-                con = _conn(self.db_path)
+                con = self._get_conn()
                 row = con.execute(
                     "SELECT cert_id FROM ans_certificates WHERE cert_pem=?", (cert_pem,)
                 ).fetchone()
-                con.close()
+                self._close_conn(con)
             return row["cert_id"] if row else ""
         except Exception:
             return ""
@@ -293,12 +306,12 @@ class CertificateAuthority:
     def get_agent_certificate(self, agent_id: str) -> dict | None:
         try:
             with _db_lock:
-                con = _conn(self.db_path)
+                con = self._get_conn()
                 row = con.execute(
                     "SELECT * FROM ans_certificates WHERE agent_id=? ORDER BY issued_at DESC LIMIT 1",
                     (agent_id,),
                 ).fetchone()
-                con.close()
+                self._close_conn(con)
             return dict(row) if row else None
         except Exception:
             return None

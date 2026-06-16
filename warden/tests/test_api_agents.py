@@ -140,9 +140,11 @@ def test_api_register_agent_201():
     from fastapi.testclient import TestClient
 
     from warden.marketplace.api import router
+    from warden.marketplace.api_agents import router as agents_router
 
     app = FastAPI()
     app.include_router(router)
+    app.include_router(agents_router, prefix="/marketplace")
     client = TestClient(app)
 
     from warden.communities.keypair import generate_community_keypair

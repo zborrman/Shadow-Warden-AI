@@ -39,6 +39,11 @@ router = APIRouter(prefix="/sovereign", tags=["Sovereign AI Cloud"])
 AuthDep = Depends(require_api_key)
 _SovereignGate = require_feature("sovereign_enabled")
 
+try:
+    from warden.sovereign.preflight import preflight_check
+except Exception:
+    preflight_check = None  # type: ignore[assignment]
+
 
 # ── Request models ────────────────────────────────────────────────────────────
 
@@ -54,8 +59,8 @@ class PolicyUpdateRequest(BaseModel):
 
 class RegisterTunnelRequest(BaseModel):
     jurisdiction:    str  = Field(..., description="Jurisdiction code, e.g. 'EU'")
-    region:          str  = Field(..., description="Cloud region, e.g. 'eu-west-1'")
-    endpoint:        str  = Field(..., description="Proxy endpoint host:port")
+    region:          str  = Field("", description="Cloud region, e.g. 'eu-west-1'")
+    endpoint:        str  = Field("", description="Proxy endpoint host:port")
     protocol:        str  = Field("MASQUE_H3", description="MASQUE_H3 | MASQUE_H2 | CONNECT_TCP | DIRECT")
     tls_fingerprint: str  = Field("", description="SHA-256 of server leaf cert (TOFU)")
     tenant_id:       str | None = None
@@ -244,8 +249,10 @@ async def register_tunnel(body: RegisterTunnelRequest, auth: AuthResult = AuthDe
     # ── Preflight ──────────────────────────────────────────────────────────────
     if not body.skip_preflight:
         try:
-            from warden.sovereign.preflight import preflight_check
-            pf = await preflight_check(body.jurisdiction)
+            _pf_fn = preflight_check
+            if _pf_fn is None:
+                raise ImportError("preflight_check unavailable")
+            pf = await _pf_fn(body.jurisdiction)
             if not pf["all_ok"]:
                 failed = [c["service"] for c in pf["checks"] if c["status"] == "fail"]
                 raise HTTPException(

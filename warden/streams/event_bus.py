@@ -93,20 +93,19 @@ class KafkaEventBus:
 
     # ── Produce ───────────────────────────────────────────────────────────────
 
-    async def produce(self, topic: str, key: str, value: dict) -> bool:
+    async def produce(self, topic: str, key: str, value: dict) -> None:
         """
-        Publish *value* to *topic* with *key*.
-        Returns True on success.  Falls back to Redis pub/sub on Kafka failure.
+        Publish *value* to *topic* with *key*.  Falls back to Redis pub/sub silently.
         """
         if self._kafka_ok and self._producer:
             try:
                 await self._producer.send_and_wait(topic, value=value, key=key)
-                return True
+                return
             except Exception as exc:
                 log.warning("KafkaEventBus.produce Kafka error: %s — falling back to Redis.", exc)
 
-        # Redis pub/sub fallback
-        return self._redis_publish(topic, key, value)
+        # Redis pub/sub fallback (fail-open)
+        self._redis_publish(topic, key, value)
 
     def _redis_publish(self, topic: str, key: str, value: dict) -> bool:
         try:

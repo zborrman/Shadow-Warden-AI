@@ -252,7 +252,7 @@ def run_ci(args: argparse.Namespace, api_url: str, api_key: str, tenant_id: str)
     if commit_msg.strip():
         r = scan_text(commit_msg, "commit_message", api_url, api_key, tenant_id, "github_commit_message")
         results.append(r)
-        print(f"  commit_message → {r.get('verdict','?')}")
+        print(f"  commit_message -> {r.get('verdict','?')}")
 
     # 2. Changed files (skip generated/binary)
     try:
@@ -271,7 +271,7 @@ def run_ci(args: argparse.Namespace, api_url: str, api_key: str, tenant_id: str)
             continue
         r = scan_text(diff, filename, api_url, api_key, tenant_id, "github_diff")
         results.append(r)
-        print(f"  {filename} → {r.get('verdict','?')}")
+        print(f"  {filename} -> {r.get('verdict','?')}")
 
     # Aggregate
     agg = aggregate_verdict([r.get("verdict","ALLOW") for r in results])

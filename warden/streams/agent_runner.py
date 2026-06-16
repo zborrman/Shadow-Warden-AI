@@ -97,9 +97,10 @@ class FlinkAgentRunner:
     async def _on_listing(self, key: str, value: dict) -> None:
         """Handle marketplace.listings events."""
         status       = value.get("status", "")
-        community_id = value.get("community_id", "")
+        community_id = value.get("community_id", key)
         log.debug("FlinkAgentRunner: listing %s → %s", key, status)
 
+        self._update_state(community_id, "listing_count", 1)
         if status == "published":
             self._update_state(community_id, "listings_published", 1)
         elif status == "purchased":
@@ -134,12 +135,12 @@ class FlinkAgentRunner:
                         "FlinkAgentRunner: escrow %s timed out (%dh), raising auto-dispute.",
                         escrow_id, _ESCROW_TIMEOUT_H,
                     )
-                    self._auto_dispute(escrow_id)
+                    asyncio.create_task(self._auto_dispute("", escrow_id))
                     r.delete(key)
             except Exception as exc:
                 log.debug("FlinkAgentRunner watchdog entry error: %s", exc)
 
-    def _auto_dispute(self, escrow_id: str) -> None:
+    async def _auto_dispute(self, community_id: str, escrow_id: str) -> None:
         """Trigger an automatic dispute for a timed-out escrow (fail-open)."""
         try:
             from warden.marketplace.escrow import EscrowService  # noqa: PLC0415
@@ -151,6 +152,8 @@ class FlinkAgentRunner:
 
     # ── State helpers ─────────────────────────────────────────────────────────
 
+    _mem_state: dict[str, dict[str, int]] = {}  # in-process fallback when Redis unavailable
+
     def _update_state(self, community_id: str, counter: str, delta: int) -> None:
         if not community_id:
             return
@@ -160,8 +163,11 @@ class FlinkAgentRunner:
                 key = f"agent_runner:{community_id}:state"
                 r.hincrby(key, counter, delta)
                 r.expire(key, 86_400 * 30)
+                return
             except Exception:
                 pass
+        bucket = FlinkAgentRunner._mem_state.setdefault(community_id, {})
+        bucket[counter] = bucket.get(counter, 0) + delta
 
     def get_state(self, community_id: str) -> dict:
         r = _redis()
@@ -170,7 +176,7 @@ class FlinkAgentRunner:
                 return dict(r.hgetall(f"agent_runner:{community_id}:state"))
             except Exception:
                 pass
-        return {}
+        return dict(FlinkAgentRunner._mem_state.get(community_id, {}))
 
     def _record_escrow_funded(self, escrow_id: str) -> None:
         r = _redis()

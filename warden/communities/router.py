@@ -98,7 +98,10 @@ def _require_tier(tier: str, minimum: str) -> None:
 
     Raises HTTP 403 if the tenant's tier is below *minimum*.
     """
-    order = {"individual": 0, "business": 1, "mcp": 2}
+    order = {
+        "starter": 0, "individual": 1, "business": 2, "community_business": 2,
+        "pro": 3, "enterprise": 4, "mcp": 4,
+    }
     if order.get(tier.lower(), 0) < order.get(minimum.lower(), 1):
         raise HTTPException(
             status_code=403,
