@@ -179,8 +179,8 @@ class CertificateAuthority:
                 x509.CertificateBuilder()
                 .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, subject_cn)]))
                 .issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Shadow Warden Community CA")]))
-                .public_key(subject_pub)
-                .serial_number(int(uuid.UUID(cert_id.replace("CERT-", "").ljust(32, "0")), 16) % (2**64))
+                .public_key(subject_pub)  # type: ignore[arg-type]
+                .serial_number(uuid.UUID(cert_id.replace("CERT-", "").ljust(32, "0")).int % (2**64))
                 .not_valid_before(issued_at.replace(tzinfo=None))
                 .not_valid_after(expires_at.replace(tzinfo=None))
                 .add_extension(x509.SubjectAlternativeName([x509.DNSName(subject_cn)]), critical=False)

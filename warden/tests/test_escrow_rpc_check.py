@@ -27,7 +27,7 @@ def _make_web3_stub(connected: bool):
     mock_web3_cls.HTTPProvider = MagicMock(return_value="http-provider")
 
     fake_web3 = types.ModuleType("web3")
-    fake_web3.Web3 = mock_web3_cls
+    fake_web3.Web3 = mock_web3_cls  # type: ignore[attr-defined]
     return fake_web3, mock_w3
 
 
@@ -97,7 +97,7 @@ def test_rpc_check_retry_succeeds_on_second_attempt():
     mock_web3_cls = MagicMock(return_value=_FakeW3())
     mock_web3_cls.HTTPProvider = MagicMock(return_value="http-provider")
     fake_web3 = types.ModuleType("web3")
-    fake_web3.Web3 = mock_web3_cls
+    fake_web3.Web3 = mock_web3_cls  # type: ignore[attr-defined]
 
     with patch.dict(sys.modules, {"web3": fake_web3}):
         svc = EscrowService()

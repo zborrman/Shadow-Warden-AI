@@ -69,12 +69,12 @@ class DiseaseDetector(EdgeAgentPack):
             )
             import json  # noqa: PLC0415
             try:
-                raw   = msg.content[0].text
+                raw   = msg.content[0].text  # type: ignore[union-attr]
                 start = raw.find("{")
                 end   = raw.rfind("}") + 1
                 data  = json.loads(raw[start:end])
             except Exception:
-                data = {"raw": msg.content[0].text}
+                data = {"raw": msg.content[0].text}  # type: ignore[union-attr]
             data["source"] = "claude_vision"
             data["missing_sensors"] = self.validate_sensors({"image_base64": img_b64, "crop_type": crop})
             return data

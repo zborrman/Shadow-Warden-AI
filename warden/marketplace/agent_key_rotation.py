@@ -80,7 +80,7 @@ def _days_since_rotation(last_rotation_at: str) -> float:
 
 def _emit_rotation_event(agent_id: str, new_key: str) -> None:
     try:
-        from warden.streams.event_bus import publish
+        from warden.streams.event_bus import publish  # type: ignore[attr-defined]
         publish(
             "marketplace.agents",
             {"event": "key_rotated", "agent_id": agent_id, "ts": datetime.now(UTC).isoformat()},

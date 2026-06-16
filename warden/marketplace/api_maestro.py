@@ -51,7 +51,7 @@ def _run_isolation_pipeline(agent_id: str) -> None:
 
     # 1. Suspend the agent
     try:
-        from warden.marketplace.agent import get_agent_service
+        from warden.marketplace.agent import get_agent_service  # type: ignore[attr-defined]
         get_agent_service(_DB_PATH).suspend_agent(agent_id)
         log.info("MAESTRO isolation: agent suspended agent=%s", agent_id)
     except Exception as exc:
@@ -59,7 +59,7 @@ def _run_isolation_pipeline(agent_id: str) -> None:
 
     # 2. Delist all active listings
     try:
-        from warden.marketplace.listing import get_listing_service
+        from warden.marketplace.listing import get_listing_service  # type: ignore[attr-defined]
         get_listing_service(_DB_PATH).delist_all(agent_id)
         log.info("MAESTRO isolation: listings delisted agent=%s", agent_id)
     except Exception as exc:
@@ -67,7 +67,7 @@ def _run_isolation_pipeline(agent_id: str) -> None:
 
     # 3. Cancel all pending escrows
     try:
-        from warden.marketplace.escrow import get_escrow_service
+        from warden.marketplace.escrow import get_escrow_service  # type: ignore[attr-defined]
         get_escrow_service(_DB_PATH).cancel_all_for_agent(agent_id)
         log.info("MAESTRO isolation: escrows cancelled agent=%s", agent_id)
     except Exception as exc:
@@ -75,7 +75,7 @@ def _run_isolation_pipeline(agent_id: str) -> None:
 
     # 4. Freeze WAT token wallet
     try:
-        from warden.tokenomics.agent_token import get_token_service
+        from warden.tokenomics.agent_token import get_token_service  # type: ignore[attr-defined]
         get_token_service().freeze(agent_id)
         log.info("MAESTRO isolation: WAT wallet frozen agent=%s", agent_id)
     except Exception as exc:
@@ -83,7 +83,7 @@ def _run_isolation_pipeline(agent_id: str) -> None:
 
     # 5. STIX audit trail entry
     try:
-        from warden.communities.stix_audit import get_stix_audit
+        from warden.communities.stix_audit import get_stix_audit  # type: ignore[attr-defined]
         get_stix_audit().append_transfer(
             community_id="__system__",
             transfer_id=f"isolation-{agent_id}",
@@ -104,13 +104,9 @@ def _run_isolation_pipeline(agent_id: str) -> None:
     try:
         from warden.alerting import send_alert
         send_alert(
+            f"MAESTRO auto-isolated agent {agent_id}: suspended, listings delisted, "
+            "escrows cancelled, WAT wallet frozen. Use DAO governance to restore.",
             level="HIGH",
-            title=f"Agent auto-isolated: {agent_id}",
-            body=(
-                f"MAESTRO detected HIGH threat level for agent {agent_id}. "
-                "Agent has been suspended, listings delisted, escrows cancelled, "
-                "and WAT wallet frozen. Use DAO governance to restore."
-            ),
         )
     except Exception as exc:
         log.warning("MAESTRO isolation: alert failed agent=%s: %s", agent_id, exc)

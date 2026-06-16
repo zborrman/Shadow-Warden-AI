@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from warden.auth_guard import AuthResult, require_api_key

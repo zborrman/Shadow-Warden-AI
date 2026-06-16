@@ -144,7 +144,7 @@ class FlinkAgentRunner:
         try:
             from warden.marketplace.escrow import EscrowService  # noqa: PLC0415
             svc = EscrowService()
-            svc.raise_dispute(escrow_id, raiser="system:watchdog", reason="Escrow auto-dispute: timeout exceeded.")
+            svc.raise_dispute(escrow_id, reason="Escrow auto-dispute: timeout exceeded.")
             log.info("FlinkAgentRunner: auto-dispute raised for escrow %s", escrow_id)
         except Exception as exc:
             log.warning("FlinkAgentRunner: auto-dispute failed for %s: %s", escrow_id, exc)

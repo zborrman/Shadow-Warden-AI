@@ -254,7 +254,7 @@ class DataLifecycleManager:
         """Delete expired mandate from DB and Redis."""
         try:
             from warden.business_community.agentic_commerce.ap2 import AP2Processor
-            AP2Processor().revoke_mandate(mandate_id)
+            AP2Processor().revoke_mandate(mandate_id, tenant_id="")
             log.info("lifecycle: mandate purged id=%s", mandate_id)
         except Exception as exc:
             log.debug("lifecycle: mandate purge failed id=%s: %s", mandate_id, exc)

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 log = logging.getLogger("warden.tokenomics.agent_token")
 
@@ -57,8 +58,8 @@ class AgentToken:
     """
 
     def __init__(self) -> None:
-        self._contract = None
-        self._w3       = None
+        self._contract: Any = None
+        self._w3: Any       = None
         if not _SIMULATE and _RPC_URL and _WAT_ADDRESS:
             self._init_web3()
 

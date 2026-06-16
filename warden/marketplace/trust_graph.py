@@ -13,6 +13,8 @@ Falls back to pure-Python PageRank when networkx is unavailable.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import logging
 import os
 import sqlite3
@@ -45,10 +47,11 @@ class TrustGraph:
         self._rank: dict[str, float] = {}
         self._updates = 0
         self._updates_lock = threading.Lock()
+        self._g: Any  # nx.DiGraph when networkx available, else plain dict
         if _NX:
-            self._g: object = nx.DiGraph()
+            self._g = nx.DiGraph()
         else:
-            self._g: dict = {}   # {src: {dst: {"weight": float, "trades": int}}}
+            self._g = {}   # {src: {dst: {"weight": float, "trades": int}}}
 
     # ── Build ─────────────────────────────────────────────────────────────────
 
@@ -202,7 +205,7 @@ class TrustGraph:
         max_r = max(self._rank.values()) or 1.0
         ranked = sorted(
             [{"agent_id": aid, "trust_rank": min(1.0, r / max_r)} for aid, r in self._rank.items()],
-            key=lambda x: x["trust_rank"],
+            key=lambda x: float(x["trust_rank"]),  # type: ignore[arg-type]
             reverse=True,
         )
         return ranked[:n]
