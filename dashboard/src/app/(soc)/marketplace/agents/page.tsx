@@ -68,7 +68,7 @@ export default function AgentsPage() {
           <>
             <StatCard label="Active Agents" value={String(summary?.registered_agents ?? topCount)} icon={Users} />
             <StatCard label="Avg TrustScore" value={`${Math.round(avgScore * 100)}%`} icon={ShieldCheck} />
-            <StatCard label="Sybil Flags" value={String(sybilCount)} icon={AlertTriangle} trend={sybilCount > 0 ? "up" : undefined} />
+            <StatCard label="Sybil Flags" value={String(sybilCount)} icon={AlertTriangle} trend={sybilCount > 0 ? { value: sybilCount, positive: false } : undefined} />
             <StatCard label="Total Volume" value={`$${((summary?.total_volume_usd ?? 0) / 1000).toFixed(1)}k`} icon={TrendingUp} />
           </>
         )}
