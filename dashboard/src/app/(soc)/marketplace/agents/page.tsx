@@ -66,7 +66,7 @@ export default function AgentsPage() {
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)
         ) : (
           <>
-            <StatCard label="Active Agents" value={String(summary?.active_agents ?? topCount)} icon={<Users className="w-4 h-4" />} />
+            <StatCard label="Active Agents" value={String(summary?.registered_agents ?? topCount)} icon={<Users className="w-4 h-4" />} />
             <StatCard label="Avg TrustScore" value={`${Math.round(avgScore * 100)}%`} icon={<ShieldCheck className="w-4 h-4" />} />
             <StatCard label="Sybil Flags" value={String(sybilCount)} icon={<AlertTriangle className="w-4 h-4" />} trend={sybilCount > 0 ? "up" : undefined} />
             <StatCard label="Total Volume" value={`$${((summary?.total_volume_usd ?? 0) / 1000).toFixed(1)}k`} icon={<TrendingUp className="w-4 h-4" />} />
