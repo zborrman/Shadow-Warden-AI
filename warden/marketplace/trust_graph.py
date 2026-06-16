@@ -13,13 +13,12 @@ Falls back to pure-Python PageRank when networkx is unavailable.
 """
 from __future__ import annotations
 
-from typing import Any
-
 import logging
 import os
 import sqlite3
 import threading
 from collections import defaultdict, deque
+from typing import Any
 
 log = logging.getLogger("warden.marketplace.trust_graph")
 

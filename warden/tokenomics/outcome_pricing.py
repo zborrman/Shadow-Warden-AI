@@ -84,7 +84,7 @@ class OutcomePricingService:
     def create_listing(
         self,
         base_price_usd:  float,
-        kpi_definition:  "str | dict" = "",
+        kpi_definition:  str | dict = "",
         target_value:    float = 1.0,
         community_id:    str = "",
         seller_agent_id: str = "",
@@ -182,11 +182,10 @@ class OutcomePricingService:
                 con.close()
             if not row:
                 return None
+            import contextlib  # noqa: PLC0415
             d = dict(row)
-            try:
+            with contextlib.suppress(Exception):
                 d["kpi_definition"] = json.loads(d.get("kpi_definition") or "{}")
-            except Exception:
-                pass
             return d
         except Exception as exc:
             log.warning("OutcomePricingService.get_listing error: %s", exc)
