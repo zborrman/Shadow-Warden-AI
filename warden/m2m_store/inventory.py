@@ -18,13 +18,16 @@ from datetime import UTC, datetime
 from warden.m2m_store.models import Order, Product
 
 log = logging.getLogger("warden.m2m_store.inventory")
-_DB_PATH = os.getenv("M2M_STORE_DB_PATH", "/tmp/warden_m2m_store.db")
 _db_lock = threading.RLock()
+
+
+def _get_db_path() -> str:
+    return os.getenv("M2M_STORE_DB_PATH", "/tmp/warden_m2m_store.db")
 
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
+    con = sqlite3.connect(_get_db_path(), check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     _ensure_schema(con)

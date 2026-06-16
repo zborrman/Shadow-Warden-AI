@@ -190,12 +190,15 @@ def _is_rate_limited() -> bool:
     r = _get_redis()
     if r is None:
         return False
+    # Read dynamically so tests can override EVOLUTION_RATE_MAX via env var
+    rate_max = int(os.getenv("EVOLUTION_RATE_MAX", "10"))
+    rate_window = int(os.getenv("EVOLUTION_RATE_WINDOW", str(EVOLUTION_RATE_WINDOW)))
     try:
         count = r.incr(_RATE_KEY)
         if count == 1:
             # First call in this window — arm the TTL so the window auto-resets.
-            r.expire(_RATE_KEY, EVOLUTION_RATE_WINDOW)
-        return int(count) > EVOLUTION_RATE_MAX
+            r.expire(_RATE_KEY, rate_window)
+        return int(count) > rate_max
     except Exception:  # noqa: BLE001
         return False
 
@@ -305,7 +308,7 @@ class EvolutionEngine:
         self._ledger        = ledger
         self._review_queue  = review_queue
         self._feed_client   = feed_client
-        self._rules_path    = DYNAMIC_RULES_PATH
+        self._rules_path    = Path(os.getenv("DYNAMIC_RULES_PATH", str(DYNAMIC_RULES_PATH)))
         self._rules_path.parent.mkdir(parents=True, exist_ok=True)
         self._corpus_count  = self._count_existing_rules()
 
