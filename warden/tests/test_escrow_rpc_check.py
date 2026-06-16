@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import sys
 import types
-import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -24,11 +23,11 @@ def _make_web3_stub(connected: bool):
     mock_w3 = MagicMock()
     mock_w3.is_connected.return_value = connected
 
-    MockWeb3 = MagicMock(return_value=mock_w3)
-    MockWeb3.HTTPProvider = MagicMock(return_value="http-provider")
+    mock_web3_cls = MagicMock(return_value=mock_w3)
+    mock_web3_cls.HTTPProvider = MagicMock(return_value="http-provider")
 
     fake_web3 = types.ModuleType("web3")
-    fake_web3.Web3 = MockWeb3
+    fake_web3.Web3 = mock_web3_cls
     return fake_web3, mock_w3
 
 
@@ -77,9 +76,9 @@ def test_rpc_check_disconnected_raises():
         with (
             patch("warden.web3.chains.get_chain", side_effect=_get_chain),
             patch("time.sleep"),  # skip real delays
+            pytest.raises(EscrowDeploymentError, match="not reachable"),
         ):
-            with pytest.raises(EscrowDeploymentError, match="not reachable"):
-                svc._check_rpc_with_retry("sepolia", max_retries=2)
+            svc._check_rpc_with_retry("sepolia", max_retries=2)
 
 
 # ── 3. First attempt fails, second succeeds ────────────────────────────────
@@ -95,10 +94,10 @@ def test_rpc_check_retry_succeeds_on_second_attempt():
             call_count += 1
             return call_count >= 2  # False on first call, True on second
 
-    MockWeb3 = MagicMock(return_value=_FakeW3())
-    MockWeb3.HTTPProvider = MagicMock(return_value="http-provider")
+    mock_web3_cls = MagicMock(return_value=_FakeW3())
+    mock_web3_cls.HTTPProvider = MagicMock(return_value="http-provider")
     fake_web3 = types.ModuleType("web3")
-    fake_web3.Web3 = MockWeb3
+    fake_web3.Web3 = mock_web3_cls
 
     with patch.dict(sys.modules, {"web3": fake_web3}):
         svc = EscrowService()

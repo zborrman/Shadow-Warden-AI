@@ -140,7 +140,7 @@ def list_decisions(
             con.close()
             result = []
             for row in rows:
-                d = dict(zip(cols, row))
+                d = dict(zip(cols, row, strict=False))
                 d["frameworks"] = json.loads(d.get("frameworks") or "[]")
                 d["compliant"]  = bool(d.get("compliant"))
                 result.append(d)

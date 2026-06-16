@@ -102,7 +102,7 @@ async def preflight_check(jurisdiction: str) -> dict:
     import asyncio
 
     try:
-        import httpx
+        import httpx  # noqa: F401
         async_http_available = True
     except ImportError:
         async_http_available = False

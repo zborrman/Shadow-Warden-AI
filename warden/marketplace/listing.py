@@ -77,12 +77,11 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
 
 def _migrate_chain_column(con: sqlite3.Connection) -> None:
     """Add chain column to existing databases that predate cross-chain support."""
-    try:
+    import contextlib
+    with contextlib.suppress(Exception):
         con.execute(
             "ALTER TABLE marketplace_listings ADD COLUMN chain TEXT NOT NULL DEFAULT 'sepolia'"
         )
-    except Exception:
-        pass  # column already exists
 
 
 @contextmanager

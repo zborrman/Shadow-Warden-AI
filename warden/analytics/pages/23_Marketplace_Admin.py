@@ -63,8 +63,8 @@ def _purchases():
         return []
 
 
-tab_agents, tab_assets, tab_trust, tab_sybil, tab_gov, tab_escrow = st.tabs(
-    ["Agent Registry", "Assets", "Trust Graph", "Sybil Flags", "Governance", "Escrow Monitor"]
+tab_agents, tab_assets, tab_trust, tab_sybil, tab_gov, tab_escrow, tab_maestro = st.tabs(
+    ["Agent Registry", "Assets", "Trust Graph", "Sybil Flags", "Governance", "Escrow Monitor", "MAESTRO Threats"]
 )
 
 # ── Agent Registry ─────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ with tab_trust:
 with tab_sybil:
     st.subheader("Sybil Flags")
     try:
-        from warden.marketplace.sybil_guard import SybilGuard, _mem_flags
+        from warden.marketplace.sybil_guard import SybilGuard
         sg = SybilGuard()
 
         # Show in-memory flags
@@ -298,7 +298,7 @@ with tab_gov:
     st.markdown("---")
 
     # Create Proposal form
-    with st.expander("Create New Proposal"):
+    with st.expander("Create New Proposal"):  # noqa: SIM117
         with st.form("create_proposal"):
             f_community = st.text_input("Community ID*")
             f_proposer  = st.text_input("Proposer ID*")
@@ -326,7 +326,7 @@ with tab_gov:
                         st.error(f"Error: {exc}")
 
     # Vote form
-    with st.expander("Cast Vote"):
+    with st.expander("Cast Vote"):  # noqa: SIM117
         with st.form("cast_vote"):
             v_proposal = st.text_input("Proposal ID*")
             v_voter    = st.text_input("Voter (Agent) ID*")
@@ -348,23 +348,22 @@ with tab_gov:
                         st.error(f"Error: {exc}")
 
     # Execute button
-    with st.expander("Execute Passed Proposal"):
-        with st.form("execute_proposal"):
-            e_proposal = st.text_input("Proposal ID*")
-            e_submit   = st.form_submit_button("Execute")
-            if e_submit:
-                if not e_proposal:
-                    st.error("Proposal ID is required.")
-                else:
-                    try:
-                        from warden.marketplace.governance import GovernanceService
-                        svc = GovernanceService()
-                        svc.finalize_tally(e_proposal)
-                        result = svc.execute_proposal(e_proposal)
-                        st.success(f"Executed: action={result.get('action')}")
-                        st.json(result)
-                    except Exception as exc:
-                        st.error(f"Error: {exc}")
+    with st.expander("Execute Passed Proposal"), st.form("execute_proposal"):
+        e_proposal = st.text_input("Proposal ID*")
+        e_submit   = st.form_submit_button("Execute")
+        if e_submit:
+            if not e_proposal:
+                st.error("Proposal ID is required.")
+            else:
+                try:
+                    from warden.marketplace.governance import GovernanceService
+                    svc = GovernanceService()
+                    svc.finalize_tally(e_proposal)
+                    result = svc.execute_proposal(e_proposal)
+                    st.success(f"Executed: action={result.get('action')}")
+                    st.json(result)
+                except Exception as exc:
+                    st.error(f"Error: {exc}")
 
 # ── Escrow Monitor ──────────────────────────────────────────────────────────
 with tab_escrow:
@@ -443,3 +442,76 @@ with tab_escrow:
             chain_counts.columns = ["chain", "count"]
             st.write("**Chain Distribution**")
             st.bar_chart(chain_counts.set_index("chain")["count"])
+
+# ── MAESTRO Threats ──────────────────────────────────────────────────────────
+with tab_maestro:
+    st.subheader("MAESTRO Threat Detection")
+    st.markdown(
+        "Monitors M2M marketplace agents for **goal misalignment**, **collusion**, "
+        "and **model poisoning**. Penalty propagates to ReputationEngine (10% weight)."
+    )
+
+    col_run, _col_spacer = st.columns([2, 1])
+    with col_run:
+        audit_agent = st.text_input(
+            "Run Full Audit for Agent ID",
+            placeholder="AGENT-abc123…",
+            key="maestro_audit_agent_id",
+        )
+    run_audit = st.button("Run Audit", type="primary", key="maestro_run_btn")
+
+    if run_audit and audit_agent.strip():
+        with st.spinner("Running MAESTRO audit…"):
+            try:
+                from warden.marketplace.maestro import get_maestro_service as _gms
+                _msvc = _gms(_DB_PATH)
+                report = _msvc.run_full_audit(audit_agent.strip())
+                r = report.to_dict()
+                level_color = {"low": "green", "medium": "orange", "high": "red"}.get(
+                    r["overall_threat_level"], "gray"
+                )
+                st.markdown(
+                    f"**Threat Level:** :{level_color}[{r['overall_threat_level'].upper()}]"
+                    f"  |  **Action:** `{r['recommended_action']}`"
+                )
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Misalignment Score", f"{r['misalignment_score']:.3f}")
+                c2.metric("Collusion Flags", len(r["collusion_flags"]))
+                c3.metric("Poisoning Risk", "Yes" if r["poisoning_risk"] else "No")
+                if r["collusion_flags"]:
+                    st.warning(f"Collusion partners: {', '.join(r['collusion_flags'])}")
+            except Exception as exc:
+                st.error(f"Audit failed: {exc}")
+
+    st.divider()
+    st.subheader("All Active MAESTRO Flags")
+
+    m_limit = st.slider("Max flags", 10, 500, 100, step=10, key="maestro_flags_limit")
+    try:
+        from warden.marketplace.maestro import get_maestro_service as _gms2
+        _msvc2 = _gms2(_DB_PATH)
+        m_flags = _msvc2.list_flagged_agents(limit=m_limit)
+        if not m_flags:
+            st.success("No MAESTRO flags recorded yet.")
+        else:
+            import pandas as pd
+            df_mf = pd.DataFrame(m_flags)
+            if "created_at" in df_mf.columns:
+                df_mf["created_at"] = pd.to_datetime(df_mf["created_at"], errors="coerce")
+            if "flag_type" in df_mf.columns:
+                ftype_counts = df_mf["flag_type"].value_counts().to_dict()
+                st.markdown(" · ".join(f"**{k}**: {v}" for k, v in ftype_counts.items()))
+            st.dataframe(df_mf, use_container_width=True, hide_index=True)
+
+            # Historical chart for most-flagged agent
+            if "agent_id" in df_mf.columns and not df_mf.empty:
+                top_agent = df_mf["agent_id"].value_counts().idxmax()
+                history = _msvc2.get_historical_scores(top_agent)
+                if len(history) >= 2:
+                    st.subheader(f"Misalignment History — {top_agent[:20]}…")
+                    hist_df = pd.DataFrame(history)
+                    hist_df["ts"] = pd.to_datetime(hist_df["ts"], errors="coerce")
+                    hist_df = hist_df.set_index("ts")
+                    st.line_chart(hist_df["score"])
+    except Exception as exc:
+        st.error(f"Could not load MAESTRO flags: {exc}")

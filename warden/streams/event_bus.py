@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from collections.abc import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 log = logging.getLogger("warden.streams.event_bus")
@@ -80,11 +80,10 @@ class KafkaEventBus:
             self._kafka_ok = False
 
     async def stop(self) -> None:
+        import contextlib
         if self._producer and self._kafka_ok:
-            try:
+            with contextlib.suppress(Exception):
                 await self._producer.stop()
-            except Exception:
-                pass
 
     # ── Produce ───────────────────────────────────────────────────────────────
 

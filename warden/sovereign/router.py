@@ -51,9 +51,16 @@ def route(
       3. Pick the tunnel with the lowest latency_ms (ties: prefer home_jurisdiction)
       4. If no ACTIVE tunnel: apply fallback_mode (BLOCK or DIRECT)
     """
+    from warden.sovereign.audit import log_routing_decision
     from warden.sovereign.jurisdictions import get_jurisdiction
     from warden.sovereign.policy import allowed_jurisdictions_for, get_policy
     from warden.sovereign.tunnel import list_tunnels
+
+    def _ret(dec: RouteDecision) -> RouteDecision:
+        import contextlib
+        with contextlib.suppress(Exception):
+            log_routing_decision(tenant_id, dec)
+        return dec
 
     pol         = get_policy(tenant_id)
     home_j      = pol.get("home_jurisdiction", "EU")
@@ -62,7 +69,7 @@ def route(
 
     allowed_js = allowed_jurisdictions_for(data_class, tenant_id)
     if not allowed_js:
-        return RouteDecision(
+        return _ret(RouteDecision(
             tunnel_id     = None,
             jurisdiction  = home_j,
             compliant     = False,
@@ -70,7 +77,7 @@ def route(
             reason        = f"No jurisdictions allowed for data class {data_class!r}.",
             frameworks    = [],
             latency_hint_ms = None,
-        )
+        ))
 
     # Collect ACTIVE tunnels in allowed jurisdictions
     candidates = [
@@ -85,7 +92,7 @@ def route(
         pref = next((t for t in candidates if t.tunnel_id == preferred), None)
         if pref:
             j = get_jurisdiction(pref.jurisdiction)
-            return RouteDecision(
+            return _ret(RouteDecision(
                 tunnel_id     = pref.tunnel_id,
                 jurisdiction  = pref.jurisdiction,
                 compliant     = True,
@@ -93,7 +100,7 @@ def route(
                 reason        = f"Using preferred tunnel {pref.tunnel_id} → {pref.jurisdiction}.",
                 frameworks    = list(j.frameworks) if j else [],
                 latency_hint_ms = pref.latency_ms,
-            )
+            ))
 
     if not candidates:
         # No tunnels — apply fallback
@@ -103,7 +110,7 @@ def route(
                 tenant_id, data_class,
             )
             j = get_jurisdiction(home_j)
-            return RouteDecision(
+            return _ret(RouteDecision(
                 tunnel_id     = None,
                 jurisdiction  = home_j,
                 compliant     = False,
@@ -111,9 +118,9 @@ def route(
                 reason        = "No ACTIVE tunnel available. Routing DIRECT per fallback policy. COMPLIANCE WARNING.",
                 frameworks    = list(j.frameworks) if j else [],
                 latency_hint_ms = None,
-            )
+            ))
         else:
-            return RouteDecision(
+            return _ret(RouteDecision(
                 tunnel_id     = None,
                 jurisdiction  = home_j,
                 compliant     = False,
@@ -121,7 +128,7 @@ def route(
                 reason        = f"No ACTIVE MASQUE tunnel available for jurisdictions {allowed_js}. Request blocked.",
                 frameworks    = [],
                 latency_hint_ms = None,
-            )
+            ))
 
     # Pick best: prefer home_jurisdiction, then lowest latency
     def _rank(t) -> tuple[int, float]:
@@ -132,7 +139,7 @@ def route(
     best = min(candidates, key=_rank)
     j    = get_jurisdiction(best.jurisdiction)
 
-    return RouteDecision(
+    return _ret(RouteDecision(
         tunnel_id     = best.tunnel_id,
         jurisdiction  = best.jurisdiction,
         compliant     = True,
@@ -144,7 +151,7 @@ def route(
         ),
         frameworks    = list(j.frameworks) if j else [],
         latency_hint_ms = best.latency_ms,
-    )
+    ))
 
 
 def check_compliance(

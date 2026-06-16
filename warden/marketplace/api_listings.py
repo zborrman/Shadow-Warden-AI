@@ -1,23 +1,24 @@
 """warden/marketplace/api_listings.py — Listing publication and purchase endpoints."""
 from __future__ import annotations
 
+import contextlib
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_listings")
 
-try:
+with contextlib.suppress(Exception):
     from warden.metrics import (
         MARKETPLACE_LISTINGS_TOTAL,
         MARKETPLACE_PURCHASES_TOTAL,
         MARKETPLACE_TRADE_VOLUME_USD,
     )
-except Exception:
-    pass
 
-router = APIRouter(tags=["Marketplace Listings"])
+router = APIRouter(tags=["Marketplace Listings"], dependencies=[Depends(marketplace_rate_limit)])
 
 
 class ListingCreateRequest(BaseModel):
@@ -74,10 +75,8 @@ async def create_listing(body: ListingCreateRequest) -> dict:
             expires_hours=body.expires_hours,
             chain=body.chain,
         )
-        try:
+        with contextlib.suppress(Exception):
             MARKETPLACE_LISTINGS_TOTAL.labels(asset_type=body.asset_type).inc()
-        except Exception:
-            pass
         return listing.to_dict()
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

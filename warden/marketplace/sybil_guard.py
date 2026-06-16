@@ -180,10 +180,8 @@ class SybilGuard:
     def clear_flag(self, agent_id: str) -> None:
         r = _redis()
         if r:
-            try:
+            with __import__("contextlib").suppress(Exception):
                 r.delete(f"sybil:flagged:{agent_id}")
-            except Exception:
-                pass
         _mem_flags.pop(agent_id, None)
 
     def list_flagged(self) -> list[dict]:

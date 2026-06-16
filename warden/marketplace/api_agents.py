@@ -1,19 +1,20 @@
 """warden/marketplace/api_agents.py — Agent DID registration endpoints."""
 from __future__ import annotations
 
+import contextlib
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_agents")
 
-try:
+with contextlib.suppress(Exception):
     from warden.metrics import MARKETPLACE_AGENTS_ACTIVE
-except Exception:
-    pass
 
-router = APIRouter(tags=["Marketplace Agents"])
+router = APIRouter(tags=["Marketplace Agents"], dependencies=[Depends(marketplace_rate_limit)])
 
 
 class AgentRegisterRequest(BaseModel):
@@ -40,7 +41,28 @@ async def list_agents(
 
 @router.post("/agents/register", status_code=201)
 async def register_agent(body: AgentRegisterRequest) -> dict:
+    from warden.marketplace.agent import pubkey_to_agent_id
     from warden.marketplace.agent import register_agent as _register
+
+    # Federation deny list — check if the agent DID is flagged across peered communities
+    try:
+        from warden.communities.federation import check_threat_hash
+        candidate_id = pubkey_to_agent_id(body.public_key)
+        verdict = check_threat_hash(body.community_id, candidate_id)
+        if verdict and verdict.verdict in ("HIGH", "BLOCK"):
+            log.warning(
+                "register_agent: federated deny list hit agent=%s community=%s",
+                candidate_id, body.community_id,
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Agent DID is on the federated deny list for this community.",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.debug("federation deny-list check failed (fail-open): %s", exc)
+
     try:
         agent = _register(
             tenant_id=body.tenant_id,
@@ -48,10 +70,8 @@ async def register_agent(body: AgentRegisterRequest) -> dict:
             public_key_b64=body.public_key,
             capabilities=body.capabilities,
         )
-        try:
+        with contextlib.suppress(Exception):
             MARKETPLACE_AGENTS_ACTIVE.inc()
-        except Exception:
-            pass
         return agent.to_dict()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -81,14 +101,12 @@ async def update_capabilities(agent_id: str, body: CapabilitiesUpdateRequest) ->
 @router.get("/agents/{agent_id}/trust")
 async def get_agent_trust(agent_id: str) -> dict:
     """TrustRank score, Sybil flag status, and top-5 transitive peers for *agent_id*."""
-    from warden.marketplace.trust_graph import TrustGraph
     from warden.marketplace.sybil_guard import SybilGuard
+    from warden.marketplace.trust_graph import TrustGraph
 
     tg = TrustGraph()
-    try:
+    with contextlib.suppress(Exception):
         tg.build_graph()
-    except Exception:
-        pass
 
     sg = SybilGuard()
 

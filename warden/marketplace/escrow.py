@@ -79,12 +79,11 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
 
 def _migrate_chain_column(con: sqlite3.Connection) -> None:
     """Add chain column to existing escrow tables that predate cross-chain support."""
-    try:
+    import contextlib
+    with contextlib.suppress(Exception):
         con.execute(
             "ALTER TABLE marketplace_escrow ADD COLUMN chain TEXT NOT NULL DEFAULT 'sepolia'"
         )
-    except Exception:
-        pass  # already exists
 
 
 @contextmanager
@@ -289,7 +288,10 @@ class EscrowService:
             )
         # When DAO is enabled, auto-create a dispute_resolution proposal.
         try:
-            from warden.marketplace.governance import GovernanceService, _DAO_ENABLED  # noqa: PLC0415
+            from warden.marketplace.governance import (  # noqa: PLC0415
+                _DAO_ENABLED,
+                GovernanceService,
+            )
             if _DAO_ENABLED:
                 GovernanceService().create_proposal(
                     community_id=esc.listing_id,
@@ -317,7 +319,10 @@ class EscrowService:
         # Block direct resolution when an active DAO proposal exists (unless caller is the DAO).
         if not bypass_dao_check:
             try:
-                from warden.marketplace.governance import GovernanceService, _DAO_ENABLED  # noqa: PLC0415
+                from warden.marketplace.governance import (  # noqa: PLC0415
+                    _DAO_ENABLED,
+                    GovernanceService,
+                )
                 if _DAO_ENABLED:
                     prop = GovernanceService().check_active_proposal_for_escrow(escrow_id, db_path)
                     if prop is not None:
@@ -464,6 +469,7 @@ class EscrowService:
         # Legacy fallback — ChainConnector without chain awareness
         try:
             from typing import Any  # noqa: PLC0415
+
             from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
             cc: Any = ChainConnector()
             if cc.is_connected():
@@ -484,6 +490,7 @@ class EscrowService:
             log.debug("call_escrow (web3) failed: %s", exc)
         try:
             from typing import Any  # noqa: PLC0415
+
             from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
             cc: Any = ChainConnector()
             if cc.is_connected():

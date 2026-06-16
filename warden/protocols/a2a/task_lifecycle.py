@@ -18,13 +18,14 @@ Dispatch: each task type maps to a handler coroutine.
 """
 from __future__ import annotations
 
-import asyncio
+import contextlib
 import json
 import logging
 import os
 import time
 import uuid
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger("warden.protocols.a2a.task")
 
@@ -131,10 +132,8 @@ def _delete(task_id: str) -> None:
     r = _redis()
     key = f"a2a:task:{task_id}"
     if r:
-        try:
+        with contextlib.suppress(Exception):
             r.delete(key)
-        except Exception:
-            pass
     _mem_store.pop(key, None)
 
 

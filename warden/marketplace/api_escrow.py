@@ -1,19 +1,20 @@
 """warden/marketplace/api_escrow.py — Escrow lifecycle endpoints."""
 from __future__ import annotations
 
+import contextlib
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_escrow")
 
-try:
+with contextlib.suppress(Exception):
     from warden.metrics import MARKETPLACE_ESCROW_ACTIVE
-except Exception:
-    pass
 
-router = APIRouter(tags=["Marketplace Escrow"])
+router = APIRouter(tags=["Marketplace Escrow"], dependencies=[Depends(marketplace_rate_limit)])
 
 
 class EscrowCreateRequest(BaseModel):
@@ -50,10 +51,8 @@ async def create_escrow(body: EscrowCreateRequest) -> dict:
             status_code=502,
             detail={"message": "Blockchain network unavailable", "detail": str(exc)},
         ) from exc
-    try:
+    with contextlib.suppress(Exception):
         MARKETPLACE_ESCROW_ACTIVE.inc()
-    except Exception:
-        pass
     return escrow.to_dict()
 
 
@@ -81,10 +80,8 @@ async def confirm_receipt(escrow_id: str) -> dict:
     ok = EscrowService().confirm_receipt(escrow_id)
     if not ok:
         raise HTTPException(status_code=400, detail="Cannot confirm in current state.")
-    try:
+    with contextlib.suppress(Exception):
         MARKETPLACE_ESCROW_ACTIVE.dec()
-    except Exception:
-        pass
     return {"confirmed": True, "escrow_id": escrow_id}
 
 

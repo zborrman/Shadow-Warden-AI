@@ -10,7 +10,6 @@ Can be launched as a background asyncio task inside FastAPI lifespan.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 from datetime import UTC, datetime, timedelta
@@ -185,10 +184,8 @@ class FlinkAgentRunner:
     def _clear_escrow_watchdog(self, escrow_id: str) -> None:
         r = _redis()
         if r:
-            try:
+            with __import__("contextlib").suppress(Exception):
                 r.delete(f"agent_runner:escrow:{escrow_id}:ts")
-            except Exception:
-                pass
 
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
