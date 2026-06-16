@@ -2336,6 +2336,28 @@ async def acp_search_catalog(
         return {"error": str(exc), "source": catalog_url}
 
 
+try:
+    from warden.voice.agent import (  # noqa: PLC0415
+        VOICE_TOOLS,
+        VOICE_TOOL_HANDLERS,
+        voice_search,
+        voice_buy,
+        voice_negotiate,
+        voice_auction,
+        voice_compliance_check,
+        voice_trust_query,
+    )
+    _VOICE_AVAILABLE = True
+except Exception:  # pragma: no cover
+    VOICE_TOOLS = []
+    VOICE_TOOL_HANDLERS = {}
+    _VOICE_AVAILABLE = False
+
+# Extend the main TOOLS list with voice tools
+if VOICE_TOOLS:
+    TOOLS.extend(VOICE_TOOLS)
+
+
 TOOL_HANDLERS: dict[str, Any] = {
     "get_health":             get_health,
     "get_stats":              get_stats,
@@ -2409,4 +2431,6 @@ TOOL_HANDLERS: dict[str, Any] = {
     "check_escrow_status":           check_escrow_status,
     "resolve_dispute":               resolve_dispute,
     "acp_search_catalog":            acp_search_catalog,
+    # Voice-Commerce tools (#62-67)
+    **VOICE_TOOL_HANDLERS,
 }

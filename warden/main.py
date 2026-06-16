@@ -1598,6 +1598,13 @@ try:
 except ImportError:
     log.warning("data_lifecycle router not available — /admin/data-lifecycle routes skipped.")
 
+try:
+    from warden.voice.api import router as _voice_router
+    app.include_router(_voice_router)
+    log.info("Voice-Commerce router mounted at /voice (VC-01)")
+except Exception as _exc:
+    log.warning("Voice-Commerce router not available: %s", _exc)
+
 # Federation router already mounted above at /sep/federation (CM-26)
 
 
