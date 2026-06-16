@@ -179,7 +179,7 @@ class WorkerSettings:
         cron(sova_obsidian_watchdog, hour={0, 4, 8, 12, 16, 20}, minute=45, timeout=60),
 
         # ── Overage billing — monthly on 1st at 00:05 UTC (BL-19) ─────────────
-        cron(sova_overage_billing, month_day=1, hour=0, minute=5, timeout=300),
+        cron(sova_overage_billing, day=1, hour=0, minute=5, timeout=300),
 
         # ── Online learning — nightly at 01:00 UTC (AR-09) ───────────────────
         cron(online_learning_job, hour=1, minute=0, timeout=600),
