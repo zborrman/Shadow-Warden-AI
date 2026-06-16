@@ -288,7 +288,7 @@ const tool = new ShadowWardenFilterTool(client, "acme");
 // Add to your agent's tools array
 ```
 
-Full example: [examples/ai-frameworks/langchain.ts](../sdks/node/examples/ai-frameworks/langchain.ts)
+Full example available in the `sdk/typescript/` directory.
 
 ### CrewAI (Python)
 
@@ -299,12 +299,12 @@ tools = [ShadowWardenFilterTool(), CompliancePostureTool()]
 agent = Agent(role="Security Analyst", tools=tools, ...)
 ```
 
-Full example: [examples/ai-frameworks/crewai.py](../sdks/node/examples/ai-frameworks/crewai.py)
+Full example available in the `sdk/` directory.
 
 ### AutoGPT
 
 Register Shadow Warden as an AutoGPT plugin using the OpenAPI manifest.
-Full guide: [examples/ai-frameworks/autogpt.md](../sdks/node/examples/ai-frameworks/autogpt.md)
+Full guide available in the `sdk/` directory.
 
 ---
 

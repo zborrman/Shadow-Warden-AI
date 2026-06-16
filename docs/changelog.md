@@ -1,7 +1,50 @@
 # Shadow Warden AI — Changelog
 
 Version history from v1.0 to current. Entries are grouped by minor version.
-Feature IDs reference [ROADMAP.md](../ROADMAP.md).
+Feature IDs reference the project ROADMAP.
+
+---
+
+## v6.6 — Five New Modules + Production Assembly (2026-06-16)
+
+**New Modules**
+
+- **MKT-10** — Kafka/Flink Event Streaming (`warden/streams/`): `KafkaEventBus` with Redis
+  pub/sub fallback; `FlinkAgentRunner` stateful processor with auto-dispute watchdog; `GET /streams/health`,
+  `POST /streams/topics/{topic}/replay`, `GET /streams/communities/{id}/state`; 11 tests.
+
+- **MKT-11** — Agent Tokenomics / WAT ERC-20 (`warden/tokenomics/`): `AgentToken` dual-rail
+  (Web3.py Polygon Amoy + Redis simulation via `WAT_SIMULATE=true`); `OutcomePricingService`
+  KPI-gated settlement (`final_price = base × min(achieved/target, 1.0)`); 5 REST endpoints; 10 tests.
+
+- **MKT-12** — USDC Multi-Rail Payments (`warden/payments/`): `USDCService` Coinbase Commerce +
+  on-chain USDC; `PaymentIntent` dataclass; `USDC_SIMULATE=true` auto-confirm for testing;
+  per-chain singleton; 2 REST endpoints; 8 tests.
+
+- **MKT-13** — ANS Certificate Authority (`warden/security/`): X.509 with `cryptography` library
+  + JSON synthetic fallback; subject CN `agent-{id}.{community}.shadow-warden.ai`; Redis CRL;
+  SQLite `ans_certificates`; 4 REST endpoints; 10 tests.
+
+- **MKT-14** — ARC Edge Agent Packs (`warden/agents/packs/`): `EdgeAgentPack` ABC + `@register`
+  decorator; 3 built-in packs (CropHealthMonitor, YieldOptimizer, DiseaseDetector); Claude Vision
+  integration + NDVI heuristic fallback; `GET /agents/packs`, `POST /agents/packs/{name}/deploy`,
+  `POST /agents/packs/{name}/analyze`; 17 tests.
+
+**Integration & Hardening**
+
+- Feature gates added for all 5 modules (`streams_enabled`, `tokenomics_enabled`,
+  `usdc_payments_enabled`, `ans_certificates_enabled`, `edge_packs_enabled`).
+- 5 add-on SKUs in `addons.py` ($15–$39/mo).
+- 5 router mounts in `main.py` (try/except fail-open pattern).
+- 6 new Prometheus counters + Noop fallbacks in `metrics.py`.
+- Named feature constant module in `feature_gate.py` (`FEATURE_*` exports).
+- CORS origins updated to include `app.*` and `dash.*` production subdomains.
+- `.env.example` extended with all new module variables (Kafka, WAT, USDC, ANS, DAO).
+- `scripts/pre_deploy_check.sh` — 8-step pre-deploy verification (tests + lint + builds + Docker).
+- `warden/tests/test_production_readiness.py` — 10 end-to-end production readiness tests.
+- `docs/production-launch.md` — full launch checklist with rollback procedure.
+- `docs/modules/` — 5 new module documentation files.
+- ROADMAP MKT-10 through MKT-14 entries added.
 
 ---
 

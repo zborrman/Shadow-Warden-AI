@@ -1612,7 +1612,7 @@ annotations:
   summary: "Tunnel preflight failing — check MinIO / Redis / internal API"
 ```
 
-**RPC node validation for escrow**
+### RPC node validation for escrow
 
 When deploying a marketplace escrow contract to a real blockchain (Sepolia /
 mainnet), `EscrowService._check_rpc_with_retry()` probes the configured RPC
@@ -2351,4 +2351,95 @@ for v in postgres-data redis-data minio-data warden-models; do
   docker run --rm -v shadow-warden_${v}:/data -v $(pwd)/backups:/out \
     alpine tar czf /out/${v}-$(date +%F).tar.gz /data
 done
+```
+
+---
+
+## 24. M2M Agentic Marketplace — Environment Variables (MKT-10–14)
+
+The five marketplace extension modules (v6.6) require these additional environment variables.
+
+### MKT-10 — Kafka/Flink Event Streaming
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka broker list (comma-separated) |
+| `KAFKA_CONSUMER_GROUP` | `warden-marketplace` | Consumer group ID for marketplace events |
+| `KAFKA_TOPIC_ESCROW` | `marketplace.escrow` | Topic for escrow state change events |
+| `KAFKA_TOPIC_LISTINGS` | `marketplace.listings` | Topic for listing publication events |
+| `ESCROW_TIMEOUT_S` | `86400` | Seconds before an open escrow auto-expires |
+| `MARKETPLACE_RATE_LIMIT_PER_MINUTE` | `100` | Rate limit for `/marketplace/*` endpoints (per tenant) |
+
+Kafka is optional — `KafkaEventBus` falls back to Redis pub/sub when aiokafka is unavailable or `KAFKA_BOOTSTRAP_SERVERS` is empty.
+
+### MKT-11 — Agent Tokenomics / WAT ERC-20
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WAT_SIMULATE` | `true` | Use Redis ledger simulation (no on-chain tx) |
+| `WAT_TOKEN_ADDRESS` | *(empty)* | Polygon Amoy ERC-20 contract address (real mode) |
+| `WAT_DB_PATH` | `/tmp/warden_wat.db` | SQLite path for WAT token events |
+| `WAT_MINT_RATE` | `1.0` | WAT minted per USD of trade volume |
+
+Set `WAT_SIMULATE=false` and provide `WAT_TOKEN_ADDRESS` + a funded `POLYGON_RPC_URL` to activate on-chain minting.
+
+### MKT-12 — Multi-Rail Payments / USDC
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USDC_SIMULATE` | `true` | Auto-confirm payments without Coinbase Commerce |
+| `COINBASE_COMMERCE_API_KEY` | *(empty)* | Coinbase Commerce API key (real mode) |
+| `USDC_INTENT_TTL_S` | `86400` | Seconds before an unconfirmed PaymentIntent expires |
+| `USDC_DEFAULT_CHAIN` | `polygon` | Default chain for new intents (`polygon`, `ethereum`, `arbitrum`) |
+| `POLYGON_RPC_URL` | *(empty)* | RPC endpoint for Polygon Amoy (real on-chain settlement) |
+
+### MKT-13 — ANS Certificate System
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANS_DB_PATH` | `/tmp/warden_ans.db` | SQLite path for certificate registry |
+| `ANS_CERT_VALIDITY_DAYS` | `365` | Default certificate validity in days |
+| `ANS_CA_KEY_PATH` | *(empty)* | Path to PEM-encoded CA private key (generated in-memory if absent) |
+
+A persistent `ANS_CA_KEY_PATH` is **strongly recommended** in production — without it the CA key is regenerated on each restart, invalidating all previously issued certificates.
+
+### MKT-14 — ARC Edge Agent Packs
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EDGE_PACK_MAX_SENSORS` | `50` | Maximum number of sensor keys per analysis call |
+| `EDGE_PACK_TIMEOUT_S` | `30` | Analysis timeout in seconds per pack invocation |
+
+Edge agent packs use the `ANTHROPIC_API_KEY` (shared with SOVA) for Claude Vision-based disease detection. Without it, packs fall back to heuristic analysis.
+
+### Full `.env` snippet for all MKT-10–14 variables
+
+```bash
+# ── MKT-10: Kafka/Flink Event Streaming ──────────────────────────────────────
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_CONSUMER_GROUP=warden-marketplace
+ESCROW_TIMEOUT_S=86400
+MARKETPLACE_RATE_LIMIT_PER_MINUTE=100
+
+# ── MKT-11: Agent Tokenomics (WAT ERC-20) ────────────────────────────────────
+WAT_SIMULATE=true
+WAT_TOKEN_ADDRESS=
+WAT_DB_PATH=/tmp/warden_wat.db
+WAT_MINT_RATE=1.0
+
+# ── MKT-12: Multi-Rail Payments (USDC) ───────────────────────────────────────
+USDC_SIMULATE=true
+COINBASE_COMMERCE_API_KEY=
+USDC_INTENT_TTL_S=86400
+USDC_DEFAULT_CHAIN=polygon
+POLYGON_RPC_URL=
+
+# ── MKT-13: ANS Certificate System ───────────────────────────────────────────
+ANS_DB_PATH=/tmp/warden_ans.db
+ANS_CERT_VALIDITY_DAYS=365
+ANS_CA_KEY_PATH=
+
+# ── MKT-14: ARC Edge Agent Packs ─────────────────────────────────────────────
+EDGE_PACK_MAX_SENSORS=50
+EDGE_PACK_TIMEOUT_S=30
 ```
