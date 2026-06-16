@@ -24,6 +24,7 @@ import base64
 import hashlib
 import json
 import logging
+import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -50,6 +51,79 @@ def _sign_b64(keypair: CommunityKeypair, data: bytes) -> str:
     return base64.b64encode(sig_bytes).decode()
 
 
+def _hsm_attest_b64(data: bytes) -> str:
+    """Return an HSM attestation signature (base64) if HSM is active, else empty string."""
+    try:
+        from warden.crypto.hsm import get_signer
+        signer = get_signer()
+        if signer.is_available():
+            return base64.b64encode(signer.sign(data)).decode()
+    except Exception:
+        pass
+    return ""
+
+
+def _pqc_sign_b64(keypair, data: bytes) -> str:
+    """
+    Return an ML-DSA-65 hybrid signature (base64) when PQC_ENABLED=true and
+    the community keypair supports it, else empty string.
+    """
+    if os.getenv("PQC_ENABLED", "false").lower() != "true":
+        return ""
+    try:
+        from warden.crypto.pqc import is_pqc_available
+        if not is_pqc_available():
+            return ""
+        if not getattr(keypair, "is_hybrid", False):
+            return ""
+        sig_bytes = keypair.hybrid_sign(data)
+        return base64.b64encode(sig_bytes).decode()
+    except Exception:
+        return ""
+
+
+def verify_asset_signature(container: dict, keypair=None) -> bool:
+    """
+    Verify container signatures.
+
+    - Always checks Ed25519 `signature` against `signer_public_key`.
+    - If `pqc_signature` is present and PQC_ENABLED=true, also verifies ML-DSA-65.
+    - At least one valid signature is required for success.
+    """
+    sha256_hex = container.get("sha256", "")
+    if not sha256_hex:
+        return False
+    data = sha256_hex.encode()
+
+    # Ed25519 verification
+    ed25519_ok = False
+    try:
+        pub_b64 = container.get("signer_public_key", "")
+        sig_b64 = container.get("signature", "")
+        if pub_b64 and sig_b64:
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+            pub = Ed25519PublicKey.from_public_bytes(base64.b64decode(pub_b64))
+            pub.verify(base64.b64decode(sig_b64), data)
+            ed25519_ok = True
+    except Exception:
+        pass
+
+    # PQC verification (optional — only if both field and env flag present)
+    pqc_ok = False
+    pqc_sig = container.get("pqc_signature", "")
+    if pqc_sig and os.getenv("PQC_ENABLED", "false").lower() == "true":
+        try:
+            from warden.crypto.pqc import is_pqc_available
+            if keypair and getattr(keypair, "is_hybrid", False) and is_pqc_available():
+                sig_bytes = base64.b64decode(pqc_sig)
+                keypair.hybrid_verify(data, sig_bytes)
+                pqc_ok = True
+        except Exception:
+            pass
+
+    return ed25519_ok or pqc_ok
+
+
 def _upload_ipfs(payload: dict) -> str:
     try:
         from warden.blockchain.ipfs_storage import IPFSStorage
@@ -71,7 +145,10 @@ def _build_container(
 
     canonical = _canonical_json(payload)
     sha256 = _sha256_hex(canonical)
-    signature = _sign_b64(keypair, sha256.encode())
+    sig_data = sha256.encode()
+    signature = _sign_b64(keypair, sig_data)
+    hsm_attestation = _hsm_attest_b64(sig_data)
+    pqc_signature = _pqc_sign_b64(keypair, sig_data)
     ipfs_hash = _upload_ipfs(payload)
 
     return {
@@ -80,6 +157,8 @@ def _build_container(
         "sha256":           sha256,
         "signature":        signature,
         "signer_public_key": keypair.ed25519_pub_b64,
+        "hsm_attestation":  hsm_attestation,
+        "pqc_signature":    pqc_signature,
         "ipfs_hash":        ipfs_hash,
         "payload":          payload,
         "metadata": {

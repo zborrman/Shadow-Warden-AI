@@ -276,3 +276,23 @@ async def ingest_verdict(payload: IngestPayload):
 @router.get("/{community_id}/verdicts", summary="List federated verdicts for community")
 async def get_verdicts(community_id: str, limit: int = 50):
     return {"community_id": community_id, "verdicts": list_verdicts(community_id, limit)}
+
+
+@router.get(
+    "/communities/{community_id}/federated-trust/check",
+    summary="Pre-registration federated deny list check for an agent DID",
+)
+async def check_agent_deny_list(community_id: str, agent_did: str):
+    """
+    Returns whether an agent DID is on the federated deny list for the given community.
+    Use before registering an agent to pre-screen against cross-community threat hashes.
+    """
+    verdict = check_threat_hash(community_id, agent_did)
+    blocked = bool(verdict and verdict.verdict in ("HIGH", "BLOCK"))
+    return {
+        "community_id": community_id,
+        "agent_did":    agent_did,
+        "blocked":      blocked,
+        "verdict":      verdict.verdict if verdict else None,
+        "score":        verdict.score if verdict else None,
+    }

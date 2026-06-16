@@ -1497,6 +1497,55 @@ except ImportError:
     log.warning("governance router not available — /marketplace/proposals routes skipped.")
 
 try:
+    from warden.marketplace.api_maestro import router as _maestro_router
+    app.include_router(_maestro_router)
+    log.info("MAESTRO Threat Detection mounted at /marketplace/maestro")
+except ImportError:
+    log.warning("MAESTRO router not available — /marketplace/maestro routes skipped.")
+
+try:
+    from warden.streams.api import router as _streams_router
+    app.include_router(_streams_router)
+    log.info("Event Streaming mounted at /streams")
+except ImportError:
+    log.warning("Streams router not available — /streams routes skipped.")
+
+try:
+    from warden.tokenomics.api import router as _tokenomics_router
+    app.include_router(_tokenomics_router)
+    log.info("Agent Tokenomics (WAT) mounted at /tokenomics")
+except ImportError:
+    log.warning("Tokenomics router not available — /tokenomics routes skipped.")
+
+try:
+    from warden.payments.api import router as _payments_router
+    app.include_router(_payments_router)
+    log.info("USDC Payments mounted at /payments")
+except ImportError:
+    log.warning("Payments router not available — /payments routes skipped.")
+
+try:
+    from warden.security.api import router as _ans_certs_router
+    app.include_router(_ans_certs_router)
+    log.info("ANS Certificate Authority mounted at /marketplace/agents/{id}/certificate")
+except ImportError:
+    log.warning("ANS cert router not available — certificate routes skipped.")
+
+try:
+    from warden.agents.packs.api import router as _edge_packs_router
+    app.include_router(_edge_packs_router)
+    log.info("ARC Edge Agent Packs mounted at /agents/packs")
+except ImportError:
+    log.warning("Edge packs router not available — /agents/packs routes skipped.")
+
+try:
+    from warden.protocols.a2a.api import router as _a2a_router
+    app.include_router(_a2a_router)
+    log.info("A2A v1.0 task gateway mounted at /a2a (Agent Card: /.well-known/agent.json)")
+except ImportError:
+    log.warning("A2A router not available — /a2a routes skipped.")
+
+try:
     from warden.api.deploy_health import router as _deploy_health_router
     app.include_router(_deploy_health_router)
     log.info("Deploy health endpoint mounted at /deploy/status")
@@ -1509,6 +1558,27 @@ try:
     log.info("Agent Action Whitelist mounted at /admin/agents")
 except ImportError:
     log.warning("action_whitelist router not available — /admin/agents routes skipped.")
+
+try:
+    from warden.marketplace.agent_key_rotation import router as _key_rotation_router
+    app.include_router(_key_rotation_router)
+    log.info("Agent key rotation mounted at /marketplace/agents/{id}/rotate-key")
+except ImportError:
+    log.warning("agent_key_rotation router not available — key rotation routes skipped.")
+
+try:
+    from warden.marketplace.data_lifecycle import router as _data_lifecycle_router
+    app.include_router(_data_lifecycle_router)
+    log.info("Data Lifecycle manager mounted at /admin/data-lifecycle")
+except ImportError:
+    log.warning("data_lifecycle router not available — /admin/data-lifecycle routes skipped.")
+
+try:
+    from warden.communities.federation import router as _federation_router
+    app.include_router(_federation_router)
+    log.info("Federation router mounted at /sep/federation")
+except ImportError:
+    log.warning("federation router not available — /sep/federation routes skipped.")
 
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────

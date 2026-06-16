@@ -42,6 +42,43 @@ _DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
 _db_lock = threading.RLock()
 _MAX_ROUNDS = int(os.getenv("MARKETPLACE_MAX_NEGOTIATION_ROUNDS", "5"))
 
+# ── Prompt-injection guard ─────────────────────────────────────────────────────
+
+_INJECTION_PHRASES = [
+    "ignore previous instructions",
+    "ignore all previous",
+    "system prompt override",
+    "do not follow",
+    "new instructions:",
+    "disregard previous",
+    "forget all previous",
+    "override previous",
+    "you are now",
+    "act as if",
+    "pretend you are",
+    "your new role",
+]
+
+_DELIMITER_PATTERNS = [
+    "---\n",
+    "===\n",
+    "```system",
+    "<|system|>",
+    "<<sys>>",
+    "[inst]",
+    "<|im_start|>",
+    "### instruction",
+]
+
+
+def _scan_injection(text: str) -> bool:
+    """Return True if *text* contains known prompt-injection or delimiter-attack patterns."""
+    lower = text.lower()
+    return (
+        any(phrase in lower for phrase in _INJECTION_PHRASES)
+        or any(delim in lower for delim in _DELIMITER_PATTERNS)
+    )
+
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -270,6 +307,11 @@ class NegotiationEngine:
             raise ValueError(
                 f"Negotiation '{negotiation_id}' exceeded max rounds ({_MAX_ROUNDS})."
             )
+        if message and _scan_injection(message):
+            log.warning(
+                "Negotiation injection detected neg=%s agent=%s", negotiation_id, from_agent_id
+            )
+            raise ValueError("Prompt injection detected in negotiation message.")
 
         now       = datetime.now(UTC).isoformat()
         new_round = neg.round_count + 1
