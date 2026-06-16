@@ -10,8 +10,6 @@ import json
 import textwrap
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from warden.threat_intel.sources import (
     ArxivSource,
     GitHubAdvisorySource,

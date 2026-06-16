@@ -173,7 +173,7 @@ class CertificateAuthority:
     ) -> str:
         try:
             from cryptography import x509  # noqa: PLC0415
-            from cryptography.hazmat.primitives import hashes, serialization  # noqa: PLC0415
+            from cryptography.hazmat.primitives import serialization  # noqa: PLC0415
             from cryptography.hazmat.primitives.asymmetric.ed25519 import (
                 Ed25519PrivateKey,  # noqa: PLC0415
             )

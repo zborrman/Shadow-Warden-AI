@@ -113,7 +113,7 @@ class TestAgentTokenRedis:
             def pipe_expire(key, ttl):
                 return pipe
             def execute():
-                for op, key, amount in pipe_ops:
+                for _op, key, amount in pipe_ops:
                     store[key] = store.get(key, 0.0) + amount
             pipe.incrbyfloat.side_effect = pipe_incrbyfloat
             pipe.expire.side_effect = pipe_expire
@@ -128,6 +128,7 @@ class TestAgentTokenRedis:
 
     def test_sim_balance_uses_redis(self):
         from unittest.mock import patch
+
         from warden.tokenomics.agent_token import AgentToken
         r, store = self._mock_redis()
         store["wat:balance:agent-r1"] = 42.5
@@ -138,6 +139,7 @@ class TestAgentTokenRedis:
 
     def test_sim_mint_uses_redis(self):
         from unittest.mock import patch
+
         from warden.tokenomics.agent_token import AgentToken
         r, store = self._mock_redis()
         with patch("warden.tokenomics.agent_token._redis", return_value=r):
@@ -148,6 +150,7 @@ class TestAgentTokenRedis:
 
     def test_sim_transfer_uses_redis(self):
         from unittest.mock import patch
+
         from warden.tokenomics.agent_token import AgentToken
         r, store = self._mock_redis()
         store["wat:balance:agent-r3"] = 50.0
@@ -171,6 +174,7 @@ class TestTokenomicsApi:
     def _client(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
         from warden.tokenomics.api import router
         app = FastAPI()
         app.include_router(router)
@@ -218,6 +222,7 @@ class TestTokenomicsApi:
 
     def test_mint_admin_key_enforcement(self):
         import os
+
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
@@ -225,6 +230,7 @@ class TestTokenomicsApi:
         os.environ["ADMIN_KEY"] = "secret-admin"
         try:
             import importlib
+
             import warden.tokenomics.api as tapi
             importlib.reload(tapi)
             app2 = FastAPI()

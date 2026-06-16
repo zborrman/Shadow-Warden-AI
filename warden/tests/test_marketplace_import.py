@@ -41,6 +41,7 @@ def _uid() -> str:
 def engine(tmp_path):
     """Fresh EvolutionEngine backed by a fresh temp rules file (no cross-run state)."""
     import pathlib
+
     from warden.brain import evolve as _evolve_mod
     orig = _evolve_mod.DYNAMIC_RULES_PATH
     _evolve_mod.DYNAMIC_RULES_PATH = pathlib.Path(tmp_path / "test_rules.json")

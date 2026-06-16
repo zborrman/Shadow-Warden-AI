@@ -534,7 +534,6 @@ class TestThreatIntelAnalyzer:
     @pytest.mark.asyncio
     async def test_analyze_one_mocked_anthropic(self):
         """Cover lines 255-277 in analyzer.py — _analyze_one with mocked anthropic."""
-        import uuid
         from warden.threat_intel.analyzer import ThreatIntelAnalyzer
 
         store = mock.MagicMock()
@@ -743,6 +742,7 @@ class TestWebhookDispatchBypass:
     @pytest.mark.asyncio
     async def test_dispatch_bypass_circuit_breaker_type(self):
         import json
+
         from warden.webhook_dispatch import dispatch_bypass_event
 
         store = mock.MagicMock()
@@ -764,6 +764,7 @@ class TestWebhookDispatchBypass:
     @pytest.mark.asyncio
     async def test_dispatch_bypass_timeout_type(self):
         import json
+
         from warden.webhook_dispatch import dispatch_bypass_event
 
         store = mock.MagicMock()
@@ -783,6 +784,7 @@ class TestWebhookDispatchBypass:
 
     def test_is_webhook_retryable_http_5xx(self):
         import httpx
+
         from warden.webhook_dispatch import _is_webhook_retryable
         mock_resp = mock.MagicMock()
         mock_resp.status_code = 503
@@ -791,6 +793,7 @@ class TestWebhookDispatchBypass:
 
     def test_is_webhook_retryable_http_4xx(self):
         import httpx
+
         from warden.webhook_dispatch import _is_webhook_retryable
         mock_resp = mock.MagicMock()
         mock_resp.status_code = 404
@@ -826,6 +829,7 @@ class TestDunningSlack:
     async def test_slack_posts_when_webhook_set(self, monkeypatch):
         monkeypatch.setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/test")
         import importlib
+
         import warden.workers.dunning as dunning_mod
         importlib.reload(dunning_mod)
 
@@ -843,6 +847,7 @@ class TestDunningSlack:
     async def test_slack_fails_open_on_error(self, monkeypatch):
         monkeypatch.setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/test")
         import importlib
+
         import warden.workers.dunning as dunning_mod
         importlib.reload(dunning_mod)
 

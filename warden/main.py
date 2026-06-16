@@ -1501,9 +1501,9 @@ try:
     from warden.marketplace.api import router as _marketplace_router
     from warden.marketplace.api_agents import router as _mkt_agents_router
     from warden.marketplace.api_assets import router as _mkt_assets_router
+    from warden.marketplace.api_escrow import router as _mkt_escrow_router
     from warden.marketplace.api_listings import router as _mkt_listings_router
     from warden.marketplace.api_negotiations import router as _mkt_negotiations_router
-    from warden.marketplace.api_escrow import router as _mkt_escrow_router
     app.include_router(_marketplace_router)
     app.include_router(_mkt_agents_router, prefix="/marketplace")
     app.include_router(_mkt_assets_router, prefix="/marketplace")
