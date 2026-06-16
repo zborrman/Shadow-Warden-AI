@@ -60,6 +60,9 @@ def _intent_key(intent_id: str) -> str:
     return f"usdc:intent:{intent_id}"
 
 
+_MEMORY_INTENTS: dict[str, dict] = {}  # fallback when Redis unavailable
+
+
 class USDCService:
     """USDC payment intent lifecycle."""
 
@@ -127,6 +130,7 @@ class USDCService:
     # ── Persistence ───────────────────────────────────────────────────────────
 
     def _persist(self, intent: PaymentIntent) -> None:
+        _MEMORY_INTENTS[intent.intent_id] = intent.to_dict()
         r = _redis()
         if r:
             try:
@@ -144,6 +148,9 @@ class USDCService:
                     return PaymentIntent(**d)
             except Exception as exc:
                 log.debug("USDCService._load Redis error: %s", exc)
+        d = _MEMORY_INTENTS.get(intent_id)
+        if d:
+            return PaymentIntent(**d)
         return None
 
     # ── Coinbase Commerce ─────────────────────────────────────────────────────
@@ -181,11 +188,10 @@ class USDCService:
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
-_svc: USDCService | None = None
+_svc_by_chain: dict[str, USDCService] = {}
 
 
 def get_usdc_service(chain: str = "polygon_amoy") -> USDCService:
-    global _svc
-    if _svc is None:
-        _svc = USDCService(chain=chain)
-    return _svc
+    if chain not in _svc_by_chain:
+        _svc_by_chain[chain] = USDCService(chain=chain)
+    return _svc_by_chain[chain]

@@ -39,7 +39,7 @@ class TestPackRegistry:
 class TestCropHealthMonitor:
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def test_healthy_crop(self):
         cls = get_pack("crop_health_monitor")
@@ -71,7 +71,7 @@ class TestCropHealthMonitor:
 class TestYieldOptimizer:
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def test_optimal_moisture_no_schedule(self):
         cls = get_pack("yield_optimizer")
@@ -97,7 +97,7 @@ class TestYieldOptimizer:
 class TestDiseaseDetector:
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def test_heuristic_healthy_ndvi(self):
         cls = get_pack("disease_detector")

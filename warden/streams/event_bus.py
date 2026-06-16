@@ -85,6 +85,12 @@ class KafkaEventBus:
             with contextlib.suppress(Exception):
                 await self._producer.stop()
 
+    def health(self) -> dict:
+        return {
+            "kafka_connected": self._kafka_ok,
+            "redis_fallback": _redis_client() is not None,
+        }
+
     # ── Produce ───────────────────────────────────────────────────────────────
 
     async def produce(self, topic: str, key: str, value: dict) -> bool:

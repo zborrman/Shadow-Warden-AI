@@ -83,27 +83,18 @@ class OutcomePricingService:
 
     def create_listing(
         self,
-        community_id:    str,
-        seller_agent_id: str,
         base_price_usd:  float,
-        kpi_definition:  dict,
-        target_value:    float,
+        kpi_definition:  "str | dict" = "",
+        target_value:    float = 1.0,
+        community_id:    str = "",
+        seller_agent_id: str = "",
         oracle_address:  str = "",
-    ) -> OutcomeListing:
-        """Create an outcome-based listing."""
+    ) -> str:
+        """Create an outcome-based listing. Returns listing_id."""
         import json  # noqa: PLC0415
         listing_id = f"OL-{uuid.uuid4().hex[:12].upper()}"
         now = datetime.now(UTC).isoformat()
-        listing = OutcomeListing(
-            listing_id=listing_id,
-            base_price_usd=base_price_usd,
-            kpi_definition=kpi_definition,
-            oracle_address=oracle_address,
-            target_value=target_value,
-            community_id=community_id,
-            seller_agent_id=seller_agent_id,
-            created_at=now,
-        )
+        kpi_json = json.dumps(kpi_definition) if isinstance(kpi_definition, dict) else json.dumps({"definition": kpi_definition})
         with _db_lock:
             con = _conn(self.db_path)
             con.execute(
@@ -112,14 +103,14 @@ class OutcomePricingService:
                     community_id, seller_agent_id, status, created_at)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
                 (
-                    listing_id, base_price_usd, json.dumps(kpi_definition), oracle_address,
+                    listing_id, base_price_usd, kpi_json, oracle_address,
                     target_value, community_id, seller_agent_id, "open", now,
                 ),
             )
             con.commit()
             con.close()
         log.info("OutcomeListing created: %s seller=%s", listing_id, seller_agent_id)
-        return listing
+        return listing_id
 
     def settle_outcome(
         self,
@@ -137,18 +128,18 @@ class OutcomePricingService:
         listing = self.get_listing(listing_id)
         if listing is None:
             raise ValueError(f"Outcome listing not found: {listing_id!r}")
-        if listing.status != "open":
-            raise ValueError(f"Listing {listing_id!r} is already {listing.status!r}.")
+        if listing["status"] != "open":
+            raise ValueError(f"Listing {listing_id!r} is already {listing['status']!r}.")
 
-        ratio        = min(achieved_value / max(listing.target_value, 1e-9), 1.0)
-        final_price  = round(listing.base_price_usd * ratio, 4)
+        ratio        = min(achieved_value / max(listing["target_value"], 1e-9), 1.0)
+        final_price  = round(listing["base_price_usd"] * ratio, 4)
         now          = datetime.now(UTC).isoformat()
 
         # WAT transfer (fail-open on token error)
         tx = {}
         try:
             token = get_agent_token()
-            tx    = token.transfer(buyer_agent_id, listing.seller_agent_id, final_price)
+            tx    = token.transfer(buyer_agent_id, listing["seller_agent_id"], final_price)
         except Exception as exc:
             log.warning("OutcomePricingService: WAT transfer failed: %s", exc)
             tx = {"error": str(exc)}
@@ -166,20 +157,21 @@ class OutcomePricingService:
             con.close()
 
         result = {
-            "listing_id":     listing_id,
-            "buyer_agent_id": buyer_agent_id,
-            "seller_agent_id": listing.seller_agent_id,
-            "achieved_value": achieved_value,
-            "target_value":   listing.target_value,
-            "ratio":          round(ratio, 4),
+            "listing_id":      listing_id,
+            "buyer_agent_id":  buyer_agent_id,
+            "seller_agent_id": listing["seller_agent_id"],
+            "achieved_value":  achieved_value,
+            "target_value":    listing["target_value"],
+            "ratio":           round(ratio, 4),
             "final_price_wat": final_price,
-            "tx":             tx,
-            "settled_at":     now,
+            "settled_price_usd": final_price,
+            "tx":              tx,
+            "settled_at":      now,
         }
         log.info("OutcomeListing settled: %s final_price=%.4f WAT", listing_id, final_price)
         return result
 
-    def get_listing(self, listing_id: str) -> OutcomeListing | None:
+    def get_listing(self, listing_id: str) -> dict | None:
         import json  # noqa: PLC0415
         try:
             with _db_lock:
@@ -190,20 +182,12 @@ class OutcomePricingService:
                 con.close()
             if not row:
                 return None
-            return OutcomeListing(
-                listing_id=row["listing_id"],
-                base_price_usd=row["base_price_usd"],
-                kpi_definition=json.loads(row["kpi_definition"] or "{}"),
-                oracle_address=row["oracle_address"],
-                target_value=row["target_value"],
-                community_id=row["community_id"],
-                seller_agent_id=row["seller_agent_id"],
-                status=row["status"],
-                settled_price=row["settled_price"],
-                achieved_value=row["achieved_value"],
-                created_at=row["created_at"],
-                settled_at=row["settled_at"],
-            )
+            d = dict(row)
+            try:
+                d["kpi_definition"] = json.loads(d.get("kpi_definition") or "{}")
+            except Exception:
+                pass
+            return d
         except Exception as exc:
             log.warning("OutcomePricingService.get_listing error: %s", exc)
             return None

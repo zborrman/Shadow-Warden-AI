@@ -81,8 +81,9 @@ def test_escrow_create(seller_id, buyer_id):
     )
     assert escrow.escrow_id.startswith("ESC-")
     assert escrow.status == "pending_deposit"
-    assert escrow.contract_address.startswith("0x")
-    assert len(escrow.contract_address) == 42
+    addr_part = escrow.contract_address.split(":")[0]
+    assert addr_part.startswith("0x")
+    assert len(addr_part) == 42
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -47,15 +47,9 @@ def test_rpc_check_connected_returns_true():
 
     fake_web3, mock_w3 = _make_web3_stub(connected=True)
 
-    with (
-        patch.dict(sys.modules, {"web3": fake_web3}),
-        patch("warden.marketplace.escrow.EscrowService._check_rpc_with_retry", wraps=None) as _,
-        patch("warden.web3.chains.get_chain", return_value=_chain_cfg_with_rpc()),
-    ):
+    with patch.dict(sys.modules, {"web3": fake_web3, "warden.web3.chains": types.SimpleNamespace(get_chain=lambda c: _chain_cfg_with_rpc())}):
         svc = EscrowService()
-        # Patch web3 at import site inside the method
-        with patch.dict(sys.modules, {"web3": fake_web3, "warden.web3.chains": types.SimpleNamespace(get_chain=lambda c: _chain_cfg_with_rpc())}):
-            result = svc._check_rpc_with_retry("sepolia", max_retries=1)
+        result = svc._check_rpc_with_retry("sepolia", max_retries=1)
 
     assert result is True
 

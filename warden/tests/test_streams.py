@@ -18,13 +18,13 @@ class TestKafkaEventBus:
     def test_produce_fallback_no_error(self):
         """produce() must not raise even when Kafka is unavailable (Redis fallback)."""
         bus = KafkaEventBus(bootstrap_servers="localhost:9999")
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             bus.produce("marketplace.test", "key-1", {"event": "test"})
         )
 
     def test_produce_returns_none(self):
         bus = KafkaEventBus(bootstrap_servers="localhost:9999")
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             bus.produce("marketplace.test", "key-2", {"x": 1})
         )
         assert result is None
@@ -37,13 +37,13 @@ class TestKafkaEventBus:
 
     def test_start_stop_no_error(self):
         bus = KafkaEventBus(bootstrap_servers="localhost:9999")
-        asyncio.get_event_loop().run_until_complete(bus.start())
-        asyncio.get_event_loop().run_until_complete(bus.stop())
+        asyncio.run(bus.start())
+        asyncio.run(bus.stop())
 
     def test_produce_json_serializable_payload(self):
         bus = KafkaEventBus(bootstrap_servers="localhost:9999")
         payload = {"amount": 99.5, "agent_id": "agent-42", "ts": "2026-01-01T00:00:00Z"}
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             bus.produce("marketplace.escrow", "escrow-1", payload)
         )
 
@@ -59,7 +59,7 @@ class TestFlinkAgentRunner:
 
     def test_on_listing_increments_counter(self):
         runner = FlinkAgentRunner()
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             runner._on_listing("community-xyz", {"listing_id": "L1", "asset_type": "rule"})
         )
         state = runner.get_state("community-xyz")
@@ -67,7 +67,7 @@ class TestFlinkAgentRunner:
 
     def test_on_escrow_records_escrow(self):
         runner = FlinkAgentRunner()
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             runner._on_escrow("community-xyz", {
                 "escrow_id": "ESC-001",
                 "amount_usd": 10.0,
@@ -83,6 +83,6 @@ class TestFlinkAgentRunner:
     def test_auto_dispute_fail_open(self):
         """_auto_dispute must not raise if EscrowService unavailable."""
         runner = FlinkAgentRunner()
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             runner._auto_dispute("community-xyz", "ESC-MISSING")
         )

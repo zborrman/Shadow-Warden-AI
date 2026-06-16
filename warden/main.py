@@ -1573,12 +1573,7 @@ try:
 except ImportError:
     log.warning("data_lifecycle router not available — /admin/data-lifecycle routes skipped.")
 
-try:
-    from warden.communities.federation import router as _federation_router
-    app.include_router(_federation_router)
-    log.info("Federation router mounted at /sep/federation")
-except ImportError:
-    log.warning("federation router not available — /sep/federation routes skipped.")
+# Federation router already mounted above at /sep/federation (CM-26)
 
 
 # ── Admin: manual weekly report trigger ──────────────────────────────────────

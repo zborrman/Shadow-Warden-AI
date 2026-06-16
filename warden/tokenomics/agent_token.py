@@ -49,6 +49,9 @@ def _sim_key(agent_id: str) -> str:
     return f"wat:balance:{agent_id}"
 
 
+_SIMULATION_BALANCES: dict[str, float] = {}  # fallback when Redis unavailable
+
+
 class AgentToken:
     """
     WAT ERC-20 interface.
@@ -146,10 +149,11 @@ class AgentToken:
         if r:
             try:
                 raw = r.get(_sim_key(agent_id))
-                return float(raw) if raw else 0.0
+                if raw is not None:
+                    return float(raw)
             except Exception:
                 pass
-        return 0.0
+        return _SIMULATION_BALANCES.get(agent_id, 0.0)
 
     def _sim_mint(self, agent_id: str, amount: float) -> dict:
         r = _redis()
@@ -158,7 +162,9 @@ class AgentToken:
                 r.incrbyfloat(_sim_key(agent_id), amount)
                 r.expire(_sim_key(agent_id), 86_400 * 365)
             except Exception:
-                pass
+                r = None
+        if not r:
+            _SIMULATION_BALANCES[agent_id] = _SIMULATION_BALANCES.get(agent_id, 0.0) + amount
         return {"simulated": True, "amount": amount, "agent_id": agent_id, "new_balance": self._sim_balance(agent_id)}
 
     def _sim_transfer(self, from_agent: str, to_agent: str, amount: float) -> dict:
@@ -174,8 +180,11 @@ class AgentToken:
                 pipe.expire(_sim_key(from_agent), 86_400 * 365)
                 pipe.expire(_sim_key(to_agent),   86_400 * 365)
                 pipe.execute()
-            except Exception as exc:
-                raise RuntimeError(f"WAT sim transfer error: {exc}") from exc
+            except Exception:
+                r = None
+        if not r:
+            _SIMULATION_BALANCES[from_agent] = _SIMULATION_BALANCES.get(from_agent, 0.0) - amount
+            _SIMULATION_BALANCES[to_agent]   = _SIMULATION_BALANCES.get(to_agent,   0.0) + amount
         return {"simulated": True, "from": from_agent, "to": to_agent, "amount": amount}
 
 

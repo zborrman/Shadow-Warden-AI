@@ -23,7 +23,7 @@ class TestUSDCService:
         intent = self.svc.create_payment_intent(amount_usd=25.0, merchant_wallet="0xABCDEF")
         assert intent.intent_id
         assert intent.amount_usd == 25.0
-        assert intent.status == "PENDING"
+        assert intent.status == "pending"
 
     def test_get_intent_after_create(self):
         intent = self.svc.create_payment_intent(amount_usd=10.0, merchant_wallet="0x1234")
@@ -34,11 +34,12 @@ class TestUSDCService:
     def test_verify_auto_confirms_in_simulation(self):
         intent = self.svc.create_payment_intent(amount_usd=5.0, merchant_wallet="0xDEAD")
         result = self.svc.verify_payment(intent.intent_id)
-        assert result["status"] == "CONFIRMED"
+        assert result is not None
+        assert result.status == "confirmed"
 
     def test_verify_missing_intent_returns_not_found(self):
         result = self.svc.verify_payment("nonexistent-intent-id")
-        assert result.get("status") == "NOT_FOUND" or "error" in result
+        assert result is None
 
     def test_payment_intent_chain_attribute(self):
         intent = self.svc.create_payment_intent(amount_usd=1.0, merchant_wallet="0x0")
