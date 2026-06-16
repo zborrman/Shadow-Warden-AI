@@ -325,6 +325,11 @@ _threat_sync    = None  # ThreatSyncClient | None — cross-region sync
 _corpus_watcher = None  # CorpusSyncWatcher | None — corpus invalidation consumer
 _bl_watcher     = None  # GlobalBlocklistWatcher | None — cross-region IP blocklist
 
+# Guard prevents multiple TestClient instances (module-scoped fixtures in tests)
+# from re-running lifespan teardown on the same app singleton, which closes
+# SQLite connections that other in-flight tests still need.
+_lifespan_active: bool = False
+
 
 def _global_blocklist_is_blocked(ip: str, tenant_id: str) -> bool:
     """Thin wrapper — fail-open if global_blocklist is not importable."""
@@ -450,7 +455,16 @@ def _print_motd(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy, _feed, _saml, _session_guard, _honey_engine
+    global _redactor, _guard, _brain_guard, _evolve, _agent_monitor, _ledger, _review_queue, _threat_store, _billing, _onboarding, _policy, _feed, _saml, _session_guard, _honey_engine, _lifespan_active
+
+    # Reentrancy guard: if a module-scoped TestClient triggers a second lifespan
+    # entry on the same app singleton, just yield — don't re-init or tear down
+    # globals that the session-scoped client is still using.
+    if _lifespan_active:
+        yield
+        return
+
+    _lifespan_active = True
 
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
@@ -907,6 +921,7 @@ async def lifespan(app: FastAPI):
     if _bl_watcher is not None:
         _bl_watcher.stop()
 
+    _lifespan_active = False
     log.info("Warden gateway shutting down.")
 
 
@@ -1484,7 +1499,17 @@ except ImportError:
 
 try:
     from warden.marketplace.api import router as _marketplace_router
+    from warden.marketplace.api_agents import router as _mkt_agents_router
+    from warden.marketplace.api_assets import router as _mkt_assets_router
+    from warden.marketplace.api_listings import router as _mkt_listings_router
+    from warden.marketplace.api_negotiations import router as _mkt_negotiations_router
+    from warden.marketplace.api_escrow import router as _mkt_escrow_router
     app.include_router(_marketplace_router)
+    app.include_router(_mkt_agents_router, prefix="/marketplace")
+    app.include_router(_mkt_assets_router, prefix="/marketplace")
+    app.include_router(_mkt_listings_router, prefix="/marketplace")
+    app.include_router(_mkt_negotiations_router, prefix="/marketplace")
+    app.include_router(_mkt_escrow_router, prefix="/marketplace")
     log.info("Community M2M Agentic Marketplace mounted at /marketplace (Phase 1)")
 except ImportError:
     log.warning("marketplace router not available — /marketplace skipped.")

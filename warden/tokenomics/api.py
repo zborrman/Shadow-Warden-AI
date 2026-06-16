@@ -78,7 +78,7 @@ def token_balance(agent_id: str):
 def create_outcome_listing(body: OutcomeListingCreate):
     """Create an outcome-based listing with KPI-gated settlement."""
     try:
-        listing = _svc.create_listing(
+        listing_id = _svc.create_listing(
             community_id=body.community_id,
             seller_agent_id=body.seller_agent_id,
             base_price_usd=body.base_price_usd,
@@ -86,7 +86,7 @@ def create_outcome_listing(body: OutcomeListingCreate):
             target_value=body.target_value,
             oracle_address=body.oracle_address,
         )
-        return listing.to_dict()
+        return {"listing_id": listing_id, "status": "open"}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

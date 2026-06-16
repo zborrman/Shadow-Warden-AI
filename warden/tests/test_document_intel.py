@@ -146,7 +146,8 @@ def client():
     os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
     os.environ.setdefault("REDIS_URL", "memory://")
     from warden.main import app
-    return TestClient(app)
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.mark.integration

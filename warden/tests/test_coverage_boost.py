@@ -530,3 +530,398 @@ class TestThreatIntelAnalyzer:
         )
         assert resp.relevance_score == 0.8
         assert resp.hint_type == "regex"
+
+    @pytest.mark.asyncio
+    async def test_analyze_one_mocked_anthropic(self):
+        """Cover lines 255-277 in analyzer.py — _analyze_one with mocked anthropic."""
+        import uuid
+        from warden.threat_intel.analyzer import ThreatIntelAnalyzer
+
+        store = mock.MagicMock()
+
+        mock_block = mock.MagicMock()
+        mock_block.type = "tool_use"
+        mock_block.input = {
+            "relevance_score": 0.9,
+            "actionability_score": 0.8,
+            "owasp_category": "LLM01",
+            "attack_pattern": "prompt injection",
+            "detection_hint": r"(?i)ignore\s+all",
+            "hint_type": "regex",
+            "countermeasure": "Block pattern",
+        }
+
+        mock_message = mock.MagicMock()
+        mock_message.content = [mock_block]
+
+        mock_client = mock.AsyncMock()
+        mock_client.messages.create.return_value = mock_message
+
+        mock_anthropic = mock.MagicMock()
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
+
+        item = _make_threat_item()
+
+        with mock.patch.dict("sys.modules", {"anthropic": mock_anthropic}), \
+             mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": "fake-key"}):
+            analyzer = ThreatIntelAnalyzer(store=store)
+            result = await analyzer._analyze_one(item)
+
+        assert result is not None
+        assert result.relevance_score == pytest.approx(0.9)
+
+    @pytest.mark.asyncio
+    async def test_analyze_one_api_error_returns_none(self):
+        """Cover the exception path in _analyze_one (lines 272-277)."""
+        from warden.threat_intel.analyzer import ThreatIntelAnalyzer
+
+        store = mock.MagicMock()
+
+        mock_client = mock.AsyncMock()
+        mock_client.messages.create.side_effect = Exception("Claude API down")
+
+        mock_anthropic = mock.MagicMock()
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
+
+        item = _make_threat_item()
+
+        with mock.patch.dict("sys.modules", {"anthropic": mock_anthropic}), \
+             mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": "fake-key"}):
+            analyzer = ThreatIntelAnalyzer(store=store)
+            result = await analyzer._analyze_one(item)
+
+        assert result is None
+
+
+# ── xai/chain.py — edge cases in helpers ─────────────────────────────────────
+
+class TestXaiChainHelpers:
+    def test_norm_none_returns_none(self):
+        from warden.xai.chain import _norm
+        assert _norm(None, 0.0, 1.0) is None
+
+    def test_norm_in_range(self):
+        from warden.xai.chain import _norm
+        assert _norm(0.5, 0.0, 1.0) == pytest.approx(0.5, rel=0.01)
+
+    def test_norm_clamped_max(self):
+        from warden.xai.chain import _norm
+        assert _norm(2.0, 0.0, 1.0) == pytest.approx(1.0)
+
+    def test_norm_clamped_min(self):
+        from warden.xai.chain import _norm
+        assert _norm(-1.0, 0.0, 1.0) == pytest.approx(0.0)
+
+    def test_verdict_from_score_none_returns_skip(self):
+        from warden.xai.chain import _verdict_from_score
+        assert _verdict_from_score(None, 0.5, 0.8) == "SKIP"
+
+    def test_verdict_from_score_flag(self):
+        from warden.xai.chain import _verdict_from_score
+        assert _verdict_from_score(0.6, 0.5, 0.8) == "FLAG"
+
+    def test_verdict_from_score_block(self):
+        from warden.xai.chain import _verdict_from_score
+        assert _verdict_from_score(0.9, 0.5, 0.8) == "BLOCK"
+
+    def test_verdict_from_score_pass(self):
+        from warden.xai.chain import _verdict_from_score
+        assert _verdict_from_score(0.3, 0.5, 0.8) == "PASS"
+
+    def test_find_primary_cause_all_skip_falls_back_to_decision(self):
+        """Cover the final 'return decision' fallback (line 346)."""
+        from warden.xai.chain import ChainNode, _find_primary_cause
+        nodes = [
+            ChainNode(stage_id="topology", stage_name="Topology", icon="🔷",
+                      color="#000", verdict="SKIP", score=0.0,
+                      score_label="", detail={}, latency_ms=0.0, weight=0.0),
+            ChainNode(stage_id="decision", stage_name="Decision", icon="⚖",
+                      color="#000", verdict="SKIP", score=0.0,
+                      score_label="", detail={}, latency_ms=0.0, weight=0.0),
+        ]
+        result = _find_primary_cause(nodes, {})
+        assert result == "decision"
+
+
+# ── xai/explainer.py — _claude_explain (mocked anthropic, lines 239-263) ─────
+
+class TestClaudeExplain:
+    def test_claude_explain_returns_text(self):
+        from warden.xai.explainer import _claude_explain
+
+        mock_block = mock.MagicMock()
+        mock_block.text = "A prompt injection attack was detected in the request."
+        mock_message = mock.MagicMock()
+        mock_message.content = [mock_block]
+        mock_client = mock.MagicMock()
+        mock_client.messages.create.return_value = mock_message
+        mock_anthropic = mock.MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        with mock.patch.dict("sys.modules", {"anthropic": mock_anthropic}):
+            result = _claude_explain(
+                risk_level="BLOCK",
+                flags=["prompt_injection"],
+                reason="Jailbreak detected",
+                owasp_categories=["LLM01"],
+                content_snippet="Ignore all previous instructions",
+            )
+        assert result == "A prompt injection attack was detected in the request."
+
+    def test_claude_explain_no_text_attr_returns_empty(self):
+        from warden.xai.explainer import _claude_explain
+
+        mock_block = mock.MagicMock(spec=[])  # no 'text' attr
+        mock_message = mock.MagicMock()
+        mock_message.content = [mock_block]
+        mock_client = mock.MagicMock()
+        mock_client.messages.create.return_value = mock_message
+        mock_anthropic = mock.MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        with mock.patch.dict("sys.modules", {"anthropic": mock_anthropic}):
+            result = _claude_explain(
+                risk_level="HIGH", flags=[], reason="",
+                owasp_categories=[], content_snippet="",
+            )
+        assert result == ""
+
+    def test_claude_explain_empty_flags_and_categories(self):
+        from warden.xai.explainer import _claude_explain
+
+        mock_block = mock.MagicMock()
+        mock_block.text = "Security risk detected."
+        mock_message = mock.MagicMock()
+        mock_message.content = [mock_block]
+        mock_client = mock.MagicMock()
+        mock_client.messages.create.return_value = mock_message
+        mock_anthropic = mock.MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        with mock.patch.dict("sys.modules", {"anthropic": mock_anthropic}):
+            result = _claude_explain(
+                risk_level="MEDIUM", flags=[], reason="",
+                owasp_categories=[], content_snippet="",
+            )
+        assert isinstance(result, str)
+
+
+# ── webhook_dispatch.py — bypass event dispatch (lines 203-249) ───────────────
+
+class TestWebhookDispatchBypass:
+    @pytest.mark.asyncio
+    async def test_dispatch_bypass_no_config_returns_early(self):
+        from warden.webhook_dispatch import dispatch_bypass_event
+
+        store = mock.MagicMock()
+        store._get_with_secret.return_value = None
+        await dispatch_bypass_event(
+            tenant_id="no-hook", content="data",
+            reason="timeout", processing_ms=50.0, store=store,
+        )
+        store._get_with_secret.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_dispatch_bypass_posts_to_url(self):
+        from warden.webhook_dispatch import dispatch_bypass_event
+
+        store = mock.MagicMock()
+        store._get_with_secret.return_value = {
+            "url": "https://example.com/webhook",
+            "secret": "supersecret",
+        }
+
+        with mock.patch("warden.webhook_dispatch._deliver", new_callable=mock.AsyncMock) as md:
+            await dispatch_bypass_event(
+                tenant_id="tenant-x", content="payload content",
+                reason="timeout", processing_ms=120.0, store=store,
+            )
+        md.assert_called_once()
+        url_arg = md.call_args[0][0]
+        assert url_arg == "https://example.com/webhook"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_bypass_circuit_breaker_type(self):
+        import json
+        from warden.webhook_dispatch import dispatch_bypass_event
+
+        store = mock.MagicMock()
+        store._get_with_secret.return_value = {"url": "https://h.com/w", "secret": "s"}
+
+        captured = {}
+
+        async def _cap(url, body, sig):
+            captured.update(json.loads(body))
+
+        with mock.patch("warden.webhook_dispatch._deliver", side_effect=_cap):
+            await dispatch_bypass_event(
+                tenant_id="t", content="c",
+                reason="circuit_breaker:open", processing_ms=5.0, store=store,
+            )
+        assert captured["bypass_type"] == "circuit_breaker"
+        assert captured["event_type"] == "bypass"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_bypass_timeout_type(self):
+        import json
+        from warden.webhook_dispatch import dispatch_bypass_event
+
+        store = mock.MagicMock()
+        store._get_with_secret.return_value = {"url": "https://h.com/w", "secret": "s"}
+
+        captured = {}
+
+        async def _cap(url, body, sig):
+            captured.update(json.loads(body))
+
+        with mock.patch("warden.webhook_dispatch._deliver", side_effect=_cap):
+            await dispatch_bypass_event(
+                tenant_id="t", content="c",
+                reason="timeout", processing_ms=5.0, store=store,
+            )
+        assert captured["bypass_type"] == "timeout"
+
+    def test_is_webhook_retryable_http_5xx(self):
+        import httpx
+        from warden.webhook_dispatch import _is_webhook_retryable
+        mock_resp = mock.MagicMock()
+        mock_resp.status_code = 503
+        exc = httpx.HTTPStatusError("503", request=mock.MagicMock(), response=mock_resp)
+        assert _is_webhook_retryable(exc) is True
+
+    def test_is_webhook_retryable_http_4xx(self):
+        import httpx
+        from warden.webhook_dispatch import _is_webhook_retryable
+        mock_resp = mock.MagicMock()
+        mock_resp.status_code = 404
+        exc = httpx.HTTPStatusError("404", request=mock.MagicMock(), response=mock_resp)
+        assert _is_webhook_retryable(exc) is False
+
+    def test_is_webhook_retryable_network_error(self):
+        from warden.webhook_dispatch import _is_webhook_retryable
+        assert _is_webhook_retryable(ConnectionError("refused")) is True
+
+    @pytest.mark.asyncio
+    async def test_deliver_posts_to_endpoint(self):
+        from warden.webhook_dispatch import _deliver
+
+        mock_resp = mock.MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.raise_for_status.return_value = None
+
+        mock_client = mock.AsyncMock()
+        mock_client.post.return_value = mock_resp
+        mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = mock.AsyncMock(return_value=None)
+
+        with mock.patch("httpx.AsyncClient", return_value=mock_client):
+            await _deliver("https://ex.com/h", b'{"x":1}', "sha256=abc")
+        mock_client.post.assert_called_once()
+
+
+# ── workers/dunning.py — _slack() with SLACK_WEBHOOK_URL set (lines 40-44) ───
+
+class TestDunningSlack:
+    @pytest.mark.asyncio
+    async def test_slack_posts_when_webhook_set(self, monkeypatch):
+        monkeypatch.setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/test")
+        import importlib
+        import warden.workers.dunning as dunning_mod
+        importlib.reload(dunning_mod)
+
+        mock_resp = mock.AsyncMock()
+        mock_client = mock.AsyncMock()
+        mock_client.post.return_value = mock_resp
+        mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = mock.AsyncMock(return_value=None)
+
+        with mock.patch("httpx.AsyncClient", return_value=mock_client):
+            await dunning_mod._slack("dunning message")
+        mock_client.post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_slack_fails_open_on_error(self, monkeypatch):
+        monkeypatch.setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/test")
+        import importlib
+        import warden.workers.dunning as dunning_mod
+        importlib.reload(dunning_mod)
+
+        mock_client = mock.AsyncMock()
+        mock_client.post.side_effect = Exception("conn refused")
+        mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = mock.AsyncMock(return_value=None)
+
+        with mock.patch("httpx.AsyncClient", return_value=mock_client):
+            await dunning_mod._slack("test")  # should not raise
+
+
+# ── threat_intel/scheduler.py — exception paths (lines 95-97, 108-110) ───────
+
+class TestSchedulerExceptionPaths:
+    @pytest.mark.asyncio
+    async def test_analyze_error_is_captured(self):
+        from warden.threat_intel.scheduler import ThreatIntelScheduler
+
+        mock_collector = mock.MagicMock()
+        mock_collector.collect.return_value = mock.MagicMock(items=[], errors=[])
+        mock_analyzer = mock.MagicMock()
+        mock_analyzer.analyze_pending = mock.AsyncMock(side_effect=RuntimeError("haiku down"))
+        mock_factory = mock.MagicMock()
+        mock_factory.process_analyzed_batch.return_value = 0
+
+        scheduler = ThreatIntelScheduler(mock_collector, mock_analyzer, mock_factory)
+        result = await scheduler.run_once()
+        assert any("analyze" in e for e in result.errors)
+
+    @pytest.mark.asyncio
+    async def test_synthesis_error_is_captured(self):
+        from warden.threat_intel.scheduler import ThreatIntelScheduler
+
+        mock_collector = mock.MagicMock()
+        mock_collector.collect.return_value = mock.MagicMock(items=[], errors=[])
+        mock_analyzer = mock.MagicMock()
+        mock_analyzer.analyze_pending = mock.AsyncMock(return_value=0)
+        mock_factory = mock.MagicMock()
+        mock_factory.process_analyzed_batch.side_effect = RuntimeError("synth fail")
+
+        scheduler = ThreatIntelScheduler(mock_collector, mock_analyzer, mock_factory)
+        result = await scheduler.run_once()
+        assert any("synthesize" in e for e in result.errors)
+
+
+# ── tokenomics/agent_token.py — Redis exception fallback (lines 154-155, 164-165, 183-184) ──
+
+class TestAgentTokenRedisExceptionFallback:
+    def _error_redis(self):
+        r = mock.MagicMock()
+        r.get.side_effect = Exception("Redis down")
+        r.incrbyfloat.side_effect = Exception("Redis down")
+        r.pipeline.side_effect = Exception("Redis down")
+        return r
+
+    def test_sim_balance_redis_error_uses_dict(self):
+        from warden.tokenomics import agent_token as at_mod
+        r = self._error_redis()
+        at_mod._SIMULATION_BALANCES["fb-agent"] = 55.0
+        with mock.patch("warden.tokenomics.agent_token._redis", return_value=r):
+            tok = at_mod.AgentToken()
+            bal = tok._sim_balance("fb-agent")
+        assert bal == pytest.approx(55.0)
+
+    def test_sim_mint_redis_error_uses_dict(self):
+        from warden.tokenomics import agent_token as at_mod
+        r = self._error_redis()
+        with mock.patch("warden.tokenomics.agent_token._redis", return_value=r):
+            tok = at_mod.AgentToken()
+            result = tok._sim_mint("mint-fb", 25.0)
+        assert result["simulated"] is True
+
+    def test_sim_transfer_redis_error_uses_dict(self):
+        from warden.tokenomics import agent_token as at_mod
+        r = self._error_redis()
+        at_mod._SIMULATION_BALANCES["tf-src"] = 80.0
+        at_mod._SIMULATION_BALANCES["tf-dst"] = 0.0
+        with mock.patch("warden.tokenomics.agent_token._redis", return_value=r):
+            tok = at_mod.AgentToken()
+            result = tok._sim_transfer("tf-src", "tf-dst", 10.0)
+        assert result["simulated"] is True

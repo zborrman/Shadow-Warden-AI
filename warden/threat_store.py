@@ -77,8 +77,20 @@ class ThreatStore:
         self._path = db_path or THREAT_DB_PATH
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self._conn = self._open()
+        self.__conn: sqlite3.Connection = self._open()
         self._init_schema()
+
+    @property
+    def _conn(self) -> sqlite3.Connection:
+        try:
+            self.__conn.execute("SELECT 1")
+        except sqlite3.ProgrammingError:
+            self.__conn = self._open()
+        return self.__conn
+
+    @_conn.setter
+    def _conn(self, conn: sqlite3.Connection) -> None:
+        self.__conn = conn
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
