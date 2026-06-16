@@ -120,9 +120,9 @@ async def get_session(session_id: str):
 @router.websocket("/stream/{session_id}")
 async def voice_stream(websocket: WebSocket, session_id: str):
     await websocket.accept()
-    from warden.voice.asr      import StreamingASR   # noqa: PLC0415
+    from warden.voice.asr import StreamingASR  # noqa: PLC0415
     from warden.voice.dialogue import DialogueManager  # noqa: PLC0415
-    from warden.voice.tts      import TTSEngine        # noqa: PLC0415
+    from warden.voice.tts import TTSEngine  # noqa: PLC0415
 
     asr  = StreamingASR()
     dm   = DialogueManager()

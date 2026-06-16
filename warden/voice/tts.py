@@ -10,8 +10,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor
 from collections.abc import AsyncIterator
+from concurrent.futures import ThreadPoolExecutor
 
 log = logging.getLogger("warden.voice.tts")
 
@@ -100,8 +100,7 @@ class TTSEngine:
 
     def _edge(self, text: str, config: dict) -> bytes:
         try:
-            import edge_tts      # noqa: PLC0415
-            import asyncio as _a  # noqa: PLC0415
+            import edge_tts  # noqa: PLC0415
 
             async def _run() -> bytes:
                 voice = config.get("voice", "en-US-AriaNeural")
@@ -112,7 +111,7 @@ class TTSEngine:
                         chunks.append(chunk["data"])
                 return b"".join(chunks)
 
-            loop = _a.new_event_loop()
+            loop = asyncio.new_event_loop()
             try:
                 return loop.run_until_complete(_run())
             finally:

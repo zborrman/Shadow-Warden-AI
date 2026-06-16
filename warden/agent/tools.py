@@ -2337,16 +2337,7 @@ async def acp_search_catalog(
 
 
 try:
-    from warden.voice.agent import (  # noqa: PLC0415
-        VOICE_TOOLS,
-        VOICE_TOOL_HANDLERS,
-        voice_search,
-        voice_buy,
-        voice_negotiate,
-        voice_auction,
-        voice_compliance_check,
-        voice_trust_query,
-    )
+    from warden.voice.agent import VOICE_TOOL_HANDLERS, VOICE_TOOLS  # noqa: PLC0415
     _VOICE_AVAILABLE = True
 except Exception:  # pragma: no cover
     VOICE_TOOLS = []

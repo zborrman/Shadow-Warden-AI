@@ -4,9 +4,9 @@ Phase 3 — Voice Biometrics + VoiceGuardian (6 tests).
 """
 from __future__ import annotations
 
+import math
 import os
 import struct
-import math
 
 os.environ.setdefault("VAULT_MASTER_KEY", "i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA=")
 os.environ.setdefault("REDIS_URL", "memory://")

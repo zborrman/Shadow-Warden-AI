@@ -8,6 +8,7 @@ Voiceprints are Fernet-encrypted; never stored in plaintext.
 """
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
@@ -47,10 +48,9 @@ def _get_redis():
 def _extract_embedding(audio_bytes: bytes) -> list[float]:
     """Extract speaker embedding.  resemblyzer → numpy energy fallback."""
     try:
+        import numpy as np  # noqa: PLC0415
+        import soundfile as sf  # noqa: PLC0415
         from resemblyzer import VoiceEncoder, preprocess_wav  # noqa: PLC0415
-        import io
-        import numpy as np
-        import soundfile as sf
         audio, sr = sf.read(io.BytesIO(audio_bytes))
         wav = preprocess_wav(audio, sr)
         enc = VoiceEncoder()

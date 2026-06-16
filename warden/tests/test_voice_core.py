@@ -134,7 +134,7 @@ class TestVoiceNLU:
         assert intent.intent_type == "cancel"
 
     def test_rule_parse_returns_voice_intent(self):
-        from warden.voice.nlu import _rule_parse, VoiceIntent
+        from warden.voice.nlu import VoiceIntent, _rule_parse
         intent = _rule_parse("hello", {})
         assert isinstance(intent, VoiceIntent)
         assert intent.source == "rule"

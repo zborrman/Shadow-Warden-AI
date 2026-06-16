@@ -57,17 +57,17 @@ class ASRResult:
 def _decode_pcm(audio_bytes: bytes):
     """Decode audio bytes → float32 numpy array at 16 kHz mono. Fail-open."""
     try:
-        import librosa          # noqa: PLC0415
-        import numpy as np
+        import librosa  # noqa: PLC0415
+        import numpy as np  # noqa: PLC0415
         arr, _ = librosa.load(io.BytesIO(audio_bytes), sr=_SAMPLE_RATE, mono=True)
         return arr
     except Exception:
         pass
     try:
-        import numpy as np      # noqa: PLC0415
+        import numpy as np  # noqa: PLC0415
         return np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
     except Exception:
-        import numpy as np      # noqa: PLC0415
+        import numpy as np  # noqa: PLC0415
         return np.zeros(_SAMPLE_RATE // 10, dtype=np.float32)
 
 
