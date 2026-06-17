@@ -1,0 +1,196 @@
+{
+  "uid": "sw-voice",
+  "title": "Shadow Warden — Voice Commerce",
+  "description": "Voice-Commerce Agents monitoring: sessions, latency, conversions, errors",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "time": {"from": "now-3h", "to": "now"},
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Row 1 — Sessions",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "title": "Active Voice Sessions",
+      "type": "stat",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "warden_voice_active_sessions",
+          "legendFormat": "Active Sessions",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 20}, {"color": "red", "value": 50}]}}
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1}
+    },
+    {
+      "id": 3,
+      "title": "Sessions per Hour",
+      "type": "timeseries",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "rate(warden_voice_sessions_started_total[5m]) * 3600",
+          "legendFormat": "sessions/hour",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 4, "w": 10, "x": 4, "y": 1}
+    },
+    {
+      "id": 4,
+      "title": "Average Session Duration",
+      "type": "stat",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "rate(warden_voice_session_duration_sec_sum[5m]) / rate(warden_voice_session_duration_sec_count[5m])",
+          "legendFormat": "avg duration (s)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "gridPos": {"h": 4, "w": 5, "x": 14, "y": 1}
+    },
+    {
+      "id": 10,
+      "title": "Row 2 — Latency",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}
+    },
+    {
+      "id": 11,
+      "title": "Voice E2E Latency Percentiles",
+      "type": "timeseries",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(warden_voice_e2e_latency_ms_bucket[5m]))",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(warden_voice_e2e_latency_ms_bucket[5m]))",
+          "legendFormat": "P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(warden_voice_e2e_latency_ms_bucket[5m]))",
+          "legendFormat": "P99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "ms"}},
+      "gridPos": {"h": 6, "w": 14, "x": 0, "y": 6}
+    },
+    {
+      "id": 12,
+      "title": "P95 Latency (5m)",
+      "type": "stat",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(warden_voice_e2e_latency_ms_bucket[5m]))",
+          "legendFormat": "P95 ms",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "ms", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 800}, {"color": "red", "value": 1500}]}}},
+      "gridPos": {"h": 3, "w": 5, "x": 14, "y": 6}
+    },
+    {
+      "id": 20,
+      "title": "Row 3 — Conversions",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 12}
+    },
+    {
+      "id": 21,
+      "title": "Voice Purchase Conversion Rate",
+      "type": "timeseries",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "rate(warden_voice_conversions_total[5m]) / rate(warden_voice_sessions_started_total[5m])",
+          "legendFormat": "conversion rate",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percentunit"}},
+      "gridPos": {"h": 5, "w": 12, "x": 0, "y": 13}
+    },
+    {
+      "id": 22,
+      "title": "Total Voice Conversions",
+      "type": "stat",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "warden_voice_conversions_total",
+          "legendFormat": "purchases",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "gridPos": {"h": 5, "w": 5, "x": 12, "y": 13}
+    },
+    {
+      "id": 30,
+      "title": "Row 4 — Errors & Security",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 18}
+    },
+    {
+      "id": 31,
+      "title": "Voice Error Rate by Stage",
+      "type": "timeseries",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "rate(warden_voice_errors_total[5m])",
+          "legendFormat": "{{stage}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}},
+      "gridPos": {"h": 6, "w": 14, "x": 0, "y": 19}
+    },
+    {
+      "id": 32,
+      "title": "Deepfake Detections",
+      "type": "stat",
+      "datasource": "${DS_PROMETHEUS}",
+      "targets": [
+        {
+          "expr": "warden_voice_deepfake_detected_total",
+          "legendFormat": "deepfakes blocked",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "red", "value": 1}]}}},
+      "gridPos": {"h": 3, "w": 5, "x": 14, "y": 19}
+    }
+  ]
+}

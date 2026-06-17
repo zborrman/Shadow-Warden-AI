@@ -130,6 +130,14 @@ class VoiceGuardian:
         except Exception:
             return 0.0
 
+    def scan_transcript_for_injection(self, transcript: str) -> bool:
+        """Return True if the transcript contains a prompt injection attempt (SEC-04)."""
+        try:
+            from warden.marketplace.injection_guard import scan_transcript_for_injection
+            return scan_transcript_for_injection(transcript)
+        except Exception:
+            return False
+
     def evaluate(
         self,
         transcript: str,
@@ -143,6 +151,9 @@ class VoiceGuardian:
             result.coercion_score = self.scan_transcript(transcript)
             if result.coercion_score >= _COERCE_THRESH:
                 result.reasons.append(f"coercion detected (score={result.coercion_score:.2f})")
+
+            if self.scan_transcript_for_injection(transcript):
+                result.reasons.append("prompt injection detected in transcript")
 
             if audio_bytes:
                 result.deepfake_score = self.detect_deepfake(audio_bytes)

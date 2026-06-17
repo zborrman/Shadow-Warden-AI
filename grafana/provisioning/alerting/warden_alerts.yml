@@ -765,3 +765,152 @@ groups:
             freeze, peering misconfiguration, or TransferGuard blocking all
             transfers at the Causal Arbiter stage.
             Dashboard: http://localhost:3000/d/sw-community
+
+  - orgId: 1
+    name: warden_voice
+    folder: Shadow Warden
+    interval: 1m
+    rules:
+
+      # ── Voice Latency ────────────────────────────────────────────────────────
+      - uid: warden-voice-latency-high
+        title: "Warden Voice — P95 Latency > 1500ms"
+        condition: C
+        for: 5m
+        labels:
+          severity: warning
+          category: voice
+        annotations:
+          summary: "Voice end-to-end latency P95 > 1500ms"
+          description: >
+            Voice pipeline P95 latency has exceeded 1500ms for 5 minutes.
+            Investigate ASR provider latency, NLU processing time, or network congestion.
+            Dashboard: http://localhost:3000/d/sw-voice
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PROMETHEUS
+            model:
+              expr: histogram_quantile(0.95, rate(warden_voice_e2e_latency_ms_bucket[5m]))
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params: [1500]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+
+      # ── Voice Error Rate ─────────────────────────────────────────────────────
+      - uid: warden-voice-error-rate-high
+        title: "Warden Voice — Error Rate > 5%"
+        condition: C
+        for: 5m
+        labels:
+          severity: critical
+          category: voice
+        annotations:
+          summary: "Voice pipeline error rate > 5%"
+          description: >
+            More than 5% of voice sessions are encountering pipeline errors. Check
+            warden_voice_errors_total{stage} for the failing stage (asr/nlu/tts/guardian).
+            Dashboard: http://localhost:3000/d/sw-voice
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PROMETHEUS
+            model:
+              expr: rate(warden_voice_errors_total[5m]) / (rate(warden_voice_sessions_started_total[5m]) + 0.001)
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.05]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+
+      # ── Deepfake Detection ───────────────────────────────────────────────────
+      - uid: warden-voice-deepfake
+        title: "Warden Voice — Deepfake Audio Detected"
+        condition: C
+        labels:
+          severity: critical
+          category: voice
+        annotations:
+          summary: "Deepfake voice audio detected"
+          description: >
+            VoiceGuardian has detected synthetic/deepfake audio in the last 10 minutes.
+            Review blocked sessions in the Voice Commerce dashboard.
+            Dashboard: http://localhost:3000/d/sw-voice
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: PROMETHEUS
+            model:
+              expr: increase(warden_voice_deepfake_detected_total[10m])
+              intervalMs: 60000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: "-100"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions

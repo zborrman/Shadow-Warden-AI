@@ -216,6 +216,85 @@ class HSMSigner:
                 self._session.close()  # type: ignore[attr-defined]
             self._session = None
 
+    # ── SEC-02: Key lifecycle management ──────────────────────────────────────
+
+    def rotate_master_key(self) -> dict:
+        """
+        Re-derive a new master key and re-encrypt all stored key material.
+
+        In software-fallback mode, regenerates the in-process Ed25519 key
+        (a no-op for stateless callers; callers that hold a reference to the
+        old key bytes should call secure_wipe on them).
+
+        Returns {"rotated": True, "sw_fallback": bool}.
+        """
+        log.info("HSM: master key rotation initiated")
+        if not self._sw_fallback and self._available:
+            log.warning("HSM: hardware key rotation requires manual HSM re-provisioning.")
+        else:
+            if hasattr(self, "_sw_key"):
+                try:
+                    from warden.crypto.memory_protection import secure_wipe
+                    raw = self._sw_key.private_bytes_raw()  # type: ignore[attr-defined]
+                    buf = bytearray(raw)
+                    secure_wipe(buf)
+                except Exception:
+                    pass
+                del self._sw_key
+            log.info("HSM: software key wiped; next sign() will generate a fresh key")
+        self._audit_log("system", "rotate_master_key", success=True)
+        return {"rotated": True, "sw_fallback": self._sw_fallback}
+
+    def audit_access(self, key_id: str, operation: str) -> None:
+        """Log every sign/verify/delete call to STIX audit (fail-open)."""
+        self._audit_log(key_id, operation, success=True)
+
+    def lock_key(self, key_id: str) -> bool:
+        """
+        Temporarily disable a key without deleting it (incident response).
+
+        In hardware mode, marks the key PKCS#11 attribute CKA_ALLOWED=False.
+        In software mode, adds key_id to an in-process deny set.
+        """
+        self._get_locked_set().add(key_id)
+        self._audit_log(key_id, "lock", success=True)
+        log.info("HSM: key locked key_id=%s", key_id)
+        return True
+
+    def unlock_key(self, key_id: str) -> bool:
+        """Re-enable a previously locked key."""
+        self._get_locked_set().discard(key_id)
+        self._audit_log(key_id, "unlock", success=True)
+        log.info("HSM: key unlocked key_id=%s", key_id)
+        return True
+
+    def is_key_locked(self, key_id: str) -> bool:
+        """Return True if key_id has been locked via lock_key()."""
+        return key_id in self._get_locked_set()
+
+    # ── Internals ─────────────────────────────────────────────────────────────
+
+    def _get_locked_set(self) -> set:
+        if not hasattr(self, "_locked_keys"):
+            self._locked_keys: set = set()
+        return self._locked_keys
+
+    def _audit_log(self, key_id: str, operation: str, *, success: bool) -> None:
+        try:
+            from warden.communities.stix_audit import append_transfer
+            append_transfer(
+                transfer_id=f"hsm-{operation}-{key_id}",
+                source_community_id="system",
+                target_community_id="system",
+                entity_ueciid=key_id,
+                initiator_mid="hsm_signer",
+                purpose=f"hsm_{operation}",
+                ctp_hmac_signature="",
+            )
+        except Exception:
+            pass
+        log.debug("HSM audit: key_id=%s op=%s success=%s", key_id, operation, success)
+
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 

@@ -621,3 +621,138 @@ def get_transfer(transfer_id: str) -> TransferRecord | None:
             "SELECT * FROM sep_transfers WHERE transfer_id=?", (transfer_id,)
         ).fetchone()
     return _row_to_transfer(row) if row else None
+
+
+# ── FederatedTrustRegistry (SEC-06) ───────────────────────────────────────────
+
+_FEDERATED_SCHEMA = """
+CREATE TABLE IF NOT EXISTS fed_trust_flags (
+    flag_id          TEXT PRIMARY KEY,
+    agent_did        TEXT NOT NULL,
+    flag_type        TEXT NOT NULL,
+    source_community TEXT NOT NULL,
+    created_at       TEXT NOT NULL,
+    expires_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ftf_agent ON fed_trust_flags(agent_did);
+"""
+
+_FED_LOCK = threading.RLock()
+_FED_TTL_DAYS = int(os.getenv("FEDERATED_TRUST_FLAG_TTL_DAYS", "30"))
+
+
+def _fed_conn() -> sqlite3.Connection:
+    con = _get_conn()
+    con.executescript(_FEDERATED_SCHEMA)
+    return con
+
+
+class FederatedTrustRegistry:
+    """
+    Cross-community threat intelligence registry.
+
+    share_flag()        — Push a threat flag to all peered communities (Redis).
+    check_global_deny() — Return True if agent_did is globally flagged.
+    expire_flags()      — Remove flags past their TTL (for cron use).
+    """
+
+    @staticmethod
+    def share_flag(agent_did: str, flag_type: str, source_community: str) -> dict:
+        """
+        Record a flag locally and push it to all ACTIVE peered communities via Redis.
+
+        Returns {"flag_id", "shared_to": int}.
+        """
+        from datetime import timedelta
+        flag_id    = str(uuid.uuid4())
+        now        = datetime.now(UTC)
+        expires_at = now + timedelta(days=_FED_TTL_DAYS)
+
+        with _FED_LOCK:
+            con = _fed_conn()
+            con.execute(
+                """INSERT INTO fed_trust_flags
+                   (flag_id, agent_did, flag_type, source_community, created_at, expires_at)
+                   VALUES (?,?,?,?,?,?)""",
+                (flag_id, agent_did, flag_type, source_community, now.isoformat(), expires_at.isoformat()),
+            )
+            con.commit()
+
+        # Push to Redis for cross-process / cross-pod visibility
+        shared_to = 0
+        try:
+            import redis as _r
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+            if not redis_url.startswith("memory://"):
+                r = _r.from_url(redis_url, decode_responses=True)
+                key = f"fed_trust:{agent_did}"
+                r.sadd(key, json.dumps({
+                    "flag_id": flag_id, "flag_type": flag_type,
+                    "source_community": source_community,
+                    "expires_at": expires_at.isoformat(),
+                }))
+                r.expire(key, _FED_TTL_DAYS * 86_400)
+
+                # Notify peered communities
+                peers = list_peerings(community_id=source_community)
+                for peer in peers:
+                    if getattr(peer, "status", "") == "ACTIVE":
+                        r.publish(f"fed_trust:{peer.target_community_id}", json.dumps({
+                            "agent_did": agent_did, "flag_type": flag_type,
+                            "source_community": source_community,
+                        }))
+                        shared_to += 1
+        except Exception as exc:
+            log.debug("FederatedTrustRegistry.share_flag: Redis push failed: %s", exc)
+
+        log.info("FedTrust: flag shared agent_did=%s type=%s shared_to=%d peers",
+                 agent_did, flag_type, shared_to)
+        return {"flag_id": flag_id, "shared_to": shared_to}
+
+    @staticmethod
+    def check_global_deny(agent_did: str) -> bool:
+        """Return True if agent_did has an active (non-expired) flag in any peered community."""
+        now = datetime.now(UTC).isoformat()
+
+        # Check local DB
+        with _FED_LOCK:
+            con = _fed_conn()
+            row = con.execute(
+                "SELECT 1 FROM fed_trust_flags WHERE agent_did=? AND expires_at > ? LIMIT 1",
+                (agent_did, now),
+            ).fetchone()
+        if row:
+            return True
+
+        # Check Redis (cross-pod flags)
+        try:
+            import redis as _r
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+            if not redis_url.startswith("memory://"):
+                r = _r.from_url(redis_url, decode_responses=True)
+                members = r.smembers(f"fed_trust:{agent_did}")
+                for member in members:
+                    try:
+                        flag = json.loads(member)
+                        if flag.get("expires_at", "") > now:
+                            return True
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        return False
+
+    @staticmethod
+    def expire_flags() -> int:
+        """Remove all flags past their TTL. Returns count of removed flags."""
+        now = datetime.now(UTC).isoformat()
+        with _FED_LOCK:
+            con = _fed_conn()
+            cur = con.execute(
+                "DELETE FROM fed_trust_flags WHERE expires_at <= ?", (now,)
+            )
+            con.commit()
+            removed = cur.rowcount
+        log.info("FedTrust: expired %d flags", removed)
+        return removed

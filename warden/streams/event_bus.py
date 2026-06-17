@@ -32,6 +32,12 @@ TOPICS = [
     "marketplace.listings",
     "marketplace.negotiations",
     "community.membership",
+    "marketplace.agents",
+    # Voice-Commerce topics (VC-02)
+    "voice.sessions",
+    "voice.transactions",
+    "voice.latency",
+    "voice.errors",
 ]
 
 _KAFKA_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
