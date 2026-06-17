@@ -138,6 +138,10 @@ def scan_text(
     if not content.strip():
         return {"label": label, "verdict": "SKIP", "risk_level": "SKIP",
                 "flags": [], "secrets_found": [], "processing_ms": 0}
+    if not api_key:
+        return {"label": label, "verdict": "SKIP", "risk_level": "SKIP",
+                "flags": [], "secrets_found": [], "processing_ms": 0,
+                "note": "WARDEN_API_KEY not configured — scan skipped"}
     try:
         import httpx
         resp = httpx.post(
@@ -308,7 +312,7 @@ def run_ci(args: argparse.Namespace, api_url: str, api_key: str, tenant_id: str)
         print(f"\n✖ Warden scan FAILED (verdict={agg} ≥ fail_on={fail_on})", file=sys.stderr)
         return 1
 
-    print(f"\n✔ Warden scan PASSED (verdict={agg})")
+    print(f"\nOK Warden scan PASSED (verdict={agg})")
     return 0
 
 
@@ -368,7 +372,7 @@ def main() -> None:
     tenant_id = os.getenv("WARDEN_TENANT_ID",  "github-ci")
 
     if not api_key:
-        print("Warning: WARDEN_API_KEY not set — scan will fail authentication", file=sys.stderr)
+        print("Warning: WARDEN_API_KEY not set — all items will be SKIP (no API call made)", file=sys.stderr)
 
     rc = run_pre_commit(args, api_url, api_key, tenant_id) \
         if args.mode == "pre-commit" \
