@@ -108,7 +108,11 @@ class FIDOProvider:
             )
             if hasattr(opts, "model_dump_json"):
                 return json.loads(opts.model_dump_json())
-            return json.loads(opts.json())
+            if hasattr(opts, "json"):
+                return json.loads(opts.json())
+            # py_webauthn 2.x removed .json(); use options_to_json()
+            from webauthn import options_to_json as _otj  # noqa: PLC0415
+            return json.loads(_otj(opts))
         except ImportError:
             return {
                 "challenge": challenge,

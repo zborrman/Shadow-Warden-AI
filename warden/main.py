@@ -168,7 +168,7 @@ log = logging.getLogger("warden.gateway")
 
 try:
     from prometheus_fastapi_instrumentator import Instrumentator as _Instrumentator
-    _PROMETHEUS_ENABLED = True
+    _PROMETHEUS_ENABLED = os.getenv("PROMETHEUS_METRICS_ENABLED", "true").lower() != "false"
 except ImportError:
     _PROMETHEUS_ENABLED = False
     log.warning("prometheus-fastapi-instrumentator not installed — /metrics disabled.")
