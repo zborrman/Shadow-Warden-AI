@@ -145,7 +145,7 @@ class FIDOProvider:
                 parsed = RegistrationCredential.parse_raw(json.dumps(credential))
             except Exception:
                 # Credential cannot be parsed as a real WebAuthn response — use stub path
-                raise ImportError  # falls to stub handler below
+                raise ImportError from None  # falls to stub handler below
             result = _verify(
                 credential=parsed,
                 expected_challenge=row["challenge"].encode(),
