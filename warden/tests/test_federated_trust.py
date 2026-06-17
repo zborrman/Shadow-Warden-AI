@@ -42,6 +42,7 @@ class TestExpiration:
 
         # Manually expire by backdating
         import sqlite3
+
         import warden.communities.peering as _peering
         con = sqlite3.connect(_peering._SEP_DB_PATH)
         con.execute(
