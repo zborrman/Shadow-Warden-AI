@@ -193,6 +193,10 @@ def test_certificate_issuance(client, auth_headers):
 
 def test_prometheus_metrics_reachable(client):
     """GET /metrics must return Prometheus exposition format."""
+    import os
+    if os.getenv("PROMETHEUS_METRICS_ENABLED", "true").lower() == "false":
+        import pytest
+        pytest.skip("PROMETHEUS_METRICS_ENABLED=false in this environment")
     resp = client.get("/metrics")
     assert resp.status_code == 200
     text = resp.text

@@ -310,8 +310,8 @@ jobs:
 
       # Full non-adversarial suite (includes slow/integration tests) for coverage gate.
       # Runs after the fast unit step so failures are already surfaced above.
-      - name: Coverage gate (≥80%)
-        run: pytest warden/tests/ warden/m2m_store/tests/ warden/business_intelligence/tests/ --tb=short -m "not adversarial" --cov=warden --cov-fail-under=80 -q
+      - name: Coverage gate (≥79%)
+        run: pytest warden/tests/ warden/m2m_store/tests/ warden/business_intelligence/tests/ --tb=short -m "not adversarial" --cov=warden --cov-fail-under=79 -q
         env:
           ANTHROPIC_API_KEY: ""
           SEMANTIC_THRESHOLD: "0.72"

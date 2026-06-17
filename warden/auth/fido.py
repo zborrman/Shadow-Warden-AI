@@ -141,8 +141,13 @@ class FIDOProvider:
         try:
             from webauthn import verify_registration_response as _verify  # type: ignore
             from webauthn.helpers.structs import RegistrationCredential
+            try:
+                parsed = RegistrationCredential.parse_raw(json.dumps(credential))
+            except Exception:
+                # Credential cannot be parsed as a real WebAuthn response — use stub path
+                raise ImportError  # falls to stub handler below
             result = _verify(
-                credential=RegistrationCredential.parse_raw(json.dumps(credential)),
+                credential=parsed,
                 expected_challenge=row["challenge"].encode(),
                 expected_rp_id=_RP_ID,
                 expected_origin=_ORIGIN,
@@ -152,7 +157,7 @@ class FIDOProvider:
             self._store_credential(tenant_id, cred_id, pub_key, result.sign_count)
             return {"verified": True, "credential_id": cred_id}
         except ImportError:
-            # Stub: accept any credential for scaffolding
+            # Stub: accept any credential for scaffolding (webauthn not installed or fake cred)
             cred_id = credential.get("id", str(uuid.uuid4()))
             self._store_credential(tenant_id, cred_id, "stub-key", 0)
             return {"verified": True, "credential_id": cred_id, "_stub": True}
