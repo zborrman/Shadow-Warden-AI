@@ -199,6 +199,22 @@ const isSettingsActive = isActive('/settings');
           GitHub
         </a>
 
+        <!-- Theme toggle (DS-01) -->
+        <button id="theme-toggle" type="button" aria-label="Toggle light/dark mode"
+                class="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
+                style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);background:transparent;cursor:pointer"
+                onmouseover="this.style.borderColor='rgba(128,180,253,0.3)';this.style.color='#80b4fd';this.style.background='rgba(128,180,253,0.08)'"
+                onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
+          <!-- Sun icon (shown in dark mode) -->
+          <svg id="tt-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <!-- Moon icon (shown in light mode, hidden by default) -->
+          <svg id="tt-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
         <!-- Accessibility icon -->
         <button id="a11y-nav-btn" type="button" aria-label="Accessibility settings"
                 class="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
@@ -446,6 +462,35 @@ const isSettingsActive = isActive('/settings');
     document.getElementById('a11y-nav-btn')?.addEventListener('click', () => {
       document.getElementById('a11y-trigger')?.click();
     });
+
+    // ── DS-01 Theme toggle ──
+    (function() {
+      const THEME_KEY = 'sw-theme';
+      const toggleBtn = document.getElementById('theme-toggle') as HTMLButtonElement | null;
+      const sunIcon   = document.getElementById('tt-sun')  as SVGElement | null;
+      const moonIcon  = document.getElementById('tt-moon') as SVGElement | null;
+
+      function applyTheme(theme: 'dark' | 'light') {
+        const root = document.documentElement;
+        root.setAttribute('data-theme', theme);
+        root.classList.remove('dark', 'light');
+        root.classList.add(theme);
+        if (sunIcon && moonIcon) {
+          sunIcon.style.display  = theme === 'dark'  ? '' : 'none';
+          moonIcon.style.display = theme === 'light' ? '' : 'none';
+        }
+        localStorage.setItem(THEME_KEY, theme);
+      }
+
+      // Restore persisted theme on load
+      const stored = localStorage.getItem(THEME_KEY) as 'dark' | 'light' | null;
+      applyTheme(stored === 'light' ? 'light' : 'dark');
+
+      toggleBtn?.addEventListener('click', () => {
+        const current = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+      });
+    })();
 
     // ── Sign In / Sign Out toggle ──
     // Auth state is set by portal via: localStorage.setItem('sw_signed_in','1')

@@ -1,32 +1,42 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 
 type Theme = "dark" | "light";
 
-const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({
-  theme: "dark",
-  toggle: () => {},
+interface ThemeContextValue {
+  theme:    Theme;
+  toggle:   () => void;
+  setTheme: (t: Theme) => void;
+}
+
+const ThemeContext = createContext<ThemeContextValue>({
+  theme:    "dark",
+  toggle:   () => {},
+  setTheme: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>("dark");
 
   useEffect(() => {
     const stored = localStorage.getItem("sw-theme") as Theme | null;
-    if (stored === "light" || stored === "dark") setTheme(stored);
+    if (stored === "light" || stored === "dark") setThemeState(stored);
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    const root = document.documentElement;
+    root.setAttribute("data-theme", theme);
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
     localStorage.setItem("sw-theme", theme);
   }, [theme]);
 
-  function toggle() {
-    setTheme(prev => (prev === "dark" ? "light" : "dark"));
-  }
+  const setTheme = (t: Theme) => setThemeState(t);
+  const toggle   = () => setThemeState(prev => prev === "dark" ? "light" : "dark");
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle }}>
+    <ThemeContext.Provider value={{ theme, toggle, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -34,4 +44,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 export function useTheme() {
   return useContext(ThemeContext);
+}
+
+export function ThemeToggle({ className = "" }: { className?: string }) {
+  const { theme, toggle } = useTheme();
+  return (
+    <button
+      onClick={toggle}
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/8 hover:text-white ${className}`}
+    >
+      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  );
 }

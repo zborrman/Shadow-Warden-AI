@@ -135,6 +135,34 @@ body {
 .card-hover { transition: border-color 180ms ease; }
 .card-hover:hover { border-color: var(--sw-border-strong) !important; }
 
+/* ── DS-01 compatibility bridge — mirrors @shadow-warden/ui globals.css ── */
+:root {
+  --card:             var(--sw-surf-2);
+  --card-foreground:  var(--sw-fg-1);
+  --border:           var(--sw-border);
+  --muted-foreground: var(--sw-fg-2);
+  --primary:          221.2 83.2% 53.3%;
+  --radius:           0.75rem;
+}
+
+/* ── Light mode (activated by .light class on <html>) ──── */
+html.light {
+  --sw-bg:      #f0f4f8;
+  --sw-surf-1:  #e8edf4;
+  --sw-surf-2:  #ffffff;
+  --sw-surf-3:  #f1f5f9;
+  --sw-border:        rgba(0,0,0,0.08);
+  --sw-border-strong: rgba(0,0,0,0.16);
+  --sw-border-hover:  rgba(37,99,235,0.32);
+  --sw-blue:    #2563eb;
+  --sw-blue-2:  #1d4ed8;
+  --sw-fg-1: #0f172a;
+  --sw-fg-2: #374151;
+  --sw-fg-3: #6b7280;
+  --sw-fg-4: #9ca3af;
+  --sw-tint-blue: rgba(37,99,235,0.08);
+}
+
 /* ── Code inline ─────────────────────────────────────── */
 code {
   font-family: var(--sw-font-mono);
