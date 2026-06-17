@@ -314,6 +314,51 @@ async def probe_tunnel(tunnel_id: str, auth: AuthResult = AuthDep) -> dict:
     return await _probe(tunnel_id)
 
 
+class UpgradeCertRequest(BaseModel):
+    skip_preflight: bool = Field(False, description="Skip preflight probe (emergency only)")
+    community_id:   str  = Field("", description="Community ID for certificate subject CN")
+
+
+@router.post(
+    "/tunnels/{tunnel_id}/upgrade-cert",
+    summary="Upgrade tunnel from TOFU to CA-signed certificate (CR-15)",
+    dependencies=[_SovereignGate],
+)
+async def upgrade_tunnel_cert(
+    tunnel_id: str,
+    body: UpgradeCertRequest = UpgradeCertRequest(),
+    auth: AuthResult = AuthDep,
+) -> dict:
+    """
+    Migrate a TOFU-pinned MASQUE tunnel to CA-signed certificate mode with zero
+    connectivity interruption (CR-15).
+
+    The upgrade is atomic:
+    - Issues a new X.509 certificate from the community CA.
+    - Performs a preflight TLS probe with the new cert (skip with `skip_preflight`).
+    - On success: sets `cert_mode=ca_signed`, stores `certificate_id`.
+    - On failure: revokes the new cert, tunnel remains in TOFU mode (rollback).
+
+    Returns 409 if the tunnel is already CA-signed.
+    Returns 503 if the preflight probe fails.
+    """
+    from warden.sovereign.tunnel import upgrade_to_ca
+
+    try:
+        return await upgrade_to_ca(
+            tunnel_id,
+            tenant_id=auth.tenant_id if hasattr(auth, "tenant_id") else "default",
+            skip_preflight=body.skip_preflight,
+            community_id=body.community_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ConnectionError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @router.delete("/tunnels/{tunnel_id}", status_code=204, summary="Deactivate a tunnel", dependencies=[_SovereignGate])
 async def deactivate_tunnel(tunnel_id: str, auth: AuthResult = AuthDep) -> None:
     from warden.sovereign.tunnel import deactivate_tunnel as _deact

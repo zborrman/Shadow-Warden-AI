@@ -58,6 +58,8 @@ class MASQUETunnel:
     tags:            list[str]    # e.g. ["GDPR", "EU_AI_ACT"]
     latency_ms:      float | None # last measured round-trip latency
     ca_cert_pem:     str          = ""  # CR-15: PEM-encoded CA certificate for full chain verification
+    cert_mode:       str          = "tofu"    # "tofu" | "ca_signed"
+    certificate_id:  str | None   = None      # references CA-issued cert after upgrade
 
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────
@@ -307,3 +309,110 @@ def deactivate_tunnel(tunnel_id: str) -> bool:
     t.status = "OFFLINE"
     _save(t)
     return True
+
+
+async def upgrade_to_ca(
+    tunnel_id: str,
+    tenant_id: str,
+    *,
+    skip_preflight: bool = False,
+    community_id: str = "",
+    _ca=None,
+) -> dict:
+    """
+    Upgrade a TOFU-pinned MASQUE tunnel to CA-signed certificate mode.
+
+    Zero-downtime: QUIC session resumption means in-flight streams survive the
+    cert swap.  The new certificate takes effect at the next TLS handshake
+    (keepalive or reconnection), so there is no connectivity interruption from
+    the user's perspective.
+
+    Steps:
+      1. Validate tunnel exists and is in 'tofu' mode.
+      2. Issue tunnel certificate from CertificateAuthority.
+      3. Preflight: probe tunnel with new CA cert (bypassed when skip_preflight=True).
+      4. Atomic update: cert_mode='ca_signed', certificate_id, ca_cert_pem.
+      5. STIX audit log (fail-open).
+
+    Rollback: on preflight failure the new certificate is revoked and the tunnel
+    remains in TOFU mode — no partial state.
+
+    Returns dict with upgrade metadata.
+    Raises ValueError on not-found, already-upgraded, or preflight failure.
+    """
+    from warden.security.certificate_authority import get_ca as _get_ca
+
+    ca = _ca or _get_ca()
+
+    t = get_tunnel(tunnel_id)
+    if not t:
+        raise ValueError(f"Tunnel {tunnel_id!r} not found")
+
+    effective_mode = t.cert_mode or "tofu"
+    if effective_mode == "ca_signed":
+        raise LookupError(f"Tunnel {tunnel_id!r} is already in ca_signed mode")
+
+    # ── Issue new certificate ─────────────────────────────────────────────────
+    cid = community_id or tenant_id or "system"
+    cert_info = ca.issue_tunnel_certificate(
+        tunnel_id=tunnel_id,
+        community_id=cid,
+    )
+    new_cert_id  = cert_info["cert_id"]
+    new_cert_pem = cert_info["cert_pem"]
+
+    # ── Preflight: probe with new CA cert ─────────────────────────────────────
+    if not skip_preflight:
+        original_ca_cert = t.ca_cert_pem
+        t.ca_cert_pem = new_cert_pem
+        _save(t)
+
+        probe_result = await probe_tunnel(tunnel_id)
+
+        if probe_result.get("status") != "ACTIVE":
+            # Rollback: restore original ca_cert_pem, revoke new cert
+            t.ca_cert_pem = original_ca_cert
+            _save(t)
+            ca.revoke_certificate_by_id(new_cert_id)
+            raise ConnectionError(
+                f"Preflight failed for tunnel {tunnel_id!r}: "
+                f"{probe_result.get('error', 'probe returned non-ACTIVE status')}"
+            )
+
+    # ── Atomic upgrade ────────────────────────────────────────────────────────
+    t.cert_mode      = "ca_signed"
+    t.certificate_id = new_cert_id
+    t.ca_cert_pem    = new_cert_pem
+    _save(t)
+
+    log.info(
+        "CR-15: tunnel %s upgraded TOFU→CA-signed cert_id=%s tenant=%s",
+        tunnel_id, new_cert_id, tenant_id,
+    )
+
+    # ── STIX audit (fail-open) ────────────────────────────────────────────────
+    try:
+        from warden.communities.stix_audit import append_transfer  # noqa: PLC0415
+        append_transfer(
+            transfer_id=f"cert-upgrade-{tunnel_id}",
+            source_community_id=tenant_id,
+            target_community_id="system",
+            entity_ueciid=new_cert_id,
+            initiator_mid=f"tunnel:{tunnel_id}",
+            purpose="tunnel_cert_upgrade",
+            ctp_hmac_signature="",
+        )
+    except Exception as stix_exc:
+        log.debug("CR-15 STIX audit skip: %s", stix_exc)
+
+    return {
+        "tunnel_id":      tunnel_id,
+        "cert_mode":      "ca_signed",
+        "certificate_id": new_cert_id,
+        "issuer":         "CN=Shadow Warden Community CA",
+        "expires_at":     cert_info["expires_at"],
+        "message": (
+            "Tunnel upgraded successfully. "
+            "New certificate will be used at next reconnection."
+        ),
+    }

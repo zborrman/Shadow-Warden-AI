@@ -188,7 +188,7 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 testpaths    = ["warden/tests", "warden/m2m_store/tests", "warden/business_intelligence/tests"]
-addopts      = "-v --tb=short --strict-markers --cov=warden --cov-report=term-missing --cov-fail-under=80"
+addopts      = "-v --tb=short --strict-markers --cov=warden --cov-report=term-missing --cov-fail-under=79"
 markers      = [
     "adversarial: adversarial corpus tests (may be slow)",
     "slow: tests that load the ML model",

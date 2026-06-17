@@ -303,6 +303,86 @@ class CertificateAuthority:
 
     # ── Get ───────────────────────────────────────────────────────────────────
 
+    def issue_tunnel_certificate(
+        self,
+        tunnel_id:    str,
+        community_id: str,
+        public_key_pem: str = "",
+    ) -> dict:
+        """
+        Issue an X.509 certificate for a MASQUE tunnel (CR-15).
+
+        Subject CN = tunnel-{tunnel_id}.{community_id}.shadow-warden.ai.
+        Stored with agent_id = "tunnel:{tunnel_id}" for revocation lookup.
+        Returns the same dict shape as issue_agent_certificate().
+        """
+        agent_id = f"tunnel:{tunnel_id}"
+        subject_cn = f"tunnel-{tunnel_id}.{community_id}.shadow-warden.ai"
+        cert_id    = f"TCERT-{uuid.uuid4().hex[:12].upper()}"
+        now        = datetime.now(UTC)
+        expires    = now + timedelta(days=_CERT_TTL_DAYS)
+
+        cert_pem = self._generate_cert(cert_id, subject_cn, public_key_pem, now, expires)
+
+        row = {
+            "cert_id":      cert_id,
+            "agent_id":     agent_id,
+            "community_id": community_id,
+            "subject_cn":   subject_cn,
+            "cert_pem":     cert_pem,
+            "issued_at":    now.isoformat(),
+            "expires_at":   expires.isoformat(),
+            "revoked":      0,
+            "revoked_at":   None,
+        }
+        with _db_lock:
+            con = self._get_conn()
+            con.execute(
+                """INSERT OR REPLACE INTO ans_certificates
+                   (cert_id, agent_id, community_id, subject_cn, cert_pem,
+                    issued_at, expires_at, revoked, revoked_at)
+                   VALUES (:cert_id,:agent_id,:community_id,:subject_cn,:cert_pem,
+                           :issued_at,:expires_at,:revoked,:revoked_at)""",
+                row,
+            )
+            con.commit()
+            self._close_conn(con)
+
+        log.info("CR-15: tunnel cert issued cert_id=%s tunnel=%s", cert_id, tunnel_id)
+        return {k: v for k, v in row.items() if k != "revoked"}
+
+    def revoke_certificate_by_id(self, cert_id: str) -> bool:
+        """Revoke a specific certificate by cert_id (used for CR-15 rollback). Returns True if found."""
+        try:
+            now = datetime.now(UTC).isoformat()
+            with _db_lock:
+                con = self._get_conn()
+                row = con.execute(
+                    "SELECT cert_id, community_id FROM ans_certificates WHERE cert_id=? AND revoked=0",
+                    (cert_id,),
+                ).fetchone()
+                if not row:
+                    self._close_conn(con)
+                    return False
+                community_id = row["community_id"]
+                con.execute(
+                    "UPDATE ans_certificates SET revoked=1, revoked_at=? WHERE cert_id=?",
+                    (now, cert_id),
+                )
+                con.commit()
+                self._close_conn(con)
+
+            r = _redis()
+            if r:
+                r.sadd(_crl_key(community_id), cert_id)
+                r.expire(_crl_key(community_id), 86_400 * 365 * 7)
+
+            log.info("CR-15: cert revoked by id cert_id=%s", cert_id)
+            return True
+        except Exception as exc:
+            log.warning("revoke_certificate_by_id error: %s", exc)
+            return False
+
     def get_agent_certificate(self, agent_id: str) -> dict | None:
         try:
             with _db_lock:

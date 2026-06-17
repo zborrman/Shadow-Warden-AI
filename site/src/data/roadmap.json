@@ -494,10 +494,10 @@
     "category": "Cyber Security",
     "subcategory": "Cryptography",
     "feature": "Certificate-pinned MASQUE tunnels — TOFU → CA-signed upgrade path",
-    "description": "Upgrade path from Trust-On-First-Use certificate pinning to CA-signed certificates for MASQUE tunnels. Enables enterprise-managed PKI with zero connectivity interruption during migration.",
-    "version": "",
+    "description": "Upgrade path from Trust-On-First-Use certificate pinning to CA-signed certificates for MASQUE tunnels. Enables enterprise-managed PKI with zero connectivity interruption during migration. Includes cert_mode field, issue_tunnel_certificate(), revoke_certificate_by_id(), upgrade_to_ca() with atomic rollback, and POST /sovereign/tunnels/{id}/upgrade-cert API.",
+    "version": "v6.8",
     "tier": "Enterprise",
-    "status": "planned"
+    "status": "shipped"
   },
   {
     "id": "AR-01",
