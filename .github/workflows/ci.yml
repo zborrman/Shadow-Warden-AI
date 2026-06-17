@@ -370,7 +370,7 @@ jobs:
 
       - name: Run production readiness integration tests
         run: |
-          pytest warden/tests/test_production_readiness.py -v --tb=short \
+          pytest warden/tests/test_production_readiness.py -v --tb=short --no-cov \
             --junitxml=results/integration-test.xml
         env:
           ALLOW_UNAUTHENTICATED: "true"
