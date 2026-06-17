@@ -117,17 +117,26 @@ _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="image-guard")
 
 @lru_cache(maxsize=1)
 def _load_model():
-    """Load CLIP model + processor once.  Raises ImportError if deps missing."""
-    from transformers import CLIPModel, CLIPProcessor  # noqa: PLC0415
-    t0 = time.time()
-    processor = CLIPProcessor.from_pretrained(MODEL_ID, cache_dir=CACHE_DIR)
-    model = CLIPModel.from_pretrained(MODEL_ID, cache_dir=CACHE_DIR)
-    model.eval()
-    log.info(
-        "ImageGuard: CLIP model loaded in %.1fs — model=%s threshold=%.2f",
-        time.time() - t0, MODEL_ID, THRESHOLD,
-    )
-    return model, processor
+    """Load CLIP model + processor once.  Returns (None, None) if unavailable."""
+    try:
+        from transformers import CLIPModel, CLIPProcessor  # noqa: PLC0415
+        t0 = time.time()
+        local_only = os.getenv("TRANSFORMERS_OFFLINE", "0") == "1"
+        processor = CLIPProcessor.from_pretrained(
+            MODEL_ID, cache_dir=CACHE_DIR, local_files_only=local_only
+        )
+        model = CLIPModel.from_pretrained(
+            MODEL_ID, cache_dir=CACHE_DIR, local_files_only=local_only
+        )
+        model.eval()
+        log.info(
+            "ImageGuard: CLIP model loaded in %.1fs — model=%s threshold=%.2f",
+            time.time() - t0, MODEL_ID, THRESHOLD,
+        )
+        return model, processor
+    except Exception as exc:
+        log.warning("ImageGuard: model unavailable (%s) — fail-open", exc)
+        return None, None
 
 
 def prewarm() -> bool:
@@ -167,6 +176,8 @@ def _run_clip(image_bytes: bytes) -> ImageGuardResult:
         from PIL import Image  # noqa: PLC0415
 
         model, processor = _load_model()
+        if model is None:
+            return ImageGuardResult(error="model_unavailable", elapsed_ms=(time.time() - t0) * 1000)
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
         # PhishGuard v3 — phishing visual prompts are the last 8 entries of

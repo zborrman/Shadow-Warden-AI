@@ -133,6 +133,8 @@ def _classify_sync(image_bytes: bytes) -> SynthResult:
         from warden.image_guard import _load_model  # noqa: PLC0415
 
         model, processor = _load_model()
+        if model is None:
+            return SynthResult(error="model_unavailable", elapsed_ms=(time.time() - t0) * 1000)
         pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
         import torch  # noqa: PLC0415

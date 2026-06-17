@@ -297,6 +297,7 @@ jobs:
           REDIS_URL: "memory://"         # in-memory rate limiter; no Redis service needed
           MODEL_CACHE_DIR: "/tmp/warden-model-cache"   # default /warden/models is Docker-only
           AUDIT_TRAIL_PATH: "/tmp/audit_trail.db"      # default /warden/data is Docker-only
+          IMAGE_GUARD_ENABLED: "false"   # CLIP model not cached in CI — skip to avoid HF 429
 
       - name: Publish test results
         uses: dorny/test-reporter@v1
@@ -320,6 +321,7 @@ jobs:
           REDIS_URL: "memory://"
           MODEL_CACHE_DIR: "/tmp/warden-model-cache"   # shared with unit test step (model already downloaded)
           AUDIT_TRAIL_PATH: "/tmp/audit_trail_cov.db"
+          IMAGE_GUARD_ENABLED: "false"   # CLIP model not cached in CI — skip to avoid HF 429
 
       - name: Run adversarial corpus tests
         run: pytest warden/tests/ -v --tb=short -m "adversarial" || true
@@ -330,6 +332,7 @@ jobs:
           LOGS_PATH: "/tmp/test_logs.json"
           MODEL_CACHE_DIR: "/tmp/warden-model-cache"
           AUDIT_TRAIL_PATH: "/tmp/audit_trail_adv.db"
+          IMAGE_GUARD_ENABLED: "false"
 
       # Mutation testing disabled — run locally only (too slow for CI minutes)
       # mutmut run --no-progress (targets: secret_redactor, semantic_guard)
