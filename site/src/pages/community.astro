@@ -645,8 +645,8 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="h-stat"><span class="h-stat-n" data-to="2147">0</span><span class="h-stat-l">Threats blocked</span></div>
       </div>
       <div class="hero-btns">
-        <a href="https://app.shadow-warden-ai.com/community-hub/create" class="btn-pr">+ Create Community</a>
-        <a href="https://app.shadow-warden-ai.com/community-hub/" class="btn-ghost">Explore Network →</a>
+        <button class="btn-pr" id="btn-hero">+ Create Community</button>
+        <a href="#discover" class="btn-ghost">Explore Network →</a>
       </div>
     </div>
   </section>
@@ -1815,6 +1815,7 @@ document.getElementById('btn-create').addEventListener('click', () => {
 });
 
 // ── Modal open / close ──────────────────────────────────────
+document.getElementById('btn-hero').onclick = _open;
 const _ctaEl = document.getElementById('btn-cta'); if (_ctaEl) _ctaEl.onclick = _open;
 document.getElementById('mcls').onclick = () => modal.close();
 modal.addEventListener('click', e => {
