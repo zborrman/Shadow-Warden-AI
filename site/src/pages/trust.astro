@@ -1,435 +1,706 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 
+const categories = [
+  {
+    name: 'AI Filter Pipeline',
+    controls: [
+      'Topological jailbreak detection (Betti numbers β₀/β₁) implemented',
+      'Obfuscation decoding (base64, hex, ROT13, homoglyphs) implemented',
+      'Secret and PII redaction (15 regex patterns + entropy scan) implemented',
+      'Semantic rule engine with compound risk escalation implemented',
+      'ML semantic guard (MiniLM + Poincaré hyperbolic blend) implemented',
+      'Causal Bayesian arbitration (Pearl do-calculus) implemented',
+      'Phishing and social engineering detection implemented',
+      'Elastic Rate Scoring with differentiated shadow ban implemented',
+      'Progressive streaming fast-scan (400-char live-emit buffer) implemented',
+    ],
+  },
+  {
+    name: 'Data Security',
+    controls: [
+      'Encryption at rest (Fernet AES-128-CBC, HMAC-SHA256 reverse map) implemented',
+      'Encryption in transit (TLS 1.3 via Cloudflare QUIC/HTTP3) implemented',
+      'GDPR-compliant content never logged — metadata only implemented',
+      'Post-Quantum Cryptography (ML-DSA-65 + ML-KEM-768 hybrid) implemented',
+      'Cryptographic audit trail (SHA-256 hash chain, SQLite WAL) implemented',
+      'STIX 2.1 tamper-evident transfer audit chain implemented',
+      'Atomic file writes (tempfile + os.replace) to prevent corruption implemented',
+    ],
+  },
+  {
+    name: 'Access Management',
+    controls: [
+      'Per-tenant API key management (JSON multi-key + SHA-256 hash) implemented',
+      'Constant-time key comparison (timing-attack resistant) implemented',
+      'Fail-closed authentication at startup implemented',
+      'Multi-tenant workload isolation implemented',
+      'HMAC-SHA256 task token binding (cross-agent injection prevention) implemented',
+      'Role-based community membership (Owner, Admin, Member) implemented',
+      'Human-in-the-loop approval gate for high-impact actions implemented',
+    ],
+  },
+  {
+    name: 'Compliance & Privacy',
+    controls: [
+      'GDPR Article 35 Data Protection Impact Assessment conducted',
+      'SOC 2 Type II evidence collection and control mapping implemented',
+      'ISO 27001:2022 full 93-control mapping with theme coverage implemented',
+      'Continuous compliance posture scoring (GDPR/SOC2/ISO/HIPAA) implemented',
+      'GDPR data purge API and ARQ cron scrub job implemented',
+      'Causal Transfer Guard (exfiltration risk blocked at P ≥ 0.70) implemented',
+      'Sovereignty attestation (HMAC-SHA256, 7-year Redis TTL) implemented',
+    ],
+  },
+  {
+    name: 'Agentic SOC',
+    controls: [
+      'SOVA autonomous AI operator (30 tools, Claude Opus, ≤10 iterations) implemented',
+      'MasterAgent multi-agent SOC coordinator (4 sub-agents) implemented',
+      'WardenHealer autonomous anomaly detection (OLS trend, Haiku triage) implemented',
+      'Agent injection chain detection with cryptographic attestation implemented',
+      'Visual patrol (ScreencastRecorder + Claude Vision → MinIO) implemented',
+      'Scheduled SOC jobs (morning brief, threat sync, rotation check) implemented',
+    ],
+  },
+  {
+    name: 'Infrastructure Security',
+    controls: [
+      'Cloudflare Zero Trust tunnel (QUIC/HTTP3, TOFU TLS pinning) implemented',
+      'Docker non-root user (UID/GID 10001, MCR Playwright base) implemented',
+      'Redis sliding window rate limiting (socket timeout hardened) implemented',
+      'Prometheus metrics + Grafana SLO alerts (P99, 5xx, availability) implemented',
+      'MinIO on-premises object store (no third-party data exfiltration) implemented',
+      '30-second graceful shutdown for in-flight requests implemented',
+    ],
+  },
+  {
+    name: 'Threat Intelligence',
+    controls: [
+      'ArXiv LLM-attack paper monitoring with auto-synthesis implemented',
+      'Evolution Engine (Claude Opus auto-rule generation + ReDoS gate) implemented',
+      'CVE dependency scanner (OSV API, real-time advisories) implemented',
+      'Shadow AI discovery (18 providers, /24 subnet probe, DNS telemetry) implemented',
+      'Intel Bridge (ArXiv to Evolution sync, configurable interval) implemented',
+    ],
+  },
+  {
+    name: 'Vendor & Document Security',
+    controls: [
+      'AI Vendor Governance Register with DPA tracking and expiry alerts implemented',
+      'Supplier AI risk composite scoring (5-criteria, peering-based) implemented',
+      'Prompt library injection screening via filter pipeline before save implemented',
+      'Document intelligence (SHA-256 Redis cache, 50 MB gate, 30s timeout) implemented',
+      'Employee AI training records with HMAC-SHA256 attestation implemented',
+    ],
+  },
+];
+
 const subprocessors = [
-  {
-    name: "Anthropic",
-    service: "AI / LLM inference (Claude Opus, Sonnet, Haiku)",
-    residency: "US",
-    dpa: "https://www.anthropic.com/legal/privacy",
-    gdpr: true,
-    category: "AI Provider",
-  },
-  {
-    name: "MinIO",
-    service: "On-prem object storage — evidence vault, audit logs",
-    residency: "Self-hosted (EU/US configurable)",
-    dpa: "https://min.io/compliance",
-    gdpr: true,
-    category: "Storage",
-  },
-  {
-    name: "Redis",
-    service: "Session cache, rate-limit counters, pub/sub events",
-    residency: "Self-hosted (same region as warden host)",
-    dpa: "https://redis.io/legal/redis-software-subscription-agreement",
-    gdpr: true,
-    category: "Cache / Queue",
-  },
-  {
-    name: "PostgreSQL",
-    service: "Relational data store — tenants, billing, compliance records",
-    residency: "Self-hosted (same region as warden host)",
-    dpa: "https://www.postgresql.org/about/policies/",
-    gdpr: true,
-    category: "Database",
-  },
-  {
-    name: "Hetzner Cloud",
-    service: "VPS infrastructure — compute, network, block storage",
-    residency: "EU (Germany / Finland)",
-    dpa: "https://www.hetzner.com/legal/privacy-policy",
-    gdpr: true,
-    category: "Infrastructure",
-  },
-  {
-    name: "Prometheus + Grafana",
-    service: "Metrics collection and alerting dashboards",
-    residency: "Self-hosted (same region as warden host)",
-    dpa: "https://grafana.com/legal/privacy-policy/",
-    gdpr: true,
-    category: "Observability",
-  },
+  { name: 'Anthropic', purpose: 'AI model inference (SOVA, Evolution Engine, visual patrol)', region: 'US', type: 'AI Provider' },
+  { name: 'Cloudflare', purpose: 'Zero Trust tunnel, CDN, DDoS protection', region: 'Global', type: 'Network' },
+  { name: 'Hetzner Cloud', purpose: 'VPS infrastructure hosting', region: 'EU (Germany)', type: 'Infrastructure' },
+  { name: 'MinIO', purpose: 'On-premises S3-compatible object storage (self-hosted)', region: 'On-prem', type: 'Storage' },
+  { name: 'Redis', purpose: 'Rate limiting, session memory, cache (self-hosted)', region: 'On-prem', type: 'Cache' },
+  { name: 'PostgreSQL', purpose: 'Relational database (self-hosted)', region: 'On-prem', type: 'Database' },
 ];
-
-const controls = [
-  // Data Security
-  { id: "DS-1", category: "Data Security", control: "Encryption at rest", status: "implemented", evidence: "Fernet AES-128 (VAULT_MASTER_KEY), MinIO SSE-S3", framework: ["SOC 2", "ISO 27001", "HIPAA"] },
-  { id: "DS-2", category: "Data Security", control: "Encryption in transit", status: "implemented", evidence: "Caddy TLS 1.3, MASQUE H3/H2 sovereign tunnels", framework: ["SOC 2", "ISO 27001", "HIPAA"] },
-  { id: "DS-3", category: "Data Security", control: "Key management process", status: "implemented", evidence: "warden/secrets_gov/ — HSM rotation, lifecycle, auto-retire", framework: ["SOC 2", "ISO 27001"] },
-  { id: "DS-4", category: "Data Security", control: "Network and firewall access", status: "implemented", evidence: "Docker network isolation, Caddy reverse proxy, subnet allowlist", framework: ["SOC 2", "ISO 27001"] },
-  { id: "DS-5", category: "Data Security", control: "Post-Quantum Cryptography", status: "implemented", evidence: "Ed25519+ML-DSA-65, X25519+ML-KEM-768 (liboqs, Enterprise)", framework: ["ISO 27001"] },
-  // Product Security
-  { id: "PS-1", category: "Product Security", control: "Secure SDLC", status: "implemented", evidence: "GitHub Actions CI — ruff/mypy/pytest/mutation on every PR", framework: ["SOC 2", "ISO 27001"] },
-  { id: "PS-2", category: "Product Security", control: "Vulnerability scanning", status: "implemented", evidence: "intel_ops.py — OSV API CVE scan + ArXiv LLM-attack feed", framework: ["SOC 2", "ISO 27001"] },
-  { id: "PS-3", category: "Product Security", control: "Change management", status: "implemented", evidence: "Versioned ROADMAP.md, semver releases, PR-gated merges", framework: ["SOC 2", "ISO 27001"] },
-  { id: "PS-4", category: "Product Security", control: "Penetration testing", status: "partial", evidence: "Automated OWASP ZAP + nuclei pipeline (TC-02, in progress)", framework: ["SOC 2"] },
-  { id: "PS-5", category: "Product Security", control: "Dependency auditing", status: "implemented", evidence: "GitHub Dependabot + OSV scanner in CI", framework: ["SOC 2", "ISO 27001"] },
-  // Access Management
-  { id: "AM-1", category: "Access Management", control: "Role-based access control", status: "implemented", evidence: "Per-tenant API keys + tier-gated feature flags (Starter→Enterprise)", framework: ["SOC 2", "ISO 27001"] },
-  { id: "AM-2", category: "Access Management", control: "Multi-factor authentication", status: "implemented", evidence: "FIDO2 passkeys (warden/auth/fido.py)", framework: ["SOC 2", "ISO 27001"] },
-  { id: "AM-3", category: "Access Management", control: "User access reviews", status: "implemented", evidence: "Secrets inventory with risk scoring + auto-retire (secrets_gov/)", framework: ["SOC 2", "ISO 27001"] },
-  { id: "AM-4", category: "Access Management", control: "Fail-closed authentication", status: "implemented", evidence: "RuntimeError on startup if API keys unset unless ALLOW_UNAUTHENTICATED", framework: ["SOC 2"] },
-  // Security & Continuity
-  { id: "SC-1", category: "Security & Continuity", control: "Business continuity plan", status: "implemented", evidence: "Docker Compose healthchecks + resource limits, MinIO S3 failover", framework: ["SOC 2", "ISO 27001"] },
-  { id: "SC-2", category: "Security & Continuity", control: "Incident response", status: "implemented", evidence: "WardenHealer autonomous anomaly detection + SOVA morning brief", framework: ["SOC 2", "ISO 27001"] },
-  { id: "SC-3", category: "Security & Continuity", control: "Audit trail", status: "implemented", evidence: "STIX 2.1 tamper-evident SHA-256 chain (stix_audit.py)", framework: ["SOC 2", "ISO 27001", "HIPAA"] },
-  { id: "SC-4", category: "Security & Continuity", control: "Data backup and restore", status: "implemented", evidence: "MinIO on-prem + S3, evidence vault, NDJSON log rotation", framework: ["SOC 2", "ISO 27001"] },
-  // Organization Security
-  { id: "OS-1", category: "Organization Security", control: "Risk assessment", status: "implemented", evidence: "CausalArbiter Bayesian DAG per request (causal_arbiter.py)", framework: ["SOC 2", "ISO 27001"] },
-  { id: "OS-2", category: "Organization Security", control: "Vendor risk management", status: "implemented", evidence: "vendor_gov/ — DPA tracking, expiry alerts, supplier risk scoring", framework: ["ISO 27001", "GDPR"] },
-  { id: "OS-3", category: "Organization Security", control: "Asset management", status: "implemented", evidence: "Secrets inventory SQLite + UECIID-tagged community assets", framework: ["ISO 27001"] },
-  { id: "OS-4", category: "Organization Security", control: "Security awareness training", status: "implemented", evidence: "training_records.py — HMAC-SHA256 attested completions", framework: ["SOC 2", "ISO 27001"] },
-  // Endpoint Security
-  { id: "ES-1", category: "Endpoint Security", control: "Shadow AI detection (EDR for AI)", status: "implemented", evidence: "ShadowAIDetector — async subnet probe, 18-provider fingerprint DB", framework: ["ISO 27001"] },
-  { id: "ES-2", category: "Endpoint Security", control: "Disk encryption", status: "partial", evidence: "Delegated to host OS; SOVA tool #68 reports status (TC-03)", framework: ["ISO 27001"] },
-  { id: "ES-3", category: "Endpoint Security", control: "Threat and malware protection", status: "implemented", evidence: "PhishGuard + SE-Arbiter + VoiceGuardian deepfake detection", framework: ["SOC 2", "ISO 27001"] },
-  { id: "ES-4", category: "Endpoint Security", control: "Endpoint policy enforcement", status: "implemented", evidence: "ShadowAIPolicy MONITOR/BLOCK_DENYLIST/ALLOWLIST_ONLY per tenant", framework: ["ISO 27001"] },
-  // GDPR
-  { id: "GD-1", category: "GDPR", control: "Content never logged", status: "implemented", evidence: "Only metadata logged (type, length, timing) — enforced in analytics/logger.py", framework: ["GDPR"] },
-  { id: "GD-2", category: "GDPR", control: "Data subject rights (Art. 17)", status: "implemented", evidence: "GDPR scrub API + ARQ cron purge_before()", framework: ["GDPR"] },
-  { id: "GD-3", category: "GDPR", control: "Data Protection Impact Assessment", status: "implemented", evidence: "docs/dpia.md — GDPR Art. 35 DPIA", framework: ["GDPR"] },
-  { id: "GD-4", category: "GDPR", control: "Cross-border transfer controls", status: "implemented", evidence: "Sovereign routing engine — 8 jurisdictions, adequacy decisions, transfer rules matrix", framework: ["GDPR"] },
-];
-
-const categories = [...new Set(controls.map(c => c.category))];
 
 const reports = [
-  { name: "SOC 2 Type II Evidence Bundle", format: "ZIP", endpoint: "/compliance/evidence/generate", tier: "Pro+" },
-  { name: "ISO 27001:2022 Control Report", format: "HTML/JSON", endpoint: "/compliance/iso27001/report", tier: "Enterprise" },
-  { name: "GDPR DPIA", format: "PDF", path: "/docs/dpia.md", tier: "All" },
-  { name: "Compliance Posture Export", format: "JSON", endpoint: "/compliance/posture", tier: "Pro+" },
-  { name: "STIX 2.1 Audit Chain Export", format: "JSONL", endpoint: "/sep/audit-chain/{id}/export", tier: "Pro+" },
+  { name: 'GDPR Art. 35 DPIA', description: 'Data Protection Impact Assessment covering all processing activities', href: '/doc/compliance', badge: 'GDPR' },
+  { name: 'SOC 2 Type II Evidence Guide', description: 'Control mapping, auditor collection procedures, evidence bundles', href: '/doc/compliance', badge: 'SOC 2' },
+  { name: 'ISO 27001:2022 Control Matrix', description: '93 controls across Organizational, People, Physical, Technological themes', href: '/doc/compliance', badge: 'ISO 27001' },
+  { name: 'Security Model', description: '9-layer defense model, OWASP LLM Top 10 coverage, full threat model', href: '/doc/compliance', badge: 'Security' },
+  { name: 'SLA Document', description: 'Pro 99.9% / Enterprise 99.95% uptime, P99 < 50ms, incident response', href: '/doc/compliance', badge: 'SLA' },
+  { name: 'OpenAPI Specification', description: 'Full API reference — 562 endpoints, v5.6.0', href: '/doc/api-reference', badge: 'API' },
 ];
+
+const totalControls = categories.reduce((s, c) => s + c.controls.length, 0);
 ---
 
-<BaseLayout>
+<BaseLayout
+  title="Trust Center — Shadow Warden AI"
+  description="Shadow Warden AI security controls, compliance posture, subprocessors, and audit reports. SOC 2 · GDPR · ISO 27001 · Post-Quantum."
+>
+  <div class="trust-root" style="padding-top:56px">
 
-<!-- Hero -->
-<section class="pt-20 pb-12 text-center" style="background:radial-gradient(ellipse 70% 40% at 50% 0%,rgba(128,180,253,0.06) 0%,transparent 70%)">
-  <div class="mx-auto max-w-3xl px-4">
-    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-6"
-         style="background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25);color:#34d399">
-      <span style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block"></span>
-      All Systems Operational
-    </div>
-    <h1 class="text-4xl font-bold mb-4" style="color:#f0f4fc">Shadow Warden AI Trust Center</h1>
-    <p class="text-lg" style="color:#a8b8d0">
-      Transparency into how we secure your data, protect your AI pipelines,
-      and maintain compliance with GDPR, SOC 2, ISO 27001, and HIPAA.
-    </p>
-  </div>
-</section>
-
-<!-- Score cards -->
-<section class="mx-auto max-w-5xl px-4 pb-10">
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    {[
-      { label: "SOC 2 Type II", score: "94%", color: "#34d399", note: "5 controls active" },
-      { label: "ISO 27001:2022", score: "92%", color: "#80b4fd", note: "93 Annex A controls" },
-      { label: "GDPR", score: "98%", color: "#38bdf8", note: "Art. 5 / 17 / 28 / 35" },
-      { label: "HIPAA", score: "89%", color: "#a78bfa", note: "4 safeguard areas" },
-    ].map(s => (
-      <div class="rounded-xl p-5 text-center" style="background:#111827;border:1px solid rgba(128,180,253,0.09)">
-        <p class="text-3xl font-bold mb-1" style={`color:${s.color}`}>{s.score}</p>
-        <p class="text-sm font-semibold mb-1" style="color:#f0f4fc">{s.label}</p>
-        <p class="text-xs" style="color:#6b7c96">{s.note}</p>
-      </div>
-    ))}
-  </div>
-</section>
-
-<!-- Tab navigation -->
-<section class="mx-auto max-w-5xl px-4 pb-16">
-  <div class="flex gap-1 mb-8 p-1 rounded-xl" style="background:#111827;border:1px solid rgba(128,180,253,0.09);width:fit-content">
-    {["Overview", "Controls", "Subprocessors", "Reports"].map((tab, i) => (
-      <button
-        class="trust-tab px-5 py-2 rounded-lg text-sm font-medium transition-all"
-        data-tab={tab.toLowerCase()}
-        style={i === 0
-          ? "background:#1a2236;color:#f0f4fc;border:1px solid rgba(128,180,253,0.15)"
-          : "background:transparent;color:#6b7c96;border:1px solid transparent"}
-      >{tab}</button>
-    ))}
-  </div>
-
-  <!-- Overview tab -->
-  <div id="tab-overview" class="trust-panel">
-    <div class="grid md:grid-cols-2 gap-6">
-      <div class="rounded-xl p-6" style="background:#111827;border:1px solid rgba(128,180,253,0.09)">
-        <h2 class="text-lg font-semibold mb-4" style="color:#f0f4fc">Security Architecture</h2>
-        <div class="space-y-3">
-          {[
-            { layer: "14-layer AI defense pipeline", detail: "TDA topology → Obfuscation → Secrets → Semantic → Brain → Causal → Phish → ERS → Decision" },
-            { layer: "Zero-trust per-request auth", detail: "Per-tenant API keys, constant-time compare, fail-closed at startup" },
-            { layer: "Post-quantum cryptography", detail: "Ed25519+ML-DSA-65 signatures, X25519+ML-KEM-768 KEM (Enterprise)" },
-            { layer: "Autonomous threat response", detail: "WardenHealer + SOVA agent — detect, classify, remediate without human intervention" },
-            { layer: "GDPR-by-design", detail: "Content never logged; only metadata; right-to-erasure ARQ cron; Art. 35 DPIA on file" },
-          ].map(item => (
-            <div class="flex gap-3">
-              <span class="mt-0.5 flex-shrink-0" style="color:#34d399">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-              <div>
-                <p class="text-sm font-medium" style="color:#f0f4fc">{item.layer}</p>
-                <p class="text-xs mt-0.5" style="color:#6b7c96">{item.detail}</p>
-              </div>
-            </div>
-          ))}
+    <!-- ── Hero ──────────────────────────────────────────────────────────────── -->
+    <div class="trust-hero">
+      <div class="trust-hero-inner">
+        <div class="trust-logo">
+          <img src="/logo.png" alt="Shadow Warden AI" width="40" height="40" />
         </div>
-      </div>
-
-      <div class="rounded-xl p-6" style="background:#111827;border:1px solid rgba(128,180,253,0.09)">
-        <h2 class="text-lg font-semibold mb-4" style="color:#f0f4fc">Certifications & Standards</h2>
-        <div class="space-y-4">
-          {[
-            { name: "SOC 2 Type II", status: "In Progress", color: "#fbbf24", detail: "Evidence collection active · Annual audit cycle" },
-            { name: "ISO 27001:2022", status: "Implemented", color: "#34d399", detail: "93 Annex A controls mapped · Enterprise tier" },
-            { name: "GDPR", status: "Compliant", color: "#34d399", detail: "DPIA on file · DPA with all subprocessors · Art. 5/17/28/35" },
-            { name: "HIPAA", status: "Implemented", color: "#34d399", detail: "PHI data-class enforcement · Fernet encryption · STIX audit" },
-            { name: "OWASP LLM Top 10", status: "Covered", color: "#34d399", detail: "Full LLM01–LLM10 coverage per docs/security-model.md" },
-          ].map(cert => (
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <p class="text-sm font-medium" style="color:#f0f4fc">{cert.name}</p>
-                <p class="text-xs mt-0.5" style="color:#6b7c96">{cert.detail}</p>
-              </div>
-              <span class="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full"
-                    style={`color:${cert.color};background:${cert.color}18;border:1px solid ${cert.color}35`}>
-                {cert.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div class="md:col-span-2 rounded-xl p-6" style="background:#111827;border:1px solid rgba(128,180,253,0.09)">
-        <h2 class="text-lg font-semibold mb-4" style="color:#f0f4fc">Data Handling Principles</h2>
-        <div class="grid sm:grid-cols-3 gap-6">
-          {[
-            { icon: "🔒", title: "Zero Content Logging", body: "Prompt and response content is NEVER stored. Only metadata (type, length, timing) enters our logs — enforced at the analytics layer." },
-            { icon: "🌍", title: "Sovereign Routing", body: "Data stays in your jurisdiction. The sovereign routing engine enforces 8-jurisdiction transfer rules, adequacy decisions, and PHI restrictions." },
-            { icon: "🗑️", title: "Right to Erasure", body: "GDPR Art. 17 erasure runs as an ARQ cron. Request-level purge available via API. Data minimisation enforced pipeline-wide." },
-          ].map(p => (
-            <div>
-              <p class="text-2xl mb-2">{p.icon}</p>
-              <p class="text-sm font-semibold mb-1" style="color:#f0f4fc">{p.title}</p>
-              <p class="text-xs leading-relaxed" style="color:#6b7c96">{p.body}</p>
-            </div>
-          ))}
+        <h1 class="trust-h1">Shadow Warden AI Trust Center</h1>
+        <p class="trust-sub">
+          Security controls, compliance posture, and audit reports for the GDPR-compliant AI security gateway.
+        </p>
+        <div class="trust-kpis">
+          <div class="trust-kpi">
+            <span class="trust-kpi-n">{totalControls}</span>
+            <span class="trust-kpi-l">Security Controls</span>
+          </div>
+          <div class="trust-kpi-div"></div>
+          <div class="trust-kpi">
+            <span class="trust-kpi-n">4</span>
+            <span class="trust-kpi-l">Compliance Frameworks</span>
+          </div>
+          <div class="trust-kpi-div"></div>
+          <div class="trust-kpi">
+            <span class="trust-kpi-n">9</span>
+            <span class="trust-kpi-l">Pipeline Layers</span>
+          </div>
+          <div class="trust-kpi-div"></div>
+          <div class="trust-kpi">
+            <span class="trust-kpi-n">&lt;2ms</span>
+            <span class="trust-kpi-l">Filter Latency</span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Controls tab -->
-  <div id="tab-controls" class="trust-panel hidden">
-    <div class="mb-6 flex flex-wrap gap-2">
-      <button class="ctrl-filter active text-xs px-3 py-1.5 rounded-full font-medium transition-all"
-              data-filter="all"
-              style="background:#1a2236;color:#80b4fd;border:1px solid rgba(128,180,253,0.25)">All</button>
-      {categories.map(cat => (
-        <button class="ctrl-filter text-xs px-3 py-1.5 rounded-full font-medium transition-all"
-                data-filter={cat}
-                style="background:transparent;color:#6b7c96;border:1px solid rgba(128,180,253,0.09)">
-          {cat}
-        </button>
-      ))}
+    <!-- ── Tab bar ────────────────────────────────────────────────────────────── -->
+    <div class="trust-tabbar-wrap">
+      <div class="trust-tabbar">
+        <button class="trust-tab active" data-tab="overview">Overview</button>
+        <button class="trust-tab" data-tab="controls">Controls</button>
+        <button class="trust-tab" data-tab="subprocessors">Subprocessors</button>
+        <button class="trust-tab" data-tab="reports">Reports &amp; Documents</button>
+      </div>
     </div>
 
-    <div class="overflow-x-auto rounded-xl" style="border:1px solid rgba(128,180,253,0.09)">
-      <table class="w-full text-sm">
-        <thead>
-          <tr style="background:#111827;border-bottom:1px solid rgba(128,180,253,0.09)">
-            <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style="color:#6b7c96">ID</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style="color:#6b7c96">Category</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style="color:#6b7c96">Control</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style="color:#6b7c96">Status</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style="color:#6b7c96">Evidence</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style="color:#6b7c96">Frameworks</th>
-          </tr>
-        </thead>
-        <tbody>
-          {controls.map((c, i) => (
-            <tr class="ctrl-row border-b transition-colors hover:bg-white/2"
-                data-category={c.category}
-                style={`border-color:rgba(128,180,253,0.06);background:${i % 2 === 0 ? '#0c1020' : '#070910'}`}>
-              <td class="px-4 py-3 font-mono text-xs" style="color:#6b7c96">{c.id}</td>
-              <td class="px-4 py-3 text-xs" style="color:#a8b8d0">{c.category}</td>
-              <td class="px-4 py-3 text-xs font-medium" style="color:#f0f4fc">{c.control}</td>
-              <td class="px-4 py-3">
-                <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={c.status === 'implemented'
-                        ? 'color:#34d399;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2)'
-                        : 'color:#fbbf24;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2)'}>
-                  {c.status === 'implemented' ? 'Implemented' : 'Partial'}
-                </span>
-              </td>
-              <td class="px-4 py-3 text-xs" style="color:#6b7c96;max-width:280px">{c.evidence}</td>
-              <td class="px-4 py-3">
-                <div class="flex flex-wrap gap-1">
-                  {c.framework.map(f => (
-                    <span class="text-xs px-1.5 py-0.5 rounded"
-                          style="color:#80b4fd;background:rgba(128,180,253,0.08)">
-                      {f}
-                    </span>
-                  ))}
+    <!-- ── Tab: Overview ─────────────────────────────────────────────────────── -->
+    <div id="tab-overview" class="trust-panel active">
+      <div class="trust-grid">
+        {categories.map(cat => (
+          <div class="trust-card">
+            <div class="trust-card-head">
+              <span class="trust-cat-name">{cat.name}</span>
+              <span class="trust-cat-pipe">|</span>
+              <span class="trust-cat-count">{cat.controls.length} Controls</span>
+            </div>
+            <ul class="trust-ctrl-list">
+              {cat.controls.slice(0, 4).map(ctrl => (
+                <li class="trust-ctrl">
+                  <span class="trust-check" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <circle cx="8" cy="8" r="8" fill="rgba(16,185,129,0.15)"/>
+                      <path d="M5 8.5l2 2 4-4" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  <span class="trust-ctrl-text">{ctrl.replace(' implemented', '').replace(' conducted', '')}</span>
+                </li>
+              ))}
+              {cat.controls.length > 4 && (
+                <li class="trust-more">+{cat.controls.length - 4} more controls</li>
+              )}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- ── Tab: Controls ─────────────────────────────────────────────────────── -->
+    <div id="tab-controls" class="trust-panel">
+      <div class="trust-panel-inner">
+        {categories.map(cat => (
+          <div class="trust-ctrl-section">
+            <div class="trust-ctrl-section-head">
+              <h2 class="trust-ctrl-section-title">{cat.name}</h2>
+              <span class="trust-ctrl-badge">{cat.controls.length}</span>
+            </div>
+            <div class="trust-ctrl-rows">
+              {cat.controls.map(ctrl => (
+                <div class="trust-ctrl-row">
+                  <span class="trust-check">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <circle cx="8" cy="8" r="8" fill="rgba(16,185,129,0.15)"/>
+                      <path d="M5 8.5l2 2 4-4" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                  <span class="trust-ctrl-row-text">{ctrl}</span>
                 </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Subprocessors tab -->
-  <div id="tab-subprocessors" class="trust-panel hidden">
-    <p class="text-sm mb-6" style="color:#a8b8d0">
-      Shadow Warden AI acts as a Data Processor under GDPR Art. 28. The following sub-processors
-      may process data on your behalf. A Data Processing Agreement (DPA) is in place with each.
-      Last updated: <span style="color:#f0f4fc">2026-06-18</span>.
-    </p>
-
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {subprocessors.map(sp => (
-        <div class="rounded-xl p-5" style="background:#111827;border:1px solid rgba(128,180,253,0.09)">
-          <div class="flex items-start justify-between mb-3">
-            <div>
-              <p class="font-semibold text-sm" style="color:#f0f4fc">{sp.name}</p>
-              <p class="text-xs mt-0.5" style="color:#6b7c96">{sp.category}</p>
+              ))}
             </div>
-            {sp.gdpr && (
-              <span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                    style="color:#34d399;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2)">
-                GDPR ✓
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- ── Tab: Subprocessors ────────────────────────────────────────────────── -->
+    <div id="tab-subprocessors" class="trust-panel">
+      <div class="trust-panel-inner">
+        <p class="trust-section-desc">
+          Shadow Warden AI processes all data on-premises by default. The following third-party services
+          are used only for the specific functions listed below.
+        </p>
+        <div class="trust-table-wrap">
+          <table class="trust-table">
+            <thead>
+              <tr>
+                <th>Subprocessor</th>
+                <th>Purpose</th>
+                <th>Data Region</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subprocessors.map(sp => (
+                <tr>
+                  <td class="trust-table-name">{sp.name}</td>
+                  <td class="trust-table-purpose">{sp.purpose}</td>
+                  <td>
+                    <span class={`trust-region-badge ${sp.region.startsWith('EU') ? 'eu' : sp.region === 'On-prem' ? 'onprem' : ''}`}>
+                      {sp.region}
+                    </span>
+                  </td>
+                  <td><span class="trust-type-badge">{sp.type}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div class="trust-onprem-note">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px">
+            <circle cx="8" cy="8" r="7" stroke="#6366f1" stroke-width="1.5"/>
+            <path d="M8 7v4M8 5h.01" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span>MinIO, Redis, and PostgreSQL run entirely on your infrastructure. No data ever leaves your environment for these services. Anthropic API calls are the only external LLM traffic and can be disabled for air-gapped deployments.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Reports ──────────────────────────────────────────────────────── -->
+    <div id="tab-reports" class="trust-panel">
+      <div class="trust-panel-inner">
+        <div class="trust-reports-grid">
+          {reports.map(r => (
+            <a href={r.href} class="trust-report-card">
+              <div class="trust-report-top">
+                <span class="trust-report-badge">{r.badge}</span>
+              </div>
+              <h3 class="trust-report-name">{r.name}</h3>
+              <p class="trust-report-desc">{r.description}</p>
+              <span class="trust-report-link">
+                View document
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M2.5 7h9M7.5 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </span>
-            )}
-          </div>
-          <p class="text-xs mb-3 leading-relaxed" style="color:#a8b8d0">{sp.service}</p>
-          <div class="flex items-center gap-2 text-xs" style="color:#6b7c96">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-            {sp.residency}
-          </div>
-          <a href={sp.dpa} target="_blank" rel="noopener"
-             class="mt-3 inline-flex items-center gap-1 text-xs transition-colors hover:underline"
-             style="color:#80b4fd">
-            View DPA
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          </a>
+            </a>
+          ))}
         </div>
-      ))}
-    </div>
-
-    <div class="mt-8 rounded-xl p-5" style="background:rgba(128,180,253,0.04);border:1px solid rgba(128,180,253,0.12)">
-      <p class="text-sm font-semibold mb-1" style="color:#80b4fd">Data Residency Guarantee</p>
-      <p class="text-xs leading-relaxed" style="color:#a8b8d0">
-        All sub-processors that handle EU personal data are covered by Standard Contractual Clauses (SCCs)
-        or operate within adequacy-decision jurisdictions. The Sovereign Routing Engine ensures
-        PHI and CLASSIFIED data never leaves the configured jurisdiction.
-        Classified data transfer is hardcoded to <code style="color:#80b4fd">BLOCKED</code> in
-        <code style="color:#80b4fd">warden/sovereign/jurisdictions.py</code>.
-      </p>
-    </div>
-  </div>
-
-  <!-- Reports tab -->
-  <div id="tab-reports" class="trust-panel hidden">
-    <p class="text-sm mb-6" style="color:#a8b8d0">
-      Download compliance evidence packages, audit reports, and security documentation.
-      Report generation requires an active API key and the appropriate subscription tier.
-    </p>
-
-    <div class="space-y-3">
-      {reports.map(r => (
-        <div class="flex items-center justify-between p-4 rounded-xl"
-             style="background:#111827;border:1px solid rgba(128,180,253,0.09)">
-          <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                 style="background:rgba(128,180,253,0.08)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm font-medium" style="color:#f0f4fc">{r.name}</p>
-              <p class="text-xs mt-0.5" style="color:#6b7c96">Format: {r.format} · Tier: {r.tier}</p>
-            </div>
-          </div>
-          <a href={`https://api.shadow-warden-ai.com${r.endpoint ?? r.path}`}
-             target="_blank" rel="noopener"
-             class="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-lg transition-all"
-             style="background:rgba(128,180,253,0.08);color:#80b4fd;border:1px solid rgba(128,180,253,0.15)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download
-          </a>
+        <div class="trust-report-cta">
+          <p>Need a custom audit package or evidence bundle for your security review?</p>
+          <a href="mailto:security@shadow-warden-ai.com" class="trust-cta-btn">Request Audit Package</a>
         </div>
-      ))}
+      </div>
     </div>
 
-    <div class="mt-8 rounded-xl p-5" style="background:#111827;border:1px solid rgba(128,180,253,0.09)">
-      <p class="text-sm font-semibold mb-3" style="color:#f0f4fc">Request a Custom Audit Package</p>
-      <p class="text-xs mb-4" style="color:#a8b8d0">
-        Enterprise customers can request a tailored evidence bundle including penetration test results,
-        STIX chain exports, and ISO 27001 control evidence mapped to your specific audit requirements.
-      </p>
-      <a href="/contact"
-         class="inline-flex items-center gap-2 text-sm font-medium px-5 py-2.5 rounded-lg"
-         style="background:linear-gradient(135deg,#80b4fd,#38bdf8);color:#070910">
-        Contact Security Team
-      </a>
-    </div>
   </div>
-</section>
+</BaseLayout>
 
-<script>
-  // Tab switching
-  const tabs   = document.querySelectorAll<HTMLButtonElement>('.trust-tab');
-  const panels = document.querySelectorAll<HTMLElement>('.trust-panel');
-
-  function activateTab(name: string) {
-    tabs.forEach(t => {
-      const active = t.dataset.tab === name;
-      t.style.background = active ? '#1a2236' : 'transparent';
-      t.style.color      = active ? '#f0f4fc' : '#6b7c96';
-      t.style.border     = active ? '1px solid rgba(128,180,253,0.15)' : '1px solid transparent';
-    });
-    panels.forEach(p => {
-      p.classList.toggle('hidden', p.id !== `tab-${name}`);
-    });
+<style>
+  .trust-root {
+    min-height: 100vh;
+    background: #0b0d14;
+    color: #e2e8f0;
   }
 
-  tabs.forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab!)));
+  /* Hero */
+  .trust-hero {
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    background: #0e1018;
+  }
+  .trust-hero-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 64px 24px 48px;
+    text-align: center;
+  }
+  .trust-logo {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 20px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .trust-logo img { width: 100%; height: 100%; object-fit: contain; }
+  .trust-h1 {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: 700;
+    color: #f1f5f9;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+  .trust-sub {
+    font-size: 15px;
+    color: #94a3b8;
+    max-width: 520px;
+    margin: 0 auto 36px;
+    line-height: 1.6;
+  }
+  .trust-kpis {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    row-gap: 20px;
+  }
+  .trust-kpi {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 28px;
+  }
+  .trust-kpi-n {
+    font-size: 28px;
+    font-weight: 800;
+    color: #f1f5f9;
+    letter-spacing: -0.03em;
+  }
+  .trust-kpi-l {
+    font-size: 11px;
+    font-weight: 500;
+    color: #475569;
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .trust-kpi-div {
+    width: 1px;
+    height: 36px;
+    background: rgba(255,255,255,0.08);
+  }
 
-  // Controls filter
-  const filterBtns = document.querySelectorAll<HTMLButtonElement>('.ctrl-filter');
-  const ctrlRows   = document.querySelectorAll<HTMLElement>('.ctrl-row');
+  /* Tab bar */
+  .trust-tabbar-wrap {
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    background: #0e1018;
+    position: sticky;
+    top: 56px;
+    z-index: 40;
+  }
+  .trust-tabbar {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+  }
+  .trust-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #64748b;
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .trust-tab:hover { color: #cbd5e1; }
+  .trust-tab.active {
+    color: #f1f5f9;
+    border-bottom-color: #6366f1;
+  }
 
-  filterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const filter = btn.dataset.filter!;
-      filterBtns.forEach(b => {
-        const active = b.dataset.filter === filter;
-        b.style.background = active ? '#1a2236' : 'transparent';
-        b.style.color      = active ? '#80b4fd' : '#6b7c96';
-        b.style.border     = active ? '1px solid rgba(128,180,253,0.25)' : '1px solid rgba(128,180,253,0.09)';
-      });
-      ctrlRows.forEach(row => {
-        const show = filter === 'all' || row.dataset.category === filter;
-        row.style.display = show ? '' : 'none';
-      });
+  /* Panels */
+  .trust-panel { display: none; }
+  .trust-panel.active { display: block; }
+  .trust-panel-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Overview grid */
+  .trust-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+    gap: 16px;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  .trust-card {
+    background: #111420;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color 0.15s;
+  }
+  .trust-card:hover { border-color: rgba(99,102,241,0.3); }
+  .trust-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .trust-cat-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+  .trust-cat-pipe { color: rgba(255,255,255,0.2); font-size: 14px; }
+  .trust-cat-count {
+    font-size: 13px;
+    color: #6366f1;
+    font-weight: 500;
+  }
+  .trust-ctrl-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .trust-ctrl {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .trust-check { flex-shrink: 0; margin-top: 1px; }
+  .trust-ctrl-text {
+    font-size: 13.5px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+  .trust-more {
+    font-size: 12px;
+    color: #475569;
+    padding-left: 26px;
+    margin-top: 2px;
+  }
+
+  /* Controls tab */
+  .trust-ctrl-section {
+    margin-bottom: 40px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .trust-ctrl-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  .trust-ctrl-section-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .trust-ctrl-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin: 0;
+  }
+  .trust-ctrl-badge {
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 99px;
+    border: 1px solid rgba(99,102,241,0.25);
+  }
+  .trust-ctrl-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .trust-ctrl-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .trust-ctrl-row-text {
+    font-size: 14px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+
+  /* Subprocessors tab */
+  .trust-section-desc {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 28px;
+    max-width: 680px;
+  }
+  .trust-table-wrap {
+    overflow-x: auto;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+  .trust-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .trust-table thead tr {
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.03);
+  }
+  .trust-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #475569;
+  }
+  .trust-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    vertical-align: top;
+  }
+  .trust-table tbody tr:last-child td { border-bottom: none; }
+  .trust-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+  .trust-table-name { font-weight: 600; color: #e2e8f0; }
+  .trust-table-purpose { color: #94a3b8; }
+  .trust-region-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 99px;
+    background: rgba(255,255,255,0.07);
+    color: #94a3b8;
+  }
+  .trust-region-badge.eu { background: rgba(16,185,129,0.1); color: #34d399; }
+  .trust-region-badge.onprem { background: rgba(99,102,241,0.1); color: #818cf8; }
+  .trust-type-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.06);
+    color: #64748b;
+  }
+  .trust-onprem-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: rgba(99,102,241,0.07);
+    border: 1px solid rgba(99,102,241,0.18);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+
+  /* Reports tab */
+  .trust-reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .trust-report-card {
+    display: flex;
+    flex-direction: column;
+    background: #111420;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 22px;
+    text-decoration: none;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .trust-report-card:hover {
+    border-color: rgba(99,102,241,0.35);
+    transform: translateY(-2px);
+  }
+  .trust-report-top { margin-bottom: 14px; }
+  .trust-report-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 99px;
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99,102,241,0.25);
+  }
+  .trust-report-name {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin: 0 0 8px;
+  }
+  .trust-report-desc {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
+    flex: 1;
+    margin: 0 0 16px;
+  }
+  .trust-report-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #6366f1;
+    transition: color 0.15s;
+  }
+  .trust-report-card:hover .trust-report-link { color: #818cf8; }
+  .trust-report-cta {
+    background: rgba(99,102,241,0.07);
+    border: 1px solid rgba(99,102,241,0.18);
+    border-radius: 12px;
+    padding: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .trust-report-cta p { margin: 0; font-size: 14px; color: #94a3b8; }
+  .trust-cta-btn {
+    display: inline-block;
+    background: #6366f1;
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 8px;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .trust-cta-btn:hover { background: #4f46e5; }
+  .trust-cta-btn:active { transform: scale(0.97); }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .trust-grid { grid-template-columns: 1fr; padding: 20px 16px 60px; }
+    .trust-tab { padding: 12px 14px; font-size: 12.5px; }
+    .trust-kpi { padding: 0 16px; }
+    .trust-kpi-n { font-size: 22px; }
+    .trust-report-cta { flex-direction: column; text-align: center; }
+    .trust-panel-inner { padding: 28px 16px 60px; }
+  }
+</style>
+
+<script is:inline>
+  const tabs = document.querySelectorAll('.trust-tab');
+  const panels = document.querySelectorAll('.trust-panel');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + target)?.classList.add('active');
     });
   });
-
-  // Restore tab from URL hash
-  const hash = location.hash.replace('#', '');
-  if (['overview','controls','subprocessors','reports'].includes(hash)) {
-    activateTab(hash);
-  }
 </script>
-
-</BaseLayout>
