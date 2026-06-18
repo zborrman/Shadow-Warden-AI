@@ -97,8 +97,9 @@ async def marketplace_agent_leaderboard(
 @router.get("/readiness/{community_id}")
 async def marketplace_readiness(community_id: str) -> dict:
     """Check whether a community is ready to participate in the marketplace."""
-    from warden.marketplace.agent import list_agents as _list_agents
     import contextlib
+
+    from warden.marketplace.agent import list_agents as _list_agents
 
     community = None
     with contextlib.suppress(Exception):
