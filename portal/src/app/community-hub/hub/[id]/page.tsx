@@ -18,6 +18,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle,
   DollarSign, ChevronRight, Tag, Signal, Loader2,
   Copy, BadgeCheck, Zap, Layers,
+  Mic, MicOff, PhoneOff,
 } from 'lucide-react'
 import clsx from 'clsx'
 import {
@@ -235,12 +236,126 @@ function HubSidebar({ section, onChange, community }: {
   )
 }
 
+// ── Voice Commerce Modal ───────────────────────────────────────────────────────
+
+function VoiceCommerceModal({ communityId, onClose }: {
+  communityId: string
+  onClose: () => void
+}) {
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [recording, setRecording] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    wFetch<{ session_id: string }>('/voice/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ community_id: communityId, mode: 'commerce' }),
+    })
+      .then(d => { setSessionId(d.session_id); setLoading(false) })
+      .catch(e => { setError(String(e)); setLoading(false) })
+  }, [communityId])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-[#0d1220] rounded-2xl border border-white/10 p-6 w-full max-w-md shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#BF5AF2,#0A84FF)' }}>
+              <Mic className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-white">Voice Commerce</div>
+              <div className="text-[10px] text-slate-500">WebRTC · Session {sessionId ? sessionId.slice(0, 8) + '…' : '—'}</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/6 transition-colors">
+            <X className="w-4 h-4 text-slate-400" />
+          </button>
+        </div>
+
+        {loading && (
+          <div className="flex flex-col items-center py-8 gap-3">
+            <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
+            <span className="text-xs text-slate-400">Starting voice session…</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
+        {!loading && !error && sessionId && (
+          <>
+            {/* Audio visualizer placeholder */}
+            <div
+              className="rounded-xl border border-white/8 bg-white/3 p-4 mb-4 flex items-center justify-center gap-1 h-20"
+              aria-label="Audio visualizer"
+            >
+              {Array.from({ length: 16 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-1 rounded-full transition-all duration-150"
+                  style={{
+                    height: recording ? `${8 + Math.sin(i * 0.8) * 12 + Math.random() * 14}px` : '6px',
+                    background: recording ? `hsl(${260 + i * 6},80%,65%)` : 'rgba(255,255,255,0.12)',
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Transcript */}
+            {transcript && (
+              <div className="rounded-xl bg-white/3 border border-white/8 p-3 mb-4 text-xs text-slate-300 leading-relaxed max-h-20 overflow-y-auto">
+                {transcript}
+              </div>
+            )}
+
+            {/* Controls */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRecording(r => !r)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: recording ? 'rgba(255,59,48,0.15)' : 'rgba(191,90,242,0.15)',
+                  border: recording ? '1px solid rgba(255,59,48,0.3)' : '1px solid rgba(191,90,242,0.3)',
+                  color: recording ? '#ff3b30' : '#bf5af2',
+                }}
+              >
+                {recording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {recording ? 'Stop' : 'Start Recording'}
+              </button>
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/4 border border-white/8 text-slate-400 hover:text-white transition-colors"
+              >
+                <PhoneOff className="w-4 h-4" />
+                End
+              </button>
+            </div>
+
+            <div className="mt-3 text-[10px] text-slate-600 text-center">
+              Voice intent → VoiceNLU → Marketplace action · X402 micropayments enabled
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Overview ──────────────────────────────────────────────────────────────────
 
 function OverviewSection({ communityId, onNavigate }: {
   communityId: string; onNavigate: (s: Section) => void
 }) {
   const tenantId = getMyTenantId()
+  const [voiceOpen, setVoiceOpen] = useState(false)
 
   const { data: community } = useQuery({
     queryKey: ['hub-comm', communityId],
@@ -302,6 +417,10 @@ function OverviewSection({ communityId, onNavigate }: {
 
   return (
     <div>
+      {voiceOpen && (
+        <VoiceCommerceModal communityId={communityId} onClose={() => setVoiceOpen(false)} />
+      )}
+
       {/* Community card */}
       <div className="rounded-2xl border border-white/8 bg-white/3 p-5 mb-6">
         <div className="flex items-start gap-4">
@@ -319,6 +438,15 @@ function OverviewSection({ communityId, onNavigate }: {
             </div>
             <p className="text-sm text-slate-400 mt-1 max-w-lg">{c?.description || 'No description'}</p>
           </div>
+          {/* Voice Commerce launcher */}
+          <button
+            onClick={() => setVoiceOpen(true)}
+            title="Voice Commerce"
+            className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:scale-105"
+            style={{ background: 'rgba(191,90,242,0.12)', border: '1px solid rgba(191,90,242,0.25)' }}
+          >
+            <Mic className="w-4 h-4 text-violet-400" />
+          </button>
         </div>
       </div>
 
