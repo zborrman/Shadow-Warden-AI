@@ -1,0 +1,150 @@
+---
+/**
+ * site/src/pages/status.astro  (ENT-05)
+ * SLA Dashboard + Status Page — status.shadow-warden-ai.com
+ *
+ * Shows live component health, SLA uptime metrics, and incident history.
+ * Data sourced from /health API endpoint (polling every 30s).
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Status — Shadow Warden AI" description="Live system status and SLA dashboard for Shadow Warden AI. See uptime, component health, and incident history.">
+  <!-- Hero -->
+  <section class="pt-24 pb-8 px-6 max-w-4xl mx-auto text-center">
+    <div id="overall-status" class="inline-flex items-center gap-3 rounded-2xl px-6 py-3 mb-6 bg-gray-900 border border-gray-700">
+      <div id="status-dot" class="w-4 h-4 rounded-full bg-gray-500 animate-pulse"></div>
+      <span id="status-text" class="text-lg font-semibold text-gray-300">Checking status...</span>
+    </div>
+    <h1 class="text-4xl font-bold text-white mb-2">Shadow Warden AI Status</h1>
+    <p class="text-gray-500 text-sm">Last updated: <span id="last-updated">—</span></p>
+  </section>
+
+  <!-- Components -->
+  <section class="px-6 max-w-4xl mx-auto mb-12">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Components</h2>
+    <div class="rounded-2xl border border-gray-800 overflow-hidden">
+      <div id="components-list">
+        {["Filter API", "SOVA Agent", "Analytics", "Dashboard", "MinIO Storage", "PostgreSQL", "Redis"].map(name => (
+          <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-800 last:border-0" data-component={name}>
+            <span class="text-sm text-gray-300">{name}</span>
+            <span class="text-xs text-gray-500 component-status">Checking...</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- SLA Metrics -->
+  <section class="px-6 max-w-4xl mx-auto mb-12">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">SLA Metrics — 90 Days</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {[
+        ["Uptime", "id-uptime", "—", "Target: 99.95%"],
+        ["P99 Latency", "id-p99", "—", "Target: <50ms"],
+        ["BLOCK Rate", "id-block-rate", "—", "Threat coverage"],
+        ["Incidents", "id-incidents", "—", "Open incidents"],
+      ].map(([label, id, val, sub]) => (
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+          <div id={id} class="text-2xl font-mono font-bold text-indigo-400">{val}</div>
+          <div class="text-sm text-gray-400 mt-0.5">{label}</div>
+          <div class="text-xs text-gray-600 mt-1">{sub}</div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Incident history -->
+  <section class="px-6 max-w-4xl mx-auto mb-16">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Recent Incidents</h2>
+    <div id="incidents-list" class="space-y-3">
+      <!-- Filled by JS -->
+      <div class="text-sm text-gray-600 italic">No recent incidents.</div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+(function () {
+  const API = "https://api.shadow-warden-ai.com";
+
+  interface HealthData {
+    status?: string;
+    components?: Record<string, { status: string; latency_ms?: number }>;
+    uptime_90d?: number;
+    p99_ms?: number;
+    block_rate?: number;
+    open_incidents?: number;
+  }
+
+  function fmt(d: Date) {
+    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function setOverall(ok: boolean, degraded = false) {
+    const dot  = document.getElementById("status-dot")!;
+    const text = document.getElementById("status-text")!;
+    if (ok && !degraded) {
+      dot.className  = "w-4 h-4 rounded-full bg-green-500";
+      text.textContent = "All Systems Operational";
+      text.className   = "text-lg font-semibold text-green-400";
+    } else if (degraded) {
+      dot.className  = "w-4 h-4 rounded-full bg-yellow-400 animate-pulse";
+      text.textContent = "Partial Degradation";
+      text.className   = "text-lg font-semibold text-yellow-400";
+    } else {
+      dot.className  = "w-4 h-4 rounded-full bg-red-500 animate-pulse";
+      text.textContent = "Service Disruption";
+      text.className   = "text-lg font-semibold text-red-400";
+    }
+  }
+
+  async function refresh() {
+    try {
+      const resp = await fetch(`${API}/health`, { signal: AbortSignal.timeout(8000) });
+      const data: HealthData = resp.ok ? await resp.json() : {};
+
+      document.getElementById("last-updated")!.textContent = fmt(new Date());
+
+      // Overall status
+      const allOk = data.status === "ok" || data.status === "healthy";
+      setOverall(allOk);
+
+      // Component rows
+      document.querySelectorAll<HTMLElement>("[data-component]").forEach((row) => {
+        const name   = row.dataset.component || "";
+        const compKey = name.toLowerCase().replace(/ /g, "_");
+        const comp   = data.components?.[compKey];
+        const statusEl = row.querySelector<HTMLElement>(".component-status")!;
+        if (!comp) {
+          statusEl.textContent = "Unknown";
+          statusEl.className   = "text-xs text-gray-500 component-status";
+        } else if (comp.status === "ok" || comp.status === "healthy") {
+          statusEl.textContent = `Operational${comp.latency_ms !== undefined ? ` · ${comp.latency_ms}ms` : ""}`;
+          statusEl.className   = "text-xs text-green-400 component-status";
+        } else {
+          statusEl.textContent = comp.status.toUpperCase();
+          statusEl.className   = "text-xs text-red-400 component-status";
+        }
+      });
+
+      // SLA metrics
+      const u = (id: string, v: string | number | undefined, fallback = "—") => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = v !== undefined ? String(v) : fallback;
+      };
+      u("id-uptime",     data.uptime_90d  !== undefined ? `${data.uptime_90d.toFixed(3)}%` : "—");
+      u("id-p99",        data.p99_ms      !== undefined ? `${data.p99_ms}ms` : "—");
+      u("id-block-rate", data.block_rate  !== undefined ? `${(data.block_rate * 100).toFixed(1)}%` : "—");
+      u("id-incidents",  data.open_incidents ?? 0);
+
+    } catch {
+      setOverall(false);
+      document.getElementById("last-updated")!.textContent = `Error at ${fmt(new Date())}`;
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 30_000);
+})();
+</script>

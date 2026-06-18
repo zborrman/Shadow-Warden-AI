@@ -1443,6 +1443,34 @@ except ImportError:
     log.warning("webhooks router not available — /webhooks routes skipped.")
 
 try:
+    from warden.api.saml import router as _saml_router
+    app.include_router(_saml_router)
+    log.info("SSO/SAML 2.0 mounted at /auth/saml (ENT-01)")
+except ImportError:
+    log.warning("saml router not available — /auth/saml routes skipped.")
+
+try:
+    from warden.api.whitelabel import router as _whitelabel_router
+    app.include_router(_whitelabel_router)
+    log.info("White-Label config mounted at /whitelabel (ENT-02)")
+except ImportError:
+    log.warning("whitelabel router not available — /whitelabel routes skipped.")
+
+try:
+    from warden.api.framework_builder import router as _framework_router
+    app.include_router(_framework_router)
+    log.info("Compliance Framework Builder mounted at /compliance/frameworks (ENT-03)")
+except ImportError:
+    log.warning("framework_builder router not available — /compliance/frameworks routes skipped.")
+
+try:
+    from warden.api.usage_budgets import router as _usage_budgets_router
+    app.include_router(_usage_budgets_router)
+    log.info("AI Usage Budgets mounted at /billing/usage-budgets (ENT-04)")
+except ImportError:
+    log.warning("usage_budgets router not available — /billing/usage-budgets routes skipped.")
+
+try:
     from warden.business_intelligence.router import router as _bi_router
     app.include_router(_bi_router)
     log.info("Business Intelligence mounted at /business-intelligence (CM-39)")
