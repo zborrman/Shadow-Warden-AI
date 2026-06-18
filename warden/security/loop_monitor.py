@@ -102,11 +102,11 @@ def _betti_numbers(nodes: list[str], edges: list[tuple[str, str]]) -> tuple[int,
     # Count triangular faces
     f_count = 0
     node_list = list(range(n))
-    for u in node_list:
-        for v in adj[u]:
-            if v > u:
-                common = adj[u] & adj[v]
-                f_count += sum(1 for w in common if w > v)
+    for ni in node_list:
+        for nj in adj[ni]:
+            if nj > ni:
+                common = adj[ni] & adj[nj]
+                f_count += sum(1 for w in common if w > nj)
 
     # Euler characteristic: χ = V - E + F
     chi = n - e_count + f_count

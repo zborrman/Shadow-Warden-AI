@@ -25,11 +25,9 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 # ── Auth dependency ────────────────────────────────────────────────────────────
 
 def _tenant(request: Any) -> str:
-    try:
-        from warden.auth_guard import get_tenant_id  # noqa: PLC0415
-        return get_tenant_id(request)
-    except Exception:
-        return request.headers.get("X-Tenant-ID", "default")
+    if request is None:
+        return "default"
+    return request.headers.get("X-Tenant-ID", "default")
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────

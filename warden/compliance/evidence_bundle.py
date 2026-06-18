@@ -60,10 +60,7 @@ def _collect_posture(tenant_id: str) -> dict[str, Any]:
     try:
         from warden.compliance.posture_service import CompliancePostureService  # noqa: PLC0415
         svc = CompliancePostureService()
-        import asyncio
-        report = asyncio.get_event_loop().run_until_complete(
-            svc.get_posture(tenant_id)
-        ) if not hasattr(asyncio, "_get_running_loop") else svc._compute_posture_sync(tenant_id)
+        report = svc.get_current_posture(tenant_id)
         return report.__dict__ if hasattr(report, "__dict__") else {}
     except Exception as exc:
         log.warning("Posture collect failed: %s", exc)
@@ -72,15 +69,9 @@ def _collect_posture(tenant_id: str) -> dict[str, Any]:
 
 def _collect_posture_sync(tenant_id: str) -> dict[str, Any]:
     try:
-        import asyncio  # noqa: PLC0415
-
         from warden.compliance.posture_service import CompliancePostureService  # noqa: PLC0415
         svc = CompliancePostureService()
-        loop = asyncio.new_event_loop()
-        try:
-            report = loop.run_until_complete(svc.get_posture(tenant_id))
-        finally:
-            loop.close()
+        report = svc.get_current_posture(tenant_id)
         if hasattr(report, "model_dump"):
             return report.model_dump()
         return {"frameworks": getattr(report, "frameworks", {}), "overall_score": getattr(report, "overall_score", 0)}
@@ -201,11 +192,12 @@ async def generate_evidence_bundle(tenant_id: str) -> dict[str, Any]:
 async def _upload_to_minio(key: str, data: bytes) -> str:
     """Upload bytes to MinIO and return a presigned URL (1-hour TTL)."""
     try:
-        from warden.storage.s3 import S3Storage  # noqa: PLC0415
-        storage = S3Storage()
-        await storage.put_object(key, data, content_type="application/zip")
-        url = await storage.presign_url(key, expires_in=3600)
-        return url
+        from warden.storage.s3 import get_storage  # noqa: PLC0415
+        storage = get_storage()
+        if storage is None:
+            raise ValueError("S3 storage disabled")
+        await storage.put_object_async("warden-evidence", key, data)
+        return f"s3://warden-evidence/{key}"
     except Exception as exc:
         log.warning("MinIO upload failed (%s); returning local path", exc)
         # Fallback: save locally

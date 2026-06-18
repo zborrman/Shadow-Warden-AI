@@ -120,7 +120,7 @@ async def _inject(advisories: list[str]) -> int:
             if h in _SEEN_CACHE:
                 continue
             try:
-                await engine.synthesize_from_intel(advisory)
+                await engine.synthesize_from_intel(advisory, title=advisory[:80], link="")
                 _SEEN_CACHE.add(h)
                 injected += 1
             except Exception as exc:

@@ -110,13 +110,13 @@ async def scan_audio(audio_b64: str) -> dict[str, Any]:
         return {"transcript": "", "deepfake_score": 0.0, "deepfake_sigs": [], "jailbreak": False, "blocked": False}
 
     audio_bytes = base64.b64decode(audio_b64 + "==")  # tolerant padding
-    transcript  = ""
-    deepfake    = {"score": 0.0, "method": "none", "signatures": []}
+    transcript: str = ""
+    deepfake: dict[str, Any] = {"score": 0.0, "method": "none", "signatures": []}
 
     # ── Transcription ──────────────────────────────────────────────────────────
     try:
         from warden.voice import asr as _asr  # noqa: PLC0415
-        transcript = await _asr.transcribe(audio_bytes)
+        transcript = await _asr.transcribe(audio_bytes)  # type: ignore[attr-defined]
     except Exception as exc:
         log.debug("multimodal: ASR unavailable — %s", exc)
 
@@ -133,7 +133,7 @@ async def scan_audio(audio_b64: str) -> dict[str, Any]:
         try:
             from warden.semantic_guard import SemanticGuard  # noqa: PLC0415
             guard = SemanticGuard()
-            result = guard.analyse(transcript)
+            result: dict[str, Any] = guard.analyse(transcript)  # type: ignore[assignment]
             jailbreak = result.get("action") in ("BLOCK", "HIGH")
         except Exception:
             pass
