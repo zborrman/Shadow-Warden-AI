@@ -19,14 +19,14 @@ const commJson = JSON.stringify(COMMUNITIES);
   *, *::before, *::after { box-sizing: border-box; }
 
   :root {
-    --pr: #80b4fd;
-    --pr-dim: rgba(128,180,253,0.1);
+    --pr: #BF5AF2;
+    --pr-dim: rgba(191,90,242,0.1);
     --green: #34d399;
-    --cyan: #22d3ee;
+    --cyan: #0A84FF;
     --pink: #f472b6;
     --amber: #fbbf24;
     --red: #f87171;
-    --purple: #c084fc;
+    --purple: #7c3aed;
     --ease: cubic-bezier(0.23,1,0.32,1);
   }
 
@@ -76,7 +76,7 @@ const commJson = JSON.stringify(COMMUNITIES);
     line-height: 1.05; margin-bottom: 20px; letter-spacing: -.02em;
   }
   .grad {
-    background: linear-gradient(135deg,#80b4fd 0%,#c084fc 50%,#f472b6 100%);
+    background: linear-gradient(135deg,#BF5AF2 0%,#0A84FF 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
   }
@@ -84,8 +84,8 @@ const commJson = JSON.stringify(COMMUNITIES);
 
   .hero-stats {
     display: grid; grid-template-columns: repeat(4,1fr);
-    gap: 1px; background: rgba(128,180,253,.08);
-    border: 1px solid rgba(128,180,253,.1); border-radius: 16px;
+    gap: 1px; background: rgba(191,90,242,.08);
+    border: 1px solid rgba(191,90,242,.15); border-radius: 16px;
     overflow: hidden; margin-bottom: 36px;
   }
   .h-stat { background: rgba(7,11,20,.92); padding: 18px 14px; text-align: center; }
@@ -102,15 +102,15 @@ const commJson = JSON.stringify(COMMUNITIES);
   /* ── Buttons ──────────────────────────────────── */
   .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .btn-pr {
-    background: var(--pr); color: #07090f; font-size: 14px; font-weight: 600;
+    background: linear-gradient(135deg,#BF5AF2,#0A84FF); color: #fff; font-size: 14px; font-weight: 600;
     padding: 12px 28px; border-radius: 10px; border: none; cursor: pointer;
     transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
     text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
   }
   .btn-ghost {
-    background: rgba(128,180,253,.07); color: var(--pr); font-size: 14px;
+    background: rgba(191,90,242,.07); color: var(--pr); font-size: 14px;
     font-weight: 500; padding: 12px 28px; border-radius: 10px;
-    border: 1px solid rgba(128,180,253,.2); cursor: pointer;
+    border: 1px solid rgba(191,90,242,.25); cursor: pointer;
     transition: border-color 160ms var(--ease), background 160ms var(--ease), transform 160ms var(--ease);
     text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
   }
@@ -601,14 +601,14 @@ const commJson = JSON.stringify(COMMUNITIES);
 
   /* ── Hover states (touch-safe) ────────────────── */
   @media (hover: hover) and (pointer: fine) {
-    .btn-pr:hover    { background: #9ea5fb; box-shadow: 0 0 18px rgba(128,180,253,.28); }
-    .btn-ghost:hover { border-color: rgba(128,180,253,.38); background: rgba(128,180,253,.1); }
-    .pill:hover      { border-color: rgba(128,180,253,.22); color: #94a3b8; }
+    .btn-pr:hover    { opacity: .9; box-shadow: 0 0 24px rgba(191,90,242,.35); transform: translateY(-1px); }
+    .btn-ghost:hover { border-color: rgba(191,90,242,.45); background: rgba(191,90,242,.12); }
+    .pill:hover      { border-color: rgba(191,90,242,.28); color: #94a3b8; }
     .c-card:hover    { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.35); }
-    .btn-jn:hover    { background: var(--cc-dim,rgba(128,180,253,.14)); }
+    .btn-jn:hover    { background: var(--cc-dim,rgba(191,90,242,.14)); }
     .btn-vw:hover    { border-color: rgba(255,255,255,.14); color: #94a3b8; }
     .m-cls:hover     { background: rgba(255,255,255,.09); color: #e2e8f0; }
-    .btn-sm-g:hover  { border-color: rgba(128,180,253,.28); color: #94a3b8; }
+    .btn-sm-g:hover  { border-color: rgba(191,90,242,.28); color: #94a3b8; }
   }
 
   /* ── Reduced motion ───────────────────────────── */
@@ -645,8 +645,8 @@ const commJson = JSON.stringify(COMMUNITIES);
         <div class="h-stat"><span class="h-stat-n" data-to="2147">0</span><span class="h-stat-l">Threats blocked</span></div>
       </div>
       <div class="hero-btns">
-        <button class="btn-pr" id="btn-hero">+ Create Community</button>
-        <a href="#discover" class="btn-ghost">Explore Network →</a>
+        <a href="https://app.shadow-warden-ai.com/community-hub/create" class="btn-pr">+ Create Community</a>
+        <a href="https://app.shadow-warden-ai.com/community-hub/" class="btn-ghost">Explore Network →</a>
       </div>
     </div>
   </section>
@@ -1218,17 +1218,17 @@ const commJson = JSON.stringify(COMMUNITIES);
               <span class="ok-mkt-line">Your community is now part of the M2M intelligence ecosystem</span>
             </div>
             <div class="ok-mkt-cards">
-              <a href="/marketplace#agent" class="ok-mkt-card" onclick="document.getElementById('mdl').close();_reset()">
+              <a href="https://app.shadow-warden-ai.com/community-hub/agentic-commerce" class="ok-mkt-card">
                 <div class="ok-mkt-ic ok-mkt-ic-a">A</div>
                 <div class="ok-mkt-name">Deploy Agent</div>
                 <div class="ok-mkt-desc">DID-based agent to trade assets</div>
               </a>
-              <a href="/marketplace#assets" class="ok-mkt-card" onclick="document.getElementById('mdl').close();_reset()">
+              <a href="https://app.shadow-warden-ai.com/community-hub/agentic-commerce" class="ok-mkt-card">
                 <div class="ok-mkt-ic ok-mkt-ic-l">L</div>
                 <div class="ok-mkt-name">List Assets</div>
                 <div class="ok-mkt-desc">Tokenize rules, models, signals</div>
               </a>
-              <a href="/marketplace#browse" class="ok-mkt-card" onclick="document.getElementById('mdl').close();_reset()">
+              <a href="https://app.shadow-warden-ai.com/community-hub/agentic-commerce" class="ok-mkt-card">
                 <div class="ok-mkt-ic ok-mkt-ic-b">B</div>
                 <div class="ok-mkt-name">Browse Market</div>
                 <div class="ok-mkt-desc">2,800+ community assets</div>
@@ -1236,9 +1236,9 @@ const commJson = JSON.stringify(COMMUNITIES);
             </div>
           </div>
           <div class="ok-actions" style="grid-template-columns:1fr 1fr 1fr">
-            <a href="/marketplace" class="ok-btn ok-btn-mkt" onclick="document.getElementById('mdl').close();_reset()">Marketplace →</a>
-            <button class="ok-btn ok-btn-p" onclick="document.getElementById('mdl').close();_reset()">View Community</button>
-            <button class="ok-btn ok-btn-g" onclick="document.getElementById('mdl').close();_reset()">Invite Members</button>
+            <a href="https://app.shadow-warden-ai.com/community-hub/agentic-commerce" class="ok-btn ok-btn-mkt">Marketplace →</a>
+            <a href="https://app.shadow-warden-ai.com/community-hub/" class="ok-btn ok-btn-p">View Hub</a>
+            <a href="https://app.shadow-warden-ai.com/community-hub/" class="ok-btn ok-btn-g">Invite Members</a>
           </div>
         </div>
       </div>
@@ -1258,7 +1258,7 @@ const pRM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 function rsz() { cv.width = cv.offsetWidth || window.innerWidth; cv.height = cv.offsetHeight || window.innerHeight; }
 rsz(); window.addEventListener('resize', rsz);
 
-const COLS = ['#80b4fd','#34d399','#38bdf8','#4d9cfc','#a8b8d0','#fbbf24'];
+const COLS = ['#BF5AF2','#0A84FF','#34d399','#38bdf8','#a8b8d0','#7c3aed'];
 const pts = Array.from({length:55}, () => ({
   x: Math.random()*cv.width, y: Math.random()*cv.height,
   vx: (Math.random()-.5)*.22, vy: (Math.random()-.5)*.22,
@@ -1284,7 +1284,7 @@ let lt = 0;
       const dx = pts[i].x-pts[j].x, dy = pts[i].y-pts[j].y, d2 = dx*dx+dy*dy;
       if (d2 < MD*MD) {
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(128,180,253,${(1-Math.sqrt(d2)/MD)*.08})`;
+        ctx.strokeStyle = `rgba(191,90,242,${(1-Math.sqrt(d2)/MD)*.08})`;
         ctx.lineWidth = .55;
         ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
         ctx.stroke();
@@ -1372,9 +1372,9 @@ function renderCards(list) {
         </div>
         <div class="c-foot">
           ${c.joined
-            ? `<a href="/community/view" class="btn-jn" style="color:${c.color};border-color:${c.color}44;background:${c.color}0d">Open Portal →</a>`
-            : `<button class="btn-jn" onclick="_rj(this,this.closest('.c-card'))">Request to Join</button>`}
-          <a href="/community/view" class="btn-vw">View →</a>
+            ? `<a href="https://app.shadow-warden-ai.com/community-hub/" class="btn-jn" style="color:${c.color};border-color:${c.color}44;background:${c.color}0d">Open Hub →</a>`
+            : `<a href="https://app.shadow-warden-ai.com/community-hub/create" class="btn-jn">Join Community</a>`}
+          <a href="https://app.shadow-warden-ai.com/community-hub/" class="btn-vw">View →</a>
         </div>
       </div>`;
     }).join('');
@@ -1809,41 +1809,12 @@ document.getElementById('btn-next1').addEventListener('click', () => {
   _ns(2);
 });
 
-// ── Create (step 6 → 7) ─────────────────────────────────────
+// ── Create (step 6) → redirect to portal wizard ─────────────
 document.getElementById('btn-create').addEventListener('click', () => {
-  const name = fnEl.value.trim() || 'My Community';
-  const uid  = _uid();
-  const ts   = new Date().toISOString();
-  const slk  = (document.getElementById('f-slack') || {}).value || '';
-
-  const existing = JSON.parse(localStorage.getItem('sw_communities') || '[]');
-  existing.unshift({
-    id: 'u-' + Math.random().toString(36).slice(2,10),
-    name, description: fdEl.value.trim(),
-    visibility: _vis, join_policy: _join, category: _cat, color: _color, ueciid: uid,
-    crypto_mode: _crypto, default_role: _role, peering_policy: _peer,
-    regions: _regions.slice(), frameworks: _frameworks.slice(),
-    stix_enabled: _stix, evolution_enabled: _evo, slack_webhook: slk,
-    member_invites: ((document.getElementById('f-invites') || {}).value || '').trim(),
-    members: 1, transfers: 0, peerings: 0, risk: 'LOW',
-    tier: 'Community', joined: true, created_at: ts,
-  });
-  localStorage.setItem('sw_communities', JSON.stringify(existing));
-
-  document.getElementById('new-uid').textContent        = uid;
-  document.getElementById('ok-name').textContent        = name;
-  document.getElementById('ok-vis-badge').textContent   = _vis === 'public' ? 'Public' : 'Private';
-  document.getElementById('ok-cat-badge').textContent   = _cat.charAt(0).toUpperCase() + _cat.slice(1);
-  document.getElementById('ok-crypto-badge').textContent= _crypto === 'pqc' ? 'ML-DSA-65 Hybrid' : 'Ed25519 keypair';
-  document.getElementById('ok-peer').textContent        = { mirror:'Mirror Only', rewrap:'Rewrap', full:'Full Sync' }[_peer] || _peer;
-  document.getElementById('ok-regions').textContent     = _regions.join(', ');
-  document.getElementById('ok-frameworks').textContent  = _frameworks.map(f => f.toUpperCase()).join(', ');
-  document.getElementById('ok-evo').textContent         = _evo ? 'Enabled' : 'Disabled';
-  _ns(7);
+  window.location.href = 'https://app.shadow-warden-ai.com/community-hub/create';
 });
 
 // ── Modal open / close ──────────────────────────────────────
-document.getElementById('btn-hero').onclick = _open;
 const _ctaEl = document.getElementById('btn-cta'); if (_ctaEl) _ctaEl.onclick = _open;
 document.getElementById('mcls').onclick = () => modal.close();
 modal.addEventListener('click', e => {
