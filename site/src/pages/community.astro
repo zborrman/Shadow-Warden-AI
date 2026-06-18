@@ -784,9 +784,7 @@ const commJson = JSON.stringify(COMMUNITIES);
       </div>
 
       <div class="steps-cta">
-        <a href="https://app.shadow-warden-ai.com/community-hub/create" class="btn-pr steps-btn">
-          Launch the Wizard →
-        </a>
+        <button class="btn-pr steps-btn" id="btn-wizard">Launch the Wizard →</button>
         <p class="steps-note">Available on Community Business+, Pro, and Enterprise plans.</p>
       </div>
     </div>
@@ -799,7 +797,7 @@ const commJson = JSON.stringify(COMMUNITIES);
       <div class="lbl" style="margin:0 0 10px">Get Started</div>
       <h2>Launch Your Community</h2>
       <p>Deploy a governed AI community in under 60 seconds. Cryptographic keypairs, STIX audit chain, and sovereign data pods provisioned automatically.</p>
-      <a href="https://app.shadow-warden-ai.com/community-hub/create" class="btn-pr" style="font-size:15px;padding:13px 30px;text-decoration:none;display:inline-block">+ Create Community</a>
+      <button class="btn-pr" id="btn-cta" style="font-size:15px;padding:13px 30px">+ Create Community</button>
     </div>
   </div>
 
@@ -1815,8 +1813,9 @@ document.getElementById('btn-create').addEventListener('click', () => {
 });
 
 // ── Modal open / close ──────────────────────────────────────
-document.getElementById('btn-hero').onclick = _open;
-const _ctaEl = document.getElementById('btn-cta'); if (_ctaEl) _ctaEl.onclick = _open;
+document.getElementById('btn-hero').onclick   = _open;
+document.getElementById('btn-wizard').onclick = _open;
+document.getElementById('btn-cta').onclick    = _open;
 document.getElementById('mcls').onclick = () => modal.close();
 modal.addEventListener('click', e => {
   const r = modal.getBoundingClientRect();
