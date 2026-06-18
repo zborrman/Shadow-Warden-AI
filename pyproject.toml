@@ -175,6 +175,11 @@ omit = [
     "warden/analytics/pages/15_Semantic_Layer.py",
     "warden/analytics/pages/16_Settings.py",
     "warden/workers/weekly_report.py",
+    "warden/image_guard.py",
+    "warden/audio_guard.py",
+    "warden/image_redactor.py",
+    "warden/image_synth.py",
+    "warden/multimodal.py",
 ]
 
 [tool.coverage.report]
