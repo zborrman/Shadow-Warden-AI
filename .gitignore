@@ -95,6 +95,8 @@ ssl/
 .env.sepolia
 
 # Build artifacts — never commit
+node_modules/
+packages/*/node_modules/
 dashboard/.next/
 dashboard/node_modules/
 dashboard/tsconfig.tsbuildinfo

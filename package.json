@@ -1,7 +1,7 @@
 {
   "name": "shadow-warden-ai",
   "private": true,
-  "workspaces": ["packages/*", "portal", "dashboard"],
+  "workspaces": ["packages/*"],
   "scripts": {
     "build:ui":        "tsc -p packages/ui/tsconfig.json",
     "build:portal":    "npm run build --workspace=portal",
