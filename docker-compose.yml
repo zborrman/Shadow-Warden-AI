@@ -81,6 +81,7 @@ services:
       dockerfile: Dockerfile
     # container_name removed — allows docker compose up --scale warden=N
     restart: unless-stopped
+    stop_grace_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -238,10 +239,9 @@ services:
       - warden-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-
-      interval: 20s
+      interval: 30s
       timeout: 10s
-      retries: 15
+      retries: 5
       start_period: 180s
 
   # ── ARQ WORKER (background tasks: weekly ROI emails, geo-webhooks) ─────────

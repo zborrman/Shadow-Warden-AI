@@ -44,8 +44,8 @@ def _get_client():
             import redis as _redis  # noqa: PLC0415
 
             _client = _redis.from_url(_REDIS_URL, decode_responses=True,
-                                      socket_connect_timeout=2,
-                                      socket_timeout=1)
+                                      socket_connect_timeout=5,
+                                      socket_timeout=3)
             _client.ping()
         except Exception as exc:  # noqa: BLE001
             log.warning("Redis unavailable — content-hash cache disabled: %s", exc)

@@ -2657,7 +2657,10 @@ async def _run_filter_pipeline(
             masked            = False,   # proxy sets True when tokens are actually replaced
         )
         entry["tenant_id"] = tenant_id   # needed for billing aggregation
-        event_logger.append(entry)
+        if background_tasks is not None:
+            background_tasks.add_task(event_logger.append, entry)
+        else:
+            event_logger.append(entry)
         # Broadcast to all connected /ws/events dashboard clients
         asyncio.create_task(_event_bus.broadcast({
             "type":        "event",
