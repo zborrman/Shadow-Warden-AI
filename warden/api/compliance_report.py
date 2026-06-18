@@ -1021,6 +1021,18 @@ import asyncio as _asyncio  # noqa: E402 — placed after guard
 from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402
 
 
+@router.post("/evidence/generate")
+async def generate_evidence_bundle_endpoint(tenant_id: str = "default") -> dict:
+    """Generate a SOC 2 Type II evidence bundle ZIP and return a presigned download URL. (TC-04)"""
+    try:
+        from warden.compliance.evidence_bundle import generate_evidence_bundle  # noqa: PLC0415
+        result = await generate_evidence_bundle(tenant_id)
+        return result
+    except Exception as exc:
+        from fastapi import HTTPException  # noqa: PLC0415
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @router.websocket("/ws")
 async def compliance_ws(ws: WebSocket, tenant_id: str = "default") -> None:
     """

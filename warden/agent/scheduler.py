@@ -759,3 +759,29 @@ async def sova_obsidian_watchdog(ctx: dict) -> dict:
         "sensitive": len(sensitive),
         "alerted":   bool(alert_lines),
     }
+
+
+# ── sova_evidence_bundle — monthly 1st 03:00 UTC (TC-04) ─────────────────────
+
+async def sova_evidence_bundle(ctx: dict) -> dict:
+    """Auto-generate SOC 2 Type II evidence bundle for all Pro+ tenants."""
+    import os
+    tenant_ids_env = os.getenv("EVIDENCE_BUNDLE_TENANTS", "default")
+    tenants = [t.strip() for t in tenant_ids_env.split(",") if t.strip()]
+
+    results = []
+    for tenant_id in tenants:
+        try:
+            from warden.compliance.evidence_bundle import generate_evidence_bundle  # noqa: PLC0415
+            result = await generate_evidence_bundle(tenant_id)
+            results.append({"tenant_id": tenant_id, "status": "ok", "key": result.get("key"), "size": result.get("size")})
+            log.info("sova: evidence bundle generated — tenant=%s key=%s", tenant_id, result.get("key"))
+        except Exception as exc:
+            log.error("sova: evidence bundle failed — tenant=%s err=%s", tenant_id, exc)
+            results.append({"tenant_id": tenant_id, "status": "error", "error": str(exc)})
+
+    await _slack(
+        f"📦 *Monthly Evidence Bundle* [{_ts()}]\n"
+        + "\n".join(f"• `{r['tenant_id']}`: {r['status']}" for r in results)
+    )
+    return {"ts": _ts(), "results": results}

@@ -2336,6 +2336,31 @@ async def acp_search_catalog(
         return {"error": str(exc), "source": catalog_url}
 
 
+# ── Tool #68: disk_encryption_status (TC-03) ──────────────────────────────────
+
+async def tool_disk_encryption_status(_args: dict[str, Any]) -> dict[str, Any]:
+    """Return the host OS disk encryption status (LUKS / BitLocker / FileVault)."""
+    try:
+        from warden.integrations.disk_encryption import detect_disk_encryption  # noqa: PLC0415
+        return detect_disk_encryption()
+    except Exception as exc:
+        return {"status": "unknown", "method": "unknown", "volumes": [], "error": str(exc)}
+
+
+TOOLS.append({
+    "name": "disk_encryption_status",
+    "description": (
+        "Detect host disk encryption status. Returns status (encrypted/not_encrypted/partial/unknown), "
+        "method (LUKS/BitLocker/FileVault/none), and per-volume details."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+})
+
+
 try:
     from warden.voice.agent import VOICE_TOOL_HANDLERS, VOICE_TOOLS  # noqa: PLC0415
     _VOICE_AVAILABLE = True
@@ -2424,4 +2449,6 @@ TOOL_HANDLERS: dict[str, Any] = {
     "acp_search_catalog":            acp_search_catalog,
     # Voice-Commerce tools (#62-67)
     **VOICE_TOOL_HANDLERS,
+    # Infrastructure tools (#68)
+    "disk_encryption_status":     tool_disk_encryption_status,
 }
