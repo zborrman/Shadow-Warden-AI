@@ -252,8 +252,8 @@ class AutoResponder:
 
     def _notify_slack(self, agent_id: str, reason: str) -> bool:
         try:
-            from warden.alerting import send_slack_alert
-            send_slack_alert(
+            from warden.alerting import send_alert
+            send_alert(
                 f":rotating_light: AutoResponder: Agent `{agent_id}` isolated. "
                 f"Reason: {reason}"
             )

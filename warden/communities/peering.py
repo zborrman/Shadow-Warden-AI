@@ -697,7 +697,7 @@ class FederatedTrustRegistry:
                 peers = list_peerings(community_id=source_community)
                 for peer in peers:
                     if getattr(peer, "status", "") == "ACTIVE":
-                        r.publish(f"fed_trust:{peer.target_community_id}", json.dumps({
+                        r.publish(f"fed_trust:{peer.target_community}", json.dumps({
                             "agent_did": agent_did, "flag_type": flag_type,
                             "source_community": source_community,
                         }))

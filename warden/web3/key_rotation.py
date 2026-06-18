@@ -80,7 +80,7 @@ def _conn(path: str = _ROTATION_DB) -> sqlite3.Connection:
 def _chain_schedule(agent_id: str, new_key_hash: str, deadline_ts: int) -> str | None:
     """Submit scheduleRotation to Polygon Amoy. Returns tx_hash or None."""
     try:
-        from warden.web3.smart_contract import get_web3_client
+        from warden.web3.smart_contract import get_web3_client  # type: ignore[attr-defined]
         w3 = get_web3_client()
         if not w3:
             return None
