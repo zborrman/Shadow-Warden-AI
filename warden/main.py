@@ -1436,6 +1436,13 @@ except ImportError:
     log.warning("smb_suite router not available — /smb-suite routes skipped.")
 
 try:
+    from warden.api.webhooks import router as _webhooks_router
+    app.include_router(_webhooks_router)
+    log.info("Webhook Event System mounted at /webhooks (DEV-05)")
+except ImportError:
+    log.warning("webhooks router not available — /webhooks routes skipped.")
+
+try:
     from warden.business_intelligence.router import router as _bi_router
     app.include_router(_bi_router)
     log.info("Business Intelligence mounted at /business-intelligence (CM-39)")
@@ -2933,6 +2940,33 @@ async def filter_content(
             }))
         except Exception as _exc:
             log.warning("doc_intel file_base64 conversion failed (fail-open): %s", _exc)
+
+    # ── Multimodal Jailbreak Detection (DET-01): image_base64 + audio_base64 ──
+    if payload.image_base64 or payload.audio_base64:
+        try:
+            from warden.multimodal.handler import prefilter_multimodal  # noqa: PLC0415
+            _mm = await prefilter_multimodal(
+                payload.content or "",
+                payload.image_base64,
+                payload.audio_base64,
+            )
+            if _mm.get("blocked"):
+                _reason = _mm.get("reason", "multimodal_block")
+                log.warning(json.dumps({"event": "multimodal_block", "request_id": rid, "reason": _reason}))
+                return FilterResponse(
+                    blocked=True,
+                    action="BLOCK",
+                    risk_level="HIGH",
+                    content=payload.content or "",
+                    filtered_content=payload.content or "",
+                    risk_score=1.0,
+                    processing_ms=0,
+                    flags=[_reason],
+                )
+            if _mm.get("text") and _mm["text"] != (payload.content or ""):
+                payload = payload.model_copy(update={"content": _mm["text"]})
+        except Exception as _mm_exc:
+            log.warning("multimodal prefilter failed (fail-open): %s", _mm_exc)
 
     coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
     if _PIPELINE_TIMEOUT_MS > 0:

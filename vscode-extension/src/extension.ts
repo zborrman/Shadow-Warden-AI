@@ -81,12 +81,22 @@ const _dLow = vscode.window.createTextEditorDecorationType({
   overviewRulerColor: "#30D158",
   overviewRulerLane:   vscode.OverviewRulerLane.Left,
   backgroundColor:     "rgba(48,209,88,0.05)",
+  // Gutter icon (DEV-03): green shield
+  gutterIconPath:  vscode.Uri.parse("data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#30D158" d="M8 1L2 4v4c0 3.31 2.52 6.41 6 7 3.48-.59 6-3.69 6-7V4L8 1z"/></svg>'
+  )),
+  gutterIconSize: "contain",
 });
 
 const _dMedium = vscode.window.createTextEditorDecorationType({
   overviewRulerColor: "#FFD60A",
   overviewRulerLane:   vscode.OverviewRulerLane.Left,
   backgroundColor:     "rgba(255,214,10,0.08)",
+  // Gutter icon: yellow warning shield
+  gutterIconPath: vscode.Uri.parse("data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#FFD60A" d="M8 1L2 4v4c0 3.31 2.52 6.41 6 7 3.48-.59 6-3.69 6-7V4L8 1z"/><text x="8" y="11" text-anchor="middle" font-size="7" fill="#000">!</text></svg>'
+  )),
+  gutterIconSize: "contain",
 });
 
 const _dHigh = vscode.window.createTextEditorDecorationType({
@@ -96,6 +106,11 @@ const _dHigh = vscode.window.createTextEditorDecorationType({
   borderWidth:         "0 0 0 2px",
   borderStyle:         "solid",
   borderColor:         "rgba(255,140,66,0.40)",
+  // Gutter icon: orange shield
+  gutterIconPath: vscode.Uri.parse("data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#FF8C42" d="M8 1L2 4v4c0 3.31 2.52 6.41 6 7 3.48-.59 6-3.69 6-7V4L8 1z"/></svg>'
+  )),
+  gutterIconSize: "contain",
 });
 
 const _dBlock = vscode.window.createTextEditorDecorationType({
@@ -105,6 +120,11 @@ const _dBlock = vscode.window.createTextEditorDecorationType({
   borderWidth:         "0 0 0 3px",
   borderStyle:         "solid",
   borderColor:         "rgba(255,45,85,0.60)",
+  // Gutter icon: red blocked shield
+  gutterIconPath: vscode.Uri.parse("data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="#FF2D55" d="M8 1L2 4v4c0 3.31 2.52 6.41 6 7 3.48-.59 6-3.69 6-7V4L8 1z"/><line x1="5" y1="5" x2="11" y2="11" stroke="#fff" stroke-width="2"/><line x1="11" y1="5" x2="5" y2="11" stroke="#fff" stroke-width="2"/></svg>'
+  )),
+  gutterIconSize: "contain",
 });
 
 // Inline after-text showing verdict (per-decoration renderOptions)
