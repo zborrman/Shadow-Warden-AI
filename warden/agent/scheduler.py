@@ -785,3 +785,26 @@ async def sova_evidence_bundle(ctx: dict) -> dict:
         + "\n".join(f"• `{r['tenant_id']}`: {r['status']}" for r in results)
     )
     return {"ts": _ts(), "results": results}
+
+
+# ── sova_threat_feed_sync — every 4h (DET-03) ────────────────────────────────
+
+async def sova_threat_feed_sync(ctx: dict) -> dict:
+    """Sync MITRE ATLAS + OWASP LLM + HuggingFace feeds into EvolutionEngine."""
+    try:
+        from warden.brain.threat_feed import sync_threat_feeds  # noqa: PLC0415
+        result = await sync_threat_feeds()
+        log.info("sova: threat feed sync — fetched=%s injected=%s", result.get("fetched"), result.get("injected"))
+        if result.get("injected", 0) > 0:
+            await _slack(
+                f"🛡 *Threat Feed Sync* [{_ts()}]\n"
+                f"• Fetched: {result.get('fetched')} advisories\n"
+                f"• Injected: {result.get('injected')} new examples\n"
+                f"• Sources: ATLAS={result['sources'].get('atlas',0)} "
+                f"OWASP={result['sources'].get('owasp_llm',0)} "
+                f"HF={result['sources'].get('huggingface',0)}"
+            )
+        return result
+    except Exception as exc:
+        log.error("sova: threat feed sync failed — %s", exc)
+        return {"status": "error", "error": str(exc)}

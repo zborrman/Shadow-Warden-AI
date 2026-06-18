@@ -97,6 +97,24 @@ class FilterRequest(BaseModel):
         default="upload.bin",
         description="Original filename (with extension) when file_base64 is provided.",
     )
+    image_base64: str | None = Field(
+        default=None,
+        description=(
+            "Optional base64-encoded image (PNG/JPEG/WEBP/GIF). "
+            "When set, the image is scanned for OCR text injection, visual jailbreaks, "
+            "and screen-scrape attacks via Claude Vision before entering the 9-layer pipeline. "
+            "(DET-01 Multimodal Jailbreak Detection)"
+        ),
+    )
+    audio_base64: str | None = Field(
+        default=None,
+        description=(
+            "Optional base64-encoded audio (WAV/MP3/OGG). "
+            "When set, the audio is run through VoiceGuardian (ASR → transcript + deepfake detection) "
+            "before entering the 9-layer pipeline. "
+            "(DET-01 Multimodal Jailbreak Detection)"
+        ),
+    )
 
 
 # ── Response pieces ───────────────────────────────────────────────────────────
