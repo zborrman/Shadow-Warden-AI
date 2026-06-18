@@ -39,6 +39,7 @@ COMM_NAME = f"Hub Test Community {_SUFFIX}"
 @pytest.fixture(scope="module")
 def client():
     from fastapi.testclient import TestClient
+
     from warden.main import app
     return TestClient(app)
 
@@ -161,7 +162,7 @@ class TestListingFlow:
     def test_list_listings_contains_created(self, client):
         resp = client.get("/marketplace/listings")
         assert resp.status_code == 200
-        ids = [l.get("listing_id") for l in resp.json()]
+        ids = [item.get("listing_id") for item in resp.json()]
         assert TestListingFlow.listing_id in ids
 
     def test_buy_listing_creates_escrow(self, client):
