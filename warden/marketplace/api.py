@@ -101,7 +101,7 @@ async def marketplace_readiness(community_id: str) -> dict:
 
     from warden.marketplace.agent import list_agents as _list_agents
 
-    community = None
+    community: object = None
     with contextlib.suppress(Exception):
         from warden.communities.registry import get_community as _get_community
         community = _get_community(community_id)
