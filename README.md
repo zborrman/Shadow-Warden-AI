@@ -4,9 +4,83 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 5.6 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 6.6 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v6.6
+
+| Feature | Description |
+|---------|-------------|
+| **SSO / SAML 2.0 (ENT-01)** | SP-initiated AuthnRequest, ACS callback validation, replay protection (Redis 5-min nonce store), JIT tenant provisioning. `SAMLProvider` class; `app.state.saml`-gated routes at `/auth/saml/*` in `main.py`. |
+| **White-Label Mode (ENT-02)** | Per-tenant domain, logo, brand colors, and custom CSS injection. Caddy vhost snippet generator. |
+| **Custom Compliance Framework Builder (ENT-03)** | Controls editor with weighted scoring, SQLite persistence, tenant-scoped framework library. |
+| **AI Usage Budgets (ENT-04)** | Per-department monthly caps, warn/block thresholds, Slack alert on breach. |
+| **SLA Status Page (ENT-05)** | `/status` — live component health for all 11 services + 90-day SLA metric history. |
+
+---
+
+## What's New in v6.5
+
+| Feature | Description |
+|---------|-------------|
+| **Python SDK — WardenClient (DEV-01)** | `WardenClient` + `AsyncWardenClient` + `FilterResult` dataclass; zero runtime deps. |
+| **OTel WardenSpanProcessor (DEV-02)** | Fire-and-forget PII redaction on `llm.prompt` / `gen_ai.completion` span attributes. |
+| **VS Code Extension (DEV-03)** | Inline gutter risk icons (SVG data URIs, 4 severity tiers) for selected text. |
+| **API Playground (DEV-04)** | `/playground` Astro page — live `/filter` with verdict banner + pipeline timing breakdown. |
+| **Webhook Event System (DEV-05)** | HMAC-SHA256 delivery, ≤3 retries, 6 event types at `/webhooks/*`. |
+
+---
+
+## What's New in v6.4
+
+| Feature | Description |
+|---------|-------------|
+| **Multimodal Jailbreak Detection (DET-01)** | `image_base64` → Claude Vision OCR + visual jailbreak; `audio_base64` → VoiceGuardian ASR + deepfake. Both fail-open. `POST /filter` accepts `file_base64` multimodal payloads. |
+| **Agentic Loop Monitor (DET-02)** | β₂ Betti number topology on session call graphs; anomaly flag when β₂ ≥ threshold; Redis-backed adjacency list. |
+| **Live Threat Feed Sync (DET-03)** | MITRE ATLAS + OWASP LLM Top 10 + HuggingFace → EvolutionEngine every 4h. |
+| **Adversarial Benchmark Suite (DET-04)** | 65-prompt corpus, BLOCK recall gate ≥95%, CI `adversarial` marker. |
+| **Deepfake Audio Pipeline (DET-05)** | Mel-spectrogram delta variance + VALL-E/Voicebox signatures in `detect_deepfake_enhanced()`. |
+
+---
+
+## What's New in v6.3
+
+| Feature | Description |
+|---------|-------------|
+| **Helm Chart (SC-01)** | 11 services, HPA (warden 2–10 pods, app 2–6 pods), KEDA arq-worker autoscaler. |
+| **Terraform Hetzner (SC-02)** | cx31 + 100 GB + floating IP + cloud-init; one-command VPS provisioning. |
+| **Region Middleware (SC-03)** | `X-Region` / `X-Region-Prefer` request/response headers for geo-aware routing. |
+| **Canary Deploy Script (SC-04)** | 10% → 50% → 100% rollout with Prometheus error-rate gate + automatic Helm rollback. |
+
+---
+
+## What's New in v6.2
+
+| Feature | Description |
+|---------|-------------|
+| **Unified Design System DS-01** | `packages/ui/` — 10 shared components (Card, Button, Badge, Input, Select, Modal, Table, Tabs, Chart, ThemeToggle) + ThemeProvider with DS-01 design tokens. Portal, Dashboard, and Streamlit all updated to DS-01 palette. |
+| **ThemeToggle in Astro navbar** | Light/dark theme switch on all 40 site pages; localStorage persistence; `.light` class on `<html>`. |
+| **Streamlit dark theme** | `.streamlit/config.toml` wired to DS-01 primary/background/text tokens. |
+
+---
+
+## What's New in v6.1
+
+| Feature | Description |
+|---------|-------------|
+| **Security Hardening SEC-02–SEC-10** | HSM key rotation audit (SEC-02); AutoResponder agent isolation + STIX+Kafka (SEC-03); Prompt injection defense — 10 regex + delimiter-attack patterns (SEC-04); decentralized key rotation lifecycle (SEC-05); Federated Trust Registry cross-community threat flags (SEC-06); SecureWipe + `secure_memory` decorator (SEC-07); hybrid asset signing tests (SEC-08); behavioral anomaly Z-score tests (SEC-09); data lifecycle tests (SEC-10). |
+| **Voice-Commerce Metrics (VC-02)** | Prometheus counters for voice sessions, deepfake detections, X402 micropayments. Kafka consumer bridge + Grafana dashboard + alerting rules. |
+
+---
+
+## What's New in v6.0
+
+| Feature | Description |
+|---------|-------------|
+| **Voice-Commerce Agents (VC-01)** | `warden/voice/` — StreamingASR (Whisper/Deepgram/AssemblyAI), TTSEngine (ElevenLabs/Azure/Edge), VoiceNLU (Claude Haiku + rule fallback), DialogueManager (Redis multi-turn sessions), VoiceBiometric (resemblyzer voiceprints, Fernet-encrypted), VoiceGuardian (coercion detection, spectral deepfake score, Z-score anomaly). X402Protocol micropayment rail with on-chain verification. 6 SOVA tools #62–67. FastAPI `/voice/*` router. |
 
 ---
 

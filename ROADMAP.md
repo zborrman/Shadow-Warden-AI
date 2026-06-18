@@ -259,6 +259,10 @@ Everything from Docker orchestration to CI/CD to Kubernetes.
 | IF-21 | cosign + SBOM CI signing on Docker images | v4.13 | — | ✅ |
 | IF-22 | Mutation testing — mutmut on `secret_redactor.py` + `semantic_guard.py` | v2.0 | — | ✅ |
 | INFRA-01 | Preflight checks for MASQUE tunnels + RPC node validation before escrow deployment | v5.6 | Enterprise | ✅ |
+| PERF-01 | Async event logging — `event_logger.append()` via `BackgroundTask`; removes file I/O + lock from hot `/filter` path (5–20ms gain) | v6.6 | All | ✅ |
+| PERF-02 | Redis socket timeout tuning — connect 5s / read 3s in `cache.py`; reduces false cache-miss cascades under load | v6.6 | All | ✅ |
+| PERF-03 | Docker `stop_grace_period: 30s` + healthcheck retries 15→5 on warden service | v6.6 | All | ✅ |
+| PERF-04 | Remove root `package.json` workspace — portal + dashboard are standalone npm projects; eliminates npm v10 workspace-detection breakage in CI | v6.6 | — | ✅ |
 
 ---
 

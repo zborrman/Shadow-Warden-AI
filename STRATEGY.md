@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 5.6 · Last updated 2026-06-07**
+**Version 6.6 · Last updated 2026-06-18**
 
 ---
 
@@ -35,6 +35,14 @@ Shadow Warden AI is the **only GDPR-native AI security gateway** that combines:
 - **Document Intelligence (v5.4)**: Microsoft MarkItDown converts PDF/DOCX/PPTX/XLSX/HTML/images/audio/ZIP to Markdown before the 9-layer pipeline runs; file-type-aware Redis cache (24h/7d/1h TTLs); 50 MB gate; SOVA tool #50; portal Document Scanner; `/document-intel` API; Prometheus counters; Community Business+ tier
 - **Real-time Compliance Gap Dashboard (v5.5)**: `CompliancePostureService` aggregates 19 controls from Vendor Governance, Incident Register, Secrets Vault, Document Intelligence, STIX Audit, Training Records into live GDPR/SOC2/ISO27001/HIPAA scores with per-gap remediation guidance; Redis cache + Pub/Sub; WebSocket `/compliance/ws`; SOVA tools #51/#52; portal self-service page; Pro+ tier
 - **Community Hub SOC Integration (v5.6)**: full Community Hub surface across all 3 client layers — SOC Next.js dashboard (list + 6-tab detail with live WebSocket metrics, `useCommunityWebSocket` hook, 30s auto-reconnect), Portal UX upgrade (`react-hot-toast` notifications on all actions, `dd/mm/yy` dates, descending chronological sort), Streamlit 7-tab Hub (`fmt_date()`, `st_toast()`, sorted member/community lists); Community Business+ tier
+- **Voice-Commerce Agents (v6.0)**: end-to-end voice AI commerce stack — `warden/voice/` (StreamingASR, TTSEngine, VoiceNLU, DialogueManager, VoiceBiometric, VoiceGuardian), X402Protocol micropayment rail, 6 SOVA tools #62–67, WebSocket stream; Enterprise tier
+- **Security Hardening Phase 2 (v6.1)**: HSM key rotation audit, AutoResponder agent isolation + STIX chain, prompt injection defense (10 regex + delimiter patterns), decentralized key lifecycle, Federated Trust Registry, SecureWipe, hybrid PQC asset signing, behavioral anomaly tests, voice-commerce Prometheus metrics + Grafana dashboard
+- **Unified Design System DS-01 (v6.2)**: `packages/ui/` — 10 shared components + ThemeProvider with DS-01 tokens applied across portal, dashboard, Streamlit, and static site; ThemeToggle with localStorage persistence; no-root-package.json monorepo layout
+- **Horizontal Scalability (v6.3)**: Helm chart (11 services, HPA warden 2–10, KEDA arq-worker), Terraform Hetzner, canary deploy script (10%→50%→100%, Prometheus gate, auto-rollback), region middleware (`X-Region` / `X-Region-Prefer` headers)
+- **Advanced Detection (v6.4)**: multimodal jailbreak detection (Claude Vision image + VoiceGuardian audio, fail-open), agentic loop monitor (β₂ Betti topology), live MITRE ATLAS/OWASP LLM threat sync, adversarial benchmark suite (65 prompts, ≥95% BLOCK recall), deepfake audio pipeline (mel-spectrogram + VALL-E signatures)
+- **Developer Experience (v6.5)**: Python + async SDK, OTel `WardenSpanProcessor`, VS Code inline gutter icons, `/playground` API explorer, webhook event system (HMAC-SHA256, 6 event types)
+- **Enterprise SSO & White-Label (v6.6)**: SAML 2.0 SP-initiated (AuthnRequest, ACS, replay protection, JIT provisioning), white-label mode (per-tenant domain/logo/CSS), Custom Compliance Framework Builder, AI Usage Budgets, `/status` SLA page
+- **Server performance (v6.6 maintenance)**: `event_logger.append()` offloaded to `BackgroundTask` (removes 5–20ms file I/O from hot path); Redis cache timeouts raised (connect 5s, read 3s); Docker `stop_grace_period: 30s` + healthcheck retries 15→5
 
 **Primary markets:** EU/US SMBs and knowledge workers handling regulated data +
 Enterprise AI teams deploying LLM-backed products.
@@ -227,4 +235,4 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 
 ---
 
-*Strategy.md — Shadow Warden AI business strategy v5.6 · 2026-06-12*
+*Strategy.md — Shadow Warden AI business strategy v6.6 · 2026-06-18*

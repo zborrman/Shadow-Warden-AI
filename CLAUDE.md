@@ -11,7 +11,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 5.6 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-06-12
+**Version:** 6.6 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-06-18
 
 ## Architecture
 
@@ -180,6 +180,7 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `dashboard/src/lib/api.ts` | API client — stats, events, event detail, threats, roi, compliance, health, filter |
 | `dashboard/src/app/(soc)/` | Route group — overview, events, events/[id], threats, sandbox, platform/metrics, platform/traces |
 | `dashboard/Dockerfile` | Multi-stage Node 20 Alpine build (deps → builder → runner), port 3002 |
+| `packages/ui/` | Shared DS-01 design system — 10 components (Card, Button, Badge, Input, Select, Modal, Table, Tabs, Chart, ThemeToggle) + ThemeProvider; standalone npm package, not a workspace member |
 | `docker/Caddyfile` | Caddy v2 vhosts — api/app/analytics/landing/dash.shadow-warden-ai.com |
 | `warden/testing/scenarios/` | SWFE Scenario DSL — ScenarioRunner, ScenarioStep, build_core_scenarios(), YAML loader |
 | `docs/sla.md` | Formal SLA — Pro 99.9% / Enterprise 99.95% uptime, P99 < 50ms, incident response, credits |
@@ -312,6 +313,10 @@ NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
 - **Playwright base image**: `mcr.microsoft.com/playwright/python:v1.49.0-noble` — do NOT switch to `python:3.x-slim` (Playwright requires OS-level browser deps from MCR). Non-root user uses GID/UID 10001 (1001 is taken by the noble base image).
 - **GDPR**: Content is NEVER logged — only metadata (type, length, timing). This is a hard requirement.
 - **Atomic writes**: `tempfile` + `os.replace()` for `logs.json` and `dynamic_rules.json` to prevent corruption.
+- **Async logging**: `event_logger.append()` is dispatched via `background_tasks.add_task()` when `background_tasks is not None` (i.e., inside a FastAPI request handler). Falls back to synchronous call only when no BackgroundTasks scope exists. Keeps file I/O + threading lock off the hot response path.
+- **Redis socket timeouts**: `cache.py` uses `socket_connect_timeout=5, socket_timeout=3`. Do not tighten below these values — values below 2s/1s cause false cache-miss cascades under transient Redis load.
+- **Docker stop_grace_period: 30s**: warden service in `docker-compose.yml` is set to `stop_grace_period: 30s` so in-flight requests complete before the container exits on deploy or restart.
+- **No root package.json**: the repo root has no `package.json`. `portal/` and `dashboard/` are standalone npm projects with their own lock files. `packages/ui/` has its own `package.json` but is not a workspace member. Do not add a root `package.json` with `workspaces` — it breaks `npm ci` in subdirectories on Linux npm v10.
 - **Fail-closed auth (#11)**: startup raises `RuntimeError` if `WARDEN_API_KEY` and `WARDEN_API_KEYS_PATH` are both unset, unless `ALLOW_UNAUTHENTICATED=true`. Tests set `ALLOW_UNAUTHENTICATED=true` in `conftest.py`.
 - **VAULT_MASTER_KEY validation (#1)**: startup validates Fernet key format and halts with a clear error if invalid. Used by communities/sovereign/data_pod for at-rest encryption of private key material.
 - **Shadow ban randomness (#3)**: `_pick_response()` uses `secrets.choice()` — not deterministic hash — to prevent fingerprinting. `_GASLIGHT_POOL` has 30+ entries.
