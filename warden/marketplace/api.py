@@ -97,17 +97,22 @@ async def marketplace_agent_leaderboard(
 @router.get("/readiness/{community_id}")
 async def marketplace_readiness(community_id: str) -> dict:
     """Check whether a community is ready to participate in the marketplace."""
-    from warden.communities.community_factory import get_community
     from warden.marketplace.agent import list_agents as _list_agents
+    import contextlib
 
     community = None
-    import contextlib
     with contextlib.suppress(Exception):
-        community = get_community(community_id)
+        from warden.communities.registry import get_community as _get_community
+        community = _get_community(community_id)
+    if community is None:
+        with contextlib.suppress(Exception):
+            from warden.communities.community_factory import get_community as _get_community_f
+            community = _get_community_f(community_id)
 
     community_exists = community is not None
-    keypair_generated = bool(community.settings.get("keypair_generated")) if community else False
-    audit_enabled = bool(community.settings.get("audit_enabled")) if community else False
+    _settings = getattr(community, "settings", {}) or {}
+    keypair_generated = bool(_settings.get("keypair_generated")) if community else False
+    audit_enabled = bool(_settings.get("audit_enabled")) if community else False
 
     agents_registered = False
     try:

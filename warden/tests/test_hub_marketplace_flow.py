@@ -7,6 +7,7 @@ Integration tests for the end-to-end flow:
 """
 from __future__ import annotations
 
+import base64
 import os
 import uuid
 
@@ -32,8 +33,9 @@ os.environ.setdefault("REDIS_URL",              "memory://")
 os.environ.setdefault("WAT_SIMULATE",           "true")
 os.environ.setdefault("USDC_SIMULATE",          "true")
 
-TENANT_ID = f"hub-test-tenant-{_SUFFIX}"
-COMM_NAME = f"Hub Test Community {_SUFFIX}"
+TENANT_ID  = f"hub-test-tenant-{_SUFFIX}"
+COMM_NAME  = f"Hub Test Community {_SUFFIX}"
+FAKE_PUBKEY = base64.b64encode(b"fake-ed25519-pubkey-32bytes-paddd").decode()
 
 
 @pytest.fixture(scope="module")
@@ -49,12 +51,9 @@ def client():
 class TestCreateCommunity:
     def test_create_community_returns_id(self, client):
         resp = client.post("/communities", json={
-            "name":        COMM_NAME,
-            "description": "Integration test community",
-            "visibility":  "private",
-            "join_policy": "invite_only",
-            "tenant_id":   TENANT_ID,
-        })
+            "display_name": COMM_NAME,
+            "description":  "Integration test community",
+        }, headers={"X-Tenant-ID": TENANT_ID, "X-Tenant-Tier": "business"})
         assert resp.status_code in (200, 201), resp.text
         data = resp.json()
         assert "community_id" in data or "id" in data
@@ -65,7 +64,7 @@ class TestCreateCommunity:
 
     def test_get_created_community(self, client):
         cid = TestCreateCommunity.community_id
-        resp = client.get(f"/communities/{cid}")
+        resp = client.get(f"/communities/{cid}", headers={"X-Tenant-ID": TENANT_ID, "X-Tenant-Tier": "business"})
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("name") == COMM_NAME or data.get("community_id") == cid
@@ -94,17 +93,16 @@ class TestMarketplaceReadiness:
 class TestAgentRegistration:
     def test_register_agent(self, client):
         cid = TestCreateCommunity.community_id
-        resp = client.post("/marketplace/agents", json={
-            "community_id": cid,
-            "display_name": "TestAgent-01",
-            "capabilities": ["filter", "classify"],
+        resp = client.post("/marketplace/agents/register", json={
             "tenant_id":    TENANT_ID,
+            "community_id": cid,
+            "public_key":   FAKE_PUBKEY,
+            "capabilities": ["marketplace_sell", "marketplace_buy"],
         })
         assert resp.status_code in (200, 201), resp.text
         data = resp.json()
         assert "agent_id" in data
-        assert "did" in data
-        assert data["did"].startswith("did:shadow:")
+        assert data["agent_id"].startswith("did:shadow:")
         TestAgentRegistration.agent_id = data["agent_id"]
 
     def test_list_agents_contains_registered(self, client):
@@ -120,20 +118,21 @@ class TestAgentRegistration:
 
 class TestAssetTokenization:
     def test_tokenize_rule_asset(self, client):
-        cid = TestCreateCommunity.community_id
         resp = client.post("/marketplace/assets", json={
-            "community_id": cid,
-            "asset_type":   "rule",
-            "name":         "Jailbreak Filter v1",
-            "description":  "Pattern: ignore previous instructions",
-            "content":      "^ignore (all )?(previous|above) instructions",
-            "price_usd":    9.99,
-            "tenant_id":    TENANT_ID,
+            "tenant_id":       TENANT_ID,
+            "seller_agent_id": TestAgentRegistration.agent_id,
+            "asset_type":      "rule",
+            "raw_data":        {
+                "name":        "Jailbreak Filter v1",
+                "description": "Pattern: ignore previous instructions",
+                "content":     "^ignore (all )?(previous|above) instructions",
+                "price_usd":   9.99,
+            },
         })
         assert resp.status_code in (200, 201), resp.text
         data = resp.json()
         assert "asset_id" in data
-        assert "ueciid" in data
+        assert data["asset_id"].startswith("SEP-")
         TestAssetTokenization.asset_id = data["asset_id"]
 
     def test_asset_has_ueciid_prefix(self, client):
@@ -151,8 +150,9 @@ class TestListingFlow:
         resp = client.post("/marketplace/listings", json={
             "asset_id":        TestAssetTokenization.asset_id,
             "seller_agent_id": TestAgentRegistration.agent_id,
+            "community_id":    TestCreateCommunity.community_id,
+            "tenant_id":       TENANT_ID,
             "price_usd":       9.99,
-            "listing_type":    "fixed_price",
         })
         assert resp.status_code in (200, 201), resp.text
         data = resp.json()
@@ -166,7 +166,7 @@ class TestListingFlow:
         assert TestListingFlow.listing_id in ids
 
     def test_buy_listing_creates_escrow(self, client):
-        resp = client.post(f"/marketplace/listings/{TestListingFlow.listing_id}/buy", json={
+        resp = client.post(f"/marketplace/listings/{TestListingFlow.listing_id}/purchase", json={
             "buyer_agent_id": TestAgentRegistration.agent_id,
         })
         assert resp.status_code in (200, 201), resp.text
@@ -248,11 +248,13 @@ class TestVoiceSession:
 class TestDAOGovernance:
     def test_create_proposal(self, client):
         cid = TestCreateCommunity.community_id
-        resp = client.post("/marketplace/governance/proposals", json={
-            "community_id": cid,
-            "title":        "Add price floor rule",
-            "description":  "Minimum listing price $0.99 to reduce spam.",
-            "proposed_by":  TestAgentRegistration.agent_id,
+        resp = client.post("/marketplace/proposals", json={
+            "community_id":  cid,
+            "proposer_id":   TestAgentRegistration.agent_id,
+            "proposal_type": "parameter_change",
+            "target_id":     cid,
+            "title":         "Add price floor rule",
+            "description":   "Minimum listing price $0.99 to reduce spam.",
         })
         if resp.status_code in (404, 503):
             pytest.skip("Governance not available")
@@ -265,8 +267,8 @@ class TestDAOGovernance:
         if not hasattr(TestDAOGovernance, "proposal_id"):
             pytest.skip("No proposal created")
         resp = client.post(
-            f"/marketplace/governance/proposals/{TestDAOGovernance.proposal_id}/vote",
-            json={"agent_id": TestAgentRegistration.agent_id, "vote": "for"},
+            f"/marketplace/proposals/{TestDAOGovernance.proposal_id}/vote",
+            json={"voter_id": TestAgentRegistration.agent_id, "choice": 0},
         )
         if resp.status_code in (404, 503):
             pytest.skip("Governance voting not available")
@@ -274,7 +276,7 @@ class TestDAOGovernance:
 
     def test_list_proposals(self, client):
         cid = TestCreateCommunity.community_id
-        resp = client.get(f"/marketplace/governance/proposals?community_id={cid}")
+        resp = client.get(f"/marketplace/proposals?community_id={cid}")
         if resp.status_code in (404, 503):
             pytest.skip("Governance not available")
         assert resp.status_code == 200
