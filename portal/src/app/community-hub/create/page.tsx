@@ -893,7 +893,7 @@ function CreateCommunityWizard() {
         }
 
         toast.success('Settings saved.')
-        router.push(`/community-hub/${editId}`)
+        router.push(`/community-hub/hub/${editId}`)
         return
       }
 
@@ -992,7 +992,7 @@ function CreateCommunityWizard() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Back link */}
         <Link
-          href={isEdit ? `/community-hub/${editId}` : '/community-hub'}
+          href={isEdit ? `/community-hub/hub/${editId}` : '/community-hub'}
           className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-white transition mb-6"
         >
           <ArrowLeft size={15} /> {isEdit ? 'Back to Community' : 'Community Hub'}

@@ -110,7 +110,7 @@ export default function CommunityHubPage() {
               .map((c: HubCommunity) => (
               <div key={c.community_id}
                 className="card group relative flex flex-col gap-3 cursor-pointer hover:border-brand-400/40 transition-colors"
-                onClick={() => router.push(`/community-hub/${c.community_id}/`)}>
+                onClick={() => router.push(`/community-hub/hub/${c.community_id}`)}>
 
                 {/* Top row */}
                 <div className="flex items-start justify-between">

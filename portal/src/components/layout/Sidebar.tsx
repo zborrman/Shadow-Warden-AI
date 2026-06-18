@@ -34,7 +34,7 @@ const groups: NavGroup[] = [
     icon: '◈',
     items: [
       { href: '/community-hub/',                       label: 'Community Hub',      icon: Users          },
-      { href: '/community-hub/hub',                    label: 'My Hub',              icon: LayoutDashboard},
+      { href: '/community-hub/',                        label: 'My Hub',              icon: LayoutDashboard},
       { href: '/community-hub/agentic-commerce',       label: 'Agentic Commerce',    icon: ArrowLeftRight },
       { href: '/communities/',                         label: 'Secure Vault',        icon: Database       },
       { href: '/hub/',                                 label: 'SEP Hub',             icon: Network        },
