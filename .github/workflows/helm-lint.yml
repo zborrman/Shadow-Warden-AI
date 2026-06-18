@@ -1,0 +1,35 @@
+name: Helm Lint & Validate (SC-01)
+
+on:
+  push:
+    paths: ["charts/**"]
+  pull_request:
+    paths: ["charts/**"]
+
+jobs:
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: "3.15.0"
+
+      - name: Helm lint (default values)
+        run: helm lint charts/shadow-warden --strict
+
+      - name: Helm template (dry-run)
+        run: |
+          helm template shadow-warden charts/shadow-warden \
+            --set secrets.wardenApiKey=test \
+            --set secrets.vaultMasterKey=test \
+            > /dev/null
+
+      - name: Helm lint (prod values)
+        run: |
+          helm lint charts/shadow-warden \
+            --set warden.replicas=3 \
+            --set warden.autoscaling.enabled=true \
+            --strict

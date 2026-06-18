@@ -1,0 +1,50 @@
+{{- if .Values.arqWorker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-arq-worker
+  labels: {{- include "shadow-warden.labels" . | nindent 4 }}
+    app.kubernetes.io/component: arq-worker
+spec:
+  replicas: {{ .Values.arqWorker.replicas }}
+  selector:
+    matchLabels: {{- include "shadow-warden.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: arq-worker
+  template:
+    metadata:
+      labels: {{- include "shadow-warden.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: arq-worker
+    spec:
+      containers:
+        - name: arq-worker
+          image: "{{ .Values.global.image.registry }}/{{ .Values.arqWorker.image.repository }}:{{ .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          command: ["arq", "warden.workers.settings.WorkerSettings"]
+          envFrom:
+            - secretRef:
+                name: {{ include "shadow-warden.fullname" . }}-secrets
+          env:
+            {{- range $k, $v := .Values.warden.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          resources: {{- toYaml .Values.arqWorker.resources | nindent 12 }}
+{{- if .Values.arqWorker.keda.enabled }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "shadow-warden.fullname" . }}-arq-worker-keda
+spec:
+  scaleTargetRef:
+    name: {{ include "shadow-warden.fullname" . }}-arq-worker
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: redis
+      metadata:
+        address: "{{ include "shadow-warden.fullname" . }}-redis:6379"
+        listName: arq:queue:default
+        listLength: "{{ .Values.arqWorker.keda.redisQueueLength }}"
+{{- end }}
+{{- end }}

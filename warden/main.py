@@ -1029,6 +1029,14 @@ class _ExtensionCORSMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(_ExtensionCORSMiddleware)
 
+# ── Multi-region X-Region header (SC-03) ─────────────────────────────────────
+try:
+    from warden.middleware.region import RegionMiddleware
+    app.add_middleware(RegionMiddleware)
+    log.info("RegionMiddleware registered — X-Region headers active.")
+except ImportError:
+    pass
+
 # ── Per-request quota enforcement (counts POST /filter requests per tenant) ───
 try:
     from warden.billing.quota_middleware import QuotaMiddleware

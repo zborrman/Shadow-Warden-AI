@@ -1,0 +1,189 @@
+# Shadow Warden AI — Helm values
+# Override per environment: helm upgrade -f values.prod.yaml
+
+global:
+  image:
+    registry: ghcr.io/zborrman
+    tag: "6.3"
+    pullPolicy: IfNotPresent
+  storageClass: ""
+
+# ── Warden (core API, port 8001) ───────────────────────────────────────────────
+warden:
+  enabled: true
+  replicas: 2
+  image:
+    repository: shadow-warden-ai/warden
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "1",    memory: "1Gi"   }
+  env:
+    ALLOW_UNAUTHENTICATED: "false"
+    STRICT_MODE: "true"
+    REDIS_URL: "redis://redis:6379"
+    OTEL_ENABLED: "false"
+  service:
+    port: 8001
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# ── App (FastAPI public API, port 8000) ────────────────────────────────────────
+app:
+  enabled: true
+  replicas: 2
+  image:
+    repository: shadow-warden-ai/app
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  service:
+    port: 8000
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+# ── Analytics (Streamlit, port 8501) ───────────────────────────────────────────
+analytics:
+  enabled: true
+  replicas: 1
+  image:
+    repository: shadow-warden-ai/analytics
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  service:
+    port: 8501
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+
+# ── Dashboard (Next.js SOC, port 3002) ─────────────────────────────────────────
+dashboard:
+  enabled: true
+  replicas: 2
+  image:
+    repository: shadow-warden-ai/dashboard
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  service:
+    port: 3002
+
+# ── Caddy (reverse proxy, 80/443) ──────────────────────────────────────────────
+caddy:
+  enabled: true
+  replicas: 1
+  image:
+    repository: caddy
+    tag: "2.8-alpine"
+  resources:
+    requests: { cpu: "50m",  memory: "64Mi"  }
+    limits:   { cpu: "200m", memory: "128Mi" }
+  service:
+    httpPort: 80
+    httpsPort: 443
+
+# ── Redis ──────────────────────────────────────────────────────────────────────
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  resources:
+    requests: { cpu: "100m", memory: "128Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  persistence:
+    enabled: true
+    size: 4Gi
+  service:
+    port: 6379
+
+# ── PostgreSQL ─────────────────────────────────────────────────────────────────
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "1",    memory: "2Gi"   }
+  persistence:
+    enabled: true
+    size: 20Gi
+  env:
+    POSTGRES_DB: warden
+    POSTGRES_USER: warden
+
+# ── MinIO ──────────────────────────────────────────────────────────────────────
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: "latest"
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "1",    memory: "2Gi"   }
+  persistence:
+    enabled: true
+    size: 50Gi
+  service:
+    apiPort: 9000
+    consolePort: 9001
+
+# ── Prometheus ─────────────────────────────────────────────────────────────────
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: "v2.53.0"
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "1Gi"   }
+  persistence:
+    enabled: true
+    size: 10Gi
+  retention: "30d"
+
+# ── Grafana ────────────────────────────────────────────────────────────────────
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: "11.0.0"
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "512Mi" }
+  service:
+    port: 3000
+
+# ── ARQ Worker ─────────────────────────────────────────────────────────────────
+arqWorker:
+  enabled: true
+  replicas: 1
+  image:
+    repository: shadow-warden-ai/warden
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "500m", memory: "1Gi"   }
+  keda:
+    enabled: false
+    redisQueueLength: 10
+
+# ── Ingress ────────────────────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: api.shadow-warden-ai.com
+      paths: [{ path: /, pathType: Prefix, service: warden }]
+    - host: dash.shadow-warden-ai.com
+      paths: [{ path: /, pathType: Prefix, service: dashboard }]
+  tls: []
