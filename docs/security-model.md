@@ -288,4 +288,22 @@ Shadow Warden AI follows responsible disclosure. Security researchers can report
 
 ---
 
-*Shadow Warden AI · security-model.md · Updated v4.8 · 2026-04-25*
+---
+
+## 7. Cybersecurity Gap Analysis — Completed Requirements (SEC-02–SEC-10)
+
+| Req | Feature | Module | Gate |
+|-----|---------|--------|------|
+| SEC-02 | HSM Key Rotation + Audit + Lock/Unlock | `warden/crypto/hsm.py` | Pro+ |
+| SEC-03 | Autonomous Threat Response (AutoResponder) | `warden/marketplace/auto_responder.py` | Pro+ (`auto_isolation_enabled`) |
+| SEC-04 | Prompt Injection Defense (10 patterns + delimiter) | `warden/marketplace/injection_guard.py` | All tiers |
+| SEC-05 | Decentralized Key Rotation lifecycle | `warden/web3/key_rotation.py` | Pro+ |
+| SEC-06 | Federated Trust Registry (cross-community deny list) | `warden/communities/peering.py` | Community Business+ (`federated_trust_enabled`) |
+| SEC-07 | Runtime Memory Protection (secure_wipe, mlock) | `warden/crypto/memory_protection.py` | All tiers |
+| SEC-08 | Quantum-Safe Asset Signatures (Ed25519 + ML-DSA-65) | `warden/marketplace/tokenizer.py` | Enterprise (`pqc_enabled`) |
+| SEC-09 | Behavioral Anomaly Detector (Z-score, maestro) | `warden/marketplace/maestro.py` | Pro+ |
+| SEC-10 | Data Lifecycle Manager (TTL, purge, ARQ cron) | `warden/marketplace/data_lifecycle.py` | Pro+ |
+
+All 9 requirements shipped in v6.1 (2026-06-17). Test coverage: 62 dedicated tests, all passing.
+
+*Shadow Warden AI · security-model.md · Updated v6.1 · 2026-06-19*

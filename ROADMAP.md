@@ -53,6 +53,15 @@ The 9-layer filter that processes every AI request in < 2ms.
 | SP-23 | Audio/video transcription guard — Whisper pre-scan before LLM | v5.0 | Enterprise | 📋 |
 | SP-24 | Fine-tuned ONNX model export — <1ms inference, eliminates MiniLM cold start | v4.21 | All | ✅ |
 | SP-25 | Document Intelligence filter hook — `file_base64` + `file_filename` on `FilterRequest`; MarkItDown converts file to Markdown before 9-layer pipeline (fail-open) | v5.4 | All | ✅ |
+| SEC-02 | HSM Key Storage Hardening — `rotate_master_key()`, `audit_access()` STIX log, `lock_key()` / `unlock_key()` per-agent (PKCS#11 + SW fallback) | v6.1 | Pro+ | ✅ |
+| SEC-03 | Autonomous Threat Response — `AutoResponder.isolate_agent()` + `restore_agent()`, STIX audit, Kafka event, Slack notify; wired into Maestro high-threat path | v6.1 | Pro+ | ✅ |
+| SEC-04 | Prompt Injection Defense — 10-regex + delimiter-attack scanner; integrated into `negotiation.py` (`send_offer()`) and `voice/guardian.py` | v6.1 | All | ✅ |
+| SEC-05 | Decentralized Key Rotation — `KeyRotationManager.schedule_rotation()` / `complete_rotation()` / `check_overdue()`; `POST /marketplace/agents/{id}/rotate-key` | v6.1 | Pro+ | ✅ |
+| SEC-06 | Federated Trust Registry — `FederatedTrustRegistry.share_flag()` / `check_global_deny()` / `expire_flags()`; cross-community deny list; `federated_trust_enabled` gate | v6.1 | Comm.Biz+ | ✅ |
+| SEC-07 | Runtime Memory Protection — `secure_wipe()` (ctypes zeroing), `@secure_memory` decorator, `mlock_current()`, `disable_core_dumps()` | v6.1 | All | ✅ |
+| SEC-08 | Quantum-Safe Asset Signatures — `sign_asset_hybrid()` / `verify_asset_hybrid()` Ed25519 + ML-DSA-65; `POST /marketplace/assets/{ueciid}/upgrade-signature` | v6.1 | Enterprise | ✅ |
+| SEC-09 | Behavioral Anomaly Detector — Z-score per dimension over 30-day baseline; integrated into `MaestroService.run_full_audit()` MaestroReport | v6.1 | Pro+ | ✅ |
+| SEC-10 | Data Lifecycle Manager — per-entity TTL registry, ARQ cron `check_expired` daily / `purge_expired` weekly, `POST /admin/data-lifecycle/purge` | v6.1 | Pro+ | ✅ |
 
 ---
 

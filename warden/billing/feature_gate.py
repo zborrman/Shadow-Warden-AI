@@ -212,6 +212,9 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "usdc_payments_enabled":       False,
         "ans_certificates_enabled":    False,
         "edge_packs_enabled":          False,
+        # ── Security Hardening (SEC-02–SEC-10) ───────────────────────────────
+        "federated_trust_enabled":     False,
+        "auto_isolation_enabled":      False,
     },
 
     "individual": {
@@ -279,6 +282,9 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "usdc_payments_enabled":       False,
         "ans_certificates_enabled":    False,
         "edge_packs_enabled":          False,
+        # ── Security Hardening (SEC-06 Federated Trust) ───────────────────────
+        "federated_trust_enabled":     True,
+        "auto_isolation_enabled":      False,
     },
 
     "pro": {
@@ -346,6 +352,9 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "usdc_payments_enabled":       False,  # USDC multi-rail (Enterprise)
         "ans_certificates_enabled":    False,  # ANS X.509 CA (Enterprise)
         "edge_packs_enabled":          True,   # ARC edge agent packs (Pro+)
+        # ── Security Hardening (SEC-03 Auto-Isolation, SEC-06 Federated Trust) ─
+        "federated_trust_enabled":     True,
+        "auto_isolation_enabled":      True,
     },
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
@@ -424,6 +433,9 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "usdc_payments_enabled":       False,
         "ans_certificates_enabled":    False,
         "edge_packs_enabled":          False,
+        # ── Security Hardening ────────────────────────────────────────────────
+        "federated_trust_enabled":     False,
+        "auto_isolation_enabled":      False,
     },
 
     "enterprise": {
@@ -491,6 +503,9 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "usdc_payments_enabled":       True,   # USDC Multi-Rail Payments (Enterprise)
         "ans_certificates_enabled":    True,   # ANS X.509 Certificate Authority (Enterprise)
         "edge_packs_enabled":          True,   # ARC Edge Agent Packs (Enterprise)
+        # ── Security Hardening (SEC-03 + SEC-06) ─────────────────────────────
+        "federated_trust_enabled":     True,
+        "auto_isolation_enabled":      True,
     },
 }
 
@@ -521,6 +536,9 @@ FEATURE_TOKENOMICS         = "tokenomics_enabled"
 FEATURE_USDC_PAYMENTS      = "usdc_payments_enabled"
 FEATURE_ANS_CERTS          = "ans_certificates_enabled"
 FEATURE_EDGE_PACKS         = "edge_packs_enabled"
+# Security Hardening (SEC-02–SEC-10)
+FEATURE_FEDERATED_TRUST    = "federated_trust_enabled"
+FEATURE_AUTO_ISOLATION     = "auto_isolation_enabled"
 
 # ── Legacy aliases ─────────────────────────────────────────────────────────────
 TIER_LIMITS["free"]     = TIER_LIMITS["starter"]
