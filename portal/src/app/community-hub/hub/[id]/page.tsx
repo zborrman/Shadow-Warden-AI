@@ -591,6 +591,18 @@ function OverviewSection({ communityId, onNavigate }: {
             </button>
           )
         })}
+        <Link
+          href={`/community-hub/hub/${communityId}/data`}
+          className="flex items-center gap-3 p-4 rounded-xl border text-left group transition-all hover:bg-blue-500/8"
+          style={{ borderColor: 'rgba(10,132,255,0.15)', background: 'rgba(10,132,255,0.05)' }}
+        >
+          <Download className="w-5 h-5 shrink-0 text-blue-400" />
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-white">Data Upload</div>
+            <div className="text-xs text-slate-400 mt-0.5">CSV · JSON · SQLite datasets</div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+        </Link>
       </div>
     </div>
   )

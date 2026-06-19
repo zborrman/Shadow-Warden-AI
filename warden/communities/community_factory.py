@@ -121,7 +121,30 @@ def create_community(
              "active", visibility, join_policy, json.dumps(final_settings)),
         )
         db.commit()
+
+    # Auto-provision a default marketplace agent for the community (fail-open)
+    import contextlib
+    with contextlib.suppress(Exception):
+        _setup_marketplace_defaults(cid, creator_tenant_id)
+
     return c
+
+
+def _setup_marketplace_defaults(community_id: str, tenant_id: str) -> None:
+    """Register a default marketplace agent with buy+sell capabilities and a $1000 budget."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    priv = Ed25519PrivateKey.generate()
+    pub_bytes = priv.public_key().public_bytes_raw()
+    pub_b64 = __import__("base64").b64encode(pub_bytes).decode()
+
+    from warden.marketplace.agent import register_agent
+    register_agent(
+        tenant_id=tenant_id,
+        community_id=community_id,
+        public_key_b64=pub_b64,
+        capabilities=["marketplace_sell", "marketplace_buy"],
+    )
 
 
 def get_community(community_id: str) -> Community | None:
