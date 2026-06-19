@@ -163,7 +163,7 @@ export async function createCommunity(
 ): Promise<HubCommunity> {
   const tid = getMyTenantId()
   const r = await api.post<HubCommunity>('/api/communities', {
-    name,
+    display_name: name,
     description,
     creator_tenant_id: tid,
     visibility,
