@@ -202,6 +202,12 @@ try {
   }
 </style>
 
+<div id="comm-toast" style="display:none;position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:200;background:#0c1020;border:1px solid rgba(52,211,153,.35);border-radius:10px;padding:13px 20px;display:flex;align-items:center;gap:12px;font-size:13px;color:#34d399;box-shadow:0 4px 24px rgba(0,0,0,.5);white-space:nowrap">
+  <span style="font-size:16px">✓</span>
+  <span id="comm-toast-msg">Community created — ready to list assets.</span>
+  <button onclick="this.parentElement.style.display='none'" style="background:none;border:none;color:#34d399;cursor:pointer;font-size:16px;line-height:1;margin-left:8px;opacity:.7">✕</button>
+</div>
+
 <div class="mkt-page">
 
   <!-- HERO -->
@@ -409,6 +415,15 @@ try {
 </div>
 
 <script>
+  // ── Community created success toast ─────────────────────
+  const _params = new URLSearchParams(location.search);
+  if (_params.has('created')) {
+    const _toast = document.getElementById('comm-toast')!;
+    _toast.style.display = 'flex';
+    setTimeout(() => { _toast.style.opacity = '0'; _toast.style.transition = 'opacity .4s'; setTimeout(() => _toast.style.display = 'none', 400); }, 5000);
+    history.replaceState({}, '', location.pathname);
+  }
+
   // ── Canvas particle network ──────────────────────────────
   const cv  = document.getElementById('mkt-canvas');
   const ctx = cv.getContext('2d');

@@ -7,8 +7,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   description="Create a new secure collaboration community."
 >
   <style>
-    .wizard-wrap { background:#0a0a0f; min-height:100vh; padding:112px 0 80px; }
-    .wizard-inner { max-width:640px; margin:0 auto; padding:0 20px; }
+    .wizard-wrap { background:#070910; min-height:100vh; padding:112px 0 80px; position:relative; overflow:hidden; }
+    #nw-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+    .wizard-inner { max-width:640px; margin:0 auto; padding:0 20px; position:relative; z-index:1; }
 
     /* breadcrumb */
     .breadcrumb { display:flex; align-items:center; gap:6px; font-size:13px; color:#475569; margin-bottom:32px; }
@@ -149,6 +150,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   </style>
 
   <div class="wizard-wrap">
+    <canvas id="nw-canvas"></canvas>
     <div class="wizard-inner">
 
       <div class="breadcrumb">
@@ -661,7 +663,47 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const all = getComms();
       all.push(newComm);
       localStorage.setItem(COMM_KEY, JSON.stringify(all));
-      window.location.href = `/community/view?id=${encodeURIComponent(id)}`;
+      window.location.href = `/marketplace?created=${encodeURIComponent(id)}`;
     });
+  </script>
+  <script>
+    // ── Background particle canvas ───────────────────────────
+    const _cv = document.getElementById('nw-canvas') as HTMLCanvasElement;
+    const _cx = _cv.getContext('2d')!;
+    const _pRM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+    function _rsz() { _cv.width = _cv.offsetWidth || window.innerWidth; _cv.height = _cv.offsetHeight || window.innerHeight; }
+    _rsz(); window.addEventListener('resize', _rsz);
+    const _COLS = ['#80b4fd','#fbbf24','#34d399','#22d3ee','#c084fc'];
+    const _pts = Array.from({length:45}, () => ({
+      x: Math.random()*_cv.width, y: Math.random()*_cv.height,
+      vx: (Math.random()-.5)*.18, vy: (Math.random()-.5)*.18,
+      r: Math.random()*1.2+.4,
+      c: _COLS[Math.floor(Math.random()*_COLS.length)],
+      ph: Math.random()*Math.PI*2,
+    }));
+    let _lt = 0;
+    (function _draw(ts: number) {
+      const dt = Math.min((ts-_lt)/16.67, 3); _lt = ts;
+      _cx.clearRect(0, 0, _cv.width, _cv.height);
+      if (!_pRM) for (const p of _pts) {
+        p.x += p.vx*dt; p.y += p.vy*dt; p.ph += .01*dt;
+        if (p.x < -8) p.x = _cv.width+8; else if (p.x > _cv.width+8) p.x = -8;
+        if (p.y < -8) p.y = _cv.height+8; else if (p.y > _cv.height+8) p.y = -8;
+      }
+      for (let i = 0; i < _pts.length; i++) for (let j = i+1; j < _pts.length; j++) {
+        const dx = _pts[i].x-_pts[j].x, dy = _pts[i].y-_pts[j].y, d2 = dx*dx+dy*dy;
+        if (d2 < 110*110) { _cx.beginPath(); _cx.strokeStyle = `rgba(128,180,253,${(1-Math.sqrt(d2)/110)*.04})`; _cx.lineWidth=.4; _cx.moveTo(_pts[i].x,_pts[i].y); _cx.lineTo(_pts[j].x,_pts[j].y); _cx.stroke(); }
+      }
+      for (const p of _pts) {
+        const pulse = _pRM ? 1 : (Math.sin(p.ph)+1)/2;
+        const rr = p.r + pulse*1.2;
+        const g = _cx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr*4);
+        g.addColorStop(0,p.c+'1a'); g.addColorStop(1,p.c+'00');
+        _cx.beginPath(); _cx.arc(p.x,p.y,rr*4,0,Math.PI*2); _cx.fillStyle=g; _cx.fill();
+        _cx.beginPath(); _cx.arc(p.x,p.y,rr,0,Math.PI*2);
+        _cx.fillStyle=p.c; _cx.globalAlpha=.45+pulse*.3; _cx.fill(); _cx.globalAlpha=1;
+      }
+      requestAnimationFrame(_draw);
+    })(0);
   </script>
 </BaseLayout>
