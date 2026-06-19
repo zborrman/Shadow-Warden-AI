@@ -18,6 +18,8 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.db.sqlite_pragmas import init_pragmas
+
 log = logging.getLogger("warden.billing")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -71,8 +73,7 @@ class BillingStore:
 
     def _open(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
+        init_pragmas(conn)
         return conn
 
     def _init_schema(self) -> None:
@@ -89,6 +90,8 @@ class BillingStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_bd_tenant
                     ON billing_daily(tenant_id);
+                CREATE INDEX IF NOT EXISTS idx_bd_tenant_date
+                    ON billing_daily(tenant_id, date);
 
                 CREATE TABLE IF NOT EXISTS tenant_quotas (
                     tenant_id  TEXT PRIMARY KEY,

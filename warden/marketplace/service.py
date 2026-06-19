@@ -23,6 +23,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from warden.db.sqlite_pragmas import init_pragmas
 from warden.marketplace.agent import get_agent
 from warden.marketplace.tokenizer import AssetTokenizer
 
@@ -64,7 +65,7 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     con = sqlite3.connect(db_path, check_same_thread=False)
     con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
+    init_pragmas(con)
     _ensure_schema(con)
     try:
         yield con

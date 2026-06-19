@@ -53,6 +53,10 @@ def _ensure_schema() -> None:
         con.execute(
             "CREATE INDEX IF NOT EXISTS idx_ic_expires ON intelligence_cache(expires_at)"
         )
+        con.execute(
+            "CREATE INDEX IF NOT EXISTS idx_ic_tenant_exp"
+            " ON intelligence_cache(tenant_id, expires_at)"
+        )
 
 
 _ensure_schema()

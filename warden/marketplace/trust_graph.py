@@ -20,6 +20,8 @@ import threading
 from collections import defaultdict, deque
 from typing import Any
 
+from warden.db.sqlite_pragmas import init_pragmas
+
 log = logging.getLogger("warden.marketplace.trust_graph")
 
 _DB_PATH          = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
@@ -70,7 +72,8 @@ class TrustGraph:
     def _load_trades(self, db_path: str) -> dict:
         agg: dict[tuple, list] = defaultdict(lambda: [0.0, 0])
         try:
-            con = sqlite3.connect(db_path)
+            con = sqlite3.connect(db_path, check_same_thread=False)
+            init_pragmas(con)
             rows = con.execute(
                 "SELECT buyer_agent, seller_agent, status FROM marketplace_purchases"
             ).fetchall()

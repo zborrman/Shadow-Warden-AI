@@ -37,6 +37,8 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
+from warden.db.sqlite_pragmas import init_pragmas
+
 log = logging.getLogger("warden.marketplace.escrow")
 
 _DB_PATH   = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
@@ -90,7 +92,7 @@ def _migrate_chain_column(con: sqlite3.Connection) -> None:
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     con = sqlite3.connect(db_path, check_same_thread=False)
     con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
+    init_pragmas(con)
     _ensure_schema(con)
     _migrate_chain_column(con)
     try:

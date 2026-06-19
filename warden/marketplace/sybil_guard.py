@@ -22,6 +22,8 @@ import sqlite3
 import threading
 from datetime import UTC, datetime, timedelta
 
+from warden.db.sqlite_pragmas import init_pragmas
+
 log = logging.getLogger("warden.marketplace.sybil_guard")
 
 _DB_PATH        = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
@@ -55,7 +57,8 @@ class SybilGuard:
         """Return (agent_A, agent_B) pairs that traded both directions in WINDOW_HOURS."""
         cutoff = (datetime.now(UTC) - timedelta(hours=_WINDOW_HOURS)).isoformat()
         try:
-            con = sqlite3.connect(db_path)
+            con = sqlite3.connect(db_path, check_same_thread=False)
+            init_pragmas(con)
             rows = con.execute(
                 "SELECT DISTINCT buyer_agent, seller_agent FROM marketplace_purchases"
                 " WHERE purchased_at >= ? AND status != 'cancelled'",
@@ -86,7 +89,8 @@ class SybilGuard:
             day_ago   = (now - timedelta(days=1)).isoformat()
             month_ago = (now - timedelta(days=30)).isoformat()
 
-            con = sqlite3.connect(db_path)
+            con = sqlite3.connect(db_path, check_same_thread=False)
+            init_pragmas(con)
             count_24h = int(
                 con.execute(
                     "SELECT COUNT(*) FROM marketplace_purchases"

@@ -149,6 +149,10 @@ def _get_conn() -> sqlite3.Connection:
             ON sep_ueciid_index(snowflake_id)
     """)
     conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_sep_ueciid
+            ON sep_ueciid_index(ueciid, community_id)
+    """)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS sep_pod_tags (
             entity_id     TEXT NOT NULL,
             community_id  TEXT NOT NULL,
