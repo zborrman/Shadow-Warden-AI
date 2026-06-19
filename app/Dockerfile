@@ -21,7 +21,7 @@
 #            raise ValueError(f"Blocked: {data['reason']}")
 #        return data["filtered_content"]
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
