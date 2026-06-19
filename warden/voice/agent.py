@@ -197,6 +197,30 @@ async def voice_trust_query(
         return f"Trust query failed for {agent_id}: {exc}"
 
 
+# ── Tool #68: voice_portfolio ──────────────────────────────────────────────────
+
+async def voice_portfolio(
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """Tool #68 — Voice portfolio: return spoken summary of active escrows for the caller."""
+    try:
+        result = await _get("/marketplace/escrow", tenant=tenant_id, params={"status": "active"})
+        escrows = result.get("escrows", result.get("results", []))
+        if not escrows:
+            return {"escrows": [], "speech": "You have no active escrows right now."}
+        lines = []
+        for i, e in enumerate(escrows[:5], 1):
+            eid    = e.get("escrow_id", e.get("id", ""))[:8]
+            amount = e.get("amount_usd", e.get("amount", 0))
+            status = e.get("status", "active")
+            lines.append(f"{i}. Escrow {eid}: ${amount:.2f} — {status}")
+        speech = f"You have {len(escrows)} active escrow(s). " + "; ".join(lines[:3]) + "."
+        return {"escrows": escrows[:5], "speech": speech}
+    except Exception as exc:
+        return {"error": str(exc), "speech": "Sorry, I could not retrieve your portfolio right now."}
+
+
 # ── Anthropic tool schemas ─────────────────────────────────────────────────────
 
 VOICE_TOOLS = [
@@ -271,6 +295,16 @@ VOICE_TOOLS = [
             "required": ["agent_id"],
         },
     },
+    {
+        "name":        "voice_portfolio",
+        "description": "Speak a summary of the caller's active escrows and open orders.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tenant_id": {"type": "string", "description": "Caller tenant ID."},
+            },
+        },
+    },
 ]
 
 VOICE_TOOL_HANDLERS: dict = {
@@ -280,4 +314,5 @@ VOICE_TOOL_HANDLERS: dict = {
     "voice_auction":          voice_auction,
     "voice_compliance_check": voice_compliance_check,
     "voice_trust_query":      voice_trust_query,
+    "voice_portfolio":        voice_portfolio,
 }
