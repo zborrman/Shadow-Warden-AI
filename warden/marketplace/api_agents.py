@@ -29,6 +29,11 @@ class CapabilitiesUpdateRequest(BaseModel):
     capabilities: list[str]
 
 
+class AgentPatchRequest(BaseModel):
+    name:         str | None = None
+    budget_limit: float | None = None
+
+
 @router.get("/agents")
 async def list_agents(
     tenant_id:    str | None = Query(default=None),
@@ -134,3 +139,23 @@ async def get_agent_trust(agent_id: str) -> dict:
         "sybil_reason":   sybil_reason,
         "transitive_peers": peers,
     }
+
+
+@router.patch("/agents/{agent_id}", status_code=200)
+async def patch_agent(agent_id: str, body: AgentPatchRequest) -> dict:
+    """Update agent name and/or monthly budget limit."""
+    from warden.marketplace.agent import update_agent as _update
+    updated = _update(agent_id, name=body.name, budget_limit=body.budget_limit)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found.")
+    return {"updated": True, "agent_id": agent_id}
+
+
+@router.delete("/agents/{agent_id}", status_code=200)
+async def deactivate_agent_endpoint(agent_id: str) -> dict:
+    """Soft-delete an agent (status → inactive). Preserves audit trail."""
+    from warden.marketplace.agent import deactivate_agent as _deactivate
+    deactivated = _deactivate(agent_id)
+    if not deactivated:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found.")
+    return {"deactivated": True, "agent_id": agent_id}

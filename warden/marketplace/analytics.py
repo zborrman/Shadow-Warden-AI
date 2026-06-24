@@ -227,3 +227,56 @@ def get_agent_leaderboard(
     except Exception as exc:
         log.warning("get_agent_leaderboard failed: %s", exc)
         return {"top_sellers": [], "top_buyers": []}
+
+
+def fairness_stats(period_days: int = 7, db_path: str = _DB_PATH) -> dict:
+    """Return First-Proposal Bias metrics for the marketplace.
+
+    - avg_candidates_evaluated: mean alternatives compared per search_and_buy call
+      (sourced from candidates_evaluated stored in purchase records when available).
+    - first_offer_acceptance_rate: fraction of purchases where the bought listing
+      was the only candidate seen (candidates_evaluated == 1).
+    - min_offers_policy: current MARKETPLACE_MIN_OFFERS_BEFORE_BUY setting.
+    - period_days: window covered.
+    """
+    import os as _os
+    since = _since(period_days)
+    try:
+        with _conn(db_path) as con:
+            rows = con.execute(
+                "SELECT COUNT(*) as total FROM marketplace_purchases WHERE purchased_at >= ?",
+                (since,),
+            ).fetchone()
+            total = int(rows["total"]) if rows else 0
+
+            # candidates_evaluated column may not exist in older DBs — fail gracefully
+            try:
+                agg = con.execute(
+                    "SELECT AVG(CAST(candidates_evaluated AS REAL)) as avg_c, "
+                    "SUM(CASE WHEN candidates_evaluated = 1 THEN 1 ELSE 0 END) as single_c "
+                    "FROM marketplace_purchases WHERE purchased_at >= ?",
+                    (since,),
+                ).fetchone()
+                avg_candidates = round(float(agg["avg_c"] or 0), 2)
+                single_candidate = int(agg["single_c"] or 0)
+            except Exception:
+                avg_candidates = 0.0
+                single_candidate = 0
+
+        first_offer_rate = round(single_candidate / total, 4) if total > 0 else 0.0
+        return {
+            "period_days":                period_days,
+            "total_purchases":            total,
+            "avg_candidates_evaluated":   avg_candidates,
+            "first_offer_acceptance_rate": first_offer_rate,
+            "min_offers_policy":          int(_os.getenv("MARKETPLACE_MIN_OFFERS_BEFORE_BUY", "3")),
+        }
+    except Exception as exc:
+        log.warning("fairness_stats failed: %s", exc)
+        return {
+            "period_days":                period_days,
+            "total_purchases":            0,
+            "avg_candidates_evaluated":   0.0,
+            "first_offer_acceptance_rate": 0.0,
+            "min_offers_policy":          int(_os.getenv("MARKETPLACE_MIN_OFFERS_BEFORE_BUY", "3")),
+        }

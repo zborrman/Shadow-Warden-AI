@@ -19,6 +19,7 @@ import {
   DollarSign, ChevronRight, Tag, Signal, Loader2,
   Copy, BadgeCheck, Zap, Layers,
   Mic, MicOff, PhoneOff,
+  Pencil, Trash2, Bell, Check,
 } from 'lucide-react'
 import clsx from 'clsx'
 import {
@@ -849,7 +850,17 @@ function MarketplaceSection({ communityId }: { communityId: string }) {
   // Agent reg form
   const [showRegAgent, setShowRegAgent] = useState(false)
   const [agentKey, setAgentKey]         = useState('')
+  const [agentName, setAgentName]       = useState('')
+  const [agentBudget, setAgentBudget]   = useState(1000)
+  const [agentCaps, setAgentCaps]       = useState<string[]>(['marketplace_sell', 'marketplace_buy'])
   const [registering, setRegistering]   = useState(false)
+
+  // Agent table inline state
+  const [editNameId, setEditNameId]   = useState<string | null>(null)
+  const [editNameVal, setEditNameVal] = useState('')
+  const [revokeId, setRevokeId]       = useState<string | null>(null)
+  const [budgetEdits, setBudgetEdits] = useState<Record<string, number>>({})
+  const [savingBudget, setSavingBudget] = useState<string | null>(null)
 
   // Listing form
   const [showListing, setShowListing]   = useState(false)
@@ -870,6 +881,45 @@ function MarketplaceSection({ communityId }: { communityId: string }) {
   const { data: agents = [], isLoading: loadA, refetch: refetchA } = useQuery({
     queryKey: ['mkt-agents', communityId],
     queryFn:  () => agenticCommerceApi.listAgents({ community_id: communityId }),
+    retry: false,
+  })
+
+  // Batch-fetch trust scores for all agents in this community
+  const { data: trustMap = {} } = useQuery({
+    queryKey: ['mkt-trust-batch', communityId],
+    queryFn: async () => {
+      const map: Record<string, number> = {}
+      await Promise.allSettled(
+        (agents as MktAgent[]).map(async a => {
+          try {
+            const t = await agenticCommerceApi.getAgentTrust(a.agent_id)
+            map[a.agent_id] = t.trust_score
+          } catch { map[a.agent_id] = 0 }
+        })
+      )
+      return map
+    },
+    enabled: (agents as MktAgent[]).length > 0,
+    staleTime: 60_000,
+    retry: false,
+  })
+
+  // Agent activity chart data (trades grouped by seller)
+  const { data: tradeChartData = [] } = useQuery({
+    queryKey: ['mkt-agent-chart', communityId],
+    queryFn: async () => {
+      try {
+        const r = await fetch(`${WARDEN}/marketplace/analytics/agents?period_days=30`)
+        if (!r.ok) return []
+        const d = await r.json()
+        return (d.top_sellers ?? []).slice(0, 8).map((s: { agent_id: string; trades: number; volume_usd: number }) => ({
+          name:   s.agent_id.slice(0, 10) + '…',
+          trades: s.trades,
+          volume: Math.round(s.volume_usd),
+        }))
+      } catch { return [] }
+    },
+    staleTime: 120_000,
     retry: false,
   })
 
@@ -895,22 +945,60 @@ function MarketplaceSection({ communityId }: { communityId: string }) {
     if (!agentKey.trim()) { toast.error('Public key required'); return }
     setRegistering(true)
     try {
-      await agenticCommerceApi.registerAgent({
+      const agent = await agenticCommerceApi.registerAgent({
         tenant_id:    tenantId,
         community_id: communityId,
         public_key:   agentKey.trim(),
-        capabilities: ['marketplace_sell', 'marketplace_buy'],
+        capabilities: agentCaps.length > 0 ? agentCaps : ['marketplace_sell', 'marketplace_buy'],
       })
+      if (agentName.trim() || agentBudget !== 1000) {
+        await agenticCommerceApi.patchAgent(agent.agent_id, {
+          name: agentName.trim() || undefined,
+          budget_limit: agentBudget !== 1000 ? agentBudget : undefined,
+        })
+      }
       toast.success('Agent registered')
       qc.invalidateQueries({ queryKey: ['mkt-agents'] })
       qc.invalidateQueries({ queryKey: ['hub-agent-count'] })
       setShowRegAgent(false)
-      setAgentKey('')
+      setAgentKey(''); setAgentName(''); setAgentBudget(1000)
+      setAgentCaps(['marketplace_sell', 'marketplace_buy'])
     } catch (e: any) {
       toast.error(e?.message ?? 'Registration failed')
     } finally {
       setRegistering(false)
     }
+  }
+
+  async function saveAgentName(agentId: string) {
+    try {
+      await agenticCommerceApi.patchAgent(agentId, { name: editNameVal })
+      toast.success('Name saved')
+      qc.invalidateQueries({ queryKey: ['mkt-agents', communityId] })
+      setEditNameId(null)
+    } catch (e: any) { toast.error(e?.message ?? 'Save failed') }
+  }
+
+  async function saveAgentBudget(agentId: string) {
+    const limit = budgetEdits[agentId]
+    if (limit === undefined) return
+    setSavingBudget(agentId)
+    try {
+      await agenticCommerceApi.patchAgent(agentId, { budget_limit: limit })
+      toast.success('Budget updated')
+      qc.invalidateQueries({ queryKey: ['mkt-agents', communityId] })
+    } catch (e: any) { toast.error(e?.message ?? 'Failed') }
+    finally { setSavingBudget(null) }
+  }
+
+  async function revokeAgent(agentId: string) {
+    try {
+      await agenticCommerceApi.deactivateAgent(agentId)
+      toast.success('Agent revoked')
+      qc.invalidateQueries({ queryKey: ['mkt-agents', communityId] })
+      qc.invalidateQueries({ queryKey: ['hub-agent-count'] })
+      setRevokeId(null)
+    } catch (e: any) { toast.error(e?.message ?? 'Failed') }
   }
 
   async function createListing() {
@@ -1052,36 +1140,208 @@ function MarketplaceSection({ communityId }: { communityId: string }) {
 
       {/* ── Agents ── */}
       {tab === 'agents' && (
-        <div>
-          <div className="flex justify-end mb-4">
-            <Btn onClick={() => setShowRegAgent(true)}><Plus className="w-3.5 h-3.5" /> Register Agent</Btn>
+        <div className="space-y-5">
+          {/* Activity charts row */}
+          {tradeChartData.length > 0 && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-white/8 bg-white/3 p-4">
+                <div className="text-xs font-medium text-slate-400 mb-3">Trades by Agent (30d)</div>
+                <BarChart width={280} height={100} data={tradeChartData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }} barSize={12}>
+                  <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} />
+                  <YAxis tick={{ fontSize: 9, fill: '#64748b' }} />
+                  <Bar dataKey="trades" fill="#BF5AF2" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </div>
+              <div className="rounded-xl border border-white/8 bg-white/3 p-4">
+                <div className="text-xs font-medium text-slate-400 mb-3">Volume ($) by Agent (30d)</div>
+                <BarChart width={280} height={100} data={tradeChartData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }} barSize={12}>
+                  <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} />
+                  <YAxis tick={{ fontSize: 9, fill: '#64748b' }} />
+                  <Bar dataKey="volume" fill="#30D158" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400">{(agents as MktAgent[]).filter(a => a.status === 'active').length} active agents</span>
+            <Btn size="xs" onClick={() => setShowRegAgent(true)}><Plus className="w-3 h-3" /> Register Agent</Btn>
           </div>
+
+          {/* DS-01 Agent Table */}
           {loadA ? <Skeleton /> : (agents as MktAgent[]).length === 0
             ? <EmptyState icon={Bot} label="No agents registered" sub="Agents are identified by DID derived from Ed25519 pubkey" />
-            : <div className="space-y-2">
-              {(agents as MktAgent[]).map(a => (
-                <div key={a.agent_id} className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/3 px-4 py-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-violet-500/15 border border-violet-500/25">
-                    <Bot className="w-3.5 h-3.5 text-violet-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-mono text-white truncate">{shortId(a.agent_id, 32)}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">{a.capabilities.join(' · ')}</div>
-                  </div>
-                  <Pill color={a.status === 'active' ? 'green' : 'slate'}>{a.status}</Pill>
-                </div>
-              ))}
-            </div>
+            : (
+              <div className="rounded-xl border border-white/8 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/6 bg-white/2">
+                      {['DID', 'Name', 'Status', 'TrustRank', 'Capabilities', 'Budget', 'Actions'].map(h => (
+                        <th key={h} className="text-left px-3 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/4">
+                    {(agents as MktAgent[]).map(a => {
+                      const trust = (trustMap as Record<string, number>)[a.agent_id] ?? 0
+                      const budgetLimit = (a as any).budget_limit ?? 1000
+                      const budgetUsed = 0 // placeholder — real value from Semantic Layer
+                      const pct = Math.min((budgetUsed / budgetLimit) * 100, 100)
+                      const overBudget = pct >= 100
+                      const nearBudget = pct >= 80 && !overBudget
+                      const pendingBudget = budgetEdits[a.agent_id] ?? budgetLimit
+                      return (
+                        <tr
+                          key={a.agent_id}
+                          className={`hover:bg-white/2 transition-colors ${overBudget ? 'bg-red-500/5' : nearBudget ? 'bg-amber-500/5' : ''}`}
+                        >
+                          {/* DID */}
+                          <td className="px-3 py-2.5">
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(a.agent_id); toast.success('DID copied') }}
+                              className="flex items-center gap-1 group"
+                              title={a.agent_id}
+                            >
+                              <span className="font-mono text-[11px] text-slate-400">{a.agent_id.slice(0, 18)}…</span>
+                              <Copy className="w-3 h-3 text-slate-600 group-hover:text-slate-400 shrink-0" />
+                            </button>
+                          </td>
+                          {/* Name inline edit */}
+                          <td className="px-3 py-2.5 min-w-[110px]">
+                            {editNameId === a.agent_id ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  autoFocus
+                                  value={editNameVal}
+                                  onChange={e => setEditNameVal(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveAgentName(a.agent_id); if (e.key === 'Escape') setEditNameId(null) }}
+                                  className="w-24 bg-slate-800 border border-slate-600 rounded px-2 py-0.5 text-xs text-white focus:outline-none focus:border-violet-500"
+                                />
+                                <button onClick={() => saveAgentName(a.agent_id)} className="text-violet-400 hover:text-violet-300"><Check className="w-3 h-3" /></button>
+                                <button onClick={() => setEditNameId(null)} className="text-slate-500 hover:text-slate-300"><X className="w-3 h-3" /></button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setEditNameId(a.agent_id); setEditNameVal((a as any).name || '') }}
+                                className="flex items-center gap-1 group text-xs text-slate-300 hover:text-white"
+                              >
+                                <span>{(a as any).name || <span className="italic text-slate-600">unnamed</span>}</span>
+                                <Pencil className="w-2.5 h-2.5 text-slate-600 group-hover:text-slate-400 shrink-0" />
+                              </button>
+                            )}
+                          </td>
+                          {/* Status */}
+                          <td className="px-3 py-2.5">
+                            <Pill color={a.status === 'active' ? 'green' : a.status === 'suspended' ? 'red' : 'slate'}>
+                              {a.status}
+                            </Pill>
+                          </td>
+                          {/* TrustRank */}
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center gap-2 min-w-[90px]">
+                              <div className="flex-1 h-1.5 rounded-full bg-white/8">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{
+                                    width: `${(trust * 100).toFixed(0)}%`,
+                                    background: trust >= 0.7 ? '#30D158' : trust >= 0.4 ? '#FF9F0A' : '#FF453A',
+                                  }}
+                                />
+                              </div>
+                              <span className="text-[11px] text-slate-400 w-8 text-right">{(trust * 100).toFixed(0)}%</span>
+                            </div>
+                          </td>
+                          {/* Capabilities */}
+                          <td className="px-3 py-2.5">
+                            <div className="flex flex-wrap gap-1">
+                              {a.capabilities.map(c => (
+                                <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/20">
+                                  {c.replace('marketplace_', '')}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          {/* Budget slider */}
+                          <td className="px-3 py-2.5 min-w-[160px]">
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="range" min={100} max={10000} step={100}
+                                  value={pendingBudget}
+                                  onChange={e => setBudgetEdits(prev => ({ ...prev, [a.agent_id]: Number(e.target.value) }))}
+                                  className="w-20 accent-violet-500"
+                                />
+                                <span className="text-[11px] text-slate-300 w-12">${pendingBudget}</span>
+                                {pendingBudget !== budgetLimit && (
+                                  <button
+                                    onClick={() => saveAgentBudget(a.agent_id)}
+                                    disabled={savingBudget === a.agent_id}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 disabled:opacity-50"
+                                  >
+                                    {savingBudget === a.agent_id ? '…' : 'Save'}
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <div className="flex-1 h-1 rounded-full bg-white/8">
+                                  <div
+                                    className="h-full rounded-full transition-all"
+                                    style={{
+                                      width: `${pct}%`,
+                                      background: overBudget ? '#FF453A' : nearBudget ? '#FF9F0A' : '#30D158',
+                                    }}
+                                  />
+                                </div>
+                                {(nearBudget || overBudget) && (
+                                  <Bell className={`w-2.5 h-2.5 ${overBudget ? 'text-red-400' : 'text-amber-400'}`} />
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          {/* Actions */}
+                          <td className="px-3 py-2.5">
+                            {revokeId === a.agent_id ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-red-400">Revoke?</span>
+                                <button onClick={() => revokeAgent(a.agent_id)} className="text-[10px] px-1.5 py-0.5 rounded bg-red-600/20 text-red-400 hover:bg-red-600/30">Yes</button>
+                                <button onClick={() => setRevokeId(null)} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400 hover:bg-white/10">No</button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setRevokeId(a.agent_id)}
+                                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-red-600/10 text-red-400 border border-red-500/20 hover:bg-red-600/20 transition"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" /> Revoke
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
           }
 
+          {/* Register Agent Modal — enhanced */}
           {showRegAgent && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-              <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d1220] shadow-2xl">
+              <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0d1220] shadow-2xl">
                 <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
                   <h3 className="text-sm font-semibold text-white">Register Agent</h3>
                   <button onClick={() => setShowRegAgent(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="px-5 py-4 space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Agent Name (optional)</label>
+                    <input
+                      value={agentName}
+                      onChange={e => setAgentName(e.target.value)}
+                      placeholder="e.g. Sales Bot Alpha"
+                      className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-violet-500"
+                    />
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-slate-400">Ed25519 Public Key (base64)</label>
                     <textarea
@@ -1089,8 +1349,34 @@ function MarketplaceSection({ communityId }: { communityId: string }) {
                       onChange={e => setAgentKey(e.target.value)}
                       placeholder="MCowBQYDK2VwAyEA..."
                       rows={3}
-                      className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500 resize-none"
+                      className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:border-violet-500 resize-none"
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Capabilities</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['marketplace_buy', 'marketplace_sell', 'marketplace_negotiate', 'voice_commerce'].map(cap => (
+                        <button
+                          key={cap}
+                          onClick={() => setAgentCaps(prev => prev.includes(cap) ? prev.filter(c => c !== cap) : [...prev, cap])}
+                          className={`text-xs px-2.5 py-1 rounded-lg border transition ${agentCaps.includes(cap) ? 'bg-violet-500/20 text-violet-300 border-violet-500/40' : 'bg-white/4 text-slate-400 border-white/10 hover:border-white/20'}`}
+                        >
+                          {cap.replace('marketplace_', '').replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-400">Monthly Budget: <span className="text-white">${agentBudget}</span></label>
+                    <input
+                      type="range" min={100} max={10000} step={100}
+                      value={agentBudget}
+                      onChange={e => setAgentBudget(Number(e.target.value))}
+                      className="w-full accent-violet-500"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-600">
+                      <span>$100</span><span>$10,000</span>
+                    </div>
                   </div>
                   <p className="text-xs text-slate-500">
                     DID (<code className="text-slate-400">did:shadow:…</code>) is derived automatically from SHA-256 of your public key.

@@ -44,6 +44,7 @@ from arq.connections import RedisSettings
 from warden.agent.scheduler import (
     sova_community_watchdog,
     sova_corpus_watchdog,
+    sova_marketplace_state_sync,
     sova_morning_brief,
     sova_obsidian_watchdog,
     sova_overage_billing,
@@ -102,6 +103,7 @@ class WorkerSettings:
         sova_community_watchdog,
         sova_obsidian_watchdog,
         sova_overage_billing,        # BL-19
+        sova_marketplace_state_sync, # M2M loop state
         # Online learning pipeline
         online_learning_job,          # AR-09
         # Community moderation
@@ -183,6 +185,9 @@ class WorkerSettings:
 
         # ── Online learning — nightly at 01:00 UTC (AR-09) ───────────────────
         cron(online_learning_job, hour=1, minute=0, timeout=600),
+
+        # ── M2M marketplace loop state sync — every 15 minutes ───────────────
+        cron(sova_marketplace_state_sync, minute={0, 15, 30, 45}, timeout=60),
     ]
 
     on_startup  = startup

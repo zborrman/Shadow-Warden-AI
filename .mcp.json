@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "marketplace-db": {
+      "command": "uvx",
+      "args": ["sqlite-mcp-server"],
+      "env": {
+        "SQLITE_DB_PATH": "${MARKETPLACE_DB_PATH:-/tmp/warden_marketplace.db}",
+        "READ_ONLY": "true",
+        "TIMEOUT": "10",
+        "BEARER_TOKEN": "${MCP_MARKETPLACE_TOKEN:-}",
+        "REQUIRE_AUTH": "${MCP_REQUIRE_AUTH:-false}"
+      }
+    }
+  },
+  "_security_notes": {
+    "confused_deputy": "POST /marketplace/analytics/query enforces X-Agent-ID scoping. Pass caller_agent_id in request body or X-Agent-ID header so the endpoint rejects cross-agent DID references.",
+    "oauth_roadmap": "Long-term: replace BEARER_TOKEN with OAuth 2.1 (RFC 9068) JWT assertions scoped to 'marketplace:read:{tenant_id}'. The analytics/query endpoint should validate 'sub' claim == caller_agent_id before executing SQL.",
+    "read_only": "sqlite-mcp-server runs with READ_ONLY=true. No INSERT/UPDATE/DELETE can reach the DB through this transport — the SELECT-only gate in analytics/query is a defense-in-depth second layer."
+  }
+}

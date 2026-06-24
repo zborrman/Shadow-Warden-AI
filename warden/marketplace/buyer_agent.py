@@ -24,9 +24,12 @@ import os
 
 log = logging.getLogger("warden.marketplace.buyer_agent")
 
-_DB_PATH       = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH        = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
 _STRETCH_FACTOR = float(os.getenv("MARKETPLACE_BUYER_STRETCH", "1.10"))
 _MIN_REP_SCORE  = float(os.getenv("MARKETPLACE_MIN_SELLER_REP", "0.0"))
+# First-Proposal Bias Guard: minimum alternatives to evaluate before committing.
+# Prevents LLM buyers from accepting the first-seen offer regardless of quality.
+_MIN_OFFERS_BEFORE_BUY = int(os.getenv("MARKETPLACE_MIN_OFFERS_BEFORE_BUY", "3"))
 
 
 class BuyerAgent:
@@ -180,6 +183,60 @@ class BuyerAgent:
             "listing_price": listing.price_usd,
             "max_price":     max_price,
         }
+
+    def search_and_buy(
+        self,
+        criteria: dict,
+        mandate_id: str = "",
+        tenant_id: str = "",
+    ) -> dict:
+        """Fair-market purchase with First-Proposal Bias Guard.
+
+        Collects ALL candidates matching *criteria*, then sorts by composite
+        utility score (price × (1 - rep_score)) and buys the best one — NOT
+        the first-seen.  Returns `pending_more_offers` when fewer than
+        MARKETPLACE_MIN_OFFERS_BEFORE_BUY alternatives are available, so the
+        caller can retry after more listings appear.
+        """
+        candidates = self.search_assets(criteria)
+
+        if len(candidates) < _MIN_OFFERS_BEFORE_BUY:
+            return {
+                "status":    "pending_more_offers",
+                "collected": len(candidates),
+                "required":  _MIN_OFFERS_BEFORE_BUY,
+                "message":   (
+                    f"Fairness policy requires evaluating at least "
+                    f"{_MIN_OFFERS_BEFORE_BUY} alternatives before purchase."
+                ),
+            }
+
+        max_price = float(criteria.get("max_price", 1e9))
+
+        # Sort by utility: cheapest among highest-rep sellers wins.
+        # Using price × (1 - rep_score): lower = better value.
+        candidates.sort(
+            key=lambda c: c["price_usd"] * (1.0 - c.get("seller_rep_score", 0.0))
+        )
+        best = candidates[0]
+
+        log.info(
+            "BuyerAgent %s evaluated %d candidates; chose listing %s (utility_key=%.4f)",
+            self.agent_id,
+            len(candidates),
+            best["listing_id"],
+            best["price_usd"] * (1.0 - best.get("seller_rep_score", 0.0)),
+        )
+
+        result = self.auto_buy(
+            listing_id=best["listing_id"],
+            max_price=max_price,
+            mandate_id=mandate_id,
+            tenant_id=tenant_id,
+        )
+        result["candidates_evaluated"] = len(candidates)
+        result["fairness_guard_applied"] = True
+        return result
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

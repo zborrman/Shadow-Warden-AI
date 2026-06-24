@@ -111,4 +111,5 @@ sdk/typescript/node_modules/
 portal/tsconfig.tsbuildinfo
 data/evolution_dataset.jsonl
 data/corpus_snapshot.json
+data/AGENTS.md
 .env.sepolia

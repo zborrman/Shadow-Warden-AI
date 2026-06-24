@@ -78,6 +78,16 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_mkt_agents_tenant
             ON marketplace_agents(tenant_id);
     """)
+    # Additive migrations — safe to run on every connection
+    for col, defn in [
+        ("name",         "TEXT NOT NULL DEFAULT ''"),
+        ("budget_limit", "REAL NOT NULL DEFAULT 1000.0"),
+    ]:
+        try:
+            con.execute(f"ALTER TABLE marketplace_agents ADD COLUMN {col} {defn}")
+            con.commit()
+        except Exception:
+            pass  # column already exists
 
 
 @contextmanager
@@ -222,6 +232,42 @@ def update_capabilities(
         cur = con.execute(
             "UPDATE marketplace_agents SET capabilities=? WHERE agent_id=? AND tenant_id=?",
             (json.dumps(sorted(valid)), agent_id, tenant_id),
+        )
+        return cur.rowcount > 0
+
+
+def update_agent(
+    agent_id: str,
+    *,
+    name: str | None = None,
+    budget_limit: float | None = None,
+    db_path: str = _DB_PATH,
+) -> bool:
+    """Patch name and/or budget_limit on an agent (no tenant guard — caller verifies)."""
+    parts, params = [], []
+    if name is not None:
+        parts.append("name=?")
+        params.append(name)
+    if budget_limit is not None:
+        parts.append("budget_limit=?")
+        params.append(budget_limit)
+    if not parts:
+        return False
+    params.append(agent_id)
+    with _db_lock, _conn(db_path) as con:
+        cur = con.execute(
+            f"UPDATE marketplace_agents SET {', '.join(parts)} WHERE agent_id=?",
+            params,
+        )
+        return cur.rowcount > 0
+
+
+def deactivate_agent(agent_id: str, db_path: str = _DB_PATH) -> bool:
+    """Set agent status → 'inactive' (soft delete, preserves audit trail)."""
+    with _db_lock, _conn(db_path) as con:
+        cur = con.execute(
+            "UPDATE marketplace_agents SET status='inactive' WHERE agent_id=?",
+            (agent_id,),
         )
         return cur.rowcount > 0
 

@@ -2361,6 +2361,55 @@ TOOLS.append({
 })
 
 
+# ── Tool #69: query_marketplace_db (M2M Analytics MCP bridge) ────────────────
+
+async def query_marketplace_db(
+    sql: str,
+    params: list | None = None,
+    tenant_id: str = "default",
+    caller_agent_id: str | None = None,
+    **_,
+) -> dict:
+    """Tool #69 — SELECT-only SQL query against the marketplace analytics endpoint."""
+    try:
+        payload: dict = {"sql": sql, "params": params or []}
+        if caller_agent_id:
+            payload["caller_agent_id"] = caller_agent_id
+        return await _post(
+            "/marketplace/analytics/query",
+            payload,
+            tenant=tenant_id,
+        )
+    except Exception as exc:
+        return {"error": str(exc), "sql": sql}
+
+
+TOOLS.append({
+    "name": "query_marketplace_db",
+    "description": (
+        "Run a read-only SQL SELECT against the marketplace database. "
+        "Returns up to 500 rows. Only SELECT statements are accepted; DDL/DML raises 400. "
+        "Useful for M2M analytics, fairness metrics, escrow status, and MAESTRO audit queries."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "sql": {
+                "type": "string",
+                "description": "SQL SELECT statement to execute",
+            },
+            "params": {
+                "type": "array",
+                "items": {},
+                "description": "Optional positional parameters for parameterised query",
+            },
+            "tenant_id": {"type": "string", "description": "Tenant scope (default: 'default')"},
+        },
+        "required": ["sql"],
+    },
+})
+
+
 try:
     from warden.voice.agent import VOICE_TOOL_HANDLERS, VOICE_TOOLS  # noqa: PLC0415
     _VOICE_AVAILABLE = True
@@ -2451,4 +2500,6 @@ TOOL_HANDLERS: dict[str, Any] = {
     **VOICE_TOOL_HANDLERS,
     # Infrastructure tools (#68)
     "disk_encryption_status":     tool_disk_encryption_status,
+    # M2M Analytics MCP bridge (#69)
+    "query_marketplace_db":       query_marketplace_db,
 }

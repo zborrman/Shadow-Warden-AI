@@ -131,6 +131,18 @@ export const agenticCommerceApi = {
   updateCapabilities: (agentId: string, body: { tenant_id: string; capabilities: string[] }) =>
     mFetch<{ updated: boolean }>(`/agents/${agentId}/capabilities`, { method: 'PUT', body: JSON.stringify(body) }),
 
+  patchAgent: (agentId: string, body: { name?: string; budget_limit?: number }) =>
+    mFetch<{ updated: boolean }>(`/agents/${agentId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  deactivateAgent: (agentId: string) =>
+    mFetch<{ deactivated: boolean }>(`/agents/${agentId}`, { method: 'DELETE' }),
+
+  getAgentTrust: (agentId: string) =>
+    mFetch<{ agent_id: string; trust_score: number; trust_rank: number; sybil_flag: boolean; sybil_reason: string }>(`/agents/${agentId}/trust`),
+
+  getMaestroFlags: () =>
+    mFetch<{ flags: Array<{ agent_id: string; flag_type: string; reason: string; flagged_at: string }> }>('/maestro/flags'),
+
   // Assets
   listAssets: (params?: { agent_id?: string; type?: string; community_id?: string }) =>
     mFetch<MktAsset[]>(`/assets?${new URLSearchParams(params as Record<string, string> ?? {})}`),
