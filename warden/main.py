@@ -1046,6 +1046,20 @@ except ImportError:
     log.warning("QuotaMiddleware not available — quota enforcement skipped.")
 
 # ── Prometheus instrumentation ────────────────────────────────────────────────
+# Patch prometheus_fastapi_instrumentator routing to skip _IncludedRouter objects
+# that lack a .path attribute (known bug in v8.x with nested include_router calls).
+try:
+    import prometheus_fastapi_instrumentator.routing as _pfi_routing
+    _orig_get_route_name = _pfi_routing._get_route_name
+
+    def _patched_get_route_name(scope, routes, route_name=None):
+        safe_routes = [r for r in routes if hasattr(r, "path") and hasattr(r, "matches")]
+        return _orig_get_route_name(scope, safe_routes, route_name)
+
+    _pfi_routing._get_route_name = _patched_get_route_name
+except Exception:
+    pass
+
 if _PROMETHEUS_ENABLED:
     _Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
