@@ -184,6 +184,22 @@ class BuyerAgent:
             "max_price":     max_price,
         }
 
+    async def search_assets_semantic(
+        self,
+        query: str,
+        limit: int = 20,
+        asset_type: str | None = None,
+    ) -> list[dict]:
+        """Semantic listing search (Layer 3 pgvector, falls back to SQLite LIKE).
+
+        Replaces enumerating all listings in the LLM context — agents can find
+        relevant assets with a single natural-language query instead of paging
+        through hundreds of rows.  Requires MARKETPLACE_VECTOR_SEARCH=true for
+        pgvector; otherwise delegates to SQLite keyword fallback transparently.
+        """
+        from warden.marketplace.vector_search import semantic_search  # noqa: PLC0415
+        return await semantic_search(query, limit=limit, asset_type=asset_type)
+
     def search_and_buy(
         self,
         criteria: dict,

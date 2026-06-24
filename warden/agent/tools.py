@@ -2410,6 +2410,146 @@ TOOLS.append({
 })
 
 
+# ── Tool #70: write_handoff_memory (Layer 2 context offloading) ───────────────
+
+
+async def write_handoff_memory(
+    session_id: str,
+    step: str,
+    facts: dict,
+    ttl: int = 3600,
+    **_,
+) -> dict:
+    """Tool #70 — Write compact fact record to AgentHandoffMemory.
+
+    Use before handing off to another agent sub-step.  Pass the returned key
+    (not the full conversation) in the next agent's prompt to save tokens.
+    """
+    try:
+        from warden.marketplace.memory import AgentHandoffMemory  # noqa: PLC0415
+        mem = AgentHandoffMemory()
+        key = await mem.write(session_id, step, facts, ttl=ttl)
+        return {"key": key, "step": step, "ttl_s": ttl, "facts_count": len(facts)}
+    except Exception as exc:
+        return {"error": str(exc), "session_id": session_id, "step": step}
+
+
+TOOLS.append({
+    "name": "write_handoff_memory",
+    "description": (
+        "Write a compact fact record for an agent handoff (Layer 2 context offloading). "
+        "Instead of passing the full conversation history to the next agent, write the key "
+        "facts here and include only the returned key in the next prompt. "
+        "Saves up to 61% LLM API token cost on multi-step marketplace flows."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "session_id": {"type": "string", "description": "Unique session or transaction ID"},
+            "step":       {"type": "string", "description": "Step name (e.g. 'negotiation_done', 'escrow_created')"},
+            "facts":      {"type": "object", "description": "Compact key-value facts to persist (keep <10 keys)"},
+            "ttl":        {"type": "integer", "description": "TTL in seconds (default 3600 = 1 hour)"},
+        },
+        "required": ["session_id", "step", "facts"],
+    },
+})
+
+
+
+# ── Tool #71: read_handoff_memory (Layer 2 context offloading) ────────────────
+
+
+async def read_handoff_memory(
+    session_id: str,
+    step: str,
+    **_,
+) -> dict:
+    """Tool #71 — Read compact fact record from AgentHandoffMemory.
+
+    At the start of a new agent turn, call this instead of receiving a long
+    transcript.  Returns facts dict and a ready-to-use prompt_snippet.
+    """
+    try:
+        from warden.marketplace.memory import AgentHandoffMemory  # noqa: PLC0415
+        mem = AgentHandoffMemory()
+        facts = await mem.read(session_id, step)
+        if facts is None:
+            return {
+                "error":      "no handoff record found",
+                "session_id": session_id,
+                "step":       step,
+            }
+        return {
+            "facts":         facts,
+            "prompt_snippet": AgentHandoffMemory.compact_prompt(facts),
+        }
+    except Exception as exc:
+        return {"error": str(exc), "session_id": session_id, "step": step}
+
+
+TOOLS.append({
+    "name": "read_handoff_memory",
+    "description": (
+        "Read a compact fact record written by write_handoff_memory. "
+        "Include the returned prompt_snippet in the agent's initial prompt instead of the full "
+        "conversation history. "
+        "Returns facts dict + a pre-formatted [HANDOFF FACTS] prompt block (~50 tokens)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "session_id": {"type": "string", "description": "Session or transaction ID used in write_handoff_memory"},
+            "step":       {"type": "string", "description": "Step name to retrieve"},
+        },
+        "required": ["session_id", "step"],
+    },
+})
+
+
+
+# ── Tool #72: semantic_listing_search (Layer 3 pgvector) ──────────────────────
+
+
+async def semantic_listing_search(
+    query: str,
+    limit: int = 10,
+    asset_type: str | None = None,
+    **_,
+) -> dict:
+    """Tool #72 — Find marketplace listings by semantic similarity (pgvector / SQLite fallback).
+
+    Agents use this instead of enumerating all listings in LLM context.
+    One call replaces loading dozens of rows into the prompt.
+    """
+    try:
+        from warden.marketplace.vector_search import semantic_search  # noqa: PLC0415
+        results = await semantic_search(query, limit=limit, asset_type=asset_type)
+        return {"results": results, "count": len(results), "query": query}
+    except Exception as exc:
+        return {"error": str(exc), "query": query}
+
+
+TOOLS.append({
+    "name": "semantic_listing_search",
+    "description": (
+        "Search marketplace listings by semantic similarity using pgvector (Layer 3). "
+        "Falls back to SQLite keyword search automatically. "
+        "Returns listing_id, title, asset_type, similarity score. "
+        "Use this instead of loading all listings into context — one query, minimal tokens."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query":      {"type": "string",  "description": "Natural-language search query"},
+            "limit":      {"type": "integer", "description": "Max results (default 10, max 50)"},
+            "asset_type": {"type": "string",  "description": "Optional: 'model', 'rule', 'signals'"},
+        },
+        "required": ["query"],
+    },
+})
+
+
+
 try:
     from warden.voice.agent import VOICE_TOOL_HANDLERS, VOICE_TOOLS  # noqa: PLC0415
     _VOICE_AVAILABLE = True
@@ -2502,4 +2642,8 @@ TOOL_HANDLERS: dict[str, Any] = {
     "disk_encryption_status":     tool_disk_encryption_status,
     # M2M Analytics MCP bridge (#69)
     "query_marketplace_db":       query_marketplace_db,
+    # Three-layer DB — Layer 2 handoff memory (#70-71) + Layer 3 vector search (#72)
+    "write_handoff_memory":       write_handoff_memory,
+    "read_handoff_memory":        read_handoff_memory,
+    "semantic_listing_search":    semantic_listing_search,
 }
