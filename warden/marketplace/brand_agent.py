@@ -142,16 +142,14 @@ class BrandAgentFilter:
     # ── Gate 1: Federation deny-list ──────────────────────────────────────────
 
     async def _check_deny_list(self, buyer_did: str) -> bool:
-        """Return False if buyer DID is on the federation threat hash table."""
+        """Return False if buyer DID is suspended in the marketplace agent registry."""
         try:
-            import hashlib  # noqa: PLC0415
+            from warden.marketplace.agent import get_agent  # noqa: PLC0415
 
-            from warden.marketplace.api_agents import check_threat_hash  # noqa: PLC0415
-
-            did_hash = hashlib.sha256(buyer_did.encode()).hexdigest()
-            flagged = check_threat_hash(did_hash)
-            if flagged:
-                log.warning("BrandAgent: deny-list blocked DID=%s...", buyer_did[:24])
+            db = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+            agent = get_agent(buyer_did, db_path=db)
+            if agent is not None and agent.status == "suspended":
+                log.warning("BrandAgent: deny-list blocked suspended DID=%s...", buyer_did[:24])
                 return False
         except Exception as exc:
             log.debug("BrandAgent._check_deny_list fail-open: %s", exc)
@@ -211,7 +209,7 @@ class BrandAgentFilter:
                     socket_timeout=3,
                     decode_responses=True,
                 )
-                await client.ping()
+                await client.ping()  # type: ignore[misc]
                 self._redis = client
             except Exception as exc:
                 log.debug("BrandAgentFilter: Redis unavailable (%s)", exc)

@@ -244,7 +244,8 @@ def update_agent(
     db_path: str = _DB_PATH,
 ) -> bool:
     """Patch name and/or budget_limit on an agent (no tenant guard — caller verifies)."""
-    parts, params = [], []
+    parts: list[str] = []
+    params: list[str | float] = []
     if name is not None:
         parts.append("name=?")
         params.append(name)
