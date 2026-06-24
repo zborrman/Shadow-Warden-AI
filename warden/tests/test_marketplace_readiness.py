@@ -43,6 +43,8 @@ def test_readiness_unknown_community(client):
 
 
 def test_readiness_known_community_no_agents(client):
+    """create_community() auto-provisions a default agent (Phase 1), so a
+    freshly created community already has agents_registered=True."""
     from warden.communities.community_factory import create_community
     comm = create_community("Ready Test", "desc", f"tenant-{uuid.uuid4().hex[:8]}")
 
@@ -53,9 +55,9 @@ def test_readiness_known_community_no_agents(client):
     assert data["community_exists"] is True
     assert data["keypair_generated"] is True
     assert data["audit_enabled"] is True
-    assert data["agents_registered"] is False
-    assert data["ready_to_trade"] is False
-    assert "no_agents_registered" in data["missing_requirements"]
+    # Phase 1: default agent is auto-provisioned on community creation
+    assert data["agents_registered"] is True
+    assert data["ready_to_trade"] is True
 
 
 def test_readiness_response_shape(client):
