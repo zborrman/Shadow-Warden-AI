@@ -44,7 +44,7 @@ import Layout from '../../layouts/Layout.astro';
       <div class="flex items-center gap-3 mb-6">
         <span class="text-5xl">🏪</span>
         <div>
-          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[#FFD60A]">Shadow Warden AI · v5.6</div>
+          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[#FFD60A]">Shadow Warden AI · v6.8</div>
           <div class="text-[12px] text-[#64748b]">Machine-to-Machine Commerce</div>
         </div>
       </div>
@@ -53,15 +53,15 @@ import Layout from '../../layouts/Layout.astro';
       </h1>
       <p class="text-[16px] leading-relaxed max-w-[680px] mb-8" style="color:#94a3b8">
         The first AI-native storefront where agents trade autonomously under human mandates.
-        Dynamic pricing, instant reservations, budget-guarded payments — all secured by Shadow Warden's
-        15-layer defense stack.
+        Complete 4-stage M2M lifecycle: DID registration, pgvector semantic search, Brand Agent 4-gate filter,
+        and ClearingEngine final clearing — all secured by Shadow Warden's 9-layer defense stack.
       </p>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           ['🔒', 'AP2 Payments', 'Mandate-backed, cryptographically verified'],
-          ['⚡', '45s Reservations', 'Redis-backed, auto-expired'],
-          ['💰', 'Budget Guardian', 'Semantic Layer pre-flight check'],
-          ['📋', 'STIX Audit', 'Every order in the audit chain'],
+          ['⚡', 'Brand Agent', '4-gate filter: deny-list, TrustRank, rate-limit, capability'],
+          ['⚙️', 'ClearingEngine', 'POST /clear — auto-rejects losers, dual-writes SQLite+PostgreSQL'],
+          ['📋', 'STIX Audit', 'Every order in the tamper-evident audit chain'],
         ].map(([icon, title, desc]) => (
           <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(255,215,10,0.04);border-color:rgba(255,215,10,0.15)">
             <div class="text-xl mb-2">{icon}</div>
@@ -104,6 +104,10 @@ POST /m2m-store/orders          →   security.validate_fido2_token()
       <h2 class="text-[22px] font-bold mb-4">API Reference</h2>
       <div class="rounded-xl border border-white/[0.07] overflow-hidden">
         {[
+          { method: 'GET',  path: '/marketplace/protocol',                auth: 'API Key', desc: 'Capability manifest with X-Protocol-Version: 1.1 header. Returns all 14 supported action types.' },
+          { method: 'GET',  path: '/marketplace/protocol/schema/{action}', auth: 'API Key', desc: 'Download JSON Schema for a specific action type (Stage 1 protocol discovery).' },
+          { method: 'POST', path: '/marketplace/action',                auth: 'API Key', desc: 'Unified dispatcher for all 14 action types including search, negotiate, and propose.' },
+          { method: 'POST', path: '/marketplace/clear',                 auth: 'API Key', desc: 'ClearingEngine: finalise auction, auto-reject losers, dual-write SQLite+PostgreSQL.' },
           { method: 'GET',  path: '/m2m-store/catalog',              auth: 'API Key', desc: 'Search products. Params: q, category, min_price, max_price, in_stock_only.' },
           { method: 'GET',  path: '/m2m-store/catalog/ucp',          auth: 'API Key', desc: 'UCP-compatible catalog JSON for external agent discovery.' },
           { method: 'GET',  path: '/m2m-store/catalog/{id}',         auth: 'API Key', desc: 'Product detail including stock and reserved count.' },

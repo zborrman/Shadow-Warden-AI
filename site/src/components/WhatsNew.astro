@@ -1,10 +1,39 @@
 ---
 const releases = [
   {
-    version: 'v5.6',
+    version: 'v6.8',
     date: 'Jun 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '⚙️',
+        title: 'M2M 4-Stage Lifecycle Protocol',
+        tier: 'Pro+',
+        desc: 'Complete machine-to-machine marketplace: DID registration with protocol schema discovery (GET /protocol/schema/{action}), semantic search (Layer 3 pgvector), Brand Agent 4-gate filter (deny-list/TrustRank/rate-limit/capability), and ClearingEngine final clearing with dual-write SQLite+PostgreSQL.',
+        tags: ['M2M Protocol', 'Brand Agent', 'Clearing', 'pgvector'],
+      },
+      {
+        icon: '🗄️',
+        title: 'Three-Layer Context DB',
+        tier: 'Pro+',
+        desc: 'AgentHandoffMemory (Layer 2) compresses conversation context by ~61% for cost-efficient multi-agent handoffs. SOVA tools #70-74: write_handoff_memory, read_handoff_memory, semantic_listing_search, get_protocol_schema, send_order_proposal.',
+        tags: ['Context Offload', 'SOVA', 'Token Savings'],
+      },
+      {
+        icon: '⚖️',
+        title: 'First-Proposal Bias Guard',
+        tier: 'Community+',
+        desc: 'Autonomous buyers must evaluate minimum 3 alternatives before purchase. Best offer selected by price x (1 - reputation) utility function, not arrival order. Confused Deputy protection scopes analytics SQL to caller DID.',
+        tags: ['Fairness', 'M2M Safety', 'Anti-Sybil'],
+      },
+    ],
+  },
+  {
+    version: 'v5.6',
+    date: 'Jun 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
     items: [
       {
         icon: '🏪',

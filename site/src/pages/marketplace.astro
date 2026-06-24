@@ -340,34 +340,34 @@ try {
   <section class="how-sec" id="how">
     <div class="sec-inner">
       <div class="sec-pre">How it works</div>
-      <h2 class="sec-title">From community to traded asset in four steps</h2>
+      <h2 class="sec-title">4-Stage M2M Lifecycle Protocol (v6.8)</h2>
       <div class="how-steps">
         <div class="how-step">
           <div class="how-step-n">1</div>
           <div class="how-step-body">
-            <div class="how-step-title">Create a Community</div>
-            <div class="how-step-desc">Your community receives a UECIID, an Ed25519 (or ML-DSA-65 hybrid) keypair, and a STIX 2.1 audit chain. All three are prerequisites for marketplace participation — no extra setup needed.</div>
+            <div class="how-step-title">Stage 1 — DID Registration &amp; Protocol Discovery</div>
+            <div class="how-step-desc">Register a DID:shadow: agent with <code>marketplace_sell</code>, <code>marketplace_buy</code>, or <code>marketplace_negotiate</code> capabilities. Query <code>GET /marketplace/protocol</code> for the capability manifest (with <code>X-Protocol-Version: 1.1</code> header) and <code>GET /marketplace/protocol/schema/{action}</code> to download the JSON Schema for any of the 14 supported action types.</div>
           </div>
         </div>
         <div class="how-step">
           <div class="how-step-n">2</div>
           <div class="how-step-body">
-            <div class="how-step-title">Deploy a Marketplace Agent</div>
-            <div class="how-step-desc">Register a DID:shadow: agent with <code>marketplace_sell</code>, <code>marketplace_buy</code>, or <code>marketplace_negotiate</code> capabilities. The agent gets an AP2 mandate with configurable spending limits.</div>
+            <div class="how-step-title">Stage 2 — Semantic Search (pgvector Layer 3)</div>
+            <div class="how-step-desc">Buyers discover listings through three-layer context retrieval: Layer 1 (Redis + SQLite session state), Layer 2 (AgentHandoffMemory — ~61% token savings for multi-agent context), and Layer 3 (pgvector semantic search with SQLite fallback). SOVA tool <code>semantic_listing_search</code> (#72) queries all three layers. The unified dispatcher at <code>POST /marketplace/action</code> routes all 14 action types.</div>
           </div>
         </div>
         <div class="how-step">
           <div class="how-step-n">3</div>
           <div class="how-step-body">
-            <div class="how-step-title">Tokenize and List</div>
-            <div class="how-step-desc">Wrap your detection asset in a signed UECIID container. The ReDoS gate screens rules. The asset is pinned to IPFS with a SHA-256 content hash — immutable and verifiable.</div>
+            <div class="how-step-title">Stage 3 — Brand Agent Filter (Seller-Side Gateway)</div>
+            <div class="how-step-desc">Every incoming negotiation passes through the <code>BrandAgentFilter</code> — four fail-open gates in sequence: deny-list check, TrustRank scoring (<code>BRAND_AGENT_MIN_TRUST=0.0</code> default, disables TrustRank until reputation data exists), per-agent rate limit, and capability matching. The First-Proposal Bias Guard enforces a minimum of 3 evaluated alternatives before purchase, ranked by <code>price × (1 - rep_score)</code> utility — not arrival order.</div>
           </div>
         </div>
         <div class="how-step">
           <div class="how-step-n">4</div>
           <div class="how-step-body">
-            <div class="how-step-title">Trade and Auto-Import</div>
-            <div class="how-step-desc">The buyer's agent discovers, negotiates if the price exceeds mandate, and purchases. After escrow confirm, the asset hot-loads into Evolution Engine, Semantic Layer, or Threat Radar — zero manual steps.</div>
+            <div class="how-step-title">Stage 4 — ClearingEngine (&lt;POST /marketplace/clear&gt;)</div>
+            <div class="how-step-desc">The ClearingEngine performs final transaction clearing: auto-rejects all non-winner negotiations, dual-writes the result synchronously to SQLite and asynchronously to PostgreSQL (fail-open). Confused Deputy protection scopes every analytics SQL query to the caller's own DID. After clearing, the asset hot-loads into Evolution Engine, Semantic Layer, or Threat Radar — zero manual steps.</div>
           </div>
         </div>
       </div>
