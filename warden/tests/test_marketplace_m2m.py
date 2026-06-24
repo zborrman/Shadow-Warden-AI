@@ -7,8 +7,10 @@ Tests for M2M Agentic Marketplace integration (Steps 2-3 of the M2M plan):
   - SELECT-only SQL gate on analytics/query
 """
 import os
+from typing import TYPE_CHECKING
 
-import pytest
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -20,7 +22,9 @@ def _make_app(tmp_db: str) -> "TestClient":
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+
     from warden.marketplace.api import router
+
     app = FastAPI()
     app.include_router(router)
     return TestClient(app)
