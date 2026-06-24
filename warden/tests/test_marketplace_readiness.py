@@ -43,10 +43,14 @@ def test_readiness_unknown_community(client):
 
 
 def test_readiness_known_community_no_agents(client):
-    """create_community() auto-provisions a default agent (Phase 1), so a
-    freshly created community already has agents_registered=True."""
+    """Community exists but has no agents → not ready to trade.
+    Auto-provisioning is patched out so we can test this scenario directly."""
+    from unittest.mock import patch
+
     from warden.communities.community_factory import create_community
-    comm = create_community("Ready Test", "desc", f"tenant-{uuid.uuid4().hex[:8]}")
+
+    with patch("warden.communities.community_factory._setup_marketplace_defaults"):
+        comm = create_community("Ready Test", "desc", f"tenant-{uuid.uuid4().hex[:8]}")
 
     resp = client.get(f"/marketplace/readiness/{comm.community_id}")
     assert resp.status_code == 200
@@ -55,9 +59,9 @@ def test_readiness_known_community_no_agents(client):
     assert data["community_exists"] is True
     assert data["keypair_generated"] is True
     assert data["audit_enabled"] is True
-    # Phase 1: default agent is auto-provisioned on community creation
-    assert data["agents_registered"] is True
-    assert data["ready_to_trade"] is True
+    assert data["agents_registered"] is False
+    assert data["ready_to_trade"] is False
+    assert "no_agents_registered" in data["missing_requirements"]
 
 
 def test_readiness_response_shape(client):
