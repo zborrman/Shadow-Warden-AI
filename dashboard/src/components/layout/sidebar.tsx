@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -258,7 +258,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           <LogOut size={13} />
           Sign out
         </button>
-        <p className="text-[10px] text-gray-600 px-2">v5.6 · SOC Dashboard</p>
+        <p className="text-[10px] text-gray-600 px-2">v6.8 · SOC Dashboard</p>
       </div>
     </aside>
   );

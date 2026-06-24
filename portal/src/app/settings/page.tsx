@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -471,7 +471,7 @@ function InstallSection() {
   ]
 
   return (
-    <Section title="Install / Uninstall" description="Shadow Warden AI v5.6 — Docker Compose, 11 services, single command" icon={Package}>
+    <Section title="Install / Uninstall" description="Shadow Warden AI v6.8 — Docker Compose, 11 services, single command" icon={Package}>
       <div className="space-y-5 max-w-xl">
 
         {/* Quick Start */}

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -142,7 +142,7 @@ export function Sidebar() {
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-[13px] font-bold" style={{ color: isDark ? '#ffffff' : '#0f172a' }}>Shadow Warden</span>
-            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v5.6 · LIVE</span>
+            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v6.8 · LIVE</span>
           </div>
         </Link>
       </div>
