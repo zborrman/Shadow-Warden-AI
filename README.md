@@ -4,9 +4,28 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 6.6 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 6.8 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v6.8
+
+| Feature | Description |
+|---------|-------------|
+| **M2M 4-Stage Lifecycle Protocol** | Complete machine-to-machine marketplace lifecycle based on the Magentic Marketplace reference architecture. Stage 1: DID registration + `GET /marketplace/protocol` (version headers `X-Protocol-Version: 1.1`) + `GET /marketplace/protocol/schema/{action}` (JSON Schema download for agent payload validation). Stage 2: semantic search via pgvector (Layer 3) with SQLite LIKE fallback. Stage 3: multi-agent negotiation with Brand Agent seller-side gateway. Stage 4: `POST /marketplace/clear` — `ClearingEngine` auto-rejects all non-winner negotiations, dual-writes SQLite (sync) + PostgreSQL (async, fail-open). 14 action types in unified dispatcher. |
+| **Brand Agent (BGA-01)** | Seller-side gateway filter with 4 fail-open gates in sequence: (1) Federation deny-list — SHA-256 DID hash against threat table; (2) TrustRank gate — `BRAND_AGENT_MIN_TRUST=0.0` default disables until reputation data exists; (3) Redis sliding-window rate limit — `BRAND_AGENT_MAX_RPM=60` req/min per DID; (4) Capability gate — buyer must have `marketplace_buy` capability. All gates fail-open. `FilterVerdict` dataclass with `allowed`, `reason`, `trust_score`, `checks` fields. |
+| **Three-Layer Context DB (TDB-01)** | Layer 1: Redis+SQLite session cache. Layer 2: `AgentHandoffMemory` — compact ~50-token JSON summaries per agent turn, ~61% token savings, Redis primary + SQLite fallback, configurable TTL. Layer 3: `pgvector` MiniLM-384 semantic search with SQLite LIKE fallback when `MARKETPLACE_VECTOR_SEARCH=false`. SOVA tools #70–74: `write_handoff_memory`, `read_handoff_memory`, `semantic_listing_search`, `get_protocol_schema`, `send_order_proposal`. |
+| **First-Proposal Bias Guard** | `BuyerAgent.search_and_buy()` enforces minimum `MARKETPLACE_MIN_OFFERS_BEFORE_BUY=3` alternatives before any purchase. Candidates ranked by `price × (1 − rep_score)` utility — not arrival order — preventing latency-race market collapse. Confused Deputy guard: `POST /marketplace/analytics/query` scopes all SQL to `caller_agent_id` DID, rejects cross-agent data access. |
+
+---
+
+## What's New in v6.7
+
+| Feature | Description |
+|---------|-------------|
+| **Voice Portfolio Tool** | SOVA tool for voice-commerce portfolio management + end-to-end integration tests across ASR/TTS/NLU/biometric pipeline. Multi-region deployment documentation and ROADMAP entries for voice horizontal scaling. |
 
 ---
 
