@@ -2549,6 +2549,122 @@ TOOLS.append({
 })
 
 
+async def get_protocol_schema(action_name: str, **_: Any) -> dict:
+    """Tool #73 — Download JSON Schema for a marketplace action type.
+
+    Agents call this during Stage 1 (protocol discovery) to get the exact payload
+    format for an action before sending POST /action.  Returns the schema or a list
+    of available action names when the requested name is unknown.
+    """
+    try:
+        import httpx  # noqa: PLC0415
+
+        base = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
+        r = await httpx.AsyncClient(timeout=10).get(
+            f"{base}/marketplace/protocol/schema/{action_name}",
+            headers={"X-API-Key": os.getenv("WARDEN_API_KEY", "")},
+        )
+        return r.json()
+    except Exception as exc:
+        return {"error": str(exc), "action_name": action_name}
+
+
+TOOLS.append({
+    "name": "get_protocol_schema",
+    "description": (
+        "Download the JSON Schema for a specific marketplace action (Stage 1 protocol discovery). "
+        "Use before sending POST /action to validate the payload format. "
+        "Returns the schema object or a list of available action names."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "action_name": {
+                "type": "string",
+                "description": (
+                    "Action to fetch schema for: search, send_proposal, send_message, "
+                    "send_offer, sending_payments, reject_proposal, register_agent, ..."
+                ),
+            },
+        },
+        "required": ["action_name"],
+    },
+})
+
+
+async def send_order_proposal(
+    seller_agent_id:    str,
+    listing_id:         str,
+    quantity:           int   = 1,
+    max_price_per_unit: float = 0.0,
+    sla_hours:          int   = 24,
+    message:            str   = "",
+    buyer_agent_id:     str   = "",
+    **_: Any,
+) -> dict:
+    """Tool #74 — Send a structured order proposal to a seller (Stage 3).
+
+    Dispatches POST /marketplace/action with action_type='send_proposal'.
+    The Brand Agent filter on the server validates the buyer DID and trust score
+    before routing the proposal to the seller's catalog.
+    """
+    try:
+        import httpx  # noqa: PLC0415
+
+        base    = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
+        api_key = os.getenv("WARDEN_API_KEY", "")
+        headers = {"X-API-Key": api_key}
+        if buyer_agent_id:
+            headers["X-Agent-ID"] = buyer_agent_id
+        payload = {
+            "action_type": "send_proposal",
+            "payload": {
+                "buyer_agent_id":     buyer_agent_id,
+                "seller_agent_id":    seller_agent_id,
+                "listing_id":         listing_id,
+                "quantity":           quantity,
+                "max_price_per_unit": max_price_per_unit,
+                "sla_hours":          sla_hours,
+                "message":            message,
+            },
+        }
+        r = await httpx.AsyncClient(timeout=15).post(
+            f"{base}/marketplace/action",
+            json=payload,
+            headers=headers,
+        )
+        return r.json()
+    except Exception as exc:
+        return {
+            "error":          str(exc),
+            "seller_agent_id": seller_agent_id,
+            "listing_id":      listing_id,
+        }
+
+
+TOOLS.append({
+    "name": "send_order_proposal",
+    "description": (
+        "Send a structured order proposal to a seller (Stage 3: multi-agent communication). "
+        "Specifies quantity, max price per unit, SLA requirements, and an optional message. "
+        "The Brand Agent filter validates trust score and rate limit before delivery. "
+        "Requires buyer_agent_id to be set for Brand Agent validation."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "seller_agent_id":    {"type": "string", "description": "DID of the target seller"},
+            "listing_id":         {"type": "string", "description": "Listing to propose on"},
+            "quantity":           {"type": "integer", "description": "Units requested (default 1)"},
+            "max_price_per_unit": {"type": "number",  "description": "Maximum acceptable price per unit (USD)"},
+            "sla_hours":          {"type": "integer", "description": "Required delivery SLA in hours (default 24)"},
+            "message":            {"type": "string",  "description": "Optional negotiation message"},
+            "buyer_agent_id":     {"type": "string",  "description": "Caller's DID — required for Brand Agent gate"},
+        },
+        "required": ["seller_agent_id", "listing_id"],
+    },
+})
+
 
 try:
     from warden.voice.agent import VOICE_TOOL_HANDLERS, VOICE_TOOLS  # noqa: PLC0415
@@ -2646,4 +2762,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     "write_handoff_memory":       write_handoff_memory,
     "read_handoff_memory":        read_handoff_memory,
     "semantic_listing_search":    semantic_listing_search,
+    # M2M 4-stage lifecycle (#73-74)
+    "get_protocol_schema":        get_protocol_schema,
+    "send_order_proposal":        send_order_proposal,
 }
