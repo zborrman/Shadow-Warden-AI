@@ -2999,14 +2999,11 @@ async def filter_content(
                 _reason = _mm.get("reason", "multimodal_block")
                 log.warning(json.dumps({"event": "multimodal_block", "request_id": rid, "reason": _reason}))
                 return FilterResponse(
-                    blocked=True,
-                    action="BLOCK",
-                    risk_level="HIGH",
-                    content=payload.content or "",
+                    allowed=False,
+                    risk_level=RiskLevel.BLOCK,
                     filtered_content=payload.content or "",
-                    risk_score=1.0,
-                    processing_ms=0,
-                    flags=[_reason],
+                    reason=_reason,
+                    processing_ms={},
                 )
             if _mm.get("text") and _mm["text"] != (payload.content or ""):
                 payload = payload.model_copy(update={"content": _mm["text"]})

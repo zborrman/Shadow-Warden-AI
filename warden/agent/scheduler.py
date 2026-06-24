@@ -868,7 +868,7 @@ async def sova_marketplace_state_sync(ctx: dict) -> dict:
         redis_url = os.getenv("REDIS_URL", "")
         if redis_url and redis_url != "memory://":
             r = aioredis.from_url(redis_url)
-            flags_raw = await r.lrange("maestro:flags:global", 0, 19)
+            flags_raw = await r.lrange("maestro:flags:global", 0, 19)  # type: ignore[misc]
             import json
             maestro_flags = [json.loads(f) for f in flags_raw]
     except Exception as exc:

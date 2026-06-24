@@ -730,8 +730,8 @@ class FederatedTrustRegistry:
             redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
             if not redis_url.startswith("memory://"):
                 r = _r.from_url(redis_url, decode_responses=True)
-                members = r.smembers(f"fed_trust:{agent_did}")
-                for member in members:
+                members = r.smembers(f"fed_trust:{agent_did}")  # type: ignore[union-attr]
+                for member in members:  # type: ignore[union-attr]
                     try:
                         flag = json.loads(member)
                         if flag.get("expires_at", "") > now:

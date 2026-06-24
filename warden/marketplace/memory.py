@@ -111,7 +111,7 @@ class AgentHandoffMemory:
                     socket_timeout=3,
                     decode_responses=True,
                 )
-                await client.ping()
+                await client.ping()  # type: ignore[misc]
                 self._redis = client
             except Exception as exc:
                 log.warning("AgentHandoffMemory: Redis unavailable (%s) — SQLite fallback", exc)

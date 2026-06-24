@@ -326,7 +326,7 @@ class UpgradeCertRequest(BaseModel):
 )
 async def upgrade_tunnel_cert(
     tunnel_id: str,
-    body: UpgradeCertRequest = UpgradeCertRequest(),
+    body: UpgradeCertRequest = UpgradeCertRequest(),  # type: ignore[call-arg]
     auth: AuthResult = AuthDep,
 ) -> dict:
     """

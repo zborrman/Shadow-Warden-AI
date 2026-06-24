@@ -77,7 +77,7 @@ async def scan_image(image_b64: str) -> dict[str, Any]:
             }],
         )
         import json as _json  # noqa: PLC0415
-        raw = resp.content[0].text if resp.content else "{}"
+        raw = resp.content[0].text if resp.content else "{}"  # type: ignore[union-attr]
         try:
             data = _json.loads(raw)
         except Exception:

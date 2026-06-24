@@ -107,7 +107,7 @@ async def _llm_parse(transcript: str, context: dict) -> VoiceIntent:
         system=system,
         messages=[{"role": "user", "content": f"Transcript: {transcript}\nContext: {json.dumps(context)}"}],
     )
-    data = json.loads(msg.content[0].text.strip())
+    data = json.loads(msg.content[0].text.strip())  # type: ignore[union-attr]
     return VoiceIntent(
         intent_type=data.get("intent_type", "inquire"),
         entities=data.get("entities", {}),
