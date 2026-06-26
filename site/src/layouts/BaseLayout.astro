@@ -27,6 +27,7 @@ const categories = [
     href: '/cyber-security',
     color: '#ef4444',
     sub: [...new Set(roadmap.filter(r => r.category === 'Cyber Security').map(r => r.subcategory))],
+    links: [{ label: 'Trust Center', href: '/trust' }],
   },
   {
     label: 'Tunnel',
@@ -51,12 +52,6 @@ const categories = [
     href: '/doc',
     color: '#f59e0b',
     sub: ['Quick Start', 'API Reference', 'Compliance', 'Changelog'],
-  },
-  {
-    label: 'Trust',
-    href: '/trust',
-    color: '#10b981',
-    sub: [],
   },
   {
     label: 'Price',
@@ -166,7 +161,7 @@ const isSettingsActive = isActive('/settings');
                 </svg>
               )}
             </a>
-            {cat.sub.length > 0 && (
+            {(cat.sub.length > 0 || (cat as any).links?.length > 0) && (
               <div class="absolute top-full left-0 mt-1 w-56 rounded-xl py-1.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150"
                    style="background:#16161f;border:1px solid rgba(255,255,255,0.08);box-shadow:0 16px 40px rgba(0,0,0,0.5)">
                 {cat.sub.map(sub => (
@@ -176,6 +171,18 @@ const isSettingsActive = isActive('/settings');
                      onmouseover={`this.style.color='${cat.color}';this.style.background='rgba(255,255,255,0.04)'`}
                      onmouseout="this.style.color='#94a3b8';this.style.background='transparent'">
                     {sub}
+                  </a>
+                ))}
+                {(cat as any).links?.length > 0 && cat.sub.length > 0 && (
+                  <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 12px"/>
+                )}
+                {((cat as any).links ?? []).map((lnk: {label:string;href:string}) => (
+                  <a href={lnk.href}
+                     class="block px-4 py-2 text-[13px] transition-colors duration-100"
+                     style="color:#94a3b8"
+                     onmouseover={`this.style.color='${cat.color}';this.style.background='rgba(255,255,255,0.04)'`}
+                     onmouseout="this.style.color='#94a3b8';this.style.background='transparent'">
+                    {lnk.label}
                   </a>
                 ))}
               </div>
@@ -291,6 +298,13 @@ const isSettingsActive = isActive('/settings');
                class="block px-8 py-2 text-[13px]"
                style="color:#64748b">
               {sub}
+            </a>
+          ))}
+          {((cat as any).links ?? []).map((lnk: {label:string;href:string}) => (
+            <a href={lnk.href}
+               class="block px-8 py-2 text-[13px]"
+               style="color:#64748b">
+              {lnk.label}
             </a>
           ))}
         </div>
