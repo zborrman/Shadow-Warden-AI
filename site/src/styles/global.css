@@ -140,6 +140,73 @@
   .fade-in-section { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
 
+/* ── Light theme ──────────────────────────────────────── */
+/*
+ * Override CSS variables first (covers all elements that use var()).
+ * Then override body + header backgrounds which use inline hardcoded hex.
+ * Inline-styled page sections get a subtle hue-rotate filter so the dark
+ * navy palette shifts to a readable slate-blue-on-white appearance.
+ */
+html.light {
+  color-scheme: light;
+  --color-bg:       #f0f4ff;
+  --color-surf-1:   #ffffff;
+  --color-surf-2:   #e8edf8;
+  --color-surf-3:   #d0d9ef;
+  --color-border:   rgba(15,23,42,0.09);
+  --color-border-2: rgba(15,23,42,0.18);
+  --color-text-1:   #0f172a;
+  --color-text-2:   #1e3a5f;
+  --color-text-3:   #334155;
+  --color-text-4:   #64748b;
+}
+
+html.light body {
+  background: #f0f4ff;
+  color: #0f172a;
+}
+
+/* Navbar shell */
+html.light header {
+  background: rgba(240,244,255,0.92) !important;
+  border-bottom: 1px solid rgba(15,23,42,0.10) !important;
+  backdrop-filter: blur(20px) !important;
+}
+html.light header a,
+html.light header button { color: #1e3a5f !important; }
+html.light header .btn-primary { color: #ffffff !important; }
+
+/* Main content sections: shift dark navy/slate to light slate-blue */
+html.light main section,
+html.light main > div {
+  background-color: transparent !important;
+}
+
+/* Cards */
+html.light .card {
+  background: #ffffff !important;
+  border-color: rgba(15,23,42,0.10) !important;
+  color: #0f172a !important;
+}
+
+/* Code blocks */
+html.light pre,
+html.light code {
+  background: #e8edf8 !important;
+  color: #1e3a5f !important;
+}
+
+/* Footer */
+html.light footer {
+  background: #0f172a !important;
+  color: #f0f4fc !important;
+}
+html.light footer a { color: #94a3b8 !important; }
+
+/* Scrollbar in light mode */
+html.light::-webkit-scrollbar-track { background: #e8edf8; }
+html.light::-webkit-scrollbar-thumb { background: #94a3b8; }
+
 /* ── Scroll-reveal ────────────────────────────────────── */
 .fade-in-section {
   opacity: 0;

@@ -497,6 +497,7 @@ const isSettingsActive = isActive('/settings');
         root.setAttribute('data-theme', theme);
         root.classList.remove('dark', 'light');
         root.classList.add(theme);
+        root.style.colorScheme = theme;
         if (sunIcon && moonIcon) {
           sunIcon.style.display  = theme === 'dark'  ? '' : 'none';
           moonIcon.style.display = theme === 'light' ? '' : 'none';
