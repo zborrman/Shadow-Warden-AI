@@ -53,8 +53,8 @@ async def create_listing(body: ListingCreateRequest) -> dict:
             )
     except HTTPException:
         raise
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("sybil_gate fail-open: %s", exc)
     try:
         from warden.web3.chains import VALID_CHAINS  # noqa: PLC0415
         if body.chain not in VALID_CHAINS:
@@ -64,8 +64,8 @@ async def create_listing(body: ListingCreateRequest) -> dict:
             )
     except HTTPException:
         raise
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("valid_chains check fail-open: %s", exc)
     try:
         listing = publish_listing(
             asset_id=body.asset_id,

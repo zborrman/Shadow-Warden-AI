@@ -741,8 +741,8 @@ async def marketplace_readiness(community_id: str) -> dict:
     try:
         agents = _list_agents(community_id=community_id)
         agents_registered = len(agents) > 0
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("readiness check: _list_agents fail-open: %s", exc)
 
     missing: list[str] = []
     if not community_exists:
