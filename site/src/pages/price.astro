@@ -316,6 +316,176 @@ const addons = [
       </div>
     </section>
 
+    <!-- ── Profit & ROI Estimator ──────────────────────────────────────── -->
+    <section id="roi-estimator" class="pb-24 border-t" style="border-color:rgba(16,185,129,0.15)">
+      <div class="mx-auto max-w-5xl px-4 pt-16">
+
+        <div class="text-center mb-10">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-[11px] font-bold tracking-widest uppercase"
+               style="color:#10b981;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+            ◈ Marketplace ROI Estimator
+          </div>
+          <h2 class="text-[22px] font-black mb-2" style="color:#f1f5f9;letter-spacing:-0.02em">
+            How much will you earn?
+          </h2>
+          <p class="text-[13px] max-w-lg mx-auto" style="color:#6b7c96">
+            Based on 94,200 trades across 2,847 communities — 33 trades/community/month baseline.
+            Adjust to your forecast and see net profit in real time.
+          </p>
+        </div>
+
+        <div class="rounded-2xl overflow-hidden" style="border:1px solid rgba(16,185,129,0.18);background:rgba(16,185,129,0.02)">
+          <div class="grid lg:grid-cols-2">
+
+            <!-- LEFT: Inputs -->
+            <div class="p-7" style="border-right:1px solid rgba(16,185,129,0.12)">
+              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#10b981">Your numbers</div>
+
+              <!-- Period toggle -->
+              <div class="mb-6">
+                <div class="text-[12px] font-semibold mb-2" style="color:#a8b8d0">Time period</div>
+                <div class="inline-flex rounded-lg overflow-hidden" style="border:1px solid rgba(255,255,255,0.1)">
+                  <button id="roi-monthly" class="roi-period-btn active px-5 py-2 text-[12px] font-semibold transition-all" data-p="monthly">Monthly</button>
+                  <button id="roi-annual"  class="roi-period-btn px-5 py-2 text-[12px] font-semibold transition-all" data-p="annual">
+                    Annual
+                    <span class="ml-1 px-1.5 py-0.5 rounded text-[9px]" style="color:#10b981;background:rgba(16,185,129,0.15)">−15%</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tier selector -->
+              <div class="mb-6">
+                <div class="text-[12px] font-semibold mb-2" style="color:#a8b8d0">Plan tier</div>
+                <select id="roi-tier" class="w-full px-3 py-2.5 rounded-lg text-[13px] font-medium outline-none transition-all"
+                        style="background:#0c1020;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;-webkit-appearance:none">
+                  <option value="starter">Starter — Free (1,000 req/mo)</option>
+                  <option value="individual">Individual — $5/mo (5,000 req/mo)</option>
+                  <option value="community" selected>Community Business — $19/mo (10,000 req/mo)</option>
+                  <option value="pro">Pro — $69/mo (50,000 req/mo)</option>
+                </select>
+              </div>
+
+              <!-- Trades slider -->
+              <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="text-[12px] font-semibold" style="color:#a8b8d0">Trades per month</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#10b981" id="roi-trades-val">33</div>
+                </div>
+                <input id="roi-trades" type="range" min="0" max="10000" value="33" step="1" class="roi-slider w-full" />
+                <div class="flex justify-between mt-1">
+                  <span class="text-[10px]" style="color:#404e66">0</span>
+                  <span class="text-[10px]" style="color:#404e66">10,000</span>
+                </div>
+              </div>
+
+              <!-- AOV input -->
+              <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="text-[12px] font-semibold" style="color:#a8b8d0">Avg. order value (USD)</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#10b981" id="roi-aov-display">$500</div>
+                </div>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]" style="color:#64748b">$</span>
+                  <input id="roi-aov" type="number" min="0" max="1000000" value="500" step="1"
+                         class="w-full pl-7 pr-3 py-2.5 rounded-lg text-[13px] font-medium outline-none"
+                         style="background:#0c1020;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9" />
+                </div>
+              </div>
+
+              <!-- API calls slider -->
+              <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="text-[12px] font-semibold" style="color:#a8b8d0">Monthly search API calls (x402)</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#10b981" id="roi-api-val">10,000</div>
+                </div>
+                <input id="roi-api" type="range" min="0" max="1000000" value="10000" step="1000" class="roi-slider w-full" />
+                <div class="flex justify-between mt-1">
+                  <span class="text-[10px]" style="color:#404e66">0</span>
+                  <span class="text-[10px]" style="color:#404e66">1M</span>
+                </div>
+              </div>
+
+              <!-- Sponsored listing toggle -->
+              <div class="flex items-center justify-between py-3 px-4 rounded-lg" style="background:rgba(251,191,36,0.04);border:1px solid rgba(251,191,36,0.12)">
+                <div>
+                  <div class="text-[12px] font-semibold" style="color:#fbbf24">Sponsored listing boost (+0.15 similarity)</div>
+                  <div class="text-[11px] mt-0.5" style="color:#64748b">pgvector priority placement — $29/mo add-on</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input id="roi-sponsored" type="checkbox" class="sr-only" />
+                  <div id="roi-sponsored-track" class="w-9 h-5 rounded-full transition-all" style="background:rgba(255,255,255,0.1)">
+                    <div id="roi-sponsored-thumb" class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-sm"></div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- RIGHT: Results -->
+            <div class="p-7 flex flex-col">
+              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#10b981">Your projection</div>
+
+              <!-- Net profit counter -->
+              <div class="text-center mb-8 py-6 rounded-xl" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15)">
+                <div class="text-[11px] uppercase tracking-widest mb-2" style="color:#6b7c96">Projected net profit</div>
+                <div id="roi-net" class="text-[48px] font-black leading-none tabular-nums" style="color:#10b981;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">$0</div>
+                <div id="roi-period-label" class="text-[11px] mt-2" style="color:#6b7c96">per month</div>
+                <div id="roi-margin" class="text-[12px] font-semibold mt-1" style="color:#10b981"></div>
+              </div>
+
+              <!-- Breakdown table -->
+              <div class="space-y-2 mb-6 flex-1">
+                {[
+                  { id: 'roi-r-gmv',     label: 'Gross Revenue (GMV)',         icon: '+', color: '#80b4fd' },
+                  { id: 'roi-r-take',    label: 'Platform take rate',           icon: '−', color: '#ef4444' },
+                  { id: 'roi-r-sub',     label: 'SaaS subscription',            icon: '−', color: '#ef4444' },
+                  { id: 'roi-r-x402',    label: 'x402 compute costs',           icon: '−', color: '#ef4444' },
+                  { id: 'roi-r-sponsor', label: 'Sponsored listing boost',       icon: '−', color: '#fbbf24' },
+                ].map(r => (
+                  <div class="flex items-center justify-between py-2 px-3 rounded-lg" style="background:rgba(255,255,255,0.02)">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[11px] font-mono w-4 text-center" style={`color:${r.color}`}>{r.icon}</span>
+                      <span class="text-[12px]" style="color:#a8b8d0">{r.label}</span>
+                    </div>
+                    <span class="text-[13px] font-bold tabular-nums" id={r.id} style={`color:${r.color}`}>$0.00</span>
+                  </div>
+                ))}
+
+                <div class="flex items-center justify-between py-2.5 px-3 rounded-lg mt-1" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+                  <span class="text-[13px] font-bold" style="color:#10b981">Net Profit</span>
+                  <span class="text-[16px] font-black tabular-nums" id="roi-r-net" style="color:#10b981">$0.00</span>
+                </div>
+              </div>
+
+              <!-- Upsell tip -->
+              <div id="roi-upsell" class="hidden rounded-lg p-4" style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22)">
+                <div class="flex items-start gap-3">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 mt-0.5">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <div>
+                    <div class="text-[12px] font-semibold mb-1" style="color:#6366f1">Smart upgrade suggestion</div>
+                    <div class="text-[11px] leading-relaxed" id="roi-upsell-text" style="color:#94a3b8"></div>
+                    <a href="#roi-estimator" onclick="document.getElementById('roi-tier').value=this.dataset.tier;window._roiCalc();return false;"
+                       id="roi-upsell-cta" data-tier="community"
+                       class="inline-block mt-2 text-[11px] font-semibold px-3 py-1 rounded"
+                       style="color:#6366f1;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25)">
+                       Apply upgrade →
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ROI vs breach cost -->
+              <div id="roi-roi-box" class="mt-4 text-center py-3 rounded-lg" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06)">
+                <div class="text-[11px]" style="color:#475569">Annual ROI vs. $4.88M IBM breach cost</div>
+                <div id="roi-roi-val" class="text-[20px] font-black" style="color:#fbbf24">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Overage Billing — BL-19 -->
     <section class="pb-20 border-t" style="border-color:rgba(255,255,255,0.06)">
       <div class="mx-auto max-w-4xl px-4 pt-16">
@@ -448,6 +618,48 @@ const addons = [
     box-shadow: 0 0 0 1px rgba(99,102,241,0.4), 0 16px 48px rgba(99,102,241,0.15);
   }
   details summary::-webkit-details-marker { display: none; }
+
+  /* ── ROI Estimator ── */
+  .roi-period-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+  }
+  .roi-period-btn.active {
+    background: rgba(16,185,129,0.15);
+    color: #10b981;
+  }
+  .roi-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+    cursor: pointer;
+  }
+  .roi-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #10b981;
+    cursor: pointer;
+    border: 2px solid #070910;
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
+    transition: box-shadow .15s;
+  }
+  .roi-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 5px rgba(16,185,129,0.3);
+  }
+  .roi-slider::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #10b981;
+    cursor: pointer;
+    border: 2px solid #070910;
+  }
 </style>
 
 <script>
@@ -473,6 +685,165 @@ const addons = [
   monthlyBtn.addEventListener('click', () => apply(false));
   annualBtn.addEventListener('click',  () => apply(true));
   apply(isAnnual);
+
+  // ── ROI Estimator ───────────────────────────────────────────────────────────
+  (function roiEstimator() {
+    // Tier config — all costs in CENTS to avoid float drift
+    const TIERS: Record<string, { sub: number; takeRate: number; name: string; upsell: string | null; upsellTo: string | null }> = {
+      starter:   { sub: 0,    takeRate: 0,     name: 'Starter',            upsell: null, upsellTo: null },
+      individual:{ sub: 500,  takeRate: 0,     name: 'Individual',         upsell: 'At this GMV, upgrading to Community Business unlocks the SOVA AI agent, 1.5% take rate vs high per-action fees, and 180-day log retention — net profit improves above $1,000/mo GMV.', upsellTo: 'community' },
+      community: { sub: 1900, takeRate: 0.015, name: 'Community Business', upsell: 'At this volume, Pro ($69/mo) gives 50k req/mo, MasterAgent SOC, and Evolution Engine — your effective cost per request drops 60%.', upsellTo: 'pro' },
+      pro:       { sub: 6900, takeRate: 0.015, name: 'Pro',               upsell: null, upsellTo: null },
+    };
+    const SPONSOR_COST_CENTS = 2900; // $29/mo
+
+    // Grab DOM
+    const el = (id: string) => document.getElementById(id) as HTMLElement | null;
+
+    function fmtDollars(cents: number): string {
+      const abs = Math.abs(cents) / 100;
+      const s = abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return (cents < 0 ? '-' : '') + '$' + s;
+    }
+    function fmtShort(n: number): string {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+      if (n >= 1_000)     return (n / 1_000).toFixed(n >= 10_000 ? 0 : 1) + 'k';
+      return n.toLocaleString();
+    }
+
+    function calc() {
+      const tierKey  = (el('roi-tier') as HTMLSelectElement)?.value ?? 'community';
+      const trades   = parseInt((el('roi-trades') as HTMLInputElement)?.value ?? '33', 10);
+      const aov      = parseFloat((el('roi-aov') as HTMLInputElement)?.value ?? '500');
+      const apiCalls = parseInt((el('roi-api') as HTMLInputElement)?.value ?? '10000', 10);
+      const isAnnual = (el('roi-annual') as HTMLElement)?.classList.contains('active') ?? false;
+      const sponsored = (el('roi-sponsored') as HTMLInputElement)?.checked ?? false;
+      const t = TIERS[tierKey] ?? TIERS['community'];
+
+      // All math in cents
+      const periodFactor   = isAnnual ? 12 : 1;
+      const subCents       = Math.round(t.sub * periodFactor * (isAnnual ? 0.85 : 1));
+      const gmvCents       = Math.round(trades * (isAnnual ? 12 : 1) * Math.max(0, aov) * 100);
+      const takeCents      = Math.round(gmvCents * t.takeRate);
+      const apiCostCents   = Math.round(apiCalls * (isAnnual ? 12 : 1) * 0.0001); // $0.000001 per call = 0.0001 cents
+      const sponsorCents   = sponsored ? Math.round(SPONSOR_COST_CENTS * (isAnnual ? 12 : 1) * (isAnnual ? 0.85 : 1)) : 0;
+      const netCents       = gmvCents - takeCents - subCents - apiCostCents - sponsorCents;
+      const marginPct      = gmvCents > 0 ? Math.round((netCents / gmvCents) * 100) : 0;
+
+      // Animate net profit counter
+      const netEl = el('roi-net');
+      if (netEl) {
+        netEl.textContent = fmtDollars(netCents);
+        netEl.style.color = netCents < 0 ? '#ef4444' : '#10b981';
+      }
+
+      // Period label
+      const periodLabelEl = el('roi-period-label');
+      if (periodLabelEl) periodLabelEl.textContent = isAnnual ? 'per year' : 'per month';
+
+      // Margin
+      const marginEl = el('roi-margin');
+      if (marginEl) {
+        marginEl.textContent = gmvCents > 0 ? `${marginPct}% margin` : '';
+        marginEl.style.color = marginPct >= 80 ? '#10b981' : marginPct >= 50 ? '#fbbf24' : '#ef4444';
+      }
+
+      // Breakdown
+      const set = (id: string, v: number) => { const e = el(id); if (e) e.textContent = fmtDollars(v); };
+      set('roi-r-gmv',    gmvCents);
+      set('roi-r-take',   takeCents);
+      set('roi-r-sub',    subCents);
+      set('roi-r-x402',   apiCostCents);
+      set('roi-r-sponsor', sponsorCents);
+      set('roi-r-net',    netCents);
+
+      const sponsorRow = el('roi-r-sponsor')?.closest<HTMLElement>('.flex');
+      if (sponsorRow) sponsorRow.style.opacity = sponsored ? '1' : '0.35';
+
+      // ROI vs breach cost ($4.88M = 488000000 cents)
+      const annualNet = isAnnual ? netCents : netCents * 12;
+      const roiEl = el('roi-roi-val');
+      if (roiEl && annualNet > 0) {
+        const roi = (488_000_000 / Math.max(1, Math.abs(subCents * (isAnnual ? 1 : 12)))).toFixed(0);
+        roiEl.textContent = `${Number(roi).toLocaleString()}× cost avoided`;
+      } else if (roiEl) {
+        roiEl.textContent = '—';
+      }
+
+      // Upsell logic
+      const upsellEl = el('roi-upsell');
+      const upsellText = el('roi-upsell-text');
+      const upsellCta  = el('roi-upsell-cta') as HTMLAnchorElement | null;
+      const showUpsell = t.upsell && gmvCents >= 100_000; // $1,000+ GMV
+      if (upsellEl) upsellEl.classList.toggle('hidden', !showUpsell);
+      if (showUpsell && upsellText) upsellText.textContent = t.upsell!;
+      if (showUpsell && upsellCta && t.upsellTo) upsellCta.dataset.tier = t.upsellTo;
+
+      // Update slider track fill
+      const updateFill = (sliderId: string, max: number) => {
+        const s = el(sliderId) as HTMLInputElement | null;
+        if (!s) return;
+        const pct = (+s.value / max) * 100;
+        s.style.background = `linear-gradient(to right, #10b981 ${pct}%, rgba(255,255,255,0.1) ${pct}%)`;
+      };
+      updateFill('roi-trades', 10000);
+      updateFill('roi-api', 1000000);
+    }
+
+    // Expose for inline onclick
+    (window as any)._roiCalc = calc;
+
+    // Period toggle
+    const monthBtn = el('roi-monthly');
+    const yearBtn  = el('roi-annual');
+    monthBtn?.addEventListener('click', () => {
+      monthBtn.classList.add('active'); yearBtn?.classList.remove('active'); calc();
+    });
+    yearBtn?.addEventListener('click', () => {
+      yearBtn.classList.add('active'); monthBtn?.classList.remove('active'); calc();
+    });
+
+    // Trades slider
+    const tradesSlider = el('roi-trades') as HTMLInputElement | null;
+    tradesSlider?.addEventListener('input', () => {
+      const v = parseInt(tradesSlider.value, 10);
+      const d = el('roi-trades-val'); if (d) d.textContent = fmtShort(v);
+      calc();
+    });
+
+    // AOV input
+    const aovInput = el('roi-aov') as HTMLInputElement | null;
+    aovInput?.addEventListener('input', () => {
+      const d = el('roi-aov-display');
+      if (d) d.textContent = '$' + (parseFloat(aovInput.value) || 0).toLocaleString();
+      calc();
+    });
+
+    // API calls slider
+    const apiSlider = el('roi-api') as HTMLInputElement | null;
+    apiSlider?.addEventListener('input', () => {
+      const v = parseInt(apiSlider.value, 10);
+      const d = el('roi-api-val'); if (d) d.textContent = fmtShort(v);
+      calc();
+    });
+
+    // Tier select
+    el('roi-tier')?.addEventListener('change', calc);
+
+    // Sponsored toggle
+    const sponsoredCb = el('roi-sponsored') as HTMLInputElement | null;
+    const track = el('roi-sponsored-track');
+    const thumb = el('roi-sponsored-thumb');
+    sponsoredCb?.addEventListener('change', () => {
+      const on = sponsoredCb.checked;
+      if (track) track.style.background = on ? '#10b981' : 'rgba(255,255,255,0.1)';
+      if (thumb) thumb.style.transform = on ? 'translateX(16px)' : 'translateX(0)';
+      calc();
+    });
+
+    // Initial render
+    calc();
+  })();
 
   // Buy buttons
   document.querySelectorAll<HTMLButtonElement>('.ls-buy-btn').forEach(btn => {

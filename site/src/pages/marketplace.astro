@@ -588,6 +588,118 @@ try {
     </div>
   </section>
 
+  <!-- ── ROI Estimator (Marketplace) ─────────────────────────────────── -->
+  <section id="mp-roi" style="padding:80px 0;background:#030610;border-top:1px solid rgba(16,185,129,0.12)">
+    <div class="sec-inner">
+      <div class="sec-pre" style="color:#10b981">Profit Calculator</div>
+      <h2 class="sec-title">How much will you earn as a seller?</h2>
+      <p class="sec-sub">33 trades/community/month baseline (94,200 total across 2,847 communities). Adjust to your forecast.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:rgba(16,185,129,0.12);border-radius:16px;overflow:hidden;margin-top:40px;max-width:900px;margin-left:auto;margin-right:auto">
+        <!-- Inputs -->
+        <div style="background:#050c19;padding:32px">
+          <!-- Tier -->
+          <div style="margin-bottom:20px">
+            <label style="display:block;font-size:11px;font-weight:700;color:#6b7c96;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Plan</label>
+            <select id="mp-tier" style="width:100%;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;background:#0c1a2e;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;-webkit-appearance:none;outline:none">
+              <option value="starter">Starter — Free</option>
+              <option value="individual">Individual — $5/mo</option>
+              <option value="community" selected>Community Business — $19/mo</option>
+              <option value="pro">Pro — $69/mo</option>
+            </select>
+          </div>
+          <!-- Trades -->
+          <div style="margin-bottom:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <label style="font-size:11px;font-weight:700;color:#6b7c96;text-transform:uppercase;letter-spacing:.06em">Trades / month</label>
+              <span id="mp-trades-v" style="font-size:16px;font-weight:800;color:#10b981;font-variant-numeric:tabular-nums">33</span>
+            </div>
+            <input id="mp-trades" type="range" min="0" max="10000" value="33" step="1" class="roi-slider" style="width:100%" />
+          </div>
+          <!-- AOV -->
+          <div style="margin-bottom:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <label style="font-size:11px;font-weight:700;color:#6b7c96;text-transform:uppercase;letter-spacing:.06em">Avg. order value</label>
+              <span id="mp-aov-v" style="font-size:16px;font-weight:800;color:#10b981">$500</span>
+            </div>
+            <div style="position:relative">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#475569;font-size:13px">$</span>
+              <input id="mp-aov" type="number" min="0" max="1000000" value="500" step="1" style="width:100%;padding:10px 12px 10px 26px;border-radius:8px;font-size:13px;font-weight:600;background:#0c1a2e;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;outline:none;box-sizing:border-box" />
+            </div>
+          </div>
+          <!-- API Calls -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <label style="font-size:11px;font-weight:700;color:#6b7c96;text-transform:uppercase;letter-spacing:.06em">x402 search calls / mo</label>
+              <span id="mp-api-v" style="font-size:16px;font-weight:800;color:#10b981">10k</span>
+            </div>
+            <input id="mp-api" type="range" min="0" max="1000000" value="10000" step="1000" class="roi-slider" style="width:100%" />
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div style="background:#050c19;padding:32px;display:flex;flex-direction:column;gap:16px">
+          <!-- Net profit hero -->
+          <div style="text-align:center;padding:24px;border-radius:12px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.18)">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b7c96;margin-bottom:8px">Monthly net profit</div>
+            <div id="mp-net" style="font-size:52px;font-weight:900;color:#10b981;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums">$0</div>
+            <div id="mp-margin" style="font-size:12px;font-weight:700;margin-top:6px;color:#10b981"></div>
+          </div>
+
+          <!-- Breakdown -->
+          <div style="display:flex;flex-direction:column;gap:8px;flex:1">
+            {[
+              { id: 'mp-r-gmv',  label: 'Gross Revenue', color: '#80b4fd', sign: '+' },
+              { id: 'mp-r-take', label: 'Platform take (1.5%)', color: '#ef4444', sign: '−' },
+              { id: 'mp-r-sub',  label: 'Subscription', color: '#ef4444', sign: '−' },
+              { id: 'mp-r-api',  label: 'x402 API costs', color: '#ef4444', sign: '−' },
+            ].map(r => (
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.02)">
+                <span style={`font-size:12px;color:#a8b8d0`}><span style={`color:${r.color};font-weight:700;margin-right:6px;font-size:11px`}>{r.sign}</span>{r.label}</span>
+                <span id={r.id} style={`font-size:13px;font-weight:800;color:${r.color};font-variant-numeric:tabular-nums`}>$0.00</span>
+              </div>
+            ))}
+          </div>
+
+          <!-- Upsell chip -->
+          <div id="mp-upsell" style="display:none;padding:12px;border-radius:8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);font-size:11px;color:#a8b8d0;line-height:1.5" id="mp-upsell">
+            <span style="font-weight:700;color:#6366f1">Upgrade tip: </span><span id="mp-upsell-text"></span>
+          </div>
+
+          <a href="/price#roi-estimator" style="display:block;text-align:center;padding:10px;border-radius:8px;font-size:12px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.22);text-decoration:none">
+            Full estimator with annual view + sponsored listings →
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+  <script is:inline>
+  (function(){
+    const T={starter:{sub:500*0,take:0},individual:{sub:500,take:0},community:{sub:1900,take:0.015},pro:{sub:6900,take:0.015}};
+    const UPSELL={individual:'Upgrading to Community Business unlocks SOVA agent + 1.5% take rate — net profit improves above $1k GMV.',community:'At 300+ trades, Pro ($69/mo) gives 50k req/mo and MasterAgent SOC — effective cost per request drops 60%.'};
+    function g(id){return document.getElementById(id)}
+    function fmt(c){var a=Math.abs(c)/100;return(c<0?'-':'')+'$'+a.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+    function fmtS(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(0)+'k':n.toString()}
+    function calc(){
+      var tier=g('mp-tier').value,t=T[tier]||T.community;
+      var trades=+g('mp-trades').value,aov=Math.max(0,+g('mp-aov').value||0),api=+g('mp-api').value;
+      var gmv=Math.round(trades*aov*100),take=Math.round(gmv*t.take),sub=t.sub,x=Math.round(api*0.0001),net=gmv-take-sub-x;
+      var pct=gmv>0?Math.round(net/gmv*100):0;
+      g('mp-net').textContent=fmt(net);g('mp-net').style.color=net<0?'#ef4444':'#10b981';
+      g('mp-margin').textContent=gmv>0?pct+'% margin':'';g('mp-margin').style.color=pct>=80?'#10b981':pct>=50?'#fbbf24':'#ef4444';
+      g('mp-r-gmv').textContent=fmt(gmv);g('mp-r-take').textContent=fmt(take);g('mp-r-sub').textContent=fmt(sub);g('mp-r-api').textContent=fmt(x);
+      var up=UPSELL[tier]&&gmv>=100000;g('mp-upsell').style.display=up?'block':'none';if(up)g('mp-upsell-text').textContent=UPSELL[tier];
+      function fill(id,max){var s=g(id);if(!s)return;var p=+s.value/max*100;s.style.background='linear-gradient(to right,#10b981 '+p+'%,rgba(255,255,255,0.1) '+p+'%)'}
+      fill('mp-trades',10000);fill('mp-api',1000000);
+    }
+    g('mp-tier')?.addEventListener('change',calc);
+    g('mp-trades')?.addEventListener('input',function(){g('mp-trades-v').textContent=fmtS(+this.value);calc()});
+    g('mp-aov')?.addEventListener('input',function(){g('mp-aov-v').textContent='$'+(+this.value||0).toLocaleString();calc()});
+    g('mp-api')?.addEventListener('input',function(){g('mp-api-v').textContent=fmtS(+this.value);calc()});
+    calc();
+  })();
+  </script>
+
   <!-- CTA -->
   <section class="cta-sec">
     <div class="sec-inner cta-inner">
