@@ -107,6 +107,15 @@ const isSettingsActive = isActive('/settings');
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="agent-protocol" href="/.well-known/agent.json" type="application/json" />
   <title>{title}</title>
+  <!-- Anti-FOUC: apply stored/system theme before first paint -->
+  <script is:inline>
+    (function(){try{
+      var t=localStorage.getItem('sw-theme');
+      if(!t) t=window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark';
+      var r=document.documentElement;
+      r.classList.add(t);r.setAttribute('data-theme',t);r.style.colorScheme=t;
+    }catch(e){}}());
+  </script>
 </head>
 
 <body>
@@ -491,33 +500,59 @@ const isSettingsActive = isActive('/settings');
       document.getElementById('a11y-trigger')?.click();
     });
 
-    // ── DS-01 Theme toggle ──
+    // ── DS-01 Theme toggle — Slack-inspired smooth switch ──
     (function() {
       const THEME_KEY = 'sw-theme';
       const toggleBtn = document.getElementById('theme-toggle') as HTMLButtonElement | null;
       const sunIcon   = document.getElementById('tt-sun')  as SVGElement | null;
       const moonIcon  = document.getElementById('tt-moon') as SVGElement | null;
 
-      function applyTheme(theme: 'dark' | 'light') {
+      function applyTheme(theme: 'dark' | 'light', animate = false) {
         const root = document.documentElement;
-        root.setAttribute('data-theme', theme);
-        root.classList.remove('dark', 'light');
-        root.classList.add(theme);
-        root.style.colorScheme = theme;
-        if (sunIcon && moonIcon) {
-          sunIcon.style.display  = theme === 'dark'  ? '' : 'none';
-          moonIcon.style.display = theme === 'light' ? '' : 'none';
+
+        function commit() {
+          root.setAttribute('data-theme', theme);
+          root.classList.remove('dark', 'light');
+          root.classList.add(theme);
+          root.style.colorScheme = theme;
+          if (sunIcon && moonIcon) {
+            sunIcon.style.display  = theme === 'dark'  ? '' : 'none';
+            moonIcon.style.display = theme === 'light' ? '' : 'none';
+          }
+          localStorage.setItem(THEME_KEY, theme);
         }
-        localStorage.setItem(THEME_KEY, theme);
+
+        if (animate) {
+          // Slack-style: brief opacity dip hides the filter flip (60ms → commit → fade back)
+          root.style.transition = 'opacity 60ms ease';
+          root.style.opacity = '0.82';
+          setTimeout(() => {
+            commit();
+            requestAnimationFrame(() => {
+              root.style.opacity = '1';
+              setTimeout(() => { root.style.transition = ''; }, 140);
+            });
+          }, 65);
+        } else {
+          commit();
+        }
       }
 
-      // Restore persisted theme on load
-      const stored = localStorage.getItem(THEME_KEY) as 'dark' | 'light' | null;
-      applyTheme(stored === 'light' ? 'light' : 'dark');
+      // First visit: use OS preference; returning: use stored choice
+      const stored  = localStorage.getItem(THEME_KEY) as 'dark' | 'light' | null;
+      const sysPrefs = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      applyTheme(stored ?? sysPrefs, false);
+
+      // OS preference changes while tab is open
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+        if (!localStorage.getItem(THEME_KEY)) {
+          applyTheme(e.matches ? 'light' : 'dark', true);
+        }
+      });
 
       toggleBtn?.addEventListener('click', () => {
         const current = document.documentElement.classList.contains('light') ? 'light' : 'dark';
-        applyTheme(current === 'dark' ? 'light' : 'dark');
+        applyTheme(current === 'dark' ? 'light' : 'dark', true);
       });
     })();
 

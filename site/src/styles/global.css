@@ -140,28 +140,44 @@
   .fade-in-section { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
 
-/* ── Light theme ──────────────────────────────────────── */
+/* ── Light theme — Slack-inspired: chrome always dark, content inverts ── */
 /*
- * Dark-native site: 66 pages use hardcoded dark inline styles.
- * CSS invert filter is the only approach that reliably flips every element.
- * Images, logos, and videos are counter-inverted to preserve their colors.
- * hue-rotate(180deg) keeps accent hues (blue→blue, not blue→orange).
+ * Slack's key pattern: the sidebar stays in brand color (aubergine) in both
+ * dark and light mode. Only the content area switches. Applied here as:
+ * navbar + footer + banner stay in their original dark colors at all times.
+ * This gives the "security console" feel — navigation chrome is always dark.
+ *
+ * Technique: invert the whole <html>, then double-invert the chrome elements
+ * (two inversions cancel each other → original dark colors preserved).
+ * Images/video in the content area are counter-inverted to show natural colors.
+ * Canvases are intentionally NOT counter-inverted — dark-painted charts become
+ * readable light charts after a single inversion.
  */
 html.light {
   color-scheme: light;
   filter: invert(1) hue-rotate(180deg);
 }
 
-/* Counter-invert only raster images so photos look natural.
-   Canvases (charts, particles) are intentionally NOT counter-inverted —
-   they contain dark-mode-painted content that would show as dark islands
-   on a light page if left in their original state. Inverting them gives
-   a usable light-mode chart. */
-html.light img,
-html.light video,
-html.light iframe,
-html.light svg image {
+/* ── Dark chrome anchor — double-invert to neutralize html's invert ── */
+/* Navbar, banner, and mobile menu have explicit dark backgrounds and stay dark.
+   Footer has no explicit background so it intentionally goes light with the content. */
+html.light #top-banner,
+html.light #navbar,
+html.light #mobile-menu {
   filter: invert(1) hue-rotate(180deg);
+}
+
+/* ── Media in content: counter-invert for natural colors ── */
+html.light main img,
+html.light main video,
+html.light main iframe,
+html.light main svg image {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Logo in dark chrome: parent double-invert restores original colors */
+html.light #navbar img {
+  filter: none;
 }
 
 /* Scrollbar in light mode */
