@@ -248,6 +248,63 @@ LIMIT 100`}</pre>
       </p>
     </div>
 
+    <!-- Marketplace Revenue Analytics -->
+    <div class="rounded-2xl border border-[#10b981]/20 overflow-hidden mb-8" style="background:rgba(16,185,129,0.03)">
+      <div class="px-6 py-4 border-b border-[#10b981]/12 flex items-center justify-between">
+        <div>
+          <div class="text-[11px] font-bold uppercase tracking-wider text-[#10b981] mb-1">Marketplace Revenue Analytics</div>
+          <div class="text-[13px] font-semibold text-[#f1f5f9]">Track x402 earnings, take-rate deductions, and seller net in real time</div>
+        </div>
+        <span class="text-[10px] font-bold px-2 py-1 rounded-full" style="color:#10b981;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25)">ai_spend model</span>
+      </div>
+      <div class="p-6 grid md:grid-cols-2 gap-6">
+        <!-- Revenue models -->
+        <div>
+          <div class="text-[11px] font-semibold text-[#6b7c96] uppercase tracking-wider mb-3">Two revenue streams tracked automatically</div>
+          <div class="space-y-3">
+            {[
+              { label: 'x402 nanopayments', desc: '$0.000001/call · aggregate per billing cycle', badge: 'metered', color: '#fbbf24' },
+              { label: 'Take rate (1.5% GMV)', desc: 'Deducted at ClearingEngine · Decimal ROUND_HALF_UP', badge: 'per trade', color: '#10b981' },
+              { label: 'Sponsored listing boost', desc: '$29/mo · +0.15 pgvector similarity · optional', badge: 'add-on', color: '#a78bfa' },
+            ].map(r => (
+              <div class="flex items-start gap-3 p-3 rounded-lg" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05)">
+                <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5" style={`background:${r.color}`}></div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[12px] font-semibold" style={`color:${r.color}`}>{r.label}</div>
+                  <div class="text-[11px] text-[#64748b]">{r.desc}</div>
+                </div>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded" style={`color:${r.color};background:${r.color}18;border:1px solid ${r.color}30`}>{r.badge}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <!-- SQL example -->
+        <div>
+          <div class="text-[11px] font-semibold text-[#6b7c96] uppercase tracking-wider mb-3">Query via Semantic Layer</div>
+          <div class="rounded-lg overflow-hidden" style="border:1px solid rgba(16,185,129,0.2)">
+            <div class="px-3 py-2 flex items-center gap-2" style="background:#040d1a;border-bottom:1px solid rgba(16,185,129,0.12)">
+              <span class="text-[10px] text-[#475569] font-mono">POST /semantic-layer/query</span>
+              <span class="ml-auto text-[10px] font-bold text-[#10b981]">ai_spend model</span>
+            </div>
+            <pre class="p-4 text-[11px] leading-relaxed overflow-x-auto" style="background:#030a12;color:#a8b8d0;font-family:JetBrains Mono,monospace"><code><span style="color:#6b7c96">-- Month-to-date seller net earnings</span>
+SELECT
+  seller_agent_id,
+  SUM(gmv_usd)           AS gross_revenue,
+  SUM(platform_fee_usd)  AS take_rate_paid,
+  SUM(seller_net_usd)    AS <span style="color:#10b981">net_profit</span>
+FROM agentic_orders
+WHERE cleared_at &gt;= date_trunc('month', now())
+GROUP BY seller_agent_id
+ORDER BY net_profit DESC;</code></pre>
+          </div>
+          <a href="/price#roi-estimator" class="mt-3 flex items-center gap-1.5 text-[11px] font-semibold" style="color:#10b981">
+            Open ROI Estimator
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- CTA -->
     <div class="rounded-2xl border border-[#BF5AF2]/25 p-8 text-center" style="background:rgba(191,90,242,0.06)">
       <h2 class="text-[24px] font-bold mb-3">Ready to centralise your analytics?</h2>
