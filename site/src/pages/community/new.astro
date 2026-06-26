@@ -149,6 +149,56 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     /* tier gate */
     .tier-gate { text-align:center; padding:32px; }
     .tier-gate-icon { font-size:40px; margin-bottom:14px; }
+
+    /* ── ARS Risk Score Widget ── */
+    .ars-widget {
+      margin: 24px 0;
+      padding: 24px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.25);
+    }
+    .ars-top { display:flex; align-items:center; gap:24px; margin-bottom:20px; }
+    .ars-gauge-wrap { position:relative; width:100px; height:100px; flex-shrink:0; }
+    .ars-gauge-wrap svg { width:100%; height:100%; }
+    .ars-num {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; pointer-events:none;
+    }
+    .ars-score { font-size:26px; font-weight:900; line-height:1; }
+    .ars-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#475569; margin-top:2px; }
+    .ars-meta { flex:1; }
+    .ars-tier-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:5px 12px; border-radius:8px; font-size:12px; font-weight:700;
+      margin-bottom:8px; letter-spacing:.02em;
+    }
+    .ars-title { font-size:15px; font-weight:800; color:#f1f5f9; margin-bottom:4px; }
+    .ars-desc { font-size:12px; color:#475569; line-height:1.5; }
+
+    /* axis bars */
+    .ars-axes { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+    .axis-row { display:flex; align-items:center; gap:10px; }
+    .axis-name { font-size:11px; color:#64748b; width:120px; flex-shrink:0; }
+    .axis-track { flex:1; height:6px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:hidden; }
+    .axis-fill { height:100%; border-radius:3px; transition:width .6s cubic-bezier(.23,1,.32,1); }
+    .axis-val { font-size:11px; font-weight:700; width:32px; text-align:right; flex-shrink:0; }
+
+    /* policy enforcement table */
+    .ars-policy {
+      padding:12px 14px; border-radius:10px;
+      background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+      font-size:12px; color:#64748b; line-height:1.5;
+    }
+    .ars-policy strong { color:#94a3b8; }
+
+    /* persuasion tip */
+    .ars-tip {
+      margin-top:12px; padding:10px 14px; border-radius:10px; font-size:11px; line-height:1.6;
+      background:rgba(6,182,212,0.05); border:1px solid rgba(6,182,212,0.15); color:#06b6d4;
+      display:none;
+    }
+    .ars-tip.visible { display:block; }
   </style>
 
   <div class="wizard-wrap">
@@ -421,7 +471,63 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <tr><td>Marketplace</td><td id="rv-market">—</td></tr>
             <tr><td>Tags</td><td id="rv-tags" style="color:#64748b;font-weight:400">—</td></tr>
           </table>
-          <div class="info-note" style="margin-top:20px">
+          <!-- ARS Risk Score widget -->
+          <div class="ars-widget" id="ars-widget">
+            <div class="ars-top">
+              <!-- SVG ring gauge -->
+              <div class="ars-gauge-wrap">
+                <svg viewBox="0 0 100 100" fill="none">
+                  <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.07)" stroke-width="10"/>
+                  <circle id="ars-arc" cx="50" cy="50" r="40"
+                    stroke="#10b981" stroke-width="10" stroke-linecap="round"
+                    stroke-dasharray="251.2" stroke-dashoffset="251.2"
+                    transform="rotate(-90 50 50)"
+                    style="transition:stroke-dashoffset .7s cubic-bezier(.23,1,.32,1),stroke .4s"/>
+                </svg>
+                <div class="ars-num">
+                  <span class="ars-score" id="ars-score-num" style="color:#10b981">1</span>
+                  <span class="ars-label">/ 100</span>
+                </div>
+              </div>
+              <div class="ars-meta">
+                <div class="ars-tier-badge" id="ars-tier-badge" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)">
+                  <span id="ars-tier-dot" style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>
+                  <span id="ars-tier-label">Trusted</span>
+                </div>
+                <div class="ars-title">Agent Risk Score (ARS)</div>
+                <div class="ars-desc" id="ars-policy-desc">Full autonomy — agent may clear transactions and move funds without human oversight.</div>
+              </div>
+            </div>
+
+            <!-- Three-axis breakdown -->
+            <div class="ars-axes">
+              <div class="axis-row">
+                <span class="axis-name">Attack Surface</span>
+                <div class="axis-track"><div class="axis-fill" id="ax-surface" style="background:#ef4444;width:0%"></div></div>
+                <span class="axis-val" id="ax-surface-v" style="color:#ef4444">0</span>
+              </div>
+              <div class="axis-row">
+                <span class="axis-name">Blast Radius</span>
+                <div class="axis-track"><div class="axis-fill" id="ax-blast" style="background:#f97316;width:0%"></div></div>
+                <span class="axis-val" id="ax-blast-v" style="color:#f97316">0</span>
+              </div>
+              <div class="axis-row">
+                <span class="axis-name">Defensive Controls</span>
+                <div class="axis-track"><div class="axis-fill" id="ax-defense" style="background:#10b981;width:0%"></div></div>
+                <span class="axis-val" id="ax-defense-v" style="color:#10b981">−0</span>
+              </div>
+            </div>
+
+            <!-- Policy enforcement -->
+            <div class="ars-policy" id="ars-policy-row">
+              <strong>Policy:</strong> <span id="ars-policy-text">Agents in this community can operate with full autonomy including x402 payments and CRM writes.</span>
+            </div>
+
+            <!-- Tip shown when score > 20 -->
+            <div class="ars-tip" id="ars-tip"></div>
+          </div>
+
+          <div class="info-note">
             🔐 Community data is stored in your browser. Tunnel messages use end-to-end encrypted channels. No data is sent to external servers without your explicit action.
           </div>
           <div class="nav-row">
@@ -601,6 +707,136 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     });
     tagsWrap.addEventListener('click', () => tagInput.focus());
 
+    // ── ARS: Agent Risk Score (TRiSM / AIRQ model) ──────────
+    // Formula: ARS = clamp(AttackSurface + BlastRadius - Defenses, 1, 100)
+    interface ARSResult {
+      score: number;
+      surface: number;   // 0-40
+      blast: number;     // 0-60
+      defense: number;   // 0-90
+    }
+
+    function computeARS(): ARSResult {
+      const chk = (id: string) => (document.getElementById(id) as HTMLInputElement)?.checked ?? false;
+      const radio = (name: string) => (document.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement)?.value || '';
+      const roleEl = document.getElementById('f-role') as HTMLSelectElement;
+
+      // 1. Attack Surface (max 40)
+      const vis  = radio('visibility');
+      const type = radio('comm-type');
+      const visScore  = vis  === 'public'      ? 20 : 5;
+      const typeScore = type === 'marketplace' ? 20 : 10;
+      const surface = visScore + typeScore;
+
+      // 2. Blast Radius (max 60)
+      const roleVal = roleEl?.value || 'member';
+      const roleScore = roleVal === 'viewer' ? 5 : roleVal === 'contributor' ? 30 : 25;
+      const marketScore = chk('t-market') ? 20 : 0;
+      const govGap = (!chk('t-gdpr') && !chk('t-charter')) ? 15
+                   : (!chk('t-gdpr') || !chk('t-charter'))  ? 7 : 0;
+      const blast = roleScore + marketScore + govGap;
+
+      // 3. Defensive Controls (reduce risk, max 90)
+      const defSova     = chk('t-sova')     ? 30 : 0;
+      const defPqc      = chk('t-pqc')      ? 25 : 0;
+      const defE2e      = chk('t-e2e')      ? 15 : 0;
+      const defApproval = chk('t-approval') ? 15 : 0;
+      const defSlack    = chk('t-slack')    ?  5 : 0;
+      const defense = defSova + defPqc + defE2e + defApproval + defSlack;
+
+      const raw = surface + blast - defense;
+      const score = Math.max(1, Math.min(100, raw));
+      return { score, surface, blast, defense };
+    }
+
+    function renderARS(r: ARSResult) {
+      const { score, surface, blast, defense } = r;
+
+      // Color palette
+      const color = score <= 20 ? '#10b981'
+                  : score <= 50 ? '#fbbf24'
+                  : score <= 80 ? '#f97316'
+                  :               '#ef4444';
+
+      // Ring: circumference = 2π×40 ≈ 251.2
+      const CIRC = 251.2;
+      const arc  = document.getElementById('ars-arc');
+      if (arc) {
+        arc.setAttribute('stroke', color);
+        arc.setAttribute('stroke-dashoffset', String(CIRC * (1 - score / 100)));
+      }
+
+      const scoreEl = document.getElementById('ars-score-num');
+      if (scoreEl) { scoreEl.textContent = String(score); scoreEl.style.color = color; }
+
+      // Tier badge
+      const tierLabel = score <= 20 ? 'Trusted'
+                      : score <= 50 ? 'Moderate'
+                      : score <= 80 ? 'Sandbox'
+                      :               'Isolated';
+      const tierBg = score <= 20 ? 'rgba(16,185,129,0.1)'
+                   : score <= 50 ? 'rgba(251,191,36,0.1)'
+                   : score <= 80 ? 'rgba(249,115,22,0.1)'
+                   :               'rgba(239,68,68,0.1)';
+      const tierBorder = `1px solid ${color}33`;
+      const badge = document.getElementById('ars-tier-badge');
+      if (badge) { badge.style.cssText += `;background:${tierBg};color:${color};border:${tierBorder}`; }
+      const tl = document.getElementById('ars-tier-label');
+      if (tl) tl.textContent = tierLabel;
+
+      // Policy description
+      const policyDesc: Record<string,string> = {
+        'Trusted':  'Full autonomy — agent may clear transactions and move funds without human oversight.',
+        'Moderate': 'Standard mode — bidding and negotiation allowed; large transactions require MFA.',
+        'Sandbox':  'Research only — search access granted; send_offer and payment calls are blocked.',
+        'Isolated': 'Lethal triad detected. Brand Agents automatically reject handshakes from this node.',
+      };
+      const policyText: Record<string,string> = {
+        'Trusted':  'Agents can operate with full autonomy including x402 payments and CRM writes.',
+        'Moderate': 'Agents can bid and negotiate. Financial transactions > $100 require MFA approval.',
+        'Sandbox':  'Agents can search and read. All commercial offers and payment calls are blocked.',
+        'Isolated': 'Full network isolation. Brand Agents refuse all protocol handshakes from this node.',
+      };
+      const pdEl = document.getElementById('ars-policy-desc');
+      if (pdEl) pdEl.textContent = policyDesc[tierLabel] || '';
+      const ptEl = document.getElementById('ars-policy-text');
+      if (ptEl) ptEl.textContent = policyText[tierLabel] || '';
+
+      // Axis bars
+      const sfEl = document.getElementById('ax-surface');
+      const sfVEl = document.getElementById('ax-surface-v');
+      if (sfEl) sfEl.style.width = `${(surface/40)*100}%`;
+      if (sfVEl) sfVEl.textContent = String(surface);
+
+      const blEl = document.getElementById('ax-blast');
+      const blVEl = document.getElementById('ax-blast-v');
+      if (blEl) blEl.style.width = `${(blast/60)*100}%`;
+      if (blVEl) blVEl.textContent = String(blast);
+
+      const dfEl = document.getElementById('ax-defense');
+      const dfVEl = document.getElementById('ax-defense-v');
+      if (dfEl) dfEl.style.width = `${(defense/90)*100}%`;
+      if (dfVEl) dfVEl.textContent = `−${defense}`;
+
+      // Tip: suggest best unlock if score > 20
+      const tipEl = document.getElementById('ars-tip');
+      if (tipEl) {
+        const chk = (id: string) => (document.getElementById(id) as HTMLInputElement)?.checked ?? false;
+        const tips: string[] = [];
+        if (!chk('t-sova'))     tips.push('Enable SOVA Agent (−30 pts)');
+        if (!chk('t-pqc'))      tips.push('Enable Post-Quantum Cryptography in Step 3 (−25 pts, Enterprise)');
+        if (!chk('t-e2e'))      tips.push('Enable End-to-End Encryption (−15 pts)');
+        if (!chk('t-approval')) tips.push('Require Join Approval (−15 pts)');
+        if (!chk('t-slack'))    tips.push('Enable Slack Alerts (−5 pts)');
+        if (score > 20 && tips.length) {
+          tipEl.textContent = `Reduce your ARS: ${tips[0]} would be most impactful.`;
+          tipEl.classList.add('visible');
+        } else {
+          tipEl.classList.remove('visible');
+        }
+      }
+    }
+
     // ── Review ──────────────────────────────────────────────
     function populateReview() {
       const get = (id: string) => (document.getElementById(id) as HTMLInputElement)?.value.trim() || '—';
@@ -638,6 +874,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         : '<span style="color:#64748b">Not listed</span>';
 
       (document.getElementById('rv-tags') as HTMLElement).textContent = tags.length ? tags.join(', ') : 'None';
+
+      // Compute and render ARS
+      const arsResult = computeARS();
+      renderARS(arsResult);
     }
 
     // ── Create ───────────────────────────────────────────────
@@ -650,9 +890,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const now = Date.now();
       const id = genCommId();
 
+      const arsResult = computeARS();
       const newComm = {
         id,
         name,
+        ars: arsResult.score,
         description: (document.getElementById('f-desc') as HTMLTextAreaElement).value.trim(),
         website: (document.getElementById('f-url') as HTMLInputElement).value.trim(),
         visibility: (document.querySelector('input[name="visibility"]:checked') as HTMLInputElement)?.value || 'public',
