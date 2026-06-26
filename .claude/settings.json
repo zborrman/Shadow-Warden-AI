@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@91.98.234.160 \"sleep 8 && docker compose -f /opt/shadow-warden/docker-compose.yml logs warden --tail=5 && curl -s http://localhost:8001/secrets/stats 2>&1\")",
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@91.98.234.160 \"sleep 5 && docker compose -f /opt/shadow-warden/docker-compose.yml exec warden curl -s http://localhost:8001/secrets/stats 2>&1\")",
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@91.98.234.160 \"docker compose -f /opt/shadow-warden/docker-compose.yml ps && docker compose -f /opt/shadow-warden/docker-compose.yml logs warden --tail=30 2>&1\")",
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@91.98.234.160 \"docker compose -f /opt/shadow-warden/docker-compose.yml logs warden 2>&1 | grep -i secrets\")",
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@91.98.234.160 \"docker compose -f /opt/shadow-warden/docker-compose.yml exec warden curl -s http://localhost:8001/secrets/stats 2>&1\")",
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@91.98.234.160 \"cd /opt/shadow-warden && git pull origin main && docker compose restart analytics 2>&1 | tail -5\")",
+      "Bash(sed -n '381,400p' warden/secret_redactor.py)",
+      "Bash(sed -n '184,230p' warden/communities/sep.py)",
+      "Bash(ALLOW_UNAUTHENTICATED=true WARDEN_API_KEY=\"\" ANTHROPIC_API_KEY=\"\" LOGS_PATH=\"/tmp/tl.json\" DYNAMIC_RULES_PATH=\"/tmp/dr.json\" REDIS_URL=\"memory://\" MODEL_CACHE_DIR=\"/tmp/wm\" SEP_DB_PATH=\"/tmp/test_obs_sep.db\" python -m pytest warden/tests/test_obsidian_integration.py -v --tb=short)",
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@91.98.234.160 \"cd /opt/shadow-warden && git pull && docker compose up -d --build warden 2>&1 | tail -8\")",
+      "Bash(ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 root@91.98.234.160 \"cd /opt/shadow-warden && git pull && docker compose up -d --build warden 2>&1 | tail -10\")",
+      "Bash(ssh -o ConnectTimeout=20 -i ~/.ssh/id_ed25519 root@91.98.234.160 \"echo ok\")",
+      "Bash(ssh -i ~/.ssh/id_ed25519 root@91.98.234.160 \"cd /opt/shadow-warden && git pull && docker compose up -d --build warden\")"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 5,
+            "command": "bash hooks/block-sensitive-writes.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash hooks/validate-marketplace.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
