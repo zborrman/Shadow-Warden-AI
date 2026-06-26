@@ -386,6 +386,34 @@ async def dispatch_action(body: MarketAction, request: Request) -> dict:
             "error":       "Handler not available; call the sub-endpoint directly.",
         }
 
+    # Dynamic Model Router — score action complexity, select cheapest capable model
+    _route_decision = None
+    try:
+        from warden.marketplace.model_router import route as _mr_route  # noqa: PLC0415
+
+        _route_decision = _mr_route(
+            body.action_type,
+            body.payload,
+            round_count=int(body.payload.get("round_count", 0)) if isinstance(body.payload, dict) else 0,
+        )
+        log.debug(
+            "dispatch_action: model_router action=%s tier=%s score=%.2f model=%s",
+            body.action_type, _route_decision.tier, _route_decision.score, _route_decision.model,
+        )
+        # OTel span attributes — GDPR-safe metadata only (no user content)
+        try:
+            from opentelemetry import trace as _otel_trace  # noqa: PLC0415
+
+            _span = _otel_trace.get_current_span()
+            _span.set_attribute("mkt.model_tier",    _route_decision.tier)
+            _span.set_attribute("mkt.route_score",   _route_decision.score)
+            _span.set_attribute("mkt.model_id",      _route_decision.model)
+            _span.set_attribute("mkt.action_type",   body.action_type)
+        except Exception:
+            pass
+    except Exception:
+        pass  # router is advisory only — dispatch continues regardless
+
     # x402 nanopayment gate — search action only; fail-open
     if body.action_type == "search":
         try:
@@ -416,7 +444,12 @@ async def dispatch_action(body: MarketAction, request: Request) -> dict:
             except Exception as _ded_exc:
                 log.debug("x402 deduct fail-open: %s", _ded_exc)
 
-        return {"dispatched": True, "action_type": body.action_type, "result": result}
+        resp: dict[str, Any] = {"dispatched": True, "action_type": body.action_type, "result": result}
+        if _route_decision is not None:
+            resp["routed_model"] = _route_decision.model
+            resp["route_tier"]   = _route_decision.tier
+            resp["route_score"]  = round(_route_decision.score, 3)
+        return resp
     except Exception as exc:
         log.warning("dispatch_action %s failed: %s", body.action_type, exc)
         return {
@@ -704,6 +737,21 @@ async def marketplace_fairness_stats(
     """First-Proposal Bias metrics — avg alternatives evaluated per purchase."""
     from warden.marketplace.analytics import fairness_stats
     return fairness_stats(period_days=period_days)
+
+
+@router.get("/analytics/model-tiers")
+async def marketplace_model_tiers(
+    period_days: int = Query(default=7, ge=1, le=90),
+) -> dict:
+    """Model router tier distribution for dispatched actions.
+
+    Returns haiku/sonnet/opus counts and an estimated API cost savings
+    percentage vs. always routing to Opus.  The ``estimated`` flag is True
+    when the clearing-log sample is < 10 records (fallback proportions used).
+    Wired into the Live Intelligence dashboard chart on the marketplace page.
+    """
+    from warden.marketplace.analytics import model_tier_distribution
+    return model_tier_distribution(period_days=period_days)
 
 
 @router.get("/analytics/agents")

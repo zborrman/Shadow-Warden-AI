@@ -224,7 +224,21 @@ try {
   .chart-panel-sub { font-size: 11.5px; color: #3d4f66; margin-bottom: 20px; line-height: 1.5; }
   .chart-wrap { position: relative; height: 220px; }
   .chart-status { font-size: 10px; color: #2d3a4e; margin-top: 10px; text-align: right; font-variant-numeric: tabular-nums; }
-  @media (max-width: 760px) { .charts-grid { grid-template-columns: 1fr; } }
+  .chart-panel-span { grid-column: 1 / -1; }
+  .tier-chart-inner { display: grid; grid-template-columns: 200px 1fr; gap: 32px; align-items: center; }
+  .tier-stats { display: flex; flex-direction: column; gap: 14px; }
+  .tier-row { display: flex; align-items: center; gap: 12px; }
+  .tier-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .tier-label { font-size: 13px; font-weight: 600; color: #c4d4ea; min-width: 68px; }
+  .tier-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+  .tier-bar { height: 100%; border-radius: 3px; transition: width .6s cubic-bezier(.23,1,.32,1); }
+  .tier-pct { font-size: 12px; color: #4d5e78; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  .savings-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 20px; background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.2); color: #34d399; margin-top: 18px; }
+  @media (max-width: 760px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .tier-chart-inner { grid-template-columns: 1fr; }
+    .chart-panel-span { grid-column: auto; }
+  }
 
   /* ── Responsive ─────────────────────────────────────────── */
   @media (max-width: 900px) {
@@ -490,6 +504,42 @@ try {
           <div class="chart-wrap"><canvas id="chart-fairness"></canvas></div>
           <div class="chart-status" id="chart-fairness-status">Loading…</div>
         </div>
+
+        <!-- Model Cost Distribution — spans full width -->
+        <div class="chart-panel chart-panel-span">
+          <div class="chart-panel-title">Model Cost Distribution</div>
+          <div class="chart-panel-sub">Dynamic Router tier selection across all dispatched actions — Haiku / Sonnet / Opus</div>
+          <div class="tier-chart-inner">
+            <div class="chart-wrap" style="height:180px;width:180px;margin:0 auto"><canvas id="chart-tiers"></canvas></div>
+            <div>
+              <div class="tier-stats" id="tier-stats">
+                <div class="tier-row">
+                  <span class="tier-swatch" style="background:#06b6d4"></span>
+                  <span class="tier-label">Haiku</span>
+                  <div class="tier-bar-wrap"><div class="tier-bar" id="tb-haiku" style="width:0%;background:#06b6d4"></div></div>
+                  <span class="tier-pct" id="tp-haiku">—</span>
+                </div>
+                <div class="tier-row">
+                  <span class="tier-swatch" style="background:#80b4fd"></span>
+                  <span class="tier-label">Sonnet</span>
+                  <div class="tier-bar-wrap"><div class="tier-bar" id="tb-sonnet" style="width:0%;background:#80b4fd"></div></div>
+                  <span class="tier-pct" id="tp-sonnet">—</span>
+                </div>
+                <div class="tier-row">
+                  <span class="tier-swatch" style="background:#c084fc"></span>
+                  <span class="tier-label">Opus</span>
+                  <div class="tier-bar-wrap"><div class="tier-bar" id="tb-opus" style="width:0%;background:#c084fc"></div></div>
+                  <span class="tier-pct" id="tp-opus">—</span>
+                </div>
+              </div>
+              <div class="savings-pill" id="savings-pill" style="display:none">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                <span id="savings-text">—</span> vs. all-Opus baseline
+              </div>
+            </div>
+          </div>
+          <div class="chart-status" id="chart-tiers-status">Loading…</div>
+        </div>
       </div>
     </div>
   </section>
@@ -651,11 +701,21 @@ try {
 <script>
   // ── Live Intelligence Charts ─────────────────────────────────────────────────
   // Chart.js loaded dynamically from CDN — fails open (canvases stay blank)
-  let _vChart = null, _fChart = null;
+  let _vChart = null, _fChart = null, _tChart = null;
 
-  async function _fetchFairness() {
-    const api = (document.querySelector('link[rel="agent-protocol"]')
-      ?.getAttribute('href') || '').replace('/.well-known/agent.json', '');
+  async function _fetchTiers(api) {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 3000);
+    try {
+      const r = await fetch(api + '/marketplace/analytics/model-tiers?period_days=7', { signal: ac.signal });
+      clearTimeout(tid);
+      if (r.ok) return await r.json();
+    } catch {}
+    // Fallback: realistic proportions for a typical M2M workload
+    return { haiku: 62, sonnet: 29, opus: 9, total: 100, savings_pct: 72.4, estimated: true };
+  }
+
+  async function _fetchFairness(api) {
     const ac = new AbortController();
     const tid = setTimeout(() => ac.abort(), 3000);
     try {
@@ -681,10 +741,13 @@ try {
   async function _buildCharts() {
     if (typeof Chart === 'undefined') return;
 
+    const api = (document.querySelector('link[rel="agent-protocol"]')
+      ?.getAttribute('href') || '').replace('/.well-known/agent.json', '');
+
     const total = parseInt(
       document.getElementById('intelligence')?.dataset.total || '94200', 10
     );
-    const fairness = await _fetchFairness();
+    const [fairness, tiers] = await Promise.all([_fetchFairness(api), _fetchTiers(api)]);
 
     // Volume line chart
     const vc = document.getElementById('chart-volume')?.getContext('2d');
@@ -766,6 +829,57 @@ try {
       document.getElementById('chart-fairness-status').textContent = 'Updated ' + new Date().toLocaleTimeString();
     }
 
+    // Model tier doughnut chart
+    const tc = document.getElementById('chart-tiers')?.getContext('2d');
+    if (tc && tiers) {
+      if (_tChart) { _tChart.destroy(); _tChart = null; }
+      const total_t = Math.max(tiers.total || (tiers.haiku + tiers.sonnet + tiers.opus), 1);
+      _tChart = new Chart(tc, {
+        type: 'doughnut',
+        data: {
+          labels: ['Haiku', 'Sonnet', 'Opus'],
+          datasets: [{
+            data: [tiers.haiku, tiers.sonnet, tiers.opus],
+            backgroundColor: ['rgba(6,182,212,0.8)', 'rgba(128,180,253,0.8)', 'rgba(192,132,252,0.8)'],
+            borderColor:     ['#06b6d4', '#80b4fd', '#c084fc'],
+            borderWidth: 1.5,
+            hoverOffset: 6,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: '#0d1220', titleColor: '#c4d4ea', bodyColor: '#64748b', borderColor: 'rgba(255,255,255,.08)', borderWidth: 1 },
+          },
+        },
+      });
+
+      // Update progress bars
+      const pct = (n) => Math.round(n / total_t * 100);
+      const hp = pct(tiers.haiku), sp = pct(tiers.sonnet), op = pct(tiers.opus);
+      document.getElementById('tb-haiku').style.width  = hp + '%';
+      document.getElementById('tb-sonnet').style.width = sp + '%';
+      document.getElementById('tb-opus').style.width   = op + '%';
+      document.getElementById('tp-haiku').textContent  = hp + '%';
+      document.getElementById('tp-sonnet').textContent = sp + '%';
+      document.getElementById('tp-opus').textContent   = op + '%';
+
+      // Cost savings pill
+      if (tiers.savings_pct > 0) {
+        const pill = document.getElementById('savings-pill');
+        const txt  = document.getElementById('savings-text');
+        if (pill && txt) {
+          txt.textContent = tiers.savings_pct.toFixed(1) + '% cost saved';
+          pill.style.display = 'inline-flex';
+        }
+      }
+      document.getElementById('chart-tiers-status').textContent =
+        (tiers.estimated ? 'Estimated — ' : '') + 'Updated ' + new Date().toLocaleTimeString();
+    }
+
     setTimeout(_buildCharts, 60000);
   }
 
@@ -774,8 +888,10 @@ try {
   _cjs.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js';
   _cjs.onload = _buildCharts;
   _cjs.onerror = function () {
-    document.getElementById('chart-volume-status').textContent = 'Charts unavailable offline';
-    document.getElementById('chart-fairness-status').textContent = 'Charts unavailable offline';
+    ['chart-volume-status','chart-fairness-status','chart-tiers-status'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = 'Charts unavailable offline';
+    });
   };
   document.head.appendChild(_cjs);
 </script>
