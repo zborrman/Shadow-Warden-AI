@@ -13,12 +13,17 @@
     },
 
     "marketplace-postgres": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres", "${DATABASE_URL}"],
+      "command": "uvx",
+      "args": [
+        "postgres-mcp-pro",
+        "--access-mode", "restricted",
+        "--connection-string", "${DATABASE_URL}"
+      ],
       "env": {
         "DATABASE_URL": "${DATABASE_URL:-}"
       },
-      "_note": "Official Anthropic postgres MCP. Activated only when DATABASE_URL is set (pgvector path). Provides schema introspection and workload analysis for HNSW index tuning. Install: npm i -g @modelcontextprotocol/server-postgres"
+      "_replaced": "@modelcontextprotocol/server-postgres (Node.js) — had SQL injection bypass defeating read-only mode",
+      "_note": "crystaldba/postgres-mcp-pro (Python). --access-mode restricted: DDL/DML blocked at MCP layer, statement_timeout per query, all reads wrapped in transactions. Tools: get_top_queries (requires pg_stat_statements), analyze_workload_indexes (HNSW/IVFFlat recs), explain_query. Activate: DATABASE_URL in /opt/shadow-warden/.env. Install: pip install postgres-mcp-pro"
     },
 
     "marketplace-evm": {
@@ -49,6 +54,6 @@
     "oauth_roadmap": "Long-term: replace BEARER_TOKEN with OAuth 2.1 (RFC 9068) JWT assertions scoped to 'marketplace:read:{tenant_id}'. The analytics/query endpoint should validate 'sub' claim == caller_agent_id before executing SQL.",
     "read_only": "sqlite-mcp-server runs with READ_ONLY=true. No INSERT/UPDATE/DELETE can reach the DB through this transport — the SELECT-only gate in analytics/query is a defense-in-depth second layer.",
     "evm_keys": "CDP_API_KEY_PRIVATE_KEY must only be set via environment, never in .mcp.json or source. Use /opt/shadow-warden/.env on the server, loaded by Docker Compose.",
-    "postgres_rls": "marketplace-postgres has full read access to DATABASE_URL schema. Production: create a read-only Postgres role (GRANT SELECT ON ALL TABLES) and use that connection string for MCP_POSTGRES_URL, separate from the write-path DATABASE_URL."
+    "postgres_restricted": "marketplace-postgres uses postgres-mcp-pro --access-mode restricted. Production: create a dedicated read-only Postgres role (GRANT SELECT ON ALL TABLES IN SCHEMA public TO mcp_reader) and use that connection string as DATABASE_URL for this MCP server, separate from the write-path DATABASE_URL used by warden."
   }
 }
