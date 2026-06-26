@@ -570,6 +570,8 @@ _AGENT_SCOPED_TABLES = frozenset({
 # Column names that carry agent identity in those tables.
 _AGENT_ID_COLUMNS = frozenset({
     "agent_id", "buyer_agent_id", "seller_agent_id", "from_agent_id",
+    # escrow table uses bare "buyer_agent" / "seller_agent" (no _id suffix)
+    "buyer_agent", "seller_agent", "from_agent", "to_agent",
 })
 
 

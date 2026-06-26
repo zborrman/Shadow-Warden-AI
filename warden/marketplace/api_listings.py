@@ -121,8 +121,8 @@ async def buy_listing(listing_id: str, body: PurchaseRequest) -> dict:
             price = result.get("price_usd", 0.0)
             MARKETPLACE_PURCHASES_TOTAL.labels(asset_type=asset_type).inc()
             MARKETPLACE_TRADE_VOLUME_USD.inc(price)
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("prometheus metrics fail-open: %s", exc)
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

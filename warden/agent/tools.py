@@ -2331,7 +2331,14 @@ async def acp_search_catalog(
             )
             resp.raise_for_status()
             data = resp.json()
-            return {"source": catalog_url, "results": data}
+            # Strip string fields > 512 chars to limit prompt-injection surface
+            # from malicious seller listings injected into SOVA context
+            results = data if not isinstance(data, list) else [
+                {k: (v[:512] if isinstance(v, str) and len(v) > 512 else v)
+                 for k, v in item.items()} if isinstance(item, dict) else item
+                for item in data[:max_results]
+            ]
+            return {"source": catalog_url, "results": results}
     except Exception as exc:
         return {"error": str(exc), "source": catalog_url}
 
