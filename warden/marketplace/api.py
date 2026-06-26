@@ -113,6 +113,13 @@ async def get_market_protocol(response: Response) -> dict:
 
 # ── POST /register — M2M first-contact (third required base endpoint) ─────────
 
+@router.get("/agent.json", include_in_schema=False)
+async def agent_discovery_alias(response: Response) -> dict:
+    """IETF /.well-known/agent.json alias — mounted at root by main.py."""
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return await get_market_protocol(response)
+
+
 class RegisterRequest(BaseModel):
     tenant_id:    str
     community_id: str

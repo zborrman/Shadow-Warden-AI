@@ -113,3 +113,4 @@ data/evolution_dataset.jsonl
 data/corpus_snapshot.json
 data/AGENTS.md
 .env.sepolia
+scan_result.json

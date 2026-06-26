@@ -63,7 +63,10 @@
   --sw-shadow-md:   0 2px 8px rgba(0,0,0,.40);
   --sw-shadow-lg:   0 4px 20px rgba(0,0,0,.50);
   --sw-shadow-glow: 0 0 0 2px rgba(128,180,253,.10);
-  --sw-shadow-cta:  0 4px 14px rgba(128,180,253,.12);
+  --sw-shadow-cta:
+    color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset,
+    color(display-p3 0.38 0.61 0.96 / 0.16) 0px 2px 4px 0px,
+    color(display-p3 0.38 0.61 0.96 / 0.10) 0px 1px 1px 0px;
 
   /* ── Spacing (4px base) ──────────────────────────── */
   --sw-sp-1:  4px;  --sw-sp-2:  8px;  --sw-sp-3: 12px;

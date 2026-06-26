@@ -54,31 +54,46 @@
     border-color: var(--color-border-2);
   }
 
-  /* Cloudflare-style primary button — flat, blue, 1px border */
+  /* Primary button — display-p3 inset glow (no border — avoids ghost-card pattern) */
   .btn-primary {
     background: #80b4fd;
     color: #070910;
     font-weight: 600;
     border-radius: 8px;
     padding: 10px 20px;
-    border: 1px solid #80b4fd;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
-    transition: background 150ms ease, border-color 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1);
+    border: none;
+    box-shadow:
+      color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset,
+      color(display-p3 0.38 0.61 0.96 / 0.16) 0px 2px 4px 0px,
+      color(display-p3 0.38 0.61 0.96 / 0.10) 0px 1px 1px 0px;
+    transition: background 150ms ease, box-shadow 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1);
   }
-  .btn-primary:hover { background: #a3cbff; border-color: #a3cbff; }
+  .btn-primary:hover {
+    background: #9dc5fe;
+    box-shadow:
+      color(display-p3 0.50 0.72 1.0 / 0.30) 0px -5px 12px 0px inset,
+      color(display-p3 0.50 0.72 1.0 / 0.20) 0px 3px 6px 0px,
+      color(display-p3 0.50 0.72 1.0 / 0.12) 0px 1px 2px 0px;
+  }
   .btn-primary:active { transform: scale(0.97); }
 
-  /* Ghost button — 1px Cloudflare blue border */
+  /* Ghost button — inset-border dark pattern (Linear-style) */
   .btn-ghost {
-    background: transparent;
-    border: 1px solid rgba(128,180,253,0.22);
+    background: rgba(128,180,253,0.04);
+    border: 1px solid rgba(128,180,253,0.14);
+    box-shadow: inset 0 1px 0 rgba(128,180,253,0.06);
     color: var(--color-text-2);
     font-weight: 500;
     border-radius: 8px;
     padding: 10px 20px;
-    transition: background 150ms ease, border-color 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1);
+    transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1);
   }
-  .btn-ghost:hover { background: rgba(128,180,253,0.07); border-color: rgba(128,180,253,0.35); color: #f0f4fc; }
+  .btn-ghost:hover {
+    background: rgba(128,180,253,0.09);
+    border-color: rgba(128,180,253,0.28);
+    box-shadow: inset 0 1px 0 rgba(128,180,253,0.10);
+    color: #f0f4fc;
+  }
   .btn-ghost:active { transform: scale(0.97); }
 
   .status-shipped    { color: #34d399; background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.18); }
@@ -122,4 +137,16 @@
   .stagger-grid > * { animation: none; }
   .btn-primary:active,
   .btn-ghost:active { transform: none; }
+  .fade-in-section { opacity: 1 !important; transform: none !important; transition: none !important; }
+}
+
+/* ── Scroll-reveal ────────────────────────────────────── */
+.fade-in-section {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 520ms var(--ease-out-strong), transform 520ms var(--ease-out-strong);
+}
+.fade-in-section.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
