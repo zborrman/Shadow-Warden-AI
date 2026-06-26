@@ -93,6 +93,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       background:rgba(255,255,255,0.1); transition:.25s; cursor:pointer;
     }
     .toggle-sw input:checked + .slider { background:#06b6d4; }
+    .toggle-sw input:disabled + .slider { opacity:.35; cursor:not-allowed; }
+    .toggle-row.pqc-locked { opacity:.6; }
     .toggle-sw .slider:before {
       content:''; position:absolute; width:18px; height:18px;
       left:3px; top:3px; border-radius:50%;
@@ -301,10 +303,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             </div>
             <label class="toggle-sw"><input type="checkbox" id="t-approval" checked /><span class="slider"></span></label>
           </div>
-          <div class="toggle-row">
+          <div class="toggle-row pqc-locked" id="pqc-row">
             <div class="toggle-info">
-              <div class="toggle-label">Post-Quantum Cryptography</div>
-              <div class="toggle-desc">ML-DSA-65 hybrid signing — Enterprise plan</div>
+              <div class="toggle-label">Post-Quantum Cryptography <span id="pqc-badge" style="font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:4px;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.2);vertical-align:middle;margin-left:6px">Enterprise</span></div>
+              <div class="toggle-desc">ML-DSA-65 hybrid signing (Ed25519 + ML-KEM-768)</div>
             </div>
             <label class="toggle-sw"><input type="checkbox" id="t-pqc" disabled /><span class="slider"></span></label>
           </div>
@@ -413,6 +415,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <tr><td>Visibility</td><td id="rv-vis">—</td></tr>
             <tr><td>Type</td><td id="rv-type">—</td></tr>
             <tr><td>Encryption</td><td id="rv-enc">—</td></tr>
+            <tr><td>PQC Signing</td><td id="rv-pqc">—</td></tr>
             <tr><td>Join Approval</td><td id="rv-approval">—</td></tr>
             <tr><td>Max Members</td><td id="rv-members">—</td></tr>
             <tr><td>Marketplace</td><td id="rv-market">—</td></tr>
@@ -489,6 +492,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       (document.getElementById('panel-gate') as HTMLElement).classList.add('active');
       (document.getElementById('gate-msg') as HTMLElement).textContent =
         `Your ${tc.name} plan allows up to ${tc.maxComm === 0 ? 'no' : tc.maxComm} ${tc.maxComm === 1 ? 'community' : 'communities'}. You have ${comms.length}.`;
+    }
+
+    // ── PQC tier unlock (Enterprise only) ───────────────────
+    if (getTier() === 'enterprise') {
+      const pqcInput = document.getElementById('t-pqc') as HTMLInputElement;
+      const pqcRow   = document.getElementById('pqc-row') as HTMLElement;
+      const pqcBadge = document.getElementById('pqc-badge') as HTMLElement;
+      if (pqcInput) pqcInput.removeAttribute('disabled');
+      if (pqcRow)   pqcRow.classList.remove('pqc-locked');
+      if (pqcBadge) { pqcBadge.textContent = 'Active'; pqcBadge.style.background = 'rgba(16,185,129,.1)'; pqcBadge.style.color = '#10b981'; pqcBadge.style.borderColor = 'rgba(16,185,129,.2)'; }
     }
 
     // ── Step state ──────────────────────────────────────────
@@ -610,6 +623,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)">✓ E2E Enabled</span>'
         : '<span style="color:#64748b">Disabled</span>';
 
+      (document.getElementById('rv-pqc') as HTMLElement).innerHTML = chk('t-pqc')
+        ? '<span class="review-badge" style="background:rgba(251,191,36,0.1);color:#fbbf24;border:1px solid rgba(251,191,36,0.2)">✓ ML-DSA-65 Active</span>'
+        : '<span style="color:#64748b">Classical Ed25519</span>';
+
       (document.getElementById('rv-approval') as HTMLElement).textContent = chk('t-approval') ? 'Required' : 'Open join';
 
       const maxEl = document.getElementById('f-maxmembers') as HTMLSelectElement;
@@ -643,7 +660,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         e2e: (document.getElementById('t-e2e') as HTMLInputElement).checked,
         disappearingMessages: (document.getElementById('t-disappear') as HTMLInputElement).checked,
         approvalRequired: (document.getElementById('t-approval') as HTMLInputElement).checked,
-        pqc: false,
+        pqc: (document.getElementById('t-pqc') as HTMLInputElement)?.checked ?? false,
         maxMembers: parseInt(maxEl.value) || 0,
         charterEnabled: (document.getElementById('t-charter') as HTMLInputElement).checked,
         gdprExport: (document.getElementById('t-gdpr') as HTMLInputElement).checked,
