@@ -1,4 +1,4 @@
----
+﻿---
 name: marketplace-monetization
 description: Guide for implementing and testing monetization features in the Shadow Warden AI M2M marketplace. Covers x402 nanopayments, platform take rate, sponsored listings, and agent discovery protocol.
 ---
@@ -19,7 +19,7 @@ description: Guide for implementing and testing monetization features in the Sha
 
 4. **Agent Discovery Protocol**: `/.well-known/agent.json` is served by the A2A router (`warden/protocols/a2a/api.py`). Do not add duplicate routes.
 
-5. **Fail-open gates**: `require_payment()` exceptions → warn + allow. `deduct_payment()` exceptions → warn + return True.
+5. **Fail-open gates**: `require_payment()` exceptions â†’ warn + allow. `deduct_payment()` exceptions â†’ warn + return True.
 
 ## Testing
 
@@ -47,3 +47,4 @@ ALLOW_UNAUTHENTICATED=true WARDEN_API_KEY="" REDIS_URL="memory://" \
 | `MARKETPLACE_X402_DB_PATH` | `/tmp/warden_x402_marketplace.db` | Gate DB |
 | `MARKETPLACE_TAKE_RATE` | `0.015` | Platform commission (1.5%) |
 | `PLATFORM_WALLET_ADDRESS` | `` | Settlement wallet (v2) |
+
