@@ -55,18 +55,29 @@ async def run_query(
     session_id: str = "interactive",
     tenant_id: str = "default",
     max_tokens: int = 4096,
+    action_type: str | None = None,
+    maestro_risk: str = "NONE",
+    round_count: int = 0,
 ) -> dict[str, Any]:
     """
     Run a query through SOVA.
 
+    Optional routing parameters:
+      action_type   — marketplace action hint for model selection (e.g. "search", "raise_dispute")
+      maestro_risk  — MAESTRO threat level: "NONE" | "LOW" | "MEDIUM" | "HIGH"
+      round_count   — negotiation rounds elapsed (increases complexity score)
+
     Returns:
         {
-            "response": str,          # final text answer
-            "tools_used": list[str],  # names of tools called
+            "response": str,
+            "tools_used": list[str],
             "input_tokens": int,
             "output_tokens": int,
             "cache_read_tokens": int,
             "latency_ms": float,
+            "routed_model": str,        # which model was selected
+            "route_tier": str,          # "haiku" | "sonnet" | "opus"
+            "route_score": float,       # complexity score 0-1
         }
     """
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
@@ -95,6 +106,24 @@ async def run_query(
     from warden.agent import memory
     from warden.agent import tools as _tools
 
+    # Dynamic model routing — fall back to Opus for non-marketplace queries
+    try:
+        from warden.marketplace.model_router import route as _route
+        if action_type:
+            decision = _route(action_type, query, round_count, maestro_risk)
+            _active_model = decision.model
+            _route_tier   = decision.tier
+            _route_score  = decision.score
+            log.info("sova: routed action=%s → %s (score=%.2f)", action_type, _route_tier.upper(), _route_score)
+        else:
+            _active_model = _MODEL
+            _route_tier   = "opus"
+            _route_score  = 1.0
+    except Exception:
+        _active_model = _MODEL
+        _route_tier   = "opus"
+        _route_score  = 1.0
+
     client = anthropic.AsyncAnthropic(api_key=api_key)
 
     # ── Load conversation history ─────────────────────────────────────────────
@@ -110,7 +139,7 @@ async def run_query(
     # ── Agentic loop ──────────────────────────────────────────────────────────
     for _iteration in range(_MAX_ITER):
         response = await client.messages.create(
-            model=_MODEL,
+            model=_active_model,
             max_tokens=max_tokens,
             system=[
                 {
@@ -141,6 +170,9 @@ async def run_query(
             return {
                 "response":          final_text,
                 "tools_used":        tools_used,
+                "routed_model":      _active_model,
+                "route_tier":        _route_tier,
+                "route_score":       _route_score,
                 "input_tokens":      total_input,
                 "output_tokens":     total_output,
                 "cache_read_tokens": cache_read,
@@ -207,6 +239,9 @@ async def run_query(
     return {
         "response":          final_text,
         "tools_used":        tools_used,
+        "routed_model":      _active_model,
+        "route_tier":        _route_tier,
+        "route_score":       _route_score,
         "input_tokens":      total_input,
         "output_tokens":     total_output,
         "cache_read_tokens": cache_read,
