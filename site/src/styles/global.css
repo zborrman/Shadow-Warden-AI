@@ -152,11 +152,14 @@ html.light {
   filter: invert(1) hue-rotate(180deg);
 }
 
-/* Counter-invert media so it looks natural */
+/* Counter-invert only raster images so photos look natural.
+   Canvases (charts, particles) are intentionally NOT counter-inverted —
+   they contain dark-mode-painted content that would show as dark islands
+   on a light page if left in their original state. Inverting them gives
+   a usable light-mode chart. */
 html.light img,
 html.light video,
 html.light iframe,
-html.light canvas,
 html.light svg image {
   filter: invert(1) hue-rotate(180deg);
 }
