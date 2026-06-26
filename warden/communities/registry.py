@@ -25,11 +25,12 @@ Tier enforcement
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sqlite3
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from warden.communities.clearance import ClearanceLevel, check_downgrade_requires_rotation
@@ -65,9 +66,16 @@ def _get_conn() -> sqlite3.Connection:
             status          TEXT NOT NULL DEFAULT 'ACTIVE',
             created_by      TEXT NOT NULL,
             created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+            updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+            settings        TEXT NOT NULL DEFAULT '{}'
         )
     """)
+    # Additive migration for existing DBs (no-op when column already present)
+    try:
+        conn.execute("ALTER TABLE communities ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
     conn.execute("""
         CREATE TABLE IF NOT EXISTS community_members (
             member_id       TEXT PRIMARY KEY,
@@ -113,6 +121,7 @@ class CommunityRecord:
     created_by:    str
     created_at:    str
     updated_at:    str
+    settings:      dict = field(default_factory=dict)  # wizard step 2-5 payload
 
 
 @dataclass
@@ -131,6 +140,11 @@ class MemberRecord:
 
 
 def _row_to_community(row) -> CommunityRecord:
+    raw_settings = row.get("settings", "{}")
+    try:
+        parsed_settings = json.loads(raw_settings or "{}")
+    except (json.JSONDecodeError, TypeError):
+        parsed_settings = {}
     return CommunityRecord(
         community_id = row["community_id"],
         tenant_id    = row["tenant_id"],
@@ -142,6 +156,7 @@ def _row_to_community(row) -> CommunityRecord:
         created_by   = row["created_by"],
         created_at   = row["created_at"],
         updated_at   = row["updated_at"],
+        settings     = parsed_settings,
     )
 
 
@@ -169,6 +184,7 @@ def create_community(
     created_by:   str,
     description:  str = "",
     tier:         str = "business",
+    settings:     dict | None = None,
 ) -> CommunityRecord:
     """
     Create a new Community.
@@ -181,21 +197,22 @@ def create_community(
 
     Returns the CommunityRecord.
     """
-    community_id = new_community_id()
+    community_id  = new_community_id()
     kp = generate_community_keypair(community_id, kid="v1")
     store_keypair(kp, status=KeyStatus.ACTIVE)
 
+    settings_json = json.dumps(settings or {})
     now = datetime.now(UTC).isoformat()
     with _db_lock:
         conn = _get_conn()
         conn.execute("""
             INSERT INTO communities
               (community_id, tenant_id, display_name, description, tier,
-               active_kid, status, created_by, created_at, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?)
+               active_kid, status, created_by, created_at, updated_at, settings)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
         """, (
             community_id, tenant_id, display_name, description, tier,
-            "v1", "ACTIVE", created_by, now, now,
+            "v1", "ACTIVE", created_by, now, now, settings_json,
         ))
         conn.commit()
 
@@ -214,6 +231,7 @@ def create_community(
         created_by   = created_by,
         created_at   = now,
         updated_at   = now,
+        settings     = settings or {},
     )
 
 

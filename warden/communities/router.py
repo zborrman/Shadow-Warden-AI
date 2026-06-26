@@ -114,9 +114,45 @@ def _require_tier(tier: str, minimum: str) -> None:
 
 # ── Request / Response schemas ────────────────────────────────────────────────
 
+# ── Wizard step sub-models (Steps 2–5) ───────────────────────────────────────
+
+class VisibilitySettings(BaseModel):
+    visibility: str = Field("PUBLIC",      description="PUBLIC | PRIVATE | INVITE_ONLY")
+    type:       str = Field("MARKETPLACE", description="MARKETPLACE | INTERNAL | RESEARCH")
+
+
+class SecuritySettings(BaseModel):
+    end_to_end_encryption:    bool = True
+    disappearing_messages:    bool = False
+    join_approval_required:   bool = True
+    post_quantum_cryptography: bool = False  # Enterprise-only; gated at create time
+
+
+class GovernanceSettings(BaseModel):
+    max_members:           int  = Field(50, ge=2, le=10_000)
+    default_member_role:   str  = "Member"
+    enable_charter:        bool = False
+    gdpr_export_on_request: bool = True
+
+
+class IntegrationSettings(BaseModel):
+    marketplace_node: bool      = False
+    sova_agent:       bool      = False
+    slack_alerts:     bool      = False
+    tags:             list[str] = Field(default_factory=list)
+
+
 class CreateCommunityRequest(BaseModel):
     display_name: str = Field(..., min_length=1, max_length=120)
     description:  str = Field("", max_length=500)
+    # Step 2 — visibility & type
+    visibility:   VisibilitySettings   = Field(default_factory=VisibilitySettings)
+    # Step 3 — security
+    security:     SecuritySettings     = Field(default_factory=SecuritySettings)
+    # Step 4 — governance
+    governance:   GovernanceSettings   = Field(default_factory=GovernanceSettings)
+    # Step 5 — integrations
+    integrations: IntegrationSettings  = Field(default_factory=IntegrationSettings)
 
 
 class CommunityResponse(BaseModel):
@@ -129,6 +165,7 @@ class CommunityResponse(BaseModel):
     status:        str
     created_by:    str
     created_at:    str
+    settings:      dict = Field(default_factory=dict)
 
     @classmethod
     def from_record(cls, r: CommunityRecord) -> CommunityResponse:
@@ -142,6 +179,7 @@ class CommunityResponse(BaseModel):
             status       = r.status,
             created_by   = r.created_by,
             created_at   = r.created_at,
+            settings     = r.settings,
         )
 
 
@@ -188,9 +226,33 @@ async def create_community_endpoint(
     body:    CreateCommunityRequest,
     request: Request,
 ) -> CommunityResponse:
-    """Create a new community (Business+ tier required)."""
+    """Create a new community (Business+ tier required).
+
+    Step 3 security.post_quantum_cryptography=true requires Enterprise tier
+    and pqc_enabled feature gate — backend enforces this regardless of frontend state.
+    """
     ctx = _get_tenant(request)
     _require_tier(ctx["tier"], "business")
+
+    # PQC gate: fail-closed before any DB write
+    if body.security.post_quantum_cryptography:
+        try:
+            from warden.billing.feature_gate import FeatureGate  # noqa: PLC0415
+            gate = FeatureGate.for_tier(ctx["tier"])
+            gate.require("pqc_enabled")
+        except Exception as pqc_exc:
+            raise HTTPException(
+                status_code=403,
+                detail="post_quantum_cryptography requires Enterprise tier. "
+                       "Upgrade at /billing/upgrade?plan=enterprise",
+            ) from pqc_exc
+
+    settings_payload = {
+        "visibility":   body.visibility.model_dump(),
+        "security":     body.security.model_dump(),
+        "governance":   body.governance.model_dump(),
+        "integrations": body.integrations.model_dump(),
+    }
 
     try:
         record = create_community(
@@ -199,6 +261,7 @@ async def create_community_endpoint(
             created_by   = ctx.get("user_id", ctx["tenant_id"]),
             description  = body.description,
             tier         = ctx["tier"],
+            settings     = settings_payload,
         )
     except Exception as exc:
         log.error("create_community failed: %s", exc)
