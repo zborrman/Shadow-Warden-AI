@@ -1,14 +1,12 @@
 """Tests for warden/marketplace/model_router.py — Dynamic Model Router."""
 from __future__ import annotations
 
-import os
 import pytest
 
 from warden.marketplace.model_router import (
     MODEL_HAIKU,
     MODEL_OPUS,
     MODEL_SONNET,
-    RouteDecision,
     model_for_action,
     route,
     route_for_sova_tool,
@@ -99,6 +97,7 @@ class TestRouting:
         monkeypatch.setenv("ROUTER_FORCE_MODEL", "haiku")
         # reload module to pick up env change
         import importlib
+
         import warden.marketplace.model_router as mr
         importlib.reload(mr)
         d = mr.route("raise_dispute")  # would normally be opus
@@ -109,6 +108,7 @@ class TestRouting:
     def test_force_model_invalid_ignored(self, monkeypatch):
         monkeypatch.setenv("ROUTER_FORCE_MODEL", "invalid_model")
         import importlib
+
         import warden.marketplace.model_router as mr
         importlib.reload(mr)
         # should fall through to normal scoring
@@ -137,6 +137,7 @@ class TestThresholdConfiguration:
     def test_custom_haiku_threshold(self, monkeypatch):
         monkeypatch.setenv("ROUTER_HAIKU_THRESHOLD", "0.99")
         import importlib
+
         import warden.marketplace.model_router as mr
         importlib.reload(mr)
         # Everything except very high scores should be haiku now
