@@ -140,7 +140,10 @@ class MemberRecord:
 
 
 def _row_to_community(row) -> CommunityRecord:
-    raw_settings = row.get("settings", "{}")
+    try:
+        raw_settings = row["settings"]
+    except (IndexError, KeyError):
+        raw_settings = "{}"
     try:
         parsed_settings = json.loads(raw_settings or "{}")
     except (json.JSONDecodeError, TypeError):

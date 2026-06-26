@@ -249,6 +249,8 @@ class TestWebhookHandler:
 class TestBillingEndpoints:
     @pytest.fixture(autouse=True)
     def _client(self):
+        from unittest.mock import patch
+
         from fastapi.testclient import TestClient
 
         import warden.lemon_billing as _lb
@@ -256,7 +258,10 @@ class TestBillingEndpoints:
 
         # Reset singleton so it picks up LEMONSQUEEZY_DB_PATH from conftest env vars
         _lb._instance = None
-        self.client = TestClient(app, raise_server_exceptions=True)
+        # Patch webhook secret to "" so tests work regardless of CI env var
+        with patch("warden.lemon_billing._LS_WEBHOOK_SECRET", ""):
+            self.client = TestClient(app, raise_server_exceptions=True)
+            yield
 
     def test_status_unknown_tenant_returns_free(self) -> None:
         resp = self.client.get("/subscription/status?tenant_id=nobody")
