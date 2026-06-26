@@ -546,6 +546,7 @@ jobs:
       # Scans the built warden image for known CVEs. Informational — does not
       # block merges, but results appear in the Docker Scout dashboard.
       - name: Docker Scout — CVE scan
+        if: ${{ vars.DOCKER_SCOUT_ENABLED == 'true' }}
         uses: docker/scout-action@v1
         with:
           command: cves
