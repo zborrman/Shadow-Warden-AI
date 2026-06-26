@@ -17,10 +17,10 @@
       "args": [
         "postgres-mcp-pro",
         "--access-mode", "restricted",
-        "--connection-string", "${DATABASE_URL}"
+        "--connection-string", "${MCP_POSTGRES_URL}"
       ],
       "env": {
-        "DATABASE_URL": "${DATABASE_URL:-}"
+        "MCP_POSTGRES_URL": "${MCP_POSTGRES_URL:-}"
       },
       "_replaced": "@modelcontextprotocol/server-postgres (Node.js) — had SQL injection bypass defeating read-only mode",
       "_note": "crystaldba/postgres-mcp-pro (Python). --access-mode restricted: DDL/DML blocked at MCP layer, statement_timeout per query, all reads wrapped in transactions. Tools: get_top_queries (requires pg_stat_statements), analyze_workload_indexes (HNSW/IVFFlat recs), explain_query. Activate: DATABASE_URL in /opt/shadow-warden/.env. Install: pip install postgres-mcp-pro"
