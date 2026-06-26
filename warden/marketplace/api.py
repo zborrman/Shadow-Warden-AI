@@ -386,8 +386,36 @@ async def dispatch_action(body: MarketAction, request: Request) -> dict:
             "error":       "Handler not available; call the sub-endpoint directly.",
         }
 
+    # x402 nanopayment gate — search action only; fail-open
+    if body.action_type == "search":
+        try:
+            from warden.marketplace.x402_gate import (  # noqa: PLC0415
+                deduct_payment,
+                require_payment,
+            )
+
+            gate_resp = await require_payment(request, "marketplace/search")
+            if gate_resp is not None:
+                return gate_resp  # type: ignore[return-value]
+        except Exception as _x402_exc:
+            log.debug("x402 gate fail-open: %s", _x402_exc)
+
     try:
         result = await handler(**body.payload)  # type: ignore[operator]
+
+        # Queue deduction after successful search (batch settlement in v2)
+        if body.action_type == "search":
+            try:
+                from warden.marketplace.x402_gate import deduct_payment  # noqa: PLC0415, F811
+
+                _agent_id = (
+                    body.payload.get("agent_id")
+                    or request.headers.get("X-Agent-ID", "anonymous")
+                )
+                await deduct_payment(str(_agent_id), "marketplace/search")
+            except Exception as _ded_exc:
+                log.debug("x402 deduct fail-open: %s", _ded_exc)
+
         return {"dispatched": True, "action_type": body.action_type, "result": result}
     except Exception as exc:
         log.warning("dispatch_action %s failed: %s", body.action_type, exc)

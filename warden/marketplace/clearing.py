@@ -29,11 +29,13 @@ import sqlite3
 import time
 import uuid
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 
 log = logging.getLogger("warden.marketplace.clearing")
 
-_DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
-_PG_DSN  = os.getenv("DATABASE_URL", "")
+_DB_PATH   = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_PG_DSN    = os.getenv("DATABASE_URL", "")
+_TAKE_RATE = Decimal(os.getenv("MARKETPLACE_TAKE_RATE", "0.015"))
 
 
 @dataclass
@@ -44,6 +46,8 @@ class ClearingResult:
     rejected_neg_ids: list[str]
     cleared_at:       float
     pg_write_ok:      bool = False
+    platform_fee_usd: float = 0.0
+    seller_net_usd:   float = 0.0
 
 
 def _ensure_clearing_table(db_path: str) -> None:
@@ -54,9 +58,17 @@ def _ensure_clearing_table(db_path: str) -> None:
             winner_neg_id    TEXT NOT NULL,
             buyer_agent_id   TEXT NOT NULL,
             rejected_neg_ids TEXT NOT NULL,
-            cleared_at       REAL NOT NULL
+            cleared_at       REAL NOT NULL,
+            platform_fee_usd REAL NOT NULL DEFAULT 0.0,
+            seller_net_usd   REAL NOT NULL DEFAULT 0.0
         )
     """)
+    # Additive migration for existing databases
+    import contextlib
+    with contextlib.suppress(Exception):
+        con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN platform_fee_usd REAL NOT NULL DEFAULT 0.0")
+    with contextlib.suppress(Exception):
+        con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN seller_net_usd REAL NOT NULL DEFAULT 0.0")
     con.commit()
     con.close()
 
@@ -84,14 +96,23 @@ class ClearingEngine:
         Rejects all pending/active negotiations for buyer except the winner,
         then records the clearing event in SQLite.
         """
-        rejected  = self._reject_losers(winner_neg_id, buyer_agent_id)
+        rejected    = self._reject_losers(winner_neg_id, buyer_agent_id)
         clearing_id = str(uuid.uuid4())
+
+        # Compute platform take rate (Decimal math — float arithmetic is prohibited in billing)
+        agreed_price = self._fetch_agreed_price(winner_neg_id)
+        agreed_dec   = Decimal(str(agreed_price))
+        fee_dec      = (agreed_dec * _TAKE_RATE).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+        net_dec      = agreed_dec - fee_dec
+
         rec = ClearingResult(
             clearing_id=clearing_id,
             winner_neg_id=winner_neg_id,
             buyer_agent_id=buyer_agent_id,
             rejected_neg_ids=rejected,
             cleared_at=time.time(),
+            platform_fee_usd=float(fee_dec),
+            seller_net_usd=float(net_dec),
         )
         self._write_sqlite(rec)
         log.info(
@@ -111,6 +132,19 @@ class ClearingEngine:
         return rec
 
     # ── Internal helpers ────────────────────────────────────────────────────────
+
+    def _fetch_agreed_price(self, winner_neg_id: str) -> float:
+        """Return the agreed price from the winner negotiation record, or 0.0 if unavailable."""
+        try:
+            con = sqlite3.connect(self.db_path)
+            row = con.execute(
+                "SELECT agreed_price FROM marketplace_negotiations WHERE negotiation_id = ?",
+                (winner_neg_id,),
+            ).fetchone()
+            con.close()
+            return float(row[0]) if row and row[0] is not None else 0.0
+        except Exception:
+            return 0.0
 
     def _reject_losers(self, winner_neg_id: str, buyer_agent_id: str) -> list[str]:
         """Update all non-winner pending negotiations to 'cleared_by_market'."""
@@ -147,8 +181,9 @@ class ClearingEngine:
             con.execute(
                 """
                 INSERT OR REPLACE INTO marketplace_clearing_log
-                    (clearing_id, winner_neg_id, buyer_agent_id, rejected_neg_ids, cleared_at)
-                VALUES (?,?,?,?,?)
+                    (clearing_id, winner_neg_id, buyer_agent_id, rejected_neg_ids,
+                     cleared_at, platform_fee_usd, seller_net_usd)
+                VALUES (?,?,?,?,?,?,?)
                 """,
                 (
                     rec.clearing_id,
@@ -156,6 +191,8 @@ class ClearingEngine:
                     rec.buyer_agent_id,
                     json.dumps(rec.rejected_neg_ids),
                     rec.cleared_at,
+                    rec.platform_fee_usd,
+                    rec.seller_net_usd,
                 ),
             )
             con.commit()
@@ -175,8 +212,8 @@ class ClearingEngine:
                 """
                 INSERT INTO marketplace_clearing_log
                     (clearing_id, winner_neg_id, buyer_agent_id,
-                     rejected_neg_ids, cleared_at)
-                VALUES ($1, $2, $3, $4, to_timestamp($5))
+                     rejected_neg_ids, cleared_at, platform_fee_usd, seller_net_usd)
+                VALUES ($1, $2, $3, $4, to_timestamp($5), $6, $7)
                 ON CONFLICT (clearing_id) DO NOTHING
                 """,
                 rec.clearing_id,
@@ -184,6 +221,8 @@ class ClearingEngine:
                 rec.buyer_agent_id,
                 json.dumps(rec.rejected_neg_ids),
                 rec.cleared_at,
+                rec.platform_fee_usd,
+                rec.seller_net_usd,
             )
             await conn.close()
             log.debug("ClearingEngine: pg write ok clearing_id=%s", rec.clearing_id[:8])

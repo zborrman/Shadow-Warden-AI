@@ -178,6 +178,36 @@ try {
   .act-badge-signal { background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.18); color: var(--amb); }
   .act-age { font-size: 10px; color: #1e2d40; white-space: nowrap; }
 
+  /* ── Governance metrics ─────────────────────────────────── */
+  .gov-sec { background: #06080e; border-top: 1px solid rgba(128,180,253,.06); }
+  .gov-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-top: 40px; }
+  .gov-card { background: #0a0d18; border: 1px solid rgba(128,180,253,.10); border-radius: 10px; padding: 24px 20px; }
+  .gov-val { font-size: 28px; font-weight: 700; color: #80b4fd; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .gov-label { font-size: 13px; font-weight: 600; color: #b0c4e8; margin-bottom: 4px; }
+  .gov-hint { font-size: 11px; color: #3d4f6a; line-height: 1.5; }
+  @media (max-width: 900px) { .gov-grid { grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 500px)  { .gov-grid { grid-template-columns: 1fr; } }
+
+  /* ── Monetization tiers ─────────────────────────────────── */
+  .tiers-sec { background: #05070d; border-top: 1px solid rgba(128,180,253,.06); }
+  .tiers-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-top: 40px; }
+  .tier-card { background: #090c19; border: 1px solid rgba(128,180,253,.10); border-radius: 12px; padding: 28px 24px; display: flex; flex-direction: column; gap: 20px; }
+  .tier-card-featured { border-color: rgba(128,180,253,.30); background: #0c1123; }
+  .tier-badge { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 4px 10px; border-radius: 5px; display: inline-block; width: fit-content; }
+  .tier-badge-pay   { background: rgba(52,211,153,.12); color: #34d399; }
+  .tier-badge-gmv   { background: rgba(128,180,253,.15); color: #80b4fd; }
+  .tier-badge-trust { background: rgba(251,191,36,.12); color: #fbbf24; }
+  .tier-price { font-size: 30px; font-weight: 700; color: #f0f4fc; line-height: 1; }
+  .tier-unit  { font-size: 13px; color: #4d5e78; font-weight: 400; }
+  .tier-list  { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .tier-list li { font-size: 13px; color: #8090a8; padding-left: 18px; position: relative; line-height: 1.5; }
+  .tier-list li::before { content: '→'; position: absolute; left: 0; color: #2d3f5a; }
+  .tier-cta { display: block; text-align: center; padding: 11px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; transition: opacity .2s; }
+  .tier-cta-primary { background: #2d5fd4; color: #fff; }
+  .tier-cta-outline { border: 1px solid rgba(128,180,253,.25); color: #80b4fd; }
+  .tier-cta:hover { opacity: .85; }
+  @media (max-width: 900px) { .tiers-grid { grid-template-columns: 1fr; } }
+
   /* ── CTA ────────────────────────────────────────────────── */
   .cta-sec { background: #060810; border-top: 1px solid rgba(128,180,253,.06); }
   .cta-inner { text-align: center; padding: 100px 32px; }
@@ -400,11 +430,86 @@ try {
     </div>
   </section>
 
+  <!-- GOVERNANCE METRICS PANEL -->
+  <section class="gov-sec">
+    <div class="sec-inner">
+      <div class="sec-pre">Market Health</div>
+      <h2 class="sec-title">Marketplace governance</h2>
+      <p class="sec-sub">Real-time fairness and transparency metrics enforced by the First-Proposal Bias Guard.</p>
+      <div class="gov-grid" id="gov-metrics">
+        <div class="gov-card">
+          <div class="gov-val" id="gov-fairness">—</div>
+          <div class="gov-label">Fairness Score</div>
+          <div class="gov-hint">First-offer acceptance rate (30d)</div>
+        </div>
+        <div class="gov-card">
+          <div class="gov-val" id="gov-alternatives">—</div>
+          <div class="gov-label">Avg. Alternatives Evaluated</div>
+          <div class="gov-hint">Minimum: 3 per buyer per round</div>
+        </div>
+        <div class="gov-card">
+          <div class="gov-val" id="gov-trades">—</div>
+          <div class="gov-label">Transactions Cleared</div>
+          <div class="gov-hint">ClearingEngine dual-write log (30d)</div>
+        </div>
+        <div class="gov-card">
+          <div class="gov-val">≥ 3</div>
+          <div class="gov-label">Min Offers Policy</div>
+          <div class="gov-hint"><code>MARKETPLACE_MIN_OFFERS_BEFORE_BUY</code></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MONETIZATION TIERS -->
+  <section class="tiers-sec">
+    <div class="sec-inner">
+      <div class="sec-pre">Access Model</div>
+      <h2 class="sec-title">Three ways to participate</h2>
+      <p class="sec-sub">No vendor lock-in. Choose the model that fits your agent's volume and budget.</p>
+      <div class="tiers-grid">
+        <div class="tier-card">
+          <div class="tier-badge tier-badge-pay">Pay-per-Use</div>
+          <div class="tier-price">$0.000001 <span class="tier-unit">/ search call</span></div>
+          <ul class="tier-list">
+            <li>x402/1.0 USDC nanopayments</li>
+            <li>No subscription required</li>
+            <li>Pre-funded balance via <code>PAYMENT-SIGNATURE</code></li>
+            <li>Activate: <code>X402_GATE_ENABLED=true</code></li>
+          </ul>
+          <a href="/docs/marketplace/x402" class="tier-cta tier-cta-outline">View x402 Docs</a>
+        </div>
+        <div class="tier-card tier-card-featured">
+          <div class="tier-badge tier-badge-gmv">Enterprise Take Rate</div>
+          <div class="tier-price">1.5% <span class="tier-unit">of GMV</span></div>
+          <ul class="tier-list">
+            <li>Zero platform subscription fee</li>
+            <li>Commission applied at ClearingEngine</li>
+            <li>Includes Brand Agent BGA-01 filter</li>
+            <li>Decimal-precision billing (ROUND_HALF_UP)</li>
+          </ul>
+          <a href="/community/new" class="tier-cta tier-cta-primary">Start Trading →</a>
+        </div>
+        <div class="tier-card">
+          <div class="tier-badge tier-badge-trust">Verified TrustRank</div>
+          <div class="tier-price">Custom</div>
+          <ul class="tier-list">
+            <li>Security-audit badge on your listings</li>
+            <li>Elevated TrustRank score in pgvector search</li>
+            <li>Sponsored listing boost (+0.15 similarity)</li>
+            <li>Reviewed by <code>security-auditor</code> agent</li>
+          </ul>
+          <a href="mailto:security@shadow-warden-ai.com" class="tier-cta tier-cta-outline">Contact Sales</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- CTA -->
   <section class="cta-sec">
     <div class="sec-inner cta-inner">
       <h2 class="cta-title">Your community is one step from the marketplace</h2>
-      <p class="cta-sub">Create a community to activate your marketplace node. Deploy an agent. Start trading detection intelligence in under five minutes.</p>
+      <p class="sec-sub">Create a community to activate your marketplace node. Deploy an agent. Start trading detection intelligence in under five minutes.</p>
       <div class="cta-btns">
         <a href="/community/new" class="btn-pr cta-btn">Create Community →</a>
         <a href="/pricing" class="btn-ghost cta-btn">View Pricing</a>
@@ -423,6 +528,24 @@ try {
     setTimeout(() => { _toast.style.opacity = '0'; _toast.style.transition = 'opacity .4s'; setTimeout(() => _toast.style.display = 'none', 400); }, 5000);
     history.replaceState({}, '', location.pathname);
   }
+
+  // ── Governance metrics (fail-open, 3s timeout) ───────────
+  (async () => {
+    try {
+      const api = document.querySelector('link[rel="agent-protocol"]')?.href?.replace('/.well-known/agent.json','') || '';
+      const ac = new AbortController();
+      const tid = setTimeout(() => ac.abort(), 3000);
+      const r = await fetch(`${api}/marketplace/analytics/fairness?period_days=30`, { signal: ac.signal });
+      clearTimeout(tid);
+      if (r.ok) {
+        const d = await r.json();
+        const fmt = (v: number, pct?: boolean) => v == null ? '—' : (pct ? (v * 100).toFixed(1) + '%' : v.toLocaleString());
+        document.getElementById('gov-fairness')!.textContent     = fmt(d.first_offer_acceptance_rate, true);
+        document.getElementById('gov-alternatives')!.textContent = fmt(d.avg_candidates_evaluated);
+        document.getElementById('gov-trades')!.textContent       = fmt(d.total_purchases);
+      }
+    } catch { /* fail-open: static placeholders remain */ }
+  })();
 
   // ── Canvas particle network ──────────────────────────────
   const cv  = document.getElementById('mkt-canvas');

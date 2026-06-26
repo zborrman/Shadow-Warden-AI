@@ -50,7 +50,9 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
             listed_at        TEXT NOT NULL,
             expires_at       TEXT,
             sold_at          TEXT,
-            chain            TEXT NOT NULL DEFAULT 'sepolia'
+            chain            TEXT NOT NULL DEFAULT 'sepolia',
+            is_sponsored     INTEGER NOT NULL DEFAULT 0,
+            sponsored_until  TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_ml_seller   ON marketplace_listings(seller_agent);
         CREATE INDEX IF NOT EXISTS idx_ml_status   ON marketplace_listings(status);
@@ -86,6 +88,19 @@ def _migrate_chain_column(con: sqlite3.Connection) -> None:
         )
 
 
+def _migrate_sponsored_columns(con: sqlite3.Connection) -> None:
+    """Add sponsored columns to existing databases that predate sponsored-listing support."""
+    import contextlib
+    with contextlib.suppress(Exception):
+        con.execute(
+            "ALTER TABLE marketplace_listings ADD COLUMN is_sponsored INTEGER NOT NULL DEFAULT 0"
+        )
+    with contextlib.suppress(Exception):
+        con.execute(
+            "ALTER TABLE marketplace_listings ADD COLUMN sponsored_until TEXT"
+        )
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     con = sqlite3.connect(db_path, check_same_thread=False)
@@ -93,6 +108,7 @@ def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     init_pragmas(con)
     _ensure_schema(con)
     _migrate_chain_column(con)
+    _migrate_sponsored_columns(con)
     try:
         yield con
         con.commit()
@@ -116,9 +132,11 @@ class Listing:
     status:           str
     demand_score:     float
     listed_at:        str
-    expires_at:       str | None
-    sold_at:          str | None
-    chain:            str = "sepolia"
+    expires_at:      str | None
+    sold_at:         str | None
+    chain:           str = "sepolia"
+    is_sponsored:    bool = False
+    sponsored_until: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -160,6 +178,8 @@ def _row_to_listing(row: sqlite3.Row) -> Listing:
         expires_at=row["expires_at"],
         sold_at=row["sold_at"],
         chain=row["chain"] if "chain" in keys else "sepolia",
+        is_sponsored=bool(row["is_sponsored"]) if "is_sponsored" in keys else False,
+        sponsored_until=row["sponsored_until"] if "sponsored_until" in keys else None,
     )
 
 

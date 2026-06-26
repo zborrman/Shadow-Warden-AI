@@ -65,6 +65,20 @@ def build_agent_card() -> dict[str, Any]:
             "task:compliance_report",
             "task:escrow_management",
             "task:agent_registration",
+            "payment:x402",
+        ],
+        "payment_schemes": [
+            {
+                "scheme": "x402/1.0",
+                "description": "Per-call USDC nanopayments for search (x402 protocol)",
+                "header_required": "PAYMENT-SIGNATURE",
+                "header_response": "PAYMENT-REQUIRED",
+                "endpoint": f"{_BASE_URL}/marketplace/action",
+                "actions": ["search"],
+                "amount_usd": os.getenv("MARKETPLACE_SEARCH_FEE_USD", "0.000001"),
+                "network": "polygon-amoy",
+                "enabled": os.getenv("X402_GATE_ENABLED", "false"),
+            }
         ],
         "supported_content_types": [
             "application/json",

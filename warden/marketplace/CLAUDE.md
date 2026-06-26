@@ -102,6 +102,34 @@ BuyerAgent(agent_id="test-buyer-001", db_path=str(tmp_path / "mkt.db"))
 ```
 `agent_id` is required (positional).
 
+## Monetization (v6.6+)
+
+Three access tiers for marketplace participation:
+
+| Tier | Model | Details |
+|------|-------|---------|
+| Pay-per-Use | x402/1.0 USDC nanopayments | `$0.000001` per search call; `PAYMENT-SIGNATURE` header |
+| Enterprise Take Rate | 1.5% of GMV | Applied at ClearingEngine with Decimal math (no float drift) |
+| Verified TrustRank | Custom | Sponsored listing boost (+0.15 similarity), security-audit badge |
+
+### Monetization Security Rules
+
+11. **Take rate is logged-only in v1.** `ClearingResult.platform_fee_usd` is computed and persisted, but no on-chain USDC transfer occurs until Circle Gateway integration (v2). Never call `usdc.py` from `clearing.py` in v1.
+12. **Sponsored boost max +0.15.** Applied in Python after vector index fetch — never in SQL ORDER BY (would disable HNSW index). Every search result must include `"sponsored": bool` so UIs can render "Ad" labels.
+13. **x402 gate is fail-open.** Gate errors in `require_payment()` must never raise exceptions to the caller. Exceptions → `log.warning()` and return `None` (allow).
+14. **x402 deductions are batched.** `deduct_payment()` writes to `x402_pending_deductions` queue. Do not attempt per-call on-chain settlement.
+15. **PAYMENT-SIGNATURE and PAYMENT-REQUIRED are the canonical x402 header names.** Do not use `X-Payment-Token` or any other custom header name.
+
+### Monetization Modules
+
+| File | Responsibility |
+|------|----------------|
+| `x402_gate.py` | x402/1.0 middleware — `require_payment()`, `deduct_payment()`, pending queue |
+| `clearing.py` | Take rate with Decimal math — `ClearingResult.platform_fee_usd`, `seller_net_usd` |
+| `listing.py` | Sponsored listing fields — `is_sponsored`, `sponsored_until` |
+| `vector_search.py` | Sponsored boost in Python — fetch with HNSW index, apply +0.15 in memory |
+| `api_listings.py` | `POST /listings/{id}/sponsor` — admin-grant sponsored status |
+
 ## Env Vars
 
 | Var | Default | Effect |
@@ -121,3 +149,9 @@ BuyerAgent(agent_id="test-buyer-001", db_path=str(tmp_path / "mkt.db"))
 | `MARKETPLACE_VECTOR_SEARCH` | `false` | Enable pgvector semantic search (Layer 3) |
 | `HANDOFF_MEMORY_TTL` | `3600` | AgentHandoffMemory TTL in seconds (Layer 2) |
 | `HANDOFF_DB_PATH` | `/tmp/warden_handoff.db` | SQLite fallback for handoff memory |
+| `X402_GATE_ENABLED` | `false` | Enable x402 nanopayment gate for search |
+| `MARKETPLACE_SEARCH_FEE_USD` | `0.000001` | Per-search fee (x402) |
+| `MARKETPLACE_X402_DB_PATH` | `/tmp/warden_x402_marketplace.db` | x402 balance/deduction SQLite |
+| `MARKETPLACE_X402_PAYMENT_ADDRESS` | `0x000...` | USDC recipient address |
+| `MARKETPLACE_TAKE_RATE` | `0.015` | Platform take rate (1.5% default) |
+| `PLATFORM_WALLET_ADDRESS` | `` | Platform wallet for fee settlement (v2) |

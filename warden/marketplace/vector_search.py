@@ -123,6 +123,10 @@ async def delete_listing_embedding(listing_id: str) -> bool:
 
 # ── Semantic search — pgvector path ───────────────────────────────────────────
 
+_SPONSORED_BOOST = 0.15   # applied in Python to keep HNSW index active
+_INDEX_PREFETCH  = 100    # fetch this many via pure index, then re-rank in Python
+
+
 async def _pgvector_search(
     query: str,
     limit: int,
@@ -131,29 +135,45 @@ async def _pgvector_search(
     vec = embed_text(query)
     if vec is None:
         return []
-    params: list[Any] = [_vec_literal(vec), limit]
+    # Fetch a larger candidate set using the pure vector operator so pgvector
+    # can use the HNSW/IVFFlat index.  Applying the sponsored boost here in SQL
+    # would create a computed expression in ORDER BY and disable the index.
+    prefetch = max(limit * 10, _INDEX_PREFETCH)
+    params: list[Any] = [_vec_literal(vec), prefetch]
     type_clause = ""
     if asset_type:
-        type_clause = "AND asset_type = $3"
+        type_clause = "AND l.asset_type = $3"
         params.append(asset_type)
     try:
         import asyncpg  # noqa: PLC0415
         conn = await asyncpg.connect(_PG_DSN, timeout=5)
         rows = await conn.fetch(
             f"""
-            SELECT listing_id,
-                   title,
-                   asset_type,
-                   1 - (embedding <=> $1::vector) AS similarity
-            FROM   marketplace_embeddings
+            SELECT e.listing_id,
+                   l.title,
+                   l.asset_type,
+                   1 - (e.embedding <=> $1::vector) AS similarity,
+                   COALESCE(l.is_sponsored, 0)      AS is_sponsored
+            FROM   marketplace_embeddings e
+            JOIN   marketplace_listings   l USING (listing_id)
             WHERE  1=1 {type_clause}
-            ORDER  BY embedding <=> $1::vector
+            ORDER  BY e.embedding <=> $1::vector
             LIMIT  $2
             """,
             *params,
         )
         await conn.close()
-        return [dict(r) for r in rows]
+        # Apply sponsored boost in Python (preserves index usage above)
+        results: list[dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            d["similarity"] = float(d["similarity"]) + (
+                _SPONSORED_BOOST if d.get("is_sponsored") else 0.0
+            )
+            d["sponsored"] = bool(d.pop("is_sponsored", 0))
+            results.append(d)
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+        return results[:limit]
     except Exception as exc:
         log.warning("_pgvector_search: %s", exc)
         return []
@@ -172,9 +192,21 @@ def _sqlite_fallback(
     Returns similarity=0.5 for all results (unranked but functional).
     Reads MARKETPLACE_DB_PATH at call time so test monkeypatching works.
     """
+    import contextlib  # noqa: PLC0415
     import sqlite3  # noqa: PLC0415
 
     db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    # Ensure sponsored columns exist (additive migration — no-op on current DBs)
+    try:
+        _mig = sqlite3.connect(db_path)
+        with contextlib.suppress(Exception):
+            _mig.execute("ALTER TABLE marketplace_listings ADD COLUMN is_sponsored INTEGER NOT NULL DEFAULT 0")
+        with contextlib.suppress(Exception):
+            _mig.execute("ALTER TABLE marketplace_listings ADD COLUMN sponsored_until TEXT")
+        _mig.commit()
+        _mig.close()
+    except Exception:
+        pass
     terms = [t.strip() for t in query.lower().split() if t.strip()]
     if not terms:
         return []
@@ -191,6 +223,7 @@ def _sqlite_fallback(
         rows = con.execute(
             f"""
             SELECT listing_id, title, asset_type, price_usd,
+                   COALESCE(is_sponsored, 0) AS is_sponsored,
                    0.5 AS similarity
             FROM   marketplace_listings
             WHERE  (
@@ -198,12 +231,20 @@ def _sqlite_fallback(
                 LOWER(description) LIKE ? OR
                 LOWER(asset_type)  LIKE ?
             ) {type_clause}
+            ORDER  BY is_sponsored DESC, ROWID DESC
             LIMIT ?
             """,
             params,
         ).fetchall()
         con.close()
-        return [dict(r) for r in rows]
+        results: list[dict[str, Any]] = []
+        for r in rows:
+            d = dict(r)
+            is_sp = bool(d.pop("is_sponsored", 0))
+            d["similarity"] = 0.5 + (_SPONSORED_BOOST if is_sp else 0.0)
+            d["sponsored"]  = is_sp
+            results.append(d)
+        return results
     except Exception as exc:
         log.warning("_sqlite_fallback: %s", exc)
         return []

@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
+import sqlite3
+import time
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from warden.marketplace.rate_limit import marketplace_rate_limit
@@ -133,3 +136,56 @@ async def list_purchases(
 ) -> list[dict]:
     from warden.marketplace.listing import list_purchases as _list
     return [p.to_dict() for p in _list(buyer_agent=buyer_agent, seller_agent=seller_agent, limit=limit)]
+
+
+class SponsorRequest(BaseModel):
+    days: int = 30
+
+
+@router.post("/listings/{listing_id}/sponsor", status_code=200)
+async def sponsor_listing(
+    listing_id: str,
+    body: SponsorRequest,
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> dict:
+    """Set a listing as sponsored for N days (admin-grant only in v1).
+
+    Requires X-Admin-Key header matching ADMIN_KEY env var.
+    """
+    admin_key = os.getenv("ADMIN_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=403, detail="X-Admin-Key required.")
+
+    if body.days < 1 or body.days > 365:
+        raise HTTPException(status_code=422, detail="days must be 1–365.")
+
+    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    until_ts = time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ",
+        time.gmtime(time.time() + body.days * 86400),
+    )
+    try:
+        con = sqlite3.connect(db_path)
+        result = con.execute(
+            "UPDATE marketplace_listings "
+            "SET is_sponsored=1, sponsored_until=? "
+            "WHERE listing_id=? AND status='active'",
+            (until_ts, listing_id),
+        )
+        updated = result.rowcount
+        con.commit()
+        con.close()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="Listing not found or not active.")
+
+    log.info("sponsor_listing: %s sponsored for %d days until %s", listing_id[:16], body.days, until_ts)
+    return {
+        "listing_id":     listing_id,
+        "is_sponsored":   True,
+        "sponsored_until": until_ts,
+        "granted_at":     now,
+    }
