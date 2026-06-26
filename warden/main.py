@@ -1555,7 +1555,8 @@ except ImportError:
     log.warning("FIDO2 router not available — /auth/fido skipped.")
 
 try:
-    from warden.marketplace.api import router as _marketplace_router, agent_discovery_alias
+    from warden.marketplace.api import agent_discovery_alias
+    from warden.marketplace.api import router as _marketplace_router
     from warden.marketplace.api_agents import router as _mkt_agents_router
     from warden.marketplace.api_assets import router as _mkt_assets_router
     from warden.marketplace.api_escrow import router as _mkt_escrow_router
