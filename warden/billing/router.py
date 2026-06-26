@@ -84,15 +84,21 @@ async def get_billing_tiers():
     No authentication required — used by the landing page pricing section.
     """
     prices = {
-        "starter":            {"usd_per_month": 0,   "label": "Free",               "annual": None},
-        "individual":         {"usd_per_month": 5,   "label": "Individual",          "annual": ANNUAL_PRICING.get("individual")},
-        "community_business": {"usd_per_month": 19,  "label": "Community Business",  "annual": ANNUAL_PRICING.get("community_business")},
-        "pro":                {"usd_per_month": 69,  "label": "Pro",                 "annual": ANNUAL_PRICING.get("pro")},
-        "enterprise":         {"usd_per_month": 249, "label": "Enterprise",          "annual": ANNUAL_PRICING.get("enterprise")},
+        "trial":              {"usd_per_month": 0,      "label": "Trial",              "annual": None,
+                               "trial_days": 14, "note": "$0 for 14 days — no credit card required"},
+        "starter":            {"usd_per_month": 0,      "label": "Free",               "annual": None},
+        "individual":         {"usd_per_month": 5,      "label": "Individual",          "annual": ANNUAL_PRICING.get("individual"),
+                               "note": "+ $0.000001/search via x402 metered billing"},
+        "community_business": {"usd_per_month": 39.99,  "label": "Community Business",  "annual": ANNUAL_PRICING.get("community_business"),
+                               "note": "+ 1.5% take rate on cleared M2M transactions"},
+        "pro":                {"usd_per_month": 99.99,  "label": "Pro",                 "annual": ANNUAL_PRICING.get("pro"),
+                               "note": "Sponsored listing boost (+0.15) included"},
+        "enterprise":         {"usd_per_month": 249,    "label": "Enterprise",          "annual": ANNUAL_PRICING.get("enterprise"),
+                               "note": "PQC + Sovereign + dedicated Opus routing"},
     }
 
     tiers = []
-    for tier_name in ("starter", "individual", "community_business", "pro", "enterprise"):
+    for tier_name in ("trial", "starter", "individual", "community_business", "pro", "enterprise"):
         gate = FeatureGate.for_tier(tier_name)
         d    = gate.as_dict()
         d["pricing"]        = prices[tier_name]
@@ -157,11 +163,12 @@ async def get_billing_quota(
     status_code=303,
 )
 async def billing_upgrade(
-    plan:         str   = Query(..., description="Target plan: individual|pro|enterprise"),
-    x_tenant_id:  str | None = Header(default=None),
+    plan:           str        = Query(..., description="Target plan: trial|individual|community_business|pro|enterprise"),
+    x_tenant_id:    str | None = Header(default=None),
     customer_email: str | None = Query(default=None),
-    success_url:  str | None = Query(default=None),
-    cancel_url:   str | None = Query(default=None),
+    agent_id:       str | None = Query(default=None, description="Marketplace DID — bound to subscription for M2M billing"),
+    success_url:    str | None = Query(default=None),
+    cancel_url:     str | None = Query(default=None),
 ):
     tenant_id  = _require_tenant(x_tenant_id)
     _success   = success_url  or f"{_PORTAL_BASE}/billing/success"
@@ -175,6 +182,7 @@ async def billing_upgrade(
             success_url    = _success,
             cancel_url     = _cancel,
             customer_email = customer_email,
+            agent_id       = agent_id,
         )
         return RedirectResponse(url=url, status_code=303)
     except RuntimeError as exc:

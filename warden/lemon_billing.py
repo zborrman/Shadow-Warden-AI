@@ -48,10 +48,15 @@ log = logging.getLogger("warden.lemon_billing")
 _LS_API_KEY            = os.getenv("LEMONSQUEEZY_API_KEY", "")
 _LS_STORE_ID           = os.getenv("LEMONSQUEEZY_STORE_ID", "")
 _LS_WEBHOOK_SECRET     = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
+_LS_VARIANT_TRIAL      = os.getenv("LEMONSQUEEZY_VARIANT_TRIAL", "")
 _LS_VARIANT_INDIVIDUAL = os.getenv("LEMONSQUEEZY_VARIANT_INDIVIDUAL", "")
 _LS_VARIANT_COMMUNITY  = os.getenv("LEMONSQUEEZY_VARIANT_COMMUNITY", "")
 _LS_VARIANT_PRO        = os.getenv("LEMONSQUEEZY_VARIANT_PRO", "")
 _LS_VARIANT_ENTERPRISE = os.getenv("LEMONSQUEEZY_VARIANT_ENTERPRISE", "")
+
+# Metered billing: flush x402 usage to LS after this many events or seconds
+_METER_FLUSH_EVENTS = int(os.getenv("LS_METER_FLUSH_EVENTS", "100"))
+_METER_FLUSH_SECS   = int(os.getenv("LS_METER_FLUSH_SECS",   "300"))
 
 _LS_API_BASE = "https://api.lemonsqueezy.com/v1"
 
@@ -64,10 +69,22 @@ def _db_path() -> Path:
 # ── Plan definitions ──────────────────────────────────────────────────────────
 
 PLAN_QUOTAS: dict[str, int | None] = {
-    "starter":    1_000,
-    "individual": 5_000,
-    "pro":        50_000,
-    "enterprise": None,      # unlimited
+    "trial":            1_000,   # 14-day trial — same quota as starter
+    "starter":          1_000,
+    "individual":       5_000,   # usage-based metered billing via x402
+    "community_business": 10_000,
+    "pro":              50_000,
+    "enterprise":       None,    # unlimited
+}
+
+# Tier prices (USD/month) — MoR: Lemon Squeezy
+PLAN_PRICES: dict[str, float] = {
+    "trial":              0.00,   # $0 for 14 days
+    "starter":            0.00,
+    "individual":         5.00,   # + $0.000001/search via x402 metered billing
+    "community_business": 39.99,  # + 1.5% take rate on cleared M2M transactions
+    "pro":                99.99,  # + sponsored listings boost included
+    "enterprise":        249.00,  # + PQC + Sovereign + dedicated Opus routing
 }
 
 # Backwards-compat aliases used by existing quota checks
@@ -78,7 +95,10 @@ PLAN_QUOTAS["msp"]  = PLAN_QUOTAS["enterprise"]
 def _variant_to_plan(variant_id: str) -> str:
     # Build mapping only for configured (non-empty) variant IDs to avoid
     # duplicate "" keys when env vars are unset (last key wins → wrong plan).
+    # _LS_VARIANT_TRIAL maps to "trial" — LS Trials feature handles the 14-day gate.
     mapping: dict[str, str] = {}
+    if _LS_VARIANT_TRIAL:
+        mapping[_LS_VARIANT_TRIAL]      = "trial"
     if _LS_VARIANT_INDIVIDUAL:
         mapping[_LS_VARIANT_INDIVIDUAL] = "individual"
     if _LS_VARIANT_COMMUNITY:
@@ -197,6 +217,7 @@ class LemonBilling:
         success_url:    str,
         cancel_url:     str,       # accepted for API compat; LS manages its own cancel flow
         customer_email: str | None = None,
+        agent_id:       str | None = None,   # marketplace DID — stored in custom_data for webhook binding
     ) -> str:
         """
         Create a Lemon Squeezy checkout and return the hosted URL.
@@ -210,6 +231,7 @@ class LemonBilling:
             raise RuntimeError("Lemon Squeezy not configured (LEMONSQUEEZY_API_KEY missing).")
 
         variant_map = {
+            "trial":              _LS_VARIANT_TRIAL,
             "individual":         _LS_VARIANT_INDIVIDUAL,
             "community_business": _LS_VARIANT_COMMUNITY,
             "smb":                _LS_VARIANT_COMMUNITY,   # alias
@@ -232,7 +254,10 @@ class LemonBilling:
                         "embed": False,
                     },
                     "checkout_data": {
-                        "custom": {"tenant_id": tenant_id},
+                        "custom": {
+                            "tenant_id": tenant_id,
+                            **({"agent_id": agent_id} if agent_id else {}),
+                        },
                     },
                     "product_options": {
                         "redirect_url":        success_url,
@@ -292,7 +317,12 @@ class LemonBilling:
         Returns the event_name string.
         Raises ValueError on invalid signature.
         """
-        if _LS_WEBHOOK_SECRET and signature_header:
+        if _LS_WEBHOOK_SECRET:
+            # Fail-closed: if webhook secret is configured, a missing or invalid
+            # X-Signature header is always rejected — prevents privilege-escalation
+            # via forged webhooks even if the attacker omits the header entirely.
+            if not signature_header:
+                raise ValueError("Missing X-Signature on Lemon Squeezy webhook.")
             expected = hmac.new(
                 _LS_WEBHOOK_SECRET.encode(),
                 payload,
@@ -324,6 +354,11 @@ class LemonBilling:
 
         if event_name in ("subscription_created", "subscription_updated", "subscription_resumed"):
             self._on_subscription_active(data, meta)
+        elif event_name == "subscription_trial_started":
+            self._on_trial_started(data, meta)
+        elif event_name == "subscription_trial_ended":
+            # Trial expired without conversion → downgrade to starter
+            self._on_trial_ended(data)
         elif event_name in ("subscription_cancelled", "subscription_expired"):
             self._on_subscription_cancelled(data)
         elif event_name == "subscription_payment_failed":
@@ -364,6 +399,32 @@ class LemonBilling:
                 (datetime.now(UTC).isoformat(), sub_id),
             )
             self._conn.commit()
+
+    def _on_trial_started(self, data: dict, meta: dict) -> None:
+        """LS fires subscription_trial_started — grant trial access immediately."""
+        attrs       = data.get("attributes", {})
+        custom      = meta.get("custom_data") or {}
+        tenant_id   = custom.get("tenant_id", "")
+        if not tenant_id:
+            log.warning("LemonSqueezy: trial_started missing tenant_id.")
+            return
+        sub_id      = str(data.get("id", ""))
+        customer_id = str(attrs.get("customer_id", ""))
+        trial_ends  = attrs.get("trial_ends_at") or attrs.get("renews_at")
+        self._upsert(tenant_id, customer_id, sub_id, "trial", "on_trial", trial_ends)
+        log.info("LemonSqueezy: tenant %s trial started, ends %s.", tenant_id, trial_ends)
+
+    def _on_trial_ended(self, data: dict) -> None:
+        """LS fires subscription_trial_ended without conversion → downgrade to starter."""
+        sub_id = str(data.get("id", ""))
+        with self._lock:
+            self._conn.execute(
+                "UPDATE subscriptions SET plan='starter', status='active', updated_at=?"
+                " WHERE ls_sub_id=?",
+                (datetime.now(UTC).isoformat(), sub_id),
+            )
+            self._conn.commit()
+        log.info("LemonSqueezy: trial ended sub=%s → downgraded to starter.", sub_id)
 
     def _on_order_created(self, data: dict, meta: dict) -> None:
         attrs     = data.get("attributes", {})
@@ -449,6 +510,89 @@ class LemonBilling:
 
     def close(self) -> None:
         self._conn.close()
+
+
+# ── Metered usage aggregator (x402 nanopayments → LS usage billing) ──────────
+
+class MeterUsageAggregator:
+    """Aggregates x402 search-call micro-events and batch-reports them to
+    Lemon Squeezy's usage-based billing API (POST /v1/usage-records).
+
+    Usage model for Individual tier:
+      - Per-call fee: $0.000001 (MARKETPLACE_SEARCH_FEE_USD)
+      - Flush to LS after _METER_FLUSH_EVENTS events OR _METER_FLUSH_SECS seconds
+      - Fail-open: flush errors are logged, not raised
+
+    Rule #14: deductions are batched, never per-call on-chain.
+    """
+
+    def __init__(self) -> None:
+        self._lock:        threading.Lock          = threading.Lock()
+        self._pending:     dict[str, list[float]]  = {}  # tenant_id → [amount_usd, ...]
+        self._last_flush:  float                   = 0.0
+
+    def record(self, tenant_id: str, amount_usd: float) -> None:
+        """Record one usage event. Thread-safe."""
+        with self._lock:
+            self._pending.setdefault(tenant_id, []).append(amount_usd)
+            total_events = sum(len(v) for v in self._pending.values())
+
+        import time
+        age = time.time() - self._last_flush
+        if total_events >= _METER_FLUSH_EVENTS or age >= _METER_FLUSH_SECS:
+            self.flush()
+
+    def flush(self) -> None:
+        """Send all pending usage records to LS. Fail-open."""
+        import time
+        with self._lock:
+            snapshot   = dict(self._pending)
+            self._pending.clear()
+            self._last_flush = time.time()
+
+        if not snapshot or not _LS_API_KEY:
+            return
+
+        billing = get_lemon_billing()
+        for tenant_id, amounts in snapshot.items():
+            try:
+                row = billing._conn.execute(
+                    "SELECT ls_sub_id FROM subscriptions WHERE tenant_id=? AND plan='individual'",
+                    (tenant_id,),
+                ).fetchone()
+                if not row or not row["ls_sub_id"]:
+                    continue
+                quantity = len(amounts)  # LS usage-records accept integer quantity
+                _ls_request("POST", "/usage-records", {
+                    "data": {
+                        "type": "usage-records",
+                        "attributes": {
+                            "quantity":        quantity,
+                            "action":          "increment",
+                        },
+                        "relationships": {
+                            "subscription-item": {
+                                "data": {"type": "subscription-items", "id": row["ls_sub_id"]}
+                            }
+                        },
+                    }
+                })
+                log.info("MeterUsage: flushed %d events for tenant %s.", quantity, tenant_id[:8])
+            except Exception as exc:
+                log.warning("MeterUsage: flush error tenant=%s: %s", tenant_id[:8], exc)
+
+
+_meter_aggregator: MeterUsageAggregator | None = None
+_meter_lock: threading.Lock = threading.Lock()
+
+
+def get_meter_aggregator() -> MeterUsageAggregator:
+    global _meter_aggregator
+    if _meter_aggregator is None:
+        with _meter_lock:
+            if _meter_aggregator is None:
+                _meter_aggregator = MeterUsageAggregator()
+    return _meter_aggregator
 
 
 # ── Module-level singleton ────────────────────────────────────────────────────

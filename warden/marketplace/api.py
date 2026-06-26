@@ -440,16 +440,23 @@ async def dispatch_action(body: MarketAction, request: Request) -> dict:
 
         # Queue deduction after successful search (batch settlement in v2)
         if body.action_type == "search":
+            _agent_id = (
+                body.payload.get("agent_id")
+                or request.headers.get("X-Agent-ID", "anonymous")
+            )
             try:
                 from warden.marketplace.x402_gate import deduct_payment  # noqa: PLC0415, F811
-
-                _agent_id = (
-                    body.payload.get("agent_id")
-                    or request.headers.get("X-Agent-ID", "anonymous")
-                )
                 await deduct_payment(str(_agent_id), "marketplace/search")
             except Exception as _ded_exc:
                 log.debug("x402 deduct fail-open: %s", _ded_exc)
+            # LS metered billing for Individual-tier tenants (aggregated, fail-open)
+            _tenant_id = request.headers.get("X-Tenant-ID", "")
+            if _tenant_id:
+                try:
+                    from warden.lemon_billing import get_meter_aggregator  # noqa: PLC0415
+                    get_meter_aggregator().record(_tenant_id, 0.000001)
+                except Exception as _meter_exc:
+                    log.debug("ls meter fail-open: %s", _meter_exc)
 
         resp: dict[str, Any] = {"dispatched": True, "action_type": body.action_type, "result": result}
         if _route_decision is not None:
