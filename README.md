@@ -4,9 +4,21 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 6.8 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 6.9 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v6.9
+
+| Feature | Description |
+|---------|-------------|
+| **Dynamic Model Router** | `warden/marketplace/model_router.py` — 4-factor complexity scoring routes every marketplace dispatch to the cheapest model that can handle it: Haiku (score < 0.35, search/browse/register), Sonnet (0.35–0.65, negotiations/escrow/payments), Opus (≥ 0.65, disputes/clearing/MAESTRO HIGH). Scoring inputs: `action_type` base weight (0.10–0.80), payload length (+0–0.20), negotiation round count (+0–0.15), MAESTRO risk level (+0.00/+0.10/+0.25). `ROUTER_FORCE_MODEL` env var overrides for ops/testing. `ROUTER_HAIKU_THRESHOLD` / `ROUTER_SONNET_THRESHOLD` are env-configurable. |
+| **Router → Dispatch Integration** | `dispatch_action()` in `warden/marketplace/api.py` calls `route()` before every handler. Result fields (`routed_model`, `route_tier`, `route_score`) included in success responses. OTel span attributes emitted on every dispatch: `mkt.model_tier`, `mkt.route_score`, `mkt.model_id`, `mkt.action_type` — GDPR-safe (metadata only, no content). |
+| **Model Tier Analytics** | `warden/marketplace/analytics.py` — `model_tier_distribution()` reads `marketplace_clearing_log` action_type counts, maps to tiers via static `_ACTION_TIER` dict, and estimates API cost savings vs. an all-Opus baseline using per-tier cost weights (Haiku $0.00025 / Sonnet $0.003 / Opus $0.015 per 1k tokens). Sparse-data fallback uses 60/30/10% proportional estimate when fewer than 10 records exist. New endpoint: `GET /marketplace/analytics/model-tiers?period_days=N`. |
+| **Marketplace Intelligence Charts** | `site/src/pages/marketplace.astro` — two new live Chart.js panels: (1) First-Proposal Bias doughnut (single vs. multiple candidates evaluated, fetched from `GET /marketplace/analytics/fairness`); (2) Model Tier doughnut (Haiku/Sonnet/Opus distribution with cost-savings pill, fetched from `GET /marketplace/analytics/model-tiers`). Both use `AbortController` 3s timeout, fail-open to demo data, and destroy previous Chart.js instance before recreating on 60s refresh cycle. |
+| **CI: Docker Scout gate** | Docker Scout CVE scan step in `.github/workflows/ci.yml` now only runs when the `DOCKER_SCOUT_ENABLED` Actions variable is set to `true`. Eliminates the "not entitled to use Docker Scout" auth noise on free-tier GitHub Actions runners. |
 
 ---
 
