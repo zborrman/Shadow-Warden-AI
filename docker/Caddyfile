@@ -170,6 +170,29 @@ docs.shadow-warden-ai.com {
 	file_server
 }
 
+# ── Agentic Marketplace (Cloudflare Worker edge proxy) ───────────────────────
+# Proxies to the shadow-warden-marketplace CF Worker; keeps TLS termination and
+# HSTS headers on-domain while letting the Worker serve from Cloudflare's edge.
+marketplace.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
+
+	import security_headers
+
+	# ADP standard path — cache 1 hour (matches Worker Cache-Control)
+	@adp path /.well-known/agent.json
+	header @adp Cache-Control "public, max-age=3600"
+
+	handle {
+		reverse_proxy https://shadow-warden-marketplace.zbrvladimir.workers.dev {
+			header_up Host                shadow-warden-marketplace.zbrvladimir.workers.dev
+			header_up X-Real-IP           {remote_host}
+			header_up X-Forwarded-For     {remote_host}
+			header_up X-Forwarded-Proto   {scheme}
+			header_up X-Forwarded-Host    {host}
+		}
+	}
+}
+
 # ── Landing Page (static) ─────────────────────────────────────────────────────
 shadow-warden-ai.com, www.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem

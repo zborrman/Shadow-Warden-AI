@@ -15,5 +15,9 @@ id = "557f79a322fc464e8b09f7685340474e"
 #   WARDEN_API_KEY      — forwarded to Hetzner VPS for complex ops
 #   WARDEN_BACKEND_URL  — https://api.shadow-warden-ai.com
 
+[[routes]]
+pattern = "marketplace.shadow-warden-ai.com/*"
+zone_name = "shadow-warden-ai.com"
+
 [observability]
 enabled = true
