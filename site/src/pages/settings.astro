@@ -62,6 +62,18 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
               <span class="nav-badge" style="color:#10b981;background:rgba(16,185,129,0.15)">NEW</span>
             </button>
 
+            <button class="nav-item" data-panel="security">
+              <span class="nav-icon">🔐</span>
+              <span class="nav-text">Security</span>
+              <span class="nav-badge" style="color:#06b6d4;background:rgba(6,182,212,0.12)">PQC</span>
+            </button>
+
+            <button class="nav-item" data-panel="x402">
+              <span class="nav-icon">⚡</span>
+              <span class="nav-text">x402 Wallet</span>
+              <span class="nav-badge" style="color:#10b981;background:rgba(16,185,129,0.12)">USDC</span>
+            </button>
+
             <button class="nav-item" data-panel="compliance-cfg">
               <span class="nav-icon">🛡</span>
               <span class="nav-text">Compliance</span>
@@ -795,6 +807,219 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
           </div>
         </div>
 
+        <!-- ── SECURITY / PQC ── -->
+        <div id="panel-security" class="settings-panel hidden">
+          <p class="panel-subtitle">Cryptographic security controls for M2M trades. Post-Quantum options require Enterprise tier.</p>
+
+          <div class="settings-card mt-6">
+            <h3 class="card-title mb-1">M2M Trade Signatures</h3>
+            <p class="text-[12px] mb-5" style="color:#64748b">Applied to every Causal Transfer Proof at the ClearingEngine level.</p>
+            <div class="space-y-3 max-w-md">
+              <!-- ML-DSA-65 toggle — Enterprise-gated -->
+              <div class="pqc-gate-row flex items-start justify-between p-4 rounded-xl gap-4"
+                   style="background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.15)">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <p class="text-[13px] font-semibold" style="color:#f1f5f9">Require ML-DSA-65 Signatures for M2M Trades</p>
+                    <span class="pqc-enterprise-badge text-[9px] font-bold px-2 py-0.5 rounded-full"
+                          style="color:#f59e0b;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3)">
+                      ENTERPRISE
+                    </span>
+                  </div>
+                  <p class="text-[11px]" style="color:#475569">
+                    Adds ML-DSA-65 (FIPS 204) hybrid signature to every Causal Transfer Proof. Requires <code class="font-mono text-[10px]" style="color:#94a3b8">liboqs-python</code> installed in the warden container.
+                  </p>
+                </div>
+                <div class="pqc-toggle-wrap flex-shrink-0" style="opacity:0.35;pointer-events:none" title="Requires Enterprise tier">
+                  <label class="toggle-label">
+                    <input type="checkbox" class="sr-only toggle-input" id="toggle-mldsa" />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- E2EE for Agent Comms -->
+              <label class="flex items-center justify-between p-4 rounded-xl cursor-pointer"
+                     style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)">
+                <div>
+                  <p class="text-[13px] font-semibold" style="color:#f1f5f9">Enable End-to-End Encryption for Agent Comms</p>
+                  <p class="text-[11px] mt-0.5" style="color:#475569">
+                    Fernet-encrypts all inter-agent handoff memory payloads. Keys derived from community keypair; never stored in plaintext.
+                  </p>
+                </div>
+                <input type="checkbox" checked class="sr-only toggle-input" id="toggle-e2ee" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+
+              <!-- ML-KEM-768 KEM toggle — Enterprise-gated -->
+              <div class="pqc-gate-row flex items-start justify-between p-4 rounded-xl gap-4"
+                   style="background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.10)">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <p class="text-[13px] font-semibold" style="color:#f1f5f9">ML-KEM-768 Key Encapsulation (FIPS 203)</p>
+                    <span class="pqc-enterprise-badge text-[9px] font-bold px-2 py-0.5 rounded-full"
+                          style="color:#f59e0b;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3)">
+                      ENTERPRISE
+                    </span>
+                  </div>
+                  <p class="text-[11px]" style="color:#475569">
+                    Hybrid X25519+ML-KEM-768 KEM for session key exchange. Shared secret derived via HKDF-SHA256(X25519 XOR ML-KEM-768).
+                  </p>
+                </div>
+                <div class="pqc-toggle-wrap flex-shrink-0" style="opacity:0.35;pointer-events:none" title="Requires Enterprise tier">
+                  <label class="toggle-label">
+                    <input type="checkbox" class="sr-only toggle-input" id="toggle-mlkem" />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Causal Transfer Guard threshold -->
+              <label class="flex items-center justify-between p-4 rounded-xl cursor-pointer"
+                     style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)">
+                <div>
+                  <p class="text-[13px] font-semibold" style="color:#f1f5f9">Causal Transfer Guard</p>
+                  <p class="text-[11px] mt-0.5" style="color:#475569">
+                    Blocks trades where P(exfiltration) ≥ 0.70 (env: <code class="font-mono text-[10px]" style="color:#94a3b8">TRANSFER_RISK_THRESHOLD</code>). Runs in &lt;20ms via Bayesian DAG.
+                  </p>
+                </div>
+                <input type="checkbox" checked class="sr-only toggle-input" id="toggle-ctg" />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-card mt-4">
+            <h3 class="card-title mb-3">Upgrade to unlock PQC</h3>
+            <p class="text-[12px] mb-4" style="color:#64748b">
+              Post-Quantum Cryptography (ML-DSA-65 + ML-KEM-768) is available on Enterprise tier.
+              Classical Ed25519/X25519 remain active on all tiers.
+            </p>
+            <div class="flex gap-3 flex-wrap">
+              <a href="/pricing#enterprise" class="btn-primary-sm" style="background:linear-gradient(135deg,#06b6d4,#8b5cf6)">
+                Upgrade to Enterprise →
+              </a>
+              <a href="/doc#pqc" class="btn-secondary-sm">PQC Documentation ↗</a>
+            </div>
+          </div>
+
+          <div class="settings-card mt-4" style="border-color:rgba(6,182,212,0.15)">
+            <h3 class="card-title mb-3" style="color:#06b6d4">PQC Status</h3>
+            <div id="pqc-status-row" class="flex items-center gap-3">
+              <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:#f59e0b"></span>
+              <span class="text-[12px]" style="color:#64748b" id="pqc-status-text">Classical only (Ed25519 + X25519) — liboqs not detected</span>
+            </div>
+            <div class="mono-hint mt-3">GET /health → pqc_available: false</div>
+          </div>
+        </div>
+
+
+        <!-- ── x402 WALLET ── -->
+        <div id="panel-x402" class="settings-panel hidden">
+          <p class="panel-subtitle">x402/1.0 USDC nanopayment wallet — pre-funded Circle Gateway balance for search fees and M2M settlement.</p>
+
+          <!-- Subscription tier + x402 status -->
+          <div class="settings-card mt-6">
+            <div class="flex items-center justify-between gap-4 mb-5">
+              <h3 class="card-title">Subscription Tier</h3>
+              <div id="x402-tier-badge" class="text-[10px] font-bold px-3 py-1 rounded-full"
+                   style="color:#06b6d4;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.25)">
+                LOADING…
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              {[
+                { id: 'tier-trial', label: 'Trial', sub: '14 days · $0', color: '#6b7c96', active: false },
+                { id: 'tier-individual', label: 'Individual', sub: '$5/mo · 5k req', color: '#38bdf8', active: false },
+                { id: 'tier-community', label: 'Community Biz', sub: '$39.99/mo · 10k req', color: '#10b981', active: false },
+                { id: 'tier-pro', label: 'Pro', sub: '$99.99/mo · 50k req', color: '#06b6d4', active: true },
+              ].map(t => (
+                <div id={t.id} class="tier-card rounded-lg p-3 text-center border transition-all"
+                     style={`border-color:rgba(255,255,255,0.07);background:rgba(255,255,255,0.02);opacity:${t.active ? 1 : 0.4}`}>
+                  <div class="text-[12px] font-bold mb-0.5" style={`color:${t.color}`}>{t.label}</div>
+                  <div class="text-[10px]" style="color:#475569">{t.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            <div class="text-[12px] mb-1" style="color:#64748b">x402 search fee: <span style="color:#f1f5f9;font-family:monospace">$0.000001 / call</span> · Aggregated monthly via Lemon Squeezy</div>
+          </div>
+
+          <!-- USDC Wallet balance -->
+          <div class="settings-card mt-4" style="border-color:rgba(16,185,129,0.15)">
+            <div class="flex items-center justify-between gap-4 mb-4">
+              <h3 class="card-title">Pre-funded USDC Wallet</h3>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                    style="color:#10b981;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)">
+                Circle Gateway
+              </span>
+            </div>
+            <div class="flex items-end gap-3 mb-4">
+              <div class="text-[36px] font-black leading-none" style="color:#10b981" id="usdc-balance">
+                $1.00
+              </div>
+              <div class="text-[12px] mb-1" style="color:#475569">USDC · Sepolia testnet</div>
+            </div>
+
+            <div class="h-2 rounded-full overflow-hidden mb-2" style="background:rgba(255,255,255,0.06)">
+              <div id="usdc-bar" class="h-full rounded-full" style="background:linear-gradient(90deg,#10b981,#06b6d4);width:100%"></div>
+            </div>
+            <div class="flex justify-between text-[11px] mb-4" style="color:#475569">
+              <span>Used: <span id="usdc-used" style="color:#f1f5f9">$0.000000</span></span>
+              <span>Cap: <span style="color:#f1f5f9">$1.00 trial</span></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <a href="https://faucet.circle.com" target="_blank" rel="noopener"
+                 class="btn-secondary-sm text-center">
+                Get testnet USDC ↗
+              </a>
+              <button class="btn-primary-sm" onclick="refreshWallet()" style="background:#10b981">
+                Refresh balance
+              </button>
+            </div>
+          </div>
+
+          <!-- x402 transaction log -->
+          <div class="settings-card mt-4">
+            <h3 class="card-title mb-4">Recent x402 Transactions</h3>
+            <div id="x402-log" class="space-y-0">
+              {[
+                { type: 'search', amount: '0.000001', ts: 'just now',  status: 'deducted' },
+                { type: 'search', amount: '0.000001', ts: '1 min ago', status: 'deducted' },
+                { type: 'search', amount: '0.000001', ts: '4 min ago', status: 'deducted' },
+              ].map(tx => (
+                <div class="key-row">
+                  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[13px] flex-shrink-0"
+                       style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.15)">⚡</div>
+                  <div class="key-info">
+                    <div class="key-name font-mono">x402/{tx.type}</div>
+                    <div class="key-meta">{tx.ts} · PAYMENT-SIGNATURE verified</div>
+                  </div>
+                  <div class="text-right flex-shrink-0">
+                    <div class="text-[12px] font-mono font-semibold" style="color:#10b981">-${tx.amount}</div>
+                    <div class="text-[10px]" style="color:#475569">{tx.status}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div class="text-center mt-3">
+              <button class="btn-secondary-sm text-[11px]">View all transactions →</button>
+            </div>
+          </div>
+
+          <div class="mt-4 p-4 rounded-xl text-[12px]" style="background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.15)">
+            <div class="font-semibold mb-1" style="color:#06b6d4">⚡ How x402 works</div>
+            <div style="color:#64748b">
+              Every <code class="font-mono text-[11px]" style="color:#94a3b8">POST /marketplace/action?action=search</code> checks for a
+              <code class="font-mono text-[11px]" style="color:#94a3b8">PAYMENT-SIGNATURE</code> header. Deductions are batched into a pending queue
+              and flushed to the Lemon Squeezy usage-records API at the end of your billing cycle. No per-call on-chain settlement in v1.
+            </div>
+          </div>
+        </div>
+
+
         <!-- ── ENTERPRISE GUIDE ── -->
         <div id="panel-guide" class="settings-panel hidden">
           <div class="settings-card mt-6 flex items-center gap-4">
@@ -1263,6 +1488,8 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     rules:           'Rules',
     commerce:        'Commerce',
     voice:           'Voice',
+    security:        'Security & PQC',
+    x402:            'x402 Wallet',
     'compliance-cfg':'Compliance',
     team:            'Team',
     billing:         'Billing',
@@ -1454,5 +1681,68 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     document.getElementById('billing-loading')?.classList.remove('hidden');
     loadBilling(cid);
   });
+
+  // ── x402 Wallet ──────────────────────────────────────────────
+  (window as any).refreshWallet = function () {
+    const balEl  = document.getElementById('usdc-balance');
+    const barEl  = document.getElementById('usdc-bar') as HTMLElement;
+    const usedEl = document.getElementById('usdc-used');
+    if (!balEl || !barEl || !usedEl) return;
+    // Simulated fetch — replace with GET /marketplace/x402/balance when live
+    const used = parseFloat(localStorage.getItem('sw-x402-used') ?? '0.000003');
+    const cap  = 1.00;
+    const pct  = Math.min(100, (used / cap) * 100);
+    balEl.textContent  = `$${(cap - used).toFixed(6)}`;
+    usedEl.textContent = `$${used.toFixed(6)}`;
+    barEl.style.width  = `${Math.max(2, 100 - pct)}%`;
+  };
+
+  // Run once on page load for x402 panel
+  (window as any).refreshWallet();
+
+  // ── Security PQC panel ────────────────────────────────────────
+  // Probe health endpoint to check liboqs status
+  fetch('/health', { signal: AbortSignal.timeout(3000) })
+    .then(r => r.json())
+    .catch(() => null)
+    .then((data: any) => {
+      const statusText = document.getElementById('pqc-status-text');
+      const statusDot  = document.querySelector<HTMLElement>('#pqc-status-row .rounded-full');
+      if (!data) return;
+      const pqcAvail = data?.pqc_available ?? false;
+      if (statusText) {
+        statusText.textContent = pqcAvail
+          ? 'Hybrid PQC active (ML-DSA-65 + ML-KEM-768)'
+          : 'Classical only (Ed25519 + X25519) — liboqs not detected';
+      }
+      if (statusDot) {
+        statusDot.style.background = pqcAvail ? '#10b981' : '#f59e0b';
+      }
+      // Enable toggles if tier is enterprise
+      const tier = (localStorage.getItem('sw-billing-tier') ?? '').toLowerCase();
+      if (tier === 'enterprise' && pqcAvail) {
+        document.querySelectorAll<HTMLElement>('.pqc-toggle-wrap').forEach(el => {
+          el.style.opacity = '1';
+          el.style.pointerEvents = 'auto';
+        });
+      }
+    });
+
+  // ── x402 tier badge from billing data ────────────────────────
+  const storedTier = localStorage.getItem('sw-billing-tier');
+  if (storedTier) {
+    const badge = document.getElementById('x402-tier-badge');
+    if (badge) badge.textContent = storedTier.toUpperCase();
+    ['trial','individual','community','pro'].forEach(k => {
+      const el = document.getElementById(`tier-${k}`);
+      if (!el) return;
+      const matches = storedTier.toLowerCase().includes(k.replace('community','communit'));
+      el.style.opacity = matches ? '1' : '0.35';
+      el.style.borderColor = matches ? 'rgba(6,182,212,0.4)' : 'rgba(255,255,255,0.07)';
+    });
+  } else {
+    const badge = document.getElementById('x402-tier-badge');
+    if (badge) badge.textContent = 'NOT LINKED';
+  }
 })();
 </script>

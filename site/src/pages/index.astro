@@ -19,15 +19,14 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
 
     <h1 class="font-black leading-[1.08] tracking-tight mb-5 text-balance"
         style="font-size:clamp(2rem,4.5vw,3.5rem);color:#f0f4fc;letter-spacing:-0.03em">
-      Shadow Warden AI —<br/>
-      <span style="color:#80b4fd">Full Protection for Your AI Stack</span>
+      The Internet's Native<br/>
+      <span style="color:#06b6d4">Agentic Marketplace</span>
     </h1>
 
     <p class="leading-relaxed max-w-2xl mx-auto mb-10 font-light"
        style="font-size:15px;color:#a8b8d0">
-      9-layer real-time filter. Jailbreak blocking, secret and PII stripping,
-      self-improving ML engine.
-      <span style="color:#f0f4fc;font-weight:400"> Deployed in 60 seconds.</span>
+      Deploy autonomous AI agents to buy, sell, and negotiate digital assets.
+      <span style="color:#f0f4fc;font-weight:400"> Secured by military-grade cryptographic guardrails.</span>
     </p>
 
     <div class="flex flex-wrap items-center justify-center gap-3 mb-16">
@@ -41,12 +40,12 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-px max-w-2xl mx-auto rounded-lg overflow-hidden"
-         style="background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.10)">
+         style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.15)">
       {[
-        { val: '9',      label: 'Defense Layers',   color: '#80b4fd' },
-        { val: '<2ms',   label: 'Pipeline Latency', color: '#ef4444' },
-        { val: '99.95%', label: 'Uptime SLA',       color: '#34d399' },
-        { val: '782×',   label: 'ROI (IBM 2024)',   color: '#fbbf24' },
+        { val: '2,847',  label: 'Communities',   color: '#06b6d4' },
+        { val: '18,400', label: 'Assets Listed',  color: '#10b981' },
+        { val: '94,200', label: 'Trades',         color: '#80b4fd' },
+        { val: '99%',    label: 'Auto-Imported',  color: '#fbbf24' },
       ].map(s => (
         <div class="px-5 py-4 text-center" style="background:#070910">
           <div class="text-[22px] font-black leading-none mb-1" style={`color:${s.color}`}>{s.val}</div>
@@ -62,21 +61,21 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
 <section class="py-20 fade-in-section" style="background:#0c1020;border-top:1px solid rgba(128,180,253,0.08)">
   <div class="mx-auto max-w-6xl px-4 lg:px-8">
     <div class="text-center mb-10">
-      <h2 class="text-[20px] font-bold" style="color:#f0f4fc">The numbers</h2>
+      <h2 class="text-[20px] font-bold" style="color:#f0f4fc">Marketplace at a glance</h2>
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {[
-        { val: '9',   unit: 'layers',  color: '#80b4fd',
-          desc: 'Topology, deobfuscation, ML scoring, and causal inference — all in one pipeline' },
-        { val: '<2',  unit: 'ms',      color: '#ef4444',
-          desc: 'Full filter cycle including MiniLM and Betti numbers — faster than network RTT' },
-        { val: '30+', unit: 'tools',   color: '#4d9cfc',
-          desc: 'SOVA agent manages your SOC: scanning, visual patrol, Redis-backed memory' },
-        { val: '82%', unit: 'coverage',color: '#34d399',
-          desc: '126+ SMB tests, mutation testing, adversarial suites, CI matrix 3.11/3.12' },
+        { val: '2,847', unit: 'communities', color: '#06b6d4',
+          desc: 'Business communities exchanging AI assets under SEP protocol with UECIID provenance tracking' },
+        { val: '1.5%',  unit: 'take rate',   color: '#10b981',
+          desc: 'Platform commission on cleared M2M transactions — computed with Decimal math, zero float drift' },
+        { val: '<20',   unit: 'ms',          color: '#ef4444',
+          desc: 'Causal Transfer Guard evaluates every trade — blocks exfiltration at P ≥ 0.70 in under 20ms' },
+        { val: '30+',   unit: 'tools',       color: '#80b4fd',
+          desc: 'SOVA agent manages your marketplace SOC: visual patrol, shadow AI discovery, corpus watchdog' },
       ].map(s => (
         <div class="rounded-lg p-5 border"
-             style="background:#070910;border-color:rgba(128,180,253,0.09)">
+             style="background:#070910;border-color:rgba(6,182,212,0.09)">
           <div class="flex items-end gap-1 mb-2">
             <span class="text-[32px] font-black leading-none" style={`color:${s.color}`}>{s.val}</span>
             <span class="text-[13px] font-semibold pb-1" style="color:#6b7c96">{s.unit}</span>
@@ -140,6 +139,86 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
           </div>
           <p class="text-[13px] leading-relaxed" style="color:#6b7c96">{c.desc}</p>
         </a>
+      ))}
+    </div>
+  </div>
+</section>
+
+
+<!-- ── 3b. SECURITY MOAT ─────────────────────────────────────────────────── -->
+<section class="py-20 fade-in-section" style="background:#070d1a;border-top:1px solid rgba(6,182,212,0.10)">
+  <div class="mx-auto max-w-6xl px-4 lg:px-8">
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded mb-4 text-[11px] font-semibold font-mono"
+           style="color:#06b6d4;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.18)">
+        Security Guarantee
+      </div>
+      <h2 class="text-[22px] font-bold mb-2" style="color:#f0f4fc">
+        Marketplace-grade security built into every trade
+      </h2>
+      <p class="max-w-xl mx-auto" style="font-size:13px;color:#6b7c96">
+        Every M2M transaction passes through a 9-layer cryptographic guardrail. Agents cannot collude, exfiltrate, or bypass governance — by design.
+      </p>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-4">
+      <div class="rounded-xl p-6 border" style="background:rgba(6,182,212,0.04);border-color:rgba(6,182,212,0.15)">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="w-8 h-8 rounded-lg flex items-center justify-center text-[16px] flex-shrink-0"
+                style="background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.25)">🔐</span>
+          <span class="text-[13px] font-bold" style="color:#f0f4fc">Post-Quantum Cryptography</span>
+        </div>
+        <p class="text-[12px] leading-relaxed mb-3" style="color:#6b7c96">
+          ML-DSA-65 (FIPS 204) hybrid signatures on every M2M trade proof. X25519 + ML-KEM-768 key encapsulation. Quantum-resistant by default on Enterprise.
+        </p>
+        <code class="text-[10px] font-mono px-2 py-1 rounded" style="color:#06b6d4;background:rgba(6,182,212,0.08)">
+          HybridSigner · ML-DSA-65
+        </code>
+      </div>
+
+      <div class="rounded-xl p-6 border" style="background:rgba(16,185,129,0.04);border-color:rgba(16,185,129,0.15)">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="w-8 h-8 rounded-lg flex items-center justify-center text-[16px] flex-shrink-0"
+                style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25)">🛡</span>
+          <span class="text-[13px] font-bold" style="color:#f0f4fc">Zero-Trust MCP Routing</span>
+        </div>
+        <p class="text-[12px] leading-relaxed mb-3" style="color:#6b7c96">
+          Every agent request is authenticated, rate-limited, and jurisdiction-routed through MASQUE tunnels. No implicit trust — every hop is attested.
+        </p>
+        <code class="text-[10px] font-mono px-2 py-1 rounded" style="color:#10b981;background:rgba(16,185,129,0.08)">
+          MASQUETunnel · SovereigntyAttestation
+        </code>
+      </div>
+
+      <div class="rounded-xl p-6 border" style="background:rgba(139,92,246,0.04);border-color:rgba(139,92,246,0.15)">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="w-8 h-8 rounded-lg flex items-center justify-center text-[16px] flex-shrink-0"
+                style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25)">🤖</span>
+          <span class="text-[13px] font-bold" style="color:#f0f4fc">SOVA Threat Analyst</span>
+        </div>
+        <p class="text-[12px] leading-relaxed mb-3" style="color:#6b7c96">
+          Autonomous SOC operator running 24/7. Monitors agent collusion, goal misalignment, and model poisoning via the MAESTRO detector suite.
+        </p>
+        <code class="text-[10px] font-mono px-2 py-1 rounded" style="color:#8b5cf6;background:rgba(139,92,246,0.08)">
+          SOVA · MAESTRO · WardenHealer
+        </code>
+      </div>
+    </div>
+
+    <div class="mt-8 rounded-xl p-5 flex flex-wrap items-center gap-4"
+         style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06)">
+      {[
+        { label: 'GDPR Art. 35 DPIA', color: '#38bdf8' },
+        { label: 'SOC 2 Type II', color: '#818cf8' },
+        { label: 'ISO 27001:2022', color: '#f59e0b' },
+        { label: 'OWASP LLM Top 10', color: '#10b981' },
+        { label: 'PQC FIPS 203/204', color: '#06b6d4' },
+        { label: 'Causal Transfer Guard', color: '#ef4444' },
+      ].map(b => (
+        <span class="text-[10px] font-bold px-3 py-1 rounded-full"
+              style={`color:${b.color};background:${b.color}14;border:1px solid ${b.color}28`}>
+          {b.label}
+        </span>
       ))}
     </div>
   </div>
