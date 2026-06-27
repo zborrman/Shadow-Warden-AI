@@ -1,10 +1,32 @@
 ---
 const releases = [
   {
-    version: 'v6.8',
+    version: 'v7.0',
     date: 'Jun 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '🏪',
+        title: 'Agentic Marketplace — Unified Page',
+        tier: 'All Plans',
+        desc: 'Community, Marketplace, and Agentic pages merged into one unified /agentic destination. Searchable community grid with topology network canvas, live network activity feed, and 6-step creation flow. /community and /marketplace now redirect 301.',
+        tags: ['Community', 'Marketplace', 'Topology Canvas', 'Unified'],
+      },
+      {
+        icon: '🔧',
+        title: 'CI Hardening — mypy + Coverage Gate',
+        tier: 'All Plans',
+        desc: 'Fixed mypy "Name Order not defined" in m2m_store/inventory.py via relative import. Silenced Pydantic v2 stub false positives in communities/router.py. Full suite: 4305 tests passed, 81.21% coverage (gate: 79%).',
+        tags: ['mypy', 'CI/CD', 'Pydantic v2', 'Coverage'],
+      },
+    ],
+  },
+  {
+    version: 'v6.8',
+    date: 'Jun 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
     items: [
       {
         icon: '⚙️',

@@ -4,9 +4,18 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 6.9 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.0 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.0
+
+| Feature | Description |
+|---------|-------------|
+| **Agentic Marketplace — Unified Page** | `/agentic` now merges Community + Marketplace + Agentic into one destination. Searchable community grid (6 communities, category filter pills), topology network canvas (requestAnimationFrame, pulsing edges by peering policy), live network activity feed, 6-step creation flow. `/community` and `/marketplace` return 301 redirects. |
+| **CI Hardening** | `warden/m2m_store/inventory.py` switched to relative import (`from .models import Order, Product`) to resolve mypy `Name "Order" not defined` in CI without project install. `warden/communities/router.py` silences Pydantic v2 `default_factory` stub false positives with `# type: ignore[arg-type]`. Full suite: 4305 tests, 81.21% coverage (gate: 79%). |
 
 ---
 

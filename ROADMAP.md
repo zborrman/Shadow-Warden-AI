@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 6.9 · Last updated 2026-06-26**
+**Version 7.0 · Last updated 2026-06-27**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -19,6 +19,17 @@ Every item on this roadmap competes across three inputs:
 We publish an updated priority snapshot every quarter. The `📋 Planned` items below reflect the current ranking; re-ordering happens openly — if something drops, the reason appears in the changelog.
 
 > **Release cadence:** patch versions (4.x.y) ship weekly; minor versions (4.x) ship when a delivery block is complete; major versions (5.0) ship on a quarterly cycle tied to infrastructure milestones.
+
+---
+
+## v7.0 Release — 2026-06-27
+
+| ID | Feature | Status |
+|----|---------|--------|
+| V7-01 | Agentic Marketplace unified page — Community + Marketplace + Agentic merged at `/agentic`; topology canvas, community search, live feed | ✅ |
+| V7-02 | `/community` and `/marketplace` 301 redirects to `/agentic` | ✅ |
+| V7-03 | CI mypy gate: relative import fix in `m2m_store/inventory.py`; Pydantic v2 `type: ignore` in `communities/router.py` | ✅ |
+| V7-04 | Full test suite: 4305 tests, 81.21% coverage (gate 79%), 0 mypy errors | ✅ |
 
 ---
 

@@ -1,6 +1,6 @@
 # Shadow Warden AI — Rules Reference
 
-> **Version 5.6 · Proprietary · All rights reserved**
+> **Version 7.0 · Proprietary · All rights reserved**
 > **Audience:** Security engineers, operators, and compliance reviewers.
 > This document defines every detection rule enforced by the Warden gateway,
 > how risk levels are assigned, and how rules can be extended or overridden.
