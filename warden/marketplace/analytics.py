@@ -6,9 +6,11 @@ All functions are fail-open (return zeros/empty on error).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sqlite3
+import time as _time
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
@@ -386,9 +388,6 @@ def model_tier_distribution(
 
 # ── SSE live-metrics aggregation (async, Redis-cached) ────────────────────────
 
-import asyncio
-import time as _time
-
 _LIVE_CACHE: dict = {"ts": 0.0, "data": None}
 _LIVE_CACHE_TTL = 30  # seconds — matches SSE push interval
 
@@ -459,8 +458,9 @@ async def get_live_metrics(db_path: str = "") -> dict:
 
         # Write to Redis (fire-and-forget, fail-open)
         try:
-            from warden.cache import _get_redis  # noqa: PLC0415
             import json as _json
+
+            from warden.cache import _get_redis  # noqa: PLC0415
             r = _get_redis()
             if r:
                 r.setex(redis_key, _LIVE_CACHE_TTL, _json.dumps(data, default=str))

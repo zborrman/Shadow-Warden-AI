@@ -12,7 +12,6 @@ Verifies:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import os
 import sqlite3
@@ -21,7 +20,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 

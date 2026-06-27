@@ -385,10 +385,9 @@ def collect_daily_evidence(date: datetime | None = None) -> dict[str, Any]:
         os.replace(tmp_path, dest)
         log.info("SOC2 evidence written → %s (%.1f ms)", dest.name, evidence["collection_ms"])
     except Exception:
-        try:
+        import contextlib
+        with contextlib.suppress(OSError):
             os.unlink(tmp_path)
-        except OSError:
-            pass
         raise
 
     return evidence

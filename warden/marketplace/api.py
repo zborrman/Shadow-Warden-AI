@@ -849,14 +849,15 @@ async def get_soc2_report(
     import io
     import json as _json
     import zipfile
+
     from fastapi.responses import StreamingResponse
 
     from warden.compliance.soc2_collector import load_evidence_range  # noqa: PLC0415
 
     # Tier gate — Pro+ required
     tier = (request.headers.get("X-Tenant-Tier") or "starter").lower() if request else "starter"
-    _PRO_TIERS = {"pro", "enterprise"}
-    if tier not in _PRO_TIERS:
+    _pro_tiers = {"pro", "enterprise"}
+    if tier not in _pro_tiers:
         from fastapi import HTTPException  # noqa: PLC0415
         raise HTTPException(
             status_code=403,
@@ -969,11 +970,12 @@ async def analytics_stream(request: Request) -> Any:
     """
     import asyncio
     import json as _json
+
     from fastapi.responses import StreamingResponse
 
     from warden.marketplace.analytics import get_live_metrics  # noqa: PLC0415
 
-    _SSE_INTERVAL = 30  # seconds
+    sse_interval = 30  # seconds
 
     async def _generator():
         event_id = 0
@@ -987,9 +989,9 @@ async def analytics_stream(request: Request) -> Any:
                 event_id += 1
             except Exception as exc:
                 log.warning("SSE metrics error: %s", exc)
-                yield f"event: error\ndata: {{}}\n\n"
+                yield "event: error\ndata: {}\n\n"
             try:
-                await asyncio.sleep(_SSE_INTERVAL)
+                await asyncio.sleep(sse_interval)
             except asyncio.CancelledError:
                 break
 

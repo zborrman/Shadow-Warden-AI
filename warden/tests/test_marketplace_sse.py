@@ -17,8 +17,8 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -108,8 +108,7 @@ def test_client():
     os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
     os.environ.setdefault("WARDEN_API_KEY", "")
     os.environ.setdefault("REDIS_URL", "memory://")
-    from warden.marketplace.api import router
-    from fastapi import FastAPI
+    from warden.marketplace.api import router  # noqa: PLC0415
     app = FastAPI()
     app.include_router(router)  # router already carries /marketplace prefix
     return TestClient(app, raise_server_exceptions=False)
@@ -128,8 +127,6 @@ class TestSSEEndpoint:
 
     def test_stream_route_registered(self, test_client):
         """Verify the /stream route exists (GET returns streaming, not 404)."""
-        from unittest.mock import AsyncMock, patch
-        # We can't stream indefinitely in tests; check the route is discovered
         import importlib
         api_mod = importlib.import_module("warden.marketplace.api")
         assert hasattr(api_mod, "analytics_stream")
@@ -159,8 +156,10 @@ class TestSSEEndpoint:
                 "volume_series": {"labels": [], "data": []},
             }
             events = []
-            with patch("warden.marketplace.analytics.get_live_metrics", AsyncMock(return_value=mock_data)):
-                with patch("asyncio.sleep", AsyncMock(return_value=None)):
+            with (
+                patch("warden.marketplace.analytics.get_live_metrics", AsyncMock(return_value=mock_data)),
+                patch("asyncio.sleep", AsyncMock(return_value=None)),
+            ):
                     resp = await api_mod.analytics_stream(req)
                     async for chunk in resp.body_iterator:
                         events.append(chunk.decode() if isinstance(chunk, bytes) else chunk)
@@ -215,8 +214,7 @@ class TestSSEGeneratorDisconnect:
     def test_cancelled_error_does_not_propagate(self):
         """CancelledError inside the SSE sleep must not crash the generator."""
         async def _run():
-            import asyncio as _asyncio
-            from unittest.mock import patch as _patch, AsyncMock as _AM
+            import importlib
 
             class _DiscoReq:
                 _calls = 0
@@ -224,7 +222,6 @@ class TestSSEGeneratorDisconnect:
                     self._calls += 1
                     return self._calls > 1  # disconnect on 2nd check
 
-            import importlib
             api_mod = importlib.import_module("warden.marketplace.api")
 
             mock_metrics = {
@@ -234,8 +231,10 @@ class TestSSEGeneratorDisconnect:
             }
             req = _DiscoReq()
             events = []
-            with _patch("warden.marketplace.analytics.get_live_metrics", _AM(return_value=mock_metrics)):
-                with _patch("asyncio.sleep", _AM(return_value=None)):
+            with (
+                patch("warden.marketplace.analytics.get_live_metrics", AsyncMock(return_value=mock_metrics)),
+                patch("asyncio.sleep", AsyncMock(return_value=None)),
+            ):
                     resp = await api_mod.analytics_stream(req)
                     if hasattr(resp, "body_iterator"):
                         async for chunk in resp.body_iterator:
