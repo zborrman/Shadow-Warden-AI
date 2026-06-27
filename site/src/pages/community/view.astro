@@ -91,10 +91,19 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
        PANEL: MEMBERS
   ══════════════════════════════════════════════════════════ -->
   <div id="panel-members" class="comm-panel hidden">
+    <!-- Created success banner -->
+    <div id="created-banner" style="display:none;margin-bottom:20px;padding:14px 18px;border-radius:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">🎉</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#10b981">Community launched!</div>
+        <div style="font-size:12px;color:#475569;margin-top:2px">Your community is live. Invite members below or open it on the Agentic Marketplace.</div>
+      </div>
+      <a href="/agentic" style="margin-left:auto;padding:8px 16px;border-radius:8px;background:#10b981;color:#fff;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap">Open Agentic →</a>
+    </div>
     <div class="section-header">
       <h2 class="section-title">Members</h2>
       <span class="section-path" id="members-path"></span>
-      <span class="section-hint ml-auto">Owner can promote/demote anyone. Owner role is locked — never deletable.</span>
+      <a href="/agentic" style="margin-left:auto;padding:7px 14px;border-radius:8px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);color:#10b981;font-size:12px;font-weight:700;text-decoration:none">Agentic Marketplace →</a>
     </div>
 
     <!-- Filter bar -->
@@ -125,7 +134,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <div class="mtable">
         <div class="mth">
           <div class="th mc">MEMBER</div>
-          <div class="th uc">USER-ID</div>
+          <div class="th ec">EMAIL</div>
           <div class="th jc">JOINED</div>
           <div class="th rc">ROLE</div>
           <div class="th gc">MANAGE</div>
@@ -523,7 +532,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 .mtable {}
 .mth {
   display: grid;
-  grid-template-columns: 2.5fr 1fr 1.2fr 1fr 1fr;
+  grid-template-columns: 2fr 2fr 1.1fr 1fr 1fr;
   padding: 8px 16px;
   background: rgba(255,255,255,0.015);
   border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -534,7 +543,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 }
 .mrow {
   display: grid;
-  grid-template-columns: 2.5fr 1fr 1.2fr 1fr 1fr;
+  grid-template-columns: 2fr 2fr 1.1fr 1fr 1fr;
   padding: 12px 16px; align-items: center;
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }
@@ -547,7 +556,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 }
 .mav-name { font-size: 13px; font-weight: 600; color: #f1f5f9; }
 .mav-sub  { font-size: 11px; color: #475569; }
-.uc { font-size: 12px; font-family: monospace; color: #64748b; }
+.ec { font-size: 12px; color: #64748b; }
 .jc { font-size: 12px; color: #64748b; }
 .rc {}
 .gc {}
@@ -758,7 +767,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   .comm-card-grid { grid-template-columns: 1fr; }
   .comm-sidebar { position: static; }
   .mth, .mrow { grid-template-columns: 1.5fr auto auto; }
-  .uc, .jc { display: none; }
+  .ec, .jc { display: none; }
   .tunnel-panel { height: calc(100vh - 156px); }
   .srow { flex-direction: column; align-items: flex-start; }
 }
@@ -1109,16 +1118,17 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         : canMgr&&!isMe
         ? `<button class="btn-change" data-mid="${esc(m.id)}" data-cur="${esc(m.role)}">Change ↓</button>`
         : '';
+      const emailVal = isMe ? (m.email||'ops@shadowwarden.ai') : (m.email||'—');
       return `
         <div class="mrow">
           <div class="mc">
             <div class="mav" style="background:${color}">${ini}</div>
             <div>
               <div class="mav-name">${esc(m.name||m.id)}${isMe?` <span style="font-size:10px;color:#475569">you</span>`:''}</div>
-              <div class="mav-sub">${esc(isMe?'ops@shadowwarden.ai':m.email||m.id)}</div>
+              <div class="mav-sub" style="font-size:10px;color:#334155">${esc(m.id)}</div>
             </div>
           </div>
-          <div class="uc">${esc(m.id)}</div>
+          <div class="ec">${esc(emailVal)}</div>
           <div class="jc">${jd}</div>
           <div class="rc">${rbadge}</div>
           <div class="gc">${manage}</div>
@@ -1387,6 +1397,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     // Activate initial tab
     switchTab(activeTab);
+
+    // Show success banner after community creation
+    if (qp('created') === '1') {
+      const banner = document.getElementById('created-banner');
+      if (banner) { banner.style.display = 'flex'; }
+      // Clean URL
+      const u = new URL(window.location.href);
+      u.searchParams.delete('created');
+      history.replaceState({}, '', u.toString());
+    }
   }
 
   init();

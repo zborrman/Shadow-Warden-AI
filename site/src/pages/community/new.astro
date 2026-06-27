@@ -880,6 +880,20 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       renderARS(arsResult);
     }
 
+    // ── Owner profile lookup ─────────────────────────────────
+    function getOwnerProfile() {
+      const uid = getUserId();
+      const comms = getComms();
+      for (const c of comms) {
+        const m = (c.members||[]).find((m:any)=>m.id===uid);
+        if (m?.name) return {name:m.name, email:m.email||''};
+      }
+      const prof = localStorage.getItem('sw_profile');
+      if (prof) { try { return JSON.parse(prof); } catch {} }
+      return {name:'Community Owner', email:''};
+    }
+    const ownerProfile = getOwnerProfile();
+
     // ── Create ───────────────────────────────────────────────
     document.getElementById('btn-create')?.addEventListener('click', () => {
       const name = (document.getElementById('f-name') as HTMLInputElement).value.trim();
@@ -912,7 +926,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         tags: [...tags],
         publicKey: 'SW-PUB-' + genHex(32),
         privateKey: 'SW-PRV-' + genHex(32),
-        members: [{ id: uid, role: 'owner' as const, joined_at: new Date(now).toISOString() }],
+        members: [{ id: uid, name: ownerProfile.name, email: ownerProfile.email, role: 'owner' as const, joined: now }],
         join_requests: [] as any[],
         activityLog: [{ ts: now, action: 'community_created', userId: uid, detail: 'Community created' }],
         created: new Date(now).toISOString(),
@@ -922,7 +936,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const all = getComms();
       all.push(newComm);
       localStorage.setItem(COMM_KEY, JSON.stringify(all));
-      window.location.href = `/marketplace?created=${encodeURIComponent(id)}`;
+      window.location.href = `/community/view?id=${encodeURIComponent(id)}&tab=members&created=1`;
     });
   </script>
   <script>
