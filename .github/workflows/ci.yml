@@ -447,13 +447,13 @@ jobs:
           cache: pip
 
       - name: Install linters
-        run: pip install ruff mypy
+        run: pip install ruff mypy pydantic fastapi
 
       - name: Run ruff
         run: ruff check warden/ analytics/ --ignore E501
 
       - name: Run mypy
-        run: mypy warden/ --ignore-missing-imports --no-strict-optional
+        run: MYPYPATH=. mypy warden/ --ignore-missing-imports --no-strict-optional
 
   # ── Docker Build Smoke Test ──────────────────────────────────────────────────
   #
