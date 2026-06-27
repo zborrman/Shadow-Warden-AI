@@ -65,15 +65,25 @@ const tiers = [
 ];
 
 const addons = [
-  { key: 'addonShadowAi',    name: 'Shadow AI Discovery', price: 15, tier: 'Pro+',             desc: 'Async /24 subnet probe. 18 provider fingerprints. MONITOR / BLOCK / ALLOWLIST policy.' },
-  { key: 'addonXai',         name: 'XAI Audit Reports',   price: 9,  tier: 'Individual+',      desc: '9-stage causal chain. Primary cause attribution. PDF reports for SOC 2 evidence.' },
-  { key: 'addonSecretsVault',name: 'Secrets Vault',       price: 12, tier: 'Individual+',      desc: 'Multi-cloud vault connectors. SQLite inventory, lifecycle alerts, policy score.' },
-  { key: 'addonOnPrem',      name: 'On-Prem Pack',        price: 29, tier: 'Pro+',             desc: 'MinIO on-prem, self-hosted Prometheus/Grafana, air-gapped Evolution Engine.' },
-  { key: 'addonSeats',       name: 'Extra Seats (+5)',    price: 9,  tier: 'Community Biz+',   desc: 'Stackable. Combine with any higher tier for unlimited seat expansion.' },
-  { key: 'addonPowerBundle', name: 'Power User Bundle',   price: 29, tier: 'Individual+',      desc: 'XAI Audit Reports + Secrets Vault + Shadow AI Discovery. Saves $7/mo.' },
-  { key: 'addonSmbSuite',   name: 'SMB Governance Suite', price: 29, tier: 'Individual+',     desc: 'Vendor Governance, Incident Register, Prompt Library, Training Records, Cost Allocation, Supplier Risk + SMB Suite Wizard — all 7 modules unlocked from Individual tier.', bullets: ['AI Vendor Register + DPA expiry alerts (BL-22)', 'Cost Allocation + Budget Dashboard (BL-23/24)', 'Incident Register with STIX linkage (CM-35)', 'Supplier AI Risk Assessment (CM-36)', 'Shared Prompt Library with injection screening (CM-37)', 'Employee Training Records HMAC-attested (CM-38)', 'One-wizard provisioning via /smb-suite/provision (IN-25)'] },
-  { key: 'addonObsidian',   name: bl20.feature.replace('Add-on: ','').replace(/ — .*/, ''), price: bl20.price, tier: bl20.tier, desc: bl20.description, planned: true, id: bl20.id,
+  // ── Individual+ ──────────────────────────────────────────────────────────
+  { key: 'addonXai',         name: 'XAI Audit Reports',        price: 9,  tier: 'Individual+',      desc: '9-stage causal chain. Primary cause attribution. PDF reports for SOC 2 evidence.' },
+  { key: 'addonSecretsVault',name: 'Secrets Vault',            price: 12, tier: 'Individual+',      desc: 'Multi-cloud vault connectors. SQLite inventory, lifecycle alerts, policy score.' },
+  { key: 'addonSmbSuite',    name: 'SMB Governance Suite',     price: 29, tier: 'Individual+',      desc: 'Vendor Governance, Incident Register, Prompt Library, Training Records, Cost Allocation, Supplier Risk + SMB Suite Wizard.', bullets: ['AI Vendor Register + DPA expiry alerts (BL-22)', 'Cost Allocation + Budget Dashboard (BL-23/24)', 'Incident Register with STIX linkage (CM-35)', 'Supplier AI Risk Assessment (CM-36)', 'Shared Prompt Library with injection screening (CM-37)', 'Employee Training Records HMAC-attested (CM-38)', 'One-wizard provisioning via /smb-suite/provision (IN-25)'] },
+  { key: 'addonObsidian',    name: bl20.feature.replace('Add-on: ','').replace(/ — .*/, ''), price: bl20.price, tier: bl20.tier, desc: bl20.description, planned: true, id: bl20.id,
     bullets: ['Advanced scan scheduler (configurable interval)', 'Offline publish queue + local validation', 'XAI pipeline visualization inside Obsidian', 'Dataview security dashboard for notes', 'Frontmatter auto-tagging + WardenSidebarView'] },
+  // ── Community Biz+ ───────────────────────────────────────────────────────
+  { key: 'addonSeats',       name: 'Extra Seats (+5)',         price: 9,  tier: 'Community Biz+',   desc: 'Stackable. Combine with any higher tier for unlimited seat expansion.' },
+  { key: 'addonAgenticPack', name: 'Agentic Commerce Pack',   price: 15, tier: 'Community Biz+',   desc: 'AI procurement with mandate controls, UCP store discovery, AP2 payment execution, MCP agent intents, vendor validation, and BI spend analytics.' },
+  { key: 'addonEdgePacks',   name: 'ARC Edge Agent Packs',    price: 15, tier: 'Community Biz+',   desc: 'Plug-and-play edge analytics agents: Crop Health Monitor (NDVI), Yield Optimizer, Disease Detector (Claude Vision). Deploy as marketplace agents.' },
+  // ── Pro+ ─────────────────────────────────────────────────────────────────
+  { key: 'addonShadowAi',    name: 'Shadow AI Discovery',     price: 15, tier: 'Pro+',             desc: 'Async /24 subnet probe. 18 provider fingerprints. MONITOR / BLOCK / ALLOWLIST policy.' },
+  { key: 'addonOnPrem',      name: 'On-Prem Pack',            price: 29, tier: 'Pro+',             desc: 'MinIO on-prem, self-hosted Prometheus/Grafana, air-gapped Evolution Engine.' },
+  { key: 'addonPowerBundle', name: 'Power User Bundle',       price: 29, tier: 'Pro+',             desc: 'XAI Audit Reports + Secrets Vault + Shadow AI Discovery. Saves $7/mo vs buying separately.' },
+  { key: 'addonStreaming',   name: 'Event Streaming Pack',    price: 19, tier: 'Pro+',             desc: 'Kafka/Flink real-time agent event bus: produce/consume marketplace events, auto-dispute watchdog, Redis pub/sub fallback.' },
+  // ── Enterprise+ ──────────────────────────────────────────────────────────
+  { key: 'addonTokenomics',  name: 'Agent Tokenomics (WAT)',  price: 39, tier: 'Enterprise+',      desc: 'ERC-20 Warden Agent Token on Polygon Amoy: mint, transfer, outcome-based pricing settlements. Simulation mode for testing.' },
+  { key: 'addonUsdc',        name: 'USDC Multi-Rail Payments',price: 29, tier: 'Enterprise+',      desc: 'USDC payment intents via Coinbase Commerce or on-chain Polygon: multi-rail settlement. Simulation auto-confirms for testing.' },
+  { key: 'addonAns',         name: 'ANS Certificate Authority',price: 25, tier: 'Enterprise+',     desc: 'Issue X.509 agent identity certificates (agent-{id}.{community}.shadow-warden.ai), Redis CRL revocation.' },
 ];
 ---
 
