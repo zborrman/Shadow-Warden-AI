@@ -146,11 +146,11 @@ class CreateCommunityRequest(BaseModel):
     display_name: str = Field(..., min_length=1, max_length=120)
     description:  str = Field("", max_length=500)
     # Step 2 — visibility & type
-    visibility:   VisibilitySettings   = Field(default_factory=VisibilitySettings)
+    visibility:   VisibilitySettings   = Field(default_factory=VisibilitySettings)   # type: ignore[arg-type]
     # Step 3 — security
     security:     SecuritySettings     = Field(default_factory=SecuritySettings)
     # Step 4 — governance
-    governance:   GovernanceSettings   = Field(default_factory=GovernanceSettings)
+    governance:   GovernanceSettings   = Field(default_factory=GovernanceSettings)   # type: ignore[arg-type]
     # Step 5 — integrations
     integrations: IntegrationSettings  = Field(default_factory=IntegrationSettings)
 

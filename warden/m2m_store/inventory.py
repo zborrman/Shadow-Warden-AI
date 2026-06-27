@@ -15,7 +15,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
-from warden.m2m_store.models import Order, Product
+from .models import Order, Product
 
 log = logging.getLogger("warden.m2m_store.inventory")
 _db_lock = threading.RLock()
