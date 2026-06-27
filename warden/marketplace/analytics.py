@@ -440,8 +440,8 @@ async def get_live_metrics(db_path: str = "") -> dict:
     # Try Redis cache first (fail-open)
     redis_key = "marketplace:live_metrics"
     try:
-        from warden.cache import _get_redis  # noqa: PLC0415
-        r = _get_redis()
+        from warden.cache import _get_client  # noqa: PLC0415
+        r = _get_client()
         raw = r.get(redis_key) if r else None
         if raw:
             import json as _json
@@ -460,8 +460,8 @@ async def get_live_metrics(db_path: str = "") -> dict:
         try:
             import json as _json
 
-            from warden.cache import _get_redis  # noqa: PLC0415
-            r = _get_redis()
+            from warden.cache import _get_client  # noqa: PLC0415
+            r = _get_client()
             if r:
                 r.setex(redis_key, _LIVE_CACHE_TTL, _json.dumps(data, default=str))
         except Exception:
@@ -490,3 +490,4 @@ def get_recent_trades(limit: int = 6, db_path: str = "") -> list[dict]:
             return [dict(r) for r in rows]
     except Exception as exc:
         log.warning("get_recent_trades failed: %s", exc)
+        return []
