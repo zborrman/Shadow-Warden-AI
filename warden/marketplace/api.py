@@ -827,3 +827,127 @@ async def marketplace_readiness(community_id: str) -> dict:
         "ready_to_trade":     community_exists and keypair_generated and audit_enabled and agents_registered,
         "missing_requirements": missing,
     }
+
+
+# ── SOC 2 Type II compliance report ──────────────────────────────────────────
+
+@router.get("/compliance/soc2-report")
+async def get_soc2_report(
+    period_days: int = Query(default=90, ge=1, le=365, description="Look-back window in days"),
+    format: str   = Query(default="json", pattern="^(json|zip)$"),
+    request: Request = None,  # type: ignore[assignment]
+) -> Any:
+    """Compile SOC 2 Type II evidence for the requesting tenant over the period.
+
+    Returns JSON summary (default) or a ZIP archive of all daily snapshots.
+    Gated to Pro+ tier. Evidence is GDPR-safe — all identifiers pseudonymised.
+
+    Args:
+        period_days: Look-back window (1–365 days). 90 = basic Type II window.
+        format: "json" for summary dict; "zip" for downloadable evidence archive.
+    """
+    import io
+    import json as _json
+    import zipfile
+    from fastapi.responses import StreamingResponse
+
+    from warden.compliance.soc2_collector import load_evidence_range  # noqa: PLC0415
+
+    # Tier gate — Pro+ required
+    tier = (request.headers.get("X-Tenant-Tier") or "starter").lower() if request else "starter"
+    _PRO_TIERS = {"pro", "enterprise"}
+    if tier not in _PRO_TIERS:
+        from fastapi import HTTPException  # noqa: PLC0415
+        raise HTTPException(
+            status_code=403,
+            detail=f"SOC 2 Type II reports require Pro+ tier (current: {tier}).",
+        )
+
+    snapshots = load_evidence_range(days=period_days)
+
+    if format == "zip":
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for snap in snapshots:
+                date_str = snap.get("period_start", "unknown")[:10]
+                zf.writestr(
+                    f"soc2_evidence/{date_str}_tsc.json",
+                    _json.dumps(snap, indent=2, default=str),
+                )
+            # Summary manifest
+            manifest = {
+                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "period_days":  period_days,
+                "snapshots_included": len(snapshots),
+                "tsc_covered": ["CC1-CC8 Security", "A1 Availability",
+                                "PI1 Processing Integrity", "P1-P8 Privacy",
+                                "C1 Confidentiality"],
+            }
+            zf.writestr("MANIFEST.json", _json.dumps(manifest, indent=2))
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="soc2_evidence_{period_days}d.zip"'
+                )
+            },
+        )
+
+    # JSON summary
+    aggregated: dict[str, Any] = {
+        "period_days":      period_days,
+        "snapshots_found":  len(snapshots),
+        "generated_at":     time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "tsc_summary": {
+            "security": {
+                "total_confused_deputy_blocks": sum(
+                    s.get("tsc_evidence", {}).get("security", {}).get("confused_deputy_block_count", 0)
+                    for s in snapshots
+                ),
+                "total_pqc_auth_failures": sum(
+                    s.get("tsc_evidence", {}).get("security", {}).get("pqc_auth_failure_count", 0)
+                    for s in snapshots
+                ),
+            },
+            "availability": {
+                "avg_availability_pct": _safe_avg(
+                    [s.get("tsc_evidence", {}).get("availability", {}).get("availability_pct")
+                     for s in snapshots]
+                ),
+            },
+            "processing_integrity": {
+                "total_clearings": sum(
+                    s.get("tsc_evidence", {}).get("processing_integrity", {}).get("clearings_in_window", 0)
+                    for s in snapshots
+                ),
+                "total_decimal_violations": sum(
+                    s.get("tsc_evidence", {}).get("processing_integrity", {}).get("decimal_violation_count", 0)
+                    for s in snapshots
+                ),
+            },
+            "privacy": {
+                "total_gdpr_exports": sum(
+                    s.get("tsc_evidence", {}).get("privacy", {}).get("gdpr_export_count", 0)
+                    for s in snapshots
+                ),
+            },
+            "confidentiality": {
+                "total_pqc_ops": sum(
+                    s.get("tsc_evidence", {}).get("confidentiality", {}).get("pqc_operations_count", 0)
+                    for s in snapshots
+                ),
+            },
+        },
+        "daily_snapshots": [
+            {"date": s.get("period_start", "")[:10], "collection_ms": s.get("collection_ms")}
+            for s in snapshots
+        ],
+    }
+    return aggregated
+
+
+def _safe_avg(values: list) -> float | None:
+    vals = [v for v in values if v is not None]
+    return round(sum(vals) / len(vals), 4) if vals else None

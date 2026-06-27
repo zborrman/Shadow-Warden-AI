@@ -559,6 +559,7 @@ function QuickNav() {
     { href: '/settings/secrets',       icon: Shield, label: 'Secrets Vault',     desc: 'Fernet-encrypted secrets at rest',                 color: 'text-green-400', bg: 'bg-green-400/10' },
     { href: '/settings/agents',        icon: Bot,    label: 'Agent Config',      desc: 'Tune thresholds and toggle AI agents',             color: 'text-purple-400', bg: 'bg-purple-400/10' },
     { href: '/settings/notifications', icon: Bell,   label: 'Notifications',     desc: 'Slack, Teams, PagerDuty, Telegram, Email',         color: 'text-amber-400', bg: 'bg-amber-400/10' },
+    { href: '/settings/compliance',    icon: Shield, label: 'Compliance & Security', desc: 'SOC 2 Type II evidence — download artifacts',   color: 'text-cyan-400',  bg: 'bg-cyan-400/10' },
   ]
   return (
     <div className="card p-6">

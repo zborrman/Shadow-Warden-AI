@@ -50,6 +50,7 @@ from warden.agent.scheduler import (
     sova_overage_billing,
     sova_rotation_check,
     sova_sla_report,
+    sova_soc2_daily_collect,
     sova_threat_sync,
     sova_tunnel_health_check,
     sova_upgrade_scan,
@@ -188,6 +189,9 @@ class WorkerSettings:
 
         # ── M2M marketplace loop state sync — every 15 minutes ───────────────
         cron(sova_marketplace_state_sync, minute={0, 15, 30, 45}, timeout=60),
+
+        # ── SOC 2 Type II evidence collection — daily at 00:00 UTC ───────────
+        cron(sova_soc2_daily_collect, hour=0, minute=0, timeout=300),
     ]
 
     on_startup  = startup

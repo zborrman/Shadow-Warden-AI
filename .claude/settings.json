@@ -38,6 +38,15 @@
             "command": "bash hooks/validate-marketplace.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'mkdir -p ~/.claude/logs && echo \"{\\\"ts\\\":\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\",\\\"tool\\\":\\\"$CLAUDE_TOOL_NAME\\\",\\\"file\\\":\\\"${CLAUDE_TOOL_INPUT_FILE_PATH:-}\\\",\\\"cmd\\\":\\\"${CLAUDE_TOOL_INPUT_COMMAND:0:120}\\\"}\" >> ~/.claude/logs/audit.log'"
+          }
+        ]
       }
     ]
   }

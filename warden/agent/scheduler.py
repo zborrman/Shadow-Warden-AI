@@ -936,3 +936,51 @@ async def sova_marketplace_state_sync(ctx: dict) -> dict:
         "maestro_flags": len(maestro_flags),
         "bytes":        len(content),
     }
+
+
+# ── sova_soc2_daily_collect — daily 00:00 UTC (SOC 2 Type II continuous evidence) ─
+
+async def sova_soc2_daily_collect(ctx: dict) -> dict:
+    """
+    Daily midnight UTC — collect TSC-mapped SOC 2 Type II evidence for yesterday.
+
+    Writes data/compliance_archives/YYYY-MM-DD_tsc.json atomically.
+    Maps evidence to all 5 Trust Services Criteria:
+      CC1-CC8  Security     — Confused-Deputy blocks, PQC auth failures
+      A1       Availability — Uptime checks, DB pool health
+      PI1      Integrity    — ClearingEngine Decimal math verification
+      P1-P8    Privacy      — GDPR exports, E2EE activations
+      C1       Confidentiality — PQC key ops, vault accesses
+    """
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    # Collect for yesterday (the completed calendar day)
+    yesterday = (datetime.now(UTC) - timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    try:
+        from warden.compliance.soc2_collector import collect_daily_evidence  # noqa: PLC0415
+        evidence = collect_daily_evidence(date=yesterday)
+        tsc = evidence.get("tsc_evidence", {})
+        summary = {
+            "security_blocks":    tsc.get("security", {}).get("confused_deputy_block_count", 0),
+            "clearings":          tsc.get("processing_integrity", {}).get("clearings_in_window", 0),
+            "pi_violations":      tsc.get("processing_integrity", {}).get("decimal_violation_count", 0),
+            "gdpr_exports":       tsc.get("privacy", {}).get("gdpr_export_count", 0),
+            "availability_pct":   tsc.get("availability", {}).get("availability_pct"),
+        }
+        await _slack(
+            f"📋 *SOC 2 Daily Evidence* [{yesterday.strftime('%Y-%m-%d')}]\n"
+            f"• Security blocks: {summary['security_blocks']}\n"
+            f"• Clearings verified: {summary['clearings']} "
+            f"(violations: {summary['pi_violations']})\n"
+            f"• GDPR exports: {summary['gdpr_exports']}\n"
+            f"• Availability: {summary['availability_pct']}%"
+        )
+        log.info("soc2_collect: evidence written for %s", yesterday.date())
+        return {"status": "ok", "date": yesterday.date().isoformat(), **summary}
+    except Exception as exc:
+        log.error("soc2_collect: failed for %s — %s", yesterday.date(), exc)
+        await _slack(f"⚠️ *SOC 2 Evidence Collector FAILED* [{yesterday.date()}]: {exc}")
+        return {"status": "error", "date": yesterday.date().isoformat(), "error": str(exc)}
