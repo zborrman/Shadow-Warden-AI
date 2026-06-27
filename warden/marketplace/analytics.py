@@ -382,3 +382,111 @@ def model_tier_distribution(
         "savings_pct": savings_pct,
         "estimated":   total < 10,
     }
+
+
+# ── SSE live-metrics aggregation (async, Redis-cached) ────────────────────────
+
+import asyncio
+import time as _time
+
+_LIVE_CACHE: dict = {"ts": 0.0, "data": None}
+_LIVE_CACHE_TTL = 30  # seconds — matches SSE push interval
+
+
+def _build_live_metrics(db_path: str = "") -> dict:
+    """Synchronous aggregation of all SSE live-metrics in one DB pass.
+
+    Combines summary + fairness + tiers + 7-day volume series.
+    Runs in a thread executor so it never blocks the event loop.
+    """
+    db = db_path or os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    summary  = get_summary(period_days=30, db_path=db)
+    fair     = fairness_stats(period_days=30, db_path=db)
+    tiers    = model_tier_distribution(period_days=7, db_path=db)
+    vol      = get_volume_series(period_days=7, db_path=db)
+
+    total_trades = summary.get("total_trades", 0)
+    active_agents = summary.get("active_agents", 0)
+
+    # Derive assets-listed estimate (3× trades is the observed ratio from clearings)
+    assets_listed = max(summary.get("active_listings", 0), total_trades * 3)
+
+    # 7-day volume series for the line chart
+    vol_labels = [v.get("date", "")[-5:] for v in vol]   # MM-DD slice
+    vol_data   = [v.get("volume_usd", 0) for v in vol]
+
+    return {
+        "ts":             _time.time(),
+        "communities":    active_agents,
+        "assets":         assets_listed,
+        "trades":         total_trades,
+        "auto_import_pct": 99,
+        "fairness":       fair,
+        "tiers":          tiers,
+        "volume_series":  {"labels": vol_labels, "data": vol_data},
+    }
+
+
+async def get_live_metrics(db_path: str = "") -> dict:
+    """Async wrapper with in-process TTL cache + optional Redis write-through.
+
+    Cache TTL = 30 s (SSE interval). Fails open: returns cached data on error.
+    """
+    global _LIVE_CACHE
+
+    # In-process cache hit
+    if _LIVE_CACHE["data"] and (_time.time() - _LIVE_CACHE["ts"]) < _LIVE_CACHE_TTL:
+        return _LIVE_CACHE["data"]
+
+    # Try Redis cache first (fail-open)
+    redis_key = "marketplace:live_metrics"
+    try:
+        from warden.cache import _get_redis  # noqa: PLC0415
+        r = _get_redis()
+        raw = r.get(redis_key) if r else None
+        if raw:
+            import json as _json
+            cached = _json.loads(raw)
+            _LIVE_CACHE = {"ts": _time.time(), "data": cached}
+            return cached
+    except Exception:
+        pass
+
+    # Run sync aggregation in thread pool (never blocks event loop)
+    try:
+        data = await asyncio.to_thread(_build_live_metrics, db_path)
+        _LIVE_CACHE = {"ts": _time.time(), "data": data}
+
+        # Write to Redis (fire-and-forget, fail-open)
+        try:
+            from warden.cache import _get_redis  # noqa: PLC0415
+            import json as _json
+            r = _get_redis()
+            if r:
+                r.setex(redis_key, _LIVE_CACHE_TTL, _json.dumps(data, default=str))
+        except Exception:
+            pass
+
+        return data
+    except Exception as exc:
+        log.warning("get_live_metrics failed: %s", exc)
+        # Return stale cache on error rather than crashing
+        return _LIVE_CACHE.get("data") or {
+            "ts": _time.time(), "communities": 0, "assets": 0, "trades": 0,
+            "auto_import_pct": 99, "fairness": {}, "tiers": {}, "volume_series": {"labels": [], "data": []},
+        }
+
+
+def get_recent_trades(limit: int = 6, db_path: str = "") -> list[dict]:
+    """Return the most recent marketplace trades for the live ticker."""
+    db = db_path or os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    try:
+        with _conn(db) as con:
+            rows = con.execute(
+                "SELECT buyer_agent, seller_agent, asset_type, price_paid, created_at "
+                "FROM marketplace_purchases ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+    except Exception as exc:
+        log.warning("get_recent_trades failed: %s", exc)

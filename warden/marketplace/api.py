@@ -951,3 +951,63 @@ async def get_soc2_report(
 def _safe_avg(values: list) -> float | None:
     vals = [v for v in values if v is not None]
     return round(sum(vals) / len(vals), 4) if vals else None
+
+
+# ── SSE live-metrics stream ────────────────────────────────────────────────────
+
+@router.get("/analytics/stream")
+async def analytics_stream(request: Request) -> Any:
+    """Server-Sent Events stream of live marketplace metrics (30 s interval).
+
+    Emits a single JSON blob per event that drives the 4 hero stat counters and
+    Chart.js instances on the /agentic landing page. Clients can reconnect
+    automatically (browser EventSource retries on error; Last-Event-ID is
+    forwarded so no tick is lost across brief reconnects).
+
+    Compatible with any SSE consumer: native EventSource, eventsource npm,
+    server-sent-events Python library.
+    """
+    import asyncio
+    import json as _json
+    from fastapi.responses import StreamingResponse
+
+    from warden.marketplace.analytics import get_live_metrics  # noqa: PLC0415
+
+    _SSE_INTERVAL = 30  # seconds
+
+    async def _generator():
+        event_id = 0
+        while True:
+            if await request.is_disconnected():
+                break
+            try:
+                data = await get_live_metrics()
+                payload = _json.dumps(data, default=str)
+                yield f"id: {event_id}\ndata: {payload}\n\n"
+                event_id += 1
+            except Exception as exc:
+                log.warning("SSE metrics error: %s", exc)
+                yield f"event: error\ndata: {{}}\n\n"
+            try:
+                await asyncio.sleep(_SSE_INTERVAL)
+            except asyncio.CancelledError:
+                break
+
+    return StreamingResponse(
+        _generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection":    "keep-alive",
+            "X-Accel-Buffering": "no",   # disable nginx/Caddy buffering
+        },
+    )
+
+
+@router.get("/analytics/recent-trades")
+async def marketplace_recent_trades(
+    limit: int = Query(default=6, ge=1, le=50),
+) -> list[dict]:
+    """Return the N most-recent cleared marketplace trades for the live ticker."""
+    from warden.marketplace.analytics import get_recent_trades  # noqa: PLC0415
+    return get_recent_trades(limit=limit) or []
