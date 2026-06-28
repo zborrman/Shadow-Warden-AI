@@ -1096,6 +1096,13 @@ async def _redoc_ui(_: None = Depends(_docs_auth)):
 
 # ── Include sub-routers ───────────────────────────────────────────────────────
 try:
+    from warden.auth.router import router as _auth_router
+    app.include_router(_auth_router)
+    log.info("HttpOnly session auth mounted at /auth")
+except ImportError as _e:
+    log.warning("auth.router not available — /auth routes skipped: %s", _e)
+
+try:
     from warden.openai_proxy import router as _openai_router
     app.include_router(_openai_router)
     log.info("OpenAI-compatible proxy mounted at /v1")

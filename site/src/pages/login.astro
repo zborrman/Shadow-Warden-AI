@@ -1,0 +1,291 @@
+---
+const title = 'Sign In — Shadow Warden AI';
+const API = 'https://api.shadow-warden-ai.com';
+---
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>{title}</title>
+  <link rel="icon" href="/logo.png" type="image/png" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="agent-protocol" href="/.well-known/agent.json" type="application/json" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #0a0a0f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      padding: 1.5rem;
+    }
+
+    /* Subtle radial glow behind the card */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% -10%, rgba(99,102,241,.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 80% 80%, rgba(6,182,212,.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      background: #111118;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 2rem;
+    }
+    .logo-wrap img { height: 44px; width: auto; }
+    .logo-text {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: #f1f5f9;
+    }
+    .logo-text span { color: #6366f1; }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f1f5f9;
+      text-align: center;
+      margin-bottom: 0.35rem;
+      letter-spacing: -0.3px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #64748b;
+      text-align: center;
+      margin-bottom: 1.75rem;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      height: 40px;
+      padding: 0 12px;
+      background: #0d0e15;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #f1f5f9;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 1rem;
+    }
+    input[type="email"]:focus,
+    input[type="password"]:focus {
+      border-color: rgba(99,102,241,0.5);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+    }
+    input::placeholder { color: #475569; }
+
+    .btn-primary {
+      width: 100%;
+      height: 40px;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      margin-top: 0.25rem;
+    }
+    .btn-primary:hover { background: #4f52e0; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 1.25rem 0;
+      color: #334155;
+      font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .btn-sso {
+      width: 100%;
+      height: 40px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: border-color 0.15s, color 0.15s;
+      text-decoration: none;
+    }
+    .btn-sso:hover {
+      border-color: rgba(255,255,255,0.2);
+      color: #f1f5f9;
+    }
+
+    #error-msg {
+      display: none;
+      margin-top: 0.75rem;
+      padding: 10px 12px;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 8px;
+      color: #fca5a5;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 12px;
+      color: #475569;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: #94a3b8; }
+
+    /* Loading spinner inside button */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-wrap">
+      <img src="/logo.png" alt="Shadow Warden AI" />
+      <span class="logo-text">Shadow-<span>Warden</span>-AI</span>
+    </div>
+
+    <h1>Sign in to your account</h1>
+    <p class="subtitle">Zero-Trust AI Security Gateway</p>
+
+    <form id="login-form" novalidate>
+      <label for="email">Email address</label>
+      <input id="email" type="email" name="email" placeholder="you@company.com" autocomplete="email" required />
+
+      <label for="password">Password</label>
+      <input id="password" type="password" name="password" placeholder="••••••••" autocomplete="current-password" required />
+
+      <button id="submit-btn" class="btn-primary" type="submit">Sign In</button>
+      <div id="error-msg"></div>
+    </form>
+
+    <div class="divider">or</div>
+
+    <a class="btn-sso" href="https://portal.shadow-warden-ai.com/auth/saml" rel="noopener">
+      <!-- Generic shield/org icon -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      Continue with SSO / SAML
+    </a>
+
+    <a href="/" class="back-link">← Back to Shadow Warden AI</a>
+  </div>
+
+  <script define:vars={{ API }}>
+    const form = document.getElementById('login-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMsg = document.getElementById('error-msg');
+
+    // If already logged in, redirect to marketplace
+    fetch(API + '/auth/me', { credentials: 'include', signal: AbortSignal.timeout(3000) })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.authenticated) window.location.replace('/agentic'); })
+      .catch(() => {});
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        showError('Please enter your email and password.');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span>';
+      errorMsg.style.display = 'none';
+
+      try {
+        const res = await fetch(API + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (res.ok) {
+          window.location.replace('/agentic');
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 503) {
+          showError('Authentication is not yet configured. Contact your administrator.');
+        } else if (res.status === 401) {
+          showError('Incorrect email or password.');
+        } else {
+          showError(data.detail || 'An unexpected error occurred. Please try again.');
+        }
+      } catch (err) {
+        showError('Could not reach the authentication server. Check your connection.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+      }
+    });
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

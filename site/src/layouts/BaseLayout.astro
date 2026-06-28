@@ -247,8 +247,8 @@ const isSettingsActive = isActive('/settings');
           </svg>
         </button>
 
-        <!-- Sign In (shown when logged out) -->
-        <a id="nav-signin" href="https://portal.shadow-warden-ai.com/login"
+        <!-- Sign In (shown when logged out, hidden when authed) -->
+        <a id="nav-signin" href="/login"
            class="hidden sm:block px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
            style="color:#94a3b8"
            onmouseover="this.style.color='#f1f5f9'"
@@ -256,14 +256,52 @@ const isSettingsActive = isActive('/settings');
           Sign In
         </a>
 
-        <!-- Sign Out (shown when logged in, hidden by default) -->
-        <button id="nav-signout" type="button"
-                class="hidden px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                style="color:#ef4444;background:transparent;border:none;cursor:pointer"
-                onmouseover="this.style.color='#f87171'"
-                onmouseout="this.style.color='#ef4444'">
-          Sign Out
-        </button>
+        <!-- User avatar dropdown (shown when authed, hidden by default) -->
+        <div id="nav-user" class="relative hidden sm:block" style="display:none">
+          <button id="nav-avatar-btn" type="button"
+                  class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all"
+                  style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);background:transparent;cursor:pointer"
+                  onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.color='#f1f5f9'"
+                  onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
+            <div id="nav-avatar-initials"
+                 class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                 style="background:linear-gradient(135deg,#6366f1 0%,#06b6d4 100%);color:#fff">?</div>
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true" class="opacity-40">
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <!-- Dropdown panel -->
+          <div id="nav-user-dropdown"
+               class="absolute right-0 top-full mt-1.5 w-52 rounded-xl py-1.5"
+               style="background:#16161f;border:1px solid rgba(255,255,255,0.08);box-shadow:0 16px 40px rgba(0,0,0,0.5);display:none">
+            <div class="px-4 py-2.5" style="border-bottom:1px solid rgba(255,255,255,0.06)">
+              <div id="nav-user-email" class="text-[12px] font-medium truncate" style="color:#f1f5f9">...</div>
+              <div class="text-[10px] mt-0.5" style="color:#10b981">Authenticated</div>
+            </div>
+            <a href="/agentic"
+               class="block px-4 py-2 text-[13px] transition-colors"
+               style="color:#94a3b8;text-decoration:none"
+               onmouseover="this.style.color='#06b6d4';this.style.background='rgba(6,182,212,0.05)'"
+               onmouseout="this.style.color='#94a3b8';this.style.background='transparent'">
+              Agentic Marketplace
+            </a>
+            <a href="https://portal.shadow-warden-ai.com"
+               class="block px-4 py-2 text-[13px] transition-colors"
+               style="color:#94a3b8;text-decoration:none"
+               onmouseover="this.style.color='#f1f5f9';this.style.background='rgba(255,255,255,0.04)'"
+               onmouseout="this.style.color='#94a3b8';this.style.background='transparent'">
+              Dashboard
+            </a>
+            <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 12px"></div>
+            <button id="nav-signout-btn" type="button"
+                    class="w-full text-left px-4 py-2 text-[13px] transition-colors"
+                    style="color:#ef4444;background:transparent;border:none;cursor:pointer"
+                    onmouseover="this.style.background='rgba(239,68,68,0.08)'"
+                    onmouseout="this.style.background='transparent'">
+              Sign Out
+            </button>
+          </div>
+        </div>
 
         <!-- Get Started -->
         <a href="https://portal.shadow-warden-ai.com"
@@ -544,30 +582,63 @@ const isSettingsActive = isActive('/settings');
       });
     })();
 
-    // ── Sign In / Sign Out toggle ──
-    // Auth state is set by portal via: localStorage.setItem('sw_signed_in','1')
-    // Sign In link navigates to portal; clicking it does NOT mark user as signed in.
+    // ── Auth state — HttpOnly cookie via /auth/me (credentials:include) ──
     (function() {
-      const AUTH_KEY = 'sw_signed_in';
-      const signin   = document.getElementById('nav-signin')    as HTMLAnchorElement | null;
-      const signout  = document.getElementById('nav-signout')   as HTMLButtonElement | null;
-      const mSignin  = document.getElementById('mobile-signin') as HTMLAnchorElement | null;
-      const mSignout = document.getElementById('mobile-signout')as HTMLButtonElement | null;
+      const API = 'https://api.shadow-warden-ai.com';
 
-      const isSignedIn = localStorage.getItem(AUTH_KEY) === '1';
+      const signin      = document.getElementById('nav-signin')         as HTMLAnchorElement | null;
+      const userWidget  = document.getElementById('nav-user')           as HTMLElement | null;
+      const avatarBtn   = document.getElementById('nav-avatar-btn')     as HTMLButtonElement | null;
+      const dropdown    = document.getElementById('nav-user-dropdown')  as HTMLElement | null;
+      const emailEl     = document.getElementById('nav-user-email')     as HTMLElement | null;
+      const initialsEl  = document.getElementById('nav-avatar-initials')as HTMLElement | null;
+      const signoutBtn  = document.getElementById('nav-signout-btn')    as HTMLButtonElement | null;
+      const mSignin     = document.getElementById('mobile-signin')      as HTMLAnchorElement | null;
+      const mSignout    = document.getElementById('mobile-signout')     as HTMLButtonElement | null;
 
-      if (isSignedIn) {
-        if (signin)  signin.style.display  = 'none';
-        if (signout) signout.style.display = 'block';
-        if (mSignin)  mSignin.style.display  = 'none';
-        if (mSignout) mSignout.style.display = 'block';
+      function showAuthed(email: string) {
+        if (signin)     signin.style.display     = 'none';
+        if (userWidget) userWidget.style.display = 'block';
+        if (emailEl)    emailEl.textContent       = email;
+        if (initialsEl) initialsEl.textContent    = email.split('@')[0]?.slice(0, 2).toUpperCase() || '?';
+        if (mSignin)    mSignin.style.display     = 'none';
+        if (mSignout)   mSignout.style.display    = 'block';
       }
 
-      function doSignOut() {
-        localStorage.removeItem(AUTH_KEY);
-        window.location.href = 'https://portal.shadow-warden-ai.com/logout';
+      function showAnon() {
+        if (signin)     signin.style.display     = '';
+        if (userWidget) userWidget.style.display = 'none';
+        if (mSignin)    mSignin.style.display     = '';
+        if (mSignout)   mSignout.style.display    = 'none';
       }
-      signout?.addEventListener('click', doSignOut);
+
+      // Check session cookie via /auth/me — fail-open (show Sign In on any error)
+      fetch(API + '/auth/me', {
+        credentials: 'include',
+        signal: AbortSignal.timeout(4000),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.authenticated) showAuthed(d.email || ''); else showAnon(); })
+        .catch(() => showAnon());
+
+      // Avatar dropdown toggle
+      avatarBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (dropdown) dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      });
+      document.addEventListener('click', () => {
+        if (dropdown) dropdown.style.display = 'none';
+      });
+
+      // Sign out
+      async function doSignOut() {
+        try {
+          await fetch(API + '/auth/logout', { method: 'POST', credentials: 'include' });
+        } catch {}
+        showAnon();
+        window.location.href = '/';
+      }
+      signoutBtn?.addEventListener('click', doSignOut);
       mSignout?.addEventListener('click', () => { closeMenu(); doSignOut(); });
     })();
 
