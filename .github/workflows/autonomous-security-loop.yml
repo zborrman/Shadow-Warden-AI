@@ -1,0 +1,366 @@
+name: Autonomous Security & QA Loop
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 02:00 UTC nightly
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'Run specific step only (1=heartbeat, 2=worktree, all=full loop)'
+        required: false
+        default: 'all'
+      fail_on:
+        description: 'Fail threshold (BLOCK or HIGH)'
+        required: false
+        default: 'BLOCK'
+
+concurrency:
+  group: autonomous-loop
+  cancel-in-progress: false   # never cancel a running loop mid-fix
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  LOOP_DATE: ${{ github.run_started_at }}
+
+jobs:
+  # ── Step 1: Heartbeat ────────────────────────────────────────────────────────
+  heartbeat:
+    name: Heartbeat — E2E + Anomaly Check
+    runs-on: ubuntu-latest
+    outputs:
+      healthy: ${{ steps.health.outputs.healthy }}
+      issue_type: ${{ steps.health.outputs.issue_type }}
+      issue_detail: ${{ steps.health.outputs.issue_detail }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install Playwright + deps
+        working-directory: site
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      - name: Run E2E suite against production
+        id: e2e
+        working-directory: site
+        env:
+          PLAYWRIGHT_BASE_URL: https://shadow-warden-ai.com
+        run: |
+          npx playwright test --project=chromium --reporter=json \
+            --output ../playwright-results.json 2>&1 || true
+          PASS=$(python3 -c "import json; d=json.load(open('../playwright-results.json')); \
+            print('true' if d['stats']['unexpected']==0 else 'false')" 2>/dev/null || echo 'false')
+          FAILED=$(python3 -c "import json; d=json.load(open('../playwright-results.json')); \
+            print(d['stats']['unexpected'])" 2>/dev/null || echo '0')
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
+          echo "failed_count=$FAILED" >> $GITHUB_OUTPUT
+
+      - name: Run ruff
+        id: ruff
+        run: |
+          pip install ruff --quiet
+          python -m ruff check warden/ analytics/ --ignore E501 --output-format json \
+            > ruff-output.json 2>&1 || true
+          ERRORS=$(python3 -c "import json; d=json.load(open('ruff-output.json')); print(len(d))" 2>/dev/null || echo '0')
+          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+
+      - name: Run mypy
+        id: mypy
+        run: |
+          pip install mypy --quiet
+          MYPYPATH=. python -m mypy warden/ --ignore-missing-imports --no-strict-optional \
+            2>&1 | tail -1 > mypy-result.txt || true
+          ERRORS=$(grep -c "error:" mypy-result.txt 2>/dev/null || echo '0')
+          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+
+      - name: Evaluate health
+        id: health
+        run: |
+          E2E_PASS="${{ steps.e2e.outputs.pass }}"
+          RUFF_ERRORS="${{ steps.ruff.outputs.errors }}"
+          MYPY_ERRORS="${{ steps.mypy.outputs.errors }}"
+          E2E_FAILED="${{ steps.e2e.outputs.failed_count }}"
+
+          if [ "$E2E_PASS" = "true" ] && [ "$RUFF_ERRORS" = "0" ] && [ "$MYPY_ERRORS" = "0" ]; then
+            echo "healthy=true" >> $GITHUB_OUTPUT
+            echo "issue_type=" >> $GITHUB_OUTPUT
+            echo "issue_detail=All checks passed" >> $GITHUB_OUTPUT
+          else
+            echo "healthy=false" >> $GITHUB_OUTPUT
+            if [ "$E2E_PASS" != "true" ]; then
+              echo "issue_type=playwright_failure" >> $GITHUB_OUTPUT
+              echo "issue_detail=$E2E_FAILED Playwright tests failed" >> $GITHUB_OUTPUT
+            elif [ "$RUFF_ERRORS" != "0" ]; then
+              echo "issue_type=ruff_failure" >> $GITHUB_OUTPUT
+              echo "issue_detail=$RUFF_ERRORS ruff errors" >> $GITHUB_OUTPUT
+            else
+              echo "issue_type=mypy_failure" >> $GITHUB_OUTPUT
+              echo "issue_detail=$MYPY_ERRORS mypy errors" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Update memory — healthy
+        if: steps.health.outputs.healthy == 'true'
+        run: |
+          TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "$TS — System Healthy. E2E 32/32. ruff clean. mypy clean." >> memory/progress.md
+          git config user.email "loop@shadow-warden-ai.com"
+          git config user.name "Shadow Warden Loop"
+          git add memory/progress.md
+          git diff --cached --quiet || git commit -m "chore(loop): heartbeat healthy $TS [skip ci]"
+          git push || true
+
+      - name: Upload E2E report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: site/playwright-report/
+          retention-days: 7
+
+  # ── Steps 2-4: Worktree Isolation + Maker-Checker + PR ──────────────────────
+  fix-loop:
+    name: Maker-Checker Fix Loop
+    needs: heartbeat
+    if: needs.heartbeat.outputs.healthy == 'false'
+    runs-on: ubuntu-latest
+    env:
+      ISSUE_TYPE: ${{ needs.heartbeat.outputs.issue_type }}
+      ISSUE_DETAIL: ${{ needs.heartbeat.outputs.issue_detail }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Install Python deps
+        run: |
+          pip install ruff mypy --quiet
+          pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
+          pip install -e ".[dev]" --quiet 2>/dev/null || true
+          pip install -r warden/requirements.txt --quiet 2>/dev/null || true
+
+      - name: Install Playwright
+        working-directory: site
+        run: npm ci && npx playwright install chromium --with-deps
+
+      - name: Configure git
+        run: |
+          git config user.email "loop@shadow-warden-ai.com"
+          git config user.name "Shadow Warden Loop [bot]"
+          LOOP_DATE=$(date +%Y-%m-%d)
+          echo "LOOP_DATE=$LOOP_DATE" >> $GITHUB_ENV
+          echo "BRANCH=hotfix/$LOOP_DATE-$$" >> $GITHUB_ENV
+
+      - name: Create fix branch
+        run: |
+          git checkout -b ${{ env.BRANCH }}
+          TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "$TS — Loop Started. Issue: $ISSUE_TYPE — $ISSUE_DETAIL" >> memory/progress.md
+
+      # ── Collect full diagnostic context ──────────────────────────────────────
+
+      - name: Collect diagnostics
+        id: diag
+        run: |
+          {
+            echo "## Playwright failure output"
+            cd site && npx playwright test --project=chromium --reporter=list 2>&1 | tail -60 || true
+            cd ..
+            echo ""
+            echo "## Ruff output"
+            python -m ruff check warden/ analytics/ --ignore E501 2>&1 || true
+            echo ""
+            echo "## Mypy output"
+            MYPYPATH=. python -m mypy warden/ --ignore-missing-imports --no-strict-optional 2>&1 || true
+          } > /tmp/diagnostics.txt
+          echo "diagnostics_file=/tmp/diagnostics.txt" >> $GITHUB_OUTPUT
+
+      # ── Maker sub-agent (Claude Code) ────────────────────────────────────────
+
+      - name: Maker sub-agent — draft fix
+        id: maker
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          DIAGNOSTICS=$(cat /tmp/diagnostics.txt)
+          CONSTRAINTS=$(cat workflows/autonomous-security-loop.md | \
+            grep -A 30 "Protected Invariants" | head -30)
+
+          claude --print --no-conversation "
+          You are the Maker sub-agent. Fix the following issue in the Shadow Warden AI project.
+
+          ISSUE TYPE: $ISSUE_TYPE
+          ISSUE DETAIL: $ISSUE_DETAIL
+
+          FULL DIAGNOSTIC OUTPUT:
+          $DIAGNOSTICS
+
+          PROTECTED INVARIANTS — NEVER MODIFY THESE:
+          $CONSTRAINTS
+
+          INSTRUCTIONS:
+          1. Read the relevant failing file(s).
+          2. Apply the minimal fix — do not refactor or add features.
+          3. Stage changed files with git add.
+          4. Write a file FIX_SUMMARY.md at the repo root with:
+             - What broke and why
+             - What you changed (file:line)
+             - What you did NOT touch
+          5. Do not commit — the workflow will commit after checker approval.
+          " 2>&1 | tee /tmp/maker-output.txt
+          echo "maker_status=$?" >> $GITHUB_OUTPUT
+
+      # ── Checker sub-agent (adversarial) ─────────────────────────────────────
+
+      - name: Checker sub-agent — audit fix
+        id: checker
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude --print --no-conversation "
+          You are the security-auditor sub-agent for Shadow Warden AI.
+          Read FIX_SUMMARY.md and audit every git-staged file.
+
+          REJECT the fix (output 'REJECTED: <reason>') if ANY of:
+          1. Decimal math in warden/marketplace/clearing.py was modified
+          2. <link rel='agent-protocol'> was removed from BaseLayout.astro
+          3. A Playwright test assertion was weakened or deleted
+          4. Content (raw prompt text) is now written to any log
+          5. x402 gate errors no longer fail-open (must log+return None, not raise)
+          6. A hardcoded API key, secret, or password appears in source
+          7. The fix introduces an import that bypasses the security pipeline
+
+          APPROVE the fix (output 'APPROVED: <rationale>') if none of the above apply
+          and the minimal change correctly addresses: $ISSUE_DETAIL
+
+          Output EXACTLY one line starting with APPROVED: or REJECTED:
+          " 2>&1 | tee /tmp/checker-output.txt
+
+          VERDICT=$(tail -20 /tmp/checker-output.txt | grep -E "^(APPROVED|REJECTED):" | head -1)
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
+          if echo "$VERDICT" | grep -q "^APPROVED:"; then
+            echo "approved=true" >> $GITHUB_OUTPUT
+          else
+            echo "approved=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Abort if checker rejected
+        if: steps.checker.outputs.approved == 'false'
+        run: |
+          echo "CHECKER_REJECTED: $(cat /tmp/checker-output.txt | tail -5)" >> memory/progress.md
+          echo "::error::Checker rejected fix after 1 round: $(cat /tmp/checker-output.txt | tail -5)"
+          # In a full implementation, loop steps 2-4 up to MAX_MAKER_CHECKER_ROUNDS times.
+          # GitHub Actions matrix can't loop dynamically; use a script for multi-round.
+          exit 1
+
+      # ── Verification pass ────────────────────────────────────────────────────
+
+      - name: Verify — ruff
+        run: python -m ruff check warden/ analytics/ --ignore E501
+
+      - name: Verify — mypy
+        run: MYPYPATH=. python -m mypy warden/ --ignore-missing-imports --no-strict-optional
+
+      - name: Verify — Astro build (if site files changed)
+        run: |
+          if git diff --cached --name-only | grep -q "^site/src/"; then
+            cd site && npm run build
+          fi
+
+      - name: Verify — Playwright E2E
+        working-directory: site
+        env:
+          PLAYWRIGHT_BASE_URL: https://shadow-warden-ai.com
+        run: npx playwright test --project=chromium --reporter=list
+
+      - name: Verify — pytest (fast)
+        env:
+          ALLOW_UNAUTHENTICATED: 'true'
+          WARDEN_API_KEY: ''
+          REDIS_URL: 'memory://'
+          MODEL_CACHE_DIR: '/tmp/warden-models'
+          LOGS_PATH: '/tmp/warden_test_logs.json'
+          DYNAMIC_RULES_PATH: '/tmp/dr.json'
+        run: |
+          python -m pytest warden/tests/ -x --tb=short \
+            -m "not adversarial and not slow" -q
+
+      # ── Commit + PR ──────────────────────────────────────────────────────────
+
+      - name: Commit fix
+        run: |
+          git add -A
+          CHECKER_RATIONALE=$(grep "^APPROVED:" /tmp/checker-output.txt | head -1)
+          git commit -m "fix(loop): $ISSUE_TYPE — $ISSUE_DETAIL
+
+          Maker-Checker approved: $CHECKER_RATIONALE
+          Loop date: $LOOP_DATE
+
+          Co-Authored-By: Shadow Warden Loop <loop@shadow-warden-ai.com>"
+
+      - name: Push branch
+        run: git push origin ${{ env.BRANCH }}
+
+      - name: Open Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FIX_BODY=$(cat FIX_SUMMARY.md 2>/dev/null || echo "See commit for details.")
+          gh pr create \
+            --title "Loop Resolution: $ISSUE_TYPE ($LOOP_DATE)" \
+            --body "## Autonomous Loop Fix
+
+          **Issue detected:** $ISSUE_TYPE
+          **Detail:** $ISSUE_DETAIL
+          **Checker verdict:** $(grep '^APPROVED:' /tmp/checker-output.txt | head -1)
+
+          ## Changes
+          $FIX_BODY
+
+          ## Audit trail
+          - Maker output: see workflow artifacts
+          - Checker output: see workflow artifacts
+          - All verification checks: ruff, mypy, Playwright 32/32, pytest
+
+          Generated by \`autonomous-security-loop.yml\` · Shadow Warden AI v7.0" \
+            --base main \
+            --head ${{ env.BRANCH }}
+
+      - name: Update memory — loop complete
+        run: |
+          TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          PR_URL=$(gh pr list --head ${{ env.BRANCH }} --json url -q '.[0].url' 2>/dev/null || echo "pending")
+          echo "$TS — Loop completed. PR: $PR_URL. Issue: $ISSUE_TYPE." >> memory/progress.md
+          git add memory/progress.md
+          git commit -m "chore(loop): progress log $TS [skip ci]"
+          git push
+
+      - name: Upload diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loop-diagnostics-${{ env.LOOP_DATE }}
+          path: |
+            /tmp/diagnostics.txt
+            /tmp/maker-output.txt
+            /tmp/checker-output.txt
+            FIX_SUMMARY.md
+          retention-days: 30

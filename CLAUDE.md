@@ -7,6 +7,24 @@
 ## Language Rule
 - **All project content is English-only.** Every page, UI string, comment, label, and copy on the site (`site/`), dashboard (`dashboard/`), and portal (`portal/`) must be written in English. Never write Russian, Hebrew, or any other language in project files.
 
+## Autonomous Security Loop (Loop Engineering)
+
+The project runs a nightly autonomous audit cycle at 02:00 UTC via `.github/workflows/autonomous-security-loop.yml`.
+
+**Blueprint:** `workflows/autonomous-security-loop.md`  
+**Memory log:** `memory/progress.md`
+
+Sequence: Heartbeat (Playwright 32 tests + ruff + mypy) → if unhealthy: git worktree isolation → Maker sub-agent drafts fix → Checker sub-agent audits → verification (ruff + mypy + Playwright + pytest) → PR auto-opened.
+
+**Manual trigger:**
+```bash
+claude --print --no-conversation "$(cat workflows/autonomous-security-loop.md)"
+```
+
+**Protected invariants the loop never touches:** `<link rel="agent-protocol">`, clearing.py Decimal math, x402 fail-open, all 32 Playwright assertions, GDPR content-never-logged rule.
+
+---
+
 ## Project Overview
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.

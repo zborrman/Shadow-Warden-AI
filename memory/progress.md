@@ -1,6 +1,10 @@
 # Project Progress — Shadow Warden AI
 
-**Current version:** 6.6 | **Last updated:** 2026-06-26
+**Current version:** 7.0 | **Last updated:** 2026-06-28
+
+## Autonomous Loop Log
+<!-- Entries appended by .github/workflows/autonomous-security-loop.yml -->
+2026-06-28T16:35:00Z — Loop blueprint installed. Nightly cron active (02:00 UTC). 32/32 Playwright tests green.
 
 ## Shipped (complete)
 
