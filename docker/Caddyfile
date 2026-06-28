@@ -46,8 +46,15 @@ http:// {
 		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 		# Prevent MIME sniffing
 		X-Content-Type-Options    "nosniff"
-		# Clickjacking protection
+		# Clickjacking protection — also enforced by CSP frame-ancestors below
 		X-Frame-Options           "SAMEORIGIN"
+		# CSP with default-src fallback (ZAP 10055: no-fallback directives)
+		# API responses: no scripts/styles/frames needed; restricts any accidental HTML
+		Content-Security-Policy   "default-src 'none'; frame-ancestors 'none'; form-action 'none'"
+		# CORP: same-site allows dashboard + portal on *.shadow-warden-ai.com subdomains
+		Cross-Origin-Resource-Policy "same-site"
+		# Permissions Policy — disable browser APIs not used by the API gateway
+		Permissions-Policy        "camera=(), microphone=(), geolocation=(), payment=()"
 		# HTTP/3 advertisement — browsers upgrade on the next request
 		Alt-Svc                   `h3=":443"; ma=2592000`
 		# Hide server identity
@@ -199,9 +206,18 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 
 	import security_headers
 
+	# Landing page is Astro static HTML with inline scripts — override the API CSP
+	# with one that permits inline styles/scripts (needed for Chart.js CDN + Astro is:inline)
+	header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.shadow-warden-ai.com; frame-ancestors 'none'; form-action 'self'"
+
 	# Cache static assets aggressively
 	@static path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
 	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	# robots.txt — short public cache, add CORP explicitly
+	@robots path /robots.txt
+	header @robots Cache-Control "public, max-age=86400"
+	header @robots Cross-Origin-Resource-Policy "same-origin"
 
 	root * /srv/landing
 
