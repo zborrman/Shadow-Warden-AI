@@ -18,11 +18,10 @@
     const COLORS = ['#ef4444', '#f97316', '#eab308', '#10b981'];
     const LABELS = ['Weak', 'Fair', 'Good', 'Strong'];
 
-    // If already logged in, skip to marketplace
-    fetch(API + '/auth/me', { signal: AbortSignal.timeout(3000) })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.authenticated) window.location.replace('/agentic'); })
-      .catch(() => {});
+    // If already logged in (sw_logged_in indicator cookie present), skip to marketplace
+    if (document.cookie.split(';').some(c => c.trim() === 'sw_logged_in=1')) {
+      window.location.replace('/agentic');
+    }
 
     // Password strength meter
     pwInput.addEventListener('input', () => {

@@ -8,11 +8,10 @@ Don't have an account? <a href="/signup" style="color:#06b6d4;text-decoration:no
     const submitBtn = document.getElementById('submit-btn');
     const errorMsg = document.getElementById('error-msg');
 
-    // If already logged in, redirect to marketplace
-    fetch(API + '/auth/me', { signal: AbortSignal.timeout(3000) })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.authenticated) window.location.replace('/agentic'); })
-      .catch(() => {});
+    // If already logged in (sw_logged_in indicator cookie present), skip to marketplace
+    if (document.cookie.split(';').some(c => c.trim() === 'sw_logged_in=1')) {
+      window.location.replace('/agentic');
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
