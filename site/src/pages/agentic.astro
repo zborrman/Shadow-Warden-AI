@@ -1423,7 +1423,7 @@ gateway = CircleGateway(
 
   (async () => {
     try {
-      const api = (document.querySelector('link[rel="agent-protocol"]')?.getAttribute('href') || '').replace('/.well-known/agent.json', '');
+      const api = '/api';
       const ac = new AbortController();
       const tid = setTimeout(() => ac.abort(), 3000);
       const r = await fetch(`${api}/marketplace/analytics/fairness?period_days=30`, { signal: ac.signal });
@@ -1537,7 +1537,7 @@ gateway = CircleGateway(
   async function _buildCharts() {
     if (typeof (window as any).Chart === 'undefined') return;
     const Chart = (window as any).Chart;
-    const api = (document.querySelector('link[rel="agent-protocol"]')?.getAttribute('href') || '').replace('/.well-known/agent.json', '');
+    const api = '/api';
     const total = parseInt(document.getElementById('intelligence')?.dataset.total || '94200', 10);
     const [fairness, tiers] = await Promise.all([_fetchFairness(api), _fetchTiers(api)]);
 
@@ -1689,7 +1689,7 @@ gateway = CircleGateway(
   _cjs.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js';
   _cjs.onload = () => {
     _buildCharts();   // initial render with static/cached data
-    const api = (document.querySelector('link[rel="agent-protocol"]')?.getAttribute('href') || '').replace('/.well-known/agent.json', '');
+    const api = '/api';
     _startSSE(api);   // then upgrade to live SSE push
   };
   _cjs.onerror = () => {
