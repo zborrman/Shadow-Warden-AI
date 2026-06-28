@@ -212,6 +212,18 @@ def _cookie_response(email: str, *, status: int = 200, body: dict | None = None)
         max_age=_TTL,
         path="/",
     )
+    # Non-HttpOnly indicator cookie — lets client JS detect auth state without an API call.
+    # Does NOT carry the JWT; only signals "a session exists" (safe to read via JS).
+    resp.set_cookie(
+        key="sw_logged_in",
+        value="1",
+        httponly=False,
+        secure=True,
+        samesite="lax",
+        domain=_DOMAIN,
+        max_age=_TTL,
+        path="/",
+    )
     return resp
 
 
@@ -297,6 +309,7 @@ async def signup(request: Request) -> JSONResponse:
 async def logout() -> JSONResponse:
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(key=_COOKIE, domain=_DOMAIN, path="/")
+    resp.delete_cookie(key="sw_logged_in", domain=_DOMAIN, path="/")
     return resp
 
 

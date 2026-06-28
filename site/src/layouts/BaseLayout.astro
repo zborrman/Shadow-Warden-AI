@@ -596,12 +596,11 @@ const isSettingsActive = isActive('/settings');
       });
     })();
 
-    // ── Auth state — HttpOnly cookie via /auth/me (credentials:include) ──
-    // Uses same-origin /api/* proxy (Caddy → warden:8001) to bypass Cloudflare Bot Fight Mode
-    // which challenges cross-origin XHR to api.shadow-warden-ai.com from fetch().
+    // ── Auth state — read sw_logged_in indicator cookie (no API call needed) ──
+    // sw_logged_in is a non-HttpOnly Secure=Lax cookie set alongside sw_session on login/signup.
+    // It never carries the JWT; it only signals "a session exists" so the nav can update
+    // without a network round-trip (avoids Cloudflare Bot Fight Mode on XHR).
     (function() {
-      const API = '';
-
       const signin      = document.getElementById('nav-signin')         as HTMLAnchorElement | null;
       const userWidget  = document.getElementById('nav-user')           as HTMLElement | null;
       const avatarBtn   = document.getElementById('nav-avatar-btn')     as HTMLButtonElement | null;
@@ -628,13 +627,14 @@ const isSettingsActive = isActive('/settings');
         if (mSignout)   mSignout.style.display    = 'none';
       }
 
-      // Check session cookie via /api/auth/me — same-origin via Caddy proxy (no CF challenge)
-      fetch('/api/auth/me', {
-        signal: AbortSignal.timeout(4000),
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d?.authenticated) showAuthed(d.email || ''); else showAnon(); })
-        .catch(() => showAnon());
+      // Check sw_logged_in indicator cookie — set by /auth/login and /auth/signup.
+      const cookieStr = document.cookie;
+      const isLoggedIn = cookieStr.split(';').some(c => c.trim() === 'sw_logged_in=1');
+      if (isLoggedIn) {
+        showAuthed('');
+      } else {
+        showAnon();
+      }
 
       // Avatar dropdown toggle
       avatarBtn?.addEventListener('click', (e) => {
