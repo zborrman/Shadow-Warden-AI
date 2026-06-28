@@ -2,14 +2,14 @@
 </style></head> <body data-astro-cid-sgpqyurt> <div class="card" data-astro-cid-sgpqyurt> <div class="logo-wrap" data-astro-cid-sgpqyurt> <img src="/logo.png" alt="Shadow Warden AI" data-astro-cid-sgpqyurt> <span class="logo-text" data-astro-cid-sgpqyurt>Shadow-<span data-astro-cid-sgpqyurt>Warden</span>-AI</span> </div> <h1 data-astro-cid-sgpqyurt>Sign in to your account</h1> <p class="subtitle" data-astro-cid-sgpqyurt>Zero-Trust AI Security Gateway</p> <form id="login-form" novalidate data-astro-cid-sgpqyurt> <label for="email" data-astro-cid-sgpqyurt>Email address</label> <input id="email" type="email" name="email" placeholder="you@company.com" autocomplete="email" required data-astro-cid-sgpqyurt> <label for="password" data-astro-cid-sgpqyurt>Password</label> <input id="password" type="password" name="password" placeholder="••••••••" autocomplete="current-password" required data-astro-cid-sgpqyurt> <button id="submit-btn" class="btn-primary" type="submit" data-astro-cid-sgpqyurt>Sign In</button> <div id="error-msg" data-astro-cid-sgpqyurt></div> </form> <div class="divider" data-astro-cid-sgpqyurt>or</div> <a class="btn-sso" href="https://portal.shadow-warden-ai.com/auth/saml" rel="noopener" data-astro-cid-sgpqyurt> <!-- Generic shield/org icon --> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-astro-cid-sgpqyurt> <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" data-astro-cid-sgpqyurt></path> </svg>
 Continue with SSO / SAML
 </a> <p style="text-align:center;margin-top:1.5rem;font-size:13px;color:#475569" data-astro-cid-sgpqyurt>
-Don't have an account? <a href="/signup" style="color:#06b6d4;text-decoration:none;font-weight:500" data-astro-cid-sgpqyurt>Create one now</a> </p> <a href="/" class="back-link" data-astro-cid-sgpqyurt>← Back to Shadow Warden AI</a> </div> <script>(function(){const API = "https://api.shadow-warden-ai.com";
+Don't have an account? <a href="/signup" style="color:#06b6d4;text-decoration:none;font-weight:500" data-astro-cid-sgpqyurt>Create one now</a> </p> <a href="/" class="back-link" data-astro-cid-sgpqyurt>← Back to Shadow Warden AI</a> </div> <script>(function(){const API = "/api";
 
     const form = document.getElementById('login-form');
     const submitBtn = document.getElementById('submit-btn');
     const errorMsg = document.getElementById('error-msg');
 
     // If already logged in, redirect to marketplace
-    fetch(API + '/auth/me', { credentials: 'include', signal: AbortSignal.timeout(3000) })
+    fetch(API + '/auth/me', { signal: AbortSignal.timeout(3000) })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.authenticated) window.location.replace('/agentic'); })
       .catch(() => {});
@@ -32,7 +32,6 @@ Don't have an account? <a href="/signup" style="color:#06b6d4;text-decoration:no
         const res = await fetch(API + '/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({ email, password }),
         });
 
