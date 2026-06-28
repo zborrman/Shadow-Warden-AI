@@ -1,6 +1,6 @@
 ---
 const title = 'Create Account — Shadow Warden AI';
-const API = 'https://api.shadow-warden-ai.com';
+const API = '/api';
 ---
 <!doctype html>
 <html lang="en" class="dark">
@@ -260,7 +260,7 @@ const API = 'https://api.shadow-warden-ai.com';
     const LABELS = ['Weak', 'Fair', 'Good', 'Strong'];
 
     // If already logged in, skip to marketplace
-    fetch(API + '/auth/me', { credentials: 'include', signal: AbortSignal.timeout(3000) })
+    fetch(API + '/auth/me', { signal: AbortSignal.timeout(3000) })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.authenticated) window.location.replace('/agentic'); })
       .catch(() => {});
@@ -317,7 +317,6 @@ const API = 'https://api.shadow-warden-ai.com';
         const res = await fetch(API + '/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({ email, password }),
         });
 

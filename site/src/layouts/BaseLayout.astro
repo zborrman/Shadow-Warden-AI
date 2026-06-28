@@ -597,8 +597,10 @@ const isSettingsActive = isActive('/settings');
     })();
 
     // ── Auth state — HttpOnly cookie via /auth/me (credentials:include) ──
+    // Uses same-origin /api/* proxy (Caddy → warden:8001) to bypass Cloudflare Bot Fight Mode
+    // which challenges cross-origin XHR to api.shadow-warden-ai.com from fetch().
     (function() {
-      const API = 'https://api.shadow-warden-ai.com';
+      const API = '';
 
       const signin      = document.getElementById('nav-signin')         as HTMLAnchorElement | null;
       const userWidget  = document.getElementById('nav-user')           as HTMLElement | null;
@@ -626,9 +628,8 @@ const isSettingsActive = isActive('/settings');
         if (mSignout)   mSignout.style.display    = 'none';
       }
 
-      // Check session cookie via /auth/me — fail-open (show Sign In on any error)
-      fetch(API + '/auth/me', {
-        credentials: 'include',
+      // Check session cookie via /api/auth/me — same-origin via Caddy proxy (no CF challenge)
+      fetch('/api/auth/me', {
         signal: AbortSignal.timeout(4000),
       })
         .then(r => r.ok ? r.json() : null)
@@ -647,7 +648,7 @@ const isSettingsActive = isActive('/settings');
       // Sign out
       async function doSignOut() {
         try {
-          await fetch(API + '/auth/logout', { method: 'POST', credentials: 'include' });
+          await fetch('/api/auth/logout', { method: 'POST' });
         } catch {}
         showAnon();
         window.location.href = '/';

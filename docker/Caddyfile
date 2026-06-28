@@ -208,7 +208,7 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 
 	# Landing page: Astro static HTML with inline scripts — REPLACE snippet CSP (> prefix overwrites)
 	# without this the browser receives two CSP headers and enforces the most restrictive of both
-	header >Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.shadow-warden-ai.com; frame-ancestors 'none'; form-action 'self'"
+	header >Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'"
 
 	# Cache static assets aggressively
 	@static path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
@@ -219,10 +219,23 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 	header @robots Cache-Control "public, max-age=86400"
 	header @robots Cross-Origin-Resource-Policy "same-origin"
 
-	root * /srv/landing
+	# Same-origin auth proxy — avoids Cloudflare Bot Fight Mode on cross-origin XHR to api.*
+	# The sw_session cookie (domain=.shadow-warden-ai.com) is sent with same-origin requests too.
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy warden:8001 {
+			header_up X-Real-IP        {remote_host}
+			header_up X-Forwarded-For  {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
 
-	# Astro static output: try file → directory index → .html → root index.html
-	try_files {path} {path}/index.html {path}.html /index.html
+	handle {
+		root * /srv/landing
 
-	file_server
+		# Astro static output: try file → directory index → .html → root index.html
+		try_files {path} {path}/index.html {path}.html /index.html
+
+		file_server
+	}
 }
