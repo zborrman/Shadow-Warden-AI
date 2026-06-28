@@ -112,13 +112,12 @@ test.describe('Global Navigation', () => {
     await expect(gh).toHaveAttribute('target', '_blank');
   });
 
-  test('Sign In button links to portal', async ({ page }) => {
-    await expect(page.locator('#nav-signin')).toHaveAttribute('href', /portal\.shadow-warden-ai\.com/);
+  test('Sign In button links to /login', async ({ page }) => {
+    await expect(page.locator('#nav-signin')).toHaveAttribute('href', '/login');
   });
 
-  test('"Get Started" CTA is visible on homepage', async ({ page }) => {
-    // The primary CTA is on the hero section of the homepage
-    const cta = page.locator('a[href*="portal"], a', { hasText: /get started/i }).first();
+  test('"Get Started" CTA links to /signup and is visible', async ({ page }) => {
+    const cta = page.locator('a[href="/signup"]', { hasText: /get started/i }).first();
     await expect(cta).toBeVisible();
   });
 
@@ -410,5 +409,46 @@ test.describe('Mobile Navigation', () => {
     await page.locator('#mobile-btn').click();
     const menu = page.locator('#mobile-menu');
     await expect(menu.locator('a', { hasText: 'Business Community' })).toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Sign Up / Sign In pages
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Auth Pages', () => {
+  test('signup page renders with form and logo', async ({ page }) => {
+    await page.goto('/signup');
+    await expect(page.locator('h1')).toContainText('Create your account');
+    await expect(page.locator('#email')).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('#confirm')).toBeVisible();
+    await expect(page.locator('#submit-btn')).toBeVisible();
+  });
+
+  test('signup page has link to login', async ({ page }) => {
+    await page.goto('/signup');
+    await expect(page.locator('a[href="/login"]')).toBeVisible();
+  });
+
+  test('signup client validates password mismatch', async ({ page }) => {
+    await page.goto('/signup');
+    await page.fill('#email', 'test@example.com');
+    await page.fill('#password', 'Password1!');
+    await page.fill('#confirm', 'Different1!');
+    await page.locator('#confirm').dispatchEvent('input');
+    await expect(page.locator('#confirm-hint')).toBeVisible();
+  });
+
+  test('login page renders with form and signup link', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.locator('h1')).toContainText('Sign in');
+    await expect(page.locator('#email')).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('a[href="/signup"]')).toBeVisible();
+  });
+
+  test('signup agent-protocol link tag is present', async ({ page }) => {
+    await page.goto('/signup');
+    await expect(page.locator('link[rel="agent-protocol"]')).toHaveCount(1);
   });
 });

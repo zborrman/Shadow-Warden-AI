@@ -6,6 +6,7 @@ HttpOnly-cookie session auth for the Shadow Warden site.
 Endpoints
 ─────────
   POST /auth/login   — validate credentials, set HttpOnly sw_session cookie
+  POST /auth/signup  — register new user, auto-login (same cookie)
   POST /auth/logout  — delete the cookie
   GET  /auth/me      — return current user from cookie (CORS-safe, credentials:include)
 
@@ -15,20 +16,25 @@ Cookie strategy
   • domain=.shadow-warden-ai.com  (covers api.* and www.*)
   • max_age=3600  (env AUTH_SESSION_TTL to override)
 
-User store
-──────────
-  AUTH_USERS_JSON  — JSON array: [{"email":"...", "password_hash":"<bcrypt>"}]
-  AUTH_ADMIN_EMAIL + AUTH_ADMIN_PASSWORD_HASH  — single-user shortcut
+User store (priority order)
+───────────────────────────
+  1. SQLite DB at AUTH_DB_PATH (default /tmp/warden_auth.db) — writable, persists registrations
+  2. AUTH_USERS_JSON — JSON array: [{"email":"...", "password_hash":"<bcrypt>"}]
+  3. AUTH_ADMIN_EMAIL + AUTH_ADMIN_PASSWORD_HASH — single-user shortcut
 
-Generate a bcrypt hash for password "changeme":
-  python3 -c "import bcrypt; print(bcrypt.hashpw(b'changeme', bcrypt.gensalt()).decode())"
+Generate a bcrypt hash:
+  python3 -c "import bcrypt; print(bcrypt.hashpw(b'yourpass', bcrypt.gensalt()).decode())"
 """
 from __future__ import annotations
 
+import collections
 import hashlib
 import json
 import logging
 import os
+import re
+import sqlite3
+import threading
 import time
 from typing import Any
 
@@ -42,6 +48,13 @@ _COOKIE = "sw_session"
 _ALG = "HS256"
 _TTL = int(os.getenv("AUTH_SESSION_TTL", "3600"))
 _DOMAIN = os.getenv("AUTH_COOKIE_DOMAIN", ".shadow-warden-ai.com")
+_DB_PATH = os.getenv("AUTH_DB_PATH", "/tmp/warden_auth.db")
+
+# Signup rate limit: max 5 registrations per IP per hour
+_SIGNUP_RATE_LIMIT = int(os.getenv("AUTH_SIGNUP_RATE_LIMIT", "5"))
+_SIGNUP_RATE_WINDOW = 3600
+_rate_lock = threading.Lock()
+_rate_store: dict[str, list[float]] = collections.defaultdict(list)
 
 try:
     from jose import JWTError as _JWTError
@@ -51,20 +64,56 @@ except ImportError:  # pragma: no cover
     _JOSE_OK = False
     _JWTError = Exception  # type: ignore[assignment,misc]
 
-
-def _secret() -> str:
-    s = os.getenv("AUTH_JWT_SECRET", "")
-    if s:
-        return s
-    # Derive a deterministic secret from the existing vault key (dev/CI only).
-    seed = os.getenv("VAULT_MASTER_KEY", "") or os.getenv("SAML_JWT_SECRET", "")
-    if seed:
-        return hashlib.sha256(f"auth:{seed}".encode()).hexdigest()
-    raise RuntimeError("AUTH_JWT_SECRET is not configured")
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-def _load_users() -> dict[str, str]:
-    """Return {email_lower: bcrypt_hash} from env config."""
+# ── SQLite user store ──────────────────────────────────────────────────────────
+
+def _db() -> sqlite3.Connection:
+    conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS users ("
+        "  id            INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  email         TEXT    NOT NULL UNIQUE COLLATE NOCASE,"
+        "  password_hash TEXT    NOT NULL,"
+        "  created_at    TEXT    NOT NULL DEFAULT (datetime('now'))"
+        ")"
+    )
+    conn.commit()
+    return conn
+
+
+def _db_get_user(email: str) -> str | None:
+    """Return bcrypt hash for email from SQLite, or None."""
+    try:
+        with _db() as conn:
+            row = conn.execute(
+                "SELECT password_hash FROM users WHERE email = ? COLLATE NOCASE", (email,)
+            ).fetchone()
+        return row[0] if row else None
+    except Exception as exc:
+        log.warning("auth db read error: %s", exc)
+        return None
+
+
+def _db_create_user(email: str, pw_hash: str) -> bool:
+    """Insert user. Returns False if email already exists."""
+    try:
+        with _db() as conn:
+            conn.execute(
+                "INSERT INTO users (email, password_hash) VALUES (?, ?)", (email, pw_hash)
+            )
+            conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    except Exception as exc:
+        log.error("auth db write error: %s", exc)
+        return False
+
+
+def _load_env_users() -> dict[str, str]:
+    """Return {email_lower: bcrypt_hash} from env-var config (read-only, pre-seeded accounts)."""
     raw = os.getenv("AUTH_USERS_JSON", "")
     if raw:
         try:
@@ -76,6 +125,33 @@ def _load_users() -> dict[str, str]:
     if email and pw_hash:
         return {email.lower(): pw_hash}
     return {}
+
+
+def _email_exists(email: str) -> bool:
+    """Check both SQLite DB and env-var users."""
+    if _db_get_user(email) is not None:
+        return True
+    return email.lower() in _load_env_users()
+
+
+def _lookup_password_hash(email: str) -> str | None:
+    """Return stored hash from SQLite first, then env users."""
+    h = _db_get_user(email)
+    if h:
+        return h
+    return _load_env_users().get(email.lower())
+
+
+# ── JWT helpers ────────────────────────────────────────────────────────────────
+
+def _secret() -> str:
+    s = os.getenv("AUTH_JWT_SECRET", "")
+    if s:
+        return s
+    seed = os.getenv("VAULT_MASTER_KEY", "") or os.getenv("SAML_JWT_SECRET", "")
+    if seed:
+        return hashlib.sha256(f"auth:{seed}".encode()).hexdigest()
+    raise RuntimeError("AUTH_JWT_SECRET is not configured")
 
 
 def _issue(email: str) -> str:
@@ -98,8 +174,45 @@ def _decode(token: str) -> dict[str, Any] | None:
         return None
 
 
+def _set_session_cookie(resp: JSONResponse) -> None:
+    """Attach the sw_session HttpOnly cookie to a response."""
+    # value already embedded in resp; cookie is set by caller after _issue()
+    pass
+
+
+def _rate_check(ip: str) -> bool:
+    """Return True if IP is within rate limit, False if exceeded."""
+    now = time.time()
+    cutoff = now - _SIGNUP_RATE_WINDOW
+    with _rate_lock:
+        timestamps = _rate_store[ip]
+        # evict old entries
+        _rate_store[ip] = [t for t in timestamps if t > cutoff]
+        if len(_rate_store[ip]) >= _SIGNUP_RATE_LIMIT:
+            return False
+        _rate_store[ip].append(now)
+    return True
+
+
 # ── Router ─────────────────────────────────────────────────────────────────────
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _cookie_response(email: str, *, status: int = 200, body: dict | None = None) -> JSONResponse:
+    """Build a JSONResponse with the session cookie set."""
+    token = _issue(email)
+    resp = JSONResponse(body or {"ok": True, "email": email}, status_code=status)
+    resp.set_cookie(
+        key=_COOKIE,
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        domain=_DOMAIN,
+        max_age=_TTL,
+        path="/",
+    )
+    return resp
 
 
 @router.post("/login", summary="Issue session cookie (HttpOnly, Secure)")
@@ -111,14 +224,7 @@ async def login(request: Request) -> JSONResponse:
     except Exception:
         return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
 
-    users = _load_users()
-    if not users:
-        return JSONResponse(
-            {"detail": "Auth not configured — set AUTH_USERS_JSON or AUTH_ADMIN_EMAIL/HASH"},
-            status_code=503,
-        )
-
-    stored_hash = users.get(email)
+    stored_hash = _lookup_password_hash(email)
     if not stored_hash:
         # Constant-time dummy check to prevent email enumeration via timing.
         bcrypt.checkpw(b"x", bcrypt.hashpw(b"x", bcrypt.gensalt(rounds=4)))
@@ -133,23 +239,58 @@ async def login(request: Request) -> JSONResponse:
         return JSONResponse({"detail": "Invalid credentials"}, status_code=401)
 
     try:
-        token = _issue(email)
+        return _cookie_response(email)
     except RuntimeError as exc:
         log.error("auth token issue failed: %s", exc)
         return JSONResponse({"detail": str(exc)}, status_code=500)
 
-    resp = JSONResponse({"ok": True, "email": email})
-    resp.set_cookie(
-        key=_COOKIE,
-        value=token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        domain=_DOMAIN,
-        max_age=_TTL,
-        path="/",
-    )
-    return resp
+
+@router.post("/signup", summary="Register new account and auto-login (HttpOnly cookie)")
+async def signup(request: Request) -> JSONResponse:
+    # Rate limit by client IP
+    client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown").split(",")[0].strip()
+    if not _rate_check(client_ip):
+        return JSONResponse(
+            {"detail": "Too many registration attempts. Please try again later."},
+            status_code=429,
+        )
+
+    try:
+        body = await request.json()
+        email: str = (body.get("email") or "").strip().lower()
+        password: str = body.get("password") or ""
+    except Exception:
+        return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
+
+    # Validate email format
+    if not email or not _EMAIL_RE.match(email):
+        return JSONResponse({"detail": "Invalid email address."}, status_code=422)
+
+    # Validate password length
+    if len(password) < 8:
+        return JSONResponse({"detail": "Password must be at least 8 characters."}, status_code=422)
+
+    # Reject if already registered
+    if _email_exists(email):
+        return JSONResponse({"detail": "An account with this email already exists."}, status_code=409)
+
+    # Hash password and store
+    try:
+        pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    except Exception as exc:
+        log.error("bcrypt hash failed: %s", exc)
+        return JSONResponse({"detail": "Registration failed. Please try again."}, status_code=500)
+
+    if not _db_create_user(email, pw_hash):
+        return JSONResponse({"detail": "An account with this email already exists."}, status_code=409)
+
+    log.info("new user registered: %s", email)
+
+    try:
+        return _cookie_response(email, body={"ok": True, "email": email, "created": True})
+    except RuntimeError as exc:
+        log.error("auth token issue failed: %s", exc)
+        return JSONResponse({"detail": str(exc)}, status_code=500)
 
 
 @router.post("/logout", summary="Clear session cookie")
