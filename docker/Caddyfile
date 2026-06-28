@@ -46,14 +46,11 @@ http:// {
 		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 		# Prevent MIME sniffing
 		X-Content-Type-Options    "nosniff"
-		# Clickjacking protection — also enforced by CSP frame-ancestors below
+		# Clickjacking protection
 		X-Frame-Options           "SAMEORIGIN"
-		# CSP with default-src fallback (ZAP 10055: no-fallback directives)
-		# API responses: no scripts/styles/frames needed; restricts any accidental HTML
-		Content-Security-Policy   "default-src 'none'; frame-ancestors 'none'; form-action 'none'"
 		# CORP: same-site allows dashboard + portal on *.shadow-warden-ai.com subdomains
 		Cross-Origin-Resource-Policy "same-site"
-		# Permissions Policy — disable browser APIs not used by the API gateway
+		# Permissions Policy — disable browser APIs not in use
 		Permissions-Policy        "camera=(), microphone=(), geolocation=(), payment=()"
 		# HTTP/3 advertisement — browsers upgrade on the next request
 		Alt-Svc                   `h3=":443"; ma=2592000`
@@ -67,6 +64,9 @@ api.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
 
 	import security_headers
+
+	# API-specific CSP: no scripts/frames needed; default-src 'none' covers all fallback directives (ZAP 10055)
+	header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; form-action 'none'"
 
 	# Health probe (used by Caddy's own healthcheck on port 80 via HTTP redirect)
 	handle /health {
@@ -206,9 +206,9 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 
 	import security_headers
 
-	# Landing page is Astro static HTML with inline scripts — override the API CSP
-	# with one that permits inline styles/scripts (needed for Chart.js CDN + Astro is:inline)
-	header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.shadow-warden-ai.com; frame-ancestors 'none'; form-action 'self'"
+	# Landing page: Astro static HTML with inline scripts — REPLACE snippet CSP (> prefix overwrites)
+	# without this the browser receives two CSP headers and enforces the most restrictive of both
+	header >Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.shadow-warden-ai.com; frame-ancestors 'none'; form-action 'self'"
 
 	# Cache static assets aggressively
 	@static path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
