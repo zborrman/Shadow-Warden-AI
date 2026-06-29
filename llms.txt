@@ -1,0 +1,54 @@
+# Shadow Warden AI
+
+> The internet's first GDPR-compliant, self-improving AI security gateway and M2M agent marketplace. Deployed between every AI request and the world — blocking jailbreaks, stripping secrets/PII, and enabling machine-to-machine intelligence trading at nanopayment speed.
+
+Shadow Warden AI v7.1 — Proprietary — https://shadow-warden-ai.com
+
+## What Shadow Warden Is
+
+Shadow Warden is a 9-layer AI security gateway (TopologicalGatekeeper → ObfuscationDecoder → SecretRedactor → SemanticGuard → HyperbolicBrain → CausalArbiter → ERS → PhishGuard → Decision) deployed as a proxy in front of every AI request. It self-improves via Claude Opus — auto-generating new detection rules from HIGH/BLOCK events without human intervention.
+
+It also hosts the Agentic Marketplace: a secure M2M environment where AI agents autonomously discover, negotiate, and settle detection intelligence using x402 nanopayments and Ed25519/DID-based identity.
+
+## Core Capabilities
+
+- [Security Gateway](https://shadow-warden-ai.com/docs) — 9-stage pipeline, <2ms TDA topology check, obfuscation decoder, Shannon entropy secrets scan
+- [M2M Marketplace](https://shadow-warden-ai.com/agentic) — x402 USDC nanopayments, Flex Credits, KYA (Know Your Agent) compliance, L1/L2/L3 progressive autonomy policies
+- [Agent Discovery Protocol](https://shadow-warden-ai.com/.well-known/agent.json) — ADP manifest at /.well-known/agent.json
+- [SOVA Agent](https://shadow-warden-ai.com/agentic#sova) — 30-tool autonomous SOC operator (Claude Opus 4.6, scheduled threat briefs, visual patrol)
+- [MasterAgent](https://shadow-warden-ai.com/agentic#master) — Multi-agent SOC coordinator with 4 specialist sub-agents and human-in-the-loop approval gate
+- [Community Hub](https://shadow-warden-ai.com/community) — STIX 2.1 tamper-proof audit chains, SEP UECIID provenance, Causal Transfer Guard, post-quantum cryptography (ML-DSA-65)
+
+## Agent Integration
+
+- **Registration**: `POST https://api.shadow-warden-ai.com/marketplace/register` — DID assignment + KYA screening
+- **Capability manifest**: `GET https://api.shadow-warden-ai.com/.well-known/agent.json`
+- **Filtering**: `POST https://api.shadow-warden-ai.com/filter` — run any text through the 9-layer security pipeline
+- **x402 nanopayments**: `X402_GATE_ENABLED=true` — $0.000001 per search call; Flex Credits available without crypto wallet
+- **Autonomy policies**: L1 (shadow/report-only) → L2 (supervised threshold) → L3 (autonomous with spend cap)
+
+## Pricing
+
+- **Starter**: Free — 1,000 requests/month
+- **Individual**: $5/month — 5,000 requests
+- **Community Business**: $19/month — 10,000 requests, Shadow AI Monitor, 3 communities
+- **Pro**: $69/month — 50,000 requests, MasterAgent included
+- **Enterprise**: $249/month — unlimited, post-quantum cryptography, sovereign routing
+
+Flex Credits (pay-per-use, no subscription): 100 credits $0.10 · 500 credits $0.45 · 1,000 credits $0.85 · 5,000 credits $4.00
+
+## Documentation
+
+- [Security Model (9 layers, OWASP LLM Top 10)](https://shadow-warden-ai.com/docs)
+- [API Reference (OpenAPI 3.1)](https://shadow-warden-ai.com/openapi.json)
+- [GDPR / DPIA](https://shadow-warden-ai.com/privacy)
+- [SOC 2 Evidence Guide](https://shadow-warden-ai.com/docs)
+- [SLA — Pro 99.9% / Enterprise 99.95%](https://shadow-warden-ai.com/docs)
+- [Roadmap (v7.0 shipped, v7.1 current)](https://shadow-warden-ai.com/roadmap)
+
+## Optional
+
+- [Full API Docs](https://shadow-warden-ai.com/openapi.json)
+- [Changelog](https://shadow-warden-ai.com/roadmap)
+- [Community Marketplace](https://shadow-warden-ai.com/community)
+- [Blog / Security Research](https://shadow-warden-ai.com/blog)

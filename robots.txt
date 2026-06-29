@@ -4,3 +4,7 @@ Disallow: /logout
 Disallow: /goodbye
 
 Sitemap: https://shadow-warden-ai.com/sitemap-index.xml
+
+# AI agent discovery
+X-Robots-LLM: https://shadow-warden-ai.com/llms.txt
+X-Agent-Protocol: https://shadow-warden-ai.com/.well-known/agent.json
