@@ -33,6 +33,7 @@ from warden.paddle_billing import PLAN_QUOTAS, PaddleBilling
 def store(tmp_path: Path) -> Generator[PaddleBilling, None, None]:
     """Disabled PaddleBilling (no API key) — for plan/quota/DB tests."""
     pb = PaddleBilling(db_path=tmp_path / "test_paddle.db")
+    pb._enabled = False  # force disabled regardless of LEMONSQUEEZY_API_KEY in env
     yield pb
     pb.close()
 
@@ -256,10 +257,12 @@ class TestBillingEndpoints:
         import warden.lemon_billing as _lb
         from warden.main import app
 
-        # Reset singleton so it picks up LEMONSQUEEZY_DB_PATH from conftest env vars
+        # Reset singleton so it picks up LEMONSQUEEZY_DB_PATH from conftest env vars.
+        # Patch API key to "" so disabled-path tests pass regardless of CI env.
         _lb._instance = None
-        # Patch webhook secret to "" so tests work regardless of CI env var
-        with patch("warden.lemon_billing._LS_WEBHOOK_SECRET", ""):
+        with patch("warden.lemon_billing._LS_API_KEY", ""), \
+             patch("warden.lemon_billing._LS_WEBHOOK_SECRET", ""):
+            _lb._instance = None  # re-reset inside patch so new instance sees key=""
             self.client = TestClient(app, raise_server_exceptions=True)
             yield
 
