@@ -33,6 +33,8 @@ def _make_billing(tmp_path: Path):
     """Fresh LemonBilling backed by a temp DB."""
     os.environ["LEMONSQUEEZY_API_KEY"]  = "test-key"
     os.environ["LEMONSQUEEZY_STORE_ID"] = "store-1"
+    import warden.lemon_billing as _lm
+    _lm._LS_API_KEY = "test-key"  # sync module const regardless of import order
     from warden.lemon_billing import LemonBilling
     return LemonBilling(db_path=tmp_path / "lemon_test.db")
 
@@ -89,10 +91,7 @@ class TestReportUsagePayload(unittest.IsolatedAsyncioTestCase):
             captured.append({"method": method, "path": path, "body": body})
             return {"data": {"id": "ur_001"}}
 
-        with (
-            patch("warden.lemon_billing._ls_request", side_effect=_fake_ls_request),
-            patch("warden.lemon_billing._LS_API_KEY", "fake-key"),
-        ):
+        with patch("warden.lemon_billing._ls_request", side_effect=_fake_ls_request):
             result = await billing.report_usage("item_abc123", 5, "increment")
 
         assert result["status"] == "ok"
@@ -117,10 +116,7 @@ class TestReportUsagePayload(unittest.IsolatedAsyncioTestCase):
         def _fake(m, p, b=None):
             captured.append(b)
             return {}
-        with (
-            patch("warden.lemon_billing._ls_request", side_effect=_fake),
-            patch("warden.lemon_billing._LS_API_KEY", "fake-key"),
-        ):
+        with patch("warden.lemon_billing._ls_request", side_effect=_fake):
             await billing.report_usage("item_x", 1)
         assert captured[0]["data"]["attributes"]["action"] == "increment"
         billing.close()
@@ -156,10 +152,7 @@ class TestReportUsageFailOpen(unittest.IsolatedAsyncioTestCase):
         def _raise(*_args: Any, **_kwargs: Any) -> dict:
             raise RuntimeError("LS 422: unprocessable")
 
-        with (
-            patch("warden.lemon_billing._ls_request", side_effect=_raise),
-            patch("warden.lemon_billing._LS_API_KEY", "fake-key"),
-        ):
+        with patch("warden.lemon_billing._ls_request", side_effect=_raise):
             result = await billing.report_usage("item_bad", 1)
 
         assert result["status"] == "error"
