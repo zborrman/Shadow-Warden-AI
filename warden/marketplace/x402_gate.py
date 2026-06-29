@@ -105,19 +105,71 @@ def _has_sufficient_balance(agent_id: str) -> bool:
 
 # ── Public gate API ────────────────────────────────────────────────────────────
 
+def _get_tenant_id(request: Request) -> str:
+    state = getattr(request, "state", None)
+    tenant = getattr(state, "tenant", None)
+    if isinstance(tenant, dict):
+        return tenant.get("tenant_id") or tenant.get("id") or "unknown"
+    return request.headers.get("X-Tenant-ID", "unknown")
+
+
 async def require_payment(request: Request, resource: str) -> JSONResponse | None:
     """x402 gate — call before executing a paid resource.
 
-    Returns JSONResponse(402) with PAYMENT-REQUIRED header when payment is absent
-    or balance is insufficient. Returns None when gate is disabled or payment is valid.
-    Always fail-open on internal errors.
+    Priority order:
+      1. Flex Credits (no crypto required) — deduct 1 credit and allow
+      2. Autonomy check — REQUIRE_APPROVAL → 202; BLOCK → 403
+      3. x402 USDC signature balance check → 402 if insufficient
+
+    Returns a JSONResponse(402/403/202) when access is denied or pending,
+    or None when access is allowed. Always fail-open on internal errors.
     """
     if not _X402_ENABLED:
         return None
     try:
         sig_header = request.headers.get("PAYMENT-SIGNATURE", "")
         agent_id   = _extract_agent_id(sig_header)
+        tenant_id  = _get_tenant_id(request)
 
+        # ── 1. Credits fast-path (enterprise budget-predictable access) ───────
+        try:
+            from warden.marketplace.credits import deduct_credits, get_balance  # noqa: PLC0415
+            if get_balance(tenant_id) >= 1:
+                deduct_credits(tenant_id, 1)
+                log.debug("x402: credits deducted tenant=%s resource=%s", tenant_id, resource)
+                return None   # access granted via credits — skip x402
+        except Exception as exc:
+            log.debug("x402: credits check error (fail-open): %s", exc)
+
+        # ── 2. Autonomy gate ──────────────────────────────────────────────────
+        if agent_id:
+            try:
+                from warden.marketplace.autonomy import check_action  # noqa: PLC0415
+                decision = check_action(agent_id, "search", float(_SEARCH_FEE_USD))
+                if decision == "REQUIRE_APPROVAL":
+                    resp = JSONResponse(
+                        status_code=202,
+                        content={
+                            "status":   "pending_approval",
+                            "resource": resource,
+                            "message":  "Action queued for human review per autonomy policy.",
+                        },
+                    )
+                    resp.headers["X-Requires-Approval"] = "pending"
+                    return resp
+                if decision == "BLOCK":
+                    return JSONResponse(
+                        status_code=403,
+                        content={
+                            "error":   "autonomy_blocked",
+                            "resource": resource,
+                            "message":  "Action exceeds autonomy policy spend limit.",
+                        },
+                    )
+            except Exception as exc:
+                log.debug("x402: autonomy check error (fail-open): %s", exc)
+
+        # ── 3. x402 USDC balance check ────────────────────────────────────────
         if agent_id is None or not _has_sufficient_balance(agent_id):
             payment_header = _build_payment_required_header(resource)
             resp = JSONResponse(

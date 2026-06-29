@@ -49,6 +49,12 @@
     }
   },
 
+  "chrome-devtools": {
+    "command": "npx",
+    "args": ["-y", "chrome-devtools-mcp@latest", "--headless"],
+    "_note": "Google Chrome DevTools MCP (official, by google-chrome-labs). Provides Lighthouse audit, DOM accessibility tree inspection, and WebMCP attribute validation. Used by autonomous-security-loop and SOVA visual patrol. Requires Chrome/Chromium installed on the machine. Tools: lighthouse_audit, get_accessibility_tree, navigate, screenshot, evaluate_js."
+  },
+
   "_security_notes": {
     "confused_deputy": "POST /marketplace/analytics/query enforces X-Agent-ID scoping. Pass caller_agent_id in request body or X-Agent-ID header so the endpoint rejects cross-agent DID references.",
     "oauth_roadmap": "Long-term: replace BEARER_TOKEN with OAuth 2.1 (RFC 9068) JWT assertions scoped to 'marketplace:read:{tenant_id}'. The analytics/query endpoint should validate 'sub' claim == caller_agent_id before executing SQL.",

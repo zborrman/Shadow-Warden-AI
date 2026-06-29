@@ -513,17 +513,39 @@ async def run_master(
     if not auto_approve:
         for result in sub_results:
             response_text = result.get("response", "")
-            if "REQUIRES_APPROVAL" in response_text:
-                # Extract action context
-                idx     = response_text.find("REQUIRES_APPROVAL")
+            agent_name    = result.get("agent", "")
+
+            # Autonomy policy check — structured gate takes priority over text-scan.
+            # Operators can register an AutonomyPolicy under the sub-agent name
+            # (e.g. "SOVAOperator", "ThreatHunter") for fine-grained governance.
+            needs_approval = False
+            if agent_name:
+                try:
+                    from warden.marketplace.autonomy import check_action  # noqa: PLC0415
+                    decision = check_action(agent_name, "soc_action", amount_usd=0.0)
+                    if decision in ("REQUIRE_APPROVAL", "BLOCK"):
+                        needs_approval = True
+                        log.debug(
+                            "master: autonomy policy decision=%s agent=%s",
+                            decision, agent_name,
+                        )
+                except Exception:
+                    pass   # no autonomy policy registered — fall through to text-scan
+
+            # Text-scan fallback: catch REQUIRES_APPROVAL tags in LLM output.
+            if not needs_approval and "REQUIRES_APPROVAL" in response_text:
+                needs_approval = True
+
+            if needs_approval:
+                idx     = response_text.find("REQUIRES_APPROVAL") if "REQUIRES_APPROVAL" in response_text else 0
                 context = response_text[max(0, idx - 50): idx + 200]
-                token   = _approval_token(result["agent"], context)
+                token   = _approval_token(agent_name, context)
                 cb_key  = hashlib.sha256(f"{token}{time.time()}".encode()).hexdigest()[:12]
 
-                _store_pending(token, result["agent"], context, cb_key)
-                await _post_approval_request(token, result["agent"], context)
+                _store_pending(token, agent_name, context, cb_key)
+                await _post_approval_request(token, agent_name, context)
                 approval_tokens.append(token)
-                log.info("master: approval required agent=%s token=%s", result["agent"], token)
+                log.info("master: approval required agent=%s token=%s", agent_name, token)
 
     # ── Step 4: Synthesize all outputs ────────────────────────────────────────
     sub_summary = "\n\n".join(

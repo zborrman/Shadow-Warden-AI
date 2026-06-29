@@ -238,8 +238,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         </div>
       </div>
 
-      <!-- Wizard card -->
-      <div class="wizard-card" id="wizard-card">
+      <!-- Wizard card — WebMCP toolname enables AI agents to discover and fill this form -->
+      <form class="wizard-card" id="wizard-card"
+        toolname="createCommunity"
+        tooldescription="Creates a new Shadow Warden AI community with security, governance, and marketplace integrations. All fields are stored in localStorage key sw_communities. Complete each of the 6 steps and click Launch Community."
+        onsubmit="return false;"
+        autocomplete="off">
 
         <!-- Step 1: Basic Info -->
         <div class="step-panel active" id="panel-0">
@@ -250,11 +254,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
           <div class="field">
             <label>Community Name <span class="field-req">*</span></label>
-            <input id="f-name" type="text" maxlength="60" placeholder="e.g. Security Research Hub" autocomplete="off" />
+            <input id="f-name" type="text" maxlength="60" placeholder="e.g. Security Research Hub" autocomplete="off"
+            toolparamdescription="Required. The community display name (max 60 chars). Must be unique within the marketplace." />
           </div>
           <div class="field">
             <label>Description <span style="color:#334155;text-transform:none;font-weight:400">(optional)</span></label>
-            <textarea id="f-desc" rows="3" maxlength="200" placeholder="What is this community for?"></textarea>
+            <textarea id="f-desc" rows="3" maxlength="200" placeholder="What is this community for?"
+              toolparamdescription="Optional. A short description of the community purpose (max 200 chars)."></textarea>
           </div>
           <div class="field">
             <label>Website / Docs URL <span style="color:#334155;text-transform:none;font-weight:400">(optional)</span></label>
@@ -277,13 +283,15 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <label>Visibility</label>
             <div class="radio-grid">
               <label class="radio-card selected" id="rc-public">
-                <input type="radio" name="visibility" value="public" checked />
+                <input type="radio" name="visibility" value="public" checked
+                toolparamdescription="Visibility: public — community is discoverable and listed on the marketplace." />
                 <div class="rc-icon">🌐</div>
                 <div class="rc-label">Public</div>
                 <div class="rc-sub">Discoverable on the marketplace</div>
               </label>
               <label class="radio-card" id="rc-private">
-                <input type="radio" name="visibility" value="private" />
+                <input type="radio" name="visibility" value="private"
+                toolparamdescription="Visibility: private — invite-only, not listed on the marketplace." />
                 <div class="rc-icon">🔒</div>
                 <div class="rc-label">Private</div>
                 <div class="rc-sub">Invite-only, not listed</div>
@@ -337,7 +345,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               <div class="toggle-label">End-to-End Encryption</div>
               <div class="toggle-desc">All messages encrypted with community keypair</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox" id="t-e2e" checked /><span class="slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="t-e2e" checked
+              toolparamdescription="Boolean. End-to-end encryption using the community Ed25519 keypair. Recommended: true." /><span class="slider"></span></label>
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
@@ -358,7 +367,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               <div class="toggle-label">Post-Quantum Cryptography <span id="pqc-badge" style="font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:4px;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.2);vertical-align:middle;margin-left:6px">Enterprise</span></div>
               <div class="toggle-desc">ML-DSA-65 hybrid signing (Ed25519 + ML-KEM-768)</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox" id="t-pqc" disabled /><span class="slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="t-pqc" disabled
+              toolparamdescription="Boolean. Post-Quantum Cryptography (ML-DSA-65 hybrid signing). Enterprise tier only. Set true only when tenant tier is enterprise." /><span class="slider"></span></label>
           </div>
           <div class="nav-row">
             <button class="btn-back" id="back-2">← Back</button>
@@ -375,7 +385,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
           <div class="field">
             <label>Max Members</label>
-            <select id="f-maxmembers">
+            <select id="f-maxmembers"
+              toolparamdescription="Maximum community members. Enum: 10 | 25 | 50 | 100 | 0 (unlimited). Default: 50.">
               <option value="10">10 members</option>
               <option value="25">25 members</option>
               <option value="50" selected>50 members</option>
@@ -385,7 +396,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
           <div class="field">
             <label>Default Member Role</label>
-            <select id="f-role">
+            <select id="f-role"
+              toolparamdescription="Default role for new members. Enum: member (read+post) | viewer (read-only) | contributor (read+post+upload). Default: member.">
               <option value="member" selected>Member — read &amp; post</option>
               <option value="viewer">Viewer — read only</option>
               <option value="contributor">Contributor — read, post &amp; upload</option>
@@ -423,14 +435,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               <div class="toggle-label">Marketplace Node</div>
               <div class="toggle-desc">List assets for trading on the Intelligence Marketplace</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox" id="t-market" checked /><span class="slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="t-market" checked
+              toolparamdescription="Boolean. List community assets for trading on the Intelligence Marketplace. Enables x402 nanopayment settlement and KYA-verified listings." /><span class="slider"></span></label>
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
               <div class="toggle-label">SOVA Agent</div>
               <div class="toggle-desc">Autonomous threat analyst assigned to this community</div>
             </div>
-            <label class="toggle-sw"><input type="checkbox" id="t-sova" /><span class="slider"></span></label>
+            <label class="toggle-sw"><input type="checkbox" id="t-sova"
+              toolparamdescription="Boolean. Assign a SOVA autonomous threat analyst agent to this community (Claude Opus 4.6, 30 tools, scheduled briefs)." /><span class="slider"></span></label>
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
@@ -549,7 +563,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
         </div>
 
-      </div>
+      </form>
     </div>
   </div>
 

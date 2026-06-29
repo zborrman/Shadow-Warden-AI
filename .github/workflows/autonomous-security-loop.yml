@@ -36,7 +36,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: site/package-lock.json
 
@@ -51,33 +51,40 @@ jobs:
         working-directory: site
         env:
           PLAYWRIGHT_BASE_URL: https://shadow-warden-ai.com
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
         run: |
-          npx playwright test --project=chromium --reporter=json \
-            --output ../playwright-results.json 2>&1 || true
-          PASS=$(python3 -c "import json; d=json.load(open('../playwright-results.json')); \
+          npx playwright test --project=chromium --reporter=json,html 2>&1 || true
+          PASS=$(python3 -c "import json; d=json.load(open('playwright-results.json')); \
             print('true' if d['stats']['unexpected']==0 else 'false')" 2>/dev/null || echo 'false')
-          FAILED=$(python3 -c "import json; d=json.load(open('../playwright-results.json')); \
+          FAILED=$(python3 -c "import json; d=json.load(open('playwright-results.json')); \
             print(d['stats']['unexpected'])" 2>/dev/null || echo '0')
-          echo "pass=$PASS" >> $GITHUB_OUTPUT
-          echo "failed_count=$FAILED" >> $GITHUB_OUTPUT
+          printf 'pass=%s\n' "$PASS" >> "$GITHUB_OUTPUT"
+          printf 'failed_count=%s\n' "$FAILED" >> "$GITHUB_OUTPUT"
 
       - name: Run ruff
         id: ruff
         run: |
           pip install ruff --quiet
           python -m ruff check warden/ analytics/ --ignore E501 --output-format json \
-            > ruff-output.json 2>&1 || true
-          ERRORS=$(python3 -c "import json; d=json.load(open('ruff-output.json')); print(len(d))" 2>/dev/null) || ERRORS=0
-          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+            > ruff-output.json 2>/dev/null || true
+          ERRORS=0
+          if python3 -c "import json; d=json.load(open('ruff-output.json')); print(len(d))" \
+              > /tmp/ruff_count.txt 2>/dev/null; then
+            ERRORS=$(cat /tmp/ruff_count.txt)
+          fi
+          printf 'errors=%s\n' "$ERRORS" >> "$GITHUB_OUTPUT"
 
       - name: Run mypy
         id: mypy
         run: |
           pip install mypy --quiet
           MYPYPATH=. python -m mypy warden/ --ignore-missing-imports --no-strict-optional \
-            2>&1 | tail -1 > mypy-result.txt || true
-          ERRORS=$(grep -c "error:" mypy-result.txt 2>/dev/null) || ERRORS=0
-          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
+            > mypy-result.txt 2>&1 || true
+          ERRORS=0
+          if COUNT=$(grep -c " error:" mypy-result.txt 2>/dev/null); then
+            ERRORS=$COUNT
+          fi
+          printf 'errors=%s\n' "$ERRORS" >> "$GITHUB_OUTPUT"
 
       - name: Evaluate health
         id: health
@@ -145,7 +152,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code

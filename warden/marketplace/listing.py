@@ -101,6 +101,15 @@ def _migrate_sponsored_columns(con: sqlite3.Connection) -> None:
         )
 
 
+def _migrate_kya_column(con: sqlite3.Connection) -> None:
+    """Add kya_status column to existing databases that predate KYA support."""
+    import contextlib
+    with contextlib.suppress(Exception):
+        con.execute(
+            "ALTER TABLE marketplace_listings ADD COLUMN kya_status TEXT NOT NULL DEFAULT 'PENDING'"
+        )
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     con = sqlite3.connect(db_path, check_same_thread=False)
@@ -109,6 +118,7 @@ def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     _ensure_schema(con)
     _migrate_chain_column(con)
     _migrate_sponsored_columns(con)
+    _migrate_kya_column(con)
     try:
         yield con
         con.commit()
@@ -137,6 +147,7 @@ class Listing:
     chain:           str = "sepolia"
     is_sponsored:    bool = False
     sponsored_until: str | None = None
+    kya_status:      str = "PENDING"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -180,6 +191,7 @@ def _row_to_listing(row: sqlite3.Row) -> Listing:
         chain=row["chain"] if "chain" in keys else "sepolia",
         is_sponsored=bool(row["is_sponsored"]) if "is_sponsored" in keys else False,
         sponsored_until=row["sponsored_until"] if "sponsored_until" in keys else None,
+        kya_status=row["kya_status"] if "kya_status" in keys else "PENDING",
     )
 
 

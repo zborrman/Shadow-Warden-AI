@@ -209,6 +209,59 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/edge-agent-packs",
     },
 
+    # ── Flex Credits (one-time purchase SKUs, v7.1) ──────────────────────────
+    # Credits are prepaid balances — 1 credit = $0.001 = 1 marketplace search.
+    # Unlike subscription add-ons, these are consumed per use (not billed monthly).
+    # Grant via purchase_credits() in marketplace/credits.py after webhook.
+
+    "agent_credits_starter": {
+        "display_name":   "Starter Credits (100)",
+        "description":    "100 marketplace search credits. 1 credit = $0.001. Credits bypass x402 — no crypto wallet needed.",
+        "usd_per_month":  0,
+        "usd_one_time":   0.10,
+        "min_tier":       "individual",
+        "ls_variant_id":  os.getenv("LS_VARIANT_CREDITS_STARTER", ""),
+        "unlocks":        [],
+        "credits":        100,
+        "docs_url":       "/docs/addons/flex-credits",
+    },
+
+    "agent_credits_builder": {
+        "display_name":   "Builder Credits (500)",
+        "description":    "500 marketplace search credits. 10% saving vs Starter rate.",
+        "usd_per_month":  0,
+        "usd_one_time":   0.45,
+        "min_tier":       "individual",
+        "ls_variant_id":  os.getenv("LS_VARIANT_CREDITS_BUILDER", ""),
+        "unlocks":        [],
+        "credits":        500,
+        "docs_url":       "/docs/addons/flex-credits",
+    },
+
+    "agent_credits_pro": {
+        "display_name":   "Pro Credits (1000)",
+        "description":    "1000 marketplace search credits. 15% saving vs Starter rate.",
+        "usd_per_month":  0,
+        "usd_one_time":   0.85,
+        "min_tier":       "individual",
+        "ls_variant_id":  os.getenv("LS_VARIANT_CREDITS_PRO", ""),
+        "unlocks":        [],
+        "credits":        1000,
+        "docs_url":       "/docs/addons/flex-credits",
+    },
+
+    "agent_credits_enterprise": {
+        "display_name":   "Enterprise Credits (5000)",
+        "description":    "5000 marketplace search credits. 20% saving vs Starter rate.",
+        "usd_per_month":  0,
+        "usd_one_time":   4.00,
+        "min_tier":       "individual",
+        "ls_variant_id":  os.getenv("LS_VARIANT_CREDITS_ENTERPRISE", ""),
+        "unlocks":        [],
+        "credits":        5000,
+        "docs_url":       "/docs/addons/flex-credits",
+    },
+
 }
 
 # ── Bundle catalog ─────────────────────────────────────────────────────────────
