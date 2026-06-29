@@ -89,7 +89,10 @@ class TestReportUsagePayload(unittest.IsolatedAsyncioTestCase):
             captured.append({"method": method, "path": path, "body": body})
             return {"data": {"id": "ur_001"}}
 
-        with patch("warden.lemon_billing._ls_request", side_effect=_fake_ls_request):
+        with (
+            patch("warden.lemon_billing._ls_request", side_effect=_fake_ls_request),
+            patch("warden.lemon_billing._LS_API_KEY", "fake-key"),
+        ):
             result = await billing.report_usage("item_abc123", 5, "increment")
 
         assert result["status"] == "ok"
@@ -114,7 +117,10 @@ class TestReportUsagePayload(unittest.IsolatedAsyncioTestCase):
         def _fake(m, p, b=None):
             captured.append(b)
             return {}
-        with patch("warden.lemon_billing._ls_request", side_effect=_fake):
+        with (
+            patch("warden.lemon_billing._ls_request", side_effect=_fake),
+            patch("warden.lemon_billing._LS_API_KEY", "fake-key"),
+        ):
             await billing.report_usage("item_x", 1)
         assert captured[0]["data"]["attributes"]["action"] == "increment"
         billing.close()
@@ -150,7 +156,10 @@ class TestReportUsageFailOpen(unittest.IsolatedAsyncioTestCase):
         def _raise(*_args: Any, **_kwargs: Any) -> dict:
             raise RuntimeError("LS 422: unprocessable")
 
-        with patch("warden.lemon_billing._ls_request", side_effect=_raise):
+        with (
+            patch("warden.lemon_billing._ls_request", side_effect=_raise),
+            patch("warden.lemon_billing._LS_API_KEY", "fake-key"),
+        ):
             result = await billing.report_usage("item_bad", 1)
 
         assert result["status"] == "error"
