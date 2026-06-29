@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout
-  title="Enterprise Integration &amp; Deployment Guide v7.0 — Shadow Warden AI"
-  description="Complete enterprise deployment guide for Shadow Warden AI v7.0. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Commerce Budget Guardian, Self-Service Catalog, M2M Commerce Store, compliance."
+  title="Enterprise Integration &amp; Deployment Guide v7.1 — Shadow Warden AI"
+  description="Complete enterprise deployment guide for Shadow Warden AI v7.1. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Commerce Budget Guardian, Self-Service Catalog, M2M Commerce Store, compliance."
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
@@ -23,7 +23,7 @@ import Layout from '../layouts/Layout.astro';
         <span class="text-[12px] font-bold">Enterprise Guide</span>
       </div>
       <div class="flex items-center gap-3">
-        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.0</span>
+        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.1</span>
         <a href="/" class="text-[12px] text-[#8E8E9E] hover:text-white transition-colors">← Back</a>
         <button onclick="window.print()" class="text-[11px] px-3 py-1.5 rounded-lg border border-white/10 text-[#8E8E9E] hover:text-white hover:border-white/20 transition-colors">Save PDF</button>
       </div>
@@ -124,7 +124,7 @@ import Layout from '../layouts/Layout.astro';
         ))}
       </div>
       <div class="rounded-xl p-6 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
-        <div class="text-[13px] font-semibold mb-4 text-white">v7.0 Key Additions</div>
+        <div class="text-[13px] font-semibold mb-4 text-white">v7.1 Key Additions</div>
         <div class="grid sm:grid-cols-2 gap-3">
           {[
             ['📊', 'AI Analytics Hub', '9 built-in Semantic Layer models, Redis query cache (600s TTL), SOVA tools: semantic_query + list_semantic_models + check_commerce_budget'],
@@ -391,7 +391,7 @@ curl http://localhost:8001/health
         <h2 class="text-[24px] font-bold">Agentic SOC — SOVA &amp; MasterAgent</h2>
       </div>
       <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
-        Shadow Warden AI v7.0 ships two autonomous AI operators running on Claude Opus 4.6 with 30+ tools. SOVA handles
+        Shadow Warden AI v7.1 ships two autonomous AI operators running on Claude Opus 4.6 with 30+ tools. SOVA handles
         scheduled threat intelligence, health monitoring, and visual patrol. MasterAgent decomposes complex SOC
         investigations into parallel sub-agent workstreams with HMAC task tokens and human approval gates.
       </p>
@@ -537,7 +537,7 @@ curl http://localhost:8001/health
             'Enterprise-tier only (PQC gate in TIER_LIMITS)',
             'Hybrid key ID convention: v1-hybrid suffix on PQC keypairs',
           ]},
-          { framework: 'Analytics & Commerce (v7.0)', color: '#8b5cf6', items: [
+          { framework: 'Analytics & Commerce (v7.1)', color: '#8b5cf6', items: [
             'AI Analytics Hub: 9 built-in Semantic Layer models, Redis query cache',
             'Self-Service Catalog: tenant model registry, SQLite persistence, hot-reload',
             'Commerce Budget Guardian: real MTD spend from ai_spend model, Slack alerts',
@@ -605,7 +605,7 @@ curl http://localhost:8001/health
             ['INTEL_OPS_ENABLED', 'false', 'Enable ArXiv + OSV threat intel background sync.'],
             ['INTEL_BRIDGE_INTERVAL_HRS', '6', 'Hours between ArXiv → Evolution Engine sync cycles.'],
           ]},
-          { group: 'AI Analytics Hub (v7.0)', vars: [
+          { group: 'AI Analytics Hub (v7.1)', vars: [
             ['SEMANTIC_DB_PATH', '/tmp/warden_semantic.db', 'SQLite path for Self-Service Catalog tenant model registry.'],
             ['SEMANTIC_CACHE_TTL', '600', 'Redis query cache TTL in seconds for SemanticEngine.generate().'],
             ['COMMERCE_BUDGET_ENABLED', 'true', 'Enable Budget Guardian check on every AP2 payment flow.'],
@@ -640,7 +640,7 @@ curl http://localhost:8001/health
           <div class="text-[11px] text-[#64748b]">Version 5.2 · June 2026 · Proprietary &amp; Confidential</div>
         </div>
         <div class="flex items-center gap-3">
-          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.0</span>
+          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.1</span>
           <a href="/" class="text-[12px] text-[#64748b] hover:text-white transition-colors">shadow-warden-ai.com</a>
         </div>
       </div>

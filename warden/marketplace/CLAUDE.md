@@ -119,16 +119,67 @@ Three access tiers for marketplace participation:
 13. **x402 gate is fail-open.** Gate errors in `require_payment()` must never raise exceptions to the caller. Exceptions → `log.warning()` and return `None` (allow).
 14. **x402 deductions are batched.** `deduct_payment()` writes to `x402_pending_deductions` queue. Do not attempt per-call on-chain settlement.
 15. **PAYMENT-SIGNATURE and PAYMENT-REQUIRED are the canonical x402 header names.** Do not use `X-Payment-Token` or any other custom header name.
+16. **Credits take priority over x402.** `require_payment()` checks Flex Credits FIRST; if balance ≥ 1 credit, deducts and returns None (allow). x402 USDC path is only reached when credits are exhausted.
+17. **Autonomy check fires before payment acceptance.** REQUIRE_APPROVAL → HTTP 202 + `X-Requires-Approval: pending`. BLOCK → HTTP 403. Both return before any credit or x402 deduction.
+18. **KYA registration is fail-open.** `register_market_agent()` proceeds even if KYA screening fails; `kya_status` defaults to "PENDING" on error.
+19. **KYA revoke requires X-Admin-Key.** `POST /marketplace/agents/{id}/kya/revoke` uses `ADMIN_KEY` env var, same as `/billing/addons/grant`.
+20. **MasterAgent autonomy check is fail-open.** `check_action()` exceptions → fall through to text-scan for REQUIRES_APPROVAL. Never block MasterAgent execution on autonomy policy errors.
 
 ### Monetization Modules
 
 | File | Responsibility |
 |------|----------------|
-| `x402_gate.py` | x402/1.0 middleware — `require_payment()`, `deduct_payment()`, pending queue |
+| `x402_gate.py` | x402/1.0 middleware — credits-first check, autonomy gate, `require_payment()`, `deduct_payment()` |
 | `clearing.py` | Take rate with Decimal math — `ClearingResult.platform_fee_usd`, `seller_net_usd` |
-| `listing.py` | Sponsored listing fields — `is_sponsored`, `sponsored_until` |
+| `listing.py` | Sponsored listing fields — `is_sponsored`, `sponsored_until`, `kya_status` |
 | `vector_search.py` | Sponsored boost in Python — fetch with HNSW index, apply +0.15 in memory |
 | `api_listings.py` | `POST /listings/{id}/sponsor` — admin-grant sponsored status |
+| `kya.py` | KYA framework — `KYARecord`, register/screen/revoke, Bayesian risk score via ERS |
+| `credits.py` | Flex Credits — prepaid balances, Redis DECRBY atomic deduct, SQLite persistence |
+| `autonomy.py` | Progressive autonomy — `AutonomyPolicy`, L1/L2/L3 `check_action()`, Redis + SQLite |
+
+## KYA Framework (v7.1)
+
+Know Your Agent: owner-linking, risk scoring, compliance status badges.
+
+```
+register_agent(agent_id, owner_tenant_id) → KYARecord{PENDING}
+screen_agent(agent_id)                    → KYARecord{VERIFIED | FLAGGED}
+get_kya_status(agent_id)                  → "PENDING" | "VERIFIED" | "FLAGGED" | "REVOKED"
+revoke_agent(agent_id, reason)            → None (status → REVOKED, Redis cleared)
+```
+
+Risk scoring v1: ERS Redis score proxy (`ers:{agent_id}` ≥ 0.75 → HIGH_VELOCITY flag).
+v2: Persona/Crossmint external identity API integration.
+
+## Flex Credits (v7.1)
+
+Prepaid balance system — 1 credit = $0.001 = 1 marketplace search.
+Enterprise buyers get budget-predictable access without a crypto wallet.
+
+```python
+CREDIT_PACKAGES = {
+    "credits_100":  {"credits": 100,  "price_usd": 0.10},
+    "credits_500":  {"credits": 500,  "price_usd": 0.45},
+    "credits_1000": {"credits": 1000, "price_usd": 0.85},
+    "credits_5000": {"credits": 5000, "price_usd": 4.00},
+}
+```
+
+Redis: `marketplace:credits:{tenant_id}` integer (DECRBY atomic).
+SQLite: `marketplace_credits` in `MARKETPLACE_DB_PATH`.
+
+## Progressive Autonomy L1/L2/L3 (v7.1)
+
+```
+L1 (Shadow):     all actions → REQUIRE_APPROVAL (safe default, no policy)
+L2 (Supervised): amount < threshold AND action in allowed → ALLOW; else → REQUIRE_APPROVAL
+L3 (Autonomous): amount <= max_spend AND action in allowed → ALLOW; else → BLOCK
+```
+
+Redis: `marketplace:autonomy:{agent_id}` JSON (24h TTL).
+SQLite: `marketplace_autonomy_policies` in `MARKETPLACE_DB_PATH`.
+`check_action(agent_id, action, amount_usd)` is fail-open — exceptions → REQUIRE_APPROVAL.
 
 ## Env Vars
 
@@ -155,3 +206,5 @@ Three access tiers for marketplace participation:
 | `MARKETPLACE_X402_PAYMENT_ADDRESS` | `0x000...` | USDC recipient address |
 | `MARKETPLACE_TAKE_RATE` | `0.015` | Platform take rate (1.5% default) |
 | `PLATFORM_WALLET_ADDRESS` | `` | Platform wallet for fee settlement (v2) |
+| `KYA_VERIFIED_ONLY` | `false` | Reject non-VERIFIED agents from search results |
+| `KYA_AUTO_VERIFY_SCORE_THRESHOLD` | `0.3` | Auto-VERIFIED when risk_score ≤ this value |

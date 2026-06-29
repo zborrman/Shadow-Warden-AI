@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 7.0 · Last updated 2026-06-27**
+**Version 7.1 · Last updated 2026-06-29**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -19,6 +19,19 @@ Every item on this roadmap competes across three inputs:
 We publish an updated priority snapshot every quarter. The `📋 Planned` items below reflect the current ranking; re-ordering happens openly — if something drops, the reason appears in the changelog.
 
 > **Release cadence:** patch versions (4.x.y) ship weekly; minor versions (4.x) ship when a delivery block is complete; major versions (5.0) ship on a quarterly cycle tied to infrastructure milestones.
+
+---
+
+## v7.1 Release — 2026-06-29
+
+| ID | Feature | Status |
+|----|---------|--------|
+| V7-05 | Lemon Squeezy Metered Billing — `report_usage()` JSON:API payload, `ls_sub_item_id` extraction, `MeterUsageAggregator.flush()` fix | ✅ |
+| V7-06 | Feature flag gating on tier change — `tenant_feature_flags` table, `_enforce_feature_flags()` on cancel/downgrade | ✅ |
+| V7-07 | BackgroundTasks offload for M2M search meter — zero hot-path latency | ✅ |
+| V7-08 | OTel `traced_dispatch` for SOVA tools — GDPR-safe spans, fail-open | ✅ |
+| V7-09 | DB snapshots for Loop Engineering — `scripts/db_snapshot.py` Fernet-encrypted, Step 1b in autonomous-security-loop.md | ✅ |
+| V7-10 | MAESTRO vertical tacit collusion detection — Pearson correlation ≥0.80 across ≥3 sellers | ✅ |
 
 ---
 
@@ -537,4 +550,5 @@ Continuous self-improvement and threat intelligence synthesis.
 | **v6.7** | **2026-06-19** | **Voice-Commerce E2E + Security Gap Closure: `tool_voice_portfolio` (SOVA tool #68) — spoken active-escrow summary; 16 e2e voice tests (`test_voice_e2e.py`) covering search→buy→portfolio→metrics; feature gates `federated_trust_enabled`/`auto_isolation_enabled` in all 5 TIER_LIMITS tiers; SEC-02–SEC-10 rows in ROADMAP; `docs/multi-region.md`; IF-20 status ✅; SQLite pragma hardening (DB-01); consolidation migration script (DB-02). 4078 tests · 79.26% coverage.** |
 | **v6.8** | **2026-06-24** | **M2M 4-Stage Lifecycle Protocol (MKT-15): unified dispatcher 14 action types, `GET /protocol` v1.1 headers, `GET /protocol/schema/{action}` JSON Schema discovery, `POST /clear` ClearingEngine dual-write; Brand Agent seller-side gateway 4-gate filter (BGA-01); Three-Layer Context DB — AgentHandoffMemory ~61% token savings + pgvector Layer 3 (TDB-01); First-Proposal Bias Guard minimum 3 alternatives + Confused Deputy SQL scoping (MKT-16); SOVA tools #70–74; 71 marketplace tests** |
 | **v6.9** | **2026-06-26** | **Dynamic Model Router (MKT-17): 4-factor complexity scoring routes Haiku/Sonnet/Opus per dispatch action; wired into dispatch_action() with OTel span attrs; env-configurable thresholds + force-override; Model Tier Analytics (MKT-18): `GET /analytics/model-tiers`, cost savings vs all-Opus baseline, sparse-data fallback; Marketplace Intelligence Charts (FE-51): First-Proposal Bias + Model Tier doughnuts on marketplace.astro with Chart.js; CI Docker Scout gate (IF-23)** |
-| v7.0 | Q3 2026 | x402 Nanopayment Gate for search, Platform Take Rate (1.5% ClearingEngine), Sponsored Listing boost (+0.15 pgvector), Real-time Document Firehose (Google Drive/SharePoint) |
+| **v7.1** | **2026-06-29** | **Lemon Squeezy Metered Billing (report_usage JSON:API, ls_sub_item_id, BackgroundTasks offload, feature flag gating on downgrade), OTel traced_dispatch for SOVA, DB Snapshots for Loop Safety, MAESTRO tacit collusion detection** |
+| v7.0 | 2026-06-27 | Agentic Marketplace unified page, CI mypy gate, 4305 tests 81.21% coverage |

@@ -1,10 +1,46 @@
 ---
 const releases = [
   {
-    version: 'v7.0',
+    version: 'v7.1',
     date: 'Jun 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '💳',
+        title: 'Lemon Squeezy Metered Billing',
+        tier: 'Individual+',
+        desc: 'Usage-Based (Metered) Billing for agentic API — report_usage() async method with JSON:API payload to /v1/usage-records. ls_sub_item_id extracted from first_subscription_item in webhooks. M2M search meter offloaded to FastAPI BackgroundTasks for zero latency impact.',
+        tags: ['Billing', 'Metered', 'JSON:API', 'BackgroundTasks'],
+      },
+      {
+        icon: '🔒',
+        title: 'Feature Flag Gating on Tier Change',
+        tier: 'All Plans',
+        desc: 'tenant_feature_flags table gates PQC, SOVA, and marketplace_node per subscription tier. _enforce_feature_flags() fires on every lifecycle event — PQC and SOVA access revoked instantly on downgrade or cancellation.',
+        tags: ['Feature Flags', 'PQC', 'SOVA', 'Downgrade Protection'],
+      },
+      {
+        icon: '🔭',
+        title: 'OTel traced_dispatch for SOVA Tools',
+        tier: 'Pro+',
+        desc: 'Every SOVA tool call wrapped in an OpenTelemetry span (sova.tool.{name}). GDPR-safe attributes: tool name, byte sizes, tenant_id, duration_ms, success. Fail-open when OTEL_ENABLED=false.',
+        tags: ['OTel', 'SOVA', 'Tracing', 'GDPR'],
+      },
+      {
+        icon: '📸',
+        title: 'DB Snapshots for Loop Safety',
+        tier: 'All Plans',
+        desc: 'scripts/db_snapshot.py — Fernet-encrypted point-in-time SQLite snapshots before every autonomous loop run. Step 1b in autonomous-security-loop.md safety gate. Supports --list, --restore, --purge with 7-snapshot rotation.',
+        tags: ['Loop Safety', 'Backup', 'Encryption', 'Autonomous Loop'],
+      },
+    ],
+  },
+  {
+    version: 'v7.0',
+    date: 'Jun 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
     items: [
       {
         icon: '🏪',

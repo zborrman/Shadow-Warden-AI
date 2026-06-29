@@ -160,13 +160,14 @@ class LemonBilling:
         with self._lock:
             self._conn.executescript("""
                 CREATE TABLE IF NOT EXISTS subscriptions (
-                    tenant_id       TEXT PRIMARY KEY,
-                    ls_customer_id  TEXT,
-                    ls_sub_id       TEXT,
-                    plan            TEXT NOT NULL DEFAULT 'starter',
-                    status          TEXT NOT NULL DEFAULT 'active',
-                    renews_at       TEXT,
-                    updated_at      TEXT NOT NULL
+                    tenant_id         TEXT PRIMARY KEY,
+                    ls_customer_id    TEXT,
+                    ls_sub_id         TEXT,
+                    ls_sub_item_id    TEXT,
+                    plan              TEXT NOT NULL DEFAULT 'starter',
+                    status            TEXT NOT NULL DEFAULT 'active',
+                    renews_at         TEXT,
+                    updated_at        TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_subs_ls_sub
                     ON subscriptions(ls_sub_id);
@@ -174,6 +175,13 @@ class LemonBilling:
                     event_id        TEXT PRIMARY KEY,
                     event_name      TEXT NOT NULL,
                     processed_at    TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS tenant_feature_flags (
+                    tenant_id                TEXT PRIMARY KEY,
+                    post_quantum_cryptography INTEGER NOT NULL DEFAULT 0,
+                    sova_agent               INTEGER NOT NULL DEFAULT 0,
+                    marketplace_node         INTEGER NOT NULL DEFAULT 0,
+                    updated_at               TEXT NOT NULL
                 );
             """)
             self._conn.commit()
@@ -387,8 +395,35 @@ class LemonBilling:
         plan        = _variant_to_plan(variant_id)
         status      = attrs.get("status", "active")
         renews_at   = attrs.get("renews_at")
-        self._upsert(tenant_id, customer_id, sub_id, plan, status, renews_at)
-        log.info("LemonSqueezy: tenant %s activated plan=%s.", tenant_id, plan)
+
+        # Extract subscription_item_id for metered billing
+        # LS embeds first_subscription_item in the subscription attributes
+        first_item  = attrs.get("first_subscription_item") or {}
+        sub_item_id = str(first_item.get("id", ""))
+
+        self._upsert(tenant_id, customer_id, sub_id, plan, status, renews_at, sub_item_id)
+        self._enforce_feature_flags(tenant_id, plan)
+        log.info("LemonSqueezy: tenant %s activated plan=%s item=%s.", tenant_id, plan, sub_item_id[:16] if sub_item_id else "—")
+
+    def _enforce_feature_flags(self, tenant_id: str, plan: str) -> None:
+        """
+        Gate PQC and SOVA access to their minimum plan tier.
+        Called on every subscription change so downgrades are enforced immediately.
+
+        PQC (post_quantum_cryptography) → Enterprise only
+        SOVA agent                       → Pro and above
+        Marketplace node                 → Community Business and above
+        """
+        metered_tiers = ("individual", "community_business", "pro", "enterprise")
+        pro_tiers     = ("pro", "enterprise")
+        ent_tiers     = ("enterprise",)
+
+        self.set_feature_flags(
+            tenant_id,
+            post_quantum_cryptography = plan in ent_tiers,
+            sova_agent                = plan in pro_tiers,
+            marketplace_node          = plan in metered_tiers,
+        )
 
     def _on_subscription_cancelled(self, data: dict) -> None:
         sub_id = str(data.get("id", ""))
@@ -399,6 +434,11 @@ class LemonBilling:
                 (datetime.now(UTC).isoformat(), sub_id),
             )
             self._conn.commit()
+            row = self._conn.execute(
+                "SELECT tenant_id FROM subscriptions WHERE ls_sub_id=?", (sub_id,)
+            ).fetchone()
+        if row:
+            self._enforce_feature_flags(row["tenant_id"], "starter")
 
     def _on_trial_started(self, data: dict, meta: dict) -> None:
         """LS fires subscription_trial_started — grant trial access immediately."""
@@ -424,6 +464,11 @@ class LemonBilling:
                 (datetime.now(UTC).isoformat(), sub_id),
             )
             self._conn.commit()
+            row = self._conn.execute(
+                "SELECT tenant_id FROM subscriptions WHERE ls_sub_id=?", (sub_id,)
+            ).fetchone()
+        if row:
+            self._enforce_feature_flags(row["tenant_id"], "starter")
         log.info("LemonSqueezy: trial ended sub=%s → downgraded to starter.", sub_id)
 
     def _on_order_created(self, data: dict, meta: dict) -> None:
@@ -452,32 +497,132 @@ class LemonBilling:
 
     def _upsert(
         self,
-        tenant_id:   str,
-        customer_id: str,
-        sub_id:      str,
-        plan:        str,
-        status:      str,
-        renews_at:   str | None,
+        tenant_id:    str,
+        customer_id:  str,
+        sub_id:       str,
+        plan:         str,
+        status:       str,
+        renews_at:    str | None,
+        sub_item_id:  str = "",
     ) -> None:
         now = datetime.now(UTC).isoformat()
         with self._lock:
             self._conn.execute(
                 """
                 INSERT INTO subscriptions
-                    (tenant_id, ls_customer_id, ls_sub_id,
+                    (tenant_id, ls_customer_id, ls_sub_id, ls_sub_item_id,
                      plan, status, renews_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(tenant_id) DO UPDATE SET
-                    ls_customer_id = excluded.ls_customer_id,
-                    ls_sub_id      = excluded.ls_sub_id,
-                    plan           = excluded.plan,
-                    status         = excluded.status,
-                    renews_at      = excluded.renews_at,
-                    updated_at     = excluded.updated_at
+                    ls_customer_id  = excluded.ls_customer_id,
+                    ls_sub_id       = excluded.ls_sub_id,
+                    ls_sub_item_id  = CASE
+                        WHEN excluded.ls_sub_item_id != '' THEN excluded.ls_sub_item_id
+                        ELSE ls_sub_item_id
+                    END,
+                    plan       = excluded.plan,
+                    status     = excluded.status,
+                    renews_at  = excluded.renews_at,
+                    updated_at = excluded.updated_at
                 """,
-                (tenant_id, customer_id, sub_id, plan, status, renews_at, now),
+                (tenant_id, customer_id, sub_id, sub_item_id, plan, status, renews_at, now),
             )
             self._conn.commit()
+
+    # ── Usage-Based Billing (Metered API) ────────────────────────────────────
+
+    async def report_usage(
+        self,
+        subscription_item_id: str,
+        quantity: int,
+        action: str = "increment",
+    ) -> dict:
+        """
+        POST a single usage record to Lemon Squeezy Metered Billing API.
+
+        Sends the JSON:API payload required by LS /v1/usage-records.
+        Fail-open: network/API errors are logged and an error dict is returned
+        (never raised) so callers can fire-and-forget via BackgroundTasks.
+
+        Args:
+            subscription_item_id: LS subscription item ID (ls_sub_item_id column)
+            quantity:             Number of units consumed (integer)
+            action:               "increment" (default) or "set"
+        """
+        if not _LS_API_KEY:
+            return {"status": "skipped", "reason": "LEMONSQUEEZY_API_KEY not configured"}
+
+        payload = {
+            "data": {
+                "type": "usage-records",
+                "attributes": {
+                    "quantity": quantity,
+                    "action":   action,
+                },
+                "relationships": {
+                    "subscription-item": {
+                        "data": {"type": "subscription-items", "id": subscription_item_id}
+                    }
+                },
+            }
+        }
+        try:
+            import asyncio  # noqa: PLC0415
+            loop = asyncio.get_running_loop()
+            resp = await loop.run_in_executor(
+                None,
+                lambda: _ls_request("POST", "/usage-records", payload),
+            )
+            log.debug(
+                "report_usage: item=%s qty=%d action=%s → 200",
+                subscription_item_id[:16], quantity, action,
+            )
+            return {"status": "ok", "quantity": quantity, "response": resp}
+        except Exception as exc:
+            log.warning("report_usage fail-open: item=%s error=%s", subscription_item_id[:16], exc)
+            return {"status": "error", "error": str(exc)}
+
+    # ── Feature flags ─────────────────────────────────────────────────────────
+
+    def set_feature_flags(self, tenant_id: str, **flags: bool) -> None:
+        """Upsert boolean feature flags for a tenant (PQC, SOVA, etc.)."""
+        allowed = {"post_quantum_cryptography", "sova_agent", "marketplace_node"}
+        cols = {k: v for k, v in flags.items() if k in allowed}
+        if not cols:
+            return
+        now = datetime.now(UTC).isoformat()
+        set_clause = ", ".join(f"{k}=?" for k in cols)
+        vals = [int(v) for v in cols.values()] + [now, tenant_id]
+        with self._lock:
+            # Ensure row exists
+            self._conn.execute(
+                "INSERT OR IGNORE INTO tenant_feature_flags"
+                " (tenant_id, post_quantum_cryptography, sova_agent, marketplace_node, updated_at)"
+                " VALUES (?, 0, 0, 0, ?)",
+                (tenant_id, now),
+            )
+            self._conn.execute(
+                f"UPDATE tenant_feature_flags SET {set_clause}, updated_at=?"  # noqa: S608
+                " WHERE tenant_id=?",
+                vals,
+            )
+            self._conn.commit()
+        log.info("feature_flags: tenant=%s flags=%s", tenant_id[:16], cols)
+
+    def get_feature_flags(self, tenant_id: str) -> dict[str, bool]:
+        """Return feature flags for a tenant; defaults False when no row exists."""
+        row = self._conn.execute(
+            "SELECT post_quantum_cryptography, sova_agent, marketplace_node"
+            " FROM tenant_feature_flags WHERE tenant_id=?",
+            (tenant_id,),
+        ).fetchone()
+        if row is None:
+            return {"post_quantum_cryptography": False, "sova_agent": False, "marketplace_node": False}
+        return {
+            "post_quantum_cryptography": bool(row["post_quantum_cryptography"]),
+            "sova_agent":               bool(row["sova_agent"]),
+            "marketplace_node":         bool(row["marketplace_node"]),
+        }
 
     # ── Dunning ───────────────────────────────────────────────────────────────
 
@@ -557,22 +702,27 @@ class MeterUsageAggregator:
         for tenant_id, amounts in snapshot.items():
             try:
                 row = billing._conn.execute(
-                    "SELECT ls_sub_id FROM subscriptions WHERE tenant_id=? AND plan='individual'",
+                    "SELECT ls_sub_item_id FROM subscriptions"
+                    " WHERE tenant_id=? AND plan IN ('individual','community_business')"
+                    " AND status IN ('active','on_trial')",
                     (tenant_id,),
                 ).fetchone()
-                if not row or not row["ls_sub_id"]:
+                if not row or not row["ls_sub_item_id"]:
                     continue
-                quantity = len(amounts)  # LS usage-records accept integer quantity
+                quantity = len(amounts)
                 _ls_request("POST", "/usage-records", {
                     "data": {
                         "type": "usage-records",
                         "attributes": {
-                            "quantity":        quantity,
-                            "action":          "increment",
+                            "quantity": quantity,
+                            "action":   "increment",
                         },
                         "relationships": {
                             "subscription-item": {
-                                "data": {"type": "subscription-items", "id": row["ls_sub_id"]}
+                                "data": {
+                                    "type": "subscription-items",
+                                    "id":   row["ls_sub_item_id"],
+                                }
                             }
                         },
                     }

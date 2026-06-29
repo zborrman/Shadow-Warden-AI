@@ -4,9 +4,22 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.0 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.1 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.1
+
+| Feature | Description |
+|---------|-------------|
+| **Lemon Squeezy Metered Billing** | `report_usage(subscription_item_id, quantity, action)` async method on `LemonBilling` — JSON:API payload to `/v1/usage-records`. `ls_sub_item_id` extracted from `first_subscription_item.id` in webhooks. `MeterUsageAggregator.flush()` now uses the correct subscription-item ID. |
+| **Feature Flag Gating on Tier Change** | `tenant_feature_flags` SQLite table with `post_quantum_cryptography`, `sova_agent`, `marketplace_node` booleans. `_enforce_feature_flags()` called on every subscription lifecycle event — PQC revoked instantly on downgrade. |
+| **BackgroundTasks Billing Offload** | M2M search meter call moved to FastAPI `BackgroundTasks` — zero latency impact on hot path. |
+| **OTel traced_dispatch for SOVA** | Every SOVA tool call wrapped in an OpenTelemetry span (`sova.tool.{name}`). GDPR-safe: only metadata on spans (tool name, byte sizes, tenant_id, duration, success). Fail-open when `OTEL_ENABLED=false`. |
+| **DB Snapshots for Loop Safety** | `scripts/db_snapshot.py` — Fernet-encrypted SQLite snapshots before every autonomous loop run. Supports `--list`, `--restore`, `--purge`. Wired into `workflows/autonomous-security-loop.md` as Step 1b. |
+| **MAESTRO Collusion Detection** | `CollusionDetector.scan_market_prices()` detects vertical tacit collusion via Pearson correlation (≥0.80 across ≥3 sellers). `tacit_collusion_scores` field in `MaestroReport`. |
 
 ---
 

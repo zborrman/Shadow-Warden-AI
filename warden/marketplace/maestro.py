@@ -152,6 +152,7 @@ class MaestroReport:
     recommended_action:   str          # none | monitor | restrict | suspend
     behavioral_flag:    bool = False
     behavioral_dimensions: list[dict] = field(default_factory=list)
+    tacit_collusion_scores: dict = field(default_factory=dict)
     generated_at:       str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_dict(self) -> dict:
@@ -398,9 +399,12 @@ class CollusionDetector:
     Flags stored in Redis collusion:flagged:{agent_id} (90-day TTL).
     """
 
-    _ROUND_THRESHOLD      = 2
+    _ROUND_THRESHOLD       = 2
     _PRICE_DELTA_THRESHOLD = 5.0   # percent
-    _MIN_OBSERVATIONS     = 3      # min negotiation samples before flagging
+    _MIN_OBSERVATIONS      = 3     # min negotiation samples before flagging
+    _TACIT_CORR_THRESHOLD  = 0.80  # Pearson correlation for vertical tacit collusion
+    _TACIT_MIN_SELLERS     = 3     # minimum sellers needed for market-level scan
+    _TACIT_WINDOW          = 100   # last N clearing prices per seller
 
     def __init__(self, db_path: str = _DB_PATH) -> None:
         self.db_path = db_path
@@ -525,6 +529,84 @@ class CollusionDetector:
             return list(partners)
         except Exception:
             return []
+
+    def scan_market_prices(self) -> dict[str, float]:
+        """
+        Vertical tacit collusion scan — detect synchronized price movements
+        across independent sellers without direct negotiation pairs.
+
+        Reads marketplace_clearing_log, computes pairwise Pearson correlation of
+        seller price series. High correlation among non-paired sellers indicates
+        algorithmic price synchronization (vertical tacit collusion).
+
+        Returns {seller_agent_id: tacit_collusion_score (0.0–1.0)}.
+        Fail-open: exceptions return {}.
+        """
+        try:
+            return self._scan_market_prices()
+        except Exception as exc:
+            log.debug("CollusionDetector.scan_market_prices fail-open: %s", exc)
+            return {}
+
+    def _scan_market_prices(self) -> dict[str, float]:
+        with _db_lock:
+            con = _conn(self.db_path)
+            rows = con.execute(
+                """SELECT seller_agent_id, seller_net_usd, cleared_at
+                   FROM marketplace_clearing_log
+                   ORDER BY cleared_at DESC
+                   LIMIT ?""",
+                (self._TACIT_WINDOW * 20,),
+            ).fetchall()
+            con.close()
+
+        from collections import defaultdict
+        seller_prices: dict[str, list[float]] = defaultdict(list)
+        for row in rows:
+            if len(seller_prices[row["seller_agent_id"]]) < self._TACIT_WINDOW:
+                seller_prices[row["seller_agent_id"]].append(row["seller_net_usd"])
+
+        eligible = {s: p for s, p in seller_prices.items() if len(p) >= 5}
+        if len(eligible) < self._TACIT_MIN_SELLERS:
+            return {}
+
+        def _pearson(a: list[float], b: list[float]) -> float:
+            n = min(len(a), len(b))
+            if n < 4:
+                return 0.0
+            xs, ys = a[:n], b[:n]
+            mean_x = sum(xs) / n
+            mean_y = sum(ys) / n
+            num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=False))
+            denom_x = sum((x - mean_x) ** 2 for x in xs) ** 0.5
+            denom_y = sum((y - mean_y) ** 2 for y in ys) ** 0.5
+            if denom_x == 0 or denom_y == 0:
+                return 0.0
+            return num / (denom_x * denom_y)
+
+        sellers = list(eligible.keys())
+        high_corr_counts: dict[str, int] = dict.fromkeys(sellers, 0)
+
+        for i in range(len(sellers)):
+            for j in range(i + 1, len(sellers)):
+                corr = abs(_pearson(eligible[sellers[i]], eligible[sellers[j]]))
+                if corr >= self._TACIT_CORR_THRESHOLD:
+                    high_corr_counts[sellers[i]] += 1
+                    high_corr_counts[sellers[j]] += 1
+
+        scores: dict[str, float] = {}
+        max_peers = len(sellers) - 1
+        for seller, count in high_corr_counts.items():
+            score = round(count / max_peers, 3) if max_peers > 0 else 0.0
+            scores[seller] = score
+            if score >= 0.5:
+                self._set_collusion_flag(seller)
+                self._flag_agent(seller, "tacit_collusion", score, {
+                    "pattern": "vertical_price_sync",
+                    "correlated_peers": count,
+                })
+
+        return scores
 
     def _set_collusion_flag(self, agent_id: str) -> None:
         try:
@@ -928,6 +1010,19 @@ class MaestroService:
             behavioral_flag=anomaly.flagged,
             behavioral_dimensions=anomaly.dimensions,
         )
+
+    def scan_market_tacit_collusion(self) -> dict[str, float]:
+        """
+        Market-wide vertical tacit collusion scan.
+
+        Delegates to CollusionDetector.scan_market_prices(). Returns per-seller
+        tacit collusion scores. Fail-open: exceptions return {}.
+        """
+        try:
+            return self.collusion.scan_market_prices()
+        except Exception as exc:
+            log.debug("MaestroService.scan_market_tacit_collusion fail-open: %s", exc)
+            return {}
 
     @staticmethod
     def _classify(

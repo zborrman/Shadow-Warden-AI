@@ -201,13 +201,12 @@ async def run_query(
             log.info("sova: calling tool=%s input=%s", tool_name,
                      json.dumps(tool_input)[:200])
 
-            handler = _tools.TOOL_HANDLERS.get(tool_name)
-            if handler is None:
+            if tool_name not in _tools.TOOL_HANDLERS:
                 result_content = f"Unknown tool: {tool_name}"
                 is_error = True
             else:
                 try:
-                    result = await handler(**tool_input)
+                    result = await _tools.traced_dispatch(tool_name, tool_input)
                     result_content = json.dumps(result, default=str)
                     is_error = False
                 except Exception as exc:

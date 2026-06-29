@@ -2773,3 +2773,49 @@ TOOL_HANDLERS: dict[str, Any] = {
     "get_protocol_schema":        get_protocol_schema,
     "send_order_proposal":        send_order_proposal,
 }
+
+
+async def traced_dispatch(tool_name: str, tool_input: dict[str, Any]) -> Any:
+    """
+    OTel-traced tool dispatch for SOVA.
+
+    Wraps TOOL_HANDLERS[tool_name] in an OpenTelemetry span so every tool
+    call is visible in Jaeger / OTEL collector with name, duration, and error.
+    GDPR-safe: only metadata emitted (tool name, input/output sizes, tenant_id).
+    Falls back to direct dispatch when OTel is disabled.
+    """
+    import time as _time
+    handler = TOOL_HANDLERS.get(tool_name)
+    if handler is None:
+        raise KeyError(f"Unknown tool: {tool_name}")
+
+    # Extract GDPR-safe metadata
+    tenant_id = str(tool_input.get("tenant_id", "unknown"))
+    input_bytes = len(str(tool_input))
+
+    try:
+        import opentelemetry.trace as otel_trace  # noqa: PLC0415
+
+        tracer = otel_trace.get_tracer("sova.tool_dispatch")
+        with tracer.start_as_current_span(f"sova.tool.{tool_name}") as span:
+            span.set_attribute("tool.name", tool_name)
+            span.set_attribute("tool.input_bytes", input_bytes)
+            span.set_attribute("tool.tenant_id", tenant_id)
+            t0 = _time.perf_counter()
+            try:
+                result = await handler(**tool_input)
+                span.set_attribute("tool.output_bytes", len(str(result)))
+                span.set_attribute("tool.success", True)
+                span.set_attribute("tool.duration_ms", round((_time.perf_counter() - t0) * 1000, 1))
+                return result
+            except Exception as exc:
+                span.set_attribute("tool.success", False)
+                span.set_attribute("tool.error", str(exc)[:200])
+                span.set_attribute("tool.duration_ms", round((_time.perf_counter() - t0) * 1000, 1))
+                raise
+    except (ImportError, Exception) as _otel_err:
+        # OTel unavailable or disabled — direct dispatch, no tracing
+        if not isinstance(_otel_err, (ImportError,)):
+            import logging as _log
+            _log.getLogger(__name__).debug("traced_dispatch OTel fail-open: %s", _otel_err)
+        return await handler(**tool_input)

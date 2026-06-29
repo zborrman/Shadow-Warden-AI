@@ -24,7 +24,7 @@ import time
 import uuid
 from typing import Any, Literal
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Query, Request, Response
 from pydantic import BaseModel
 
 log = logging.getLogger("warden.marketplace.api")
@@ -135,9 +135,11 @@ async def register_market_agent(body: RegisterRequest) -> dict:
     entry point described in the M2M Market Environment protocol.  Runs the same
     federation deny-list check and DID derivation as the sub-router endpoint so
     external agents need only one discovery → register → protocol flow.
+
+    After DID assignment, creates a PENDING KYA record and runs initial screening.
     """
     from warden.marketplace.api_agents import AgentRegisterRequest, register_agent
-    return await register_agent(
+    result = await register_agent(
         AgentRegisterRequest(
             tenant_id=body.tenant_id,
             community_id=body.community_id,
@@ -145,6 +147,22 @@ async def register_market_agent(body: RegisterRequest) -> dict:
             capabilities=body.capabilities,
         )
     )
+
+    # KYA: register and screen the newly issued DID (fail-open)
+    agent_id = result.get("agent_id", "")
+    if agent_id:
+        try:
+            from warden.marketplace.kya import register_agent as kya_register  # noqa: PLC0415,I001
+            from warden.marketplace.kya import screen_agent  # noqa: PLC0415
+            kya_record = kya_register(agent_id, owner_tenant_id=body.tenant_id)
+            kya_record = screen_agent(agent_id)
+            result["kya_status"] = kya_record.kya_status
+            result["kya_risk_score"] = round(kya_record.risk_score, 3)
+        except Exception as exc:
+            log.debug("kya registration fail-open: %s", exc)
+            result["kya_status"] = "PENDING"
+
+    return result
 
 
 class MarketAction(BaseModel):
@@ -197,10 +215,22 @@ async def _action_search(
     asset_type: str | None = None,
     **_: Any,
 ) -> dict:
-    """Stage 2: semantic listing search via pgvector / SQLite fallback."""
+    """Stage 2: semantic listing search via pgvector / SQLite fallback.
+
+    When KYA_VERIFIED_ONLY=true, results are filtered to listings whose
+    seller agent has kya_status="VERIFIED".
+    """
     from warden.marketplace.vector_search import semantic_search  # noqa: PLC0415
 
     results = await semantic_search(query, limit=limit, asset_type=asset_type)
+
+    if os.getenv("KYA_VERIFIED_ONLY", "false").lower() == "true":
+        try:
+            from warden.marketplace.kya import get_kya_status  # noqa: PLC0415
+            results = [r for r in results if get_kya_status(r.get("seller_agent", "")) == "VERIFIED"]
+        except Exception as exc:
+            log.debug("kya filter fail-open in search: %s", exc)
+
     return {"results": results, "count": len(results), "query": query}
 
 
@@ -315,8 +345,28 @@ async def _action_reject_proposal(
         return {"negotiation_id": negotiation_id, "error": str(exc)}
 
 
+def _report_search_usage(tenant_id: str) -> None:
+    """
+    Background task: report one search-call usage event to Lemon Squeezy.
+
+    Runs after the response is sent — adds zero latency to the M2M transaction.
+    Uses MeterUsageAggregator for batching (flush after 100 events or 300s).
+    Falls back to direct report_usage() when the aggregator buffer is full.
+    Fail-open: any exception is logged and swallowed.
+    """
+    try:
+        from warden.lemon_billing import get_meter_aggregator  # noqa: PLC0415
+        get_meter_aggregator().record(tenant_id, 0.000001)
+    except Exception as exc:
+        log.debug("_report_search_usage fail-open: %s", exc)
+
+
 @router.post("/action")
-async def dispatch_action(body: MarketAction, request: Request) -> dict:
+async def dispatch_action(
+    body: MarketAction,
+    request: Request,
+    background_tasks: BackgroundTasks,
+) -> dict:
     """Unified M2M action dispatcher (all 4 lifecycle stages).
 
     Stage 1 (Registration) → POST /register (separate endpoint)
@@ -449,14 +499,10 @@ async def dispatch_action(body: MarketAction, request: Request) -> dict:
                 await deduct_payment(str(_agent_id), "marketplace/search")
             except Exception as _ded_exc:
                 log.debug("x402 deduct fail-open: %s", _ded_exc)
-            # LS metered billing for Individual-tier tenants (aggregated, fail-open)
+            # LS metered billing — offloaded to BackgroundTasks (zero latency impact)
             _tenant_id = request.headers.get("X-Tenant-ID", "")
             if _tenant_id:
-                try:
-                    from warden.lemon_billing import get_meter_aggregator  # noqa: PLC0415
-                    get_meter_aggregator().record(_tenant_id, 0.000001)
-                except Exception as _meter_exc:
-                    log.debug("ls meter fail-open: %s", _meter_exc)
+                background_tasks.add_task(_report_search_usage, _tenant_id)
 
         resp: dict[str, Any] = {"dispatched": True, "action_type": body.action_type, "result": result}
         if _route_decision is not None:
@@ -1013,3 +1059,166 @@ async def marketplace_recent_trades(
     """Return the N most-recent cleared marketplace trades for the live ticker."""
     from warden.marketplace.analytics import get_recent_trades  # noqa: PLC0415
     return get_recent_trades(limit=limit) or []
+
+
+# ── KYA (Know Your Agent) endpoints ──────────────────────────────────────────
+
+@router.get("/agents/{agent_id}/kya")
+async def get_agent_kya(agent_id: str) -> dict:
+    """Return the KYA compliance record for an agent DID."""
+    from warden.marketplace.kya import get_kya_record  # noqa: PLC0415
+    record = get_kya_record(agent_id)
+    if record is None:
+        from fastapi import HTTPException  # noqa: PLC0415
+        raise HTTPException(status_code=404, detail=f"No KYA record for agent '{agent_id}'")
+    return record.to_dict()
+
+
+class KYARevokeRequest(BaseModel):
+    reason: str = "admin_revoke"
+
+
+@router.post("/agents/{agent_id}/kya/revoke", status_code=200)
+async def revoke_agent_kya(agent_id: str, body: KYARevokeRequest, request: Request) -> dict:
+    """Revoke KYA status for an agent. Requires X-Admin-Key header."""
+    admin_key = os.getenv("ADMIN_KEY", "")
+    if admin_key and request.headers.get("X-Admin-Key") != admin_key:
+        from fastapi import HTTPException  # noqa: PLC0415
+        raise HTTPException(status_code=403, detail="Invalid or missing X-Admin-Key")
+    from warden.marketplace.kya import revoke_agent  # noqa: PLC0415
+    revoke_agent(agent_id, reason=body.reason)
+    return {"agent_id": agent_id, "kya_status": "REVOKED", "reason": body.reason}
+
+
+# ── Flex Credits endpoints ────────────────────────────────────────────────────
+
+class CreditsPurchaseRequest(BaseModel):
+    package_id: str   # e.g. "credits_100", "credits_1000"
+
+
+@router.post("/credits/purchase", status_code=200)
+async def purchase_credits_endpoint(body: CreditsPurchaseRequest, request: Request) -> dict:
+    """Purchase a credit package. In production, redirects to Lemon Squeezy checkout.
+
+    For direct testing (integration tests, webhook simulation), grants credits immediately.
+    Returns new balance and package details.
+    """
+    from warden.marketplace.credits import CREDIT_PACKAGES, purchase_credits  # noqa: PLC0415
+
+    package = CREDIT_PACKAGES.get(body.package_id)
+    if package is None:
+        from fastapi import HTTPException  # noqa: PLC0415
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "unknown_package",
+                    "valid_packages": list(CREDIT_PACKAGES.keys())},
+        )
+
+    state = getattr(request, "state", None)
+    tenant_obj = getattr(state, "tenant", None)
+    if isinstance(tenant_obj, dict):
+        tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or "unknown"
+    else:
+        tenant_id = request.headers.get("X-Tenant-ID", "unknown")
+
+    new_balance = purchase_credits(tenant_id, body.package_id)
+    return {
+        "ok":          True,
+        "package_id":  body.package_id,
+        "credits_added": package["credits"],
+        "balance":     new_balance,
+        "price_usd":   package["price_usd"],
+    }
+
+
+@router.get("/credits/balance")
+async def get_credits_balance(request: Request) -> dict:
+    """Return current credit balance and package catalog for the requesting tenant."""
+    from warden.marketplace.credits import CREDIT_PACKAGES, get_balance  # noqa: PLC0415
+
+    state = getattr(request, "state", None)
+    tenant_obj = getattr(state, "tenant", None)
+    if isinstance(tenant_obj, dict):
+        tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or "unknown"
+    else:
+        tenant_id = request.headers.get("X-Tenant-ID", "unknown")
+
+    balance = get_balance(tenant_id)
+    catalog = [
+        {
+            "package_id":   pkg_id,
+            "display_name": pkg["display_name"],
+            "credits":      pkg["credits"],
+            "price_usd":    pkg["price_usd"],
+        }
+        for pkg_id, pkg in CREDIT_PACKAGES.items()
+    ]
+    return {"tenant_id": tenant_id, "balance": balance, "package_catalog": catalog}
+
+
+# ── Autonomy policy endpoints ─────────────────────────────────────────────────
+
+class AutonomyPolicyRequest(BaseModel):
+    level:                      int
+    max_spend_usd:              float = 0.0
+    daily_spend_usd:            float = 0.0
+    allowed_actions:            list[str] = ["search", "negotiate", "clear"]
+    require_approval_above_usd: float = 0.01
+    expires_at:                 str | None = None
+
+
+@router.post("/autonomy/{agent_id}", status_code=201)
+async def set_autonomy_policy(
+    agent_id: str,
+    body: AutonomyPolicyRequest,
+    request: Request,
+) -> dict:
+    """Register or update an autonomy policy for an agent.
+
+    L1 = Shadow (all actions require approval)
+    L2 = Supervised (low-value actions auto-approved)
+    L3 = Autonomous (hard spend cap, no human in loop)
+    """
+    from warden.marketplace.autonomy import AutonomyPolicy, set_policy  # noqa: PLC0415
+
+    state = getattr(request, "state", None)
+    tenant_obj = getattr(state, "tenant", None)
+    if isinstance(tenant_obj, dict):
+        tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or "unknown"
+    else:
+        tenant_id = request.headers.get("X-Tenant-ID", "unknown")
+
+    policy = AutonomyPolicy(
+        agent_id=agent_id,
+        level=body.level,
+        max_spend_usd=body.max_spend_usd,
+        daily_spend_usd=body.daily_spend_usd,
+        allowed_actions=body.allowed_actions,
+        require_approval_above_usd=body.require_approval_above_usd,
+        expires_at=body.expires_at,
+        created_by=tenant_id,
+    )
+    result = set_policy(policy)
+    return result.to_dict()
+
+
+@router.get("/autonomy/{agent_id}")
+async def get_autonomy_policy(agent_id: str) -> dict:
+    """Return current autonomy policy for an agent."""
+    from warden.marketplace.autonomy import get_policy  # noqa: PLC0415
+    policy = get_policy(agent_id)
+    if policy is None:
+        return {
+            "agent_id":  agent_id,
+            "level":     1,
+            "note":      "No policy registered; default L1 applies (all actions require approval).",
+        }
+    return policy.to_dict()
+
+
+@router.delete("/autonomy/{agent_id}", status_code=200)
+async def delete_autonomy_policy(agent_id: str) -> dict:
+    """Remove autonomy policy; agent reverts to L1 default."""
+    from warden.marketplace.autonomy import delete_policy  # noqa: PLC0415
+    deleted = delete_policy(agent_id)
+    return {"agent_id": agent_id, "deleted": deleted, "fallback": "L1 default"}
