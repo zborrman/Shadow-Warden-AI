@@ -18,7 +18,7 @@ Sequence: Heartbeat (Playwright 32 tests + ruff + mypy) → if unhealthy: git wo
 
 **Manual trigger:**
 ```bash
-claude --print --no-conversation "$(cat workflows/autonomous-security-loop.md)"
+claude --print "$(cat workflows/autonomous-security-loop.md)"
 ```
 
 **Protected invariants the loop never touches:** `<link rel="agent-protocol">`, clearing.py Decimal math, x402 fail-open, all 32 Playwright assertions, GDPR content-never-logged rule.

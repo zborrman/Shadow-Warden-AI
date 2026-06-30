@@ -211,7 +211,7 @@ jobs:
           CONSTRAINTS=$(cat workflows/autonomous-security-loop.md | \
             grep -A 30 "Protected Invariants" | head -30)
 
-          claude --print --no-conversation "
+          claude --print "
           You are the Maker sub-agent. Fix the following issue in the Shadow Warden AI project.
 
           ISSUE TYPE: $ISSUE_TYPE
@@ -242,7 +242,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          claude --print --no-conversation "
+          claude --print "
           You are the security-auditor sub-agent for Shadow Warden AI.
           Read FIX_SUMMARY.md and audit every git-staged file.
 

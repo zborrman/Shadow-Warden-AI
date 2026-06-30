@@ -1,6 +1,6 @@
 # Autonomous Security & QA Loop — Shadow Warden AI
 
-**Version:** 1.0 · **Trigger:** Nightly 02:00 UTC or `claude --print --no-conversation "$(cat workflows/autonomous-security-loop.md)"`
+**Version:** 1.0 · **Trigger:** Nightly 02:00 UTC or `claude --print "$(cat workflows/autonomous-security-loop.md)"`
 
 This is the Loop Engineering blueprint for the Shadow Warden M2M Agentic Marketplace.
 It runs as a fully autonomous Claude Code session orchestrating skills, worktrees, and
@@ -125,7 +125,7 @@ All subsequent work happens in the worktree. `main` is never touched directly.
 Spawn with:
 
 ```bash
-claude --print --no-conversation "
+claude --print "
 You are the Maker sub-agent in a Maker-Checker loop. Round {round} of {MAX_MAKER_CHECKER_ROUNDS}.
 Working directory: ../shadow-warden-hotfix-$LOOP_DATE
 
@@ -152,7 +152,7 @@ YOUR TASK:
 Spawn immediately after Maker completes:
 
 ```bash
-claude --print --no-conversation "
+claude --print "
 You are the security-auditor sub-agent in a Maker-Checker loop. Round {round}.
 Working directory: ../shadow-warden-hotfix-$LOOP_DATE
 
@@ -278,7 +278,7 @@ git branch -d hotfix/$LOOP_DATE
 **Run manually (one-shot):**
 
 ```bash
-claude --print --no-conversation "$(cat workflows/autonomous-security-loop.md)"
+claude --print "$(cat workflows/autonomous-security-loop.md)"
 ```
 
 **Run as CI/CD cron (see `.github/workflows/autonomous-security-loop.yml`):**
@@ -290,7 +290,7 @@ claude --print --no-conversation "$(cat workflows/autonomous-security-loop.md)"
 **Run only the heartbeat health check:**
 
 ```bash
-claude --print --no-conversation "Run only Step 1 of workflows/autonomous-security-loop.md and exit."
+claude --print "Run only Step 1 of workflows/autonomous-security-loop.md and exit."
 ```
 
 ---
