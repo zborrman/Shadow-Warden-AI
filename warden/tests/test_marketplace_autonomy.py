@@ -1,5 +1,6 @@
 """Tests for warden/marketplace/autonomy.py — Progressive Autonomy L1/L2/L3."""
 import os
+
 import pytest
 
 

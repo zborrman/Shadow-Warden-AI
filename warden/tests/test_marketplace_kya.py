@@ -1,5 +1,6 @@
 """Tests for warden/marketplace/kya.py — KYA (Know Your Agent) framework."""
 import os
+
 import pytest
 
 
@@ -77,6 +78,7 @@ class TestKYAScreening:
         """Setting threshold to 0.0 forces all agents to FLAGGED."""
         monkeypatch.setenv("KYA_AUTO_VERIFY_SCORE_THRESHOLD", "0.0")
         import importlib
+
         import warden.marketplace.kya as kya_mod
         importlib.reload(kya_mod)
         kya_mod.register_agent("did:shadow:strict-agent", "tenant-S")

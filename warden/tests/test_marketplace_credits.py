@@ -1,5 +1,6 @@
 """Tests for warden/marketplace/credits.py — Flex Credits system."""
 import os
+
 import pytest
 
 
@@ -48,7 +49,7 @@ class TestPurchaseCredits:
 
     def test_purchase_unknown_package_raises(self):
         from warden.marketplace.credits import purchase_credits
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="Unknown credit package"):
             purchase_credits("tenant-bad", "credits_99999")
 
     def test_initial_balance_is_zero(self):
