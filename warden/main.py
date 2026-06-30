@@ -6109,6 +6109,13 @@ try:
 except ImportError:
     log.warning("staff router not available — /staff routes skipped.")
 
+try:
+    from warden.api.staff_agents import router as _staff_agents_router
+    app.include_router(_staff_agents_router)
+    log.info("Digital Staff Agents mounted at /staff/agents (STAFF-02..05)")
+except ImportError:
+    log.warning("staff_agents router not available — /staff/agents routes skipped.")
+
 
 # ── Global error handler ──────────────────────────────────────────────────────
 
