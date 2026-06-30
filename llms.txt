@@ -2,7 +2,7 @@
 
 > The internet's first GDPR-compliant, self-improving AI security gateway and M2M agent marketplace. Deployed between every AI request and the world — blocking jailbreaks, stripping secrets/PII, and enabling machine-to-machine intelligence trading at nanopayment speed.
 
-Shadow Warden AI v7.1 — Proprietary — https://shadow-warden-ai.com
+Shadow Warden AI v7.2 — Proprietary — https://shadow-warden-ai.com
 
 ## What Shadow Warden Is
 
@@ -44,7 +44,7 @@ Flex Credits (pay-per-use, no subscription): 100 credits $0.10 · 500 credits $0
 - [GDPR / DPIA](https://shadow-warden-ai.com/privacy)
 - [SOC 2 Evidence Guide](https://shadow-warden-ai.com/docs)
 - [SLA — Pro 99.9% / Enterprise 99.95%](https://shadow-warden-ai.com/docs)
-- [Roadmap (v7.0 shipped, v7.1 current)](https://shadow-warden-ai.com/roadmap)
+- [Roadmap (v7.1 shipped, v7.2 current)](https://shadow-warden-ai.com/roadmap)
 
 ## Optional
 
