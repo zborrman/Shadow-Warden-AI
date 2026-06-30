@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout
-  title="Enterprise Integration &amp; Deployment Guide v7.1 — Shadow Warden AI"
-  description="Complete enterprise deployment guide for Shadow Warden AI v7.1. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Commerce Budget Guardian, Self-Service Catalog, M2M Commerce Store, compliance."
+  title="Enterprise Integration &amp; Deployment Guide v7.2 — Shadow Warden AI"
+  description="Complete enterprise deployment guide for Shadow Warden AI v7.2. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Application Factory, Unit Economics, Agent-to-Agent Protocol, compliance."
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
@@ -23,7 +23,7 @@ import Layout from '../layouts/Layout.astro';
         <span class="text-[12px] font-bold">Enterprise Guide</span>
       </div>
       <div class="flex items-center gap-3">
-        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.1</span>
+        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.2</span>
         <a href="/" class="text-[12px] text-[#8E8E9E] hover:text-white transition-colors">← Back</a>
         <button onclick="window.print()" class="text-[11px] px-3 py-1.5 rounded-lg border border-white/10 text-[#8E8E9E] hover:text-white hover:border-white/20 transition-colors">Save PDF</button>
       </div>
@@ -124,13 +124,13 @@ import Layout from '../layouts/Layout.astro';
         ))}
       </div>
       <div class="rounded-xl p-6 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
-        <div class="text-[13px] font-semibold mb-4 text-white">v7.1 Key Additions</div>
+        <div class="text-[13px] font-semibold mb-4 text-white">v7.2 Key Additions</div>
         <div class="grid sm:grid-cols-2 gap-3">
           {[
-            ['📊', 'AI Analytics Hub', '9 built-in Semantic Layer models, Redis query cache (600s TTL), SOVA tools: semantic_query + list_semantic_models + check_commerce_budget'],
-            ['💰', 'Commerce Budget Guardian', 'check_budget() in every AP2 payment — queries ai_spend Semantic Layer model for real MTD spend; Slack alert on budget exceeded'],
-            ['🏪', 'M2M Commerce Store', 'Full seller-side: catalog, inventory, store agent, security layer; UECIID-linked listings; AP2/UCP/MCP protocol support'],
-            ['🗂️', 'Self-Service Catalog', 'bootstrap_tenant_models() on startup; register_tenant_model() persists to SQLite + hot-loads into SemanticEngine singleton at /semantic-layer/models/catalog'],
+            ['🏭', 'Application Factory', 'RouterSpec + register_router_safe() catches all exceptions (not just ImportError), isolating each sub-router so a broken staff agent init can never crash the security pipeline'],
+            ['💵', 'Unit Economics Tracker', 'Per-action LLM token cost tracking (Haiku/Sonnet/Opus) in SQLite; GET /staff/agents/economics/report + /alerts; wired into every StaffAgentRunner.run() call'],
+            ['🤝', 'Agent-to-Agent Protocol', 'HMAC-SHA256 signed cross-functional routing with ALLOWED_ROUTES whitelist; SupportAgent consults ComplianceAgent before high-risk-country refunds; full SQLite audit trail'],
+            ['📋', 'Structured JSON Logging', 'AgentSpan emits fixed-schema JSON lines (agent_id, tool_name, cost_usd, latency_ms, status) for every staff agent lifecycle event — Grafana/Loki ready, no regex'],
           ].map(([icon, title, desc]) => (
             <div class="flex gap-3 p-3 rounded-lg" style="background:rgba(255,255,255,0.03)">
               <span class="text-[20px] flex-shrink-0">{icon}</span>
@@ -637,10 +637,10 @@ curl http://localhost:8001/health
       <div class="mt-16 pt-8 border-t border-white/[0.07] flex items-center justify-between flex-wrap gap-4">
         <div>
           <div class="text-[13px] font-bold text-white mb-1">Shadow Warden AI — Enterprise Integration &amp; Deployment Guide</div>
-          <div class="text-[11px] text-[#64748b]">Version 5.2 · June 2026 · Proprietary &amp; Confidential</div>
+          <div class="text-[11px] text-[#64748b]">Version 7.2 · June 2026 · Proprietary &amp; Confidential</div>
         </div>
         <div class="flex items-center gap-3">
-          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.1</span>
+          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.2</span>
           <a href="/" class="text-[12px] text-[#64748b] hover:text-white transition-colors">shadow-warden-ai.com</a>
         </div>
       </div>

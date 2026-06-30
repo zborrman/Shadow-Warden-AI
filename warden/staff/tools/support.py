@@ -126,16 +126,61 @@ async def resolve_ticket_kb(
         conn.close()
 
 
+_HIGH_RISK_REFUND_COUNTRIES: frozenset[str] = frozenset(
+    {"IR", "KP", "SY", "CU", "SD", "MM", "RU", "BY"}
+)
+
+
 async def issue_refund(
     tenant_id: str = "default",
     agent_id: str = "support",
     amount_usd: str = "0.00",
     reason: str = "",
+    country: str = "",
 ) -> dict:
     """
     Rec-3: emit a signed RefundIntent. Does not call any payment API.
     The billing backend countersigns and processes after human review for > $0.
+
+    A2A integration: if country is in HIGH_RISK_REFUND_COUNTRIES, calls
+    ComplianceAgent.score_kyc_profile before issuing the intent. If KYC
+    returns HIGH risk, escalates to human instead of creating the intent.
     """
+    # A2A pre-check: route to ComplianceAgent if high-risk country
+    if country.upper() in _HIGH_RISK_REFUND_COUNTRIES:
+        try:
+            from warden.staff.a2a import get_a2a_router  # noqa: PLC0415
+            router = get_a2a_router()
+            kyc = await router.route(
+                "support", "compliance", "score_kyc_profile",
+                {
+                    "tenant_id": tenant_id,
+                    "entity_name": f"refund_requestor_{tenant_id}",
+                    "country": country.upper(),
+                    "entity_type": "individual",
+                    "pep": False,
+                    "adverse_media": False,
+                    "transaction_volume_usd": float(amount_usd or "0"),
+                },
+            )
+            if kyc.get("risk_level") == "HIGH":
+                log.warning(
+                    "SUPPORT: A2A KYC HIGH-RISK — refund blocked tenant=%s country=%s call_id=%s",
+                    tenant_id, country, kyc.get("call_id"),
+                )
+                return {
+                    "issued": False,
+                    "escalated": True,
+                    "escalation_reason": "high_risk_country_kyc_block",
+                    "country": country,
+                    "kyc_risk_level": kyc.get("risk_level"),
+                    "kyc_flags": kyc.get("flags", []),
+                    "a2a_call_id": kyc.get("call_id"),
+                    "note": "Refund escalated to human review — ComplianceAgent scored HIGH risk.",
+                }
+        except Exception as exc:  # noqa: BLE001 — A2A fail-open
+            log.warning("SUPPORT: A2A KYC call failed (fail-open, proceeding): %s", exc)
+
     from warden.staff.boundaries import get_registry  # noqa: PLC0415
 
     reg = get_registry()

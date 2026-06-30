@@ -23,13 +23,54 @@ claude --print "$(cat workflows/autonomous-security-loop.md)"
 
 **Protected invariants the loop never touches:** `<link rel="agent-protocol">`, clearing.py Decimal math, x402 fail-open, all 32 Playwright assertions, GDPR content-never-logged rule.
 
+## Digital Staff Invariants (STAFF-01…STAFF-05)
+
+These rules apply to all `warden/staff/` code. The autonomous loop and Claude Code must never violate them:
+
+- **Boundary check first:** `staff_dispatch()` must call `BoundaryRegistry.check_and_dispatch()` before every tool execution — no exceptions, no bypasses.
+- **Velocity guard always runs:** `VelocityGuard.record_and_check()` is called in `staff_dispatch()` after every boundary check. Never remove this call.
+- **Refund intent pattern (Rec-3):** `issue_refund()` must call `sign_refund_intent()` and store the HMAC-signed intent. Payment credentials must never be passed to an agent.
+- **Injection pre-screen (Rec-1):** `generate_seo_content()`, `score_kyc_profile()`, `screen_sanctions_list()`, and `generate_sar()` must pre-screen freetext via `POST /filter` (fail-open on timeout).
+- **Draft-only pattern:** BDR emails, growth proposals, SAR documents, and refund intents are created with `status=PENDING_REVIEW` or `PENDING_HUMAN_APPROVAL`. Agents never approve their own outputs.
+- **No LLM in support KB:** `resolve_ticket_kb()` uses the static `_KB` dict — never calls an LLM directly. Agentic reasoning lives in `StaffAgentRunner`, not in individual tool handlers.
+- **AgentRole StrEnum:** `warden/staff/boundaries.py` uses `AgentRole(StrEnum)` — never revert to `str, Enum`.
+- **BoundaryViolationError naming:** Exception class is `BoundaryViolationError` (N818 compliant) — never `BoundaryViolation`.
+- **Staff agent model routing:** L1=Haiku, L2=Sonnet, L3=Opus (≤8 iterations). Never hardcode model strings outside `_MODEL_BY_LEVEL`.
+
+## AI-Driven CI/CD Stack
+
+The project uses Claude Code as autonomous engineer across this stack:
+
+| Layer | Tool | Role |
+|-------|------|------|
+| Local dev | Docker Desktop Pro | Isolated env: Postgres, Redis, warden:8001 |
+| AI engineer | Claude Code CLI | Code → test → commit → PR cycle |
+| Version control | GitHub Actions | CI: ruff + mypy + pytest + Playwright |
+| Security gate | `.github/workflows/claude-security-review.yml` | Claude Opus reviews PRs touching security-critical files |
+| Warden scan | `.github/workflows/warden-scan.yml` | Shadow Warden 9-layer filter on every commit diff |
+| Frontend deploy | Vercel | Preview URLs per PR; production on main merge |
+| Shield | Cloudflare WAF | Rate-limits `/staff/agents/*`, `/filter`, `/agent/*` |
+| MCP | `.mcp.json` | Claude Code ↔ SQLite/Postgres/OTel/EVM direct access |
+
+**Security review trigger:** PRs touching `topology_guard.py`, `causal_arbiter.py`, `shadow_ban.py`, `masking/engine.py`, `staff/boundaries.py`, or any `warden/crypto/` file automatically receive a Claude Opus 4.8 audit comment via `.github/workflows/claude-security-review.yml`.
+
+**Non-interactive usage pattern:**
+```bash
+# Audit a specific file from CLI
+claude --print "Review warden/staff/boundaries.py for HMAC usage and fail-open compliance" \
+  --model claude-opus-4-8
+
+# Run autonomous loop manually
+claude --print "$(cat workflows/autonomous-security-loop.md)"
+```
+
 ---
 
 ## Project Overview
 
 Shadow Warden AI is a self-contained, GDPR-compliant AI security gateway. It sits in front of every AI request, blocking jailbreak attempts, stripping secrets/PII, and self-improving via Claude Opus — all without sending sensitive data to third parties.
 
-**Version:** 7.1 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-06-29
+**Version:** 7.2 · **License:** Proprietary · **Language:** Python 3.11+ · **Updated:** 2026-06-30
 
 ## Architecture
 
@@ -258,6 +299,14 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `dashboard/src/app/(soc)/community/[id]/page.tsx` | SOC Dashboard Community Hub detail — 6 tabs: Overview/Members/Data/Compliance/Evolution/Analytics; WebSocket live-metrics banner (`useCommunityWebSocket`); members sorted desc by `joined_at`; dates in `dd/mm/yy` |
 | `dashboard/src/hooks/useCommunityWebSocket.ts` | Community WebSocket hook — connects `wss://.../ws/community/{id}`, `WsStatus` type, 30s auto-reconnect on unclean close, unmount cleanup |
 | `warden/analytics/pages/22_Community_Hub.py` | Streamlit Community Hub — 7 tabs: My Communities / Explore / Members / Data / Compliance / Evolution / Settings; `fmt_date()` dd/mm/yy helper; `st_toast()` fallback wrapper; descending date sort on all lists |
+| `warden/app_factory.py` | Application Factory (v7.2) — `RouterSpec` + `register_router_safe()` (catches all `Exception`, not just `ImportError`); `register_staff_routers()` isolates the Digital Staff subsystem; `OPTIONAL_ROUTERS` registry of 30+ routers for gradual migration |
+| `warden/staff/economics.py` | Unit Economics Token Tracker (v7.2) — `TokenCostTracker` SQLite per-action LLM cost (Haiku/Sonnet/Opus pricing); `get_report()`, `get_margin_alerts()`, `get_total_cost()` |
+| `warden/staff/a2a.py` | Agent-to-Agent Protocol (v7.2) — `A2ARouter` HMAC-SHA256 call tokens, `ALLOWED_ROUTES` whitelist, SQLite audit trail; SupportAgent → ComplianceAgent KYC pre-check |
+| `warden/staff/structured_log.py` | Structured JSON Logging (v7.2) — `emit()` fixed-schema JSON lines to `warden.staff` logger; `AgentSpan` context object for correlated agent/tool lifecycle events |
+| `warden/tests/test_contract_security.py` | Security Contract Tests (v7.2) — 52 invariant tests across SecretRedactor / SemanticGuard / TopologicalGatekeeper / ObfuscationDecoder / MaskingEngine |
+| `warden/tests/test_staff_economics.py` | Unit tests for `TokenCostTracker` — cost computation, reporting, margin alerts |
+| `warden/tests/test_staff_a2a.py` | Unit tests for `A2ARouter` — HMAC tokens, route whitelist, audit log |
+| `docs/cloudflare-waf.md` | Cloudflare WAF documentation — rate limit rules, custom WAF rules, DNS/SSL config, Workers preflight stub |
 
 ## Build & Test Commands
 
@@ -409,9 +458,14 @@ NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
 - **`_BLOCK_TYPES` alias**: `warden/integrations/misp_bridge.py` exposes `_BLOCK_TYPES = _ALL_TYPES` as a public alias. Import the alias — not `_ALL_TYPES` directly — in external callers and tests.
 - **`_span_meta` integer guard**: `format(value, "032x")` must be guarded by `isinstance(value, int)` check before calling. MagicMock-backed spans will set `trace_id`/`span_id` to non-int; guard returns `None` instead of raising `TypeError`.
 - **`_scan(meta=None)` default**: `WardenSpanProcessor._scan()` and `_async_scan()` accept `meta: dict | None = None`; callers that omit `meta` get `{}` silently. Do not call with positional-only syntax assuming `meta` is required.
-- **Site version: `v7.1` Latest (Lemon Squeezy Metered Billing / KYA / Flex Credits / Progressive Autonomy L1-L2-L3 / OTel traced_dispatch / DB Snapshots) / v7.0 Previous / v5.3 / v5.2 / v5.1.
+- **Site version: `v7.2` Latest (Application Factory / Unit Economics Tracker / Agent-to-Agent Protocol / Structured JSON Logging / Security Contract Tests) / v7.1 Previous / v7.0 / v5.3 / v5.2 / v5.1.
 - **Document Intelligence (FE-50, v5.4)**: `warden/document_intel/converter.py` — `MarkItDownConverter` with SHA-256 Redis cache, file-type TTLs (PDF/DOCX 24h, audio 7d, images 1h), 50 MB gate (`DOC_INTEL_MAX_BYTES`), 30s thread timeout (`DOC_INTEL_TIMEOUT_S`). `warden/document_intel/api.py` — 6 endpoints at `/document-intel/*`. `FilterRequest` now has `file_base64: str | None` + `file_filename: str = "upload.bin"` — filter hook converts file to Markdown before pipeline (fail-open). `warden/communities/doc_converter.py` + `warden/api/doc_converter.py` — community API at `/doc-converter`. `POST /obsidian/scan-attachment`, `POST /prompt-library/from-file`. SOVA tool #50 `scan_document`. Prometheus counters: `warden_doc_intel_convert_total{ext,data_class}`, `warden_doc_intel_convert_errors_total{ext,error}`, `warden_doc_intel_cache_hits_total`. Portal `/doc-scanner/` page + server proxy (`portal/src/app/api/doc-scanner/route.ts`). Static Astro page `site/src/pages/cyber-security/document-intelligence.astro`. markitdown import wrapped in `except Exception` (not just `ImportError`) to handle Windows dotenv Unicode issue.
 - **Real-time Compliance Dashboard (CP-30, v5.5)**: `warden/compliance/models.py` — `Gap`, `FrameworkScore`, `ComplianceReport` dataclasses. `warden/compliance/posture_service.py` — `CompliancePostureService` with 19 controls across GDPR(6)/SOC2(5)/ISO27001(4)/HIPAA(4); all checks fail-safe (try/except → LOW gap if unavailable). Redis cache key `compliance:posture:{tenant_id}` (TTL `COMPLIANCE_CACHE_TTL`, default 300s); publishes to `compliance:events` on recompute. New endpoints in `warden/api/compliance_report.py`: `GET /compliance/posture/gaps`, `GET /compliance/posture/{framework}`, `POST /compliance/posture/recalculate`, `WebSocket /compliance/ws` (30s push loop). SOVA tool #51 `get_compliance_report` + tool #52 `remediate_gap`. Portal `/compliance/` self-service page + server proxy (`portal/src/app/api/compliance/route.ts`). Streamlit `21_Compliance_Dashboard.py` — 5-tab gap manager. 28 compliance tests (16 CP-25 + 12 CP-30), all green.
+- **Application Factory (v7.2)**: `warden/app_factory.py` — `RouterSpec` dataclass + `register_router_safe()` catches `Exception` (not just `ImportError`) so a broken sub-router init can never crash the security pipeline. `register_staff_routers()` wraps `warden/api/staff.py`, `warden/api/staff_agents.py`, `warden/api/voice.py`. `OPTIONAL_ROUTERS` holds 30+ entries for gradual migration. `warden/main.py` calls `register_staff_routers(app)` instead of inline try/except.
+- **Unit Economics Tracker (v7.2)**: `warden/staff/economics.py` — `TokenCostTracker` (SQLite `staff_action_costs`) records per-action LLM cost (Haiku $0.80/$4.00, Sonnet $3.00/$15.00, Opus $15.00/$75.00 per MTok). `StaffAgentRunner.run()` calls `_record_cost()` (fail-open) on every return path. `GET /staff/agents/economics/report` + `GET /staff/agents/economics/alerts`.
+- **Agent-to-Agent Protocol (v7.2)**: `warden/staff/a2a.py` — `A2ARouter` issues HMAC-SHA256 call tokens (`caller:target:tool:ts`), enforces an `ALLOWED_ROUTES` frozenset whitelist, and writes a SQLite audit trail of every cross-agent call. `GET /staff/agents/a2a/audit`.
+- **Structured JSON Logging (v7.2)**: `warden/staff/structured_log.py` — `emit()` writes fixed-schema JSON lines to the `warden.staff` logger (`agent_id, tenant_id, tool_name, model, input_tokens, output_tokens, cost_usd, latency_ms, status, detail`). `AgentSpan` is a stateful context object wired into `StaffAgentRunner.run()` covering `agent_start`/`tool_call`/`tool_result`/`agent_end`/`agent_error`.
+- **Security Contract Tests (v7.2)**: `warden/tests/test_contract_security.py` — 52 tests expressing business invariants (not coverage proxies) across SecretRedactor, SemanticGuard, TopologicalGatekeeper, ObfuscationDecoder, MaskingEngine. Use real module APIs: `SecretRedactor().redact().text`, `SemanticGuard().analyse().risk_level`, `scan().is_noise`, `decode().decoded_extra`, `engine.unmask(masked.masked, masked.session_id)`.
 
 ## Code Style
 

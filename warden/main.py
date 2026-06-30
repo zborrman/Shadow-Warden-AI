@@ -941,7 +941,7 @@ app = FastAPI(
         "**Rate limiting:** Per-tenant sliding window (default 60 req/min). "
         "Shadow-ban at ERS score ≥ 0.75."
     ),
-    version="5.6.0",
+    version="7.2.0",
     contact={"name": "Shadow Warden AI", "url": "https://shadow-warden-ai.com", "email": "security@shadow-warden-ai.com"},
     license_info={"name": "Proprietary", "url": "https://shadow-warden-ai.com/terms"},
     openapi_tags=[
@@ -6102,19 +6102,8 @@ async def contact(body: _ContactRequest):
         raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.") from exc
 
 
-try:
-    from warden.api.staff import router as _staff_router
-    app.include_router(_staff_router)
-    log.info("Digital Staff mounted at /staff (STAFF-01)")
-except ImportError:
-    log.warning("staff router not available — /staff routes skipped.")
-
-try:
-    from warden.api.staff_agents import router as _staff_agents_router
-    app.include_router(_staff_agents_router)
-    log.info("Digital Staff Agents mounted at /staff/agents (STAFF-02..05)")
-except ImportError:
-    log.warning("staff_agents router not available — /staff/agents routes skipped.")
+from warden.app_factory import register_staff_routers as _register_staff_routers
+_register_staff_routers(app)
 
 
 # ── Global error handler ──────────────────────────────────────────────────────

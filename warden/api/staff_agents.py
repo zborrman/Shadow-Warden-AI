@@ -12,6 +12,9 @@ GET  /staff/agents/compliance/sars       — SAR drafts
 GET  /staff/agents/support/tickets       — support tickets
 POST /staff/agents/support/tickets       — create a test ticket (dev only)
 GET  /staff/agents/support/refunds       — refund intent queue
+GET  /staff/agents/economics/report      — unit economics (cost per action)
+GET  /staff/agents/economics/alerts      — margin alerts (avg cost > threshold)
+GET  /staff/agents/a2a/audit             — A2A cross-agent call audit log
 """
 from __future__ import annotations
 
@@ -284,3 +287,29 @@ async def approve_refund_intent(intent_id: int, tenant_id: str = "default") -> d
         return {"intent_id": intent_id, "status": "APPROVED_FOR_PROCESSING"}
     finally:
         db.close()
+
+
+# ── Unit Economics endpoints ───────────────────────────────────────────────────
+
+@router.get("/economics/report")
+async def economics_report(tenant_id: str = "default", days: int = 30) -> dict:
+    """Per-action token cost breakdown for the last N days."""
+    from warden.staff.economics import get_tracker  # noqa: PLC0415
+    return get_tracker().get_report(tenant_id, days)
+
+
+@router.get("/economics/alerts")
+async def economics_alerts(tenant_id: str = "default", threshold_usd: float = 0.50) -> dict:
+    """Actions where average cost-per-call exceeds threshold_usd."""
+    from warden.staff.economics import get_tracker  # noqa: PLC0415
+    alerts = get_tracker().get_margin_alerts(tenant_id, threshold_usd)
+    return {"tenant_id": tenant_id, "threshold_usd": threshold_usd, "alerts": alerts}
+
+
+# ── A2A audit endpoint ─────────────────────────────────────────────────────────
+
+@router.get("/a2a/audit")
+async def a2a_audit(limit: int = 100) -> dict:
+    """Cross-agent (A2A) call audit log — last N entries."""
+    from warden.staff.a2a import get_a2a_router  # noqa: PLC0415
+    return {"calls": get_a2a_router().get_audit_log(limit)}

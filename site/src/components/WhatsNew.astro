@@ -1,10 +1,46 @@
 ---
 const releases = [
   {
-    version: 'v7.1',
+    version: 'v7.2',
     date: 'Jun 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '🏭',
+        title: 'Application Factory',
+        tier: 'All Plans',
+        desc: 'warden/app_factory.py — RouterSpec + register_router_safe() catches all exceptions (not just ImportError), isolating each sub-router so a broken staff agent initializer can never crash the security pipeline. 30+ routers in OPTIONAL_ROUTERS registry.',
+        tags: ['Resilience', 'Router Isolation', 'Fail-safe'],
+      },
+      {
+        icon: '💵',
+        title: 'Unit Economics Tracker',
+        tier: 'Pro+',
+        desc: 'warden/staff/economics.py — per-action LLM token cost tracking (Haiku/Sonnet/Opus pricing) in SQLite. GET /staff/agents/economics/report + /alerts. Wired into every StaffAgentRunner.run() call.',
+        tags: ['Cost Tracking', 'Digital Staff', 'SQLite'],
+      },
+      {
+        icon: '🤝',
+        title: 'Agent-to-Agent Protocol',
+        tier: 'Pro+',
+        desc: 'warden/staff/a2a.py — HMAC-SHA256 signed cross-functional routing between staff agents with an ALLOWED_ROUTES whitelist. SupportAgent consults ComplianceAgent before high-risk-country refunds. Full SQLite audit trail at GET /staff/agents/a2a/audit.',
+        tags: ['A2A', 'HMAC', 'Digital Staff'],
+      },
+      {
+        icon: '📋',
+        title: 'Structured JSON Logging',
+        tier: 'All Plans',
+        desc: 'warden/staff/structured_log.py — AgentSpan emits fixed-schema JSON lines (agent_id, tool_name, cost_usd, latency_ms, status) for every staff agent lifecycle event. Drop-in for Grafana/Loki dashboards, no regex parsing needed.',
+        tags: ['Observability', 'Loki', 'GDPR-safe'],
+      },
+    ],
+  },
+  {
+    version: 'v7.1',
+    date: 'Jun 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
     items: [
       {
         icon: '💳',

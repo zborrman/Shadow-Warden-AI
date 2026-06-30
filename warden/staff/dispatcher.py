@@ -9,6 +9,7 @@ Call order:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from warden.staff.boundaries import BoundaryRegistry, get_registry
@@ -47,7 +48,7 @@ async def staff_dispatch(
     from warden.staff.tools import STAFF_TOOL_HANDLERS  # noqa: PLC0415
 
     if tool_name in STAFF_TOOL_HANDLERS:
-        handler = STAFF_TOOL_HANDLERS[tool_name]
+        handler: Callable[..., Any] = STAFF_TOOL_HANDLERS[tool_name]  # type: ignore[assignment]
         return await handler(**tool_input)
 
     return await traced_dispatch(tool_name, tool_input)

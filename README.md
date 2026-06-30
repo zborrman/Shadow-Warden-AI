@@ -4,9 +4,23 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.1 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.2 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.2
+
+| Feature | Description |
+|---------|-------------|
+| **Application Factory** | `warden/app_factory.py` — `RouterSpec` + `register_router_safe()` catches all exceptions (not just `ImportError`), isolating each sub-router so a broken staff agent initializer cannot crash the security pipeline. Full `OPTIONAL_ROUTERS` registry with 30+ entries ready for incremental migration. |
+| **Unit Economics Tracker** | `warden/staff/economics.py` — per-action token cost tracking (Haiku $0.80/$4.00, Sonnet $3.00/$15.00, Opus $15.00/$75.00 per MTok). SQLite `staff_action_costs`. `GET /staff/agents/economics/report` + `/alerts` endpoints. `StaffAgentRunner` records cost after every run. |
+| **Agent-to-Agent Protocol** | `warden/staff/a2a.py` — HMAC-SHA256 signed cross-functional routing (caller:target:tool:ts). `ALLOWED_ROUTES` frozenset whitelist. SupportAgent → ComplianceAgent KYC pre-check before high-risk country refunds. SQLite audit trail. `GET /staff/agents/a2a/audit`. |
+| **Structured JSON Logging** | `warden/staff/structured_log.py` — `AgentSpan` context object emits fixed-schema JSON: `ts, event, agent_id, tenant_id, tool_name, model, input_tokens, output_tokens, cost_usd, latency_ms, status, detail`. Wired into `StaffAgentRunner` for every agent/tool lifecycle event. |
+| **Security Contract Tests** | `warden/tests/test_contract_security.py` — 52 invariant tests across 5 components: SecretRedactor (secrets never pass through), SemanticGuard (known injections always flagged), TopologicalGatekeeper (fail-safe, never crashes), ObfuscationDecoder (base64 decoded), MaskingEngine (round-trip lossless). |
+| **Claude Code Security Review** | `.github/workflows/claude-security-review.yml` — Claude Opus 4.8 auto-reviews PRs touching 13 security-critical files. Enforces 8 protected invariants: fail-open, HMAC refund, boundary check, secrets.choice, GDPR, PQC hybrid, velocity guard, auth fail-closed. |
+| **Cloudflare WAF Documentation** | `docs/cloudflare-waf.md` — rate limit rules (staff agents 30/60s, filter 200/60s, auth 10/60s), custom WAF rules (missing API key, body size gate), DNS/SSL config, Cloudflare Workers preflight stub. |
 
 ---
 

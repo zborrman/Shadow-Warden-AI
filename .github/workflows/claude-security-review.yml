@@ -1,0 +1,205 @@
+name: Claude Code — AI Security Review
+
+# Triggered on PRs that touch security-critical modules.
+# Uses Claude Code in non-interactive mode to audit changed files
+# for regressions in: boundary enforcement, fail-open logic, HMAC
+# usage, GDPR invariants, and shadow-ban fingerprint resistance.
+#
+# Required secrets:
+#   ANTHROPIC_API_KEY  — Claude API key (must have claude-opus-4-8 access)
+#
+# The review is INFORMATIONAL — it posts a PR comment but never blocks merge.
+# Set fail-on-high: true in workflow_dispatch to make it blocking for release gates.
+
+on:
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - "warden/staff/boundaries.py"
+      - "warden/staff/dispatcher.py"
+      - "warden/staff/velocity.py"
+      - "warden/topology_guard.py"
+      - "warden/causal_arbiter.py"
+      - "warden/shadow_ban.py"
+      - "warden/masking/engine.py"
+      - "warden/secret_redactor.py"
+      - "warden/obfuscation.py"
+      - "warden/auth_guard.py"
+      - "warden/billing/addons.py"
+      - "warden/communities/sep.py"
+      - "warden/crypto/pqc.py"
+  workflow_dispatch:
+    inputs:
+      target_files:
+        description: "Space-separated list of files to review (leave empty for full diff)"
+        required: false
+        default: ""
+      fail_on_high:
+        description: "Fail the job if HIGH or CRITICAL issues are found"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai-security-review:
+    name: AI Security Review (Claude Code)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+        env:
+          NODE_AUTH_TOKEN: ""
+
+      - name: Get changed security-critical files
+        id: changed-files
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.target_files }}" ]; then
+            echo "files=${{ inputs.target_files }}" >> "$GITHUB_OUTPUT"
+          else
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+            CHANGED=$(git diff --name-only "$BASE" "$HEAD" -- \
+              "warden/staff/boundaries.py" \
+              "warden/staff/dispatcher.py" \
+              "warden/staff/velocity.py" \
+              "warden/topology_guard.py" \
+              "warden/causal_arbiter.py" \
+              "warden/shadow_ban.py" \
+              "warden/masking/engine.py" \
+              "warden/secret_redactor.py" \
+              "warden/obfuscation.py" \
+              "warden/auth_guard.py" \
+              "warden/billing/addons.py" \
+              "warden/communities/sep.py" \
+              "warden/crypto/pqc.py" 2>/dev/null | tr '\n' ' ')
+            echo "files=$CHANGED" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build review prompt
+        id: prompt
+        if: steps.changed-files.outputs.files != ''
+        run: |
+          FILES="${{ steps.changed-files.outputs.files }}"
+          cat > /tmp/review_prompt.txt << 'PROMPT_EOF'
+          You are a security engineer auditing a production AI security gateway (Shadow Warden AI).
+          Review the following changed files for security regressions.
+
+          PROTECTED INVARIANTS — these must NEVER be removed or weakened:
+          1. Fail-open: topology_guard.scan(), causal_arbiter.arbitrate(), obfuscation.decode()
+             must return safe defaults (not raise) on ANY exception.
+          2. HMAC-only refunds: issue_refund() must call sign_refund_intent() and store
+             the intent — never pass payment credentials to an agent.
+          3. BoundaryRegistry: check_and_dispatch() must be called before every staff tool.
+          4. Shadow ban: _pick_response() must use secrets.choice() — never deterministic hash.
+          5. GDPR: content must NEVER appear in log entries — only metadata (type, length, timing).
+          6. PQC: hybrid signature verify must check BOTH Ed25519 AND ML-DSA-65 when is_hybrid=True.
+          7. VelocityGuard: record_and_check() must be called in staff_dispatch() — never skipped.
+          8. Auth fail-closed: startup must raise RuntimeError if WARDEN_API_KEY unset
+             and ALLOW_UNAUTHENTICATED != "true".
+
+          For each changed file, check:
+          - Are any of the above invariants weakened or removed?
+          - Are there new code paths that bypass boundary checks?
+          - Are there new external inputs that skip the filter pipeline?
+          - Are there timing side-channels in HMAC comparisons (use hmac.compare_digest)?
+          - Are there SQL injection risks in any new SQLite queries?
+          - Are there any hardcoded secrets or API keys?
+
+          Output format:
+          ## Security Review: <filename>
+          **Status:** PASS | WARN | HIGH | CRITICAL
+          **Findings:** bullet list (empty if PASS)
+          **Invariant check:** which invariants were verified
+
+          End with:
+          ## Summary
+          Overall verdict: PASS | WARN | HIGH | CRITICAL
+          PROMPT_EOF
+
+          echo "prompt_file=/tmp/review_prompt.txt" >> "$GITHUB_OUTPUT"
+
+      - name: Run Claude Code security review
+        id: review
+        if: steps.changed-files.outputs.files != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          FILES="${{ steps.changed-files.outputs.files }}"
+          PROMPT=$(cat /tmp/review_prompt.txt)
+
+          # Build file contents block
+          FILE_BLOCK=""
+          for f in $FILES; do
+            if [ -f "$f" ]; then
+              FILE_BLOCK="${FILE_BLOCK}\n\n### File: $f\n\`\`\`python\n$(cat "$f")\n\`\`\`"
+            fi
+          done
+
+          FULL_PROMPT="${PROMPT}\n\n---\nFILES TO REVIEW:\n${FILE_BLOCK}"
+
+          echo "$FULL_PROMPT" | claude --print --model claude-opus-4-8 > /tmp/review_output.txt 2>&1 || true
+
+          # Extract overall verdict
+          VERDICT=$(grep -i "^Overall verdict:" /tmp/review_output.txt | tail -1 | cut -d: -f2 | tr -d ' ')
+          echo "verdict=${VERDICT:-UNKNOWN}" >> "$GITHUB_OUTPUT"
+          echo "output_file=/tmp/review_output.txt" >> "$GITHUB_OUTPUT"
+
+      - name: Post review as PR comment
+        if: github.event_name == 'pull_request' && steps.changed-files.outputs.files != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const outputFile = '${{ steps.review.outputs.output_file }}';
+            const verdict = '${{ steps.review.outputs.verdict }}';
+            const files = '${{ steps.changed-files.outputs.files }}';
+
+            let body = '';
+            if (!files.trim()) {
+              body = '## Claude Code Security Review\n\n✅ No security-critical files changed in this PR.';
+            } else if (!fs.existsSync(outputFile)) {
+              body = '## Claude Code Security Review\n\n⚠️ Review skipped (ANTHROPIC_API_KEY not configured).';
+            } else {
+              const review = fs.readFileSync(outputFile, 'utf8');
+              const verdictEmoji = {
+                'PASS': '✅', 'WARN': '⚠️', 'HIGH': '🚨', 'CRITICAL': '🔴', 'UNKNOWN': '❓'
+              }[verdict] || '❓';
+              body = `## ${verdictEmoji} Claude Code Security Review\n\n**Files reviewed:** \`${files.trim()}\`\n\n${review}\n\n---\n*AI review by Claude Opus 4.8 — informational only. Human review required before merge.*`;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body.slice(0, 65535)
+            });
+
+      - name: Fail on HIGH/CRITICAL (optional gate)
+        if: >
+          inputs.fail_on_high == 'true' &&
+          (steps.review.outputs.verdict == 'HIGH' ||
+           steps.review.outputs.verdict == 'CRITICAL')
+        run: |
+          echo "::error::Security review verdict: ${{ steps.review.outputs.verdict }}"
+          echo "Review output:"
+          cat /tmp/review_output.txt
+          exit 1
+
+      - name: No security-critical files changed
+        if: steps.changed-files.outputs.files == ''
+        run: echo "No security-critical files changed — review skipped."

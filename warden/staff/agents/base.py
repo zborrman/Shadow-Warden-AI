@@ -23,6 +23,19 @@ log = logging.getLogger(__name__)
 
 _MAX_ITER = 8
 
+
+def _record_cost(
+    tenant_id: str, agent_id: str, query: str, model: str,
+    input_tokens: int, output_tokens: int,
+) -> None:
+    """Fire-and-forget cost record — fail-open."""
+    try:
+        from warden.staff.economics import get_tracker  # noqa: PLC0415
+        action = query[:64].replace("\n", " ").strip() if query else agent_id
+        get_tracker().record(tenant_id, agent_id, action, model, input_tokens, output_tokens)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Cost record skip (fail-open): %s", exc)
+
 _MODEL_BY_LEVEL = {
     1: "claude-haiku-4-5-20251001",
     2: "claude-sonnet-4-6",
@@ -65,6 +78,7 @@ class StaffAgentRunner:
 
         from warden.staff.boundaries import get_registry  # noqa: PLC0415
         from warden.staff.dispatcher import staff_dispatch  # noqa: PLC0415
+        from warden.staff.structured_log import AgentSpan  # noqa: PLC0415
 
         reg = get_registry(redis=redis)
         boundary = reg.get(self.AGENT_ID)
@@ -76,6 +90,8 @@ class StaffAgentRunner:
         tools_used: list[str] = []
         total_input = total_output = 0
         t0 = time.perf_counter()
+        span = AgentSpan(self.AGENT_ID, tenant_id, model, query)
+        span.start()
 
         for _iter in range(_MAX_ITER):
             resp = await client.messages.create(
@@ -90,10 +106,14 @@ class StaffAgentRunner:
             u = resp.usage
             total_input += u.input_tokens
             total_output += u.output_tokens
+            span.update_tokens(total_input, total_output)
 
             if resp.stop_reason == "end_turn":
                 final = "".join(b.text for b in resp.content if hasattr(b, "text"))
                 history.append({"role": "assistant", "content": final})
+                elapsed = round((time.perf_counter() - t0) * 1000, 1)
+                _record_cost(tenant_id, self.AGENT_ID, query, model, total_input, total_output)
+                span.end(total_input, total_output, detail=final[:80])
                 return {
                     "response": final,
                     "tools_used": tools_used,
@@ -101,7 +121,7 @@ class StaffAgentRunner:
                     "autonomy_level": autonomy,
                     "input_tokens": total_input,
                     "output_tokens": total_output,
-                    "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+                    "latency_ms": elapsed,
                 }
 
             if resp.stop_reason != "tool_use":
@@ -118,15 +138,18 @@ class StaffAgentRunner:
                 tool_input.setdefault("tenant_id", tenant_id)
                 tool_input.setdefault("agent_id", self.AGENT_ID)
                 tools_used.append(tool_name)
+                span.tool_call(tool_name)
 
                 try:
                     result = await staff_dispatch(self.AGENT_ID, tool_name, tool_input, registry=reg, redis=redis)
                     content = json.dumps(result, default=str)
                     is_error = False
+                    span.tool_result(tool_name, status="ok")
                 except Exception as exc:  # noqa: BLE001
                     content = f"Tool error: {exc}"
                     is_error = True
                     log.warning("%s: tool %s error: %s", self.AGENT_ID, tool_name, exc)
+                    span.tool_result(tool_name, status="error", detail=str(exc)[:80])
 
                 tool_results.append({
                     "type": "tool_result",
@@ -137,6 +160,9 @@ class StaffAgentRunner:
 
             history.append({"role": "user", "content": tool_results})
 
+        elapsed = round((time.perf_counter() - t0) * 1000, 1)
+        _record_cost(tenant_id, self.AGENT_ID, query, model, total_input, total_output)
+        span.end(total_input, total_output, detail="max_iter")
         return {
             "response": "Max iterations reached without conclusive answer.",
             "tools_used": tools_used,
@@ -144,7 +170,7 @@ class StaffAgentRunner:
             "autonomy_level": autonomy,
             "input_tokens": total_input,
             "output_tokens": total_output,
-            "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+            "latency_ms": elapsed,
         }
 
 

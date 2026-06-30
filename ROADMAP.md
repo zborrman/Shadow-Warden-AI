@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 7.1 · Last updated 2026-06-29**
+**Version 7.2 · Last updated 2026-06-30**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -32,6 +32,19 @@ We publish an updated priority snapshot every quarter. The `📋 Planned` items 
 | V7-08 | OTel `traced_dispatch` for SOVA tools — GDPR-safe spans, fail-open | ✅ |
 | V7-09 | DB snapshots for Loop Engineering — `scripts/db_snapshot.py` Fernet-encrypted, Step 1b in autonomous-security-loop.md | ✅ |
 | V7-10 | MAESTRO vertical tacit collusion detection — Pearson correlation ≥0.80 across ≥3 sellers | ✅ |
+
+## v7.2 Release — 2026-06-30
+
+| ID | Feature | Status |
+|----|---------|--------|
+| V7-11 | Application Factory — `warden/app_factory.py` `RouterSpec` + `register_router_safe()` (catches Exception, not just ImportError); `OPTIONAL_ROUTERS` registry 30+ routers; staff subsystem isolated | ✅ |
+| V7-12 | Unit Economics Token Tracker — `warden/staff/economics.py`; per-action SQLite cost (Haiku/Sonnet/Opus pricing); `GET /staff/agents/economics/report` + `/alerts`; wired into `StaffAgentRunner` | ✅ |
+| V7-13 | Agent-to-Agent Protocol — `warden/staff/a2a.py`; HMAC-SHA256 call tokens; `ALLOWED_ROUTES` whitelist; SupportAgent→ComplianceAgent KYC pre-check on high-risk country refunds; SQLite audit; `GET /staff/agents/a2a/audit` | ✅ |
+| V7-14 | Structured JSON Logging — `warden/staff/structured_log.py`; `AgentSpan` fixed schema (ts, event, agent_id, tool_name, cost_usd, latency_ms); wired into every staff agent lifecycle event | ✅ |
+| V7-15 | Security Contract Tests — `test_contract_security.py` 52 invariant tests: SecretRedactor / SemanticGuard / TopologicalGatekeeper / ObfuscationDecoder / MaskingEngine | ✅ |
+| V7-16 | Claude Code Security Review in CI — `.github/workflows/claude-security-review.yml` Opus 4.8 auto-reviews PRs on 13 security-critical files, enforces 8 protected invariants | ✅ |
+| V7-17 | Cloudflare WAF Documentation — `docs/cloudflare-waf.md` rate limits, custom rules, Workers preflight, DNS/SSL config | ✅ |
+| V7-18 | Digital Staff unit tests — 129 tests across topology/causal/shadow_ban/masking/dispatcher/economics/a2a; mypy dispatcher `[operator]` fix | ✅ |
 
 ---
 
