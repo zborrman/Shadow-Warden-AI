@@ -6102,6 +6102,14 @@ async def contact(body: _ContactRequest):
         raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.") from exc
 
 
+try:
+    from warden.api.staff import router as _staff_router
+    app.include_router(_staff_router)
+    log.info("Digital Staff mounted at /staff (STAFF-01)")
+except ImportError:
+    log.warning("staff router not available — /staff routes skipped.")
+
+
 # ── Global error handler ──────────────────────────────────────────────────────
 
 @app.exception_handler(Exception)
