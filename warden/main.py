@@ -1790,6 +1790,64 @@ async def health():
     }
 
 
+# ── Pipeline health ───────────────────────────────────────────────────────────
+
+@app.get("/health/pipeline", tags=["ops"], summary="Per-stage pipeline health")
+async def health_pipeline() -> dict:
+    """Reports availability of each filter stage, the ML model, and Turso connections."""
+    stages: dict[str, dict] = {}
+
+    def _try_import(label: str, module: str, cls: str) -> None:
+        try:
+            mod = __import__(module, fromlist=[cls])
+            getattr(mod, cls)
+            stages[label] = {"status": "ok"}
+        except Exception as exc:
+            stages[label] = {"status": "unavailable", "error": str(exc)[:80]}
+
+    _try_import("topology",       "warden.topology_guard",  "TopologicalGatekeeper")
+    _try_import("obfuscation",    "warden.obfuscation",     "ObfuscationDecoder")
+    _try_import("secrets",        "warden.secret_redactor", "SecretRedactor")
+    _try_import("semantic_rules", "warden.semantic_guard",  "SemanticGuard")
+
+    # Brain stage — check whether MiniLM model is already loaded (no trigger)
+    try:
+        from warden.brain import semantic as _brain_mod  # noqa: PLC0415
+        loaded = _brain_mod._load_model.cache_info().currsize > 0
+        stages["brain"] = {"status": "ok" if loaded else "loading", "model_loaded": loaded}
+    except Exception as exc:
+        stages["brain"] = {"status": "unavailable", "error": str(exc)[:80]}
+
+    _try_import("causal", "warden.causal_arbiter",  "CausalArbiter")
+    _try_import("phish",  "warden.phishing_guard",  "PhishGuard")
+
+    # ERS stage — backed by Redis
+    _redis_h = _check_redis_health()
+    stages["ers"] = {
+        "status": "ok" if _redis_h["status"] == "ok" else _redis_h["status"],
+        "redis_latency_ms": _redis_h.get("latency_ms"),
+    }
+
+    stages["decision"] = {"status": "ok"}
+
+    # Turso connection summary
+    turso: dict[str, bool] = {}
+    try:
+        from warden.db.turso import is_turso_enabled  # noqa: PLC0415
+        for _db in ("billing_audit", "acp", "marketplace", "sep", "staff"):
+            turso[_db] = is_turso_enabled(_db)
+    except Exception:
+        pass
+
+    degraded = [k for k, v in stages.items() if v["status"] not in ("ok", "loading")]
+    return {
+        "status":          "degraded" if degraded else "ok",
+        "stages":          stages,
+        "turso":           turso,
+        "degraded_stages": degraded,
+    }
+
+
 # ── Dashboard stats API ───────────────────────────────────────────────────────
 
 @app.get("/api/stats", tags=["ops"], summary="Aggregated filter stats for dashboard")

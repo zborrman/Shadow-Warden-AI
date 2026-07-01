@@ -8,6 +8,12 @@ Per x402/1.0 spec:
   - Pre-funded balance model in v1 (channel-based); on-chain USDC batch settlement via Circle
     Gateway is the target for v2 (deductions queued in x402_pending_deductions).
   - Fail-open: gate exceptions must NEVER block legitimate search traffic.
+
+Replay protection (v7.4):
+  PAYMENT-SIGNATURE payload MUST include:
+    {"agent_id": "...", "nonce": "<uuid4>", "issued_at": <unix_ts>}
+  Server validates: issued_at within 5 min, nonce not previously seen.
+  Old clients without nonce/issued_at are allowed through with a warning.
 """
 from __future__ import annotations
 
@@ -19,18 +25,22 @@ import sqlite3
 import threading
 import time
 import uuid
+from contextlib import suppress
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 log = logging.getLogger("warden.marketplace.x402_gate")
+_x402_audit_log = logging.getLogger("warden.x402.audit")
 
-_X402_ENABLED   = os.getenv("X402_GATE_ENABLED", "false").lower() == "true"
-_SEARCH_FEE_USD = Decimal(os.getenv("MARKETPLACE_SEARCH_FEE_USD", "0.000001"))
-_DB_PATH        = os.getenv("MARKETPLACE_X402_DB_PATH", "/tmp/warden_x402_marketplace.db")
-_PAYMENT_ADDR   = os.getenv("MARKETPLACE_X402_PAYMENT_ADDRESS", "0x0000000000000000000000000000000000000000")
-_db_lock        = threading.RLock()
+_X402_ENABLED      = os.getenv("X402_GATE_ENABLED", "false").lower() == "true"
+_SEARCH_FEE_USD    = Decimal(os.getenv("MARKETPLACE_SEARCH_FEE_USD", "0.000001"))
+_DB_PATH           = os.getenv("MARKETPLACE_X402_DB_PATH", "/tmp/warden_x402_marketplace.db")
+_PAYMENT_ADDR      = os.getenv("MARKETPLACE_X402_PAYMENT_ADDRESS", "0x0000000000000000000000000000000000000000")
+_db_lock           = threading.RLock()
+_NONCE_TTL_SECONDS = 300  # 5 minutes — must match PAYMENT-REQUIRED expires_at window
 
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
@@ -50,8 +60,16 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
             status       TEXT NOT NULL DEFAULT 'pending',
             queued_at    TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS x402_used_nonces (
+            nonce      TEXT PRIMARY KEY,
+            agent_id   TEXT NOT NULL,
+            used_at    INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        );
         CREATE INDEX IF NOT EXISTS idx_x402_pending_agent
             ON x402_pending_deductions(agent_id, status);
+        CREATE INDEX IF NOT EXISTS idx_x402_nonces_expiry
+            ON x402_used_nonces(expires_at);
     """)
 
 
@@ -77,15 +95,71 @@ def _build_payment_required_header(resource: str) -> str:
     return base64.b64encode(json.dumps(payload).encode()).decode()
 
 
-def _extract_agent_id(sig_header: str) -> str | None:
-    """Parse agent_id from base64-encoded PAYMENT-SIGNATURE header. Returns None on error."""
+def _extract_sig_payload(sig_header: str) -> dict | None:
+    """Decode PAYMENT-SIGNATURE header → dict. Returns None on error."""
     if not sig_header:
         return None
     try:
-        decoded = json.loads(base64.b64decode(sig_header).decode())
-        return str(decoded.get("agent_id", "")) or None
+        return json.loads(base64.b64decode(sig_header).decode())
     except Exception:
         return None
+
+
+def _extract_agent_id(sig_header: str) -> str | None:
+    """Parse agent_id from PAYMENT-SIGNATURE header. Returns None on error."""
+    payload = _extract_sig_payload(sig_header)
+    if not payload:
+        return None
+    return str(payload.get("agent_id", "")) or None
+
+
+def _consume_nonce(agent_id: str, nonce: str, issued_at: int) -> bool:
+    """Validate and consume a nonce for replay prevention.
+
+    Returns True  — nonce is fresh and unused (access allowed).
+    Returns False — nonce already used or issued_at outside 5-min window (replay).
+    Fail-open: any DB error returns True to avoid blocking legitimate traffic.
+    """
+    now = int(time.time())
+    if abs(now - issued_at) > _NONCE_TTL_SECONDS:
+        log.warning("x402 replay: issued_at out of window agent=%s delta=%ds", agent_id[:24], now - issued_at)
+        return False
+    expires = now + _NONCE_TTL_SECONDS
+    try:
+        with _db_lock:
+            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
+            try:
+                _ensure_schema(con)
+                con.execute("DELETE FROM x402_used_nonces WHERE expires_at < ?", (now,))
+                try:
+                    con.execute(
+                        "INSERT INTO x402_used_nonces (nonce, agent_id, used_at, expires_at) "
+                        "VALUES (?, ?, ?, ?)",
+                        (nonce, agent_id, now, expires),
+                    )
+                    con.commit()
+                    return True
+                except sqlite3.IntegrityError:
+                    log.warning("x402 replay: nonce already used agent=%s nonce=%.8s...", agent_id[:24], nonce)
+                    return False
+            finally:
+                con.close()
+    except Exception as exc:
+        log.debug("x402 nonce check error (fail-open): %s", exc)
+        return True
+
+
+def _log_payment_bypassed(tenant_id: str, resource: str, reason: str) -> None:
+    """Emit structured JSON audit line when x402 gate fails open."""
+    line = json.dumps({
+        "ts":                datetime.now(tz=UTC).isoformat(timespec="milliseconds"),
+        "event":             "payment_bypassed",
+        "tenant_id":         tenant_id,
+        "resource":          resource,
+        "reason":            reason,
+        "payment_bypassed":  True,
+    }, separators=(",", ":"))
+    _x402_audit_log.warning(line)
 
 
 def _has_sufficient_balance(agent_id: str) -> bool:
@@ -127,9 +201,27 @@ async def require_payment(request: Request, resource: str) -> JSONResponse | Non
     if not _X402_ENABLED:
         return None
     try:
-        sig_header = request.headers.get("PAYMENT-SIGNATURE", "")
-        agent_id   = _extract_agent_id(sig_header)
-        tenant_id  = _get_tenant_id(request)
+        sig_header  = request.headers.get("PAYMENT-SIGNATURE", "")
+        sig_payload = _extract_sig_payload(sig_header)
+        agent_id    = str(sig_payload.get("agent_id", "")) or None if sig_payload else None
+        tenant_id   = _get_tenant_id(request)
+
+        # Replay protection — only enforced when client sends nonce + issued_at
+        if sig_payload and agent_id:
+            nonce     = sig_payload.get("nonce")
+            issued_at = sig_payload.get("issued_at")
+            if nonce and issued_at is not None:
+                if not _consume_nonce(agent_id, str(nonce), int(issued_at)):
+                    return JSONResponse(
+                        status_code=402,
+                        content={
+                            "error":    "replay_detected",
+                            "resource": resource,
+                            "message":  "PAYMENT-SIGNATURE nonce already used or issued_at expired.",
+                        },
+                    )
+            else:
+                log.debug("x402: no nonce in sig (old client) — replay protection skipped")
 
         # ── 1. Credits fast-path (enterprise budget-predictable access) ───────
         try:
@@ -188,6 +280,12 @@ async def require_payment(request: Request, resource: str) -> JSONResponse | Non
         return None
     except Exception as exc:
         log.warning("x402 gate error (fail-open): %s", exc)
+        with suppress(Exception):
+            _log_payment_bypassed(
+                tenant_id=_get_tenant_id(request),
+                resource=resource,
+                reason=f"gate_exception:{type(exc).__name__}",
+            )
         return None
 
 
