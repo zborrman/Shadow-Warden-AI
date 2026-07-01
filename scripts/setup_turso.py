@@ -33,7 +33,8 @@ import httpx
 ORG        = "shadow-warden-ai"
 API_BASE   = "https://api.turso.tech"
 TOKEN      = os.environ.get("TURSO_API_TOKEN", "")
-GROUP      = "default"
+GROUP      = "default"           # group must be created manually in the Turso dashboard first
+GROUP_LOC  = "aws-us-east-1"    # Turso migrated from Fly.io codes to AWS region codes
 OUTPUT     = Path(".env.turso")
 
 DATABASES = [
@@ -56,8 +57,8 @@ def _create_database(client: httpx.Client, name: str) -> str:
         json={"name": name, "group": GROUP},
         headers=_headers(),
     )
-    if r.status_code == 422 and "already exists" in r.text.lower():
-        print(f"  ⚠  {name}: already exists — fetching hostname")
+    if r.status_code in (409, 422) and "already exists" in r.text.lower():
+        print(f"  !!  {name}: already exists -- fetching hostname")
         r2 = client.get(
             f"{API_BASE}/v1/organizations/{ORG}/databases/{name}",
             headers=_headers(),
@@ -66,7 +67,7 @@ def _create_database(client: httpx.Client, name: str) -> str:
         return r2.json()["database"]["Hostname"]
     r.raise_for_status()
     hostname = r.json()["database"]["Hostname"]
-    print(f"  ✓  created {name} → {hostname}")
+    print(f"  OK  created {name} -> {hostname}")
     return hostname
 
 
@@ -113,7 +114,7 @@ def main() -> None:
             time.sleep(1)   # brief pause — Turso needs time to provision the DB
             token = _create_token(client, db_name)
             url = f"libsql://{hostname}"
-            print(f"  ✓  token issued for {db_name}\n")
+            print(f"  OK  token issued for {db_name}\n")
             results.append({
                 "db_name":   db_name,
                 "hostname":  hostname,
