@@ -157,6 +157,30 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
+      - name: Configure Claude Code for CI
+        run: |
+          # Pre-accept the trust dialog and mark onboarding complete so claude --print
+          # doesn't block on interactive prompts in the non-TTY runner environment.
+          mkdir -p "$HOME/.claude"
+          python3 - <<'PYEOF'
+          import json, os, pathlib
+          workspace = os.environ.get("GITHUB_WORKSPACE",
+              "/home/runner/work/Shadow-Warden-AI/Shadow-Warden-AI")
+          cfg_path = pathlib.Path.home() / ".claude.json"
+          existing = {}
+          if cfg_path.exists():
+              try:
+                  existing = json.loads(cfg_path.read_text())
+              except Exception:
+                  pass
+          existing.setdefault("hasCompletedOnboarding", True)
+          existing.setdefault("projects", {})[workspace] = {
+              "hasTrustDialogAccepted": True
+          }
+          cfg_path.write_text(json.dumps(existing, indent=2))
+          print(f"Claude Code trust accepted for: {workspace}")
+          PYEOF
+
       - name: Install Python deps
         run: |
           pip install ruff mypy --quiet

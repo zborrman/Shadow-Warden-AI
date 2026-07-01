@@ -5,6 +5,7 @@
 ## Autonomous Loop Log
 <!-- Entries appended by .github/workflows/autonomous-security-loop.yml -->
 2026-06-28T16:35:00Z — Loop blueprint installed. Nightly cron active (02:00 UTC). 32/32 Playwright tests green.
+CHECKER_REJECTED: Ignoring 13 permissions.allow entries from .claude/settings.json: this workspace has not been trusted. Not logged in · Please run /login. Root cause: runner missing /home/runner/.claude.json trust config. Fix: workflow now pre-creates trusted claude.json before maker/checker steps.
 
 ## Shipped (complete)
 
