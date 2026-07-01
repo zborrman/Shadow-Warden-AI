@@ -4,9 +4,31 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.2 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.4 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.4
+
+| Feature | Description |
+|---------|-------------|
+| **Pipeline Health Endpoint** | `GET /health/pipeline` — per-stage status for all 9 filter stages with `model_loaded` flag and Turso connection summary. Enables precise alerting on partial pipeline degradation without a full liveness probe. |
+| **x402 Replay Protection** | `PAYMENT-SIGNATURE` now validated for `nonce` (UUID4) + `issued_at` (Unix timestamp) within ±5 min window. Used nonces tracked in `x402_used_nonces` SQLite table — prevents double-spend replay attacks. Backward-compatible: old clients without nonce/issued_at pass through with a debug log. |
+| **payment_bypassed Audit Log** | `warden.x402.audit` logger emits fixed-schema JSON on every x402 gate fail-open: `ts, event, tenant_id, resource, reason, payment_bypassed=true`. Enables Loki/Grafana alerts on unexplained payment bypasses. |
+| **CI Loop Trust Fix** | `autonomous-security-loop.yml` pre-writes `/home/runner/.claude.json` (`hasTrustDialogAccepted + hasCompletedOnboarding`) before Maker/Checker `claude --print` calls. Fixes "workspace not trusted" and "not logged in" errors blocking the nightly loop. |
+
+---
+
+## What's New in v7.3
+
+| Feature | Description |
+|---------|-------------|
+| **Paid MCP Gateway** | `warden/mcp/gateway.py` — Claude-compatible MCP server exposing the 9-stage pipeline as callable tools with x402 nanopayment gate. Agents pay per tool call (filter, explain, mask/unmask, scan). JWT bearer auth, per-tool credit gating, Turso-backed billing audit. |
+| **ACP Protocol** | `warden/protocols/acp/` — Agent Commerce Protocol (AP2) multi-agent auction engine with HMAC-signed payment tokens, shared cart semantics, refund intents, and Turso-backed token vault. Agents negotiate and settle payments programmatically. |
+| **Zero-Trust Billing Audit Chain** | `warden/billing/audit_chain.py` — SHA-256 hash chain with genesis block. Every MCP call, ACP checkout, and staff agent cost appends a tamper-evident event. Chain verifiable offline. Live on Turso `warden-billing-audit`. |
+| **Turso Distributed SQLite** | `warden/db/turso.py` — sqlite3-compatible HTTP adapter for Turso/libSQL. 5 production databases on `aws-us-east-1`: billing-audit, acp, marketplace, sep, staff. Auto-fallback to local SQLite when `TURSO_URL_*` unset. |
 
 ---
 

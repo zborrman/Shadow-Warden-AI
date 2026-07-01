@@ -1,10 +1,82 @@
 ---
 const releases = [
   {
-    version: 'v7.2',
-    date: 'Jun 2026',
+    version: 'v7.4',
+    date: 'Jul 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '🩺',
+        title: 'Pipeline Health Endpoint',
+        tier: 'All Plans',
+        desc: 'GET /health/pipeline reports per-stage status for all 9 filter stages (topology → obfuscation → secrets → semantic_rules → brain → causal → phish → ers → decision) with model_loaded flag and Turso connection summary. Enables precise alerting on partial pipeline degradation.',
+        tags: ['Observability', 'Health', 'Turso', 'Pipeline'],
+      },
+      {
+        icon: '🔁',
+        title: 'x402 Replay Protection',
+        tier: 'All Plans',
+        desc: 'PAYMENT-SIGNATURE now validated for nonce (UUID4) and issued_at (Unix timestamp) within ±5 min window. Consumed nonces tracked in x402_used_nonces SQLite table — prevents double-spend replay attacks. Backward-compatible: old clients without nonce/issued_at pass through with a debug log.',
+        tags: ['x402', 'Replay Prevention', 'Security', 'Nanopayment'],
+      },
+      {
+        icon: '📊',
+        title: 'payment_bypassed Audit Log',
+        tier: 'All Plans',
+        desc: 'warden.x402.audit logger emits fixed-schema JSON on every x402 gate fail-open event (tenant_id, resource, reason, payment_bypassed=true). Enables Loki/Grafana alerts on unexplained payment bypasses without relying on ad-hoc grep.',
+        tags: ['Audit', 'x402', 'Loki', 'Grafana'],
+      },
+      {
+        icon: '🤖',
+        title: 'CI Loop Trust Fix',
+        tier: 'All Plans',
+        desc: 'autonomous-security-loop.yml now pre-writes /home/runner/.claude.json (hasTrustDialogAccepted + hasCompletedOnboarding) before Maker/Checker claude --print calls. Fixes "workspace not trusted" and "not logged in" errors that blocked the nightly autonomous loop.',
+        tags: ['CI/CD', 'Autonomous Loop', 'Claude Code'],
+      },
+    ],
+  },
+  {
+    version: 'v7.3',
+    date: 'Jul 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
+    items: [
+      {
+        icon: '🔌',
+        title: 'Paid MCP Gateway',
+        tier: 'Pro+',
+        desc: 'warden/mcp/gateway.py — Claude-compatible MCP server exposing all 9 pipeline stages as tools with x402 nanopayment gate. Agents pay per tool call (filter, explain, mask/unmask, scan). JWT bearer auth, per-tool credit gating, Turso-backed billing audit.',
+        tags: ['MCP', 'x402', 'Monetization', 'Agents'],
+      },
+      {
+        icon: '🤝',
+        title: 'ACP Protocol (Agent Commerce Protocol)',
+        tier: 'Pro+',
+        desc: 'warden/protocols/acp/ — AP2 multi-agent auction engine with HMAC-signed payment tokens, shared cart semantics, refund intents, and Turso-backed token vault. Agents negotiate, bid, and settle payments programmatically without a human in the loop.',
+        tags: ['ACP', 'AP2', 'Multi-Agent', 'Commerce'],
+      },
+      {
+        icon: '⛓',
+        title: 'Zero-Trust Billing Audit Chain',
+        tier: 'All Plans',
+        desc: 'warden/billing/audit_chain.py — SHA-256 hash chain (genesis block → sequential events). Every MCP call, ACP checkout, and staff agent cost appends a tamper-evident event. Chain integrity verifiable offline. Turso-backed in production (warden-billing-audit).',
+        tags: ['Audit', 'Hash Chain', 'Turso', 'Zero-Trust'],
+      },
+      {
+        icon: '🌐',
+        title: 'Turso Distributed SQLite',
+        tier: 'All Plans',
+        desc: '5 production databases on aws-us-east-1: warden-billing-audit, warden-acp, warden-marketplace, warden-sep, warden-staff. sqlite3-compatible HTTP adapter (warden/db/turso.py) — zero code changes to callers. Auto-fallback to local SQLite when TURSO_URL_* unset.',
+        tags: ['Turso', 'SQLite', 'Distributed', 'Production'],
+      },
+    ],
+  },
+  {
+    version: 'v7.2',
+    date: 'Jun 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
     items: [
       {
         icon: '🏭',

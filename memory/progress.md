@@ -1,6 +1,6 @@
 # Project Progress — Shadow Warden AI
 
-**Current version:** 7.0 | **Last updated:** 2026-06-28
+**Current version:** 7.4 | **Last updated:** 2026-07-01
 
 ## Autonomous Loop Log
 <!-- Entries appended by .github/workflows/autonomous-security-loop.yml -->
