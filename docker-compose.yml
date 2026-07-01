@@ -224,6 +224,18 @@ services:
       - PORTAL_JWT_SECRET=${PORTAL_JWT_SECRET:-change-me-generate-a-strong-secret-key-32ch}
       - PORTAL_ACCESS_TOKEN_TTL=${PORTAL_ACCESS_TOKEN_TTL:-60}
       - PORTAL_REFRESH_TOKEN_TTL=${PORTAL_REFRESH_TOKEN_TTL:-7}
+      # Turso distributed SQLite (set in .env to activate remote DBs)
+      - TURSO_URL_BILLING_AUDIT=${TURSO_URL_BILLING_AUDIT:-}
+      - TURSO_TOKEN_BILLING_AUDIT=${TURSO_TOKEN_BILLING_AUDIT:-}
+      - TURSO_URL_ACP=${TURSO_URL_ACP:-}
+      - TURSO_TOKEN_ACP=${TURSO_TOKEN_ACP:-}
+      - TURSO_URL_MARKETPLACE=${TURSO_URL_MARKETPLACE:-}
+      - TURSO_TOKEN_MARKETPLACE=${TURSO_TOKEN_MARKETPLACE:-}
+      - TURSO_URL_SEP=${TURSO_URL_SEP:-}
+      - TURSO_TOKEN_SEP=${TURSO_TOKEN_SEP:-}
+      - TURSO_URL_STAFF=${TURSO_URL_STAFF:-}
+      - TURSO_TOKEN_STAFF=${TURSO_TOKEN_STAFF:-}
+      - TURSO_AUTO_MIGRATE=${TURSO_AUTO_MIGRATE:-false}
     volumes:
       - warden-models:/warden/models
       - ./scripts:/warden/scripts:ro
