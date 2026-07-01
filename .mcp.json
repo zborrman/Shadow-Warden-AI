@@ -37,6 +37,17 @@
       "_note": "Coinbase Developer Platform MCP. Used by x402 v2 settlement: check_usdc_balance, transfer_usdc, create_wallet. Activate by setting CDP_API_KEY_NAME + CDP_API_KEY_PRIVATE_KEY in /opt/shadow-warden/.env. Testnet: base-sepolia. Production: base. Never set CDP keys in .mcp.json directly."
     },
 
+    "shadow-warden-staff-tools": {
+      "type": "http",
+      "url": "http://localhost:8001/mcp/",
+      "headers": {
+        "X-API-Key":          "${WARDEN_API_KEY:-}",
+        "X-Tenant-ID":        "${MCP_TENANT_ID:-default}",
+        "PAYMENT-SIGNATURE":  "${MCP_PAYMENT_SIGNATURE:-}"
+      },
+      "_note": "Paid MCP gateway — Shadow Warden staff tools (KYC/AML, SEO, BDR, Support). Per-call billing via Flex Credits or x402 USDC. Register: POST /marketplace/register. Fund: POST /marketplace/x402/fund. Pricing: $0.001 (KB lookup) – $0.10 (SAR draft). Gate is fail-open when X402_GATE_ENABLED=false (dev)."
+    },
+
     "marketplace-otel": {
       "command": "uvx",
       "args": ["openlit-mcp"],

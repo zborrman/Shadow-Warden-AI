@@ -119,6 +119,7 @@ OPTIONAL_ROUTERS: list[RouterSpec] = [
     RouterSpec("warden.document_intel.api",            label="Document Intel /document-intel"),
     RouterSpec("warden.api.obsidian",                  label="Obsidian /obsidian"),
     RouterSpec("warden.agent.master",                  attr="master_router",  label="MasterAgent /agent/master"),
+    RouterSpec("warden.mcp.gateway",                   label="MCP Paid Tools /mcp"),
     # Staff subsystem — registered via register_staff_routers()
     *STAFF_ROUTERS,
 ]

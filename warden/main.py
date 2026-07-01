@@ -1571,6 +1571,20 @@ try:
     from warden.marketplace.api_negotiations import router as _mkt_negotiations_router
     app.include_router(_marketplace_router)
     app.add_api_route("/.well-known/agent.json", agent_discovery_alias, methods=["GET"], include_in_schema=False)
+
+    async def _acp_manifest_alias():
+        import os
+        base = os.getenv("ACP_BASE_URL", "https://api.shadow-warden-ai.com")
+        mid  = os.getenv("ACP_MERCHANT_ID", "shadow-warden-ai")
+        from warden.protocols.acp.models import ACPMerchantManifest
+        return ACPMerchantManifest(
+            merchant_id=mid,
+            token_endpoint=f"{base}/acp/token",
+            checkout_endpoint=f"{base}/acp/cart/{{cart_id}}/checkout",
+            refund_endpoint=f"{base}/acp/refund",
+            receipt_endpoint=f"{base}/acp/receipt/{{order_id}}",
+        ).model_dump()
+    app.add_api_route("/.well-known/acp.json", _acp_manifest_alias, methods=["GET"], include_in_schema=False)
     app.include_router(_mkt_agents_router, prefix="/marketplace")
     app.include_router(_mkt_assets_router, prefix="/marketplace")
     app.include_router(_mkt_listings_router, prefix="/marketplace")
@@ -6102,8 +6116,11 @@ async def contact(body: _ContactRequest):
         raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.") from exc
 
 
-from warden.app_factory import register_staff_routers as _register_staff_routers
+from warden.app_factory import register_staff_routers as _register_staff_routers, register_router_safe, RouterSpec as _RouterSpec
 _register_staff_routers(app)
+register_router_safe(app, _RouterSpec("warden.mcp.gateway", label="MCP Paid Tools /mcp"))
+register_router_safe(app, _RouterSpec("warden.api.acp", label="ACP Protocol /acp"))
+register_router_safe(app, _RouterSpec("warden.api.billing_audit", label="Billing Audit Chain /billing/audit"))
 
 
 # ── Global error handler ──────────────────────────────────────────────────────

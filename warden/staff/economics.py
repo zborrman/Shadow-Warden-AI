@@ -109,6 +109,23 @@ class TokenCostTracker:
             )
         except Exception as exc:  # noqa: BLE001
             log.warning("ECONOMICS record failed (fail-open): %s", exc)
+
+        # Billing audit chain — fail-open, never blocks
+        try:
+            from warden.billing.audit_chain import STAFF_CALL, append_billing_event  # noqa: PLC0415
+            append_billing_event(
+                tenant_id=tenant_id,
+                event_type=STAFF_CALL,
+                cost_usd=cost,
+                agent_id=agent_id,
+                tool_name=action,
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.debug("billing_audit hook failed (fail-open): %s", exc)
+
         return entry
 
     def get_report(self, tenant_id: str, days: int = 30) -> dict:

@@ -224,6 +224,20 @@ async def deduct_payment(agent_id: str, resource: str, amount_usd: Decimal | Non
             finally:
                 con.close()
         log.debug("x402 deduction queued: agent=%s resource=%s amount=%s", agent_id[:24], resource, amount)
+
+        # Billing audit chain — fail-open
+        try:
+            from warden.billing.audit_chain import MCP_CALL, append_billing_event  # noqa: PLC0415
+            append_billing_event(
+                tenant_id=agent_id,    # x402 uses agent_id as the billing identity
+                event_type=MCP_CALL,
+                amount_usd=amount,
+                agent_id=agent_id,
+                tool_name=resource,
+            )
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("billing_audit x402 hook failed (fail-open): %s", _exc)
+
         return True
     except Exception as exc:
         log.warning("x402 deduct error (fail-open): %s", exc)
