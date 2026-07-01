@@ -46,23 +46,50 @@ class ActionCost:
     ts: int = field(default_factory=lambda: int(time.time()))
 
 
+_STAFF_DDL = """
+    CREATE TABLE IF NOT EXISTS staff_action_costs (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id     TEXT    NOT NULL,
+        agent_id      TEXT    NOT NULL,
+        action        TEXT    NOT NULL,
+        model         TEXT    NOT NULL,
+        input_tokens  INTEGER NOT NULL,
+        output_tokens INTEGER NOT NULL,
+        cost_usd      REAL    NOT NULL,
+        ts            INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sac_tenant ON staff_action_costs(tenant_id, ts);
+"""
+
+
 def _db(path: str = _DB_PATH) -> sqlite3.Connection:
+    """Return a SQLite or Turso connection for the staff economics database."""
+    try:
+        from contextlib import suppress  # noqa: PLC0415
+
+        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
+        if is_turso_enabled("staff") and path == _DB_PATH:
+            # Return a proxy that mimics sqlite3.Connection commit/close lifecycle
+            class _TursoProxy:
+                def __init__(self, inner):
+                    self._c = inner
+                def execute(self, sql, params=()):
+                    return self._c.execute(sql, params)
+                def commit(self):
+                    pass
+                def close(self):
+                    pass
+                row_factory = None
+            ctx = get_connection("staff", fallback_path=_DB_PATH)
+            con = ctx.__enter__()
+            with suppress(Exception):
+                con.executescript(_STAFF_DDL)
+            return _TursoProxy(con)  # type: ignore[return-value]
+    except (ImportError, Exception):
+        pass
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS staff_action_costs (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id     TEXT    NOT NULL,
-            agent_id      TEXT    NOT NULL,
-            action        TEXT    NOT NULL,
-            model         TEXT    NOT NULL,
-            input_tokens  INTEGER NOT NULL,
-            output_tokens INTEGER NOT NULL,
-            cost_usd      REAL    NOT NULL,
-            ts            INTEGER NOT NULL
-        )
-    """)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_sac_tenant ON staff_action_costs(tenant_id, ts)")
+    conn.executescript(_STAFF_DDL)
     conn.commit()
     return conn
 

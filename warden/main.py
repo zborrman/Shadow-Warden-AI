@@ -6116,10 +6116,22 @@ async def contact(body: _ContactRequest):
         raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.") from exc
 
 
-from warden.app_factory import register_staff_routers as _register_staff_routers, register_router_safe, RouterSpec as _RouterSpec
+from warden.app_factory import (
+    RouterSpec as _RouterSpec,
+    register_router_safe,
+    register_staff_routers as _register_staff_routers,
+    run_turso_migrations as _run_turso_migrations,
+)
 _register_staff_routers(app)
 register_router_safe(app, _RouterSpec("warden.mcp.gateway", label="MCP Paid Tools /mcp"))
 register_router_safe(app, _RouterSpec("warden.api.acp", label="ACP Protocol /acp"))
+
+# Turso schema migrations — only run when TURSO_AUTO_MIGRATE=true
+if os.getenv("TURSO_AUTO_MIGRATE", "false").lower() == "true":
+    try:
+        _run_turso_migrations()
+    except Exception as _e:
+        log.warning("Turso auto-migrate failed (skipped): %s", _e)
 register_router_safe(app, _RouterSpec("warden.api.billing_audit", label="Billing Audit Chain /billing/audit"))
 
 

@@ -36,7 +36,7 @@ import sqlite3
 import threading
 import uuid
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -57,45 +57,81 @@ ACP_CHECKOUT = "acp_checkout"
 MANUAL       = "manual"
 
 
+_DDL = """
+    CREATE TABLE IF NOT EXISTS billing_audit_chain (
+        id          INTEGER  PRIMARY KEY AUTOINCREMENT,
+        entry_id    TEXT     NOT NULL UNIQUE,
+        tenant_id   TEXT     NOT NULL,
+        seq         INTEGER  NOT NULL,
+        event_type  TEXT     NOT NULL,
+        agent_id    TEXT     NOT NULL DEFAULT '',
+        tool_name   TEXT     NOT NULL DEFAULT '',
+        model       TEXT     NOT NULL DEFAULT '',
+        input_tokens  INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_usd    TEXT     NOT NULL DEFAULT '0',
+        amount_usd  TEXT     NOT NULL DEFAULT '0',
+        timestamp   TEXT     NOT NULL,
+        prev_hash   TEXT     NOT NULL,
+        entry_hash  TEXT     NOT NULL,
+        evm_tx_hash TEXT     NOT NULL DEFAULT ''
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_bac_tenant_seq
+        ON billing_audit_chain(tenant_id, seq);
+    CREATE INDEX IF NOT EXISTS idx_bac_tenant
+        ON billing_audit_chain(tenant_id, timestamp);
+    CREATE TABLE IF NOT EXISTS billing_audit_evm_anchors (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id   TEXT NOT NULL,
+        tip_seq     INTEGER NOT NULL,
+        tip_hash    TEXT NOT NULL,
+        tx_hash     TEXT NOT NULL DEFAULT '',
+        anchored_at TEXT NOT NULL
+    );
+"""
+
+
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
 @contextmanager
-def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    """
+    Yield a connection with schema applied.
+
+    Priority:
+      1. Explicit db_path → always use local SQLite (test isolation, explicit path)
+      2. Turso env vars set → use Turso remote connection
+      3. Fallback → local SQLite at _DB_PATH
+    """
+    if db_path is not None:
+        # Explicit path → local SQLite (used by tests + explicit overrides)
+        con = sqlite3.connect(db_path, check_same_thread=False)
+        con.row_factory = sqlite3.Row
+        con.execute("PRAGMA journal_mode=WAL")
+        con.executescript(_DDL)
+        try:
+            yield con
+            con.commit()
+        finally:
+            con.close()
+        return
+
+    try:
+        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
+        if is_turso_enabled("billing_audit"):
+            with get_connection("billing_audit", fallback_path=_DB_PATH) as con:
+                with suppress(Exception):
+                    con.executescript(_DDL)
+                yield con
+            return
+    except ImportError:
+        pass
+
+    # Local SQLite fallback
+    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS billing_audit_chain (
-            id          INTEGER  PRIMARY KEY AUTOINCREMENT,
-            entry_id    TEXT     NOT NULL UNIQUE,
-            tenant_id   TEXT     NOT NULL,
-            seq         INTEGER  NOT NULL,
-            event_type  TEXT     NOT NULL,
-            agent_id    TEXT     NOT NULL DEFAULT '',
-            tool_name   TEXT     NOT NULL DEFAULT '',
-            model       TEXT     NOT NULL DEFAULT '',
-            input_tokens  INTEGER NOT NULL DEFAULT 0,
-            output_tokens INTEGER NOT NULL DEFAULT 0,
-            cost_usd    TEXT     NOT NULL DEFAULT '0',
-            amount_usd  TEXT     NOT NULL DEFAULT '0',
-            timestamp   TEXT     NOT NULL,
-            prev_hash   TEXT     NOT NULL,
-            entry_hash  TEXT     NOT NULL,
-            evm_tx_hash TEXT     NOT NULL DEFAULT ''
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_bac_tenant_seq
-            ON billing_audit_chain(tenant_id, seq);
-        CREATE INDEX IF NOT EXISTS idx_bac_tenant
-            ON billing_audit_chain(tenant_id, timestamp);
-        CREATE TABLE IF NOT EXISTS billing_audit_evm_anchors (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id   TEXT NOT NULL,
-            tip_seq     INTEGER NOT NULL,
-            tip_hash    TEXT NOT NULL,
-            tx_hash     TEXT NOT NULL DEFAULT '',
-            anchored_at TEXT NOT NULL
-        );
-    """)
+    con.executescript(_DDL)
     try:
         yield con
         con.commit()

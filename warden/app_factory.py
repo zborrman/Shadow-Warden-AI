@@ -86,6 +86,89 @@ def register_staff_routers(app: FastAPI) -> dict[str, bool]:
     return register_router_group(app, STAFF_ROUTERS)
 
 
+def run_turso_migrations() -> None:
+    """
+    Run schema migrations on all configured Turso databases.
+
+    Called once at startup (from main.py lifespan) when TURSO_AUTO_MIGRATE=true.
+    Fail-open: any individual migration error is logged and skipped.
+    """
+    try:
+        from warden.db.turso import is_turso_enabled, run_schema_migration  # noqa: PLC0415
+    except ImportError:
+        return
+
+    migrations = [
+        ("billing_audit", _BILLING_AUDIT_DDL),
+        ("acp",           _ACP_DDL),
+        ("staff",         _STAFF_DDL),
+    ]
+    for db_name, ddl in migrations:
+        if is_turso_enabled(db_name):
+            try:
+                run_schema_migration(db_name, ddl)
+                log.info("Turso migration OK: %s", db_name)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Turso migration FAILED (skipped): %s — %s", db_name, exc)
+
+
+# ── DDL for each Turso-managed database ───────────────────────────────────────
+
+_BILLING_AUDIT_DDL = """
+    CREATE TABLE IF NOT EXISTS billing_audit_chain (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entry_id TEXT NOT NULL UNIQUE, tenant_id TEXT NOT NULL,
+        seq INTEGER NOT NULL, event_type TEXT NOT NULL,
+        agent_id TEXT NOT NULL DEFAULT '', tool_name TEXT NOT NULL DEFAULT '',
+        model TEXT NOT NULL DEFAULT '', input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_usd TEXT NOT NULL DEFAULT '0', amount_usd TEXT NOT NULL DEFAULT '0',
+        timestamp TEXT NOT NULL, prev_hash TEXT NOT NULL,
+        entry_hash TEXT NOT NULL, evm_tx_hash TEXT NOT NULL DEFAULT ''
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_bac_tenant_seq
+        ON billing_audit_chain(tenant_id, seq);
+    CREATE TABLE IF NOT EXISTS billing_audit_evm_anchors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL,
+        tip_seq INTEGER NOT NULL, tip_hash TEXT NOT NULL,
+        tx_hash TEXT NOT NULL DEFAULT '', anchored_at TEXT NOT NULL
+    );
+"""
+
+_ACP_DDL = """
+    CREATE TABLE IF NOT EXISTS acp_tokens (
+        token_id TEXT PRIMARY KEY, merchant_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL, max_amount REAL NOT NULL,
+        currency TEXT NOT NULL, use_limit INTEGER NOT NULL,
+        expires_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'ACTIVE',
+        issued_at TEXT NOT NULL, signature TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS acp_token_uses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, token_id TEXT NOT NULL,
+        order_id TEXT NOT NULL, amount REAL NOT NULL, used_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS acp_refunds (
+        refund_id TEXT PRIMARY KEY, order_id TEXT NOT NULL,
+        merchant_id TEXT NOT NULL, agent_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL, amount REAL NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'USD', reason TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+        stix_chain_id TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL, resolved_at TEXT NOT NULL DEFAULT ''
+    );
+"""
+
+_STAFF_DDL = """
+    CREATE TABLE IF NOT EXISTS staff_action_costs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL, action TEXT NOT NULL, model TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL,
+        cost_usd REAL NOT NULL, ts INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sac_tenant ON staff_action_costs(tenant_id, ts);
+"""
+
+
 # ── Full optional router registry (add remaining routers here over time) ───────
 
 OPTIONAL_ROUTERS: list[RouterSpec] = [

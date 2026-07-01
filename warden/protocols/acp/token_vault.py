@@ -34,34 +34,63 @@ _DEFAULT_TTL_MINUTES = int(os.getenv("ACP_SPT_TTL_MINUTES", "30"))
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
+_ACP_DDL = """
+    CREATE TABLE IF NOT EXISTS acp_tokens (
+        token_id    TEXT PRIMARY KEY,
+        merchant_id TEXT NOT NULL,
+        agent_id    TEXT NOT NULL,
+        max_amount  REAL NOT NULL,
+        currency    TEXT NOT NULL,
+        use_limit   INTEGER NOT NULL,
+        expires_at  TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'ACTIVE',
+        issued_at   TEXT NOT NULL,
+        signature   TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS acp_token_uses (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        token_id   TEXT NOT NULL,
+        order_id   TEXT NOT NULL,
+        amount     REAL NOT NULL,
+        used_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_acp_tok_mid ON acp_tokens(merchant_id);
+    CREATE INDEX IF NOT EXISTS idx_acp_tok_aid ON acp_tokens(agent_id);
+    CREATE TABLE IF NOT EXISTS acp_refunds (
+        refund_id   TEXT PRIMARY KEY,
+        order_id    TEXT NOT NULL,
+        merchant_id TEXT NOT NULL,
+        agent_id    TEXT NOT NULL,
+        tenant_id   TEXT NOT NULL,
+        amount      REAL NOT NULL,
+        currency    TEXT NOT NULL DEFAULT 'USD',
+        reason      TEXT NOT NULL DEFAULT '',
+        status      TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+        stix_chain_id TEXT NOT NULL DEFAULT '',
+        created_at  TEXT NOT NULL,
+        resolved_at TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_acp_refunds_tenant ON acp_refunds(tenant_id, status);
+"""
+
+
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
+    """Yield a Turso-or-SQLite connection for the ACP database."""
+    try:
+        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
+        if is_turso_enabled("acp"):
+            with get_connection("acp", fallback_path=_DB_PATH) as con:
+                with suppress(Exception):
+                    con.executescript(_ACP_DDL)
+                yield con
+            return
+    except ImportError:
+        pass
     con = sqlite3.connect(_DB_PATH, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS acp_tokens (
-            token_id    TEXT PRIMARY KEY,
-            merchant_id TEXT NOT NULL,
-            agent_id    TEXT NOT NULL,
-            max_amount  REAL NOT NULL,
-            currency    TEXT NOT NULL,
-            use_limit   INTEGER NOT NULL,
-            expires_at  TEXT NOT NULL,
-            status      TEXT NOT NULL DEFAULT 'ACTIVE',
-            issued_at   TEXT NOT NULL,
-            signature   TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS acp_token_uses (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            token_id   TEXT NOT NULL,
-            order_id   TEXT NOT NULL,
-            amount     REAL NOT NULL,
-            used_at    TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_acp_tok_mid ON acp_tokens(merchant_id);
-        CREATE INDEX IF NOT EXISTS idx_acp_tok_aid ON acp_tokens(agent_id);
-    """)
+    con.executescript(_ACP_DDL)
     try:
         yield con
         con.commit()

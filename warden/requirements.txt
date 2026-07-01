@@ -21,6 +21,11 @@ arq>=0.25.0
 # Used by: OpenAI proxy, LangChain callback, SIEM integration, alerting.
 httpx>=0.27.0
 
+# ── Turso / libSQL distributed SQLite ─────────────────────────────────────────
+# HTTP-based sync client for Turso databases. Falls back to local SQLite when
+# TURSO_URL_* env vars are not set — no code changes needed.
+libsql-client>=0.3.1
+
 # ── Lemon Squeezy billing ─────────────────────────────────────────────────────
 # Pure-stdlib implementation (urllib + hmac) — no extra package needed.
 # Set LEMONSQUEEZY_API_KEY + LEMONSQUEEZY_WEBHOOK_SECRET in .env to enable.
