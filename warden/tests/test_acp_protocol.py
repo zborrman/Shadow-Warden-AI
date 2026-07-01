@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import time
 
 import pytest
 
@@ -106,7 +105,7 @@ class TestSharedPaymentToken:
 
 class TestCart:
     def test_create_cart(self):
-        from warden.protocols.acp.cart import create_cart, get_cart
+        from warden.protocols.acp.cart import create_cart
         cart = create_cart("tenant-1", "agent:did:test", "merchant-1", "mandate-1")
         assert cart.status == "OPEN"
         assert cart.total == 0.0
@@ -130,7 +129,7 @@ class TestCart:
         assert final.items[0].qty == 3
 
     def test_add_to_closed_cart_raises(self):
-        from warden.protocols.acp.cart import close_cart, create_cart, add_item
+        from warden.protocols.acp.cart import add_item, close_cart, create_cart
         from warden.protocols.acp.models import CartItem
         cart = create_cart("tenant-1", "agent:did:test", "merchant-1", "mandate-1")
         close_cart(cart.cart_id, "ABANDONED", redis=None)

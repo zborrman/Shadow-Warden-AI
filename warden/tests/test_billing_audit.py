@@ -7,7 +7,6 @@ TokenCostTracker and x402_gate.deduct_payment().
 from __future__ import annotations
 
 import os
-import sys
 
 import pytest
 
@@ -115,8 +114,9 @@ class TestAuditChainEngine:
     def test_export_jsonl(self):
         self._append()
         self._append()
-        from warden.billing.audit_chain import export_jsonl
         import json
+
+        from warden.billing.audit_chain import export_jsonl
         lines = export_jsonl("t1", db_path=self._db).splitlines()
         assert len(lines) == 2
         first = json.loads(lines[0])
@@ -169,8 +169,9 @@ class TestBillingAuditAPI:
                 tool_name="score_kyc_profile",
                 db_path=db,
             )
-        from warden.main import app
         from fastapi.testclient import TestClient
+
+        from warden.main import app
         self.client = TestClient(app, raise_server_exceptions=False)
         self.db = db
 
@@ -211,6 +212,7 @@ class TestBillingAuditAPI:
 
     def test_verify_detects_tamper_returns_409(self, monkeypatch):
         import sqlite3
+
         import warden.api.billing_audit as _api_mod
         import warden.billing.audit_chain as _chain_mod
         db = self.db

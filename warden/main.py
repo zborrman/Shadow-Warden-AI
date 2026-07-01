@@ -6174,7 +6174,7 @@ async def contact(body: _ContactRequest):
         raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.") from exc
 
 
-from warden.app_factory import (
+from warden.app_factory import (  # noqa: E402, I001
     RouterSpec as _RouterSpec,
     register_router_safe,
     register_staff_routers as _register_staff_routers,

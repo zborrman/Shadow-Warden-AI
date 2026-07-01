@@ -50,7 +50,7 @@ class TestMcpDiscovery:
         body = r.json()
         assert body["result"]["protocolVersion"] == "2024-11-05"
         assert "tools" in body["result"]["capabilities"]
-        assert "shadow-warden-staff-tools" == body["result"]["serverInfo"]["name"]
+        assert body["result"]["serverInfo"]["name"] == "shadow-warden-staff-tools"
 
     def test_ping(self, client: TestClient) -> None:
         r = client.post("/mcp/", json=rpc("ping"))
@@ -169,8 +169,9 @@ class TestMcpToolCall:
 
 class TestMcpPricing:
     def test_pricing_catalog(self) -> None:
-        from warden.mcp.pricing import TOOL_PRICES_USD, MCP_EXPOSED_TOOLS, price_for
         from decimal import Decimal
+
+        from warden.mcp.pricing import MCP_EXPOSED_TOOLS, TOOL_PRICES_USD, price_for
 
         assert price_for("screen_sanctions_list") == Decimal("0.05")
         assert price_for("score_kyc_profile") == Decimal("0.03")
@@ -183,5 +184,5 @@ class TestMcpPricing:
             assert tool in TOOL_PRICES_USD, f"{tool} missing from TOOL_PRICES_USD"
 
     def test_default_price_for_unknown(self) -> None:
-        from warden.mcp.pricing import price_for, DEFAULT_PRICE_USD
+        from warden.mcp.pricing import DEFAULT_PRICE_USD, price_for
         assert price_for("nonexistent_tool") == DEFAULT_PRICE_USD

@@ -6,9 +6,9 @@ from __future__ import annotations
 import pytest
 
 from warden.staff.economics import (
+    _COST_PER_MTOK,
     ActionCost,
     TokenCostTracker,
-    _COST_PER_MTOK,
     compute_cost_usd,
 )
 
