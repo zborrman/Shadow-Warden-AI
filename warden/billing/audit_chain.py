@@ -119,7 +119,7 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
     try:
         from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
         if is_turso_enabled("billing_audit"):
-            with get_connection("billing_audit", fallback_path=_DB_PATH) as con:
+            with get_connection("billing_audit", fallback_path=_DB_PATH) as con:  # type: ignore[assignment]
                 with suppress(Exception):
                     con.executescript(_DDL)
                 yield con
@@ -217,7 +217,7 @@ def append_billing_event(
 
         log.debug(
             "billing_audit: tenant=%s seq=%d event=%s cost=%s hash=%s…",
-            tenant_id, seq, event_type, entry["cost_usd"], entry["entry_hash"][:12],
+            tenant_id, seq, event_type, entry["cost_usd"], str(entry["entry_hash"])[:12],
         )
 
         # Optional EVM attestation (background, fail-open)

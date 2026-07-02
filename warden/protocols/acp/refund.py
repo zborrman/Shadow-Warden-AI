@@ -71,14 +71,16 @@ def request_refund(
     try:
         from warden.communities.stix_audit import append_transfer  # noqa: PLC0415
         entry = append_transfer(
-            community_id=tenant_id,
-            entity_id=refund_id,
-            from_tenant=merchant_id,
-            to_tenant=agent_id,
+            transfer_id=refund_id,
+            source_community_id=tenant_id,
+            target_community_id=tenant_id,
+            entity_ueciid=refund_id,
+            initiator_mid=merchant_id,
+            purpose="acp_refund",
+            ctp_hmac_signature="",
             data_class="FINANCIAL",
-            metadata={"acp_refund_request": True, "order_id": order_id, "amount": amount},
         )
-        stix_chain_id = str(entry.get("id", ""))
+        stix_chain_id = entry.chain_id
     except Exception:
         pass
 

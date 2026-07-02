@@ -80,10 +80,10 @@ def _conn() -> Generator[sqlite3.Connection, None, None]:
     try:
         from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
         if is_turso_enabled("acp"):
-            with get_connection("acp", fallback_path=_DB_PATH) as con:
+            with get_connection("acp", fallback_path=_DB_PATH) as con:  # type: ignore[assignment]
                 with suppress(Exception):
                     con.executescript(_ACP_DDL)
-                yield con
+                yield con  # type: ignore[misc]
             return
     except ImportError:
         pass
