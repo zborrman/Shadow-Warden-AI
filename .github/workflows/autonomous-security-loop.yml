@@ -158,14 +158,17 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Configure Claude Code for CI
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Pre-accept the trust dialog and mark onboarding complete so claude --print
-          # doesn't block on interactive prompts in the non-TTY runner environment.
+          # Pre-accept trust dialog, mark onboarding complete, and inject primaryApiKey
+          # so claude --print doesn't prompt for trust or show "Not logged in" in CI.
           mkdir -p "$HOME/.claude"
           python3 - <<'PYEOF'
           import json, os, pathlib
           workspace = os.environ.get("GITHUB_WORKSPACE",
               "/home/runner/work/Shadow-Warden-AI/Shadow-Warden-AI")
+          api_key = os.environ.get("ANTHROPIC_API_KEY", "")
           cfg_path = pathlib.Path.home() / ".claude.json"
           existing = {}
           if cfg_path.exists():
@@ -173,12 +176,16 @@ jobs:
                   existing = json.loads(cfg_path.read_text())
               except Exception:
                   pass
-          existing.setdefault("hasCompletedOnboarding", True)
-          existing.setdefault("projects", {})[workspace] = {
-              "hasTrustDialogAccepted": True
-          }
+          existing["hasCompletedOnboarding"] = True
+          if api_key:
+              existing["primaryApiKey"] = api_key
+          projects = existing.get("projects", {})
+          projects[workspace] = {"hasTrustDialogAccepted": True}
+          existing["projects"] = projects
           cfg_path.write_text(json.dumps(existing, indent=2))
-          print(f"Claude Code trust accepted for: {workspace}")
+          key_status = "yes" if api_key else "NO - set ANTHROPIC_API_KEY secret"
+          print("Claude Code CI config written: workspace=" + workspace)
+          print("API key injected: " + key_status)
           PYEOF
 
       - name: Install Python deps
@@ -235,7 +242,7 @@ jobs:
           CONSTRAINTS=$(cat workflows/autonomous-security-loop.md | \
             grep -A 30 "Protected Invariants" | head -30)
 
-          claude --print "
+          claude --print --dangerously-skip-permissions "
           You are the Maker sub-agent. Fix the following issue in the Shadow Warden AI project.
 
           ISSUE TYPE: $ISSUE_TYPE
@@ -266,7 +273,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          claude --print "
+          claude --print --dangerously-skip-permissions "
           You are the security-auditor sub-agent for Shadow Warden AI.
           Read FIX_SUMMARY.md and audit every git-staged file.
 
