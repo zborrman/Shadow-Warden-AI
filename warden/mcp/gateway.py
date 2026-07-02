@@ -209,7 +209,8 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
 
         try:
             from warden.staff.tools import STAFF_TOOL_HANDLERS  # noqa: PLC0415
-            result = await STAFF_TOOL_HANDLERS[tool_name](**arguments)
+            handler: Any = STAFF_TOOL_HANDLERS[tool_name]
+            result = await handler(**arguments)
             return _ok(req_id, {
                 "content": [{"type": "text", "text": json.dumps(result)}],
                 "isError": False,
