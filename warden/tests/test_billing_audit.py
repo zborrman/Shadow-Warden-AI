@@ -158,6 +158,11 @@ class TestBillingAuditAPI:
         db = str(tmp_path / "billing_audit_api.db")
         monkeypatch.setenv("BILLING_AUDIT_DB_PATH", db)
         monkeypatch.setenv("X_TENANT_TIER", "pro")
+        # Patch the module-level _DB_PATH that was captured at import time
+        import warden.api.billing_audit as _api_mod
+        import warden.billing.audit_chain as _chain_mod
+        monkeypatch.setattr(_chain_mod, "_DB_PATH", db)
+        monkeypatch.setattr(_api_mod, "_DB_PATH", db)
         # Pre-populate a few entries
         from warden.billing.audit_chain import append_billing_event
         for i in range(3):

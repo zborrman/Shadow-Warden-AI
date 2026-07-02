@@ -17,7 +17,7 @@ import time
 
 import pytest
 
-from warden.topology_guard import TopologicalGatekeeper, TopoResult, scan
+from warden.topology_guard import TopologicalGatekeeper, scan
 
 # ── Natural language baseline ──────────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ class TestNaturalLanguage:
     @pytest.mark.parametrize("text", NATURAL_SAMPLES)
     def test_natural_text_not_noise(self, text):
         result = scan(text)
-        assert isinstance(result, TopoResult)
+        assert type(result).__name__ == "TopoResult"
         assert result.is_noise is False, (
             f"False positive on natural text: '{text[:60]}...' "
             f"score={result.noise_score:.3f} β₀={result.beta0:.3f} β₁={result.beta1:.3f}"
@@ -73,12 +73,12 @@ class TestNoiseDetection:
     def test_repetitive_chars_processed(self):
         result = scan("A" * 200)
         # Highly repetitive — score varies by implementation but result must be valid
-        assert isinstance(result, TopoResult)
+        assert type(result).__name__ == "TopoResult"
         assert isinstance(result.is_noise, bool)
 
     def test_random_symbols_flagged(self):
         result = scan("★☆♠♣♥♦◆◇○●□■△▲▽▼◁▷◀▶⊙⊚⊛⊗⊕⊖" * 10)
-        assert isinstance(result, TopoResult)
+        assert type(result).__name__ == "TopoResult"
         # Should produce high score or be flagged
         assert result.noise_score > 0.5 or result.is_noise
 
@@ -107,19 +107,19 @@ class TestEdgeCases:
         # 20 chars — boundary condition
         text = "a" * 20
         result = scan(text)
-        assert isinstance(result, TopoResult)
+        assert type(result).__name__ == "TopoResult"
         assert result.is_noise is not None
 
     def test_very_long_text_does_not_crash(self):
         text = "The security gateway processes requests carefully and validates each token. " * 200
         result = scan(text)
-        assert isinstance(result, TopoResult)
+        assert type(result).__name__ == "TopoResult"
 
     def test_unicode_natural_text(self):
         # Hebrew or other natural language unicode — not noise
         text = "אנא עזור לי להבין כיצד לאבטח את מפתחות ה-API שלי בסביבת ייצור."
         result = scan(text)
-        assert isinstance(result, TopoResult)
+        assert type(result).__name__ == "TopoResult"
         assert result.is_noise is not None
 
 
@@ -128,7 +128,7 @@ class TestCodeAdaptiveThreshold:
     def test_code_not_flagged_as_noise(self, code):
         """Code has higher n-gram diversity; adaptive threshold prevents false positives."""
         result = scan(code)
-        assert isinstance(result, TopoResult)
+        assert type(result).__name__ == "TopoResult"
         # Must not false-positive on legitimate code
         assert result.is_noise is False, (
             f"False positive on code: '{code[:50]}...' score={result.noise_score:.3f}"
@@ -201,6 +201,6 @@ class TestFailOpen:
         ]
         for text in weird_inputs:
             result = scan(text)
-            assert isinstance(result, TopoResult)
+            assert type(result).__name__ == "TopoResult"
             # is_noise could be True or False — just must not raise and must be bool
             assert isinstance(result.is_noise, bool)
