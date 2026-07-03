@@ -51,8 +51,8 @@ let recentTrades: typeof SEED_TRADES = SEED_TRADES;
 
 try {
   const [sumR, tradesR] = await Promise.allSettled([
-    fetch(`${API_URL}/marketplace/analytics/summary`, { signal: AbortSignal.timeout(2500) }),
-    fetch(`${API_URL}/marketplace/analytics/recent-trades?limit=6`, { signal: AbortSignal.timeout(2500) }),
+    fetch(API_URL + '/marketplace/analytics/summary', { signal: AbortSignal.timeout(2500) }),
+    fetch(API_URL + '/marketplace/analytics/recent-trades?limit=6', { signal: AbortSignal.timeout(2500) }),
   ]);
   if (sumR.status === 'fulfilled' && sumR.value.ok) {
     const s = await sumR.value.json();
@@ -65,7 +65,7 @@ try {
         from:    t.buyer_agent  ?? 'Unknown Buyer',
         to:      t.seller_agent ?? 'Unknown Seller',
         type:    t.asset_type   ?? 'Signal Bundle',
-        price:   t.price_usd    != null ? `$${Number(t.price_usd).toFixed(2)}` : '—',
+        price:   t.price_usd    != null ? '$' + Number(t.price_usd).toFixed(2) : '—',
         age:     t.created_at   ? (() => { const d = Math.floor((Date.now() - new Date(t.created_at).getTime())/1000); return d < 60 ? d + 's' : Math.floor(d/60) + 'm'; })() : '—',
         payment: t.payment_method ?? 'Flex',
       }));
