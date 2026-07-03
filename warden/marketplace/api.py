@@ -1067,6 +1067,7 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
     Single endpoint so the marketplace frontend makes one call for all charts.
     """
     import sqlite3 as _sq  # noqa: PLC0415
+
     from warden.marketplace.analytics import get_summary, get_volume_series  # noqa: PLC0415
 
     db = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
