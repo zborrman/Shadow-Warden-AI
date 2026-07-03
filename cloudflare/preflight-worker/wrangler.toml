@@ -1,0 +1,14 @@
+name = "shadow-warden-preflight"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Workers Free tier is sufficient — no KV, Durable Objects, or R2 needed.
+# Upgrade to Paid if CPU time exceeds 10ms/request under load.
+
+[[routes]]
+pattern = "api.shadow-warden-ai.com/*"
+zone_name = "shadow-warden-ai.com"
+
+[observability]
+enabled = true
+head_sampling_rate = 0.1
