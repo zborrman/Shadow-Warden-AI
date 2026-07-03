@@ -81,8 +81,8 @@ def request_refund(
             data_class="FINANCIAL",
         )
         stix_chain_id = entry.chain_id
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ACP: STIX audit skipped for refund=%s: %s", refund_id, exc)
 
     with _db_lock, _conn() as con:
         con.execute(
@@ -145,4 +145,5 @@ def resolve_refund(refund_id: str, action: str) -> bool:
             "UPDATE acp_refunds SET status=? WHERE refund_id=? AND status='PENDING_REVIEW'",
             (new_status, refund_id),
         )
-    return cur.rowcount > 0
+        updated = cur.rowcount > 0
+    return updated
