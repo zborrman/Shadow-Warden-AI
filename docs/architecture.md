@@ -66,7 +66,19 @@ module imports no `warden.*`).
 
 ---
 
-## 4. Phase 2 — Extract the pipeline into a service
+## 4. Phase 2 — Extract the pipeline into a service ✅ (seam landed)
+
+**Landed:** `warden/services/pipeline.py` — `FilterPipeline` is now the stable
+public entry point. The `/filter` and `/filter/batch` HTTP handlers call
+`FilterPipeline().run(...)` instead of the main-private orchestrator. The facade
+resolves the orchestrator from `runtime` (published at startup as
+`filter_orchestrator`) and **fails closed** if the app isn't booted. Callers now
+depend on `warden.services.pipeline`, not `warden.main` internals — the seam
+Phase 3 needs. Tests: `test_pipeline_service.py` (delegation, fail-closed, layer
+guard); all 16 `/filter` e2e + batch tests green.
+
+**Remaining (incremental, behind the unchanged interface):** move the ~900-line
+`_run_filter_pipeline` body from `main.py` into the service.
 
 **Goal:** the crown-jewel `/filter` logic leaves the god-module.
 

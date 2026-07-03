@@ -650,6 +650,7 @@ async def lifespan(app: FastAPI):
         evolve=_evolve,
         redactor=_redactor,
         guard=_guard,
+        filter_orchestrator=_run_filter_pipeline,
     )
 
     # ── Agent Monitor ─────────────────────────────────────────────────
@@ -3102,7 +3103,11 @@ async def filter_content(
         except Exception as _mm_exc:
             log.warning("multimodal prefilter failed (fail-open): %s", _mm_exc)
 
-    coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
+    # Phase 2: route through the services layer (strangler-fig seam). The
+    # FilterPipeline facade resolves the orchestrator from runtime; the HTTP
+    # layer no longer calls the main-private orchestrator directly.
+    from warden.services.pipeline import FilterPipeline  # noqa: PLC0415
+    coro = FilterPipeline().run(payload, rid, auth, background_tasks, client_ip)
     if _PIPELINE_TIMEOUT_MS > 0:
         try:
             return await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
@@ -3213,7 +3218,11 @@ async def ext_filter_content(
                 payload.content, auth.entity_key, auth.ers_score, auth.last_flag
             )
         )
-    coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
+    # Phase 2: route through the services layer (strangler-fig seam). The
+    # FilterPipeline facade resolves the orchestrator from runtime; the HTTP
+    # layer no longer calls the main-private orchestrator directly.
+    from warden.services.pipeline import FilterPipeline  # noqa: PLC0415
+    coro = FilterPipeline().run(payload, rid, auth, background_tasks, client_ip)
     if _PIPELINE_TIMEOUT_MS > 0:
         try:
             result = await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
