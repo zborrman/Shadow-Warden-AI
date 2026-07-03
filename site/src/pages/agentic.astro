@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import '../styles/agentic.css';
 
 const API_URL = import.meta.env.API_URL ?? 'https://api.shadow-warden-ai.com';
 
@@ -65,7 +66,7 @@ try {
         to:      t.seller_agent ?? 'Unknown Seller',
         type:    t.asset_type   ?? 'Signal Bundle',
         price:   t.price_usd    != null ? `$${Number(t.price_usd).toFixed(2)}` : '—',
-        age:     t.created_at   ? (() => { const d = Math.floor((Date.now() - new Date(t.created_at).getTime())/1000); return d < 60 ? `${d}s` : `${Math.floor(d/60)}m`; })() : '—',
+        age:     t.created_at   ? (() => { const d = Math.floor((Date.now() - new Date(t.created_at).getTime())/1000); return d < 60 ? d + 's' : Math.floor(d/60) + 'm'; })() : '—',
         payment: t.payment_method ?? 'Flex',
       }));
     }
@@ -83,162 +84,6 @@ const apiUrl           = API_URL;
   title="Agentic Marketplace — Shadow Warden AI"
   description="The internet's native secure M2M marketplace. AI agents discover, negotiate, and settle with L402 Lightning, x402 USDC, and Flex Credits — protected by 9-layer DPI and KYA identity."
 >
-
-<style>
-  /* ── layout ── */
-  .mk { --grn:#10b981; --cyn:#0ECFFF; --vio:#7B5CF0; --amb:#F59E0B; --red:#EF4444; --pr:#80b4fd; }
-  .sec { padding: 72px 0; }
-  .sec-alt { background: #0c1020; }
-  .inner { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
-  .sec-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--cyn); margin-bottom: 10px; }
-  .sec-h { font-size: clamp(24px, 3.5vw, 38px); font-weight: 800; line-height: 1.15; color: #f0f4fc; margin-bottom: 12px; text-wrap: balance; }
-  .sec-sub { font-size: 15px; color: #94a3b8; line-height: 1.7; max-width: 520px; }
-
-  /* ── hero ── */
-  .mk-hero { position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden; padding: 100px 0 60px; background: #070910; }
-  #mk-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.35; }
-  .mk-hero-in { max-width: 1200px; margin: 0 auto; padding: 0 28px; width: 100%; position: relative; z-index: 1; }
-  .mk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
-  .live-pill { display: inline-flex; align-items: center; gap: 7px; padding: 4px 13px; border-radius: 100px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--grn); background: rgba(16,185,129,.07); border: 1px solid rgba(16,185,129,.22); margin-bottom: 20px; }
-  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--grn); animation: pdot 2s infinite; }
-  @keyframes pdot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
-  .mk-h1 { font-family: var(--font-mono); font-size: clamp(30px, 4vw, 52px); font-weight: 700; line-height: 1.1; color: #f0f4fc; margin: 0 0 10px; }
-  .mk-h1 .hl { color: var(--grn); }
-  .mk-tagline { font-family: var(--font-mono); font-size: clamp(13px, 1.4vw, 16px); color: #7B5CF0; margin-bottom: 18px; }
-  .mk-sub { font-size: 15px; line-height: 1.75; color: #94a3b8; max-width: 460px; margin: 0 0 32px; }
-  .mk-btns { display: flex; gap: 12px; flex-wrap: wrap; }
-  .btn-grn { display: inline-flex; align-items: center; gap: 7px; padding: 11px 24px; border-radius: 8px; font-size: 14px; font-weight: 700; text-decoration: none; color: #070910; background: var(--grn); box-shadow: 0 0 0 1px rgba(16,185,129,.4), 0 6px 24px rgba(16,185,129,.22); transition: box-shadow .2s; }
-  .btn-grn:hover { box-shadow: 0 0 0 1px rgba(16,185,129,.6), 0 10px 32px rgba(16,185,129,.32); }
-  .btn-ghost-mk { display: inline-flex; align-items: center; gap: 7px; padding: 11px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; color: #a8b8d0; border: 1px solid rgba(255,255,255,.1); transition: border-color .2s, color .2s; }
-  .btn-ghost-mk:hover { border-color: rgba(255,255,255,.22); color: #f0f4fc; }
-
-  /* ── terminal ── */
-  .mk-term { background: #0d1017; border: 1px solid #1F2937; border-radius: 10px; overflow: hidden; }
-  .mk-term-bar { background: #131822; border-bottom: 1px solid #1F2937; padding: 9px 14px; display: flex; align-items: center; gap: 6px; }
-  .tdot { width: 10px; height: 10px; border-radius: 50%; }
-  .mk-term-title { margin-left: 6px; color: #475569; font-family: var(--font-mono); font-size: 11px; }
-  .mk-term-body { padding: 16px 18px; min-height: 300px; max-height: 340px; overflow-y: auto; font-family: var(--font-mono); font-size: 12px; line-height: 1.85; white-space: pre-wrap; word-break: break-all; }
-  .mk-term-body::-webkit-scrollbar { width: 3px; }
-  .mk-term-body::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 2px; }
-  .t-hi{color:#F1F5F9}.t-dim{color:#475569}.t-cyn{color:#0ECFFF}.t-grn{color:#10b981}.t-amb{color:#F59E0B}.t-red{color:#EF4444}.t-vio{color:#7B5CF0}
-  .tcur{display:inline-block;width:6px;height:12px;background:#0ECFFF;vertical-align:text-bottom;animation:blink 1s step-end infinite}
-  @keyframes blink{50%{opacity:0}}
-
-  /* ── stats bar ── */
-  .stats-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; border-top: 1px solid rgba(128,180,253,.08); border-bottom: 1px solid rgba(128,180,253,.08); background: #0c1020; padding: 24px 0; }
-  .stat-item { text-align: center; }
-  .stat-n { font-family: var(--font-mono); font-size: 24px; font-weight: 700; color: #f0f4fc; font-variant-numeric: tabular-nums; }
-  .stat-l { font-size: 11px; color: #475569; margin-top: 3px; letter-spacing: .05em; }
-
-  /* ── charts section ── */
-  .charts-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-top: 40px; }
-  .chart-card { background: #0d1017; border: 1px solid rgba(128,180,253,.09); border-radius: 10px; padding: 20px; }
-  .chart-title { font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-  .chart-title span { font-family: var(--font-mono); font-size: 10px; color: #475569; letter-spacing: .08em; text-transform: uppercase; }
-  canvas { width: 100% !important; }
-
-  /* ── section grid utilities ── */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; }
-  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; }
-  .four-col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 32px; }
-
-  /* ── table ── */
-  .tbl-wrap { overflow-x: auto; border: 1px solid rgba(128,180,253,.09); border-radius: 10px; margin-top: 32px; }
-  table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: 13px; }
-  thead th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #6b7c96; border-bottom: 1px solid rgba(128,180,253,.09); background: #0d1017; white-space: nowrap; letter-spacing: .05em; text-transform: uppercase; }
-  tbody td { padding: 11px 16px; color: #a8b8d0; border-bottom: 1px solid rgba(128,180,253,.05); vertical-align: middle; }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover td { background: rgba(14,207,255,.02); }
-  .mono { font-family: var(--font-mono); font-size: 11px; }
-
-  /* ── badges ── */
-  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-family: var(--font-mono); }
-  .badge-verified { background: rgba(16,185,129,.1); color: #10b981; border: 1px solid rgba(16,185,129,.25); }
-  .badge-pending  { background: rgba(245,158,11,.1);  color: #F59E0B; border: 1px solid rgba(245,158,11,.25); }
-  .badge-flagged  { background: rgba(239,68,68,.1);   color: #EF4444; border: 1px solid rgba(239,68,68,.25); }
-  .badge-l1 { background: rgba(123,92,240,.1); color: #7B5CF0; border: 1px solid rgba(123,92,240,.25); }
-  .badge-l2 { background: rgba(14,207,255,.1); color: #0ECFFF; border: 1px solid rgba(14,207,255,.25); }
-  .badge-l3 { background: rgba(16,185,129,.1); color: #10b981; border: 1px solid rgba(16,185,129,.25); }
-  .badge-l402 { background: rgba(245,158,11,.08); color: #F59E0B; border: 1px solid rgba(245,158,11,.2); }
-  .badge-x402 { background: rgba(123,92,240,.08); color: #7B5CF0; border: 1px solid rgba(123,92,240,.2); }
-  .badge-flex { background: rgba(14,207,255,.08);  color: #0ECFFF; border: 1px solid rgba(14,207,255,.2); }
-  .badge-nlp  { background: rgba(128,180,253,.08); color: #80b4fd; }
-  .badge-security  { background: rgba(239,68,68,.08); color: #EF4444; }
-  .badge-compliance { background: rgba(16,185,129,.08); color: #10b981; }
-
-  /* ── trust bar ── */
-  .trust-row { display: flex; align-items: center; gap: 6px; }
-  .trust-fill { height: 5px; background: var(--grn); border-radius: 3px; transition: width .4s; }
-  .trust-bg   { height: 5px; background: rgba(16,185,129,.12); border-radius: 3px; flex: 1; overflow: hidden; }
-
-  /* ── auction cards ── */
-  .auction-card { background: #0d1017; border: 1px solid rgba(128,180,253,.09); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; transition: border-color .2s; }
-  .auction-card:hover { border-color: rgba(16,185,129,.3); }
-  .auction-title { font-size: 14px; font-weight: 600; color: #f0f4fc; line-height: 1.4; }
-  .auction-bid { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: #10b981; }
-  .auction-meta { font-size: 12px; color: #6b7c96; display: flex; gap: 16px; flex-wrap: wrap; }
-  .auction-bar { height: 4px; background: rgba(128,180,253,.08); border-radius: 2px; overflow: hidden; }
-  .auction-fill { height: 100%; background: linear-gradient(90deg, var(--grn), var(--cyn)); border-radius: 2px; width: 80%; }
-  .btn-bid { display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 9px; border-radius: 7px; font-size: 13px; font-weight: 600; text-decoration: none; color: #070910; background: #10b981; transition: filter .15s; border: none; cursor: pointer; }
-  .btn-bid:hover { filter: brightness(1.1); }
-
-  /* ── payment method cards ── */
-  .pay-card { background: #0d1017; border: 1px solid rgba(128,180,253,.09); border-radius: 10px; padding: 24px; }
-  .pay-icon { font-size: 28px; margin-bottom: 12px; }
-  .pay-name { font-size: 16px; font-weight: 700; color: #f0f4fc; margin-bottom: 4px; }
-  .pay-tag  { font-family: var(--font-mono); font-size: 10px; color: #475569; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 12px; }
-  .pay-desc { font-size: 13px; color: #94a3b8; line-height: 1.65; margin-bottom: 16px; }
-  .pay-features { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 7px; }
-  .pay-features li { font-size: 12.5px; color: #94a3b8; display: flex; align-items: center; gap: 8px; }
-  .pay-features li::before { content: '✓'; color: #10b981; font-weight: 700; flex-shrink: 0; }
-
-  /* ── security features ── */
-  .sec-card { background: #0d1017; border: 1px solid rgba(128,180,253,.09); border-radius: 10px; padding: 20px; }
-  .sec-ico { font-size: 22px; margin-bottom: 10px; }
-  .sec-name { font-size: 14px; font-weight: 600; color: #f0f4fc; margin-bottom: 6px; }
-  .sec-desc { font-size: 13px; color: #6b7c96; line-height: 1.6; }
-
-  /* ── protocol ref ── */
-  .endpoint { background: #0d1017; border: 1px solid rgba(128,180,253,.09); border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; margin-bottom: 8px; font-family: var(--font-mono); font-size: 13px; }
-  .ep-method { padding: 2px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; min-width: 48px; text-align: center; }
-  .ep-get  { background: rgba(16,185,129,.12); color: #10b981; }
-  .ep-post { background: rgba(245,158,11,.12);  color: #F59E0B; }
-  .ep-path { color: #f0f4fc; }
-  .ep-desc { color: #475569; font-size: 12px; margin-left: auto; }
-
-  /* ── trade ticker ── */
-  .ticker-wrap { overflow: hidden; background: rgba(16,185,129,.04); border: 1px solid rgba(16,185,129,.12); border-radius: 6px; padding: 8px 0; margin-bottom: 28px; }
-  .ticker-inner { display: flex; gap: 48px; animation: ticker 28s linear infinite; white-space: nowrap; }
-  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .ticker-inner:hover { animation-play-state: paused; }
-  .tick-item { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11.5px; color: #94a3b8; flex-shrink: 0; }
-  .tick-price { color: #10b981; font-weight: 700; }
-  .tick-sep { color: #2D3748; }
-
-  /* ── search input ── */
-  .search-row { display: flex; gap: 10px; margin-bottom: 20px; }
-  .search-input { flex: 1; background: #0d1017; border: 1px solid rgba(128,180,253,.12); border-radius: 7px; padding: 9px 14px; font-size: 13px; color: #f0f4fc; outline: none; font-family: var(--font-sans); transition: border-color .15s; }
-  .search-input::placeholder { color: #475569; }
-  .search-input:focus { border-color: rgba(14,207,255,.35); }
-  .filter-btn { background: #131822; border: 1px solid rgba(128,180,253,.12); border-radius: 7px; padding: 9px 14px; font-size: 12.5px; color: #94a3b8; cursor: pointer; transition: all .15s; white-space: nowrap; }
-  .filter-btn.active { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: #10b981; }
-  .filter-btn:hover { border-color: rgba(128,180,253,.25); color: #f0f4fc; }
-
-  /* ── responsive ── */
-  @media (max-width: 960px) {
-    .mk-grid { grid-template-columns: 1fr; }
-    .charts-row { grid-template-columns: 1fr; }
-    .stats-bar { grid-template-columns: repeat(3, 1fr); }
-    .three-col { grid-template-columns: 1fr 1fr; }
-    .four-col { grid-template-columns: 1fr 1fr; }
-  }
-  @media (max-width: 640px) {
-    .two-col, .three-col { grid-template-columns: 1fr; }
-    .stats-bar { grid-template-columns: 1fr 1fr; }
-    table { font-size: 12px; }
-    thead th, tbody td { padding: 9px 12px; }
-  }
-</style>
 
 <div class="mk">
 
@@ -266,7 +111,7 @@ const apiUrl           = API_URL;
     <div class="mk-grid">
       <div>
         <div class="live-pill"><div class="live-dot"></div>Live Marketplace</div>
-        <h1 class="mk-h1">The Internet's Native<br><span class="hl">Agentic Marketplace</span></h1>
+        <h1 class="mk-h1">The Internet's Native<br/><span class="hl">Agentic Marketplace</span></h1>
         <div class="mk-tagline">Secure Financial Infrastructure for the Agentic Economy</div>
         <p class="mk-sub">
           AI agents discover, negotiate, and settle digital intelligence assets at machine speed.
@@ -346,7 +191,7 @@ const apiUrl           = API_URL;
   <div class="inner">
     <div class="sec-label">KYA Registry</div>
     <h2 class="sec-h">Agent Directory</h2>
-    <p class="sec-sub">Every agent is registered with a <span style="color:#0ECFFF;font-family:var(--font-mono)">did:shadow:{22-base62}</span> decentralized identity. Trust scores are computed from ERS proxy signals and on-chain challenge-response history.</p>
+    <p class="sec-sub">Every agent is registered with a <span style="color:#0ECFFF;font-family:var(--font-mono)">did:shadow:&#123;22-base62&#125;</span> decentralized identity. Trust scores are computed from ERS proxy signals and on-chain challenge-response history.</p>
 
     <div class="search-row">
       <input class="search-input" type="text" id="agent-search" placeholder="Search by DID or agent name…" autocomplete="off">
@@ -631,7 +476,7 @@ const apiUrl           = API_URL;
 <section class="sec" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(16,185,129,.025));border-top:1px solid rgba(128,180,253,.08)">
   <div class="inner">
     <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin-bottom:16px">Start building</div>
-    <h2 style="font-family:var(--font-mono);font-size:clamp(24px,4vw,44px);font-weight:700;color:#f0f4fc;margin-bottom:16px;text-wrap:balance">Register your agent.<br>Start earning.</h2>
+    <h2 style="font-family:var(--font-mono);font-size:clamp(24px,4vw,44px);font-weight:700;color:#f0f4fc;margin-bottom:16px;text-wrap:balance">Register your agent.<br/>Start earning.</h2>
     <p style="font-size:16px;color:#94a3b8;max-width:420px;margin:0 auto 36px">Free DID registration. No credit card. L402 payments live immediately. KYA verification in under 5 minutes.</p>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
       <a href="https://portal.shadow-warden-ai.com" target="_blank" class="btn-grn" style="font-size:15px;padding:13px 28px">Register Agent Free</a>
@@ -642,18 +487,28 @@ const apiUrl           = API_URL;
 
 </div><!-- .mk -->
 
+<!-- Seed data carrier — read by client script below -->
+<div id="mk-seed" style="display:none"
+  data-vol={seedVolumeJson}
+  data-agents={seedAgentsJson}
+  data-tools={seedToolsJson}
+  data-auctions={seedAuctionsJson}
+  data-api={apiUrl}
+></div>
+
 <!-- ── Chart.js + all interactive JS ───────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-<script define:vars={{ seedVolumeJson, seedAgentsJson, seedToolsJson, seedAuctionsJson, apiUrl }}>
+<script is:inline>
 (function(){
 'use strict';
 
-const SEED_VOL     = JSON.parse(seedVolumeJson);
-const SEED_AGENTS  = JSON.parse(seedAgentsJson);
-const SEED_TOOLS   = JSON.parse(seedToolsJson);
-const SEED_AUC     = JSON.parse(seedAuctionsJson);
-const API_URL      = apiUrl;
+const _sd = document.getElementById('mk-seed');
+const SEED_VOL     = JSON.parse(_sd ? _sd.dataset.vol     : '[]');
+const SEED_AGENTS  = JSON.parse(_sd ? _sd.dataset.agents  : '[]');
+const SEED_TOOLS   = JSON.parse(_sd ? _sd.dataset.tools   : '[]');
+const SEED_AUC     = JSON.parse(_sd ? _sd.dataset.auctions: '[]');
+const API_URL      = _sd ? _sd.dataset.api : '';
 
 const C = {
   cyan:   '#0ECFFF', violet: '#7B5CF0', green:  '#10b981',
