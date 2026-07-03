@@ -546,13 +546,14 @@ class EvolutionEngine:
             examples = [e for raw in raw_candidates if (e := self._vet_example(raw)) is not None]
 
             # ── Data Poisoning Guard: secondary vetting ───────────────────────
-            # Import lazily to avoid circular imports; fails silently if unavailable.
+            # Read the shared guard from the runtime container (Phase 1/4) instead
+            # of reaching back into warden.main; fails silently if unavailable.
             try:
-                import warden.main as _main  # noqa: PLC0415
                 from warden.brain.poison import (
                     DataPoisoningGuard as _DataPoisoningGuard,  # noqa: PLC0415
                 )
-                _pg = getattr(_main, "_poison_guard", None)
+                from warden.runtime import runtime as _runtime  # noqa: PLC0415
+                _pg = _runtime.get("poison_guard")
                 if _pg is not None and isinstance(_pg, _DataPoisoningGuard):
                     vetted: list[str] = []
                     for ex in examples:

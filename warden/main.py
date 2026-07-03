@@ -652,6 +652,8 @@ async def lifespan(app: FastAPI):
         guard=_guard,
         filter_orchestrator=_run_filter_pipeline,
         threat_vault=_threat_vault,
+        threat_store=_threat_store,
+        poison_guard=_poison_guard,
     )
 
     # ── Agent Monitor ─────────────────────────────────────────────────
@@ -724,6 +726,7 @@ async def lifespan(app: FastAPI):
                 semantic_guard = _brain_guard,
             )
             _intel_bridge_task = asyncio.create_task(_intel_bridge.run_loop())
+            _runtime.publish(intel_bridge=_intel_bridge)
             log.info(
                 "IntelBridge online (interval=%.0fh).",
                 float(os.getenv("INTEL_BRIDGE_INTERVAL_HRS", "6")),

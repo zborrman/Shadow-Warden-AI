@@ -140,7 +140,7 @@ def _apply_hot_reload(key: str, value: Any) -> bool:
         if key == "rate_limit_per_minute":
             os.environ["RATE_LIMIT_PER_MINUTE"] = str(int(value))
             try:
-                from warden.main import set_default_rate_limit  # noqa: PLC0415
+                from warden.auth_guard import set_default_rate_limit  # noqa: PLC0415
                 set_default_rate_limit(int(value))
             except Exception:
                 pass

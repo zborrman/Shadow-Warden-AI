@@ -142,7 +142,10 @@ def _ingest_attribute(attr: dict, event_info: str = "") -> None:
     elif atype in _IP_TYPES:
         ip = value.split("|")[0].strip()
         try:
-            from warden.main import _threat_store  # noqa: PLC0415
+            from warden.runtime import runtime as _runtime  # noqa: PLC0415
+            _threat_store = _runtime.get("threat_store")
+            if _threat_store is None:
+                raise RuntimeError("threat_store not published to runtime")
             _threat_store.block_ip(
                 ip=ip, tenant_id=_MISP_TENANT_ID,
                 reason=comment, blocked_by="misp_bridge",

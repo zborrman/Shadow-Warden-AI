@@ -1,6 +1,8 @@
 # Shadow Warden AI — Target Architecture
 
-**Status:** Phases 1-3 landed (3 partial) · Phase 4 planned
+**Status:** Phases 1-2 landed · Phase 3 in progress (safety net + 2 groups
+extracted) · Phase 4 layer-guard landed — **zero upward imports of `warden.main`,
+enforced in CI**
 **Style:** Layered modular monolith (single-node, CPU-only, fail-open <2ms hot path)
 **Non-goal:** microservices / event bus — they break the latency budget and add ops
 weight a single-tenant-per-node security gateway does not need.
@@ -131,15 +133,34 @@ group's tests. Coupled routes (health, config) first need their shared state
 
 ## 6. Phase 4 — One registration path + layer enforcement
 
-- Fold all 88 inline `include_router` calls into `CORE_ROUTERS` / `OPTIONAL_ROUTERS`
-  specs consumed by a single `register_router_safe` loop in `app_factory`. Optional
-  routers already fail-open in isolation.
-- Add an import-linter (or a small AST test like `test_runtime.py`'s leaf check)
-  enforcing the layer rule: `domains/*` may not import `warden.main`, `warden.api.*`,
-  or `warden.services.*`. This makes the architecture self-defending.
+**Landed — the self-defending layer guard.** `test_architecture_layers.py`
+enforces the core invariant in CI: **no module under `warden/` (except `main.py`)
+may import `warden.main`** — directly, aliased, or `from warden import main`. The
+scan is AST-based (docstring mentions ignored). The last four upward reach-backs
+were removed by publishing their singletons to `warden.runtime` and having readers
+resolve from there:
+
+| Reader (was `warden.main.…`) | Now reads from runtime slot |
+|------------------------------|-----------------------------|
+| `api/config_api.py` (`set_default_rate_limit`) | imported from `warden.auth_guard` (its real home) |
+| `brain/evolve.py` (`_poison_guard`) | `runtime.get("poison_guard")` |
+| `integrations/misp_bridge.py` (`_threat_store`) | `runtime.get("threat_store")` |
+| `analytics/pages/2_Settings.py` (`_intel_bridge`) | `runtime.get("intel_bridge")` |
+
+A second test asserts `warden.runtime` imports no `warden.*` package (the
+cycle-proof leaf). Result: **the historic cycle source is gone and cannot
+regress** — any new upward import fails the build.
+
+**Remaining (optional debt reduction, non-behavioural — the guard makes each
+safe to land incrementally):**
+
+- Fold the inline `include_router` calls into `CORE_ROUTERS` / `OPTIONAL_ROUTERS`
+  specs consumed by a single `register_router_safe` loop in `app_factory`.
 - Retire the ~250 cross-domain lazy `warden.*` imports that only existed to dodge
   cycles now removed; keep the ~400 legit lazy imports of heavy/optional deps
   (httpx, redis, numpy, web3, anthropic) that serve fail-open + cold-start.
+- Continue moving the remaining inline `main.py` routes into `warden/api/*` behind
+  the route-inventory guard until `main.py` is just `create_app()` + lifespan.
 
 ---
 
