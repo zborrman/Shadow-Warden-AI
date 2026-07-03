@@ -11,11 +11,12 @@ jobs:
     name: Helm Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
-      - uses: azure/setup-helm@v4
-        with:
-          version: "3.15.0"
+      - name: Install Helm 3.15
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \
+            | DESIRED_VERSION=v3.15.0 bash
 
       - name: Helm lint (default values)
         run: helm lint charts/shadow-warden --strict
