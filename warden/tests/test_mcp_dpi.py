@@ -1,9 +1,11 @@
 """Tests for MCP gateway DPI and L402 integration."""
 from __future__ import annotations
 
-import json
-import os
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from warden.mcp.gateway import router
 
 
 @pytest.fixture(autouse=True)
@@ -19,9 +21,6 @@ def _env(monkeypatch):
 
 @pytest.fixture
 def client():
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from warden.mcp.gateway import router
     app = FastAPI()
     app.include_router(router)
     return TestClient(app, raise_server_exceptions=False)

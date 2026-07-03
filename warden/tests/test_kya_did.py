@@ -1,15 +1,11 @@
 """Tests for KYA DID module and profile store."""
 from __future__ import annotations
 
-import os
-import pytest
-
 from warden.kya.did import (
     did_from_seed,
     ephemeral_did,
     generate_keypair,
     is_valid_did,
-    pubkey_to_did,
     sign_challenge,
     sign_trust_assertion,
     verify_signature,
