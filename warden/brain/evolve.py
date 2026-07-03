@@ -323,11 +323,8 @@ class EvolutionEngine:
         """
         guard = self._guard
         if guard is None:
-            try:
-                import warden.main as _main  # noqa: PLC0415
-                guard = getattr(_main, "_brain_guard", None)
-            except ImportError:
-                return
+            from warden.runtime import runtime as _rt  # noqa: PLC0415
+            guard = _rt.brain_guard
         if guard is None:
             return
         texts: list[str] = []

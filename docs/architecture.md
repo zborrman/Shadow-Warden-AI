@@ -1,0 +1,137 @@
+# Shadow Warden AI — Target Architecture
+
+**Status:** Phase 1 landed · Phases 2–4 planned
+**Style:** Layered modular monolith (single-node, CPU-only, fail-open <2ms hot path)
+**Non-goal:** microservices / event bus — they break the latency budget and add ops
+weight a single-tenant-per-node security gateway does not need.
+
+---
+
+## 1. Why not a rewrite
+
+The domain decomposition is sound: a 9-stage `/filter` pipeline plus ~60 feature
+verticals (marketplace, communities, billing, sovereign, staff, …). Measured debt:
+
+| Signal | Value | Verdict |
+|--------|-------|---------|
+| `warden/main.py` | 6207 LOC · 134 fns · 92 inline routes · 88 `include_router` | god-module |
+| Reach-backs into `main` from domains | 7 sites (`_brain_guard`, `_evolve`, `_semantic_engine`) | real cycle source |
+| Lazy `# noqa: PLC0415` imports | 651 total | ~400 legit (httpx/redis/numpy/anthropic, fail-open + cold-start) · ~250 cross-domain `warden.*` |
+| Router registration | 2 mechanisms (`app_factory` 8 · inline 88) | half-migrated |
+
+Conclusion: **restructure within the monolith**, don't rewrite. Four phases, each a
+standalone PR that keeps external APIs and the 4305-test suite green.
+
+---
+
+## 2. Target layers
+
+Dependencies point **downward only**. A CI guard (Phase 4) enforces it.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ api/        thin routers: HTTP ⇆ service. No domain logic.│
+├─────────────────────────────────────────────────────────┤
+│ services/   orchestration: FilterPipeline, Evolution, …   │
+├─────────────────────────────────────────────────────────┤
+│ domains/    topology, obfuscation, secrets, semantic,     │
+│             causal, ers, brain, marketplace, communities… │
+├─────────────────────────────────────────────────────────┤
+│ runtime/    shared singletons, config, contracts.          │
+│             LEAF — imports no warden domain. Cycle-proof.  │
+└─────────────────────────────────────────────────────────┘
+```
+
+Rule: a layer may import only from layers below it. Domains never import `api` or
+`services` or `main`; they read shared state from `runtime`.
+
+---
+
+## 3. Phase 1 — Runtime container ✅ (landed)
+
+**Problem:** domains did `from warden import main; main._brain_guard`, and `main`
+imports nearly every domain → cycles → 651 lazy-import workarounds.
+
+**Fix:** `warden/runtime.py` — a dependency-free leaf holding the shared singletons
+(`brain_guard`, `evolve`, `semantic_engine`, `redactor`, `guard`, `agent_monitor`).
+
+- `main` **publishes** during lifespan: `runtime.publish(brain_guard=…, evolve=…)`.
+- Domains **read**: `from warden.runtime import runtime; runtime.brain_guard`.
+- Readers tolerate `None` (unit tests that never boot the app) and fall back to a
+  local instance.
+
+Migrated sites: `api/agent.py`, `brain/evolve.py`, `marketplace/importer.py`,
+`testing/context.py`. Tests: `test_runtime.py` (incl. an AST guard asserting the
+module imports no `warden.*`).
+
+---
+
+## 4. Phase 2 — Extract the pipeline into a service
+
+**Goal:** the crown-jewel `/filter` logic leaves the god-module.
+
+- New `warden/services/pipeline.py` → `FilterPipeline.run(request) -> FilterResponse`,
+  owning the 9 stages (topology → obfuscation → secrets → semantic → brain → causal
+  → phish → ers → decision) and `trace_stage`.
+- `main.filter_content` (currently ~450 LOC at `main.py:3031`) becomes a ~10-line
+  router in `warden/api/filter.py` that calls the service.
+- Stage instances come from `runtime` (published in Phase 1), so the service has no
+  `main` dependency.
+- Invariants preserved verbatim: x402 fail-open, GDPR content-never-logged, all 32
+  Playwright assertions, `<link rel="agent-protocol">`, Decimal clearing math.
+- Verification: existing `/filter` end-to-end tests unchanged; add
+  `test_pipeline_service.py` calling the service directly.
+
+Also split the other oversized modules by responsibility:
+`agent/tools.py` (2821) → `agent/tools/{sova,forensics,compliance,threat}.py`;
+`marketplace/api.py` (1315) → already has sub-routers, move remaining inline handlers.
+
+---
+
+## 5. Phase 3 — Dissolve `main.py`
+
+**Goal:** `main.py` < 300 LOC — only `create_app()` + lifespan wiring.
+
+- Move the 92 inline `@app.*` routes into `warden/api/*` modules grouped by concern
+  (`api/health.py`, `api/config.py`, `api/batch.py`, `api/output.py`, …).
+- Extract shared helpers still living in `main` (`_tenant_key`, `_load`, docs-auth,
+  blocklist) into `warden/runtime/` or `warden/api/deps.py`.
+- Lifespan startup (singleton construction + `runtime.publish`) moves to
+  `warden/bootstrap.py`; `main.py` just calls `create_app()`.
+- Verification: full suite + Docker smoke (`/health`, `/filter`) must stay green;
+  OpenAPI schema diff must be empty (no route lost or renamed).
+
+---
+
+## 6. Phase 4 — One registration path + layer enforcement
+
+- Fold all 88 inline `include_router` calls into `CORE_ROUTERS` / `OPTIONAL_ROUTERS`
+  specs consumed by a single `register_router_safe` loop in `app_factory`. Optional
+  routers already fail-open in isolation.
+- Add an import-linter (or a small AST test like `test_runtime.py`'s leaf check)
+  enforcing the layer rule: `domains/*` may not import `warden.main`, `warden.api.*`,
+  or `warden.services.*`. This makes the architecture self-defending.
+- Retire the ~250 cross-domain lazy `warden.*` imports that only existed to dodge
+  cycles now removed; keep the ~400 legit lazy imports of heavy/optional deps
+  (httpx, redis, numpy, web3, anthropic) that serve fail-open + cold-start.
+
+---
+
+## 7. Sequencing & risk
+
+| Phase | Scope | Risk | PR |
+|-------|-------|------|-----|
+| 1 Runtime | +2 files, 5 sites | low (additive) | landed |
+| 2 Pipeline service | extract `/filter` | medium (hot path) | own PR + e2e |
+| 3 Dissolve main | move 92 routes | medium (surface area) | own PR + OpenAPI diff |
+| 4 Registration + guard | wiring + lint | low | own PR |
+
+Each phase is independently shippable, changes **no external API**, and is gated by
+the existing CI (4305 tests, ≥75% coverage, ruff + mypy, Docker smoke, 32 Playwright).
+Do phases in order — Phase 1 unblocks 2–4 by making `runtime` the shared-state seam.
+
+## 8. Invariants the refactor must never touch
+
+`<link rel="agent-protocol">` · `clearing.py` Decimal math · x402 fail-open · all 32
+Playwright assertions · GDPR content-never-logged · Digital-Staff STAFF-01…05 ·
+`resolve_key` fail-closed signing · `net_guard` SSRF filter on outbound URLs.

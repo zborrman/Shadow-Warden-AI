@@ -641,6 +641,17 @@ async def lifespan(app: FastAPI):
             "or ANTHROPIC_API_KEY (Claude) to enable automated rule generation."
         )
 
+    # ── Publish shared singletons to the runtime container (Phase 1) ──────
+    # Domain modules read these from warden.runtime instead of importing main,
+    # which breaks the historic import cycle. See docs/architecture.md.
+    from warden import runtime as _runtime  # noqa: PLC0415
+    _runtime.publish(
+        brain_guard=_brain_guard,
+        evolve=_evolve,
+        redactor=_redactor,
+        guard=_guard,
+    )
+
     # ── Agent Monitor ─────────────────────────────────────────────────
     if _AGENT_MONITOR_AVAILABLE:
         _agent_monitor = AgentMonitor()
