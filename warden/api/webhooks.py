@@ -50,14 +50,18 @@ class WebhookOut(BaseModel):
 
 @router.post("/", response_model=WebhookOut)
 async def create_webhook(body: WebhookCreate, request: Any = None):
+    from warden.net_guard import SSRFError  # noqa: PLC0415
     from warden.webhooks.engine import create_endpoint  # noqa: PLC0415
     tenant_id = _tenant(request) if request else "default"
-    ep = create_endpoint(
-        tenant_id=tenant_id,
-        url=str(body.url),
-        secret=body.secret,
-        events=body.events,
-    )
+    try:
+        ep = create_endpoint(
+            tenant_id=tenant_id,
+            url=str(body.url),
+            secret=body.secret,
+            events=body.events,
+        )
+    except SSRFError as exc:
+        raise HTTPException(status_code=422, detail=f"URL rejected: {exc}") from exc
     return WebhookOut(id=ep.id, url=ep.url, events=ep.events,
                       enabled=ep.enabled, created_at=ep.created_at)
 

@@ -6,6 +6,7 @@ Exposes CRUD endpoints for whitelisting rules and action checks.
 """
 from __future__ import annotations
 
+import hmac
 import os
 from typing import Annotated
 
@@ -17,11 +18,20 @@ from warden.agentic.registry import get_registry
 
 router = APIRouter(tags=["admin"])
 
-_ADMIN_KEY = os.getenv("ADMIN_KEY", "")
-
 
 def _require_admin(x_admin_key: Annotated[str, Header(alias="X-Admin-Key")] = "") -> None:
-    if _ADMIN_KEY and x_admin_key != _ADMIN_KEY:
+    # Read fresh each call so tests / rotations take effect without reimport.
+    admin = os.getenv("ADMIN_KEY", "")
+    if not admin:
+        # Fail closed in production; allow only explicit dev/test mode so local
+        # suites can exercise the admin endpoints without provisioning a key.
+        if os.getenv("ALLOW_UNAUTHENTICATED", "false").strip().lower() == "true":
+            return
+        raise HTTPException(
+            status_code=503, detail="ADMIN_KEY not configured — admin endpoints disabled."
+        )
+    # Constant-time comparison prevents key-recovery via response timing.
+    if not x_admin_key or not hmac.compare_digest(x_admin_key, admin):
         raise HTTPException(status_code=403, detail="Admin key required.")
 
 

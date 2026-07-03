@@ -107,6 +107,11 @@ _ensure_schema()
 
 def create_endpoint(tenant_id: str, url: str, secret: str, events: list[str]) -> WebhookEndpoint:
     import secrets as _sec  # noqa: PLC0415
+
+    from warden.net_guard import assert_public_url  # noqa: PLC0415
+    # SSRF guard: reject internal / metadata / private URLs at registration time.
+    assert_public_url(url)
+
     wid = _sec.token_hex(12)
     ts  = datetime.now(UTC).isoformat()
     valid_events = [e for e in events if e in EVENT_TYPES]
@@ -168,6 +173,11 @@ async def _deliver_once(endpoint: WebhookEndpoint, payload: dict, attempt: int) 
     }
     try:
         import httpx  # noqa: PLC0415
+
+        from warden.net_guard import assert_public_url  # noqa: PLC0415
+        # Re-validate at delivery time — defends against DNS rebinding between
+        # registration and firing, and against rows written before this guard.
+        assert_public_url(endpoint.url)
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.post(endpoint.url, content=body, headers=headers)
             return resp.status_code

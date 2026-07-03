@@ -14,9 +14,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import os
 import secrets
 import string
+
+from warden.secret_keys import resolve_key
 
 _B62 = string.digits + string.ascii_uppercase + string.ascii_lowercase  # 0-9A-Za-z
 
@@ -122,10 +123,11 @@ def ephemeral_did() -> str:
     return did_from_seed(secrets.token_bytes(32))
 
 
-_KYA_TRUST_KEY = os.getenv("KYA_TRUST_HMAC_KEY", "shadow-warden-kya-dev").encode()
+def _kya_trust_key() -> bytes:
+    return resolve_key("KYA_TRUST_HMAC_KEY", purpose="kya_trust")
 
 
 def sign_trust_assertion(did: str, trust_score: float, issued_at: str) -> str:
     """HMAC-SHA256 trust assertion signed by the gateway."""
     msg = f"{did}|{trust_score:.4f}|{issued_at}".encode()
-    return hmac.new(_KYA_TRUST_KEY, msg, hashlib.sha256).hexdigest()
+    return hmac.new(_kya_trust_key(), msg, hashlib.sha256).hexdigest()

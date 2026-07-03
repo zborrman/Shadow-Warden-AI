@@ -5,8 +5,6 @@ Tests for Agent Action Whitelist REST API.
 """
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -14,10 +12,11 @@ from warden.main import app
 
 
 @pytest.fixture
-def api_client():
-    # Patch ADMIN_KEY for predictable test environments
-    with patch("warden.api.action_whitelist._ADMIN_KEY", "test-admin-key"):
-        yield TestClient(app, raise_server_exceptions=True)
+def api_client(monkeypatch):
+    # Set ADMIN_KEY for predictable test environments. The admin gate reads the
+    # env var fresh each call (fail-closed when unset in production).
+    monkeypatch.setenv("ADMIN_KEY", "test-admin-key")
+    yield TestClient(app, raise_server_exceptions=True)
 
 
 def test_action_whitelist_crud_unauthorized(api_client) -> None:

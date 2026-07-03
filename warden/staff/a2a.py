@@ -30,7 +30,11 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 _DB_PATH: str = os.getenv("STAFF_A2A_DB_PATH", "/tmp/warden_staff_a2a.db")
-_HMAC_KEY: bytes = os.getenv("STAFF_A2A_HMAC_KEY", "staff-a2a-dev-key").encode()
+
+
+def _hmac_key() -> bytes:
+    from warden.secret_keys import resolve_key  # noqa: PLC0415
+    return resolve_key("STAFF_A2A_HMAC_KEY", purpose="staff_a2a")
 
 _A2A_DDL = """
     CREATE TABLE IF NOT EXISTS staff_a2a_calls (
@@ -123,7 +127,7 @@ class A2ACall:
 
 def _sign(caller: str, target: str, tool: str, ts: int) -> str:
     canonical = f"{caller}:{target}:{tool}:{ts}"
-    return hmac.new(_HMAC_KEY, canonical.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_hmac_key(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
 def _verify(caller: str, target: str, tool: str, ts: int, token: str) -> bool:

@@ -22,11 +22,13 @@ from contextlib import contextmanager, suppress
 from datetime import UTC, datetime, timedelta
 
 from warden.protocols.acp.models import SharedPaymentToken
+from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.acp.token_vault")
 
 _DB_PATH  = os.getenv("ACP_DB_PATH", "/tmp/warden_acp.db")
-_HMAC_KEY = os.getenv("VAULT_MASTER_KEY", "insecure-default").encode()
+def _hmac_key() -> bytes:
+    return resolve_key("ACP_HMAC_KEY", purpose="acp_spt")
 _db_lock  = threading.RLock()
 _REDIS_PREFIX = "acp:spt:"
 _DEFAULT_TTL_MINUTES = int(os.getenv("ACP_SPT_TTL_MINUTES", "30"))
@@ -102,7 +104,7 @@ def _conn() -> Generator[sqlite3.Connection, None, None]:
 
 def _sign(token_id: str, merchant_id: str, agent_id: str, max_amount: float, expires_at: str) -> str:
     canonical = f"{token_id}|{merchant_id}|{agent_id}|{max_amount}|{expires_at}"
-    return hmac.new(_HMAC_KEY, canonical.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_hmac_key(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
 def _verify_sig(spt: SharedPaymentToken) -> bool:
