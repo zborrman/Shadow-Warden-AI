@@ -1,10 +1,46 @@
 ---
 const releases = [
   {
-    version: 'v7.4',
+    version: 'v7.5',
     date: 'Jul 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '🧱',
+        title: 'Layered Architecture Refactor',
+        tier: 'All Plans',
+        desc: 'The warden.main god-module is being dissolved into a layered modular monolith (api → services → domains → runtime). A dependency-free runtime container holds shared singletons; the FilterPipeline service is the stable seam over the 9-stage flow. Fully backward-compatible — zero external API changes.',
+        tags: ['Architecture', 'Runtime', 'FilterPipeline', 'Refactor'],
+      },
+      {
+        icon: '🛡️',
+        title: 'Self-Defending Layer Guard',
+        tier: 'All Plans',
+        desc: 'A CI-enforced AST test guarantees no module under warden/ imports warden.main upward — the historic import-cycle source is eliminated and cannot regress. The last four reach-backs (poison_guard, threat_store, intel_bridge, rate-limit setter) now resolve from the runtime container.',
+        tags: ['Architecture', 'CI Guard', 'Import Rules', 'Security'],
+      },
+      {
+        icon: '🧭',
+        title: 'Route-Inventory Guard',
+        tier: 'All Plans',
+        desc: 'An executable OpenAPI diff snapshots all 713 routes; any added, removed, or renamed route fails CI. This makes incremental extraction of endpoints out of main.py provably surface-preserving — /api/contact and the 8 /threats/* routes moved to dedicated routers with zero externally-visible change.',
+        tags: ['Testing', 'OpenAPI', 'Routing', 'Safety Net'],
+      },
+      {
+        icon: '🔐',
+        title: 'Security Hardening',
+        tier: 'All Plans',
+        desc: 'SSRF guard (net_guard) validates every outbound webhook URL against private/loopback/cloud-metadata ranges with full DNS resolution; signing keys resolve fail-closed via resolve_key (no public defaults); approval-gate and admin checks hardened; SemanticQueryEngine gains identifier/operator/literal validation for defense-in-depth against SQL injection.',
+        tags: ['SSRF', 'Fail-Closed', 'HMAC', 'SQLi Defense'],
+      },
+    ],
+  },
+  {
+    version: 'v7.4',
+    date: 'Jul 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
     items: [
       {
         icon: '🩺',

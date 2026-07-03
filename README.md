@@ -4,9 +4,20 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.4 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.5 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.5
+
+| Feature | Description |
+|---------|-------------|
+| **Layered Architecture Refactor** | The `warden.main` god-module is being dissolved into a layered modular monolith (`api → services → domains → runtime`). A dependency-free `warden/runtime.py` container holds shared singletons; `warden/services/pipeline.py` `FilterPipeline` is the stable seam over the 9-stage flow. Zero external API changes. See [docs/architecture.md](docs/architecture.md). |
+| **Self-Defending Layer Guard** | `test_architecture_layers.py` enforces in CI that no module under `warden/` (except `main.py`) imports `warden.main` — the historic import-cycle source is eliminated and cannot regress. The last four upward reach-backs (`poison_guard`, `threat_store`, `intel_bridge`, rate-limit setter) now resolve from the runtime container. |
+| **Route-Inventory Guard** | `test_route_inventory.py` snapshots all 713 routes as an executable OpenAPI diff — any added/removed/renamed route fails CI. Makes incremental extraction of endpoints out of `main.py` provably surface-preserving; `/api/contact` and the 8 `/threats/*` routes moved to dedicated routers with zero externally-visible change. |
+| **Security Hardening** | SSRF guard (`net_guard`) validates every outbound webhook URL against private/loopback/cloud-metadata ranges with full DNS resolution; signing keys resolve fail-closed via `resolve_key` (no public defaults); approval-gate and admin checks hardened; `SemanticQueryEngine` gains identifier/operator/literal validation as SQLi defense-in-depth. |
 
 ---
 
