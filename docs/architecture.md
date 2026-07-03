@@ -1,6 +1,6 @@
 # Shadow Warden AI — Target Architecture
 
-**Status:** Phase 1 landed · Phases 2–4 planned
+**Status:** Phases 1-3 landed (3 partial) · Phase 4 planned
 **Style:** Layered modular monolith (single-node, CPU-only, fail-open <2ms hot path)
 **Non-goal:** microservices / event bus — they break the latency budget and add ops
 weight a single-tenant-per-node security gateway does not need.
@@ -100,7 +100,21 @@ Also split the other oversized modules by responsibility:
 
 ---
 
-## 5. Phase 3 — Dissolve `main.py`
+## 5. Phase 3 — Dissolve `main.py` 🚧 (safety net + first extraction landed)
+
+**Landed:** a route-inventory guard (`test_route_inventory.py` +
+`fixtures/route_inventory.json`, 713 routes) — the executable "OpenAPI diff":
+any route added/removed/renamed fails CI. A pure Phase-3 *move* must leave it
+green. First extraction proving the recipe: `POST /api/contact` moved from an
+inline `@app.post` to `warden/api/contact.py` (`APIRouter`), included via
+`app.include_router`. Guard stayed green (route unchanged); `test_contact_endpoint.py`
+locks behaviour + a layer check that the router doesn't import `warden.main`.
+
+**Recipe (repeat per route group, one PR each):** copy handler+models into
+`warden/api/<group>.py` as an `APIRouter`; replace the inline block in `main.py`
+with `app.include_router(...)`; run the inventory guard (must stay green) + the
+group's tests. Coupled routes (health, config) first need their shared state
+(`_bypass_window`, `_filter_window`, `_cb`) lifted into `runtime`/`api/deps.py`.
 
 **Goal:** `main.py` < 300 LOC — only `create_app()` + lifespan wiring.
 

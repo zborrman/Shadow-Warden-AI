@@ -6140,58 +6140,10 @@ async def saml_verify(request: Request):
 
 # ── Contact form ─────────────────────────────────────────────────────────────
 
-class _ContactRequest(BaseModel):
-    name:    str
-    email:   str
-    subject: str
-    message: str
-    company: str = ""
+# Public contact-form endpoint extracted to warden/api/contact.py (Phase 3).
+from warden.api.contact import router as _contact_router  # noqa: E402
 
-
-@app.post("/api/contact", tags=["Public"])
-async def contact(body: _ContactRequest):
-    """Send a contact-form message to the configured SMTP address."""
-    import smtplib
-    from email.mime.text import MIMEText
-
-    smtp_host = os.getenv("SMTP_HOST", "")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER", "")
-    smtp_pass = os.getenv("SMTP_PASS", "")
-    to_email  = os.getenv("CONTACT_TO_EMAIL", "vz@shadow-warden-ai.com")
-
-    text_parts = [
-        f"Name:    {body.name}",
-        f"Email:   {body.email}",
-        f"Company: {body.company}" if body.company else "",
-        f"Topic:   {body.subject}",
-        "",
-        body.message,
-    ]
-    text = "\n".join(p for p in text_parts if p is not None)
-
-    if not smtp_host or not smtp_user:
-        log.warning("contact form: SMTP not configured — logging message only")
-        log.info("contact_form_submission name=%s email=%s subject=%s", body.name, body.email, body.subject)
-        return {"ok": True}
-
-    try:
-        msg = MIMEText(text, "plain", "utf-8")
-        msg["Subject"] = f"[Shadow Warden] {body.subject}"
-        msg["From"]    = smtp_user
-        msg["To"]      = to_email
-        msg["Reply-To"] = body.email
-
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as srv:
-            srv.starttls()
-            srv.login(smtp_user, smtp_pass)
-            srv.sendmail(smtp_user, [to_email], msg.as_string())
-
-        log.info("contact form sent: from=%s subject=%s", body.email, body.subject)
-        return {"ok": True}
-    except Exception as exc:
-        log.error("contact form send failed: %s", exc)
-        raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.") from exc
+app.include_router(_contact_router)
 
 
 from warden.app_factory import (  # noqa: E402, I001
