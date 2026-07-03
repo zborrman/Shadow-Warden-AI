@@ -6191,6 +6191,8 @@ if os.getenv("TURSO_AUTO_MIGRATE", "false").lower() == "true":
     except Exception as _e:
         log.warning("Turso auto-migrate failed (skipped): %s", _e)
 register_router_safe(app, _RouterSpec("warden.api.billing_audit", label="Billing Audit Chain /billing/audit"))
+register_router_safe(app, _RouterSpec("warden.api.kya",            label="KYA DIDs /kya"))
+register_router_safe(app, _RouterSpec("warden.api.discovery",      label="Agent Discovery /.well-known"))
 
 
 # ── Global error handler ──────────────────────────────────────────────────────
