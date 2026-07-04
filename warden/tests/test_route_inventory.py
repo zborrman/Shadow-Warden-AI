@@ -72,6 +72,18 @@ for route in m.app.routes:
 out = {mod: sorted(routes) for mod, routes in groups.items()}
 with open(sys.argv[1], "w", encoding="utf-8") as fh:
     json.dump(out, fh)
+
+# ── One-off marketplace mechanism probe (emitted to stderr, captured by parent) ──
+try:
+    import warden.marketplace.api as _mapi
+    _mkt_app = [str(getattr(r, "path", "")) for r in m.app.routes
+                if str(getattr(r, "path", "")).startswith("/marketplace")]
+    print(f"DIAG marketplace.api.router.routes = {len(_mapi.router.routes)}", file=sys.stderr)
+    print(f"DIAG app /marketplace route count  = {len(_mkt_app)}", file=sys.stderr)
+    print(f"DIAG marketplace.api.__file__      = {getattr(_mapi, '__file__', '?')}", file=sys.stderr)
+    print(f"DIAG 'warden.marketplace.api' cached = {'warden.marketplace.api' in sys.modules}", file=sys.stderr)
+except Exception as _e:  # noqa: BLE001
+    print(f"DIAG marketplace probe error: {_e!r}", file=sys.stderr)
 """
 
 
@@ -101,8 +113,9 @@ def _current_groups() -> dict[str, list[str]]:
             line.strip()
             for line in blob.splitlines()
             if ("not available" in line or "router skipped" in line
-                or "router FAILED" in line or "skipped:" in line)
-            and "warden" in line.lower()
+                or "router FAILED" in line or "skipped:" in line
+                or line.strip().startswith("DIAG"))
+            and ("warden" in line.lower() or line.strip().startswith("DIAG"))
         ]
         data = json.loads(Path(out_path).read_text(encoding="utf-8"))
     finally:
