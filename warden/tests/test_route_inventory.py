@@ -52,8 +52,26 @@ _child_diag: list[str] = []
 
 # Child program: import the app cleanly and dump {endpoint_module: [ "METHOD PATH" ]}.
 _CHILD = r"""
-import json, logging, sys
+import json, logging, sys, traceback
 logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
+
+# One-off: trace the marketplace include to see if its router is empty at
+# include time (partial import) and what stack triggered it.
+import fastapi as _f
+_orig_inc = _f.FastAPI.include_router
+def _traced_inc(self, router, *a, **k):
+    try:
+        pfx = getattr(router, "prefix", "") or k.get("prefix", "")
+        rc = len(getattr(router, "routes", []) or [])
+        if "marketplace" in str(pfx) or rc == 0:
+            print(f"INCLUDE prefix={pfx!r} routes={rc}", file=sys.stderr)
+            if rc == 0 and "marketplace" in str(pfx):
+                print("STACK>>>\n" + "".join(traceback.format_stack()) + "<<<STACK", file=sys.stderr)
+    except Exception as _e:
+        print(f"INCLUDE trace error {_e!r}", file=sys.stderr)
+    return _orig_inc(self, router, *a, **k)
+_f.FastAPI.include_router = _traced_inc
+
 import warden.main as m
 
 groups = {}
@@ -147,8 +165,10 @@ def _current_groups() -> dict[str, list[str]]:
             line.strip()
             for line in blob.splitlines()
             if ("not available" in line or "router skipped" in line
-                or "router FAILED" in line or "skipped:" in line)
-            and "warden" in line.lower()
+                or "router FAILED" in line or "skipped:" in line
+                or "INCLUDE " in line or "STACK" in line or line.strip().startswith("File \""))
+            and ("warden" in line.lower() or "INCLUDE " in line or "STACK" in line
+                 or line.strip().startswith("File \"") or "marketplace" in line)
         ]
         data = json.loads(Path(out_path).read_text(encoding="utf-8"))
     finally:
