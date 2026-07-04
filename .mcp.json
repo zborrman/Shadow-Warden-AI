@@ -57,13 +57,13 @@
         "SERVICE_FILTER": "shadow-warden"
       },
       "_note": "OpenLIT observability MCP. When OTEL_ENABLED=true, exposes get_traces, get_slow_spans, get_token_usage, get_error_rate for SOVA tool integration. Requires OPENLIT_API_KEY (free tier available). Install: pip install openlit-mcp"
-    }
-  },
+    },
 
-  "chrome-devtools": {
-    "command": "npx",
-    "args": ["-y", "chrome-devtools-mcp@latest", "--headless"],
-    "_note": "Google Chrome DevTools MCP (official, by google-chrome-labs). Provides Lighthouse audit, DOM accessibility tree inspection, and WebMCP attribute validation. Used by autonomous-security-loop and SOVA visual patrol. Requires Chrome/Chromium installed on the machine. Tools: lighthouse_audit, get_accessibility_tree, navigate, screenshot, evaluate_js."
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "github:ChromeDevTools/chrome-devtools-mcp#913308263bdc8042af74924b68dc39a374ad071d", "--headless"],
+      "_note": "Google Chrome DevTools MCP (official). Provides Lighthouse audit, DOM accessibility tree inspection, and WebMCP attribute validation. Used by autonomous-security-loop and SOVA visual patrol. Requires Chrome/Chromium installed on the machine. Tools: lighthouse_audit, get_accessibility_tree, navigate, screenshot, evaluate_js. Pinned to commit 913308263bdc8042af74924b68dc39a374ad071d (github.com/ChromeDevTools/chrome-devtools-mcp) instead of @latest for build reproducibility. NOTE: this entry was previously misplaced as a top-level sibling of mcpServers (never actually loaded) — moved inside mcpServers here."
+    }
   },
 
   "_security_notes": {
