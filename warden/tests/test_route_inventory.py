@@ -74,6 +74,21 @@ _f.FastAPI.include_router = _traced_inc
 
 import warden.main as m
 
+# One-off structural probe: show any app.route that is not a plain APIRoute, plus
+# whether marketplace paths exist anywhere, to locate the 25 "lost" routes.
+try:
+    _mkt = [str(getattr(r, "path", "")) for r in m.app.routes if "marketplace" in str(getattr(r, "path", ""))]
+    print(f"STRUCT app.routes total={len(m.app.routes)} marketplace_paths={len(_mkt)}", file=sys.stderr)
+    for r in m.app.routes:
+        tn = type(r).__name__
+        if tn not in ("APIRoute", "Route"):
+            print(f"STRUCT container type={tn} path={getattr(r,'path','?')!r} "
+                  f"has_routes={hasattr(r,'routes')} has_app={hasattr(r,'app')} "
+                  f"nroutes={len(getattr(r,'routes',[]) or [])}", file=sys.stderr)
+    print(f"STRUCT sample_mkt={_mkt[:3]}", file=sys.stderr)
+except Exception as _e:
+    print(f"STRUCT error {_e!r}", file=sys.stderr)
+
 groups = {}
 
 def _record(route):
@@ -165,10 +180,8 @@ def _current_groups() -> dict[str, list[str]]:
             line.strip()
             for line in blob.splitlines()
             if ("not available" in line or "router skipped" in line
-                or "router FAILED" in line or "skipped:" in line
-                or "INCLUDE " in line or "STACK" in line or line.strip().startswith("File \""))
-            and ("warden" in line.lower() or "INCLUDE " in line or "STACK" in line
-                 or line.strip().startswith("File \"") or "marketplace" in line)
+                or "router FAILED" in line or "skipped:" in line or "STRUCT " in line)
+            and ("warden" in line.lower() or "STRUCT " in line or "marketplace" in line)
         ]
         data = json.loads(Path(out_path).read_text(encoding="utf-8"))
     finally:
