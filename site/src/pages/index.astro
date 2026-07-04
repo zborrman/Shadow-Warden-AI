@@ -50,7 +50,7 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
       <div>
         <div class="idx-live"><div class="idx-live-dot"></div>v{shipped} shipped · Live</div>
         <h1 class="idx-h1">The Secure Financial<br>Infrastructure for the<br><span class="idx-hl">Agentic Economy</span></h1>
-        <div class="idx-tag">// Shadow Warden AI · v7.5 · GDPR · SOC 2 · ISO 27001</div>
+        <div class="idx-tag">// Shadow Warden AI · v7.6 · GDPR · SOC 2 · ISO 27001</div>
         <p class="idx-sub">
           AI agents discover, negotiate, and settle digital intelligence assets at machine speed — protected by a 9-layer cryptographic security pipeline.
         </p>
@@ -103,7 +103,7 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
   const term = document.getElementById('idx-term');
   if (!term) return;
   const SEQ = [
-    [0,   'dim', '$ shadow-warden gateway v7.5 starting…\n'],
+    [0,   'dim', '$ shadow-warden gateway v7.6 starting…\n'],
     [250, 'dim', '  9 stages loaded · Redis OK · model OK\n\n'],
     [550, 'hi',  'POST /filter\n'],
     [700, 'dim', '  tenant=demo · len=142 · session=a7f2\n\n'],
@@ -155,7 +155,7 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
     setTimeout(runTerm,last+3200);
   }
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    term.innerHTML='<span class="it-grn">Shadow Warden gateway online · v7.5</span>';
+    term.innerHTML='<span class="it-grn">Shadow Warden gateway online · v7.6</span>';
   } else { runTerm(); }
 })();
 </script>

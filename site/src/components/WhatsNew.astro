@@ -1,10 +1,53 @@
 ---
 const releases = [
   {
-    version: 'v7.5',
+    version: 'v7.6',
     date: 'Jul 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '🛒',
+        title: 'Marketplace API Restored',
+        tier: 'All Plans',
+        desc: 'Pinned fastapi<0.136 / starlette<1.0 after discovering an unpinned starlette 1.x resolution silently dropped every /marketplace/* route on include_router() of a self-prefixed router — routes were handed to FastAPI but never reached the live app. Affected any fresh install (CI and production) that resolved the newer starlette major.',
+        tags: ['Marketplace', 'Dependency Pin', 'Regression Fix', 'FastAPI'],
+      },
+      {
+        icon: '🤝',
+        title: 'Community API Restored',
+        tier: 'All Plans',
+        desc: 'warden/models/community.py lived inside a gitignored directory (doubling as the HuggingFace model cache) and was never committed — the entire /community API (NIM moderation + Obsidian bridge) was silently absent everywhere except the original author’s machine. Relocated to the tracked warden/community_models.py.',
+        tags: ['Community', 'NIM Moderation', 'Bug Fix'],
+      },
+      {
+        icon: '🧭',
+        title: 'Route-Inventory Guard Hardening',
+        tier: 'All Plans',
+        desc: 'The guard now measures the app surface in a clean subprocess, grouped by owning module. It tolerates a whole subsystem being absent from a missing optional dependency while still catching real route regressions — and is immune to pytest-session state pollution that previously caused false failures.',
+        tags: ['Testing', 'CI Reliability', 'Route Guard'],
+      },
+      {
+        icon: '🔍',
+        title: 'CI Import Audit',
+        tier: 'All Plans',
+        desc: 'scripts/ci_import_audit.py walks every warden.* module plus a cold import warden.main, naming the exact missing dependency or import failure behind any skipped router directly in the CI job summary — no more digging through raw logs to find a root cause.',
+        tags: ['CI', 'Diagnostics', 'DevEx'],
+      },
+      {
+        icon: '🔌',
+        title: 'MCP Config Fix',
+        tier: 'All Plans',
+        desc: 'chrome-devtools in .mcp.json was a misplaced top-level key and was never actually loaded as a server despite being documented as active. Moved into mcpServers and pinned to a specific upstream commit for build reproducibility.',
+        tags: ['MCP', 'Tooling', 'Bug Fix'],
+      },
+    ],
+  },
+  {
+    version: 'v7.5',
+    date: 'Jul 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
     items: [
       {
         icon: '🧱',

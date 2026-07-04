@@ -4,9 +4,21 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.5 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.6 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.6
+
+| Feature | Description |
+|---------|-------------|
+| **Marketplace API Restored** | `fastapi`/`starlette` pinned to `<0.136`/`<1.0` — an unpinned starlette 1.x resolution silently dropped every `/marketplace/*` route on `include_router()` of a self-prefixed router. Affected any fresh install (CI and production) that resolved the newer starlette major. |
+| **Community API Restored** | `warden/models/community.py` lived inside a gitignored directory (doubling as the HuggingFace model cache) and was never committed — the entire `/community` API (NIM moderation + Obsidian bridge) was silently absent everywhere outside the original author's machine. Relocated to `warden/community_models.py`, now tracked. |
+| **Route-Inventory Guard Hardening** | The route-inventory guard now measures the app surface in a clean subprocess, grouped by owning module — tolerates whole subsystems absent from an optional dependency while still catching real route regressions. Immune to pytest-session state pollution. |
+| **CI Import Audit** | `scripts/ci_import_audit.py` walks every `warden.*` module and a cold `import warden.main`, naming the exact missing dependency or import failure behind any skipped router directly in the CI job summary. |
+| **MCP Config Fix** | `chrome-devtools` in `.mcp.json` was a misplaced top-level key (never actually loaded as a server); moved into `mcpServers` and pinned to a specific upstream commit. |
 
 ---
 
