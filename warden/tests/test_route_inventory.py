@@ -57,17 +57,29 @@ logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 import warden.main as m
 
 groups = {}
-for route in m.app.routes:
-    path = getattr(route, "path", None)
-    if not path:
-        continue
+
+def _record(route):
+    # A nested container (_IncludedRouter from include_router of a prefixed
+    # router, a known FastAPI v8.x behaviour) lacks .path but holds the real
+    # APIRoutes in .routes — and those children already carry their FULL path.
+    # Recurse into it; do not compose prefixes (children are absolute).
     endpoint = getattr(route, "endpoint", None)
+    path = getattr(route, "path", None)
+    if endpoint is None and getattr(route, "routes", None):
+        for child in route.routes:
+            _record(child)
+        return
+    if not path:
+        return
     module = getattr(endpoint, "__module__", None) or "__core__"
     methods = getattr(route, "methods", None) or {"WS"}
     for meth in methods:
         if meth in ("HEAD", "OPTIONS"):
             continue
         groups.setdefault(module, set()).add(f"{meth} {path}")
+
+for route in m.app.routes:
+    _record(route)
 
 out = {mod: sorted(routes) for mod, routes in groups.items()}
 with open(sys.argv[1], "w", encoding="utf-8") as fh:
