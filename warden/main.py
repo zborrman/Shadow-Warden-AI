@@ -1731,26 +1731,9 @@ except Exception as _exc:
 # ad-hoc re-sends).  Runs synchronously in a thread executor so it doesn't
 # block the event loop.  Requires super-admin key.
 
-@app.post("/admin/weekly-report", tags=["Admin"], summary="Trigger weekly ROI email reports now")
-async def trigger_weekly_report(request: Request):
-    """Manually trigger the weekly ROI report for all active paid tenants."""
-    _key = request.headers.get("X-Super-Admin-Key", "")
-    _expected = os.getenv("SUPER_ADMIN_KEY", "")
-    if not _expected or _key != _expected:
-        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415, N814
-        return _JR({"detail": "Forbidden"}, status_code=403)
-
-    import asyncio  # noqa: PLC0415
-    loop = asyncio.get_event_loop()
-    try:
-        from warden.workers.weekly_report import send_weekly_reports as _swr  # noqa: PLC0415
-        result = await loop.run_in_executor(None, lambda: asyncio.run(_swr({})))
-    except Exception as exc:
-        log.error("admin/weekly-report: failed: %s", exc)
-        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415, N814
-        return _JR({"detail": str(exc)}, status_code=500)
-
-    return result
+# ── Admin reporting endpoints ─────────────────────────────────────────────────
+# /admin/weekly-report extracted to warden/api/admin_reports.py (Phase 3).
+# Self-contained (SUPER_ADMIN_KEY-gated). Included via app.include_router below.
 
 
 # ── HTTP middleware (request-ID + security headers) ───────────────────────────
@@ -4526,6 +4509,11 @@ app.include_router(_ers_router)
 from warden.api.rules import router as _rules_router  # noqa: E402
 
 app.include_router(_rules_router)
+
+# Admin weekly-report endpoint extracted to warden/api/admin_reports.py (Phase 3).
+from warden.api.admin_reports import router as _admin_reports_router  # noqa: E402
+
+app.include_router(_admin_reports_router)
 
 
 from warden.app_factory import (  # noqa: E402, I001
