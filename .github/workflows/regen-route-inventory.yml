@@ -1,0 +1,113 @@
+name: Regenerate Route Inventory
+
+# Fix #3 — on-demand, full-dependency regeneration of the route-inventory fixture.
+#
+# The route-inventory guard (warden/tests/test_route_inventory.py) diffs the live
+# (method, path) surface against warden/tests/fixtures/route_inventory.json, which
+# must be a SUPERSET of every environment (see fix #1). Regenerating it by hand
+# means remembering `UPDATE_ROUTE_INVENTORY=1 pytest ...` on a machine with the
+# full dependency set. This workflow does it in CI instead: install the same
+# dependency set the `test` job uses (which is what determines the route surface),
+# regenerate, and commit the fixture back to the selected branch.
+#
+# Manual only (workflow_dispatch). It never runs on push, so it can never silently
+# "bake in" a reduced set — a human explicitly triggers it and reviews the commit.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why are you regenerating? (recorded in the commit body)"
+        required: false
+        default: "manual route-inventory refresh"
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    name: Regenerate fixture (full deps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Same dependency layering as the `test` job — this is what determines
+      # which routers mount, so the regenerated fixture matches CI exactly.
+      - name: Install CPU-only PyTorch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install project dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Install warden requirements
+        run: pip install -r warden/requirements.txt
+
+      - name: Cache ML model (all-MiniLM-L6-v2)
+        uses: actions/cache@v4
+        with:
+          path: /tmp/warden-model-cache
+          key: warden-model-all-minilm-l6-v2-v1
+
+      # Sanity: report any warden.* module that fails to import. If the audit
+      # lists unexpected modules, the regenerated fixture would be missing their
+      # routes — regenerate only when this is clean (or the absences are intended).
+      - name: Route-parity import audit
+        run: python scripts/ci_import_audit.py --summary | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          ANTHROPIC_API_KEY: ""
+          WARDEN_API_KEY: ""
+          ALLOW_UNAUTHENTICATED: "true"
+          REDIS_URL: "memory://"
+          LOGS_PATH: "/tmp/audit_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/audit_rules.json"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_audit.db"
+          IMAGE_GUARD_ENABLED: "false"
+
+      - name: Regenerate route inventory fixture
+        run: |
+          UPDATE_ROUTE_INVENTORY=1 pytest warden/tests/test_route_inventory.py \
+            -o addopts="" -q -p no:cacheprovider
+        env:
+          ANTHROPIC_API_KEY: ""
+          SEMANTIC_THRESHOLD: "0.72"
+          WARDEN_API_KEY: ""
+          ALLOW_UNAUTHENTICATED: "true"
+          LOGS_PATH: "/tmp/regen_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/regen_rules.json"
+          REDIS_URL: "memory://"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          AUDIT_TRAIL_PATH: "/tmp/regen_audit.db"
+          IMAGE_GUARD_ENABLED: "false"
+
+      - name: Commit updated fixture (if changed)
+        env:
+          REASON: ${{ github.event.inputs.reason }}
+        run: |
+          FIXTURE=warden/tests/fixtures/route_inventory.json
+          if git diff --quiet -- "$FIXTURE"; then
+            echo "Fixture unchanged — nothing to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$FIXTURE"
+          git commit -m "chore(ci): regenerate route-inventory fixture [skip ci]" \
+                     -m "Reason: ${REASON}" \
+                     -m "Regenerated on a full-dependency CI runner via workflow_dispatch."
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "Fixture updated and pushed to ${GITHUB_REF_NAME}."
+
+      - name: Upload fixture artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-inventory-fixture
+          path: warden/tests/fixtures/route_inventory.json
+          retention-days: 14
