@@ -1583,6 +1583,17 @@ try:
     from warden.marketplace.api_escrow import router as _mkt_escrow_router
     from warden.marketplace.api_listings import router as _mkt_listings_router
     from warden.marketplace.api_negotiations import router as _mkt_negotiations_router
+    if len(getattr(_marketplace_router, "routes", [])) == 0:
+        import sys as _sys
+        import traceback as _tb
+        _api_mod = _sys.modules.get("warden.marketplace.api")
+        log.warning(
+            "MKT-EMPTY router has 0 routes at include; api mid-import? "
+            "has agent_discovery_alias=%s file=%s\nSTACK:\n%s",
+            hasattr(_api_mod, "agent_discovery_alias"),
+            getattr(_api_mod, "__file__", "?"),
+            "".join(_tb.format_stack()),
+        )
     app.include_router(_marketplace_router)
     app.add_api_route("/.well-known/agent.json", agent_discovery_alias, methods=["GET"], include_in_schema=False)
 

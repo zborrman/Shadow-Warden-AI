@@ -92,8 +92,9 @@ def cold_import_probe() -> list[str]:
     hits = [
         line.strip()
         for line in blob.splitlines()
-        if ("not available" in line or "skipped" in line or "router FAILED" in line)
-        and "warden" in line.lower()
+        if ("not available" in line or "skipped" in line or "router FAILED" in line
+            or "MKT-EMPTY" in line)
+        and ("warden" in line.lower() or "MKT-EMPTY" in line)
     ]
     if proc.returncode != 0:
         hits.append(f"(cold import exited rc={proc.returncode}; tail: {proc.stderr[-500:]})")
