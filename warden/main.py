@@ -1583,7 +1583,7 @@ try:
     from warden.marketplace.api_escrow import router as _mkt_escrow_router
     from warden.marketplace.api_listings import router as _mkt_listings_router
     from warden.marketplace.api_negotiations import router as _mkt_negotiations_router
-    app.include_router(_marketplace_router)
+    app.include_router(_marketplace_router, prefix="/marketplace")
     app.add_api_route("/.well-known/agent.json", agent_discovery_alias, methods=["GET"], include_in_schema=False)
 
     async def _acp_manifest_alias():

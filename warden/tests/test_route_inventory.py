@@ -52,50 +52,15 @@ _child_diag: list[str] = []
 
 # Child program: import the app cleanly and dump {endpoint_module: [ "METHOD PATH" ]}.
 _CHILD = r"""
-import json, logging, sys, traceback
+import json, logging, sys
 logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
-
-# One-off: trace the marketplace include to see if its router is empty at
-# include time (partial import) and what stack triggered it.
-import fastapi as _f
-_orig_inc = _f.FastAPI.include_router
-def _traced_inc(self, router, *a, **k):
-    try:
-        pfx = getattr(router, "prefix", "") or k.get("prefix", "")
-        rc = len(getattr(router, "routes", []) or [])
-        if "marketplace" in str(pfx) or rc == 0:
-            print(f"INCLUDE prefix={pfx!r} routes={rc}", file=sys.stderr)
-            if rc == 0 and "marketplace" in str(pfx):
-                print("STACK>>>\n" + "".join(traceback.format_stack()) + "<<<STACK", file=sys.stderr)
-    except Exception as _e:
-        print(f"INCLUDE trace error {_e!r}", file=sys.stderr)
-    return _orig_inc(self, router, *a, **k)
-_f.FastAPI.include_router = _traced_inc
-
 import warden.main as m
-
-# One-off structural probe: show any app.route that is not a plain APIRoute, plus
-# whether marketplace paths exist anywhere, to locate the 25 "lost" routes.
-try:
-    _mkt = [str(getattr(r, "path", "")) for r in m.app.routes if "marketplace" in str(getattr(r, "path", ""))]
-    print(f"STRUCT app.routes total={len(m.app.routes)} marketplace_paths={len(_mkt)}", file=sys.stderr)
-    for r in m.app.routes:
-        tn = type(r).__name__
-        if tn not in ("APIRoute", "Route"):
-            print(f"STRUCT container type={tn} path={getattr(r,'path','?')!r} "
-                  f"has_routes={hasattr(r,'routes')} has_app={hasattr(r,'app')} "
-                  f"nroutes={len(getattr(r,'routes',[]) or [])}", file=sys.stderr)
-    print(f"STRUCT sample_mkt={_mkt[:3]}", file=sys.stderr)
-except Exception as _e:
-    print(f"STRUCT error {_e!r}", file=sys.stderr)
 
 groups = {}
 
 def _record(route):
-    # A nested container (_IncludedRouter from include_router of a prefixed
-    # router, a known FastAPI v8.x behaviour) lacks .path but holds the real
-    # APIRoutes in .routes — and those children already carry their FULL path.
-    # Recurse into it; do not compose prefixes (children are absolute).
+    # Recurse into nested route containers (Mount / _IncludedRouter). Their child
+    # APIRoutes already carry absolute paths, so no prefix composition is needed.
     endpoint = getattr(route, "endpoint", None)
     path = getattr(route, "path", None)
     if endpoint is None and getattr(route, "routes", None):
@@ -180,8 +145,8 @@ def _current_groups() -> dict[str, list[str]]:
             line.strip()
             for line in blob.splitlines()
             if ("not available" in line or "router skipped" in line
-                or "router FAILED" in line or "skipped:" in line or "STRUCT " in line)
-            and ("warden" in line.lower() or "STRUCT " in line or "marketplace" in line)
+                or "router FAILED" in line or "skipped:" in line)
+            and "warden" in line.lower()
         ]
         data = json.loads(Path(out_path).read_text(encoding="utf-8"))
     finally:

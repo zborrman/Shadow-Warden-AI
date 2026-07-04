@@ -26,7 +26,7 @@ def _make_app(tmp_db: str) -> "TestClient":
     from warden.marketplace.api import router
 
     app = FastAPI()
-    app.include_router(router)
+    app.include_router(router, prefix="/marketplace")
     return TestClient(app)
 
 
