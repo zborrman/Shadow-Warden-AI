@@ -278,6 +278,24 @@ jobs:
       - name: Install warden requirements
         run: pip install -r warden/requirements.txt
 
+      # Route-parity diagnostic (fix #2): name any warden.* module that fails to
+      # import in THIS environment, so a missing optional dep behind a whole
+      # skipped subsystem is visible in the job summary — no local log needed.
+      # Informational: the route-inventory guard already tolerates absent modules.
+      - name: Route-parity import audit
+        if: always()
+        run: python scripts/ci_import_audit.py --summary | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          ANTHROPIC_API_KEY: ""
+          WARDEN_API_KEY: ""
+          ALLOW_UNAUTHENTICATED: "true"
+          REDIS_URL: "memory://"
+          LOGS_PATH: "/tmp/audit_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/audit_rules.json"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_audit.db"
+          IMAGE_GUARD_ENABLED: "false"
+
       # Cache the ~80 MB MiniLM model so slow/integration tests don't re-download it.
       # Key is fixed per model name — weights never change.
       - name: Cache ML model (all-MiniLM-L6-v2)
