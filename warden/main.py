@@ -666,6 +666,8 @@ async def lifespan(app: FastAPI):
             _proxy_mod._agent_monitor = _agent_monitor
         except Exception:
             pass
+        # Publish for extracted routers (api/compliance_report.py, Phase 3)
+        _runtime.publish(agent_monitor=_agent_monitor)
 
     log.info("Filter pipeline ready.")
 
@@ -846,6 +848,8 @@ async def lifespan(app: FastAPI):
     try:
         from warden.audit_trail import AuditTrail  # noqa: PLC0415
         _audit_trail = AuditTrail()
+        # Publish for extracted routers (api/compliance_report.py, Phase 3)
+        _runtime.publish(audit_trail=_audit_trail)
         log.info("AuditTrail online (SOC 2 tamper-evident chain).")
     except Exception as _audit_err:
         log.warning("AuditTrail init failed (non-fatal): %s", _audit_err)
@@ -1272,8 +1276,14 @@ except ImportError:
     log.warning("rotation router not available — /admin/rotation skipped.")
 
 try:
-    from warden.api.compliance_report import router as _compliance_router
+    from warden.api.compliance_report import (
+        router as _compliance_router,
+    )
+    from warden.api.compliance_report import (
+        router_api as _compliance_api_router,
+    )
     app.include_router(_compliance_router)
+    app.include_router(_compliance_api_router)
     log.info("Compliance Report mounted at /compliance (Q3.7)")
 except ImportError:
     log.warning("compliance_report router not available — /compliance skipped.")
@@ -4104,191 +4114,6 @@ async def revoke_agent_session(
     result = await asyncio.to_thread(_agent_monitor.revoke_session, session_id, reason)
     return result
 
-
-# ── v1.8 Compliance Reporting & Evidence Bundles ─────────────────────────────
-
-
-@app.get(
-    "/compliance/art30",
-    tags=["compliance"],
-    summary="GDPR Article 30 Record of Processing Activities",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_art30(
-    days: float = 30,
-    format: str = "json",
-):
-    """
-    Generate a GDPR Art. 30 RoPA from real traffic data.
-
-    Set ``format=html`` to receive a styled HTML document ready for DPO sign-off
-    (print to PDF from the browser).  Default is ``json``.
-    """
-    from fastapi.responses import HTMLResponse  # noqa: PLC0415
-
-    from warden.compliance.art30 import Art30Generator  # noqa: PLC0415
-
-    gen    = Art30Generator()
-    record = await asyncio.to_thread(gen.generate, days)
-    if format.lower() == "html":
-        html = await asyncio.to_thread(gen.to_html, record)
-        return HTMLResponse(content=html)
-    return record
-
-
-@app.get(
-    "/compliance/soc2/export",
-    tags=["compliance"],
-    summary="SOC 2 Evidence Bundle — ZIP archive for auditors",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_soc2_export(days: float = 30):
-    """
-    Export a tamper-evident ZIP bundle containing:
-    config snapshot, threat statistics, audit chain status,
-    evolved rules, session summaries, and SHA-256 audit manifest.
-
-    Safe to share with external auditors — no prompt content or PII values included.
-    """
-    from datetime import UTC, datetime  # noqa: PLC0415
-
-    from fastapi.responses import StreamingResponse  # noqa: PLC0415
-
-    from warden.compliance.soc2 import SOC2Exporter  # noqa: PLC0415
-
-    exporter = SOC2Exporter(audit_trail=_audit_trail)
-    buf      = await asyncio.to_thread(exporter.export_bundle, days)
-    slug     = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    filename = f"soc2_evidence_{slug}.zip"
-    return StreamingResponse(
-        buf,
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-@app.get(
-    "/compliance/incident/{session_id}",
-    tags=["compliance"],
-    summary="Incident Post-Mortem report for a session or ERS entity",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_incident_report(
-    session_id: str,
-    entity_key: str | None = None,
-    format: str = "json",
-):
-    """
-    Generate a post-mortem report for *session_id*.
-
-    Includes threat timeline, detected patterns, attestation chain status,
-    ERS profile (if *entity_key* provided), and recommended actions.
-
-    Set ``format=html`` for a printable HTML document.
-    """
-    from fastapi.responses import HTMLResponse  # noqa: PLC0415
-
-    from warden.compliance.incident import IncidentReporter  # noqa: PLC0415
-
-    reporter = IncidentReporter(agent_monitor=_agent_monitor)
-    report   = await asyncio.to_thread(reporter.generate, session_id, entity_key)
-    if format.lower() == "html":
-        html = await asyncio.to_thread(reporter.to_html, report)
-        return HTMLResponse(content=html)
-    return report
-
-
-@app.get(
-    "/compliance/dashboard",
-    tags=["compliance"],
-    summary="Compliance & Risk Mitigation ROI dashboard",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_dashboard(days: float = 30):
-    """
-    Return risk-mitigation ROI metrics: shadow-ban compute savings,
-    estimated breach cost avoided, secret protection value, agent security summary,
-    and the Compliance Score (Cs = verified_audit_entries / total_log_entries).
-
-    Override ``COMPLIANCE_*`` environment variables to use your organisation's
-    actual LLM pricing and breach cost estimates.
-    """
-    from warden.compliance.dashboard import ComplianceDashboard  # noqa: PLC0415
-
-    dash    = ComplianceDashboard(agent_monitor=_agent_monitor, audit_trail=_audit_trail)
-    metrics = await asyncio.to_thread(dash.get_metrics, days)
-    return metrics
-
-
-# ── Evidence Vault ────────────────────────────────────────────────────────────
-
-
-@app.get(
-    "/compliance/evidence/{session_id}",
-    tags=["compliance"],
-    summary="Export a cryptographically-signed evidence bundle for a session",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_evidence_bundle(
-    session_id: str,
-    agent_id:   str = "",
-    entity_key: str = "",
-):
-    """
-    Generate a tamper-evident JSON evidence bundle for *session_id*.
-
-    The bundle includes session metadata, ERS profile, attestation chain
-    status, tool timeline, and a ``bundle_hash`` (SHA-256 over canonical JSON).
-    Any post-export modification invalidates the hash.
-
-    Use ``POST /compliance/evidence/verify`` to check integrity later.
-    """
-    if _agent_monitor is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AgentMonitor not available.",
-        )
-    from warden.compliance.bundler import EvidenceBundler  # noqa: PLC0415
-
-    bundler = EvidenceBundler(agent_monitor=_agent_monitor)
-    bundle  = await asyncio.to_thread(bundler.generate, session_id, agent_id, entity_key)
-    return bundle
-
-
-@app.post(
-    "/compliance/evidence/verify",
-    tags=["compliance"],
-    summary="Verify integrity of a previously exported evidence bundle",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_evidence_verify(bundle: dict):
-    """
-    Verify the ``bundle_hash`` of a submitted evidence bundle.
-
-    Returns ``{"valid": true}`` if the bundle is intact, ``{"valid": false}``
-    if any field has been modified since export.
-    """
-    from warden.compliance.bundler import EvidenceBundler  # noqa: PLC0415
-
-    valid = await asyncio.to_thread(EvidenceBundler.verify_bundle, bundle)
-    return {"valid": valid, "bundle_hash": bundle.get("bundle_hash", "")}
-
-
-# ── GDPR RoPA alias (regulators expect this path) ────────────────────────────
-
-
-@app.get(
-    "/api/compliance/gdpr/ropa",
-    tags=["compliance"],
-    summary="GDPR Article 30 RoPA — regulatory path alias",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_gdpr_ropa(days: float = 30, format: str = "json"):
-    """
-    Alias for ``GET /compliance/art30`` using the path regulators expect.
-    Returns the Art. 30 Record of Processing Activities.
-    """
-    return await compliance_art30(days=days, format=format)
 
 
 # ── Threat Intelligence endpoints ────────────────────────────────────────────
