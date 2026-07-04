@@ -72,29 +72,50 @@ for route in m.app.routes:
 out = {mod: sorted(routes) for mod, routes in groups.items()}
 with open(sys.argv[1], "w", encoding="utf-8") as fh:
     json.dump(out, fh)
-
-# ── One-off marketplace mechanism probe (emitted to stderr, captured by parent) ──
-try:
-    import warden.marketplace.api as _mapi
-    _mkt_app = [str(getattr(r, "path", "")) for r in m.app.routes
-                if str(getattr(r, "path", "")).startswith("/marketplace")]
-    print(f"DIAG marketplace.api.router.routes = {len(_mapi.router.routes)}", file=sys.stderr)
-    print(f"DIAG app /marketplace route count  = {len(_mkt_app)}", file=sys.stderr)
-    print(f"DIAG marketplace.api.__file__      = {getattr(_mapi, '__file__', '?')}", file=sys.stderr)
-    print(f"DIAG 'warden.marketplace.api' cached = {'warden.marketplace.api' in sys.modules}", file=sys.stderr)
-except Exception as _e:  # noqa: BLE001
-    print(f"DIAG marketplace probe error: {_e!r}", file=sys.stderr)
 """
+
+# OS/interpreter-critical env vars passed through to the child. Everything else
+# is dropped so the measured import matches a clean deploy — NOT the polluted
+# pytest env, where conftest/test-set vars trigger an import-ordering cycle that
+# grabs some routers (e.g. marketplace) mid-import and mounts them empty.
+_ESSENTIAL_ENV = (
+    "PATH", "PATHEXT", "LD_LIBRARY_PATH", "LD_PRELOAD", "DYLD_LIBRARY_PATH",
+    "HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TEMP", "TMP",
+    "USER", "USERNAME", "LOGNAME", "LNAME",
+    "SYSTEMROOT", "WINDIR", "COMSPEC", "HOMEDRIVE", "HOMEPATH", "USERPROFILE",
+    "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "PROGRAMFILES", "PROGRAMFILES(X86)",
+    "PROCESSOR_ARCHITECTURE", "NUMBER_OF_PROCESSORS", "PYTHONHOME", "VIRTUAL_ENV",
+    "CONDA_PREFIX", "SSL_CERT_FILE", "SSL_CERT_DIR", "PKG_CONFIG_PATH",
+    "pythonLocation", "Python_ROOT_DIR", "Python2_ROOT_DIR", "Python3_ROOT_DIR",
+)
+
+# Canonical, deploy-representative warden config for the measurement import.
+_CANONICAL_ENV = {
+    "ANTHROPIC_API_KEY": "",
+    "WARDEN_API_KEY": "",
+    "ALLOW_UNAUTHENTICATED": "true",
+    "REDIS_URL": "memory://",
+    "SEMANTIC_THRESHOLD": "0.72",
+    "IMAGE_GUARD_ENABLED": "false",
+    "PROMETHEUS_METRICS_ENABLED": "false",
+}
 
 
 def _current_groups() -> dict[str, list[str]]:
     """Measure the route surface in a fresh subprocess (pollution-immune)."""
     fd, out_path = tempfile.mkstemp(suffix=".json")
     os.close(fd)
-    env = os.environ.copy()
+    # Minimal, deploy-representative env — pass through only OS/interpreter
+    # essentials, then set canonical warden config. This avoids the pytest-env
+    # import-ordering pollution that mounts some routers empty.
+    env = {k: os.environ[k] for k in _ESSENTIAL_ENV if k in os.environ}
+    env.update(_CANONICAL_ENV)
     env["PYTHONPATH"] = os.pathsep.join(
-        [str(_REPO_ROOT), env.get("PYTHONPATH", "")]
+        [str(_REPO_ROOT), os.environ.get("PYTHONPATH", "")]
     ).rstrip(os.pathsep)
+    env["MODEL_CACHE_DIR"] = os.environ.get("MODEL_CACHE_DIR", str(Path(tempfile.gettempdir()) / "warden_ri_models"))
+    for _var in ("LOGS_PATH", "DYNAMIC_RULES_PATH"):
+        env[_var] = os.environ.get(_var, str(Path(tempfile.gettempdir()) / f"warden_ri_{_var.lower()}"))
     try:
         proc = subprocess.run(
             [sys.executable, "-c", _CHILD, out_path],
@@ -113,9 +134,8 @@ def _current_groups() -> dict[str, list[str]]:
             line.strip()
             for line in blob.splitlines()
             if ("not available" in line or "router skipped" in line
-                or "router FAILED" in line or "skipped:" in line
-                or line.strip().startswith("DIAG"))
-            and ("warden" in line.lower() or line.strip().startswith("DIAG"))
+                or "router FAILED" in line or "skipped:" in line)
+            and "warden" in line.lower()
         ]
         data = json.loads(Path(out_path).read_text(encoding="utf-8"))
     finally:
