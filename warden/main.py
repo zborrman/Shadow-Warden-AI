@@ -3808,42 +3808,8 @@ async def audit_export(
 
 
 # ── ERS / Shadow Ban admin endpoints ─────────────────────────────────────────
-
-@app.get(
-    "/ers/score",
-    tags=["security"],
-    summary="Get ERS score for the current caller (tenant + IP)",
-    dependencies=[Depends(require_api_key)],
-)
-async def ers_score_self(request: Request, auth: AuthResult = Depends(require_api_key)):
-    """Return the ERS score for the caller's own entity key."""
-    client_ip  = request.client.host if request.client else ""
-    entity_key = _ers.make_entity_key(auth.tenant_id, client_ip)
-    result    = _ers.score(entity_key)
-    last_flag = _ers_dominant_flag(result.counts, result.total_1h)
-    return {
-        "entity_key": entity_key,
-        "score":      result.score,
-        "level":      result.level,
-        "shadow_ban": result.shadow_ban,
-        "last_flag":  last_flag,
-        "total_1h":   result.total_1h,
-        "counts":     result.counts,
-        "window_secs": _ers.WINDOW_SECS,
-    }
-
-
-@app.post(
-    "/ers/reset",
-    tags=["security"],
-    summary="Reset ERS score for a given tenant+IP (admin — false-positive clearance)",
-    dependencies=[Depends(require_api_key)],
-)
-async def ers_reset(tenant_id: str, ip: str):
-    """Clear all ERS signal counters for the specified entity."""
-    entity_key = _ers.make_entity_key(tenant_id, ip)
-    _ers.reset(entity_key)
-    return {"entity_key": entity_key, "message": "ERS counters reset."}
+# Extracted to warden/api/ers.py (Phase 3). ERS is a stateless Redis-backed
+# module imported directly. Included via app.include_router below.
 
 
 # ── Zero-Trust Agent Sandbox — manifest management + attestation ──────────────
@@ -4758,6 +4724,11 @@ app.include_router(_feed_router)
 from warden.api.billing_usage import router as _billing_usage_router  # noqa: E402
 
 app.include_router(_billing_usage_router)
+
+# ERS / Shadow Ban admin endpoints extracted to warden/api/ers.py (Phase 3).
+from warden.api.ers import router as _ers_router  # noqa: E402
+
+app.include_router(_ers_router)
 
 
 from warden.app_factory import (  # noqa: E402, I001
