@@ -110,9 +110,10 @@ def _current_groups() -> dict[str, list[str]]:
     # import-ordering pollution that mounts some routers empty.
     env = {k: os.environ[k] for k in _ESSENTIAL_ENV if k in os.environ}
     env.update(_CANONICAL_ENV)
-    env["PYTHONPATH"] = os.pathsep.join(
-        [str(_REPO_ROOT), os.environ.get("PYTHONPATH", "")]
-    ).rstrip(os.pathsep)
+    # NB: do NOT set PYTHONPATH. Prepending the repo root reorders sys.path and
+    # triggers a partial import of warden.marketplace.api (empty router mounted).
+    # cwd=_REPO_ROOT already puts the repo on sys.path[0] for `python -c`, exactly
+    # like the audit cold-import probe (which mounts marketplace correctly).
     env["MODEL_CACHE_DIR"] = os.environ.get("MODEL_CACHE_DIR", str(Path(tempfile.gettempdir()) / "warden_ri_models"))
     for _var in ("LOGS_PATH", "DYNAMIC_RULES_PATH"):
         env[_var] = os.environ.get(_var, str(Path(tempfile.gettempdir()) / f"warden_ri_{_var.lower()}"))
