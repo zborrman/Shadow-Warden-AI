@@ -1605,8 +1605,8 @@ try:
     app.include_router(_mkt_negotiations_router, prefix="/marketplace")
     app.include_router(_mkt_escrow_router, prefix="/marketplace")
     log.info("Community M2M Agentic Marketplace mounted at /marketplace (Phase 1)")
-except ImportError:
-    log.warning("marketplace router not available — /marketplace skipped.")
+except ImportError as exc:
+    log.warning("marketplace router not available — /marketplace skipped: %r", exc)
 
 try:
     from warden.marketplace.api_governance import router as _governance_router

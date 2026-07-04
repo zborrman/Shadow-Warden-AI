@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+import subprocess
 import sys
 import traceback
 from pathlib import Path
@@ -67,6 +68,38 @@ def audit() -> dict[str, str]:
     return failures
 
 
+def cold_import_probe() -> list[str]:
+    """Cold-import warden.main in a pristine subprocess and return the
+    conditional-router fallback warnings (which name the failing dependency).
+
+    The per-module audit above pre-warms sys.modules, which masks
+    order-dependent / circular import failures that only bite a cold
+    ``import warden.main`` (the real uvicorn / deploy path). This surfaces them.
+    """
+    code = (
+        "import logging, sys; "
+        "logging.basicConfig(level=logging.WARNING, stream=sys.stderr); "
+        "import warden.main"
+    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True, text=True, timeout=600, cwd=str(_REPO_ROOT),
+        )
+    except Exception as exc:  # noqa: BLE001
+        return [f"(cold-import probe failed to run: {exc})"]
+    blob = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    hits = [
+        line.strip()
+        for line in blob.splitlines()
+        if ("not available" in line or "skipped" in line or "router FAILED" in line)
+        and "warden" in line.lower()
+    ]
+    if proc.returncode != 0:
+        hits.append(f"(cold import exited rc={proc.returncode}; tail: {proc.stderr[-500:]})")
+    return hits
+
+
 def main() -> int:
     summary = "--summary" in sys.argv
     try:
@@ -75,6 +108,8 @@ def main() -> int:
         traceback.print_exc()
         print("import audit itself failed — see traceback above")
         return 0
+
+    cold = cold_import_probe()
 
     if summary:
         print("## Route-Parity Import Audit\n")
@@ -87,14 +122,24 @@ def main() -> int:
             for name, cause in sorted(failures.items()):
                 print(f"| `{name}` | {cause} |")
             print("\nInstall the named dependency (or fix the import) to restore parity.\n")
+        print("### Cold `import warden.main` — conditional routers skipped\n")
+        if not cold:
+            print("✅ No conditional router fell back on a cold import.\n")
+        else:
+            print("A cold import (the real uvicorn/deploy path) skipped these routers:\n")
+            for line in cold:
+                print(f"- {line}")
+            print()
         return 0
 
-    if not failures:
+    if failures:
+        print(f"import audit: {len(failures)} module(s) failed to import\n")
+        for name, cause in sorted(failures.items()):
+            print(f"SKIP {name}\n     -> {cause}")
+    else:
         print("import audit: all warden.* modules import cleanly")
-        return 0
-    print(f"import audit: {len(failures)} module(s) failed to import\n")
-    for name, cause in sorted(failures.items()):
-        print(f"SKIP {name}\n     -> {cause}")
+    print("\ncold import — conditional routers skipped:")
+    print("\n".join(f"  {line}" for line in cold) if cold else "  (none)")
     return 0
 
 
