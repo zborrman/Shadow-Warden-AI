@@ -4008,98 +4008,10 @@ async def ers_reset(tenant_id: str, ip: str):
 # resolved there by the router. Included via app.include_router below.
 
 
-# ── Billing endpoints ─────────────────────────────────────────────────────────
-
-
-def _require_billing() -> None:
-    if _billing is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Billing store not available.",
-        )
-
-
-class _QuotaRequest(BaseModel):
-    quota_usd: float   # monthly USD cap; set to 0 to remove cap
-
-
-@app.get(
-    "/billing/{tenant_id}",
-    tags=["billing"],
-    summary="Aggregated usage and cost for a tenant",
-    dependencies=[Depends(require_api_key)],
-)
-async def get_billing(
-    tenant_id: str,
-    from_date: str | None = None,
-    to_date:   str | None = None,
-):
-    """
-    Return aggregated request counts and USD cost for *tenant_id* over the
-    given date range (``from_date`` / ``to_date`` inclusive, format YYYY-MM-DD).
-    Includes current-month cost and quota_remaining when a quota is set.
-    """
-    _require_billing()
-    return _billing.get_usage(tenant_id, from_date=from_date, to_date=to_date)  # type: ignore[union-attr]
-
-
-@app.get(
-    "/billing/{tenant_id}/daily",
-    tags=["billing"],
-    summary="Day-by-day billing breakdown for a tenant",
-    dependencies=[Depends(require_api_key)],
-)
-async def get_billing_daily(
-    tenant_id: str,
-    from_date: str | None = None,
-    to_date:   str | None = None,
-    limit:     int        = 90,
-):
-    _require_billing()
-    return {
-        "tenant_id": tenant_id,
-        "rows": _billing.get_daily_breakdown(tenant_id, from_date, to_date, limit),  # type: ignore[union-attr]
-    }
-
-
-@app.post(
-    "/billing/{tenant_id}/quota",
-    tags=["billing"],
-    summary="Set or update the monthly USD cost cap for a tenant",
-    dependencies=[Depends(require_api_key)],
-)
-async def set_billing_quota(tenant_id: str, body: _QuotaRequest):
-    """
-    Set the monthly cost cap for *tenant_id*.  All subsequent filter requests
-    from this tenant will receive HTTP 402 once the cap is reached.
-
-    Set ``quota_usd=0`` to remove the cap (unlimited).
-    """
-    _require_billing()
-    if body.quota_usd <= 0:
-        # Treat 0 / negative as "remove quota" — just set a very high value
-        # or use a sentinel.  Here we delete the row to restore unlimited.
-        with suppress(Exception):
-            _billing._conn.execute(  # type: ignore[union-attr]
-                "DELETE FROM tenant_quotas WHERE tenant_id=?", (tenant_id,)
-            )
-            _billing._conn.commit()  # type: ignore[union-attr]
-        log.info(json.dumps({"event": "quota_removed", "tenant_id": tenant_id}))
-        return {"tenant_id": tenant_id, "quota_usd": None, "message": "Quota removed (unlimited)."}
-
-    _billing.set_quota(tenant_id, body.quota_usd)  # type: ignore[union-attr]
-    log.info(
-        json.dumps({
-            "event":     "quota_set",
-            "tenant_id": tenant_id,
-            "quota_usd": body.quota_usd,
-        })
-    )
-    return {
-        "tenant_id": tenant_id,
-        "quota_usd": body.quota_usd,
-        "message":   f"Monthly quota set to ${body.quota_usd:.4f} for tenant {tenant_id!r}.",
-    }
+# ── Billing usage/quota endpoints ─────────────────────────────────────────────
+# Extracted to warden/api/billing_usage.py (Phase 3). BillingStore singleton is
+# published to warden.runtime in lifespan. Included via app.include_router below.
+# (Distinct from warden/billing/router.py — tier catalog + add-on checkout.)
 
 
 # ── Live Event Bus — broadcast security events to monitoring dashboards ───────
@@ -4987,6 +4899,12 @@ from warden.api.policy import router as _policy_router  # noqa: E402
 app.include_router(_onboarding_router)
 app.include_router(_policy_router)
 app.include_router(_feed_router)
+
+# Per-tenant billing usage/quota endpoints extracted to
+# warden/api/billing_usage.py (Phase 3). BillingStore published to warden.runtime.
+from warden.api.billing_usage import router as _billing_usage_router  # noqa: E402
+
+app.include_router(_billing_usage_router)
 
 
 from warden.app_factory import (  # noqa: E402, I001
