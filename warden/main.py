@@ -3566,50 +3566,7 @@ async def filter_multimodal(
 
 
 # ── GDPR endpoints ────────────────────────────────────────────────────────────
-
-class _GdprExportRequest(BaseModel):
-    request_id: str
-
-
-class _GdprPurgeRequest(BaseModel):
-    before: str   # ISO-8601 datetime string, e.g. "2024-01-01T00:00:00Z"
-
-
-@app.post(
-    "/gdpr/export",
-    tags=["gdpr"],
-    summary="Export log metadata for a specific request ID (GDPR Art. 15)",
-    dependencies=[Depends(require_api_key)],
-)
-async def gdpr_export(body: _GdprExportRequest):
-    entry = event_logger.read_by_request_id(body.request_id)
-    if entry is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No log entry found for request_id={body.request_id!r}.",
-        )
-    return {"request_id": body.request_id, "entry": entry}
-
-
-@app.post(
-    "/gdpr/purge",
-    tags=["gdpr"],
-    summary="Delete log entries before a given date (GDPR Art. 17)",
-    dependencies=[Depends(require_api_key)],
-)
-async def gdpr_purge(body: _GdprPurgeRequest):
-    try:
-        before_dt = datetime.fromisoformat(body.before)
-    except ValueError:
-        return JSONResponse(
-            status_code=422,
-            content={"detail": f"Invalid datetime format: {body.before!r}. Use ISO-8601."},
-        )
-    removed = event_logger.purge_before(before_dt)
-    log.info(
-        json.dumps({"event": "gdpr_purge", "removed": removed, "before": body.before})
-    )
-    return {"removed": removed, "before": body.before}
+# Extracted to warden/api/gdpr.py (Phase 3). Included via include_router.
 
 
 # ── Rule ledger endpoints ─────────────────────────────────────────────────────

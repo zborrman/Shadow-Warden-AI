@@ -21,8 +21,12 @@ import logging
 import os
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+from warden.analytics import logger as event_logger
+from warden.auth_guard import require_api_key
 
 log = logging.getLogger("warden.api.gdpr")
 
@@ -288,3 +292,48 @@ async def run_retention_purge() -> int:
     except Exception as exc:
         log.error("GDPR auto-retention failed: %s", exc)
         return 0
+
+
+# ── Request-ID export / date purge (migrated from main.py inline, Phase 3) ─────
+
+class _GdprExportRequest(BaseModel):
+    request_id: str
+
+
+class _GdprPurgeRequest(BaseModel):
+    before: str   # ISO-8601 datetime string, e.g. "2024-01-01T00:00:00Z"
+
+
+@router.post(
+    "/export",
+    summary="Export log metadata for a specific request ID (GDPR Art. 15)",
+    dependencies=[Depends(require_api_key)],
+)
+async def gdpr_export(body: _GdprExportRequest):
+    entry = event_logger.read_by_request_id(body.request_id)
+    if entry is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No log entry found for request_id={body.request_id!r}.",
+        )
+    return {"request_id": body.request_id, "entry": entry}
+
+
+@router.post(
+    "/purge",
+    summary="Delete log entries before a given date (GDPR Art. 17)",
+    dependencies=[Depends(require_api_key)],
+)
+async def gdpr_purge(body: _GdprPurgeRequest):
+    try:
+        before_dt = datetime.fromisoformat(body.before)
+    except ValueError:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": f"Invalid datetime format: {body.before!r}. Use ISO-8601."},
+        )
+    removed = event_logger.purge_before(before_dt)
+    log.info(
+        json.dumps({"event": "gdpr_purge", "removed": removed, "before": body.before})
+    )
+    return {"removed": removed, "before": body.before}
