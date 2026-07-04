@@ -5604,77 +5604,8 @@ async def unmask_text(
     return UnmaskResponse(unmasked=unmasked, session_id=payload.session_id)
 
 
-# ── Lemon Squeezy Billing ─────────────────────────────────────────────────────
-
-class _CheckoutRequest(BaseModel):
-    tenant_id:      str
-    plan:           str            # "individual" | "pro" | "enterprise"
-    success_url:    str
-    cancel_url:     str
-    customer_email: str | None = None
-
-
-@app.get(
-    "/subscription/status",
-    tags=["subscription"],
-    summary="Current subscription plan and quota for a tenant",
-)
-async def billing_status(tenant_id: str):
-    from warden.lemon_billing import get_lemon_billing
-    return get_lemon_billing().get_status(tenant_id)
-
-
-@app.post(
-    "/subscription/checkout",
-    tags=["subscription"],
-    summary="Create a Lemon Squeezy checkout session — returns hosted payment URL",
-)
-async def billing_checkout(body: _CheckoutRequest):
-    from warden.lemon_billing import get_lemon_billing
-    lb = get_lemon_billing()
-    if not lb._enabled:
-        raise HTTPException(503, "Lemon Squeezy billing not configured on this instance.")
-    try:
-        url = lb.create_checkout_session(
-            body.tenant_id, body.plan,
-            body.success_url, body.cancel_url,
-            body.customer_email,
-        )
-    except (ValueError, RuntimeError) as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return {"checkout_url": url}
-
-
-@app.get(
-    "/subscription/portal",
-    tags=["subscription"],
-    summary="Return Lemon Squeezy customer portal URL for self-serve plan management",
-)
-async def billing_portal(tenant_id: str):
-    from warden.lemon_billing import get_lemon_billing
-    try:
-        url = get_lemon_billing().get_portal_url(tenant_id)
-    except RuntimeError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return {"portal_url": url}
-
-
-@app.post(
-    "/subscription/webhook",
-    tags=["subscription"],
-    summary="Lemon Squeezy webhook receiver — validates signature and updates subscription state",
-    include_in_schema=False,
-)
-async def billing_webhook(request: Request):
-    from warden.lemon_billing import get_lemon_billing
-    lb         = get_lemon_billing()
-    payload    = await request.body()
-    sig_header = request.headers.get("X-Signature", "")
-    try:
-        etype = lb.handle_webhook(payload, sig_header)
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return {"received": True, "event_type": etype}
+# ── Lemon Squeezy subscription endpoints ─────────────────────────────────────
+# Extracted to warden/api/subscription.py (Phase 3). Included via include_router.
 
 
 # ── OWASP LLM Output Scanning ─────────────────────────────────────────────────
@@ -5883,10 +5814,10 @@ from warden.api.contact import router as _contact_router  # noqa: E402
 
 app.include_router(_contact_router)
 
-# SSO/SAML endpoints extracted to warden/api/saml.py (Phase 3).
-from warden.api.saml import router as _saml_router  # noqa: E402
+# Subscription endpoints extracted to warden/api/subscription.py (Phase 3).
+from warden.api.subscription import router as _subscription_router  # noqa: E402
 
-app.include_router(_saml_router)
+app.include_router(_subscription_router)
 
 # Threat Intelligence + ThreatVault endpoints extracted to warden/api/threats.py
 # (Phase 3). Backing singletons are published to warden.runtime in lifespan.
