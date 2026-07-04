@@ -47,9 +47,13 @@ from pathlib import Path
 _FIXTURE = Path(__file__).parent / "fixtures" / "route_inventory.json"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
+# Captured conditional-router fallback warnings from the last child import.
+_child_diag: list[str] = []
+
 # Child program: import the app cleanly and dump {endpoint_module: [ "METHOD PATH" ]}.
 _CHILD = r"""
-import json, sys
+import json, logging, sys
+logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 import warden.main as m
 
 groups = {}
@@ -90,6 +94,16 @@ def _current_groups() -> dict[str, list[str]]:
                 "route-inventory child failed to import warden.main "
                 f"(rc={proc.returncode}).\nSTDERR tail:\n{proc.stderr[-2000:]}"
             )
+        # Capture any conditional-router fallback warnings the child emitted —
+        # these name the dependency behind a skipped subsystem.
+        blob = (proc.stdout or "") + "\n" + (proc.stderr or "")
+        _child_diag[:] = [
+            line.strip()
+            for line in blob.splitlines()
+            if ("not available" in line or "router skipped" in line
+                or "router FAILED" in line or "skipped:" in line)
+            and "warden" in line.lower()
+        ]
         data = json.loads(Path(out_path).read_text(encoding="utf-8"))
     finally:
         with contextlib.suppress(OSError):
@@ -134,11 +148,13 @@ def test_route_inventory_unchanged():
         if owner.get(r) in current_modules
     )
 
+    diag = "\n".join(f"    {line}" for line in _child_diag) or "    (none)"
     assert not added and not removed, (
         "Route surface changed — a Phase-3 move must not alter routes.\n"
         f"  ADDED:   {added}\n"
         f"  REMOVED: {removed}\n"
         "(Whole-module absences from missing optional deps are tolerated.)\n"
+        f"  Conditional routers the clean import skipped:\n{diag}\n"
         "If intentional, regenerate on a full-dependency machine: "
         "UPDATE_ROUTE_INVENTORY=1 pytest warden/tests/test_route_inventory.py"
     )
