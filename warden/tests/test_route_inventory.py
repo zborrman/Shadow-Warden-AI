@@ -8,55 +8,93 @@ routers. A *move* must never change the app's externally-visible surface — sam
 paths, same methods. This test snapshots the ``(method, path)`` set and fails if
 any route is added, removed, or renamed.
 
+Clean-import measurement
+────────────────────────
+The route surface is measured in a FRESH subprocess (`import warden.main`), not
+from the in-process app. Running inside the full pytest suite, thousands of
+earlier tests mutate global state / sys.modules, which can leave a conditional
+router (mounted in main.py under try/except) unimportable — so the in-process
+``app`` no longer reflects what a clean deploy actually serves. The subprocess
+measures the true deployable surface, immune to that pollution.
+
 Environment tolerance
 ─────────────────────
-Many routers mount conditionally (``register_router_safe`` / inline try/except)
-and are skipped when an *optional* dependency is missing. CI installs a leaner
-dependency set than a full dev machine, so a subsystem present locally may be
-absent in CI. That must NOT trip the guard — it is an environment difference,
-not a route regression.
+Many routers mount conditionally and are skipped when an *optional* dependency is
+missing. CI installs a leaner set than a full dev machine, so a subsystem present
+locally may be absent in CI. The fixture is grouped by the module that defines
+each endpoint (``endpoint.__module__``); the guard tolerates a whole module being
+absent this run, still fails on any route added/removed/renamed within a module
+that IS mounted, and stays move-invisible (a relocated path keeps its
+``METHOD PATH`` string).
 
-To stay robust *and* still catch real regressions, the fixture is grouped by the
-Python module that defines each endpoint (``endpoint.__module__``). The guard:
-
-  • tolerates a whole module being absent this run (its optional dep is missing)
-  • still fails on any route added/removed/renamed within a module that IS mounted
-  • stays move-invisible: a path relocated to a different module keeps the same
-    ``METHOD PATH`` string, so it never appears as removed.
-
-The fixture must be regenerated on a machine with the FULL dependency set (so it
-is a superset of every CI environment):
+Regenerate on a machine with the FULL dependency set (a superset of every CI
+environment):
 
   UPDATE_ROUTE_INVENTORY=1 pytest warden/tests/test_route_inventory.py
 
-A pure route *move* (Phase 3) still produces an EMPTY diff.
+A pure route *move* still produces an EMPTY diff.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "route_inventory.json"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Child program: import the app cleanly and dump {endpoint_module: [ "METHOD PATH" ]}.
+_CHILD = r"""
+import json, sys
+import warden.main as m
+
+groups = {}
+for route in m.app.routes:
+    path = getattr(route, "path", None)
+    if not path:
+        continue
+    endpoint = getattr(route, "endpoint", None)
+    module = getattr(endpoint, "__module__", None) or "__core__"
+    methods = getattr(route, "methods", None) or {"WS"}
+    for meth in methods:
+        if meth in ("HEAD", "OPTIONS"):
+            continue
+        groups.setdefault(module, set()).add(f"{meth} {path}")
+
+out = {mod: sorted(routes) for mod, routes in groups.items()}
+with open(sys.argv[1], "w", encoding="utf-8") as fh:
+    json.dump(out, fh)
+"""
 
 
 def _current_groups() -> dict[str, list[str]]:
-    """Map ``endpoint module`` → sorted ``'METHOD PATH'`` strings for every route."""
-    from warden.main import app
-
-    groups: dict[str, set[str]] = {}
-    for route in app.routes:
-        path = getattr(route, "path", None)
-        if not path:
-            continue
-        endpoint = getattr(route, "endpoint", None)
-        module = getattr(endpoint, "__module__", None) or "__core__"
-        methods = getattr(route, "methods", None) or {"WS"}
-        for m in methods:
-            if m in ("HEAD", "OPTIONS"):
-                continue
-            groups.setdefault(module, set()).add(f"{m} {path}")
-    return {mod: sorted(routes) for mod, routes in sorted(groups.items())}
+    """Measure the route surface in a fresh subprocess (pollution-immune)."""
+    fd, out_path = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(_REPO_ROOT), env.get("PYTHONPATH", "")]
+    ).rstrip(os.pathsep)
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", _CHILD, out_path],
+            capture_output=True, text=True, timeout=600,
+            cwd=str(_REPO_ROOT), env=env,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                "route-inventory child failed to import warden.main "
+                f"(rc={proc.returncode}).\nSTDERR tail:\n{proc.stderr[-2000:]}"
+            )
+        data = json.loads(Path(out_path).read_text(encoding="utf-8"))
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(out_path)
+    return {mod: sorted(routes) for mod, routes in sorted(data.items())}
 
 
 def _write_fixture(groups: dict[str, list[str]]) -> None:

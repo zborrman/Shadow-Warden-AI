@@ -82,7 +82,7 @@ async def moderate_post(ctx: dict[str, Any], post_id: str) -> dict[str, Any]:
     ARQ job entrypoint.
     ctx: ARQ context (unused here but required by ARQ signature).
     """
-    from warden.models.community import get_post, update_post_status
+    from warden.community_models import get_post, update_post_status
 
     post = get_post(post_id)
     if not post:
