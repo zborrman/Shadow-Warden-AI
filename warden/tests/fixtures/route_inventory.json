@@ -288,6 +288,16 @@
     "GET /misp/status",
     "POST /misp/sync"
   ],
+  "warden.api.monitor": [
+    "DELETE /monitors/{monitor_id}",
+    "GET /monitors/",
+    "GET /monitors/{monitor_id}",
+    "GET /monitors/{monitor_id}/history",
+    "GET /monitors/{monitor_id}/status",
+    "GET /monitors/{monitor_id}/uptime",
+    "PATCH /monitors/{monitor_id}",
+    "POST /monitors/"
+  ],
   "warden.api.obsidian": [
     "GET /obsidian/feed",
     "GET /obsidian/reputation",
@@ -847,6 +857,32 @@
   "warden.payments.api": [
     "GET /payments/usdc/intent/{intent_id}",
     "POST /payments/usdc/intent"
+  ],
+  "warden.portal_router": [
+    "DELETE /portal/keys/{key_id}",
+    "GET /portal/auth/totp/status",
+    "GET /portal/billing",
+    "GET /portal/keys",
+    "GET /portal/me",
+    "GET /portal/stats/daily",
+    "GET /portal/stats/flags",
+    "GET /portal/stats/summary",
+    "PATCH /portal/keys/{key_id}",
+    "PATCH /portal/me",
+    "POST /portal/auth/forgot-password",
+    "POST /portal/auth/login",
+    "POST /portal/auth/logout",
+    "POST /portal/auth/refresh",
+    "POST /portal/auth/register",
+    "POST /portal/auth/reset-password",
+    "POST /portal/auth/totp/complete",
+    "POST /portal/auth/totp/confirm",
+    "POST /portal/auth/totp/disable",
+    "POST /portal/auth/totp/setup",
+    "POST /portal/cert/apply",
+    "POST /portal/keys",
+    "POST /portal/me/change-password",
+    "POST /portal/waitlist"
   ],
   "warden.protocols.a2a.api": [
     "DELETE /a2a/tasks/{task_id}",
