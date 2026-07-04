@@ -66,9 +66,8 @@ from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
 import warden.circuit_breaker as _cb
@@ -79,7 +78,6 @@ from warden.auth.saml_provider import SAMLProvider
 from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import (
     AuthResult,
-    get_rate_limit,
     require_api_key,
     require_ext_auth,
     set_default_rate_limit,
@@ -207,34 +205,12 @@ async def _docs_auth(
 
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
-
-_RATE_LIMIT = os.getenv("RATE_LIMIT_PER_MINUTE", "60")
-
-
-def _tenant_key(request: Request) -> str:
-    """Rate-limit bucket key: API key when present, IP address as fallback.
-
-    Keying on the API key means each tenant gets their own independent bucket
-    even when all requests arrive from the same nginx IP.
-    """
-    return request.headers.get("x-api-key") or get_remote_address(request)
-
-
-def _tenant_limit(key: str) -> str:
-    """Per-tenant slowapi limit string derived from the key's configured rate.
-
-    slowapi calls this with the value returned by _tenant_key — the API key
-    string when present, or the remote IP as fallback.  get_rate_limit()
-    returns the per-tenant rate_limit from WARDEN_API_KEYS_PATH, falling back
-    to the RATE_LIMIT_PER_MINUTE default for unrecognised / plain-IP keys.
-    """
-    return f"{get_rate_limit(key)}/minute"
-
-
-_limiter = Limiter(
-    key_func=_tenant_key,
-    storage_uri=os.getenv("REDIS_URL", "redis://redis:6379/0"),
-)
+# Hoisted to warden/limiter.py (Phase 3b) so extracted routers can share the same
+# Limiter instance without importing warden.main. Aliases keep every existing
+# @_limiter.limit(...) decorator and the app.state.limiter binding unchanged.
+from warden.limiter import limiter as _limiter  # noqa: E402
+from warden.limiter import tenant_key as _tenant_key  # noqa: E402,F401  (re-export for compat)
+from warden.limiter import tenant_limit as _tenant_limit  # noqa: E402
 
 # ── Dynamic rules path ────────────────────────────────────────────────────────
 
