@@ -114,8 +114,6 @@ from warden.schemas import (
     SemanticFlag,
     UnmaskRequest,
     UnmaskResponse,
-    WebhookRegisterRequest,
-    WebhookStatusResponse,
 )
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
@@ -746,6 +744,8 @@ async def lifespan(app: FastAPI):
 
     # ── Webhook store ─────────────────────────────────────────────────
     _webhook_store = WebhookStore()
+    # Publish for extracted router (api/webhook_config.py, Phase 3b)
+    _runtime.publish(webhook_store=_webhook_store)
     log.info("WebhookStore ready.")
 
     # ── Global Threat Sync (cross-region Redis Streams) ───────────────
@@ -4320,88 +4320,8 @@ async def filter_output(
 
 
 # ── Webhook management endpoints ──────────────────────────────────────────────
-
-@app.post(
-    "/webhook",
-    response_model=WebhookStatusResponse,
-    tags=["webhooks"],
-    summary="Register or update a webhook for the authenticated tenant",
-    status_code=status.HTTP_200_OK,
-)
-@_limiter.limit("10/minute")
-async def register_webhook(
-    request: Request,
-    payload: WebhookRegisterRequest,
-    auth:    AuthResult = Depends(require_api_key),
-) -> WebhookStatusResponse:
-    """
-    Register (or update) a webhook URL for your tenant.
-    Shadow Warden will POST a signed JSON event to this URL whenever
-    a request meets or exceeds ``min_risk`` (default: high).
-    """
-    if _webhook_store is None:
-        raise HTTPException(503, "Webhook store not available.")
-    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
-    _webhook_store.register(
-        tenant_id = tenant_id,
-        url       = payload.url,
-        secret    = payload.secret,
-        min_risk  = payload.min_risk,
-    )
-    cfg = _webhook_store.get(tenant_id)
-    return WebhookStatusResponse(
-        tenant_id     = tenant_id,
-        url           = cfg["url"],
-        min_risk      = cfg["min_risk"],
-        registered_at = cfg["created_at"],
-        updated_at    = cfg["updated_at"],
-    )
-
-
-@app.get(
-    "/webhook",
-    response_model=WebhookStatusResponse,
-    tags=["webhooks"],
-    summary="Get the current webhook configuration for the authenticated tenant",
-)
-@_limiter.limit("30/minute")
-async def get_webhook(
-    request: Request,
-    auth:    AuthResult = Depends(require_api_key),
-) -> WebhookStatusResponse:
-    if _webhook_store is None:
-        raise HTTPException(503, "Webhook store not available.")
-    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
-    cfg = _webhook_store.get(tenant_id)
-    if cfg is None:
-        raise HTTPException(404, f"No webhook registered for tenant '{tenant_id}'.")
-    return WebhookStatusResponse(
-        tenant_id     = tenant_id,
-        url           = cfg["url"],
-        min_risk      = cfg["min_risk"],
-        registered_at = cfg["created_at"],
-        updated_at    = cfg["updated_at"],
-    )
-
-
-@app.delete(
-    "/webhook",
-    tags=["webhooks"],
-    summary="Deregister the webhook for the authenticated tenant",
-    status_code=status.HTTP_200_OK,
-)
-@_limiter.limit("10/minute")
-async def delete_webhook(
-    request: Request,
-    auth:    AuthResult = Depends(require_api_key),
-) -> dict:
-    if _webhook_store is None:
-        raise HTTPException(503, "Webhook store not available.")
-    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
-    deleted = _webhook_store.deregister(tenant_id)
-    if not deleted:
-        raise HTTPException(404, f"No webhook registered for tenant '{tenant_id}'.")
-    return {"status": "deleted", "tenant_id": tenant_id}
+# Extracted to warden/api/webhook_config.py (Phase 3b). WebhookStore published to
+# warden.runtime; shared limiter from warden.limiter. Included via include_router.
 
 
 # ── SAML 2.0 SSO endpoints ────────────────────────────────────────────────────
@@ -4490,6 +4410,12 @@ app.include_router(_rules_router)
 from warden.api.admin_reports import router as _admin_reports_router  # noqa: E402
 
 app.include_router(_admin_reports_router)
+
+# Per-tenant webhook config (/webhook) extracted to warden/api/webhook_config.py
+# (Phase 3b). WebhookStore published to warden.runtime; shared limiter reused.
+from warden.api.webhook_config import router as _webhook_config_router  # noqa: E402
+
+app.include_router(_webhook_config_router)
 
 
 from warden.app_factory import (  # noqa: E402, I001
