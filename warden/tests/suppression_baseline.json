@@ -1,0 +1,1026 @@
+{
+  "type_ignore": 363,
+  "noqa": 877,
+  "per_file": {
+    "agent_monitor.py": {
+      "type_ignore": 1,
+      "noqa": 9
+    },
+    "agent_sandbox.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "app_factory.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "audio_guard.py": {
+      "type_ignore": 0,
+      "noqa": 7
+    },
+    "audio_redactor.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "cache.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "circuit_breaker.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "config.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "corpus_sync.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "entity_risk.py": {
+      "type_ignore": 1,
+      "noqa": 1
+    },
+    "global_blocklist.py": {
+      "type_ignore": 0,
+      "noqa": 7
+    },
+    "honey.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "image_guard.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "image_redactor.py": {
+      "type_ignore": 0,
+      "noqa": 6
+    },
+    "image_synth.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "intel_bridge.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "lemon_billing.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "main.py": {
+      "type_ignore": 11,
+      "noqa": 86
+    },
+    "metrics.py": {
+      "type_ignore": 127,
+      "noqa": 1
+    },
+    "mtls.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "multimodal_guard.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "net_guard.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "notification_hook.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "observability.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "ocr.py": {
+      "type_ignore": 4,
+      "noqa": 0
+    },
+    "openai_proxy.py": {
+      "type_ignore": 3,
+      "noqa": 0
+    },
+    "output_guard.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "portal_router.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "rag_evolver.py": {
+      "type_ignore": 2,
+      "noqa": 6
+    },
+    "retry.py": {
+      "type_ignore": 2,
+      "noqa": 3
+    },
+    "runtime.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "shadow_ban.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "stripe_billing.py": {
+      "type_ignore": 5,
+      "noqa": 10
+    },
+    "taint_tracker.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "telemetry.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "tenant_policy.py": {
+      "type_ignore": 1,
+      "noqa": 1
+    },
+    "threat_feed.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "threat_neutralizer_router.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "threat_sync.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "tool_guard.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "topology_guard.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "wallet_shield.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "worm_guard.py": {
+      "type_ignore": 0,
+      "noqa": 6
+    },
+    "agent/healer.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "agent/master.py": {
+      "type_ignore": 11,
+      "noqa": 1
+    },
+    "agent/memory.py": {
+      "type_ignore": 2,
+      "noqa": 2
+    },
+    "agent/red_team.py": {
+      "type_ignore": 1,
+      "noqa": 4
+    },
+    "agent/scheduler.py": {
+      "type_ignore": 2,
+      "noqa": 25
+    },
+    "agent/sova.py": {
+      "type_ignore": 3,
+      "noqa": 0
+    },
+    "agent/tools.py": {
+      "type_ignore": 2,
+      "noqa": 16
+    },
+    "agentic/action_whitelist.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "agentic/registry.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "agentic/router.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "analytics/auth.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "analytics/dashboard.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "analytics/logger.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "analytics/msp_dashboard.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "analytics/report.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "api/admin_reports.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "api/agent.py": {
+      "type_ignore": 0,
+      "noqa": 11
+    },
+    "api/billing_audit.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "api/communities_v2.py": {
+      "type_ignore": 4,
+      "noqa": 3
+    },
+    "api/community_intel.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "api/compliance_report.py": {
+      "type_ignore": 4,
+      "noqa": 24
+    },
+    "api/config_api.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "api/deploy_health.py": {
+      "type_ignore": 2,
+      "noqa": 0
+    },
+    "api/discovery.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "api/file_scan.py": {
+      "type_ignore": 3,
+      "noqa": 0
+    },
+    "api/financial.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "api/framework_builder.py": {
+      "type_ignore": 0,
+      "noqa": 10
+    },
+    "api/gdpr.py": {
+      "type_ignore": 0,
+      "noqa": 12
+    },
+    "api/kya.py": {
+      "type_ignore": 1,
+      "noqa": 2
+    },
+    "api/misp.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "api/monitor.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "api/obsidian.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "api/onboarding.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "api/red_team.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "api/sdk.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "api/sep.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "api/sovereign.py": {
+      "type_ignore": 3,
+      "noqa": 0
+    },
+    "api/staff.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "api/staff_agents.py": {
+      "type_ignore": 0,
+      "noqa": 10
+    },
+    "api/subscription.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "api/tenant_impact.py": {
+      "type_ignore": 1,
+      "noqa": 2
+    },
+    "api/threats.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "api/usage_budgets.py": {
+      "type_ignore": 0,
+      "noqa": 7
+    },
+    "api/webhook.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "api/webhooks.py": {
+      "type_ignore": 0,
+      "noqa": 7
+    },
+    "api/whitelabel.py": {
+      "type_ignore": 0,
+      "noqa": 8
+    },
+    "api/ws_events.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "auth/fido.py": {
+      "type_ignore": 3,
+      "noqa": 1
+    },
+    "auth/oidc_guard.py": {
+      "type_ignore": 2,
+      "noqa": 6
+    },
+    "auth/router.py": {
+      "type_ignore": 4,
+      "noqa": 0
+    },
+    "auth/saml.py": {
+      "type_ignore": 2,
+      "noqa": 4
+    },
+    "auth/saml_provider.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "billing/audit_chain.py": {
+      "type_ignore": 1,
+      "noqa": 7
+    },
+    "billing/quota_middleware.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "billing/router.py": {
+      "type_ignore": 0,
+      "noqa": 11
+    },
+    "billing/usage_budgets.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "blockchain/ipfs_storage.py": {
+      "type_ignore": 2,
+      "noqa": 0
+    },
+    "brain/evolve.py": {
+      "type_ignore": 2,
+      "noqa": 12
+    },
+    "brain/evolve_nemotron.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "brain/faiss_index.py": {
+      "type_ignore": 1,
+      "noqa": 2
+    },
+    "brain/federated.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "brain/nemotron_client.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "brain/online_learner.py": {
+      "type_ignore": 2,
+      "noqa": 3
+    },
+    "brain/poison.py": {
+      "type_ignore": 5,
+      "noqa": 4
+    },
+    "brain/semantic.py": {
+      "type_ignore": 1,
+      "noqa": 1
+    },
+    "brain/threat_feed.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "communities/behavioral.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "communities/charter.py": {
+      "type_ignore": 2,
+      "noqa": 0
+    },
+    "communities/community_compliance.py": {
+      "type_ignore": 4,
+      "noqa": 2
+    },
+    "communities/community_data.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "communities/community_evolution.py": {
+      "type_ignore": 2,
+      "noqa": 2
+    },
+    "communities/doc_converter.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "communities/federation.py": {
+      "type_ignore": 0,
+      "noqa": 6
+    },
+    "communities/incident_register.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "communities/intelligence.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "communities/keypair.py": {
+      "type_ignore": 7,
+      "noqa": 0
+    },
+    "communities/membership.py": {
+      "type_ignore": 1,
+      "noqa": 2
+    },
+    "communities/model_share.py": {
+      "type_ignore": 1,
+      "noqa": 6
+    },
+    "communities/oauth_discovery.py": {
+      "type_ignore": 2,
+      "noqa": 1
+    },
+    "communities/peering.py": {
+      "type_ignore": 2,
+      "noqa": 6
+    },
+    "communities/prompt_library.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "communities/quota.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "communities/router.py": {
+      "type_ignore": 3,
+      "noqa": 4
+    },
+    "communities/sep.py": {
+      "type_ignore": 2,
+      "noqa": 1
+    },
+    "communities/training_records.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "compliance/art30.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "compliance/bundler.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "compliance/dashboard.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "compliance/evidence_bundle.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "compliance/framework_builder.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "compliance/incident.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "compliance/posture_service.py": {
+      "type_ignore": 1,
+      "noqa": 5
+    },
+    "compliance/soc2.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "core/__init__.py": {
+      "type_ignore": 0,
+      "noqa": 9
+    },
+    "crypto/hsm.py": {
+      "type_ignore": 12,
+      "noqa": 5
+    },
+    "crypto/memory_protection.py": {
+      "type_ignore": 2,
+      "noqa": 0
+    },
+    "crypto/pqc.py": {
+      "type_ignore": 1,
+      "noqa": 2
+    },
+    "db/__init__.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "discovery/well_known.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "document_intel/api.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "document_intel/converter.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "financial/impact_calculator.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "financial/metrics_reader.py": {
+      "type_ignore": 3,
+      "noqa": 0
+    },
+    "guards/__init__.py": {
+      "type_ignore": 0,
+      "noqa": 17
+    },
+    "integrations/misp.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "integrations/misp_bridge.py": {
+      "type_ignore": 2,
+      "noqa": 6
+    },
+    "integrations/nemo_bridge.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "integrations/taxii.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "intel/__init__.py": {
+      "type_ignore": 0,
+      "noqa": 7
+    },
+    "kya/did.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "kya/profile.py": {
+      "type_ignore": 2,
+      "noqa": 1
+    },
+    "m2m_store/api.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "m2m_store/security.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "marketplace/agent_key_rotation.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "marketplace/analytics.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "marketplace/api.py": {
+      "type_ignore": 3,
+      "noqa": 28
+    },
+    "marketplace/api_listings.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "marketplace/api_maestro.py": {
+      "type_ignore": 5,
+      "noqa": 0
+    },
+    "marketplace/brand_agent.py": {
+      "type_ignore": 1,
+      "noqa": 4
+    },
+    "marketplace/buyer_agent.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "marketplace/clearing.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "marketplace/data_lifecycle.py": {
+      "type_ignore": 2,
+      "noqa": 2
+    },
+    "marketplace/escrow.py": {
+      "type_ignore": 1,
+      "noqa": 12
+    },
+    "marketplace/governance.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "marketplace/importer.py": {
+      "type_ignore": 0,
+      "noqa": 11
+    },
+    "marketplace/listing.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "marketplace/maestro.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "marketplace/memory.py": {
+      "type_ignore": 1,
+      "noqa": 1
+    },
+    "marketplace/rate_limit.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "marketplace/reputation.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "marketplace/sybil_guard.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "marketplace/trust_graph.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "marketplace/vector_search.py": {
+      "type_ignore": 0,
+      "noqa": 6
+    },
+    "marketplace/x402_gate.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "masking/engine.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "mcp/gateway.py": {
+      "type_ignore": 0,
+      "noqa": 15
+    },
+    "multimodal/handler.py": {
+      "type_ignore": 3,
+      "noqa": 5
+    },
+    "multimodal/_coordinator.py": {
+      "type_ignore": 1,
+      "noqa": 5
+    },
+    "payments/l402.py": {
+      "type_ignore": 0,
+      "noqa": 6
+    },
+    "payments/usdc.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "providers/vertex.py": {
+      "type_ignore": 3,
+      "noqa": 0
+    },
+    "push/service.py": {
+      "type_ignore": 3,
+      "noqa": 0
+    },
+    "redaction/__init__.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "sdk/otel.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "secrets_gov/lifecycle.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "secrets_gov/vault_connector.py": {
+      "type_ignore": 6,
+      "noqa": 0
+    },
+    "security/certificate_authority.py": {
+      "type_ignore": 1,
+      "noqa": 6
+    },
+    "semantic_layer/api.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "semantic_layer/catalog.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "semantic_layer/engine.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "shadow_ai/discovery.py": {
+      "type_ignore": 2,
+      "noqa": 2
+    },
+    "shadow_ai/policy.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "shadow_ai/syslog_sink.py": {
+      "type_ignore": 2,
+      "noqa": 0
+    },
+    "site/approval.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "sovereign/policy.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "sovereign/preflight.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "sovereign/tunnel.py": {
+      "type_ignore": 1,
+      "noqa": 1
+    },
+    "staff/a2a.py": {
+      "type_ignore": 1,
+      "noqa": 8
+    },
+    "staff/boundaries.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "staff/dispatcher.py": {
+      "type_ignore": 1,
+      "noqa": 2
+    },
+    "staff/economics.py": {
+      "type_ignore": 1,
+      "noqa": 7
+    },
+    "staff/structured_log.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "staff/velocity.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "storage/s3.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "streams/agent_runner.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "streams/event_bus.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "syndicates/invites_router.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "threat_intel/analyzer.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "tokenomics/agent_token.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "tokenomics/outcome_pricing.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "tools/browser.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "voice/agent.py": {
+      "type_ignore": 0,
+      "noqa": 6
+    },
+    "voice/api.py": {
+      "type_ignore": 0,
+      "noqa": 10
+    },
+    "voice/asr.py": {
+      "type_ignore": 0,
+      "noqa": 8
+    },
+    "voice/biometric.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "voice/dialogue.py": {
+      "type_ignore": 0,
+      "noqa": 4
+    },
+    "voice/guardian.py": {
+      "type_ignore": 1,
+      "noqa": 2
+    },
+    "voice/nlu.py": {
+      "type_ignore": 1,
+      "noqa": 1
+    },
+    "voice/tts.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "voice/x402.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "web3/key_rotation.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "web3/smart_contract.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "webhooks/engine.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "whitelabel/config.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "workers/dunning.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "workers/gdpr_retention.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "workers/probe_worker.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "workers/weekly_report.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "xai/explainer.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "testing/scenarios/loader.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "staff/agents/base.py": {
+      "type_ignore": 2,
+      "noqa": 10
+    },
+    "staff/agents/bdr.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "staff/agents/compliance.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "staff/agents/growth.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "staff/agents/support.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "staff/tools/compliance_kyc.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "staff/tools/growth.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
+    "staff/tools/support.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "protocols/acp/checkout.py": {
+      "type_ignore": 0,
+      "noqa": 5
+    },
+    "protocols/acp/refund.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "protocols/acp/token_vault.py": {
+      "type_ignore": 2,
+      "noqa": 1
+    },
+    "integrations/obsidian/note_scanner.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "business_community/agentic_commerce/service.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "analytics/pages/10_SMB_Governance.py": {
+      "type_ignore": 0,
+      "noqa": 9
+    },
+    "analytics/pages/22_Community_Hub.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "analytics/pages/23_Digital_Staff.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "analytics/pages/23_Marketplace_Admin.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
+    "analytics/pages/2_Settings.py": {
+      "type_ignore": 1,
+      "noqa": 1
+    },
+    "analytics/pages/7_Cyber_Security.py": {
+      "type_ignore": 13,
+      "noqa": 0
+    },
+    "analytics/pages/8_Settings.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "agents/packs/api.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
+    "agents/packs/disease_detector.py": {
+      "type_ignore": 2,
+      "noqa": 2
+    }
+  }
+}
