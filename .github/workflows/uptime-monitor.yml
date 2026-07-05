@@ -1,0 +1,53 @@
+name: Uptime Monitor
+
+# Stage 2d — external synthetic health check, independent of the server.
+#
+# The origin firewall only admits Cloudflare ranges (good), and Cloudflare Bot
+# Fight Mode 403s datacenter-origin requests — so a GitHub-runner probe may be
+# blocked until the WAF skip rule documented in docs/cloudflare-waf.md
+# ("Health-check skip rule") is added. Residential/browser traffic passes.
+#
+# Behaviour:
+#   200            → healthy, job green
+#   403            → blocked by Cloudflare (job fails with pointer to the doc)
+#   other/timeout  → outage (job fails) → Slack notification if webhook set
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: Probe /health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe public health endpoint
+        id: probe
+        run: |
+          CODE=$(curl -s -m 15 -o /tmp/health_body -w '%{http_code}' \
+            -A "shadow-warden-uptime-monitor" \
+            https://api.shadow-warden-ai.com/health || echo 000)
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "## Uptime probe: HTTP $CODE" >> "$GITHUB_STEP_SUMMARY"
+          head -c 400 /tmp/health_body >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          if [ "$CODE" = "200" ]; then
+            echo "healthy"
+          elif [ "$CODE" = "403" ]; then
+            echo "::error::Blocked by Cloudflare Bot Fight Mode — add the health-check skip rule from docs/cloudflare-waf.md"
+            exit 1
+          else
+            echo "::error::Health endpoint returned $CODE — possible outage"
+            exit 1
+          fi
+
+      - name: Slack alert on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          CODE: ${{ steps.probe.outputs.code }}
+        run: |
+          [ -z "$SLACK_WEBHOOK_URL" ] && { echo "no webhook configured"; exit 0; }
+          curl -s -X POST "$SLACK_WEBHOOK_URL" -H 'Content-Type: application/json' \
+            -d "{\"attachments\":[{\"color\":\"danger\",\"text\":\"🚨 *Uptime probe failed* — api.shadow-warden-ai.com/health returned HTTP ${CODE:-000}\"}]}"

@@ -646,8 +646,8 @@ async def lifespan(app: FastAPI):
         try:
             import warden.openai_proxy as _proxy_mod
             _proxy_mod._agent_monitor = _agent_monitor
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
         # Publish for extracted routers (api/compliance_report.py, Phase 3)
         _runtime.publish(agent_monitor=_agent_monitor)
 
@@ -663,8 +663,8 @@ async def lifespan(app: FastAPI):
     try:
         import warden.openai_proxy as _proxy_mod  # noqa: PLC0415
         _proxy_mod._sandbox_registry = _get_sandbox_registry()
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
     # ── Threat Intelligence Engine (opt-in) ───────────────────────────
     _ti_task = None
@@ -1065,8 +1065,8 @@ try:
         return _orig_get_route_name(scope, safe_routes, route_name)
 
     _pfi_routing._get_route_name = _patched_get_route_name
-except Exception:
-    pass
+except Exception as _exc:  # noqa: BLE001
+    log.debug("suppressed exception: %r", _exc)
 
 if _PROMETHEUS_ENABLED:
     _Instrumentator().instrument(app).expose(app, endpoint="/metrics")
@@ -1833,8 +1833,8 @@ async def health_pipeline() -> dict:
         from warden.db.turso import is_turso_enabled  # noqa: PLC0415
         for _db in ("billing_audit", "acp", "marketplace", "sep", "staff"):
             turso[_db] = is_turso_enabled(_db)
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
     degraded = [k for k, v in stages.items() if v["status"] not in ("ok", "loading")]
     return {
@@ -1882,8 +1882,8 @@ async def api_stats(hours: float = 24.0):
                 buckets[age_min]["total"] += 1
                 if not e.get("allowed"):
                     buckets[age_min]["blocked"] += 1
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
 
     time_series = [
         {
@@ -2141,8 +2141,8 @@ async def _run_filter_pipeline(
             cached = json.loads(cached_json)
             log.info(json.dumps({"event": "cache_hit", "request_id": rid}))
             return FilterResponse(**cached)
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
 
     from warden.telemetry import trace_stage as _trace_stage  # noqa: PLC0415
 
@@ -2485,8 +2485,8 @@ async def _run_filter_pipeline(
                         tenant_id=tenant_id,
                         attack_vector=_pr.attack_vector,
                     ).inc()
-                except Exception:
-                    pass
+                except Exception as _exc:  # noqa: BLE001
+                    log.debug("suppressed exception: %r", _exc)
                 log.warning(
                     json.dumps({
                         "event":        "data_poisoning_detected",
@@ -2726,8 +2726,8 @@ async def _run_filter_pipeline(
             _mask_count    = _mask_result.entity_count
             # Invalidate immediately — we only needed the detection summary
             _get_masking_engine().invalidate_session(f"_detect_{rid}")
-    except Exception:
-        pass   # detection is best-effort; never block a request
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)   # detection is best-effort; never block a request
 
     # ── Analytics logging ─────────────────────────────────────────────
     try:
@@ -3858,8 +3858,8 @@ async def ws_stream(websocket: WebSocket):
         try:
             await _ws_send(websocket, {"type": "error", "code": 502, "detail": "LLM upstream error."})
             await websocket.close(code=1011)
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
         return
 
     await _ws_send(websocket, {"type": "done", "request_id": rid})
@@ -3898,8 +3898,8 @@ async def ws_monitor_stream(websocket: WebSocket, monitor_id: str):
             for msg in pubsub.listen():
                 if msg["type"] == "message":
                     loop.call_soon_threadsafe(queue.put_nowait, msg["data"])
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
         finally:
             with contextlib.suppress(Exception):
                 pubsub.unsubscribe(channel)
@@ -4007,8 +4007,8 @@ async def ws_filter_stream(websocket: WebSocket):
             await _ws_send(websocket, {"type": "done", "request_id": rid})
             await websocket.close()
             return
-        except Exception:
-            pass  # corrupted cache entry → fall through to full pipeline
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)  # corrupted cache entry → fall through to full pipeline
 
     # ── Stage 0b: Obfuscation decoding ────────────────────────────────────────
     t0 = time.perf_counter()

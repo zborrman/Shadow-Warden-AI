@@ -912,6 +912,17 @@ jobs:
           docker builder prune -af --filter until=1h 2>/dev/null || true
           docker image prune -f 2>/dev/null || true
 
+          # Install/refresh a weekly prune cron (Stage 2c) — deploys can be days
+          # apart (feature-branch work), letting cache grow 10+ GB between them.
+          # Managed here so the server-side cron is version-controlled.
+          cat > /etc/cron.weekly/docker-cache-prune <<'CRON'
+          #!/bin/sh
+          # Weekly Docker cache hygiene — belt-and-suspenders to the deploy-time prune.
+          docker builder prune -af --filter until=24h >> /var/log/docker-prune.log 2>&1
+          docker image prune -f >> /var/log/docker-prune.log 2>&1
+          CRON
+          chmod +x /etc/cron.weekly/docker-cache-prune || true
+
           echo "── [4/4] Verify warden health ──────────────────────────────"
           # Poll for up to 5 min (60 × 5 s). The ML model load takes ~2-3 min
           # on cold start. Proxy uses service_started so compose never blocks

@@ -158,8 +158,8 @@ class QuotaMiddleware:
         try:
             from warden.billing.referral import get_bonus_requests
             limit += get_bonus_requests(tenant_id)
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
 
         # Increment Redis counter
         r = _redis()
@@ -247,8 +247,8 @@ def get_quota_usage(tenant_id: str) -> dict:
     try:
         from warden.billing.referral import get_bonus_requests
         bonus = get_bonus_requests(tenant_id)
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
     effective_limit = (limit + bonus) if limit is not None else None
 
@@ -258,8 +258,8 @@ def get_quota_usage(tenant_id: str) -> dict:
         try:
             raw = r.get(_quota_key(tenant_id))
             used = int(raw) if raw else 0
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
 
     pct = None
     if effective_limit and effective_limit > 0:

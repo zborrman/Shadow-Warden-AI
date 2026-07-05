@@ -364,8 +364,8 @@ def fake_filter_response(
     try:
         SHADOW_BAN_TOTAL.labels(strategy=strategy, last_flag=last_flag or "unknown").inc()
         SHADOW_BAN_COST_SAVED_USD.inc(_COST_PER_SHADOW_BAN_USD)
-    except Exception:
-        pass  # metrics are always non-critical
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)  # metrics are always non-critical
     return {
         "allowed":                  True,
         "risk_level":               "low",
@@ -416,8 +416,8 @@ def fake_openai_response(
     try:
         SHADOW_BAN_TOTAL.labels(strategy=strategy, last_flag=last_flag or "unknown").inc()
         SHADOW_BAN_COST_SAVED_USD.inc(_COST_PER_SHADOW_BAN_USD)
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
     message_content = _pick_response(entity_key, strategy)
     completion_tokens = len(message_content.split())
     return {

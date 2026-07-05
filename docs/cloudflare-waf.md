@@ -85,3 +85,21 @@ export default {
 | `www.shadow-warden-ai.com` | Vercel static | Redirect → non-www |
 | `app.shadow-warden-ai.com` | `portal:3001` via Caddy | Tenant portal |
 | `analytics.shadow-warden-ai.com` | `analytics:8002` via Caddy | Streamlit dashboard |
+
+## Health-check skip rule (uptime monitoring)
+
+Bot Fight Mode 403s datacenter-origin requests, which blocks synthetic
+monitors (GitHub Actions runners, the server's own outbound probes). The
+`.github/workflows/uptime-monitor.yml` probe needs this rule to see `/health`:
+
+**Dashboard → Security → WAF → Custom rules → Create rule:**
+
+- **Name:** `allow-health-probes`
+- **Expression:**
+  `(http.request.uri.path eq "/health" and http.request.method eq "GET")`
+- **Action:** Skip → *All remaining custom rules* + **Bot Fight Mode**
+- **Order:** first
+
+`/health` returns only aggregate status (no tenant data, no content), so
+exposing it to unauthenticated automation is safe. Do NOT widen the path —
+`/health/pipeline` stays protected.
