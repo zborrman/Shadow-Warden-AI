@@ -310,6 +310,11 @@ class Settings:
         default_factory=lambda: _bool("PIPELINE_FAILCLOSED_ON_CANARY", False)
     )
 
+    # Default tenant id for background jobs / unattributed events.
+    default_tenant_id: str = field(
+        default_factory=lambda: _env("DEFAULT_TENANT_ID", "default")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 

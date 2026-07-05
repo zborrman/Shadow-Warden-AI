@@ -21,6 +21,8 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
+from warden.config import settings
+
 log = logging.getLogger("warden.agent.scheduler")
 
 
@@ -109,13 +111,12 @@ async def sova_threat_sync(ctx: dict) -> dict:
     # Search the community feed for jailbreak/injection/exfiltration signatures
     # that other tenants have already published and logged recommendations for.
     community_matches: list[dict] = []
-    import os  # noqa: PLC0415
 
     from warden.agent.tools import (  # noqa: PLC0415
         get_community_recommendations,
         search_community_feed,
     )
-    tenant_id = os.getenv("DEFAULT_TENANT_ID", "default")
+    tenant_id = settings.default_tenant_id
     keywords = ["jailbreak", "prompt injection", "exfiltration", "adversarial"]
     for kw in keywords:
         try:
@@ -241,14 +242,13 @@ async def sova_community_watchdog(ctx: dict) -> dict:
     """
     log.info("sova: community watchdog [%s]", _ts())
 
-    import os  # noqa: PLC0415
 
     from warden.agent.tools import (  # noqa: PLC0415
         get_community_feed,
         moderate_community_post,
     )
 
-    tenant_id = os.getenv("DEFAULT_TENANT_ID", "default")
+    tenant_id = settings.default_tenant_id
 
     try:
         # Pull the last 100 approved to get verdict distribution stats
@@ -304,11 +304,10 @@ async def sova_corpus_watchdog(ctx: dict) -> dict:
     """
     log.info("sova: corpus watchdog [%s]", _ts())
 
-    import os  # noqa: PLC0415
 
     from warden.agent.healer import WardenHealer  # noqa: PLC0415
 
-    api_key = os.getenv("WARDEN_API_KEY", "")
+    api_key = settings.warden_api_key
     try:
         report = await WardenHealer(api_key=api_key).run()
     except Exception as exc:
@@ -710,7 +709,7 @@ async def sova_obsidian_watchdog(ctx: dict) -> dict:
 
     from warden.agent.tools import get_obsidian_feed  # noqa: PLC0415
 
-    tenant_id    = os.getenv("DEFAULT_TENANT_ID", "default")
+    tenant_id    = settings.default_tenant_id
     community_id = os.getenv("OBSIDIAN_COMMUNITY_ID", "default")
 
     try:

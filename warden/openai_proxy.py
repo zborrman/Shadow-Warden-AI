@@ -49,6 +49,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.config import settings
 from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import OUTPUT_GUARD_BLOCKS, OUTPUT_GUARD_SANITIZATIONS, TOOL_BLOCKS
 from warden.notification_hook import get_notification_hook
@@ -76,7 +77,7 @@ _GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY", "")
 #      "nim/mistralai/mistral-large-2-instruct"
 # Full catalogue: https://build.nvidia.com/explore/discover
 _NIM_UPSTREAM   = "https://integrate.api.nvidia.com/v1"
-_NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+_NVIDIA_API_KEY = settings.nvidia_api_key
 
 # ── Azure OpenAI ─────────────────────────────────────────────────────────────
 # AZURE_OPENAI_ENDPOINT  e.g. https://my-resource.openai.azure.com
