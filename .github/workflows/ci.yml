@@ -275,8 +275,60 @@ jobs:
         run: pip install -e ".[dev]"
         working-directory: .
 
+      # Constraints (Stage 1 lockfile): warden/constraints.txt pins the exact
+      # known-good resolved versions (regenerated from the pip-freeze-3.11
+      # artifact of a green run). A real version conflict must FAIL, not fall
+      # back — only the file's absence skips constraining.
       - name: Install warden requirements
-        run: pip install -r warden/requirements.txt
+        run: |
+          if [ -f warden/constraints.txt ]; then
+            pip install -r warden/requirements.txt -c warden/constraints.txt
+          else
+            pip install -r warden/requirements.txt
+          fi
+
+      # Dependency snapshot (Stage 1): freeze the exact resolved set so a future
+      # break (like the starlette 1.x route-drop) is diagnosable in seconds.
+      # The 3.11 artifact is the source for warden/constraints.txt regeneration.
+      - name: Snapshot resolved dependencies
+        if: always()
+        run: |
+          pip freeze --exclude-editable > pip-freeze-${{ matrix.python-version }}.txt
+          {
+            echo "## Resolved dependencies (Python ${{ matrix.python-version }})"
+            echo '<details><summary>pip freeze</summary>'
+            echo
+            echo '```'
+            cat pip-freeze-${{ matrix.python-version }}.txt
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dependency snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-freeze-${{ matrix.python-version }}
+          path: pip-freeze-${{ matrix.python-version }}.txt
+          retention-days: 90
+
+      # Route-parity diagnostic (fix #2): name any warden.* module that fails to
+      # import in THIS environment, so a missing optional dep behind a whole
+      # skipped subsystem is visible in the job summary — no local log needed.
+      # Informational: the route-inventory guard already tolerates absent modules.
+      - name: Route-parity import audit
+        if: always()
+        run: python scripts/ci_import_audit.py --summary | tee -a "$GITHUB_STEP_SUMMARY"
+        env:
+          ANTHROPIC_API_KEY: ""
+          WARDEN_API_KEY: ""
+          ALLOW_UNAUTHENTICATED: "true"
+          REDIS_URL: "memory://"
+          LOGS_PATH: "/tmp/audit_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/audit_rules.json"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_audit.db"
+          IMAGE_GUARD_ENABLED: "false"
 
       # Cache the ~80 MB MiniLM model so slow/integration tests don't re-download it.
       # Key is fixed per model name — weights never change.
@@ -323,15 +375,32 @@ jobs:
           AUDIT_TRAIL_PATH: "/tmp/audit_trail_cov.db"
           IMAGE_GUARD_ENABLED: "false"   # CLIP model not cached in CI — skip to avoid HF 429
 
-      - name: Run adversarial corpus tests
-        run: pytest warden/tests/ -v --tb=short -m "adversarial" || true
-        # adversarial failures are informational; don't block merges
+      # Adversarial ratchet (Stage 3b) — BLOCKING. Runs the corpus through the
+      # full /filter pipeline and fails if miss/false-positive counts regress
+      # past warden/tests/adversarial/baseline.json. Detection can only improve.
+      - name: Adversarial ratchet (blocking)
+        run: pytest warden/tests/test_adversarial_ratchet.py -v --tb=short -o addopts="" --no-cov
+        env:
+          ANTHROPIC_API_KEY: ""
+          WARDEN_API_KEY: ""
+          ALLOW_UNAUTHENTICATED: "true"
+          REDIS_URL: "memory://"
+          SEMANTIC_THRESHOLD: "0.72"
+          LOGS_PATH: "/tmp/adv_ratchet_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/adv_ratchet_rules.json"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_adv.db"
+          IMAGE_GUARD_ENABLED: "false"
+
+      - name: Run remaining adversarial corpus tests (informational)
+        run: pytest warden/tests/ -v --tb=short -m "adversarial" --deselect warden/tests/test_adversarial_ratchet.py::test_adversarial_ratchet || true
+        # single-layer stress tests remain informational; the ratchet above is the gate
         env:
           ANTHROPIC_API_KEY: ""
           SEMANTIC_THRESHOLD: "0.72"
           LOGS_PATH: "/tmp/test_logs.json"
           MODEL_CACHE_DIR: "/tmp/warden-model-cache"
-          AUDIT_TRAIL_PATH: "/tmp/audit_trail_adv.db"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_adv2.db"
           IMAGE_GUARD_ENABLED: "false"
 
       # Mutation testing disabled — run locally only (too slow for CI minutes)
@@ -360,7 +429,12 @@ jobs:
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install project dependencies
-        run: pip install -e ".[dev]" -r warden/requirements.txt
+        run: |
+          if [ -f warden/constraints.txt ]; then
+            pip install -e ".[dev]" -r warden/requirements.txt -c warden/constraints.txt
+          else
+            pip install -e ".[dev]" -r warden/requirements.txt
+          fi
 
       - name: Cache ML model (all-MiniLM-L6-v2)
         uses: actions/cache@v4
@@ -854,6 +928,17 @@ jobs:
           # are retained regardless of this filter.
           docker builder prune -af --filter until=1h 2>/dev/null || true
           docker image prune -f 2>/dev/null || true
+
+          # Install/refresh a weekly prune cron (Stage 2c) — deploys can be days
+          # apart (feature-branch work), letting cache grow 10+ GB between them.
+          # Managed here so the server-side cron is version-controlled.
+          cat > /etc/cron.weekly/docker-cache-prune <<'CRON'
+          #!/bin/sh
+          # Weekly Docker cache hygiene — belt-and-suspenders to the deploy-time prune.
+          docker builder prune -af --filter until=24h >> /var/log/docker-prune.log 2>&1
+          docker image prune -f >> /var/log/docker-prune.log 2>&1
+          CRON
+          chmod +x /etc/cron.weekly/docker-cache-prune || true
 
           echo "── [4/4] Verify warden health ──────────────────────────────"
           # Poll for up to 5 min (60 × 5 s). The ML model load takes ~2-3 min

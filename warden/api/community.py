@@ -25,7 +25,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from warden.models.community import (
+from warden.community_models import (
     Comment,
     Member,
     Post,

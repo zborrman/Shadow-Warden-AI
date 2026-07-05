@@ -202,8 +202,8 @@ class HoneyEngine:
             raw = self._redis.get(self._session_key(honey_id))
             if raw:
                 return json.loads(raw)
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
         return None
 
     def log_followup(self, honey_id: str, content: str, request_id: str) -> None:
@@ -317,8 +317,8 @@ class HoneyEngine:
                                 candidate, meta.get("label"), meta.get("honey_id"),
                             )
                             return meta
-                    except Exception:
-                        pass
+                    except Exception as _exc:  # noqa: BLE001
+                        log.debug("suppressed exception: %r", _exc)
                 start = pos + 1
 
         return None

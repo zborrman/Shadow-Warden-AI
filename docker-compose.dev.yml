@@ -35,6 +35,22 @@ services:
       LOGS_PATH: /data/logs.json
       DYNAMIC_RULES_PATH: /data/dynamic_rules.json
       ALLOW_UNAUTHENTICATED: "true"
+    # Compose Watch (docker compose watch) — restarts warden on file change.
+    # Merged from the removed docker-compose.override.yml (which auto-merged
+    # everywhere, including production — see commit message).
+    develop:
+      watch:
+        - action: sync
+          path: ./warden
+          target: /app/warden
+          ignore:
+            - __pycache__/
+            - "*.pyc"
+            - tests/
+            - models/
+        - action: rebuild
+          path: ./warden/requirements.txt
+
   analytics:
     volumes:
       - ./analytics:/app/analytics:ro
@@ -62,12 +78,25 @@ services:
       - "6379:6379"
 
   prometheus:
+    ports:
+      - "9090:9090"    # direct access in dev only
     volumes:
       - ./grafana/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   grafana:
+    ports:
+      - "3001:3000"    # direct access in dev only
     environment:
       GF_LOG_LEVEL: debug
+
+  jaeger:
+    ports:
+      - "16686:16686"  # Jaeger UI in dev only
+      - "4317:4317"    # OTLP gRPC from host in dev only
+
+  dashboard:
+    ports:
+      - "3002:3002"
 
   proxy:
     # Use HTTP-only Caddyfile for local dev (no TLS certs needed)

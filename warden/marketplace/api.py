@@ -29,10 +29,13 @@ from pydantic import BaseModel
 
 log = logging.getLogger("warden.marketplace.api")
 
-router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
-
-# Sub-routers are included directly on the FastAPI app (in main.py) with
-# prefix="/marketplace" to avoid FastAPI _IncludedRouter nesting issues.
+# NB: the router is created WITHOUT a built-in prefix. Callers include it with
+# `include_router(router, prefix="/marketplace")`. Including a self-prefixed
+# router (prefix baked into APIRouter) via `include_router(router)` triggers a
+# FastAPI/Starlette _IncludedRouter drop on newer versions — the routes silently
+# never reach app.routes. The sibling sub-routers already use the prefix-arg
+# pattern for the same reason.
+router = APIRouter(tags=["Marketplace"])
 
 
 def _require_marketplace_gate() -> None:
