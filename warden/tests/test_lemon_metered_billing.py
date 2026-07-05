@@ -20,7 +20,7 @@ Covers:
 """
 from __future__ import annotations
 
-import json  # noqa: I001
+import json
 import os
 import unittest
 from pathlib import Path

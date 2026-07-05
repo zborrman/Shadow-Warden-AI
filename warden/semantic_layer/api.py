@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import time
 
-from fastapi import APIRouter, Depends, HTTPException  # noqa: F401 (Depends used by AuthDep)
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from warden.auth_guard import AuthResult, require_api_key

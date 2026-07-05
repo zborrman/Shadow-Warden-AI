@@ -74,7 +74,7 @@ async def checkout(
     # 4. Budget Guardian
     try:
         from warden.business_community.agentic_commerce.semantic_budget import (
-            check_budget,  # noqa: PLC0415
+            check_budget,
         )
         budget = check_budget(tenant_id, total)
         if not budget.allowed:

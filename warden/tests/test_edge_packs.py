@@ -6,8 +6,8 @@ import asyncio
 import pytest
 
 # Import packs so they self-register
-import warden.agents.packs.crop_health_monitor  # noqa: F401
-import warden.agents.packs.disease_detector  # noqa: F401
+import warden.agents.packs.crop_health_monitor
+import warden.agents.packs.disease_detector
 import warden.agents.packs.yield_optimizer  # noqa: F401
 from warden.agents.packs.base import get_pack, list_packs
 

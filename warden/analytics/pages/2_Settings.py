@@ -499,7 +499,7 @@ with tab_guide:
     except ImportError:
         _RL_AVAILABLE = False
 
-    def _build_guide_pdf() -> bytes:  # noqa: PLR0912
+    def _build_guide_pdf() -> bytes:
         import io
         from datetime import UTC, datetime
         buf = io.BytesIO()

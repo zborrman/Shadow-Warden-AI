@@ -89,7 +89,7 @@ from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.causal_arbiter import arbitrate as _causal_arbitrate
-from warden.config import settings  # noqa: E402
+from warden.config import settings
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
@@ -752,7 +752,7 @@ async def lifespan(app: FastAPI):
     if _is_postgres():
         try:
             from warden.workers.probe_worker import (
-                probe_scheduler as _probe_scheduler,  # noqa: PLC0415
+                probe_scheduler as _probe_scheduler,
             )
             asyncio.create_task(_probe_scheduler())
             log.info("Uptime probe scheduler started.")

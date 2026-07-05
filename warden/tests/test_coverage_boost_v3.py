@@ -215,7 +215,7 @@ class TestAgenticRouter:
     def client(self, monkeypatch):
         monkeypatch.setenv("ALLOW_UNAUTHENTICATED", "true")
         monkeypatch.setenv("WARDEN_API_KEY", "")
-        from fastapi import FastAPI  # noqa: I001
+        from fastapi import FastAPI
         from fastapi.testclient import TestClient
         try:
             from warden.agentic.router import router
