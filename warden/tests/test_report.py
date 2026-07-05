@@ -478,16 +478,16 @@ class TestRenderPdf:
             # Simulate missing playwright by hiding it from sys.modules
             saved = sys.modules.pop("playwright.sync_api", ...)
             saved2 = sys.modules.pop("playwright", ...)
-            sys.modules["playwright.sync_api"] = None  # type: ignore[assignment]
+            sys.modules["playwright.sync_api"] = None
             try:
                 with pytest.raises(RuntimeError, match="Playwright"):
                     engine.render_pdf("acme", "2026-02")
             finally:
                 sys.modules.pop("playwright.sync_api", None)
                 if saved is not ...:
-                    sys.modules["playwright.sync_api"] = saved  # type: ignore[assignment]
+                    sys.modules["playwright.sync_api"] = saved
                 if saved2 is not ...:
-                    sys.modules["playwright"] = saved2  # type: ignore[assignment]
+                    sys.modules["playwright"] = saved2
 
     def test_brand_name_passed_to_html(self) -> None:
         """HTML fed to Playwright must contain the custom brand name."""

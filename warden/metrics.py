@@ -769,7 +769,7 @@ try:
 except ImportError:
     METRICS_ENABLED = False
 
-    class _Noop:  # type: ignore[no-redef]
+    class _Noop:
         """Silent no-op for environments without prometheus_client."""
         def labels(self, **_kw):
             return self

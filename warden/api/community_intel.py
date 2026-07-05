@@ -100,7 +100,7 @@ def get_risk_score(
     try:
         from warden.communities.intelligence import generate_report
         report = generate_report(community_id)
-        return report.risk.__dict__  # type: ignore[attr-defined]
+        return report.risk.__dict__
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

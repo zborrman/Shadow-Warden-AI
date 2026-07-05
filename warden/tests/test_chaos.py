@@ -80,7 +80,7 @@ class TestTopologyFailOpen:
         """topology_guard should fall back gracefully when ripser unavailable."""
         import sys
         ripser_backup = sys.modules.get("ripser")
-        sys.modules["ripser"] = None  # type: ignore[assignment]
+        sys.modules["ripser"] = None
         try:
             import importlib
 

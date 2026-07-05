@@ -166,7 +166,7 @@ class TestWebhookIdempotency:
             counter["calls"] += 1
             return original_refresh(sub_id)
 
-        b._refresh_subscription = counting_refresh  # type: ignore[method-assign]
+        b._refresh_subscription = counting_refresh
 
         with patch("stripe.Subscription.retrieve", return_value=MagicMock(
             get=lambda k, d=None: {"status": "active", "items": {"data": []},

@@ -58,7 +58,7 @@ _rate_store: dict[str, list[float]] = collections.defaultdict(list)
 
 try:
     from jose import JWTError as _JWTError
-    from jose import jwt as _jwt  # type: ignore[import]
+    from jose import jwt as _jwt
     _JOSE_OK = True
 except ImportError:  # pragma: no cover
     _JOSE_OK = False
@@ -158,7 +158,7 @@ def _issue(email: str) -> str:
     if not _JOSE_OK:
         raise RuntimeError("python-jose not installed")
     now = int(time.time())
-    return _jwt.encode(  # type: ignore[no-untyped-call]
+    return _jwt.encode(
         {"sub": email, "iat": now, "exp": now + _TTL},
         _secret(),
         algorithm=_ALG,
@@ -169,7 +169,7 @@ def _decode(token: str) -> dict[str, Any] | None:
     if not _JOSE_OK:
         return None
     try:
-        return _jwt.decode(token, _secret(), algorithms=[_ALG])  # type: ignore[no-untyped-call]
+        return _jwt.decode(token, _secret(), algorithms=[_ALG])
     except _JWTError:
         return None
 

@@ -260,7 +260,7 @@ class StripeBilling:
             "Stripe: checkout session %s created (tenant=%s plan=%s).",
             session.id, tenant_id, plan,
         )
-        return session.url  # type: ignore[return-value]
+        return session.url
 
     # ── Billing Portal ────────────────────────────────────────────────────────
 
@@ -290,7 +290,7 @@ class StripeBilling:
             customer=row["stripe_customer_id"],
             return_url=return_url,
         )
-        return session.url  # type: ignore[return-value]
+        return session.url
 
     # ── Webhook handler ───────────────────────────────────────────────────────
 
@@ -467,12 +467,12 @@ class StripeBilling:
         if sub is None:
             return "free", None, "active"
 
-        items    = (sub.get("items") or {}).get("data", []) if hasattr(sub, "get") else []  # type: ignore[union-attr]
+        items    = (sub.get("items") or {}).get("data", []) if hasattr(sub, "get") else []
         price_id = items[0]["price"]["id"] if items else ""
         plan     = _PRICE_TO_PLAN.get(price_id, "startup")
-        status   = sub.get("status", "active") if hasattr(sub, "get") else "active"  # type: ignore[union-attr]
+        status   = sub.get("status", "active") if hasattr(sub, "get") else "active"
 
-        period_end_ts = sub.get("current_period_end") if hasattr(sub, "get") else None  # type: ignore[union-attr]
+        period_end_ts = sub.get("current_period_end") if hasattr(sub, "get") else None
         period_end: str | None = None
         if period_end_ts:
             period_end = datetime.fromtimestamp(

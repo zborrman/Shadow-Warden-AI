@@ -216,7 +216,7 @@ class NotificationHook:
         headers    = {"Content-Type": "application/json; charset=utf-8"}
 
         if _WEBHOOK_SECRET:
-            sig = hmac.new(_WEBHOOK_SECRET, body_bytes, hashlib.sha256).hexdigest()  # type: ignore[attr-defined]
+            sig = hmac.new(_WEBHOOK_SECRET, body_bytes, hashlib.sha256).hexdigest()
             headers["X-Warden-Signature"] = f"sha256={sig}"
 
         async with httpx.AsyncClient(timeout=8.0) as client:

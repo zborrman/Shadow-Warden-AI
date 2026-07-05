@@ -41,7 +41,7 @@ _KEY_LABEL    = os.getenv("PKCS11_KEY_LABEL", "warden-sign")
 _OQS_AVAILABLE = False  # populated below
 
 try:
-    import pkcs11 as _pkcs11_mod  # type: ignore[import]  # noqa: F401
+    import pkcs11 as _pkcs11_mod  # noqa: F401
     _PKCS11_AVAILABLE = True
 except ImportError:
     _PKCS11_AVAILABLE = False
@@ -88,7 +88,7 @@ class HSMSigner:
 
     def _init_session(self) -> None:
         try:
-            import pkcs11  # type: ignore[import]
+            import pkcs11
 
             lib = pkcs11.lib(_PKCS11_LIB)
             token = lib.get_token(token_label=_TOKEN_LABEL)
@@ -113,7 +113,7 @@ class HSMSigner:
             return self._sw_sign(data)
 
         try:
-            from pkcs11 import KeyType, Mechanism  # type: ignore[import]
+            from pkcs11 import KeyType, Mechanism
 
             session = self._session
             key = session.get_key(  # type: ignore[union-attr]
@@ -134,7 +134,7 @@ class HSMSigner:
             return self._sw_verify(data, signature)
 
         try:
-            from pkcs11 import KeyType, Mechanism  # type: ignore[import]
+            from pkcs11 import KeyType, Mechanism
 
             session = self._session
             key = session.get_key(  # type: ignore[union-attr]
@@ -152,9 +152,9 @@ class HSMSigner:
             return self._sw_public_key_pem()
 
         try:
-            import pkcs11  # type: ignore[import]
-            from pkcs11 import KeyType  # type: ignore[import]
-            from pkcs11.util.ec import encode_ec_public_key  # type: ignore[import]
+            import pkcs11
+            from pkcs11 import KeyType
+            from pkcs11.util.ec import encode_ec_public_key
 
             session = self._session
             key = session.get_key(  # type: ignore[union-attr]
@@ -235,7 +235,7 @@ class HSMSigner:
             if hasattr(self, "_sw_key"):
                 try:
                     from warden.crypto.memory_protection import secure_wipe
-                    raw = self._sw_key.private_bytes_raw()  # type: ignore[attr-defined]
+                    raw = self._sw_key.private_bytes_raw()
                     buf = bytearray(raw)
                     secure_wipe(buf)
                 except Exception:

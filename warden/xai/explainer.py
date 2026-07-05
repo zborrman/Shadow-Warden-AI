@@ -260,4 +260,4 @@ def _claude_explain(
         messages=[{"role": "user", "content": prompt}],
     )
     block = message.content[0]
-    return block.text.strip() if hasattr(block, "text") else ""  # type: ignore[union-attr]
+    return block.text.strip() if hasattr(block, "text") else ""

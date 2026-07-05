@@ -397,7 +397,7 @@ _REDOS_POOL: _futures.ThreadPoolExecutor = _futures.ThreadPoolExecutor(
 # compile-time screen.  If the pattern is rejected by re2 it almost certainly
 # contains a construct that enables catastrophic backtracking.
 try:
-    import re2 as _re2  # type: ignore[import]
+    import re2 as _re2
     _RE2_AVAILABLE = True
 except ImportError:
     _re2 = None

@@ -60,7 +60,7 @@ log = logging.getLogger("warden.crypto.pqc")
 
 _OQS_AVAILABLE = False
 try:
-    import oqs  # type: ignore[import]
+    import oqs
     _OQS_AVAILABLE = True
     log.info("pqc: liboqs available — ML-DSA-65 + ML-KEM-768 enabled")
 except (ImportError, RuntimeError, OSError, SystemExit):

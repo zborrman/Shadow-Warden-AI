@@ -131,7 +131,7 @@ async def update_agent(
     if existing is None:
         raise HTTPException(404, f"Agent {agent_id!r} not found.")
     updated = reg.update_agent(agent_id, **body.model_dump(exclude_none=True))
-    return updated  # type: ignore[return-value]
+    return updated
 
 
 @router.delete("/agents/{agent_id}", summary="Revoke an agent")

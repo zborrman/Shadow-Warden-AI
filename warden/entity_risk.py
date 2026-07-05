@@ -105,7 +105,7 @@ class ERSResult:
     score:       float      = 0.0
     level:       ERSLevel   = "low"
     shadow_ban:  bool       = False
-    counts:      dict       = None   # type: ignore[assignment]
+    counts:      dict       = None
     total_1h:    int        = 0
 
     def __post_init__(self):

@@ -642,7 +642,7 @@ class AgentMonitor:
             self._check_worm_propagation,
         ):
             try:
-                threat = check(meta, events, policy)  # type: ignore[call-arg]
+                threat = check(meta, events, policy)
                 if threat and threat.pattern not in already:
                     found.append(threat)
                     already.add(threat.pattern)

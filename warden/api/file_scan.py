@@ -111,7 +111,7 @@ def _extract_docx(data: bytes) -> str:
 def _extract_xlsx(data: bytes) -> str:
     """Extract cell values from all sheets of a .xlsx file."""
     try:
-        import openpyxl  # type: ignore
+        import openpyxl
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
         rows: list[str] = []
         for ws in wb.worksheets:
@@ -131,12 +131,12 @@ def _extract_xlsx(data: bytes) -> str:
 def _extract_pdf(data: bytes) -> str:
     """Extract text layer from PDF — fail-open with raw bytes decode."""
     try:
-        from pdfminer.high_level import extract_text as pm_extract  # type: ignore
+        from pdfminer.high_level import extract_text as pm_extract
         return pm_extract(io.BytesIO(data))
     except ImportError:
         pass
     try:
-        from pypdf import PdfReader  # type: ignore
+        from pypdf import PdfReader
         reader = PdfReader(io.BytesIO(data))
         return "\n".join(p.extract_text() or "" for p in reader.pages)
     except ImportError:

@@ -99,8 +99,8 @@ async def get_access_token() -> str:
 
     # Option 2 — google-auth (production ADC / service account)
     try:
-        import google.auth  # type: ignore[import]
-        import google.auth.transport.requests as _transport  # type: ignore[import]
+        import google.auth
+        import google.auth.transport.requests as _transport
 
         creds, _ = google.auth.default(
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
@@ -108,7 +108,7 @@ async def get_access_token() -> str:
         if not creds.valid or getattr(creds, "expiry", None) is None:
             creds.refresh(_transport.Request())
         log.debug("Vertex AI token obtained via google-auth (ADC).")
-        return creds.token  # type: ignore[return-value]
+        return creds.token
     except ImportError:
         pass  # google-auth not installed — fall through to error
     except Exception as exc:

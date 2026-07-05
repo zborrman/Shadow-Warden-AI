@@ -159,7 +159,7 @@ try:
 
     _agent_monitor: _AgentMonitor | None = None
 except ImportError:
-    _agent_monitor = None  # type: ignore[assignment]
+    _agent_monitor = None
 
 # Injected by main.py lifespan after SandboxRegistry is loaded; None = sandbox disabled
 try:
@@ -167,7 +167,7 @@ try:
 
     _sandbox_registry: _SandboxRegistry | None = None
 except ImportError:
-    _sandbox_registry = None  # type: ignore[assignment]
+    _sandbox_registry = None
 
 
 def _build_tool_name_map(messages: list[dict]) -> dict[str, str]:

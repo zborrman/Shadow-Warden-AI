@@ -401,7 +401,7 @@ with TABS[4]:
                     import asyncio
                     import os
 
-                    from arq import create_pool  # type: ignore
+                    from arq import create_pool
                     from arq.connections import RedisSettings
 
                     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379")

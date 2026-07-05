@@ -167,7 +167,7 @@ def _get_conn() -> Generator[sqlite3.Connection, None, None]:
     try:
         from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
         if is_turso_enabled("sep"):
-            with get_connection("sep", fallback_path=_SEP_DB_PATH) as con:  # type: ignore[assignment]
+            with get_connection("sep", fallback_path=_SEP_DB_PATH) as con:
                 with suppress(Exception):
                     con.executescript(_SEP_DDL)
                 yield con  # type: ignore[misc]

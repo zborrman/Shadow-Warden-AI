@@ -69,7 +69,7 @@ async def marketplace_rate_limit(request: Request, response: Response) -> None:
     tenant_id = (
         request.headers.get("X-Tenant-ID")
         or request.headers.get("X-API-Key", "")[:16]
-        or request.client.host  # type: ignore[union-attr]
+        or request.client.host
         or "anonymous"
     )
 

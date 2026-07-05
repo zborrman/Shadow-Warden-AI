@@ -177,8 +177,8 @@ def _load_domain_map() -> dict[str, str]:
         if r is not None:
             redis_map = r.hgetall("warden:oidc:domains")
             for _dk, _tv in (redis_map or {}).items():
-                d = _dk.decode("utf-8") if isinstance(_dk, (bytes, bytearray)) else str(_dk or "")  # type: ignore[attr-defined]
-                t = _tv.decode("utf-8") if isinstance(_tv, (bytes, bytearray)) else str(_tv or "")  # type: ignore[attr-defined]
+                d = _dk.decode("utf-8") if isinstance(_dk, (bytes, bytearray)) else str(_dk or "")
+                t = _tv.decode("utf-8") if isinstance(_tv, (bytes, bytearray)) else str(_tv or "")
                 result[d.lower()] = t
     except Exception as _exc:  # noqa: BLE001
         log.debug("suppressed exception: %r", _exc)  # Redis unavailable — env var map is sufficient

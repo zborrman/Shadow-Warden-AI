@@ -56,7 +56,7 @@ def _unknown(name: str, display: str, detail: str = "not probed") -> dict:
 
 def _check_redis() -> dict:
     try:
-        from warden.cache import _get_client  # type: ignore[import]
+        from warden.cache import _get_client
         client = _get_client()
         if client is None:
             return _unknown("redis", "Redis")
@@ -90,7 +90,7 @@ async def _postgres_check() -> dict:
     if not _DATABASE_URL:
         return _unknown("postgres", "PostgreSQL", "DATABASE_URL not set")
     try:
-        import asyncpg  # type: ignore[import]
+        import asyncpg
         t0 = time.perf_counter()
         conn = await asyncio.wait_for(asyncpg.connect(_DATABASE_URL), timeout=_TIMEOUT)
         await conn.fetchval("SELECT 1")

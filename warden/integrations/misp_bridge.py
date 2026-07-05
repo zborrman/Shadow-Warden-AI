@@ -192,9 +192,9 @@ async def _zmq_loop() -> None:
         return
 
     ctx = azmq.Context()
-    sock = ctx.socket(zmq.SUB)   # type: ignore[attr-defined]
+    sock = ctx.socket(zmq.SUB)
     sock.connect(_MISP_ZMQ_URL)
-    sock.setsockopt_string(zmq.SUBSCRIBE, "misp_json")  # type: ignore[attr-defined]
+    sock.setsockopt_string(zmq.SUBSCRIBE, "misp_json")
     log.info("misp_bridge: ZMQ subscribed to %s", _MISP_ZMQ_URL)
 
     while True:

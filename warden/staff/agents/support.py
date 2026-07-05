@@ -35,7 +35,7 @@ Be empathetic but concise. Include ticket IDs and amounts in all responses.
 class SupportAgent(StaffAgentRunner):
     AGENT_ID = "support"
     SYSTEM_PROMPT = _SYSTEM
-    TOOLS = SUPPORT_TOOLS  # type: ignore[assignment]
+    TOOLS = SUPPORT_TOOLS
 
 
 async def run_support_query(
