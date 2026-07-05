@@ -140,6 +140,48 @@ try:
             "warden_filter_honeytrap_total"
         )
 
+    # ── Fail-open observability (Deep-Eng P0) ────────────────────────────────
+    # Incremented by warden.observability.record_failopen() at every fail-open
+    # site. A non-zero rate on a detection stage means requests are bypassing a
+    # guard that errored. Complements warden_filter_bypasses_total (which only
+    # sees pipeline-level timeout/WARDEN_FAIL_STRATEGY=open) with per-stage /
+    # per-subsystem granularity across the 308 inventoried fail-open sites.
+    #   stage   pipeline stage / subsystem (topology, brain, cache, kya, …)
+    #   reason  machine key (redis_unavailable, model_not_loaded, timeout, …)
+    try:
+        STAGE_FAILOPEN_TOTAL = Counter(
+            "warden_stage_failopen_total",
+            "Fail-open events by stage and reason (guard errored → request allowed)",
+            ["stage", "reason"],
+        )
+    except ValueError:
+        STAGE_FAILOPEN_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_stage_failopen_total"
+        )
+
+    # Live pipeline canary self-test (warden.observability.run_pipeline_canary()).
+    # Set at startup and by /health/pipeline?deep=true. A non-zero miss count
+    # means the LIVE detector is letting known jailbreaks through.
+    try:
+        PIPELINE_CANARY_MISSED = Gauge(
+            "warden_pipeline_canary_missed",
+            "Canary jailbreaks the live pipeline failed to block (should stay 0)",
+        )
+    except ValueError:
+        PIPELINE_CANARY_MISSED = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_pipeline_canary_missed"
+        )
+
+    try:
+        PIPELINE_CANARY_FALSE_POS = Gauge(
+            "warden_pipeline_canary_false_pos",
+            "Canary benign prompts the live pipeline wrongly blocked (should stay 0)",
+        )
+    except ValueError:
+        PIPELINE_CANARY_FALSE_POS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_pipeline_canary_false_pos"
+        )
+
     # ── EvolutionEngine skip counter ──────────────────────────────────────────
     # Incremented by brain/evolve.py whenever process_blocked() returns early.
     #
@@ -745,6 +787,9 @@ except ImportError:
     AGENT_ANOMALIES_TOTAL       = _Noop()  # type: ignore[assignment]
     AGENT_SESSION_BLOCKS        = _Noop()  # type: ignore[assignment]
     FILTER_BYPASSES_TOTAL       = _Noop()  # type: ignore[assignment]
+    STAGE_FAILOPEN_TOTAL        = _Noop()  # type: ignore[assignment]
+    PIPELINE_CANARY_MISSED      = _Noop()  # type: ignore[assignment]
+    PIPELINE_CANARY_FALSE_POS   = _Noop()  # type: ignore[assignment]
     FILTER_UNCERTAIN_TOTAL      = _Noop()  # type: ignore[assignment]
     FILTER_HONEYTRAP_TOTAL      = _Noop()  # type: ignore[assignment]
     EVOLUTION_SKIPPED_TOTAL     = _Noop()  # type: ignore[assignment]

@@ -89,6 +89,7 @@ from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.causal_arbiter import arbitrate as _causal_arbitrate
+from warden.config import settings  # noqa: E402
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
@@ -146,7 +147,7 @@ class _JsonFormatter(logging.Formatter):
 
 
 def _configure_json_logging() -> None:
-    log_level = getattr(logging, os.getenv("LOG_LEVEL", "info").upper(), logging.INFO)
+    log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
     fmt = _JsonFormatter()
     handler = logging.StreamHandler()
     handler.setFormatter(fmt)
@@ -213,7 +214,7 @@ from warden.limiter import tenant_limit as _tenant_limit  # noqa: E402
 # ── Dynamic rules path ────────────────────────────────────────────────────────
 
 _DYNAMIC_RULES_PATH = Path(
-    os.getenv("DYNAMIC_RULES_PATH", "/warden/data/dynamic_rules.json")
+    settings.dynamic_rules_path
 )
 
 # ── WebSocket / LLM streaming env vars ───────────────────────────────────────
@@ -439,11 +440,29 @@ async def lifespan(app: FastAPI):
 
     _lifespan_active = True
 
+    # ── Config validation + auditable snapshot (Deep-Eng P1) ────────────────
+    # Log every config problem at startup (drift visibility — the dev-override
+    # incident would have surfaced here) and record the effective, secret-masked
+    # configuration once per boot for audit. Soft by default; opt into fail-closed
+    # via CONFIG_FAILCLOSED=true so a mis-configured deploy crash-loops instead of
+    # serving with e.g. an out-of-range detection threshold.
+    try:
+        from warden.config import settings as _cfg  # noqa: PLC0415
+        _cfg_problems = _cfg.validate()
+        for _p in _cfg_problems:
+            log.warning("config: %s", _p)
+        log.info("effective config: %s", _cfg.redacted_dump())
+        if _cfg_problems and os.getenv("CONFIG_FAILCLOSED", "false").lower() == "true":
+            from warden.config import ConfigValidationError  # noqa: PLC0415
+            raise ConfigValidationError("; ".join(_cfg_problems))
+    except ImportError as _cfg_err:
+        log.warning("config validation skipped: %r", _cfg_err)
+
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
     # ── #11: Fail-closed auth check ───────────────────────────────────────
-    _api_key   = os.getenv("WARDEN_API_KEY", "")
-    _keys_path = os.getenv("WARDEN_API_KEYS_PATH", "")
+    _api_key   = settings.warden_api_key
+    _keys_path = settings.warden_api_keys_path
     if not _api_key and not _keys_path:
         if os.getenv("ALLOW_UNAUTHENTICATED", "false").lower() != "true":
             raise RuntimeError(
@@ -885,6 +904,28 @@ async def lifespan(app: FastAPI):
             )
     except Exception as _misp_err:
         log.warning("misp_bridge failed to start (non-fatal): %s", _misp_err)
+
+    # ── Live pipeline canary gate (Deep-Eng P0.3) ────────────────────────────
+    # The orchestrator is published and the model pre-warmed by this point. Fire
+    # the canary corpus through the REAL pipeline: proves the detector still
+    # detects, not merely that stages import. Default = loud DEGRADED; prod sets
+    # PIPELINE_FAILCLOSED_ON_CANARY=true to fail the boot on a broken detector.
+    try:
+        from warden.observability import SecurityDegradedError, run_pipeline_canary  # noqa: PLC0415
+
+        _canary = await run_pipeline_canary()
+        if _canary.get("available") and not _canary["healthy"]:
+            if settings.pipeline_failclosed_on_canary:
+                raise SecurityDegradedError(
+                    f"startup canary failed: {_canary} — refusing to serve a broken detector"
+                )
+            log.critical("PIPELINE CANARY FAILED at startup: %s — serving DEGRADED", _canary)
+        elif _canary.get("available"):
+            log.info("pipeline canary healthy: %s", _canary)
+    except SecurityDegradedError:
+        raise  # fail-closed: propagate so the container crash-loops and blocks the deploy
+    except Exception as _canary_err:  # noqa: BLE001 — self-test must never crash boot
+        log.warning("pipeline canary self-test errored (non-fatal): %r", _canary_err)
 
     yield
 
@@ -1426,8 +1467,13 @@ async def health():
 # ── Pipeline health ───────────────────────────────────────────────────────────
 
 @app.get("/health/pipeline", tags=["ops"], summary="Per-stage pipeline health")
-async def health_pipeline() -> dict:
-    """Reports availability of each filter stage, the ML model, and Turso connections."""
+async def health_pipeline(deep: bool = False) -> dict:
+    """Reports availability of each filter stage, the ML model, and Turso connections.
+
+    With ``?deep=true`` it additionally fires the live canary corpus through the
+    real pipeline (sub-second) and folds a missed jailbreak / false-positive into
+    the ``degraded`` verdict — a load-balancer probe should use the cheap default.
+    """
     stages: dict[str, dict] = {}
 
     def _try_import(label: str, module: str, cls: str) -> None:
@@ -1473,12 +1519,27 @@ async def health_pipeline() -> dict:
         log.debug("suppressed exception: %r", _exc)
 
     degraded = [k for k, v in stages.items() if v["status"] not in ("ok", "loading")]
-    return {
+
+    # Deep mode: live canary self-test through the real pipeline.
+    canary: dict | None = None
+    if deep:
+        try:
+            from warden.observability import run_pipeline_canary  # noqa: PLC0415
+            canary = await run_pipeline_canary()
+            if canary.get("available") and not canary["healthy"]:
+                degraded.append("canary")
+        except Exception as _cn_err:  # noqa: BLE001
+            log.debug("health canary errored: %r", _cn_err)
+
+    result = {
         "status":          "degraded" if degraded else "ok",
         "stages":          stages,
         "turso":           turso,
         "degraded_stages": degraded,
     }
+    if canary is not None:
+        result["canary"] = canary
+    return result
 
 
 # ── Dashboard stats API ───────────────────────────────────────────────────────
@@ -1570,7 +1631,7 @@ class _ConfigUpdate(BaseModel):
 @app.get("/api/config", tags=["ops"], summary="Current live configuration")
 async def api_config():
     return {
-        "semantic_threshold":   float(os.getenv("SEMANTIC_THRESHOLD", "0.72")),
+        "semantic_threshold":   settings.semantic_threshold,
         "strict_mode":          os.getenv("STRICT_MODE", "false").lower() == "true",
         "rate_limit_per_minute": int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),  # live value via set_default_rate_limit()
         "evolution_enabled":    _evolve is not None,
@@ -1578,7 +1639,7 @@ async def api_config():
         "browser_enabled":      os.getenv("BROWSER_ENABLED", "false").lower() == "true",
         "mtls_enabled":         os.getenv("MTLS_ENABLED", "false").lower() == "true",
         "otel_enabled":         os.getenv("OTEL_ENABLED", "false").lower() == "true",
-        "model_cache_dir":          os.getenv("MODEL_CACHE_DIR", "/warden/models"),
+        "model_cache_dir":          settings.model_cache_dir,
         # Enterprise resilience
         "fail_strategy":            _FAIL_STRATEGY,
         "pipeline_timeout_ms":      _PIPELINE_TIMEOUT_MS,
