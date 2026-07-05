@@ -276,7 +276,7 @@ alert style):
 
 # P1 / P2 — forward pointers (specified after P0 lands)
 
-- **P1 config:** `warden/config.py` → single Pydantic `Settings(BaseSettings)`; AST-migrate all `os.getenv`; validate on boot; `settings.redacted_dump()` for audit snapshots.
+- **P1 config (foundation shipped):** enriched the existing dataclass `warden/config.py` `Settings` (no new dep — pydantic-settings is not installed) with `validate()` / `validate_or_raise()` (thresholds in range, positive timeouts, valid Fernet `VAULT_MASTER_KEY`, fail-closed auth) and a secret-masked `redacted_dump()`. Wired soft-validate + auditable config snapshot into startup (`CONFIG_FAILCLOSED=true` to fail the boot). A ratchet (`test_no_new_scattered_getenv.py`, baseline 1146) forces new config through `settings` instead of inline `os.getenv`; migrating the 1146 inline reads is the tightening tail.
 - **P1 gates:** freeze `type: ignore`/`# noqa` with a decreasing ratchet; raise cov-gate to 90% on the 9 stages + `crypto/`.
 - **P2 triage:** tag every ROADMAP feature Core/Supported/Experimental/Deprecated; sunset Experimental with no 60-day usage.
 - **P2 god-files:** dissolve `main.py` (< 1500 LOC), migrate remaining multi-router blocks, plan Starlette 1.x → drop the FastAPI pin.

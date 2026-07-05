@@ -439,6 +439,24 @@ async def lifespan(app: FastAPI):
 
     _lifespan_active = True
 
+    # ── Config validation + auditable snapshot (Deep-Eng P1) ────────────────
+    # Log every config problem at startup (drift visibility — the dev-override
+    # incident would have surfaced here) and record the effective, secret-masked
+    # configuration once per boot for audit. Soft by default; opt into fail-closed
+    # via CONFIG_FAILCLOSED=true so a mis-configured deploy crash-loops instead of
+    # serving with e.g. an out-of-range detection threshold.
+    try:
+        from warden.config import settings as _cfg  # noqa: PLC0415
+        _cfg_problems = _cfg.validate()
+        for _p in _cfg_problems:
+            log.warning("config: %s", _p)
+        log.info("effective config: %s", _cfg.redacted_dump())
+        if _cfg_problems and os.getenv("CONFIG_FAILCLOSED", "false").lower() == "true":
+            from warden.config import ConfigValidationError  # noqa: PLC0415
+            raise ConfigValidationError("; ".join(_cfg_problems))
+    except ImportError as _cfg_err:
+        log.warning("config validation skipped: %r", _cfg_err)
+
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
     # ── #11: Fail-closed auth check ───────────────────────────────────────
