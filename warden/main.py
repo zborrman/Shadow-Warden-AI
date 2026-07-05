@@ -886,6 +886,28 @@ async def lifespan(app: FastAPI):
     except Exception as _misp_err:
         log.warning("misp_bridge failed to start (non-fatal): %s", _misp_err)
 
+    # ── Live pipeline canary gate (Deep-Eng P0.3) ────────────────────────────
+    # The orchestrator is published and the model pre-warmed by this point. Fire
+    # the canary corpus through the REAL pipeline: proves the detector still
+    # detects, not merely that stages import. Default = loud DEGRADED; prod sets
+    # PIPELINE_FAILCLOSED_ON_CANARY=true to fail the boot on a broken detector.
+    try:
+        from warden.observability import SecurityDegradedError, run_pipeline_canary  # noqa: PLC0415
+
+        _canary = await run_pipeline_canary()
+        if _canary.get("available") and not _canary["healthy"]:
+            if os.getenv("PIPELINE_FAILCLOSED_ON_CANARY", "false").lower() == "true":
+                raise SecurityDegradedError(
+                    f"startup canary failed: {_canary} — refusing to serve a broken detector"
+                )
+            log.critical("PIPELINE CANARY FAILED at startup: %s — serving DEGRADED", _canary)
+        elif _canary.get("available"):
+            log.info("pipeline canary healthy: %s", _canary)
+    except SecurityDegradedError:
+        raise  # fail-closed: propagate so the container crash-loops and blocks the deploy
+    except Exception as _canary_err:  # noqa: BLE001 — self-test must never crash boot
+        log.warning("pipeline canary self-test errored (non-fatal): %r", _canary_err)
+
     yield
 
     if _syslog_transport is not None:
@@ -1426,8 +1448,13 @@ async def health():
 # ── Pipeline health ───────────────────────────────────────────────────────────
 
 @app.get("/health/pipeline", tags=["ops"], summary="Per-stage pipeline health")
-async def health_pipeline() -> dict:
-    """Reports availability of each filter stage, the ML model, and Turso connections."""
+async def health_pipeline(deep: bool = False) -> dict:
+    """Reports availability of each filter stage, the ML model, and Turso connections.
+
+    With ``?deep=true`` it additionally fires the live canary corpus through the
+    real pipeline (sub-second) and folds a missed jailbreak / false-positive into
+    the ``degraded`` verdict — a load-balancer probe should use the cheap default.
+    """
     stages: dict[str, dict] = {}
 
     def _try_import(label: str, module: str, cls: str) -> None:
@@ -1473,12 +1500,27 @@ async def health_pipeline() -> dict:
         log.debug("suppressed exception: %r", _exc)
 
     degraded = [k for k, v in stages.items() if v["status"] not in ("ok", "loading")]
-    return {
+
+    # Deep mode: live canary self-test through the real pipeline.
+    canary: dict | None = None
+    if deep:
+        try:
+            from warden.observability import run_pipeline_canary  # noqa: PLC0415
+            canary = await run_pipeline_canary()
+            if canary.get("available") and not canary["healthy"]:
+                degraded.append("canary")
+        except Exception as _cn_err:  # noqa: BLE001
+            log.debug("health canary errored: %r", _cn_err)
+
+    result = {
         "status":          "degraded" if degraded else "ok",
         "stages":          stages,
         "turso":           turso,
         "degraded_stages": degraded,
     }
+    if canary is not None:
+        result["canary"] = canary
+    return result
 
 
 # ── Dashboard stats API ───────────────────────────────────────────────────────
