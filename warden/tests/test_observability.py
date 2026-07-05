@@ -82,9 +82,14 @@ def test_security_degraded_error_is_runtime_error():
         raise SecurityDegradedError("degraded")
 
 
-async def test_canary_non_fatal_when_pipeline_unavailable():
-    # In a bare unit-test process the orchestrator is not published, so the canary
-    # must report unavailable rather than raising or blocking startup.
+async def test_canary_non_fatal_when_pipeline_unavailable(monkeypatch):
+    # When the orchestrator is not published the canary must report unavailable
+    # rather than raising or blocking startup. Force the unavailable path
+    # deterministically: in the full suite a prior TestClient boot leaves the
+    # orchestrator published in the process-global runtime singleton, so we
+    # cannot rely on a "bare process" — patch is_available() instead.
+    import warden.services.pipeline as _pl
+    monkeypatch.setattr(_pl, "is_available", lambda: False)
     verdict = await run_pipeline_canary()
     assert verdict["available"] is False
     assert verdict["healthy"] is False
