@@ -310,6 +310,12 @@ class Settings:
         default_factory=lambda: _bool("PIPELINE_FAILCLOSED_ON_CANARY", False)
     )
 
+    # Prompt Shield (LLM-injection pre-screen). Enabled by default; the actual
+    # gate lives in openai_proxy — this is the single source of truth.
+    prompt_shield_enabled: bool = field(
+        default_factory=lambda: _bool("PROMPT_SHIELD_ENABLED", True)
+    )
+
     # Default tenant id for background jobs / unattributed events.
     default_tenant_id: str = field(
         default_factory=lambda: _env("DEFAULT_TENANT_ID", "default")
