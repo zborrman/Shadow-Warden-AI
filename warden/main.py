@@ -1485,7 +1485,7 @@ async def health_pipeline(deep: bool = False) -> dict:
             stages[label] = {"status": "unavailable", "error": str(exc)[:80]}
 
     _try_import("topology",       "warden.topology_guard",  "TopologicalGatekeeper")
-    _try_import("obfuscation",    "warden.obfuscation",     "ObfuscationDecoder")
+    _try_import("obfuscation",    "warden.obfuscation",     "decode")
     _try_import("secrets",        "warden.secret_redactor", "SecretRedactor")
     _try_import("semantic_rules", "warden.semantic_guard",  "SemanticGuard")
 
@@ -1497,8 +1497,8 @@ async def health_pipeline(deep: bool = False) -> dict:
     except Exception as exc:
         stages["brain"] = {"status": "unavailable", "error": str(exc)[:80]}
 
-    _try_import("causal", "warden.causal_arbiter",  "CausalArbiter")
-    _try_import("phish",  "warden.phishing_guard",  "PhishGuard")
+    _try_import("causal", "warden.causal_arbiter",  "arbitrate")
+    _try_import("phish",  "warden.phishing_guard",  "analyse")
 
     # ERS stage — backed by Redis
     _redis_h = _check_redis_health()
