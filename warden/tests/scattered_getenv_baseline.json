@@ -1,5 +1,5 @@
 {
-  "total": 1134,
+  "total": 1131,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -21,7 +21,7 @@
     "intel_ops.py": 2,
     "lemon_billing.py": 11,
     "limiter.py": 2,
-    "main.py": 46,
+    "main.py": 45,
     "mtls.py": 2,
     "multimodal_guard.py": 3,
     "net_guard.py": 1,
@@ -29,7 +29,7 @@
     "ocr.py": 1,
     "offline.py": 1,
     "onboarding.py": 2,
-    "openai_proxy.py": 17,
+    "openai_proxy.py": 16,
     "output_guard.py": 4,
     "phishing_guard.py": 2,
     "portal_router.py": 11,
@@ -72,7 +72,7 @@
     "api/bot_entity.py": 5,
     "api/community.py": 2,
     "api/compliance_report.py": 4,
-    "api/config_api.py": 42,
+    "api/config_api.py": 41,
     "api/contact.py": 5,
     "api/deploy_health.py": 6,
     "api/gdpr.py": 6,

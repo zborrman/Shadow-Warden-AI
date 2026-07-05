@@ -148,7 +148,7 @@ _MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
 
 _WALLET_ENABLED        = os.getenv("WALLET_ENABLED",             "true").lower() == "true"
 _OUTPUT_GUARD_ENABLED  = os.getenv("OUTPUT_GUARDRAILS_ENABLED", "true").lower() == "true"
-_PROMPT_SHIELD_ENABLED = os.getenv("PROMPT_SHIELD_ENABLED",     "true").lower() == "true"
+_PROMPT_SHIELD_ENABLED = settings.prompt_shield_enabled
 
 # Module-level singleton — no state, safe to share
 _tool_guard = ToolCallGuard()

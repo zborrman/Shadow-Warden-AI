@@ -33,6 +33,7 @@ import httpx
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from warden.config import settings
 from warden.site.approval import (
     TIER1_KEYS,
     PendingChange,
@@ -104,7 +105,7 @@ def _full_config() -> dict[str, Any]:
         "mtls_enabled":                 os.getenv("MTLS_ENABLED", "false").lower() == "true",
         "otel_enabled":                 os.getenv("OTEL_ENABLED", "false").lower() == "true",
         "audit_trail_enabled":          os.getenv("AUDIT_TRAIL_ENABLED", "false").lower() == "true",
-        "prompt_shield_enabled":        os.getenv("PROMPT_SHIELD_ENABLED", "false").lower() == "true",
+        "prompt_shield_enabled":        settings.prompt_shield_enabled,
         # Integrations — presence only (never expose actual values)
         "anthropic_api_key_set":        bool(os.getenv("ANTHROPIC_API_KEY")),
         "nvidia_api_key_set":           bool(os.getenv("NVIDIA_API_KEY")),

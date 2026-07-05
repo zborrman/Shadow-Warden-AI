@@ -1645,7 +1645,7 @@ async def api_config():
         "pipeline_timeout_ms":      _PIPELINE_TIMEOUT_MS,
         "uncertainty_lower_threshold": _UNCERTAINTY_LOWER,
         "nvidia_api_key_set":       bool(os.getenv("NVIDIA_API_KEY")),
-        "prompt_shield_enabled":    os.getenv("PROMPT_SHIELD_ENABLED", "false").lower() == "true",
+        "prompt_shield_enabled":    settings.prompt_shield_enabled,
         "audit_trail_enabled":      os.getenv("AUDIT_TRAIL_ENABLED", "false").lower() == "true",
     }
 
