@@ -233,7 +233,7 @@ def create_charter(
         conn.commit()
 
     log.info("charter created community=%s charter_id=%s version=%d", community_id, charter_id, version)
-    return get_charter(charter_id)  # type: ignore[return-value]
+    return get_charter(charter_id)
 
 
 def publish_charter(charter_id: str) -> CharterRecord:
@@ -264,7 +264,7 @@ def publish_charter(charter_id: str) -> CharterRecord:
         conn.commit()
 
     log.info("charter published charter_id=%s community=%s", charter_id, community_id)
-    return get_charter(charter_id)  # type: ignore[return-value]
+    return get_charter(charter_id)
 
 
 def get_charter(charter_id: str) -> CharterRecord | None:

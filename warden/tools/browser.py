@@ -230,7 +230,7 @@ class BrowserSandbox:
         )
 
         ctx_kwargs: dict[str, Any] = {
-            "viewport":            self.viewport,  # type: ignore[assignment]
+            "viewport":            self.viewport,
             "ignore_https_errors": True,
             "user_agent": (
                 "Mozilla/5.0 (compatible; WardenBot/1.0; "

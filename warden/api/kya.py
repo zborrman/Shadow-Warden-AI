@@ -125,7 +125,7 @@ async def verify_challenge(did: str, req: VerifyRequest) -> dict:
         import redis as redis_lib  # noqa: PLC0415
         r = redis_lib.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
         raw = r.get(f"kya:challenge:{did}")
-        nonce = raw.decode() if isinstance(raw, bytes) else None  # type: ignore[union-attr]
+        nonce = raw.decode() if isinstance(raw, bytes) else None
         if nonce:
             r.delete(f"kya:challenge:{did}")
     except Exception:

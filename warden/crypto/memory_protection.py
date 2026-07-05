@@ -63,8 +63,8 @@ def _try_mlock(buf: memoryview | bytearray) -> bool:
     """Lock memory pages into RAM (prevent swap). Fail-open on unsupported platforms."""
     if _IS_WINDOWS:
         try:
-            k32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-            addr = ctypes.addressof((ctypes.c_char * len(buf)).from_buffer(buf))  # type: ignore[arg-type]
+            k32 = ctypes.windll.kernel32
+            addr = ctypes.addressof((ctypes.c_char * len(buf)).from_buffer(buf))
             return bool(k32.VirtualLock(ctypes.c_void_p(addr), ctypes.c_size_t(len(buf))))
         except Exception:
             return False

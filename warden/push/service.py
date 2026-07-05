@@ -31,8 +31,8 @@ _RISK_EMOJI = {"high": "🔴", "block": "🚨", "medium": "🟡"}
 def _init_firebase() -> Any | None:
     """Initialise the firebase-admin app singleton. Returns the app or None."""
     try:
-        import firebase_admin  # type: ignore[import]
-        from firebase_admin import credentials  # type: ignore[import]
+        import firebase_admin
+        from firebase_admin import credentials
 
         if firebase_admin._apps:  # already initialised
             return firebase_admin.get_app()
@@ -74,7 +74,7 @@ class FCMPushService:
             return 0
 
         try:
-            from firebase_admin import messaging  # type: ignore[import]
+            from firebase_admin import messaging
 
             risk  = payload.get("risk_level", "high").lower()
             emoji = _RISK_EMOJI.get(risk, "⚠️")

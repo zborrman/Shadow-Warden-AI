@@ -88,7 +88,7 @@ class FIDOProvider:
             )
 
         try:
-            from webauthn import generate_registration_options as _gen  # type: ignore
+            from webauthn import generate_registration_options as _gen
             from webauthn.helpers.structs import (
                 AuthenticatorSelectionCriteria,
                 ResidentKeyRequirement,
@@ -139,7 +139,7 @@ class FIDOProvider:
             return {"verified": False, "reason": "no_challenge"}
 
         try:
-            from webauthn import verify_registration_response as _verify  # type: ignore
+            from webauthn import verify_registration_response as _verify
             from webauthn.helpers.structs import RegistrationCredential
             try:
                 parsed = RegistrationCredential.parse_raw(json.dumps(credential))
@@ -209,7 +209,7 @@ class FIDOProvider:
             return {"verified": True, "tenant_id": tenant_id, "_stub": True}
 
         try:
-            from webauthn import verify_authentication_response as _verify  # type: ignore
+            from webauthn import verify_authentication_response as _verify
             from webauthn.helpers.structs import AuthenticationCredential
             result = _verify(
                 credential=AuthenticationCredential.parse_raw(json.dumps(assertion)),

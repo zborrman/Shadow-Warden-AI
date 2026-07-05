@@ -374,7 +374,7 @@ class EvolutionEngine:
             explanation=str(meta.get("explanation", f"Injected from {source}"))[:500],
             evasion_variants=list(meta.get("evasion_variants", [])),
             new_rule=NewRule(
-                rule_type=rule_type,  # type: ignore[arg-type]
+                rule_type=rule_type,
                 value=rule_text,
                 description=str(meta.get("description", f"Rule injected from {source}"))[:200],
             ),

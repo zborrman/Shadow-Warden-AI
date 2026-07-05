@@ -250,7 +250,7 @@ def _content_entropy(text: str) -> float:
 @dataclass
 class _DynamicRegexRule:
     rule_id: str
-    pattern: re.Pattern  # type: ignore[type-arg]
+    pattern: re.Pattern
     snippet: str         # first 60 chars of the pattern for logging
 
 
@@ -293,7 +293,7 @@ _policy:         DataPolicyEngine  | None = None
 _feed:           ThreatFeedClient  | None = None
 _saml:           SAMLProvider      | None = None
 _webhook_store:  WebhookStore      | None = None
-_poison_guard:   DataPoisoningGuard | None = None  # type: ignore[assignment]
+_poison_guard:   DataPoisoningGuard | None = None
 _audit_trail = None  # AuditTrail | None — imported lazily in lifespan
 _threat_sync    = None  # ThreatSyncClient | None — cross-region sync
 _corpus_watcher = None  # CorpusSyncWatcher | None — corpus invalidation consumer
@@ -1065,7 +1065,7 @@ class _ExtensionCORSMiddleware(BaseHTTPMiddleware):
         "Access-Control-Max-Age":       "600",
     }
 
-    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+    async def dispatch(self, request: Request, call_next):
         if not request.url.path.startswith("/ext/"):
             return await call_next(request)
         if request.method == "OPTIONS":
@@ -1672,7 +1672,7 @@ async def update_config(update: _ConfigUpdate):
 
 # ── SIEM bypass helper ────────────────────────────────────────────────────────
 
-async def _ship_bypass(background_tasks, entry: dict) -> None:  # type: ignore[type-arg]
+async def _ship_bypass(background_tasks, entry: dict) -> None:
     """Fire-and-forget SIEM ship for bypass events that exit the pipeline early."""
     try:
         from warden.analytics.siem import ship_bypass_alert  # noqa: PLC0415
@@ -1897,7 +1897,7 @@ async def _run_filter_pipeline(
     # ── Stage 1: Secret Redaction ──────────────────────────────────────
     t0 = time.perf_counter()
     with _trace_stage("secret_redaction", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
-        redact_result = _redactor.redact(analysis_text, payload.redaction_policy)  # type: ignore[union-attr]
+        redact_result = _redactor.redact(analysis_text, payload.redaction_policy)
         _sp.set_attribute("redaction.secrets_found", len(redact_result.findings))
         _sp.set_attribute("redaction.has_pii",       redact_result.has_pii)
     timings["redaction"] = round((time.perf_counter() - t0) * 1000, 2)
@@ -1958,7 +1958,7 @@ async def _run_filter_pipeline(
     # ── Stage 2: Rule-based Semantic Analysis ─────────────────────────
     t0 = time.perf_counter()
     with _trace_stage("rule_analysis", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
-        guard_result = _guard.analyse(redact_result.text)  # type: ignore[union-attr]
+        guard_result = _guard.analyse(redact_result.text)
         _sp.set_attribute("rules.flags_count", len(guard_result.flags))
         _sp.set_attribute("rules.risk_level",  guard_result.risk_level.value)
     timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
@@ -2484,7 +2484,7 @@ async def _run_filter_pipeline(
     if background_tasks is not None:
         try:
             from warden.analytics.siem import ship_event
-            background_tasks.add_task(ship_event, entry)  # type: ignore[possibly-undefined]
+            background_tasks.add_task(ship_event, entry)
         except ImportError:
             pass
 
@@ -3728,7 +3728,7 @@ async def ws_filter_stream(websocket: WebSocket):
 
     # ── Stage 1: Secret Redaction ─────────────────────────────────────────────
     t0 = time.perf_counter()
-    redact_result = _redactor.redact(analysis_text, payload.redaction_policy)  # type: ignore[union-attr]
+    redact_result = _redactor.redact(analysis_text, payload.redaction_policy)
     timings["redaction"] = round((time.perf_counter() - t0) * 1000, 2)
     await _ws_send(websocket, {
         "type": "stage", "stage": "redaction",
@@ -3739,7 +3739,7 @@ async def ws_filter_stream(websocket: WebSocket):
 
     # ── Stage 2: Rule-based Semantic Analysis ─────────────────────────────────
     t0 = time.perf_counter()
-    guard_result = _guard.analyse(redact_result.text)  # type: ignore[union-attr]
+    guard_result = _guard.analyse(redact_result.text)
     timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
 
     # Dynamic evolution regex rules

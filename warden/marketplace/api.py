@@ -489,7 +489,7 @@ async def dispatch_action(
             log.debug("x402 gate fail-open: %s", _x402_exc)
 
     try:
-        result = await handler(**body.payload)  # type: ignore[operator]
+        result = await handler(**body.payload)
 
         # Queue deduction after successful search (batch settlement in v2)
         if body.action_type == "search":
@@ -884,7 +884,7 @@ async def marketplace_readiness(community_id: str) -> dict:
 async def get_soc2_report(
     period_days: int = Query(default=90, ge=1, le=365, description="Look-back window in days"),
     format: str   = Query(default="json", pattern="^(json|zip)$"),
-    request: Request = None,  # type: ignore[assignment]
+    request: Request = None,
 ) -> Any:
     """Compile SOC 2 Type II evidence for the requesting tenant over the period.
 

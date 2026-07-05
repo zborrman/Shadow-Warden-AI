@@ -40,7 +40,7 @@ class WardenIntelBridge:
     semantic_guard  : BrainSemanticGuard (SemanticGuard alias) instance
     """
 
-    def __init__(self, evolve_engine, semantic_guard) -> None:  # type: ignore[annotation-unchecked]
+    def __init__(self, evolve_engine, semantic_guard) -> None:
         self.intel_ops     = WardenIntelOps()
         self.evolve        = evolve_engine
         self.semantic_guard = semantic_guard

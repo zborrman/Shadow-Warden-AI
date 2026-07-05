@@ -25,7 +25,7 @@ def _make_http_response(body: dict, status: int = 200):
 
 def _make_http_error(code: int):
     import urllib.error
-    return urllib.error.HTTPError(url="", code=code, msg="", hdrs=None, fp=None)  # type: ignore[arg-type]
+    return urllib.error.HTTPError(url="", code=code, msg="", hdrs=None, fp=None)
 
 
 # ── _exchange_saml_otp ────────────────────────────────────────────────────────

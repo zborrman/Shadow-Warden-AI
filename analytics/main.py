@@ -477,6 +477,6 @@ def compliance_secrets(
 # ── Error handler ─────────────────────────────────────────────────────────────
 
 @app.exception_handler(Exception)
-async def unhandled(request, exc: Exception):  # type: ignore[override]
+async def unhandled(request, exc: Exception):
     log.exception("Unhandled error: %s", exc)
     return JSONResponse(status_code=500, content={"detail": "Internal analytics error."})

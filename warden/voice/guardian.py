@@ -50,7 +50,7 @@ class GuardianResult:
     coercion_score:   float = 0.0
     deepfake_score:   float = 0.0
     anomaly_score:    float = 0.0
-    reasons:          list  = None  # type: ignore[assignment]
+    reasons:          list  = None
     stix_logged:      bool  = False
 
     def __post_init__(self):

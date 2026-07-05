@@ -47,8 +47,8 @@ def _ocr_tesseract(image_bytes: bytes) -> str | None:
     try:
         import io
 
-        import pytesseract  # type: ignore[import-not-found]
-        from PIL import Image  # type: ignore[import-not-found]
+        import pytesseract
+        from PIL import Image
 
         img = Image.open(io.BytesIO(image_bytes))
         text: str = pytesseract.image_to_string(img)
@@ -90,7 +90,7 @@ def _ocr_vision(image_bytes: bytes, media_type: str = "image/png") -> str | None
         )
         block = msg.content[0] if msg.content else None
         if block and block.type == "text":
-            return block.text.strip()  # type: ignore[union-attr]
+            return block.text.strip()
         return None
     except ImportError:
         log.debug("OCR: anthropic SDK not available — Vision fallback skipped")

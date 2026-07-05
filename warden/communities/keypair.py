@@ -170,8 +170,8 @@ class CommunityKeypair:
         if self.is_hybrid:
             d["mldsa_pub_b64"]   = self.mldsa_pub_b64
             d["mlkem_pub_b64"]   = self.mlkem_pub_b64
-            d["mldsa_priv_enc"]  = base64.b64encode(self._mldsa_priv_enc).decode()  # type: ignore[arg-type]
-            d["mlkem_priv_enc"]  = base64.b64encode(self._mlkem_priv_enc).decode()  # type: ignore[arg-type]
+            d["mldsa_priv_enc"]  = base64.b64encode(self._mldsa_priv_enc).decode()
+            d["mlkem_priv_enc"]  = base64.b64encode(self._mlkem_priv_enc).decode()
         return d
 
     @classmethod
@@ -232,12 +232,12 @@ class CommunityKeypair:
             raise RuntimeError("hybrid_sign() requires a '-hybrid' keypair. Use upgrade_to_hybrid() first.")
         f = _get_vault_fernet()
         ed_priv_raw    = f.decrypt(self._ed_priv_enc)
-        mldsa_priv_raw = f.decrypt(self._mldsa_priv_enc)  # type: ignore[arg-type]
+        mldsa_priv_raw = f.decrypt(self._mldsa_priv_enc)
         kp = HybridKeypair(
             ed25519_priv_raw = ed_priv_raw,
             ed25519_pub_raw  = base64.b64decode(self.ed25519_pub_b64),
             mldsa_priv_raw   = mldsa_priv_raw,
-            mldsa_pub_raw    = base64.b64decode(self.mldsa_pub_b64),  # type: ignore[arg-type]
+            mldsa_pub_raw    = base64.b64decode(self.mldsa_pub_b64),
         )
         sig = HybridSigner.sign(data, kp)
         return sig.pack()
@@ -259,7 +259,7 @@ class CommunityKeypair:
                 data,
                 hs,
                 base64.b64decode(self.ed25519_pub_b64),
-                base64.b64decode(self.mldsa_pub_b64),  # type: ignore[arg-type]
+                base64.b64decode(self.mldsa_pub_b64),
             )
         except Exception:
             return False
@@ -302,8 +302,8 @@ class CommunityKeypair:
             return hybrid_safety_number(
                 base64.b64decode(self.ed25519_pub_b64),
                 base64.b64decode(self.x25519_pub_b64),
-                base64.b64decode(self.mldsa_pub_b64),   # type: ignore[arg-type]
-                base64.b64decode(self.mlkem_pub_b64),   # type: ignore[arg-type]
+                base64.b64decode(self.mldsa_pub_b64),
+                base64.b64decode(self.mlkem_pub_b64),
             )
         combined = base64.b64decode(self.ed25519_pub_b64) + \
                    base64.b64decode(self.x25519_pub_b64)

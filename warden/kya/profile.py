@@ -90,7 +90,7 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
         try:
             from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
             if is_turso_enabled("marketplace"):
-                with get_connection("marketplace", fallback_path=_DB_PATH) as con:  # type: ignore[assignment]
+                with get_connection("marketplace", fallback_path=_DB_PATH) as con:
                     with suppress(Exception):
                         con.executescript(_DDL)
                     yield con  # type: ignore[misc]

@@ -274,10 +274,10 @@ async def smb_report_pdf(
     try:
         import io
 
-        from reportlab.lib import colors  # type: ignore
-        from reportlab.lib.pagesizes import A4  # type: ignore
-        from reportlab.lib.styles import getSampleStyleSheet  # type: ignore
-        from reportlab.platypus import (  # type: ignore
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import (
             Paragraph,
             SimpleDocTemplate,
             Spacer,

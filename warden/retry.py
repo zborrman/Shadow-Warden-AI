@@ -185,7 +185,7 @@ def async_retry(config: RetryConfig):
                 type(last_exc).__name__,
                 last_exc,
             )
-            raise last_exc  # type: ignore[misc]
+            raise last_exc
 
         return wrapper
     return decorator
@@ -231,7 +231,7 @@ def sync_retry(config: RetryConfig):
                 type(last_exc).__name__,
                 last_exc,
             )
-            raise last_exc  # type: ignore[misc]
+            raise last_exc
 
         return wrapper
     return decorator

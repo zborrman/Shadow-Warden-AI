@@ -68,7 +68,7 @@ def _try_mlock(buf: ctypes.Array[ctypes.c_ubyte]) -> None:
     try:
         size = ctypes.sizeof(buf)
         if sys.platform == "win32":
-            ctypes.windll.kernel32.VirtualLock(  # type: ignore[attr-defined]
+            ctypes.windll.kernel32.VirtualLock(
                 buf, ctypes.c_size_t(size)
             )
         else:

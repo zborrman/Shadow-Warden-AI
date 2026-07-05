@@ -77,7 +77,7 @@ class SybilGuard:
                 key = frozenset((buyer, seller))
                 if key not in seen:
                     seen.add(key)
-                    circles.append(tuple(sorted((buyer, seller))))  # type: ignore[arg-type]
+                    circles.append(tuple(sorted((buyer, seller))))
         return circles
 
     # ── Volume spike detection ────────────────────────────────────────────────

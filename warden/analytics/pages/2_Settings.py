@@ -513,7 +513,7 @@ with tab_guide:
         code = sty["Code"]
         story: list = []
 
-        def p(text, style=ns):  # type: ignore[assignment]
+        def p(text, style=ns):
             story.append(Paragraph(text, style))
 
         def rule():

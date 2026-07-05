@@ -78,7 +78,7 @@ class AWSSecretsManagerConnector(VaultConnector):
 
     def _client(self):
         try:
-            import boto3  # type: ignore
+            import boto3
             return boto3.client(
                 "secretsmanager",
                 region_name=self.region,
@@ -144,8 +144,8 @@ class AzureKeyVaultConnector(VaultConnector):
 
     def _client(self):
         try:
-            from azure.identity import ClientSecretCredential  # type: ignore
-            from azure.keyvault.secrets import SecretClient  # type: ignore
+            from azure.identity import ClientSecretCredential
+            from azure.keyvault.secrets import SecretClient
         except ImportError as exc:
             raise RuntimeError(
                 "azure-keyvault-secrets + azure-identity not installed"
@@ -190,7 +190,7 @@ class HashiCorpVaultConnector(VaultConnector):
 
     async def list_secrets(self) -> list[VaultSecretMeta]:
         try:
-            import httpx  # type: ignore
+            import httpx
         except ImportError as exc:
             raise RuntimeError("httpx not installed") from exc
 
@@ -233,8 +233,8 @@ class GCPSecretManagerConnector(VaultConnector):
         try:
             import json
 
-            from google.cloud import secretmanager  # type: ignore
-            from google.oauth2 import service_account  # type: ignore
+            from google.cloud import secretmanager
+            from google.oauth2 import service_account
             creds_dict = json.loads(self._credentials_json)
             creds = service_account.Credentials.from_service_account_info(creds_dict)
             return secretmanager.SecretManagerServiceClient(credentials=creds)

@@ -127,7 +127,7 @@ class AgentRegistry:
             )
             self._conn.commit()
         log.info("Agent registered: agent_id=%s tenant=%s name=%r", agent_id, tenant_id, name)
-        return self.get_agent(agent_id)  # type: ignore[return-value]
+        return self.get_agent(agent_id)
 
     def get_agents(self, tenant_id: str) -> list[dict]:
         rows = self._conn.execute(
