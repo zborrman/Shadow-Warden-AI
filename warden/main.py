@@ -949,7 +949,7 @@ app = FastAPI(
         "**Rate limiting:** Per-tenant sliding window (default 60 req/min). "
         "Shadow-ban at ERS score ≥ 0.75."
     ),
-    version="7.2.0",
+    version="7.6.0",
     contact={"name": "Shadow Warden AI", "url": "https://shadow-warden-ai.com", "email": "security@shadow-warden-ai.com"},
     license_info={"name": "Proprietary", "url": "https://shadow-warden-ai.com/terms"},
     openapi_tags=[
@@ -1103,50 +1103,26 @@ async def _redoc_ui(_: None = Depends(_docs_auth)):
 
 
 # ── Include sub-routers ───────────────────────────────────────────────────────
-try:
-    from warden.auth.router import router as _auth_router
-    app.include_router(_auth_router)
-    log.info("HttpOnly session auth mounted at /auth")
-except ImportError as _e:
-    log.warning("auth.router not available — /auth routes skipped: %s", _e)
+# Application Factory helpers — imported early so the simple single-router
+# blocks below can use register_router_safe() one-liners. The staff subsystem +
+# Turso migrations are wired via the fuller import near the end of the file.
+from warden.app_factory import RouterSpec as _RouterSpec  # noqa: E402
+from warden.app_factory import register_router_safe  # noqa: E402
 
-try:
-    from warden.openai_proxy import router as _openai_router
-    app.include_router(_openai_router)
-    log.info("OpenAI-compatible proxy mounted at /v1")
-except ImportError:
-    log.warning("openai_proxy not available — /v1 routes skipped.")
+register_router_safe(app, _RouterSpec("warden.auth.router", label="HttpOnly session auth mounted at /auth"))
 
-try:
-    from warden.portal_router import router as _portal_router
-    app.include_router(_portal_router, prefix="/portal")
-    log.info("Customer portal API mounted at /portal")
-except ImportError:
-    log.warning("portal_router not available — /portal routes skipped.")
+register_router_safe(app, _RouterSpec("warden.openai_proxy", label="OpenAI-compatible proxy mounted at /v1"))
 
-try:
-    from warden.agentic.router import router as _agentic_router
-    app.include_router(_agentic_router)
-    log.info("Agentic Payment Protocol (AP2) mounted at /agents and /mcp")
-except ImportError:
-    log.warning("agentic router not available — /agents and /mcp routes skipped.")
+register_router_safe(app, _RouterSpec("warden.portal_router", kwargs={"prefix": "/portal"}, label="Customer portal API mounted at /portal"))
+
+register_router_safe(app, _RouterSpec("warden.agentic.router", label="Agentic Payment Protocol (AP2) mounted at /agents and /mcp"))
 
 app.include_router(_neutralizer_router)
 log.info("Business Threat Neutralizer mounted at /threat/neutralizer")
 
-try:
-    from warden.api.financial import router as _financial_router
-    app.include_router(_financial_router)
-    log.info("Dollar Impact Calculator mounted at /financial")
-except ImportError:
-    log.warning("financial router not available — /financial routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.financial", label="Dollar Impact Calculator mounted at /financial"))
 
-try:
-    from warden.api.tenant_impact import router as _tenant_impact_router
-    app.include_router(_tenant_impact_router)
-    log.info("Tenant Impact Calculator mounted at /tenant/impact")
-except ImportError:
-    log.warning("tenant_impact router not available — /tenant/impact skipped.")
+register_router_safe(app, _RouterSpec("warden.api.tenant_impact", label="Tenant Impact Calculator mounted at /tenant/impact"))
 
 try:
     from warden.syndicates.router import router as _syndicates_router
@@ -1157,107 +1133,37 @@ try:
 except ImportError:
     log.warning("syndicates router not available — /syndicates and /tunnels skipped.")
 
-try:
-    from warden.syndicates.invites_router import invites_router as _invites_router
-    app.include_router(_invites_router)
-    log.info("Warden Gatekeeper (invites) mounted at /invites")
-except ImportError:
-    log.warning("invites router not available — /invites skipped.")
+register_router_safe(app, _RouterSpec("warden.syndicates.invites_router", attr="invites_router", label="Warden Gatekeeper (invites) mounted at /invites"))
 
-try:
-    from warden.communities.router import router as _communities_router
-    app.include_router(_communities_router)
-    log.info("Business Communities mounted at /communities")
-except ImportError:
-    log.warning("communities router not available — /communities skipped.")
+register_router_safe(app, _RouterSpec("warden.communities.router", label="Business Communities mounted at /communities"))
 
-try:
-    from warden.billing.router import router as _billing_router
-    app.include_router(_billing_router)
-    log.info("Billing API mounted at /billing")
-except ImportError:
-    log.warning("billing router not available — /billing routes skipped.")
+register_router_safe(app, _RouterSpec("warden.billing.router", label="Billing API mounted at /billing"))
 
-try:
-    from warden.api.monitor import router as _monitor_router
-    app.include_router(_monitor_router)
-    log.info("Uptime Monitor API mounted at /monitors")
-except ImportError:
-    log.warning("monitor router not available — /monitors routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.monitor", label="Uptime Monitor API mounted at /monitors"))
 
-try:
-    from warden.api.agent import router as _agent_router
-    app.include_router(_agent_router)
-    log.info("SOVA Agent mounted at /agent/sova")
-except ImportError:
-    log.warning("agent router not available — /agent/sova skipped.")
+register_router_safe(app, _RouterSpec("warden.api.agent", label="SOVA Agent mounted at /agent/sova"))
 
-try:
-    from warden.api.shadow_ai import router as _shadow_ai_router
-    app.include_router(_shadow_ai_router)
-    log.info("Shadow AI Governance mounted at /shadow-ai")
-except ImportError:
-    log.warning("shadow_ai router not available — /shadow-ai routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.shadow_ai", label="Shadow AI Governance mounted at /shadow-ai"))
 
-try:
-    from warden.api.misp import router as _misp_router
-    app.include_router(_misp_router)
-    log.info("MISP ZMQ bridge mounted at /misp")
-except ImportError:
-    log.warning("misp router not available — /misp routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.misp", label="MISP ZMQ bridge mounted at /misp"))
 
-try:
-    from warden.api.sdk import router as _sdk_router
-    app.include_router(_sdk_router)
-    log.info("OTel SDK mounted at /sdk")
-except ImportError:
-    log.warning("sdk router not available — /sdk routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.sdk", label="OTel SDK mounted at /sdk"))
 
-try:
-    from warden.api.xai import router as _xai_router
-    app.include_router(_xai_router)
-    log.info("Explainable AI 2.0 mounted at /xai")
-except ImportError:
-    log.warning("xai router not available — /xai routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.xai", label="Explainable AI 2.0 mounted at /xai"))
 
-try:
-    from warden.api.sovereign import router as _sovereign_router
-    app.include_router(_sovereign_router)
-    log.info("Sovereign AI Cloud mounted at /sovereign")
-except ImportError:
-    log.warning("sovereign router not available — /sovereign routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.sovereign", label="Sovereign AI Cloud mounted at /sovereign"))
 
 # Semantic Layer mounted below at /semantic-layer (FE-42) — single mount point
 
 # Settings Hub: commerce + semantic endpoints merged into warden/api/settings.py (single mount below)
 
-try:
-    from warden.api.file_scan import router as _file_scan_router
-    app.include_router(_file_scan_router)
-    log.info("File Scanner mounted at /filter/file (Community Business SMB)")
-except ImportError:
-    log.warning("file_scan router not available — /filter/file skipped.")
+register_router_safe(app, _RouterSpec("warden.api.file_scan", label="File Scanner mounted at /filter/file (Community Business SMB)"))
 
-try:
-    from warden.api.email_guard import router as _email_guard_router
-    app.include_router(_email_guard_router)
-    log.info("Email Guard mounted at /scan/email (C5 email-vector protection)")
-except ImportError:
-    log.warning("email_guard router not available — /scan/email skipped.")
+register_router_safe(app, _RouterSpec("warden.api.email_guard", label="Email Guard mounted at /scan/email (C5 email-vector protection)"))
 
-try:
-    from warden.api.extension_risk import router as _ext_risk_router
-    app.include_router(_ext_risk_router)
-    log.info("Extension Risk Scanner mounted at /scan/extensions (Q2.4)")
-except ImportError:
-    log.warning("extension_risk router not available — /scan/extensions skipped.")
+register_router_safe(app, _RouterSpec("warden.api.extension_risk", label="Extension Risk Scanner mounted at /scan/extensions (Q2.4)"))
 
-try:
-    from warden.api.rotation import router as _rotation_router
-    app.include_router(_rotation_router)
-    log.info("Rotation Alerts mounted at /admin/rotation (Q1.3)")
-except ImportError:
-    log.warning("rotation router not available — /admin/rotation skipped.")
+register_router_safe(app, _RouterSpec("warden.api.rotation", label="Rotation Alerts mounted at /admin/rotation (Q1.3)"))
 
 try:
     from warden.api.compliance_report import (
@@ -1272,82 +1178,27 @@ try:
 except ImportError:
     log.warning("compliance_report router not available — /compliance skipped.")
 
-try:
-    from warden.api.retention import router as _retention_router
-    app.include_router(_retention_router)
-    log.info("Retention Policy mounted at /retention (CP-26)")
-except ImportError:
-    log.warning("retention router not available — /retention skipped.")
+register_router_safe(app, _RouterSpec("warden.api.retention", label="Retention Policy mounted at /retention (CP-26)"))
 
-try:
-    from warden.api.public_stats import router as _public_stats_router
-    app.include_router(_public_stats_router)
-    log.info("Public community stats mounted at /public/community")
-except ImportError:
-    log.warning("public_stats router not available — /public routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.public_stats", label="Public community stats mounted at /public/community"))
 
-try:
-    from warden.api.sep import router as _sep_router
-    app.include_router(_sep_router)
-    log.info("Syndicate Exchange Protocol mounted at /sep")
-except ImportError:
-    log.warning("SEP router not available — /sep routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.sep", label="Syndicate Exchange Protocol mounted at /sep"))
 
-try:
-    from warden.api.community_intel import router as _community_intel_router
-    app.include_router(_community_intel_router)
-    log.info("Community Intelligence mounted at /community-intel")
-except ImportError:
-    log.warning("community_intel router not available — /community-intel routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.community_intel", label="Community Intelligence mounted at /community-intel"))
 
-try:
-    from warden.api.community_notifications import router as _community_notif_router
-    app.include_router(_community_notif_router)
-    log.info("Community Notifications mounted at /communities/{id}/notifications")
-except ImportError:
-    log.warning("community_notifications router not available — notification routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.community_notifications", label="Community Notifications mounted at /communities/{id}/notifications"))
 
-try:
-    from warden.api.communities_v2 import router as _communities_v2_router
-    app.include_router(_communities_v2_router)
-    log.info("Community Hub mounted at /communities")
-except ImportError:
-    log.warning("communities_v2 router not available — /communities routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.communities_v2", label="Community Hub mounted at /communities"))
 
-try:
-    from warden.api.secrets import router as _secrets_router
-    app.include_router(_secrets_router, prefix="/secrets")
-    log.info("Secrets Governance mounted at /secrets")
-except ImportError:
-    log.warning("secrets router not available — /secrets routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.secrets", kwargs={"prefix": "/secrets"}, label="Secrets Governance mounted at /secrets"))
 
-try:
-    from warden.api.obsidian import router as _obsidian_router
-    app.include_router(_obsidian_router, prefix="/obsidian")
-    log.info("Obsidian Business Community integration mounted at /obsidian")
-except ImportError:
-    log.warning("obsidian router not available — /obsidian routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.obsidian", kwargs={"prefix": "/obsidian"}, label="Obsidian Business Community integration mounted at /obsidian"))
 
-try:
-    from warden.api.slack_commands import router as _slack_router
-    app.include_router(_slack_router)
-    log.info("Slack slash command handler mounted at /slack/command")
-except ImportError:
-    log.warning("slack_commands router not available — /slack/command skipped.")
+register_router_safe(app, _RouterSpec("warden.api.slack_commands", label="Slack slash command handler mounted at /slack/command"))
 
-try:
-    from warden.api.gdpr import router as _gdpr_router
-    app.include_router(_gdpr_router)
-    log.info("GDPR scrubbing API mounted at /gdpr")
-except ImportError:
-    log.warning("gdpr router not available — /gdpr routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.gdpr", label="GDPR scrubbing API mounted at /gdpr"))
 
-try:
-    from warden.api.community import router as _community_router
-    app.include_router(_community_router)
-    log.info("Business Community mounted at /community (NIM moderation + Obsidian bridge)")
-except ImportError:
-    log.warning("community router not available — /community routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.community", label="Business Community mounted at /community (NIM moderation + Obsidian bridge)"))
 
 try:
     from warden.api.security_hub import router as _security_router
@@ -1358,222 +1209,67 @@ try:
 except ImportError:
     log.warning("security_hub/soc_dashboard not available — /security /soc routes skipped.")
 
-try:
-    from warden.api.config_api import router as _config_api_router
-    app.include_router(_config_api_router)
-    log.info("Settings API mounted at /api/settings (Tier-1 approval gate)")
-except ImportError:
-    log.warning("config_api not available — /api/settings routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.config_api", label="Settings API mounted at /api/settings (Tier-1 approval gate)"))
 
-try:
-    from warden.api.webhook import router as _webhook_router
-    app.include_router(_webhook_router)
-    log.info("Lemon Squeezy webhook receiver mounted at POST /billing/webhook")
-except ImportError:
-    log.warning("webhook router not available — /billing/webhook skipped.")
+register_router_safe(app, _RouterSpec("warden.api.webhook", label="Lemon Squeezy webhook receiver mounted at POST /billing/webhook"))
 
-try:
-    from warden.api.integrations import router as _integrations_router
-    app.include_router(_integrations_router)
-    log.info("Integrations router mounted at /integrations (IN-16/17/18/20)")
-except ImportError:
-    log.warning("integrations router not available — /integrations skipped.")
+register_router_safe(app, _RouterSpec("warden.api.integrations", label="Integrations router mounted at /integrations (IN-16/17/18/20)"))
 
-try:
-    from warden.api.ws_events import router as _ws_events_router
-    app.include_router(_ws_events_router)
-    log.info("WebSocket anomaly stream mounted at /ws/events (OB-26)")
-except ImportError:
-    log.warning("ws_events router not available — /ws/events skipped.")
+register_router_safe(app, _RouterSpec("warden.api.ws_events", label="WebSocket anomaly stream mounted at /ws/events (OB-26)"))
 
-try:
-    from warden.api.red_team import router as _red_team_router
-    app.include_router(_red_team_router)
-    log.info("Red-team autopilot mounted at /agent/red-team (AR-11)")
-except ImportError:
-    log.warning("red_team router not available — /agent/red-team skipped.")
+register_router_safe(app, _RouterSpec("warden.api.red_team", label="Red-team autopilot mounted at /agent/red-team (AR-11)"))
 
-try:
-    from warden.api.vendor_gov import router as _vendor_gov_router
-    app.include_router(_vendor_gov_router)
-    log.info("Vendor Governance mounted at /vendor-gov (BL-22)")
-except ImportError:
-    log.warning("vendor_gov router not available — /vendor-gov routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.vendor_gov", label="Vendor Governance mounted at /vendor-gov (BL-22)"))
 
-try:
-    from warden.api.cost_allocation import router as _cost_allocation_router
-    app.include_router(_cost_allocation_router)
-    log.info("Cost Allocation mounted at /financial/allocation (BL-23)")
-except ImportError:
-    log.warning("cost_allocation router not available — /financial/allocation routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.cost_allocation", label="Cost Allocation mounted at /financial/allocation (BL-23)"))
 
-try:
-    from warden.api.budget import router as _budget_router
-    app.include_router(_budget_router)
-    log.info("Budget Dashboard mounted at /financial/budget (BL-24)")
-except ImportError:
-    log.warning("budget router not available — /financial/budget routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.budget", label="Budget Dashboard mounted at /financial/budget (BL-24)"))
 
-try:
-    from warden.api.incident_register import router as _incident_router
-    app.include_router(_incident_router)
-    log.info("Incident Register mounted at /incidents (CM-35)")
-except ImportError:
-    log.warning("incident_register router not available — /incidents routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.incident_register", label="Incident Register mounted at /incidents (CM-35)"))
 
-try:
-    from warden.api.supplier_risk import router as _supplier_risk_router
-    app.include_router(_supplier_risk_router)
-    log.info("Supplier Risk Assessment mounted at /supplier-risk (CM-36)")
-except ImportError:
-    log.warning("supplier_risk router not available — /supplier-risk routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.supplier_risk", label="Supplier Risk Assessment mounted at /supplier-risk (CM-36)"))
 
-try:
-    from warden.api.prompt_library import router as _prompt_library_router
-    app.include_router(_prompt_library_router)
-    log.info("Shared Prompt Library mounted at /prompt-library (CM-37)")
-except ImportError:
-    log.warning("prompt_library router not available — /prompt-library routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.prompt_library", label="Shared Prompt Library mounted at /prompt-library (CM-37)"))
 
-try:
-    from warden.api.doc_converter import router as _doc_converter_router
-    app.include_router(_doc_converter_router)
-    log.info("Document Converter (MarkItDown) mounted at /doc-converter")
-except ImportError:
-    log.warning("doc_converter router not available — /doc-converter routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.doc_converter", label="Document Converter (MarkItDown) mounted at /doc-converter"))
 
-try:
-    from warden.api.push import router as _push_router
-    app.include_router(_push_router)
-    log.info("Mobile SOC push notification API mounted at /push (MO-01)")
-except ImportError:
-    log.warning("push router not available — /push routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.push", label="Mobile SOC push notification API mounted at /push (MO-01)"))
 
-try:
-    from warden.document_intel.api import router as _doc_intel_router
-    app.include_router(_doc_intel_router)
-    log.info("Document Intelligence (MarkItDown) mounted at /document-intel (FE-50)")
-except ImportError:
-    log.warning("document_intel router not available — /document-intel routes skipped.")
+register_router_safe(app, _RouterSpec("warden.document_intel.api", label="Document Intelligence (MarkItDown) mounted at /document-intel (FE-50)"))
 
-try:
-    from warden.api.training_records import router as _training_router
-    app.include_router(_training_router)
-    log.info("Employee AI Training Records mounted at /training (CM-38)")
-except ImportError:
-    log.warning("training_records router not available — /training routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.training_records", label="Employee AI Training Records mounted at /training (CM-38)"))
 
-try:
-    from warden.api.smb_suite import router as _smb_suite_router
-    app.include_router(_smb_suite_router)
-    log.info("SMB AI Governance Suite mounted at /smb-suite (IN-25)")
-except ImportError:
-    log.warning("smb_suite router not available — /smb-suite routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.smb_suite", label="SMB AI Governance Suite mounted at /smb-suite (IN-25)"))
 
-try:
-    from warden.api.webhooks import router as _webhooks_router
-    app.include_router(_webhooks_router)
-    log.info("Webhook Event System mounted at /webhooks (DEV-05)")
-except ImportError:
-    log.warning("webhooks router not available — /webhooks routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.webhooks", label="Webhook Event System mounted at /webhooks (DEV-05)"))
 
-try:
-    from warden.api.saml import router as _saml_router
-    app.include_router(_saml_router)
-    log.info("SSO/SAML 2.0 mounted at /auth/saml (ENT-01)")
-except ImportError:
-    log.warning("saml router not available — /auth/saml routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.saml", label="SSO/SAML 2.0 mounted at /auth/saml (ENT-01)"))
 
-try:
-    from warden.api.whitelabel import router as _whitelabel_router
-    app.include_router(_whitelabel_router)
-    log.info("White-Label config mounted at /whitelabel (ENT-02)")
-except ImportError:
-    log.warning("whitelabel router not available — /whitelabel routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.whitelabel", label="White-Label config mounted at /whitelabel (ENT-02)"))
 
-try:
-    from warden.api.framework_builder import router as _framework_router
-    app.include_router(_framework_router)
-    log.info("Compliance Framework Builder mounted at /compliance/frameworks (ENT-03)")
-except ImportError:
-    log.warning("framework_builder router not available — /compliance/frameworks routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.framework_builder", label="Compliance Framework Builder mounted at /compliance/frameworks (ENT-03)"))
 
-try:
-    from warden.api.usage_budgets import router as _usage_budgets_router
-    app.include_router(_usage_budgets_router)
-    log.info("AI Usage Budgets mounted at /billing/usage-budgets (ENT-04)")
-except ImportError:
-    log.warning("usage_budgets router not available — /billing/usage-budgets routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.usage_budgets", label="AI Usage Budgets mounted at /billing/usage-budgets (ENT-04)"))
 
-try:
-    from warden.business_intelligence.router import router as _bi_router
-    app.include_router(_bi_router)
-    log.info("Business Intelligence mounted at /business-intelligence (CM-39)")
-except ImportError:
-    log.warning("business_intelligence router not available — /business-intelligence routes skipped.")
+register_router_safe(app, _RouterSpec("warden.business_intelligence.router", label="Business Intelligence mounted at /business-intelligence (CM-39)"))
 
-try:
-    from warden.communities.federation import router as _federation_router
-    app.include_router(_federation_router)
-    log.info("Community threat federation mounted at /sep/federation (CM-26)")
-except ImportError:
-    log.warning("federation router not available — /sep/federation skipped.")
+register_router_safe(app, _RouterSpec("warden.communities.federation", label="Community threat federation mounted at /sep/federation (CM-26)"))
 
-try:
-    from warden.communities.model_share import router as _model_share_router
-    app.include_router(_model_share_router)
-    log.info("Community model sharing mounted at /sep/model-bundles (CM-27)")
-except ImportError:
-    log.warning("model_share router not available — /sep/model-bundles skipped.")
+register_router_safe(app, _RouterSpec("warden.communities.model_share", label="Community model sharing mounted at /sep/model-bundles (CM-27)"))
 
-try:
-    from warden.api.settings import router as _settings_router
-    app.include_router(_settings_router)
-    log.info("Settings API mounted at /settings (FE-41)")
-except ImportError:
-    log.warning("settings router not available — /settings routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.settings", label="Settings API mounted at /settings (FE-41)"))
 
-try:
-    from warden.business_community.agentic_commerce.api import router as _commerce_router
-    app.include_router(_commerce_router)
-    log.info("Agentic Commerce mounted at /business-community/commerce (CM-40)")
-except ImportError:
-    log.warning("Agentic Commerce router not available — /business-community/commerce skipped.")
+register_router_safe(app, _RouterSpec("warden.business_community.agentic_commerce.api", label="Agentic Commerce mounted at /business-community/commerce (CM-40)"))
 
-try:
-    from warden.semantic_layer.api import router as _semantic_router
-    app.include_router(_semantic_router)
-    log.info("Semantic Layer mounted at /semantic-layer (FE-42)")
-except ImportError:
-    log.warning("Semantic Layer router not available — /semantic-layer skipped.")
+register_router_safe(app, _RouterSpec("warden.semantic_layer.api", label="Semantic Layer mounted at /semantic-layer (FE-42)"))
 
-try:
-    from warden.blockchain.api import router as _web3_router
-    app.include_router(_web3_router)
-    log.info("Web3 on-chain mandates mounted at /web3/mandates (Phase 1)")
-except ImportError:
-    log.warning("Web3 router not available — /web3/mandates skipped.")
+register_router_safe(app, _RouterSpec("warden.blockchain.api", label="Web3 on-chain mandates mounted at /web3/mandates (Phase 1)"))
 
-try:
-    from warden.m2m_store.api import router as _m2m_router
-    app.include_router(_m2m_router)
-    log.info("M2M Commerce Store mounted at /m2m-store (Enterprise)")
-except ImportError:
-    log.warning("m2m_store router not available — /m2m-store skipped.")
+register_router_safe(app, _RouterSpec("warden.m2m_store.api", label="M2M Commerce Store mounted at /m2m-store (Enterprise)"))
 
-try:
-    from warden.tax.api import router as _tax_router
-    app.include_router(_tax_router)
-    log.info("Tax & Compliance mounted at /tax (Phase 3)")
-except ImportError:
-    log.warning("Tax router not available — /tax skipped.")
+register_router_safe(app, _RouterSpec("warden.tax.api", label="Tax & Compliance mounted at /tax (Phase 3)"))
 
-try:
-    from warden.api.fido_auth import router as _fido_router
-    app.include_router(_fido_router)
-    log.info("FIDO2 Passkey auth mounted at /auth/fido (Phase 4)")
-except ImportError:
-    log.warning("FIDO2 router not available — /auth/fido skipped.")
+register_router_safe(app, _RouterSpec("warden.api.fido_auth", label="FIDO2 Passkey auth mounted at /auth/fido (Phase 4)"))
 
 try:
     from warden.marketplace.api import agent_discovery_alias
@@ -1608,89 +1304,29 @@ try:
 except ImportError as exc:
     log.warning("marketplace router not available — /marketplace skipped: %r", exc)
 
-try:
-    from warden.marketplace.api_governance import router as _governance_router
-    app.include_router(_governance_router)
-    log.info("DAO Governance router mounted at /marketplace/proposals")
-except ImportError:
-    log.warning("governance router not available — /marketplace/proposals routes skipped.")
+register_router_safe(app, _RouterSpec("warden.marketplace.api_governance", label="DAO Governance router mounted at /marketplace/proposals"))
 
-try:
-    from warden.marketplace.api_maestro import router as _maestro_router
-    app.include_router(_maestro_router)
-    log.info("MAESTRO Threat Detection mounted at /marketplace/maestro")
-except ImportError:
-    log.warning("MAESTRO router not available — /marketplace/maestro routes skipped.")
+register_router_safe(app, _RouterSpec("warden.marketplace.api_maestro", label="MAESTRO Threat Detection mounted at /marketplace/maestro"))
 
-try:
-    from warden.streams.api import router as _streams_router
-    app.include_router(_streams_router)
-    log.info("Event Streaming mounted at /streams")
-except ImportError:
-    log.warning("Streams router not available — /streams routes skipped.")
+register_router_safe(app, _RouterSpec("warden.streams.api", label="Event Streaming mounted at /streams"))
 
-try:
-    from warden.tokenomics.api import router as _tokenomics_router
-    app.include_router(_tokenomics_router)
-    log.info("Agent Tokenomics (WAT) mounted at /tokenomics")
-except ImportError:
-    log.warning("Tokenomics router not available — /tokenomics routes skipped.")
+register_router_safe(app, _RouterSpec("warden.tokenomics.api", label="Agent Tokenomics (WAT) mounted at /tokenomics"))
 
-try:
-    from warden.payments.api import router as _payments_router
-    app.include_router(_payments_router)
-    log.info("USDC Payments mounted at /payments")
-except ImportError:
-    log.warning("Payments router not available — /payments routes skipped.")
+register_router_safe(app, _RouterSpec("warden.payments.api", label="USDC Payments mounted at /payments"))
 
-try:
-    from warden.security.api import router as _ans_certs_router
-    app.include_router(_ans_certs_router)
-    log.info("ANS Certificate Authority mounted at /marketplace/agents/{id}/certificate")
-except ImportError:
-    log.warning("ANS cert router not available — certificate routes skipped.")
+register_router_safe(app, _RouterSpec("warden.security.api", label="ANS Certificate Authority mounted at /marketplace/agents/{id}/certificate"))
 
-try:
-    from warden.agents.packs.api import router as _edge_packs_router
-    app.include_router(_edge_packs_router)
-    log.info("ARC Edge Agent Packs mounted at /agents/packs")
-except ImportError:
-    log.warning("Edge packs router not available — /agents/packs routes skipped.")
+register_router_safe(app, _RouterSpec("warden.agents.packs.api", label="ARC Edge Agent Packs mounted at /agents/packs"))
 
-try:
-    from warden.protocols.a2a.api import router as _a2a_router
-    app.include_router(_a2a_router)
-    log.info("A2A v1.0 task gateway mounted at /a2a (Agent Card: /.well-known/agent.json)")
-except ImportError:
-    log.warning("A2A router not available — /a2a routes skipped.")
+register_router_safe(app, _RouterSpec("warden.protocols.a2a.api", label="A2A v1.0 task gateway mounted at /a2a (Agent Card: /.well-known/agent.json)"))
 
-try:
-    from warden.api.deploy_health import router as _deploy_health_router
-    app.include_router(_deploy_health_router)
-    log.info("Deploy health endpoint mounted at /deploy/status")
-except ImportError:
-    log.warning("deploy_health router not available — /deploy routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.deploy_health", label="Deploy health endpoint mounted at /deploy/status"))
 
-try:
-    from warden.api.action_whitelist import router as _action_whitelist_router
-    app.include_router(_action_whitelist_router)
-    log.info("Agent Action Whitelist mounted at /admin/agents")
-except ImportError:
-    log.warning("action_whitelist router not available — /admin/agents routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.action_whitelist", label="Agent Action Whitelist mounted at /admin/agents"))
 
-try:
-    from warden.marketplace.agent_key_rotation import router as _key_rotation_router
-    app.include_router(_key_rotation_router)
-    log.info("Agent key rotation mounted at /marketplace/agents/{id}/rotate-key")
-except ImportError:
-    log.warning("agent_key_rotation router not available — key rotation routes skipped.")
+register_router_safe(app, _RouterSpec("warden.marketplace.agent_key_rotation", label="Agent key rotation mounted at /marketplace/agents/{id}/rotate-key"))
 
-try:
-    from warden.marketplace.data_lifecycle import router as _data_lifecycle_router
-    app.include_router(_data_lifecycle_router)
-    log.info("Data Lifecycle manager mounted at /admin/data-lifecycle")
-except ImportError:
-    log.warning("data_lifecycle router not available — /admin/data-lifecycle routes skipped.")
+register_router_safe(app, _RouterSpec("warden.marketplace.data_lifecycle", label="Data Lifecycle manager mounted at /admin/data-lifecycle"))
 
 try:
     from warden.voice.api import router as _voice_router
