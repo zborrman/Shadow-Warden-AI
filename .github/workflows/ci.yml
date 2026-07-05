@@ -275,8 +275,42 @@ jobs:
         run: pip install -e ".[dev]"
         working-directory: .
 
+      # Constraints (Stage 1 lockfile): warden/constraints.txt pins the exact
+      # known-good resolved versions (regenerated from the pip-freeze-3.11
+      # artifact of a green run). A real version conflict must FAIL, not fall
+      # back — only the file's absence skips constraining.
       - name: Install warden requirements
-        run: pip install -r warden/requirements.txt
+        run: |
+          if [ -f warden/constraints.txt ]; then
+            pip install -r warden/requirements.txt -c warden/constraints.txt
+          else
+            pip install -r warden/requirements.txt
+          fi
+
+      # Dependency snapshot (Stage 1): freeze the exact resolved set so a future
+      # break (like the starlette 1.x route-drop) is diagnosable in seconds.
+      # The 3.11 artifact is the source for warden/constraints.txt regeneration.
+      - name: Snapshot resolved dependencies
+        if: always()
+        run: |
+          pip freeze --exclude-editable > pip-freeze-${{ matrix.python-version }}.txt
+          {
+            echo "## Resolved dependencies (Python ${{ matrix.python-version }})"
+            echo '<details><summary>pip freeze</summary>'
+            echo
+            echo '```'
+            cat pip-freeze-${{ matrix.python-version }}.txt
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dependency snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-freeze-${{ matrix.python-version }}
+          path: pip-freeze-${{ matrix.python-version }}.txt
+          retention-days: 90
 
       # Route-parity diagnostic (fix #2): name any warden.* module that fails to
       # import in THIS environment, so a missing optional dep behind a whole
@@ -378,7 +412,12 @@ jobs:
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install project dependencies
-        run: pip install -e ".[dev]" -r warden/requirements.txt
+        run: |
+          if [ -f warden/constraints.txt ]; then
+            pip install -e ".[dev]" -r warden/requirements.txt -c warden/constraints.txt
+          else
+            pip install -e ".[dev]" -r warden/requirements.txt
+          fi
 
       - name: Cache ML model (all-MiniLM-L6-v2)
         uses: actions/cache@v4
