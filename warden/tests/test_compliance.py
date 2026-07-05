@@ -107,7 +107,7 @@ class TestArt30Generator:
 
     def test_html_escapes_special_chars(self, empty_logs, monkeypatch):
         monkeypatch.setenv("CONTROLLER_NAME", "<Acme & Co>")
-        import importlib  # noqa: E401
+        import importlib
 
         import warden.compliance.art30 as m30
         importlib.reload(m30)

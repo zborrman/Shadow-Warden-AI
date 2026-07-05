@@ -114,7 +114,7 @@ def is_valid_did(did: str) -> bool:
     if not did.startswith("did:shadow:"):
         return False
     tail = did[len("did:shadow:"):]
-    return len(tail) == 22 and all(c in _B62 for c in tail)  # noqa: SIM103
+    return len(tail) == 22 and all(c in _B62 for c in tail)
 
 
 # ── Random ephemeral DID (for tests / anonymous agents) ───────────────────────

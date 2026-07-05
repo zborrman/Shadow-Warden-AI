@@ -2674,7 +2674,7 @@ TOOLS.append({
 
 
 try:
-    from warden.voice.agent import VOICE_TOOL_HANDLERS, VOICE_TOOLS  # noqa: PLC0415
+    from warden.voice.agent import VOICE_TOOL_HANDLERS, VOICE_TOOLS
     _VOICE_AVAILABLE = True
 except Exception:  # pragma: no cover
     VOICE_TOOLS = []

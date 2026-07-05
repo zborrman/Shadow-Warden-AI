@@ -19,7 +19,7 @@ ROLES = ("owner", "admin", "member", "observer")
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-    from cryptography.hazmat.primitives.serialization import (  # noqa: I001
+    from cryptography.hazmat.primitives.serialization import (
         Encoding,
         NoEncryption,
         PrivateFormat,

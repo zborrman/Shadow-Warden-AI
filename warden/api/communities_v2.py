@@ -434,7 +434,7 @@ def get_analytics(community_id: str, days: int = Query(7, ge=1, le=90)):
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     try:
-        from warden.communities.membership import list_members  # noqa: I001
+        from warden.communities.membership import list_members
         members = list_members(community_id)
         result["member_count"] = len(members)
         roles: dict[str, int] = {}

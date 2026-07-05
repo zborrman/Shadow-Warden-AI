@@ -155,7 +155,7 @@ async def register_market_agent(body: RegisterRequest) -> dict:
     agent_id = result.get("agent_id", "")
     if agent_id:
         try:
-            from warden.marketplace.kya import register_agent as kya_register  # noqa: PLC0415,I001
+            from warden.marketplace.kya import register_agent as kya_register  # noqa: PLC0415
             from warden.marketplace.kya import screen_agent  # noqa: PLC0415
             kya_record = kya_register(agent_id, owner_tenant_id=body.tenant_id)
             kya_record = screen_agent(agent_id)
@@ -498,7 +498,7 @@ async def dispatch_action(
                 or request.headers.get("X-Agent-ID", "anonymous")
             )
             try:
-                from warden.marketplace.x402_gate import deduct_payment  # noqa: PLC0415, F811
+                from warden.marketplace.x402_gate import deduct_payment  # noqa: PLC0415
                 await deduct_payment(str(_agent_id), "marketplace/search")
             except Exception as _ded_exc:
                 log.debug("x402 deduct fail-open: %s", _ded_exc)

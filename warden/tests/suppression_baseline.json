@@ -1,6 +1,6 @@
 {
   "type_ignore": 363,
-  "noqa": 877,
+  "noqa": 810,
   "per_file": {
     "agent_monitor.py": {
       "type_ignore": 1,
@@ -72,7 +72,7 @@
     },
     "main.py": {
       "type_ignore": 11,
-      "noqa": 86
+      "noqa": 84
     },
     "metrics.py": {
       "type_ignore": 127,
@@ -85,10 +85,6 @@
     "multimodal_guard.py": {
       "type_ignore": 0,
       "noqa": 2
-    },
-    "net_guard.py": {
-      "type_ignore": 0,
-      "noqa": 1
     },
     "notification_hook.py": {
       "type_ignore": 1,
@@ -120,7 +116,7 @@
     },
     "retry.py": {
       "type_ignore": 2,
-      "noqa": 3
+      "noqa": 1
     },
     "runtime.py": {
       "type_ignore": 0,
@@ -137,10 +133,6 @@
     "taint_tracker.py": {
       "type_ignore": 0,
       "noqa": 1
-    },
-    "telemetry.py": {
-      "type_ignore": 0,
-      "noqa": 3
     },
     "tenant_policy.py": {
       "type_ignore": 1,
@@ -200,7 +192,7 @@
     },
     "agent/tools.py": {
       "type_ignore": 2,
-      "noqa": 16
+      "noqa": 15
     },
     "agentic/action_whitelist.py": {
       "type_ignore": 1,
@@ -218,10 +210,6 @@
       "type_ignore": 0,
       "noqa": 2
     },
-    "analytics/dashboard.py": {
-      "type_ignore": 0,
-      "noqa": 1
-    },
     "analytics/logger.py": {
       "type_ignore": 1,
       "noqa": 0
@@ -232,7 +220,7 @@
     },
     "analytics/report.py": {
       "type_ignore": 0,
-      "noqa": 2
+      "noqa": 1
     },
     "api/admin_reports.py": {
       "type_ignore": 0,
@@ -248,7 +236,7 @@
     },
     "api/communities_v2.py": {
       "type_ignore": 4,
-      "noqa": 3
+      "noqa": 2
     },
     "api/community_intel.py": {
       "type_ignore": 1,
@@ -404,7 +392,7 @@
     },
     "brain/evolve.py": {
       "type_ignore": 2,
-      "noqa": 12
+      "noqa": 11
     },
     "brain/evolve_nemotron.py": {
       "type_ignore": 0,
@@ -448,7 +436,7 @@
     },
     "communities/community_compliance.py": {
       "type_ignore": 4,
-      "noqa": 2
+      "noqa": 1
     },
     "communities/community_data.py": {
       "type_ignore": 0,
@@ -480,7 +468,7 @@
     },
     "communities/membership.py": {
       "type_ignore": 1,
-      "noqa": 2
+      "noqa": 1
     },
     "communities/model_share.py": {
       "type_ignore": 1,
@@ -540,19 +528,15 @@
     },
     "compliance/posture_service.py": {
       "type_ignore": 1,
-      "noqa": 5
+      "noqa": 4
     },
     "compliance/soc2.py": {
       "type_ignore": 0,
       "noqa": 1
     },
-    "core/__init__.py": {
-      "type_ignore": 0,
-      "noqa": 9
-    },
     "crypto/hsm.py": {
       "type_ignore": 12,
-      "noqa": 5
+      "noqa": 4
     },
     "crypto/memory_protection.py": {
       "type_ignore": 2,
@@ -588,7 +572,7 @@
     },
     "guards/__init__.py": {
       "type_ignore": 0,
-      "noqa": 17
+      "noqa": 1
     },
     "integrations/misp.py": {
       "type_ignore": 0,
@@ -606,13 +590,9 @@
       "type_ignore": 0,
       "noqa": 1
     },
-    "intel/__init__.py": {
-      "type_ignore": 0,
-      "noqa": 7
-    },
     "kya/did.py": {
       "type_ignore": 0,
-      "noqa": 4
+      "noqa": 3
     },
     "kya/profile.py": {
       "type_ignore": 2,
@@ -742,10 +722,6 @@
       "type_ignore": 3,
       "noqa": 0
     },
-    "redaction/__init__.py": {
-      "type_ignore": 0,
-      "noqa": 3
-    },
     "sdk/otel.py": {
       "type_ignore": 0,
       "noqa": 2
@@ -760,11 +736,7 @@
     },
     "security/certificate_authority.py": {
       "type_ignore": 1,
-      "noqa": 6
-    },
-    "semantic_layer/api.py": {
-      "type_ignore": 0,
-      "noqa": 1
+      "noqa": 4
     },
     "semantic_layer/catalog.py": {
       "type_ignore": 0,
@@ -968,7 +940,7 @@
     },
     "protocols/acp/checkout.py": {
       "type_ignore": 0,
-      "noqa": 5
+      "noqa": 4
     },
     "protocols/acp/refund.py": {
       "type_ignore": 0,
@@ -988,7 +960,7 @@
     },
     "analytics/pages/10_SMB_Governance.py": {
       "type_ignore": 0,
-      "noqa": 9
+      "noqa": 2
     },
     "analytics/pages/22_Community_Hub.py": {
       "type_ignore": 1,
@@ -1004,7 +976,7 @@
     },
     "analytics/pages/2_Settings.py": {
       "type_ignore": 1,
-      "noqa": 1
+      "noqa": 0
     },
     "analytics/pages/7_Cyber_Security.py": {
       "type_ignore": 13,
@@ -1016,7 +988,7 @@
     },
     "agents/packs/api.py": {
       "type_ignore": 0,
-      "noqa": 3
+      "noqa": 1
     },
     "agents/packs/disease_detector.py": {
       "type_ignore": 2,

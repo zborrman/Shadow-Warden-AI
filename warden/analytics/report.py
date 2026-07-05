@@ -355,7 +355,7 @@ def _recommendations(data: ReportData) -> list[str]:
     return recs
 
 
-def _render_html(  # noqa: C901
+def _render_html(
     data:       ReportData,
     *,
     brand_name: str       = "Shadow Warden AI",

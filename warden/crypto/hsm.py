@@ -200,7 +200,7 @@ class HSMSigner:
             import os as _os  # noqa: PLC0415
 
             from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-                Ed25519PrivateKey,  # noqa: PLC0415
+                Ed25519PrivateKey,
             )
             seed_hex = _os.getenv("HSM_SW_KEY_HEX", "")
             if seed_hex and len(seed_hex) == 64:

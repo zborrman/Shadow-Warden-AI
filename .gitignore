@@ -114,3 +114,7 @@ data/corpus_snapshot.json
 data/AGENTS.md
 .env.sepolia
 scan_result.json
+
+# Turso DB credentials — never commit
+.env.turso
+.env.*

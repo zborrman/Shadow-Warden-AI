@@ -5,9 +5,9 @@ Canonical import path for all PII/secret/content redaction modules.
 """
 from __future__ import annotations
 
-from warden.obfuscation import decode as decode_obfuscation  # noqa: F401
-from warden.output_sanitizer import get_sanitizer as get_output_sanitizer  # noqa: F401
-from warden.secret_redactor import SecretRedactor  # noqa: F401
+from warden.obfuscation import decode as decode_obfuscation
+from warden.output_sanitizer import get_sanitizer as get_output_sanitizer
+from warden.secret_redactor import SecretRedactor
 
 __all__ = [
     "SecretRedactor",

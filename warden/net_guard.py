@@ -70,7 +70,7 @@ def assert_public_url(url: str) -> None:
     """
     try:
         parsed = urlparse(url)
-    except Exception as exc:  # noqa: BLE001 — any parse failure ⇒ reject
+    except Exception as exc:
         raise SSRFError(f"unparseable URL: {exc}") from exc
 
     scheme = (parsed.scheme or "").lower()

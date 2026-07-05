@@ -550,7 +550,7 @@ class EvolutionEngine:
             # of reaching back into warden.main; fails silently if unavailable.
             try:
                 from warden.brain.poison import (
-                    DataPoisoningGuard as _DataPoisoningGuard,  # noqa: PLC0415
+                    DataPoisoningGuard as _DataPoisoningGuard,
                 )
                 from warden.runtime import runtime as _runtime  # noqa: PLC0415
                 _pg = _runtime.get("poison_guard")
