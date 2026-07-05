@@ -375,15 +375,32 @@ jobs:
           AUDIT_TRAIL_PATH: "/tmp/audit_trail_cov.db"
           IMAGE_GUARD_ENABLED: "false"   # CLIP model not cached in CI — skip to avoid HF 429
 
-      - name: Run adversarial corpus tests
-        run: pytest warden/tests/ -v --tb=short -m "adversarial" || true
-        # adversarial failures are informational; don't block merges
+      # Adversarial ratchet (Stage 3b) — BLOCKING. Runs the corpus through the
+      # full /filter pipeline and fails if miss/false-positive counts regress
+      # past warden/tests/adversarial/baseline.json. Detection can only improve.
+      - name: Adversarial ratchet (blocking)
+        run: pytest warden/tests/test_adversarial_ratchet.py -v --tb=short -o addopts="" --no-cov
+        env:
+          ANTHROPIC_API_KEY: ""
+          WARDEN_API_KEY: ""
+          ALLOW_UNAUTHENTICATED: "true"
+          REDIS_URL: "memory://"
+          SEMANTIC_THRESHOLD: "0.72"
+          LOGS_PATH: "/tmp/adv_ratchet_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/adv_ratchet_rules.json"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_adv.db"
+          IMAGE_GUARD_ENABLED: "false"
+
+      - name: Run remaining adversarial corpus tests (informational)
+        run: pytest warden/tests/ -v --tb=short -m "adversarial" --deselect warden/tests/test_adversarial_ratchet.py::test_adversarial_ratchet || true
+        # single-layer stress tests remain informational; the ratchet above is the gate
         env:
           ANTHROPIC_API_KEY: ""
           SEMANTIC_THRESHOLD: "0.72"
           LOGS_PATH: "/tmp/test_logs.json"
           MODEL_CACHE_DIR: "/tmp/warden-model-cache"
-          AUDIT_TRAIL_PATH: "/tmp/audit_trail_adv.db"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_adv2.db"
           IMAGE_GUARD_ENABLED: "false"
 
       # Mutation testing disabled — run locally only (too slow for CI minutes)
