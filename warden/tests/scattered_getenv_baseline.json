@@ -1,5 +1,5 @@
 {
-  "total": 1146,
+  "total": 1139,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -21,7 +21,7 @@
     "intel_ops.py": 2,
     "lemon_billing.py": 11,
     "limiter.py": 2,
-    "main.py": 53,
+    "main.py": 46,
     "mtls.py": 2,
     "multimodal_guard.py": 3,
     "net_guard.py": 1,

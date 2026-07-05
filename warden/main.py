@@ -89,6 +89,7 @@ from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.causal_arbiter import arbitrate as _causal_arbitrate
+from warden.config import settings  # noqa: E402
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
@@ -146,7 +147,7 @@ class _JsonFormatter(logging.Formatter):
 
 
 def _configure_json_logging() -> None:
-    log_level = getattr(logging, os.getenv("LOG_LEVEL", "info").upper(), logging.INFO)
+    log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
     fmt = _JsonFormatter()
     handler = logging.StreamHandler()
     handler.setFormatter(fmt)
@@ -213,7 +214,7 @@ from warden.limiter import tenant_limit as _tenant_limit  # noqa: E402
 # ── Dynamic rules path ────────────────────────────────────────────────────────
 
 _DYNAMIC_RULES_PATH = Path(
-    os.getenv("DYNAMIC_RULES_PATH", "/warden/data/dynamic_rules.json")
+    settings.dynamic_rules_path
 )
 
 # ── WebSocket / LLM streaming env vars ───────────────────────────────────────
@@ -460,8 +461,8 @@ async def lifespan(app: FastAPI):
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
     # ── #11: Fail-closed auth check ───────────────────────────────────────
-    _api_key   = os.getenv("WARDEN_API_KEY", "")
-    _keys_path = os.getenv("WARDEN_API_KEYS_PATH", "")
+    _api_key   = settings.warden_api_key
+    _keys_path = settings.warden_api_keys_path
     if not _api_key and not _keys_path:
         if os.getenv("ALLOW_UNAUTHENTICATED", "false").lower() != "true":
             raise RuntimeError(
@@ -914,7 +915,7 @@ async def lifespan(app: FastAPI):
 
         _canary = await run_pipeline_canary()
         if _canary.get("available") and not _canary["healthy"]:
-            if os.getenv("PIPELINE_FAILCLOSED_ON_CANARY", "false").lower() == "true":
+            if settings.pipeline_failclosed_on_canary:
                 raise SecurityDegradedError(
                     f"startup canary failed: {_canary} — refusing to serve a broken detector"
                 )
@@ -1630,7 +1631,7 @@ class _ConfigUpdate(BaseModel):
 @app.get("/api/config", tags=["ops"], summary="Current live configuration")
 async def api_config():
     return {
-        "semantic_threshold":   float(os.getenv("SEMANTIC_THRESHOLD", "0.72")),
+        "semantic_threshold":   settings.semantic_threshold,
         "strict_mode":          os.getenv("STRICT_MODE", "false").lower() == "true",
         "rate_limit_per_minute": int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),  # live value via set_default_rate_limit()
         "evolution_enabled":    _evolve is not None,
@@ -1638,7 +1639,7 @@ async def api_config():
         "browser_enabled":      os.getenv("BROWSER_ENABLED", "false").lower() == "true",
         "mtls_enabled":         os.getenv("MTLS_ENABLED", "false").lower() == "true",
         "otel_enabled":         os.getenv("OTEL_ENABLED", "false").lower() == "true",
-        "model_cache_dir":          os.getenv("MODEL_CACHE_DIR", "/warden/models"),
+        "model_cache_dir":          settings.model_cache_dir,
         # Enterprise resilience
         "fail_strategy":            _FAIL_STRATEGY,
         "pipeline_timeout_ms":      _PIPELINE_TIMEOUT_MS,
