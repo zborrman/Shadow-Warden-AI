@@ -23,6 +23,7 @@ import logging
 import time
 
 from warden.config import settings
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.cache")
 
@@ -49,6 +50,7 @@ def _get_client():
             _client.ping()
         except Exception as exc:  # noqa: BLE001
             log.warning("Redis unavailable — content-hash cache disabled: %s", exc)
+            record_failopen("cache", Reason.REDIS_UNAVAILABLE, exc)
             _client = None
     return _client
 
@@ -68,6 +70,7 @@ def get_cached(content: str) -> str | None:
         return r.get(_key(content))
     except Exception as exc:  # noqa: BLE001
         log.debug("Cache get error: %s", exc)
+        record_failopen("cache", Reason.BACKEND_ERROR, exc)
         return None
 
 
@@ -80,6 +83,7 @@ def set_cached(content: str, response_json: str) -> None:
         r.setex(_key(content), _TTL, response_json)
     except Exception as exc:  # noqa: BLE001
         log.debug("Cache set error: %s", exc)
+        record_failopen("cache", Reason.BACKEND_ERROR, exc)
 
 
 # ── Token-bucket Lua script ───────────────────────────────────────────────────
@@ -157,4 +161,7 @@ def check_tenant_rate_limit(tenant_id: str, limit: int) -> bool:
         return result == 0  # 0 → no token → blocked (True); 1 → allowed (False)
     except Exception as exc:  # noqa: BLE001
         log.debug("Tenant rate limit check error: %s", exc)
+        # Fail-open ALLOW on a rate-limit control — count it so a Redis outage that
+        # silently disables per-tenant rate limiting is visible + alertable.
+        record_failopen("rate_limit", Reason.BACKEND_ERROR, exc)
         return False
