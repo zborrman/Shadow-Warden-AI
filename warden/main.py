@@ -95,6 +95,7 @@ from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
+from warden.observability import Reason, record_failopen
 from warden.offline import is_offline as _is_offline
 from warden.onboarding import OnboardingEngine
 from warden.output_sanitizer import get_sanitizer as _get_output_sanitizer
@@ -2265,6 +2266,7 @@ async def _run_filter_pipeline(
 
     except Exception as _phish_exc:
         log.debug("PhishGuard error (fail-open): %s", _phish_exc)
+        record_failopen("phish", Reason.BACKEND_ERROR, _phish_exc)
 
     # ── Stage 3: Decision ─────────────────────────────────────────────
     with _trace_stage("decision", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
@@ -2760,6 +2762,7 @@ async def filter_content(
             }))
         except Exception as _exc:
             log.warning("doc_intel file_base64 conversion failed (fail-open): %s", _exc)
+            record_failopen("doc_intel", Reason.PARSE_ERROR, _exc)
 
     # ── Multimodal Jailbreak Detection (DET-01): image_base64 + audio_base64 ──
     if payload.image_base64 or payload.audio_base64:
@@ -2784,6 +2787,7 @@ async def filter_content(
                 payload = payload.model_copy(update={"content": _mm["text"]})
         except Exception as _mm_exc:
             log.warning("multimodal prefilter failed (fail-open): %s", _mm_exc)
+            record_failopen("multimodal", Reason.BACKEND_ERROR, _mm_exc)
 
     # Phase 2: route through the services layer (strangler-fig seam). The
     # FilterPipeline facade resolves the orchestrator from runtime; the HTTP
@@ -2793,7 +2797,7 @@ async def filter_content(
     if _PIPELINE_TIMEOUT_MS > 0:
         try:
             return await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
-        except TimeoutError:
+        except TimeoutError as _to_exc:
             log.warning(
                 json.dumps({
                     "event":      "pipeline_timeout",
@@ -2807,7 +2811,11 @@ async def filter_content(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="Filter pipeline timeout — request blocked (WARDEN_FAIL_STRATEGY=closed).",
                 ) from None
-            # fail-open: pass the request through with a LOW-risk response
+            # fail-open: the ENTIRE pipeline is skipped and the request passes
+            # through LOW-risk. FILTER_BYPASSES_TOTAL already tracks this, but
+            # also fold it into the unified STAGE_FAILOPEN_TOTAL so one alert
+            # (WardenStageFailOpenSpike) covers every bypass class.
+            record_failopen("pipeline", Reason.TIMEOUT, _to_exc)
             _tid = getattr(payload, "tenant_id", None) or "default"
             FILTER_BYPASSES_TOTAL.labels(tenant_id=_tid).inc()
             _bypass_window.append(time.perf_counter())
