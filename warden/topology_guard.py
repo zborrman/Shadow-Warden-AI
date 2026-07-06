@@ -32,6 +32,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from warden.observability import Reason, record_failopen
 from warden.telemetry import trace_stage as _trace_stage
 
 log = logging.getLogger("warden.topology_guard")
@@ -317,6 +318,7 @@ def scan(text: str) -> TopoResult:
 
       except Exception as exc:
         log.debug("TopologyGuard.scan error (fail-open): %s", exc)
+        record_failopen("topology", Reason.BACKEND_ERROR, exc)
         return TopoResult(
             is_noise=False, noise_score=0.0, beta0=0.0, beta1=0.0,
             detail=f"scan error (fail-open): {exc}",

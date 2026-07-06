@@ -33,6 +33,14 @@ PROTECTED = {
 }
 
 PAT = re.compile(r"fail[-_ ]open", re.I)
+# A fail-open site is "covered" when its handler emits the P0 observability
+# primitive (warden.observability) so the bypass is a Prometheus counter + alert.
+COVER = re.compile(r"record_failopen\s*\(|failopen_guard\s*\(")
+# Coverage window: a record_failopen call within ±COVER_WIN lines of the
+# matched "fail-open" line counts as covering that except-block. The block is
+# small (log → record → return safe default), so a tight window avoids
+# crediting an unrelated handler further down the file.
+COVER_WIN = 4
 
 
 def protected_reason(rel: str) -> str:
@@ -42,8 +50,19 @@ def protected_reason(rel: str) -> str:
     return ""
 
 
-def main() -> int:
-    rows: list[tuple[str, int, str, str]] = []
+def is_covered(lines: list[str], idx: int) -> bool:
+    """True if a record_failopen/failopen_guard call sits within ±COVER_WIN
+    lines of ``lines[idx]`` (0-based) — i.e. this fail-open block is counted."""
+    lo = max(0, idx - COVER_WIN)
+    hi = min(len(lines), idx + COVER_WIN + 1)
+    return any(COVER.search(lines[j]) for j in range(lo, hi))
+
+
+def collect_rows() -> list[tuple[str, int, str, str, bool]]:
+    """Scan warden/ and return one row per fail-open site:
+    ``(rel_path, line_no, context, protected_reason, covered)``. Pure — no I/O
+    side effects — so the ratchet test can call it directly."""
+    rows: list[tuple[str, int, str, str, bool]] = []
     for p in sorted((REPO / "warden").rglob("*.py")):
         rel = p.relative_to(REPO).as_posix()
         if "__pycache__" in rel or "/tests/" in rel:
@@ -54,10 +73,23 @@ def main() -> int:
             continue
         for i, line in enumerate(lines, 1):
             if PAT.search(line):
-                rows.append((rel, i, line.strip()[:110], protected_reason(rel)))
+                rows.append((rel, i, line.strip()[:110],
+                             protected_reason(rel), is_covered(lines, i - 1)))
+    return rows
 
+
+def counterless_rows(rows: list[tuple[str, int, str, str, bool]]
+                     ) -> list[tuple[str, int, str, str, bool]]:
+    """Fail-open sites that are neither protected-by-invariant nor covered by a
+    record_failopen/failopen_guard counter — the P0.2 review/wiring backlog."""
+    return [r for r in rows if not r[3] and not r[4]]
+
+
+def main() -> int:
+    rows = collect_rows()
     protected = [r for r in rows if r[3]]
-    review = [r for r in rows if not r[3]]
+    covered = [r for r in rows if not r[3] and r[4]]
+    review = counterless_rows(rows)
 
     md = [
         "# Fail-Open Inventory (Stage 3a)",
@@ -67,30 +99,32 @@ def main() -> int:
         "",
         f"**Total fail-open sites:** {len(rows)} · "
         f"**protected by design:** {len(protected)} · "
-        f"**needs review:** {len(review)}",
+        f"**covered (record_failopen):** {len(covered)} · "
+        f"**counter-less (needs review):** {len(review)}",
         "",
         "A *fail-open* site allows the operation when its guard errors. For an",
         "availability-first gateway many are intentional (documented invariants",
-        "below); the review list is the candidate set for fail-closed flags or,",
-        "at minimum, alert-on-bypass metrics.",
+        "below); *covered* sites already emit the P0 `record_failopen` counter so",
+        "the bypass is alertable; the review list is the counter-less remainder —",
+        "the candidate set for `record_failopen` wiring or a fail-closed flag.",
         "",
         "## Protected by documented invariant (do NOT flip)",
         "",
         "| Location | Line | Context | Invariant |",
         "|---|---|---|---|",
     ]
-    for rel, ln, ctx, reason in protected:
+    for rel, ln, ctx, reason, _cov in protected:
         safe_ctx = ctx.replace("|", "\\|")
         md.append(f"| `{rel}` | {ln} | `{safe_ctx}` | {reason} |")
 
     md += [
         "",
-        "## Needs review (candidate for fail-closed flag or bypass metric)",
+        "## Counter-less — needs review (fail-closed flag or record_failopen wiring)",
         "",
         "| Location | Line | Context |",
         "|---|---|---|",
     ]
-    for rel, ln, ctx, _ in review:
+    for rel, ln, ctx, _reason, _cov in review:
         safe_ctx = ctx.replace("|", "\\|")
         md.append(f"| `{rel}` | {ln} | `{safe_ctx}` |")
 
@@ -108,7 +142,8 @@ def main() -> int:
     ]
     OUT.write_text("\n".join(md), encoding="utf-8")
     print(f"wrote {OUT.relative_to(REPO)}: {len(rows)} sites "
-          f"({len(protected)} protected, {len(review)} to review)")
+          f"({len(protected)} protected, {len(covered)} covered, "
+          f"{len(review)} counter-less)")
     return 0
 
 

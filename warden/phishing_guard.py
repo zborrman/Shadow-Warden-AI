@@ -49,6 +49,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
+from warden.observability import Reason, record_failopen
 from warden.telemetry import trace_stage as _trace_stage
 
 log = logging.getLogger("warden.phishing_guard")
@@ -616,4 +617,5 @@ def analyse(text: str) -> PhishResult:
 
      except Exception as exc:
         log.debug("PhishGuard.analyse error (fail-open): %s", exc)
+        record_failopen("phish", Reason.BACKEND_ERROR, exc)
         return PhishResult(elapsed_ms=round((time.perf_counter() - t0) * 1000, 3))
