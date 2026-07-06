@@ -1,10 +1,11 @@
 # ── Web framework ─────────────────────────────────────────────────────────────
-# Pin below starlette 1.x. fastapi>=0.136 pulls starlette>=1.0, whose router
-# inclusion semantics changed: include_router() of a self-prefixed router drops
-# its routes (they never reach app.routes). Cap until the code is migrated to
-# starlette 1.x. See warden/marketplace/api.py.
-fastapi>=0.115.0,<0.136.0
-starlette>=0.40.0,<1.0.0
+# Migrated to starlette 1.x. Under starlette>=1.0 include_router() leaves a lazy
+# fastapi.routing._IncludedRouter node instead of eagerly expanding sub-routes
+# into app.routes — runtime serving is unaffected (both include patterns return
+# 200), only route-inventory introspection needed teaching to expand that node
+# (done: warden/tests/test_route_inventory.py). The old <0.136 / <1.0 cap is lifted.
+fastapi>=0.136.0
+starlette>=1.0.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 python-multipart>=0.0.9

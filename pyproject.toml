@@ -17,8 +17,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "fastapi>=0.115.0,<0.136.0",   # <0.136 keeps starlette <1.0 (see requirements.txt)
-    "starlette>=0.40.0,<1.0.0",
+    "fastapi>=0.136.0",   # migrated to starlette 1.x (see warden/requirements.txt)
+    "starlette>=1.0.0",
     "uvicorn[standard]>=0.30.0",
     "pydantic>=2.7.0",
     "python-multipart>=0.0.9",
