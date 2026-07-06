@@ -40,6 +40,7 @@ import functools
 import logging
 import sys
 from collections.abc import Callable
+from typing import Any, cast
 
 log = logging.getLogger("warden.crypto.memory_protection")
 
@@ -63,7 +64,10 @@ def _try_mlock(buf: memoryview | bytearray) -> bool:
     """Lock memory pages into RAM (prevent swap). Fail-open on unsupported platforms."""
     if _IS_WINDOWS:
         try:
-            k32 = ctypes.windll.kernel32
+            # ctypes.windll exists only on Windows; go through cast(Any, ...) so mypy
+            # on non-win32 (CI) doesn't flag [attr-defined] — avoids a platform-only
+            # suppression that a Windows mypy run would then report as unused.
+            k32 = cast(Any, ctypes).windll.kernel32
             addr = ctypes.addressof((ctypes.c_char * len(buf)).from_buffer(buf))
             return bool(k32.VirtualLock(ctypes.c_void_p(addr), ctypes.c_size_t(len(buf))))
         except Exception:

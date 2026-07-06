@@ -58,14 +58,29 @@ import warden.main as m
 
 groups = {}
 
-def _record(route):
-    # Recurse into nested route containers (Mount / _IncludedRouter). Their child
-    # APIRoutes already carry absolute paths, so no prefix composition is needed.
+def _record(route, prefix=""):
+    # starlette-1.0 lazy include node: fastapi.routing._IncludedRouter. Under
+    # starlette>=1.0 include_router() no longer eagerly expands the sub-routes into
+    # app.routes — it leaves an _IncludedRouter placeholder whose real routes live
+    # on `.original_router` with the prefix carried in `.include_context.prefix`
+    # (paths there are RELATIVE to the router, so we compose the prefix). Under
+    # starlette<1.0 no such node exists, so this branch is inert and the measured
+    # surface is byte-identical.
+    if type(route).__name__ == "_IncludedRouter":
+        ctx = getattr(route, "include_context", None)
+        sub_prefix = getattr(ctx, "prefix", "") or ""
+        orig = getattr(route, "original_router", None)
+        if orig is not None:
+            for child in orig.routes:
+                _record(child, prefix + sub_prefix)
+        return
+    # Recurse into nested route containers (Mount). Their child APIRoutes already
+    # carry absolute paths, so prefix stays "" through this branch.
     endpoint = getattr(route, "endpoint", None)
     path = getattr(route, "path", None)
     if endpoint is None and getattr(route, "routes", None):
         for child in route.routes:
-            _record(child)
+            _record(child, prefix)
         return
     if not path:
         return
@@ -74,7 +89,7 @@ def _record(route):
     for meth in methods:
         if meth in ("HEAD", "OPTIONS"):
             continue
-        groups.setdefault(module, set()).add(f"{meth} {path}")
+        groups.setdefault(module, set()).add(f"{meth} {prefix + path}")
 
 for route in m.app.routes:
     _record(route)
