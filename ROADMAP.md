@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 7.4 · Last updated 2026-07-01**
+**Version 7.6 · Last updated 2026-07-04**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -19,6 +19,30 @@ Every item on this roadmap competes across three inputs:
 We publish an updated priority snapshot every quarter. The `📋 Planned` items below reflect the current ranking; re-ordering happens openly — if something drops, the reason appears in the changelog.
 
 > **Release cadence:** patch versions (4.x.y) ship weekly; minor versions (4.x) ship when a delivery block is complete; major versions (5.0) ship on a quarterly cycle tied to infrastructure milestones.
+
+---
+
+## v7.6 Release — 2026-07-04
+
+| ID | Feature | Status |
+|----|---------|--------|
+| V7-32 | Marketplace API restored — pinned `fastapi<0.136`/`starlette<1.0`; unpinned starlette 1.x silently dropped `/marketplace/*` on `include_router()` of a self-prefixed router | ✅ |
+| V7-33 | Community API restored — `warden/models/community.py` lived in a gitignored dir and was never committed; relocated to tracked `warden/community_models.py` | ✅ |
+| V7-34 | Route-inventory guard hardening — clean-subprocess, module-grouped measurement; tolerates absent optional-dep subsystems, still catches real route regressions | ✅ |
+| V7-35 | CI import audit — `scripts/ci_import_audit.py` names the exact missing dependency behind any skipped router, in the CI job summary | ✅ |
+| V7-36 | MCP config fix — `chrome-devtools` moved into `mcpServers` (was a dead top-level key) and pinned to a specific upstream commit | ✅ |
+
+---
+
+## v7.5 Release — 2026-07-04
+
+| ID | Feature | Status |
+|----|---------|--------|
+| V7-27 | Runtime container — `warden/runtime.py` dependency-free leaf holds shared singletons; `main` publishes at startup, domains read via `runtime.get(...)` | ✅ |
+| V7-28 | FilterPipeline service seam — `warden/services/pipeline.py` stable entry point over the 9-stage flow; fail-closed if app not booted | ✅ |
+| V7-29 | Route-inventory guard — `test_route_inventory.py` snapshots 713 routes (executable OpenAPI diff); `/api/contact` + 8 `/threats/*` routes extracted to routers | ✅ |
+| V7-30 | Self-defending layer guard — `test_architecture_layers.py` CI-enforces zero `warden.main` upward imports; last 4 reach-backs moved to runtime | ✅ |
+| V7-31 | Security hardening — SSRF `net_guard` on outbound URLs, fail-closed `resolve_key` signing, approval/admin gate fixes, `SemanticQueryEngine` SQLi defense | ✅ |
 
 ---
 

@@ -74,11 +74,11 @@ async def checkout(
     # 4. Budget Guardian
     try:
         from warden.business_community.agentic_commerce.semantic_budget import (
-            check_budget,  # noqa: PLC0415
+            check_budget,
         )
-        budget = await check_budget(tenant_id, total)
-        if not budget.get("allowed", True):
-            return {"success": False, "reason": "budget_exceeded", "detail": budget.get("message")}
+        budget = check_budget(tenant_id, total)
+        if not budget.allowed:
+            return {"success": False, "reason": "budget_exceeded", "detail": budget.reason}
     except Exception as exc:
         log.debug("ACP: budget guardian unavailable (fail-open): %s", exc)
 
@@ -107,14 +107,16 @@ async def checkout(
     try:
         from warden.communities.stix_audit import append_transfer  # noqa: PLC0415
         entry = append_transfer(
-            community_id=tenant_id,
-            entity_id=order_id,
-            from_tenant=agent_id,
-            to_tenant=cart.merchant_id,
+            transfer_id=order_id,
+            source_community_id=tenant_id,
+            target_community_id=tenant_id,
+            entity_ueciid=order_id,
+            initiator_mid=agent_id,
+            purpose="acp_checkout",
+            ctp_hmac_signature="",
             data_class="FINANCIAL",
-            metadata={"acp_checkout": True, "spt_id": spt_id, "amount": total},
         )
-        stix_chain_id = str(entry.get("id", ""))
+        stix_chain_id = entry.chain_id
     except Exception:
         pass
 

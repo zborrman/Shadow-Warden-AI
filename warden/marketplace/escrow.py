@@ -475,7 +475,7 @@ class EscrowService:
             from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
             cc: Any = ChainConnector()
             if cc.is_connected():
-                return cc.deploy_escrow(buyer, seller)  # type: ignore[no-any-return]
+                return cc.deploy_escrow(buyer, seller)
         except Exception:
             pass
         import hashlib  # noqa: PLC0415

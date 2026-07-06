@@ -72,8 +72,8 @@ class SAMLUser:
     email:      str
     tenant_id:  str
     name:       str = ""
-    groups:     list[str] = None  # type: ignore[assignment]
-    attributes: dict      = None  # type: ignore[assignment]
+    groups:     list[str] = None
+    attributes: dict      = None
 
     def __post_init__(self):
         if self.groups     is None:

@@ -59,7 +59,7 @@ def _get_stable_ca_key():
         return get_signer()._get_sw_key()
     except Exception:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-            Ed25519PrivateKey,  # noqa: PLC0415
+            Ed25519PrivateKey,
         )
         return Ed25519PrivateKey.generate()
 
@@ -175,7 +175,7 @@ class CertificateAuthority:
             from cryptography import x509  # noqa: PLC0415
             from cryptography.hazmat.primitives import serialization  # noqa: PLC0415
             from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-                Ed25519PrivateKey,  # noqa: PLC0415
+                Ed25519PrivateKey,
             )
             from cryptography.x509.oid import NameOID  # noqa: PLC0415
 

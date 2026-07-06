@@ -160,7 +160,7 @@ def async_retry(config: RetryConfig):
             for attempt in range(config.max_attempts):
                 try:
                     return await fn(*args, **kwargs)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     if not config.retryable_on(exc):
                         raise
                     last_exc = exc
@@ -185,7 +185,7 @@ def async_retry(config: RetryConfig):
                 type(last_exc).__name__,
                 last_exc,
             )
-            raise last_exc  # type: ignore[misc]
+            raise last_exc
 
         return wrapper
     return decorator
@@ -206,7 +206,7 @@ def sync_retry(config: RetryConfig):
             for attempt in range(config.max_attempts):
                 try:
                     return fn(*args, **kwargs)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     if not config.retryable_on(exc):
                         raise
                     last_exc = exc
@@ -231,7 +231,7 @@ def sync_retry(config: RetryConfig):
                 type(last_exc).__name__,
                 last_exc,
             )
-            raise last_exc  # type: ignore[misc]
+            raise last_exc
 
         return wrapper
     return decorator

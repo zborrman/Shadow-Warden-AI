@@ -37,6 +37,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from warden.secret_keys import resolve_key
+
 log = logging.getLogger("warden.agent.master")
 
 _MODEL    = "claude-opus-4-6"
@@ -45,7 +47,8 @@ _SUB_AGENT_MAX_ITER    = 5
 # Per-sub-agent input token budget. Loop halts early when exceeded.
 # Each Opus 4.6 input token ≈ $0.000015; 8192 tokens ≈ $0.12 per sub-agent.
 _SUB_AGENT_TOKEN_BUDGET = int(os.getenv("MASTER_AGENT_TOKEN_BUDGET", "8192"))
-_TOKEN_SECRET = os.getenv("MASTER_AGENT_SECRET", "shadow-warden-master-v1")
+def _token_secret() -> bytes:
+    return resolve_key("MASTER_AGENT_SECRET", purpose="master_agent")
 
 
 # ── Sub-agent definitions ─────────────────────────────────────────────────────
@@ -147,7 +150,7 @@ def _issue_token(sub_agent: SubAgent, task: str) -> str:
     task_hash = hashlib.sha256(task.encode()).hexdigest()[:16]
     payload   = f"{sub_agent.value}:{task_hash}:{issued_at}"
     sig = hmac.new(
-        _TOKEN_SECRET.encode(), payload.encode(), hashlib.sha256
+        _token_secret(), payload.encode(), hashlib.sha256
     ).hexdigest()[:16]
     return f"{payload}:{sig}"
 
@@ -161,7 +164,7 @@ def _verify_token(token: str, sub_agent: SubAgent) -> bool:
         return False
     payload = f"{agent_val}:{task_hash}:{issued_at_str}"
     expected = hmac.new(
-        _TOKEN_SECRET.encode(), payload.encode(), hashlib.sha256
+        _token_secret(), payload.encode(), hashlib.sha256
     ).hexdigest()[:16]
     return hmac.compare_digest(expected, sig)
 
@@ -172,7 +175,7 @@ def _approval_token(action: str, context: str) -> str:
     ts      = int(time.time())
     payload = f"{action}:{hashlib.sha256(context.encode()).hexdigest()[:16]}:{ts}"
     sig = hmac.new(
-        _TOKEN_SECRET.encode(), payload.encode(), hashlib.sha256
+        _token_secret(), payload.encode(), hashlib.sha256
     ).hexdigest()[:20]
     return f"appr-{sig}"
 
@@ -469,7 +472,7 @@ async def run_master(
     decomp_resp = await client.messages.create(
         model=_MODEL, max_tokens=512,
         system=[{"type": "text", "text": _MASTER_SYSTEM, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": decompose_prompt}],  # type: ignore[arg-type]
+        messages=[{"role": "user", "content": decompose_prompt}],
     )
     decomp_text = "".join(b.text for b in decomp_resp.content if hasattr(b, "text"))
 
@@ -564,7 +567,7 @@ async def run_master(
     synth_resp = await client.messages.create(
         model=_MODEL, max_tokens=2048,
         system=[{"type": "text", "text": _MASTER_SYSTEM, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": synthesis_prompt}],  # type: ignore[arg-type]
+        messages=[{"role": "user", "content": synthesis_prompt}],
     )
     synthesis = "".join(b.text for b in synth_resp.content if hasattr(b, "text"))
     total_tokens += synth_resp.usage.input_tokens + synth_resp.usage.output_tokens
@@ -668,7 +671,7 @@ async def run_master_batch(
         decomp_resp = await client.messages.create(
             model=_MODEL, max_tokens=512,
             system=[{"type": "text", "text": _MASTER_SYSTEM, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": decompose_prompt}],  # type: ignore[arg-type]
+            messages=[{"role": "user", "content": decompose_prompt}],
         )
         decomp_text   = "".join(b.text for b in decomp_resp.content if hasattr(b, "text"))
         decomp_tokens = decomp_resp.usage.input_tokens + decomp_resp.usage.output_tokens
@@ -745,7 +748,7 @@ async def run_master_batch(
         synth_resp   = await client.messages.create(
             model=_MODEL, max_tokens=2048,
             system=[{"type": "text", "text": _MASTER_SYSTEM, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": synthesis_prompt}],  # type: ignore[arg-type]
+            messages=[{"role": "user", "content": synthesis_prompt}],
         )
         synthesis    = "".join(b.text for b in synth_resp.content if hasattr(b, "text"))
         synth_tokens = synth_resp.usage.input_tokens + synth_resp.usage.output_tokens

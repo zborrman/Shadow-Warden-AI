@@ -272,16 +272,16 @@ def _fire_tokens_consumed_metric(tenant_id: str, tokens: int) -> None:
     try:
         from warden.metrics import WALLET_TOKENS_CONSUMED  # noqa: PLC0415
         WALLET_TOKENS_CONSUMED.labels(tenant_id=tenant_id).inc(tokens)
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
 
 def _fire_budget_exceeded_metric(tenant_id: str, limit_type: str) -> None:
     try:
         from warden.metrics import WALLET_BUDGET_EXCEEDED  # noqa: PLC0415
         WALLET_BUDGET_EXCEEDED.labels(tenant_id=tenant_id, limit_type=limit_type).inc()
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
 
 # ── Module-level singleton ────────────────────────────────────────────────────

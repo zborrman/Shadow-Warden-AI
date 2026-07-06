@@ -188,8 +188,8 @@ def block_ip(
         try:
             from warden.metrics import SYNC_BLOCKS_PROPAGATED_TOTAL  # noqa: PLC0415
             SYNC_BLOCKS_PROPAGATED_TOTAL.labels(blocked_by=blocked_by).inc()
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
     except Exception as exc:
         log.warning("GlobalBlocklist.block_ip ZADD failed: %s", exc)
         return False
@@ -290,8 +290,8 @@ def _maybe_sweep(r, tenant_id: str) -> None:
         r.zremrangebyscore(_zset_key(tenant_id), 0.001, now)
         if tenant_id != "default":
             r.zremrangebyscore(_zset_key("default"), 0.001, now)
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
 
 def _publish_event(
@@ -375,8 +375,8 @@ def _apply_event(fields: dict, threat_store) -> None:
                 SYNC_BLOCKS_APPLIED_TOTAL.labels(
                     source_region=fields.get("source_region", "unknown")
                 ).inc()
-            except Exception:
-                pass
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("suppressed exception: %r", _exc)
         elif action == "unblock":
             threat_store.unblock_ip(ip, tenant_id)
             log.info(

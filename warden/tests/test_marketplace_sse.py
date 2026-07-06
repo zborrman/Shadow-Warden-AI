@@ -110,7 +110,7 @@ def test_client():
     os.environ.setdefault("REDIS_URL", "memory://")
     from warden.marketplace.api import router  # noqa: PLC0415
     app = FastAPI()
-    app.include_router(router)  # router already carries /marketplace prefix
+    app.include_router(router, prefix="/marketplace")
     return TestClient(app, raise_server_exceptions=False)
 
 

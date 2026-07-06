@@ -176,6 +176,16 @@ arqWorker:
     enabled: false
     redisQueueLength: 10
 
+# ── Secrets (override with --set or -f values.secret.yaml; never commit real values) ──
+secrets:
+  wardenApiKey: ""
+  anthropicApiKey: ""
+  vaultMasterKey: ""
+  postgresPassword: "changeme"
+  minioRootPassword: "changeme"
+  slackWebhookUrl: ""
+  sovereignAttestKey: ""
+
 # ── Ingress ────────────────────────────────────────────────────────────────────
 ingress:
   enabled: false

@@ -42,7 +42,7 @@ _SovereignGate = require_feature("sovereign_enabled")
 try:
     from warden.sovereign.preflight import preflight_check
 except Exception:
-    preflight_check = None  # type: ignore[assignment]
+    preflight_check = None
 
 
 # ── Request models ────────────────────────────────────────────────────────────

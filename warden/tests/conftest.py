@@ -44,6 +44,7 @@ os.environ.setdefault("COMMUNITY_REGISTRY_PATH",  "/tmp/warden_test_community_re
 os.environ.setdefault("COMMUNITY_KEY_ARCHIVE_PATH", "/tmp/warden_test_community_key_archive.db")
 os.environ.setdefault("BREAK_GLASS_AUDIT_PATH",   "/tmp/warden_test_break_glass_audit.jsonl")
 os.environ.setdefault("VAULT_MASTER_KEY",          "i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA=")  # valid Fernet key for tests
+os.environ.setdefault("NET_GUARD_ALLOW_PRIVATE",   "true")   # SSRF guard off in tests (offline URLs); enforcement covered by dedicated monkeypatched tests
 
 
 @pytest.fixture(scope="session", autouse=True)

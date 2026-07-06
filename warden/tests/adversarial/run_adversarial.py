@@ -30,7 +30,7 @@ import os
 os.environ.setdefault("ANTHROPIC_API_KEY", "")  # disable evolution in test
 os.environ.setdefault("SEMANTIC_THRESHOLD", "0.72")
 
-from warden.semantic_guard import SemanticGuard  # noqa: E402
+from warden.semantic_guard import SemanticGuard
 
 guard = SemanticGuard()
 

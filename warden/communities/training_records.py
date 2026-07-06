@@ -24,11 +24,16 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from warden.secret_keys import resolve_key
+
 log = logging.getLogger("warden.communities.training_records")
 
 _DB_PATH  = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
-_HMAC_KEY = os.getenv("VAULT_MASTER_KEY", "training-default-key")
 _db_lock  = threading.RLock()
+
+
+def _hmac_key() -> bytes:
+    return resolve_key("VAULT_MASTER_KEY", purpose="training_records")
 
 
 @dataclass
@@ -129,8 +134,7 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
 def _sign_completion(completion_id: str, program_id: str, employee_id: str, score: float, ts: str) -> str:
     """HMAC-SHA256 attestation over completion fields."""
     payload = f"{completion_id}|{program_id}|{employee_id}|{score:.4f}|{ts}"
-    key     = _HMAC_KEY.encode() if isinstance(_HMAC_KEY, str) else _HMAC_KEY
-    return hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_hmac_key(), payload.encode(), hashlib.sha256).hexdigest()
 
 
 def verify_attestation(completion: dict) -> bool:

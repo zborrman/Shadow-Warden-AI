@@ -217,7 +217,7 @@ def register_oauth_grant(
     except Exception:  # noqa: BLE001
         pass
 
-    return get_grant(grant_id)  # type: ignore[return-value]
+    return get_grant(grant_id)
 
 
 def get_grant(grant_id: str) -> OAuthGrant | None:
@@ -248,7 +248,7 @@ def revoke_grant(grant_id: str) -> OAuthGrant:
         )
         conn.commit()
     log.info("oauth_grant revoked grant_id=%s", grant_id)
-    return get_grant(grant_id)  # type: ignore[return-value]
+    return get_grant(grant_id)
 
 
 def get_risk_summary(community_id: str) -> dict[str, Any]:

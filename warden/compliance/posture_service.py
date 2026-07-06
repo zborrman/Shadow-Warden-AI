@@ -435,7 +435,7 @@ class CompliancePostureService:
                         import asyncio as _asyncio  # noqa: PLC0415
 
                         from warden.communities.notifications import (
-                            fire_event as _fn,  # noqa: PLC0415
+                            fire_event as _fn,
                         )
                         _payload = {
                             "tenant_id":  tenant_id,

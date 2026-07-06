@@ -131,7 +131,7 @@ class TestPreflightRollback:
             issued_ids.append(result["cert_id"])
             return result
 
-        ca.issue_tunnel_certificate = patched_issue  # type: ignore[method-assign]
+        ca.issue_tunnel_certificate = patched_issue
 
         with pytest.raises(ConnectionError):
             asyncio.run(upgrade_to_ca(t.tunnel_id, tenant_id="t1", skip_preflight=False, _ca=ca))

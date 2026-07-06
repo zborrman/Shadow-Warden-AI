@@ -177,11 +177,11 @@ def _load_domain_map() -> dict[str, str]:
         if r is not None:
             redis_map = r.hgetall("warden:oidc:domains")
             for _dk, _tv in (redis_map or {}).items():
-                d = _dk.decode("utf-8") if isinstance(_dk, (bytes, bytearray)) else str(_dk or "")  # type: ignore[attr-defined]
-                t = _tv.decode("utf-8") if isinstance(_tv, (bytes, bytearray)) else str(_tv or "")  # type: ignore[attr-defined]
+                d = _dk.decode("utf-8") if isinstance(_dk, (bytes, bytearray)) else str(_dk or "")
+                t = _tv.decode("utf-8") if isinstance(_tv, (bytes, bytearray)) else str(_tv or "")
                 result[d.lower()] = t
-    except Exception:
-        pass  # Redis unavailable — env var map is sufficient
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)  # Redis unavailable — env var map is sufficient
 
     log.info("OIDC domain map loaded: %d domain(s)", len(result))
     return result
@@ -200,8 +200,8 @@ def register_domain(domain: str, tenant_id: str) -> None:
         r = get_redis_client()
         if r is not None:
             r.hset("warden:oidc:domains", domain.lower(), tenant_id)
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
 
 def resolve_tenant(email: str) -> str:
@@ -276,8 +276,8 @@ def _check_billing(tenant_id: str) -> None:
             )
     except HTTPException:
         raise
-    except Exception:
-        pass  # Redis unavailable — fail-open, do not block auth
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)  # Redis unavailable — fail-open, do not block auth
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────

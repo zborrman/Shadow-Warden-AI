@@ -327,26 +327,20 @@ class AssetImporter:
 
 def _get_evolve_engine():
     """Return global EvolutionEngine singleton; fall back to a fresh instance."""
-    try:
-        import warden.main as _main  # noqa: PLC0415
-        engine = getattr(_main, "_evolve", None)
-        if engine is not None:
-            return engine
-    except ImportError:
-        pass
+    from warden.runtime import runtime as _rt  # noqa: PLC0415
+    engine = _rt.evolve
+    if engine is not None:
+        return engine
     from warden.brain.evolve import EvolutionEngine  # noqa: PLC0415
     return EvolutionEngine()
 
 
 def _get_semantic_engine():
     """Return global SemanticEngine singleton; fall back to a fresh instance."""
-    try:
-        import warden.main as _main  # noqa: PLC0415
-        engine = getattr(_main, "_semantic_engine", None)
-        if engine is not None:
-            return engine
-    except ImportError:
-        pass
+    from warden.runtime import runtime as _rt  # noqa: PLC0415
+    engine = _rt.semantic_engine
+    if engine is not None:
+        return engine
     from warden.semantic_layer.engine import SemanticEngine  # noqa: PLC0415
     return SemanticEngine()
 

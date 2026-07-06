@@ -19,7 +19,7 @@ class TestSecureWipe:
     def test_secure_wipe_rejects_immutable_bytes(self):
         from warden.crypto.memory_protection import secure_wipe
         with pytest.raises(TypeError):
-            secure_wipe(b"immutable")  # type: ignore[arg-type]
+            secure_wipe(b"immutable")
 
 
 class TestSecureMemoryDecorator:

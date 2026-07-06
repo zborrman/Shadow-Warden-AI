@@ -49,6 +49,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.config import settings
 from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import OUTPUT_GUARD_BLOCKS, OUTPUT_GUARD_SANITIZATIONS, TOOL_BLOCKS
 from warden.notification_hook import get_notification_hook
@@ -76,7 +77,7 @@ _GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY", "")
 #      "nim/mistralai/mistral-large-2-instruct"
 # Full catalogue: https://build.nvidia.com/explore/discover
 _NIM_UPSTREAM   = "https://integrate.api.nvidia.com/v1"
-_NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+_NVIDIA_API_KEY = settings.nvidia_api_key
 
 # ── Azure OpenAI ─────────────────────────────────────────────────────────────
 # AZURE_OPENAI_ENDPOINT  e.g. https://my-resource.openai.azure.com
@@ -147,7 +148,7 @@ _MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
 
 _WALLET_ENABLED        = os.getenv("WALLET_ENABLED",             "true").lower() == "true"
 _OUTPUT_GUARD_ENABLED  = os.getenv("OUTPUT_GUARDRAILS_ENABLED", "true").lower() == "true"
-_PROMPT_SHIELD_ENABLED = os.getenv("PROMPT_SHIELD_ENABLED",     "true").lower() == "true"
+_PROMPT_SHIELD_ENABLED = settings.prompt_shield_enabled
 
 # Module-level singleton — no state, safe to share
 _tool_guard = ToolCallGuard()
@@ -158,7 +159,7 @@ try:
 
     _agent_monitor: _AgentMonitor | None = None
 except ImportError:
-    _agent_monitor = None  # type: ignore[assignment]
+    _agent_monitor = None
 
 # Injected by main.py lifespan after SandboxRegistry is loaded; None = sandbox disabled
 try:
@@ -166,7 +167,7 @@ try:
 
     _sandbox_registry: _SandboxRegistry | None = None
 except ImportError:
-    _sandbox_registry = None  # type: ignore[assignment]
+    _sandbox_registry = None
 
 
 def _build_tool_name_map(messages: list[dict]) -> dict[str, str]:

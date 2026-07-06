@@ -77,6 +77,36 @@ def _redis_set(key: str, result: QueryResult) -> None:
 
 _SAFE_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 
+# Operators allowed in a WHERE clause. Anything else is rejected — a filter can
+# never smuggle arbitrary SQL through the operator field.
+_ALLOWED_FILTER_OPS = frozenset({"=", "!=", "<>", ">", "<", ">=", "<=", "LIKE", "IN", "NOT IN"})
+
+
+def _safe_ident(name: str) -> str:
+    """Return *name* if it is a bare column/identifier, else raise ValueError."""
+    if not isinstance(name, str) or not _SAFE_IDENT.match(name):
+        raise ValueError(f"Unsafe SQL identifier: {name!r}")
+    return name
+
+
+def _sql_literal(value: Any) -> str:
+    """Render *value* as a safe SQL literal (SQLi defence for string-built SQL).
+
+    Strings are single-quoted with embedded quotes doubled; numbers/bools pass
+    through as bare tokens; None becomes NULL. Non-scalar types are rejected so
+    a dict/list can never reach the query text unescaped.
+    """
+    if value is None:
+        return "NULL"
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, (str, bytes)):
+        text = value.decode() if isinstance(value, bytes) else value
+        return "'" + text.replace("'", "''") + "'"
+    raise ValueError(f"Unsupported filter value type: {type(value).__name__}")
+
 # ── Built-in models (shipped with warden) ────────────────────────────────────
 
 _BUILTIN_MODELS: dict[str, SemanticModel] = {}
@@ -614,17 +644,24 @@ class SemanticQueryEngine:
         group_by: list[str] = []
 
         for dim_name in query.dimensions:
+            # Column comes from the trusted model when the dim is known; the
+            # bare-name fallback and the alias are validated so neither the
+            # column nor the alias can inject SQL.
             col = next(
-                (d.effective_column() for d in model.dimensions if d.name == dim_name), dim_name
+                (d.effective_column() for d in model.dimensions if d.name == dim_name),
+                dim_name,
             )
-            select_parts.append(f"{col} AS {_SAFE_IDENT.match(dim_name) and dim_name or dim_name}")
-            group_by.append(col)
+            alias = _safe_ident(dim_name)
+            select_parts.append(f"{_safe_ident(col)} AS {alias}")
+            group_by.append(_safe_ident(col))
 
         for met_name in query.metrics:
-            expr = next(
-                (m.effective_expression() for m in model.metrics if m.name == met_name), met_name
-            )
-            select_parts.append(f"{expr} AS {met_name}")
+            # Metric expressions are authored in the model (trusted); only the
+            # alias is user-facing, so validate it. Unknown metrics fall back to
+            # a bare identifier, which must also be a safe identifier.
+            known = next((m for m in model.metrics if m.name == met_name), None)
+            expr = known.effective_expression() if known else _safe_ident(met_name)
+            select_parts.append(f"{expr} AS {_safe_ident(met_name)}")
 
         where_parts: list[str] = []
         for f in query.filters:
@@ -632,12 +669,16 @@ class SemanticQueryEngine:
                 (d.effective_column() for d in model.dimensions if d.name == f.dimension),
                 f.dimension,
             )
-            op = f.sql_operator()
-            if op.upper() == "IN":
-                vals = ", ".join(f"'{v}'" for v in f.value)
-                where_parts.append(f"({col} IN ({vals}))")
+            col = _safe_ident(col)
+            op = f.sql_operator().upper()
+            if op not in _ALLOWED_FILTER_OPS:
+                raise ValueError(f"Unsupported filter operator: {op!r}")
+            if op in ("IN", "NOT IN"):
+                values = f.value if isinstance(f.value, (list, tuple, set)) else [f.value]
+                vals = ", ".join(_sql_literal(v) for v in values)
+                where_parts.append(f"({col} {op} ({vals}))")
             else:
-                where_parts.append(f"({col} {op} '{f.value}')")
+                where_parts.append(f"({col} {op} {_sql_literal(f.value)})")
 
         select_sql  = ",\n    ".join(select_parts)
         table       = model.source_table

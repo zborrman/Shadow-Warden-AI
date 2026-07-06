@@ -22,13 +22,78 @@ import os
 import sqlite3
 import time
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from typing import Any
 
 log = logging.getLogger(__name__)
 
 _DB_PATH: str = os.getenv("STAFF_A2A_DB_PATH", "/tmp/warden_staff_a2a.db")
-_HMAC_KEY: bytes = os.getenv("STAFF_A2A_HMAC_KEY", "staff-a2a-dev-key").encode()
+
+
+def _hmac_key() -> bytes:
+    from warden.secret_keys import resolve_key  # noqa: PLC0415
+    return resolve_key("STAFF_A2A_HMAC_KEY", purpose="staff_a2a")
+
+_A2A_DDL = """
+    CREATE TABLE IF NOT EXISTS staff_a2a_calls (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id         TEXT    NOT NULL UNIQUE,
+        caller_agent_id TEXT    NOT NULL,
+        target_agent_id TEXT    NOT NULL,
+        tool_name       TEXT    NOT NULL,
+        status          TEXT    NOT NULL,
+        latency_ms      REAL    NOT NULL,
+        ts              INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_a2a_caller ON staff_a2a_calls(caller_agent_id, ts);
+"""
+
+
+@contextmanager
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    """
+    Yield a DB connection — Turso "staff" (if TURSO_URL_STAFF is set) or local SQLite.
+
+    A non-default explicit db_path bypasses Turso (test isolation via tmp_path).
+    Passing None or _DB_PATH routes through Turso when available.
+    """
+    effective = db_path or _DB_PATH
+    use_local = effective != _DB_PATH
+
+    if use_local:
+        con = sqlite3.connect(effective, check_same_thread=False)
+        con.row_factory = sqlite3.Row
+        con.execute("PRAGMA journal_mode=WAL")
+        con.executescript(_A2A_DDL)
+        try:
+            yield con
+            con.commit()
+        finally:
+            con.close()
+        return
+
+    try:
+        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
+        if is_turso_enabled("staff"):
+            with get_connection("staff", fallback_path=_DB_PATH) as con:  # type: ignore[assignment]
+                with suppress(Exception):
+                    con.executescript(_A2A_DDL)
+                yield con
+            return
+    except ImportError:
+        pass
+
+    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
+    con.row_factory = sqlite3.Row
+    con.execute("PRAGMA journal_mode=WAL")
+    con.executescript(_A2A_DDL)
+    try:
+        yield con
+        con.commit()
+    finally:
+        con.close()
 
 # Pre-wired cross-agent call table.
 # Key: (caller_agent_id, target_agent_id, tool_name) → permitted
@@ -62,7 +127,7 @@ class A2ACall:
 
 def _sign(caller: str, target: str, tool: str, ts: int) -> str:
     canonical = f"{caller}:{target}:{tool}:{ts}"
-    return hmac.new(_HMAC_KEY, canonical.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_hmac_key(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
 def _verify(caller: str, target: str, tool: str, ts: int, token: str) -> bool:
@@ -70,40 +135,16 @@ def _verify(caller: str, target: str, tool: str, ts: int, token: str) -> bool:
     return hmac.compare_digest(expected, token)
 
 
-def _db(path: str = _DB_PATH) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS staff_a2a_calls (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            call_id         TEXT    NOT NULL UNIQUE,
-            caller_agent_id TEXT    NOT NULL,
-            target_agent_id TEXT    NOT NULL,
-            tool_name       TEXT    NOT NULL,
-            status          TEXT    NOT NULL,
-            latency_ms      REAL    NOT NULL,
-            ts              INTEGER NOT NULL
-        )
-    """)
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_a2a_caller ON staff_a2a_calls(caller_agent_id, ts)"
-    )
-    conn.commit()
-    return conn
-
-
-def _audit(call: A2ACall, db_path: str = _DB_PATH) -> None:
+def _audit(call: A2ACall, db_path: str | None = None) -> None:
     try:
-        conn = _db(db_path)
-        conn.execute(
-            "INSERT OR IGNORE INTO staff_a2a_calls "
-            "(call_id,caller_agent_id,target_agent_id,tool_name,status,latency_ms,ts) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (call.call_id, call.caller_agent_id, call.target_agent_id,
-             call.tool_name, call.status, call.latency_ms, call.ts),
-        )
-        conn.commit()
-        conn.close()
+        with _conn(db_path) as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO staff_a2a_calls "
+                "(call_id,caller_agent_id,target_agent_id,tool_name,status,latency_ms,ts) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (call.call_id, call.caller_agent_id, call.target_agent_id,
+                 call.tool_name, call.status, call.latency_ms, call.ts),
+            )
     except Exception as exc:  # noqa: BLE001
         log.warning("A2A audit write failed: %s", exc)
 
@@ -193,11 +234,10 @@ class A2ARouter:
 
     def get_audit_log(self, limit: int = 100, db_path: str | None = None) -> list[dict]:
         try:
-            conn = _db(db_path or self._db_path)
-            rows = conn.execute(
-                "SELECT * FROM staff_a2a_calls ORDER BY ts DESC LIMIT ?", (limit,)
-            ).fetchall()
-            conn.close()
+            with _conn(db_path or self._db_path) as conn:
+                rows = conn.execute(
+                    "SELECT * FROM staff_a2a_calls ORDER BY ts DESC LIMIT ?", (limit,)
+                ).fetchall()
             return [dict(r) for r in rows]
         except Exception as exc:  # noqa: BLE001
             log.warning("A2A get_audit_log failed: %s", exc)

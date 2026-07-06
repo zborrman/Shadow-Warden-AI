@@ -19,7 +19,7 @@ ROLES = ("owner", "admin", "member", "observer")
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-    from cryptography.hazmat.primitives.serialization import (  # noqa: I001
+    from cryptography.hazmat.primitives.serialization import (
         Encoding,
         NoEncryption,
         PrivateFormat,
@@ -103,7 +103,7 @@ def add_member(
         COMMUNITY_MEMBERS_TOTAL.inc()
     except Exception:
         pass
-    return get_member(community_id, tenant_id)  # type: ignore[return-value]
+    return get_member(community_id, tenant_id)
 
 
 def get_member(community_id: str, tenant_id: str) -> Member | None:

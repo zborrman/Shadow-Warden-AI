@@ -71,16 +71,18 @@ def request_refund(
     try:
         from warden.communities.stix_audit import append_transfer  # noqa: PLC0415
         entry = append_transfer(
-            community_id=tenant_id,
-            entity_id=refund_id,
-            from_tenant=merchant_id,
-            to_tenant=agent_id,
+            transfer_id=refund_id,
+            source_community_id=tenant_id,
+            target_community_id=tenant_id,
+            entity_ueciid=refund_id,
+            initiator_mid=merchant_id,
+            purpose="acp_refund",
+            ctp_hmac_signature="",
             data_class="FINANCIAL",
-            metadata={"acp_refund_request": True, "order_id": order_id, "amount": amount},
         )
-        stix_chain_id = str(entry.get("id", ""))
-    except Exception:
-        pass
+        stix_chain_id = entry.chain_id
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ACP: STIX audit skipped for refund=%s: %s", refund_id, exc)
 
     with _db_lock, _conn() as con:
         con.execute(
@@ -143,4 +145,5 @@ def resolve_refund(refund_id: str, action: str) -> bool:
             "UPDATE acp_refunds SET status=? WHERE refund_id=? AND status='PENDING_REVIEW'",
             (new_status, refund_id),
         )
-    return cur.rowcount > 0
+        updated = cur.rowcount > 0
+    return updated

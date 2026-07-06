@@ -44,9 +44,13 @@ Testing overrides
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
-__all__ = ["settings", "Settings"]
+__all__ = ["settings", "Settings", "ConfigValidationError"]
+
+
+class ConfigValidationError(RuntimeError):
+    """Raised by Settings.validate_or_raise() when configuration is invalid."""
 
 
 # ── Env-var helpers ───────────────────────────────────────────────────────────
@@ -290,6 +294,97 @@ class Settings:
     warden_region: str = field(
         default_factory=lambda: _env("WARDEN_REGION", "default")
     )
+
+
+    # ── Security (cont.) ────────────────────────────────
+    # VAULT master key (Fernet) — wraps community keypairs + data-pod secrets.
+    vault_master_key: str = field(
+        default_factory=lambda: _env("VAULT_MASTER_KEY", "")
+    )
+    # Allow unauthenticated access when no API key is configured (dev/test only).
+    allow_unauthenticated: bool = field(
+        default_factory=lambda: _bool("ALLOW_UNAUTHENTICATED", False)
+    )
+    # Fail the boot if the live pipeline canary misses a jailbreak (Deep-Eng P0.3).
+    pipeline_failclosed_on_canary: bool = field(
+        default_factory=lambda: _bool("PIPELINE_FAILCLOSED_ON_CANARY", False)
+    )
+
+    # Prompt Shield (LLM-injection pre-screen). Enabled by default; the actual
+    # gate lives in openai_proxy — this is the single source of truth.
+    prompt_shield_enabled: bool = field(
+        default_factory=lambda: _bool("PROMPT_SHIELD_ENABLED", True)
+    )
+
+    # Default tenant id for background jobs / unattributed events.
+    default_tenant_id: str = field(
+        default_factory=lambda: _env("DEFAULT_TENANT_ID", "default")
+    )
+
+    # ── Validation & audit (Deep-Eng P1) ────────────────────
+    _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
+
+    def validate(self) -> list[str]:
+        """Return human-readable config problems (empty list = healthy).
+
+        Non-raising — callers decide to warn or fail-closed. Covers drift
+        classes that have bitten prod: out-of-range thresholds, non-positive
+        timeouts, an invalid Fernet master key, and fail-open auth with no key.
+        """
+        problems: list[str] = []
+
+        def _unit(name: str) -> None:
+            v = getattr(self, name)
+            if not 0.0 <= v <= 1.0:
+                problems.append(f"{name}={v} out of range [0,1]")
+
+        for _n in ("semantic_threshold", "hyperbolic_weight", "causal_risk_threshold",
+                   "se_risk_threshold", "phish_url_threshold", "cb_bypass_threshold",
+                   "image_guard_threshold"):
+            _unit(_n)
+
+        for _n in ("cache_ttl_seconds", "cb_window_secs", "cb_min_requests",
+                   "cb_cooldown_secs", "webhook_timeout_s", "webhook_max_retries",
+                   "nim_timeout_seconds", "max_corpus_rules", "evolution_rate_window",
+                   "evolution_rate_max", "tenant_rate_limit", "image_pipeline_timeout_ms",
+                   "audio_pipeline_timeout_ms"):
+            if getattr(self, _n) <= 0:
+                problems.append(f"{_n}={getattr(self, _n)} must be > 0")
+
+        # Fail-closed auth (invariant #11): no key configured is only OK in dev.
+        if not self.warden_api_key and not self.warden_api_keys_path and not self.allow_unauthenticated:
+            problems.append(
+                "no WARDEN_API_KEY / WARDEN_API_KEYS_PATH set and ALLOW_UNAUTHENTICATED "
+                "is false — gateway would fail closed at auth"
+            )
+
+        # VAULT master key (invariant #1): if set, must be a valid Fernet key.
+        if self.vault_master_key:
+            try:
+                from cryptography.fernet import Fernet
+                Fernet(self.vault_master_key.encode())
+            except Exception as exc:  # noqa: BLE001
+                problems.append(f"VAULT_MASTER_KEY is not a valid Fernet key: {exc!r}")
+
+        return problems
+
+    def validate_or_raise(self) -> None:
+        """Raise ConfigValidationError if any problem is found."""
+        problems = self.validate()
+        if problems:
+            raise ConfigValidationError("invalid configuration: " + "; ".join(problems))
+
+    def redacted_dump(self) -> dict[str, object]:
+        """All settings as a dict with secret-like values masked — safe to log at
+        startup for an auditable record of the effective configuration."""
+        out: dict[str, object] = {}
+        for f in fields(self):
+            val = getattr(self, f.name)
+            if val and any(h in f.name for h in self._SECRET_HINT):
+                out[f.name] = "***set***"
+            else:
+                out[f.name] = val
+        return out
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────────

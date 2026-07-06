@@ -30,7 +30,7 @@ class CommunityComplianceReport:
 
 def _check_charter(community_id: str) -> ComplianceControl:
     try:
-        from warden.communities.charter import get_charter  # type: ignore[import]
+        from warden.communities.charter import get_charter
         c = get_charter(community_id)
         if c and getattr(c, "status", "") == "ACTIVE":
             return ComplianceControl("charter_exists", "PASS", 1.0, "Active charter on file")
@@ -55,7 +55,7 @@ def _check_member_audit(community_id: str) -> ComplianceControl:
 
 def _check_data_encryption(community_id: str) -> ComplianceControl:
     try:
-        import warden.communities.data_pod  # noqa: F401  # type: ignore[import]
+        import warden.communities.data_pod
         # Sovereign data pods always use Fernet AES-256
         return ComplianceControl(
             "data_encryption", "PASS", 1.0,
@@ -75,7 +75,7 @@ def _check_data_encryption(community_id: str) -> ComplianceControl:
 
 def _check_stix_audit(community_id: str) -> ComplianceControl:
     try:
-        from warden.communities.stix_audit import verify_chain  # type: ignore[import]
+        from warden.communities.stix_audit import verify_chain
         ok, msg = verify_chain(community_id)
         if ok:
             return ComplianceControl("stix_audit_chain", "PASS", 1.0, msg)
@@ -86,7 +86,7 @@ def _check_stix_audit(community_id: str) -> ComplianceControl:
 
 def _check_peering(community_id: str) -> ComplianceControl:
     try:
-        from warden.communities.peering import list_peerings  # type: ignore[import]
+        from warden.communities.peering import list_peerings
         peerings = list_peerings(community_id)
         active = [p for p in peerings if getattr(p, "status", "") == "ACTIVE"]
         if active:

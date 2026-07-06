@@ -47,10 +47,15 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from warden.secret_keys import resolve_key
+
 log = logging.getLogger("warden.communities.model_share")
 
 _DB_PATH   = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
-_HMAC_KEY  = os.getenv("COMMUNITY_VAULT_KEY", "model-share-default")
+
+
+def _hmac_key() -> bytes:
+    return resolve_key("COMMUNITY_VAULT_KEY", purpose="model_share")
 
 
 @dataclass
@@ -90,7 +95,7 @@ def _db() -> sqlite3.Connection:
 
 
 def _sign(payload: str) -> str:
-    return _hmac.new(_HMAC_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return _hmac.new(_hmac_key(), payload.encode(), hashlib.sha256).hexdigest()
 
 
 def _verify_hmac(payload: str, sig: str) -> bool:

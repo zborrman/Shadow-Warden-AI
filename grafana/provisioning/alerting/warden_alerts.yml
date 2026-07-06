@@ -914,3 +914,89 @@ groups:
                   type: query
               refId: C
               type: classic_conditions
+
+  # ── Fail-open observability (Deep-Eng P0) ────────────────────────────────────
+  - orgId: 1
+    name: warden_failopen
+    folder: Shadow Warden
+    interval: 1m
+    rules:
+
+      # ── Fail-open spike: a guard errored and requests are being allowed ──────
+      - uid: warden-stage-failopen-spike
+        title: "Warden — Fail-open spike (guard bypassed)"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(increase(warden_stage_failopen_total[5m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        noDataState: OK
+        execErrState: Alerting
+        for: 0m
+        labels:
+          severity: critical
+          team: warden
+        annotations:
+          summary: "Warden fail-open events firing — requests may be bypassing a guard"
+          description: >
+            warden_stage_failopen_total increased in the last 5 minutes: a security
+            guard errored and allowed the request through (fail-open). Break down by
+            stage/reason in Prometheus. Common causes: Redis down (redis_unavailable),
+            model not loaded (model_not_loaded), upstream timeout.
+
+      # ── Live pipeline canary missing known jailbreaks (detector degraded) ────
+      - uid: warden-pipeline-canary-missed
+        title: "Warden — Pipeline canary missing jailbreaks"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                max(warden_pipeline_canary_missed)
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        noDataState: OK
+        execErrState: Alerting
+        for: 1m
+        labels:
+          severity: critical
+          team: warden
+        annotations:
+          summary: "Warden live canary is missing known jailbreaks — detector degraded"
+          description: >
+            The live-pipeline canary self-test (warden_pipeline_canary_missed > 0) shows
+            the detector is letting blatant jailbreaks through. Likely a bad model/corpus
+            deploy. Check GET /health/pipeline?deep=true and recent EvolutionEngine changes.

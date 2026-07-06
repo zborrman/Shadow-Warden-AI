@@ -28,7 +28,7 @@ Always cite your reasoning and flag anything that should go to a human.
 class BDRAgent(StaffAgentRunner):
     AGENT_ID = "bdr"
     SYSTEM_PROMPT = _SYSTEM
-    TOOLS = BDR_TOOLS  # type: ignore[assignment]
+    TOOLS = BDR_TOOLS
 
 
 async def run_bdr_query(

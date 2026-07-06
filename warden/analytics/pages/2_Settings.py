@@ -199,8 +199,8 @@ with tab_bridge:
     if manual_sync:
         with st.spinner("Running threat synchronization cycle …"):
             try:
-                import warden.main as _main
-                bridge = getattr(_main, "_intel_bridge", None)
+                from warden.runtime import runtime as _runtime
+                bridge = _runtime.get("intel_bridge")
                 if bridge is not None:
                     loop = asyncio.new_event_loop()
                     summary = loop.run_until_complete(bridge.synchronize_threats())
@@ -499,7 +499,7 @@ with tab_guide:
     except ImportError:
         _RL_AVAILABLE = False
 
-    def _build_guide_pdf() -> bytes:  # noqa: PLR0912
+    def _build_guide_pdf() -> bytes:
         import io
         from datetime import UTC, datetime
         buf = io.BytesIO()
@@ -513,7 +513,7 @@ with tab_guide:
         code = sty["Code"]
         story: list = []
 
-        def p(text, style=ns):  # type: ignore[assignment]
+        def p(text, style=ns):
             story.append(Paragraph(text, style))
 
         def rule():

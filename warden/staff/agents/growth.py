@@ -28,7 +28,7 @@ Always provide measurable success metrics with every proposal.
 class GrowthAgent(StaffAgentRunner):
     AGENT_ID = "growth"
     SYSTEM_PROMPT = _SYSTEM
-    TOOLS = GROWTH_TOOLS  # type: ignore[assignment]
+    TOOLS = GROWTH_TOOLS
 
 
 async def run_growth_query(

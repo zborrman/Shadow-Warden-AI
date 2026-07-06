@@ -142,7 +142,10 @@ def _ingest_attribute(attr: dict, event_info: str = "") -> None:
     elif atype in _IP_TYPES:
         ip = value.split("|")[0].strip()
         try:
-            from warden.main import _threat_store  # noqa: PLC0415
+            from warden.runtime import runtime as _runtime  # noqa: PLC0415
+            _threat_store = _runtime.get("threat_store")
+            if _threat_store is None:
+                raise RuntimeError("threat_store not published to runtime")
             _threat_store.block_ip(
                 ip=ip, tenant_id=_MISP_TENANT_ID,
                 reason=comment, blocked_by="misp_bridge",
@@ -189,9 +192,9 @@ async def _zmq_loop() -> None:
         return
 
     ctx = azmq.Context()
-    sock = ctx.socket(zmq.SUB)   # type: ignore[attr-defined]
+    sock = ctx.socket(zmq.SUB)
     sock.connect(_MISP_ZMQ_URL)
-    sock.setsockopt_string(zmq.SUBSCRIBE, "misp_json")  # type: ignore[attr-defined]
+    sock.setsockopt_string(zmq.SUBSCRIBE, "misp_json")
     log.info("misp_bridge: ZMQ subscribed to %s", _MISP_ZMQ_URL)
 
     while True:

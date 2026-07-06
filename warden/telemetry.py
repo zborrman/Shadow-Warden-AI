@@ -251,14 +251,14 @@ class _NoOpSpan:
 
     __slots__ = ()
 
-    def set_attribute(self, key: str, value: Any) -> None:  # noqa: ARG002
+    def set_attribute(self, key: str, value: Any) -> None:
         pass
 
     def set_status(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def record_exception(self, exc: Exception) -> None:  # noqa: ARG002
+    def record_exception(self, exc: Exception) -> None:
         pass
 
-    def add_event(self, name: str, attributes: dict | None = None) -> None:  # noqa: ARG002
+    def add_event(self, name: str, attributes: dict | None = None) -> None:
         pass

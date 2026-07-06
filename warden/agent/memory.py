@@ -114,7 +114,7 @@ def _pgvector_conn():
         return None
     try:
         if _pgconn is None or _pgconn.closed:
-            import psycopg2  # type: ignore[import]  # noqa: PLC0415
+            import psycopg2  # noqa: PLC0415
             _pgconn = psycopg2.connect(_PG_URL)
             _ensure_schema(_pgconn)
         return _pgconn

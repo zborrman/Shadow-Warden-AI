@@ -29,10 +29,13 @@ from pydantic import BaseModel
 
 log = logging.getLogger("warden.marketplace.api")
 
-router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
-
-# Sub-routers are included directly on the FastAPI app (in main.py) with
-# prefix="/marketplace" to avoid FastAPI _IncludedRouter nesting issues.
+# NB: the router is created WITHOUT a built-in prefix. Callers include it with
+# `include_router(router, prefix="/marketplace")`. Including a self-prefixed
+# router (prefix baked into APIRouter) via `include_router(router)` triggers a
+# FastAPI/Starlette _IncludedRouter drop on newer versions — the routes silently
+# never reach app.routes. The sibling sub-routers already use the prefix-arg
+# pattern for the same reason.
+router = APIRouter(tags=["Marketplace"])
 
 
 def _require_marketplace_gate() -> None:
@@ -152,7 +155,7 @@ async def register_market_agent(body: RegisterRequest) -> dict:
     agent_id = result.get("agent_id", "")
     if agent_id:
         try:
-            from warden.marketplace.kya import register_agent as kya_register  # noqa: PLC0415,I001
+            from warden.marketplace.kya import register_agent as kya_register  # noqa: PLC0415
             from warden.marketplace.kya import screen_agent  # noqa: PLC0415
             kya_record = kya_register(agent_id, owner_tenant_id=body.tenant_id)
             kya_record = screen_agent(agent_id)
@@ -486,7 +489,7 @@ async def dispatch_action(
             log.debug("x402 gate fail-open: %s", _x402_exc)
 
     try:
-        result = await handler(**body.payload)  # type: ignore[operator]
+        result = await handler(**body.payload)
 
         # Queue deduction after successful search (batch settlement in v2)
         if body.action_type == "search":
@@ -495,7 +498,7 @@ async def dispatch_action(
                 or request.headers.get("X-Agent-ID", "anonymous")
             )
             try:
-                from warden.marketplace.x402_gate import deduct_payment  # noqa: PLC0415, F811
+                from warden.marketplace.x402_gate import deduct_payment  # noqa: PLC0415
                 await deduct_payment(str(_agent_id), "marketplace/search")
             except Exception as _ded_exc:
                 log.debug("x402 deduct fail-open: %s", _ded_exc)
@@ -881,7 +884,7 @@ async def marketplace_readiness(community_id: str) -> dict:
 async def get_soc2_report(
     period_days: int = Query(default=90, ge=1, le=365, description="Look-back window in days"),
     format: str   = Query(default="json", pattern="^(json|zip)$"),
-    request: Request = None,  # type: ignore[assignment]
+    request: Request = None,
 ) -> Any:
     """Compile SOC 2 Type II evidence for the requesting tenant over the period.
 
@@ -1059,6 +1062,97 @@ async def marketplace_recent_trades(
     """Return the N most-recent cleared marketplace trades for the live ticker."""
     from warden.marketplace.analytics import get_recent_trades  # noqa: PLC0415
     return get_recent_trades(limit=limit) or []
+
+
+@router.get("/analytics/chart-data")
+async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90)) -> dict:
+    """Combined chart data: volume series + payment breakdown + agent activity + summary.
+    Single endpoint so the marketplace frontend makes one call for all charts.
+    """
+    import sqlite3 as _sq  # noqa: PLC0415
+
+    from warden.marketplace.analytics import get_summary, get_volume_series  # noqa: PLC0415
+
+    db = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    summary = get_summary(period_days=period_days, db_path=db)
+    volume = get_volume_series(period_days=period_days, db_path=db)
+
+    # Payment method breakdown — derive from listings currency + l402/x402 columns if present
+    payment_breakdown: dict[str, int] = {"flex_credits": 0, "x402_usdc": 0, "l402_lightning": 0}
+    agent_activity: list[dict] = []
+    kya_distribution: dict[str, int] = {"VERIFIED": 0, "PENDING": 0, "FLAGGED": 0, "REVOKED": 0}
+    top_agents: list[dict] = []
+
+    try:
+        con = _sq.connect(db)
+        con.row_factory = _sq.Row
+        # Payment method breakdown from purchases
+        try:
+            rows = con.execute(
+                "SELECT payment_method, COUNT(*) as cnt FROM marketplace_purchases "
+                "WHERE status='completed' GROUP BY payment_method"
+            ).fetchall()
+            for r in rows:
+                m = str(r["payment_method"] or "flex_credits").lower()
+                if "l402" in m or "lightning" in m:
+                    payment_breakdown["l402_lightning"] += int(r["cnt"])
+                elif "x402" in m or "usdc" in m:
+                    payment_breakdown["x402_usdc"] += int(r["cnt"])
+                else:
+                    payment_breakdown["flex_credits"] += int(r["cnt"])
+        except Exception:
+            pass
+
+        # Daily agent activity (new registrations per day)
+        try:
+            rows = con.execute(
+                f"SELECT DATE(registered_at) as d, COUNT(*) as cnt FROM marketplace_agents "
+                f"WHERE registered_at >= date('now', '-{period_days} days') "
+                f"GROUP BY DATE(registered_at) ORDER BY d"
+            ).fetchall()
+            agent_activity = [{"date": r["d"], "count": int(r["cnt"])} for r in rows]
+        except Exception:
+            pass
+
+        # KYA distribution
+        try:
+            rows = con.execute(
+                "SELECT kya_status, COUNT(*) as cnt FROM marketplace_kya GROUP BY kya_status"
+            ).fetchall()
+            for r in rows:
+                s = str(r["kya_status"]).upper()
+                if s in kya_distribution:
+                    kya_distribution[s] = int(r["cnt"])
+        except Exception:
+            pass
+
+        # Top agents by volume
+        try:
+            rows = con.execute(
+                "SELECT buyer_agent as agent_id, COALESCE(SUM(price_paid),0) as vol, COUNT(*) as trades "
+                "FROM marketplace_purchases WHERE status='completed' "
+                "GROUP BY buyer_agent ORDER BY vol DESC LIMIT 8"
+            ).fetchall()
+            top_agents = [
+                {"agent_id": r["agent_id"], "volume_usd": round(float(r["vol"]), 2), "trades": int(r["trades"])}
+                for r in rows
+            ]
+        except Exception:
+            pass
+
+        con.close()
+    except Exception:
+        pass
+
+    return {
+        "period_days": period_days,
+        "summary": summary,
+        "volume_series": volume,
+        "payment_breakdown": payment_breakdown,
+        "agent_activity": agent_activity,
+        "kya_distribution": kya_distribution,
+        "top_agents": top_agents,
+    }
 
 
 # ── KYA (Know Your Agent) endpoints ──────────────────────────────────────────

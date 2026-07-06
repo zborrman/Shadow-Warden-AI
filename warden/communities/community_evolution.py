@@ -60,7 +60,7 @@ def _db():
 
 def _assign_ueciid() -> str:
     try:
-        from warden.communities.sep import new_ueciid  # type: ignore[import]
+        from warden.communities.sep import new_ueciid
         result = new_ueciid()
         return str(result[0]) if isinstance(result, tuple) else str(result)
     except Exception:
@@ -157,7 +157,7 @@ def import_rule(bundle_id: str, target_community_id: str) -> bool:  # noqa: ARG0
         return False
 
     try:
-        from warden.brain.evolve import EvolutionEngine  # type: ignore[import]
+        from warden.brain.evolve import EvolutionEngine
         eng = EvolutionEngine()
         if bundle.rule_type in ("embedding_example", "jailbreak_signature"):
             eng.add_examples([{"text": bundle.rule_content, "label": "jailbreak"}])

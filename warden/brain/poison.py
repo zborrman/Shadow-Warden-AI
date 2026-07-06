@@ -259,7 +259,7 @@ class DataPoisoningGuard:
             emb   = torch.tensor(
                 model.encode([content], convert_to_numpy=True, show_progress_bar=False)
             )
-            corpus_emb = torch.as_tensor(self._guard._corpus_embeddings)  # type: ignore[attr-defined]
+            corpus_emb = torch.as_tensor(self._guard._corpus_embeddings)
             if corpus_emb is not None and len(corpus_emb) >= 20:
                 sims = torch.nn.functional.cosine_similarity(
                     emb, corpus_emb, dim=1
@@ -362,7 +362,7 @@ class DataPoisoningGuard:
     def _corpus_health_sync(self) -> CorpusHealthReport:
         report = CorpusHealthReport(checked_at=time.time())
         try:
-            corpus_emb = torch.as_tensor(self._guard._corpus_embeddings)   # type: ignore[attr-defined]
+            corpus_emb = torch.as_tensor(self._guard._corpus_embeddings)
 
             # Centroid drift
             if corpus_emb is not None and self._corpus_baseline_centroid is not None:
@@ -416,7 +416,7 @@ class DataPoisoningGuard:
 
     def _save_snapshot_sync(self) -> bool:
         try:
-            emb = torch.as_tensor(self._guard._corpus_embeddings)  # type: ignore[attr-defined]
+            emb = torch.as_tensor(self._guard._corpus_embeddings)
             if emb is None or len(emb) == 0:
                 return False
             arr      = emb.numpy()
@@ -478,7 +478,7 @@ class DataPoisoningGuard:
                 return False
             data = np.load(str(npz_path))
             arr  = data["embeddings"]
-            self._guard._corpus_embeddings = torch.tensor(arr)  # type: ignore[attr-defined]
+            self._guard._corpus_embeddings = torch.tensor(arr)
             if json_path.exists():
                 with open(json_path, encoding="utf-8") as fh:
                     examples = json.load(fh)

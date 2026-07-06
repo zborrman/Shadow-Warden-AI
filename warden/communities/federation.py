@@ -33,12 +33,15 @@ import os
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+from warden.secret_keys import resolve_key
+
 log = logging.getLogger("warden.communities.federation")
 
 _FEDERATION_ENABLED  = os.getenv("FEDERATION_ENABLED", "false").lower() == "true"
 _VERDICT_TTL         = int(os.getenv("FEDERATION_VERDICT_TTL", str(86_400 * 7)))
 _BOOST               = float(os.getenv("FEDERATION_SCORE_BOOST", "0.15"))
-_HMAC_KEY            = os.getenv("COMMUNITY_VAULT_KEY", "federation-default-key")
+def _hmac_key() -> bytes:
+    return resolve_key("COMMUNITY_VAULT_KEY", purpose="federation")
 
 _MEMORY_VERDICTS: dict[str, list] = {}
 
@@ -55,7 +58,7 @@ class FederatedVerdict:
 
 
 def _threat_hash(text: str, community_id: str) -> str:
-    key = f"{_HMAC_KEY}:{community_id}".encode()
+    key = _hmac_key() + b":" + community_id.encode()
     return hmac.new(key, text.encode(), hashlib.sha256).hexdigest()[:32]
 
 

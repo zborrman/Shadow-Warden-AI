@@ -182,7 +182,7 @@ async def start_syslog_sink(tenant_id: str = _DEFAULT_TENANT) -> asyncio.Datagra
             "syslog_sink: started on UDP %d (tenant=%s)",
             _SYSLOG_PORT, tenant_id,
         )
-        return transport  # type: ignore[return-value]
+        return transport
     except OSError as exc:
         log.warning(
             "syslog_sink: could not bind UDP %d — %s (run as root or set SHADOW_AI_SYSLOG_PORT)",

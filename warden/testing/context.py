@@ -154,5 +154,13 @@ def fake_evolution_context(semantic_guard=None):
     fake = FakeEvolutionEngine()
     if semantic_guard is not None:
         fake.set_guard(semantic_guard)
-    with patch("warden.main._evolve", fake):
-        yield fake
+    # Patch both the legacy main global and the runtime container (Phase 1):
+    # domain modules now read the EvolutionEngine from warden.runtime.
+    from warden.runtime import runtime as _rt
+    _prev = _rt.evolve
+    _rt.publish(evolve=fake)
+    try:
+        with patch("warden.main._evolve", fake):
+            yield fake
+    finally:
+        _rt.publish(evolve=_prev)

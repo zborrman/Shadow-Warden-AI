@@ -2,13 +2,14 @@ apiVersion: v2
 name: shadow-warden
 description: Shadow Warden AI — Zero-trust AI security gateway (all 11 services)
 type: application
-version: 6.3.0
-appVersion: "6.3"
+version: 7.4.0
+appVersion: "7.4"
 keywords:
   - ai-security
   - jailbreak-detection
   - gdpr
   - soc2
+icon: https://shadow-warden-ai.com/logo.png
 home: https://shadow-warden-ai.com
 sources:
   - https://github.com/zborrman/Shadow-Warden-AI

@@ -34,7 +34,7 @@ Hard limits:
 class ComplianceAgent(StaffAgentRunner):
     AGENT_ID = "compliance"
     SYSTEM_PROMPT = _SYSTEM
-    TOOLS = COMPLIANCE_TOOLS  # type: ignore[assignment]
+    TOOLS = COMPLIANCE_TOOLS
 
 
 async def run_compliance_query(

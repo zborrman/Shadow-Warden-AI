@@ -102,6 +102,8 @@ def run_turso_migrations() -> None:
         ("billing_audit", _BILLING_AUDIT_DDL),
         ("acp",           _ACP_DDL),
         ("staff",         _STAFF_DDL),
+        ("sep",           _SEP_DDL),
+        ("marketplace",   _MARKETPLACE_DDL),
     ]
     for db_name, ddl in migrations:
         if is_turso_enabled(db_name):
@@ -166,6 +168,67 @@ _STAFF_DDL = """
         cost_usd REAL NOT NULL, ts INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_sac_tenant ON staff_action_costs(tenant_id, ts);
+    CREATE TABLE IF NOT EXISTS staff_a2a_calls (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        call_id         TEXT    NOT NULL UNIQUE,
+        caller_agent_id TEXT    NOT NULL,
+        target_agent_id TEXT    NOT NULL,
+        tool_name       TEXT    NOT NULL,
+        status          TEXT    NOT NULL,
+        latency_ms      REAL    NOT NULL,
+        ts              INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_a2a_caller ON staff_a2a_calls(caller_agent_id, ts);
+"""
+
+_SEP_DDL = """
+    CREATE TABLE IF NOT EXISTS sep_ueciid_index (
+        ueciid        TEXT PRIMARY KEY,
+        snowflake_id  INTEGER NOT NULL,
+        entity_id     TEXT NOT NULL,
+        community_id  TEXT NOT NULL,
+        display_name  TEXT NOT NULL DEFAULT '',
+        content_type  TEXT NOT NULL DEFAULT 'application/octet-stream',
+        byte_size     INTEGER NOT NULL DEFAULT 0,
+        created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE INDEX IF NOT EXISTS ueciid_community_idx ON sep_ueciid_index(community_id);
+    CREATE INDEX IF NOT EXISTS ueciid_snowflake_idx ON sep_ueciid_index(snowflake_id);
+    CREATE INDEX IF NOT EXISTS idx_sep_ueciid ON sep_ueciid_index(ueciid, community_id);
+    CREATE TABLE IF NOT EXISTS sep_pod_tags (
+        entity_id     TEXT NOT NULL,
+        community_id  TEXT NOT NULL,
+        jurisdiction  TEXT NOT NULL DEFAULT 'EU',
+        data_class    TEXT NOT NULL DEFAULT 'GENERAL',
+        notes         TEXT NOT NULL DEFAULT '',
+        created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        PRIMARY KEY (entity_id, community_id)
+    );
+    CREATE INDEX IF NOT EXISTS pod_community_idx ON sep_pod_tags(community_id);
+"""
+
+_MARKETPLACE_DDL = """
+    CREATE TABLE IF NOT EXISTS kya_agent_profiles (
+        did             TEXT PRIMARY KEY,
+        owner_tenant_id TEXT NOT NULL DEFAULT '',
+        pubkey_b64      TEXT NOT NULL DEFAULT '',
+        trust_score     REAL NOT NULL DEFAULT 0.5,
+        reputation_json TEXT NOT NULL DEFAULT '{}',
+        kya_status      TEXT NOT NULL DEFAULT 'PENDING',
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_kya_owner  ON kya_agent_profiles(owner_tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_kya_status ON kya_agent_profiles(kya_status);
+    CREATE TABLE IF NOT EXISTS kya_trust_events (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        did         TEXT NOT NULL,
+        delta       REAL NOT NULL,
+        reason      TEXT NOT NULL DEFAULT '',
+        new_score   REAL NOT NULL,
+        ts          TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_kte_did ON kya_trust_events(did, ts);
 """
 
 
@@ -203,6 +266,8 @@ OPTIONAL_ROUTERS: list[RouterSpec] = [
     RouterSpec("warden.api.obsidian",                  label="Obsidian /obsidian"),
     RouterSpec("warden.agent.master",                  attr="master_router",  label="MasterAgent /agent/master"),
     RouterSpec("warden.mcp.gateway",                   label="MCP Paid Tools /mcp"),
+    RouterSpec("warden.api.kya",                       label="KYA DIDs /kya"),
+    RouterSpec("warden.api.discovery",                 label="Agent Discovery /.well-known"),
     # Staff subsystem — registered via register_staff_routers()
     *STAFF_ROUTERS,
 ]

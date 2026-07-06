@@ -254,8 +254,8 @@ class AgentMonitor:
             try:
                 raw = r.get(self._r_meta_key(session_id))
                 return json.loads(raw) if raw else None
-            except Exception:
-                pass
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("suppressed exception: %r", _exc)
         with self._fallback_lock:
             entry = self._fallback.get(session_id)
         if entry is None:
@@ -275,8 +275,8 @@ class AgentMonitor:
                     ex=ttl,
                 )
                 return
-            except Exception:
-                pass
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("suppressed exception: %r", _exc)
         with self._fallback_lock:
             if session_id not in self._fallback:
                 self._fallback[session_id] = {"meta": {}, "events": []}
@@ -291,8 +291,8 @@ class AgentMonitor:
                 r.rpush(key, line)
                 r.expire(key, ttl)
                 return
-            except Exception:
-                pass
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("suppressed exception: %r", _exc)
         with self._fallback_lock:
             if session_id not in self._fallback:
                 self._fallback[session_id] = {"meta": {}, "events": []}
@@ -308,8 +308,8 @@ class AgentMonitor:
                     with contextlib.suppress(json.JSONDecodeError):
                         events.append(json.loads(raw))
                 return events
-            except Exception:
-                pass
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("suppressed exception: %r", _exc)
         with self._fallback_lock:
             entry = self._fallback.get(session_id)
         return list(entry["events"]) if entry else []
@@ -320,8 +320,8 @@ class AgentMonitor:
             try:
                 r.expire(self._r_meta_key(session_id),   ttl)
                 r.expire(self._r_events_key(session_id), ttl)
-            except Exception:
-                pass
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("suppressed exception: %r", _exc)
 
     # ── Session creation helper ───────────────────────────────────────────────
 
@@ -526,8 +526,8 @@ class AgentMonitor:
         try:
             from warden.metrics import AGENT_SESSIONS_REVOKED_TOTAL  # noqa: PLC0415
             AGENT_SESSIONS_REVOKED_TOTAL.inc()
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
 
         return {"session_id": session_id, "revoked": True, "revoked_at": now,
                 "reason": reason or "admin_kill_switch"}
@@ -642,12 +642,12 @@ class AgentMonitor:
             self._check_worm_propagation,
         ):
             try:
-                threat = check(meta, events, policy)  # type: ignore[call-arg]
+                threat = check(meta, events, policy)
                 if threat and threat.pattern not in already:
                     found.append(threat)
                     already.add(threat.pattern)
-            except Exception:
-                pass
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("suppressed exception: %r", _exc)
         return found
 
     def _check_rapid_block(
@@ -925,8 +925,8 @@ class AgentMonitor:
             AGENT_SESSION_BLOCKS.labels(
                 tenant_id=meta.get("tenant_id", "default"),
             ).inc(len(threats))
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
 
         # Flush summary to sessions.json
         _flush_session_summary(session_id, meta)

@@ -64,7 +64,7 @@ async def threat_matrix(
         Query(description="Filter by sector: B2B | B2C | E-Commerce"),
     ] = None,
 ) -> list[dict]:
-    return get_threat_matrix(sector)  # type: ignore[arg-type]
+    return get_threat_matrix(sector)
 
 
 @router.get(

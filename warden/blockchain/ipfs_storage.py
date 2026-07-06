@@ -19,7 +19,7 @@ def _pin(data: dict) -> str:
     """Store JSON data on IPFS, return CID. Simulates CID when IPFS unavailable."""
     payload = json.dumps(data, sort_keys=True).encode()
     try:
-        import ipfshttpclient  # type: ignore
+        import ipfshttpclient
         client = ipfshttpclient.connect(_IPFS_URL)
         result = client.add_json(data)
         return result
@@ -31,7 +31,7 @@ def _pin(data: dict) -> str:
 
 def _fetch(cid: str) -> dict:
     try:
-        import ipfshttpclient  # type: ignore
+        import ipfshttpclient
         client = ipfshttpclient.connect(_IPFS_URL)
         return client.get_json(cid)
     except Exception:

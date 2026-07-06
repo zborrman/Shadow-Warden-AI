@@ -294,7 +294,7 @@ async def scan_document(
     # Convert via Document Intelligence
     md_text = ""
     try:
-        from warden.document_intel.converter import MarkItDownConverter  # type: ignore
+        from warden.document_intel.converter import MarkItDownConverter
         conv = MarkItDownConverter()
         md_text = conv.convert_bytes(content, filename=file.filename or "upload.bin").markdown
         result["markdown_chars"] = len(md_text)
@@ -336,7 +336,7 @@ async def scan_document(
     # Auto-log incident for blocked/high-risk documents
     if result.get("blocked") or result.get("score", 0) > 0.7:
         try:
-            from warden.communities.incident_register import log_incident  # type: ignore
+            from warden.communities.incident_register import log_incident
             log_incident(
                 tenant_id=uploader_tenant_id,
                 title=f"Document threat: {file.filename}",
@@ -358,7 +358,7 @@ async def scan_document(
 @router.get("/{community_id}/peers", summary="List peerings")
 def get_peers(community_id: str):
     try:
-        from warden.communities.peering import list_peerings  # type: ignore
+        from warden.communities.peering import list_peerings
         peerings = list_peerings(community_id)
         return [_dc(p) for p in peerings]
     except Exception:
@@ -368,7 +368,7 @@ def get_peers(community_id: str):
 @router.post("/{community_id}/peer", status_code=201, summary="Request peering")
 def request_peering(community_id: str, req: PeerIn):
     try:
-        from warden.communities.peering import initiate_peering  # type: ignore
+        from warden.communities.peering import initiate_peering
         result = initiate_peering(community_id, req.target_community_id, req.policy)
         return result if isinstance(result, dict) else _dc(result)
     except AttributeError:
@@ -434,7 +434,7 @@ def get_analytics(community_id: str, days: int = Query(7, ge=1, le=90)):
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     try:
-        from warden.communities.membership import list_members  # noqa: I001
+        from warden.communities.membership import list_members
         members = list_members(community_id)
         result["member_count"] = len(members)
         roles: dict[str, int] = {}

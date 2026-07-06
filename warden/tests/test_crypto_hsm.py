@@ -134,7 +134,7 @@ class TestHSMSignerSoftwareFallback:
 
         # Simulate pkcs11 not installed
         orig = sys.modules.get("pkcs11")
-        sys.modules["pkcs11"] = None  # type: ignore
+        sys.modules["pkcs11"] = None
         try:
             from warden.crypto.hsm import HSMSigner
             with pytest.MonkeyPatch().context() as m:

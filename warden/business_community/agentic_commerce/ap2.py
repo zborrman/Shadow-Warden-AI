@@ -26,13 +26,15 @@ from datetime import UTC, datetime
 from cryptography.fernet import Fernet
 
 from warden.business_community.agentic_commerce.models import Mandate, Receipt
+from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.commerce.ap2")
 
 _DB_PATH  = os.getenv("COMMERCE_DB_PATH", "/tmp/warden_commerce.db")
 _vault_key = os.getenv("VAULT_MASTER_KEY", "")
 _FERNET   = Fernet(_vault_key.encode() if _vault_key else Fernet.generate_key())
-_HMAC_KEY = os.getenv("VAULT_MASTER_KEY", "insecure-default").encode()
+def _hmac_key() -> bytes:
+    return resolve_key("AP2_HMAC_KEY", purpose="ap2_mandate")
 _db_lock  = threading.RLock()
 
 
@@ -80,7 +82,7 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
 def _sign_mandate(mandate: Mandate) -> str:
     """HMAC-SHA256 over canonical mandate fields."""
     canonical = f"{mandate.id}|{mandate.tenant_id}|{mandate.max_amount}|{mandate.currency}|{mandate.valid_until}"
-    return hmac.new(_HMAC_KEY, canonical.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(_hmac_key(), canonical.encode(), hashlib.sha256).hexdigest()
 
 
 def _encrypt(data: dict) -> bytes:

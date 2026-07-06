@@ -91,7 +91,7 @@ class ActionWhitelist:
             )
             self._conn.commit()
         log.info("whitelist: rule added agent=%s method=%s glob=%s", agent_id, method, endpoint_glob)
-        return self.get_rule(rule_id)  # type: ignore[return-value]
+        return self.get_rule(rule_id)
 
     def get_rules(self, agent_id: str) -> list[dict]:
         rows = self._conn.execute(

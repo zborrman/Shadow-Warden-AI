@@ -81,8 +81,9 @@ def _redis():
 
 
 def _sign(token: str) -> str:
-    key = os.getenv("ADMIN_KEY", os.getenv("VAULT_MASTER_KEY", "fallback-insecure"))
-    return hmac.new(key.encode(), token.encode(), hashlib.sha256).hexdigest()
+    from warden.secret_keys import resolve_key  # noqa: PLC0415
+    key = resolve_key("ADMIN_KEY", purpose="config_approval")
+    return hmac.new(key, token.encode(), hashlib.sha256).hexdigest()
 
 
 def issue_token(key: str, new_value: str, requested_by: str = "unknown") -> PendingChange:

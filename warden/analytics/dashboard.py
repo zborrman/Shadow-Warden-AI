@@ -100,7 +100,7 @@ if not entries:
     st.warning("No log entries found yet. Make some requests through the Warden gateway to populate the dashboard.")
     st.info("Logs are written to: `data/logs.json`")
     if auto_refresh:
-        import time  # noqa: PLC0415
+        import time
         time.sleep(30)
         st.rerun()
     st.stop()

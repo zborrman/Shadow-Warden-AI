@@ -441,11 +441,19 @@ async def apply_community_recommendation(
     import hmac as _hmac  # noqa: PLC0415
     import json as _json  # noqa: PLC0415
     import os as _os2  # noqa: PLC0415
-    secret   = _os2.getenv("ADMIN_KEY", "dev").encode()
+
+    from warden.secret_keys import resolve_key  # noqa: PLC0415
+    secret   = resolve_key("ADMIN_KEY", purpose="approval_token")
     task_hash = _hashlib.sha256(example_text.encode()).hexdigest()[:16]
     token    = _hmac.new(secret, f"apply:{ueciid}:{task_hash}".encode(), _hashlib.sha256).hexdigest()[:24]
 
-    # Store in Redis for approval resolution (fail-open: apply immediately if no Redis)
+    # Store the pending action in Redis so it can be approved later.
+    #
+    # Fail-CLOSED: if the approval store is unavailable we must NOT silently
+    # apply a high-impact corpus mutation without human review. Only dev/test
+    # (ALLOW_UNAUTHENTICATED=true) is allowed to auto-apply; production returns
+    # 503 so the caller retries once the store is back.
+    _dev_mode = _os2.getenv("ALLOW_UNAUTHENTICATED", "false").strip().lower() == "true"
     applied = False
     try:
         import redis  # noqa: PLC0415
@@ -455,16 +463,21 @@ async def apply_community_recommendation(
             3600,
             _json.dumps({"action": f"apply_recommendation:{ueciid}", "context": display_name[:200], "example": example_text}),
         )
-    except Exception:
-        # No Redis — apply immediately (dev/test mode)
+    except Exception as exc:
+        if not _dev_mode:
+            raise HTTPException(
+                status_code=503,
+                detail="Approval store unavailable — high-impact action cannot be gated. Retry later.",
+            ) from exc
+        # Dev/test only — no Redis, apply immediately.
         applied = True
 
     examples_added = 0
     if applied:
         try:
-            from warden import main as _warden_main  # noqa: PLC0415
-            if _warden_main._brain_guard is not None:
-                _warden_main._brain_guard.add_examples([example_text])
+            from warden.runtime import runtime as _rt  # noqa: PLC0415
+            if _rt.brain_guard is not None:
+                _rt.brain_guard.add_examples([example_text])
             examples_added = 1
             # Award reputation points to the source community
             try:

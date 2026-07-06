@@ -312,13 +312,13 @@ def list_expired() -> dict:
 
 # ── ARQ cron jobs ─────────────────────────────────────────────────────────────
 
-async def lifecycle_check_expired(ctx) -> dict:  # type: ignore[type-arg]
+async def lifecycle_check_expired(ctx) -> dict:
     """ARQ daily job — log expired entities."""
     expired = get_lifecycle_manager().check_expired()
     log.info("lifecycle cron: %d expired entities", len(expired))
     return {"expired_count": len(expired)}
 
 
-async def lifecycle_purge_expired(ctx) -> dict:  # type: ignore[type-arg]
+async def lifecycle_purge_expired(ctx) -> dict:
     """ARQ weekly job — purge expired entities."""
     return get_lifecycle_manager().purge_expired()

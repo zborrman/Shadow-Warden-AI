@@ -66,21 +66,18 @@ from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
 import warden.circuit_breaker as _cb
 from warden import entity_risk as _ers
 from warden import shadow_ban as _sban
 from warden.analytics import logger as event_logger
-from warden.analytics.report import get_engine as _get_report_engine
-from warden.auth.saml_provider import SAMLProvider, SamlSession
+from warden.auth.saml_provider import SAMLProvider
 from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import (
     AuthResult,
-    get_rate_limit,
     require_api_key,
     require_ext_auth,
     set_default_rate_limit,
@@ -92,6 +89,7 @@ from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.causal_arbiter import arbitrate as _causal_arbitrate
+from warden.config import settings
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
@@ -117,8 +115,6 @@ from warden.schemas import (
     SemanticFlag,
     UnmaskRequest,
     UnmaskResponse,
-    WebhookRegisterRequest,
-    WebhookStatusResponse,
 )
 from warden.secret_redactor import SecretRedactor
 from warden.semantic_guard import SemanticGuard
@@ -151,7 +147,7 @@ class _JsonFormatter(logging.Formatter):
 
 
 def _configure_json_logging() -> None:
-    log_level = getattr(logging, os.getenv("LOG_LEVEL", "info").upper(), logging.INFO)
+    log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
     fmt = _JsonFormatter()
     handler = logging.StreamHandler()
     handler.setFormatter(fmt)
@@ -208,39 +204,17 @@ async def _docs_auth(
 
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
-
-_RATE_LIMIT = os.getenv("RATE_LIMIT_PER_MINUTE", "60")
-
-
-def _tenant_key(request: Request) -> str:
-    """Rate-limit bucket key: API key when present, IP address as fallback.
-
-    Keying on the API key means each tenant gets their own independent bucket
-    even when all requests arrive from the same nginx IP.
-    """
-    return request.headers.get("x-api-key") or get_remote_address(request)
-
-
-def _tenant_limit(key: str) -> str:
-    """Per-tenant slowapi limit string derived from the key's configured rate.
-
-    slowapi calls this with the value returned by _tenant_key — the API key
-    string when present, or the remote IP as fallback.  get_rate_limit()
-    returns the per-tenant rate_limit from WARDEN_API_KEYS_PATH, falling back
-    to the RATE_LIMIT_PER_MINUTE default for unrecognised / plain-IP keys.
-    """
-    return f"{get_rate_limit(key)}/minute"
-
-
-_limiter = Limiter(
-    key_func=_tenant_key,
-    storage_uri=os.getenv("REDIS_URL", "redis://redis:6379/0"),
-)
+# Hoisted to warden/limiter.py (Phase 3b) so extracted routers can share the same
+# Limiter instance without importing warden.main. Aliases keep every existing
+# @_limiter.limit(...) decorator and the app.state.limiter binding unchanged.
+from warden.limiter import limiter as _limiter  # noqa: E402
+from warden.limiter import tenant_key as _tenant_key  # noqa: E402,F401  (re-export for compat)
+from warden.limiter import tenant_limit as _tenant_limit  # noqa: E402
 
 # ── Dynamic rules path ────────────────────────────────────────────────────────
 
 _DYNAMIC_RULES_PATH = Path(
-    os.getenv("DYNAMIC_RULES_PATH", "/warden/data/dynamic_rules.json")
+    settings.dynamic_rules_path
 )
 
 # ── WebSocket / LLM streaming env vars ───────────────────────────────────────
@@ -276,7 +250,7 @@ def _content_entropy(text: str) -> float:
 @dataclass
 class _DynamicRegexRule:
     rule_id: str
-    pattern: re.Pattern  # type: ignore[type-arg]
+    pattern: re.Pattern
     snippet: str         # first 60 chars of the pattern for logging
 
 
@@ -319,7 +293,7 @@ _policy:         DataPolicyEngine  | None = None
 _feed:           ThreatFeedClient  | None = None
 _saml:           SAMLProvider      | None = None
 _webhook_store:  WebhookStore      | None = None
-_poison_guard:   DataPoisoningGuard | None = None  # type: ignore[assignment]
+_poison_guard:   DataPoisoningGuard | None = None
 _audit_trail = None  # AuditTrail | None — imported lazily in lifespan
 _threat_sync    = None  # ThreatSyncClient | None — cross-region sync
 _corpus_watcher = None  # CorpusSyncWatcher | None — corpus invalidation consumer
@@ -466,11 +440,29 @@ async def lifespan(app: FastAPI):
 
     _lifespan_active = True
 
+    # ── Config validation + auditable snapshot (Deep-Eng P1) ────────────────
+    # Log every config problem at startup (drift visibility — the dev-override
+    # incident would have surfaced here) and record the effective, secret-masked
+    # configuration once per boot for audit. Soft by default; opt into fail-closed
+    # via CONFIG_FAILCLOSED=true so a mis-configured deploy crash-loops instead of
+    # serving with e.g. an out-of-range detection threshold.
+    try:
+        from warden.config import settings as _cfg  # noqa: PLC0415
+        _cfg_problems = _cfg.validate()
+        for _p in _cfg_problems:
+            log.warning("config: %s", _p)
+        log.info("effective config: %s", _cfg.redacted_dump())
+        if _cfg_problems and os.getenv("CONFIG_FAILCLOSED", "false").lower() == "true":
+            from warden.config import ConfigValidationError  # noqa: PLC0415
+            raise ConfigValidationError("; ".join(_cfg_problems))
+    except ImportError as _cfg_err:
+        log.warning("config validation skipped: %r", _cfg_err)
+
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
     # ── #11: Fail-closed auth check ───────────────────────────────────────
-    _api_key   = os.getenv("WARDEN_API_KEY", "")
-    _keys_path = os.getenv("WARDEN_API_KEYS_PATH", "")
+    _api_key   = settings.warden_api_key
+    _keys_path = settings.warden_api_keys_path
     if not _api_key and not _keys_path:
         if os.getenv("ALLOW_UNAUTHENTICATED", "false").lower() != "true":
             raise RuntimeError(
@@ -641,6 +633,30 @@ async def lifespan(app: FastAPI):
             "or ANTHROPIC_API_KEY (Claude) to enable automated rule generation."
         )
 
+    # ── Publish shared singletons to the runtime container (Phase 1) ──────
+    # Domain modules read these from warden.runtime instead of importing main,
+    # which breaks the historic import cycle. See docs/architecture.md.
+    from warden import runtime as _runtime  # noqa: PLC0415
+    _runtime.publish(
+        brain_guard=_brain_guard,
+        evolve=_evolve,
+        redactor=_redactor,
+        guard=_guard,
+        filter_orchestrator=_run_filter_pipeline,
+        threat_vault=_threat_vault,
+        threat_store=_threat_store,
+        poison_guard=_poison_guard,
+        # Phase 3 extracted routers (onboarding/policy/feed/msp)
+        billing=_billing,
+        onboarding=_onboarding,
+        policy=_policy,
+        feed=_feed,
+        # Phase 3 extracted routers (rules/admin)
+        ledger=_ledger,
+        review_queue=_review_queue,
+        dynamic_regex_rules=_dynamic_regex_rules,
+    )
+
     # ── Agent Monitor ─────────────────────────────────────────────────
     if _AGENT_MONITOR_AVAILABLE:
         _agent_monitor = AgentMonitor()
@@ -649,8 +665,10 @@ async def lifespan(app: FastAPI):
         try:
             import warden.openai_proxy as _proxy_mod
             _proxy_mod._agent_monitor = _agent_monitor
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
+        # Publish for extracted routers (api/compliance_report.py, Phase 3)
+        _runtime.publish(agent_monitor=_agent_monitor)
 
     log.info("Filter pipeline ready.")
 
@@ -664,8 +682,8 @@ async def lifespan(app: FastAPI):
     try:
         import warden.openai_proxy as _proxy_mod  # noqa: PLC0415
         _proxy_mod._sandbox_registry = _get_sandbox_registry()
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
     # ── Threat Intelligence Engine (opt-in) ───────────────────────────
     _ti_task = None
@@ -690,6 +708,10 @@ async def lifespan(app: FastAPI):
             )
             _ti_scheduler  = ThreatIntelScheduler(_ti_collector, _ti_analyzer, _ti_factory)
             _ti_task = asyncio.create_task(_ti_scheduler.loop())
+            _runtime.publish(
+                threat_intel_store=_threat_intel_store,
+                ti_scheduler=_ti_scheduler,
+            )
             log.info("ThreatIntelScheduler online (sync every %sh).",
                      os.getenv("THREAT_INTEL_SYNC_HRS", "6"))
         except Exception as _ti_err:
@@ -707,6 +729,7 @@ async def lifespan(app: FastAPI):
                 semantic_guard = _brain_guard,
             )
             _intel_bridge_task = asyncio.create_task(_intel_bridge.run_loop())
+            _runtime.publish(intel_bridge=_intel_bridge)
             log.info(
                 "IntelBridge online (interval=%.0fh).",
                 float(os.getenv("INTEL_BRIDGE_INTERVAL_HRS", "6")),
@@ -729,7 +752,7 @@ async def lifespan(app: FastAPI):
     if _is_postgres():
         try:
             from warden.workers.probe_worker import (
-                probe_scheduler as _probe_scheduler,  # noqa: PLC0415
+                probe_scheduler as _probe_scheduler,
             )
             asyncio.create_task(_probe_scheduler())
             log.info("Uptime probe scheduler started.")
@@ -740,6 +763,8 @@ async def lifespan(app: FastAPI):
 
     # ── Webhook store ─────────────────────────────────────────────────
     _webhook_store = WebhookStore()
+    # Publish for extracted router (api/webhook_config.py, Phase 3b)
+    _runtime.publish(webhook_store=_webhook_store)
     log.info("WebhookStore ready.")
 
     # ── Global Threat Sync (cross-region Redis Streams) ───────────────
@@ -826,6 +851,8 @@ async def lifespan(app: FastAPI):
     try:
         from warden.audit_trail import AuditTrail  # noqa: PLC0415
         _audit_trail = AuditTrail()
+        # Publish for extracted routers (api/compliance_report.py, Phase 3)
+        _runtime.publish(audit_trail=_audit_trail)
         log.info("AuditTrail online (SOC 2 tamper-evident chain).")
     except Exception as _audit_err:
         log.warning("AuditTrail init failed (non-fatal): %s", _audit_err)
@@ -877,6 +904,28 @@ async def lifespan(app: FastAPI):
             )
     except Exception as _misp_err:
         log.warning("misp_bridge failed to start (non-fatal): %s", _misp_err)
+
+    # ── Live pipeline canary gate (Deep-Eng P0.3) ────────────────────────────
+    # The orchestrator is published and the model pre-warmed by this point. Fire
+    # the canary corpus through the REAL pipeline: proves the detector still
+    # detects, not merely that stages import. Default = loud DEGRADED; prod sets
+    # PIPELINE_FAILCLOSED_ON_CANARY=true to fail the boot on a broken detector.
+    try:
+        from warden.observability import SecurityDegradedError, run_pipeline_canary  # noqa: PLC0415
+
+        _canary = await run_pipeline_canary()
+        if _canary.get("available") and not _canary["healthy"]:
+            if settings.pipeline_failclosed_on_canary:
+                raise SecurityDegradedError(
+                    f"startup canary failed: {_canary} — refusing to serve a broken detector"
+                )
+            log.critical("PIPELINE CANARY FAILED at startup: %s — serving DEGRADED", _canary)
+        elif _canary.get("available"):
+            log.info("pipeline canary healthy: %s", _canary)
+    except SecurityDegradedError:
+        raise  # fail-closed: propagate so the container crash-loops and blocks the deploy
+    except Exception as _canary_err:  # noqa: BLE001 — self-test must never crash boot
+        log.warning("pipeline canary self-test errored (non-fatal): %r", _canary_err)
 
     yield
 
@@ -941,7 +990,7 @@ app = FastAPI(
         "**Rate limiting:** Per-tenant sliding window (default 60 req/min). "
         "Shadow-ban at ERS score ≥ 0.75."
     ),
-    version="7.2.0",
+    version="7.6.0",
     contact={"name": "Shadow Warden AI", "url": "https://shadow-warden-ai.com", "email": "security@shadow-warden-ai.com"},
     license_info={"name": "Proprietary", "url": "https://shadow-warden-ai.com/terms"},
     openapi_tags=[
@@ -1016,7 +1065,7 @@ class _ExtensionCORSMiddleware(BaseHTTPMiddleware):
         "Access-Control-Max-Age":       "600",
     }
 
-    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+    async def dispatch(self, request: Request, call_next):
         if not request.url.path.startswith("/ext/"):
             return await call_next(request)
         if request.method == "OPTIONS":
@@ -1057,8 +1106,8 @@ try:
         return _orig_get_route_name(scope, safe_routes, route_name)
 
     _pfi_routing._get_route_name = _patched_get_route_name
-except Exception:
-    pass
+except Exception as _exc:  # noqa: BLE001
+    log.debug("suppressed exception: %r", _exc)
 
 if _PROMETHEUS_ENABLED:
     _Instrumentator().instrument(app).expose(app, endpoint="/metrics")
@@ -1095,50 +1144,26 @@ async def _redoc_ui(_: None = Depends(_docs_auth)):
 
 
 # ── Include sub-routers ───────────────────────────────────────────────────────
-try:
-    from warden.auth.router import router as _auth_router
-    app.include_router(_auth_router)
-    log.info("HttpOnly session auth mounted at /auth")
-except ImportError as _e:
-    log.warning("auth.router not available — /auth routes skipped: %s", _e)
+# Application Factory helpers — imported early so the simple single-router
+# blocks below can use register_router_safe() one-liners. The staff subsystem +
+# Turso migrations are wired via the fuller import near the end of the file.
+from warden.app_factory import RouterSpec as _RouterSpec  # noqa: E402
+from warden.app_factory import register_router_safe  # noqa: E402
 
-try:
-    from warden.openai_proxy import router as _openai_router
-    app.include_router(_openai_router)
-    log.info("OpenAI-compatible proxy mounted at /v1")
-except ImportError:
-    log.warning("openai_proxy not available — /v1 routes skipped.")
+register_router_safe(app, _RouterSpec("warden.auth.router", label="HttpOnly session auth mounted at /auth"))
 
-try:
-    from warden.portal_router import router as _portal_router
-    app.include_router(_portal_router, prefix="/portal")
-    log.info("Customer portal API mounted at /portal")
-except ImportError:
-    log.warning("portal_router not available — /portal routes skipped.")
+register_router_safe(app, _RouterSpec("warden.openai_proxy", label="OpenAI-compatible proxy mounted at /v1"))
 
-try:
-    from warden.agentic.router import router as _agentic_router
-    app.include_router(_agentic_router)
-    log.info("Agentic Payment Protocol (AP2) mounted at /agents and /mcp")
-except ImportError:
-    log.warning("agentic router not available — /agents and /mcp routes skipped.")
+register_router_safe(app, _RouterSpec("warden.portal_router", kwargs={"prefix": "/portal"}, label="Customer portal API mounted at /portal"))
+
+register_router_safe(app, _RouterSpec("warden.agentic.router", label="Agentic Payment Protocol (AP2) mounted at /agents and /mcp"))
 
 app.include_router(_neutralizer_router)
 log.info("Business Threat Neutralizer mounted at /threat/neutralizer")
 
-try:
-    from warden.api.financial import router as _financial_router
-    app.include_router(_financial_router)
-    log.info("Dollar Impact Calculator mounted at /financial")
-except ImportError:
-    log.warning("financial router not available — /financial routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.financial", label="Dollar Impact Calculator mounted at /financial"))
 
-try:
-    from warden.api.tenant_impact import router as _tenant_impact_router
-    app.include_router(_tenant_impact_router)
-    log.info("Tenant Impact Calculator mounted at /tenant/impact")
-except ImportError:
-    log.warning("tenant_impact router not available — /tenant/impact skipped.")
+register_router_safe(app, _RouterSpec("warden.api.tenant_impact", label="Tenant Impact Calculator mounted at /tenant/impact"))
 
 try:
     from warden.syndicates.router import router as _syndicates_router
@@ -1149,191 +1174,72 @@ try:
 except ImportError:
     log.warning("syndicates router not available — /syndicates and /tunnels skipped.")
 
-try:
-    from warden.syndicates.invites_router import invites_router as _invites_router
-    app.include_router(_invites_router)
-    log.info("Warden Gatekeeper (invites) mounted at /invites")
-except ImportError:
-    log.warning("invites router not available — /invites skipped.")
+register_router_safe(app, _RouterSpec("warden.syndicates.invites_router", attr="invites_router", label="Warden Gatekeeper (invites) mounted at /invites"))
 
-try:
-    from warden.communities.router import router as _communities_router
-    app.include_router(_communities_router)
-    log.info("Business Communities mounted at /communities")
-except ImportError:
-    log.warning("communities router not available — /communities skipped.")
+register_router_safe(app, _RouterSpec("warden.communities.router", label="Business Communities mounted at /communities"))
 
-try:
-    from warden.billing.router import router as _billing_router
-    app.include_router(_billing_router)
-    log.info("Billing API mounted at /billing")
-except ImportError:
-    log.warning("billing router not available — /billing routes skipped.")
+register_router_safe(app, _RouterSpec("warden.billing.router", label="Billing API mounted at /billing"))
 
-try:
-    from warden.api.monitor import router as _monitor_router
-    app.include_router(_monitor_router)
-    log.info("Uptime Monitor API mounted at /monitors")
-except ImportError:
-    log.warning("monitor router not available — /monitors routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.monitor", label="Uptime Monitor API mounted at /monitors"))
 
-try:
-    from warden.api.agent import router as _agent_router
-    app.include_router(_agent_router)
-    log.info("SOVA Agent mounted at /agent/sova")
-except ImportError:
-    log.warning("agent router not available — /agent/sova skipped.")
+register_router_safe(app, _RouterSpec("warden.api.agent", label="SOVA Agent mounted at /agent/sova"))
 
-try:
-    from warden.api.shadow_ai import router as _shadow_ai_router
-    app.include_router(_shadow_ai_router)
-    log.info("Shadow AI Governance mounted at /shadow-ai")
-except ImportError:
-    log.warning("shadow_ai router not available — /shadow-ai routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.shadow_ai", label="Shadow AI Governance mounted at /shadow-ai"))
 
-try:
-    from warden.api.misp import router as _misp_router
-    app.include_router(_misp_router)
-    log.info("MISP ZMQ bridge mounted at /misp")
-except ImportError:
-    log.warning("misp router not available — /misp routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.misp", label="MISP ZMQ bridge mounted at /misp"))
 
-try:
-    from warden.api.sdk import router as _sdk_router
-    app.include_router(_sdk_router)
-    log.info("OTel SDK mounted at /sdk")
-except ImportError:
-    log.warning("sdk router not available — /sdk routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.sdk", label="OTel SDK mounted at /sdk"))
 
-try:
-    from warden.api.xai import router as _xai_router
-    app.include_router(_xai_router)
-    log.info("Explainable AI 2.0 mounted at /xai")
-except ImportError:
-    log.warning("xai router not available — /xai routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.xai", label="Explainable AI 2.0 mounted at /xai"))
 
-try:
-    from warden.api.sovereign import router as _sovereign_router
-    app.include_router(_sovereign_router)
-    log.info("Sovereign AI Cloud mounted at /sovereign")
-except ImportError:
-    log.warning("sovereign router not available — /sovereign routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.sovereign", label="Sovereign AI Cloud mounted at /sovereign"))
 
 # Semantic Layer mounted below at /semantic-layer (FE-42) — single mount point
 
 # Settings Hub: commerce + semantic endpoints merged into warden/api/settings.py (single mount below)
 
-try:
-    from warden.api.file_scan import router as _file_scan_router
-    app.include_router(_file_scan_router)
-    log.info("File Scanner mounted at /filter/file (Community Business SMB)")
-except ImportError:
-    log.warning("file_scan router not available — /filter/file skipped.")
+register_router_safe(app, _RouterSpec("warden.api.file_scan", label="File Scanner mounted at /filter/file (Community Business SMB)"))
+
+register_router_safe(app, _RouterSpec("warden.api.email_guard", label="Email Guard mounted at /scan/email (C5 email-vector protection)"))
+
+register_router_safe(app, _RouterSpec("warden.api.extension_risk", label="Extension Risk Scanner mounted at /scan/extensions (Q2.4)"))
+
+register_router_safe(app, _RouterSpec("warden.api.rotation", label="Rotation Alerts mounted at /admin/rotation (Q1.3)"))
 
 try:
-    from warden.api.email_guard import router as _email_guard_router
-    app.include_router(_email_guard_router)
-    log.info("Email Guard mounted at /scan/email (C5 email-vector protection)")
-except ImportError:
-    log.warning("email_guard router not available — /scan/email skipped.")
-
-try:
-    from warden.api.extension_risk import router as _ext_risk_router
-    app.include_router(_ext_risk_router)
-    log.info("Extension Risk Scanner mounted at /scan/extensions (Q2.4)")
-except ImportError:
-    log.warning("extension_risk router not available — /scan/extensions skipped.")
-
-try:
-    from warden.api.rotation import router as _rotation_router
-    app.include_router(_rotation_router)
-    log.info("Rotation Alerts mounted at /admin/rotation (Q1.3)")
-except ImportError:
-    log.warning("rotation router not available — /admin/rotation skipped.")
-
-try:
-    from warden.api.compliance_report import router as _compliance_router
+    from warden.api.compliance_report import (
+        router as _compliance_router,
+    )
+    from warden.api.compliance_report import (
+        router_api as _compliance_api_router,
+    )
     app.include_router(_compliance_router)
+    app.include_router(_compliance_api_router)
     log.info("Compliance Report mounted at /compliance (Q3.7)")
 except ImportError:
     log.warning("compliance_report router not available — /compliance skipped.")
 
-try:
-    from warden.api.retention import router as _retention_router
-    app.include_router(_retention_router)
-    log.info("Retention Policy mounted at /retention (CP-26)")
-except ImportError:
-    log.warning("retention router not available — /retention skipped.")
+register_router_safe(app, _RouterSpec("warden.api.retention", label="Retention Policy mounted at /retention (CP-26)"))
 
-try:
-    from warden.api.public_stats import router as _public_stats_router
-    app.include_router(_public_stats_router)
-    log.info("Public community stats mounted at /public/community")
-except ImportError:
-    log.warning("public_stats router not available — /public routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.public_stats", label="Public community stats mounted at /public/community"))
 
-try:
-    from warden.api.sep import router as _sep_router
-    app.include_router(_sep_router)
-    log.info("Syndicate Exchange Protocol mounted at /sep")
-except ImportError:
-    log.warning("SEP router not available — /sep routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.sep", label="Syndicate Exchange Protocol mounted at /sep"))
 
-try:
-    from warden.api.community_intel import router as _community_intel_router
-    app.include_router(_community_intel_router)
-    log.info("Community Intelligence mounted at /community-intel")
-except ImportError:
-    log.warning("community_intel router not available — /community-intel routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.community_intel", label="Community Intelligence mounted at /community-intel"))
 
-try:
-    from warden.api.community_notifications import router as _community_notif_router
-    app.include_router(_community_notif_router)
-    log.info("Community Notifications mounted at /communities/{id}/notifications")
-except ImportError:
-    log.warning("community_notifications router not available — notification routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.community_notifications", label="Community Notifications mounted at /communities/{id}/notifications"))
 
-try:
-    from warden.api.communities_v2 import router as _communities_v2_router
-    app.include_router(_communities_v2_router)
-    log.info("Community Hub mounted at /communities")
-except ImportError:
-    log.warning("communities_v2 router not available — /communities routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.communities_v2", label="Community Hub mounted at /communities"))
 
-try:
-    from warden.api.secrets import router as _secrets_router
-    app.include_router(_secrets_router, prefix="/secrets")
-    log.info("Secrets Governance mounted at /secrets")
-except ImportError:
-    log.warning("secrets router not available — /secrets routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.secrets", kwargs={"prefix": "/secrets"}, label="Secrets Governance mounted at /secrets"))
 
-try:
-    from warden.api.obsidian import router as _obsidian_router
-    app.include_router(_obsidian_router, prefix="/obsidian")
-    log.info("Obsidian Business Community integration mounted at /obsidian")
-except ImportError:
-    log.warning("obsidian router not available — /obsidian routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.obsidian", kwargs={"prefix": "/obsidian"}, label="Obsidian Business Community integration mounted at /obsidian"))
 
-try:
-    from warden.api.slack_commands import router as _slack_router
-    app.include_router(_slack_router)
-    log.info("Slack slash command handler mounted at /slack/command")
-except ImportError:
-    log.warning("slack_commands router not available — /slack/command skipped.")
+register_router_safe(app, _RouterSpec("warden.api.slack_commands", label="Slack slash command handler mounted at /slack/command"))
 
-try:
-    from warden.api.gdpr import router as _gdpr_router
-    app.include_router(_gdpr_router)
-    log.info("GDPR scrubbing API mounted at /gdpr")
-except ImportError:
-    log.warning("gdpr router not available — /gdpr routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.gdpr", label="GDPR scrubbing API mounted at /gdpr"))
 
-try:
-    from warden.api.community import router as _community_router
-    app.include_router(_community_router)
-    log.info("Business Community mounted at /community (NIM moderation + Obsidian bridge)")
-except ImportError:
-    log.warning("community router not available — /community routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.community", label="Business Community mounted at /community (NIM moderation + Obsidian bridge)"))
 
 try:
     from warden.api.security_hub import router as _security_router
@@ -1344,222 +1250,67 @@ try:
 except ImportError:
     log.warning("security_hub/soc_dashboard not available — /security /soc routes skipped.")
 
-try:
-    from warden.api.config_api import router as _config_api_router
-    app.include_router(_config_api_router)
-    log.info("Settings API mounted at /api/settings (Tier-1 approval gate)")
-except ImportError:
-    log.warning("config_api not available — /api/settings routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.config_api", label="Settings API mounted at /api/settings (Tier-1 approval gate)"))
 
-try:
-    from warden.api.webhook import router as _webhook_router
-    app.include_router(_webhook_router)
-    log.info("Lemon Squeezy webhook receiver mounted at POST /billing/webhook")
-except ImportError:
-    log.warning("webhook router not available — /billing/webhook skipped.")
+register_router_safe(app, _RouterSpec("warden.api.webhook", label="Lemon Squeezy webhook receiver mounted at POST /billing/webhook"))
 
-try:
-    from warden.api.integrations import router as _integrations_router
-    app.include_router(_integrations_router)
-    log.info("Integrations router mounted at /integrations (IN-16/17/18/20)")
-except ImportError:
-    log.warning("integrations router not available — /integrations skipped.")
+register_router_safe(app, _RouterSpec("warden.api.integrations", label="Integrations router mounted at /integrations (IN-16/17/18/20)"))
 
-try:
-    from warden.api.ws_events import router as _ws_events_router
-    app.include_router(_ws_events_router)
-    log.info("WebSocket anomaly stream mounted at /ws/events (OB-26)")
-except ImportError:
-    log.warning("ws_events router not available — /ws/events skipped.")
+register_router_safe(app, _RouterSpec("warden.api.ws_events", label="WebSocket anomaly stream mounted at /ws/events (OB-26)"))
 
-try:
-    from warden.api.red_team import router as _red_team_router
-    app.include_router(_red_team_router)
-    log.info("Red-team autopilot mounted at /agent/red-team (AR-11)")
-except ImportError:
-    log.warning("red_team router not available — /agent/red-team skipped.")
+register_router_safe(app, _RouterSpec("warden.api.red_team", label="Red-team autopilot mounted at /agent/red-team (AR-11)"))
 
-try:
-    from warden.api.vendor_gov import router as _vendor_gov_router
-    app.include_router(_vendor_gov_router)
-    log.info("Vendor Governance mounted at /vendor-gov (BL-22)")
-except ImportError:
-    log.warning("vendor_gov router not available — /vendor-gov routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.vendor_gov", label="Vendor Governance mounted at /vendor-gov (BL-22)"))
 
-try:
-    from warden.api.cost_allocation import router as _cost_allocation_router
-    app.include_router(_cost_allocation_router)
-    log.info("Cost Allocation mounted at /financial/allocation (BL-23)")
-except ImportError:
-    log.warning("cost_allocation router not available — /financial/allocation routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.cost_allocation", label="Cost Allocation mounted at /financial/allocation (BL-23)"))
 
-try:
-    from warden.api.budget import router as _budget_router
-    app.include_router(_budget_router)
-    log.info("Budget Dashboard mounted at /financial/budget (BL-24)")
-except ImportError:
-    log.warning("budget router not available — /financial/budget routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.budget", label="Budget Dashboard mounted at /financial/budget (BL-24)"))
 
-try:
-    from warden.api.incident_register import router as _incident_router
-    app.include_router(_incident_router)
-    log.info("Incident Register mounted at /incidents (CM-35)")
-except ImportError:
-    log.warning("incident_register router not available — /incidents routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.incident_register", label="Incident Register mounted at /incidents (CM-35)"))
 
-try:
-    from warden.api.supplier_risk import router as _supplier_risk_router
-    app.include_router(_supplier_risk_router)
-    log.info("Supplier Risk Assessment mounted at /supplier-risk (CM-36)")
-except ImportError:
-    log.warning("supplier_risk router not available — /supplier-risk routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.supplier_risk", label="Supplier Risk Assessment mounted at /supplier-risk (CM-36)"))
 
-try:
-    from warden.api.prompt_library import router as _prompt_library_router
-    app.include_router(_prompt_library_router)
-    log.info("Shared Prompt Library mounted at /prompt-library (CM-37)")
-except ImportError:
-    log.warning("prompt_library router not available — /prompt-library routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.prompt_library", label="Shared Prompt Library mounted at /prompt-library (CM-37)"))
 
-try:
-    from warden.api.doc_converter import router as _doc_converter_router
-    app.include_router(_doc_converter_router)
-    log.info("Document Converter (MarkItDown) mounted at /doc-converter")
-except ImportError:
-    log.warning("doc_converter router not available — /doc-converter routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.doc_converter", label="Document Converter (MarkItDown) mounted at /doc-converter"))
 
-try:
-    from warden.api.push import router as _push_router
-    app.include_router(_push_router)
-    log.info("Mobile SOC push notification API mounted at /push (MO-01)")
-except ImportError:
-    log.warning("push router not available — /push routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.push", label="Mobile SOC push notification API mounted at /push (MO-01)"))
 
-try:
-    from warden.document_intel.api import router as _doc_intel_router
-    app.include_router(_doc_intel_router)
-    log.info("Document Intelligence (MarkItDown) mounted at /document-intel (FE-50)")
-except ImportError:
-    log.warning("document_intel router not available — /document-intel routes skipped.")
+register_router_safe(app, _RouterSpec("warden.document_intel.api", label="Document Intelligence (MarkItDown) mounted at /document-intel (FE-50)"))
 
-try:
-    from warden.api.training_records import router as _training_router
-    app.include_router(_training_router)
-    log.info("Employee AI Training Records mounted at /training (CM-38)")
-except ImportError:
-    log.warning("training_records router not available — /training routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.training_records", label="Employee AI Training Records mounted at /training (CM-38)"))
 
-try:
-    from warden.api.smb_suite import router as _smb_suite_router
-    app.include_router(_smb_suite_router)
-    log.info("SMB AI Governance Suite mounted at /smb-suite (IN-25)")
-except ImportError:
-    log.warning("smb_suite router not available — /smb-suite routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.smb_suite", label="SMB AI Governance Suite mounted at /smb-suite (IN-25)"))
 
-try:
-    from warden.api.webhooks import router as _webhooks_router
-    app.include_router(_webhooks_router)
-    log.info("Webhook Event System mounted at /webhooks (DEV-05)")
-except ImportError:
-    log.warning("webhooks router not available — /webhooks routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.webhooks", label="Webhook Event System mounted at /webhooks (DEV-05)"))
 
-try:
-    from warden.api.saml import router as _saml_router
-    app.include_router(_saml_router)
-    log.info("SSO/SAML 2.0 mounted at /auth/saml (ENT-01)")
-except ImportError:
-    log.warning("saml router not available — /auth/saml routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.saml", label="SSO/SAML 2.0 mounted at /auth/saml (ENT-01)"))
 
-try:
-    from warden.api.whitelabel import router as _whitelabel_router
-    app.include_router(_whitelabel_router)
-    log.info("White-Label config mounted at /whitelabel (ENT-02)")
-except ImportError:
-    log.warning("whitelabel router not available — /whitelabel routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.whitelabel", label="White-Label config mounted at /whitelabel (ENT-02)"))
 
-try:
-    from warden.api.framework_builder import router as _framework_router
-    app.include_router(_framework_router)
-    log.info("Compliance Framework Builder mounted at /compliance/frameworks (ENT-03)")
-except ImportError:
-    log.warning("framework_builder router not available — /compliance/frameworks routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.framework_builder", label="Compliance Framework Builder mounted at /compliance/frameworks (ENT-03)"))
 
-try:
-    from warden.api.usage_budgets import router as _usage_budgets_router
-    app.include_router(_usage_budgets_router)
-    log.info("AI Usage Budgets mounted at /billing/usage-budgets (ENT-04)")
-except ImportError:
-    log.warning("usage_budgets router not available — /billing/usage-budgets routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.usage_budgets", label="AI Usage Budgets mounted at /billing/usage-budgets (ENT-04)"))
 
-try:
-    from warden.business_intelligence.router import router as _bi_router
-    app.include_router(_bi_router)
-    log.info("Business Intelligence mounted at /business-intelligence (CM-39)")
-except ImportError:
-    log.warning("business_intelligence router not available — /business-intelligence routes skipped.")
+register_router_safe(app, _RouterSpec("warden.business_intelligence.router", label="Business Intelligence mounted at /business-intelligence (CM-39)"))
 
-try:
-    from warden.communities.federation import router as _federation_router
-    app.include_router(_federation_router)
-    log.info("Community threat federation mounted at /sep/federation (CM-26)")
-except ImportError:
-    log.warning("federation router not available — /sep/federation skipped.")
+register_router_safe(app, _RouterSpec("warden.communities.federation", label="Community threat federation mounted at /sep/federation (CM-26)"))
 
-try:
-    from warden.communities.model_share import router as _model_share_router
-    app.include_router(_model_share_router)
-    log.info("Community model sharing mounted at /sep/model-bundles (CM-27)")
-except ImportError:
-    log.warning("model_share router not available — /sep/model-bundles skipped.")
+register_router_safe(app, _RouterSpec("warden.communities.model_share", label="Community model sharing mounted at /sep/model-bundles (CM-27)"))
 
-try:
-    from warden.api.settings import router as _settings_router
-    app.include_router(_settings_router)
-    log.info("Settings API mounted at /settings (FE-41)")
-except ImportError:
-    log.warning("settings router not available — /settings routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.settings", label="Settings API mounted at /settings (FE-41)"))
 
-try:
-    from warden.business_community.agentic_commerce.api import router as _commerce_router
-    app.include_router(_commerce_router)
-    log.info("Agentic Commerce mounted at /business-community/commerce (CM-40)")
-except ImportError:
-    log.warning("Agentic Commerce router not available — /business-community/commerce skipped.")
+register_router_safe(app, _RouterSpec("warden.business_community.agentic_commerce.api", label="Agentic Commerce mounted at /business-community/commerce (CM-40)"))
 
-try:
-    from warden.semantic_layer.api import router as _semantic_router
-    app.include_router(_semantic_router)
-    log.info("Semantic Layer mounted at /semantic-layer (FE-42)")
-except ImportError:
-    log.warning("Semantic Layer router not available — /semantic-layer skipped.")
+register_router_safe(app, _RouterSpec("warden.semantic_layer.api", label="Semantic Layer mounted at /semantic-layer (FE-42)"))
 
-try:
-    from warden.blockchain.api import router as _web3_router
-    app.include_router(_web3_router)
-    log.info("Web3 on-chain mandates mounted at /web3/mandates (Phase 1)")
-except ImportError:
-    log.warning("Web3 router not available — /web3/mandates skipped.")
+register_router_safe(app, _RouterSpec("warden.blockchain.api", label="Web3 on-chain mandates mounted at /web3/mandates (Phase 1)"))
 
-try:
-    from warden.m2m_store.api import router as _m2m_router
-    app.include_router(_m2m_router)
-    log.info("M2M Commerce Store mounted at /m2m-store (Enterprise)")
-except ImportError:
-    log.warning("m2m_store router not available — /m2m-store skipped.")
+register_router_safe(app, _RouterSpec("warden.m2m_store.api", label="M2M Commerce Store mounted at /m2m-store (Enterprise)"))
 
-try:
-    from warden.tax.api import router as _tax_router
-    app.include_router(_tax_router)
-    log.info("Tax & Compliance mounted at /tax (Phase 3)")
-except ImportError:
-    log.warning("Tax router not available — /tax skipped.")
+register_router_safe(app, _RouterSpec("warden.tax.api", label="Tax & Compliance mounted at /tax (Phase 3)"))
 
-try:
-    from warden.api.fido_auth import router as _fido_router
-    app.include_router(_fido_router)
-    log.info("FIDO2 Passkey auth mounted at /auth/fido (Phase 4)")
-except ImportError:
-    log.warning("FIDO2 router not available — /auth/fido skipped.")
+register_router_safe(app, _RouterSpec("warden.api.fido_auth", label="FIDO2 Passkey auth mounted at /auth/fido (Phase 4)"))
 
 try:
     from warden.marketplace.api import agent_discovery_alias
@@ -1569,7 +1320,7 @@ try:
     from warden.marketplace.api_escrow import router as _mkt_escrow_router
     from warden.marketplace.api_listings import router as _mkt_listings_router
     from warden.marketplace.api_negotiations import router as _mkt_negotiations_router
-    app.include_router(_marketplace_router)
+    app.include_router(_marketplace_router, prefix="/marketplace")
     app.add_api_route("/.well-known/agent.json", agent_discovery_alias, methods=["GET"], include_in_schema=False)
 
     async def _acp_manifest_alias():
@@ -1591,92 +1342,32 @@ try:
     app.include_router(_mkt_negotiations_router, prefix="/marketplace")
     app.include_router(_mkt_escrow_router, prefix="/marketplace")
     log.info("Community M2M Agentic Marketplace mounted at /marketplace (Phase 1)")
-except ImportError:
-    log.warning("marketplace router not available — /marketplace skipped.")
+except ImportError as exc:
+    log.warning("marketplace router not available — /marketplace skipped: %r", exc)
 
-try:
-    from warden.marketplace.api_governance import router as _governance_router
-    app.include_router(_governance_router)
-    log.info("DAO Governance router mounted at /marketplace/proposals")
-except ImportError:
-    log.warning("governance router not available — /marketplace/proposals routes skipped.")
+register_router_safe(app, _RouterSpec("warden.marketplace.api_governance", label="DAO Governance router mounted at /marketplace/proposals"))
 
-try:
-    from warden.marketplace.api_maestro import router as _maestro_router
-    app.include_router(_maestro_router)
-    log.info("MAESTRO Threat Detection mounted at /marketplace/maestro")
-except ImportError:
-    log.warning("MAESTRO router not available — /marketplace/maestro routes skipped.")
+register_router_safe(app, _RouterSpec("warden.marketplace.api_maestro", label="MAESTRO Threat Detection mounted at /marketplace/maestro"))
 
-try:
-    from warden.streams.api import router as _streams_router
-    app.include_router(_streams_router)
-    log.info("Event Streaming mounted at /streams")
-except ImportError:
-    log.warning("Streams router not available — /streams routes skipped.")
+register_router_safe(app, _RouterSpec("warden.streams.api", label="Event Streaming mounted at /streams"))
 
-try:
-    from warden.tokenomics.api import router as _tokenomics_router
-    app.include_router(_tokenomics_router)
-    log.info("Agent Tokenomics (WAT) mounted at /tokenomics")
-except ImportError:
-    log.warning("Tokenomics router not available — /tokenomics routes skipped.")
+register_router_safe(app, _RouterSpec("warden.tokenomics.api", label="Agent Tokenomics (WAT) mounted at /tokenomics"))
 
-try:
-    from warden.payments.api import router as _payments_router
-    app.include_router(_payments_router)
-    log.info("USDC Payments mounted at /payments")
-except ImportError:
-    log.warning("Payments router not available — /payments routes skipped.")
+register_router_safe(app, _RouterSpec("warden.payments.api", label="USDC Payments mounted at /payments"))
 
-try:
-    from warden.security.api import router as _ans_certs_router
-    app.include_router(_ans_certs_router)
-    log.info("ANS Certificate Authority mounted at /marketplace/agents/{id}/certificate")
-except ImportError:
-    log.warning("ANS cert router not available — certificate routes skipped.")
+register_router_safe(app, _RouterSpec("warden.security.api", label="ANS Certificate Authority mounted at /marketplace/agents/{id}/certificate"))
 
-try:
-    from warden.agents.packs.api import router as _edge_packs_router
-    app.include_router(_edge_packs_router)
-    log.info("ARC Edge Agent Packs mounted at /agents/packs")
-except ImportError:
-    log.warning("Edge packs router not available — /agents/packs routes skipped.")
+register_router_safe(app, _RouterSpec("warden.agents.packs.api", label="ARC Edge Agent Packs mounted at /agents/packs"))
 
-try:
-    from warden.protocols.a2a.api import router as _a2a_router
-    app.include_router(_a2a_router)
-    log.info("A2A v1.0 task gateway mounted at /a2a (Agent Card: /.well-known/agent.json)")
-except ImportError:
-    log.warning("A2A router not available — /a2a routes skipped.")
+register_router_safe(app, _RouterSpec("warden.protocols.a2a.api", label="A2A v1.0 task gateway mounted at /a2a (Agent Card: /.well-known/agent.json)"))
 
-try:
-    from warden.api.deploy_health import router as _deploy_health_router
-    app.include_router(_deploy_health_router)
-    log.info("Deploy health endpoint mounted at /deploy/status")
-except ImportError:
-    log.warning("deploy_health router not available — /deploy routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.deploy_health", label="Deploy health endpoint mounted at /deploy/status"))
 
-try:
-    from warden.api.action_whitelist import router as _action_whitelist_router
-    app.include_router(_action_whitelist_router)
-    log.info("Agent Action Whitelist mounted at /admin/agents")
-except ImportError:
-    log.warning("action_whitelist router not available — /admin/agents routes skipped.")
+register_router_safe(app, _RouterSpec("warden.api.action_whitelist", label="Agent Action Whitelist mounted at /admin/agents"))
 
-try:
-    from warden.marketplace.agent_key_rotation import router as _key_rotation_router
-    app.include_router(_key_rotation_router)
-    log.info("Agent key rotation mounted at /marketplace/agents/{id}/rotate-key")
-except ImportError:
-    log.warning("agent_key_rotation router not available — key rotation routes skipped.")
+register_router_safe(app, _RouterSpec("warden.marketplace.agent_key_rotation", label="Agent key rotation mounted at /marketplace/agents/{id}/rotate-key"))
 
-try:
-    from warden.marketplace.data_lifecycle import router as _data_lifecycle_router
-    app.include_router(_data_lifecycle_router)
-    log.info("Data Lifecycle manager mounted at /admin/data-lifecycle")
-except ImportError:
-    log.warning("data_lifecycle router not available — /admin/data-lifecycle routes skipped.")
+register_router_safe(app, _RouterSpec("warden.marketplace.data_lifecycle", label="Data Lifecycle manager mounted at /admin/data-lifecycle"))
 
 try:
     from warden.voice.api import router as _voice_router
@@ -1693,26 +1384,9 @@ except Exception as _exc:
 # ad-hoc re-sends).  Runs synchronously in a thread executor so it doesn't
 # block the event loop.  Requires super-admin key.
 
-@app.post("/admin/weekly-report", tags=["Admin"], summary="Trigger weekly ROI email reports now")
-async def trigger_weekly_report(request: Request):
-    """Manually trigger the weekly ROI report for all active paid tenants."""
-    _key = request.headers.get("X-Super-Admin-Key", "")
-    _expected = os.getenv("SUPER_ADMIN_KEY", "")
-    if not _expected or _key != _expected:
-        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415, N814
-        return _JR({"detail": "Forbidden"}, status_code=403)
-
-    import asyncio  # noqa: PLC0415
-    loop = asyncio.get_event_loop()
-    try:
-        from warden.workers.weekly_report import send_weekly_reports as _swr  # noqa: PLC0415
-        result = await loop.run_in_executor(None, lambda: asyncio.run(_swr({})))
-    except Exception as exc:
-        log.error("admin/weekly-report: failed: %s", exc)
-        from fastapi.responses import JSONResponse as _JR  # noqa: PLC0415, N814
-        return _JR({"detail": str(exc)}, status_code=500)
-
-    return result
+# ── Admin reporting endpoints ─────────────────────────────────────────────────
+# /admin/weekly-report extracted to warden/api/admin_reports.py (Phase 3).
+# Self-contained (SUPER_ADMIN_KEY-gated). Included via app.include_router below.
 
 
 # ── HTTP middleware (request-ID + security headers) ───────────────────────────
@@ -1793,8 +1467,13 @@ async def health():
 # ── Pipeline health ───────────────────────────────────────────────────────────
 
 @app.get("/health/pipeline", tags=["ops"], summary="Per-stage pipeline health")
-async def health_pipeline() -> dict:
-    """Reports availability of each filter stage, the ML model, and Turso connections."""
+async def health_pipeline(deep: bool = False) -> dict:
+    """Reports availability of each filter stage, the ML model, and Turso connections.
+
+    With ``?deep=true`` it additionally fires the live canary corpus through the
+    real pipeline (sub-second) and folds a missed jailbreak / false-positive into
+    the ``degraded`` verdict — a load-balancer probe should use the cheap default.
+    """
     stages: dict[str, dict] = {}
 
     def _try_import(label: str, module: str, cls: str) -> None:
@@ -1806,7 +1485,7 @@ async def health_pipeline() -> dict:
             stages[label] = {"status": "unavailable", "error": str(exc)[:80]}
 
     _try_import("topology",       "warden.topology_guard",  "TopologicalGatekeeper")
-    _try_import("obfuscation",    "warden.obfuscation",     "ObfuscationDecoder")
+    _try_import("obfuscation",    "warden.obfuscation",     "decode")
     _try_import("secrets",        "warden.secret_redactor", "SecretRedactor")
     _try_import("semantic_rules", "warden.semantic_guard",  "SemanticGuard")
 
@@ -1818,8 +1497,8 @@ async def health_pipeline() -> dict:
     except Exception as exc:
         stages["brain"] = {"status": "unavailable", "error": str(exc)[:80]}
 
-    _try_import("causal", "warden.causal_arbiter",  "CausalArbiter")
-    _try_import("phish",  "warden.phishing_guard",  "PhishGuard")
+    _try_import("causal", "warden.causal_arbiter",  "arbitrate")
+    _try_import("phish",  "warden.phishing_guard",  "analyse")
 
     # ERS stage — backed by Redis
     _redis_h = _check_redis_health()
@@ -1836,16 +1515,31 @@ async def health_pipeline() -> dict:
         from warden.db.turso import is_turso_enabled  # noqa: PLC0415
         for _db in ("billing_audit", "acp", "marketplace", "sep", "staff"):
             turso[_db] = is_turso_enabled(_db)
-    except Exception:
-        pass
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
 
     degraded = [k for k, v in stages.items() if v["status"] not in ("ok", "loading")]
-    return {
+
+    # Deep mode: live canary self-test through the real pipeline.
+    canary: dict | None = None
+    if deep:
+        try:
+            from warden.observability import run_pipeline_canary  # noqa: PLC0415
+            canary = await run_pipeline_canary()
+            if canary.get("available") and not canary["healthy"]:
+                degraded.append("canary")
+        except Exception as _cn_err:  # noqa: BLE001
+            log.debug("health canary errored: %r", _cn_err)
+
+    result = {
         "status":          "degraded" if degraded else "ok",
         "stages":          stages,
         "turso":           turso,
         "degraded_stages": degraded,
     }
+    if canary is not None:
+        result["canary"] = canary
+    return result
 
 
 # ── Dashboard stats API ───────────────────────────────────────────────────────
@@ -1885,8 +1579,8 @@ async def api_stats(hours: float = 24.0):
                 buckets[age_min]["total"] += 1
                 if not e.get("allowed"):
                     buckets[age_min]["blocked"] += 1
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
 
     time_series = [
         {
@@ -1937,7 +1631,7 @@ class _ConfigUpdate(BaseModel):
 @app.get("/api/config", tags=["ops"], summary="Current live configuration")
 async def api_config():
     return {
-        "semantic_threshold":   float(os.getenv("SEMANTIC_THRESHOLD", "0.72")),
+        "semantic_threshold":   settings.semantic_threshold,
         "strict_mode":          os.getenv("STRICT_MODE", "false").lower() == "true",
         "rate_limit_per_minute": int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),  # live value via set_default_rate_limit()
         "evolution_enabled":    _evolve is not None,
@@ -1945,13 +1639,13 @@ async def api_config():
         "browser_enabled":      os.getenv("BROWSER_ENABLED", "false").lower() == "true",
         "mtls_enabled":         os.getenv("MTLS_ENABLED", "false").lower() == "true",
         "otel_enabled":         os.getenv("OTEL_ENABLED", "false").lower() == "true",
-        "model_cache_dir":          os.getenv("MODEL_CACHE_DIR", "/warden/models"),
+        "model_cache_dir":          settings.model_cache_dir,
         # Enterprise resilience
         "fail_strategy":            _FAIL_STRATEGY,
         "pipeline_timeout_ms":      _PIPELINE_TIMEOUT_MS,
         "uncertainty_lower_threshold": _UNCERTAINTY_LOWER,
         "nvidia_api_key_set":       bool(os.getenv("NVIDIA_API_KEY")),
-        "prompt_shield_enabled":    os.getenv("PROMPT_SHIELD_ENABLED", "false").lower() == "true",
+        "prompt_shield_enabled":    settings.prompt_shield_enabled,
         "audit_trail_enabled":      os.getenv("AUDIT_TRAIL_ENABLED", "false").lower() == "true",
     }
 
@@ -1978,7 +1672,7 @@ async def update_config(update: _ConfigUpdate):
 
 # ── SIEM bypass helper ────────────────────────────────────────────────────────
 
-async def _ship_bypass(background_tasks, entry: dict) -> None:  # type: ignore[type-arg]
+async def _ship_bypass(background_tasks, entry: dict) -> None:
     """Fire-and-forget SIEM ship for bypass events that exit the pipeline early."""
     try:
         from warden.analytics.siem import ship_bypass_alert  # noqa: PLC0415
@@ -2144,8 +1838,8 @@ async def _run_filter_pipeline(
             cached = json.loads(cached_json)
             log.info(json.dumps({"event": "cache_hit", "request_id": rid}))
             return FilterResponse(**cached)
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
 
     from warden.telemetry import trace_stage as _trace_stage  # noqa: PLC0415
 
@@ -2203,7 +1897,7 @@ async def _run_filter_pipeline(
     # ── Stage 1: Secret Redaction ──────────────────────────────────────
     t0 = time.perf_counter()
     with _trace_stage("secret_redaction", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
-        redact_result = _redactor.redact(analysis_text, payload.redaction_policy)  # type: ignore[union-attr]
+        redact_result = _redactor.redact(analysis_text, payload.redaction_policy)
         _sp.set_attribute("redaction.secrets_found", len(redact_result.findings))
         _sp.set_attribute("redaction.has_pii",       redact_result.has_pii)
     timings["redaction"] = round((time.perf_counter() - t0) * 1000, 2)
@@ -2264,7 +1958,7 @@ async def _run_filter_pipeline(
     # ── Stage 2: Rule-based Semantic Analysis ─────────────────────────
     t0 = time.perf_counter()
     with _trace_stage("rule_analysis", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
-        guard_result = _guard.analyse(redact_result.text)  # type: ignore[union-attr]
+        guard_result = _guard.analyse(redact_result.text)
         _sp.set_attribute("rules.flags_count", len(guard_result.flags))
         _sp.set_attribute("rules.risk_level",  guard_result.risk_level.value)
     timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
@@ -2488,8 +2182,8 @@ async def _run_filter_pipeline(
                         tenant_id=tenant_id,
                         attack_vector=_pr.attack_vector,
                     ).inc()
-                except Exception:
-                    pass
+                except Exception as _exc:  # noqa: BLE001
+                    log.debug("suppressed exception: %r", _exc)
                 log.warning(
                     json.dumps({
                         "event":        "data_poisoning_detected",
@@ -2729,8 +2423,8 @@ async def _run_filter_pipeline(
             _mask_count    = _mask_result.entity_count
             # Invalidate immediately — we only needed the detection summary
             _get_masking_engine().invalidate_session(f"_detect_{rid}")
-    except Exception:
-        pass   # detection is best-effort; never block a request
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)   # detection is best-effort; never block a request
 
     # ── Analytics logging ─────────────────────────────────────────────
     try:
@@ -2790,7 +2484,7 @@ async def _run_filter_pipeline(
     if background_tasks is not None:
         try:
             from warden.analytics.siem import ship_event
-            background_tasks.add_task(ship_event, entry)  # type: ignore[possibly-undefined]
+            background_tasks.add_task(ship_event, entry)
         except ImportError:
             pass
 
@@ -3091,7 +2785,11 @@ async def filter_content(
         except Exception as _mm_exc:
             log.warning("multimodal prefilter failed (fail-open): %s", _mm_exc)
 
-    coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
+    # Phase 2: route through the services layer (strangler-fig seam). The
+    # FilterPipeline facade resolves the orchestrator from runtime; the HTTP
+    # layer no longer calls the main-private orchestrator directly.
+    from warden.services.pipeline import FilterPipeline  # noqa: PLC0415
+    coro = FilterPipeline().run(payload, rid, auth, background_tasks, client_ip)
     if _PIPELINE_TIMEOUT_MS > 0:
         try:
             return await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
@@ -3202,7 +2900,11 @@ async def ext_filter_content(
                 payload.content, auth.entity_key, auth.ers_score, auth.last_flag
             )
         )
-    coro = _run_filter_pipeline(payload, rid, auth, background_tasks, client_ip)
+    # Phase 2: route through the services layer (strangler-fig seam). The
+    # FilterPipeline facade resolves the orchestrator from runtime; the HTTP
+    # layer no longer calls the main-private orchestrator directly.
+    from warden.services.pipeline import FilterPipeline  # noqa: PLC0415
+    coro = FilterPipeline().run(payload, rid, auth, background_tasks, client_ip)
     if _PIPELINE_TIMEOUT_MS > 0:
         try:
             result = await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
@@ -3538,972 +3240,44 @@ async def filter_multimodal(
 
 
 # ── GDPR endpoints ────────────────────────────────────────────────────────────
-
-class _GdprExportRequest(BaseModel):
-    request_id: str
+# Extracted to warden/api/gdpr.py (Phase 3). Included via include_router.
 
 
-class _GdprPurgeRequest(BaseModel):
-    before: str   # ISO-8601 datetime string, e.g. "2024-01-01T00:00:00Z"
+# ── Rule ledger / admin rule-lifecycle / SOC2 audit endpoints ────────────────
+# Extracted to warden/api/rules.py (Phase 3). RuleLedger, ReviewQueue, the
+# in-memory dynamic-regex list, brain guard and AuditTrail are published to
+# warden.runtime in lifespan. Included via app.include_router below.
 
 
-@app.post(
-    "/gdpr/export",
-    tags=["gdpr"],
-    summary="Export log metadata for a specific request ID (GDPR Art. 15)",
-    dependencies=[Depends(require_api_key)],
-)
-async def gdpr_export(body: _GdprExportRequest):
-    entry = event_logger.read_by_request_id(body.request_id)
-    if entry is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No log entry found for request_id={body.request_id!r}.",
-        )
-    return {"request_id": body.request_id, "entry": entry}
-
-
-@app.post(
-    "/gdpr/purge",
-    tags=["gdpr"],
-    summary="Delete log entries before a given date (GDPR Art. 17)",
-    dependencies=[Depends(require_api_key)],
-)
-async def gdpr_purge(body: _GdprPurgeRequest):
-    try:
-        before_dt = datetime.fromisoformat(body.before)
-    except ValueError:
-        return JSONResponse(
-            status_code=422,
-            content={"detail": f"Invalid datetime format: {body.before!r}. Use ISO-8601."},
-        )
-    removed = event_logger.purge_before(before_dt)
-    log.info(
-        json.dumps({"event": "gdpr_purge", "removed": removed, "before": body.before})
-    )
-    return {"removed": removed, "before": body.before}
-
-
-# ── Rule ledger endpoints ─────────────────────────────────────────────────────
-
-class _FpReportRequest(BaseModel):
-    reason: str | None = None
-
-
-@app.post(
-    "/rules/{rule_id}/report-fp",
-    tags=["rules"],
-    summary="Report a false-positive for an evolution-generated rule (increments fp_reports)",
-    dependencies=[Depends(require_api_key)],
-)
-async def report_false_positive(rule_id: str, body: _FpReportRequest):
-    if _ledger is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Rule ledger not available.",
-        )
-    found = _ledger.report_fp(rule_id)
-    if not found:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Rule {rule_id!r} not found in ledger.",
-        )
-    rule = _ledger.get_rule(rule_id)
-    log.info(
-        json.dumps({
-            "event":        "fp_reported",
-            "rule_id":      rule_id,
-            "fp_reports":   rule["fp_reports"],  # type: ignore[index]
-            "rule_status":  rule["status"],       # type: ignore[index]
-            "reason":       body.reason,
-        })
-    )
-    return {
-        "rule_id":    rule_id,
-        "fp_reports": rule["fp_reports"],    # type: ignore[index]
-        "status":     rule["status"],        # type: ignore[index]
-    }
-
-
-@app.get(
-    "/rules",
-    tags=["rules"],
-    summary="List evolution-generated rules from the ledger",
-    dependencies=[Depends(require_api_key)],
-)
-async def list_rules(rule_status: str | None = None, limit: int = 100):
-    if _ledger is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Rule ledger not available.",
-        )
-    return {"rules": _ledger.list_rules(status=rule_status, limit=limit)}
-
-
-# ── Admin rule lifecycle endpoints ────────────────────────────────────────────
-
-
-@app.post(
-    "/admin/rules/{rule_id}/approve",
-    tags=["admin"],
-    summary="Approve a pending_review rule and activate it (RULE_REVIEW_MODE=manual)",
-    dependencies=[Depends(require_api_key)],
-)
-async def admin_approve_rule(rule_id: str):
-    """
-    Promote a rule from *pending_review* to *active* and hot-load it into the
-    running filter pipeline.
-
-    Only meaningful when ``RULE_REVIEW_MODE=manual``.  Safe to call in auto mode
-    (the rule is already active; the ledger update is idempotent).
-    """
-    if _ledger is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Rule ledger not available.",
-        )
-    rule = _ledger.get_rule(rule_id)
-    if rule is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Rule {rule_id!r} not found in ledger.",
-        )
-    if rule["status"] == "retired":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Rule {rule_id!r} is already retired and cannot be approved.",
-        )
-
-    # Activate in the running pipeline
-    if _review_queue is not None:
-        _review_queue.activate(
-            rule_id    = rule_id,
-            rule_type  = rule["rule_type"],
-            value      = rule["pattern_snippet"],
-            brain_guard= _brain_guard,
-        )
-
-    # Promote in the ledger (approve_rule only changes pending_review → active;
-    # already-active rules are unaffected).
-    _ledger.approve_rule(rule_id)
-
-    log.info(
-        json.dumps({
-            "event":     "admin_rule_approved",
-            "rule_id":   rule_id,
-            "rule_type": rule["rule_type"],
-        })
-    )
-    updated = _ledger.get_rule(rule_id)
-    return {
-        "rule_id": rule_id,
-        "status":  updated["status"],  # type: ignore[index]
-        "message": f"Rule {rule_id!r} activated.",
-    }
-
-
-@app.delete(
-    "/admin/rules/{rule_id}",
-    tags=["admin"],
-    summary="Retire an evolution-generated rule immediately",
-    dependencies=[Depends(require_api_key)],
-)
-async def admin_retire_rule(rule_id: str):
-    """
-    Immediately retire a rule: removes it from the in-memory regex list and sets
-    ``status='retired'`` in the ledger so it is not reloaded on restart.
-    """
-    if _ledger is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Rule ledger not available.",
-        )
-    found = _ledger.retire_rule(rule_id)
-    if not found:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Rule {rule_id!r} not found in ledger.",
-        )
-
-    # Remove from the in-memory dynamic regex list (takes effect immediately)
-    _dynamic_regex_rules[:] = [r for r in _dynamic_regex_rules if r.rule_id != rule_id]
-
-    log.info(
-        json.dumps({
-            "event":   "admin_rule_retired",
-            "rule_id": rule_id,
-        })
-    )
-    return {
-        "rule_id": rule_id,
-        "status":  "retired",
-        "message": f"Rule {rule_id!r} retired and removed from live filter.",
-    }
-
-
-# ── Audit Trail endpoints (SOC 2) ─────────────────────────────────────────────
-
-
-@app.get(
-    "/admin/audit/verify",
-    tags=["admin"],
-    summary="Verify cryptographic integrity of the audit chain",
-    dependencies=[Depends(require_api_key)],
-)
-async def audit_verify():
-    """
-    Walk every entry in the audit chain and recompute each SHA-256 hash.
-
-    Returns ``{"valid": true, "entries": N}`` when the chain is intact.
-    Returns ``{"valid": false, "broken_at_seq": N}`` if tampering is detected.
-    Complexity: O(N) — runs synchronously; suitable for periodic health checks.
-    """
-    if _audit_trail is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AuditTrail not initialised.",
-        )
-    valid, count = _audit_trail.verify_chain()
-    if valid:
-        return {"valid": True, "entries": count}
-    return {"valid": False, "broken_at_seq": count}
-
-
-@app.get(
-    "/admin/audit/export",
-    tags=["admin"],
-    summary="Export audit chain entries for SOC 2 auditors",
-    dependencies=[Depends(require_api_key)],
-)
-async def audit_export(
-    start: str | None = None,
-    end:   str | None = None,
-    limit: int        = 10_000,
-):
-    """
-    Export audit entries in ISO-8601 UTC range ``[start, end]``.
-
-    Both *start* and *end* are inclusive recorded_at timestamps.
-    Omit both to export the full chain (up to *limit*).
-
-    Also verifies chain integrity and includes ``"valid"`` in the response
-    so auditors can confirm the export has not been tampered with.
-    """
-    if _audit_trail is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AuditTrail not initialised.",
-        )
-    entries     = _audit_trail.export_range(start=start, end=end, limit=limit)
-    valid, _cnt = _audit_trail.verify_chain()
-    return {
-        "valid":   valid,
-        "count":   len(entries),
-        "entries": entries,
-    }
-
-
-# ── Threat intelligence endpoints ─────────────────────────────────────────────
-
-
-class _BlockIpRequest(BaseModel):
-    ip:         str
-    tenant_id:  str         = "default"
-    reason:     str         = ""
-    expires_at: str | None  = None   # ISO-8601; None = permanent
-
-
-@app.get(
-    "/threats/profiles",
-    tags=["threats"],
-    summary="Cross-session attacker profiles aggregated by IP + tenant",
-    dependencies=[Depends(require_api_key)],
-)
-async def get_threat_profiles(tenant_id: str | None = None, limit: int = 50):
-    """Return attacker profiles sorted by most recent block activity."""
-    if _threat_store is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Threat store not available.",
-        )
-    return {"profiles": _threat_store.get_profiles(tenant_id=tenant_id, limit=limit)}
-
-
-@app.get(
-    "/threats/blocked-ips",
-    tags=["threats"],
-    summary="List all currently-blocked IPs",
-    dependencies=[Depends(require_api_key)],
-)
-async def get_blocked_ips(tenant_id: str | None = None):
-    if _threat_store is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Threat store not available.",
-        )
-    return {"blocked_ips": _threat_store.get_blocked_ips(tenant_id=tenant_id)}
-
-
-@app.post(
-    "/threats/block-ip",
-    tags=["threats"],
-    summary="Manually block an IP address across the filter pipeline",
-    dependencies=[Depends(require_api_key)],
-)
-async def block_ip(body: _BlockIpRequest):
-    """
-    Add an IP to the blocklist.  All future requests from this IP will receive
-    HTTP 403 before any other processing occurs.  Optionally provide an
-    ISO-8601 ``expires_at`` for temporary blocks; omit for permanent.
-    """
-    if _threat_store is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Threat store not available.",
-        )
-    _threat_store.block_ip(
-        ip         = body.ip,
-        tenant_id  = body.tenant_id,
-        reason     = body.reason,
-        blocked_by = "manual",
-        expires_at = body.expires_at,
-    )
-    # Mirror to global Redis blocklist so all regions enforce immediately
-    _ = _global_blocklist_is_blocked  # import side-effect; actual call:
-    try:
-        from warden.global_blocklist import block_ip as _gbl_block  # noqa: PLC0415
-        expires_s = 0
-        if body.expires_at:
-            from datetime import datetime as _dt  # noqa: PLC0415
-            delta = _dt.fromisoformat(body.expires_at) - _dt.now(UTC)
-            expires_s = max(0, int(delta.total_seconds()))
-        _gbl_block(body.ip, body.tenant_id, body.reason, expires_s, "manual")
-    except Exception as _gbl_err:
-        log.debug("GlobalBlocklist.block_ip skipped (non-fatal): %s", _gbl_err)
-    log.info(
-        json.dumps({
-            "event":     "ip_manually_blocked",
-            "ip":        body.ip,
-            "tenant_id": body.tenant_id,
-            "reason":    body.reason,
-        })
-    )
-    return {
-        "ip":         body.ip,
-        "tenant_id":  body.tenant_id,
-        "blocked_by": "manual",
-        "expires_at": body.expires_at,
-        "message":    f"IP {body.ip!r} blocked globally.",
-    }
-
-
-@app.post(
-    "/api/ips/block",
-    tags=["threats"],
-    summary="Block a CIDR IP range (SOVA tool #47)",
-    dependencies=[Depends(require_api_key)],
-)
-async def block_ip_range_endpoint(body: dict):
-    """
-    Block all IPs in a CIDR range.  Used by SOVA tool #47 `block_ip_range`.
-    Maximum prefix /24 (256 hosts).  Adds each host to the ThreatStore and
-    global Redis blocklist.
-    """
-    import ipaddress  # noqa: PLC0415
-    if _threat_store is None:
-        raise HTTPException(status_code=503, detail="Threat store not available.")
-    cidr      = body.get("cidr", "")
-    reason    = body.get("reason", "SOVA CIDR block")
-    tenant_id = body.get("tenant_id", "default")
-    try:
-        net = ipaddress.ip_network(cidr, strict=False)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=f"Invalid CIDR: {exc}") from exc
-    if net.prefixlen < 24:
-        raise HTTPException(status_code=422, detail="CIDR too broad — minimum /24 prefix required.")
-    hosts_blocked = 0
-    for host in net.hosts():
-        ip_str = str(host)
-        try:
-            _threat_store.block_ip(ip=ip_str, tenant_id=tenant_id, reason=reason, blocked_by="sova")
-            hosts_blocked += 1
-        except Exception as exc:
-            log.debug("block_ip_range: host=%s error=%s", ip_str, exc)
-    log.info(json.dumps({"event": "cidr_blocked", "cidr": cidr, "hosts": hosts_blocked, "tenant_id": tenant_id}))
-    return {"cidr": cidr, "hosts_blocked": hosts_blocked, "reason": reason, "tenant_id": tenant_id}
-
-
-@app.delete(
-    "/threats/blocked-ips/{ip}",
-    tags=["threats"],
-    summary="Remove an IP from the blocklist",
-    dependencies=[Depends(require_api_key)],
-)
-async def unblock_ip(ip: str, tenant_id: str = "default"):
-    if _threat_store is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Threat store not available.",
-        )
-    found = _threat_store.unblock_ip(ip, tenant_id)
-    if not found:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"IP {ip!r} is not in the blocklist for tenant {tenant_id!r}.",
-        )
-    log.info(json.dumps({"event": "ip_unblocked", "ip": ip, "tenant_id": tenant_id}))
-    return {"ip": ip, "tenant_id": tenant_id, "message": f"IP {ip!r} unblocked."}
+# ── ThreatStore blocklist / attacker-profile endpoints ───────────────────────
+# Extracted to warden/api/threats.py (Phase 3). ThreatStore singleton published
+# to warden.runtime as "threat_store". Included via app.include_router below.
 
 
 # ── ERS / Shadow Ban admin endpoints ─────────────────────────────────────────
-
-@app.get(
-    "/ers/score",
-    tags=["security"],
-    summary="Get ERS score for the current caller (tenant + IP)",
-    dependencies=[Depends(require_api_key)],
-)
-async def ers_score_self(request: Request, auth: AuthResult = Depends(require_api_key)):
-    """Return the ERS score for the caller's own entity key."""
-    client_ip  = request.client.host if request.client else ""
-    entity_key = _ers.make_entity_key(auth.tenant_id, client_ip)
-    result    = _ers.score(entity_key)
-    last_flag = _ers_dominant_flag(result.counts, result.total_1h)
-    return {
-        "entity_key": entity_key,
-        "score":      result.score,
-        "level":      result.level,
-        "shadow_ban": result.shadow_ban,
-        "last_flag":  last_flag,
-        "total_1h":   result.total_1h,
-        "counts":     result.counts,
-        "window_secs": _ers.WINDOW_SECS,
-    }
+# Extracted to warden/api/ers.py (Phase 3). ERS is a stateless Redis-backed
+# module imported directly. Included via app.include_router below.
 
 
-@app.post(
-    "/ers/reset",
-    tags=["security"],
-    summary="Reset ERS score for a given tenant+IP (admin — false-positive clearance)",
-    dependencies=[Depends(require_api_key)],
-)
-async def ers_reset(tenant_id: str, ip: str):
-    """Clear all ERS signal counters for the specified entity."""
-    entity_key = _ers.make_entity_key(tenant_id, ip)
-    _ers.reset(entity_key)
-    return {"entity_key": entity_key, "message": "ERS counters reset."}
-
-
-# ── Zero-Trust Agent Sandbox — manifest management ────────────────────────────
-
-
-@app.get(
-    "/api/agent/manifests",
-    tags=["agent-sandbox"],
-    summary="List all registered agent capability manifests",
-    dependencies=[Depends(require_api_key)],
-)
-async def list_agent_manifests():
-    """Return the list of all registered agent manifests (agent_id, tools, egress flag)."""
-    return {"manifests": _get_sandbox_registry().list_agents()}
-
-
-@app.get(
-    "/api/agent/manifest/{agent_id}",
-    tags=["agent-sandbox"],
-    summary="Get capability manifest for a specific agent",
-    dependencies=[Depends(require_api_key)],
-)
-async def get_agent_manifest(agent_id: str):
-    """Return full manifest detail for *agent_id*, or 404 if not registered."""
-    m = _get_sandbox_registry().get_manifest(agent_id)
-    if m is None:
-        raise HTTPException(status_code=404, detail=f"No manifest for agent_id={agent_id!r}.")
-    return {
-        "agent_id":               m.agent_id,
-        "description":            m.description,
-        "network_egress_allowed": m.network_egress_allowed,
-        "default_deny":           m.default_deny,
-        "capabilities": [
-            {
-                "tool_name":             c.tool_name,
-                "allowed_params":        c.allowed_params,
-                "max_calls_per_session": c.max_calls_per_session,
-                "required_approval":     c.required_approval,
-            }
-            for c in m.capabilities
-        ],
-    }
-
-
-@app.post(
-    "/api/agent/manifest/reload",
-    tags=["agent-sandbox"],
-    summary="Hot-reload agent manifests from AGENT_SANDBOX_PATH",
-    dependencies=[Depends(require_api_key)],
-)
-async def reload_agent_manifests():
-    """Force-reload all manifests from the JSON file on disk."""
-    count = await asyncio.to_thread(_get_sandbox_registry().reload)
-    return {"loaded": count, "message": f"Reloaded {count} manifest(s) from disk."}
-
-
-# ── Behavioral Attestation ────────────────────────────────────────────────────
-
-
-@app.get(
-    "/api/agent/session/{session_id}/verify",
-    tags=["agent-sandbox"],
-    summary="Verify cryptographic attestation chain for an agent session",
-    dependencies=[Depends(require_api_key)],
-)
-async def verify_session_attestation(session_id: str):
-    """
-    Replay stored tool events and recompute the SHA-256 attestation chain.
-
-    Returns ``valid=true`` when the stored token matches the computed token —
-    confirming the session history has not been tampered with.
-    """
-    if _agent_monitor is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AgentMonitor not available.",
-        )
-    result = await asyncio.to_thread(_agent_monitor.verify_attestation, session_id)
-    if result.get("error") == "session_not_found":
-        raise HTTPException(status_code=404, detail=f"Session {session_id!r} not found.")
-    return result
-
-
-@app.get(
-    "/api/agent/session/{session_id}",
-    tags=["agent-sandbox"],
-    summary="Get metadata and events for an agent session",
-    dependencies=[Depends(require_api_key)],
-)
-async def get_agent_session(session_id: str):
-    """Return full session metadata + tool event list for *session_id*."""
-    if _agent_monitor is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AgentMonitor not available.",
-        )
-    sess = await asyncio.to_thread(_agent_monitor.get_session, session_id)
-    if sess is None:
-        raise HTTPException(status_code=404, detail=f"Session {session_id!r} not found.")
-    return sess
-
-
-@app.delete(
-    "/api/agent/session/{session_id}",
-    tags=["agent-sandbox"],
-    summary="Kill-switch: immediately revoke an agent session",
-    dependencies=[Depends(require_api_key)],
-)
-async def revoke_agent_session(
-    session_id: str,
-    reason: str = "admin_kill_switch",
-):
-    """
-    Terminate an agent session immediately.
-
-    Any subsequent ``/v1/chat/completions`` request carrying
-    ``X-Session-ID: {session_id}`` will receive HTTP 403 until the session TTL
-    expires.  The revocation is also recorded in session metadata for audit.
-    """
-    if _agent_monitor is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AgentMonitor not available.",
-        )
-    result = await asyncio.to_thread(_agent_monitor.revoke_session, session_id, reason)
-    return result
-
-
-# ── v1.8 Compliance Reporting & Evidence Bundles ─────────────────────────────
-
-
-@app.get(
-    "/compliance/art30",
-    tags=["compliance"],
-    summary="GDPR Article 30 Record of Processing Activities",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_art30(
-    days: float = 30,
-    format: str = "json",
-):
-    """
-    Generate a GDPR Art. 30 RoPA from real traffic data.
-
-    Set ``format=html`` to receive a styled HTML document ready for DPO sign-off
-    (print to PDF from the browser).  Default is ``json``.
-    """
-    from fastapi.responses import HTMLResponse  # noqa: PLC0415
-
-    from warden.compliance.art30 import Art30Generator  # noqa: PLC0415
-
-    gen    = Art30Generator()
-    record = await asyncio.to_thread(gen.generate, days)
-    if format.lower() == "html":
-        html = await asyncio.to_thread(gen.to_html, record)
-        return HTMLResponse(content=html)
-    return record
-
-
-@app.get(
-    "/compliance/soc2/export",
-    tags=["compliance"],
-    summary="SOC 2 Evidence Bundle — ZIP archive for auditors",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_soc2_export(days: float = 30):
-    """
-    Export a tamper-evident ZIP bundle containing:
-    config snapshot, threat statistics, audit chain status,
-    evolved rules, session summaries, and SHA-256 audit manifest.
-
-    Safe to share with external auditors — no prompt content or PII values included.
-    """
-    from datetime import UTC, datetime  # noqa: PLC0415
-
-    from fastapi.responses import StreamingResponse  # noqa: PLC0415
-
-    from warden.compliance.soc2 import SOC2Exporter  # noqa: PLC0415
-
-    exporter = SOC2Exporter(audit_trail=_audit_trail)
-    buf      = await asyncio.to_thread(exporter.export_bundle, days)
-    slug     = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    filename = f"soc2_evidence_{slug}.zip"
-    return StreamingResponse(
-        buf,
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-@app.get(
-    "/compliance/incident/{session_id}",
-    tags=["compliance"],
-    summary="Incident Post-Mortem report for a session or ERS entity",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_incident_report(
-    session_id: str,
-    entity_key: str | None = None,
-    format: str = "json",
-):
-    """
-    Generate a post-mortem report for *session_id*.
-
-    Includes threat timeline, detected patterns, attestation chain status,
-    ERS profile (if *entity_key* provided), and recommended actions.
-
-    Set ``format=html`` for a printable HTML document.
-    """
-    from fastapi.responses import HTMLResponse  # noqa: PLC0415
-
-    from warden.compliance.incident import IncidentReporter  # noqa: PLC0415
-
-    reporter = IncidentReporter(agent_monitor=_agent_monitor)
-    report   = await asyncio.to_thread(reporter.generate, session_id, entity_key)
-    if format.lower() == "html":
-        html = await asyncio.to_thread(reporter.to_html, report)
-        return HTMLResponse(content=html)
-    return report
-
-
-@app.get(
-    "/compliance/dashboard",
-    tags=["compliance"],
-    summary="Compliance & Risk Mitigation ROI dashboard",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_dashboard(days: float = 30):
-    """
-    Return risk-mitigation ROI metrics: shadow-ban compute savings,
-    estimated breach cost avoided, secret protection value, agent security summary,
-    and the Compliance Score (Cs = verified_audit_entries / total_log_entries).
-
-    Override ``COMPLIANCE_*`` environment variables to use your organisation's
-    actual LLM pricing and breach cost estimates.
-    """
-    from warden.compliance.dashboard import ComplianceDashboard  # noqa: PLC0415
-
-    dash    = ComplianceDashboard(agent_monitor=_agent_monitor, audit_trail=_audit_trail)
-    metrics = await asyncio.to_thread(dash.get_metrics, days)
-    return metrics
-
-
-# ── Evidence Vault ────────────────────────────────────────────────────────────
-
-
-@app.get(
-    "/compliance/evidence/{session_id}",
-    tags=["compliance"],
-    summary="Export a cryptographically-signed evidence bundle for a session",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_evidence_bundle(
-    session_id: str,
-    agent_id:   str = "",
-    entity_key: str = "",
-):
-    """
-    Generate a tamper-evident JSON evidence bundle for *session_id*.
-
-    The bundle includes session metadata, ERS profile, attestation chain
-    status, tool timeline, and a ``bundle_hash`` (SHA-256 over canonical JSON).
-    Any post-export modification invalidates the hash.
-
-    Use ``POST /compliance/evidence/verify`` to check integrity later.
-    """
-    if _agent_monitor is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AgentMonitor not available.",
-        )
-    from warden.compliance.bundler import EvidenceBundler  # noqa: PLC0415
-
-    bundler = EvidenceBundler(agent_monitor=_agent_monitor)
-    bundle  = await asyncio.to_thread(bundler.generate, session_id, agent_id, entity_key)
-    return bundle
-
-
-@app.post(
-    "/compliance/evidence/verify",
-    tags=["compliance"],
-    summary="Verify integrity of a previously exported evidence bundle",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_evidence_verify(bundle: dict):
-    """
-    Verify the ``bundle_hash`` of a submitted evidence bundle.
-
-    Returns ``{"valid": true}`` if the bundle is intact, ``{"valid": false}``
-    if any field has been modified since export.
-    """
-    from warden.compliance.bundler import EvidenceBundler  # noqa: PLC0415
-
-    valid = await asyncio.to_thread(EvidenceBundler.verify_bundle, bundle)
-    return {"valid": valid, "bundle_hash": bundle.get("bundle_hash", "")}
-
-
-# ── GDPR RoPA alias (regulators expect this path) ────────────────────────────
-
-
-@app.get(
-    "/api/compliance/gdpr/ropa",
-    tags=["compliance"],
-    summary="GDPR Article 30 RoPA — regulatory path alias",
-    dependencies=[Depends(require_api_key)],
-)
-async def compliance_gdpr_ropa(days: float = 30, format: str = "json"):
-    """
-    Alias for ``GET /compliance/art30`` using the path regulators expect.
-    Returns the Art. 30 Record of Processing Activities.
-    """
-    return await compliance_art30(days=days, format=format)
+# ── Zero-Trust Agent Sandbox — manifest management + attestation ──────────────
+# Extracted to warden/api/agent_sandbox.py (Phase 3). AgentMonitor singleton is
+# published to warden.runtime in lifespan; sandbox registry imported directly.
+# Included via app.include_router below.
 
 
 # ── Threat Intelligence endpoints ────────────────────────────────────────────
 
 
-def _require_threat_intel():
-    if _threat_intel_store is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Threat Intelligence Engine disabled. Set THREAT_INTEL_ENABLED=true.",
-        )
-    return _threat_intel_store
+# ── Threat Intelligence + ThreatVault endpoints ────────────────────────────────
+# Extracted to warden/api/threats.py (Phase 3). Singletons (_threat_intel_store,
+# _ti_scheduler, _threat_vault) are published to warden.runtime in lifespan and
+# resolved there by the router. Included via app.include_router below.
 
 
-@app.get("/threats/intel/stats", tags=["threat-intel"])
-async def threat_intel_stats(_: AuthResult = Depends(require_api_key)):
-    """Aggregated statistics for the threat intelligence collection."""
-    store = _require_threat_intel()
-    return store.stats()
-
-
-@app.get("/threats/intel", tags=["threat-intel"])
-async def list_threat_intel(
-    item_status: str | None = None,
-    source:      str | None = None,
-    limit:       int        = 50,
-    offset:      int        = 0,
-    _: AuthResult = Depends(require_api_key),
-):
-    """List collected threat intelligence items."""
-    store = _require_threat_intel()
-    items = store.list_items(status=item_status, source=source, limit=limit, offset=offset)
-    return {"items": [i.model_dump() for i in items], "total": len(items)}
-
-
-@app.get("/threats/intel/{item_id}", tags=["threat-intel"])
-async def get_threat_intel_item(
-    item_id: str,
-    _: AuthResult = Depends(require_api_key),
-):
-    """Retrieve a single threat intelligence item with its countermeasures."""
-    store = _require_threat_intel()
-    item = store.get_item(item_id)
-    if item is None:
-        raise HTTPException(status_code=404, detail=f"Threat item {item_id!r} not found.")
-    countermeasures = store.get_countermeasures(item_id)
-    return {**item.model_dump(), "countermeasures": countermeasures}
-
-
-@app.post("/threats/intel/refresh", tags=["threat-intel"], status_code=202)
-async def refresh_threat_intel(
-    background_tasks: BackgroundTasks,
-    _: AuthResult = Depends(require_api_key),
-):
-    """Trigger an immediate out-of-cycle collection + analysis run."""
-    if _ti_scheduler is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Threat Intelligence Engine disabled. Set THREAT_INTEL_ENABLED=true.",
-        )
-    background_tasks.add_task(_ti_scheduler.run_once)
-    return {"queued": True, "message": "Threat intel refresh queued as background task."}
-
-
-@app.post("/threats/intel/{item_id}/dismiss", tags=["threat-intel"])
-async def dismiss_threat_intel_item(
-    item_id: str,
-    _: AuthResult = Depends(require_api_key),
-):
-    """Manually dismiss a threat intelligence item (will not generate rules)."""
-    store = _require_threat_intel()
-    found = store.dismiss(item_id)
-    if not found:
-        raise HTTPException(status_code=404, detail=f"Threat item {item_id!r} not found.")
-    return {"item_id": item_id, "status": "dismissed"}
-
-
-# ── ThreatVault endpoints ──────────────────────────────────────────────────────
-
-
-@app.get("/threats/vault", tags=["threat-vault"])
-async def list_threat_vault(_: AuthResult = Depends(require_api_key)):
-    """List all adversarial prompt signatures loaded in the ThreatVault."""
-    if _threat_vault is None:
-        raise HTTPException(status_code=503, detail="ThreatVault not initialized.")
-    return {
-        "stats":   _threat_vault.stats(),
-        "threats": _threat_vault.list_threats(),
-    }
-
-
-@app.get("/threats/vault/stats", tags=["threat-vault"])
-async def threat_vault_stats(_: AuthResult = Depends(require_api_key)):
-    """Aggregated ThreatVault statistics: totals by severity, category, OWASP."""
-    if _threat_vault is None:
-        raise HTTPException(status_code=503, detail="ThreatVault not initialized.")
-    return _threat_vault.stats()
-
-
-@app.post("/threats/vault/reload", tags=["threat-vault"], status_code=202)
-async def reload_threat_vault(_: AuthResult = Depends(require_api_key)):
-    """Hot-reload ThreatVault signatures from disk (no restart required)."""
-    if _threat_vault is None:
-        raise HTTPException(status_code=503, detail="ThreatVault not initialized.")
-    count = _threat_vault.reload()
-    return {"reloaded": True, "signatures_loaded": count}
-
-
-# ── Billing endpoints ─────────────────────────────────────────────────────────
-
-
-def _require_billing() -> None:
-    if _billing is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Billing store not available.",
-        )
-
-
-class _QuotaRequest(BaseModel):
-    quota_usd: float   # monthly USD cap; set to 0 to remove cap
-
-
-@app.get(
-    "/billing/{tenant_id}",
-    tags=["billing"],
-    summary="Aggregated usage and cost for a tenant",
-    dependencies=[Depends(require_api_key)],
-)
-async def get_billing(
-    tenant_id: str,
-    from_date: str | None = None,
-    to_date:   str | None = None,
-):
-    """
-    Return aggregated request counts and USD cost for *tenant_id* over the
-    given date range (``from_date`` / ``to_date`` inclusive, format YYYY-MM-DD).
-    Includes current-month cost and quota_remaining when a quota is set.
-    """
-    _require_billing()
-    return _billing.get_usage(tenant_id, from_date=from_date, to_date=to_date)  # type: ignore[union-attr]
-
-
-@app.get(
-    "/billing/{tenant_id}/daily",
-    tags=["billing"],
-    summary="Day-by-day billing breakdown for a tenant",
-    dependencies=[Depends(require_api_key)],
-)
-async def get_billing_daily(
-    tenant_id: str,
-    from_date: str | None = None,
-    to_date:   str | None = None,
-    limit:     int        = 90,
-):
-    _require_billing()
-    return {
-        "tenant_id": tenant_id,
-        "rows": _billing.get_daily_breakdown(tenant_id, from_date, to_date, limit),  # type: ignore[union-attr]
-    }
-
-
-@app.post(
-    "/billing/{tenant_id}/quota",
-    tags=["billing"],
-    summary="Set or update the monthly USD cost cap for a tenant",
-    dependencies=[Depends(require_api_key)],
-)
-async def set_billing_quota(tenant_id: str, body: _QuotaRequest):
-    """
-    Set the monthly cost cap for *tenant_id*.  All subsequent filter requests
-    from this tenant will receive HTTP 402 once the cap is reached.
-
-    Set ``quota_usd=0`` to remove the cap (unlimited).
-    """
-    _require_billing()
-    if body.quota_usd <= 0:
-        # Treat 0 / negative as "remove quota" — just set a very high value
-        # or use a sentinel.  Here we delete the row to restore unlimited.
-        with suppress(Exception):
-            _billing._conn.execute(  # type: ignore[union-attr]
-                "DELETE FROM tenant_quotas WHERE tenant_id=?", (tenant_id,)
-            )
-            _billing._conn.commit()  # type: ignore[union-attr]
-        log.info(json.dumps({"event": "quota_removed", "tenant_id": tenant_id}))
-        return {"tenant_id": tenant_id, "quota_usd": None, "message": "Quota removed (unlimited)."}
-
-    _billing.set_quota(tenant_id, body.quota_usd)  # type: ignore[union-attr]
-    log.info(
-        json.dumps({
-            "event":     "quota_set",
-            "tenant_id": tenant_id,
-            "quota_usd": body.quota_usd,
-        })
-    )
-    return {
-        "tenant_id": tenant_id,
-        "quota_usd": body.quota_usd,
-        "message":   f"Monthly quota set to ${body.quota_usd:.4f} for tenant {tenant_id!r}.",
-    }
+# ── Billing usage/quota endpoints ─────────────────────────────────────────────
+# Extracted to warden/api/billing_usage.py (Phase 3). BillingStore singleton is
+# published to warden.runtime in lifespan. Included via app.include_router below.
+# (Distinct from warden/billing/router.py — tier catalog + add-on checkout.)
 
 
 # ── Live Event Bus — broadcast security events to monitoring dashboards ───────
@@ -4781,8 +3555,8 @@ async def ws_stream(websocket: WebSocket):
         try:
             await _ws_send(websocket, {"type": "error", "code": 502, "detail": "LLM upstream error."})
             await websocket.close(code=1011)
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
         return
 
     await _ws_send(websocket, {"type": "done", "request_id": rid})
@@ -4821,8 +3595,8 @@ async def ws_monitor_stream(websocket: WebSocket, monitor_id: str):
             for msg in pubsub.listen():
                 if msg["type"] == "message":
                     loop.call_soon_threadsafe(queue.put_nowait, msg["data"])
-        except Exception:
-            pass
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
         finally:
             with contextlib.suppress(Exception):
                 pubsub.unsubscribe(channel)
@@ -4930,8 +3704,8 @@ async def ws_filter_stream(websocket: WebSocket):
             await _ws_send(websocket, {"type": "done", "request_id": rid})
             await websocket.close()
             return
-        except Exception:
-            pass  # corrupted cache entry → fall through to full pipeline
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)  # corrupted cache entry → fall through to full pipeline
 
     # ── Stage 0b: Obfuscation decoding ────────────────────────────────────────
     t0 = time.perf_counter()
@@ -4954,7 +3728,7 @@ async def ws_filter_stream(websocket: WebSocket):
 
     # ── Stage 1: Secret Redaction ─────────────────────────────────────────────
     t0 = time.perf_counter()
-    redact_result = _redactor.redact(analysis_text, payload.redaction_policy)  # type: ignore[union-attr]
+    redact_result = _redactor.redact(analysis_text, payload.redaction_policy)
     timings["redaction"] = round((time.perf_counter() - t0) * 1000, 2)
     await _ws_send(websocket, {
         "type": "stage", "stage": "redaction",
@@ -4965,7 +3739,7 @@ async def ws_filter_stream(websocket: WebSocket):
 
     # ── Stage 2: Rule-based Semantic Analysis ─────────────────────────────────
     t0 = time.perf_counter()
-    guard_result = _guard.analyse(redact_result.text)  # type: ignore[union-attr]
+    guard_result = _guard.analyse(redact_result.text)
     timings["rules"] = round((time.perf_counter() - t0) * 1000, 2)
 
     # Dynamic evolution regex rules
@@ -5064,530 +3838,11 @@ async def ws_filter_stream(websocket: WebSocket):
     await websocket.close()
 
 
-# ── Onboarding API ───────────────────────────────────────────────────────────
-
-class _OnboardRequest(BaseModel):
-    company_name:     str   = Field(..., min_length=2, max_length=120)
-    contact_email:    str   = Field(..., min_length=5)
-    plan:             str   = Field("pro", pattern="^(free|pro|msp)$")
-    telegram_chat_id: str | None = None
-    custom_quota_usd: float | None = None
-
-
-class _RotateKeyResponse(BaseModel):
-    tenant_id: str
-    api_key:   str
-    message:   str
-
-
-class _TelegramSetRequest(BaseModel):
-    chat_id: str | None = None
-
-
-class _TelegramTestRequest(BaseModel):
-    chat_id: str
-
-
-def _require_onboarding() -> None:
-    if _onboarding is None:
-        raise HTTPException(503, detail="OnboardingEngine not initialized.")
-
-
-@app.post(
-    "/onboard",
-    tags=["onboarding"],
-    summary="Create a new SMB tenant (MSP admin only)",
-    status_code=201,
-)
-async def create_tenant(
-    body: _OnboardRequest,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """
-    Provision a new SMB client tenant.
-
-    Returns a one-time setup kit including the raw API key (not stored in plaintext),
-    OPENAI_BASE_URL for the client, and a .env template.
-    """
-    _require_onboarding()
-    try:
-        kit = _onboarding.create_tenant(  # type: ignore[union-attr]
-            company_name     = body.company_name,
-            contact_email    = body.contact_email,
-            plan             = body.plan,
-            telegram_chat_id = body.telegram_chat_id,
-            custom_quota_usd = body.custom_quota_usd,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    # Apply billing quota if billing is configured
-    if _billing is not None and kit.quota_usd > 0:
-        _billing.set_quota(kit.tenant_id, kit.quota_usd)
-
-    log.info(
-        json.dumps({
-            "event":     "tenant_created",
-            "tenant_id": kit.tenant_id,
-            "plan":      kit.plan,
-            "by":        auth.tenant_id,
-        })
-    )
-    return kit.as_dict()
-
-
-@app.get(
-    "/onboard/{tenant_id}",
-    tags=["onboarding"],
-    summary="Get tenant status",
-)
-async def get_tenant_status(
-    tenant_id: str,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """Return tenant metadata (no key hash exposed)."""
-    _require_onboarding()
-    tenant = _onboarding.get_tenant(tenant_id)  # type: ignore[union-attr]
-    if not tenant:
-        raise HTTPException(404, detail=f"Tenant {tenant_id!r} not found.")
-    return tenant
-
-
-@app.get(
-    "/tenants",
-    tags=["onboarding"],
-    summary="List all tenants (MSP dashboard)",
-)
-async def list_tenants(
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """Return all provisioned tenants with metadata (no key hashes)."""
-    _require_onboarding()
-    tenants = _onboarding.list_tenants()  # type: ignore[union-attr]
-    return {"count": len(tenants), "tenants": tenants}
-
-
-@app.post(
-    "/onboard/{tenant_id}/rotate-key",
-    tags=["onboarding"],
-    summary="Issue a new API key for a tenant (invalidates old key immediately)",
-)
-async def rotate_tenant_key(
-    tenant_id: str,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """Rotate the API key for a tenant. Old key is immediately revoked."""
-    _require_onboarding()
-    new_key = _onboarding.rotate_key(tenant_id)  # type: ignore[union-attr]
-    if new_key is None:
-        raise HTTPException(404, detail=f"Tenant {tenant_id!r} not found.")
-    log.info(
-        json.dumps({"event": "key_rotated", "tenant_id": tenant_id, "by": auth.tenant_id})
-    )
-    return {
-        "tenant_id": tenant_id,
-        "api_key":   new_key,
-        "message":   "New API key issued. Update your client's OPENAI_API_KEY immediately.",
-    }
-
-
-@app.put(
-    "/onboard/{tenant_id}/status",
-    tags=["onboarding"],
-    summary="Activate or deactivate a tenant",
-)
-async def set_tenant_status(
-    tenant_id: str,
-    active: bool,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """Enable or suspend a tenant's API key."""
-    _require_onboarding()
-    if active:
-        found = _onboarding.reactivate_tenant(tenant_id)  # type: ignore[union-attr]
-    else:
-        found = _onboarding.deactivate_tenant(tenant_id)  # type: ignore[union-attr]
-    if not found:
-        raise HTTPException(404, detail=f"Tenant {tenant_id!r} not found.")
-    return {"tenant_id": tenant_id, "active": active}
-
-
-@app.put(
-    "/onboard/{tenant_id}/telegram",
-    tags=["onboarding"],
-    summary="Set or clear a tenant's Telegram chat_id",
-)
-async def set_tenant_telegram(
-    tenant_id: str,
-    body: _TelegramSetRequest,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """Store a Telegram chat_id for per-tenant block event notifications."""
-    _require_onboarding()
-    found = _onboarding.update_telegram(tenant_id, body.chat_id)  # type: ignore[union-attr]
-    if not found:
-        raise HTTPException(404, detail=f"Tenant {tenant_id!r} not found.")
-    return {"tenant_id": tenant_id, "telegram_chat_id": body.chat_id}
-
-
-@app.post(
-    "/onboard/{tenant_id}/verify-telegram",
-    tags=["onboarding"],
-    summary="Send a test Telegram message to verify bot and chat_id",
-)
-async def verify_tenant_telegram(
-    tenant_id: str,
-    body: _TelegramTestRequest,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """Send a test Telegram message. Returns ok=true if message was delivered."""
-    from warden.telegram_alert import send_test_message
-    ok = await send_test_message(body.chat_id)
-    return {"ok": ok, "chat_id": body.chat_id}
-
-
-# ── Data Policy API ───────────────────────────────────────────────────────────
-
-class _PolicySettingsRequest(BaseModel):
-    default_class:      str  = Field("green", pattern="^(green|yellow|red)$")
-    block_cloud_yellow: bool = True
-
-
-class _AddRuleRequest(BaseModel):
-    data_class:   str = Field(..., pattern="^(green|yellow|red)$")
-    trigger_type: str = Field(..., pattern="^(pattern|keyword)$")
-    value:        str = Field(..., min_length=1)
-    description:  str = ""
-
-
-class _ClassifyRequest(BaseModel):
-    text:     str = Field(..., min_length=1)
-    provider: str = "openai"
-
-
-def _require_policy() -> None:
-    if _policy is None:
-        raise HTTPException(503, detail="DataPolicyEngine not initialized.")
-
-
-@app.get(
-    "/policy/{tenant_id}",
-    tags=["data-policy"],
-    summary="Get full data classification policy for a tenant",
-)
-async def get_policy(
-    tenant_id: str,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """
-    Returns: settings (block_cloud_yellow), custom rules (RED/YELLOW/GREEN),
-    and built-in category descriptions.
-    """
-    _require_policy()
-    return _policy.get_full_policy(tenant_id)  # type: ignore[union-attr]
-
-
-@app.put(
-    "/policy/{tenant_id}/settings",
-    tags=["data-policy"],
-    summary="Update tenant policy settings",
-)
-async def update_policy_settings(
-    tenant_id: str,
-    body: _PolicySettingsRequest,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """
-    Set block_cloud_yellow=true to restrict YELLOW data to local AI only.
-    Set block_cloud_yellow=false to allow YELLOW data to cloud AI (with advisory).
-    """
-    _require_policy()
-    _policy.update_settings(  # type: ignore[union-attr]
-        tenant_id          = tenant_id,
-        default_class      = body.default_class,
-        block_cloud_yellow = body.block_cloud_yellow,
-    )
-    return {"tenant_id": tenant_id, "settings": body.model_dump()}
-
-
-@app.post(
-    "/policy/{tenant_id}/rules",
-    tags=["data-policy"],
-    summary="Add a custom classification rule",
-    status_code=201,
-)
-async def add_policy_rule(
-    tenant_id: str,
-    body: _AddRuleRequest,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """
-    Add a RED/YELLOW/GREEN rule for this tenant.
-
-    trigger_type='keyword' accepts comma-separated keywords and converts them to
-    a regex pattern automatically (e.g. 'client list, crm, contact database').
-    trigger_type='pattern' accepts a raw Python regex string.
-    """
-    _require_policy()
-    try:
-        rule_id = _policy.add_rule(  # type: ignore[union-attr]
-            tenant_id    = tenant_id,
-            data_class   = body.data_class,
-            trigger_type = body.trigger_type,
-            value        = body.value,
-            description  = body.description,
-        )
-    except (ValueError, Exception) as exc:
-        raise HTTPException(400, detail=str(exc)) from exc
-    return {"rule_id": rule_id, "tenant_id": tenant_id, "data_class": body.data_class}
-
-
-@app.delete(
-    "/policy/{tenant_id}/rules/{rule_id}",
-    tags=["data-policy"],
-    summary="Delete a custom classification rule",
-)
-async def delete_policy_rule(
-    tenant_id: str,
-    rule_id:   str,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """Delete a custom rule by ID. Built-in category patterns cannot be deleted."""
-    _require_policy()
-    found = _policy.delete_rule(rule_id, tenant_id)  # type: ignore[union-attr]
-    if not found:
-        raise HTTPException(404, detail=f"Rule {rule_id!r} not found for tenant {tenant_id!r}.")
-    return {"deleted": rule_id}
-
-
-@app.get(
-    "/msp/overview",
-    tags=["msp"],
-    summary="Cross-tenant MSP overview — aggregate stats for all tenants",
-)
-async def msp_overview(
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """
-    Returns per-tenant stats (requests, blocks, cost, block rate, quota usage)
-    for the current calendar month, plus fleet-wide totals.
-
-    Designed for the MSP sales dashboard — shows all client activity in one view.
-    Requires a valid API key (any key; MSP keys have plan=msp in the key file).
-    """
-    _require_onboarding()
-    tenants = _onboarding.list_tenants()  # type: ignore[union-attr]
-    year_month = datetime.now(UTC).strftime("%Y-%m")
-
-    tenant_rows: list[dict] = []
-    fleet_requests = 0
-    fleet_blocked  = 0
-    fleet_cost     = 0.0
-
-    # ── Aggregate masking stats from the log (last 31 days covers current month)
-    _log_entries    = event_logger.load_entries(days=31)
-    _masked_by_tid: dict[str, int] = {}
-    _entity_by_tid: dict[str, dict[str, int]] = {}
-    fleet_masked    = 0
-    fleet_entities: dict[str, int] = {}
-    for _le in _log_entries:
-        _tid = _le.get("tenant_id", "default")
-        _ec  = _le.get("entity_count", 0)
-        if _ec:
-            _masked_by_tid[_tid] = _masked_by_tid.get(_tid, 0) + _ec
-            fleet_masked        += _ec
-            for _et in _le.get("entities_detected", []):
-                fleet_entities[_et] = fleet_entities.get(_et, 0) + 1
-                if _tid not in _entity_by_tid:
-                    _entity_by_tid[_tid] = {}
-                _entity_by_tid[_tid][_et] = _entity_by_tid[_tid].get(_et, 0) + 1
-
-    for t in tenants:
-        tid = t["tenant_id"]
-        if _billing is not None:
-            usage = _billing.get_usage(tid, from_date=f"{year_month}-01")
-        else:
-            usage = {"requests": 0, "blocked": 0, "cost_usd": 0.0, "quota_usd": None, "quota_remaining": None}
-
-        reqs    = usage.get("requests", 0)
-        blocked = usage.get("blocked",  0)
-        cost    = usage.get("cost_usd", 0.0)
-        quota   = usage.get("quota_usd")
-        masked  = _masked_by_tid.get(tid, 0)
-
-        fleet_requests += reqs
-        fleet_blocked  += blocked
-        fleet_cost     += cost
-
-        tenant_rows.append({
-            "tenant_id":       tid,
-            "label":           t.get("label", tid),
-            "plan":            t.get("plan", "unknown"),
-            "active":          t.get("active", True),
-            "requests":        reqs,
-            "blocked":         blocked,
-            "masked_entities": masked,
-            "block_rate":      round(blocked / reqs, 4) if reqs else 0.0,
-            "cost_usd":        round(cost, 6),
-            "quota_usd":       quota,
-            "quota_pct":       round(cost / quota * 100, 1) if quota else None,
-            "created_at":      t.get("created_at", ""),
-        })
-
-    # Sort by most blocked first for the demo table
-    tenant_rows.sort(key=lambda r: r["blocked"], reverse=True)
-
-    return {
-        "month":          year_month,
-        "fleet": {
-            "tenants":          len(tenant_rows),
-            "requests":         fleet_requests,
-            "blocked":          fleet_blocked,
-            "masked_entities":  fleet_masked,
-            "top_entities":     fleet_entities,
-            "block_rate":       round(fleet_blocked / fleet_requests, 4) if fleet_requests else 0.0,
-            "cost_usd":         round(fleet_cost, 6),
-        },
-        "tenants": tenant_rows,
-    }
-
-
-@app.get(
-    "/msp/report/{tenant_id}",
-    tags=["msp"],
-    summary="Monthly compliance report for a single tenant",
-)
-async def msp_report(
-    tenant_id:  str,
-    month:      str       = "",   # YYYY-MM; defaults to current calendar month
-    fmt:        str       = "html",  # html | json | pdf
-    brand_name: str       = "Shadow Warden AI",
-    logo_url:   str | None = None,
-    auth: AuthResult = Depends(require_api_key),
-):
-    """
-    Generate a monthly compliance report for *tenant_id*.
-
-    - **month** — ``YYYY-MM`` format (e.g. ``2026-02``). Defaults to the
-      current calendar month.
-    - **fmt** — ``html`` (default) returns a self-contained, print-ready HTML
-      document. ``pdf`` renders via Playwright headless Chromium and returns a
-      ``application/pdf`` attachment. ``json`` returns structured data for
-      programmatic access.
-    - **brand_name** — Override the "Shadow Warden AI" title for white-label
-      deployments (default: ``"Shadow Warden AI"``).
-    - **logo_url** — Optional URL to a tenant logo image displayed on the cover
-      page (must be publicly accessible when rendering PDF).
-
-    The report covers: executive summary, threat intelligence, PII intercepts,
-    risk-level breakdown, daily activity, and auto-generated recommendations.
-    """
-    if not month:
-        month = datetime.now(UTC).strftime("%Y-%m")
-
-    # Basic format validation
-    try:
-        year_i, mon_i = map(int, month.split("-"))
-        if not (1 <= mon_i <= 12):
-            raise ValueError
-    except (ValueError, AttributeError) as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid month format {month!r} — expected YYYY-MM.",
-        ) from exc
-
-    engine = _get_report_engine()
-
-    if fmt == "json":
-        return engine.render_json(tenant_id, month)
-
-    if fmt == "pdf":
-        try:
-            pdf_bytes = engine.render_pdf(
-                tenant_id, month, brand_name=brand_name, logo_url=logo_url
-            )
-        except RuntimeError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
-        filename = f"warden-report-{tenant_id}-{month}.pdf"
-        from fastapi.responses import Response
-        return Response(
-            content    = pdf_bytes,
-            media_type = "application/pdf",
-            headers    = {"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
-
-    # Default: HTML — return as a downloadable attachment
-    html_bytes = engine.render_html(
-        tenant_id, month, brand_name=brand_name, logo_url=logo_url
-    ).encode("utf-8")
-    filename   = f"warden-report-{tenant_id}-{month}.html"
-    from fastapi.responses import Response
-    return Response(
-        content     = html_bytes,
-        media_type  = "text/html; charset=utf-8",
-        headers     = {"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-@app.post(
-    "/policy/{tenant_id}/classify",
-    tags=["data-policy"],
-    summary="Test-classify a piece of text against the tenant's data policy",
-)
-async def classify_text(
-    tenant_id: str,
-    body: _ClassifyRequest,
-    auth: AuthResult = Depends(require_api_key),
-) -> dict:
-    """
-    Dry-run the data policy against arbitrary text.
-    Does NOT block the request — used by MSP admins to test rules before applying them.
-    """
-    _require_policy()
-    decision = _policy.classify(body.text, body.provider, tenant_id)  # type: ignore[union-attr]
-    return decision.as_dict()
-
-
-# ── Threat Intelligence Feed endpoints ───────────────────────────────────────
-
-@app.get(
-    "/feed/status",
-    tags=["threat-feed"],
-    summary="Threat Intelligence Feed status for this instance",
-)
-async def feed_status(auth: AuthResult = Depends(require_api_key)) -> dict:
-    """
-    Returns opt-in status, last sync time, number of imported rules, and
-    number of rules this instance has submitted to the central feed.
-    """
-    if _feed is None:
-        raise HTTPException(503, "ThreatFeedClient not initialised.")
-    s = _feed.status()
-    return {
-        "enabled":         s.enabled,
-        "feed_url":        s.feed_url,
-        "last_sync":       s.last_sync,
-        "next_sync":       s.next_sync,
-        "rules_imported":  s.rules_imported,
-        "rules_submitted": s.rules_submitted,
-        "errors":          s.errors,
-    }
-
-
-@app.post(
-    "/feed/sync",
-    tags=["threat-feed"],
-    summary="Trigger an immediate threat feed sync (admin / debug)",
-)
-async def feed_sync_now(auth: AuthResult = Depends(require_api_key)) -> dict:
-    """Force an immediate download and import of the latest feed rules."""
-    if _feed is None:
-        raise HTTPException(503, "ThreatFeedClient not initialised.")
-    if not _feed.is_enabled():
-        raise HTTPException(400, "Threat feed is disabled. Set THREAT_FEED_ENABLED=true.")
-    loop = asyncio.get_running_loop()
-    imported = await loop.run_in_executor(None, _feed.sync)
-    return {"imported": imported}
+# ── Onboarding / MSP / Data-Policy / Threat-Feed endpoints ──────────────────
+# Extracted to warden/api/onboarding.py, warden/api/policy.py and
+# warden/api/feed.py (Phase 3). Backing singletons (onboarding, billing,
+# policy, feed) are published to warden.runtime in lifespan; the report
+# engine is a module-level singleton. Included via app.include_router below.
 
 
 # ── Yellow Zone: /mask and /unmask ────────────────────────────────────────────
@@ -5673,77 +3928,8 @@ async def unmask_text(
     return UnmaskResponse(unmasked=unmasked, session_id=payload.session_id)
 
 
-# ── Lemon Squeezy Billing ─────────────────────────────────────────────────────
-
-class _CheckoutRequest(BaseModel):
-    tenant_id:      str
-    plan:           str            # "individual" | "pro" | "enterprise"
-    success_url:    str
-    cancel_url:     str
-    customer_email: str | None = None
-
-
-@app.get(
-    "/subscription/status",
-    tags=["subscription"],
-    summary="Current subscription plan and quota for a tenant",
-)
-async def billing_status(tenant_id: str):
-    from warden.lemon_billing import get_lemon_billing
-    return get_lemon_billing().get_status(tenant_id)
-
-
-@app.post(
-    "/subscription/checkout",
-    tags=["subscription"],
-    summary="Create a Lemon Squeezy checkout session — returns hosted payment URL",
-)
-async def billing_checkout(body: _CheckoutRequest):
-    from warden.lemon_billing import get_lemon_billing
-    lb = get_lemon_billing()
-    if not lb._enabled:
-        raise HTTPException(503, "Lemon Squeezy billing not configured on this instance.")
-    try:
-        url = lb.create_checkout_session(
-            body.tenant_id, body.plan,
-            body.success_url, body.cancel_url,
-            body.customer_email,
-        )
-    except (ValueError, RuntimeError) as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return {"checkout_url": url}
-
-
-@app.get(
-    "/subscription/portal",
-    tags=["subscription"],
-    summary="Return Lemon Squeezy customer portal URL for self-serve plan management",
-)
-async def billing_portal(tenant_id: str):
-    from warden.lemon_billing import get_lemon_billing
-    try:
-        url = get_lemon_billing().get_portal_url(tenant_id)
-    except RuntimeError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return {"portal_url": url}
-
-
-@app.post(
-    "/subscription/webhook",
-    tags=["subscription"],
-    summary="Lemon Squeezy webhook receiver — validates signature and updates subscription state",
-    include_in_schema=False,
-)
-async def billing_webhook(request: Request):
-    from warden.lemon_billing import get_lemon_billing
-    lb         = get_lemon_billing()
-    payload    = await request.body()
-    sig_header = request.headers.get("X-Signature", "")
-    try:
-        etype = lb.handle_webhook(payload, sig_header)
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    return {"received": True, "event_type": etype}
+# ── Lemon Squeezy subscription endpoints ─────────────────────────────────────
+# Extracted to warden/api/subscription.py (Phase 3). Included via include_router.
 
 
 # ── OWASP LLM Output Scanning ─────────────────────────────────────────────────
@@ -5831,88 +4017,8 @@ async def filter_output(
 
 
 # ── Webhook management endpoints ──────────────────────────────────────────────
-
-@app.post(
-    "/webhook",
-    response_model=WebhookStatusResponse,
-    tags=["webhooks"],
-    summary="Register or update a webhook for the authenticated tenant",
-    status_code=status.HTTP_200_OK,
-)
-@_limiter.limit("10/minute")
-async def register_webhook(
-    request: Request,
-    payload: WebhookRegisterRequest,
-    auth:    AuthResult = Depends(require_api_key),
-) -> WebhookStatusResponse:
-    """
-    Register (or update) a webhook URL for your tenant.
-    Shadow Warden will POST a signed JSON event to this URL whenever
-    a request meets or exceeds ``min_risk`` (default: high).
-    """
-    if _webhook_store is None:
-        raise HTTPException(503, "Webhook store not available.")
-    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
-    _webhook_store.register(
-        tenant_id = tenant_id,
-        url       = payload.url,
-        secret    = payload.secret,
-        min_risk  = payload.min_risk,
-    )
-    cfg = _webhook_store.get(tenant_id)
-    return WebhookStatusResponse(
-        tenant_id     = tenant_id,
-        url           = cfg["url"],
-        min_risk      = cfg["min_risk"],
-        registered_at = cfg["created_at"],
-        updated_at    = cfg["updated_at"],
-    )
-
-
-@app.get(
-    "/webhook",
-    response_model=WebhookStatusResponse,
-    tags=["webhooks"],
-    summary="Get the current webhook configuration for the authenticated tenant",
-)
-@_limiter.limit("30/minute")
-async def get_webhook(
-    request: Request,
-    auth:    AuthResult = Depends(require_api_key),
-) -> WebhookStatusResponse:
-    if _webhook_store is None:
-        raise HTTPException(503, "Webhook store not available.")
-    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
-    cfg = _webhook_store.get(tenant_id)
-    if cfg is None:
-        raise HTTPException(404, f"No webhook registered for tenant '{tenant_id}'.")
-    return WebhookStatusResponse(
-        tenant_id     = tenant_id,
-        url           = cfg["url"],
-        min_risk      = cfg["min_risk"],
-        registered_at = cfg["created_at"],
-        updated_at    = cfg["updated_at"],
-    )
-
-
-@app.delete(
-    "/webhook",
-    tags=["webhooks"],
-    summary="Deregister the webhook for the authenticated tenant",
-    status_code=status.HTTP_200_OK,
-)
-@_limiter.limit("10/minute")
-async def delete_webhook(
-    request: Request,
-    auth:    AuthResult = Depends(require_api_key),
-) -> dict:
-    if _webhook_store is None:
-        raise HTTPException(503, "Webhook store not available.")
-    tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
-    deleted = _webhook_store.deregister(tenant_id)
-    if not deleted:
-        raise HTTPException(404, f"No webhook registered for tenant '{tenant_id}'.")
-    return {"status": "deleted", "tenant_id": tenant_id}
+# Extracted to warden/api/webhook_config.py (Phase 3b). WebhookStore published to
+# warden.runtime; shared limiter from warden.limiter. Included via include_router.
 
 
 # ── SAML 2.0 SSO endpoints ────────────────────────────────────────────────────
@@ -5940,238 +4046,73 @@ async def delete_webhook(
 #   4. Attributes & Claims: add "groups" claim (Security Groups or All Groups).
 
 
-def _saml_request_data(request: Request, form_data: dict | None = None) -> dict:
-    """Build the python3-saml request_data dict from a FastAPI Request."""
-    https = request.headers.get("x-forwarded-proto", "http") == "https"
-    return {
-        "https":       "on" if https else "off",
-        "http_host":   request.headers.get("host", "localhost"),
-        "script_name": request.url.path,
-        "server_port": str(request.url.port or (443 if https else 80)),
-        "get_data":    dict(request.query_params),
-        "post_data":   form_data or {},
-    }
-
-
-@app.get(
-    "/auth/saml/metadata",
-    tags=["SSO"],
-    summary="SAML 2.0 SP Metadata XML",
-    response_class=JSONResponse,
-    include_in_schema=True,
-)
-async def saml_metadata(request: Request):
-    """
-    Return the Service Provider metadata XML.
-
-    Paste this URL (or the downloaded XML) into your IdP (Okta / Entra ID)
-    to configure the integration automatically.
-    """
-    provider: SAMLProvider | None = getattr(app.state, "saml", None)
-    if provider is None:
-        raise HTTPException(503, "SAML SSO is not configured on this instance.")
-    xml, errors = provider.get_metadata_xml()
-    if errors:
-        raise HTTPException(500, f"SAML metadata errors: {errors}")
-    from fastapi.responses import Response  # noqa: PLC0415
-    return Response(content=xml, media_type="application/xml")
-
-
-@app.get(
-    "/auth/saml/login",
-    tags=["SSO"],
-    summary="Initiate SAML 2.0 login (redirect to IdP)",
-    include_in_schema=True,
-)
-async def saml_login(request: Request, relay_state: str = ""):
-    """
-    Start the SAML login flow.
-
-    Redirects the browser to the IdP (Okta / Entra ID) login page.
-    After authentication, the IdP will POST the SAMLResponse back to
-    ``/auth/saml/acs``.
-    """
-    from fastapi.responses import RedirectResponse  # noqa: PLC0415
-    provider: SAMLProvider | None = getattr(app.state, "saml", None)
-    if provider is None:
-        raise HTTPException(503, "SAML SSO is not configured on this instance.")
-    rd = _saml_request_data(request)
-    try:
-        login_url = provider.build_login_url(rd, relay_state=relay_state)
-    except Exception as exc:
-        log.error("SAML login URL build failed: %s", exc)
-        raise HTTPException(500, "Failed to build SAML login request.") from exc
-    return RedirectResponse(url=login_url, status_code=302)
-
-
-@app.post(
-    "/auth/saml/acs",
-    tags=["SSO"],
-    summary="SAML 2.0 Assertion Consumer Service (ACS)",
-    include_in_schema=True,
-)
-async def saml_acs(request: Request):
-    """
-    Assertion Consumer Service — the IdP POSTs the signed SAMLResponse here.
-
-    On success:
-      1. Validates the X.509 signature.
-      2. Extracts email + groups from the assertion.
-      3. Issues a one-time token (30 s TTL) stored in Redis.
-      4. Redirects the browser to the Streamlit dashboard with ``?token=<otp>``.
-
-    The dashboard exchanges the OTP for a JWT via ``GET /auth/saml/session``.
-    """
-    from fastapi.responses import RedirectResponse  # noqa: PLC0415
-    provider: SAMLProvider | None = getattr(app.state, "saml", None)
-    if provider is None:
-        raise HTTPException(503, "SAML SSO is not configured on this instance.")
-
-    form = await request.form()
-    form_data = dict(form.items())
-    rd = _saml_request_data(request, form_data=form_data)
-
-    try:
-        session: SamlSession = provider.process_response(rd)
-    except ValueError as exc:
-        log.warning("SAML ACS rejected: %s", exc)
-        raise HTTPException(401, str(exc)) from exc
-    except Exception as exc:
-        log.error("SAML ACS error: %s", exc)
-        raise HTTPException(500, "SAML processing error.") from exc
-
-    try:
-        otp = provider.store_otp(session)
-    except Exception as exc:
-        log.error("SAML OTP store failed: %s", exc)
-        raise HTTPException(500, "Failed to create login session.") from exc
-
-    dashboard_url = os.getenv("DASHBOARD_URL", "http://localhost:8501")
-    redirect_url  = f"{dashboard_url}?token={otp}"
-    log.info("SAML ACS: login accepted for %s → redirecting to dashboard", session.email)
-    return RedirectResponse(url=redirect_url, status_code=302)
-
-
-@app.get(
-    "/auth/saml/session",
-    tags=["SSO"],
-    summary="Exchange SAML one-time token for a session JWT",
-)
-async def saml_session(token: str):
-    """
-    Exchange the one-time token (from the ``?token=`` dashboard query param)
-    for a signed JWT.
-
-    The JWT encodes: ``sub`` (email), ``name``, ``grp`` (groups),
-    ``tid`` (tenant_id), ``exp``, ``iat``.
-
-    The dashboard stores this JWT in ``st.session_state`` and includes it
-    as ``Authorization: Bearer <jwt>`` on privileged API calls.
-    """
-    provider: SAMLProvider | None = getattr(app.state, "saml", None)
-    if provider is None:
-        raise HTTPException(503, "SAML SSO is not configured on this instance.")
-
-    session = provider.redeem_otp(token)
-    if session is None:
-        raise HTTPException(401, "Invalid or expired login token. Please log in again.")
-
-    try:
-        jwt_token = provider.issue_jwt(session)
-    except RuntimeError as exc:
-        raise HTTPException(500, str(exc)) from exc
-
-    return {
-        "access_token": jwt_token,
-        "token_type":   "bearer",
-        "expires_in":   int(os.getenv("SAML_SESSION_TTL", "28800")),
-        "email":        session.email,
-        "name":         session.name,
-        "tenant_id":    session.tenant_id,
-    }
-
-
-@app.get(
-    "/auth/saml/verify",
-    tags=["SSO"],
-    summary="Verify a session JWT (for dashboard middleware use)",
-)
-async def saml_verify(request: Request):
-    """
-    Verify the Bearer JWT supplied in the Authorization header.
-    Returns the decoded payload on success.  Used by the dashboard
-    to validate an existing session without involving the IdP.
-    """
-    provider: SAMLProvider | None = getattr(app.state, "saml", None)
-    if provider is None:
-        raise HTTPException(503, "SAML SSO is not configured on this instance.")
-
-    auth_header = request.headers.get("authorization", "")
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(401, "Missing or malformed Authorization header.")
-
-    token   = auth_header[len("Bearer "):]
-    payload = provider.verify_jwt(token)
-    if payload is None:
-        raise HTTPException(401, "Invalid or expired JWT.")
-
-    return payload
+# ── SSO / SAML 2.0 endpoints ──────────────────────────────────────────────────
+# Extracted to warden/api/saml.py (Phase 3). Provider on app.state.saml.
+# Included via app.include_router below.
 
 
 # ── Contact form ─────────────────────────────────────────────────────────────
 
-class _ContactRequest(BaseModel):
-    name:    str
-    email:   str
-    subject: str
-    message: str
-    company: str = ""
+# Public contact-form endpoint extracted to warden/api/contact.py (Phase 3).
+from warden.api.contact import router as _contact_router  # noqa: E402
 
+app.include_router(_contact_router)
 
-@app.post("/api/contact", tags=["Public"])
-async def contact(body: _ContactRequest):
-    """Send a contact-form message to the configured SMTP address."""
-    import smtplib
-    from email.mime.text import MIMEText
+# Subscription endpoints extracted to warden/api/subscription.py (Phase 3).
+from warden.api.subscription import router as _subscription_router  # noqa: E402
 
-    smtp_host = os.getenv("SMTP_HOST", "")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER", "")
-    smtp_pass = os.getenv("SMTP_PASS", "")
-    to_email  = os.getenv("CONTACT_TO_EMAIL", "vz@shadow-warden-ai.com")
+app.include_router(_subscription_router)
 
-    text_parts = [
-        f"Name:    {body.name}",
-        f"Email:   {body.email}",
-        f"Company: {body.company}" if body.company else "",
-        f"Topic:   {body.subject}",
-        "",
-        body.message,
-    ]
-    text = "\n".join(p for p in text_parts if p is not None)
+# Threat Intelligence + ThreatVault endpoints extracted to warden/api/threats.py
+# (Phase 3). Backing singletons are published to warden.runtime in lifespan.
+from warden.api.threats import router as _threats_router  # noqa: E402
 
-    if not smtp_host or not smtp_user:
-        log.warning("contact form: SMTP not configured — logging message only")
-        log.info("contact_form_submission name=%s email=%s subject=%s", body.name, body.email, body.subject)
-        return {"ok": True}
+app.include_router(_threats_router)
 
-    try:
-        msg = MIMEText(text, "plain", "utf-8")
-        msg["Subject"] = f"[Shadow Warden] {body.subject}"
-        msg["From"]    = smtp_user
-        msg["To"]      = to_email
-        msg["Reply-To"] = body.email
+# Zero-Trust Agent Sandbox endpoints extracted to warden/api/agent_sandbox.py
+# (Phase 3). AgentMonitor singleton published to warden.runtime in lifespan.
+from warden.api.agent_sandbox import router as _agent_sandbox_router  # noqa: E402
 
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as srv:
-            srv.starttls()
-            srv.login(smtp_user, smtp_pass)
-            srv.sendmail(smtp_user, [to_email], msg.as_string())
+app.include_router(_agent_sandbox_router)
 
-        log.info("contact form sent: from=%s subject=%s", body.email, body.subject)
-        return {"ok": True}
-    except Exception as exc:
-        log.error("contact form send failed: %s", exc)
-        raise HTTPException(500, "Failed to send message. Please email vz@shadow-warden-ai.com directly.") from exc
+# Onboarding / MSP / Data-Policy / Threat-Feed endpoints extracted to
+# warden/api/{onboarding,policy,feed}.py (Phase 3). Singletons published to
+# warden.runtime in lifespan.
+from warden.api.feed import router as _feed_router  # noqa: E402
+from warden.api.onboarding import router as _onboarding_router  # noqa: E402
+from warden.api.policy import router as _policy_router  # noqa: E402
+
+app.include_router(_onboarding_router)
+app.include_router(_policy_router)
+app.include_router(_feed_router)
+
+# Per-tenant billing usage/quota endpoints extracted to
+# warden/api/billing_usage.py (Phase 3). BillingStore published to warden.runtime.
+from warden.api.billing_usage import router as _billing_usage_router  # noqa: E402
+
+app.include_router(_billing_usage_router)
+
+# ERS / Shadow Ban admin endpoints extracted to warden/api/ers.py (Phase 3).
+from warden.api.ers import router as _ers_router  # noqa: E402
+
+app.include_router(_ers_router)
+
+# Rule ledger / admin rule-lifecycle / SOC2 audit endpoints extracted to
+# warden/api/rules.py (Phase 3). Singletons published to warden.runtime.
+from warden.api.rules import router as _rules_router  # noqa: E402
+
+app.include_router(_rules_router)
+
+# Admin weekly-report endpoint extracted to warden/api/admin_reports.py (Phase 3).
+from warden.api.admin_reports import router as _admin_reports_router  # noqa: E402
+
+app.include_router(_admin_reports_router)
+
+# Per-tenant webhook config (/webhook) extracted to warden/api/webhook_config.py
+# (Phase 3b). WebhookStore published to warden.runtime; shared limiter reused.
+from warden.api.webhook_config import router as _webhook_config_router  # noqa: E402
+
+app.include_router(_webhook_config_router)
 
 
 from warden.app_factory import (  # noqa: E402, I001
@@ -6191,6 +4132,8 @@ if os.getenv("TURSO_AUTO_MIGRATE", "false").lower() == "true":
     except Exception as _e:
         log.warning("Turso auto-migrate failed (skipped): %s", _e)
 register_router_safe(app, _RouterSpec("warden.api.billing_audit", label="Billing Audit Chain /billing/audit"))
+register_router_safe(app, _RouterSpec("warden.api.kya",            label="KYA DIDs /kya"))
+register_router_safe(app, _RouterSpec("warden.api.discovery",      label="Agent Discovery /.well-known"))
 
 
 # ── Global error handler ──────────────────────────────────────────────────────

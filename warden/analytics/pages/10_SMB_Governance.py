@@ -72,7 +72,7 @@ with tab_inc:
     if inc_data:
         items = inc_data.get("incidents", [])
         if items:
-            import pandas as pd  # noqa: PLC0415
+            import pandas as pd
             df = pd.DataFrame(items)[["incident_id", "title", "severity", "category", "status", "created_at"]]
             st.dataframe(df, use_container_width=True)
         else:
@@ -108,7 +108,7 @@ with tab_ven:
     if vendors:
         items = vendors.get("vendors", [])
         if items:
-            import pandas as pd  # noqa: PLC0415
+            import pandas as pd
             df = pd.DataFrame(items)[["vendor_id", "display_name", "provider_type", "risk_tier", "status"]]
             st.dataframe(df, use_container_width=True)
         else:
@@ -137,7 +137,7 @@ with tab_tra:
         c1, c2 = st.columns(2)
         c1.metric("Programs", len(items))
         if items:
-            import pandas as pd  # noqa: PLC0415
+            import pandas as pd
             df = pd.DataFrame(items)[["program_id", "title", "passing_score", "valid_days"]]
             st.dataframe(df, use_container_width=True)
         else:
@@ -165,7 +165,7 @@ with tab_prl:
     if prompts:
         items = prompts.get("prompts", [])
         if items:
-            import pandas as pd  # noqa: PLC0415
+            import pandas as pd
             df = pd.DataFrame(items)[["prompt_id", "title", "category", "use_count", "status"]]
             st.dataframe(df, use_container_width=True)
         else:
@@ -188,14 +188,14 @@ with tab_sup:
         top = report.get("top_risky_vendors", [])
         if top:
             st.write("**Top Risky Vendors**")
-            import pandas as pd  # noqa: PLC0415
+            import pandas as pd
             st.dataframe(pd.DataFrame(top), use_container_width=True)
 
     assessments = _get(f"/supplier-risk/assessments?community_id={cid}")
     if assessments:
         items = assessments.get("assessments", [])
         if items:
-            import pandas as pd  # noqa: PLC0415
+            import pandas as pd
             df = pd.DataFrame(items)[["assessment_id", "vendor_id", "composite_score", "risk_label", "assessed_at"]]
             st.dataframe(df, use_container_width=True)
         else:
@@ -225,6 +225,6 @@ with tab_bud:
         pending = approvals.get("approvals", [])
         if pending:
             st.warning(f"{len(pending)} pending budget approval(s)")
-            import pandas as pd  # noqa: PLC0415
+            import pandas as pd
             df = pd.DataFrame(pending)[["approval_id", "requested_by", "department", "amount_usd", "reason"]]
             st.dataframe(df, use_container_width=True)

@@ -60,6 +60,8 @@ import os
 import sqlite3
 import string
 import threading
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -70,6 +72,36 @@ log = logging.getLogger("warden.communities.sep")
 
 _SEP_DB_PATH = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
 _db_lock     = threading.RLock()
+
+_SEP_DDL = """
+    CREATE TABLE IF NOT EXISTS sep_ueciid_index (
+        ueciid        TEXT PRIMARY KEY,
+        snowflake_id  INTEGER NOT NULL,
+        entity_id     TEXT NOT NULL,
+        community_id  TEXT NOT NULL,
+        display_name  TEXT NOT NULL DEFAULT '',
+        content_type  TEXT NOT NULL DEFAULT 'application/octet-stream',
+        byte_size     INTEGER NOT NULL DEFAULT 0,
+        created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE INDEX IF NOT EXISTS ueciid_community_idx
+        ON sep_ueciid_index(community_id);
+    CREATE INDEX IF NOT EXISTS ueciid_snowflake_idx
+        ON sep_ueciid_index(snowflake_id);
+    CREATE INDEX IF NOT EXISTS idx_sep_ueciid
+        ON sep_ueciid_index(ueciid, community_id);
+    CREATE TABLE IF NOT EXISTS sep_pod_tags (
+        entity_id     TEXT NOT NULL,
+        community_id  TEXT NOT NULL,
+        jurisdiction  TEXT NOT NULL DEFAULT 'EU',
+        data_class    TEXT NOT NULL DEFAULT 'GENERAL',
+        notes         TEXT NOT NULL DEFAULT '',
+        created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        PRIMARY KEY (entity_id, community_id)
+    );
+    CREATE INDEX IF NOT EXISTS pod_community_idx
+        ON sep_pod_tags(community_id);
+"""
 
 
 # ── UECIID codec ──────────────────────────────────────────────────────────────
@@ -124,51 +156,34 @@ def ueciid_to_snowflake(ueciid: str) -> int:
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sep_ueciid_index (
-            ueciid        TEXT PRIMARY KEY,
-            snowflake_id  INTEGER NOT NULL,
-            entity_id     TEXT NOT NULL,
-            community_id  TEXT NOT NULL,
-            display_name  TEXT NOT NULL DEFAULT '',
-            content_type  TEXT NOT NULL DEFAULT 'application/octet-stream',
-            byte_size     INTEGER NOT NULL DEFAULT 0,
-            created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS ueciid_community_idx
-            ON sep_ueciid_index(community_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS ueciid_snowflake_idx
-            ON sep_ueciid_index(snowflake_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_sep_ueciid
-            ON sep_ueciid_index(ueciid, community_id)
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sep_pod_tags (
-            entity_id     TEXT NOT NULL,
-            community_id  TEXT NOT NULL,
-            jurisdiction  TEXT NOT NULL DEFAULT 'EU',
-            data_class    TEXT NOT NULL DEFAULT 'GENERAL',
-            notes         TEXT NOT NULL DEFAULT '',
-            created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            PRIMARY KEY (entity_id, community_id)
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS pod_community_idx
-            ON sep_pod_tags(community_id)
-    """)
-    conn.commit()
-    return conn
+@contextmanager
+def _get_conn() -> Generator[sqlite3.Connection, None, None]:
+    """
+    Yield a DB connection — Turso (if TURSO_URL_SEP is set) or local SQLite.
+
+    Priority: explicit env var → Turso remote → local SQLite at _SEP_DB_PATH.
+    Fail-open: ImportError or Turso unavailability falls through to SQLite.
+    """
+    try:
+        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
+        if is_turso_enabled("sep"):
+            with get_connection("sep", fallback_path=_SEP_DB_PATH) as con:
+                with suppress(Exception):
+                    con.executescript(_SEP_DDL)
+                yield con  # type: ignore[misc]
+            return
+    except ImportError:
+        pass
+
+    con = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
+    con.row_factory = sqlite3.Row
+    con.execute("PRAGMA journal_mode=WAL")
+    con.executescript(_SEP_DDL)
+    try:
+        yield con
+        con.commit()
+    finally:
+        con.close()
 
 
 # ── UECIID index ───────────────────────────────────────────────────────────────
@@ -205,8 +220,7 @@ def register_ueciid(
         ueciid = snowflake_to_ueciid(snowflake)
 
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         conn.execute("""
             INSERT OR IGNORE INTO sep_ueciid_index
               (ueciid, snowflake_id, entity_id, community_id,
@@ -214,7 +228,6 @@ def register_ueciid(
             VALUES (?,?,?,?,?,?,?,?)
         """, (ueciid, snowflake, entity_id, community_id,
               display_name, content_type, byte_size, now))
-        conn.commit()
 
     log.info("sep: registered UECIID=%s entity=%s community=%s",
              ueciid, entity_id[:8], community_id[:8])
@@ -228,8 +241,7 @@ def register_ueciid(
 def lookup_ueciid(ueciid: str) -> UECIIDEntry | None:
     """Find an entity by its UECIID display string."""
     ueciid = ueciid.strip()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         row = conn.execute(
             "SELECT * FROM sep_ueciid_index WHERE ueciid=?", (ueciid,)
         ).fetchone()
@@ -240,8 +252,7 @@ def lookup_ueciid(ueciid: str) -> UECIIDEntry | None:
 
 def list_ueciids(community_id: str, limit: int = 100, offset: int = 0) -> list[UECIIDEntry]:
     """List UECIIDs for a community, newest first."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         rows = conn.execute(
             "SELECT * FROM sep_ueciid_index WHERE community_id=? "
             "ORDER BY snowflake_id DESC LIMIT ? OFFSET ?",
@@ -263,8 +274,7 @@ def search_ueciids(
       - display_name LIKE %query%
     """
     like = f"%{query}%"
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         rows = conn.execute(
             "SELECT * FROM sep_ueciid_index "
             "WHERE community_id=? AND (ueciid LIKE ? OR display_name LIKE ?) "
@@ -404,14 +414,12 @@ def set_pod_tag(
 ) -> SovereignPodTag:
     """Attach or update a Sovereign Pod Tag on an entity."""
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         conn.execute("""
             INSERT OR REPLACE INTO sep_pod_tags
               (entity_id, community_id, jurisdiction, data_class, notes, created_at)
             VALUES (?,?,?,?,?,?)
         """, (entity_id, community_id, jurisdiction, data_class, notes, now))
-        conn.commit()
     return SovereignPodTag(
         entity_id=entity_id, community_id=community_id,
         jurisdiction=jurisdiction, data_class=data_class,
@@ -420,8 +428,7 @@ def set_pod_tag(
 
 
 def get_pod_tag(entity_id: str, community_id: str) -> SovereignPodTag | None:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         row = conn.execute(
             "SELECT * FROM sep_pod_tags WHERE entity_id=? AND community_id=?",
             (entity_id, community_id),
