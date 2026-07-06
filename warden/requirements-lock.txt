@@ -25,7 +25,7 @@ redis==5.2.1
 httpx==0.28.1
 
 # Prometheus
-prometheus-fastapi-instrumentator==7.0.2
+prometheus-fastapi-instrumentator==8.0.2
 prometheus-client==0.21.1
 
 # ML / AI (CPU-only; torch excluded — see header)

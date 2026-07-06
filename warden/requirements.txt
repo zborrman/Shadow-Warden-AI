@@ -38,7 +38,7 @@ libsql-client>=0.3.1
 
 # ── Prometheus metrics ────────────────────────────────────────────────────────
 # Auto-instruments all FastAPI routes and exposes /metrics in Prometheus format.
-prometheus-fastapi-instrumentator>=7.0.0
+prometheus-fastapi-instrumentator>=8.0.0   # >=8.0 drops the starlette<1.0 cap (7.x pinned it)
 prometheus-client>=0.20.0
 
 # ── ML / AI — CPU-only ────────────────────────────────────────────────────────
