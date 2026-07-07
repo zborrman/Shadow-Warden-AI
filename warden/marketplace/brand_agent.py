@@ -28,6 +28,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.marketplace.brand_agent")
 
 # Actions that route traffic TO a seller's catalog or negotiation channel.
@@ -37,9 +39,9 @@ _SELLER_FACING_ACTIONS = frozenset({
     "negotiate", "buy",
 })
 
-_MIN_TRUST = float(os.getenv("BRAND_AGENT_MIN_TRUST", "0.0"))   # 0 = gate off
-_MAX_RPM   = int(os.getenv("BRAND_AGENT_MAX_RPM", "60"))         # req/min per DID
-_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+_MIN_TRUST = settings.brand_agent_min_trust   # 0 = gate off
+_MAX_RPM   = settings.brand_agent_max_rpm     # req/min per DID
+_REDIS_URL = settings.redis_url
 
 
 @dataclass

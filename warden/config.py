@@ -776,6 +776,14 @@ class Settings:
         default_factory=lambda: _env("HOME_JURISDICTION", "EU")
     )
 
+    # ── Brand Agent (warden/marketplace/brand_agent.py) ──────────────────────────
+    brand_agent_min_trust: float = field(
+        default_factory=lambda: _float("BRAND_AGENT_MIN_TRUST", 0.0)
+    )
+    brand_agent_max_rpm: int = field(
+        default_factory=lambda: _int("BRAND_AGENT_MAX_RPM", 60)
+    )
+
     # ── SOVA scheduler jobs (warden/agent/scheduler.py) ──────────────────────────
     warden_base_url: str = field(
         default_factory=lambda: _env("WARDEN_BASE_URL", "http://localhost:8001")
