@@ -784,6 +784,14 @@ class Settings:
         default_factory=lambda: _int("BRAND_AGENT_MAX_RPM", 60)
     )
 
+    # ── Community peering (warden/communities/peering.py) ────────────────────────
+    sep_db_path: str = field(
+        default_factory=lambda: _env("SEP_DB_PATH", "/tmp/warden_sep.db")
+    )
+    federated_trust_flag_ttl_days: int = field(
+        default_factory=lambda: _int("FEDERATED_TRUST_FLAG_TTL_DAYS", 30)
+    )
+
     # ── SOVA scheduler jobs (warden/agent/scheduler.py) ──────────────────────────
     warden_base_url: str = field(
         default_factory=lambda: _env("WARDEN_BASE_URL", "http://localhost:8001")
