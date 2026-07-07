@@ -1,5 +1,5 @@
 {
-  "total": 959,
+  "total": 950,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -270,7 +270,6 @@
     "staff/tools/growth.py": 1,
     "staff/tools/support.py": 2,
     "protocols/a2a/agent_card.py": 6,
-    "protocols/a2a/task_lifecycle.py": 9,
     "protocols/acp/refund.py": 1,
     "protocols/acp/token_vault.py": 2,
     "m2m_store/tests/test_m2m_store.py": 5,
