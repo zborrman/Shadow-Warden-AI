@@ -691,6 +691,21 @@ class Settings:
         default_factory=lambda: _env("EVOLUTION_DATASET_PATH", "data/evolution_dataset.jsonl")
     )
 
+    # ── Weekly ROI report (warden/workers/weekly_report.py) ──────────────────────
+    # NB: SMTP_HOST/PORT/USER/PASS and WEEKLY_REPORT_FROM stay lazy os.getenv()
+    # reads there — test_weekly_report.py reload()s the module after patching
+    # os.environ to exercise different SMTP configs, which a frozen Settings
+    # singleton read would not pick up.
+    weekly_report_reply_to: str = field(
+        default_factory=lambda: _env("WEEKLY_REPORT_REPLY_TO", "")
+    )
+    # NB: default here ("...io") intentionally mirrors the module's own prior
+    # default, which differs from settings.portal_url's default ("...-ai.com") —
+    # not reused to avoid silently changing weekly-report CTA links.
+    weekly_report_portal_url: str = field(
+        default_factory=lambda: _env("PORTAL_URL", "https://app.shadow-warden.io")
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.
