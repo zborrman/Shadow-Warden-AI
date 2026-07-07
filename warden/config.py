@@ -568,6 +568,11 @@ class Settings:
         default_factory=lambda: _env("LS_VARIANT_POWER_BUNDLE", "")
     )
 
+    # ── Compliance posture (warden/compliance/posture_service.py) ───────────────
+    compliance_cache_ttl: int = field(
+        default_factory=lambda: _int("COMPLIANCE_CACHE_TTL", 300)
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.
