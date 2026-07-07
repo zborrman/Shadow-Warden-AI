@@ -38,6 +38,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 from warden.tenant_policy import TenantPolicy, get_policy
 
@@ -45,14 +46,12 @@ log = logging.getLogger("warden.agent_monitor")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SESSION_TTL_SECONDS   = int(os.getenv("AGENT_SESSION_TTL",   "1800"))  # 30 min
-VELOCITY_WINDOW_SECS  = int(os.getenv("VELOCITY_WINDOW_SECS", "60"))
-VELOCITY_THRESHOLD    = int(os.getenv("VELOCITY_THRESHOLD",   "10"))
-RAPID_BLOCK_THRESHOLD = int(os.getenv("RAPID_BLOCK_THRESHOLD", "3"))
+SESSION_TTL_SECONDS   = settings.agent_session_ttl    # 30 min
+VELOCITY_WINDOW_SECS  = settings.velocity_window_secs
+VELOCITY_THRESHOLD    = settings.velocity_threshold
+RAPID_BLOCK_THRESHOLD = settings.rapid_block_threshold
 
-SESSIONS_PATH = (
-    Path(os.getenv("ANALYTICS_DATA_PATH", "/analytics/data")) / "sessions.json"
-)
+SESSIONS_PATH = Path(settings.analytics_data_path) / "sessions.json"
 
 _sessions_lock = threading.Lock()
 
@@ -227,7 +226,7 @@ class AgentMonitor:
             return self._redis
         try:
             import redis as _redis
-            url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+            url = settings.redis_url
             if url.startswith("memory://"):
                 raise ValueError("in-memory:// scheme — skip Redis")
             client = _redis.from_url(
