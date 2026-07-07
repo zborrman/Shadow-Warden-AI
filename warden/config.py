@@ -483,6 +483,23 @@ class Settings:
         default_factory=lambda: _int("RETENTION_GENERAL_DAYS", 180)
     )
 
+    # ── Data Poisoning Detection (warden/brain/poison.py) ────────────────────────
+    poison_detection_enabled: bool = field(
+        default_factory=lambda: _bool("POISON_DETECTION_ENABLED", True)
+    )
+    poison_boundary_window: int = field(
+        default_factory=lambda: _int("POISON_BOUNDARY_WINDOW", 60)
+    )
+    poison_boundary_max: int = field(
+        default_factory=lambda: _int("POISON_BOUNDARY_MAX", 6)
+    )
+    poison_drift_threshold: float = field(
+        default_factory=lambda: _float("POISON_DRIFT_THRESHOLD", 0.08)
+    )
+    poison_monitor_interval: int = field(
+        default_factory=lambda: _int("POISON_MONITOR_INTERVAL", 300)
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
