@@ -1,5 +1,5 @@
 {
-  "total": 913,
+  "total": 906,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -13,7 +13,6 @@
     "entity_risk.py": 6,
     "global_blocklist.py": 7,
     "honey.py": 2,
-    "image_guard.py": 7,
     "image_redactor.py": 6,
     "image_synth.py": 3,
     "intel_bridge.py": 1,
