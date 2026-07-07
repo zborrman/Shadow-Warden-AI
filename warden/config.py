@@ -258,6 +258,9 @@ class Settings:
     image_max_bytes: int = field(
         default_factory=lambda: _int("IMAGE_MAX_BYTES", 10 * 1024 * 1024)
     )
+    transformers_offline: bool = field(
+        default_factory=lambda: _env("TRANSFORMERS_OFFLINE", "0") == "1"
+    )
 
     # ── Audio Guard ────────────────────────────────────────────────────────────
     audio_guard_enabled: bool = field(

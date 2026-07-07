@@ -46,24 +46,24 @@ import asyncio
 import base64
 import io
 import logging
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.image_guard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ENABLED: bool        = os.getenv("IMAGE_GUARD_ENABLED", "true").lower() != "false"
-THRESHOLD: float     = float(os.getenv("IMAGE_GUARD_THRESHOLD", "0.28"))
-TIMEOUT_MS: int      = int(os.getenv("IMAGE_PIPELINE_TIMEOUT_MS", "100"))
-MODEL_ID: str        = os.getenv("IMAGE_GUARD_MODEL", "openai/clip-vit-b-32")
-CACHE_DIR: str       = os.getenv("MODEL_CACHE_DIR", "/warden/models")
-MAX_BYTES: int       = int(os.getenv("IMAGE_MAX_BYTES", str(10 * 1024 * 1024)))  # 10 MB
+ENABLED: bool        = settings.image_guard_enabled
+THRESHOLD: float     = settings.image_guard_threshold
+TIMEOUT_MS: int      = settings.image_pipeline_timeout_ms
+MODEL_ID: str        = settings.image_guard_model
+CACHE_DIR: str       = settings.model_cache_dir
+MAX_BYTES: int       = settings.image_max_bytes  # 10 MB default
 
 # ── Jailbreak / safe prompt sets for zero-shot CLIP scoring ──────────────────
 
@@ -123,7 +123,7 @@ def _load_model():
     try:
         from transformers import CLIPModel, CLIPProcessor  # noqa: PLC0415
         t0 = time.time()
-        local_only = os.getenv("TRANSFORMERS_OFFLINE", "0") == "1"
+        local_only = settings.transformers_offline
         processor = CLIPProcessor.from_pretrained(
             MODEL_ID, cache_dir=CACHE_DIR, local_files_only=local_only
         )
