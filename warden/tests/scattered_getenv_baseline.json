@@ -1,5 +1,5 @@
 {
-  "total": 922,
+  "total": 915,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -43,7 +43,7 @@
     "agent/healer.py": 2,
     "agent/master.py": 10,
     "agent/memory.py": 1,
-    "agent/red_team.py": 8,
+    "agent/red_team.py": 1,
     "agent/scheduler.py": 3,
     "agent/sova.py": 1,
     "agent/tools.py": 2,

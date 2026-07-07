@@ -671,6 +671,26 @@ class Settings:
         default_factory=lambda: _int("SHADOW_AI_SYSLOG_PORT", 5514)
     )
 
+    # ── Red-team autopilot (warden/agent/red_team.py) ────────────────────────────
+    red_team_enabled: bool = field(
+        default_factory=lambda: _bool("RED_TEAM_ENABLED", False)
+    )
+    red_team_probes: int = field(
+        default_factory=lambda: _int("RED_TEAM_PROBES", 10)
+    )
+    red_team_target_url: str = field(
+        default_factory=lambda: _env("RED_TEAM_TARGET_URL", "http://localhost:8001/filter")
+    )
+    red_team_api_key: str = field(
+        default_factory=lambda: _env("RED_TEAM_API_KEY", _env("WARDEN_API_KEY", ""))
+    )
+    red_team_model: str = field(
+        default_factory=lambda: _env("RED_TEAM_MODEL", "claude-opus-4-6")
+    )
+    evolution_dataset_path: str = field(
+        default_factory=lambda: _env("EVOLUTION_DATASET_PATH", "data/evolution_dataset.jsonl")
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.

@@ -41,13 +41,15 @@ from datetime import UTC, datetime
 
 import httpx
 
+from warden.config import settings
+
 log = logging.getLogger("warden.agent.red_team")
 
-_ENABLED     = os.getenv("RED_TEAM_ENABLED", "false").lower() == "true"
-_N_PROBES    = min(int(os.getenv("RED_TEAM_PROBES", "10")), 50)
-_TARGET_URL  = os.getenv("RED_TEAM_TARGET_URL", "http://localhost:8001/filter")
-_API_KEY     = os.getenv("RED_TEAM_API_KEY", os.getenv("WARDEN_API_KEY", ""))
-_MODEL       = os.getenv("RED_TEAM_MODEL", "claude-opus-4-6")
+_ENABLED     = settings.red_team_enabled
+_N_PROBES    = min(settings.red_team_probes, 50)
+_TARGET_URL  = settings.red_team_target_url
+_API_KEY     = settings.red_team_api_key
+_MODEL       = settings.red_team_model
 _ANTHROPIC   = os.getenv("ANTHROPIC_API_KEY", "")
 
 _ATTACK_CLASSES = [
@@ -240,7 +242,7 @@ async def _log_survivors(survivors: list[ProbeResult], attack_class: str) -> int
     count = 0
     # Log to evolution_dataset.jsonl
     try:
-        dataset_path = os.getenv("EVOLUTION_DATASET_PATH", "data/evolution_dataset.jsonl")
+        dataset_path = settings.evolution_dataset_path
         with open(dataset_path, "a", encoding="utf-8") as f:
             for ex in examples:
                 f.write(json.dumps(ex) + "\n")
