@@ -21,21 +21,22 @@ Reported without active probe:
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter
 
+from warden.config import settings
+
 router = APIRouter(prefix="/deploy", tags=["ops"])
 
-_MINIO_URL    = os.getenv("MINIO_URL",      "http://minio:9000")
-_PROM_URL     = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
-_GRAFANA_URL  = os.getenv("GRAFANA_URL",    "http://grafana:3000")
-_APP_URL      = os.getenv("APP_URL",        "http://app:8000")
-_ANALYTICS_URL= os.getenv("ANALYTICS_INT_URL", "http://analytics:8002")
-_DATABASE_URL = os.getenv("DATABASE_URL", "")
+_MINIO_URL    = settings.minio_url
+_PROM_URL     = settings.prometheus_url
+_GRAFANA_URL  = settings.grafana_url
+_APP_URL      = settings.app_url
+_ANALYTICS_URL= settings.analytics_int_url
+_DATABASE_URL = settings.database_url
 _TIMEOUT      = 2.0
 
 

@@ -17,10 +17,11 @@ Routes
 from __future__ import annotations
 
 import logging
-import os
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
+
+from warden.config import settings
 
 log = logging.getLogger("warden.api.integrations")
 
@@ -63,7 +64,7 @@ async def jira_health() -> dict:
 
 # ── Microsoft Teams (IN-17) ───────────────────────────────────────────────────
 
-_TEAMS_WEBHOOK = os.getenv("TEAMS_WEBHOOK_URL", "")
+_TEAMS_WEBHOOK = settings.teams_webhook_url
 
 
 async def _post_teams_card(card: dict) -> dict:
@@ -107,7 +108,7 @@ async def teams_notify(body: dict) -> dict:
                 "actions": [{
                     "type": "Action.OpenUrl",
                     "title": "Open SOC Dashboard",
-                    "url":   os.getenv("DASHBOARD_URL", "https://dash.shadow-warden-ai.com"),
+                    "url":   settings.integrations_dashboard_url,
                 }],
             },
         }],
@@ -125,8 +126,8 @@ async def teams_health() -> dict:
 
 # ── Notion (IN-18) ────────────────────────────────────────────────────────────
 
-_NOTION_TOKEN    = os.getenv("NOTION_API_TOKEN",    "")
-_NOTION_PAGE_ID  = os.getenv("NOTION_PARENT_PAGE_ID", "")
+_NOTION_TOKEN    = settings.notion_api_token
+_NOTION_PAGE_ID  = settings.notion_parent_page_id
 
 
 async def _notion_create_page(title: str, content_blocks: list) -> dict:
@@ -208,8 +209,8 @@ async def notion_health() -> dict:
 
 # ── Zapier / Make connector (IN-20) ──────────────────────────────────────────
 
-_ZAPIER_WEBHOOK = os.getenv("ZAPIER_WEBHOOK_URL", "")
-_MAKE_WEBHOOK   = os.getenv("MAKE_WEBHOOK_URL",   "")
+_ZAPIER_WEBHOOK = settings.zapier_webhook_url
+_MAKE_WEBHOOK   = settings.make_webhook_url
 
 
 @router.post("/zapier/event", summary="Push Warden event to Zapier or Make.com webhook (IN-20)")
