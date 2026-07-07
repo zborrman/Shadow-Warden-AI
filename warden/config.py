@@ -438,6 +438,20 @@ class Settings:
         default_factory=lambda: _env("ANALYTICS_DATA_PATH", "/analytics/data")
     )
 
+    # ── Agent Monitor (warden/agent_monitor.py) ──────────────────────────────────
+    agent_session_ttl: int = field(
+        default_factory=lambda: _int("AGENT_SESSION_TTL", 1800)
+    )
+    velocity_window_secs: int = field(
+        default_factory=lambda: _int("VELOCITY_WINDOW_SECS", 60)
+    )
+    velocity_threshold: int = field(
+        default_factory=lambda: _int("VELOCITY_THRESHOLD", 10)
+    )
+    rapid_block_threshold: int = field(
+        default_factory=lambda: _int("RAPID_BLOCK_THRESHOLD", 3)
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
