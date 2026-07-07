@@ -1,5 +1,5 @@
 {
-  "total": 1016,
+  "total": 1000,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -26,7 +26,6 @@
     "ocr.py": 1,
     "offline.py": 1,
     "onboarding.py": 2,
-    "openai_proxy.py": 16,
     "output_guard.py": 4,
     "phishing_guard.py": 2,
     "rag_evolver.py": 3,

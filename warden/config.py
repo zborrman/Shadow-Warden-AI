@@ -702,6 +702,56 @@ class Settings:
         default_factory=lambda: _int("PORTAL_REFRESH_TOKEN_TTL", 7)
     )
 
+    # ── OpenAI-compatible proxy providers (warden/openai_proxy.py) ──────────────
+    openai_upstream: str = field(
+        default_factory=lambda: _env("OPENAI_UPSTREAM", "https://api.openai.com")
+    )
+    warden_filter_url: str = field(
+        default_factory=lambda: _env("WARDEN_FILTER_URL", "http://localhost:8001")
+    )
+    perplexity_api_key: str = field(
+        default_factory=lambda: _env("PERPLEXITY_API_KEY", "")
+    )
+    gemini_api_key: str = field(
+        default_factory=lambda: _env("GEMINI_API_KEY", "")
+    )
+    azure_openai_endpoint: str = field(
+        default_factory=lambda: _env("AZURE_OPENAI_ENDPOINT", "")
+    )
+    azure_openai_api_key: str = field(
+        default_factory=lambda: _env("AZURE_OPENAI_API_KEY", "")
+    )
+    azure_openai_api_version: str = field(
+        default_factory=lambda: _env("AZURE_OPENAI_API_VERSION", "2024-05-01-preview")
+    )
+    aws_region: str = field(
+        default_factory=lambda: _env("AWS_REGION", "us-east-1")
+    )
+    aws_access_key_id: str = field(
+        default_factory=lambda: _env("AWS_ACCESS_KEY_ID", "")
+    )
+    aws_secret_access_key: str = field(
+        default_factory=lambda: _env("AWS_SECRET_ACCESS_KEY", "")
+    )
+    vertex_project_id: str = field(
+        default_factory=lambda: _env("VERTEX_PROJECT_ID", "")
+    )
+    vertex_location: str = field(
+        default_factory=lambda: _env("VERTEX_LOCATION", "us-central1")
+    )
+    streaming_fast_scan_buffer: int = field(
+        default_factory=lambda: _int("STREAMING_FAST_SCAN_BUFFER", 400)
+    )
+    masking_mode: str = field(
+        default_factory=lambda: _env("MASKING_MODE", "off").lower()
+    )
+    wallet_enabled: bool = field(
+        default_factory=lambda: _bool("WALLET_ENABLED", True)
+    )
+    output_guardrails_enabled: bool = field(
+        default_factory=lambda: _bool("OUTPUT_GUARDRAILS_ENABLED", True)
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
