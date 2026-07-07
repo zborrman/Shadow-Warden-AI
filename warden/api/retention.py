@@ -31,11 +31,12 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
+
+from warden.config import settings
 
 log = logging.getLogger("warden.api.retention")
 
@@ -44,11 +45,11 @@ router = APIRouter(prefix="/retention", tags=["retention"])
 # ── Defaults ──────────────────────────────────────────────────────────────────
 
 DEFAULT_RETENTION_DAYS: dict[str, int] = {
-    "PII":       int(os.getenv("RETENTION_PII_DAYS",       "30")),
-    "PHI":       int(os.getenv("RETENTION_PHI_DAYS",       "30")),
-    "FINANCIAL": int(os.getenv("RETENTION_FINANCIAL_DAYS", "90")),
-    "SECRETS":   int(os.getenv("RETENTION_SECRETS_DAYS",   "7")),
-    "GENERAL":   int(os.getenv("RETENTION_GENERAL_DAYS",   "180")),
+    "PII":       settings.retention_pii_days,
+    "PHI":       settings.retention_phi_days,
+    "FINANCIAL": settings.retention_financial_days,
+    "SECRETS":   settings.retention_secrets_days,
+    "GENERAL":   settings.retention_general_days,
 }
 
 _ALL_CLASSES = set(DEFAULT_RETENTION_DAYS.keys())
@@ -62,7 +63,7 @@ _MEMORY_STATS:    dict[str, dict]            = {}
 def _redis():
     try:
         import redis as _r
-        url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        url = settings.redis_url
         if url.startswith("memory://"):
             return None
         return _r.from_url(url, decode_responses=True)
