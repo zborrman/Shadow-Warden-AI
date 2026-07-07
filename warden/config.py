@@ -538,6 +538,33 @@ class Settings:
         default_factory=lambda: _env("FIDO_ORIGIN", "https://shadow-warden-ai.com")
     )
 
+    # ── Shadow Ban (warden/shadow_ban.py) ───────────────────────────────────────
+    # Estimated LLM completion cost saved per shadow-banned request (USD).
+    shadow_ban_cost_per_request_usd: float = field(
+        default_factory=lambda: _float("SHADOW_BAN_COST_PER_REQUEST_USD", 0.60 / 1_000_000 * 200)
+    )
+    shadow_ban_enabled: bool = field(
+        default_factory=lambda: _bool("SHADOW_BAN_ENABLED", True)
+    )
+    # Real async delay (ms) applied by the "delay" shadow-ban strategy.
+    shadow_ban_delay_ms: float = field(
+        default_factory=lambda: _float("SHADOW_BAN_DELAY_MS", 3000.0)
+    )
+
+    # ── Topological Gatekeeper thresholds (warden/topology_guard.py) ────────────
+    topo_noise_threshold: float = field(
+        default_factory=lambda: _float("TOPO_NOISE_THRESHOLD", 0.82)
+    )
+    topo_min_len: int = field(
+        default_factory=lambda: _int("TOPO_MIN_LEN", 20)
+    )
+    topo_noise_threshold_code: float = field(
+        default_factory=lambda: _float("TOPO_NOISE_THRESHOLD_CODE", 0.65)
+    )
+    topo_noise_threshold_natural: float = field(
+        default_factory=lambda: _float("TOPO_NOISE_THRESHOLD_NATURAL", 0.82)
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
