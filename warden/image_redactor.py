@@ -43,22 +43,23 @@ import asyncio
 import base64
 import io
 import logging
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from functools import lru_cache
 
+from warden.config import settings
+
 log = logging.getLogger("warden.image_redactor")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ENABLED:      bool  = os.getenv("IMAGE_REDACTION_ENABLED",  "true").lower() != "false"
-BLUR_RADIUS:  int   = int(os.getenv("IMAGE_REDACTION_BLUR_RADIUS", "25"))
-DOC_BLUR:     bool  = os.getenv("IMAGE_REDACTION_DOC_BLUR",      "true").lower() != "false"
-FALLBACK:     bool  = os.getenv("IMAGE_REDACTION_FALLBACK_BLUR",  "true").lower() != "false"
-TIMEOUT_MS:   int   = int(os.getenv("IMAGE_REDACTION_TIMEOUT_MS", "500"))
-MAX_BYTES:    int   = int(os.getenv("IMAGE_MAX_BYTES", str(10 * 1024 * 1024)))
+ENABLED:      bool  = settings.image_redaction_enabled
+BLUR_RADIUS:  int   = settings.image_redaction_blur_radius
+DOC_BLUR:     bool  = settings.image_redaction_doc_blur
+FALLBACK:     bool  = settings.image_redaction_fallback_blur
+TIMEOUT_MS:   int   = settings.image_redaction_timeout_ms
+MAX_BYTES:    int   = settings.image_max_bytes  # shared with image_guard, 10 MB default
 
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="img-redact")
 
