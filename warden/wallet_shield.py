@@ -39,6 +39,8 @@ import logging
 import os
 from dataclasses import dataclass
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.wallet_shield")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -204,6 +206,7 @@ class WalletShield:
                 )
             except Exception as exc:
                 log.debug("WalletShield check error (fail-open): %s", exc)
+                record_failopen("wallet_shield", Reason.REDIS_UNAVAILABLE, exc)
                 return BudgetResult(True, 0, _DEFAULT_BUDGET, _DEFAULT_BUDGET, "redis_error")
 
         # ── In-memory fallback ────────────────────────────────────────────────

@@ -70,6 +70,8 @@ import threading as _threading
 import time
 from dataclasses import dataclass, field
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.worm_guard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -328,6 +330,7 @@ def check_replication(
 
     except Exception as exc:
         log.debug("WormGuard L1: check_replication error (fail-open): %s", exc)
+        record_failopen("worm_guard_l1", Reason.BACKEND_ERROR, exc)
         return WormDetectionResult(elapsed_ms=(time.perf_counter() - t0) * 1000)
 
 
@@ -456,6 +459,7 @@ def inspect_for_ingestion(document_text: str) -> RAGInspectionResult:
 
     except Exception as exc:
         log.debug("WormGuard L2: inspect_for_ingestion error (fail-open): %s", exc)
+        record_failopen("worm_guard_l2", Reason.BACKEND_ERROR, exc)
         return RAGInspectionResult()
 
 
@@ -556,6 +560,7 @@ def is_quarantined(fingerprint: str) -> bool:
         return result
     except Exception as exc:
         log.debug("WormGuard L3: is_quarantined error (fail-open): %s", exc)
+        record_failopen("worm_guard_l3", Reason.BACKEND_ERROR, exc)
         return False
 
 

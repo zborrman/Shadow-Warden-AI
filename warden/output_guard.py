@@ -51,6 +51,8 @@ import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.output_guard")
 
 # ── Runtime config (read once at import) ─────────────────────────────────────
@@ -558,6 +560,7 @@ class OutputGuard:
                     ))
             except Exception as _exc:  # fail-open
                 log.debug("output_guard: PhishGuard check failed (non-fatal): %s", _exc)
+                record_failopen("output_guard", Reason.BACKEND_ERROR, _exc)
 
         # ── ⑫ Social engineering annotation (PhishGuard v3) ──────────────────
         # When PhishGuard detects SE markers in the LLM output, prepend an
@@ -585,6 +588,7 @@ class OutputGuard:
                     ))
             except Exception as _exc:  # fail-open
                 log.debug("output_guard: SE annotation check failed (non-fatal): %s", _exc)
+                record_failopen("output_guard", Reason.BACKEND_ERROR, _exc)
 
         # ── ⑬ AI Worm Anti-Replication (WormGuard v4) ────────────────────────
         # Compare the LLM output against the untrusted input the agent ingested.
@@ -618,6 +622,7 @@ class OutputGuard:
                     )
             except Exception as _exc:  # fail-open
                 log.debug("output_guard: WormGuard check failed (non-fatal): %s", _exc)
+                record_failopen("output_guard", Reason.BACKEND_ERROR, _exc)
 
         # ── Custom tenant patterns ────────────────────────────────────────────
 
