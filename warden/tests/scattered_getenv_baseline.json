@@ -1,5 +1,5 @@
 {
-  "total": 1054,
+  "total": 1045,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -30,7 +30,7 @@
     "output_guard.py": 4,
     "phishing_guard.py": 2,
     "portal_router.py": 11,
-    "rag_evolver.py": 12,
+    "rag_evolver.py": 3,
     "rbac.py": 1,
     "review_queue.py": 1,
     "rule_ledger.py": 3,

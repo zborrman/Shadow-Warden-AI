@@ -74,24 +74,20 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from warden.config import settings
+
 log = logging.getLogger("warden.rag_evolver")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ENABLED: bool              = os.getenv("RAG_EVOLVER_ENABLED", "true").lower() != "false"
-DATASET_PATH: Path         = Path(os.getenv(
-    "RAG_EVOLVER_DATASET_PATH",
-    "/warden/data/rag_injection_dataset.jsonl",
-))
-PATTERNS_PATH: Path        = Path(os.getenv(
-    "RAG_EVOLVER_PATTERNS_PATH",
-    "/warden/data/rag_evolved_patterns.json",
-))
-MAX_SAMPLES: int           = int(os.getenv("RAG_EVOLVER_MAX_SAMPLES",  "5000"))
-BATCH_SIZE: int            = int(os.getenv("RAG_EVOLVER_BATCH_SIZE",   "10"))
-RATE_WINDOW: int           = int(os.getenv("RAG_EVOLVER_RATE_WINDOW",  "3600"))   # 1 hour
-RATE_MAX: int              = int(os.getenv("RAG_EVOLVER_RATE_MAX",     "4"))
-ENGINE: str                = os.getenv("RAG_EVOLVER_ENGINE", "auto").lower()
+ENABLED: bool              = settings.rag_evolver_enabled
+DATASET_PATH: Path         = Path(settings.rag_evolver_dataset_path)
+PATTERNS_PATH: Path        = Path(settings.rag_evolver_patterns_path)
+MAX_SAMPLES: int           = settings.rag_evolver_max_samples
+BATCH_SIZE: int            = settings.rag_evolver_batch_size
+RATE_WINDOW: int           = settings.rag_evolver_rate_window   # 1 hour
+RATE_MAX: int              = settings.rag_evolver_rate_max
+ENGINE: str                = settings.rag_evolver_engine
 
 _RATE_KEY = "warden:rag_evolver:calls"
 
@@ -384,7 +380,7 @@ _STRESS_TEXT: str = _STRESS_FRAGMENT * 500   # ≈ 105 KB
 
 # Hard timeout for the ReDoS stress test.  Patterns completing in < 500 ms on
 # 105 KB of text are safe for production use in the async event loop.
-_REDOS_TIMEOUT_S: float = float(os.getenv("RAG_EVOLVER_REDOS_TIMEOUT_S", "0.5"))
+_REDOS_TIMEOUT_S: float = settings.rag_evolver_redos_timeout_s
 
 # Shared thread pool — 2 workers so concurrent evolution cycles don't queue.
 # Uses daemon threads so it does not block process shutdown.
