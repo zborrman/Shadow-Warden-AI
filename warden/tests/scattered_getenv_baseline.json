@@ -1,5 +1,5 @@
 {
-  "total": 1064,
+  "total": 1054,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -9,7 +9,6 @@
     "auth_guard.py": 5,
     "causal_arbiter.py": 2,
     "community_models.py": 1,
-    "corpus_sync.py": 10,
     "data_policy.py": 1,
     "entity_risk.py": 6,
     "global_blocklist.py": 7,
