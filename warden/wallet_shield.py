@@ -39,17 +39,18 @@ import logging
 import os
 from dataclasses import dataclass
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.wallet_shield")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-_ENABLED         = os.getenv("WALLET_ENABLED",          "true").lower() == "true"
-_DEFAULT_BUDGET  = int(os.getenv("WALLET_DEFAULT_BUDGET",  "100000"))
-_WINDOW_SECONDS  = int(os.getenv("WALLET_WINDOW_SECONDS",  "3600"))
-_HARD_LIMIT      = int(os.getenv("WALLET_HARD_LIMIT",      "200000"))
-_ALERT_PCT       = int(os.getenv("TOKEN_ALERT_PCT",        "80"))
+_ENABLED         = settings.wallet_enabled
+_DEFAULT_BUDGET  = settings.wallet_default_budget
+_WINDOW_SECONDS  = settings.wallet_window_seconds
+_HARD_LIMIT      = settings.wallet_hard_limit
+_ALERT_PCT       = settings.token_alert_pct
 _REDIS_URL       = os.getenv("REDIS_URL", "")
 
 
