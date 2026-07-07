@@ -52,20 +52,21 @@ Thread-safe: all writes protected by threading.Lock + WAL journal mode.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.config import settings
+
 log = logging.getLogger("warden.stripe_billing")
 
-_STRIPE_SECRET_KEY      = os.getenv("STRIPE_SECRET_KEY", "")
-_STRIPE_WEBHOOK_SECRET  = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-_STRIPE_PRICE_STARTUP   = os.getenv("STRIPE_PRICE_STARTUP", "")
-_STRIPE_PRICE_GROWTH    = os.getenv("STRIPE_PRICE_GROWTH", "")
-_STRIPE_PRICE_MSP       = os.getenv("STRIPE_PRICE_MSP", "")
-_DB_PATH                = Path(os.getenv("STRIPE_DB_PATH", "/warden/data/stripe.db"))
+_STRIPE_SECRET_KEY      = settings.stripe_secret_key
+_STRIPE_WEBHOOK_SECRET  = settings.stripe_webhook_secret
+_STRIPE_PRICE_STARTUP   = settings.stripe_price_startup
+_STRIPE_PRICE_GROWTH    = settings.stripe_price_growth
+_STRIPE_PRICE_MSP       = settings.stripe_price_msp
+_DB_PATH                = Path(settings.stripe_db_path)
 
 # ── Plan definitions ──────────────────────────────────────────────────────────
 

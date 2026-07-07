@@ -1,5 +1,5 @@
 {
-  "total": 1094,
+  "total": 1078,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -19,7 +19,7 @@
     "image_synth.py": 3,
     "intel_bridge.py": 1,
     "intel_ops.py": 2,
-    "lemon_billing.py": 11,
+    "lemon_billing.py": 1,
     "limiter.py": 2,
     "main.py": 45,
     "multimodal_guard.py": 3,
@@ -38,7 +38,6 @@
     "secret_keys.py": 5,
     "session_guard.py": 5,
     "shadow_ban.py": 3,
-    "stripe_billing.py": 6,
     "taint_tracker.py": 3,
     "tenant_policy.py": 5,
     "threat_feed.py": 9,
