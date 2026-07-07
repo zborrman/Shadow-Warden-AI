@@ -1,5 +1,5 @@
 {
-  "total": 944,
+  "total": 936,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -160,7 +160,6 @@
     "integrations/nemo_bridge.py": 6,
     "integrations/onboarding.py": 1,
     "integrations/smb_suite.py": 3,
-    "integrations/taxii.py": 8,
     "kya/profile.py": 1,
     "m2m_store/analytics.py": 2,
     "m2m_store/inventory.py": 1,

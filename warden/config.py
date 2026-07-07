@@ -617,6 +617,32 @@ class Settings:
         default_factory=lambda: _env("AGENTS_MD_PATH", "data/AGENTS.md")
     )
 
+    # ── STIX/TAXII feed (warden/integrations/taxii.py) ───────────────────────────
+    taxii_server_url: str = field(
+        default_factory=lambda: _env("TAXII_SERVER_URL", "")
+    )
+    taxii_username: str = field(
+        default_factory=lambda: _env("TAXII_USERNAME", "")
+    )
+    taxii_password: str = field(
+        default_factory=lambda: _env("TAXII_PASSWORD", "")
+    )
+    taxii_api_key: str = field(
+        default_factory=lambda: _env("TAXII_API_KEY", "")
+    )
+    taxii_collections: str = field(
+        default_factory=lambda: _env("TAXII_COLLECTIONS", "")
+    )
+    taxii_poll_interval: int = field(
+        default_factory=lambda: _int("TAXII_POLL_INTERVAL", 3600)
+    )
+    taxii_max_objects: int = field(
+        default_factory=lambda: _int("TAXII_MAX_OBJECTS", 200)
+    )
+    taxii_tenant_id: str = field(
+        default_factory=lambda: _env("TAXII_TENANT_ID", "default")
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.
