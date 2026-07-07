@@ -573,6 +573,25 @@ class Settings:
         default_factory=lambda: _int("COMPLIANCE_CACHE_TTL", 300)
     )
 
+    # ── Secrets rotation alerts (warden/api/rotation.py) ─────────────────────────
+    # NB: ADMIN_KEY stays a lazy os.getenv() read in rotation.py — it's a shared
+    # auth-gate credential dynamically monkeypatched per-test elsewhere
+    # (action_whitelist.py, tokenomics.py) — intentionally NOT mirrored here.
+    key_rotation_warning_days: int = field(
+        default_factory=lambda: _int("KEY_ROTATION_WARNING_DAYS", 75)
+    )
+    key_rotation_max_days: int = field(
+        default_factory=lambda: _int("KEY_ROTATION_MAX_DAYS", 90)
+    )
+    # NB: SOVEREIGN_ATTEST_KEY falls back to VAULT_MASTER_KEY at the call site in
+    # warden/sovereign/attestation.py — this field mirrors the raw env read only.
+    sovereign_attest_key: str = field(
+        default_factory=lambda: _env("SOVEREIGN_ATTEST_KEY", "")
+    )
+    community_vault_key: str = field(
+        default_factory=lambda: _env("COMMUNITY_VAULT_KEY", "")
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.
