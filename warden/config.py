@@ -512,6 +512,62 @@ class Settings:
         default_factory=lambda: _int("LS_METER_FLUSH_SECS", 300)
     )
 
+    # ── Add-on catalog Lemon Squeezy variant IDs (warden/billing/addons.py) ─────
+    ls_variant_shadow_ai: str = field(
+        default_factory=lambda: _env("LS_VARIANT_SHADOW_AI", "")
+    )
+    ls_variant_xai_audit: str = field(
+        default_factory=lambda: _env("LS_VARIANT_XAI_AUDIT", "")
+    )
+    ls_variant_secrets_vault: str = field(
+        default_factory=lambda: _env("LS_VARIANT_SECRETS_VAULT", "")
+    )
+    ls_variant_on_prem: str = field(
+        default_factory=lambda: _env("LS_VARIANT_ON_PREM", "")
+    )
+    ls_variant_community_seats: str = field(
+        default_factory=lambda: _env("LS_VARIANT_COMMUNITY_SEATS", "")
+    )
+    ls_variant_obsidian_pack: str = field(
+        default_factory=lambda: _env("LS_VARIANT_OBSIDIAN_PACK", "")
+    )
+    ls_variant_smb_governance: str = field(
+        default_factory=lambda: _env("LS_VARIANT_SMB_GOVERNANCE", "")
+    )
+    ls_variant_agentic_commerce: str = field(
+        default_factory=lambda: _env("LS_VARIANT_AGENTIC_COMMERCE", "")
+    )
+    ls_variant_event_streaming: str = field(
+        default_factory=lambda: _env("LS_VARIANT_EVENT_STREAMING", "")
+    )
+    ls_variant_tokenomics: str = field(
+        default_factory=lambda: _env("LS_VARIANT_TOKENOMICS", "")
+    )
+    ls_variant_usdc_payments: str = field(
+        default_factory=lambda: _env("LS_VARIANT_USDC_PAYMENTS", "")
+    )
+    ls_variant_ans_certs: str = field(
+        default_factory=lambda: _env("LS_VARIANT_ANS_CERTS", "")
+    )
+    ls_variant_edge_packs: str = field(
+        default_factory=lambda: _env("LS_VARIANT_EDGE_PACKS", "")
+    )
+    ls_variant_credits_starter: str = field(
+        default_factory=lambda: _env("LS_VARIANT_CREDITS_STARTER", "")
+    )
+    ls_variant_credits_builder: str = field(
+        default_factory=lambda: _env("LS_VARIANT_CREDITS_BUILDER", "")
+    )
+    ls_variant_credits_pro: str = field(
+        default_factory=lambda: _env("LS_VARIANT_CREDITS_PRO", "")
+    )
+    ls_variant_credits_enterprise: str = field(
+        default_factory=lambda: _env("LS_VARIANT_CREDITS_ENTERPRISE", "")
+    )
+    ls_variant_power_bundle: str = field(
+        default_factory=lambda: _env("LS_VARIANT_POWER_BUNDLE", "")
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.

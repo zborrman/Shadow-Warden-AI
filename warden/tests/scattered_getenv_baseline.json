@@ -1,5 +1,5 @@
 {
-  "total": 996,
+  "total": 977,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -82,7 +82,6 @@
     "auth/router.py": 6,
     "auth/saml.py": 8,
     "auth/saml_provider.py": 13,
-    "billing/addons.py": 19,
     "billing/audit_chain.py": 5,
     "billing/overage.py": 4,
     "billing/quotas.py": 1,

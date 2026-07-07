@@ -46,7 +46,6 @@ Usage in route handlers
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request
@@ -56,6 +55,7 @@ from warden.billing.feature_gate import (
     _get_tenant_tier,
     _normalize_tier,
 )
+from warden.config import settings
 
 log = logging.getLogger("warden.billing.addons")
 
@@ -71,7 +71,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Detect unauthorized AI tool usage: async subnet probe, DNS telemetry, 18-provider fingerprint DB.",
         "usd_per_month":  15,
         "min_tier":       "pro",
-        "ls_variant_id":  os.getenv("LS_VARIANT_SHADOW_AI", ""),
+        "ls_variant_id":  settings.ls_variant_shadow_ai,
         "unlocks":        ["shadow_ai_enabled"],
         "docs_url":       "/docs/addons/shadow-ai-discovery",
     },
@@ -81,7 +81,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "HTML and PDF causal chain reports for every filter decision. SOC 2 / GDPR audit evidence.",
         "usd_per_month":  9,
         "min_tier":       "individual",
-        "ls_variant_id":  os.getenv("LS_VARIANT_XAI_AUDIT", ""),
+        "ls_variant_id":  settings.ls_variant_xai_audit,
         "unlocks":        ["xai_reports_enabled"],
         "docs_url":       "/docs/addons/xai-audit",
     },
@@ -91,7 +91,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Centralize secrets discovery, lifecycle automation, and policy enforcement across AWS SM, Azure KV, HashiCorp Vault, GCP SM, and env.",
         "usd_per_month":  12,
         "min_tier":       "individual",
-        "ls_variant_id":  os.getenv("LS_VARIANT_SECRETS_VAULT", ""),
+        "ls_variant_id":  settings.ls_variant_secrets_vault,
         "unlocks":        ["secrets_governance"],
         "docs_url":       "/docs/addons/secrets-vault",
     },
@@ -101,7 +101,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Self-hosted license + Helm chart support + hardening runbook. Run Shadow Warden entirely inside your own infrastructure with no cloud dependency.",
         "usd_per_month":  29,
         "min_tier":       "pro",
-        "ls_variant_id":  os.getenv("LS_VARIANT_ON_PREM", ""),
+        "ls_variant_id":  settings.ls_variant_on_prem,
         "unlocks":        ["on_prem_deployment"],
         "docs_url":       "/docs/addons/on-prem",
     },
@@ -111,7 +111,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Add 5 additional member slots to every community on your account. Stack multiple purchases for larger teams.",
         "usd_per_month":  9,
         "min_tier":       "community_business",
-        "ls_variant_id":  os.getenv("LS_VARIANT_COMMUNITY_SEATS", ""),
+        "ls_variant_id":  settings.ls_variant_community_seats,
         "unlocks":        [],        # handled via seat counter, not feature flag
         "stackable":      True,      # can be purchased multiple times
         "seats_per_unit": 5,
@@ -123,7 +123,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Full Obsidian plugin feature set: Dataview security dashboard, offline publish queue, XAI pipeline visualizer, scheduled scan, and sidebar reputation panel.",
         "usd_per_month":  8,
         "min_tier":       "individual",
-        "ls_variant_id":  os.getenv("LS_VARIANT_OBSIDIAN_PACK", ""),
+        "ls_variant_id":  settings.ls_variant_obsidian_pack,
         "unlocks":        ["obsidian_business_pack_enabled"],
         "docs_url":       "/docs/addons/obsidian-business-pack",
     },
@@ -133,7 +133,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Vendor register + DPA tracking, cost allocation, budget dashboard, incident register, supplier risk assessment, shared prompt library, and employee training records — provisioned in one wizard.",
         "usd_per_month":  29,
         "min_tier":       "individual",
-        "ls_variant_id":  os.getenv("LS_VARIANT_SMB_GOVERNANCE", ""),
+        "ls_variant_id":  settings.ls_variant_smb_governance,
         "unlocks":        [
             "vendor_governance_enabled",
             "cost_allocation_enabled",
@@ -152,7 +152,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "AI-driven procurement with mandate controls, UCP store discovery, AP2 payment execution, MCP agent intents, vendor validation, and BI spend analytics.",
         "usd_per_month":  15,
         "min_tier":       "community_business",
-        "ls_variant_id":  os.getenv("LS_VARIANT_AGENTIC_COMMERCE", ""),
+        "ls_variant_id":  settings.ls_variant_agentic_commerce,
         "unlocks":        ["agentic_commerce_enabled", "marketplace_enabled"],
         "docs_url":       "/docs/addons/agentic-commerce-pack",
     },
@@ -164,7 +164,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Kafka/Flink real-time agent event bus: produce/consume marketplace events, auto-dispute watchdog for timed-out escrows, Redis pub/sub fallback.",
         "usd_per_month":  19,
         "min_tier":       "pro",
-        "ls_variant_id":  os.getenv("LS_VARIANT_EVENT_STREAMING", ""),
+        "ls_variant_id":  settings.ls_variant_event_streaming,
         "unlocks":        ["streams_enabled"],
         "docs_url":       "/docs/addons/event-streaming",
     },
@@ -174,7 +174,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "ERC-20 Warden Agent Token on Polygon Amoy: mint, transfer, outcome-based pricing settlements. Simulation mode included for testing.",
         "usd_per_month":  39,
         "min_tier":       "enterprise",
-        "ls_variant_id":  os.getenv("LS_VARIANT_TOKENOMICS", ""),
+        "ls_variant_id":  settings.ls_variant_tokenomics,
         "unlocks":        ["tokenomics_enabled"],
         "docs_url":       "/docs/addons/agent-tokenomics",
     },
@@ -184,7 +184,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "USDC payment intents via Coinbase Commerce or on-chain Polygon: create intent, verify confirmation, multi-rail settlement. Simulation auto-confirms for testing.",
         "usd_per_month":  29,
         "min_tier":       "enterprise",
-        "ls_variant_id":  os.getenv("LS_VARIANT_USDC_PAYMENTS", ""),
+        "ls_variant_id":  settings.ls_variant_usdc_payments,
         "unlocks":        ["usdc_payments_enabled"],
         "docs_url":       "/docs/addons/usdc-payments",
     },
@@ -194,7 +194,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Issue X.509 agent identity certificates (subject: agent-{id}.{community}.shadow-warden.ai), Redis CRL revocation, cryptography library with JSON fallback.",
         "usd_per_month":  25,
         "min_tier":       "enterprise",
-        "ls_variant_id":  os.getenv("LS_VARIANT_ANS_CERTS", ""),
+        "ls_variant_id":  settings.ls_variant_ans_certs,
         "unlocks":        ["ans_certificates_enabled"],
         "docs_url":       "/docs/addons/ans-certificates",
     },
@@ -204,7 +204,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "description":    "Plug-and-play edge analytics: Crop Health Monitor (NDVI), Yield Optimizer (irrigation scheduling), Disease Detector (Claude Vision). Deploy as marketplace agents.",
         "usd_per_month":  15,
         "min_tier":       "community_business",
-        "ls_variant_id":  os.getenv("LS_VARIANT_EDGE_PACKS", ""),
+        "ls_variant_id":  settings.ls_variant_edge_packs,
         "unlocks":        ["edge_packs_enabled"],
         "docs_url":       "/docs/addons/edge-agent-packs",
     },
@@ -220,7 +220,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "usd_per_month":  0,
         "usd_one_time":   0.10,
         "min_tier":       "individual",
-        "ls_variant_id":  os.getenv("LS_VARIANT_CREDITS_STARTER", ""),
+        "ls_variant_id":  settings.ls_variant_credits_starter,
         "unlocks":        [],
         "credits":        100,
         "docs_url":       "/docs/addons/flex-credits",
@@ -232,7 +232,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "usd_per_month":  0,
         "usd_one_time":   0.45,
         "min_tier":       "individual",
-        "ls_variant_id":  os.getenv("LS_VARIANT_CREDITS_BUILDER", ""),
+        "ls_variant_id":  settings.ls_variant_credits_builder,
         "unlocks":        [],
         "credits":        500,
         "docs_url":       "/docs/addons/flex-credits",
@@ -244,7 +244,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "usd_per_month":  0,
         "usd_one_time":   0.85,
         "min_tier":       "individual",
-        "ls_variant_id":  os.getenv("LS_VARIANT_CREDITS_PRO", ""),
+        "ls_variant_id":  settings.ls_variant_credits_pro,
         "unlocks":        [],
         "credits":        1000,
         "docs_url":       "/docs/addons/flex-credits",
@@ -256,7 +256,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "usd_per_month":  0,
         "usd_one_time":   4.00,
         "min_tier":       "individual",
-        "ls_variant_id":  os.getenv("LS_VARIANT_CREDITS_ENTERPRISE", ""),
+        "ls_variant_id":  settings.ls_variant_credits_enterprise,
         "unlocks":        [],
         "credits":        5000,
         "docs_url":       "/docs/addons/flex-credits",
@@ -276,7 +276,7 @@ BUNDLE_CATALOG: dict[str, dict[str, Any]] = {
         "savings_usd":      7,
         "min_tier":         "pro",
         "includes_addons":  ["secrets_vault", "xai_audit", "shadow_ai_discovery"],
-        "ls_variant_id":    os.getenv("LS_VARIANT_POWER_BUNDLE", ""),
+        "ls_variant_id":    settings.ls_variant_power_bundle,
         "docs_url":         "/docs/addons/power-user-bundle",
     },
 
@@ -289,7 +289,7 @@ BUNDLE_CATALOG: dict[str, dict[str, Any]] = {
 def _redis():
     try:
         import redis as _r
-        url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        url = settings.global_redis_url or settings.redis_url
         if url.startswith("memory://"):
             return None
         return _r.from_url(url, decode_responses=True)
