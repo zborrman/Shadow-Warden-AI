@@ -592,6 +592,11 @@ class Settings:
         default_factory=lambda: _env("COMMUNITY_VAULT_KEY", "")
     )
 
+    # ── A2A protocol (warden/protocols/a2a/task_lifecycle.py) ────────────────────
+    a2a_base_url: str = field(
+        default_factory=lambda: _env("A2A_BASE_URL", "http://localhost:8001")
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.

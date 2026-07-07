@@ -21,11 +21,12 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-import os
 import time
 import uuid
 from collections.abc import Callable
 from typing import Any
+
+from warden.config import settings
 
 log = logging.getLogger("warden.protocols.a2a.task")
 
@@ -94,7 +95,7 @@ _mem_store: dict[str, dict] = {}
 def _redis():
     try:
         import redis as _redis_lib
-        url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        url = settings.global_redis_url or settings.redis_url
         if url.startswith("memory://"):
             return None
         return _redis_lib.from_url(url, decode_responses=True)
@@ -288,8 +289,8 @@ async def _handle_security_filter(task: dict) -> dict:
     import httpx
     content   = task["input"].get("content", "")
     tenant_id = task.get("tenant_id", "default")
-    api_key   = os.getenv("WARDEN_API_KEY", "")
-    base_url  = os.getenv("A2A_BASE_URL", "http://localhost:8001")
+    api_key   = settings.warden_api_key
+    base_url  = settings.a2a_base_url
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
@@ -309,8 +310,8 @@ async def _handle_threat_analysis(task: dict) -> dict:
     import httpx
     query     = task["input"].get("query", "")
     session   = task["input"].get("session_id", task["task_id"])
-    api_key   = os.getenv("WARDEN_API_KEY", "")
-    base_url  = os.getenv("A2A_BASE_URL", "http://localhost:8001")
+    api_key   = settings.warden_api_key
+    base_url  = settings.a2a_base_url
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
@@ -331,8 +332,8 @@ async def _handle_marketplace_search(task: dict) -> dict:
     q         = task["input"].get("query", "")
     max_price = task["input"].get("max_price", 1_000_000.0)
     asset_type = task["input"].get("asset_type", "")
-    api_key   = os.getenv("WARDEN_API_KEY", "")
-    base_url  = os.getenv("A2A_BASE_URL", "http://localhost:8001")
+    api_key   = settings.warden_api_key
+    base_url  = settings.a2a_base_url
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
@@ -351,8 +352,8 @@ async def _handle_compliance_report(task: dict) -> dict:
     """Fetch compliance posture from the compliance API."""
     import httpx
     framework = task["input"].get("framework", "")
-    api_key   = os.getenv("WARDEN_API_KEY", "")
-    base_url  = os.getenv("A2A_BASE_URL", "http://localhost:8001")
+    api_key   = settings.warden_api_key
+    base_url  = settings.a2a_base_url
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             path = f"/compliance/posture/{framework}" if framework else "/compliance/posture"
