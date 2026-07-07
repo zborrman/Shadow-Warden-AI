@@ -1,5 +1,5 @@
 {
-  "total": 1116,
+  "total": 1107,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -24,7 +24,6 @@
     "main.py": 45,
     "multimodal_guard.py": 3,
     "net_guard.py": 1,
-    "notification_hook.py": 6,
     "ocr.py": 1,
     "offline.py": 1,
     "onboarding.py": 2,
@@ -41,7 +40,6 @@
     "shadow_ban.py": 3,
     "stripe_billing.py": 6,
     "taint_tracker.py": 3,
-    "telegram_alert.py": 3,
     "tenant_policy.py": 5,
     "threat_feed.py": 9,
     "threat_store.py": 4,

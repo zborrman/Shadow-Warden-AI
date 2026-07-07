@@ -384,6 +384,34 @@ class Settings:
         default_factory=lambda: _env("MTLS_ALLOWED_CNS", "proxy,analytics,app")
     )
 
+    # ── Telegram alerts (warden/telegram_alert.py; tokens above) ────────────────
+    # Minimum risk level for a Telegram alert: medium | high | block.
+    telegram_min_risk: str = field(
+        default_factory=lambda: _env("TELEGRAM_MIN_RISK", "high").lower()
+    )
+
+    # ── Output-guard notification hook (warden/notification_hook.py) ────────────
+    # Comma-separated BusinessRisk types that trigger a manager notification.
+    notify_output_risks: str = field(
+        default_factory=lambda: _env(
+            "NOTIFY_OUTPUT_RISKS", "price_manipulation,unauthorized_commitment"
+        )
+    )
+    # Telegram token/chat for the notification hook (falls back to telegram_bot_token).
+    notify_telegram_token: str = field(
+        default_factory=lambda: _env("NOTIFY_TELEGRAM_TOKEN", "")
+    )
+    notify_telegram_chat_id: str = field(
+        default_factory=lambda: _env("NOTIFY_TELEGRAM_CHAT_ID", "")
+    )
+    # Generic outbound webhook + HMAC secret for the notification hook.
+    notify_webhook_url: str = field(
+        default_factory=lambda: _env("NOTIFY_WEBHOOK_URL", "")
+    )
+    notify_webhook_secret: str = field(
+        default_factory=lambda: _env("NOTIFY_WEBHOOK_SECRET", "")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
