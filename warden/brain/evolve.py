@@ -39,6 +39,7 @@ import anthropic
 from pydantic import BaseModel, Field
 
 from warden.cache import _get_client as _get_redis
+from warden.config import settings
 from warden.metrics import EVOLUTION_SKIPPED_TOTAL
 from warden.schemas import RiskLevel, SemanticFlag
 
@@ -151,12 +152,10 @@ _SE_FLAG_TYPES: frozenset[str] = frozenset({
     "phishing_url", "social_engineering",
 })
 
-DYNAMIC_RULES_PATH = Path(
-    os.getenv("DYNAMIC_RULES_PATH", "/warden/data/dynamic_rules.json")
-)
+DYNAMIC_RULES_PATH = Path(settings.dynamic_rules_path)
 
 # Corpus poisoning protection
-MAX_CORPUS_RULES       = int(os.getenv("MAX_CORPUS_RULES", "500"))
+MAX_CORPUS_RULES       = settings.max_corpus_rules
 MAX_EVASION_VARIANTS   = 5   # cap evasion variants per rule
 MAX_EXAMPLE_LENGTH     = 500  # max chars per semantic example
 _SEEN_HASHES_CAP       = 10_000  # cap in-process dedup set
@@ -164,8 +163,8 @@ _SEEN_HASHES_CAP       = 10_000  # cap in-process dedup set
 # Evolution rate gate — prevent Claude Opus API cost exhaustion under flood attacks.
 # A fixed-window counter in Redis caps how many novel attacks trigger the LLM per window.
 # Fail-open: when Redis is unavailable the gate is bypassed so evolution still works.
-EVOLUTION_RATE_WINDOW  = int(os.getenv("EVOLUTION_RATE_WINDOW", "300"))  # seconds
-EVOLUTION_RATE_MAX     = int(os.getenv("EVOLUTION_RATE_MAX",    "10"))   # calls per window
+EVOLUTION_RATE_WINDOW  = settings.evolution_rate_window  # seconds
+EVOLUTION_RATE_MAX     = settings.evolution_rate_max     # calls per window
 _RATE_KEY              = "warden:evolution:calls"
 
 _RISK_ORDER = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.BLOCK]
