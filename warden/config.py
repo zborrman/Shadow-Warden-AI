@@ -617,6 +617,56 @@ class Settings:
         default_factory=lambda: _float("RAG_EVOLVER_REDOS_TIMEOUT_S", 0.5)
     )
 
+    # ── Cross-region threat sync (warden/threat_sync.py) ────────────────────────
+    # NB: REGION reuses warden_region; redis reuses global_redis_url/redis_url.
+    threat_sync_enabled: bool = field(
+        default_factory=lambda: _bool("THREAT_SYNC_ENABLED", True)
+    )
+    threat_sync_stream: str = field(
+        default_factory=lambda: _env("THREAT_SYNC_STREAM", "warden:threats:global")
+    )
+    threat_sync_max_len: int = field(
+        default_factory=lambda: _int("THREAT_SYNC_MAX_LEN", 10000)
+    )
+    threat_sync_batch: int = field(
+        default_factory=lambda: _int("THREAT_SYNC_BATCH", 50)
+    )
+    threat_sync_block_ms: int = field(
+        default_factory=lambda: _int("THREAT_SYNC_BLOCK_MS", 5000)
+    )
+    threat_sync_seen_cap: int = field(
+        default_factory=lambda: _int("THREAT_SYNC_SEEN_CAP", 50000)
+    )
+
+    # ── External threat feed (warden/threat_feed.py) ────────────────────────────
+    threat_feed_enabled: bool = field(
+        default_factory=lambda: _bool("THREAT_FEED_ENABLED", False)
+    )
+    threat_feed_url: str = field(
+        default_factory=lambda: _env("THREAT_FEED_URL", "")
+    )
+    threat_feed_api_key: str = field(
+        default_factory=lambda: _env("THREAT_FEED_API_KEY", "")
+    )
+    threat_feed_sync_hrs: float = field(
+        default_factory=lambda: _float("THREAT_FEED_SYNC_HRS", 6.0)
+    )
+    threat_feed_max_rules: int = field(
+        default_factory=lambda: _int("THREAT_FEED_MAX_RULES", 500)
+    )
+    threat_feed_receive_only: bool = field(
+        default_factory=lambda: _bool("THREAT_FEED_RECEIVE_ONLY", False)
+    )
+    threat_feed_consensus_threshold: float = field(
+        default_factory=lambda: _float("THREAT_FEED_CONSENSUS_THRESHOLD", 0.80)
+    )
+    threat_feed_max_worm_hashes: int = field(
+        default_factory=lambda: _int("THREAT_FEED_MAX_WORM_HASHES", 10000)
+    )
+    threat_feed_cache_path: str = field(
+        default_factory=lambda: _env("THREAT_FEED_CACHE_PATH", "/warden/data/threat_feed_cache.json")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 

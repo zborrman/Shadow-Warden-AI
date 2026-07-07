@@ -62,6 +62,8 @@ import threading
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from warden.config import settings
+
 if TYPE_CHECKING:
     from warden.brain.evolve import RuleRecord
 
@@ -69,13 +71,13 @@ log = logging.getLogger("warden.threat_sync")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-REGION: str      = os.getenv("WARDEN_REGION", "default")
-ENABLED: bool    = os.getenv("THREAT_SYNC_ENABLED", "true").lower() != "false"
-STREAM: str      = os.getenv("THREAT_SYNC_STREAM", "warden:threats:global")
-MAX_LEN: int     = int(os.getenv("THREAT_SYNC_MAX_LEN",  "10000"))
-BATCH: int       = int(os.getenv("THREAT_SYNC_BATCH",    "50"))
-BLOCK_MS: int    = int(os.getenv("THREAT_SYNC_BLOCK_MS", "5000"))
-SEEN_CAP: int    = int(os.getenv("THREAT_SYNC_SEEN_CAP", "50000"))
+REGION: str      = settings.warden_region
+ENABLED: bool    = settings.threat_sync_enabled
+STREAM: str      = settings.threat_sync_stream
+MAX_LEN: int     = settings.threat_sync_max_len
+BATCH: int       = settings.threat_sync_batch
+BLOCK_MS: int    = settings.threat_sync_block_ms
+SEEN_CAP: int    = settings.threat_sync_seen_cap
 
 _GROUP_PREFIX = "warden:sync"
 _CONSUMER_NAME = f"{REGION}-worker"
@@ -94,7 +96,7 @@ def _get_client():
     with _lock:
         if _client is not None:
             return _client
-        url = os.getenv("GLOBAL_REDIS_URL") or os.getenv("REDIS_URL", "redis://redis:6379/0")
+        url = settings.global_redis_url or settings.redis_url
         try:
             import redis as _redis
             c = _redis.from_url(
