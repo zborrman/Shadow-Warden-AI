@@ -466,6 +466,23 @@ class Settings:
         default_factory=lambda: _bool("GDPR_AUTO_PURGE", True)
     )
 
+    # ── Data Retention API (warden/api/retention.py) ─────────────────────────────
+    retention_pii_days: int = field(
+        default_factory=lambda: _int("RETENTION_PII_DAYS", 30)
+    )
+    retention_phi_days: int = field(
+        default_factory=lambda: _int("RETENTION_PHI_DAYS", 30)
+    )
+    retention_financial_days: int = field(
+        default_factory=lambda: _int("RETENTION_FINANCIAL_DAYS", 90)
+    )
+    retention_secrets_days: int = field(
+        default_factory=lambda: _int("RETENTION_SECRETS_DAYS", 7)
+    )
+    retention_general_days: int = field(
+        default_factory=lambda: _int("RETENTION_GENERAL_DAYS", 180)
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
