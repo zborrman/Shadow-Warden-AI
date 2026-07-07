@@ -1,5 +1,5 @@
 {
-  "total": 857,
+  "total": 854,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -106,7 +106,7 @@
     "communities/community_evolution.py": 1,
     "communities/community_factory.py": 1,
     "communities/data_pod.py": 3,
-    "communities/entity_store.py": 6,
+    "communities/entity_store.py": 3,
     "communities/federation.py": 4,
     "communities/id_generator.py": 1,
     "communities/incident_register.py": 1,

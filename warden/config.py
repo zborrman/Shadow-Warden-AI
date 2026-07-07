@@ -398,6 +398,18 @@ class Settings:
         default_factory=lambda: _int("IMAGE_REDACTION_TIMEOUT_MS", 500)
     )
 
+    # ── Community entity store (warden/communities/entity_store.py) ─────────────
+    # NB: S3_ENDPOINT_URL/AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY stay lazy
+    # os.getenv() reads there (no default -> None) so boto3's default credential
+    # chain (IAM role, ~/.aws/credentials) still applies when unset; a Settings
+    # field would coerce to "" instead of None, breaking that fallback.
+    entity_db_path: str = field(
+        default_factory=lambda: _env("ENTITY_DB_PATH", "/tmp/warden_entity_store.db")
+    )
+    community_s3_bucket: str = field(
+        default_factory=lambda: _env("COMMUNITY_S3_BUCKET", "warden-communities")
+    )
+
     # ── Data Paths ─────────────────────────────────────────────────────────────
     audit_trail_path: str = field(
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")
