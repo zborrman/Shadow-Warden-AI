@@ -56,6 +56,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 
+from warden.config import settings
+
 if TYPE_CHECKING:
     from warden.brain.semantic import SemanticGuard
 
@@ -63,16 +65,14 @@ log = logging.getLogger("warden.brain.poison")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-_ENABLED          = os.getenv("POISON_DETECTION_ENABLED", "true").lower() == "true"
-_BOUNDARY_WINDOW  = int(os.getenv("POISON_BOUNDARY_WINDOW", "60"))   # seconds
-_BOUNDARY_MAX     = int(os.getenv("POISON_BOUNDARY_MAX", "6"))        # hits before flag
-_DRIFT_THRESHOLD  = float(os.getenv("POISON_DRIFT_THRESHOLD", "0.08"))
-_MONITOR_INTERVAL = int(os.getenv("POISON_MONITOR_INTERVAL", "300"))  # seconds
+_ENABLED          = settings.poison_detection_enabled
+_BOUNDARY_WINDOW  = settings.poison_boundary_window    # seconds
+_BOUNDARY_MAX     = settings.poison_boundary_max        # hits before flag
+_DRIFT_THRESHOLD  = settings.poison_drift_threshold
+_MONITOR_INTERVAL = settings.poison_monitor_interval    # seconds
 
 # Corpus snapshot path — for Self-Healing rollback on canary failure.
-_SNAPSHOT_BASE = pathlib.Path(
-    os.getenv("CORPUS_SNAPSHOT_PATH", "/tmp/warden_corpus_snapshot")
-)
+_SNAPSHOT_BASE = pathlib.Path(settings.corpus_snapshot_path)
 # Two files: <base>.npz (embeddings) + <base>.json (text examples)
 
 # Near-boundary zone: [threshold - LOWER_MARGIN, threshold + UPPER_MARGIN]
