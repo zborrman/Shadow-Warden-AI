@@ -11,7 +11,6 @@ Tests for the v2.5 Stripe billing upgrade:
 from __future__ import annotations
 
 import json
-import os
 import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -344,29 +343,33 @@ class TestCheckoutSession:
 # ── Price → plan mapping ──────────────────────────────────────────────────────
 
 class TestPriceToplanMapping:
+    # Price config now flows through warden.config.settings (Deep-Eng P1),
+    # so patch the settings singleton (not os.environ) and reload the module
+    # to rebuild the module-level _PRICE_TO_PLAN map.
     def test_startup_price_maps_to_startup(self):
-
-        with patch.dict(os.environ, {
-            "STRIPE_PRICE_STARTUP": "price_startup_test",
-            "STRIPE_PRICE_GROWTH":  "",
-            "STRIPE_PRICE_MSP":     "",
-        }):
-            # Re-import to pick up patched env
+        from warden.config import settings
+        with patch.object(settings, "stripe_price_startup", "price_startup_test"), \
+             patch.object(settings, "stripe_price_growth", ""), \
+             patch.object(settings, "stripe_price_msp", ""):
             import importlib
 
             import warden.stripe_billing as sb
             importlib.reload(sb)
-            # After reload the module-level map is rebuilt
-            assert sb._PRICE_TO_PLAN.get("price_startup_test") == "startup"
+            try:
+                assert sb._PRICE_TO_PLAN.get("price_startup_test") == "startup"
+            finally:
+                importlib.reload(sb)  # restore real settings-derived map
 
     def test_growth_price_maps_to_growth(self):
-        with patch.dict(os.environ, {
-            "STRIPE_PRICE_STARTUP": "",
-            "STRIPE_PRICE_GROWTH":  "price_growth_test",
-            "STRIPE_PRICE_MSP":     "",
-        }):
+        from warden.config import settings
+        with patch.object(settings, "stripe_price_startup", ""), \
+             patch.object(settings, "stripe_price_growth", "price_growth_test"), \
+             patch.object(settings, "stripe_price_msp", ""):
             import importlib
 
             import warden.stripe_billing as sb
             importlib.reload(sb)
-            assert sb._PRICE_TO_PLAN.get("price_growth_test") == "growth"
+            try:
+                assert sb._PRICE_TO_PLAN.get("price_growth_test") == "growth"
+            finally:
+                importlib.reload(sb)  # restore real settings-derived map

@@ -457,6 +457,60 @@ class Settings:
         default_factory=lambda: _env("GATEWAY_URL", "http://localhost:8001")
     )
 
+    # ── Stripe billing (warden/stripe_billing.py) ───────────────────────────────
+    stripe_secret_key: str = field(
+        default_factory=lambda: _env("STRIPE_SECRET_KEY", "")
+    )
+    stripe_webhook_secret: str = field(
+        default_factory=lambda: _env("STRIPE_WEBHOOK_SECRET", "")
+    )
+    stripe_price_startup: str = field(
+        default_factory=lambda: _env("STRIPE_PRICE_STARTUP", "")
+    )
+    stripe_price_growth: str = field(
+        default_factory=lambda: _env("STRIPE_PRICE_GROWTH", "")
+    )
+    stripe_price_msp: str = field(
+        default_factory=lambda: _env("STRIPE_PRICE_MSP", "")
+    )
+    stripe_db_path: str = field(
+        default_factory=lambda: _env("STRIPE_DB_PATH", "/warden/data/stripe.db")
+    )
+
+    # ── Lemon Squeezy billing (warden/lemon_billing.py) ─────────────────────────
+    # NB: LEMONSQUEEZY_DB_PATH stays a lazy read in lemon_billing._db_path() so
+    # tests can override it after import — intentionally NOT mirrored here.
+    lemonsqueezy_api_key: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_API_KEY", "")
+    )
+    lemonsqueezy_store_id: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_STORE_ID", "")
+    )
+    lemonsqueezy_webhook_secret: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_WEBHOOK_SECRET", "")
+    )
+    lemonsqueezy_variant_trial: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_VARIANT_TRIAL", "")
+    )
+    lemonsqueezy_variant_individual: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_VARIANT_INDIVIDUAL", "")
+    )
+    lemonsqueezy_variant_community: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_VARIANT_COMMUNITY", "")
+    )
+    lemonsqueezy_variant_pro: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_VARIANT_PRO", "")
+    )
+    lemonsqueezy_variant_enterprise: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_VARIANT_ENTERPRISE", "")
+    )
+    ls_meter_flush_events: int = field(
+        default_factory=lambda: _int("LS_METER_FLUSH_EVENTS", 100)
+    )
+    ls_meter_flush_secs: int = field(
+        default_factory=lambda: _int("LS_METER_FLUSH_SECS", 300)
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 

@@ -43,20 +43,22 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.config import settings
+
 log = logging.getLogger("warden.lemon_billing")
 
-_LS_API_KEY            = os.getenv("LEMONSQUEEZY_API_KEY", "")
-_LS_STORE_ID           = os.getenv("LEMONSQUEEZY_STORE_ID", "")
-_LS_WEBHOOK_SECRET     = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
-_LS_VARIANT_TRIAL      = os.getenv("LEMONSQUEEZY_VARIANT_TRIAL", "")
-_LS_VARIANT_INDIVIDUAL = os.getenv("LEMONSQUEEZY_VARIANT_INDIVIDUAL", "")
-_LS_VARIANT_COMMUNITY  = os.getenv("LEMONSQUEEZY_VARIANT_COMMUNITY", "")
-_LS_VARIANT_PRO        = os.getenv("LEMONSQUEEZY_VARIANT_PRO", "")
-_LS_VARIANT_ENTERPRISE = os.getenv("LEMONSQUEEZY_VARIANT_ENTERPRISE", "")
+_LS_API_KEY            = settings.lemonsqueezy_api_key
+_LS_STORE_ID           = settings.lemonsqueezy_store_id
+_LS_WEBHOOK_SECRET     = settings.lemonsqueezy_webhook_secret
+_LS_VARIANT_TRIAL      = settings.lemonsqueezy_variant_trial
+_LS_VARIANT_INDIVIDUAL = settings.lemonsqueezy_variant_individual
+_LS_VARIANT_COMMUNITY  = settings.lemonsqueezy_variant_community
+_LS_VARIANT_PRO        = settings.lemonsqueezy_variant_pro
+_LS_VARIANT_ENTERPRISE = settings.lemonsqueezy_variant_enterprise
 
 # Metered billing: flush x402 usage to LS after this many events or seconds
-_METER_FLUSH_EVENTS = int(os.getenv("LS_METER_FLUSH_EVENTS", "100"))
-_METER_FLUSH_SECS   = int(os.getenv("LS_METER_FLUSH_SECS",   "300"))
+_METER_FLUSH_EVENTS = settings.ls_meter_flush_events
+_METER_FLUSH_SECS   = settings.ls_meter_flush_secs
 
 _LS_API_BASE = "https://api.lemonsqueezy.com/v1"
 
