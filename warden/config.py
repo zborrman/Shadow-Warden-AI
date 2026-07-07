@@ -752,6 +752,21 @@ class Settings:
         default_factory=lambda: _bool("OUTPUT_GUARDRAILS_ENABLED", True)
     )
 
+    # ── Portal/site auth cookies (warden/auth/router.py) ────────────────────────
+    # NB: admin-bootstrap + JWT/vault secret reads stay lazy in auth/router.py.
+    auth_session_ttl: int = field(
+        default_factory=lambda: _int("AUTH_SESSION_TTL", 3600)
+    )
+    auth_cookie_domain: str = field(
+        default_factory=lambda: _env("AUTH_COOKIE_DOMAIN", ".shadow-warden-ai.com")
+    )
+    auth_db_path: str = field(
+        default_factory=lambda: _env("AUTH_DB_PATH", "/tmp/warden_auth.db")
+    )
+    auth_signup_rate_limit: int = field(
+        default_factory=lambda: _int("AUTH_SIGNUP_RATE_LIMIT", 5)
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
