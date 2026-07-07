@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from warden.marketplace.rate_limit import marketplace_rate_limit
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.api_agents")
 
@@ -66,7 +67,10 @@ async def register_agent(body: AgentRegisterRequest) -> dict:
     except HTTPException:
         raise
     except Exception as exc:
+        # Rule 8 fail-open by design — a deny-listed DID registering because the
+        # federation check errored is exactly the bypass that must be alertable.
         log.debug("federation deny-list check failed (fail-open): %s", exc)
+        record_failopen("marketplace_denylist", Reason.BACKEND_ERROR, exc)
 
     try:
         agent = _register(

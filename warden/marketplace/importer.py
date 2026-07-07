@@ -23,6 +23,8 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.marketplace.importer")
 
 _DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
@@ -290,7 +292,10 @@ class AssetImporter:
                 report = det.validate_imported_model(model_dict, community_id)
             return report.to_dict()
         except Exception as exc:
+            # Rule 6 fail-open by design — if the model-poisoning detector errors,
+            # the asset imports unvetted. That silent bypass must be alertable.
             log.debug("AssetImporter: poisoning check fail-open: %s", exc)
+            record_failopen("marketplace_poisoning", Reason.BACKEND_ERROR, exc)
             return None
 
     def _notify_admin(self, asset_id: str, community_id: str, report: dict) -> None:
