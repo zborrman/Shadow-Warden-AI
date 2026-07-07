@@ -517,6 +517,46 @@ class Settings:
         default_factory=lambda: _float("COMPLIANCE_CREDENTIAL_EXPOSURE_COST_USD", 50_000)
     )
 
+    # ── Deploy Health (warden/api/deploy_health.py) ──────────────────────────────
+    minio_url: str = field(
+        default_factory=lambda: _env("MINIO_URL", "http://minio:9000")
+    )
+    prometheus_url: str = field(
+        default_factory=lambda: _env("PROMETHEUS_URL", "http://prometheus:9090")
+    )
+    grafana_url: str = field(
+        default_factory=lambda: _env("GRAFANA_URL", "http://grafana:3000")
+    )
+    app_url: str = field(
+        default_factory=lambda: _env("APP_URL", "http://app:8000")
+    )
+    analytics_int_url: str = field(
+        default_factory=lambda: _env("ANALYTICS_INT_URL", "http://analytics:8002")
+    )
+
+    # ── Integrations API (warden/api/integrations.py) ────────────────────────────
+    teams_webhook_url: str = field(
+        default_factory=lambda: _env("TEAMS_WEBHOOK_URL", "")
+    )
+    notion_api_token: str = field(
+        default_factory=lambda: _env("NOTION_API_TOKEN", "")
+    )
+    notion_parent_page_id: str = field(
+        default_factory=lambda: _env("NOTION_PARENT_PAGE_ID", "")
+    )
+    zapier_webhook_url: str = field(
+        default_factory=lambda: _env("ZAPIER_WEBHOOK_URL", "")
+    )
+    make_webhook_url: str = field(
+        default_factory=lambda: _env("MAKE_WEBHOOK_URL", "")
+    )
+    # NB: same DASHBOARD_URL env var as agent/scheduler.py's dashboard_url field,
+    # but this file's own default is the public dashboard host, not empty — a
+    # pre-existing drift, kept separate to preserve exact per-file behaviour.
+    integrations_dashboard_url: str = field(
+        default_factory=lambda: _env("DASHBOARD_URL", "https://dash.shadow-warden-ai.com")
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
