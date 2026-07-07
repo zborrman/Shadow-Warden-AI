@@ -49,6 +49,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from warden.config import settings
+
 logger = logging.getLogger(__name__)
 
 # ── Threat classification ──────────────────────────────────────────────────────
@@ -105,11 +107,11 @@ class GeometricThreatBridge:
     """
 
     def __init__(self) -> None:
-        self.topology_threshold   = float(os.getenv("BRIDGE_TOPOLOGY_THRESHOLD", "0.75"))
-        self.hyperbolic_high      = float(os.getenv("BRIDGE_HYPERBOLIC_HIGH",    "0.80"))
-        self.hyperbolic_gray      = float(os.getenv("BRIDGE_HYPERBOLIC_GRAY",    "0.55"))
-        self.causal_high          = float(os.getenv("BRIDGE_CAUSAL_HIGH",        "0.65"))
-        self.ers_restrict         = float(os.getenv("BRIDGE_ERS_RESTRICT",       "0.70"))
+        self.topology_threshold   = settings.bridge_topology_threshold
+        self.hyperbolic_high      = settings.bridge_hyperbolic_high
+        self.hyperbolic_gray      = settings.bridge_hyperbolic_gray
+        self.causal_high          = settings.bridge_causal_high
+        self.ers_restrict         = settings.bridge_ers_restrict
 
     # ── Public API ─────────────────────────────────────────────────────────────
 

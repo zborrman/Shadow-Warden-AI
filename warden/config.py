@@ -344,6 +344,23 @@ class Settings:
         default_factory=lambda: _int("TOKEN_ALERT_PCT", 80)
     )
 
+    # ── NeMo Guardrails Geometric Bridge (warden/integrations/nemo_bridge.py) ────
+    bridge_topology_threshold: float = field(
+        default_factory=lambda: _float("BRIDGE_TOPOLOGY_THRESHOLD", 0.75)
+    )
+    bridge_hyperbolic_high: float = field(
+        default_factory=lambda: _float("BRIDGE_HYPERBOLIC_HIGH", 0.80)
+    )
+    bridge_hyperbolic_gray: float = field(
+        default_factory=lambda: _float("BRIDGE_HYPERBOLIC_GRAY", 0.55)
+    )
+    bridge_causal_high: float = field(
+        default_factory=lambda: _float("BRIDGE_CAUSAL_HIGH", 0.65)
+    )
+    bridge_ers_restrict: float = field(
+        default_factory=lambda: _float("BRIDGE_ERS_RESTRICT", 0.70)
+    )
+
     # ── Data Paths ─────────────────────────────────────────────────────────────
     audit_trail_path: str = field(
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")
