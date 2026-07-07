@@ -29,7 +29,28 @@ Apply these via **Cloudflare Dashboard → Security → WAF → Rate Limiting** 
 
 ### Managed Ruleset
 
-Enable **OWASP Core Ruleset** (Sensitivity: Medium) for all routes under `api.shadow-warden-ai.com`.
+Enable **OWASP Core Ruleset** (Sensitivity: Medium) for `api.shadow-warden-ai.com`.
+
+> ⚠️ **CRITICAL — WAF must skip the analysis endpoints.** `/filter`, `/ext/filter`,
+> and `/v1/chat/completions` receive jailbreak / prompt-injection / secret-leak
+> payloads *by design* — that is the product's input. The OWASP ruleset (and the
+> Cloudflare Managed Ruleset) will classify those bodies as attacks and return
+> **403 at the edge, before the request ever reaches warden** — silently breaking
+> the core value prop and every customer integration. This is non-obvious and easy
+> to lose on a zone migration, so it is pinned here.
+
+**Dashboard → Security → WAF → Managed rules → (each managed ruleset) → Add exception → Skip:**
+
+- **Name:** `skip-managed-on-analysis-endpoints`
+- **Expression:**
+  `(http.host eq "api.shadow-warden-ai.com" and (http.request.uri.path in {"/filter" "/ext/filter"} or http.request.uri.path matches "^/v1/"))`
+- **Action:** Skip → *Cloudflare Managed Ruleset* + *OWASP Core Ruleset*
+- **Order:** before the managed rulesets execute
+
+The pipeline is warden's own job on these paths — the 9-layer filter *is* the WAF
+here. Rate limiting (above) and Bot Fight allowlisting still apply; only the
+payload-inspection managed rules are skipped. Do **not** widen the skip to other
+paths — everything except these three analysis endpoints keeps full OWASP coverage.
 
 ### Bot Fight Mode
 
@@ -68,6 +89,18 @@ export default {
   }
 };
 ```
+
+## Cache Rules (Pro plan)
+
+The API must never be cached — `/filter` is a POST and stateful; a cached
+response would leak one tenant's verdict to another.
+
+- **`api.shadow-warden-ai.com` → Bypass cache.** Expression:
+  `(http.host eq "api.shadow-warden-ai.com")` → Cache eligibility: **Bypass**.
+  (Cloudflare does not cache POST by default, but pin this so no future page rule
+  re-enables it for GET routes like `/health`.)
+- **Static site (`shadow-warden-ai.com`) → Cache Everything** with Polish/Mirage
+  image optimization on. Marketing assets (`/logo.png`, Astro build output) only.
 
 ## DNS / SSL
 
