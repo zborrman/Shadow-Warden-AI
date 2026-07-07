@@ -38,12 +38,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 from warden.compliance.models import ComplianceReport, FrameworkScore, Gap, Severity
+from warden.config import settings
 
 log = logging.getLogger("warden.compliance.posture_service")
 
 _CACHE_PREFIX = "compliance:posture:"
 _PUBSUB_CHANNEL = "compliance:events"
-_CACHE_TTL = int(os.getenv("COMPLIANCE_CACHE_TTL", "300"))
+_CACHE_TTL = settings.compliance_cache_ttl
 
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ _CACHE_TTL = int(os.getenv("COMPLIANCE_CACHE_TTL", "300"))
 def _get_redis() -> Any | None:
     try:
         import redis as redis_lib
-        url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        url = settings.global_redis_url or settings.redis_url
         if url.startswith("memory://"):
             return None
         r = redis_lib.Redis.from_url(url, decode_responses=True)
@@ -200,7 +201,7 @@ def _check_stix_audit() -> tuple[bool, Gap | None]:
 
 def _check_notifications() -> tuple[bool, Gap | None]:
     """SOC2-02: at least one alert channel (Slack/Teams/PagerDuty) is configured."""
-    slack  = os.getenv("SLACK_WEBHOOK_URL",  "")
+    slack  = settings.slack_webhook_url
     pd     = os.getenv("PAGERDUTY_API_KEY",  "")
     teams  = os.getenv("TEAMS_WEBHOOK_URL",  "")
     if slack or pd or teams:
@@ -327,7 +328,7 @@ def _check_supplier_risk(tenant_id: str) -> tuple[bool, Gap | None]:
 
 def _check_api_key_rotation() -> tuple[bool, Gap | None]:
     """ISO-04: API key rotation capability is configured."""
-    has_keys = bool(os.getenv("WARDEN_API_KEY") or os.getenv("WARDEN_API_KEYS_PATH"))
+    has_keys = bool(settings.warden_api_key or settings.warden_api_keys_path)
     if has_keys:
         return True, None
     return False, Gap(
@@ -341,7 +342,7 @@ def _check_api_key_rotation() -> tuple[bool, Gap | None]:
 
 def _check_fernet_encryption() -> tuple[bool, Gap | None]:
     """HIPAA-01: Fernet encryption at rest is active (VAULT_MASTER_KEY is set)."""
-    key = os.getenv("VAULT_MASTER_KEY", "")
+    key = settings.vault_master_key
     if key:
         return True, None
     return False, Gap(
