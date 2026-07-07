@@ -36,6 +36,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.causal_arbiter")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -406,6 +408,7 @@ def arbitrate(
 
     except Exception as exc:
         log.debug("CausalArbiter.arbitrate error (fail-open): %s", exc)
+        record_failopen("causal", Reason.BACKEND_ERROR, exc)
         return CausalResult(
             is_high_risk=False,
             risk_probability=0.0,
