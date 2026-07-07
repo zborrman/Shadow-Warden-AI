@@ -1,5 +1,5 @@
 {
-  "total": 833,
+  "total": 827,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -119,7 +119,6 @@
     "communities/multisig.py": 3,
     "communities/network.py": 1,
     "communities/oauth_discovery.py": 1,
-    "communities/peering.py": 6,
     "communities/prompt_library.py": 3,
     "communities/quota.py": 1,
     "communities/registry.py": 1,

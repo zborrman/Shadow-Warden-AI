@@ -39,7 +39,6 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -51,10 +50,11 @@ from warden.communities.sep import (
     register_ueciid,
     sign_transfer_proof,
 )
+from warden.config import settings
 
 log = logging.getLogger("warden.communities.peering")
 
-_SEP_DB_PATH     = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+_SEP_DB_PATH     = settings.sep_db_path
 _db_lock         = threading.RLock()
 _VALID_POLICIES  = {"MIRROR_ONLY", "REWRAP_ALLOWED", "FULL_SYNC"}
 
@@ -200,8 +200,8 @@ def _row_to_transfer(row) -> TransferRecord:
 
 def _sep_key() -> bytes:
     raw = (
-        os.getenv("COMMUNITY_VAULT_KEY")
-        or os.getenv("VAULT_MASTER_KEY")
+        settings.community_vault_key
+        or settings.vault_master_key
         or "dev-sep-key-insecure"
     )
     return raw.encode() if isinstance(raw, str) else raw
@@ -638,7 +638,7 @@ CREATE INDEX IF NOT EXISTS idx_ftf_agent ON fed_trust_flags(agent_did);
 """
 
 _FED_LOCK = threading.RLock()
-_FED_TTL_DAYS = int(os.getenv("FEDERATED_TRUST_FLAG_TTL_DAYS", "30"))
+_FED_TTL_DAYS = settings.federated_trust_flag_ttl_days
 
 
 def _fed_conn() -> sqlite3.Connection:
@@ -682,7 +682,7 @@ class FederatedTrustRegistry:
         shared_to = 0
         try:
             import redis as _r
-            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+            redis_url = settings.redis_url
             if not redis_url.startswith("memory://"):
                 r = _r.from_url(redis_url, decode_responses=True)
                 key = f"fed_trust:{agent_did}"
@@ -727,7 +727,7 @@ class FederatedTrustRegistry:
         # Check Redis (cross-pod flags)
         try:
             import redis as _r
-            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+            redis_url = settings.redis_url
             if not redis_url.startswith("memory://"):
                 r = _r.from_url(redis_url, decode_responses=True)
                 members = r.smembers(f"fed_trust:{agent_did}")
