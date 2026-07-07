@@ -751,6 +751,31 @@ class Settings:
         default_factory=lambda: _env("A2A_BASE_URL", "http://localhost:8001")
     )
 
+    # ── A2A Agent Card (warden/protocols/a2a/agent_card.py) ──────────────────────
+    # NB: same A2A_BASE_URL env var as above but this file's own default is the
+    # public API host, not localhost — a pre-existing drift, kept as a separate
+    # field (not a2a_base_url) to preserve exact per-file behaviour when unset.
+    a2a_card_base_url: str = field(
+        default_factory=lambda: _env("A2A_BASE_URL", "https://api.shadow-warden-ai.com")
+    )
+    a2a_agent_name: str = field(
+        default_factory=lambda: _env("A2A_AGENT_NAME", "Shadow Warden AI")
+    )
+    a2a_agent_did: str = field(
+        default_factory=lambda: _env("A2A_AGENT_DID", "did:shadow:default")
+    )
+    # NB: kept as raw strings (not bool/float) — agent_card.py serialises these
+    # verbatim into the public JSON discovery document, matching prior behaviour.
+    marketplace_search_fee_usd: str = field(
+        default_factory=lambda: _env("MARKETPLACE_SEARCH_FEE_USD", "0.000001")
+    )
+    x402_gate_enabled: str = field(
+        default_factory=lambda: _env("X402_GATE_ENABLED", "false")
+    )
+    home_jurisdiction: str = field(
+        default_factory=lambda: _env("HOME_JURISDICTION", "EU")
+    )
+
     # ── SOVA scheduler jobs (warden/agent/scheduler.py) ──────────────────────────
     warden_base_url: str = field(
         default_factory=lambda: _env("WARDEN_BASE_URL", "http://localhost:8001")

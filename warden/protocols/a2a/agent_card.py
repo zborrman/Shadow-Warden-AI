@@ -11,12 +11,13 @@ Spec: https://a2a.af (Linux Foundation A2A v1.0)
 """
 from __future__ import annotations
 
-import os
 from typing import Any
 
-_BASE_URL    = os.getenv("A2A_BASE_URL", "https://api.shadow-warden-ai.com")
-_AGENT_NAME  = os.getenv("A2A_AGENT_NAME", "Shadow Warden AI")
-_AGENT_DID   = os.getenv("A2A_AGENT_DID", "did:shadow:default")
+from warden.config import settings
+
+_BASE_URL    = settings.a2a_card_base_url
+_AGENT_NAME  = settings.a2a_agent_name
+_AGENT_DID   = settings.a2a_agent_did
 _AGENT_VER   = "5.6.0"
 
 
@@ -75,9 +76,9 @@ def build_agent_card() -> dict[str, Any]:
                 "header_response": "PAYMENT-REQUIRED",
                 "endpoint": f"{_BASE_URL}/marketplace/action",
                 "actions": ["search"],
-                "amount_usd": os.getenv("MARKETPLACE_SEARCH_FEE_USD", "0.000001"),
+                "amount_usd": settings.marketplace_search_fee_usd,
                 "network": "polygon-amoy",
-                "enabled": os.getenv("X402_GATE_ENABLED", "false"),
+                "enabled": settings.x402_gate_enabled,
             }
         ],
         "supported_content_types": [
@@ -149,6 +150,6 @@ def build_agent_card() -> dict[str, Any]:
             "health":     f"{_BASE_URL}/health",
             "trust_graph": f"{_BASE_URL}/marketplace/trust/graph",
         },
-        "jurisdiction": os.getenv("HOME_JURISDICTION", "EU"),
+        "jurisdiction": settings.home_jurisdiction,
         "compliance_frameworks": ["GDPR", "SOC2", "ISO27001"],
     }
