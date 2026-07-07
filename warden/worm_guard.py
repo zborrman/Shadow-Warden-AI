@@ -64,24 +64,24 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import re
 import threading as _threading
 import time
 from dataclasses import dataclass, field
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.worm_guard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ENABLED: bool            = os.getenv("WORM_GUARD_ENABLED", "true").lower() != "false"
-OVERLAP_THRESHOLD: float = float(os.getenv("WORM_OVERLAP_THRESHOLD", "0.65"))
-MIN_TOKENS: int          = int(os.getenv("WORM_MIN_TOKENS", "20"))
-QUARANTINE_TTL: int      = int(os.getenv("WORM_QUARANTINE_TTL_S", "86400"))   # 24 h
-QUARANTINE_STREAM: str   = os.getenv("WORM_QUARANTINE_STREAM", "warden:worm:quarantine")
-QUARANTINE_SET: str      = os.getenv("WORM_QUARANTINE_SET",    "warden:worm:hashes")
+ENABLED: bool            = settings.worm_guard_enabled
+OVERLAP_THRESHOLD: float = settings.worm_overlap_threshold
+MIN_TOKENS: int          = settings.worm_min_tokens
+QUARANTINE_TTL: int      = settings.worm_quarantine_ttl_s   # 24 h default
+QUARANTINE_STREAM: str   = settings.worm_quarantine_stream
+QUARANTINE_SET: str      = settings.worm_quarantine_set
 
 # ── Tool names that imply "send / propagate" intent ──────────────────────────
 # Overlap alone is insufficient; the worm must also be *trying to send* data.
