@@ -511,6 +511,33 @@ class Settings:
         default_factory=lambda: _int("LS_METER_FLUSH_SECS", 300)
     )
 
+    # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
+    # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
+    # runtime toggles) — intentionally NOT mirrored here.
+    honey_session_ttl_sec: int = field(
+        default_factory=lambda: _int("HONEY_SESSION_TTL_SEC", 3600)
+    )
+    honey_log_followup: bool = field(
+        default_factory=lambda: _bool("HONEY_LOG_FOLLOWUP", True)
+    )
+    honey_inject_secrets: bool = field(
+        default_factory=lambda: _bool("HONEY_INJECT_SECRETS", False)
+    )
+
+    # ── FIDO2 / WebAuthn passkeys (warden/auth/fido.py) ─────────────────────────
+    fido_db_path: str = field(
+        default_factory=lambda: _env("FIDO_DB_PATH", "/tmp/warden_fido.db")
+    )
+    fido_rp_id: str = field(
+        default_factory=lambda: _env("FIDO_RP_ID", "shadow-warden-ai.com")
+    )
+    fido_rp_name: str = field(
+        default_factory=lambda: _env("FIDO_RP_NAME", "Shadow Warden AI")
+    )
+    fido_origin: str = field(
+        default_factory=lambda: _env("FIDO_ORIGIN", "https://shadow-warden-ai.com")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
