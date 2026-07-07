@@ -381,6 +381,23 @@ class Settings:
         default_factory=lambda: _float("ERS_SHADOW_BAN_THRESHOLD", 0.75)
     )
 
+    # ── Image PII Redactor (warden/image_redactor.py) ────────────────────────────
+    image_redaction_enabled: bool = field(
+        default_factory=lambda: _bool("IMAGE_REDACTION_ENABLED", True)
+    )
+    image_redaction_blur_radius: int = field(
+        default_factory=lambda: _int("IMAGE_REDACTION_BLUR_RADIUS", 25)
+    )
+    image_redaction_doc_blur: bool = field(
+        default_factory=lambda: _bool("IMAGE_REDACTION_DOC_BLUR", True)
+    )
+    image_redaction_fallback_blur: bool = field(
+        default_factory=lambda: _bool("IMAGE_REDACTION_FALLBACK_BLUR", True)
+    )
+    image_redaction_timeout_ms: int = field(
+        default_factory=lambda: _int("IMAGE_REDACTION_TIMEOUT_MS", 500)
+    )
+
     # ── Data Paths ─────────────────────────────────────────────────────────────
     audit_trail_path: str = field(
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")
