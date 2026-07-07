@@ -74,7 +74,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import re
 import threading
 from dataclasses import dataclass, field
@@ -84,6 +83,8 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from warden.config import settings
+
 if TYPE_CHECKING:
     from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 
@@ -91,16 +92,15 @@ log = logging.getLogger("warden.threat_feed")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-_ENABLED          = os.getenv("THREAT_FEED_ENABLED",    "false").lower() == "true"
-_FEED_URL         = os.getenv("THREAT_FEED_URL",         "").rstrip("/")
-_FEED_API_KEY     = os.getenv("THREAT_FEED_API_KEY",     "")
-_SYNC_HRS         = float(os.getenv("THREAT_FEED_SYNC_HRS",              "6"))
-_MAX_RULES        = int(os.getenv("THREAT_FEED_MAX_RULES",               "500"))
-_RECEIVE_ONLY     = os.getenv("THREAT_FEED_RECEIVE_ONLY",  "false").lower() == "true"
-_CONSENSUS_THRESH = float(os.getenv("THREAT_FEED_CONSENSUS_THRESHOLD",   "0.80"))
-_MAX_WORM_HASHES  = int(os.getenv("THREAT_FEED_MAX_WORM_HASHES",        "10000"))
-_CACHE_PATH       = Path(os.getenv("THREAT_FEED_CACHE_PATH",
-                                   "/warden/data/threat_feed_cache.json"))
+_ENABLED          = settings.threat_feed_enabled
+_FEED_URL         = settings.threat_feed_url.rstrip("/")
+_FEED_API_KEY     = settings.threat_feed_api_key
+_SYNC_HRS         = settings.threat_feed_sync_hrs
+_MAX_RULES        = settings.threat_feed_max_rules
+_RECEIVE_ONLY     = settings.threat_feed_receive_only
+_CONSENSUS_THRESH = settings.threat_feed_consensus_threshold
+_MAX_WORM_HASHES  = settings.threat_feed_max_worm_hashes
+_CACHE_PATH       = Path(settings.threat_feed_cache_path)
 
 # Rotating daily source_id — unlinked to tenant identity
 def _daily_source_id() -> str:
