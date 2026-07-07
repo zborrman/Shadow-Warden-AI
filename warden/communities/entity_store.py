@@ -60,10 +60,12 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from warden.config import settings
+
 log = logging.getLogger("warden.communities.entity_store")
 
-_ENTITY_DB_PATH = os.getenv("ENTITY_DB_PATH", "/tmp/warden_entity_store.db")
-_S3_BUCKET      = os.getenv("COMMUNITY_S3_BUCKET", "warden-communities")
+_ENTITY_DB_PATH = settings.entity_db_path
+_S3_BUCKET      = settings.community_s3_bucket
 _db_lock        = threading.RLock()
 
 
@@ -162,7 +164,7 @@ def _get_s3():
         endpoint_url         = os.getenv("S3_ENDPOINT_URL"),       # MinIO local
         aws_access_key_id    = os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name          = os.getenv("AWS_REGION", "us-east-1"),
+        region_name          = settings.aws_region,
     )
 
 
