@@ -1115,6 +1115,23 @@ class Settings:
         default_factory=lambda: _int("AUTH_SIGNUP_RATE_LIMIT", 5)
     )
 
+    # ── Warden Agent Token / WAT ERC-20 (warden/tokenomics/agent_token.py) ───────
+    wat_token_address: str = field(
+        default_factory=lambda: _env("WAT_TOKEN_ADDRESS", "")
+    )
+    polygon_amoy_rpc_url: str = field(
+        default_factory=lambda: _env("POLYGON_AMOY_RPC_URL", "")
+    )
+    wat_admin_wallet: str = field(
+        default_factory=lambda: _env("WAT_ADMIN_WALLET", "")
+    )
+    wat_admin_private_key: str = field(
+        default_factory=lambda: _env("WAT_ADMIN_PRIVATE_KEY", "")
+    )
+    wat_simulate: bool = field(
+        default_factory=lambda: _bool("WAT_SIMULATE", True)
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 

@@ -12,17 +12,18 @@ ERC-20 ABI subset (mint, transfer, balanceOf) is embedded below.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
+
+from warden.config import settings
 
 log = logging.getLogger("warden.tokenomics.agent_token")
 
-_WAT_ADDRESS  = os.getenv("WAT_TOKEN_ADDRESS", "")
-_RPC_URL      = os.getenv("POLYGON_AMOY_RPC_URL", "")
-_ADMIN_WALLET = os.getenv("WAT_ADMIN_WALLET", "")
-_ADMIN_KEY_HEX= os.getenv("WAT_ADMIN_PRIVATE_KEY", "")
-_SIMULATE     = os.getenv("WAT_SIMULATE", "true").lower() == "true"
-_REDIS_URL    = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+_WAT_ADDRESS  = settings.wat_token_address
+_RPC_URL      = settings.polygon_amoy_rpc_url
+_ADMIN_WALLET = settings.wat_admin_wallet
+_ADMIN_KEY_HEX= settings.wat_admin_private_key
+_SIMULATE     = settings.wat_simulate
+_REDIS_URL    = settings.redis_url
 
 # Minimal ABI for mint / transfer / balanceOf
 _ERC20_ABI = [
