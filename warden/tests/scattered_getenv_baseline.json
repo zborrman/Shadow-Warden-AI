@@ -1,5 +1,5 @@
 {
-  "total": 836,
+  "total": 833,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -165,7 +165,7 @@
     "marketplace/api_maestro.py": 1,
     "marketplace/autonomy.py": 2,
     "marketplace/auto_responder.py": 1,
-    "marketplace/brand_agent.py": 6,
+    "marketplace/brand_agent.py": 3,
     "marketplace/buyer_agent.py": 4,
     "marketplace/clearing.py": 3,
     "marketplace/credits.py": 2,
