@@ -59,23 +59,23 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import time
 from dataclasses import dataclass
 from typing import Literal
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.entity_risk")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ENABLED:       bool  = os.getenv("ERS_ENABLED", "true").lower() != "false"
-WINDOW_SECS:   int   = int(os.getenv("ERS_WINDOW_SECS",   "3600"))
-MIN_REQUESTS:  int   = int(os.getenv("ERS_MIN_REQUESTS",  "5"))
-THRESH_MEDIUM: float = float(os.getenv("ERS_MEDIUM_THRESHOLD",     "0.30"))
-THRESH_HIGH:   float = float(os.getenv("ERS_HIGH_THRESHOLD",       "0.55"))
-THRESH_CRIT:   float = float(os.getenv("ERS_SHADOW_BAN_THRESHOLD", "0.75"))
+ENABLED:       bool  = settings.ers_enabled
+WINDOW_SECS:   int   = settings.ers_window_secs
+MIN_REQUESTS:  int   = settings.ers_min_requests
+THRESH_MEDIUM: float = settings.ers_medium_threshold
+THRESH_HIGH:   float = settings.ers_high_threshold
+THRESH_CRIT:   float = settings.ers_shadow_ban_threshold
 
 _EVENTS  = ("block", "obfuscation", "honeytrap", "evolution_trigger")
 _WEIGHTS = {
