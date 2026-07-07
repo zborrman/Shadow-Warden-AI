@@ -44,6 +44,7 @@ Testing overrides
 from __future__ import annotations
 
 import os
+import secrets
 from dataclasses import dataclass, field, fields
 
 __all__ = ["settings", "Settings", "ConfigValidationError"]
@@ -665,6 +666,40 @@ class Settings:
     )
     threat_feed_cache_path: str = field(
         default_factory=lambda: _env("THREAT_FEED_CACHE_PATH", "/warden/data/threat_feed_cache.json")
+    )
+
+    # ── Portal SMTP + auth (warden/portal_router.py) ────────────────────────────
+    # NB: WARDEN_API_KEYS_PATH read here reuses warden_api_keys_path.
+    smtp_host: str = field(
+        default_factory=lambda: _env("SMTP_HOST", "")
+    )
+    smtp_port: int = field(
+        default_factory=lambda: _int("SMTP_PORT", 587)
+    )
+    smtp_user: str = field(
+        default_factory=lambda: _env("SMTP_USER", "")
+    )
+    smtp_pass: str = field(
+        default_factory=lambda: _env("SMTP_PASS", "")
+    )
+    portal_from_email: str = field(
+        default_factory=lambda: _env("PORTAL_FROM_EMAIL", "")
+    )
+    portal_from: str = field(
+        default_factory=lambda: _env("PORTAL_FROM", "")
+    )
+    portal_url: str = field(
+        default_factory=lambda: _env("PORTAL_URL", "https://app.shadow-warden-ai.com")
+    )
+    # Random per-process default if unset — matches portal_router's prior behaviour.
+    portal_jwt_secret: str = field(
+        default_factory=lambda: _env("PORTAL_JWT_SECRET", "change-me-" + secrets.token_hex(16))
+    )
+    portal_access_token_ttl: int = field(
+        default_factory=lambda: _int("PORTAL_ACCESS_TOKEN_TTL", 60)
+    )
+    portal_refresh_token_ttl: int = field(
+        default_factory=lambda: _int("PORTAL_REFRESH_TOKEN_TTL", 7)
     )
 
     # ── Validation & audit (Deep-Eng P1) ────────────────────
