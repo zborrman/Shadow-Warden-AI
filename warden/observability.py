@@ -31,6 +31,7 @@ __all__ = [
     "record_failopen",
     "failopen_guard",
     "run_pipeline_canary",
+    "enforce_canary_gate",
 ]
 
 
@@ -153,3 +154,21 @@ async def run_pipeline_canary() -> dict:
     except Exception as exc:  # noqa: BLE001 — the self-test must never crash the app
         record_failopen("pipeline_canary", Reason.BACKEND_ERROR, exc)
         return verdict
+
+
+def enforce_canary_gate(verdict: dict, failclosed: bool) -> bool:
+    """Apply the startup canary-gate policy to a verdict from :func:`run_pipeline_canary`.
+
+    Returns ``True`` when the pipeline is DEGRADED (the canary ran and reported an
+    unhealthy detector), else ``False``. Raises :class:`SecurityDegradedError` when
+    degraded **and** ``failclosed`` is set — the caller (startup gate) then refuses
+    to serve. A verdict that did not run (``available`` falsy) is inconclusive:
+    never degraded, never raises. Pure and side-effect-free so it can be unit-tested
+    without booting the app.
+    """
+    degraded = bool(verdict.get("available") and not verdict.get("healthy"))
+    if degraded and failclosed:
+        raise SecurityDegradedError(
+            f"startup canary failed: {verdict} — refusing to serve a broken detector"
+        )
+    return degraded
