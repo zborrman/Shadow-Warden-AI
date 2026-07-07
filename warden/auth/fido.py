@@ -18,12 +18,14 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.auth.fido")
 
-_DB_PATH  = os.getenv("FIDO_DB_PATH", "/tmp/warden_fido.db")
-_RP_ID    = os.getenv("FIDO_RP_ID",   "shadow-warden-ai.com")
-_RP_NAME  = os.getenv("FIDO_RP_NAME", "Shadow Warden AI")
-_ORIGIN   = os.getenv("FIDO_ORIGIN",  "https://shadow-warden-ai.com")
+_DB_PATH  = settings.fido_db_path
+_RP_ID    = settings.fido_rp_id
+_RP_NAME  = settings.fido_rp_name
+_ORIGIN   = settings.fido_origin
 _db_lock  = threading.RLock()
 
 

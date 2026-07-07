@@ -40,11 +40,13 @@ import time
 from dataclasses import dataclass
 from typing import TypedDict
 
+from warden.config import settings
+
 log = logging.getLogger("warden.honey")
 
-_SESSION_TTL      = int(os.getenv("HONEY_SESSION_TTL_SEC",  "3600"))
-_LOG_FOLLOWUP     = os.getenv("HONEY_LOG_FOLLOWUP",    "true").lower() != "false"
-_INJECT_SECRETS   = os.getenv("HONEY_INJECT_SECRETS",  "false").lower() == "true"
+_SESSION_TTL      = settings.honey_session_ttl_sec
+_LOG_FOLLOWUP     = settings.honey_log_followup
+_INJECT_SECRETS   = settings.honey_inject_secrets
 
 # Pre-fabricated plausible-but-false responses keyed by flag type.
 # These look real enough to fool an attacker for 30-60 seconds.
