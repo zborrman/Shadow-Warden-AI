@@ -27,22 +27,23 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
+from warden.config import settings
+
 log = logging.getLogger("warden.integrations.taxii")
 
-_SERVER_URL   = os.getenv("TAXII_SERVER_URL", "")
-_USERNAME     = os.getenv("TAXII_USERNAME", "")
-_PASSWORD     = os.getenv("TAXII_PASSWORD", "")
-_API_KEY      = os.getenv("TAXII_API_KEY", "")
-_COLLECTIONS  = [c.strip() for c in os.getenv("TAXII_COLLECTIONS", "").split(",") if c.strip()]
-_POLL_INTERVAL = int(os.getenv("TAXII_POLL_INTERVAL", "3600"))
-_MAX_OBJECTS  = int(os.getenv("TAXII_MAX_OBJECTS", "200"))
-_TENANT_ID    = os.getenv("TAXII_TENANT_ID", "default")
+_SERVER_URL   = settings.taxii_server_url
+_USERNAME     = settings.taxii_username
+_PASSWORD     = settings.taxii_password
+_API_KEY      = settings.taxii_api_key
+_COLLECTIONS  = [c.strip() for c in settings.taxii_collections.split(",") if c.strip()]
+_POLL_INTERVAL = settings.taxii_poll_interval
+_MAX_OBJECTS  = settings.taxii_max_objects
+_TENANT_ID    = settings.taxii_tenant_id
 
 _INGESTIBLE_TYPES = {
     "attack-pattern",
