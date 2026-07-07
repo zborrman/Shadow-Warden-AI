@@ -41,6 +41,8 @@ from __future__ import annotations
 import logging
 import uuid
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.syndicates.ingestion")
 
 
@@ -103,6 +105,7 @@ def prepare_for_tunnel(
     except Exception as exc:
         # WormGuard errors are fail-open — don't block valid documents
         log.warning("WormGuard scan error (fail-open): tunnel=%s error=%s", tunnel_id, exc)
+        record_failopen("syndicate_wormguard", Reason.BACKEND_ERROR, exc)
 
     # ── Stage 2: PII Masking ──────────────────────────────���───────────────────
     try:
@@ -129,6 +132,7 @@ def prepare_for_tunnel(
             "Masking engine error: tunnel=%s error=%s — sending unmasked (fail-open)",
             tunnel_id, exc,
         )
+        record_failopen("syndicate_masking", Reason.BACKEND_ERROR, exc)
         masked_text = content  # fail-open: transmit original if masking fails
 
     return masked_text, session_id
@@ -197,3 +201,4 @@ def scan_received_document(content: str, tunnel_id: str) -> None:
         log.debug("worm_guard not available — skipping receiver-side Stage 3 scan")
     except Exception as exc:
         log.warning("Receiver WormGuard error (fail-open): tunnel=%s error=%s", tunnel_id, exc)
+        record_failopen("syndicate_wormguard_rx", Reason.BACKEND_ERROR, exc)
