@@ -1,5 +1,5 @@
 {
-  "total": 963,
+  "total": 959,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -94,7 +94,7 @@
     "blockchain/ipfs_storage.py": 1,
     "blockchain/mandate_contract.py": 1,
     "brain/dataset.py": 3,
-    "brain/evolve.py": 10,
+    "brain/evolve.py": 6,
     "brain/evolve_nemotron.py": 1,
     "brain/faiss_index.py": 1,
     "brain/federated.py": 2,
