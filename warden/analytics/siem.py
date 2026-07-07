@@ -34,20 +34,21 @@ Alert rule guidance
 from __future__ import annotations
 
 import logging
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
+from warden.config import settings
+
 log = logging.getLogger("warden.analytics.siem")
 
-_SPLUNK_HEC_URL   = os.getenv("SPLUNK_HEC_URL", "")
-_SPLUNK_HEC_TOKEN = os.getenv("SPLUNK_HEC_TOKEN", "")
-_ELASTIC_URL      = os.getenv("ELASTIC_URL", "")
-_ELASTIC_API_KEY  = os.getenv("ELASTIC_API_KEY", "")
-_ELASTIC_INDEX    = os.getenv("ELASTIC_INDEX", "warden-events")
-_ELASTIC_BYPASS_INDEX = os.getenv("ELASTIC_BYPASS_INDEX", "warden-bypass-alerts")
+_SPLUNK_HEC_URL   = settings.splunk_hec_url
+_SPLUNK_HEC_TOKEN = settings.splunk_hec_token
+_ELASTIC_URL      = settings.elastic_url
+_ELASTIC_API_KEY  = settings.elastic_api_key
+_ELASTIC_INDEX    = settings.elastic_index
+_ELASTIC_BYPASS_INDEX = settings.elastic_bypass_index
 
 # ── Sourcetype routing ────────────────────────────────────────────────────────
 
