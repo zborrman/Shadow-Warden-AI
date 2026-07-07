@@ -28,6 +28,8 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 
+from warden.observability import Reason, record_failopen
+
 # ── Injection type taxonomy ────────────────────────────────────────────────────
 
 class InjectionType(StrEnum):
@@ -210,7 +212,8 @@ class PromptShield:
 
             return best or ShieldResult(blocked=False)
 
-        except Exception:
+        except Exception as exc:
+            record_failopen("prompt_shield", Reason.UNKNOWN, exc)
             return ShieldResult(blocked=False)
 
 

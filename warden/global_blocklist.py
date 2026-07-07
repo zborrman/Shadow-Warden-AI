@@ -63,6 +63,8 @@ import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from warden.observability import Reason, record_failopen
+
 if TYPE_CHECKING:
     pass
 
@@ -134,6 +136,7 @@ def is_blocked(ip: str, tenant_id: str = "default") -> bool:
         return False
     r = _get_redis()
     if r is None:
+        record_failopen("global_blocklist", Reason.REDIS_UNAVAILABLE)
         return False
 
     _maybe_sweep(r, tenant_id)

@@ -46,6 +46,8 @@ import httpx
 import jwt
 from fastapi import HTTPException, status
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.oidc")
 
 # ── JWKS endpoints ────────────────────────────────────────────────────────────
@@ -278,6 +280,7 @@ def _check_billing(tenant_id: str) -> None:
         raise
     except Exception as _exc:  # noqa: BLE001
         log.debug("suppressed exception: %r", _exc)  # Redis unavailable — fail-open, do not block auth
+        record_failopen("oidc_billing", Reason.REDIS_UNAVAILABLE, _exc)
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────

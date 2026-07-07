@@ -64,6 +64,8 @@ import time
 from dataclasses import dataclass
 from typing import Literal
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.entity_risk")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -170,6 +172,7 @@ def score(entity_key: str) -> ERSResult:
 
     r = _redis()
     if r is None:
+        record_failopen("ers", Reason.REDIS_UNAVAILABLE)
         return result
 
     try:
@@ -220,6 +223,7 @@ def score(entity_key: str) -> ERSResult:
 
     except Exception as exc:
         log.debug("ERS.score failed (non-fatal): %s", exc)
+        record_failopen("ers", Reason.REDIS_UNAVAILABLE, exc)
         return result
 
 

@@ -17,6 +17,8 @@ import logging
 import time
 from dataclasses import dataclass
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger(__name__)
 
 _HOUR_KEY = "staff:velocity:hourly:{agent_id}"
@@ -64,6 +66,7 @@ class VelocityGuard:
             )
         except Exception as exc:  # noqa: BLE001
             log.debug("VelocityGuard fail-open: %s", exc)
+            record_failopen("velocity_guard", Reason.REDIS_UNAVAILABLE, exc)
             return None
 
     def _check_hourly(
