@@ -29,12 +29,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
+from warden.config import settings
+
 log = logging.getLogger("warden.api.rotation")
 
 router = APIRouter(prefix="/admin/rotation", tags=["rotation"])
 
-_WARNING_DAYS = int(os.getenv("KEY_ROTATION_WARNING_DAYS", "75"))
-_MAX_DAYS     = int(os.getenv("KEY_ROTATION_MAX_DAYS",     "90"))
+_WARNING_DAYS = settings.key_rotation_warning_days
+_MAX_DAYS     = settings.key_rotation_max_days
 _ADMIN_KEY    = os.getenv("ADMIN_KEY", "")
 
 # ── Secrets to monitor ────────────────────────────────────────────────────────
@@ -43,14 +45,14 @@ _ADMIN_KEY    = os.getenv("ADMIN_KEY", "")
 def _tracked_secrets() -> list[dict]:
     """Return list of configured secrets with their env-var labels."""
     candidates = [
-        ("WARDEN_API_KEY",         os.getenv("WARDEN_API_KEY",         "")),
+        ("WARDEN_API_KEY",         settings.warden_api_key),
         ("ANTHROPIC_API_KEY",      os.getenv("ANTHROPIC_API_KEY",      "")),
         ("NVIDIA_API_KEY",         os.getenv("NVIDIA_API_KEY",         "")),
-        ("VAULT_MASTER_KEY",       os.getenv("VAULT_MASTER_KEY",       "")),
-        ("COMMUNITY_VAULT_KEY",    os.getenv("COMMUNITY_VAULT_KEY",    "")),
-        ("SOVEREIGN_ATTEST_KEY",   os.getenv("SOVEREIGN_ATTEST_KEY",   "")),
-        ("SLACK_WEBHOOK_URL",      os.getenv("SLACK_WEBHOOK_URL",      "")),
-        ("PAGERDUTY_ROUTING_KEY",  os.getenv("PAGERDUTY_ROUTING_KEY",  "")),
+        ("VAULT_MASTER_KEY",       settings.vault_master_key),
+        ("COMMUNITY_VAULT_KEY",    settings.community_vault_key),
+        ("SOVEREIGN_ATTEST_KEY",   settings.sovereign_attest_key),
+        ("SLACK_WEBHOOK_URL",      settings.slack_webhook_url),
+        ("PAGERDUTY_ROUTING_KEY",  settings.pagerduty_routing_key),
     ]
     result = []
     for label, value in candidates:

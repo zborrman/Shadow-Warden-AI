@@ -1,5 +1,5 @@
 {
-  "total": 971,
+  "total": 963,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -67,7 +67,7 @@
     "api/public_stats.py": 2,
     "api/red_team.py": 1,
     "api/retention.py": 6,
-    "api/rotation.py": 11,
+    "api/rotation.py": 3,
     "api/saml.py": 2,
     "api/sdk.py": 2,
     "api/secrets.py": 2,
