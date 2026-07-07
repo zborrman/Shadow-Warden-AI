@@ -40,6 +40,8 @@ from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from warden.config import settings
+
 log = logging.getLogger("warden.workers.weekly_report")
 
 _SMTP_HOST     = os.getenv("SMTP_HOST", "")
@@ -47,8 +49,8 @@ _SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
 _SMTP_USER     = os.getenv("SMTP_USER", "")
 _SMTP_PASS     = os.getenv("SMTP_PASS", "")
 _FROM_ADDR     = os.getenv("WEEKLY_REPORT_FROM", f"Shadow Warden <{_SMTP_USER}>")
-_REPLY_TO      = os.getenv("WEEKLY_REPORT_REPLY_TO", "")
-_PORTAL_URL    = os.getenv("PORTAL_URL", "https://app.shadow-warden.io")
+_REPLY_TO      = settings.weekly_report_reply_to
+_PORTAL_URL    = settings.weekly_report_portal_url
 
 
 # ── HTML template ─────────────────────────────────────────────────────────────

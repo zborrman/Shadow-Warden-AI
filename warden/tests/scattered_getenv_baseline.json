@@ -1,5 +1,5 @@
 {
-  "total": 915,
+  "total": 913,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -260,7 +260,7 @@
     "workers/reaper.py": 2,
     "workers/settings.py": 1,
     "workers/settings_watcher.py": 5,
-    "workers/weekly_report.py": 7,
+    "workers/weekly_report.py": 5,
     "xai/explainer.py": 1,
     "staff/agents/base.py": 1,
     "staff/tools/bdr.py": 1,
