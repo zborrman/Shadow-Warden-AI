@@ -1,5 +1,5 @@
 {
-  "total": 230,
+  "total": 212,
   "per_file": {
     "warden/agent/master.py": 1,
     "warden/agent/tools.py": 2,
@@ -20,7 +20,7 @@
     "warden/api/tenant_impact.py": 1,
     "warden/api/webhook.py": 2,
     "warden/app_factory.py": 1,
-    "warden/audio_guard.py": 3,
+    "warden/audio_guard.py": 1,
     "warden/audio_redactor.py": 2,
     "warden/audit_trail.py": 2,
     "warden/auth/oidc_guard.py": 2,
@@ -54,7 +54,7 @@
     "warden/financial/metrics_reader.py": 1,
     "warden/global_blocklist.py": 2,
     "warden/honey.py": 1,
-    "warden/image_guard.py": 4,
+    "warden/image_guard.py": 1,
     "warden/image_redactor.py": 2,
     "warden/image_synth.py": 2,
     "warden/integrations/langchain_callback.py": 1,
@@ -85,7 +85,6 @@
     "warden/observability.py": 5,
     "warden/offline.py": 1,
     "warden/openai_proxy.py": 1,
-    "warden/output_guard.py": 4,
     "warden/payments/l402.py": 2,
     "warden/portal_router.py": 1,
     "warden/prompt_shield.py": 1,
@@ -94,7 +93,7 @@
     "warden/push/service.py": 3,
     "warden/sdk/otel.py": 1,
     "warden/security/certificate_authority.py": 1,
-    "warden/session_guard.py": 3,
+    "warden/session_guard.py": 1,
     "warden/site/approval.py": 1,
     "warden/sovereign/tunnel.py": 2,
     "warden/staff/a2a.py": 1,
@@ -121,12 +120,12 @@
     "warden/tools/browser.py": 1,
     "warden/voice/asr.py": 1,
     "warden/voice/guardian.py": 2,
-    "warden/wallet_shield.py": 5,
+    "warden/wallet_shield.py": 3,
     "warden/web3/chains.py": 1,
     "warden/web3/smart_contract.py": 2,
     "warden/workers/content_filter.py": 2,
     "warden/workers/probe_worker.py": 1,
     "warden/workers/reaper.py": 1,
-    "warden/worm_guard.py": 6
+    "warden/worm_guard.py": 1
   }
 }

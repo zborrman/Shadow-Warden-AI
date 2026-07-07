@@ -52,6 +52,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.image_guard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -136,6 +138,7 @@ def _load_model():
         return model, processor
     except Exception as exc:
         log.warning("ImageGuard: model unavailable (%s) — fail-open", exc)
+        record_failopen("image_guard", Reason.MODEL_NOT_LOADED, exc)
         return None, None
 
 
@@ -256,6 +259,7 @@ async def check_image(image_bytes: bytes) -> ImageGuardResult:
         log.warning(
             "ImageGuard: inference timed out after %d ms — fail-open", TIMEOUT_MS
         )
+        record_failopen("image_guard", Reason.TIMEOUT)
         result = ImageGuardResult(error="timeout", elapsed_ms=float(TIMEOUT_MS))
 
     if result.is_jailbreak:

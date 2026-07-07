@@ -51,6 +51,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from warden.observability import Reason, record_failopen
+
 if TYPE_CHECKING:
     pass
 
@@ -249,6 +251,7 @@ async def check_audio(audio_bytes: bytes, semantic_guard=None) -> AudioGuardResu
         )
     except TimeoutError:
         log.warning("AudioGuard: transcription timed out after %d ms — fail-open", TIMEOUT_MS)
+        record_failopen("audio_guard", Reason.TIMEOUT)
         return AudioGuardResult(error="timeout", elapsed_ms=float(TIMEOUT_MS))
 
     if result.error:

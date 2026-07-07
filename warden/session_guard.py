@@ -26,6 +26,8 @@ import os
 import time
 from dataclasses import dataclass
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.session_guard")
 
 _SESSION_TTL    = int(os.getenv("SESSION_GUARD_TTL_SEC",     "1800"))  # 30 min
@@ -141,6 +143,7 @@ class SessionGuard:
 
         except Exception as exc:
             log.debug("SessionGuard: Redis error (fail-open) — %s", exc)
+            record_failopen("session_guard", Reason.REDIS_UNAVAILABLE, exc)
             return SessionRisk(escalated=False, cumulative_score=0.0, message_count=0)
 
     def clear(self, session_id: str) -> None:
