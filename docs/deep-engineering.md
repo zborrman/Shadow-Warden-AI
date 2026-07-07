@@ -14,7 +14,7 @@ Current reality (measured 2026-07-05):
 | Modules (non-test) | 558 | Large surface, one maintainer + AI loops |
 | Non-test LOC | 139,980 | Depth per feature is thin |
 | `except …: pass/continue` | 175 | **Silent failure = silent bypass** |
-| Fail-open sites | 308 (244 unreviewed) | Security can degrade to no-op invisibly |
+| Fail-open sites | 328 (201 counter-less, floor reached — see P0.2) | Now every genuine guard bypass is a metric + alert |
 | Scattered `os.getenv` | 1,617 | Config drift (caused the prod dev-override incident) |
 | `type: ignore` / `# noqa` | 372 / 924 | Quality gates satisfied by suppression |
 
@@ -160,6 +160,37 @@ gain the counter** (that is the whole point — visible, not flipped).
 bare `except …: pass/continue` in `warden/` (excluding `observability.py` and the
 metric backends) only decreases from a committed baseline — same mechanism as the
 adversarial ratchet. New silent handlers can no longer land.
+
+### Status — DONE (2026-07-07)
+
+Shipped in tiers as individually-verified PRs, each with a per-file integrity
+check (counter-less drop confined to the touched files):
+
+| Tier | PR | Guards wired | Ratchet |
+|---|---|---|---|
+| T1 | #46 | pipeline stages (`main.py` /filter) | 363→… |
+| T2 | #47 | `agent_monitor` trust-boundary | … |
+| T3 | #48 | marketplace anti-abuse (Sybil, MAESTRO, denylist, KYA) | …→239 |
+| T4a | #50 | named guards: worm/image/audio/session/wallet/output | 239→212 |
+| T4b | #51 | prompt_shield, velocity, global_blocklist, ers, oidc_billing | 212→207 |
+| T4c | #52 | syndicate tunnel Double-Shield (wormguard×2, masking, quota) | 207→201 |
+
+Implementation notes vs. the original plan above:
+- Coverage is **function-scoped** (`scripts/fail_open_inventory.covered_spans`):
+  one `record_failopen()` in a function credits every fail-open docstring/comment
+  marker in that function. Module-level docstring markers are structurally
+  uncreditable and are the accepted floor.
+- The ratchet is `test_no_new_counterless_failopen.py` against
+  `counterless_failopen_baseline.json` (regen with `UPDATE_FAILOPEN_BASELINE=1`).
+
+**Floor = 201 counter-less sites — this is the terminal state, not a backlog.**
+The genuine-guard sweep is complete. The remaining 201 were triaged as
+**not** request-path guard bypasses: best-effort side-effects (analytics / cache
+/ metrics writes, lazy-client getters), feature-gate & platform-capability
+degradations (HSM-off default, liboqs-absent PQC, mlock-unsupported), background
+intel enrichment (`threat_intel/*`, `threat_feed.py` — a source fails, others
+continue; local blocklist still enforced), and module-level docstrings. Flipping
+any of these to fail-closed would trade availability for no security gain.
 
 ## P0.3 — Canary self-test + startup gate
 
