@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import smtplib
 import sqlite3
 import threading
@@ -43,18 +42,20 @@ from typing import Any
 
 import httpx
 
+from warden.config import settings
+
 log = logging.getLogger("warden.communities.notifications")
 
-_DB_PATH = os.getenv("COMMUNITY_NOTIF_DB_PATH", "/tmp/warden_notif.db")
+_DB_PATH = settings.community_notif_db_path
 _db_lock = threading.RLock()
 
 # SMTP config
-_SMTP_HOST = os.getenv("SMTP_HOST", "")
-_SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-_SMTP_USER = os.getenv("SMTP_USER", "")
-_SMTP_PASS = os.getenv("SMTP_PASS", "")
-_SMTP_FROM = os.getenv("SMTP_FROM", "noreply@shadow-warden.ai")
-_SMTP_TLS  = os.getenv("SMTP_TLS", "true").lower() != "false"
+_SMTP_HOST = settings.smtp_host
+_SMTP_PORT = settings.smtp_port
+_SMTP_USER = settings.smtp_user
+_SMTP_PASS = settings.smtp_pass
+_SMTP_FROM = settings.smtp_from
+_SMTP_TLS  = settings.smtp_tls
 
 VALID_EVENTS   = {"member_joined", "transfer_completed", "compliance_changed", "evolution_published"}
 VALID_CHANNELS = {"slack", "teams", "email"}

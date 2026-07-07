@@ -296,6 +296,17 @@ class Settings:
         default_factory=lambda: _int("BLOCKLIST_STREAM_MAX", 10000)
     )
 
+    # ── Community notifications (warden/communities/notifications.py) ───────────
+    community_notif_db_path: str = field(
+        default_factory=lambda: _env("COMMUNITY_NOTIF_DB_PATH", "/tmp/warden_notif.db")
+    )
+    smtp_from: str = field(
+        default_factory=lambda: _env("SMTP_FROM", "noreply@shadow-warden.ai")
+    )
+    smtp_tls: bool = field(
+        default_factory=lambda: _env("SMTP_TLS", "true").lower() != "false"
+    )
+
     # ── Data Paths ─────────────────────────────────────────────────────────────
     audit_trail_path: str = field(
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")
