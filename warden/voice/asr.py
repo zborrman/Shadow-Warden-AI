@@ -15,20 +15,21 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
 
+from warden.config import settings
+
 log = logging.getLogger("warden.voice.asr")
 
-_PROVIDER      = os.getenv("VOICE_ASR_PROVIDER", "whisper")
-_DEEPGRAM_KEY  = os.getenv("DEEPGRAM_API_KEY", "")
-_AAIKEY        = os.getenv("ASSEMBLYAI_API_KEY", "")
-_CACHE_DIR     = os.getenv("MODEL_CACHE_DIR", "/warden/models")
-_MODEL_SIZE    = os.getenv("VOICE_ASR_MODEL", "tiny.en")
-_COMPUTE       = os.getenv("VOICE_ASR_COMPUTE", "int8")
+_PROVIDER      = settings.voice_asr_provider
+_DEEPGRAM_KEY  = settings.deepgram_api_key
+_AAIKEY        = settings.assemblyai_api_key
+_CACHE_DIR     = settings.model_cache_dir
+_MODEL_SIZE    = settings.voice_asr_model
+_COMPUTE       = settings.voice_asr_compute
 _SAMPLE_RATE   = 16_000
 _MAX_WINDOW    = 10   # rolling buffer window in chunks
 
