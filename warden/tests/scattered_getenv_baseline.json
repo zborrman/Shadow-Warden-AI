@@ -1,5 +1,5 @@
 {
-  "total": 936,
+  "total": 928,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -156,7 +156,6 @@
     "integrations/jira.py": 5,
     "integrations/langchain_callback.py": 2,
     "integrations/misp.py": 6,
-    "integrations/misp_bridge.py": 8,
     "integrations/nemo_bridge.py": 6,
     "integrations/onboarding.py": 1,
     "integrations/smb_suite.py": 3,

@@ -41,21 +41,22 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import socket as _socket
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.integrations.misp_bridge")
 
-_MISP_ZMQ_URL        = os.getenv("MISP_ZMQ_URL",             "")
-_MISP_API_URL        = os.getenv("MISP_API_URL",             "")
-_MISP_API_KEY        = os.getenv("MISP_API_KEY",             "")
-_MISP_TENANT_ID      = os.getenv("MISP_TENANT_ID",           "default")
-_MISP_POLL_INTERVAL  = int(os.getenv("MISP_POLL_INTERVAL",   "300"))
-_SYSLOG_ENABLED      = os.getenv("MISP_SYSLOG_ENABLED",      "true").lower() == "true"
-_SYSLOG_TARGET_HOST  = os.getenv("MISP_SYSLOG_TARGET_HOST",  "127.0.0.1")
-_SYSLOG_TARGET_PORT  = int(os.getenv("SHADOW_AI_SYSLOG_PORT","5514"))
+_MISP_ZMQ_URL        = settings.misp_zmq_url
+_MISP_API_URL        = settings.misp_api_url
+_MISP_API_KEY        = settings.misp_api_key
+_MISP_TENANT_ID      = settings.misp_tenant_id
+_MISP_POLL_INTERVAL  = settings.misp_poll_interval
+_SYSLOG_ENABLED      = settings.misp_syslog_enabled
+_SYSLOG_TARGET_HOST  = settings.misp_syslog_target_host
+_SYSLOG_TARGET_PORT  = settings.shadow_ai_syslog_port
 
 # IoC attribute types Warden cares about
 _DOMAIN_TYPES = {"domain", "hostname", "domain|ip"}

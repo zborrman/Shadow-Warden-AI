@@ -643,6 +643,34 @@ class Settings:
         default_factory=lambda: _env("TAXII_TENANT_ID", "default")
     )
 
+    # ── MISP ZMQ/HTTP bridge (warden/integrations/misp_bridge.py) ────────────────
+    # NB: SHADOW_AI_SYSLOG_PORT is shared with warden/shadow_ai/syslog_sink.py
+    # (still a lazy os.getenv() read there — untouched by this field).
+    misp_zmq_url: str = field(
+        default_factory=lambda: _env("MISP_ZMQ_URL", "")
+    )
+    misp_api_url: str = field(
+        default_factory=lambda: _env("MISP_API_URL", "")
+    )
+    misp_api_key: str = field(
+        default_factory=lambda: _env("MISP_API_KEY", "")
+    )
+    misp_tenant_id: str = field(
+        default_factory=lambda: _env("MISP_TENANT_ID", "default")
+    )
+    misp_poll_interval: int = field(
+        default_factory=lambda: _int("MISP_POLL_INTERVAL", 300)
+    )
+    misp_syslog_enabled: bool = field(
+        default_factory=lambda: _bool("MISP_SYSLOG_ENABLED", True)
+    )
+    misp_syslog_target_host: str = field(
+        default_factory=lambda: _env("MISP_SYSLOG_TARGET_HOST", "127.0.0.1")
+    )
+    shadow_ai_syslog_port: int = field(
+        default_factory=lambda: _int("SHADOW_AI_SYSLOG_PORT", 5514)
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.
