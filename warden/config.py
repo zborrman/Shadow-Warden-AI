@@ -282,6 +282,23 @@ class Settings:
         default_factory=lambda: _int("AUDIO_MAX_BYTES", 25 * 1024 * 1024)
     )
 
+    # ── Voice ASR (warden/voice/asr.py) ──────────────────────────────────────────
+    voice_asr_provider: str = field(
+        default_factory=lambda: _env("VOICE_ASR_PROVIDER", "whisper")
+    )
+    deepgram_api_key: str = field(
+        default_factory=lambda: _env("DEEPGRAM_API_KEY", "")
+    )
+    assemblyai_api_key: str = field(
+        default_factory=lambda: _env("ASSEMBLYAI_API_KEY", "")
+    )
+    voice_asr_model: str = field(
+        default_factory=lambda: _env("VOICE_ASR_MODEL", "tiny.en")
+    )
+    voice_asr_compute: str = field(
+        default_factory=lambda: _env("VOICE_ASR_COMPUTE", "int8")
+    )
+
     # ── Global Blocklist (warden/global_blocklist.py) ────────────────────────────
     global_blocklist_enabled: bool = field(
         default_factory=lambda: _bool("GLOBAL_BLOCKLIST_ENABLED", True)
