@@ -1,5 +1,5 @@
 {
-  "total": 821,
+  "total": 815,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -54,7 +54,6 @@
     "api/config_api.py": 41,
     "api/contact.py": 5,
     "api/deploy_health.py": 6,
-    "api/gdpr.py": 6,
     "api/integrations.py": 6,
     "api/kya.py": 3,
     "api/public_stats.py": 2,

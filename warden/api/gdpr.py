@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -27,6 +26,7 @@ from pydantic import BaseModel
 
 from warden.analytics import logger as event_logger
 from warden.auth_guard import require_api_key
+from warden.config import settings
 
 log = logging.getLogger("warden.api.gdpr")
 
@@ -36,7 +36,7 @@ router = APIRouter(prefix="/gdpr", tags=["gdpr"])
 _audit: list[dict] = []
 _AUDIT_CAP = 500
 
-RETENTION_DAYS: int = int(os.getenv("GDPR_LOG_RETENTION_DAYS", "30"))
+RETENTION_DAYS: int = settings.gdpr_log_retention_days
 
 
 def _record_audit(operation: str, subject: str, tenant_id: str = "", records_affected: int = 0) -> None:
@@ -87,7 +87,7 @@ async def purge_session(session_id: str) -> PurgeResult:
         from warden.storage.s3 import get_storage  # noqa: PLC0415
         storage = get_storage()
         if storage:
-            bucket = os.getenv("S3_EVIDENCE_BUCKET", "warden-evidence")
+            bucket = settings.s3_evidence_bucket
             key = f"bundles/{session_id}.json"
             await storage.put_object_async(bucket, key, b"")  # overwrite with empty
             removed += 1
@@ -256,10 +256,10 @@ async def purge_tenant(tenant_id: str) -> PurgeResult:
 async def retention_policy() -> dict:
     return {
         "log_retention_days":     RETENTION_DAYS,
-        "evidence_vault_bucket":  os.getenv("S3_EVIDENCE_BUCKET", "warden-evidence"),
-        "s3_enabled":             os.getenv("S3_ENABLED", "false").lower() == "true",
-        "gdpr_log_path":          os.getenv("LOGS_PATH", "/warden/data/logs.json"),
-        "auto_purge_enabled":     os.getenv("GDPR_AUTO_PURGE", "true").lower() == "true",
+        "evidence_vault_bucket":  settings.s3_evidence_bucket,
+        "s3_enabled":             settings.s3_enabled,
+        "gdpr_log_path":          settings.logs_path,
+        "auto_purge_enabled":     settings.gdpr_auto_purge,
         "auto_purge_cron":        "daily at 02:00 UTC",
     }
 
