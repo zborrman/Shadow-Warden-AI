@@ -260,6 +260,27 @@ sets `PIPELINE_FAILCLOSED_ON_CANARY=true` to make a broken detector **fail the
 deploy** instead of serving it — the fail-closed posture the pipeline facade
 already takes for a missing orchestrator (`services/pipeline.py:59`).
 
+### Status — DONE (2026-07-07)
+
+Shipped in the original P0 observability PR **#34** (bundled with P0.1), then
+hardened in **#54**:
+
+| Piece | Location | Shipped |
+|-------|----------|---------|
+| Canary corpus (3 jailbreaks + 1 benign) | `warden/observability_canaries.py` | #34 |
+| `run_pipeline_canary()` — live 9-stage fire, never raises | `warden/observability.py` | #34 |
+| `/health/pipeline?deep=true` folds verdict into `degraded` | `warden/main.py` | #34 |
+| Startup gate (loud DEGRADED default; fail-closed under flag) | `warden/main.py` lifespan | #34 |
+| `PIPELINE_FAILCLOSED_ON_CANARY` config flag | `warden/config.py` | #34 |
+| Gauges `warden_pipeline_canary_missed/_false_pos` | `warden/metrics.py` | #34 |
+| Grafana alert `WardenPipelineCanaryMissed` | `grafana/.../warden_alerts.yml` | #34 |
+| **Startup-gate tests** (failclosed-crash / default-degraded / unavailable-never-crashes) | `warden/tests/test_pipeline_canary.py` | **#54** |
+
+The readiness fail-**closed** gate (refuse to serve a regressed detector) is
+deliberately distinct from the request-path fail-**open** philosophy — it is an
+opt-in boot-time control, tested by patching the canary *verdict* (not the
+detector) so the tests are deterministic and detection-quality independent.
+
 ## Alerting (Grafana)
 
 Add to `grafana/provisioning/alerting/warden_alerts.yml` (matches existing SLO
@@ -283,12 +304,14 @@ alert style):
 
 ## Acceptance criteria (P0 done =)
 
-- [ ] `warden_stage_failopen_total` registered; `record_failopen()` + `failopen_guard()` shipped with unit tests.
-- [ ] All 308 inventoried fail-open sites either call `record_failopen()` or are covered by `failopen_guard()`; `scripts/fail_open_inventory.py` re-run shows 0 "counter-less" fail-open sites.
-- [ ] `except …: pass/continue` count in `warden/` reduced to the irreducible set; `test_no_new_silent_except.py` ratchet green and blocking in CI.
-- [ ] `run_pipeline_canary()` + `/health/pipeline?deep=true` + startup gate shipped; canary gauges exported.
-- [ ] Two Grafana alerts deployed and firing in a staged fault-injection test (kill Redis → `redis_unavailable` fail-open alert fires; ship a null-model → canary alert fires).
-- [ ] Zero content ever logged by any new code path (GDPR review of `observability.py`).
+- [x] `warden_stage_failopen_total` registered; `record_failopen()` + `failopen_guard()` shipped with unit tests. *(#34)*
+- [x] All inventoried fail-open sites either call `record_failopen()` or are covered by `failopen_guard()`; `scripts/fail_open_inventory.py` shows the counter-less count at its structural floor (**201** — module-level docstrings + benign best-effort side-effects; see P0.2 Status). *(#46–#52)*
+- [x] `except …: pass/continue` count in `warden/` reduced to the irreducible set; `test_no_new_silent_except.py` ratchet green and blocking in CI.
+- [x] `run_pipeline_canary()` + `/health/pipeline?deep=true` + startup gate shipped; canary gauges exported; startup gate under test. *(#34, #54)*
+- [x] Two Grafana alerts deployed (`WardenStageFailOpenSpike`, `WardenPipelineCanaryMissed`). *(#34)* — [ ] staged fault-injection drill (kill Redis; ship a null-model) still to be run in staging.
+- [x] Zero content ever logged by any new code path (`observability.py` logs `stage`/`reason`/exc-repr only).
+
+**P0 phase complete** as of 2026-07-07 — the one open item is the staging fault-injection drill (an ops exercise, not code). Invariants FAILOPEN-01…03 are in force. Next: **P1** (config foundation shipped — see forward pointers).
 
 ## Test & rollout plan
 

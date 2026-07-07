@@ -321,6 +321,69 @@ class Settings:
         default_factory=lambda: _env("DEFAULT_TENANT_ID", "default")
     )
 
+    # ── Observability / OpenTelemetry (Deep-Eng P1 config migration) ────────────
+    # Master switch for distributed tracing. Off by default (zero overhead).
+    otel_enabled: bool = field(
+        default_factory=lambda: _bool("OTEL_ENABLED", False)
+    )
+    # Jaeger/OTel service label.
+    otel_service_name: str = field(
+        default_factory=lambda: _env("OTEL_SERVICE_NAME", "shadow-warden")
+    )
+    # gRPC OTLP exporter endpoint.
+    otel_exporter_otlp_endpoint: str = field(
+        default_factory=lambda: _env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")
+    )
+    # Sampling rate for ALLOW traffic (0–1).
+    otel_sample_rate: float = field(
+        default_factory=lambda: _float("OTEL_SAMPLE_RATE", 0.1)
+    )
+    # Sampling rate for HIGH/BLOCK traffic (0–1) — always trace threats.
+    otel_sample_rate_high: float = field(
+        default_factory=lambda: _float("OTEL_SAMPLE_RATE_HIGH", 1.0)
+    )
+
+    # ── S3 / Object storage (MinIO / AWS S3) ────────────────────────────────────
+    # Master switch. Off = local storage only.
+    s3_enabled: bool = field(
+        default_factory=lambda: _bool("S3_ENABLED", False)
+    )
+    s3_endpoint: str = field(
+        default_factory=lambda: _env("S3_ENDPOINT", "http://minio:9000")
+    )
+    s3_access_key: str = field(
+        default_factory=lambda: _env("S3_ACCESS_KEY", "minioadmin")
+    )
+    s3_secret_key: str = field(
+        default_factory=lambda: _env("S3_SECRET_KEY", "minioadmin")
+    )
+    s3_bucket_evidence: str = field(
+        default_factory=lambda: _env("S3_BUCKET_EVIDENCE", "warden-evidence")
+    )
+    s3_bucket_logs: str = field(
+        default_factory=lambda: _env("S3_BUCKET_LOGS", "warden-logs")
+    )
+    # Required by the SDK even for MinIO.
+    s3_region: str = field(
+        default_factory=lambda: _env("S3_REGION", "us-east-1")
+    )
+
+    # ── Database (Postgres/SQLAlchemy) ──────────────────────────────────────────
+    # SQLAlchemy DSN. Empty = feature disabled / SQLite fallback per caller.
+    database_url: str = field(
+        default_factory=lambda: _env("DATABASE_URL", "")
+    )
+
+    # ── mTLS (internal service-to-service) ──────────────────────────────────────
+    # Enforce client-cert CN allowlist on internal routes.
+    mtls_enabled: bool = field(
+        default_factory=lambda: _bool("MTLS_ENABLED", False)
+    )
+    # Comma-separated allowlist of client-cert CNs. Parsed by warden/mtls.py.
+    mtls_allowed_cns: str = field(
+        default_factory=lambda: _env("MTLS_ALLOWED_CNS", "proxy,analytics,app")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 

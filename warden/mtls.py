@@ -34,15 +34,16 @@ MTLS_ALLOWED_CNS   comma-separated Common Names of authorised callers
 from __future__ import annotations
 
 import logging
-import os
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from warden.config import settings
+
 log = logging.getLogger("warden.mtls")
 
-_MTLS_ENABLED: bool = os.getenv("MTLS_ENABLED", "false").lower() == "true"
+_MTLS_ENABLED: bool = settings.mtls_enabled
 
 # nginx header set after ssl_verify_client
 _SUBJECT_HEADER = "X-Client-Cert-Subject"   # DN string, e.g. "CN=proxy,O=…"
@@ -50,7 +51,7 @@ _VERIFY_HEADER  = "X-Client-Cert-Verify"    # "SUCCESS" | "FAILED" | "NONE"
 
 _ALLOWED_CNS: frozenset[str] = frozenset(
     s.strip()
-    for s in os.getenv("MTLS_ALLOWED_CNS", "proxy,analytics,app").split(",")
+    for s in settings.mtls_allowed_cns.split(",")
     if s.strip()
 )
 

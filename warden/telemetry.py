@@ -52,18 +52,19 @@ import contextlib
 import functools
 import inspect
 import logging
-import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.telemetry")
 
-_ENABLED           = os.getenv("OTEL_ENABLED",                  "false").lower() == "true"
-_SERVICE_NAME      = os.getenv("OTEL_SERVICE_NAME",             "shadow-warden")
-_ENDPOINT          = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT",  "http://otel-collector:4317")
-_SAMPLE_RATE       = float(os.getenv("OTEL_SAMPLE_RATE",       "0.1"))   # ALLOW traffic
-_SAMPLE_RATE_HIGH  = float(os.getenv("OTEL_SAMPLE_RATE_HIGH",  "1.0"))   # HIGH/BLOCK traffic
+_ENABLED           = settings.otel_enabled
+_SERVICE_NAME      = settings.otel_service_name
+_ENDPOINT          = settings.otel_exporter_otlp_endpoint
+_SAMPLE_RATE       = settings.otel_sample_rate          # ALLOW traffic
+_SAMPLE_RATE_HIGH  = settings.otel_sample_rate_high     # HIGH/BLOCK traffic
 
 _tracer       = None
 _initialized  = False
