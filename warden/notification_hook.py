@@ -47,11 +47,11 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 from datetime import UTC, datetime
 
 import httpx
 
+from warden.config import settings
 from warden.output_guard import BusinessFinding, BusinessRisk
 
 log = logging.getLogger("warden.notification_hook")
@@ -61,17 +61,14 @@ log = logging.getLogger("warden.notification_hook")
 # Risk types that trigger a manager notification (subset of all BusinessRisk values)
 _NOTIFY_RISKS: frozenset[str] = frozenset(
     r.strip()
-    for r in os.getenv(
-        "NOTIFY_OUTPUT_RISKS",
-        "price_manipulation,unauthorized_commitment",
-    ).split(",")
+    for r in settings.notify_output_risks.split(",")
     if r.strip()
 )
 
-_TELEGRAM_TOKEN   = os.getenv("NOTIFY_TELEGRAM_TOKEN",   "") or os.getenv("TELEGRAM_BOT_TOKEN", "")
-_TELEGRAM_CHAT_ID = os.getenv("NOTIFY_TELEGRAM_CHAT_ID", "")
-_WEBHOOK_URL      = os.getenv("NOTIFY_WEBHOOK_URL",      "")
-_WEBHOOK_SECRET   = os.getenv("NOTIFY_WEBHOOK_SECRET",   "").encode()
+_TELEGRAM_TOKEN   = settings.notify_telegram_token or settings.telegram_bot_token
+_TELEGRAM_CHAT_ID = settings.notify_telegram_chat_id
+_WEBHOOK_URL      = settings.notify_webhook_url
+_WEBHOOK_SECRET   = settings.notify_webhook_secret.encode()
 
 _HOOK_ENABLED = bool(_TELEGRAM_CHAT_ID or _WEBHOOK_URL)
 

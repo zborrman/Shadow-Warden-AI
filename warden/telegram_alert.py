@@ -42,16 +42,17 @@ Usage::
 from __future__ import annotations
 
 import logging
-import os
 from datetime import UTC, datetime
 
 import httpx
 
+from warden.config import settings
+
 log = logging.getLogger("warden.telegram_alert")
 
-_BOT_TOKEN   = os.getenv("TELEGRAM_BOT_TOKEN", "")
-_GLOBAL_CHAT = os.getenv("TELEGRAM_CHAT_ID", "")
-_MIN_RISK    = os.getenv("TELEGRAM_MIN_RISK", "high").lower()
+_BOT_TOKEN   = settings.telegram_bot_token
+_GLOBAL_CHAT = settings.telegram_chat_id
+_MIN_RISK    = settings.telegram_min_risk
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2, "block": 3}
 _THRESHOLD  = _RISK_ORDER.get(_MIN_RISK, 2)
