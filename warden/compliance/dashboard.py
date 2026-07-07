@@ -30,24 +30,21 @@ override them with their own actuarial figures via environment variables.
 """
 from __future__ import annotations
 
-import os
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.config import settings
+
 # ── ROI model constants ───────────────────────────────────────────────────────
 
-_LLM_COST_PER_TOKEN = float(os.getenv(
-    "COMPLIANCE_LLM_COST_PER_TOKEN_USD", str(0.15 / 1_000_000)
-))
-_AVG_SHADOW_BAN_TOKENS = int(os.getenv("COMPLIANCE_AVG_SHADOW_BAN_TOKENS", "500"))
+_LLM_COST_PER_TOKEN = settings.compliance_llm_cost_per_token_usd
+_AVG_SHADOW_BAN_TOKENS = settings.compliance_avg_shadow_ban_tokens
 
-_BREACH_COST_USD = float(os.getenv("COMPLIANCE_BREACH_COST_USD", "4_450_000"))
-_BREACH_PER_YEAR = float(os.getenv("COMPLIANCE_BREACH_INCIDENTS_PER_YEAR", "2"))
+_BREACH_COST_USD = settings.compliance_breach_cost_usd
+_BREACH_PER_YEAR = settings.compliance_breach_incidents_per_year
 
-_CREDENTIAL_EXPOSURE_USD = float(os.getenv(
-    "COMPLIANCE_CREDENTIAL_EXPOSURE_COST_USD", "50_000"
-))
+_CREDENTIAL_EXPOSURE_USD = settings.compliance_credential_exposure_cost_usd
 
 
 class ComplianceDashboard:
@@ -107,7 +104,7 @@ class ComplianceDashboard:
 
         # ── Evolution engine ──────────────────────────────────────────────────
         rules_count = 0
-        rules_path  = Path(os.getenv("DYNAMIC_RULES_PATH", "/warden/data/dynamic_rules.json"))
+        rules_path  = Path(settings.dynamic_rules_path)
         if rules_path.exists():
             try:
                 import json  # noqa: PLC0415

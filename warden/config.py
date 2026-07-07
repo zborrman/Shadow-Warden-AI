@@ -500,6 +500,23 @@ class Settings:
         default_factory=lambda: _int("POISON_MONITOR_INTERVAL", 300)
     )
 
+    # ── Compliance Dashboard ROI model (warden/compliance/dashboard.py) ──────────
+    compliance_llm_cost_per_token_usd: float = field(
+        default_factory=lambda: _float("COMPLIANCE_LLM_COST_PER_TOKEN_USD", 0.15 / 1_000_000)
+    )
+    compliance_avg_shadow_ban_tokens: int = field(
+        default_factory=lambda: _int("COMPLIANCE_AVG_SHADOW_BAN_TOKENS", 500)
+    )
+    compliance_breach_cost_usd: float = field(
+        default_factory=lambda: _float("COMPLIANCE_BREACH_COST_USD", 4_450_000)
+    )
+    compliance_breach_incidents_per_year: float = field(
+        default_factory=lambda: _float("COMPLIANCE_BREACH_INCIDENTS_PER_YEAR", 2)
+    )
+    compliance_credential_exposure_cost_usd: float = field(
+        default_factory=lambda: _float("COMPLIANCE_CREDENTIAL_EXPOSURE_COST_USD", 50_000)
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
