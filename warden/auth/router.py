@@ -42,16 +42,18 @@ import bcrypt
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from warden.config import settings
+
 log = logging.getLogger("warden.auth")
 
 _COOKIE = "sw_session"
 _ALG = "HS256"
-_TTL = int(os.getenv("AUTH_SESSION_TTL", "3600"))
-_DOMAIN = os.getenv("AUTH_COOKIE_DOMAIN", ".shadow-warden-ai.com")
-_DB_PATH = os.getenv("AUTH_DB_PATH", "/tmp/warden_auth.db")
+_TTL = settings.auth_session_ttl
+_DOMAIN = settings.auth_cookie_domain
+_DB_PATH = settings.auth_db_path
 
 # Signup rate limit: max 5 registrations per IP per hour
-_SIGNUP_RATE_LIMIT = int(os.getenv("AUTH_SIGNUP_RATE_LIMIT", "5"))
+_SIGNUP_RATE_LIMIT = settings.auth_signup_rate_limit
 _SIGNUP_RATE_WINDOW = 3600
 _rate_lock = threading.Lock()
 _rate_store: dict[str, list[float]] = collections.defaultdict(list)

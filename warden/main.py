@@ -912,14 +912,16 @@ async def lifespan(app: FastAPI):
     # detects, not merely that stages import. Default = loud DEGRADED; prod sets
     # PIPELINE_FAILCLOSED_ON_CANARY=true to fail the boot on a broken detector.
     try:
-        from warden.observability import SecurityDegradedError, run_pipeline_canary  # noqa: PLC0415
+        from warden.observability import (  # noqa: PLC0415
+            SecurityDegradedError,
+            enforce_canary_gate,
+            run_pipeline_canary,
+        )
 
         _canary = await run_pipeline_canary()
-        if _canary.get("available") and not _canary["healthy"]:
-            if settings.pipeline_failclosed_on_canary:
-                raise SecurityDegradedError(
-                    f"startup canary failed: {_canary} — refusing to serve a broken detector"
-                )
+        # enforce_canary_gate raises SecurityDegradedError when degraded + fail-closed.
+        _degraded = enforce_canary_gate(_canary, settings.pipeline_failclosed_on_canary)
+        if _degraded:
             log.critical("PIPELINE CANARY FAILED at startup: %s — serving DEGRADED", _canary)
         elif _canary.get("available"):
             log.info("pipeline canary healthy: %s", _canary)

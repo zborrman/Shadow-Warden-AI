@@ -1,5 +1,5 @@
 {
-  "total": 1027,
+  "total": 996,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -26,10 +26,8 @@
     "ocr.py": 1,
     "offline.py": 1,
     "onboarding.py": 2,
-    "openai_proxy.py": 16,
     "output_guard.py": 4,
     "phishing_guard.py": 2,
-    "portal_router.py": 11,
     "rag_evolver.py": 3,
     "rbac.py": 1,
     "review_queue.py": 1,
@@ -81,7 +79,7 @@
     "api/webhook.py": 1,
     "api/ws_events.py": 2,
     "auth/oidc_guard.py": 2,
-    "auth/router.py": 10,
+    "auth/router.py": 6,
     "auth/saml.py": 8,
     "auth/saml_provider.py": 13,
     "billing/addons.py": 19,

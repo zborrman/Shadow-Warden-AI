@@ -61,50 +61,42 @@ _UNAVAILABLE = {"available": False, "caught": 0, "missed": 0,
                 "false_positive": 0, "healthy": False}
 
 
-def _patch_canary(monkeypatch, verdict):
-    async def _fake_canary():
-        return dict(verdict)
+# The startup gate policy lives in warden.observability.enforce_canary_gate — the
+# same function main.py's lifespan calls. We test it directly rather than booting
+# the full app: booting is order-fragile because the session-scoped `client`
+# fixture keeps the app's lifespan already started, so a nested boot would skip the
+# gate entirely. Testing the pure policy function is deterministic and isolated.
 
-    import warden.observability as obs
-    monkeypatch.setattr(obs, "run_pipeline_canary", _fake_canary)
+def test_startup_gate_failclosed_crashes_boot():
+    """failclosed + unhealthy verdict → raises SecurityDegradedError so the container
+    crash-loops and a broken detector never serves traffic."""
+    from warden.observability import SecurityDegradedError, enforce_canary_gate
 
-
-def test_startup_gate_failclosed_crashes_boot(monkeypatch):
-    """flag=true + unhealthy verdict → lifespan raises SecurityDegradedError so the
-    container crash-loops and a broken detector never serves traffic."""
-    import warden.main as main_mod
-    from warden.observability import SecurityDegradedError
-
-    _patch_canary(monkeypatch, _UNHEALTHY)
-    monkeypatch.setattr(main_mod.settings, "pipeline_failclosed_on_canary", True)
-
-    with pytest.raises(SecurityDegradedError), TestClient(main_mod.app):
-        pass  # boot alone must fail — we never reach a request
+    with pytest.raises(SecurityDegradedError):
+        enforce_canary_gate(_UNHEALTHY, failclosed=True)
 
 
-def test_startup_gate_default_boots_degraded(monkeypatch):
-    """flag=false (default) + unhealthy verdict → boot proceeds (availability-first);
-    the failure surfaces loudly via /health/pipeline?deep=true, not a crash."""
-    import warden.main as main_mod
+def test_startup_gate_default_boots_degraded():
+    """default (failclosed off) + unhealthy verdict → no raise (availability-first),
+    but the gate reports DEGRADED so startup logs CRITICAL / health shows degraded."""
+    from warden.observability import enforce_canary_gate
 
-    _patch_canary(monkeypatch, _UNHEALTHY)
-    monkeypatch.setattr(main_mod.settings, "pipeline_failclosed_on_canary", False)
-
-    with TestClient(main_mod.app) as client:
-        body = client.get("/health/pipeline?deep=true").json()
-        assert body["canary"]["healthy"] is False
-        assert "canary" in body["degraded_stages"]
-        assert body["status"] == "degraded"
+    assert enforce_canary_gate(_UNHEALTHY, failclosed=False) is True
 
 
-def test_startup_gate_unavailable_never_crashes(monkeypatch):
-    """A verdict of available=false (self-test couldn't run — orchestrator not up)
-    must NOT crash boot even when fail-closed is armed. The gate only acts on a
-    verdict that actually ran; an inconclusive self-test is not a detector failure."""
-    import warden.main as main_mod
+def test_startup_gate_unavailable_never_crashes():
+    """available=false (self-test couldn't run) → inconclusive: never degraded,
+    never raises, even when fail-closed is armed."""
+    from warden.observability import enforce_canary_gate
 
-    _patch_canary(monkeypatch, _UNAVAILABLE)
-    monkeypatch.setattr(main_mod.settings, "pipeline_failclosed_on_canary", True)
+    assert enforce_canary_gate(_UNAVAILABLE, failclosed=True) is False
+    assert enforce_canary_gate(_UNAVAILABLE, failclosed=False) is False
 
-    with TestClient(main_mod.app) as client:
-        assert client.get("/health/pipeline").status_code == 200
+
+def test_startup_gate_healthy_not_degraded():
+    """A healthy verdict is never degraded and never raises, regardless of the flag."""
+    from warden.observability import enforce_canary_gate
+
+    healthy = {"available": True, "caught": 3, "missed": 0,
+               "false_positive": 0, "healthy": True}
+    assert enforce_canary_gate(healthy, failclosed=True) is False

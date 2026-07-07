@@ -44,6 +44,7 @@ Testing overrides
 from __future__ import annotations
 
 import os
+import secrets
 from dataclasses import dataclass, field, fields
 
 __all__ = ["settings", "Settings", "ConfigValidationError"]
@@ -665,6 +666,105 @@ class Settings:
     )
     threat_feed_cache_path: str = field(
         default_factory=lambda: _env("THREAT_FEED_CACHE_PATH", "/warden/data/threat_feed_cache.json")
+    )
+
+    # ── Portal SMTP + auth (warden/portal_router.py) ────────────────────────────
+    # NB: WARDEN_API_KEYS_PATH read here reuses warden_api_keys_path.
+    smtp_host: str = field(
+        default_factory=lambda: _env("SMTP_HOST", "")
+    )
+    smtp_port: int = field(
+        default_factory=lambda: _int("SMTP_PORT", 587)
+    )
+    smtp_user: str = field(
+        default_factory=lambda: _env("SMTP_USER", "")
+    )
+    smtp_pass: str = field(
+        default_factory=lambda: _env("SMTP_PASS", "")
+    )
+    portal_from_email: str = field(
+        default_factory=lambda: _env("PORTAL_FROM_EMAIL", "")
+    )
+    portal_from: str = field(
+        default_factory=lambda: _env("PORTAL_FROM", "")
+    )
+    portal_url: str = field(
+        default_factory=lambda: _env("PORTAL_URL", "https://app.shadow-warden-ai.com")
+    )
+    # Random per-process default if unset — matches portal_router's prior behaviour.
+    portal_jwt_secret: str = field(
+        default_factory=lambda: _env("PORTAL_JWT_SECRET", "change-me-" + secrets.token_hex(16))
+    )
+    portal_access_token_ttl: int = field(
+        default_factory=lambda: _int("PORTAL_ACCESS_TOKEN_TTL", 60)
+    )
+    portal_refresh_token_ttl: int = field(
+        default_factory=lambda: _int("PORTAL_REFRESH_TOKEN_TTL", 7)
+    )
+
+    # ── OpenAI-compatible proxy providers (warden/openai_proxy.py) ──────────────
+    openai_upstream: str = field(
+        default_factory=lambda: _env("OPENAI_UPSTREAM", "https://api.openai.com")
+    )
+    warden_filter_url: str = field(
+        default_factory=lambda: _env("WARDEN_FILTER_URL", "http://localhost:8001")
+    )
+    perplexity_api_key: str = field(
+        default_factory=lambda: _env("PERPLEXITY_API_KEY", "")
+    )
+    gemini_api_key: str = field(
+        default_factory=lambda: _env("GEMINI_API_KEY", "")
+    )
+    azure_openai_endpoint: str = field(
+        default_factory=lambda: _env("AZURE_OPENAI_ENDPOINT", "")
+    )
+    azure_openai_api_key: str = field(
+        default_factory=lambda: _env("AZURE_OPENAI_API_KEY", "")
+    )
+    azure_openai_api_version: str = field(
+        default_factory=lambda: _env("AZURE_OPENAI_API_VERSION", "2024-05-01-preview")
+    )
+    aws_region: str = field(
+        default_factory=lambda: _env("AWS_REGION", "us-east-1")
+    )
+    aws_access_key_id: str = field(
+        default_factory=lambda: _env("AWS_ACCESS_KEY_ID", "")
+    )
+    aws_secret_access_key: str = field(
+        default_factory=lambda: _env("AWS_SECRET_ACCESS_KEY", "")
+    )
+    vertex_project_id: str = field(
+        default_factory=lambda: _env("VERTEX_PROJECT_ID", "")
+    )
+    vertex_location: str = field(
+        default_factory=lambda: _env("VERTEX_LOCATION", "us-central1")
+    )
+    streaming_fast_scan_buffer: int = field(
+        default_factory=lambda: _int("STREAMING_FAST_SCAN_BUFFER", 400)
+    )
+    masking_mode: str = field(
+        default_factory=lambda: _env("MASKING_MODE", "off").lower()
+    )
+    wallet_enabled: bool = field(
+        default_factory=lambda: _bool("WALLET_ENABLED", True)
+    )
+    output_guardrails_enabled: bool = field(
+        default_factory=lambda: _bool("OUTPUT_GUARDRAILS_ENABLED", True)
+    )
+
+    # ── Portal/site auth cookies (warden/auth/router.py) ────────────────────────
+    # NB: admin-bootstrap + JWT/vault secret reads stay lazy in auth/router.py.
+    auth_session_ttl: int = field(
+        default_factory=lambda: _int("AUTH_SESSION_TTL", 3600)
+    )
+    auth_cookie_domain: str = field(
+        default_factory=lambda: _env("AUTH_COOKIE_DOMAIN", ".shadow-warden-ai.com")
+    )
+    auth_db_path: str = field(
+        default_factory=lambda: _env("AUTH_DB_PATH", "/tmp/warden_auth.db")
+    )
+    auth_signup_rate_limit: int = field(
+        default_factory=lambda: _int("AUTH_SIGNUP_RATE_LIMIT", 5)
     )
 
     # ── Validation & audit (Deep-Eng P1) ────────────────────

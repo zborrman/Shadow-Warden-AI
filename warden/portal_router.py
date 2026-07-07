@@ -42,18 +42,19 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from warden.config import settings
 from warden.db.connection import get_db
 
 log = logging.getLogger("warden.portal")
 
 # ── Email helper ──────────────────────────────────────────────────────────────
 
-_SMTP_HOST     = os.getenv("SMTP_HOST", "")
-_SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
-_SMTP_USER     = os.getenv("SMTP_USER", "")
-_SMTP_PASS     = os.getenv("SMTP_PASS", "")
-_PORTAL_FROM   = os.getenv("PORTAL_FROM_EMAIL") or os.getenv("PORTAL_FROM") or _SMTP_USER
-_PORTAL_URL    = os.getenv("PORTAL_URL", "https://app.shadow-warden-ai.com")
+_SMTP_HOST     = settings.smtp_host
+_SMTP_PORT     = settings.smtp_port
+_SMTP_USER     = settings.smtp_user
+_SMTP_PASS     = settings.smtp_pass
+_PORTAL_FROM   = settings.portal_from_email or settings.portal_from or _SMTP_USER
+_PORTAL_URL    = settings.portal_url
 
 
 def _send_email_sync(to: str, subject: str, body: str) -> None:
@@ -98,10 +99,10 @@ async def _send_password_reset_email(to: str, token: str) -> None:
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-_JWT_SECRET      = os.getenv("PORTAL_JWT_SECRET", "change-me-" + secrets.token_hex(16))
+_JWT_SECRET      = settings.portal_jwt_secret
 _JWT_ALGORITHM   = "HS256"
-_ACCESS_TTL_MIN  = int(os.getenv("PORTAL_ACCESS_TOKEN_TTL",  "60"))
-_REFRESH_TTL_DAY = int(os.getenv("PORTAL_REFRESH_TOKEN_TTL", "7"))
+_ACCESS_TTL_MIN  = settings.portal_access_token_ttl
+_REFRESH_TTL_DAY = settings.portal_refresh_token_ttl
 _COOKIE_NAME     = "warden_refresh"
 
 router = APIRouter(tags=["portal"])
@@ -270,7 +271,7 @@ def _reload_keys_file(tenant_id: str, key_hash: str, rate_limit: int, revoke: bo
     """
     import json
 
-    keys_path = os.getenv("WARDEN_API_KEYS_PATH", "")
+    keys_path = settings.warden_api_keys_path
     if not keys_path:
         return
     try:
