@@ -410,7 +410,6 @@ async def sova_visual_patrol(ctx: dict) -> dict:
     """
     log.info("sova: visual patrol starting [%s]", _ts())
 
-    import os  # noqa: PLC0415
     from datetime import datetime  # noqa: PLC0415
 
     from warden.agent.tools import visual_assert_page  # noqa: PLC0415
@@ -418,9 +417,9 @@ async def sova_visual_patrol(ctx: dict) -> dict:
     session_id = f"patrol-{datetime.now(UTC).strftime('%Y%m%d-%H%M')}"
 
     # ── Build target list ─────────────────────────────────────────────────────
-    base_url   = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
-    dashboard  = os.getenv("DASHBOARD_URL", "")
-    extra_urls = [u.strip() for u in os.getenv("PATROL_URLS", "").split(",") if u.strip()]
+    base_url   = settings.warden_base_url
+    dashboard  = settings.dashboard_url
+    extra_urls = [u.strip() for u in settings.patrol_urls.split(",") if u.strip()]
 
     targets_raw: list[tuple[str, str]] = [
         (f"{base_url}/health", "Verify gateway health page is reachable and shows status=ok"),
@@ -705,12 +704,10 @@ async def sova_obsidian_watchdog(ctx: dict) -> dict:
     """
     log.info("sova: obsidian watchdog starting [%s]", _ts())
 
-    import os  # noqa: PLC0415
-
     from warden.agent.tools import get_obsidian_feed  # noqa: PLC0415
 
     tenant_id    = settings.default_tenant_id
-    community_id = os.getenv("OBSIDIAN_COMMUNITY_ID", "default")
+    community_id = settings.obsidian_community_id
 
     try:
         feed = await get_obsidian_feed(
@@ -764,8 +761,7 @@ async def sova_obsidian_watchdog(ctx: dict) -> dict:
 
 async def sova_evidence_bundle(ctx: dict) -> dict:
     """Auto-generate SOC 2 Type II evidence bundle for all Pro+ tenants."""
-    import os
-    tenant_ids_env = os.getenv("EVIDENCE_BUNDLE_TENANTS", "default")
+    tenant_ids_env = settings.evidence_bundle_tenants
     tenants = [t.strip() for t in tenant_ids_env.split(",") if t.strip()]
 
     results = []
@@ -827,7 +823,7 @@ async def sova_marketplace_state_sync(ctx: dict) -> dict:
     log.info("sova: marketplace state sync [%s]", _ts())
 
     db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
-    state_path = Path(os.getenv("AGENTS_MD_PATH", "data/AGENTS.md"))
+    state_path = Path(settings.agents_md_path)
 
     negotiations: list[dict] = []
     escrows: list[dict] = []
