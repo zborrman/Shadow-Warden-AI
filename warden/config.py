@@ -307,6 +307,26 @@ class Settings:
         default_factory=lambda: _env("SMTP_TLS", "true").lower() != "false"
     )
 
+    # ── AI Worm Defense (warden/worm_guard.py) ───────────────────────────────────
+    worm_guard_enabled: bool = field(
+        default_factory=lambda: _bool("WORM_GUARD_ENABLED", True)
+    )
+    worm_overlap_threshold: float = field(
+        default_factory=lambda: _float("WORM_OVERLAP_THRESHOLD", 0.65)
+    )
+    worm_min_tokens: int = field(
+        default_factory=lambda: _int("WORM_MIN_TOKENS", 20)
+    )
+    worm_quarantine_ttl_s: int = field(
+        default_factory=lambda: _int("WORM_QUARANTINE_TTL_S", 86400)
+    )
+    worm_quarantine_stream: str = field(
+        default_factory=lambda: _env("WORM_QUARANTINE_STREAM", "warden:worm:quarantine")
+    )
+    worm_quarantine_set: str = field(
+        default_factory=lambda: _env("WORM_QUARANTINE_SET", "warden:worm:hashes")
+    )
+
     # ── Data Paths ─────────────────────────────────────────────────────────────
     audit_trail_path: str = field(
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")

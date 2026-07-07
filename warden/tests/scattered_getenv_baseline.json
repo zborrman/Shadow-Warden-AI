@@ -1,5 +1,5 @@
 {
-  "total": 885,
+  "total": 879,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -36,7 +36,6 @@
     "threat_store.py": 4,
     "threat_vault.py": 1,
     "wallet_shield.py": 6,
-    "worm_guard.py": 6,
     "agent/healer.py": 2,
     "agent/master.py": 10,
     "agent/memory.py": 1,
