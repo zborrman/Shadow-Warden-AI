@@ -452,6 +452,20 @@ class Settings:
         default_factory=lambda: _int("RAPID_BLOCK_THRESHOLD", 3)
     )
 
+    # ── GDPR API (warden/api/gdpr.py) ────────────────────────────────────────────
+    gdpr_log_retention_days: int = field(
+        default_factory=lambda: _int("GDPR_LOG_RETENTION_DAYS", 30)
+    )
+    s3_evidence_bucket: str = field(
+        default_factory=lambda: _env("S3_EVIDENCE_BUCKET", "warden-evidence")
+    )
+    logs_path: str = field(
+        default_factory=lambda: _env("LOGS_PATH", "/warden/data/logs.json")
+    )
+    gdpr_auto_purge: bool = field(
+        default_factory=lambda: _bool("GDPR_AUTO_PURGE", True)
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
