@@ -21,10 +21,12 @@ from typing import Any
 
 import httpx
 
+from warden.config import settings
+
 log = logging.getLogger("warden.agent.tools")
 
 _BASE      = "http://localhost:8001"
-_API_KEY   = os.getenv("WARDEN_API_KEY", "")
+_API_KEY   = settings.warden_api_key
 _TIMEOUT   = 30.0
 
 
@@ -166,7 +168,7 @@ async def get_tenant_impact(tenant_id: str = "default", **_) -> dict:
 
 
 async def send_slack_alert(message: str, **_) -> dict:
-    url = os.getenv("SLACK_WEBHOOK_URL", "")
+    url = settings.slack_webhook_url
     if not url:
         return {"sent": False, "reason": "SLACK_WEBHOOK_URL not configured"}
     import json as _json
@@ -2566,10 +2568,10 @@ async def get_protocol_schema(action_name: str, **_: Any) -> dict:
     try:
         import httpx  # noqa: PLC0415
 
-        base = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
+        base = settings.warden_base_url
         r = await httpx.AsyncClient(timeout=10).get(
             f"{base}/marketplace/protocol/schema/{action_name}",
-            headers={"X-API-Key": os.getenv("WARDEN_API_KEY", "")},
+            headers={"X-API-Key": settings.warden_api_key},
         )
         return r.json()
     except Exception as exc:
@@ -2618,8 +2620,8 @@ async def send_order_proposal(
     try:
         import httpx  # noqa: PLC0415
 
-        base    = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
-        api_key = os.getenv("WARDEN_API_KEY", "")
+        base    = settings.warden_base_url
+        api_key = settings.warden_api_key
         headers = {"X-API-Key": api_key}
         if buyer_agent_id:
             headers["X-Agent-ID"] = buyer_agent_id
