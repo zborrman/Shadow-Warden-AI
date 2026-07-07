@@ -269,8 +269,14 @@ class Settings:
     audio_guard_model: str = field(
         default_factory=lambda: _env("AUDIO_GUARD_MODEL", "tiny.en")
     )
+    audio_guard_compute: str = field(
+        default_factory=lambda: _env("AUDIO_GUARD_COMPUTE", "int8")
+    )
     audio_pipeline_timeout_ms: int = field(
         default_factory=lambda: _int("AUDIO_PIPELINE_TIMEOUT_MS", 3000)
+    )
+    audio_ultrasound_threshold: float = field(
+        default_factory=lambda: _float("AUDIO_ULTRASOUND_THRESHOLD", 0.15)
     )
     audio_max_bytes: int = field(
         default_factory=lambda: _int("AUDIO_MAX_BYTES", 25 * 1024 * 1024)

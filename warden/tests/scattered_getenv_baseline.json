@@ -1,9 +1,8 @@
 {
-  "total": 906,
+  "total": 899,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
-    "audio_guard.py": 7,
     "audio_redactor.py": 3,
     "audit_trail.py": 2,
     "auth_guard.py": 5,
