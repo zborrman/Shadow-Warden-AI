@@ -57,12 +57,12 @@ Environment variables
 from __future__ import annotations
 
 import logging
-import os
 import threading
 import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 
 if TYPE_CHECKING:
@@ -72,11 +72,11 @@ log = logging.getLogger("warden.global_blocklist")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ENABLED: bool     = os.getenv("GLOBAL_BLOCKLIST_ENABLED", "true").lower() != "false"
-KEY_PREFIX: str   = os.getenv("GLOBAL_BLOCKLIST_KEY", "warden:global:blocked")
-EVT_STREAM: str   = os.getenv("BLOCKLIST_EVENT_STREAM", "warden:blocklist:events")
-STREAM_MAX: int   = int(os.getenv("BLOCKLIST_STREAM_MAX", "10000"))
-REGION: str       = os.getenv("WARDEN_REGION", "default")
+ENABLED: bool     = settings.global_blocklist_enabled
+KEY_PREFIX: str   = settings.global_blocklist_key
+EVT_STREAM: str   = settings.blocklist_event_stream
+STREAM_MAX: int   = settings.blocklist_stream_max
+REGION: str       = settings.warden_region
 
 _SWEEP_INTERVAL = 60   # seconds between expired-entry sweeps
 _BATCH          = 50
@@ -97,7 +97,7 @@ def _get_redis():
     with _rlock:
         if _client is not None:
             return _client
-        url = os.getenv("GLOBAL_REDIS_URL") or os.getenv("REDIS_URL", "redis://redis:6379/0")
+        url = settings.global_redis_url or settings.redis_url
         try:
             import redis as _redis  # noqa: PLC0415
             c = _redis.from_url(url, decode_responses=True,

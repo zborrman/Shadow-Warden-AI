@@ -282,6 +282,20 @@ class Settings:
         default_factory=lambda: _int("AUDIO_MAX_BYTES", 25 * 1024 * 1024)
     )
 
+    # ── Global Blocklist (warden/global_blocklist.py) ────────────────────────────
+    global_blocklist_enabled: bool = field(
+        default_factory=lambda: _bool("GLOBAL_BLOCKLIST_ENABLED", True)
+    )
+    global_blocklist_key: str = field(
+        default_factory=lambda: _env("GLOBAL_BLOCKLIST_KEY", "warden:global:blocked")
+    )
+    blocklist_event_stream: str = field(
+        default_factory=lambda: _env("BLOCKLIST_EVENT_STREAM", "warden:blocklist:events")
+    )
+    blocklist_stream_max: int = field(
+        default_factory=lambda: _int("BLOCKLIST_STREAM_MAX", 10000)
+    )
+
     # ── Data Paths ─────────────────────────────────────────────────────────────
     audit_trail_path: str = field(
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")
