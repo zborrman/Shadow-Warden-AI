@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from warden.marketplace.rate_limit import marketplace_rate_limit
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.api_listings")
 
@@ -54,7 +55,10 @@ async def create_listing(body: ListingCreateRequest) -> dict:
     except HTTPException:
         raise
     except Exception as exc:
+        # Rule 4 fail-open by design — but the Sybil gate silently degrading
+        # (a flagged agent can now publish) must be alertable, not just logged.
         log.warning("sybil_gate fail-open: %s", exc)
+        record_failopen("marketplace_sybil", Reason.BACKEND_ERROR, exc)
     try:
         from warden.web3.chains import VALID_CHAINS  # noqa: PLC0415
         if body.chain not in VALID_CHAINS:
@@ -66,6 +70,7 @@ async def create_listing(body: ListingCreateRequest) -> dict:
         raise
     except Exception as exc:
         log.warning("valid_chains check fail-open: %s", exc)
+        record_failopen("marketplace_chain", Reason.BACKEND_ERROR, exc)
     try:
         listing = publish_listing(
             asset_id=body.asset_id,

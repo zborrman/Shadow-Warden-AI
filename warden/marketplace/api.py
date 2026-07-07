@@ -27,6 +27,8 @@ from typing import Any, Literal
 from fastapi import APIRouter, BackgroundTasks, Query, Request, Response
 from pydantic import BaseModel
 
+from warden.observability import Reason, record_failopen
+
 log = logging.getLogger("warden.marketplace.api")
 
 # NB: the router is created WITHOUT a built-in prefix. Callers include it with
@@ -162,7 +164,10 @@ async def register_market_agent(body: RegisterRequest) -> dict:
             result["kya_status"] = kya_record.kya_status
             result["kya_risk_score"] = round(kya_record.risk_score, 3)
         except Exception as exc:
+            # Rule 18 fail-open by design — agent registers with kya_status=PENDING
+            # when screening errors. Counter makes the unscreened path alertable.
             log.debug("kya registration fail-open: %s", exc)
+            record_failopen("marketplace_kya", Reason.BACKEND_ERROR, exc)
             result["kya_status"] = "PENDING"
 
     return result
@@ -232,7 +237,10 @@ async def _action_search(
             from warden.marketplace.kya import get_kya_status  # noqa: PLC0415
             results = [r for r in results if get_kya_status(r.get("seller_agent", "")) == "VERIFIED"]
         except Exception as exc:
+            # KYA_VERIFIED_ONLY guard: on error the unfiltered result set (incl.
+            # non-VERIFIED sellers) is returned — a silent policy bypass, alertable.
             log.debug("kya filter fail-open in search: %s", exc)
+            record_failopen("marketplace_kya", Reason.BACKEND_ERROR, exc)
 
     return {"results": results, "count": len(results), "query": query}
 
