@@ -41,7 +41,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import os
 from collections.abc import AsyncGenerator
 
 import httpx
@@ -62,13 +61,13 @@ log = logging.getLogger("warden.openai_proxy")
 
 router = APIRouter(prefix="/v1", tags=["openai-proxy"])
 
-_UPSTREAM            = os.getenv("OPENAI_UPSTREAM",   "https://api.openai.com")
-_FILTER_URL          = os.getenv("WARDEN_FILTER_URL", "http://localhost:8001")
+_UPSTREAM            = settings.openai_upstream
+_FILTER_URL          = settings.warden_filter_url
 
 _PERPLEXITY_UPSTREAM = "https://api.perplexity.ai"
 _GEMINI_UPSTREAM     = "https://generativelanguage.googleapis.com/v1beta/openai"
-_PERPLEXITY_API_KEY  = os.getenv("PERPLEXITY_API_KEY", "")
-_GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY", "")
+_PERPLEXITY_API_KEY  = settings.perplexity_api_key
+_GEMINI_API_KEY      = settings.gemini_api_key
 
 # ── NVIDIA NIM (NVIDIA Inference Microservices) ───────────────────────────────
 # Model name format: "nim/<org>/<model-name>"
@@ -82,23 +81,23 @@ _NVIDIA_API_KEY = settings.nvidia_api_key
 # ── Azure OpenAI ─────────────────────────────────────────────────────────────
 # AZURE_OPENAI_ENDPOINT  e.g. https://my-resource.openai.azure.com
 # Model name format: "azure/<deployment-name>"
-_AZURE_ENDPOINT    = os.getenv("AZURE_OPENAI_ENDPOINT",    "").rstrip("/")
-_AZURE_API_KEY     = os.getenv("AZURE_OPENAI_API_KEY",     "")
-_AZURE_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-05-01-preview")
+_AZURE_ENDPOINT    = settings.azure_openai_endpoint.rstrip("/")
+_AZURE_API_KEY     = settings.azure_openai_api_key
+_AZURE_API_VERSION = settings.azure_openai_api_version
 
 # ── Amazon Bedrock ────────────────────────────────────────────────────────────
 # Model name format: "bedrock/<model-id>"
 # e.g. "bedrock/amazon.nova-lite-v1:0"  "bedrock/anthropic.claude-3-haiku-20240307-v1:0"
-_BEDROCK_REGION     = os.getenv("AWS_REGION",            "us-east-1")
-_BEDROCK_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID",     "")
-_BEDROCK_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+_BEDROCK_REGION     = settings.aws_region
+_BEDROCK_ACCESS_KEY = settings.aws_access_key_id
+_BEDROCK_SECRET_KEY = settings.aws_secret_access_key
 
 # ── Google Cloud Vertex AI ─────────────────────────────────────────────────────
 # Model name format: "vertex/<model-name>"
 # e.g. "vertex/gemini-1.5-flash-001"  "vertex/mistral-nemo@2407"
 # Requires: VERTEX_PROJECT_ID + (VERTEX_ACCESS_TOKEN or google-auth ADC)
-_VERTEX_PROJECT  = os.getenv("VERTEX_PROJECT_ID", "")
-_VERTEX_LOCATION = os.getenv("VERTEX_LOCATION",   "us-central1")
+_VERTEX_PROJECT  = settings.vertex_project_id
+_VERTEX_LOCATION = settings.vertex_location
 
 
 def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
@@ -142,12 +141,12 @@ def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
 # starts receiving chunks immediately instead of waiting for the full response.
 # Set to 0 to disable (always buffer everything — maximum safety, worst TTFB).
 # Masking mode always buffers regardless of this setting (unmask requires full text).
-_STREAM_FAST_SCAN_BUFFER = int(os.getenv("STREAMING_FAST_SCAN_BUFFER", "400"))
+_STREAM_FAST_SCAN_BUFFER = settings.streaming_fast_scan_buffer
 
-_MASKING_MODE = os.getenv("MASKING_MODE", "off").lower()
+_MASKING_MODE = settings.masking_mode
 
-_WALLET_ENABLED        = os.getenv("WALLET_ENABLED",             "true").lower() == "true"
-_OUTPUT_GUARD_ENABLED  = os.getenv("OUTPUT_GUARDRAILS_ENABLED", "true").lower() == "true"
+_WALLET_ENABLED        = settings.wallet_enabled
+_OUTPUT_GUARD_ENABLED  = settings.output_guardrails_enabled
 _PROMPT_SHIELD_ENABLED = settings.prompt_shield_enabled
 
 # Module-level singleton — no state, safe to share
