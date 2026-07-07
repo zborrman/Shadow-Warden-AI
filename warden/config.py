@@ -565,6 +565,27 @@ class Settings:
         default_factory=lambda: _float("TOPO_NOISE_THRESHOLD_NATURAL", 0.82)
     )
 
+    # ── Corpus cross-region sync (warden/corpus_sync.py) ────────────────────────
+    # NB: reuses redis_url/global_redis_url, corpus_snapshot_path, warden_region.
+    corpus_sync_enabled: bool = field(
+        default_factory=lambda: _bool("CORPUS_SYNC_ENABLED", True)
+    )
+    corpus_s3_bucket: str = field(
+        default_factory=lambda: _env("CORPUS_S3_BUCKET", "")
+    )
+    corpus_s3_prefix: str = field(
+        default_factory=lambda: _env("CORPUS_S3_PREFIX", "warden/corpus")
+    )
+    corpus_s3_region: str = field(
+        default_factory=lambda: _env("CORPUS_S3_REGION", "us-east-1")
+    )
+    corpus_invalidation_stream: str = field(
+        default_factory=lambda: _env("CORPUS_INVALIDATION_STREAM", "warden:corpus:invalidations")
+    )
+    corpus_invalidation_max: int = field(
+        default_factory=lambda: _int("CORPUS_INVALIDATION_MAX", 500)
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 

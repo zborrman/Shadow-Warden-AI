@@ -62,6 +62,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from warden.config import settings
+
 if TYPE_CHECKING:
     pass
 
@@ -69,13 +71,13 @@ log = logging.getLogger("warden.corpus_sync")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ENABLED: bool     = os.getenv("CORPUS_SYNC_ENABLED", "true").lower() != "false"
-S3_BUCKET: str    = os.getenv("CORPUS_S3_BUCKET", "")
-S3_PREFIX: str    = os.getenv("CORPUS_S3_PREFIX", "warden/corpus")
-S3_AWS_REGION: str = os.getenv("CORPUS_S3_REGION", "us-east-1")
-INV_STREAM: str   = os.getenv("CORPUS_INVALIDATION_STREAM", "warden:corpus:invalidations")
-INV_MAX: int      = int(os.getenv("CORPUS_INVALIDATION_MAX", "500"))
-REGION: str       = os.getenv("WARDEN_REGION", "default")
+ENABLED: bool     = settings.corpus_sync_enabled
+S3_BUCKET: str    = settings.corpus_s3_bucket
+S3_PREFIX: str    = settings.corpus_s3_prefix
+S3_AWS_REGION: str = settings.corpus_s3_region
+INV_STREAM: str   = settings.corpus_invalidation_stream
+INV_MAX: int      = settings.corpus_invalidation_max
+REGION: str       = settings.warden_region
 
 _BLOCK_MS   = 5_000   # xreadgroup block timeout
 _BATCH      = 10      # messages per poll cycle
@@ -111,7 +113,7 @@ def _get_redis():
     with _redis_lock:
         if _redis_client is not None:
             return _redis_client
-        url = os.getenv("GLOBAL_REDIS_URL") or os.getenv("REDIS_URL", "redis://redis:6379/0")
+        url = settings.global_redis_url or settings.redis_url
         try:
             import redis as _redis  # noqa: PLC0415
             c = _redis.from_url(url, decode_responses=True,
@@ -223,7 +225,7 @@ def _download_and_reload(entry: dict, poison_guard) -> None:
     if not npz_key or not json_key or not S3_BUCKET:
         return
 
-    snapshot_base = Path(os.getenv("CORPUS_SNAPSHOT_PATH", "/tmp/warden_corpus_snapshot"))
+    snapshot_base = Path(settings.corpus_snapshot_path)
     npz_local  = snapshot_base.with_suffix(".npz")
     json_local = snapshot_base.with_suffix(".json")
     tmp_npz    = snapshot_base.with_suffix(".sync.npz")
