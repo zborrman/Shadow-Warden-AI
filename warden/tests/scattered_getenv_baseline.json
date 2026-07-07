@@ -1,5 +1,5 @@
 {
-  "total": 1131,
+  "total": 1116,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -22,7 +22,6 @@
     "lemon_billing.py": 11,
     "limiter.py": 2,
     "main.py": 45,
-    "mtls.py": 2,
     "multimodal_guard.py": 3,
     "net_guard.py": 1,
     "notification_hook.py": 6,
@@ -43,7 +42,6 @@
     "stripe_billing.py": 6,
     "taint_tracker.py": 3,
     "telegram_alert.py": 3,
-    "telemetry.py": 5,
     "tenant_policy.py": 5,
     "threat_feed.py": 9,
     "threat_store.py": 4,
@@ -162,7 +160,6 @@
     "compliance/soc2_collector.py": 6,
     "crypto/hsm.py": 5,
     "crypto/pqc.py": 2,
-    "db/connection.py": 1,
     "db/turso.py": 4,
     "discovery/well_known.py": 3,
     "document_intel/converter.py": 4,
@@ -244,7 +241,6 @@
     "staff/a2a.py": 1,
     "staff/boundaries.py": 2,
     "staff/economics.py": 1,
-    "storage/s3.py": 7,
     "streams/agent_runner.py": 2,
     "streams/api.py": 1,
     "streams/event_bus.py": 2,

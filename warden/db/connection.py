@@ -29,13 +29,14 @@ Usage::
 from __future__ import annotations
 
 import logging
-import os
 from functools import lru_cache
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.db.connection")
 
-DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+DATABASE_URL: str = settings.database_url
 
 # Async URL uses asyncpg; sync URL uses psycopg2.
 # We derive the sync URL automatically from the async one.

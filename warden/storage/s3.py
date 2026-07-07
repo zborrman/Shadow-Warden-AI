@@ -37,23 +37,24 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.storage.s3")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-S3_ENABLED         = os.getenv("S3_ENABLED", "false").lower() == "true"
-S3_ENDPOINT        = os.getenv("S3_ENDPOINT", "http://minio:9000")
-S3_ACCESS_KEY      = os.getenv("S3_ACCESS_KEY", "minioadmin")
-S3_SECRET_KEY      = os.getenv("S3_SECRET_KEY", "minioadmin")
-S3_BUCKET_EVIDENCE = os.getenv("S3_BUCKET_EVIDENCE", "warden-evidence")
-S3_BUCKET_LOGS     = os.getenv("S3_BUCKET_LOGS",     "warden-logs")
-S3_REGION          = os.getenv("S3_REGION",          "us-east-1")
+S3_ENABLED         = settings.s3_enabled
+S3_ENDPOINT        = settings.s3_endpoint
+S3_ACCESS_KEY      = settings.s3_access_key
+S3_SECRET_KEY      = settings.s3_secret_key
+S3_BUCKET_EVIDENCE = settings.s3_bucket_evidence
+S3_BUCKET_LOGS     = settings.s3_bucket_logs
+S3_REGION          = settings.s3_region
 
 # Background thread pool — max 2 threads (S3 I/O is the only work)
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="warden-s3")
