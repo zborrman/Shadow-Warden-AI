@@ -1,5 +1,5 @@
 {
-  "total": 899,
+  "total": 892,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -10,7 +10,6 @@
     "community_models.py": 1,
     "data_policy.py": 1,
     "entity_risk.py": 6,
-    "global_blocklist.py": 7,
     "honey.py": 2,
     "image_redactor.py": 6,
     "image_synth.py": 3,
