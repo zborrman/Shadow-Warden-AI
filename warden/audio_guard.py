@@ -44,13 +44,13 @@ import asyncio
 import base64
 import io
 import logging
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 
 if TYPE_CHECKING:
@@ -60,13 +60,13 @@ log = logging.getLogger("warden.audio_guard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ENABLED: bool          = os.getenv("AUDIO_GUARD_ENABLED", "true").lower() != "false"
-MODEL_SIZE: str        = os.getenv("AUDIO_GUARD_MODEL", "tiny.en")
-COMPUTE_TYPE: str      = os.getenv("AUDIO_GUARD_COMPUTE", "int8")
-TIMEOUT_MS: int        = int(os.getenv("AUDIO_PIPELINE_TIMEOUT_MS", "3000"))
-US_THRESHOLD: float    = float(os.getenv("AUDIO_ULTRASOUND_THRESHOLD", "0.15"))
-CACHE_DIR: str         = os.getenv("MODEL_CACHE_DIR", "/warden/models")
-MAX_BYTES: int         = int(os.getenv("AUDIO_MAX_BYTES", str(25 * 1024 * 1024)))  # 25 MB
+ENABLED: bool          = settings.audio_guard_enabled
+MODEL_SIZE: str        = settings.audio_guard_model
+COMPUTE_TYPE: str      = settings.audio_guard_compute
+TIMEOUT_MS: int        = settings.audio_pipeline_timeout_ms
+US_THRESHOLD: float    = settings.audio_ultrasound_threshold
+CACHE_DIR: str         = settings.model_cache_dir
+MAX_BYTES: int         = settings.audio_max_bytes  # 25 MB default
 
 _SAMPLE_RATE = 16_000   # Whisper expects 16 kHz mono
 
