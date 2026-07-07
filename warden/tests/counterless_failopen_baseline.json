@@ -1,5 +1,5 @@
 {
-  "total": 207,
+  "total": 201,
   "per_file": {
     "warden/agent/master.py": 1,
     "warden/agent/tools.py": 2,
@@ -104,8 +104,6 @@
     "warden/streams/event_bus.py": 2,
     "warden/streams/voice_consumer.py": 1,
     "warden/stripe_billing.py": 1,
-    "warden/syndicates/ingestion.py": 5,
-    "warden/syndicates/router.py": 1,
     "warden/taint_tracker.py": 1,
     "warden/testing/scenarios/runner.py": 1,
     "warden/threat_feed.py": 2,

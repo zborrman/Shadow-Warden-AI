@@ -50,6 +50,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from warden.observability import Reason, record_failopen
 from warden.syndicates.crypto import DecryptionError, TunnelCrypto
 
 log = logging.getLogger("warden.syndicates")
@@ -655,6 +656,7 @@ async def transmit_document(body: TransmitRequest, request: Request):
         if hasattr(quota_exc, "status_code"):
             raise
         log.warning("Quota check error (fail-open): %s", quota_exc)
+        record_failopen("tunnel_quota", Reason.BACKEND_ERROR, quota_exc)
 
     # ── 2 & 3. WormGuard + PII masking ───────────────────────────────────────
     from warden.syndicates.ingestion import TunnelIngestionError, prepare_for_tunnel
