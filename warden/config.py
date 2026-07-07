@@ -586,6 +586,37 @@ class Settings:
         default_factory=lambda: _int("CORPUS_INVALIDATION_MAX", 500)
     )
 
+    # ── RAG Evolver (warden/rag_evolver.py) ─────────────────────────────────────
+    # NB: NVIDIA_API_KEY / ANTHROPIC_API_KEY stay lazy function-level reads in
+    # rag_evolver so the evolution-disable-on-empty-key contract holds in tests.
+    rag_evolver_enabled: bool = field(
+        default_factory=lambda: _bool("RAG_EVOLVER_ENABLED", True)
+    )
+    rag_evolver_dataset_path: str = field(
+        default_factory=lambda: _env("RAG_EVOLVER_DATASET_PATH", "/warden/data/rag_injection_dataset.jsonl")
+    )
+    rag_evolver_patterns_path: str = field(
+        default_factory=lambda: _env("RAG_EVOLVER_PATTERNS_PATH", "/warden/data/rag_evolved_patterns.json")
+    )
+    rag_evolver_max_samples: int = field(
+        default_factory=lambda: _int("RAG_EVOLVER_MAX_SAMPLES", 5000)
+    )
+    rag_evolver_batch_size: int = field(
+        default_factory=lambda: _int("RAG_EVOLVER_BATCH_SIZE", 10)
+    )
+    rag_evolver_rate_window: int = field(
+        default_factory=lambda: _int("RAG_EVOLVER_RATE_WINDOW", 3600)
+    )
+    rag_evolver_rate_max: int = field(
+        default_factory=lambda: _int("RAG_EVOLVER_RATE_MAX", 4)
+    )
+    rag_evolver_engine: str = field(
+        default_factory=lambda: _env("RAG_EVOLVER_ENGINE", "auto").lower()
+    )
+    rag_evolver_redos_timeout_s: float = field(
+        default_factory=lambda: _float("RAG_EVOLVER_REDOS_TIMEOUT_S", 0.5)
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
