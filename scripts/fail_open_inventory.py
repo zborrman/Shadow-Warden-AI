@@ -12,6 +12,7 @@ Regenerate after any change to fail-open behaviour:
 """
 from __future__ import annotations
 
+import ast
 import re
 import sys
 from datetime import date
@@ -36,10 +37,8 @@ PAT = re.compile(r"fail[-_ ]open", re.I)
 # A fail-open site is "covered" when its handler emits the P0 observability
 # primitive (warden.observability) so the bypass is a Prometheus counter + alert.
 COVER = re.compile(r"record_failopen\s*\(|failopen_guard\s*\(")
-# Coverage window: a record_failopen call within ±COVER_WIN lines of the
-# matched "fail-open" line counts as covering that except-block. The block is
-# small (log → record → return safe default), so a tight window avoids
-# crediting an unrelated handler further down the file.
+# Coverage window: a record_failopen call within ±COVER_WIN lines of the matched
+# "fail-open" line counts. Handles the inline style (log → record → return).
 COVER_WIN = 4
 
 
@@ -50,9 +49,37 @@ def protected_reason(rel: str) -> str:
     return ""
 
 
-def is_covered(lines: list[str], idx: int) -> bool:
-    """True if a record_failopen/failopen_guard call sits within ±COVER_WIN
-    lines of ``lines[idx]`` (0-based) — i.e. this fail-open block is counted."""
+def covered_spans(src: str) -> list[tuple[int, int]]:
+    """Return (start_line, end_line) ranges of every function/method whose body
+    contains a record_failopen / failopen_guard call. A fail-open marker written
+    in a function's *docstring* (far from the handler at the bottom) is then still
+    credited — coverage is function-scoped, not just line-adjacent."""
+    try:
+        tree = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return []
+    spans: list[tuple[int, int]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        has_counter = any(
+            isinstance(c, ast.Call)
+            and isinstance(getattr(c, "func", None), ast.Name)
+            and c.func.id in ("record_failopen", "failopen_guard")
+            for c in ast.walk(node)
+        )
+        if has_counter:
+            end = getattr(node, "end_lineno", node.lineno)
+            spans.append((node.lineno, end))
+    return spans
+
+
+def is_covered(lines: list[str], idx: int, spans: list[tuple[int, int]]) -> bool:
+    """True if line ``idx`` (0-based) is either within ±COVER_WIN lines of a
+    counter call, or inside a function that contains one (docstring markers)."""
+    lineno = idx + 1
+    if any(lo <= lineno <= hi for lo, hi in spans):
+        return True
     lo = max(0, idx - COVER_WIN)
     hi = min(len(lines), idx + COVER_WIN + 1)
     return any(COVER.search(lines[j]) for j in range(lo, hi))
@@ -68,13 +95,15 @@ def collect_rows() -> list[tuple[str, int, str, str, bool]]:
         if "__pycache__" in rel or "/tests/" in rel:
             continue
         try:
-            lines = p.read_text(encoding="utf-8").splitlines()
+            src = p.read_text(encoding="utf-8")
         except Exception:  # noqa: BLE001
             continue
+        lines = src.splitlines()
+        spans = covered_spans(src)
         for i, line in enumerate(lines, 1):
             if PAT.search(line):
                 rows.append((rel, i, line.strip()[:110],
-                             protected_reason(rel), is_covered(lines, i - 1)))
+                             protected_reason(rel), is_covered(lines, i - 1, spans)))
     return rows
 
 

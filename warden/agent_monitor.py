@@ -38,6 +38,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from warden.observability import Reason, record_failopen
 from warden.tenant_policy import TenantPolicy, get_policy
 
 log = logging.getLogger("warden.agent_monitor")
@@ -384,6 +385,7 @@ class AgentMonitor:
 
         except Exception as exc:
             log.debug("AgentMonitor.record_request error (ignored): %s", exc)
+            record_failopen("agent_monitor", Reason.BACKEND_ERROR, exc)
             return None
 
     def record_tool_event(
@@ -444,6 +446,7 @@ class AgentMonitor:
 
         except Exception as exc:
             log.debug("AgentMonitor.record_tool_event error (ignored): %s", exc)
+            record_failopen("agent_monitor", Reason.BACKEND_ERROR, exc)
             return None
 
     def get_session(self, session_id: str) -> dict | None:
@@ -544,7 +547,11 @@ class AgentMonitor:
         if r is not None:
             try:
                 return r.exists(self._r_revoke_key(session_id)) > 0
-            except Exception:
+            except Exception as exc:
+                # Kill-switch fail-open: a revoked session is treated as live on a
+                # Redis error. High-signal — this is the security control silently
+                # degrading, not a best-effort side-effect. Must be alertable.
+                record_failopen("agent_monitor", Reason.REDIS_UNAVAILABLE, exc)
                 return False
         with self._fallback_lock:
             entry = self._fallback.get(session_id)

@@ -1,9 +1,9 @@
 {
-  "total": 242,
+  "total": 239,
   "per_file": {
     "warden/agent/master.py": 1,
     "warden/agent/tools.py": 2,
-    "warden/agent_monitor.py": 5,
+    "warden/agent_monitor.py": 2,
     "warden/agent_sandbox.py": 2,
     "warden/alerting.py": 1,
     "warden/analytics/accessibility.py": 1,
