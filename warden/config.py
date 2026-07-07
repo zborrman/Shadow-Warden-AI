@@ -597,6 +597,26 @@ class Settings:
         default_factory=lambda: _env("A2A_BASE_URL", "http://localhost:8001")
     )
 
+    # ── SOVA scheduler jobs (warden/agent/scheduler.py) ──────────────────────────
+    warden_base_url: str = field(
+        default_factory=lambda: _env("WARDEN_BASE_URL", "http://localhost:8001")
+    )
+    dashboard_url: str = field(
+        default_factory=lambda: _env("DASHBOARD_URL", "")
+    )
+    patrol_urls: str = field(
+        default_factory=lambda: _env("PATROL_URLS", "")
+    )
+    obsidian_community_id: str = field(
+        default_factory=lambda: _env("OBSIDIAN_COMMUNITY_ID", "default")
+    )
+    evidence_bundle_tenants: str = field(
+        default_factory=lambda: _env("EVIDENCE_BUNDLE_TENANTS", "default")
+    )
+    agents_md_path: str = field(
+        default_factory=lambda: _env("AGENTS_MD_PATH", "data/AGENTS.md")
+    )
+
     # ── Honeypot (warden/honey.py) ──────────────────────────────────────────────
     # NB: HONEY_MODE + HONEY_PROBABILITY stay lazy reads in honey.py (per-request
     # runtime toggles) — intentionally NOT mirrored here.
