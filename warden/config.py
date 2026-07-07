@@ -327,6 +327,23 @@ class Settings:
         default_factory=lambda: _env("WORM_QUARANTINE_SET", "warden:worm:hashes")
     )
 
+    # ── Wallet Shield / token budget (warden/wallet_shield.py) ───────────────────
+    # NB: REDIS_URL stays a lazy os.getenv() read there (empty-string-means-
+    # disabled sentinel — different semantics from settings.redis_url's
+    # non-empty docker-service default).
+    wallet_default_budget: int = field(
+        default_factory=lambda: _int("WALLET_DEFAULT_BUDGET", 100000)
+    )
+    wallet_window_seconds: int = field(
+        default_factory=lambda: _int("WALLET_WINDOW_SECONDS", 3600)
+    )
+    wallet_hard_limit: int = field(
+        default_factory=lambda: _int("WALLET_HARD_LIMIT", 200000)
+    )
+    token_alert_pct: int = field(
+        default_factory=lambda: _int("TOKEN_ALERT_PCT", 80)
+    )
+
     # ── Data Paths ─────────────────────────────────────────────────────────────
     audit_trail_path: str = field(
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")
