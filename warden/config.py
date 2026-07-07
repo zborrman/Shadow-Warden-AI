@@ -361,6 +361,26 @@ class Settings:
         default_factory=lambda: _float("BRIDGE_ERS_RESTRICT", 0.70)
     )
 
+    # ── Entity Risk Scoring (warden/entity_risk.py) ──────────────────────────────
+    ers_enabled: bool = field(
+        default_factory=lambda: _bool("ERS_ENABLED", True)
+    )
+    ers_window_secs: int = field(
+        default_factory=lambda: _int("ERS_WINDOW_SECS", 3600)
+    )
+    ers_min_requests: int = field(
+        default_factory=lambda: _int("ERS_MIN_REQUESTS", 5)
+    )
+    ers_medium_threshold: float = field(
+        default_factory=lambda: _float("ERS_MEDIUM_THRESHOLD", 0.30)
+    )
+    ers_high_threshold: float = field(
+        default_factory=lambda: _float("ERS_HIGH_THRESHOLD", 0.55)
+    )
+    ers_shadow_ban_threshold: float = field(
+        default_factory=lambda: _float("ERS_SHADOW_BAN_THRESHOLD", 0.75)
+    )
+
     # ── Data Paths ─────────────────────────────────────────────────────────────
     audit_trail_path: str = field(
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")
