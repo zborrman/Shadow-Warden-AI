@@ -1,5 +1,5 @@
 {
-  "total": 1107,
+  "total": 1094,
   "per_file": {
     "agent_monitor.py": 6,
     "agent_sandbox.py": 3,
@@ -57,10 +57,8 @@
     "agent/tools.py": 8,
     "agentic/mandate.py": 1,
     "agentic/registry.py": 1,
-    "analytics/auth.py": 7,
     "analytics/logger.py": 3,
     "analytics/msp_dashboard.py": 2,
-    "analytics/siem.py": 6,
     "api/acp.py": 2,
     "api/action_whitelist.py": 2,
     "api/admin_reports.py": 1,

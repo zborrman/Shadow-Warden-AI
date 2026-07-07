@@ -36,13 +36,13 @@ Integration
 from __future__ import annotations
 
 import hmac
-import os
 import time
 from typing import Any
 
 import bcrypt
 import streamlit as st
 
+from warden.config import settings
 from warden.rbac import (
     ROLE_BADGE_COLOUR,
     ROLE_LABEL,
@@ -54,18 +54,18 @@ from warden.rbac import (
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-_USERNAME         = os.getenv("DASHBOARD_USERNAME", "admin")
-_PASSWORD_HASH    = os.getenv("DASHBOARD_PASSWORD_HASH", "").encode()
-_SESSION_MINUTES  = int(os.getenv("DASHBOARD_SESSION_MINUTES", "60"))
-_MAX_ATTEMPTS     = int(os.getenv("DASHBOARD_MAX_ATTEMPTS", "5"))
-_LOCKOUT_MINUTES  = int(os.getenv("DASHBOARD_LOCKOUT_MINUTES", "15"))
+_USERNAME         = settings.dashboard_username
+_PASSWORD_HASH    = settings.dashboard_password_hash.encode()
+_SESSION_MINUTES  = settings.dashboard_session_minutes
+_MAX_ATTEMPTS     = settings.dashboard_max_attempts
+_LOCKOUT_MINUTES  = settings.dashboard_lockout_minutes
 
 _DEV_MODE = not bool(_PASSWORD_HASH)
 
 # ── SAML / SSO configuration ──────────────────────────────────────────────────
 
-_SAML_ENABLED   = bool(os.getenv("SAML_SP_ENTITY_ID", ""))
-_GATEWAY_URL    = os.getenv("GATEWAY_URL", "http://localhost:8001").rstrip("/")
+_SAML_ENABLED   = bool(settings.saml_sp_entity_id)
+_GATEWAY_URL    = settings.gateway_url.rstrip("/")
 _SSO_LOGIN_URL  = f"{_GATEWAY_URL}/auth/saml/login"
 _SSO_SESSION_URL = f"{_GATEWAY_URL}/auth/saml/session"
 _SSO_VERIFY_URL  = f"{_GATEWAY_URL}/auth/saml/verify"

@@ -412,6 +412,51 @@ class Settings:
         default_factory=lambda: _env("NOTIFY_WEBHOOK_SECRET", "")
     )
 
+    # ── SIEM forwarding (warden/analytics/siem.py) ──────────────────────────────
+    splunk_hec_url: str = field(
+        default_factory=lambda: _env("SPLUNK_HEC_URL", "")
+    )
+    splunk_hec_token: str = field(
+        default_factory=lambda: _env("SPLUNK_HEC_TOKEN", "")
+    )
+    elastic_url: str = field(
+        default_factory=lambda: _env("ELASTIC_URL", "")
+    )
+    elastic_api_key: str = field(
+        default_factory=lambda: _env("ELASTIC_API_KEY", "")
+    )
+    elastic_index: str = field(
+        default_factory=lambda: _env("ELASTIC_INDEX", "warden-events")
+    )
+    elastic_bypass_index: str = field(
+        default_factory=lambda: _env("ELASTIC_BYPASS_INDEX", "warden-bypass-alerts")
+    )
+
+    # ── Streamlit dashboard auth (warden/analytics/auth.py) ─────────────────────
+    dashboard_username: str = field(
+        default_factory=lambda: _env("DASHBOARD_USERNAME", "admin")
+    )
+    # bcrypt hash string; empty = dev mode (no login). Encoded at use site.
+    dashboard_password_hash: str = field(
+        default_factory=lambda: _env("DASHBOARD_PASSWORD_HASH", "")
+    )
+    dashboard_session_minutes: int = field(
+        default_factory=lambda: _int("DASHBOARD_SESSION_MINUTES", 60)
+    )
+    dashboard_max_attempts: int = field(
+        default_factory=lambda: _int("DASHBOARD_MAX_ATTEMPTS", 5)
+    )
+    dashboard_lockout_minutes: int = field(
+        default_factory=lambda: _int("DASHBOARD_LOCKOUT_MINUTES", 15)
+    )
+    # SAML SP entity id; presence enables SSO. Gateway URL for dashboard→API calls.
+    saml_sp_entity_id: str = field(
+        default_factory=lambda: _env("SAML_SP_ENTITY_ID", "")
+    )
+    gateway_url: str = field(
+        default_factory=lambda: _env("GATEWAY_URL", "http://localhost:8001")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
