@@ -41,10 +41,10 @@ Environment variables
 from __future__ import annotations
 
 import logging
-import os
 import time
 import uuid
 
+from warden.config import settings
 from warden.metrics import SHADOW_BAN_COST_SAVED_USD, SHADOW_BAN_TOTAL
 
 log = logging.getLogger("warden.shadow_ban")
@@ -52,11 +52,9 @@ log = logging.getLogger("warden.shadow_ban")
 # Estimated LLM completion cost saved per shadow-banned request (USD).
 # Based on GPT-4o-mini output pricing ~$0.60/1M tokens, avg 200 token response.
 # Operators can override via env var for their actual model pricing.
-_COST_PER_SHADOW_BAN_USD: float = float(
-    os.getenv("SHADOW_BAN_COST_PER_REQUEST_USD", str(0.60 / 1_000_000 * 200))
-)
+_COST_PER_SHADOW_BAN_USD: float = settings.shadow_ban_cost_per_request_usd
 
-ENABLED: bool = os.getenv("SHADOW_BAN_ENABLED", "true").lower() != "false"
+ENABLED: bool = settings.shadow_ban_enabled
 
 # ── Response strategy selection ───────────────────────────────────────────────
 #
@@ -79,7 +77,7 @@ _STRATEGY_MAP: dict[str, str] = {
 }
 
 # Real async delay for delay strategy (milliseconds)
-SHADOW_BAN_DELAY_MS: float = float(os.getenv("SHADOW_BAN_DELAY_MS", "3000"))
+SHADOW_BAN_DELAY_MS: float = settings.shadow_ban_delay_ms
 
 
 def pick_strategy(last_flag: str) -> str:

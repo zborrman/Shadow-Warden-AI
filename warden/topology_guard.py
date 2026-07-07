@@ -26,12 +26,12 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
-import os
 import time
 from dataclasses import dataclass
 
 import numpy as np
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 from warden.telemetry import trace_stage as _trace_stage
 
@@ -39,8 +39,8 @@ log = logging.getLogger("warden.topology_guard")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-_TOPO_NOISE_THRESHOLD = float(os.getenv("TOPO_NOISE_THRESHOLD", "0.82"))
-_TOPO_MIN_LEN         = int(os.getenv("TOPO_MIN_LEN", "20"))
+_TOPO_NOISE_THRESHOLD = settings.topo_noise_threshold
+_TOPO_MIN_LEN         = settings.topo_min_len
 _NGRAM_N              = 3
 _POINT_DIM            = 32   # embedding dimension for each n-gram point
 
@@ -48,8 +48,8 @@ _POINT_DIM            = 32   # embedding dimension for each n-gram point
 # Code has higher n-gram diversity and lower word-char ratio than prose, so the
 # generic threshold (0.82) would over-fire on legitimate code payloads.
 # The env var overrides still apply when set explicitly.
-_TOPO_THRESHOLD_CODE   = float(os.getenv("TOPO_NOISE_THRESHOLD_CODE",    "0.65"))
-_TOPO_THRESHOLD_NATURAL = float(os.getenv("TOPO_NOISE_THRESHOLD_NATURAL", "0.82"))
+_TOPO_THRESHOLD_CODE   = settings.topo_noise_threshold_code
+_TOPO_THRESHOLD_NATURAL = settings.topo_noise_threshold_natural
 
 # Code detection heuristics — keyword density in the first 300 chars
 _CODE_KEYWORDS = frozenset({
