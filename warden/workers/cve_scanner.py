@@ -26,11 +26,13 @@ from typing import Any
 
 import httpx
 
+from warden.config import settings
+
 log = logging.getLogger("warden.workers.cve_scanner")
 
-_CVE_REPORT_PATH  = Path(os.getenv("CVE_REPORT_PATH",   "data/cve_report.json"))
-_POSTURE_PATH     = Path(os.getenv("SECURITY_POSTURE_PATH", "data/security_posture.json"))
-_REQ_FILE         = Path(os.getenv("REQUIREMENTS_PATH", "warden/requirements.txt"))
+_CVE_REPORT_PATH  = Path(settings.cve_report_path)
+_POSTURE_PATH     = Path(settings.security_posture_path)
+_REQ_FILE         = Path(settings.requirements_path)
 _OSV_BATCH_URL    = "https://api.osv.dev/v1/querybatch"
 
 # Severity order for sorting
@@ -128,7 +130,7 @@ def _atomic_write(path: Path, data: Any) -> None:
 
 
 async def _slack_alert(new_criticals: list[dict]) -> None:
-    webhook = os.getenv("SLACK_WEBHOOK_URL")
+    webhook = settings.slack_webhook_url
     if not webhook or not new_criticals:
         return
     lines = "\n".join(

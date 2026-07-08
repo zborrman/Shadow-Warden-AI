@@ -739,6 +739,10 @@ class Settings:
     bot_token_ttl_s: int = field(default_factory=lambda: _int("BOT_TOKEN_TTL_S", 3600))
     bot_db_path: str = field(default_factory=lambda: _env("BOT_DB_PATH", "/tmp/warden_bot_entities.db"))
 
+    # ── CVE Scanner worker (warden/workers/cve_scanner.py) ───────────────────────
+    # NB: reuses cve_report_path/security_posture_path (T63)/slack_webhook_url.
+    requirements_path: str = field(default_factory=lambda: _env("REQUIREMENTS_PATH", "warden/requirements.txt"))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret
