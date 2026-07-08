@@ -1,5 +1,5 @@
 {
-  "total": 773,
+  "total": 763,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -280,7 +280,6 @@
     "analytics/pages/6_Secrets_Governance.py": 3,
     "analytics/pages/7_Cyber_Security.py": 3,
     "analytics/pages/8_Settings.py": 4,
-    "analytics/pages/9_Billing.py": 10,
     "agents/packs/disease_detector.py": 1
   }
 }

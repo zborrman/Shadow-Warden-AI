@@ -11,12 +11,13 @@ Tabs
 """
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+
+from warden.config import settings
 
 st.set_page_config(page_title="Billing", page_icon="💳", layout="wide")
 
@@ -45,10 +46,10 @@ st.title("💳 Billing & Subscriptions")
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
 
-_DB_PATH   = Path(os.getenv("LEMONSQUEEZY_DB_PATH", "/warden/data/lemon.db"))
-_GRACE_DAYS = int(os.getenv("DUNNING_GRACE_DAYS", "7"))
-_BASE       = os.getenv("WARDEN_INTERNAL_URL", "http://localhost:8001")
-_PORTAL     = os.getenv("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
+_DB_PATH   = Path(settings.billing_page_db_path)
+_GRACE_DAYS = settings.dunning_grace_days
+_BASE       = settings.warden_internal_url
+_PORTAL     = settings.billing_page_portal_url
 
 
 @st.cache_data(ttl=30)
@@ -224,7 +225,7 @@ with tab_webhooks:
         )
         st.dataframe(styled, use_container_width=True)
 
-    ls_secret_set = bool(os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET"))
+    ls_secret_set = bool(settings.lemonsqueezy_webhook_secret)
     if ls_secret_set:
         st.success("LEMONSQUEEZY_WEBHOOK_SECRET is configured.")
     else:
@@ -323,20 +324,20 @@ with tab_upgrade:
 
     st.divider()
     st.subheader("Webhook endpoint")
-    warden_url = os.getenv("WARDEN_BASE_URL", "https://api.shadow-warden-ai.com")
+    warden_url = settings.billing_page_warden_url
     st.code(f"POST {warden_url}/billing/webhook", language="http")
     st.markdown(
         "Configure this URL in Lemon Squeezy → Settings → Webhooks. "
         "Required events: `subscription_*`, `order_created`."
     )
 
-    ls_configured = all([
-        os.getenv("LEMONSQUEEZY_API_KEY"),
-        os.getenv("LEMONSQUEEZY_STORE_ID"),
-        os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET"),
-    ])
-    if ls_configured:
+    ls_vars = {
+        "LEMONSQUEEZY_API_KEY":         settings.lemonsqueezy_api_key,
+        "LEMONSQUEEZY_STORE_ID":        settings.lemonsqueezy_store_id,
+        "LEMONSQUEEZY_WEBHOOK_SECRET":  settings.lemonsqueezy_webhook_secret,
+    }
+    if all(ls_vars.values()):
         st.success("Lemon Squeezy is fully configured (API key, store ID, webhook secret).")
     else:
-        missing = [k for k in ["LEMONSQUEEZY_API_KEY", "LEMONSQUEEZY_STORE_ID", "LEMONSQUEEZY_WEBHOOK_SECRET"] if not os.getenv(k)]
+        missing = [k for k, v in ls_vars.items() if not v]
         st.warning(f"Missing Lemon Squeezy env vars: {', '.join(missing)}")
