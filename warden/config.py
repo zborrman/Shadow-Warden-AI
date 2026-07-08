@@ -509,6 +509,26 @@ class Settings:
         default_factory=lambda: _bool("GDPR_AUTO_PURGE", True)
     )
 
+    # ── SMB Compliance Report (warden/api/compliance_report.py) ──────────────────
+    # NB: TENANT_ID is a distinct env var from DEFAULT_TENANT_ID (used elsewhere)
+    # despite the same default — kept as its own field, same discipline as
+    # T36/T44/T72. RETENTION_DAYS here is display-only text in a report note and
+    # is a distinct env var/default from compliance/posture_service.py's own
+    # (unmigrated) RETENTION_DAYS read (default "0" there vs "180" here) — do not
+    # unify these into one field.
+    compliance_report_org_name: str = field(
+        default_factory=lambda: _env("ORG_NAME", "Your Organisation")
+    )
+    compliance_report_tenant_id: str = field(
+        default_factory=lambda: _env("TENANT_ID", "default")
+    )
+    compliance_report_data_residency: str = field(
+        default_factory=lambda: _env("DATA_RESIDENCY_JURISDICTION", "EU")
+    )
+    compliance_report_retention_days: str = field(
+        default_factory=lambda: _env("RETENTION_DAYS", "180")
+    )
+
     # ── Data Retention API (warden/api/retention.py) ─────────────────────────────
     retention_pii_days: int = field(
         default_factory=lambda: _int("RETENTION_PII_DAYS", 30)
