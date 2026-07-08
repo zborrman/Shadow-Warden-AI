@@ -661,6 +661,16 @@ class Settings:
     session_guard_threshold: float = field(default_factory=lambda: _float("SESSION_GUARD_THRESHOLD", 2.5))
     session_guard_medium_limit: int = field(default_factory=lambda: _int("SESSION_GUARD_MEDIUM_LIMIT", 3))
 
+    # ── L402 Lightning payments (warden/payments/l402.py) ────────────────────────
+    # NB: L402_BTC_PRICE_USD stays a live env read inside _usd_to_sat() —
+    # test_l402.py's test_create_invoice_usd_to_sat monkeypatch.setenv's it
+    # mid-test (no reload) and expects the live function-level read to observe
+    # the override; a frozen Settings singleton would not.
+    l402_lnd_url: str = field(default_factory=lambda: _env("L402_LND_URL", ""))
+    l402_lnd_macaroon_hex: str = field(default_factory=lambda: _env("L402_LND_MACAROON_HEX", ""))
+    l402_dev_mode: bool = field(default_factory=lambda: _bool("L402_DEV_MODE", True))
+    l402_token_ttl_s: int = field(default_factory=lambda: _int("L402_TOKEN_TTL_S", 600))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret
