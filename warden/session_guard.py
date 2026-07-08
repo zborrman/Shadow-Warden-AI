@@ -26,14 +26,15 @@ import os
 import time
 from dataclasses import dataclass
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.session_guard")
 
-_SESSION_TTL    = int(os.getenv("SESSION_GUARD_TTL_SEC",     "1800"))  # 30 min
-_WINDOW_SIZE    = int(os.getenv("SESSION_GUARD_WINDOW",      "10"))
-_THRESHOLD      = float(os.getenv("SESSION_GUARD_THRESHOLD", "2.5"))
-_MEDIUM_LIMIT   = int(os.getenv("SESSION_GUARD_MEDIUM_LIMIT","3"))
+_SESSION_TTL    = settings.session_guard_ttl_sec
+_WINDOW_SIZE    = settings.session_guard_window
+_THRESHOLD      = settings.session_guard_threshold
+_MEDIUM_LIMIT   = settings.session_guard_medium_limit
 _ENABLED        = os.getenv("SESSION_GUARD_ENABLED", "true").lower() != "false"
 
 _RISK_SCORE: dict[str, float] = {
