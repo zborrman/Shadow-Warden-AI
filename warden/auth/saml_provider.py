@@ -54,17 +54,22 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 _OTP_PREFIX  = "saml:otp:"
-_OTP_TTL     = int(os.getenv("SAML_OTP_TTL", "30"))         # seconds
-_SESSION_TTL = int(os.getenv("SAML_SESSION_TTL", "28800"))  # 8 hours
+_OTP_TTL     = settings.saml_otp_ttl         # seconds
+_SESSION_TTL = settings.saml_session_ttl     # 8 hours
 
+# NB: SAML_JWT_SECRET kept as a live env read (below and at call sites) —
+# dynamically monkeypatch.setenv'd and importlib.reload()'d per-test in
+# test_saml.py.
 _JWT_SECRET     = os.getenv("SAML_JWT_SECRET", "")
 _ALLOWED_DOMAINS: frozenset[str] = frozenset(
-    d.strip() for d in os.getenv("SAML_ALLOWED_DOMAINS", "").split(",") if d.strip()
+    d.strip() for d in settings.saml_allowed_domains.split(",") if d.strip()
 )
 
 # ── Session data ──────────────────────────────────────────────────────────────
@@ -258,7 +263,7 @@ def _build_saml_settings() -> dict[str, Any]:
 
     return {
         "strict": True,
-        "debug":  os.getenv("LOG_LEVEL", "info").lower() == "debug",
+        "debug":  settings.log_level == "debug",
         "sp": {
             "entityId":                 sp_entity_id,
             "assertionConsumerService": {

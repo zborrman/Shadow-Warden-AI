@@ -42,7 +42,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import logging
-import os
 import re
 import secrets
 import time
@@ -50,14 +49,16 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from warden.config import settings
+
 log = logging.getLogger("warden.auth.saml")
 
-_SP_ENTITY_ID  = os.getenv("SAML_SP_ENTITY_ID", "https://api.shadow-warden-ai.com/auth/saml/metadata")
-_SP_ACS_URL    = os.getenv("SAML_SP_ACS_URL", "https://api.shadow-warden-ai.com/auth/saml/acs")
-_IDP_META_URL  = os.getenv("SAML_IDP_METADATA_URL", "")
-_DEFAULT_TIER  = os.getenv("SAML_DEFAULT_TIER", "enterprise")
-_CLOCK_SKEW    = int(os.getenv("SAML_CLOCK_SKEW_S", "60"))
-_REQUIRE_SHA256 = os.getenv("SAML_REQUIRE_SHA256", "true").lower() == "true"
+_SP_ENTITY_ID  = settings.saml_sso_sp_entity_id
+_SP_ACS_URL    = settings.saml_sso_sp_acs_url
+_IDP_META_URL  = settings.saml_sso_idp_metadata_url
+_DEFAULT_TIER  = settings.saml_default_tier
+_CLOCK_SKEW    = settings.saml_clock_skew_s
+_REQUIRE_SHA256 = settings.saml_require_sha256
 
 _NS = {
     "samlp": "urn:oasis:names:tc:SAML:2.0:protocol",
@@ -87,7 +88,7 @@ class SAMLUser:
 def _redis():
     try:
         import redis as rl  # noqa: PLC0415
-        url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        url = settings.redis_url
         if url.startswith("memory://"):
             return None
         r = rl.Redis.from_url(url, decode_responses=True)
@@ -301,7 +302,7 @@ async def _jit_provision(tenant_id: str, email: str, name: str) -> None:
 
 def sp_metadata_xml() -> str:
     cert = ""
-    cert_path = os.getenv("SAML_CERT_PATH", "")
+    cert_path = settings.saml_cert_path
     if cert_path:
         try:
             with open(cert_path) as fh:
