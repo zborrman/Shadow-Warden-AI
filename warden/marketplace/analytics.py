@@ -14,9 +14,11 @@ import time as _time
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
+from warden.config import settings
+
 log = logging.getLogger("warden.marketplace.analytics")
 
-_DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH = settings.marketplace_db_path
 
 
 @contextmanager
