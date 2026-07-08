@@ -1514,6 +1514,17 @@ class Settings:
         default_factory=lambda: _bool("WAT_SIMULATE", True)
     )
 
+    # ── Decentralized key rotation (warden/web3/key_rotation.py) ─────────────────
+    key_rotation_db_path: str = field(
+        default_factory=lambda: _env("KEY_ROTATION_DB_PATH", "/tmp/warden_key_rotation.db")
+    )
+    agent_key_rotation_max_days: int = field(
+        default_factory=lambda: _int("AGENT_KEY_ROTATION_MAX_DAYS", 90)
+    )
+    key_rotation_contract_address: str = field(
+        default_factory=lambda: _env("KEY_ROTATION_CONTRACT_ADDRESS", "")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
