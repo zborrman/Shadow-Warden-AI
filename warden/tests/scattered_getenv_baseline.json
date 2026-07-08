@@ -1,5 +1,5 @@
 {
-  "total": 714,
+  "total": 713,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -149,7 +149,7 @@
     "m2m_store/store_agent.py": 1,
     "marketplace/agent.py": 2,
     "marketplace/agent_key_rotation.py": 2,
-    "marketplace/analytics.py": 3,
+    "marketplace/analytics.py": 2,
     "marketplace/api.py": 16,
     "marketplace/api_listings.py": 2,
     "marketplace/api_maestro.py": 1,
