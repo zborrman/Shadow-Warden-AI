@@ -1,5 +1,5 @@
 {
-  "total": 727,
+  "total": 723,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -27,7 +27,7 @@
     "review_queue.py": 1,
     "rule_ledger.py": 3,
     "secret_keys.py": 5,
-    "session_guard.py": 5,
+    "session_guard.py": 1,
     "taint_tracker.py": 3,
     "tenant_policy.py": 5,
     "threat_store.py": 4,

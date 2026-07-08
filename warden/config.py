@@ -651,6 +651,16 @@ class Settings:
         default_factory=lambda: _env("CONFIG_SNAPSHOT_PATH", "data/config_snapshot.json")
     )
 
+    # ── Session Guard (warden/session_guard.py) ──────────────────────────────────
+    # NB: SESSION_GUARD_ENABLED stays a live env read in session_guard.py —
+    # test_session_honey.py's test_disabled_guard_never_escalates
+    # monkeypatch.setenv's it THEN importlib.reload()s the module, same gotcha
+    # class as T23/T45. Not observed by a frozen Settings singleton.
+    session_guard_ttl_sec: int = field(default_factory=lambda: _int("SESSION_GUARD_TTL_SEC", 1800))
+    session_guard_window: int = field(default_factory=lambda: _int("SESSION_GUARD_WINDOW", 10))
+    session_guard_threshold: float = field(default_factory=lambda: _float("SESSION_GUARD_THRESHOLD", 2.5))
+    session_guard_medium_limit: int = field(default_factory=lambda: _int("SESSION_GUARD_MEDIUM_LIMIT", 3))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret
