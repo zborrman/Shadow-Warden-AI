@@ -1,5 +1,5 @@
 {
-  "total": 747,
+  "total": 742,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -240,7 +240,6 @@
     "workers/dunning.py": 2,
     "workers/reaper.py": 2,
     "workers/settings.py": 1,
-    "workers/settings_watcher.py": 5,
     "workers/weekly_report.py": 5,
     "xai/explainer.py": 1,
     "staff/agents/base.py": 1,

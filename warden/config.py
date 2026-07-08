@@ -627,6 +627,13 @@ class Settings:
         default_factory=lambda: _int("MASTER_AGENT_TOKEN_BUDGET", 8192)
     )
 
+    # ── Settings drift watchdog (warden/workers/settings_watcher.py) ─────────────
+    # NB: reuses warden_internal_url, slack_webhook_url, warden_api_key
+    # (pre-existing, matching defaults). No test file imports this module.
+    config_snapshot_path: str = field(
+        default_factory=lambda: _env("CONFIG_SNAPSHOT_PATH", "data/config_snapshot.json")
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
