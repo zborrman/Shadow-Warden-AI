@@ -116,14 +116,14 @@ def _db_create_user(email: str, pw_hash: str) -> bool:
 
 def _load_env_users() -> dict[str, str]:
     """Return {email_lower: bcrypt_hash} from env-var config (read-only, pre-seeded accounts)."""
-    raw = os.getenv("AUTH_USERS_JSON", "")
+    raw = settings.auth_users_json
     if raw:
         try:
             return {u["email"].lower(): u["password_hash"] for u in json.loads(raw)}
         except Exception as exc:
             log.warning("AUTH_USERS_JSON parse error: %s", exc)
-    email = os.getenv("AUTH_ADMIN_EMAIL", "")
-    pw_hash = os.getenv("AUTH_ADMIN_PASSWORD_HASH", "")
+    email = settings.auth_admin_email
+    pw_hash = settings.auth_admin_password_hash
     if email and pw_hash:
         return {email.lower(): pw_hash}
     return {}
