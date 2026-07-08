@@ -1438,6 +1438,20 @@ class Settings:
         default_factory=lambda: _int("AUTO_BLOCK_DURATION", 3600)
     )
 
+    # ── Threat Intel Analyzer (warden/threat_intel/analyzer.py) ──────────────────
+    # NB: ANTHROPIC_API_KEY stays a lazy os.getenv() function-level read in
+    # analyzer.py — established test-contract skip category (empty key disables
+    # analysis, tests rely on the live read).
+    threat_intel_model: str = field(
+        default_factory=lambda: _env("THREAT_INTEL_MODEL", "claude-haiku-4-5-20251001")
+    )
+    threat_intel_min_relevance: float = field(
+        default_factory=lambda: _float("THREAT_INTEL_MIN_RELEVANCE", 0.65)
+    )
+    threat_intel_min_actionability: float = field(
+        default_factory=lambda: _float("THREAT_INTEL_MIN_ACTIONABILITY", 0.5)
+    )
+
     # ── Portal SMTP + auth (warden/portal_router.py) ────────────────────────────
     # NB: WARDEN_API_KEYS_PATH read here reuses warden_api_keys_path.
     smtp_host: str = field(
