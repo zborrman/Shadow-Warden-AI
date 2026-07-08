@@ -1,5 +1,5 @@
 {
-  "total": 633,
+  "total": 631,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -99,7 +99,7 @@
     "communities/intelligence.py": 3,
     "communities/keypair.py": 2,
     "communities/key_archive.py": 1,
-    "communities/knock.py": 4,
+    "communities/knock.py": 2,
     "communities/membership.py": 1,
     "communities/model_share.py": 1,
     "communities/multisig.py": 3,
