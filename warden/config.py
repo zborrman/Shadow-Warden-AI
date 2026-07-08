@@ -706,6 +706,16 @@ class Settings:
     billing_audit_evm_private_key: str = field(default_factory=lambda: _env("BILLING_AUDIT_EVM_PRIVATE_KEY", ""))
     billing_audit_evm_anchor_every: int = field(default_factory=lambda: _int("BILLING_AUDIT_EVM_ANCHOR_EVERY", 100))
 
+    # ── Auth pre-seeded users (warden/auth/router.py) ────────────────────────────
+    # NB: AUTH_JWT_SECRET / VAULT_MASTER_KEY-or-SAML_JWT_SECRET fallback in
+    # _secret() stay live os.getenv reads — signing-key resolution follows the
+    # resolve_key()-style lazy-resolution invariant (see
+    # security_hardening_invariants), never baked into a module-import-time
+    # constant.
+    auth_users_json: str = field(default_factory=lambda: _env("AUTH_USERS_JSON", ""))
+    auth_admin_email: str = field(default_factory=lambda: _env("AUTH_ADMIN_EMAIL", ""))
+    auth_admin_password_hash: str = field(default_factory=lambda: _env("AUTH_ADMIN_PASSWORD_HASH", ""))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret
