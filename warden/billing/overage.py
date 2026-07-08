@@ -46,13 +46,15 @@ import os
 import uuid
 from datetime import UTC, datetime
 
+from warden.config import settings
+
 log = logging.getLogger("warden.billing.overage")
 
 # Overage webhook URL (optional — for external billing systems)
-OVERAGE_WEBHOOK_URL: str = os.getenv("OVERAGE_WEBHOOK_URL", "")
+OVERAGE_WEBHOOK_URL: str = settings.overage_webhook_url
 
 # Lemon Squeezy API key (reuses existing env var)
-_LS_API_KEY: str = os.getenv("LEMONSQUEEZY_API_KEY", "")
+_LS_API_KEY: str = settings.lemonsqueezy_api_key
 
 
 # ── Overage event record ──────────────────────────────────────────────────────

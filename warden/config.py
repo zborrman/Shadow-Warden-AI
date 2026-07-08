@@ -1024,6 +1024,15 @@ class Settings:
         default_factory=lambda: _int("LS_METER_FLUSH_SECS", 300)
     )
 
+    # ── Overage billing (warden/billing/overage.py) ──────────────────────────────
+    # NB: PORTAL_BASE_URL stays a lazy os.getenv() function-level read in
+    # get_upgrade_url()/get_overage_pack_url() — test_billing_quotas_overage.py's
+    # test_uses_portal_base_url_env sets/deletes the env var mid-test and expects
+    # a live read, same dynamic-override skip class as elsewhere.
+    overage_webhook_url: str = field(
+        default_factory=lambda: _env("OVERAGE_WEBHOOK_URL", "")
+    )
+
     # ── Add-on catalog Lemon Squeezy variant IDs (warden/billing/addons.py) ─────
     ls_variant_shadow_ai: str = field(
         default_factory=lambda: _env("LS_VARIANT_SHADOW_AI", "")
