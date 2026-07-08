@@ -24,6 +24,8 @@ import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from warden.config import settings
+
 log = logging.getLogger("warden.integrations.misp")
 
 _ATTR_TYPES = {
@@ -70,11 +72,11 @@ class MISPConnector:
     def __init__(self) -> None:
         self.url    = os.getenv("MISP_URL", "").rstrip("/")
         self.apikey = os.getenv("MISP_API_KEY", "")
-        self.verify = os.getenv("MISP_VERIFY_SSL", "true").lower() != "false"
-        self.lookback_days = int(os.getenv("MISP_LOOKBACK_DAYS", "7"))
-        self.max_events    = int(os.getenv("MISP_MAX_EVENTS", "100"))
+        self.verify = settings.misp_verify_ssl
+        self.lookback_days = settings.misp_lookback_days
+        self.max_events    = settings.misp_max_events
         self.tag_filter    = [
-            t.strip() for t in os.getenv("MISP_TAG_FILTER", "").split(",") if t.strip()
+            t.strip() for t in settings.misp_tag_filter.split(",") if t.strip()
         ]
 
         if not self.url or not self.apikey:
