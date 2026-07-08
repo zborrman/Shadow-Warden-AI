@@ -1424,6 +1424,20 @@ class Settings:
         default_factory=lambda: _env("THREAT_FEED_CACHE_PATH", "/warden/data/threat_feed_cache.json")
     )
 
+    # ── Threat Store (warden/threat_store.py) ────────────────────────────────────
+    threat_db_path: str = field(
+        default_factory=lambda: _env("THREAT_DB_PATH", "/warden/data/threat_store.db")
+    )
+    auto_block_threshold: int = field(
+        default_factory=lambda: _int("AUTO_BLOCK_THRESHOLD", 20)
+    )
+    auto_block_window: int = field(
+        default_factory=lambda: _int("AUTO_BLOCK_WINDOW", 300)
+    )
+    auto_block_duration: int = field(
+        default_factory=lambda: _int("AUTO_BLOCK_DURATION", 3600)
+    )
+
     # ── Portal SMTP + auth (warden/portal_router.py) ────────────────────────────
     # NB: WARDEN_API_KEYS_PATH read here reuses warden_api_keys_path.
     smtp_host: str = field(
