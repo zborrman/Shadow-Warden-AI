@@ -9,17 +9,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from collections.abc import AsyncIterator
 from concurrent.futures import ThreadPoolExecutor
 
+from warden.config import settings
+
 log = logging.getLogger("warden.voice.tts")
 
-_PROVIDER      = os.getenv("VOICE_TTS_PROVIDER", "edge")
-_ELEVENLABS    = os.getenv("ELEVENLABS_API_KEY", "")
-_AZURE_KEY     = os.getenv("AZURE_SPEECH_KEY", "")
-_AZURE_REGION  = os.getenv("AZURE_SPEECH_REGION", "eastus")
-_LATENCY_MS    = int(os.getenv("VOICE_TTS_LATENCY_MS", "200"))
+_PROVIDER      = settings.voice_tts_provider
+_ELEVENLABS    = settings.elevenlabs_api_key
+_AZURE_KEY     = settings.azure_speech_key
+_AZURE_REGION  = settings.azure_speech_region
+_LATENCY_MS    = settings.voice_tts_latency_ms
 _CHUNK_SIZE    = 8192
 
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="voice-tts")
