@@ -732,6 +732,13 @@ class Settings:
     # suite) — unlike weekly_report.py's T23 finding, no reload is involved.
     contact_to_email: str = field(default_factory=lambda: _env("CONTACT_TO_EMAIL", "vz@shadow-warden-ai.com"))
 
+    # ── Bot Entity API (warden/api/bot_entity.py) ────────────────────────────────
+    # NB: BOT_JWT_SECRET stays a live env read/write — _get_secret() generates
+    # and self-persists an ephemeral secret via os.environ when unset, the same
+    # lazy signing-key-resolution invariant as T62's auth/router.py skip.
+    bot_token_ttl_s: int = field(default_factory=lambda: _int("BOT_TOKEN_TTL_S", 3600))
+    bot_db_path: str = field(default_factory=lambda: _env("BOT_DB_PATH", "/tmp/warden_bot_entities.db"))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret
