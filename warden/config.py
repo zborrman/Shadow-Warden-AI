@@ -557,6 +557,48 @@ class Settings:
         default_factory=lambda: _env("DASHBOARD_URL", "https://dash.shadow-warden-ai.com")
     )
 
+    # ── SAML SP provider (warden/auth/saml_provider.py) ──────────────────────────
+    # NB: SAML_JWT_SECRET, SAML_SP_ENTITY_ID (function-level), SAML_SP_ACS_URL,
+    # SAML_IDP_METADATA_XML/URL stay as live env reads in saml_provider.py —
+    # dynamically monkeypatch.setenv'd per-test in test_saml.py, and
+    # SAML_JWT_SECRET is also re-read via importlib.reload() in
+    # test_jwt_no_secret_raises (same class of gotcha as T23's weekly_report.py)
+    # — a frozen Settings singleton would not observe either kind of override.
+    saml_otp_ttl: int = field(
+        default_factory=lambda: _int("SAML_OTP_TTL", 30)
+    )
+    saml_session_ttl: int = field(
+        default_factory=lambda: _int("SAML_SESSION_TTL", 28800)
+    )
+    saml_allowed_domains: str = field(
+        default_factory=lambda: _env("SAML_ALLOWED_DOMAINS", "")
+    )
+
+    # ── SAML SSO — Enterprise (warden/auth/saml.py) ──────────────────────────────
+    # No test file imports this module directly — all reads are safe frozen
+    # module-level constants (unlike the sibling saml_provider.py above).
+    saml_sso_sp_entity_id: str = field(
+        default_factory=lambda: _env("SAML_SP_ENTITY_ID", "https://api.shadow-warden-ai.com/auth/saml/metadata")
+    )
+    saml_sso_sp_acs_url: str = field(
+        default_factory=lambda: _env("SAML_SP_ACS_URL", "https://api.shadow-warden-ai.com/auth/saml/acs")
+    )
+    saml_sso_idp_metadata_url: str = field(
+        default_factory=lambda: _env("SAML_IDP_METADATA_URL", "")
+    )
+    saml_default_tier: str = field(
+        default_factory=lambda: _env("SAML_DEFAULT_TIER", "enterprise")
+    )
+    saml_clock_skew_s: int = field(
+        default_factory=lambda: _int("SAML_CLOCK_SKEW_S", 60)
+    )
+    saml_require_sha256: bool = field(
+        default_factory=lambda: _bool("SAML_REQUIRE_SHA256", True)
+    )
+    saml_cert_path: str = field(
+        default_factory=lambda: _env("SAML_CERT_PATH", "")
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()

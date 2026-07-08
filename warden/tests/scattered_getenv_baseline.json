@@ -1,5 +1,5 @@
 {
-  "total": 785,
+  "total": 773,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -69,8 +69,7 @@
     "api/ws_events.py": 2,
     "auth/oidc_guard.py": 2,
     "auth/router.py": 6,
-    "auth/saml.py": 8,
-    "auth/saml_provider.py": 13,
+    "auth/saml_provider.py": 9,
     "billing/audit_chain.py": 5,
     "billing/overage.py": 4,
     "billing/quotas.py": 1,
