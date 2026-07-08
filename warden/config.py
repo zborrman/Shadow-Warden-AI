@@ -696,6 +696,16 @@ class Settings:
     # importlib.reload()s the module, same T23/T45/T54 gotcha class.
     art30_audit_db_path: str = field(default_factory=lambda: _env("AUDIT_DB_PATH", "/warden/data/audit.db"))
 
+    # ── Zero-Trust Billing Audit Chain (warden/billing/audit_chain.py) ───────────
+    # NB: test_billing_audit.py monkeypatch.setattr()'s the module's _DB_PATH
+    # attribute directly (not the env var) — unaffected by migrating the
+    # attribute's initial value, same pattern as T38's federated_trust finding.
+    billing_audit_db_path: str = field(default_factory=lambda: _env("BILLING_AUDIT_DB_PATH", "/tmp/warden_billing_audit.db"))
+    billing_audit_evm_attestation: bool = field(default_factory=lambda: _bool("BILLING_AUDIT_EVM_ATTESTATION", False))
+    billing_audit_evm_rpc_url: str = field(default_factory=lambda: _env("BILLING_AUDIT_EVM_RPC_URL", "https://sepolia.base.org"))
+    billing_audit_evm_private_key: str = field(default_factory=lambda: _env("BILLING_AUDIT_EVM_PRIVATE_KEY", ""))
+    billing_audit_evm_anchor_every: int = field(default_factory=lambda: _int("BILLING_AUDIT_EVM_ANCHOR_EVERY", 100))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret
