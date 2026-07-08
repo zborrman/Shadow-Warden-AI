@@ -37,16 +37,17 @@ import secrets
 import time
 from typing import Any
 
+from warden.config import settings
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.payments.l402")
 
 def _hmac_key() -> bytes:
     return resolve_key("L402_HMAC_KEY", purpose="l402")
-_LND_URL   = os.getenv("L402_LND_URL", "")
-_LND_MAC   = os.getenv("L402_LND_MACAROON_HEX", "")
-_DEV_MODE  = os.getenv("L402_DEV_MODE", "true").lower() == "true"
-_TTL_S     = int(os.getenv("L402_TOKEN_TTL_S", "600"))  # 10 min default
+_LND_URL   = settings.l402_lnd_url
+_LND_MAC   = settings.l402_lnd_macaroon_hex
+_DEV_MODE  = settings.l402_dev_mode
+_TTL_S     = settings.l402_token_ttl_s  # 10 min default
 
 
 # ── Macaroon ───────────────────────────────────────────────────────────────────

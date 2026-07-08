@@ -1,5 +1,5 @@
 {
-  "total": 723,
+  "total": 719,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -181,7 +181,7 @@
     "mcp/gateway.py": 1,
     "middleware/region.py": 1,
     "multimodal/handler.py": 4,
-    "payments/l402.py": 5,
+    "payments/l402.py": 1,
     "payments/usdc.py": 4,
     "providers/vertex.py": 3,
     "push/registry.py": 1,
