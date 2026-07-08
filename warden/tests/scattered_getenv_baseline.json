@@ -1,5 +1,5 @@
 {
-  "total": 752,
+  "total": 747,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -128,7 +128,6 @@
     "compliance/posture_service.py": 6,
     "compliance/soc2.py": 4,
     "compliance/soc2_collector.py": 6,
-    "crypto/hsm.py": 5,
     "crypto/pqc.py": 2,
     "db/turso.py": 4,
     "discovery/well_known.py": 3,

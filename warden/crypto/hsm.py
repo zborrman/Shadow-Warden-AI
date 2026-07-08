@@ -28,15 +28,16 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import os
+
+from warden.config import settings
 
 log = logging.getLogger("warden.crypto.hsm")
 
-_HSM_ENABLED  = os.getenv("HSM_ENABLED", "false").lower() == "true"
-_PKCS11_LIB   = os.getenv("PKCS11_LIB", "")
-_TOKEN_LABEL  = os.getenv("PKCS11_TOKEN_LABEL", "shadow-warden")
-_PIN          = os.getenv("PKCS11_PIN", "")
-_KEY_LABEL    = os.getenv("PKCS11_KEY_LABEL", "warden-sign")
+_HSM_ENABLED  = settings.hsm_enabled
+_PKCS11_LIB   = settings.pkcs11_lib
+_TOKEN_LABEL  = settings.pkcs11_token_label
+_PIN          = settings.pkcs11_pin
+_KEY_LABEL    = settings.pkcs11_key_label
 
 _OQS_AVAILABLE = False  # populated below
 

@@ -1064,6 +1064,16 @@ class Settings:
         default_factory=lambda: _int("SHADOW_AI_SYSLOG_PORT", 5514)
     )
 
+    # ── HSM PKCS#11 bridge (warden/crypto/hsm.py) ────────────────────────────────
+    # NB: test_crypto_hsm.py monkeypatch.setenv's HSM_ENABLED/PKCS11_LIB mid-test,
+    # but both are read once as frozen module constants at import time — the
+    # patch is already inert pre-migration (same class as prior findings).
+    hsm_enabled: bool = field(default_factory=lambda: _bool("HSM_ENABLED", False))
+    pkcs11_lib: str = field(default_factory=lambda: _env("PKCS11_LIB", ""))
+    pkcs11_token_label: str = field(default_factory=lambda: _env("PKCS11_TOKEN_LABEL", "shadow-warden"))
+    pkcs11_pin: str = field(default_factory=lambda: _env("PKCS11_PIN", ""))
+    pkcs11_key_label: str = field(default_factory=lambda: _env("PKCS11_KEY_LABEL", "warden-sign"))
+
     # ── Red-team autopilot (warden/agent/red_team.py) ────────────────────────────
     red_team_enabled: bool = field(
         default_factory=lambda: _bool("RED_TEAM_ENABLED", False)
