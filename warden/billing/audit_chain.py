@@ -31,7 +31,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -41,13 +40,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.billing.audit_chain")
 
-_DB_PATH   = os.getenv("BILLING_AUDIT_DB_PATH", "/tmp/warden_billing_audit.db")
-_EVM_ON    = os.getenv("BILLING_AUDIT_EVM_ATTESTATION", "false").lower() == "true"
-_EVM_RPC   = os.getenv("BILLING_AUDIT_EVM_RPC_URL", "https://sepolia.base.org")
-_EVM_KEY   = os.getenv("BILLING_AUDIT_EVM_PRIVATE_KEY", "")
-_EVM_EVERY = int(os.getenv("BILLING_AUDIT_EVM_ANCHOR_EVERY", "100"))  # anchor every N entries
+_DB_PATH   = settings.billing_audit_db_path
+_EVM_ON    = settings.billing_audit_evm_attestation
+_EVM_RPC   = settings.billing_audit_evm_rpc_url
+_EVM_KEY   = settings.billing_audit_evm_private_key
+_EVM_EVERY = settings.billing_audit_evm_anchor_every  # anchor every N entries
 _db_lock   = threading.RLock()
 
 # Supported event types
