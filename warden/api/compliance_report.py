@@ -20,7 +20,6 @@ What the report covers
 from __future__ import annotations
 
 import logging
-import os
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
@@ -29,6 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse, Response
 
 from warden.auth_guard import require_api_key
+from warden.config import settings
 
 try:
     from warden.billing.feature_gate import require_feature as _require_feature
@@ -43,9 +43,9 @@ router = APIRouter(prefix="/compliance", tags=["compliance"])
 # Unprefixed router for regulator-expected paths (e.g. /api/compliance/gdpr/ropa)
 router_api = APIRouter(tags=["compliance"])
 
-_ORG_NAME   = os.getenv("ORG_NAME",   "Your Organisation")
-_TENANT_ID  = os.getenv("TENANT_ID",  "default")
-_DATA_RESIDENCY = os.getenv("DATA_RESIDENCY_JURISDICTION", "EU")
+_ORG_NAME   = settings.compliance_report_org_name
+_TENANT_ID  = settings.compliance_report_tenant_id
+_DATA_RESIDENCY = settings.compliance_report_data_residency
 
 
 # ── Data aggregation ──────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ def _build_report(days: int) -> dict:
         {"article": "Art.5(1)(d)", "principle": "Accuracy",
          "status": "PASS", "note": "No personal data stored; no correction obligation arises."},
         {"article": "Art.5(1)(e)", "principle": "Storage limitation",
-         "status": "PASS", "note": f"Log retention: {os.getenv('RETENTION_DAYS', '180')} days (configurable)."},
+         "status": "PASS", "note": f"Log retention: {settings.compliance_report_retention_days} days (configurable)."},
         {"article": "Art.5(1)(f)", "principle": "Integrity and confidentiality",
          "status": "PASS", "note": "Fernet encryption at rest; TLS in transit; audit trail HMAC-signed."},
         {"article": "Art.30",      "principle": "Records of processing activities",

@@ -1,5 +1,5 @@
 {
-  "total": 650,
+  "total": 646,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -48,7 +48,6 @@
     "api/billing_audit.py": 2,
     "api/bot_entity.py": 3,
     "api/community.py": 2,
-    "api/compliance_report.py": 4,
     "api/config_api.py": 41,
     "api/kya.py": 3,
     "api/public_stats.py": 2,
