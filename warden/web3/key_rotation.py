@@ -35,17 +35,18 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import sqlite3
 import threading
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from warden.config import settings
+
 log = logging.getLogger("warden.web3.key_rotation")
 
-_DB_PATH          = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
-_ROTATION_DB      = os.getenv("KEY_ROTATION_DB_PATH", "/tmp/warden_key_rotation.db")
-_ROTATION_DAYS    = int(os.getenv("AGENT_KEY_ROTATION_MAX_DAYS", "90"))
+_DB_PATH          = settings.marketplace_db_path
+_ROTATION_DB      = settings.key_rotation_db_path
+_ROTATION_DAYS    = settings.agent_key_rotation_max_days
 _db_lock          = threading.RLock()
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
@@ -84,7 +85,7 @@ def _chain_schedule(agent_id: str, new_key_hash: str, deadline_ts: int) -> str |
         w3 = get_web3_client()
         if not w3:
             return None
-        contract_addr = os.getenv("KEY_ROTATION_CONTRACT_ADDRESS", "")
+        contract_addr = settings.key_rotation_contract_address
         if not contract_addr:
             return None
         # Simplified ABI call (real ABI loaded from env/file in production)
