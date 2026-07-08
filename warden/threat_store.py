@@ -28,25 +28,24 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from warden.config import settings
+
 log = logging.getLogger("warden.threat_store")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-THREAT_DB_PATH = Path(
-    os.getenv("THREAT_DB_PATH", "/warden/data/threat_store.db")
-)
+THREAT_DB_PATH = Path(settings.threat_db_path)
 
 # Auto-block: if an IP accumulates this many block events within the window,
 # it is automatically added to blocked_ips.  Set 0 to disable auto-block.
-AUTO_BLOCK_THRESHOLD = int(os.getenv("AUTO_BLOCK_THRESHOLD", "20"))
-AUTO_BLOCK_WINDOW    = int(os.getenv("AUTO_BLOCK_WINDOW",    "300"))   # seconds
-AUTO_BLOCK_DURATION  = int(os.getenv("AUTO_BLOCK_DURATION",  "3600"))  # seconds; 0=permanent
+AUTO_BLOCK_THRESHOLD = settings.auto_block_threshold
+AUTO_BLOCK_WINDOW    = settings.auto_block_window   # seconds
+AUTO_BLOCK_DURATION  = settings.auto_block_duration  # seconds; 0=permanent
 
 
 # ── ThreatStore ───────────────────────────────────────────────────────────────
