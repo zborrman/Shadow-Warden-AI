@@ -725,6 +725,13 @@ class Settings:
     pentest_db_path: str = field(default_factory=lambda: _env("PENTEST_DB_PATH", "data/pentest_findings.json"))
     security_posture_path: str = field(default_factory=lambda: _env("SECURITY_POSTURE_PATH", "data/security_posture.json"))
 
+    # ── Contact form (warden/api/contact.py) ─────────────────────────────────────
+    # NB: reuses smtp_host/smtp_port/smtp_user/smtp_pass (pre-existing, matching
+    # defaults). test_contact_endpoint.py's monkeypatch.delenv is defensive
+    # (SMTP_HOST/USER are never set to a non-default value anywhere in the test
+    # suite) — unlike weekly_report.py's T23 finding, no reload is involved.
+    contact_to_email: str = field(default_factory=lambda: _env("CONTACT_TO_EMAIL", "vz@shadow-warden-ai.com"))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret

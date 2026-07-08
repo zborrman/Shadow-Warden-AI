@@ -10,12 +10,13 @@ guard (test_route_inventory.py) verifies the move changed nothing externally.
 from __future__ import annotations
 
 import logging
-import os
 import smtplib
 from email.mime.text import MIMEText
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from warden.config import settings
 
 log = logging.getLogger("warden.api.contact")
 
@@ -33,11 +34,11 @@ class ContactRequest(BaseModel):
 @router.post("/api/contact")
 async def contact(body: ContactRequest):
     """Send a contact-form message to the configured SMTP address."""
-    smtp_host = os.getenv("SMTP_HOST", "")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER", "")
-    smtp_pass = os.getenv("SMTP_PASS", "")
-    to_email  = os.getenv("CONTACT_TO_EMAIL", "vz@shadow-warden-ai.com")
+    smtp_host = settings.smtp_host
+    smtp_port = settings.smtp_port
+    smtp_user = settings.smtp_user
+    smtp_pass = settings.smtp_pass
+    to_email  = settings.contact_to_email
 
     text_parts = [
         f"Name:    {body.name}",
