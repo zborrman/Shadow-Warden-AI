@@ -46,11 +46,11 @@ OWASP mapping:
 from __future__ import annotations
 
 import logging
-import os
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from warden.config import settings
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.output_guard")
@@ -59,18 +59,18 @@ log = logging.getLogger("warden.output_guard")
 
 # Maximum allowed discount percentage in LLM output.
 # Outputs containing "60% off" when this is 50 → PRICE_MANIPULATION flag.
-_MAX_DISCOUNT_PCT = int(os.getenv("OUTPUT_MAX_DISCOUNT_PCT", "50"))
+_MAX_DISCOUNT_PCT = settings.output_max_discount_pct
 
 # Whether unauthorized commitment language results in sanitization (true = yes).
-_BLOCK_COMMITMENTS = os.getenv("OUTPUT_COMMITMENT_BLOCK", "true").lower() == "true"
+_BLOCK_COMMITMENTS = settings.output_commitment_block
 
 # Comma-separated list of competitor brand names to flag.
 # Leave blank to disable competitor detection.
 _COMPETITOR_NAMES = [
-    n.strip() for n in os.getenv("OUTPUT_COMPETITOR_NAMES", "").split(",") if n.strip()
+    n.strip() for n in settings.output_competitor_names.split(",") if n.strip()
 ]
 
-_GUARDRAILS_ENABLED = os.getenv("OUTPUT_GUARDRAILS_ENABLED", "true").lower() == "true"
+_GUARDRAILS_ENABLED = settings.output_guardrails_enabled
 
 
 # ── Risk types ────────────────────────────────────────────────────────────────

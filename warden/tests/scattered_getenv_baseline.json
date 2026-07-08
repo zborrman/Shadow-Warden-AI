@@ -1,5 +1,5 @@
 {
-  "total": 654,
+  "total": 650,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -20,7 +20,6 @@
     "ocr.py": 1,
     "offline.py": 1,
     "onboarding.py": 2,
-    "output_guard.py": 4,
     "phishing_guard.py": 2,
     "rag_evolver.py": 3,
     "rbac.py": 1,
