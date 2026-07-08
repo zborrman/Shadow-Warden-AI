@@ -1,10 +1,10 @@
 {
-  "total": 699,
+  "total": 695,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
     "audit_trail.py": 2,
-    "auth_guard.py": 5,
+    "auth_guard.py": 1,
     "causal_arbiter.py": 2,
     "community_models.py": 1,
     "data_policy.py": 1,

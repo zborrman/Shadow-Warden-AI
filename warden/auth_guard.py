@@ -50,20 +50,21 @@ from pathlib import Path
 from fastapi import Header, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 
+from warden.config import settings
+
 log = logging.getLogger("warden.auth")
 
 _API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 # ── Single shared key (backwards compatible) ─────────────────────────────────
-_VALID_KEY: str = os.getenv("WARDEN_API_KEY", "")
+_VALID_KEY: str = settings.warden_api_key
 
 # ── Multi-key file ───────────────────────────────────────────────────────────
-_KEYS_PATH: str = os.getenv("WARDEN_API_KEYS_PATH", "")
+_KEYS_PATH: str = settings.warden_api_keys_path
 
 # Default per-key rate limit; individual keys can override via their JSON entry.
 # Stored in a list so set_default_rate_limit() can mutate it without a global stmt.
-_DEFAULT_KEY_RATE: int = int(os.getenv("TENANT_RATE_LIMIT",
-                                       os.getenv("RATE_LIMIT_PER_MINUTE", "60")))
+_DEFAULT_KEY_RATE: int = settings.tenant_rate_limit
 _rate_limit_box: list[int] = [_DEFAULT_KEY_RATE]
 
 
