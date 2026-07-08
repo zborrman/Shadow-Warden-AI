@@ -1,5 +1,5 @@
 {
-  "total": 655,
+  "total": 654,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -194,7 +194,7 @@
     "shadow_ai/policy.py": 1,
     "shadow_ai/syslog_sink.py": 3,
     "site/approval.py": 1,
-    "sovereign/attestation.py": 4,
+    "sovereign/attestation.py": 3,
     "sovereign/audit.py": 1,
     "sovereign/policy.py": 1,
     "sovereign/tunnel.py": 2,
