@@ -1,5 +1,5 @@
 {
-  "total": 681,
+  "total": 677,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -229,7 +229,6 @@
     "web3/key_rotation.py": 4,
     "webhooks/engine.py": 1,
     "workers/content_filter.py": 2,
-    "workers/cve_scanner.py": 4,
     "workers/dunning.py": 2,
     "workers/reaper.py": 2,
     "workers/settings.py": 1,
