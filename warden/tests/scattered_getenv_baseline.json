@@ -1,5 +1,5 @@
 {
-  "total": 719,
+  "total": 714,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -161,7 +161,6 @@
     "marketplace/credits.py": 2,
     "marketplace/data_lifecycle.py": 2,
     "marketplace/escrow.py": 2,
-    "marketplace/governance.py": 5,
     "marketplace/importer.py": 1,
     "marketplace/kya.py": 4,
     "marketplace/listing.py": 2,

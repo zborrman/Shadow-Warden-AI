@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import logging
 import math
-import os
 import sqlite3
 import threading
 import uuid
@@ -23,15 +22,16 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
+from warden.config import settings
 from warden.db.sqlite_pragmas import init_pragmas
 
 log = logging.getLogger("warden.marketplace.governance")
 
-_DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH = settings.marketplace_db_path
 _db_lock = threading.RLock()
-_PROPOSAL_TTL_HOURS = int(os.getenv("DAO_PROPOSAL_TTL_HOURS", "72"))
-_QUORUM_PCT = float(os.getenv("DAO_QUORUM_PCT", "0.15"))
-_DAO_ENABLED = os.getenv("DAO_GOVERNANCE_ENABLED", "false").lower() == "true"
+_PROPOSAL_TTL_HOURS = settings.dao_proposal_ttl_hours
+_QUORUM_PCT = settings.dao_quorum_pct
+_DAO_ENABLED = settings.dao_governance_enabled
 
 PROPOSAL_TYPES = {"dispute_resolution", "parameter_change", "agent_block"}
 
@@ -459,7 +459,7 @@ class GovernanceService:
         try:
             import redis as redis_lib  # noqa: PLC0415
             r = redis_lib.from_url(
-                os.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True
+                settings.redis_url, decode_responses=True
             )
             r.hset(f"marketplace:params:{prop.community_id}", prop.target_id, winner_option)
         except Exception as exc:
