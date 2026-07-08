@@ -26,17 +26,18 @@ from __future__ import annotations
 import io
 import json
 import logging
-import os
 import zipfile
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.compliance.evidence_bundle")
 
-_SEP_DB_PATH      = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
-_VENDOR_DB_PATH   = os.getenv("VENDOR_GOV_DB_PATH", "/tmp/warden_vendor_gov.db")
-_TRAINING_DB_PATH = os.getenv("TRAINING_RECORDS_DB_PATH", "/tmp/warden_training.db")
-_LOGS_PATH        = os.getenv("LOGS_PATH", "data/logs.json")
+_SEP_DB_PATH      = settings.sep_db_path
+_VENDOR_DB_PATH   = settings.evidence_bundle_vendor_db_path
+_TRAINING_DB_PATH = settings.training_records_db_path
+_LOGS_PATH        = settings.logs_path
 
 
 # ── Data collectors ────────────────────────────────────────────────────────────
