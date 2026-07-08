@@ -1,5 +1,5 @@
 {
-  "total": 732,
+  "total": 727,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -196,7 +196,6 @@
     "semantic_layer/engine.py": 3,
     "semantic_layer/repository.py": 1,
     "settings/service.py": 1,
-    "shadow_ai/discovery.py": 5,
     "shadow_ai/policy.py": 1,
     "shadow_ai/syslog_sink.py": 3,
     "site/approval.py": 1,
