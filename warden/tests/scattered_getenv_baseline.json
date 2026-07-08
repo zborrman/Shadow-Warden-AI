@@ -1,5 +1,5 @@
 {
-  "total": 756,
+  "total": 752,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -139,7 +139,7 @@
     "financial/metrics_reader.py": 3,
     "integrations/jira.py": 5,
     "integrations/langchain_callback.py": 2,
-    "integrations/misp.py": 6,
+    "integrations/misp.py": 2,
     "integrations/nemo_bridge.py": 1,
     "integrations/onboarding.py": 1,
     "integrations/smb_suite.py": 3,

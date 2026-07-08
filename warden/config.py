@@ -1051,6 +1051,15 @@ class Settings:
     misp_syslog_target_host: str = field(
         default_factory=lambda: _env("MISP_SYSLOG_TARGET_HOST", "127.0.0.1")
     )
+
+    # ── MISP threat feed connector (warden/integrations/misp.py) ─────────────────
+    # NB: MISP_URL / MISP_API_KEY kept as live env reads in MISPConnector.__init__ —
+    # dynamically monkeypatch.setenv'd per-test in test_coverage_boost3.py, and the
+    # missing-credential ValueError must observe those overrides at construction time.
+    misp_verify_ssl: bool = field(default_factory=lambda: _bool("MISP_VERIFY_SSL", True))
+    misp_lookback_days: int = field(default_factory=lambda: _int("MISP_LOOKBACK_DAYS", 7))
+    misp_max_events: int = field(default_factory=lambda: _int("MISP_MAX_EVENTS", 100))
+    misp_tag_filter: str = field(default_factory=lambda: _env("MISP_TAG_FILTER", ""))
     shadow_ai_syslog_port: int = field(
         default_factory=lambda: _int("SHADOW_AI_SYSLOG_PORT", 5514)
     )
