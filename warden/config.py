@@ -689,6 +689,13 @@ class Settings:
     jira_project_key: str = field(default_factory=lambda: _env("JIRA_PROJECT_KEY", "SECURITY"))
     jira_issue_type: str = field(default_factory=lambda: _env("JIRA_ISSUE_TYPE", "Bug"))
 
+    # ── GDPR Art. 30 RoPA generator (warden/compliance/art30.py) ─────────────────
+    # NB: reuses agent_session_ttl/ers_window_secs (pre-existing, matching
+    # defaults). The controller-identity helper (_ctrl / CONTROLLER_NAME etc.)
+    # stays a live env read — test_compliance.py monkeypatches those AND
+    # importlib.reload()s the module, same T23/T45/T54 gotcha class.
+    art30_audit_db_path: str = field(default_factory=lambda: _env("AUDIT_DB_PATH", "/warden/data/audit.db"))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret

@@ -25,6 +25,8 @@ import os
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 
+from warden.config import settings
+
 # ── Controller identity (from env — never hardcoded) ─────────────────────────
 
 def _ctrl(key: str, fallback: str = "") -> str:
@@ -150,9 +152,9 @@ class Art30Generator:
                     "third_country_safeguard": _ctrl("THIRD_COUNTRY_SAFEGUARD", "") if third_country else None,
                     "retention_policy": {
                         "log_retention_days":     LOG_RETENTION_DAYS,
-                        "session_ttl_seconds":    int(os.getenv("AGENT_SESSION_TTL", "1800")),
-                        "ers_window_seconds":     int(os.getenv("ERS_WINDOW_SECS", "3600")),
-                        "audit_db_path":          os.getenv("AUDIT_DB_PATH", "/warden/data/audit.db"),
+                        "session_ttl_seconds":    settings.agent_session_ttl,
+                        "ers_window_seconds":     settings.ers_window_secs,
+                        "audit_db_path":          settings.art30_audit_db_path,
                         "erasure_endpoint":       "POST /gdpr/purge (request_id-level erasure)",
                     },
                     "automated_decision_making": {
@@ -189,7 +191,7 @@ class Art30Generator:
                     "recipients":         "None",
                     "third_country_transfer": False,
                     "retention_policy": {
-                        "session_ttl_seconds": int(os.getenv("AGENT_SESSION_TTL", "1800")),
+                        "session_ttl_seconds": settings.agent_session_ttl,
                     },
                     "automated_decision_making": {
                         "applies":  True,
