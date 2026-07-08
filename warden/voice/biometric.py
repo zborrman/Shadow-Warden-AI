@@ -16,12 +16,14 @@ from dataclasses import dataclass
 
 from cryptography.fernet import Fernet
 
+from warden.config import settings
+
 log = logging.getLogger("warden.voice.biometric")
 
 _REDIS_URL   = os.getenv("REDIS_URL", "")
-_VAULT_KEY   = os.getenv("VAULT_MASTER_KEY", "")
-_THRESHOLD   = float(os.getenv("VOICE_BIOMETRIC_THRESHOLD", "0.85"))
-_TTL         = int(os.getenv("VOICE_BIOMETRIC_TTL", str(90 * 86_400)))  # 90 days
+_VAULT_KEY   = settings.vault_master_key
+_THRESHOLD   = settings.voice_biometric_threshold
+_TTL         = settings.voice_biometric_ttl  # 90 days
 
 _fernet: Fernet | None = None
 
