@@ -15,19 +15,20 @@ from __future__ import annotations
 import json
 import logging
 import math
-import os
 import re
 import sqlite3
 import threading
 import time
 from dataclasses import dataclass
 
+from warden.config import settings
+
 log = logging.getLogger("warden.voice.guardian")
 
-_DB_PATH       = os.getenv("VOICE_GUARDIAN_DB_PATH", "/tmp/warden_voice_guardian.db")
-_COERCE_THRESH = float(os.getenv("VOICE_COERCE_THRESHOLD", "0.8"))
-_DEEPFAKE_THRESH = float(os.getenv("VOICE_DEEPFAKE_THRESHOLD", "0.75"))
-_ZSCORE_THRESH = float(os.getenv("VOICE_ZSCORE_THRESHOLD", "3.0"))
+_DB_PATH       = settings.voice_guardian_db_path
+_COERCE_THRESH = settings.voice_coerce_threshold
+_DEEPFAKE_THRESH = settings.voice_deepfake_threshold
+_ZSCORE_THRESH = settings.voice_zscore_threshold
 _db_lock = threading.RLock()
 
 _COERCION_PATTERNS = re.compile(

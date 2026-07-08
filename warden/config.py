@@ -316,6 +316,20 @@ class Settings:
         default_factory=lambda: _int("VOICE_TTS_LATENCY_MS", 200)
     )
 
+    # ── Voice Guardian (warden/voice/guardian.py) ─────────────────────────────────
+    voice_guardian_db_path: str = field(
+        default_factory=lambda: _env("VOICE_GUARDIAN_DB_PATH", "/tmp/warden_voice_guardian.db")
+    )
+    voice_coerce_threshold: float = field(
+        default_factory=lambda: _float("VOICE_COERCE_THRESHOLD", 0.8)
+    )
+    voice_deepfake_threshold: float = field(
+        default_factory=lambda: _float("VOICE_DEEPFAKE_THRESHOLD", 0.75)
+    )
+    voice_zscore_threshold: float = field(
+        default_factory=lambda: _float("VOICE_ZSCORE_THRESHOLD", 3.0)
+    )
+
     # ── Global Blocklist (warden/global_blocklist.py) ────────────────────────────
     global_blocklist_enabled: bool = field(
         default_factory=lambda: _bool("GLOBAL_BLOCKLIST_ENABLED", True)
