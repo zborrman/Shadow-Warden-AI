@@ -682,6 +682,13 @@ class Settings:
     dao_quorum_pct: float = field(default_factory=lambda: _float("DAO_QUORUM_PCT", 0.15))
     dao_governance_enabled: bool = field(default_factory=lambda: _bool("DAO_GOVERNANCE_ENABLED", False))
 
+    # ── Jira integration (warden/integrations/jira.py) ───────────────────────────
+    jira_base_url: str = field(default_factory=lambda: _env("JIRA_BASE_URL", ""))
+    jira_email: str = field(default_factory=lambda: _env("JIRA_EMAIL", ""))
+    jira_api_token: str = field(default_factory=lambda: _env("JIRA_API_TOKEN", ""))
+    jira_project_key: str = field(default_factory=lambda: _env("JIRA_PROJECT_KEY", "SECURITY"))
+    jira_issue_type: str = field(default_factory=lambda: _env("JIRA_ISSUE_TYPE", "Bug"))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret

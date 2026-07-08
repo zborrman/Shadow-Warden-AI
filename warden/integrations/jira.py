@@ -20,16 +20,17 @@ from __future__ import annotations
 
 import base64
 import logging
-import os
 from typing import Any
+
+from warden.config import settings
 
 log = logging.getLogger("warden.integrations.jira")
 
-_BASE    = os.getenv("JIRA_BASE_URL",    "")
-_EMAIL   = os.getenv("JIRA_EMAIL",       "")
-_TOKEN   = os.getenv("JIRA_API_TOKEN",   "")
-_PROJECT = os.getenv("JIRA_PROJECT_KEY", "SECURITY")
-_ITYPE   = os.getenv("JIRA_ISSUE_TYPE",  "Bug")
+_BASE    = settings.jira_base_url
+_EMAIL   = settings.jira_email
+_TOKEN   = settings.jira_api_token
+_PROJECT = settings.jira_project_key
+_ITYPE   = settings.jira_issue_type
 
 
 def _auth_header() -> str:
