@@ -17,16 +17,17 @@ Aggregate result:
 from __future__ import annotations
 
 import logging
-import os
 import time
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.sovereign.preflight")
 
-_PREFLIGHT_TIMEOUT = float(os.getenv("PREFLIGHT_TIMEOUT_S", "5.0"))
-_MINIO_URL = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
-_WARDEN_API = os.getenv("WARDEN_INTERNAL_URL", "http://localhost:8001")
-_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+_PREFLIGHT_TIMEOUT = settings.preflight_timeout_s
+_MINIO_URL = settings.sovereign_minio_endpoint
+_WARDEN_API = settings.warden_internal_url
+_REDIS_URL = settings.redis_url
 
 
 # ── Single check result ───────────────────────────────────────────────────────
