@@ -56,7 +56,6 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -64,15 +63,17 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from warden.config import settings
+
 log = logging.getLogger("warden.syndicates.invites")
 
 invites_router = APIRouter(prefix="/invites", tags=["Syndicates"])
 
 # ── JWT helpers (reuse portal secret) ────────────────────────────────────────
 
-_JWT_SECRET    = os.getenv("PORTAL_JWT_SECRET", "change-me-" + secrets.token_hex(16))
+_JWT_SECRET    = settings.portal_jwt_secret
 _JWT_ALGORITHM = "HS256"
-_PORTAL_URL    = os.getenv("PORTAL_URL", "https://app.shadow-warden-ai.com")
+_PORTAL_URL    = settings.portal_url
 
 
 def _sign_invite(payload: dict) -> str:
@@ -89,7 +90,7 @@ def _verify_invite(token: str) -> dict:
 
 
 def _require_super_admin(request: Request) -> None:
-    expected = os.getenv("SUPER_ADMIN_KEY", "")
+    expected = settings.super_admin_key
     provided = request.headers.get("X-Super-Admin-Key", "")
     if not expected or provided != expected:
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -446,7 +447,7 @@ async def platform_invite_init(body: PlatformInviteRequest, request: Request):
     expires_at  = datetime.now(UTC) + timedelta(hours=body.ttl_hours)
 
     # HMAC one-time challenge — prevents reuse of the manifest even if intercepted
-    otc_secret  = os.getenv("PORTAL_JWT_SECRET", secrets.token_hex(32)).encode()
+    otc_secret  = settings.portal_jwt_secret.encode()
     one_time_code = hmac.new(
         otc_secret,
         msg=f"{invite_code}:{tunnel_id}:{inviter_sid}".encode(),
@@ -463,7 +464,6 @@ async def platform_invite_init(body: PlatformInviteRequest, request: Request):
     try:
         import redis as _redis
 
-        from warden.config import settings
         r = _redis.from_url(settings.redis_url, decode_responses=False)
         r.setex(f"warden:handshake:priv:{tunnel_id}", 600, priv_b64.encode())
         r.setex(f"warden:manifest:otc:{invite_code}", 600, one_time_code.encode())
@@ -550,7 +550,6 @@ async def platform_invite_join(body: PlatformJoinRequest, request: Request):
     try:
         import redis as _redis
 
-        from warden.config import settings
         r = _redis.from_url(settings.redis_url, decode_responses=False)
         stored_otc = r.get(f"warden:manifest:otc:{invite_code}")
     except Exception as exc:
@@ -642,7 +641,7 @@ async def platform_invite_join(body: PlatformJoinRequest, request: Request):
             resp = await client.post(
                 manifest.nexus_endpoint.replace("/accept", "/complete"),
                 json=complete_payload,
-                headers={"X-Super-Admin-Key": os.getenv("SUPER_ADMIN_KEY", "")},
+                headers={"X-Super-Admin-Key": settings.super_admin_key},
             )
             if resp.status_code == 200:
                 a_completed = True
