@@ -1549,6 +1549,15 @@ class Settings:
     output_guardrails_enabled: bool = field(
         default_factory=lambda: _bool("OUTPUT_GUARDRAILS_ENABLED", True)
     )
+    output_max_discount_pct: int = field(
+        default_factory=lambda: _int("OUTPUT_MAX_DISCOUNT_PCT", 50)
+    )
+    output_commitment_block: bool = field(
+        default_factory=lambda: _bool("OUTPUT_COMMITMENT_BLOCK", True)
+    )
+    output_competitor_names: str = field(
+        default_factory=lambda: _env("OUTPUT_COMPETITOR_NAMES", "")
+    )
 
     # ── Portal/site auth cookies (warden/auth/router.py) ────────────────────────
     # NB: admin-bootstrap + JWT/vault secret reads stay lazy in auth/router.py.
