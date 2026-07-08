@@ -37,6 +37,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.sovereign.attestation")
 
 _ATTEST_TTL  = 220_752_000        # 7 years in seconds (SOC 2 audit retention)
@@ -56,7 +58,7 @@ def _attest_key() -> bytes:
 def _redis():
     try:
         import redis as _r
-        url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        url = settings.redis_url
         if url.startswith("memory://"):
             return None
         return _r.from_url(url, decode_responses=True)
