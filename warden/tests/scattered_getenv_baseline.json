@@ -1,5 +1,5 @@
 {
-  "total": 742,
+  "total": 737,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -230,7 +230,6 @@
     "voice/dialogue.py": 3,
     "voice/guardian.py": 4,
     "voice/nlu.py": 2,
-    "voice/tts.py": 5,
     "voice/x402.py": 3,
     "web3/chains.py": 4,
     "web3/key_rotation.py": 4,

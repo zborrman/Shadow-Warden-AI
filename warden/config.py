@@ -299,6 +299,23 @@ class Settings:
         default_factory=lambda: _env("VOICE_ASR_COMPUTE", "int8")
     )
 
+    # ── Voice TTS (warden/voice/tts.py) ───────────────────────────────────────────
+    voice_tts_provider: str = field(
+        default_factory=lambda: _env("VOICE_TTS_PROVIDER", "edge")
+    )
+    elevenlabs_api_key: str = field(
+        default_factory=lambda: _env("ELEVENLABS_API_KEY", "")
+    )
+    azure_speech_key: str = field(
+        default_factory=lambda: _env("AZURE_SPEECH_KEY", "")
+    )
+    azure_speech_region: str = field(
+        default_factory=lambda: _env("AZURE_SPEECH_REGION", "eastus")
+    )
+    voice_tts_latency_ms: int = field(
+        default_factory=lambda: _int("VOICE_TTS_LATENCY_MS", 200)
+    )
+
     # ── Global Blocklist (warden/global_blocklist.py) ────────────────────────────
     global_blocklist_enabled: bool = field(
         default_factory=lambda: _bool("GLOBAL_BLOCKLIST_ENABLED", True)
