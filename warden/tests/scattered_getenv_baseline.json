@@ -1,5 +1,5 @@
 {
-  "total": 644,
+  "total": 640,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -81,7 +81,6 @@
     "brain/evolve_nemotron.py": 1,
     "brain/faiss_index.py": 1,
     "brain/federated.py": 2,
-    "brain/online_learner.py": 4,
     "brain/onnx_runner.py": 3,
     "brain/semantic.py": 3,
     "brain/threat_feed.py": 2,

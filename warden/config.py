@@ -1296,6 +1296,17 @@ class Settings:
         default_factory=lambda: _env("EVOLUTION_DATASET_PATH", "data/evolution_dataset.jsonl")
     )
 
+    # ── Online Learning (warden/brain/online_learner.py) ─────────────────────────
+    online_learning_enabled: bool = field(
+        default_factory=lambda: _bool("ONLINE_LEARNING_ENABLED", False)
+    )
+    online_learning_batch: int = field(
+        default_factory=lambda: _int("ONLINE_LEARNING_BATCH", 100)
+    )
+    online_learning_threshold: float = field(
+        default_factory=lambda: _float("ONLINE_LEARNING_THRESHOLD", 0.60)
+    )
+
     # ── Weekly ROI report (warden/workers/weekly_report.py) ──────────────────────
     # NB: SMTP_HOST/PORT/USER/PASS and WEEKLY_REPORT_FROM stay lazy os.getenv()
     # reads there — test_weekly_report.py reload()s the module after patching
