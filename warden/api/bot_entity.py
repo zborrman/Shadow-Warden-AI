@@ -80,12 +80,13 @@ import jwt as pyjwt
 
 from warden.communities.clearance import ClearanceLevel
 from warden.communities.id_generator import new_member_id
+from warden.config import settings
 
 log = logging.getLogger("warden.api.bot_entity")
 
-BOT_TOKEN_TTL_S:  int = int(os.getenv("BOT_TOKEN_TTL_S", "3600"))
+BOT_TOKEN_TTL_S:  int = settings.bot_token_ttl_s
 BOT_JWT_SECRET:   str = os.getenv("BOT_JWT_SECRET", "")
-_BOT_DB_PATH:     str = os.getenv("BOT_DB_PATH", "/tmp/warden_bot_entities.db")
+_BOT_DB_PATH:     str = settings.bot_db_path
 
 _db_lock = threading.RLock()
 
