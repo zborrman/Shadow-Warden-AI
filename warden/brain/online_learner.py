@@ -33,19 +33,20 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 
+from warden.config import settings
+
 log = logging.getLogger("warden.brain.online_learner")
 
-_ENABLED       = os.getenv("ONLINE_LEARNING_ENABLED", "false").lower() == "true"
-_DATASET_PATH  = Path(os.getenv("EVOLUTION_DATASET_PATH", "data/evolution_dataset.jsonl"))
-_BATCH_SIZE    = int(os.getenv("ONLINE_LEARNING_BATCH", "100"))
-_THRESHOLD     = float(os.getenv("ONLINE_LEARNING_THRESHOLD", "0.60"))
+_ENABLED       = settings.online_learning_enabled
+_DATASET_PATH  = Path(settings.evolution_dataset_path)
+_BATCH_SIZE    = settings.online_learning_batch
+_THRESHOLD     = settings.online_learning_threshold
 
 
 @dataclass
