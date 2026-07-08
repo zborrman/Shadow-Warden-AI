@@ -27,13 +27,15 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from warden.config import settings
+
 log = logging.getLogger("warden.api.security_hub")
 
 router = APIRouter(prefix="/security", tags=["security"])
 
-_CVE_REPORT_PATH   = Path(os.getenv("CVE_REPORT_PATH",   "data/cve_report.json"))
-_PENTEST_DB_PATH   = Path(os.getenv("PENTEST_DB_PATH",   "data/pentest_findings.json"))
-_POSTURE_PATH      = Path(os.getenv("SECURITY_POSTURE_PATH", "data/security_posture.json"))
+_CVE_REPORT_PATH   = Path(settings.cve_report_path)
+_PENTEST_DB_PATH   = Path(settings.pentest_db_path)
+_POSTURE_PATH      = Path(settings.security_posture_path)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -189,9 +191,7 @@ async def trigger_cve_scan(
     try:
         from arq import create_pool
         from arq.connections import RedisSettings
-        pool = await create_pool(RedisSettings.from_dsn(
-            os.getenv("REDIS_URL", "redis://localhost:6379")
-        ))
+        pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
         await pool.enqueue_job("scan_cves")
         await pool.aclose()
         return {"queued": True, "job": "scan_cves"}
