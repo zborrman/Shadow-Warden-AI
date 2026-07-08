@@ -48,9 +48,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.communities.knock")
 
-_KNOCK_TTL_HOURS = int(os.getenv("SEP_KNOCK_TTL_HOURS", "72"))
+_KNOCK_TTL_HOURS = settings.sep_knock_ttl_hours
 _MEMORY_KNOCKS: dict[str, dict] = {}   # token_hash → knock dict
 
 
@@ -59,7 +61,7 @@ _MEMORY_KNOCKS: dict[str, dict] = {}   # token_hash → knock dict
 def _redis():
     try:
         import redis as _r
-        url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        url = settings.redis_url
         if url.startswith("memory://"):
             return None
         return _r.from_url(url, decode_responses=True)

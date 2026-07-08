@@ -1173,6 +1173,15 @@ class Settings:
         default_factory=lambda: _int("FEDERATED_TRUST_FLAG_TTL_DAYS", 30)
     )
 
+    # ── Knock-and-Verify invitations (warden/communities/knock.py) ───────────────
+    # NB: COMMUNITY_VAULT_KEY/VAULT_MASTER_KEY fallback in _sep_key() stays a
+    # lazy live read — signing-key resolution invariant, same class as T62/T73.
+    # REDIS_URL in _redis() reuses settings.redis_url (always explicitly set in
+    # practice, same reuse precedent as T72/T73).
+    sep_knock_ttl_hours: int = field(
+        default_factory=lambda: _int("SEP_KNOCK_TTL_HOURS", 72)
+    )
+
     # ── Community threat score federation (warden/communities/federation.py) ─────
     # NB: REDIS_URL stays a lazy os.getenv() function-level read in _redis() —
     # inline default "" is a deliberate disabled-sentinel, differs from
