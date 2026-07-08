@@ -671,6 +671,17 @@ class Settings:
     l402_dev_mode: bool = field(default_factory=lambda: _bool("L402_DEV_MODE", True))
     l402_token_ttl_s: int = field(default_factory=lambda: _int("L402_TOKEN_TTL_S", 600))
 
+    # ── Marketplace DAO governance (warden/marketplace/governance.py) ────────────
+    # NB: reuses redis_url (inline default "redis://localhost:6379" vs settings.
+    # redis_url's "redis://redis:6379/0" — same drift-fix class as prior tiers).
+    # test_governance.py always passes db_path= explicitly as a kwarg, never
+    # relying on the env-derived default, so freezing it is safe (unlike
+    # marketplace/api.py's rejected wholesale MARKETPLACE_DB_PATH pattern).
+    marketplace_db_path: str = field(default_factory=lambda: _env("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db"))
+    dao_proposal_ttl_hours: int = field(default_factory=lambda: _int("DAO_PROPOSAL_TTL_HOURS", 72))
+    dao_quorum_pct: float = field(default_factory=lambda: _float("DAO_QUORUM_PCT", 0.15))
+    dao_governance_enabled: bool = field(default_factory=lambda: _bool("DAO_GOVERNANCE_ENABLED", False))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret
