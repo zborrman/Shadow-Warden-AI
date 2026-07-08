@@ -651,6 +651,13 @@ class Settings:
         default_factory=lambda: _env("CONFIG_SNAPSHOT_PATH", "data/config_snapshot.json")
     )
 
+    # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
+    # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
+    # this also fixes a latent bug where the module's own random JWT-secret
+    # fallback wasn't shared with portal_router.py, contradicting the docstring's
+    # "same key as portal auth tokens" invariant). New field: super_admin_key.
+    super_admin_key: str = field(default_factory=lambda: _env("SUPER_ADMIN_KEY", ""))
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()

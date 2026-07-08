@@ -1,5 +1,5 @@
 {
-  "total": 737,
+  "total": 732,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -211,7 +211,6 @@
     "streams/agent_runner.py": 2,
     "streams/api.py": 1,
     "streams/event_bus.py": 2,
-    "syndicates/invites_router.py": 5,
     "syndicates/ratchet.py": 2,
     "syndicates/router.py": 1,
     "tax/invoice_generator.py": 2,
