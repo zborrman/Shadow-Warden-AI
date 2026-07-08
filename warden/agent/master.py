@@ -37,6 +37,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from warden.config import settings
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.agent.master")
@@ -46,7 +47,7 @@ _MODEL    = "claude-opus-4-6"
 _SUB_AGENT_MAX_ITER    = 5
 # Per-sub-agent input token budget. Loop halts early when exceeded.
 # Each Opus 4.6 input token ≈ $0.000015; 8192 tokens ≈ $0.12 per sub-agent.
-_SUB_AGENT_TOKEN_BUDGET = int(os.getenv("MASTER_AGENT_TOKEN_BUDGET", "8192"))
+_SUB_AGENT_TOKEN_BUDGET = settings.master_agent_token_budget
 def _token_secret() -> bytes:
     return resolve_key("MASTER_AGENT_SECRET", purpose="master_agent")
 
@@ -184,7 +185,7 @@ def _store_pending(token: str, action: str, context: str, callback_key: str) -> 
     """Write pending approval to Redis (TTL 1h). Fail-open if Redis unavailable."""
     try:
         import redis as _redis
-        r = _redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
+        r = _redis.from_url(settings.redis_url, decode_responses=True)
         r.setex(
             f"master:approval:{token}",
             3600,
@@ -198,7 +199,7 @@ def get_pending_approval(token: str) -> dict | None:
     """Return pending approval record or None if expired/missing."""
     try:
         import redis as _redis
-        r = _redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
+        r = _redis.from_url(settings.redis_url, decode_responses=True)
         raw = r.get(f"master:approval:{token}")
         return json.loads(raw) if raw else None  # type: ignore[arg-type]
     except Exception:
@@ -209,7 +210,7 @@ def resolve_approval(token: str, approved: bool) -> bool:
     """Consume the approval token and store the decision. Returns False if token missing."""
     try:
         import redis as _redis
-        r = _redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
+        r = _redis.from_url(settings.redis_url, decode_responses=True)
         key = f"master:approval:{token}"
         raw = r.get(key)
         if not raw:
@@ -233,7 +234,7 @@ async def _wait_for_approval(callback_key: str, timeout: int = 3600) -> bool:
     deadline = time.time() + timeout
     try:
         import redis as _redis
-        r = _redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
+        r = _redis.from_url(settings.redis_url, decode_responses=True)
         while time.time() < deadline:
             val = r.get(f"master:approval:callback:{callback_key}")
             if val is not None:
@@ -246,7 +247,7 @@ async def _wait_for_approval(callback_key: str, timeout: int = 3600) -> bool:
 
 async def _post_approval_request(token: str, action: str, context: str) -> None:
     """Post Slack message with approve/reject instructions."""
-    base_url = os.getenv("WARDEN_BASE_URL", "http://localhost:8001")
+    base_url = settings.warden_base_url
     approve_url = f"{base_url}/agent/approve/{token}?action=approve"
     reject_url  = f"{base_url}/agent/approve/{token}?action=reject"
 
@@ -258,7 +259,7 @@ async def _post_approval_request(token: str, action: str, context: str) -> None:
         f"❌ *Reject:*  `POST {reject_url}`\n"
         f"_Token expires in 1 hour._"
     )
-    url = os.getenv("SLACK_WEBHOOK_URL", "")
+    url = settings.slack_webhook_url
     if not url:
         log.warning("master: SLACK_WEBHOOK_URL not set — approval request not sent: %s", action)
         return
