@@ -30,12 +30,12 @@ import asyncio
 import ipaddress
 import json
 import logging
-import os
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
+from warden.config import settings
 from warden.shadow_ai.policy import get_policy, get_verdict
 from warden.shadow_ai.signatures import (
     AI_PROVIDERS,
@@ -49,15 +49,15 @@ log = logging.getLogger("warden.shadow_ai.discovery")
 
 _MAX_PREFIX    = 24          # refuse to scan subnets larger than /24
 _MAX_HOSTS     = 256
-_PROBE_TIMEOUT = float(os.getenv("SHADOW_AI_PROBE_TIMEOUT", "3"))
-_CONCURRENCY   = int(os.getenv("SHADOW_AI_CONCURRENCY", "50"))
+_PROBE_TIMEOUT = settings.shadow_ai_probe_timeout
+_CONCURRENCY   = settings.shadow_ai_concurrency
 _FINDINGS_CAP  = 1_000
 # Scapy ARP/ICMP pre-probe: skip dead hosts before HTTP fingerprinting.
 # Reduces scan time by 60-80% on sparse subnets.
 # Requires: pip install scapy>=2.5.0 AND root/CAP_NET_RAW privileges.
 # Set SHADOW_AI_USE_SCAPY=true to activate; silently disabled if unavailable.
-_USE_SCAPY     = os.getenv("SHADOW_AI_USE_SCAPY", "false").lower() == "true"
-_SCAPY_TIMEOUT = float(os.getenv("SHADOW_AI_SCAPY_TIMEOUT", "2"))
+_USE_SCAPY     = settings.shadow_ai_use_scapy
+_SCAPY_TIMEOUT = settings.shadow_ai_scapy_timeout
 
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ _SCAPY_TIMEOUT = float(os.getenv("SHADOW_AI_SCAPY_TIMEOUT", "2"))
 def _redis():
     try:
         import redis as _r
-        url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        url = settings.redis_url
         if url.startswith("memory://"):
             return None
         return _r.from_url(url, decode_responses=True)

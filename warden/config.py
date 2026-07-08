@@ -1095,6 +1095,16 @@ class Settings:
         default_factory=lambda: _int("SHADOW_AI_SYSLOG_PORT", 5514)
     )
 
+    # ── Shadow AI Discovery (warden/shadow_ai/discovery.py) ──────────────────────
+    # NB: reuses redis_url — inline default was "redis://localhost:6379" (no db
+    # index) vs settings.redis_url's "redis://redis:6379/0"; same localhost-vs-
+    # docker-service-name drift class as prior tiers, harmless since REDIS_URL
+    # is always explicitly set in practice and Redis defaults to db 0 anyway.
+    shadow_ai_probe_timeout: float = field(default_factory=lambda: _float("SHADOW_AI_PROBE_TIMEOUT", 3))
+    shadow_ai_concurrency: int = field(default_factory=lambda: _int("SHADOW_AI_CONCURRENCY", 50))
+    shadow_ai_use_scapy: bool = field(default_factory=lambda: _bool("SHADOW_AI_USE_SCAPY", False))
+    shadow_ai_scapy_timeout: float = field(default_factory=lambda: _float("SHADOW_AI_SCAPY_TIMEOUT", 2))
+
     # ── HSM PKCS#11 bridge (warden/crypto/hsm.py) ────────────────────────────────
     # NB: test_crypto_hsm.py monkeypatch.setenv's HSM_ENABLED/PKCS11_LIB mid-test,
     # but both are read once as frozen module constants at import time — the
