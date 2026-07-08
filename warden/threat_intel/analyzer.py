@@ -27,14 +27,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from warden.config import settings
 from warden.schemas import ThreatIntelItem, ThreatIntelStatus
 from warden.threat_intel.store import ThreatIntelStore
 
 log = logging.getLogger("warden.threat_intel.analyzer")
 
-_MODEL               = os.getenv("THREAT_INTEL_MODEL", "claude-haiku-4-5-20251001")
-_MIN_RELEVANCE       = float(os.getenv("THREAT_INTEL_MIN_RELEVANCE", "0.65"))
-_MIN_ACTIONABILITY   = float(os.getenv("THREAT_INTEL_MIN_ACTIONABILITY", "0.5"))
+_MODEL               = settings.threat_intel_model
+_MIN_RELEVANCE       = settings.threat_intel_min_relevance
+_MIN_ACTIONABILITY   = settings.threat_intel_min_actionability
 
 # ── Analysis schema ───────────────────────────────────────────────────────────
 
