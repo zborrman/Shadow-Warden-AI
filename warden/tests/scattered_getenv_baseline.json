@@ -1,5 +1,5 @@
 {
-  "total": 640,
+  "total": 636,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -87,7 +87,6 @@
     "business_intelligence/repository.py": 1,
     "business_intelligence/service.py": 4,
     "communities/behavioral.py": 1,
-    "communities/break_glass.py": 4,
     "communities/charter.py": 1,
     "communities/community_data.py": 2,
     "communities/community_evolution.py": 1,

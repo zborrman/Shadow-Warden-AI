@@ -1173,6 +1173,20 @@ class Settings:
         default_factory=lambda: _int("FEDERATED_TRUST_FLAG_TTL_DAYS", 30)
     )
 
+    # ── Break Glass emergency key access (warden/communities/break_glass.py) ─────
+    break_glass_ttl_s: int = field(
+        default_factory=lambda: _int("BREAK_GLASS_TTL_S", 3600)
+    )
+    break_glass_m_sigs: int = field(
+        default_factory=lambda: _int("BREAK_GLASS_M_SIGS", 3)
+    )
+    break_glass_tier: str = field(
+        default_factory=lambda: _env("BREAK_GLASS_TIER", "mcp")
+    )
+    break_glass_audit_path: str = field(
+        default_factory=lambda: _env("BREAK_GLASS_AUDIT_PATH", "/tmp/warden_break_glass_audit.jsonl")
+    )
+
     # ── SOVA scheduler jobs (warden/agent/scheduler.py) ──────────────────────────
     warden_base_url: str = field(
         default_factory=lambda: _env("WARDEN_BASE_URL", "http://localhost:8001")
