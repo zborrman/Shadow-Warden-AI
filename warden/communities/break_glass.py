@@ -51,17 +51,18 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from warden.config import settings
+
 log = logging.getLogger("warden.communities.break_glass")
 
-BREAK_GLASS_TTL_S:    int = int(os.getenv("BREAK_GLASS_TTL_S",      "3600"))   # 1 hour
-BREAK_GLASS_M:        int = int(os.getenv("BREAK_GLASS_M_SIGS",     "3"))      # M-of-N
-BREAK_GLASS_TIER:     str = os.getenv("BREAK_GLASS_TIER",            "mcp")    # MCP only
+BREAK_GLASS_TTL_S:    int = settings.break_glass_ttl_s   # 1 hour
+BREAK_GLASS_M:        int = settings.break_glass_m_sigs  # M-of-N
+BREAK_GLASS_TIER:     str = settings.break_glass_tier    # MCP only
 
 
 @dataclass
@@ -121,7 +122,7 @@ def _load(request_id: str) -> BreakGlassRequest | None:
 
 # ── Audit log ─────────────────────────────────────────────────────────────────
 
-_AUDIT_LOG_PATH = os.getenv("BREAK_GLASS_AUDIT_PATH", "/tmp/warden_break_glass_audit.jsonl")
+_AUDIT_LOG_PATH = settings.break_glass_audit_path
 
 
 def _audit(event: str, **kwargs) -> None:
