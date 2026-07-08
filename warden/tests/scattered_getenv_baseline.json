@@ -1,5 +1,5 @@
 {
-  "total": 763,
+  "total": 756,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -34,7 +34,7 @@
     "threat_vault.py": 1,
     "wallet_shield.py": 1,
     "agent/healer.py": 2,
-    "agent/master.py": 10,
+    "agent/master.py": 3,
     "agent/memory.py": 1,
     "agent/red_team.py": 1,
     "agent/scheduler.py": 3,

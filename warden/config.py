@@ -620,6 +620,13 @@ class Settings:
         default_factory=lambda: _env("WARDEN_BASE_URL", "https://api.shadow-warden-ai.com")
     )
 
+    # ── MasterAgent (warden/agent/master.py) ─────────────────────────────────────
+    # NB: reuses redis_url, warden_base_url, slack_webhook_url (pre-existing,
+    # matching defaults). No test file imports this module.
+    master_agent_token_budget: int = field(
+        default_factory=lambda: _int("MASTER_AGENT_TOKEN_BUDGET", 8192)
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
