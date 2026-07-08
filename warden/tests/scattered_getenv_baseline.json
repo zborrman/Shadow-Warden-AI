@@ -1,5 +1,5 @@
 {
-  "total": 692,
+  "total": 688,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -60,7 +60,7 @@
     "api/saml.py": 2,
     "api/sdk.py": 2,
     "api/secrets.py": 2,
-    "api/security_hub.py": 5,
+    "api/security_hub.py": 1,
     "api/slack_commands.py": 2,
     "api/soc_dashboard.py": 2,
     "api/tenant_impact.py": 1,

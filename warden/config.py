@@ -716,6 +716,15 @@ class Settings:
     auth_admin_email: str = field(default_factory=lambda: _env("AUTH_ADMIN_EMAIL", ""))
     auth_admin_password_hash: str = field(default_factory=lambda: _env("AUTH_ADMIN_PASSWORD_HASH", ""))
 
+    # ── Security Hub (warden/api/security_hub.py) ────────────────────────────────
+    # NB: reuses redis_url (inline default "redis://localhost:6379" — same
+    # localhost-vs-docker-service-name drift class as prior tiers). ADMIN_KEY
+    # stays an established live-read skip (shared dynamically-monkeypatched
+    # credential).
+    cve_report_path: str = field(default_factory=lambda: _env("CVE_REPORT_PATH", "data/cve_report.json"))
+    pentest_db_path: str = field(default_factory=lambda: _env("PENTEST_DB_PATH", "data/pentest_findings.json"))
+    security_posture_path: str = field(default_factory=lambda: _env("SECURITY_POSTURE_PATH", "data/security_posture.json"))
+
     # ── Syndicates invites (warden/syndicates/invites_router.py) ─────────────────
     # NB: reuses portal_jwt_secret/portal_url (pre-existing, matching defaults —
     # this also fixes a latent bug where the module's own random JWT-secret
