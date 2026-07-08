@@ -1182,6 +1182,18 @@ class Settings:
         default_factory=lambda: _int("SEP_KNOCK_TTL_HOURS", 72)
     )
 
+    # ── Compliance Evidence Bundle (warden/compliance/evidence_bundle.py) ────────
+    # NB: VENDOR_GOV_DB_PATH default here ("/tmp/warden_vendor_gov.db") differs
+    # from vendor_gov/registry.py's own default ("/tmp/warden_vendor.db") for the
+    # SAME env var — a pre-existing inconsistency, not something to unify here.
+    # Kept as its own field to preserve this file's exact fallback behavior.
+    evidence_bundle_vendor_db_path: str = field(
+        default_factory=lambda: _env("VENDOR_GOV_DB_PATH", "/tmp/warden_vendor_gov.db")
+    )
+    training_records_db_path: str = field(
+        default_factory=lambda: _env("TRAINING_RECORDS_DB_PATH", "/tmp/warden_training.db")
+    )
+
     # ── Community threat score federation (warden/communities/federation.py) ─────
     # NB: REDIS_URL stays a lazy os.getenv() function-level read in _redis() —
     # inline default "" is a deliberate disabled-sentinel, differs from

@@ -1,5 +1,5 @@
 {
-  "total": 631,
+  "total": 627,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -116,7 +116,6 @@
     "communities/training_records.py": 1,
     "communities/transfer_guard.py": 2,
     "compliance/art30.py": 1,
-    "compliance/evidence_bundle.py": 4,
     "compliance/framework_builder.py": 1,
     "compliance/posture_service.py": 6,
     "compliance/soc2.py": 4,
