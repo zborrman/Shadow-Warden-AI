@@ -599,6 +599,27 @@ class Settings:
         default_factory=lambda: _env("SAML_CERT_PATH", "")
     )
 
+    # ── Billing Streamlit page (warden/analytics/pages/9_Billing.py) ─────────────
+    # NB: reuses lemonsqueezy_api_key/store_id/webhook_secret (pre-existing).
+    # WARDEN_INTERNAL_URL and PORTAL_BASE_URL are distinct env-var names from
+    # warden_base_url/portal_url (different defaults too) — kept as separate
+    # fields, not reused, to preserve exact per-file behaviour.
+    billing_page_db_path: str = field(
+        default_factory=lambda: _env("LEMONSQUEEZY_DB_PATH", "/warden/data/lemon.db")
+    )
+    dunning_grace_days: int = field(
+        default_factory=lambda: _int("DUNNING_GRACE_DAYS", 7)
+    )
+    warden_internal_url: str = field(
+        default_factory=lambda: _env("WARDEN_INTERNAL_URL", "http://localhost:8001")
+    )
+    billing_page_portal_url: str = field(
+        default_factory=lambda: _env("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
+    )
+    billing_page_warden_url: str = field(
+        default_factory=lambda: _env("WARDEN_BASE_URL", "https://api.shadow-warden-ai.com")
+    )
+
     # ── Misc ───────────────────────────────────────────────────────────────────
     log_level: str = field(
         default_factory=lambda: _env("LOG_LEVEL", "info").lower()
