@@ -33,13 +33,14 @@ import os
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+from warden.config import settings
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.communities.federation")
 
-_FEDERATION_ENABLED  = os.getenv("FEDERATION_ENABLED", "false").lower() == "true"
-_VERDICT_TTL         = int(os.getenv("FEDERATION_VERDICT_TTL", str(86_400 * 7)))
-_BOOST               = float(os.getenv("FEDERATION_SCORE_BOOST", "0.15"))
+_FEDERATION_ENABLED  = settings.federation_enabled
+_VERDICT_TTL         = settings.federation_verdict_ttl
+_BOOST               = settings.federation_score_boost
 def _hmac_key() -> bytes:
     return resolve_key("COMMUNITY_VAULT_KEY", purpose="federation")
 

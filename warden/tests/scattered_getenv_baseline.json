@@ -1,5 +1,5 @@
 {
-  "total": 636,
+  "total": 633,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -93,7 +93,7 @@
     "communities/community_factory.py": 1,
     "communities/data_pod.py": 3,
     "communities/entity_store.py": 3,
-    "communities/federation.py": 4,
+    "communities/federation.py": 1,
     "communities/id_generator.py": 1,
     "communities/incident_register.py": 1,
     "communities/intelligence.py": 3,

@@ -1173,6 +1173,20 @@ class Settings:
         default_factory=lambda: _int("FEDERATED_TRUST_FLAG_TTL_DAYS", 30)
     )
 
+    # ── Community threat score federation (warden/communities/federation.py) ─────
+    # NB: REDIS_URL stays a lazy os.getenv() function-level read in _redis() —
+    # inline default "" is a deliberate disabled-sentinel, differs from
+    # settings.redis_url's non-empty default (same class as T18/T29/T69).
+    federation_enabled: bool = field(
+        default_factory=lambda: _bool("FEDERATION_ENABLED", False)
+    )
+    federation_verdict_ttl: int = field(
+        default_factory=lambda: _int("FEDERATION_VERDICT_TTL", 86_400 * 7)
+    )
+    federation_score_boost: float = field(
+        default_factory=lambda: _float("FEDERATION_SCORE_BOOST", 0.15)
+    )
+
     # ── Break Glass emergency key access (warden/communities/break_glass.py) ─────
     break_glass_ttl_s: int = field(
         default_factory=lambda: _int("BREAK_GLASS_TTL_S", 3600)
