@@ -1,5 +1,5 @@
 {
-  "total": 669,
+  "total": 666,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -220,7 +220,7 @@
     "vendor_gov/registry.py": 1,
     "voice/agent.py": 1,
     "voice/api.py": 2,
-    "voice/biometric.py": 4,
+    "voice/biometric.py": 1,
     "voice/dialogue.py": 3,
     "voice/nlu.py": 2,
     "voice/x402.py": 3,

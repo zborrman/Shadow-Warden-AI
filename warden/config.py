@@ -330,6 +330,18 @@ class Settings:
         default_factory=lambda: _float("VOICE_ZSCORE_THRESHOLD", 3.0)
     )
 
+    # ── Voice Biometric (warden/voice/biometric.py) ───────────────────────────────
+    # NB: REDIS_URL stays a module-level os.getenv("REDIS_URL", "") read in
+    # biometric.py — empty string is a deliberate "disabled" sentinel there,
+    # different semantics from settings.redis_url's non-empty default (same
+    # empty-disabled-sentinel skip class as scheduler.py/wallet_shield.py).
+    voice_biometric_threshold: float = field(
+        default_factory=lambda: _float("VOICE_BIOMETRIC_THRESHOLD", 0.85)
+    )
+    voice_biometric_ttl: int = field(
+        default_factory=lambda: _int("VOICE_BIOMETRIC_TTL", 90 * 86_400)
+    )
+
     # ── Global Blocklist (warden/global_blocklist.py) ────────────────────────────
     global_blocklist_enabled: bool = field(
         default_factory=lambda: _bool("GLOBAL_BLOCKLIST_ENABLED", True)
