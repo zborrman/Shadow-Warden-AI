@@ -1084,6 +1084,20 @@ class Settings:
         default_factory=lambda: _env("COMMUNITY_VAULT_KEY", "")
     )
 
+    # ── Sovereign Tunnel Preflight (warden/sovereign/preflight.py) ───────────────
+    # NB: MINIO_ENDPOINT is a distinct env-var name from MINIO_URL (used by
+    # api/deploy_health.py) despite sharing the same default — kept as its own
+    # field rather than reusing minio_url (same default-drift discipline as
+    # T36/T44). REDIS_URL default here drifts from settings.redis_url's
+    # "redis://redis:6379/0" (localhost vs docker-service-name) — reused anyway
+    # per the established latent-bug-fix precedent (T17/T26/T35/T37/T38/T41/T49/T53).
+    preflight_timeout_s: float = field(
+        default_factory=lambda: _float("PREFLIGHT_TIMEOUT_S", 5.0)
+    )
+    sovereign_minio_endpoint: str = field(
+        default_factory=lambda: _env("MINIO_ENDPOINT", "http://minio:9000")
+    )
+
     # ── A2A protocol (warden/protocols/a2a/task_lifecycle.py) ────────────────────
     a2a_base_url: str = field(
         default_factory=lambda: _env("A2A_BASE_URL", "http://localhost:8001")
