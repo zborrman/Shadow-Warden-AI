@@ -10,7 +10,7 @@ Connection selection:
   fallback                             → use local SQLite (existing behavior)
 
 Supported DB names (maps to env-var suffixes):
-  billing_audit, acp, marketplace, sep, staff
+  billing_audit, acp, marketplace, sep, staff, gsam
 
 Usage:
   from warden.db.turso import get_connection, is_turso_enabled
@@ -40,6 +40,7 @@ _DB_ENV: dict[str, tuple[str, str]] = {
     "marketplace":   ("TURSO_URL_MARKETPLACE",    "TURSO_TOKEN_MARKETPLACE"),
     "sep":           ("TURSO_URL_SEP",             "TURSO_TOKEN_SEP"),
     "staff":         ("TURSO_URL_STAFF",           "TURSO_TOKEN_STAFF"),
+    "gsam":          ("TURSO_URL_GSAM",            "TURSO_TOKEN_GSAM"),
 }
 
 _client_cache: dict[str, _TursoConnection] = {}

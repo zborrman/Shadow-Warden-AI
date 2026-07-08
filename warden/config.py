@@ -1691,6 +1691,69 @@ class Settings:
         default_factory=lambda: _env("KEY_ROTATION_CONTRACT_ADDRESS", "")
     )
 
+    # ── GSAM — Global Statistic Agentic Marketplace (warden/gsam/) ──────────────
+    # Master switch for the GSAM analytics/governance layer.
+    gsam_enabled: bool = field(
+        default_factory=lambda: _bool("GSAM_ENABLED", True)
+    )
+    # ClickHouse observations stream (fail-open — warden runs fine without it).
+    gsam_clickhouse_enabled: bool = field(
+        default_factory=lambda: _bool("GSAM_CLICKHOUSE_ENABLED", False)
+    )
+    gsam_clickhouse_url: str = field(
+        default_factory=lambda: _env("GSAM_CLICKHOUSE_URL", "http://clickhouse:8123")
+    )
+    gsam_clickhouse_user: str = field(
+        default_factory=lambda: _env("GSAM_CLICKHOUSE_USER", "warden")
+    )
+    gsam_clickhouse_password: str = field(
+        default_factory=lambda: _env("GSAM_CLICKHOUSE_PASSWORD", "")
+    )
+    gsam_clickhouse_database: str = field(
+        default_factory=lambda: _env("GSAM_CLICKHOUSE_DATABASE", "gsam")
+    )
+    # NDJSON spool used while ClickHouse is disabled/unreachable (size-capped).
+    gsam_spool_path: str = field(
+        default_factory=lambda: _env("GSAM_SPOOL_PATH", "/tmp/warden_gsam_spool.ndjson")
+    )
+    gsam_spool_max_bytes: int = field(
+        default_factory=lambda: _int("GSAM_SPOOL_MAX_BYTES", 50_000_000)
+    )
+    # Collector queue/batching (producer side is put_nowait only — never blocks).
+    gsam_queue_max: int = field(
+        default_factory=lambda: _int("GSAM_QUEUE_MAX", 10_000)
+    )
+    gsam_flush_interval_s: float = field(
+        default_factory=lambda: _float("GSAM_FLUSH_INTERVAL_S", 2.0)
+    )
+    gsam_batch_size: int = field(
+        default_factory=lambda: _int("GSAM_BATCH_SIZE", 500)
+    )
+    # Drift index: EWMA smoothing factor λ and quarantine threshold.
+    gsam_drift_lambda: float = field(
+        default_factory=lambda: _float("GSAM_DRIFT_LAMBDA", 0.2)
+    )
+    gsam_drift_quarantine_threshold: float = field(
+        default_factory=lambda: _float("GSAM_DRIFT_QUARANTINE_THRESHOLD", 0.85)
+    )
+    # Quarantine flag TTL (Redis gsam:quarantine:{agent_id}); default 24h.
+    gsam_quarantine_ttl_s: int = field(
+        default_factory=lambda: _int("GSAM_QUARANTINE_TTL_S", 86_400)
+    )
+    # JIT credential lease TTL + HMAC signing key (empty = leasing disabled,
+    # fail-CLOSED by design — leases are a credential path, not analytics).
+    gsam_lease_ttl_s: int = field(
+        default_factory=lambda: _int("GSAM_LEASE_TTL_S", 900)
+    )
+    gsam_lease_secret: str = field(
+        default_factory=lambda: _env("GSAM_LEASE_SECRET", "")
+    )
+    # SQLite fallback for drift baselines / leases / quarantine log / rollups
+    # (Turso db name "gsam" when TURSO_URL_GSAM is set).
+    gsam_db_path: str = field(
+        default_factory=lambda: _env("GSAM_DB_PATH", "/tmp/warden_gsam.db")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 

@@ -35,6 +35,7 @@ volumes:
   warden-models:
   caddy-data:
   loki-data:
+  clickhouse-data:
 
 services:
 
@@ -189,6 +190,15 @@ services:
       - S3_BUCKET_EVIDENCE=${S3_BUCKET_EVIDENCE:-warden-evidence}
       - S3_BUCKET_LOGS=${S3_BUCKET_LOGS:-warden-logs}
       - S3_REGION=${S3_REGION:-us-east-1}
+      # v7.7 — GSAM observations stream (ClickHouse OLAP, fail-open)
+      - GSAM_ENABLED=${GSAM_ENABLED:-true}
+      - GSAM_CLICKHOUSE_ENABLED=${GSAM_CLICKHOUSE_ENABLED:-true}
+      - GSAM_CLICKHOUSE_URL=${GSAM_CLICKHOUSE_URL:-http://clickhouse:8123}
+      - GSAM_CLICKHOUSE_USER=${GSAM_CLICKHOUSE_USER:-warden}
+      - GSAM_CLICKHOUSE_PASSWORD=${GSAM_CLICKHOUSE_PASSWORD:-}
+      - GSAM_SPOOL_PATH=/warden/data/gsam_spool.ndjson
+      - GSAM_DB_PATH=/warden/data/gsam.db
+      - GSAM_LEASE_SECRET=${GSAM_LEASE_SECRET:-}
       # v0.8 — Prompt Shield (indirect injection detection)
       # Warden Nexus — Global Threat Intelligence Feed (opt-in)
       # Set THREAT_FEED_ENABLED=true and THREAT_FEED_URL after signing up.
@@ -374,6 +384,44 @@ services:
         echo 'MinIO buckets ready.';
       "
     restart: on-failure
+
+  # ── CLICKHOUSE (GSAM observations OLAP store — v7.7) ────────────────────────
+  # Warden is fail-open toward ClickHouse: when this service is down the GSAM
+  # collector spools observations to NDJSON and replays them on recovery.
+  # Deliberately NOT in warden's depends_on — the gateway must boot without it.
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: warden-clickhouse
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      - CLICKHOUSE_USER=${GSAM_CLICKHOUSE_USER:-warden}
+      - CLICKHOUSE_PASSWORD=${GSAM_CLICKHOUSE_PASSWORD:-}
+      - CLICKHOUSE_DB=gsam
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./docker/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks:
+      - warden-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8123/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   # ── REDIS ───────────────────────────────────────────────────────────────────
   redis:
