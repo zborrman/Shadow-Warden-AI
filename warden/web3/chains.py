@@ -14,23 +14,23 @@ if no URL is configured for the requested chain.
 """
 from __future__ import annotations
 
-import os
+from warden.config import settings
 
 CHAINS: dict[str, dict] = {
     "sepolia": {
-        "rpc_url":        os.getenv("SEPOLIA_RPC_URL") or os.getenv("WEB3_RPC_URL", ""),
+        "rpc_url":        settings.sepolia_rpc_url or settings.web3_rpc_url,
         "chain_id":       11155111,
         "currency_symbol": "ETH",
         "block_explorer": "https://sepolia.etherscan.io",
     },
     "polygon_amoy": {
-        "rpc_url":        os.getenv("POLYGON_AMOY_RPC_URL", ""),
+        "rpc_url":        settings.polygon_amoy_rpc_url,
         "chain_id":       80002,
         "currency_symbol": "MATIC",
         "block_explorer": "https://www.oklink.com/amoy",
     },
     "arbitrum_sepolia": {
-        "rpc_url":        os.getenv("ARBITRUM_SEPOLIA_RPC_URL", ""),
+        "rpc_url":        settings.arbitrum_sepolia_rpc_url,
         "chain_id":       421614,
         "currency_symbol": "ETH",
         "block_explorer": "https://sepolia.arbiscan.io",
