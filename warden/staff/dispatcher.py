@@ -43,6 +43,22 @@ async def staff_dispatch(
             alert.agent_id, alert.kind, alert.tool_name, alert.count, alert.window_s,
         )
 
+    # GSAM quarantine gate — runs alongside the STAFF-01/02 checks above (added,
+    # never replacing them). Fail-open: an infra error must not wedge dispatch.
+    try:
+        from warden.gsam.quarantine import is_quarantined  # noqa: PLC0415
+
+        if is_quarantined(agent_id):
+            log.warning("STAFF gsam quarantine: refusing agent=%s tool=%s", agent_id, tool_name)
+            return {
+                "gsam_quarantined": True,
+                "agent_id":         agent_id,
+                "tool_name":        tool_name,
+                "reason":           "agent under GSAM drift quarantine",
+            }
+    except Exception as exc:  # noqa: BLE001
+        log.debug("staff_dispatch: gsam quarantine fail-open: %s", exc)
+
     # Delegate to the real dispatch (SOVA tools + staff tools)
     from warden.agent.tools import traced_dispatch  # noqa: PLC0415
     from warden.staff.tools import STAFF_TOOL_HANDLERS  # noqa: PLC0415
