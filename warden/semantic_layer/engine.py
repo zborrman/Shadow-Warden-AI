@@ -475,6 +475,30 @@ for _raw in [
             {"name": "date",          "column": "DATE(created_at)", "description": "Transaction date"},
         ],
     },
+    # ── GSAM marketplace agent stats (GSAM-06) ─────────────────────────────────
+    {
+        "id": "gsam_agent_stats",
+        "name": "GSAM Agent Statistics",
+        # SQLite rollup (gsam DB) — NEVER ClickHouse. The engine emits Postgres/
+        # SQLite dialect; the hourly rollup keeps this queryable when CH is down.
+        "source_table": "gsam_agent_stats",
+        "description": "Hourly per-agent marketplace rollup — cost, tokens, drift, trust (GSAM-06).",
+        "metrics": [
+            {"name": "total_events",  "expression": "SUM(events)",           "description": "Total agent events"},
+            {"name": "agent_count",   "expression": "COUNT(DISTINCT agent_id)", "description": "Distinct agents"},
+            {"name": "tokens_in",     "expression": "SUM(tokens_in)",        "description": "Input tokens"},
+            {"name": "tokens_out",    "expression": "SUM(tokens_out)",       "description": "Output tokens"},
+            {"name": "cost_usd",      "expression": "SUM(cost_usd)",         "description": "Total LLM cost", "format": "currency"},
+            {"name": "avg_drift",     "expression": "AVG(drift)",            "description": "Average behavioural drift"},
+            {"name": "max_drift",     "expression": "MAX(drift)",            "description": "Peak drift"},
+            {"name": "avg_trust",     "expression": "AVG(trust)",            "description": "Average trust score"},
+        ],
+        "dimensions": [
+            {"name": "agent_id",   "column": "agent_id",    "description": "Marketplace agent"},
+            {"name": "tenant_id",  "column": "tenant_id",   "description": "Tenant"},
+            {"name": "hour",       "column": "hour_bucket", "description": "Hour bucket (ISO, truncated)"},
+        ],
+    },
 ]:
     m = SemanticModel(**_raw)  # type: ignore[arg-type]
     _BUILTIN_MODELS[m.id] = m

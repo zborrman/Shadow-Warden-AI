@@ -93,6 +93,29 @@ async def gsam_health() -> dict:
     return stats()
 
 
+# ── Read APIs (Pro+) ─────────────────────────────────────────────────────────────
+
+@router.get("/heatmap", dependencies=_GSAM_GATE)
+async def gsam_heatmap(hours: int = 24) -> dict:
+    """Marketplace demand buckets over the recent window."""
+    from warden.gsam.reports import heatmap  # noqa: PLC0415
+    return heatmap(hours)
+
+
+@router.get("/agents/{agent_id}/stats", dependencies=_GSAM_GATE)
+async def gsam_agent_stats(agent_id: str) -> dict:
+    """Per-agent cost / ROI / drift / trust + live quarantine state."""
+    from warden.gsam.reports import agent_stats  # noqa: PLC0415
+    return agent_stats(agent_id)
+
+
+@router.get("/compliance/score", dependencies=_GSAM_GATE)
+async def gsam_compliance_score() -> dict:
+    """Marketplace-wide anti-inflation compliance score."""
+    from warden.gsam.reports import compliance_score  # noqa: PLC0415
+    return compliance_score()
+
+
 def _require_admin(x_admin_key: str | None) -> None:
     admin_key = os.getenv("ADMIN_KEY", "")
     if not admin_key or x_admin_key != admin_key:
