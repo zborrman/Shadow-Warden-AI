@@ -321,6 +321,11 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
             from warden.staff.tools import STAFF_TOOL_HANDLERS  # noqa: PLC0415
             handler: Any = STAFF_TOOL_HANDLERS[tool_name]
             result = await handler(**arguments)
+            try:
+                from warden.gsam.ingest import tap_mcp_call  # noqa: PLC0415
+                tap_mcp_call(tool_name, _agent_id, float(price_for(tool_name)))
+            except Exception:  # noqa: BLE001
+                pass
             return _ok(req_id, {
                 "content": [{"type": "text", "text": json.dumps(result)}],
                 "isError": False,

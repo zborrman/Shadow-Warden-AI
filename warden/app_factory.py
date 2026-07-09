@@ -315,6 +315,7 @@ OPTIONAL_ROUTERS: list[RouterSpec] = [
     RouterSpec("warden.mcp.gateway",                   label="MCP Paid Tools /mcp"),
     RouterSpec("warden.api.kya",                       label="KYA DIDs /kya"),
     RouterSpec("warden.api.discovery",                 label="Agent Discovery /.well-known"),
+    RouterSpec("warden.gsam.api",                      label="GSAM /gsam (GSAM-01)"),
     # Staff subsystem — registered via register_staff_routers()
     *STAFF_ROUTERS,
 ]

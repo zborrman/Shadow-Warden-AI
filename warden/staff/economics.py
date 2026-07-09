@@ -153,6 +153,12 @@ class TokenCostTracker:
         except Exception as exc:  # noqa: BLE001
             log.debug("billing_audit hook failed (fail-open): %s", exc)
 
+        try:
+            from warden.gsam.ingest import tap_token_cost  # noqa: PLC0415
+            tap_token_cost(tenant_id, agent_id, action, model, input_tokens, output_tokens, cost)
+        except Exception:  # noqa: BLE001
+            pass
+
         return entry
 
     def get_report(self, tenant_id: str, days: int = 30) -> dict:

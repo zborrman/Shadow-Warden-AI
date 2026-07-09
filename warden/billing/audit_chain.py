@@ -221,6 +221,12 @@ def append_billing_event(
             tenant_id, seq, event_type, entry["cost_usd"], str(entry["entry_hash"])[:12],
         )
 
+        try:
+            from warden.gsam.ingest import tap_billing_event  # noqa: PLC0415
+            tap_billing_event(entry)
+        except Exception:  # noqa: BLE001
+            pass
+
         # Optional EVM attestation (background, fail-open)
         if _EVM_ON and seq % _EVM_EVERY == 0:
             threading.Thread(

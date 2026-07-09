@@ -73,6 +73,11 @@ def emit(
     if extra:
         record.update(extra)
     _root_log.info(json.dumps(record))
+    try:
+        from warden.gsam.ingest import tap_agent_span  # noqa: PLC0415
+        tap_agent_span(record)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 class AgentSpan:
