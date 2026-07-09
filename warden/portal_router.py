@@ -896,7 +896,8 @@ async def cert_apply(
         """),
         {"c": _PILOT_COHORT},
     )
-    count = (row.mappings().first() or {}).get("cnt", 0)
+    _first = row.mappings().first()
+    count = int(_first["cnt"]) if _first else 0
     status_val = "waitlist" if count >= _PILOT_CAPACITY else "pending"
 
     try:
