@@ -117,3 +117,53 @@ async def release_quarantine(
     from warden.gsam.quarantine import release  # noqa: PLC0415
     release(agent_id)
     return {"released": True, "agent_id": agent_id}
+
+
+# ── JIT credential lease (fail-CLOSED — 503 when no signing secret) ───────────────
+
+class LeaseRequestBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    agent_id: str = Field(min_length=1, max_length=128)
+    tenant_id: str = ""
+    scope: str = Field(min_length=1, max_length=256)
+
+
+@router.post("/lease/request", status_code=status.HTTP_202_ACCEPTED, dependencies=_GSAM_GATE)
+async def lease_request(body: LeaseRequestBody) -> dict:
+    """Request a JIT credential lease. Approval token is delivered via Slack —
+    never returned to the requester."""
+    from warden.gsam.jit_lease import LeaseUnavailableError, request_lease  # noqa: PLC0415
+    try:
+        req = request_lease(body.agent_id, body.tenant_id, body.scope)
+    except LeaseUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    # NB: req.approval_token is intentionally omitted from the response.
+    return {"lease_id": req.lease_id, "status": req.status}
+
+
+@router.post("/lease/approve/{token}", dependencies=_GSAM_GATE)
+async def lease_approve(
+    token: str,
+    x_admin_key: str | None = Header(default=None),
+) -> dict:
+    """Approve a pending lease (admin-only). Returns the bearer signature."""
+    _require_admin(x_admin_key)
+    from warden.gsam.jit_lease import LeaseUnavailableError, approve  # noqa: PLC0415
+    try:
+        result = approve(token)
+    except LeaseUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if result is None:
+        raise HTTPException(status_code=404, detail="Unknown, expired, or already-resolved token.")
+    return result
+
+
+@router.get("/lease/{lease_id}/status", dependencies=_GSAM_GATE)
+async def lease_status(lease_id: str) -> dict:
+    """Return lease metadata (never the signature or secret)."""
+    from warden.gsam.jit_lease import get_status  # noqa: PLC0415
+    result = get_status(lease_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Lease not found.")
+    return result
