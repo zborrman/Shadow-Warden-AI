@@ -520,6 +520,13 @@ async def dispatch_action(
             resp["routed_model"] = _route_decision.model
             resp["route_tier"]   = _route_decision.tier
             resp["route_score"]  = round(_route_decision.score, 3)
+        try:
+            from warden.gsam.ingest import tap_marketplace_action  # noqa: PLC0415
+            _mkt_agent_id = str(body.payload.get("agent_id", "")) if isinstance(body.payload, dict) else ""
+            _mkt_tenant_id = request.headers.get("X-Tenant-ID", "")
+            background_tasks.add_task(tap_marketplace_action, body.action_type, _mkt_agent_id, _mkt_tenant_id, True)
+        except Exception:  # noqa: BLE001
+            pass
         return resp
     except Exception as exc:
         log.warning("dispatch_action %s failed: %s", body.action_type, exc)
