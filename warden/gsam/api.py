@@ -28,6 +28,15 @@ log = logging.getLogger("warden.gsam.api")
 
 router = APIRouter(prefix="/gsam", tags=["gsam"])
 
+# Register the hourly rollup as a collector sink at router-mount time so
+# gsam_agent_stats stays fresh even when ClickHouse is disabled (fail-open).
+try:
+    from warden.gsam.rollup import install as _install_rollup
+
+    _install_rollup()
+except Exception:  # noqa: BLE001
+    pass
+
 
 class ExternalObservation(BaseModel):
     """Sensor-submitted observation (SAC adaptation — eBPF/network sensors).
