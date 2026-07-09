@@ -4,9 +4,21 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.6 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.7 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.7 — GSAM (Global Statistic Agentic Marketplace)
+
+| Feature | Description |
+|---------|-------------|
+| **Observation Stream (GSAM-01/02)** | New `warden/gsam/` package: a metadata-only, GDPR-allowlisted observation stream. ClickHouse holds the append-only stream (fail-open NDJSON spool when it's down); five ingest taps (`structured_log`, `economics`, billing audit, marketplace, MCP) do dict-build + `put_nowait` only. `POST /gsam/observations` (external sensors) + `GET /gsam/health`. |
+| **Economics + Behavioural Drift (GSAM-03)** | Pure-function math engine — session cost, ROI, EWMA drift over a weighted-cosine distance, and an anti-inflation compliance score with a strong/weak co-occurrence rule. Per-agent drift baselines + an hourly `gsam_agent_stats` rollup keep everything working without ClickHouse. |
+| **Agent Quarantine (GSAM-04)** | Drift crossing the threshold quarantines an agent — denied at both the marketplace and Digital Staff dispatchers (added alongside the STAFF-01/02 checks, never replacing them). Fail-open on read; admin list/release API. |
+| **JIT Credential Lease (GSAM-05)** | Hermes-style short-lived, human-approved, single-use scoped credential leases. **Fail-CLOSED**: no signing secret → HTTP 503. HMAC-signed, replay/expiry/tamper-rejecting; the secret never leaves the server and the approval token is delivered via Slack only. |
+| **Read APIs + Analytics (GSAM-06/07)** | `/gsam/heatmap`, `/gsam/agents/{id}/stats`, `/gsam/compliance/score` (Pro+); a `gsam_agent_stats` Semantic Layer model; Streamlit + SOC dashboards; and an anti-inflation governance posture in the warden-scan CI step summary. |
 
 ---
 
