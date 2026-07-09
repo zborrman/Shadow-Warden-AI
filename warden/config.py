@@ -1680,6 +1680,17 @@ class Settings:
         default_factory=lambda: _bool("WAT_SIMULATE", True)
     )
 
+    # ── USDC stablecoin rail (warden/payments/usdc.py) ──────────────────────────
+    usdc_simulate: bool = field(
+        default_factory=lambda: _bool("USDC_SIMULATE", True)
+    )
+    coinbase_commerce_api_key: str = field(
+        default_factory=lambda: _env("COINBASE_COMMERCE_API_KEY", "")
+    )
+    usdc_intent_ttl_s: int = field(
+        default_factory=lambda: _int("USDC_INTENT_TTL_S", 3600 * 24)
+    )
+
     # ── Decentralized key rotation (warden/web3/key_rotation.py) ─────────────────
     key_rotation_db_path: str = field(
         default_factory=lambda: _env("KEY_ROTATION_DB_PATH", "/tmp/warden_key_rotation.db")

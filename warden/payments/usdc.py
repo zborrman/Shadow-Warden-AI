@@ -17,17 +17,18 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+from warden.config import settings
+
 log = logging.getLogger("warden.payments.usdc")
 
-_SIMULATE    = os.getenv("USDC_SIMULATE", "true").lower() == "true"
-_CB_API_KEY  = os.getenv("COINBASE_COMMERCE_API_KEY", "")
-_REDIS_URL   = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-_INTENT_TTL  = int(os.getenv("USDC_INTENT_TTL_S", str(3600 * 24)))  # 24 h
+_SIMULATE    = settings.usdc_simulate
+_CB_API_KEY  = settings.coinbase_commerce_api_key
+_REDIS_URL   = settings.redis_url
+_INTENT_TTL  = settings.usdc_intent_ttl_s  # 24 h default
 
 
 @dataclass
