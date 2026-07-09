@@ -1691,6 +1691,17 @@ class Settings:
         default_factory=lambda: _int("USDC_INTENT_TTL_S", 3600 * 24)
     )
 
+    # ── Cross-chain escrow RPC endpoints (warden/web3/chains.py) ────────────────
+    sepolia_rpc_url: str = field(
+        default_factory=lambda: _env("SEPOLIA_RPC_URL", "")
+    )
+    web3_rpc_url: str = field(
+        default_factory=lambda: _env("WEB3_RPC_URL", "")
+    )
+    arbitrum_sepolia_rpc_url: str = field(
+        default_factory=lambda: _env("ARBITRUM_SEPOLIA_RPC_URL", "")
+    )
+
     # ── Decentralized key rotation (warden/web3/key_rotation.py) ─────────────────
     key_rotation_db_path: str = field(
         default_factory=lambda: _env("KEY_ROTATION_DB_PATH", "/tmp/warden_key_rotation.db")
