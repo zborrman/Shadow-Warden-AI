@@ -1,5 +1,5 @@
 {
-  "total": 619,
+  "total": 615,
   "per_file": {
     "agent_sandbox.py": 3,
     "audio_redactor.py": 3,
@@ -123,7 +123,6 @@
     "crypto/pqc.py": 2,
     "db/turso.py": 4,
     "discovery/well_known.py": 3,
-    "document_intel/converter.py": 4,
     "feed_server/main.py": 3,
     "financial/budget.py": 1,
     "financial/cost_allocation.py": 2,

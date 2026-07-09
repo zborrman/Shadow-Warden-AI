@@ -34,11 +34,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from warden.config import settings
+
 log = logging.getLogger("warden.document_intel.converter")
 
-_MAX_BYTES    = int(os.getenv("DOC_INTEL_MAX_BYTES",  str(50 * 1024 * 1024)))   # 50 MB
-_TIMEOUT_S    = float(os.getenv("DOC_INTEL_TIMEOUT_S", "30"))
-_DEFAULT_TTL  = int(os.getenv("DOC_INTEL_CACHE_TTL",  "3600"))
+_MAX_BYTES    = settings.doc_intel_max_bytes    # 50 MB default
+_TIMEOUT_S    = settings.doc_intel_timeout_s
+_DEFAULT_TTL  = settings.doc_intel_cache_ttl
 _CACHE_PREFIX = "doc_intel:md:"
 _STATS_KEY    = "doc_intel:stats"
 
@@ -180,7 +182,7 @@ class MarkItDownConverter:
         self._redis_checked = True
         try:
             import redis as redis_lib
-            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+            redis_url = settings.redis_url
             if redis_url.startswith("memory://"):
                 return None
             r = redis_lib.Redis.from_url(redis_url, decode_responses=True)
