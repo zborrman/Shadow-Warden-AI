@@ -45,6 +45,10 @@ os.environ.setdefault("COMMUNITY_KEY_ARCHIVE_PATH", "/tmp/warden_test_community_
 os.environ.setdefault("BREAK_GLASS_AUDIT_PATH",   "/tmp/warden_test_break_glass_audit.jsonl")
 os.environ.setdefault("VAULT_MASTER_KEY",          "i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA=")  # valid Fernet key for tests
 os.environ.setdefault("NET_GUARD_ALLOW_PRIVATE",   "true")   # SSRF guard off in tests (offline URLs); enforcement covered by dedicated monkeypatched tests
+# GSAM (Global Statistic Agentic Marketplace) — ClickHouse off, /tmp paths
+os.environ.setdefault("GSAM_CLICKHOUSE_ENABLED", "false")
+os.environ.setdefault("GSAM_SPOOL_PATH",  "/tmp/warden_test_gsam_spool.ndjson")
+os.environ.setdefault("GSAM_DB_PATH",     "/tmp/warden_test_gsam.db")
 
 
 @pytest.fixture(scope="session", autouse=True)

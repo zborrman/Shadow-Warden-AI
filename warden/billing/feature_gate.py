@@ -191,6 +191,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "semantic_layer_enabled":      False,
         "settings_enabled":            False,
         "marketplace_enabled":         False,
+        "gsam_enabled":                False,
         # ── Referral ───────────────────────────────────────────────────────────
         "referral_program":            True,
         "referral_bonus_requests":     500,   # +500 req per referred signup
@@ -264,6 +265,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "semantic_layer_enabled":      False,
         "settings_enabled":            True,
         "marketplace_enabled":         False,
+        "gsam_enabled":                False,
         "referral_program":            True,
         "referral_bonus_requests":     500,
         "referral_bonus_bytes":        1 * _GB,   # +1 GB per referred signup
@@ -335,6 +337,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "semantic_layer_enabled":      True,
         "settings_enabled":            True,
         "marketplace_enabled":         True,    # ← M2M Agentic Marketplace (Pro+)
+        "gsam_enabled":                True,    # ← GSAM analytics/governance (Pro+)
         "referral_program":            True,
         "referral_bonus_requests":     2_000,
         "referral_bonus_bytes":        5 * _GB,   # +5 GB per referred signup
@@ -425,6 +428,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "semantic_layer_enabled":      False,
         "settings_enabled":            True,
         "marketplace_enabled":         False,
+        "gsam_enabled":                False,
         "misp_bridge_enabled":         False,
         "sdk_otel_enabled":            False,
         "github_actions_scan_enabled": False,
@@ -488,6 +492,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "semantic_layer_enabled":      True,
         "settings_enabled":            True,
         "marketplace_enabled":         True,    # ← M2M Agentic Marketplace (Enterprise)
+        "gsam_enabled":                True,    # ← GSAM analytics/governance
         "referral_program":            False,   # Enterprise pays full price
         "referral_bonus_requests":     0,
         "referral_bonus_bytes":        0,
@@ -528,6 +533,7 @@ FEATURE_PQC                = "pqc_enabled"
 FEATURE_SECRETS_GOV        = "secrets_governance"
 FEATURE_COMMUNITIES        = "communities_enabled"
 FEATURE_GITHUB_CI          = "github_actions_scan_enabled"
+FEATURE_GSAM               = "gsam_enabled"
 FEATURE_MOBILE_PUSH        = "mobile_push_enabled"
 # Marketplace sub-features
 FEATURE_DAO_GOVERNANCE     = "marketplace_enabled"   # gated by marketplace_enabled

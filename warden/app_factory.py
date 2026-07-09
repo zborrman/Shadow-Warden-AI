@@ -104,6 +104,7 @@ def run_turso_migrations() -> None:
         ("staff",         _STAFF_DDL),
         ("sep",           _SEP_DDL),
         ("marketplace",   _MARKETPLACE_DDL),
+        ("gsam",          _GSAM_DDL),
     ]
     for db_name, ddl in migrations:
         if is_turso_enabled(db_name):
@@ -229,6 +230,52 @@ _MARKETPLACE_DDL = """
         ts          TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_kte_did ON kya_trust_events(did, ts);
+"""
+
+_GSAM_DDL = """
+    CREATE TABLE IF NOT EXISTS gsam_drift_baselines (
+        agent_id         TEXT PRIMARY KEY,
+        freq_vector_json TEXT NOT NULL DEFAULT '{}',
+        ewma_drift       REAL NOT NULL DEFAULT 0.0,
+        sample_count     INTEGER NOT NULL DEFAULT 0,
+        updated_at       TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS gsam_leases (
+        lease_id   TEXT PRIMARY KEY,
+        agent_id   TEXT NOT NULL,
+        tenant_id  TEXT NOT NULL,
+        scope      TEXT NOT NULL,
+        status     TEXT NOT NULL DEFAULT 'PENDING',
+        hmac_sig   TEXT NOT NULL DEFAULT '',
+        expires_at TEXT NOT NULL DEFAULT '',
+        used_at    TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_gsam_leases_agent ON gsam_leases(agent_id, created_at);
+    CREATE TABLE IF NOT EXISTS gsam_quarantine_log (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_id    TEXT NOT NULL,
+        reason      TEXT NOT NULL DEFAULT '',
+        drift_score REAL NOT NULL DEFAULT 0.0,
+        ts          TEXT NOT NULL,
+        released_at TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_gsam_quarantine_agent ON gsam_quarantine_log(agent_id, ts);
+    CREATE TABLE IF NOT EXISTS gsam_agent_stats (
+        agent_id      TEXT NOT NULL,
+        tenant_id     TEXT NOT NULL DEFAULT '',
+        hour_bucket   TEXT NOT NULL,
+        events        INTEGER NOT NULL DEFAULT 0,
+        tokens_in     INTEGER NOT NULL DEFAULT 0,
+        tokens_out    INTEGER NOT NULL DEFAULT 0,
+        cost_usd      REAL NOT NULL DEFAULT 0.0,
+        roi           REAL NOT NULL DEFAULT 0.0,
+        drift         REAL NOT NULL DEFAULT 0.0,
+        trust         REAL NOT NULL DEFAULT 0.0,
+        verdicts_json TEXT NOT NULL DEFAULT '{}',
+        PRIMARY KEY (agent_id, hour_bucket)
+    );
+    CREATE INDEX IF NOT EXISTS idx_gsam_stats_tenant ON gsam_agent_stats(tenant_id, hour_bucket);
 """
 
 

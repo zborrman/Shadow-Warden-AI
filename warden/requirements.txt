@@ -155,6 +155,12 @@ PyJWT>=2.8.0
 # ── TTL-aware in-process cache (used by m2m_store offer dict) ────────────────
 cachetools>=5.3.0
 
+# ── GSAM observations stream (warden/gsam/) ───────────────────────────────────
+# clickhouse-connect — HTTP client for the ClickHouse OLAP observations table.
+# Import is guarded: when missing or GSAM_CLICKHOUSE_ENABLED=false the collector
+# spools to NDJSON and the app runs normally (fail-open).
+clickhouse-connect>=0.7.0
+
 # ── WebAuthn / FIDO2 passkey authentication ───────────────────────────────────
 # py-webauthn — server-side WebAuthn library for FIDO2 passkey registration and
 # authentication.  Required by warden/auth/fido.py for production passkey flows.
