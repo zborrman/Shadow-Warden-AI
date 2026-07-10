@@ -94,7 +94,8 @@ class AgentSpan:
         self.agent_id = agent_id
         self.tenant_id = tenant_id
         self.model = model
-        self.query_preview = query[:80].replace("\n", " ") if query else ""
+        # GDPR: never log raw query content — keep only a length metric.
+        self.query_len = len(query) if query else 0
         self._t0 = time.perf_counter()
         self._input = 0
         self._output = 0
@@ -108,7 +109,7 @@ class AgentSpan:
             agent_id=self.agent_id,
             tenant_id=self.tenant_id,
             model=self.model,
-            detail=self.query_preview,
+            detail=f"query_chars={self.query_len}",
         )
 
     def tool_call(self, tool_name: str, input_preview: str = "") -> None:
@@ -121,7 +122,8 @@ class AgentSpan:
             input_tokens=self._input,
             output_tokens=self._output,
             latency_ms=self._elapsed(),
-            detail=input_preview[:120],
+            # GDPR: log the input size, never the raw tool input.
+            detail=f"input_chars={len(input_preview)}" if input_preview else "",
         )
 
     def tool_result(
