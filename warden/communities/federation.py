@@ -241,9 +241,13 @@ def _get_peers(community_id: str) -> list[str]:
 def _push_to_peer(peer_url: str, fv: FederatedVerdict) -> bool:
     try:
         import httpx as _httpx  # noqa: PLC0415
-        with _httpx.Client(timeout=5) as client:
+
+        from warden.net_guard import assert_public_url
+        target = f"{peer_url.rstrip('/')}/sep/federation/ingest"
+        assert_public_url(target)  # SSRF guard: peer-supplied webhook URL
+        with _httpx.Client(timeout=5, follow_redirects=False) as client:
             r = client.post(
-                f"{peer_url.rstrip('/')}/sep/federation/ingest",
+                target,
                 json=asdict(fv),
                 headers={"Content-Type": "application/json"},
             )

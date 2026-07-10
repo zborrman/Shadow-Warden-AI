@@ -18,6 +18,7 @@ All write endpoints are fail-open (KYA errors never block marketplace flow).
 """
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 import secrets
@@ -43,7 +44,8 @@ _redis_challenges: dict[str, str] = {}  # did → nonce (in-process; Redis when 
 
 
 def _require_admin(x_admin_key: str = Header("")) -> None:
-    if _ADMIN_KEY and x_admin_key != _ADMIN_KEY:
+    # Fail-closed: an unset ADMIN_KEY must NOT leave admin endpoints open.
+    if not _ADMIN_KEY or not hmac.compare_digest(x_admin_key, _ADMIN_KEY):
         raise HTTPException(403, "Requires X-Admin-Key")
 
 

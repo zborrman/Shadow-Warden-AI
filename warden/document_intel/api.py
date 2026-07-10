@@ -18,13 +18,18 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from warden.auth_guard import require_api_key
 from warden.billing.feature_gate import require_feature
 
 log = logging.getLogger("warden.document_intel.api")
 
-router = APIRouter(prefix="/document-intel", tags=["Document Intelligence"])
+router = APIRouter(
+    prefix="/document-intel",
+    tags=["Document Intelligence"],
+    dependencies=[Depends(require_api_key)],
+)
 _Gate = require_feature("prompt_library_enabled")
 
 

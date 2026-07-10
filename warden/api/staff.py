@@ -18,8 +18,10 @@ import time
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
+
+from warden.auth_guard import require_api_key
 
 try:
     from warden.billing.feature_gate import require_feature as _require_feature
@@ -33,7 +35,11 @@ from warden.staff.boundaries import (
 )
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix="/staff", tags=["Digital Staff"])
+router = APIRouter(
+    prefix="/staff",
+    tags=["Digital Staff"],
+    dependencies=[Depends(require_api_key), *_STAFF_GATE_DEP],
+)
 
 
 # ── Pydantic models ───────────────────────────────────────────────────────────

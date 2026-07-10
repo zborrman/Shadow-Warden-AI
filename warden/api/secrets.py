@@ -8,12 +8,13 @@ from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import require_api_key
 from warden.secrets_gov.inventory import SecretsInventory
 from warden.secrets_gov.lifecycle import LifecycleManager
 from warden.secrets_gov.policy import SecretsPolicy, SecretsPolicyEngine
 from warden.secrets_gov.vault_connector import CONNECTOR_TYPES, build_connector
 
-router = APIRouter(tags=["secrets"])
+router = APIRouter(tags=["secrets"], dependencies=[Depends(require_api_key)])
 
 
 def _get_db_path() -> str:

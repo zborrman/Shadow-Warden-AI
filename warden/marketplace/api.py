@@ -24,9 +24,10 @@ import time
 import uuid
 from typing import Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
 from pydantic import BaseModel
 
+from warden.auth_guard import AuthResult, require_api_key
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.api")
@@ -711,31 +712,54 @@ class AnalyticsQuery(BaseModel):
 
 
 @router.post("/analytics/query")
-async def analytics_sql_query(body: AnalyticsQuery, request: Request) -> dict:
+async def analytics_sql_query(
+    body: AnalyticsQuery,
+    request: Request,
+    _: AuthResult = Depends(require_api_key),
+) -> dict:
     """Execute a read-only SQL SELECT against the marketplace DB.
 
     Used by SOVA tool #32 (query_marketplace_db) and MCP marketplace-db server.
 
     Security layers:
-    1. SELECT-only gate — rejects any non-SELECT statement.
-    2. Confused Deputy guard — if `caller_agent_id` is set (via body or
-       X-Agent-ID header), rejects queries that reference a different agent's
-       DID literal.  This prevents one MCP client from reading another agent's
-       escrows, negotiations, or listings.
+    1. Authentication — requires a valid API key (require_api_key dependency).
+    2. SELECT-only gate — rejects any non-SELECT statement, and additionally
+       rejects statements that smuggle a second statement or a DDL/DML keyword.
+    3. Confused Deputy guard — a `caller_agent_id` is MANDATORY (via body or
+       X-Agent-ID header) and every query must be scoped to it; a query that
+       references a different agent's DID literal, or omits scoping entirely,
+       is rejected.  This prevents one caller from reading another agent's
+       escrows, negotiations, credits, or x402 balances.
     """
     import sqlite3
 
     stmt = body.sql.strip()
-    if not stmt.upper().startswith("SELECT"):
+    upper = stmt.upper()
+    if not upper.startswith("SELECT"):
         return {"error": "Only SELECT statements are permitted.", "rows": []}
+    # Defence-in-depth: reject multi-statement / DDL-DML smuggling even inside a SELECT.
+    if ";" in stmt.rstrip(";"):
+        return {"error": "Multiple statements are not permitted.", "rows": []}
+    _FORBIDDEN = (
+        " INSERT ", " UPDATE ", " DELETE ", " DROP ", " ALTER ",
+        " CREATE ", " ATTACH ", " PRAGMA ", " REPLACE ", " GRANT ",
+    )
+    padded = f" {upper} "
+    if any(kw in padded for kw in _FORBIDDEN):
+        return {"error": "Only read-only SELECT statements are permitted.", "rows": []}
 
     # Resolve caller identity: body field takes priority over header.
+    # Scoping is MANDATORY — an unscoped query could read every tenant's data.
     caller_id = body.caller_agent_id or request.headers.get("X-Agent-ID")
-    if caller_id:
-        err = _confused_deputy_check(stmt, caller_id)
-        if err:
-            log.warning("analytics_sql_query: confused deputy rejected caller=%s", caller_id[:40])
-            return {"error": err, "rows": []}
+    if not caller_id:
+        return {
+            "error": "caller_agent_id (or X-Agent-ID header) is required to scope the query.",
+            "rows": [],
+        }
+    err = _confused_deputy_check(stmt, caller_id)
+    if err:
+        log.warning("analytics_sql_query: confused deputy rejected caller=%s", caller_id[:40])
+        return {"error": err, "rows": []}
 
     db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
     try:

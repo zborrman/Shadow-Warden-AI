@@ -22,8 +22,10 @@ import logging
 import sqlite3
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from warden.auth_guard import require_api_key
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +35,11 @@ try:
 except Exception:
     _GATE = []
 
-router = APIRouter(prefix="/staff/agents", tags=["Digital Staff Agents"], dependencies=_GATE)
+router = APIRouter(
+    prefix="/staff/agents",
+    tags=["Digital Staff Agents"],
+    dependencies=[Depends(require_api_key), *_GATE],
+)
 
 
 # ── Pydantic models ────────────────────────────────────────────────────────────

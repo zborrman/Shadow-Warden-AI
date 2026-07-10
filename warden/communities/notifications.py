@@ -307,7 +307,9 @@ async def _send_slack(url: str, event_type: str, payload: dict[str, Any], commun
             "ts":     int(datetime.now(UTC).timestamp()),
         }],
     }
-    async with httpx.AsyncClient(timeout=8) as client:
+    from warden.net_guard import assert_public_url
+    assert_public_url(url)  # SSRF guard: subscriber-controlled webhook target
+    async with httpx.AsyncClient(timeout=8, follow_redirects=False) as client:
         r = await client.post(url, json=body)
         r.raise_for_status()
 
@@ -330,7 +332,9 @@ async def _send_teams(url: str, event_type: str, payload: dict[str, Any], commun
             "markdown":         True,
         }],
     }
-    async with httpx.AsyncClient(timeout=8) as client:
+    from warden.net_guard import assert_public_url
+    assert_public_url(url)  # SSRF guard: subscriber-controlled webhook target
+    async with httpx.AsyncClient(timeout=8, follow_redirects=False) as client:
         r = await client.post(url, json=body)
         r.raise_for_status()
 

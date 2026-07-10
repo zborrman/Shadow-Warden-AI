@@ -12,10 +12,16 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/agent/red-team", tags=["Red Team"])
+from warden.auth_guard import require_api_key
+
+router = APIRouter(
+    prefix="/agent/red-team",
+    tags=["Red Team"],
+    dependencies=[Depends(require_api_key)],
+)
 
 _ENABLED = os.getenv("RED_TEAM_ENABLED", "false").lower() == "true"
 
