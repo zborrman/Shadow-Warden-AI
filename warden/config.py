@@ -1702,6 +1702,17 @@ class Settings:
         default_factory=lambda: _env("ARBITRUM_SEPOLIA_RPC_URL", "")
     )
 
+    # ── Document Intelligence converter (warden/document_intel/converter.py) ────
+    doc_intel_max_bytes: int = field(
+        default_factory=lambda: _int("DOC_INTEL_MAX_BYTES", 50 * 1024 * 1024)
+    )
+    doc_intel_timeout_s: float = field(
+        default_factory=lambda: _float("DOC_INTEL_TIMEOUT_S", 30.0)
+    )
+    doc_intel_cache_ttl: int = field(
+        default_factory=lambda: _int("DOC_INTEL_CACHE_TTL", 3600)
+    )
+
     # ── Decentralized key rotation (warden/web3/key_rotation.py) ─────────────────
     key_rotation_db_path: str = field(
         default_factory=lambda: _env("KEY_ROTATION_DB_PATH", "/tmp/warden_key_rotation.db")
