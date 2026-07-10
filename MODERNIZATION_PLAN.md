@@ -168,4 +168,9 @@
   - 3.7 ZSET-коллизии: члены получили уникальный суффикс `uuid4().hex[:8]` — недосчёт burst при совпадении времени устранён (`staff/velocity.py`, `communities/transfer_guard.py`).
   - 3.8 None-guard для poison-alert `background_tasks` (`main.py`).
   - *Health `degraded` (1436) — пропущено как ложная находка:* реальный отказ Redis уже даёт `"degraded: <exc>"` → `overall=degraded`; статус `"unavailable"` — намеренно отключённый Redis (`memory://`), корректно `ok`.
-- ⏭️ Осталось в Фазе 1: 1.1 (единый auth-middleware), 1.4 (IDOR-хелпер). Фаза 2: 2.3 (IP-пиннинг TOCTOU), 2.4 (CORS `/ext/*`). Фаза 3: 3.1 (OpenAI-proxy URL), 3.2 (усечение стриминга), 3.5 (блокирующий I/O → `to_thread`), 3.6 (детектор эскалации), 3.8-остаток (create_task refs, LRU dedup, WalletShield, zero-prior дрейф, мёртвый код).
+- ✅ **Фаза 3 (продолжение)**:
+  - 3.1 OpenAI-proxy URL: введён `_openai_v1_base()` — chat/models/embeddings идут по единому корректному пути; устранены и пропуск `/v1` (404 на дефолте `api.openai.com`), и двойной `/v1/v1` при base с версией. Проверено на 3 конфигурациях (`openai_proxy.py`).
+  - 3.2 Усечение стриминга: в masking-ветке последний контентный чанк забирает остаток unmasked-текста — хвост больше не теряется при размаскировке. Self-test подтвердил сохранение полного текста (`openai_proxy.py`).
+  - 3.5 Блокирующий I/O: `api_stats` (горячий путь) читает `logs.json` через `asyncio.to_thread` (`main.py`). *Остаток:* `read_by_request_id` в GDPR/XAI-хендлерах — низкочастотные admin-эндпоинты, отложено.
+  - 3.6 Детектор эскалации: `_check_privilege_escalation` теперь ловит и ступенчатую read→write→destructive (не только пропуск тира) (`agent_monitor.py`).
+- ⏭️ Осталось: Фаза 1 — 1.1 (auth-middleware), 1.4 (IDOR). Фаза 2 — 2.3 (IP-пиннинг), 2.4 (CORS `/ext/*`). Фаза 3 — 3.5-остаток, 3.8-остаток (create_task refs, LRU dedup, WalletShield стриминг, zero-prior дрейф, мёртвый `_collect_or_emit`). Фаза 4 — инварианты (`generate_sar` pre-screen, A2A bypass, GDPR-логи). Фазы 5–8.

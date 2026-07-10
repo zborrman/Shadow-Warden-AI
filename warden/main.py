@@ -1549,7 +1549,9 @@ async def health_pipeline(deep: bool = False) -> dict:
 
 @app.get("/api/stats", tags=["ops"], summary="Aggregated filter stats for dashboard")
 async def api_stats(hours: float = 24.0):
-    entries = event_logger.load_entries(days=hours / 24)
+    # load_entries() reads and JSON-parses the whole NDJSON log file; keep that
+    # blocking I/O off the event loop so concurrent requests aren't stalled.
+    entries = await asyncio.to_thread(event_logger.load_entries, days=hours / 24)
 
     total   = len(entries)
     blocked = sum(1 for e in entries if not e.get("allowed"))
