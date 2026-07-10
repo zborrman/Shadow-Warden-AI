@@ -20,6 +20,8 @@ import os
 import uuid
 from typing import Any
 
+from cryptography.fernet import Fernet, InvalidToken
+
 from warden.settings.models import (
     AgentSettings,
     AgentSettingsPatch,
@@ -47,7 +49,6 @@ _SECRETS_FERNET: Any = None
 def _secrets_fernet():
     global _SECRETS_FERNET
     if _SECRETS_FERNET is None:
-        from cryptography.fernet import Fernet
         key = os.getenv("VAULT_MASTER_KEY", "").encode()
         try:
             _SECRETS_FERNET = Fernet(key) if key else Fernet(Fernet.generate_key())
@@ -56,7 +57,7 @@ def _secrets_fernet():
                     "settings: VAULT_MASTER_KEY unset — using an ephemeral key for "
                     "secret encryption (values won't survive a restart; dev only)."
                 )
-        except Exception:  # noqa: BLE001 — malformed key → ephemeral, never plaintext
+        except (ValueError, TypeError):  # malformed key → ephemeral, never plaintext
             _SECRETS_FERNET = Fernet(Fernet.generate_key())
             log.warning("settings: invalid VAULT_MASTER_KEY — using an ephemeral encryption key.")
     return _SECRETS_FERNET
@@ -293,7 +294,7 @@ def reveal_secret_value(tenant_id: str, secret_id: str) -> str | None:
         if s.get("id") == secret_id and s.get("value"):
             try:
                 return _decrypt_value(s["value"])
-            except Exception as exc:  # noqa: BLE001
+            except (InvalidToken, ValueError) as exc:
                 log.warning("settings: could not decrypt secret %s: %s", secret_id, exc)
                 return None
     return None
