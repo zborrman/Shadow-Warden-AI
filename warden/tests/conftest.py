@@ -43,6 +43,9 @@ os.environ.setdefault("AUTO_BLOCK_THRESHOLD",  "0")    # disable auto-IP-block i
 os.environ.setdefault("COMMUNITY_REGISTRY_PATH",  "/tmp/warden_test_community_registry.db")
 os.environ.setdefault("COMMUNITY_KEY_ARCHIVE_PATH", "/tmp/warden_test_community_key_archive.db")
 os.environ.setdefault("BREAK_GLASS_AUDIT_PATH",   "/tmp/warden_test_break_glass_audit.jsonl")
+os.environ.setdefault("BREAK_GLASS_M_SIGS",       "2")   # lower quorum for tests; warden.config.settings is a
+                                                          # module-level singleton, so this must be set before
+                                                          # any test module import triggers its instantiation
 os.environ.setdefault("VAULT_MASTER_KEY",          "i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA=")  # valid Fernet key for tests
 os.environ.setdefault("NET_GUARD_ALLOW_PRIVATE",   "true")   # SSRF guard off in tests (offline URLs); enforcement covered by dedicated monkeypatched tests
 # GSAM (Global Statistic Agentic Marketplace) — ClickHouse off, /tmp paths

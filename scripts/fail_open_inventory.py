@@ -31,6 +31,12 @@ PROTECTED = {
     "clearing": "ClearingEngine dual-write PostgreSQL leg is fail-open (rule 10)",
     "cache.py": "Redis cache fail-open — availability over caching",
     "kya": "KYA registration fail-open (rule 18)",
+    "gsam/clickhouse.py": "GSAM observation stream is fail-open by design — "
+                          "metadata-only telemetry never blocks the pipeline (GDPR-01)",
+    "gsam/collector.py": "GSAM observation stream is fail-open by design — "
+                         "metadata-only telemetry never blocks the pipeline (GDPR-01)",
+    "gsam/__init__.py": "GSAM observation stream is fail-open by design — "
+                        "metadata-only telemetry never blocks the pipeline (GDPR-01)",
 }
 
 PAT = re.compile(r"fail[-_ ]open", re.I)

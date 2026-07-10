@@ -12,6 +12,8 @@ is safe to import multiple times (pytest reimports between test files).
 """
 from __future__ import annotations
 
+from typing import cast
+
 try:
     from prometheus_client import REGISTRY, Counter, Gauge, Histogram  # noqa: F401
 
@@ -30,9 +32,9 @@ try:
         )
     except ValueError:
         # Already registered (e.g. test re-import) — retrieve existing
-        TOOL_BLOCKS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+        TOOL_BLOCKS = cast(Counter, REGISTRY._names_to_collectors.get(
             "warden_tool_blocks_total"
-        )
+        ))
 
     # ── Sandbox capability violations ────────────────────────────────────────
     # Incremented by ToolCallGuard when SandboxRegistry denies a tool call.
