@@ -209,6 +209,17 @@ async def generate_sar(
             "drafted": False,
         }
 
+    # Rec-1: pre-screen operator-supplied freetext for prompt injection before it
+    # enters the SAR narrative (fail-open on filter timeout, like the sibling tools).
+    _freetext = f"{suspicious_activity}\n{transaction_details}".strip()
+    if _freetext:
+        clean = await _prescreen_text(_freetext, tenant_id)
+        if not clean:
+            return {
+                "error": "Input blocked by injection filter. Sanitize the activity/transaction narrative before submitting.",
+                "drafted": False,
+            }
+
     narrative = (
         f"SUSPICIOUS ACTIVITY REPORT — DRAFT\n"
         f"Subject: {subject_name}\n"
