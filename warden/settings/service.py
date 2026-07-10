@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import uuid
 from typing import Any
 
@@ -35,6 +36,38 @@ log = logging.getLogger("warden.settings")
 
 # In-process fallback store (used when Redis is unavailable)
 _mem: dict[str, str] = {}
+
+# ── Secret value encryption at rest ───────────────────────────────────────────
+# Secret values must never be persisted in plaintext. Encrypt with a Fernet key
+# derived from VAULT_MASTER_KEY (persistent) or, when unset (dev/test), an
+# ephemeral per-process key so nothing plaintext ever reaches Redis / _mem.
+_SECRETS_FERNET: Any = None
+
+
+def _secrets_fernet():
+    global _SECRETS_FERNET
+    if _SECRETS_FERNET is None:
+        from cryptography.fernet import Fernet
+        key = os.getenv("VAULT_MASTER_KEY", "").encode()
+        try:
+            _SECRETS_FERNET = Fernet(key) if key else Fernet(Fernet.generate_key())
+            if not key:
+                log.warning(
+                    "settings: VAULT_MASTER_KEY unset — using an ephemeral key for "
+                    "secret encryption (values won't survive a restart; dev only)."
+                )
+        except Exception:  # noqa: BLE001 — malformed key → ephemeral, never plaintext
+            _SECRETS_FERNET = Fernet(Fernet.generate_key())
+            log.warning("settings: invalid VAULT_MASTER_KEY — using an ephemeral encryption key.")
+    return _SECRETS_FERNET
+
+
+def _encrypt_value(value: str) -> str:
+    return _secrets_fernet().encrypt(value.encode()).decode()
+
+
+def _decrypt_value(ciphertext: str) -> str:
+    return _secrets_fernet().decrypt(ciphertext.encode()).decode()
 
 
 def _redis():
@@ -247,6 +280,25 @@ def get_secrets(tenant_id: str) -> list[dict[str, Any]]:
     return [{k: v for k, v in s.items() if k != "value"} for s in raw]
 
 
+def reveal_secret_value(tenant_id: str, secret_id: str) -> str | None:
+    """Decrypt and return a stored secret's plaintext value (server-side only).
+
+    Values are stored Fernet-encrypted; this is the only path that decrypts them.
+    Returns None if the secret is missing or cannot be decrypted.
+    """
+    raw = _get(tenant_id, "secrets")
+    if not isinstance(raw, list):
+        return None
+    for s in raw:
+        if s.get("id") == secret_id and s.get("value"):
+            try:
+                return _decrypt_value(s["value"])
+            except Exception as exc:  # noqa: BLE001
+                log.warning("settings: could not decrypt secret %s: %s", secret_id, exc)
+                return None
+    return None
+
+
 def create_secret(
     tenant_id: str,
     name: str,
@@ -260,7 +312,7 @@ def create_secret(
         "id": str(uuid.uuid4()),
         "name": name,
         "description": description,
-        "value": value,
+        "value": _encrypt_value(value),  # encrypted at rest — never plaintext
         "created_at": datetime.now(UTC).isoformat(),
         "expires_at": expires_at,
         "active": True,
@@ -284,7 +336,7 @@ def update_secret(
     for s in secrets_list:
         if s.get("id") == secret_id:
             if value is not None:
-                s["value"] = value
+                s["value"] = _encrypt_value(value)  # encrypted at rest — never plaintext
             if description is not None:
                 s["description"] = description
             if expires_at is not None:
