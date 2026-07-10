@@ -171,6 +171,9 @@ def _fire_slack_alert(budget: dict, used: int, limit: int, pct: float) -> None:
     }
     try:
         import httpx  # noqa: PLC0415
-        httpx.post(webhook, json=msg, timeout=3)
+
+        from warden.net_guard import assert_public_url
+        assert_public_url(webhook)  # SSRF guard: tenant-configured webhook URL
+        httpx.post(webhook, json=msg, timeout=3, follow_redirects=False)
     except Exception as exc:
         log.debug("budget alert failed — %s", exc)

@@ -26,11 +26,24 @@ jobs:
       - name: Probe public health endpoint
         id: probe
         run: |
-          CODE=$(curl -s -m 15 -o /tmp/health_body -w '%{http_code}' \
-            -A "shadow-warden-uptime-monitor" \
-            https://api.shadow-warden-ai.com/health || echo 000)
+          # Retry to absorb transient edge blips (a single Cloudflare 502/504 or
+          # timeout is normal and must not red the pipeline). Only a persistent
+          # non-200 across all attempts is treated as a real outage.
+          ATTEMPTS=4
+          DELAY=10
+          CODE=000
+          for i in $(seq 1 "$ATTEMPTS"); do
+            CODE=$(curl -s -m 15 -o /tmp/health_body -w '%{http_code}' \
+              -A "shadow-warden-uptime-monitor" \
+              https://api.shadow-warden-ai.com/health || echo 000)
+            echo "attempt $i/$ATTEMPTS: HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              break
+            fi
+            [ "$i" -lt "$ATTEMPTS" ] && sleep "$DELAY"
+          done
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
-          echo "## Uptime probe: HTTP $CODE" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Uptime probe: HTTP $CODE (after up to $ATTEMPTS attempts)" >> "$GITHUB_STEP_SUMMARY"
           head -c 400 /tmp/health_body >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           if [ "$CODE" = "200" ]; then
             echo "healthy"
@@ -38,7 +51,7 @@ jobs:
             echo "::error::Blocked by Cloudflare Bot Fight Mode — add the health-check skip rule from docs/cloudflare-waf.md"
             exit 1
           else
-            echo "::error::Health endpoint returned $CODE — possible outage"
+            echo "::error::Health endpoint returned $CODE on all $ATTEMPTS attempts — possible outage"
             exit 1
           fi
 

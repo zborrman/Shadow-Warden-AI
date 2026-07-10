@@ -1549,7 +1549,9 @@ async def health_pipeline(deep: bool = False) -> dict:
 
 @app.get("/api/stats", tags=["ops"], summary="Aggregated filter stats for dashboard")
 async def api_stats(hours: float = 24.0):
-    entries = event_logger.load_entries(days=hours / 24)
+    # load_entries() reads and JSON-parses the whole NDJSON log file; keep that
+    # blocking I/O off the event loop so concurrent requests aren't stalled.
+    entries = await asyncio.to_thread(event_logger.load_entries, days=hours / 24)
 
     total   = len(entries)
     blocked = sum(1 for e in entries if not e.get("allowed"))
@@ -2198,7 +2200,7 @@ async def _run_filter_pipeline(
                     })
                 )
                 # High-confidence poisoning (>85%) → Telegram + Slack alert
-                if _pr.poisoning_score > 0.85:
+                if _pr.poisoning_score > 0.85 and background_tasks is not None:
                     from warden import alerting  # noqa: PLC0415
                     background_tasks.add_task(
                         alerting.alert_poisoning_event,

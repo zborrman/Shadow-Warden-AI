@@ -15,6 +15,7 @@ import hashlib
 import json
 import logging
 import time
+import uuid
 from dataclasses import dataclass
 
 from warden.observability import Reason, record_failopen
@@ -73,7 +74,7 @@ class VelocityGuard:
         self, agent_id: str, tool_name: str, now: float, limit: int
     ) -> VelocityAlert | None:
         key = _HOUR_KEY.format(agent_id=agent_id)
-        member = f"{now:.6f}"
+        member = f"{now:.6f}-{uuid.uuid4().hex[:8]}"  # unique: avoid ZADD overwrite on same-µs calls
         cutoff = now - 3600
         pipe = self._r.pipeline(transaction=False)
         pipe.zadd(key, {member: now})
@@ -104,7 +105,7 @@ class VelocityGuard:
     ) -> VelocityAlert | None:
         h = self._call_hash(tool_name, tool_input)
         key = _LOOP_KEY.format(agent_id=agent_id, call_hash=h)
-        member = f"{now:.6f}"
+        member = f"{now:.6f}-{uuid.uuid4().hex[:8]}"  # unique: avoid ZADD overwrite on same-µs calls
         cutoff = now - window_s
         pipe = self._r.pipeline(transaction=False)
         pipe.zadd(key, {member: now})

@@ -26,6 +26,8 @@ from datetime import UTC, datetime
 
 import httpx
 
+from warden.net_guard import SSRFError, assert_public_url
+
 log = logging.getLogger("warden.probe_worker")
 
 _SCHEDULER_TICK_S = 5   # how often to check for due monitors
@@ -39,9 +41,20 @@ _PROBE_HEADERS = {"User-Agent": "ShadowWarden-UptimeProbe/1.0 (+https://shadow-w
 
 async def _probe_http(url: str) -> dict:
     t0 = time.perf_counter()
+    # SSRF guard: reject user-supplied URLs that resolve to internal/metadata
+    # ranges, and disable redirects so a public URL cannot 3xx into one.
+    try:
+        assert_public_url(url)
+    except SSRFError as exc:
+        return {
+            "is_up":       False,
+            "status_code": None,
+            "latency_ms":  round((time.perf_counter() - t0) * 1000, 2),
+            "error":       f"blocked (SSRF guard): {exc}",
+        }
     try:
         async with httpx.AsyncClient(
-            follow_redirects=True,
+            follow_redirects=False,
             timeout=_PROBE_TIMEOUT_S,
             verify=True,
             headers=_PROBE_HEADERS,

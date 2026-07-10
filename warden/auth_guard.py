@@ -241,7 +241,9 @@ def require_ext_auth(
             verify_oidc_token,  # lazy import — avoids loading JWKS at startup
         )
         tenant_id, email = verify_oidc_token(token)
-        log.info("OIDC auth: email=%s tenant=%s", email, tenant_id)
+        # GDPR: never log the raw email (PII) — log a stable hash prefix instead.
+        _email_h = hashlib.sha256((email or "").encode()).hexdigest()[:12]
+        log.info("OIDC auth: email_hash=%s tenant=%s", _email_h, tenant_id)
         return AuthResult(
             api_key   = "",
             tenant_id = tenant_id,

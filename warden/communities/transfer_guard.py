@@ -28,6 +28,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+import uuid
 from dataclasses import dataclass
 
 log = logging.getLogger("warden.communities.transfer_guard")
@@ -93,7 +94,7 @@ def _transfer_velocity(source_community_id: str, window_seconds: int = 3600) -> 
         r.zremrangebyscore(key, "-inf", now - window_seconds)
         count = r.zcard(key)
         # Record this transfer probe
-        r.zadd(key, {f"{now}-{count}": now})
+        r.zadd(key, {f"{now}-{count}-{uuid.uuid4().hex[:8]}": now})
         r.expire(key, window_seconds * 2)
         return int(count)
     except Exception:
@@ -110,7 +111,7 @@ def _burst_velocity(source_community_id: str, window_seconds: int = 300) -> int:
         now = int(time.time())
         r.zremrangebyscore(key, "-inf", now - window_seconds)
         count = r.zcard(key)
-        r.zadd(key, {f"{now}-{count}": now})
+        r.zadd(key, {f"{now}-{count}-{uuid.uuid4().hex[:8]}": now})
         r.expire(key, window_seconds * 4)
         return int(count)
     except Exception:

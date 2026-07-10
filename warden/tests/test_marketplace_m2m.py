@@ -109,6 +109,7 @@ class TestAnalyticsSqlGate:
         r = client.post("/marketplace/analytics/query", json={
             "sql": "SELECT 1 AS ping",
             "params": [],
+            "caller_agent_id": "did:shadow:tester",
         })
         assert r.status_code == 200
         data = r.json()
@@ -119,6 +120,7 @@ class TestAnalyticsSqlGate:
         r = client.post("/marketplace/analytics/query", json={
             "sql": "SELECT 1 AS ping",
             "params": [],
+            "caller_agent_id": "did:shadow:tester",
         })
         rows = r.json()["rows"]
         assert rows[0]["ping"] == 1
@@ -265,16 +267,20 @@ class TestConfusedDeputyGuard:
         assert "Confused Deputy" in data["error"]
         assert data["rows"] == []
 
-    def test_no_caller_id_allows_unscoped_query(self, tmp_path):
+    def test_no_caller_id_is_rejected(self, tmp_path):
+        # Security fix: an unscoped query (no caller_agent_id / X-Agent-ID) could
+        # read every tenant's data, so scoping is now MANDATORY — the request is
+        # rejected instead of running open.
         client = _make_app(str(tmp_path / "mkt.db"))
         r = client.post("/marketplace/analytics/query", json={
             "sql": "SELECT 1 AS unscoped",
             "params": [],
-            # caller_agent_id omitted — open access (used by admin/SOVA without scoping)
+            # caller_agent_id omitted
         })
         assert r.status_code == 200
         data = r.json()
-        assert "error" not in data
+        assert "error" in data
+        assert data["rows"] == []
 
     def test_x_agent_id_header_also_enforces_scope(self, tmp_path):
         client = _make_app(str(tmp_path / "mkt.db"))
