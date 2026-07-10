@@ -838,7 +838,7 @@ async def search_community_feed(
         # CM-25: award SEARCH_HIT +1 for each tenant whose entry matched
         if result_list:
             try:
-                from warden.communities.reputation import award_points  # noqa: PLC0415
+                from warden.communities.reputation import award_points
                 matched_tenants = {
                     e.get("metadata", {}).get("publisher") or e.get("tenant_id")
                     for e in entries[:limit]
@@ -920,7 +920,7 @@ async def publish_to_community(
 
     # Award reputation points to the publishing tenant
     try:
-        from warden.communities.reputation import award_points  # noqa: PLC0415
+        from warden.communities.reputation import award_points
         award_points(tenant_id, "PUBLISH_ENTRY", ref_ueciid=ueciid or "")
     except Exception:
         pass
@@ -1012,7 +1012,7 @@ async def sync_misp_feed(**_) -> dict:
     Requires MISP_URL + MISP_API_KEY env vars.
     """
     try:
-        from warden.integrations.misp import MISPConnector  # noqa: PLC0415
+        from warden.integrations.misp import MISPConnector
         result = await MISPConnector().sync()
         return result.to_dict()
     except ValueError as exc:
@@ -1030,7 +1030,7 @@ async def get_reputation(tenant_id: str = "default", **_) -> dict:
     Badge levels: NEWCOMER → CONTRIBUTOR → TOP_SHARER → GUARDIAN → ELITE.
     """
     try:
-        from warden.communities.reputation import get_reputation as _get  # noqa: PLC0415
+        from warden.communities.reputation import get_reputation as _get
         rec = _get(tenant_id)
         return rec.to_dict()
     except Exception as exc:
@@ -1127,7 +1127,7 @@ async def block_ip_range(
     calling tenant's request stream.
     cidr: e.g. '203.0.113.0/24' or '198.51.100.42/32'
     """
-    import ipaddress  # noqa: PLC0415
+    import ipaddress
     try:
         net = ipaddress.ip_network(cidr, strict=False)
         if net.prefixlen < 24:
@@ -2235,9 +2235,9 @@ async def a2a_submit_task(
 ) -> dict:
     """Tool #56 — Submit / poll / cancel an A2A v1.0 task."""
     try:
-        import asyncio  # noqa: PLC0415
+        import asyncio
 
-        from warden.protocols.a2a.task_lifecycle import (  # noqa: PLC0415
+        from warden.protocols.a2a.task_lifecycle import (
             cancel_task,
             create_task,
             get_task,
@@ -2324,7 +2324,7 @@ async def acp_search_catalog(
     **_,
 ) -> dict:
     """Tool #61 — Search an ACP-compatible external catalog endpoint."""
-    import httpx  # noqa: PLC0415
+    import httpx
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
@@ -2350,7 +2350,7 @@ async def acp_search_catalog(
 async def tool_disk_encryption_status(_args: dict[str, Any]) -> dict[str, Any]:
     """Return the host OS disk encryption status (LUKS / BitLocker / FileVault)."""
     try:
-        from warden.integrations.disk_encryption import detect_disk_encryption  # noqa: PLC0415
+        from warden.integrations.disk_encryption import detect_disk_encryption
         return detect_disk_encryption()
     except Exception as exc:
         return {"status": "unknown", "method": "unknown", "volumes": [], "error": str(exc)}
@@ -2435,7 +2435,7 @@ async def write_handoff_memory(
     (not the full conversation) in the next agent's prompt to save tokens.
     """
     try:
-        from warden.marketplace.memory import AgentHandoffMemory  # noqa: PLC0415
+        from warden.marketplace.memory import AgentHandoffMemory
         mem = AgentHandoffMemory()
         key = await mem.write(session_id, step, facts, ttl=ttl)
         return {"key": key, "step": step, "ttl_s": ttl, "facts_count": len(facts)}
@@ -2479,7 +2479,7 @@ async def read_handoff_memory(
     transcript.  Returns facts dict and a ready-to-use prompt_snippet.
     """
     try:
-        from warden.marketplace.memory import AgentHandoffMemory  # noqa: PLC0415
+        from warden.marketplace.memory import AgentHandoffMemory
         mem = AgentHandoffMemory()
         facts = await mem.read(session_id, step)
         if facts is None:
@@ -2531,7 +2531,7 @@ async def semantic_listing_search(
     One call replaces loading dozens of rows into the prompt.
     """
     try:
-        from warden.marketplace.vector_search import semantic_search  # noqa: PLC0415
+        from warden.marketplace.vector_search import semantic_search
         results = await semantic_search(query, limit=limit, asset_type=asset_type)
         return {"results": results, "count": len(results), "query": query}
     except Exception as exc:
@@ -2566,7 +2566,7 @@ async def get_protocol_schema(action_name: str, **_: Any) -> dict:
     of available action names when the requested name is unknown.
     """
     try:
-        import httpx  # noqa: PLC0415
+        import httpx
 
         base = settings.warden_base_url
         r = await httpx.AsyncClient(timeout=10).get(
@@ -2618,7 +2618,7 @@ async def send_order_proposal(
     before routing the proposal to the seller's catalog.
     """
     try:
-        import httpx  # noqa: PLC0415
+        import httpx
 
         base    = settings.warden_base_url
         api_key = settings.warden_api_key
@@ -2777,6 +2777,14 @@ TOOL_HANDLERS: dict[str, Any] = {
 }
 
 
+# Tools whose inputs commonly carry agent-supplied outbound URLs. The SAC guard
+# screens all http(s) URLs regardless; this set additionally screens bare
+# (scheme-less) host values under URL-shaped keys for these tools.
+_URL_SENSITIVE_TOOLS: frozenset[str] = frozenset({
+    "visual_assert_page", "visual_diff", "scan_shadow_ai", "filter_request",
+})
+
+
 async def traced_dispatch(tool_name: str, tool_input: dict[str, Any]) -> Any:
     """
     OTel-traced tool dispatch for SOVA.
@@ -2795,29 +2803,48 @@ async def traced_dispatch(tool_name: str, tool_input: dict[str, Any]) -> Any:
     tenant_id = str(tool_input.get("tenant_id", "unknown"))
     input_bytes = len(str(tool_input))
 
+    # SAC Inner Warden: screen the call (SSRF/exfil, fail-CLOSED) + emit a
+    # metadata-only GSAM observation (fail-OPEN). A blocked call is not
+    # dispatched; the guard being unavailable never bricks tool execution.
     try:
-        import opentelemetry.trace as otel_trace  # noqa: PLC0415
+        from warden.sac.guard import screen_and_emit
+        _url_sensitive = tool_name in _URL_SENSITIVE_TOOLS
+        _verdict = screen_and_emit(
+            "sova", tenant_id, tool_name, tool_input, url_sensitive=_url_sensitive
+        )
+        if _verdict.blocked:
+            return {"error": "blocked_by_sac_guard", "reason": _verdict.reason,
+                    "sac_verdict": _verdict.verdict}
+    except Exception as _sac_err:  # guard must not brick dispatch
+        from warden.observability import Reason as _Reason
+        from warden.observability import record_failopen as _record_failopen
+        _record_failopen("sac_guard", _Reason.BACKEND_ERROR, _sac_err)
 
+    # OTel unavailable/disabled — fail open to direct dispatch. Only the import +
+    # tracer acquisition are guarded here; exceptions from the handler itself are
+    # re-raised below (not swallowed), so a failing tool never runs twice.
+    try:
+        import opentelemetry.trace as otel_trace
         tracer = otel_trace.get_tracer("sova.tool_dispatch")
-        with tracer.start_as_current_span(f"sova.tool.{tool_name}") as span:
-            span.set_attribute("tool.name", tool_name)
-            span.set_attribute("tool.input_bytes", input_bytes)
-            span.set_attribute("tool.tenant_id", tenant_id)
-            t0 = _time.perf_counter()
-            try:
-                result = await handler(**tool_input)
-                span.set_attribute("tool.output_bytes", len(str(result)))
-                span.set_attribute("tool.success", True)
-                span.set_attribute("tool.duration_ms", round((_time.perf_counter() - t0) * 1000, 1))
-                return result
-            except Exception as exc:
-                span.set_attribute("tool.success", False)
-                span.set_attribute("tool.error", str(exc)[:200])
-                span.set_attribute("tool.duration_ms", round((_time.perf_counter() - t0) * 1000, 1))
-                raise
-    except (ImportError, Exception) as _otel_err:
-        # OTel unavailable or disabled — direct dispatch, no tracing
-        if not isinstance(_otel_err, (ImportError,)):
-            import logging as _log
-            _log.getLogger(__name__).debug("traced_dispatch OTel fail-open: %s", _otel_err)
+    except Exception as _otel_err:
+        from warden.observability import Reason as _Reason
+        from warden.observability import record_failopen as _record_failopen
+        _record_failopen("otel_tracing", _Reason.IMPORT_MISSING, _otel_err)
         return await handler(**tool_input)
+
+    with tracer.start_as_current_span(f"sova.tool.{tool_name}") as span:
+        span.set_attribute("tool.name", tool_name)
+        span.set_attribute("tool.input_bytes", input_bytes)
+        span.set_attribute("tool.tenant_id", tenant_id)
+        t0 = _time.perf_counter()
+        try:
+            result = await handler(**tool_input)
+            span.set_attribute("tool.output_bytes", len(str(result)))
+            span.set_attribute("tool.success", True)
+            span.set_attribute("tool.duration_ms", round((_time.perf_counter() - t0) * 1000, 1))
+            return result
+        except Exception as exc:
+            span.set_attribute("tool.success", False)
+            span.set_attribute("tool.error", str(exc)[:200])
+            span.set_attribute("tool.duration_ms", round((_time.perf_counter() - t0) * 1000, 1))
+            raise

@@ -840,6 +840,16 @@ async def lifespan(app: FastAPI):
     except Exception as _mm_err:
         log.warning("MultiModal guard pre-warm failed (non-fatal): %s", _mm_err)
 
+    # ── GSAM rollup sink (SAC observations → gsam_agent_stats + drift) ─
+    try:
+        if settings.gsam_enabled:
+            from warden.gsam import collector as _gsam_collector  # noqa: PLC0415
+            from warden.gsam.rollup import rollup_sink as _gsam_rollup  # noqa: PLC0415
+            _gsam_collector.register_sink(_gsam_rollup)
+            log.info("GSAM rollup sink registered (observations → gsam_agent_stats)")
+    except Exception as _gsam_err:
+        log.warning("GSAM rollup sink registration failed (non-fatal): %s", _gsam_err)
+
     # ── OpenTelemetry distributed tracing ─────────────────────────────
     try:
         from warden.telemetry import setup_telemetry  # noqa: PLC0415
@@ -1188,6 +1198,8 @@ register_router_safe(app, _RouterSpec("warden.api.monitor", label="Uptime Monito
 register_router_safe(app, _RouterSpec("warden.api.agent", label="SOVA Agent mounted at /agent/sova"))
 
 register_router_safe(app, _RouterSpec("warden.api.shadow_ai", label="Shadow AI Governance mounted at /shadow-ai"))
+
+register_router_safe(app, _RouterSpec("warden.gsam.api", label="GSAM Hermes JIT lease mounted at /gsam (SAC)"))
 
 register_router_safe(app, _RouterSpec("warden.api.misp", label="MISP ZMQ bridge mounted at /misp"))
 
