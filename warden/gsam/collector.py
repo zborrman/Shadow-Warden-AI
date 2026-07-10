@@ -48,25 +48,22 @@ def gsam_emit(obs: dict) -> None:
         _queue.put_nowait(obs)
     except queue.Full:
         _drop_count += 1
-    except Exception:  # noqa: BLE001, S110
-        pass
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("gsam_collector", Reason.BACKEND_ERROR, exc)
 
 
 def stats() -> dict:
     """Health snapshot for GET /gsam/health."""
     spool_bytes = 0
-    try:
+    with contextlib.suppress(OSError):
         if os.path.exists(settings.gsam_spool_path):
             spool_bytes = os.path.getsize(settings.gsam_spool_path)
-    except OSError:
-        pass
     ch_reachable = False
-    try:
-        from warden.gsam.clickhouse import get_clickhouse  # noqa: PLC0415
+    with contextlib.suppress(Exception):
+        from warden.gsam.clickhouse import get_clickhouse
         ch = get_clickhouse()
         ch_reachable = ch.is_enabled() and ch.ping()
-    except Exception:  # noqa: BLE001, S110
-        pass
     return {
         "queue_depth": _queue.qsize(),
         "queue_max": settings.gsam_queue_max,
@@ -132,12 +129,12 @@ def flush_once() -> int:
 def _ship(batch: list[dict]) -> bool:
     """Insert into ClickHouse. False when disabled or failed."""
     try:
-        from warden.gsam.clickhouse import get_clickhouse  # noqa: PLC0415
+        from warden.gsam.clickhouse import get_clickhouse
         ch = get_clickhouse()
         if not ch.is_enabled():
             return False
         return ch.insert_rows(batch)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -154,8 +151,9 @@ def _spool(batch: list[dict]) -> None:
         with open(path, "a", encoding="utf-8") as fh:
             for row in batch:
                 fh.write(json.dumps(row, default=str) + "\n")
-    except Exception:  # noqa: BLE001, S110
-        pass
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("gsam_collector", Reason.BACKEND_ERROR, exc)
 
 
 def _replay_spool() -> None:
@@ -170,18 +168,17 @@ def _replay_spool() -> None:
             for line in fh:
                 line = line.strip()
                 if line:
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         rows.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
         if not rows:
             _truncate_spool(path)
             return
         if _ship(rows):
             _flushed_count += len(rows)
             _truncate_spool(path)
-    except Exception:  # noqa: BLE001, S110
-        pass
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("gsam_collector", Reason.BACKEND_ERROR, exc)
 
 
 def _truncate_spool(path: str) -> None:

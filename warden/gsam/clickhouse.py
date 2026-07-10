@@ -16,14 +16,15 @@ from warden.gsam.schema import (
     CLICKHOUSE_DATABASE_DDL,
     CLICKHOUSE_TABLE_DDL,
 )
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.gsam.clickhouse")
 
 try:  # optional dependency — guarded import
-    import clickhouse_connect  # type: ignore[import-untyped]
+    import clickhouse_connect
     _CH_AVAILABLE = True
-except Exception:  # noqa: BLE001 — any import failure means "not available"
-    clickhouse_connect = None  # type: ignore[assignment]
+except Exception:  # any import failure means "not available"
+    clickhouse_connect = None
     _CH_AVAILABLE = False
 
 
@@ -62,8 +63,9 @@ class GsamClickHouse:
                     send_receive_timeout=5,
                 )
                 return self._client
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.debug("GSAM ClickHouse connect failed (fail-open): %s", exc)
+                record_failopen("gsam_clickhouse", Reason.BACKEND_ERROR, exc)
                 self._client = None
                 return None
 
@@ -80,8 +82,9 @@ class GsamClickHouse:
             self._schema_ready = True
             log.info("GSAM ClickHouse schema ready")
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.debug("GSAM ClickHouse schema init failed (fail-open): %s", exc)
+            record_failopen("gsam_clickhouse", Reason.BACKEND_ERROR, exc)
             self._reset()
             return False
 
@@ -100,7 +103,7 @@ class GsamClickHouse:
                 column_names=list(CLICKHOUSE_COLUMNS),
             )
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.debug("GSAM ClickHouse insert failed (spooling): %s", exc)
             self._reset()
             return False
@@ -116,8 +119,9 @@ class GsamClickHouse:
             result = client.query(sql, parameters=parameters or {})
             cols = result.column_names
             return [dict(zip(cols, row, strict=False)) for row in result.result_rows]
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.debug("GSAM ClickHouse query failed (fail-open): %s", exc)
+            record_failopen("gsam_clickhouse", Reason.BACKEND_ERROR, exc)
             self._reset()
             return []
 
@@ -128,7 +132,7 @@ class GsamClickHouse:
         try:
             client.command("SELECT 1")
             return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             self._reset()
             return False
 
