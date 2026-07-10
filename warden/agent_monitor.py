@@ -698,7 +698,7 @@ class AgentMonitor:
             e for e in events
             if e.get("event_type") == "tool" and e.get("direction") == "call"
         ]
-        _DESTRUCTIVE = 2  # highest tier (see _tool_category: 0=read,1=write,2=destructive)
+        destructive_tier = 2  # highest tier (see _tool_category: 0=read,1=write,2=destructive)
         max_seen = -1
         for e in tool_calls:
             cat = _tool_category(e.get("tool_name", ""), e.get("threat_kind"))
@@ -707,7 +707,7 @@ class AgentMonitor:
             # Fire on any upward move that either skips a tier (sudden leap) OR
             # reaches the destructive tier from a lower one. The latter catches
             # stepwise read→write→destructive, which a strict `+1`-skip check missed.
-            if max_seen >= 0 and cat > max_seen and (cat > max_seen + 1 or cat >= _DESTRUCTIVE):
+            if max_seen >= 0 and cat > max_seen and (cat > max_seen + 1 or cat >= destructive_tier):
                 return SessionThreat(
                     pattern=PATTERN_PRIVILEGE_ESCALATION,
                     severity="HIGH",

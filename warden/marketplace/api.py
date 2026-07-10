@@ -740,12 +740,12 @@ async def analytics_sql_query(
     # Defence-in-depth: reject multi-statement / DDL-DML smuggling even inside a SELECT.
     if ";" in stmt.rstrip(";"):
         return {"error": "Multiple statements are not permitted.", "rows": []}
-    _FORBIDDEN = (
+    forbidden = (
         " INSERT ", " UPDATE ", " DELETE ", " DROP ", " ALTER ",
         " CREATE ", " ATTACH ", " PRAGMA ", " REPLACE ", " GRANT ",
     )
     padded = f" {upper} "
-    if any(kw in padded for kw in _FORBIDDEN):
+    if any(kw in padded for kw in forbidden):
         return {"error": "Only read-only SELECT statements are permitted.", "rows": []}
 
     # Resolve caller identity: body field takes priority over header.
