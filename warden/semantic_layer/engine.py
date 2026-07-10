@@ -598,7 +598,7 @@ class SemanticEngine:
             expr = self._resolve_metric(model, met_name)
             select_parts.append(f"{expr} AS {self._safe(met_name)}")
 
-        where_clause, _params = self._build_filter_sql(model, query.filters)
+        where_clause, params = self._build_filter_sql(model, query.filters)
 
         select_sql = ",\n    ".join(select_parts)
         table      = self._safe(model.source_table)
@@ -612,6 +612,7 @@ class SemanticEngine:
 
         result = QueryResult(
             sql=sql,
+            params=params,
             model_id=model.id,
             metrics=query.metrics,
             dimensions=query.dimensions,

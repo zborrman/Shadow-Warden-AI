@@ -2198,7 +2198,7 @@ async def _run_filter_pipeline(
                     })
                 )
                 # High-confidence poisoning (>85%) → Telegram + Slack alert
-                if _pr.poisoning_score > 0.85:
+                if _pr.poisoning_score > 0.85 and background_tasks is not None:
                     from warden import alerting  # noqa: PLC0415
                     background_tasks.add_task(
                         alerting.alert_poisoning_event,

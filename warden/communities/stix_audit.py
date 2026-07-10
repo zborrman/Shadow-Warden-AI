@@ -82,10 +82,19 @@ def _get_conn() -> sqlite3.Connection:
             created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
         )
     """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS stix_community_seq_idx
-            ON sep_stix_chain(community_id, seq)
-    """)
+    # UNIQUE so a forked chain (two workers picking the same seq) fails at the DB
+    # level, not just under the in-process lock. Fall back to a plain index if a
+    # legacy table already holds duplicate (community_id, seq) rows.
+    try:
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS stix_community_seq_uidx
+                ON sep_stix_chain(community_id, seq)
+        """)
+    except sqlite3.IntegrityError:
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS stix_community_seq_idx
+                ON sep_stix_chain(community_id, seq)
+        """)
     conn.commit()
     return conn
 
@@ -275,31 +284,46 @@ def append_transfer(
         object_refs = [relationship["id"]],
     )
 
-    with _db_lock:
-        conn = _get_conn()
-        prev_hash, seq = _last_hash(source_community_id, conn)
+    # Read-tip → build → insert must survive concurrent workers: the UNIQUE
+    # (community_id, seq) index rejects a forked chain, and we re-read the tip
+    # and rebuild the bundle with the next seq on collision.
+    last_exc: Exception | None = None
+    for _attempt in range(6):
+        with _db_lock:
+            conn = _get_conn()
+            prev_hash, seq = _last_hash(source_community_id, conn)
 
-        bundle    = _build_bundle(
-            stix_objects = [src_identity, tgt_identity, relationship, note],
-            prev_hash    = prev_hash,
-            community_id = source_community_id,
-            seq          = seq,
+            bundle    = _build_bundle(
+                stix_objects = [src_identity, tgt_identity, relationship, note],
+                prev_hash    = prev_hash,
+                community_id = source_community_id,
+                seq          = seq,
+            )
+            canonical_bundle = _canonical_json(bundle)
+            bundle_hash      = hashlib.sha256(canonical_bundle.encode()).hexdigest()
+            chain_id         = str(uuid.uuid4())
+            now              = datetime.now(UTC).isoformat()
+
+            try:
+                conn.execute("""
+                    INSERT INTO sep_stix_chain
+                      (chain_id, community_id, transfer_id, bundle_json,
+                       bundle_hash, prev_hash, seq, created_at)
+                    VALUES (?,?,?,?,?,?,?,?)
+                """, (
+                    chain_id, source_community_id, transfer_id, canonical_bundle,
+                    bundle_hash, prev_hash, seq, now,
+                ))
+                conn.commit()
+                break
+            except sqlite3.IntegrityError as exc:
+                conn.rollback()
+                last_exc = exc
+                continue
+    else:
+        raise RuntimeError(
+            f"stix_audit: could not append transfer {transfer_id} after retries: {last_exc}"
         )
-        canonical_bundle = _canonical_json(bundle)
-        bundle_hash      = hashlib.sha256(canonical_bundle.encode()).hexdigest()
-        chain_id         = str(uuid.uuid4())
-        now              = datetime.now(UTC).isoformat()
-
-        conn.execute("""
-            INSERT INTO sep_stix_chain
-              (chain_id, community_id, transfer_id, bundle_json,
-               bundle_hash, prev_hash, seq, created_at)
-            VALUES (?,?,?,?,?,?,?,?)
-        """, (
-            chain_id, source_community_id, transfer_id, canonical_bundle,
-            bundle_hash, prev_hash, seq, now,
-        ))
-        conn.commit()
 
     log.info(
         "stix_audit: appended chain_id=%s community=%s seq=%d hash=%.8s",
