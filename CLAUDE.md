@@ -7,6 +7,9 @@
 ## Language Rule
 - **All project content is English-only.** Every page, UI string, comment, label, and copy on the site (`site/`), dashboard (`dashboard/`), and portal (`portal/`) must be written in English. Never write Russian, Hebrew, or any other language in project files.
 
+## Deploy Rule
+- **After each modernization-plan Phase passes its tests, merge to `main` and push.** CI autodeploy (`DEPLOY_SSH_KEY/HOST/USER/PATH`) pulls `main` and runs `docker compose up` on the Hetzner VPS — do not skip the merge/push step or the server stays stale. Do not batch multiple phases into one merge.
+
 ## Autonomous Security Loop (Loop Engineering)
 
 The project runs a nightly autonomous audit cycle at 02:00 UTC via `.github/workflows/autonomous-security-loop.yml`.
