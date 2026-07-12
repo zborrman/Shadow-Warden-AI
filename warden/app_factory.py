@@ -292,6 +292,7 @@ OPTIONAL_ROUTERS: list[RouterSpec] = [
     RouterSpec("warden.api.monitor",                   label="Uptime Monitor /monitors"),
     RouterSpec("warden.api.agent",                     label="SOVA Agent /agent/sova"),
     RouterSpec("warden.api.shadow_ai",                 label="Shadow AI /shadow-ai"),
+    RouterSpec("warden.gsam.api",                      label="GSAM /gsam"),
     RouterSpec("warden.api.sep",                       label="SEP /sep"),
     RouterSpec("warden.api.sovereign",                 label="Sovereign /sovereign"),
     RouterSpec("warden.api.secrets",                   label="Secrets /secrets"),

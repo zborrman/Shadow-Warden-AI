@@ -475,6 +475,27 @@ for _raw in [
             {"name": "date",          "column": "DATE(created_at)", "description": "Transaction date"},
         ],
     },
+    # ── GSAM agent statistics (rollup, never ClickHouse) ────────────────────────
+    {
+        "id": "gsam_agent_stats",
+        "name": "GSAM Agent Statistics",
+        "source_table": "gsam_agent_stats",
+        "description": "Hourly per-agent rollup — tokens, cost, drift, trust (GSAM/SAC). Reads the SQLite rollup, never the ClickHouse observation stream.",
+        "metrics": [
+            {"name": "events",       "expression": "SUM(events)",       "description": "Tool-call events"},
+            {"name": "tokens_in",    "expression": "SUM(tokens_in)",    "description": "Input tokens"},
+            {"name": "tokens_out",   "expression": "SUM(tokens_out)",   "description": "Output tokens"},
+            {"name": "cost_usd",     "expression": "SUM(cost_usd)",     "description": "Execution cost", "format": "currency"},
+            {"name": "avg_drift",    "expression": "AVG(drift)",        "description": "Mean EWMA drift"},
+            {"name": "max_drift",    "expression": "MAX(drift)",        "description": "Peak drift"},
+            {"name": "avg_trust",    "expression": "AVG(trust)",        "description": "Mean trust score"},
+        ],
+        "dimensions": [
+            {"name": "agent_id",   "column": "agent_id",   "description": "Agent"},
+            {"name": "tenant_id",  "column": "tenant_id",  "description": "Tenant"},
+            {"name": "hour",       "column": "hour_bucket","description": "Hour bucket"},
+        ],
+    },
 ]:
     m = SemanticModel(**_raw)  # type: ignore[arg-type]
     _BUILTIN_MODELS[m.id] = m

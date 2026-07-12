@@ -37,6 +37,12 @@ PROTECTED = {
                          "metadata-only telemetry never blocks the pipeline (GDPR-01)",
     "gsam/__init__.py": "GSAM observation stream is fail-open by design — "
                         "metadata-only telemetry never blocks the pipeline (GDPR-01)",
+    "gsam/quarantine.py": "GSAM quarantine gate is additive-only (STAFF-01/02 unaffected); "
+                          "the in-process fallback when Redis is unavailable is fail-open by design",
+    "gsam/rollup.py": "GSAM rollup sink is fail-open by design — the collector already "
+                      "suppresses sink exceptions so DB work never blocks ingestion",
+    "sac/guard.py": "SAC telemetry (GSAM emit) is fail-open by design; the "
+                    "security verdict itself (verdict.blocked) is fail-closed",
 }
 
 PAT = re.compile(r"fail[-_ ]open", re.I)

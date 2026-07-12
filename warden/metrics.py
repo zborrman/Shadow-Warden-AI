@@ -50,9 +50,9 @@ try:
             ["agent_id", "reason"],
         )
     except ValueError:
-        SANDBOX_VIOLATIONS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+        SANDBOX_VIOLATIONS_TOTAL = cast(Counter, REGISTRY._names_to_collectors.get(
             "warden_sandbox_violations_total"
-        )
+        ))
 
     # ── Agent session metrics ─────────────────────────────────────────────────
     # Populated by AgentMonitor in warden/agent_monitor.py.
@@ -63,9 +63,9 @@ try:
             "Active agent sessions within the TTL window",
         )
     except ValueError:
-        AGENT_SESSIONS_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+        AGENT_SESSIONS_ACTIVE = cast(Gauge, REGISTRY._names_to_collectors.get(
             "warden_agent_sessions_active"
-        )
+        ))
 
     try:
         AGENT_ANOMALIES_TOTAL = Counter(

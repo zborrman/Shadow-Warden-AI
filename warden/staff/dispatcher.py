@@ -43,11 +43,36 @@ async def staff_dispatch(
             alert.agent_id, alert.kind, alert.tool_name, alert.count, alert.window_s,
         )
 
+    # GSAM drift quarantine — ADDITIVE gate (runs after the boundary check, so it
+    # can only strengthen STAFF-01/02, never bypass them). Fail-open.
+    try:
+        from warden.gsam.quarantine import is_quarantined  # noqa: PLC0415
+        if is_quarantined(agent_id, redis=redis):
+            log.warning("STAFF dispatch blocked: agent=%s is GSAM-quarantined (drift)", agent_id)
+            return {"error": "agent_quarantined", "reason": "GSAM drift quarantine active",
+                    "agent_id": agent_id}
+    except Exception as exc:  # noqa: BLE001 — quarantine gate must not brick dispatch
+        log.debug("GSAM quarantine gate fail-open: %s", exc)
+
     # Delegate to the real dispatch (SOVA tools + staff tools)
-    from warden.agent.tools import traced_dispatch  # noqa: PLC0415
-    from warden.staff.tools import STAFF_TOOL_HANDLERS  # noqa: PLC0415
+    from warden.agent.tools import traced_dispatch
+    from warden.staff.tools import STAFF_TOOL_HANDLERS
 
     if tool_name in STAFF_TOOL_HANDLERS:
+        # SOVA tools screen inside traced_dispatch; staff-native tools screen
+        # here so they too appear in GSAM and are SSRF-checked (fail-CLOSED
+        # block, fail-OPEN telemetry).
+        try:
+            from warden.sac.guard import screen_and_emit
+            tenant_id = str(tool_input.get("tenant_id", "default"))
+            verdict = screen_and_emit(agent_id, tenant_id, tool_name, tool_input)
+            if verdict.blocked:
+                return {"error": "blocked_by_sac_guard", "reason": verdict.reason,
+                        "sac_verdict": verdict.verdict}
+        except Exception as exc:  # guard must not brick dispatch
+            from warden.observability import Reason, record_failopen
+            record_failopen("sac_guard", Reason.BACKEND_ERROR, exc)
+
         handler: Callable[..., Any] = STAFF_TOOL_HANDLERS[tool_name]  # type: ignore[assignment]
         return await handler(**tool_input)
 
