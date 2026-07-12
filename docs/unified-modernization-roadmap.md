@@ -61,11 +61,18 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 
 ---
 
-## Proposed ownership split (to stop collisions)
+## Owners (assigned 2026-07-12)
 
-- **Track A owns:** authn/authz, SSRF wiring, IDOR/GDPR, request-path invariants, CI/supply-chain hardening (SR-2.4, SR-6, SR-7, SR-8, SR-1.4b).
-- **Track B owns:** all ML/detection math (TDA, MAESTRO, Causal, embeddings), GSAM, storage/data-layer (incl. the merged SR-5+DE-6), runtime isolation math.
-- **Shared, coordinate before touching:** the five files in the conflict table. Rule: whoever edits one pings the other track in the PR description and runs the other track's relevant tests.
+- **Track A — Security Remediation** owns: authn/authz, SSRF wiring, IDOR/GDPR, request-path invariants, CI/supply-chain hardening (SR-2.4, SR-6, SR-7, SR-8, SR-1.4b).
+- **Track B — Deep-Eng / Math** owns: all ML/detection math (TDA, MAESTRO, Causal, embeddings), GSAM, storage/data-layer (incl. the merged SR-5+DE-6), runtime-isolation math.
+- **Shared, coordinate before touching:** the five files in the conflict table. Rule: whoever edits one references the other track in the PR description and runs the other track's relevant tests.
+
+## Decisions log
+
+- **2026-07-12 — Registry adopted as canon.** Wired into `CLAUDE.md` ("Modernization Governance") so both efforts read the same rules. `SR-*`/`DE-*` prefixes are now required; bare "Phase N" is retired.
+- **2026-07-12 — Track owners assigned** (above). The session that has been landing security PRs (#148/#149/#154) drives **Track A**; the session landing the deep-eng/GSAM PRs (#150–#153, Phase-6 data-layer) drives **Track B**.
+- **2026-07-12 — C2 (data-layer) RESOLVED: Track B leads.** SR-5 does **not** spawn a separate DB-consolidation effort; it folds into DE-6, which is already in flight (`421f2ea6` "data-layer consolidation, Phase 6 slice 1"). Track A's contribution to DE-6 is a requirement, not a parallel PR: *one connection context-manager, DDL applied once at startup (not per call), guaranteed `close()`; retire the ~62 duplicated `_conn`/DDL helpers.* Track A will review DE-6 PRs against that checklist.
+- **Open guardrail (C1):** first shared-file change to `causal_arbiter.py` on either side must add a test asserting the DE-5 online calibration and the SR-3 25%/zero-prior drift gate hold simultaneously.
 
 ## Immediate actions
 

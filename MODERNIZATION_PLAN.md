@@ -1,5 +1,7 @@
 # План глубокой инженерной модернизации — Shadow Warden AI
 
+> **Track A — Security Remediation (`SR-*`).** Canonical registry & cross-track ownership: [`docs/unified-modernization-roadmap.md`](docs/unified-modernization-roadmap.md). Use `SR-*` IDs in commits, never a bare "Phase N". Data-layer (SR-5) is led by Track B under DE-6 — see registry decision C2.
+
 **Дата:** 2026-07-10 · **Основание:** `AUDIT_REPORT_2026-07-10.md` (≈70 находок) + анализ архитектуры
 **Цель:** довести кодовую базу до стандартов топовых компаний (Stripe / Cloudflare / Datadog-уровень): безопасность по умолчанию, тестируемость, наблюдаемость, детерминированный SDLC.
 
