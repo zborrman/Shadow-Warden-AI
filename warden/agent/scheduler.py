@@ -979,3 +979,30 @@ async def sova_soc2_daily_collect(ctx: dict) -> dict:
         log.error("soc2_collect: failed for %s — %s", yesterday.date(), exc)
         await _slack(f"⚠️ *SOC 2 Evidence Collector FAILED* [{yesterday.date()}]: {exc}")
         return {"status": "error", "date": yesterday.date().isoformat(), "error": str(exc)}
+
+
+async def sova_nightly_backup(ctx: dict) -> dict:
+    """
+    Nightly 03:30 UTC — Fernet-encrypted backup of every SQLite DB under
+    WARDEN_DATA_DIR, with off-box ship to S3/MinIO when configured.
+
+    Delegates to warden.backup.service.run_backup (single source of truth,
+    shared with scripts/db_snapshot.py). Fail-CLOSED on VAULT_MASTER_KEY;
+    fail-OPEN on the S3 ship. Runs off the event loop via asyncio.to_thread.
+    """
+    import asyncio  # noqa: PLC0415
+    from datetime import UTC, datetime  # noqa: PLC0415
+
+    try:
+        from warden.backup.service import run_backup  # noqa: PLC0415
+        label = f"nightly-{datetime.now(UTC).strftime('%Y%m%d')}"
+        snap_dir = await asyncio.to_thread(run_backup, label, ship=True)
+        dbs = len(list(snap_dir.glob("*.db.enc")))
+        log.info("nightly_backup: %d DBs → %s", dbs, snap_dir)
+        if dbs == 0:
+            await _slack("⚠️ *Nightly DB backup* produced 0 snapshots — check WARDEN_DATA_DIR.")
+        return {"status": "ok", "snapshot": str(snap_dir), "dbs": dbs}
+    except Exception as exc:
+        log.error("nightly_backup: FAILED — %s", exc)
+        await _slack(f"🛑 *Nightly DB backup FAILED*: {exc}")
+        return {"status": "error", "error": str(exc)}

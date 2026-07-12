@@ -46,6 +46,7 @@ from warden.agent.scheduler import (
     sova_corpus_watchdog,
     sova_marketplace_state_sync,
     sova_morning_brief,
+    sova_nightly_backup,
     sova_obsidian_watchdog,
     sova_overage_billing,
     sova_rotation_check,
@@ -105,6 +106,7 @@ class WorkerSettings:
         sova_obsidian_watchdog,
         sova_overage_billing,        # BL-19
         sova_marketplace_state_sync, # M2M loop state
+        sova_nightly_backup,         # Phase 6 — encrypted DB backup
         # Online learning pipeline
         online_learning_job,          # AR-09
         # Community moderation
@@ -192,6 +194,9 @@ class WorkerSettings:
 
         # ── SOC 2 Type II evidence collection — daily at 00:00 UTC ───────────
         cron(sova_soc2_daily_collect, hour=0, minute=0, timeout=300),
+
+        # ── Nightly encrypted DB backup — daily at 03:30 UTC (Phase 6) ───────
+        cron(sova_nightly_backup, hour=3, minute=30, timeout=600),
     ]
 
     on_startup  = startup

@@ -146,9 +146,18 @@ mypy clean.
 financial, secrets_gov, protocols/acp, m2m_store, business_intelligence, compliance, voice, push,
 sovereign, vendor_gov, kya, tokenomics, security, semantic_layer, webhooks, agent/api. Zero
 `/tmp/warden*` literals remain outside tests + Streamlit display pages. ruff + mypy clean;
-966 tests green across affected subsystems (1 pre-existing unrelated failure). **Follow-on:**
-unify migrations (one Alembic/Turso DDL registry); nightly encrypted backup for all DBs; turn
-ClickHouse on for GSAM in prod.
+966 tests green across affected subsystems (1 pre-existing unrelated failure).
+
+**Slice 3 ✅ DONE (2026-07-12):** nightly encrypted DB backup. `warden/backup/service.py` —
+single source of truth: discovers every `warden_*.db` under `data_dir()`, SQLite online-backup API
+→ Fernet (`VAULT_MASTER_KEY`, **fail-CLOSED**) → `SNAPSHOT_DIR/<ts>/<name>.db.enc`, rotation
+(`SNAPSHOT_KEEP`, default 7), atomic restore, optional S3/MinIO ship (**fail-OPEN**). Wired as
+`sova_nightly_backup` ARQ cron (03:30 UTC) in `warden/workers/settings.py`;
+`scripts/db_snapshot.py` refactored to a thin wrapper (preserves the autonomous-loop Step-1b CLI).
+8 tests (round-trip integrity, ciphertext-not-plaintext, fail-closed-no-leak, empty no-op,
+rotation, ship fail-open). ruff + mypy clean.
+
+**Follow-on:** unify migrations (one Alembic/Turso DDL registry); turn ClickHouse on for GSAM in prod.
 
 - **Kill `/tmp/*.db` prod defaults**: route every module DB through `warden/db/turso.py` or a
   single `DATA_DIR` (persisted volume) — a config sweep like the T1–T12 Settings ratchet.
