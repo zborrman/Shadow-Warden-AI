@@ -47,7 +47,7 @@ _QUARANTINE_DDL = """
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    try:
+    with suppress(ImportError):
         from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
         if is_turso_enabled("gsam"):
             with get_connection("gsam", fallback_path=settings.gsam_db_path) as con:
@@ -55,8 +55,6 @@ def _conn() -> Generator[sqlite3.Connection, None, None]:
                     con.executescript(_QUARANTINE_DDL)
                 yield con  # type: ignore[misc]
             return
-    except ImportError:
-        pass
     con = sqlite3.connect(settings.gsam_db_path, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")

@@ -113,7 +113,7 @@ class StaffAgentRunner:
                 history.append({"role": "assistant", "content": final})
                 elapsed = round((time.perf_counter() - t0) * 1000, 1)
                 _record_cost(tenant_id, self.AGENT_ID, query, model, total_input, total_output)
-                span.end(total_input, total_output, detail=final[:80])
+                span.end(total_input, total_output, detail=f"reply_chars={len(final)}")
                 return {
                     "response": final,
                     "tools_used": tools_used,

@@ -64,6 +64,21 @@ router = APIRouter(prefix="/v1", tags=["openai-proxy"])
 _UPSTREAM            = settings.openai_upstream
 _FILTER_URL          = settings.warden_filter_url
 
+
+def _openai_v1_base() -> str:
+    """Return the OpenAI-compatible upstream base with a `/v1` segment ensured.
+
+    OPENAI_UPSTREAM defaults to ``https://api.openai.com`` (no ``/v1``), but some
+    deployments set it to a proxy that already includes ``/v1``. Normalising here
+    keeps chat/models/embeddings on the same, correct path — previously chat used
+    ``{_UPSTREAM}/chat/completions`` (404 on the default) while models/embeddings
+    used ``{_UPSTREAM}/v1/...`` (double ``/v1`` when the base already had it).
+    """
+    base = _UPSTREAM.rstrip("/")
+    if base.endswith("/v1") or "/v1beta" in base or base.endswith("/openai"):
+        return base
+    return f"{base}/v1"
+
 _PERPLEXITY_UPSTREAM = "https://api.perplexity.ai"
 _GEMINI_UPSTREAM     = "https://generativelanguage.googleapis.com/v1beta/openai"
 _PERPLEXITY_API_KEY  = settings.perplexity_api_key
@@ -132,7 +147,7 @@ def _resolve_upstream(model: str) -> tuple[str, str, dict[str, str]]:
     if m.startswith("bedrock/") or m.startswith("vertex/"):
         return "", "", {}
 
-    return f"{_UPSTREAM}/chat/completions", "", {}
+    return f"{_openai_v1_base()}/chat/completions", "", {}
 # MASKING_MODE=auto  — transparently mask PII in user messages, unmask LLM responses
 # MASKING_MODE=off   — standard redact-only behaviour (default)
 # STREAMING_FAST_SCAN_BUFFER — number of accumulated response chars to buffer
@@ -623,14 +638,27 @@ async def proxy_chat(
                 if _must_buffer:
                     _emit = _sanitized if _sanitized is not None else _full
                     if _sanitized is None:
+                        # Distribute the (unmasked) full text across the original
+                        # chunks. Unmasking EXPANDS tokens ([EMAIL_1] → a@b.com),
+                        # so slicing by each masked chunk's length drops the tail:
+                        # the last content-bearing chunk must absorb the remainder.
+                        _last_content = -1
+                        for _i, _c in enumerate(_chunks):
+                            for _ch in _c.get("choices") or []:
+                                if isinstance((_ch.get("delta") or {}).get("content"), str):
+                                    _last_content = _i
                         _pos = 0
-                        for _c in _chunks:
+                        for _i, _c in enumerate(_chunks):
                             for _ch in _c.get("choices") or []:
                                 _d = _ch.get("delta") or {}
                                 if isinstance(_d.get("content"), str):
-                                    _len = len(_d["content"])
-                                    _d["content"] = _emit[_pos:_pos + _len]
-                                    _pos += _len
+                                    if _i == _last_content:
+                                        _d["content"] = _emit[_pos:]
+                                        _pos = len(_emit)
+                                    else:
+                                        _len = len(_d["content"])
+                                        _d["content"] = _emit[_pos:_pos + _len]
+                                        _pos += _len
                             yield (f"data: {json.dumps(_c)}\n\n").encode()
                     else:
                         _tmpl = _chunks[0] if _chunks else {}
@@ -837,7 +865,7 @@ async def list_models(
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
-                f"{_UPSTREAM}/v1/models",
+                f"{_openai_v1_base()}/models",
                 headers={"Authorization": auth_header},
             )
         return resp.json()
@@ -908,7 +936,7 @@ async def proxy_embeddings(
         _emb_headers["Authorization"] = f"Bearer {_NVIDIA_API_KEY}"
         payload = {**payload, "model": model[4:]}   # strip nim/ prefix
     else:
-        _emb_url = f"{_UPSTREAM}/v1/embeddings"
+        _emb_url = f"{_openai_v1_base()}/embeddings"
         _auth_hdr = request.headers.get("Authorization", "")
         if _auth_hdr:
             _emb_headers["Authorization"] = _auth_hdr

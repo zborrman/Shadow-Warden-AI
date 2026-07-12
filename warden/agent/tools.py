@@ -2324,9 +2324,15 @@ async def acp_search_catalog(
     **_,
 ) -> dict:
     """Tool #61 — Search an ACP-compatible external catalog endpoint."""
-    import httpx
+    import httpx  # noqa: PLC0415
+
+    from warden.net_guard import SSRFError, assert_public_url
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        assert_public_url(catalog_url)  # SSRF guard: caller-controlled catalog URL
+    except SSRFError as exc:
+        return {"error": f"blocked (SSRF guard): {exc}", "results": []}
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
             resp = await client.get(
                 catalog_url,
                 params={"q": query, "category": category, "limit": max_results},

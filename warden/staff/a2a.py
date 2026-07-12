@@ -202,6 +202,32 @@ class A2ARouter:
             _audit(call, self._db_path)
             return {"error": "A2A HMAC verification failed", "a2a_routed": False, "call_id": call.call_id}
 
+        # 2b. STAFF-01/02: enforce the TARGET agent's boundary + suspension on the
+        # A2A path too — ALLOWED_ROUTES alone let a suspended agent's tools stay
+        # invocable cross-agent. Only enforce when a boundary is registered, so
+        # A2A to unregistered targets keeps its prior (route-gated) behaviour.
+        try:
+            from warden.staff.boundaries import (  # noqa: PLC0415
+                BoundaryViolationError,
+                get_registry,
+            )
+            _reg = get_registry()
+            if _reg.get(target_agent_id) is not None:
+                _reg.check_and_dispatch(target_agent_id, tool_name)  # raises if suspended / tool denied
+        except BoundaryViolationError as exc:
+            call.status = "DENIED"
+            call.latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+            _audit(call, self._db_path)
+            log.warning(
+                "A2A DENIED (boundary): %s → %s.%s: %s",
+                caller_agent_id, target_agent_id, tool_name, exc,
+            )
+            return {
+                "error": f"A2A boundary denied: {exc}",
+                "a2a_routed": False,
+                "call_id": call.call_id,
+            }
+
         # 3. Dispatch to target tool handler
         try:
             handler = _resolve_handler(target_agent_id, tool_name)

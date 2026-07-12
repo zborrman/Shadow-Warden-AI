@@ -100,6 +100,7 @@ class QueryObject(BaseModel):
 
 class QueryResult(BaseModel):
     sql: str
+    params: list[Any] = Field(default_factory=list)  # bound values for the %s placeholders in `sql`
     model_id: str
     metrics: list[str]
     dimensions: list[str]

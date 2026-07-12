@@ -15,7 +15,6 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import time
 from dataclasses import asdict, dataclass
 from decimal import Decimal
@@ -26,7 +25,6 @@ log = logging.getLogger(__name__)
 
 _BOUNDARY_PREFIX = "staff:boundary:"
 _REFUND_INTENT_PREFIX = "staff:refund_intent:"
-_INTENT_KEY = os.getenv("STAFF_INTENT_KEY", os.getenv("VAULT_MASTER_KEY", ""))
 
 
 class AgentRole(StrEnum):
@@ -101,11 +99,10 @@ class AuthorizationBoundary:
             "issued_at": int(time.time()),
         }
         canonical = json.dumps(payload, sort_keys=True)
-        sig = hmac.new(
-            _INTENT_KEY.encode() or b"staff-intent-fallback",
-            canonical.encode(),
-            hashlib.sha256,
-        ).hexdigest()
+        # Fail-closed signing key (no hardcoded fallback) — matches the A2A path.
+        from warden.secret_keys import resolve_key  # noqa: PLC0415
+        _key = resolve_key("STAFF_INTENT_KEY", purpose="staff_refund_intent")
+        sig = hmac.new(_key, canonical.encode(), hashlib.sha256).hexdigest()
         return {"intent": payload, "sig": sig, "requires_backend_countersign": True}
 
 

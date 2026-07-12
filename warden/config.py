@@ -1729,7 +1729,7 @@ class Settings:
     gsam_enabled: bool = field(
         default_factory=lambda: _bool("GSAM_ENABLED", True)
     )
-    # ClickHouse observations stream (fail-open — warden runs fine without it).
+    # ClickHouse observations stream (optional — warden runs fine without it).
     gsam_clickhouse_enabled: bool = field(
         default_factory=lambda: _bool("GSAM_CLICKHOUSE_ENABLED", False)
     )
@@ -1787,6 +1787,20 @@ class Settings:
         default_factory=lambda: _env("GSAM_DB_PATH", "/tmp/warden_gsam.db")
     )
 
+    # ── SAC two-phase preflight billing (reserve → commit) ──────────────────────
+    # Default OFF — enabling it makes an unfunded wallet block agent runs.
+    sac_preflight_enabled: bool = field(
+        default_factory=lambda: _bool("SAC_PREFLIGHT_ENABLED", False)
+    )
+    # Per-run reservation estimate (USD) held before an agent run; the real token
+    # cost is committed afterward and the remainder released.
+    sac_preflight_estimate_usd: float = field(
+        default_factory=lambda: _float("SAC_PREFLIGHT_ESTIMATE_USD", 0.05)
+    )
+    sac_wallet_db_path: str = field(
+        default_factory=lambda: _env("SAC_WALLET_DB_PATH", "/tmp/warden_sac_wallet.db")
+    )
+
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
@@ -1795,7 +1809,8 @@ class Settings:
 
         Non-raising — callers decide to warn or fail-closed. Covers drift
         classes that have bitten prod: out-of-range thresholds, non-positive
-        timeouts, an invalid Fernet master key, and fail-open auth with no key.
+        timeouts, an invalid Fernet master key, and unauthenticated access
+        left enabled with no key configured.
         """
         problems: list[str] = []
 

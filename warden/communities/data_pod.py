@@ -291,10 +291,14 @@ def probe_pod(pod_id: str) -> dict[str, Any]:
     t0 = time.perf_counter()
     try:
         import httpx
+
+        from warden.net_guard import assert_public_url
+        endpoint = pod.minio_endpoint.rstrip("/") + "/minio/health/live"
+        assert_public_url(endpoint)  # SSRF guard: community-supplied pod endpoint
         resp = httpx.get(
-            pod.minio_endpoint.rstrip("/") + "/minio/health/live",
+            endpoint,
             timeout=5.0,
-            follow_redirects=True,
+            follow_redirects=False,
         )
         latency_ms = round((time.perf_counter() - t0) * 1000, 1)
         return {

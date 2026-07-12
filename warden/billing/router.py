@@ -30,6 +30,7 @@ Auth
 """
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 
@@ -56,7 +57,7 @@ def _require_tenant(x_tenant_id: str | None) -> str:
 
 def _require_admin(x_admin_key: str | None) -> None:
     admin_key = os.getenv("ADMIN_KEY", "")
-    if not admin_key or x_admin_key != admin_key:
+    if not admin_key or not hmac.compare_digest(x_admin_key or "", admin_key):
         raise HTTPException(status_code=403, detail="X-Admin-Key required.")
 
 

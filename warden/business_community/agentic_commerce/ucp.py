@@ -48,9 +48,12 @@ class UCPClient:
         """
         try:
             import httpx
+
+            from warden.net_guard import assert_public_url
             parsed = urlparse(domain if "://" in domain else f"https://{domain}")
             url = f"{parsed.scheme}://{parsed.netloc}/.well-known/ucp"
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            assert_public_url(url)  # SSRF guard: caller-supplied store domain
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
                 r = await client.get(url)
                 if r.status_code == 200:
                     return UCPCapabilities(r.json())
@@ -69,7 +72,10 @@ class UCPClient:
             return []
         try:
             import httpx
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+
+            from warden.net_guard import assert_public_url
+            assert_public_url(store.search_url)  # SSRF guard: store-supplied URL
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
                 r = await client.get(
                     store.search_url,
                     params={"q": query, "limit": limit},
@@ -92,10 +98,13 @@ class UCPClient:
             return {"error": "store_does_not_support_cart"}
         try:
             import httpx
+
+            from warden.net_guard import assert_public_url
             payload: dict[str, Any] = {"product_id": product_id, "qty": qty}
             if cart_id:
                 payload["cart_id"] = cart_id
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            assert_public_url(store.cart_url)  # SSRF guard: store-supplied URL
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
                 r = await client.post(store.cart_url, json=payload)
                 if r.status_code in (200, 201):
                     return r.json()
@@ -118,13 +127,16 @@ class UCPClient:
             return {"error": "store_does_not_support_checkout"}
         try:
             import httpx
+
+            from warden.net_guard import assert_public_url
             payload = {
                 "cart_id": cart_id,
                 "payment_protocol": "ap2",
                 "mandate_id": mandate_id,
                 "buyer_ref": tenant_id,
             }
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            assert_public_url(store.checkout_url)  # SSRF guard: store-supplied URL
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
                 r = await client.post(store.checkout_url, json=payload)
                 if r.status_code in (200, 201):
                     return r.json()

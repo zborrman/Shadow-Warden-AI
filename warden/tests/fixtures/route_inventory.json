@@ -723,6 +723,15 @@
     "POST /document-intel/convert-and-scan",
     "POST /document-intel/convert-batch"
   ],
+  "warden.gsam.api": [
+    "DELETE /gsam/lease/{lease_id}",
+    "GET /gsam/agents/{agent_id}/stats",
+    "GET /gsam/compliance/score",
+    "GET /gsam/heatmap",
+    "GET /gsam/lease/{lease_id}",
+    "POST /gsam/lease",
+    "POST /gsam/lease/{lease_id}/redeem"
+  ],
   "warden.m2m_store.api": [
     "GET /m2m-store/catalog",
     "GET /m2m-store/catalog/ucp",

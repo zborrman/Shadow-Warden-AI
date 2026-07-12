@@ -18,7 +18,8 @@ __all__ = ["gsam_emit"]
 def gsam_emit(obs: dict) -> None:
     """Lazy proxy to the collector singleton — never raises."""
     try:
-        from warden.gsam.collector import gsam_emit as _emit  # noqa: PLC0415
+        from warden.gsam.collector import gsam_emit as _emit
         _emit(obs)
-    except Exception:  # noqa: BLE001, S110
-        pass
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("gsam_collector", Reason.BACKEND_ERROR, exc)
