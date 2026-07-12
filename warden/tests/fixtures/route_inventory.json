@@ -583,6 +583,13 @@
     "POST /vendor-gov/vendors/{vendor_id}/dpa",
     "PUT /vendor-gov/vendors/{vendor_id}"
   ],
+  "warden.api.wallet": [
+    "GET /wallet",
+    "POST /wallet/commit",
+    "POST /wallet/deposit",
+    "POST /wallet/release",
+    "POST /wallet/reserve"
+  ],
   "warden.api.webhook": [
     "GET /billing/webhook/health",
     "POST /billing/webhook"

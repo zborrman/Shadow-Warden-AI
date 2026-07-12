@@ -1201,6 +1201,8 @@ register_router_safe(app, _RouterSpec("warden.api.shadow_ai", label="Shadow AI G
 
 register_router_safe(app, _RouterSpec("warden.gsam.api", label="GSAM Hermes JIT lease mounted at /gsam (SAC)"))
 
+register_router_safe(app, _RouterSpec("warden.api.wallet", label="SAC preflight wallet mounted at /wallet"))
+
 register_router_safe(app, _RouterSpec("warden.api.misp", label="MISP ZMQ bridge mounted at /misp"))
 
 register_router_safe(app, _RouterSpec("warden.api.sdk", label="OTel SDK mounted at /sdk"))

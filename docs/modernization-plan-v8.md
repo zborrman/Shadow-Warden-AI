@@ -69,17 +69,24 @@ green, ruff+mypy clean. Category 4: 55 → ~80.
 
 Effort: ~4 PRs. Testable without ClickHouse (SQLite rollup path). Lifts category 4: 55 → ~80.
 
-### Phase 2 — Two-phase preflight billing (reserve → commit)
+### Phase 2 — Two-phase preflight billing (reserve → commit) ✅ DONE (2026-07-10)
 
-Files: `warden/sac/preflight.py`, extend `warden/marketplace/x402_gate.py` + `warden/billing/audit_chain.py`.
-
-- Introduce a `wallet(balance_cents, hold_cents)` row; `net = balance − hold`.
-- `reserve(tenant, est_cost) -> hold_id` (atomic `hold += est`); `commit(hold_id, actual)`
-  (deduct actual, release the hold); `release(hold_id)` on failure/timeout (ARQ purge, TTL like
-  `m2m_store/inventory`).
-- **Rate phase reads GSAM economics** (Phase 1 rollup `cost_usd`) for `actual`.
-- Every reserve/commit appended to `billing.audit_chain` (`event_type=RESERVE|COMMIT`).
-- Guards runaway ReAct loops draining a wallet — the "wallet run" risk. Lifts category 5: 80 → ~88.
+Files shipped: `warden/sac/preflight.py` (integer micro-USD wallet ledger: `deposit`,
+`reserve`→hold_id, `commit`(actual, clamped to balance, releases remainder), `release`;
+`InsufficientFundsError`/`HoldError`), `warden/api/wallet.py` (`/wallet` REST — GET + deposit
+[admin]/reserve/commit/release), config flags `sac_preflight_enabled` (default OFF)
+`/sac_preflight_estimate_usd`/`sac_wallet_db_path`, wired into `StaffAgentRunner.run()`
+(`warden/staff/agents/base.py` — `_preflight_reserve`/`_preflight_settle`, both fail-open,
+only an explicit `InsufficientFundsError` blocks a run) at both success-return points. Every
+reserve/commit/release appended to `billing.audit_chain`. 17 new tests, ruff+mypy clean.
+Known follow-up: a hold is not released on an unhandled mid-loop exception (relies on the
+default-off gate + manual/TTL release) — acceptable for this slice, flagged for hardening.
+**Security fix during review:** `commit()`/`release()` gained an `expected_tenant_id` param
+(checked in `_resolve_hold`, IDOR-safe — a tenant mismatch reads identically to "not found")
+after review caught that `/wallet/commit|release` let any authenticated tenant settle/release
+*any* tenant's hold by guessing/observing its hold_id; the API layer now always passes
+`auth.tenant_id`. 3 more tests added for this. Category 5: 80 → ~86 (full 88 needs the
+mid-loop exception-safety follow-up).
 
 ### Phase 3 — Embedding + hyperbolic model upgrade (category 2, the biggest math lever)
 
