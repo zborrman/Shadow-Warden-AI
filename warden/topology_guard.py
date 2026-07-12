@@ -71,6 +71,12 @@ class TopoResult:
     beta1:       float   # approx. β₁ — 1-cycles / loops (normalized)
     detail:      str
     elapsed_ms:  float
+    # Birth-death persistence of the longest-lived H₁ (1-cycle) feature from the
+    # ripser diagram — richer separation signal than the β₁ *count* alone for
+    # paraphrase-obfuscated attacks. 0.0 without ripser (fallback path) or when
+    # no H₁ feature exists. Only folded into noise_score when
+    # settings.tda_persistence_enabled is True (Phase 3); always reported.
+    h1_max_lifetime: float = 0.0
 
     @property
     def has_topological_noise(self) -> bool:
@@ -110,16 +116,18 @@ def _shannon_entropy(freq: dict[str, float]) -> float:
 
 def _compute_fallback(
     text: str, freq: dict[str, float]
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float, float]:
     """
-    Return (noise_score, beta0_approx, beta1_approx) without ripser.
+    Return (noise_score, beta0_approx, beta1_approx, h1_max_lifetime) without
+    ripser. h1_max_lifetime is always 0.0 here — no true persistence diagram
+    exists without ripser.
 
     β₀ ≈ number of significant frequency gaps in the sorted distribution.
          Natural text has a smooth power-law decay; noise has sudden jumps.
     β₁ ≈ repetitive-loop score from entropy × (1 − diversity).
     """
     if not freq:
-        return 0.5, 1.0, 0.0
+        return 0.5, 1.0, 0.0, 0.0
 
     freqs_arr = np.array(list(freq.values()), dtype=np.float32)
 
@@ -168,7 +176,7 @@ def _compute_fallback(
     )
     noise_score = max(0.0, min(1.0, noise_score))
 
-    return noise_score, beta0_approx, beta1_approx
+    return noise_score, beta0_approx, beta1_approx, 0.0
 
 
 # ── Content-type detection ────────────────────────────────────────────────────
@@ -207,7 +215,7 @@ def _has_ripser() -> bool:
 
 def _compute_ripser(
     text: str, freq: dict[str, float]
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float, float]:
     """True persistent homology via Vietoris-Rips (ripser)."""
     from ripser import ripser  # noqa: PLC0415
 
@@ -228,13 +236,24 @@ def _compute_ripser(
     ) / n
     # β₁: number of 1-cycles present
     beta1 = float(len(diagrams[1])) / n if len(diagrams) > 1 else 0.0
+    # H₁ persistence: birth-death lifetime of the longest-lived 1-cycle. A long
+    # single loop (paraphrase-obfuscated repetition) separates from many
+    # short-lived ones (noise) better than the raw count.
+    h1_max_lifetime = (
+        float(max(((d - b) for b, d in diagrams[1] if not math.isinf(d)), default=0.0))
+        if len(diagrams) > 1 and len(diagrams[1]) > 0
+        else 0.0
+    )
 
     # Blend topological Betti score with fallback for robustness
-    fallback_score, _, _ = _compute_fallback(text, freq)
+    fallback_score, _, _, _ = _compute_fallback(text, freq)
     topo_score = 0.45 * beta0 + 0.35 * beta1 + 0.20 * fallback_score
+    if settings.tda_persistence_enabled:
+        # Fold in H₁ persistence at a small weight, renormalizing the blend.
+        topo_score = 0.40 * beta0 + 0.30 * beta1 + 0.15 * fallback_score + 0.15 * min(1.0, h1_max_lifetime)
     noise_score = max(0.0, min(1.0, topo_score))
 
-    return noise_score, beta0, beta1
+    return noise_score, beta0, beta1, h1_max_lifetime
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -270,11 +289,11 @@ def scan(text: str) -> TopoResult:
 
         if _has_ripser():
             try:
-                noise_score, beta0, beta1 = _compute_ripser(text, freq)
+                noise_score, beta0, beta1, h1_max_lifetime = _compute_ripser(text, freq)
             except Exception:
-                noise_score, beta0, beta1 = _compute_fallback(text, freq)
+                noise_score, beta0, beta1, h1_max_lifetime = _compute_fallback(text, freq)
         else:
-            noise_score, beta0, beta1 = _compute_fallback(text, freq)
+            noise_score, beta0, beta1, h1_max_lifetime = _compute_fallback(text, freq)
 
         # Adaptive threshold: code payloads have structurally different n-gram
         # distributions; use a lower threshold to avoid false positives.
@@ -314,6 +333,7 @@ def scan(text: str) -> TopoResult:
             beta1=round(beta1, 4),
             detail=detail,
             elapsed_ms=elapsed,
+            h1_max_lifetime=round(h1_max_lifetime, 4),
         )
 
       except Exception as exc:

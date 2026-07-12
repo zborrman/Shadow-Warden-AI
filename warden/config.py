@@ -1424,6 +1424,12 @@ class Settings:
     topo_noise_threshold_natural: float = field(
         default_factory=lambda: _float("TOPO_NOISE_THRESHOLD_NATURAL", 0.82)
     )
+    # Fold H₁ persistence (longest-lived 1-cycle lifetime) into the ripser noise
+    # score, not just the β₁ count. Default OFF — ripser-gated, purely additive
+    # when off (h1_max_lifetime is still reported on TopoResult either way).
+    tda_persistence_enabled: bool = field(
+        default_factory=lambda: _bool("TDA_PERSISTENCE", False)
+    )
 
     # ── Corpus cross-region sync (warden/corpus_sync.py) ────────────────────────
     # NB: reuses redis_url/global_redis_url, corpus_snapshot_path, warden_region.
