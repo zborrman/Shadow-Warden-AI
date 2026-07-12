@@ -2119,6 +2119,9 @@ async def _run_filter_pipeline(
     # Runs only when ML score is in the uncertainty band [LOWER, threshold).
     # Replaces an LLM verification call with a lightweight Bayesian DAG
     # that computes P(HIGH_RISK | evidence) via Pearl's do-calculus.
+    # Stash for the Phase-5 online CPT update, scheduled once the final
+    # verdict (the supervised label) is known further down the pipeline.
+    _causal_online: dict | None = None
     if (
         _UNCERTAINTY_LOWER > 0
         and not brain_result.is_jailbreak
@@ -2153,6 +2156,10 @@ async def _run_filter_pipeline(
             timings["causal"] = round((time.perf_counter() - t0) * 1000, 2)
             _sp.set_attribute("causal.is_high_risk",       _causal_result.is_high_risk)
             _sp.set_attribute("causal.risk_probability",   round(_causal_result.risk_probability, 4))
+            _causal_online = {
+                "obfuscation_detected": obfuscation_result.has_obfuscation,
+                "predicted_p":          _causal_result.risk_probability,
+            }
         if _causal_result.is_high_risk:
             guard_result.flags.append(SemanticFlag(
                 flag=FlagType.CAUSAL_HIGH_RISK,
@@ -2445,6 +2452,27 @@ async def _run_filter_pipeline(
             _get_masking_engine().invalidate_session(f"_detect_{rid}")
     except Exception as _exc:  # noqa: BLE001
         log.debug("suppressed exception: %r", _exc)   # detection is best-effort; never block a request
+
+    # ── Causal Arbiter online calibration (Phase 5) ───────────────────
+    # Nudge the CPT toward the final verdict (the supervised label) via a
+    # bounded Robbins–Monro step. Off the hot path; fail-open.
+    if _causal_online is not None:
+        try:
+            from warden.causal_arbiter import (
+                online_update as _causal_online_update,  # noqa: PLC0415
+            )
+            _label_high = (not allowed) or guard_result.risk_level in (RiskLevel.HIGH, RiskLevel.BLOCK)
+            _cu_kwargs = {
+                "obfuscation_detected": _causal_online["obfuscation_detected"],
+                "predicted_p":          _causal_online["predicted_p"],
+                "observed_high_risk":   _label_high,
+            }
+            if background_tasks is not None:
+                background_tasks.add_task(lambda k=_cu_kwargs: _causal_online_update(**k))
+            else:
+                _causal_online_update(**_cu_kwargs)
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("causal online_update skipped: %r", _exc)
 
     # ── Analytics logging ─────────────────────────────────────────────
     try:

@@ -112,7 +112,15 @@ mid-loop exception-safety follow-up).
   over expected values, flag when the 5th percentile (not the mean) crosses the trust floor.
 - Feed both from the Phase-1 GSAM rollup (single source of truth). Lifts category 6: 84 → ~90.
 
-### Phase 5 — Causal Arbiter online calibration (categories 1–2)
+### Phase 5 — Causal Arbiter online calibration (categories 1–2) ✅ DONE (2026-07-12)
+
+Shipped: `causal_arbiter.online_update()` — bounded Robbins–Monro CPT nudge (`θ ← θ + η_t(y−θ)`,
+`η_t = 1/(1+n)`) on the ContentRisk cells, step clamped to ±25% (poisoning gate) with the
+`obfusc_pos > obfusc_neg` ordering invariant preserved; per-cell sample counters on `_CPT`.
+Wired into `/filter` (gray-zone only, off the hot path via `background_tasks`, fail-open) using
+the final verdict as the supervised label. `reliability_curve()` + `online_state()` back the new
+`GET /xai/calibration` reliability-diagram endpoint. 21 property-style tests (bounds, convergence
+to empirical mean, drift clamp, ordering, fail-open, bin correctness). ruff + mypy clean.
 
 - The CPT tables in `causal_arbiter.py` are static + gated at 25% drift. Add a **bounded
   online update**: after each labeled decision, nudge the relevant CPT cell by a Robbins–Monro

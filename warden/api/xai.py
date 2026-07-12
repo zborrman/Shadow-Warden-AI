@@ -260,3 +260,27 @@ async def dashboard(
         "stage_hit_rates":  stage_hit_rates,
         "generated_at":     datetime.now(UTC).isoformat(),
     }
+
+
+@router.get("/calibration", summary="Causal Arbiter reliability diagram")
+async def calibration(
+    n_bins: int = Query(10, ge=2, le=50, description="Number of probability bins"),
+    auth: AuthResult = AuthDep,
+) -> dict:
+    """
+    Reliability diagram for the Causal Arbiter's P(HIGH_RISK | evidence).
+
+    Each bin reports the mean predicted probability against the observed
+    high-risk rate for gray-zone decisions. A well-calibrated model tracks
+    the diagonal (mean_observed ≈ mean_predicted). Drives the XAI dashboard
+    calibration curve and reflects the Phase-5 online Robbins–Monro updates.
+    """
+    from datetime import UTC, datetime
+
+    from warden.causal_arbiter import online_state, reliability_curve
+
+    return {
+        "bins":         reliability_curve(n_bins),
+        "online_state": online_state(),
+        "generated_at": datetime.now(UTC).isoformat(),
+    }

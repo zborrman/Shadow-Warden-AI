@@ -33,6 +33,8 @@ import json
 import logging
 import math
 import os
+import threading
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -85,8 +87,129 @@ class _CPT:
     calibrated_from: str = ""     # logs path used for calibration
     calibration_n:   int = 0      # number of samples used
 
+    # Online (Robbins–Monro) update counters — per-cell sample counts drive
+    # the decaying step size η_t = 1/(1+n).  Never touched by batch calibration.
+    n_obfusc_pos: int = 0
+    n_obfusc_neg: int = 0
+
 
 _cpt = _CPT()   # module-level singleton; updated by calibrate_from_logs()
+
+# ── Online-calibration state (Phase 5) ────────────────────────────────────────
+# A bounded Robbins–Monro update nudges CPT cells toward each labeled decision
+# while the existing 25%-per-step drift clamp preserves the poisoning guarantee.
+_ONLINE_MAX_STEP = 0.25                 # max fractional move per single update
+_online_lock = threading.Lock()
+# Ring buffer of (predicted_p, observed_label) for the XAI reliability diagram.
+_reliability_buffer: deque[tuple[float, float]] = deque(maxlen=2000)
+
+
+def online_update(
+    *,
+    obfuscation_detected: bool,
+    predicted_p:          float,
+    observed_high_risk:   bool,
+) -> bool:
+    """
+    Bounded online CPT update via a Robbins–Monro stochastic-approximation step.
+
+    After a single labeled decision, nudge the relevant ContentRisk cell toward
+    the observed outcome:
+
+        θ ← θ + η_t · (y − θ),   η_t = 1/(1 + n),   y ∈ {0, 1}
+
+    η_t = 1/(1+n) makes θ converge to the empirical mean P(HIGH | obfusc-flag) —
+    the online equivalent of the batch MLE in ``calibrate_from_logs``. Each step
+    is clamped to ±25% of the current value (the same poisoning gate used by the
+    batch path), so no single coordinated observation can move the CPT far.
+
+    The prediction/label pair is also recorded for the reliability diagram.
+
+    Returns True if the CPT was updated, False if the step was skipped
+    (ordering invariant violation) or errored. Fail-open: never raises.
+    """
+    try:
+        y = 1.0 if observed_high_risk else 0.0
+        with _online_lock:
+            _reliability_buffer.append((float(predicted_p), y))
+
+            if obfuscation_detected:
+                theta, n = _cpt.obfusc_pos, _cpt.n_obfusc_pos
+            else:
+                theta, n = _cpt.obfusc_neg, _cpt.n_obfusc_neg
+
+            eta = 1.0 / (1.0 + n)
+            raw_step = eta * (y - theta)
+
+            # Clamp step magnitude to the 25% drift gate (poisoning guarantee).
+            max_step = _ONLINE_MAX_STEP * theta if theta > 0 else _ONLINE_MAX_STEP
+            step = max(-max_step, min(max_step, raw_step))
+            new_theta = max(0.0, min(1.0, theta + step))
+
+            # Preserve the obfusc_pos > obfusc_neg ordering invariant that
+            # calibrate_from_logs enforces; skip the step if it would invert.
+            if obfuscation_detected:
+                if new_theta <= _cpt.obfusc_neg:
+                    return False
+                _cpt.obfusc_pos = round(new_theta, 4)
+                _cpt.n_obfusc_pos = n + 1
+            else:
+                if new_theta >= _cpt.obfusc_pos:
+                    return False
+                _cpt.obfusc_neg = round(new_theta, 4)
+                _cpt.n_obfusc_neg = n + 1
+            return True
+    except Exception as exc:
+        log.debug("online_update error (ignored): %s", exc)
+        return False
+
+
+def reliability_curve(n_bins: int = 10) -> list[dict]:
+    """
+    Bin the recorded (predicted_p, observed_label) pairs into a reliability
+    diagram for the XAI dashboard. For a well-calibrated model,
+    ``mean_observed ≈ mean_predicted`` within each bin (points on the diagonal).
+
+    Returns one dict per bin: bin_lo, bin_hi, mean_predicted, mean_observed, count.
+    """
+    with _online_lock:
+        samples = list(_reliability_buffer)
+
+    bins: list[dict] = []
+    for i in range(n_bins):
+        lo = i / n_bins
+        hi = (i + 1) / n_bins
+        last = i == n_bins - 1
+        pts = [
+            (p, yy) for (p, yy) in samples
+            if lo <= p < hi or (last and p >= hi)
+        ]
+        if pts:
+            mean_p = sum(p for p, _ in pts) / len(pts)
+            mean_o = sum(yy for _, yy in pts) / len(pts)
+        else:
+            mean_p = (lo + hi) / 2
+            mean_o = 0.0
+        bins.append({
+            "bin_lo":         round(lo, 3),
+            "bin_hi":         round(hi, 3),
+            "mean_predicted": round(mean_p, 4),
+            "mean_observed":  round(mean_o, 4),
+            "count":          len(pts),
+        })
+    return bins
+
+
+def online_state() -> dict:
+    """Introspection snapshot of the online-calibration state (audit/dashboard)."""
+    with _online_lock:
+        return {
+            "obfusc_pos":   _cpt.obfusc_pos,
+            "obfusc_neg":   _cpt.obfusc_neg,
+            "n_obfusc_pos": _cpt.n_obfusc_pos,
+            "n_obfusc_neg": _cpt.n_obfusc_neg,
+            "samples":      len(_reliability_buffer),
+        }
 
 
 def calibrate_from_logs(
