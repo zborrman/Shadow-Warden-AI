@@ -131,6 +131,16 @@ to empirical mean, drift clamp, ordering, fail-open, bin correctness). ruff + my
 
 ### Phase 6 — Data-layer consolidation (category 11, the quiet risk)
 
+**Slice 1 ✅ DONE (2026-07-12):** central `WARDEN_DATA_DIR` primitive — `warden/config.py`
+`data_dir()` / `data_path(filename, override_env)`. One env var relocates every default DB/spool
+off ephemeral `/tmp` onto a persisted volume; per-module `X_DB_PATH` overrides still win;
+backward-compatible (defaults to `/tmp`). All 17 `config.py` path defaults routed through it plus
+the staff cluster (a2a, economics, bdr, compliance_kyc, growth, support) as the module-wiring
+proof. 10 property tests (override precedence, relocation, dir creation, legacy parity). ruff +
+mypy clean. **Follow-on slices:** sweep remaining direct `os.getenv("*_DB_PATH", "/tmp/…")` call
+sites (marketplace ~35, communities/SEP ~12, secrets/compliance/protocols) onto `data_path`;
+unify migrations; nightly encrypted backup; turn ClickHouse on for GSAM.
+
 - **Kill `/tmp/*.db` prod defaults**: route every module DB through `warden/db/turso.py` or a
   single `DATA_DIR` (persisted volume) — a config sweep like the T1–T12 Settings ratchet.
 - **Unify migrations**: one alembic tree (or Turso DDL registry) instead of per-module

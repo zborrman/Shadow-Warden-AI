@@ -11,12 +11,13 @@ Storage: Redis keys under staff:bdr:{tenant_id}:*
 from __future__ import annotations
 
 import logging
-import os
 import time
 
 log = logging.getLogger(__name__)
 
-_DB_PATH = os.getenv("BDR_DB_PATH", "/tmp/warden_bdr.db")
+from warden.config import data_path  # noqa: E402
+
+_DB_PATH = data_path("warden_bdr.db", "BDR_DB_PATH")
 
 
 def _db():

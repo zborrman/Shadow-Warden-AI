@@ -13,14 +13,15 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import time
 from typing import Any
 
 log = logging.getLogger(__name__)
 
-_DB_PATH = os.getenv("COMPLIANCE_DB_PATH", "/tmp/warden_compliance.db")
+from warden.config import data_path  # noqa: E402
+
+_DB_PATH = data_path("warden_compliance.db", "COMPLIANCE_DB_PATH")
 
 # Minimal built-in denylist for air-gapped / offline mode.
 _BUILTIN_DENYLIST: set[str] = {

@@ -45,19 +45,59 @@ from __future__ import annotations
 
 import os
 import secrets
+from contextlib import suppress
 from dataclasses import dataclass, field, fields
 
-__all__ = ["settings", "Settings", "ConfigValidationError"]
+__all__ = ["settings", "Settings", "ConfigValidationError", "data_dir", "data_path"]
 
 
 class ConfigValidationError(RuntimeError):
     """Raised by Settings.validate_or_raise() when configuration is invalid."""
 
 
+# ── Data-layer path consolidation (Phase 6) ───────────────────────────────────
+# Every module SQLite DB + spool file resolves its default location under a
+# single base dir (`WARDEN_DATA_DIR`) — a persisted volume in prod instead of
+# ephemeral /tmp. Backward-compatible: WARDEN_DATA_DIR defaults to /tmp, so an
+# unset environment behaves exactly as before. Per-module env overrides (e.g.
+# SEP_DB_PATH) still win when set, preserving the existing override contract.
+
+_DEFAULT_DATA_DIR = "/tmp"
+
+
+def data_dir() -> str:
+    """Base directory for all module data files (persisted volume in prod)."""
+    return os.getenv("WARDEN_DATA_DIR", _DEFAULT_DATA_DIR)
+
+
+def data_path(filename: str, override_env: str | None = None) -> str:
+    """
+    Resolve a data-file path under ``data_dir()``.
+
+    An explicit per-module env override (``override_env``) wins when set, so
+    existing ``X_DB_PATH`` overrides keep working. When the base dir is not the
+    legacy /tmp, it is created best-effort (persisted volumes may start empty).
+    """
+    if override_env:
+        override = os.getenv(override_env)
+        if override:
+            return override
+    base = data_dir()
+    if base != _DEFAULT_DATA_DIR:
+        with suppress(OSError):
+            os.makedirs(base, exist_ok=True)
+    return os.path.join(base, filename)
+
+
 # ── Env-var helpers ───────────────────────────────────────────────────────────
 
 def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default)
+
+
+def _db_env(name: str, filename: str) -> str:
+    """DB/spool path default routed through WARDEN_DATA_DIR; env override wins."""
+    return data_path(filename, override_env=name)
 
 def _int(name: str, default: int) -> int:
     return int(os.getenv(name, str(default)))
@@ -318,7 +358,7 @@ class Settings:
 
     # ── Voice Guardian (warden/voice/guardian.py) ─────────────────────────────────
     voice_guardian_db_path: str = field(
-        default_factory=lambda: _env("VOICE_GUARDIAN_DB_PATH", "/tmp/warden_voice_guardian.db")
+        default_factory=lambda: _db_env("VOICE_GUARDIAN_DB_PATH", "warden_voice_guardian.db")
     )
     voice_coerce_threshold: float = field(
         default_factory=lambda: _float("VOICE_COERCE_THRESHOLD", 0.8)
@@ -358,7 +398,7 @@ class Settings:
 
     # ── Community notifications (warden/communities/notifications.py) ───────────
     community_notif_db_path: str = field(
-        default_factory=lambda: _env("COMMUNITY_NOTIF_DB_PATH", "/tmp/warden_notif.db")
+        default_factory=lambda: _db_env("COMMUNITY_NOTIF_DB_PATH", "warden_notif.db")
     )
     smtp_from: str = field(
         default_factory=lambda: _env("SMTP_FROM", "noreply@shadow-warden.ai")
@@ -464,7 +504,7 @@ class Settings:
     # chain (IAM role, ~/.aws/credentials) still applies when unset; a Settings
     # field would coerce to "" instead of None, breaking that fallback.
     entity_db_path: str = field(
-        default_factory=lambda: _env("ENTITY_DB_PATH", "/tmp/warden_entity_store.db")
+        default_factory=lambda: _db_env("ENTITY_DB_PATH", "warden_entity_store.db")
     )
     community_s3_bucket: str = field(
         default_factory=lambda: _env("COMMUNITY_S3_BUCKET", "warden-communities")
@@ -475,7 +515,7 @@ class Settings:
         default_factory=lambda: _env("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db")
     )
     corpus_snapshot_path: str = field(
-        default_factory=lambda: _env("CORPUS_SNAPSHOT_PATH", "/tmp/warden_corpus_snapshot")
+        default_factory=lambda: _db_env("CORPUS_SNAPSHOT_PATH", "warden_corpus_snapshot")
     )
     analytics_data_path: str = field(
         default_factory=lambda: _env("ANALYTICS_DATA_PATH", "/analytics/data")
@@ -723,7 +763,7 @@ class Settings:
     # test_governance.py always passes db_path= explicitly as a kwarg, never
     # relying on the env-derived default, so freezing it is safe (unlike
     # marketplace/api.py's rejected wholesale MARKETPLACE_DB_PATH pattern).
-    marketplace_db_path: str = field(default_factory=lambda: _env("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db"))
+    marketplace_db_path: str = field(default_factory=lambda: _db_env("MARKETPLACE_DB_PATH", "warden_marketplace.db"))
     dao_proposal_ttl_hours: int = field(default_factory=lambda: _int("DAO_PROPOSAL_TTL_HOURS", 72))
     dao_quorum_pct: float = field(default_factory=lambda: _float("DAO_QUORUM_PCT", 0.15))
     dao_governance_enabled: bool = field(default_factory=lambda: _bool("DAO_GOVERNANCE_ENABLED", False))
@@ -746,7 +786,7 @@ class Settings:
     # NB: test_billing_audit.py monkeypatch.setattr()'s the module's _DB_PATH
     # attribute directly (not the env var) — unaffected by migrating the
     # attribute's initial value, same pattern as T38's federated_trust finding.
-    billing_audit_db_path: str = field(default_factory=lambda: _env("BILLING_AUDIT_DB_PATH", "/tmp/warden_billing_audit.db"))
+    billing_audit_db_path: str = field(default_factory=lambda: _db_env("BILLING_AUDIT_DB_PATH", "warden_billing_audit.db"))
     billing_audit_evm_attestation: bool = field(default_factory=lambda: _bool("BILLING_AUDIT_EVM_ATTESTATION", False))
     billing_audit_evm_rpc_url: str = field(default_factory=lambda: _env("BILLING_AUDIT_EVM_RPC_URL", "https://sepolia.base.org"))
     billing_audit_evm_private_key: str = field(default_factory=lambda: _env("BILLING_AUDIT_EVM_PRIVATE_KEY", ""))
@@ -783,7 +823,7 @@ class Settings:
     # and self-persists an ephemeral secret via os.environ when unset, the same
     # lazy signing-key-resolution invariant as T62's auth/router.py skip.
     bot_token_ttl_s: int = field(default_factory=lambda: _int("BOT_TOKEN_TTL_S", 3600))
-    bot_db_path: str = field(default_factory=lambda: _env("BOT_DB_PATH", "/tmp/warden_bot_entities.db"))
+    bot_db_path: str = field(default_factory=lambda: _db_env("BOT_DB_PATH", "warden_bot_entities.db"))
 
     # ── CVE Scanner worker (warden/workers/cve_scanner.py) ───────────────────────
     # NB: reuses cve_report_path/security_posture_path (T63)/slack_webhook_url.
@@ -1167,7 +1207,7 @@ class Settings:
 
     # ── Community peering (warden/communities/peering.py) ────────────────────────
     sep_db_path: str = field(
-        default_factory=lambda: _env("SEP_DB_PATH", "/tmp/warden_sep.db")
+        default_factory=lambda: _db_env("SEP_DB_PATH", "warden_sep.db")
     )
     federated_trust_flag_ttl_days: int = field(
         default_factory=lambda: _int("FEDERATED_TRUST_FLAG_TTL_DAYS", 30)
@@ -1183,15 +1223,15 @@ class Settings:
     )
 
     # ── Compliance Evidence Bundle (warden/compliance/evidence_bundle.py) ────────
-    # NB: VENDOR_GOV_DB_PATH default here ("/tmp/warden_vendor_gov.db") differs
-    # from vendor_gov/registry.py's own default ("/tmp/warden_vendor.db") for the
+    # NB: VENDOR_GOV_DB_PATH default here ("warden_vendor_gov.db") differs
+    # from vendor_gov/registry.py's own default ("warden_vendor.db") for the
     # SAME env var — a pre-existing inconsistency, not something to unify here.
     # Kept as its own field to preserve this file's exact fallback behavior.
     evidence_bundle_vendor_db_path: str = field(
-        default_factory=lambda: _env("VENDOR_GOV_DB_PATH", "/tmp/warden_vendor_gov.db")
+        default_factory=lambda: _db_env("VENDOR_GOV_DB_PATH", "warden_vendor_gov.db")
     )
     training_records_db_path: str = field(
-        default_factory=lambda: _env("TRAINING_RECORDS_DB_PATH", "/tmp/warden_training.db")
+        default_factory=lambda: _db_env("TRAINING_RECORDS_DB_PATH", "warden_training.db")
     )
 
     # ── Community threat score federation (warden/communities/federation.py) ─────
@@ -1219,7 +1259,7 @@ class Settings:
         default_factory=lambda: _env("BREAK_GLASS_TIER", "mcp")
     )
     break_glass_audit_path: str = field(
-        default_factory=lambda: _env("BREAK_GLASS_AUDIT_PATH", "/tmp/warden_break_glass_audit.jsonl")
+        default_factory=lambda: _db_env("BREAK_GLASS_AUDIT_PATH", "warden_break_glass_audit.jsonl")
     )
 
     # ── SOVA scheduler jobs (warden/agent/scheduler.py) ──────────────────────────
@@ -1386,7 +1426,7 @@ class Settings:
 
     # ── FIDO2 / WebAuthn passkeys (warden/auth/fido.py) ─────────────────────────
     fido_db_path: str = field(
-        default_factory=lambda: _env("FIDO_DB_PATH", "/tmp/warden_fido.db")
+        default_factory=lambda: _db_env("FIDO_DB_PATH", "warden_fido.db")
     )
     fido_rp_id: str = field(
         default_factory=lambda: _env("FIDO_RP_ID", "shadow-warden-ai.com")
@@ -1663,7 +1703,7 @@ class Settings:
         default_factory=lambda: _env("AUTH_COOKIE_DOMAIN", ".shadow-warden-ai.com")
     )
     auth_db_path: str = field(
-        default_factory=lambda: _env("AUTH_DB_PATH", "/tmp/warden_auth.db")
+        default_factory=lambda: _db_env("AUTH_DB_PATH", "warden_auth.db")
     )
     auth_signup_rate_limit: int = field(
         default_factory=lambda: _int("AUTH_SIGNUP_RATE_LIMIT", 5)
@@ -1721,7 +1761,7 @@ class Settings:
 
     # ── Decentralized key rotation (warden/web3/key_rotation.py) ─────────────────
     key_rotation_db_path: str = field(
-        default_factory=lambda: _env("KEY_ROTATION_DB_PATH", "/tmp/warden_key_rotation.db")
+        default_factory=lambda: _db_env("KEY_ROTATION_DB_PATH", "warden_key_rotation.db")
     )
     agent_key_rotation_max_days: int = field(
         default_factory=lambda: _int("AGENT_KEY_ROTATION_MAX_DAYS", 90)
@@ -1753,7 +1793,7 @@ class Settings:
     )
     # NDJSON spool used while ClickHouse is disabled/unreachable (size-capped).
     gsam_spool_path: str = field(
-        default_factory=lambda: _env("GSAM_SPOOL_PATH", "/tmp/warden_gsam_spool.ndjson")
+        default_factory=lambda: _db_env("GSAM_SPOOL_PATH", "warden_gsam_spool.ndjson")
     )
     gsam_spool_max_bytes: int = field(
         default_factory=lambda: _int("GSAM_SPOOL_MAX_BYTES", 50_000_000)
@@ -1790,7 +1830,7 @@ class Settings:
     # SQLite fallback for drift baselines / leases / quarantine log / rollups
     # (Turso db name "gsam" when TURSO_URL_GSAM is set).
     gsam_db_path: str = field(
-        default_factory=lambda: _env("GSAM_DB_PATH", "/tmp/warden_gsam.db")
+        default_factory=lambda: _db_env("GSAM_DB_PATH", "warden_gsam.db")
     )
 
     # ── SAC two-phase preflight billing (reserve → commit) ──────────────────────
@@ -1804,7 +1844,7 @@ class Settings:
         default_factory=lambda: _float("SAC_PREFLIGHT_ESTIMATE_USD", 0.05)
     )
     sac_wallet_db_path: str = field(
-        default_factory=lambda: _env("SAC_WALLET_DB_PATH", "/tmp/warden_sac_wallet.db")
+        default_factory=lambda: _db_env("SAC_WALLET_DB_PATH", "warden_sac_wallet.db")
     )
 
     # ── Validation & audit (Deep-Eng P1) ────────────────────

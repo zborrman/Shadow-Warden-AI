@@ -11,14 +11,15 @@ Fail-open: all methods return gracefully on any DB or import error.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import time
 from dataclasses import dataclass, field
 
 log = logging.getLogger(__name__)
 
-_DB_PATH: str = os.getenv("STAFF_ECONOMICS_DB_PATH", "/tmp/warden_staff_economics.db")
+from warden.config import data_path  # noqa: E402
+
+_DB_PATH: str = data_path("warden_staff_economics.db", "STAFF_ECONOMICS_DB_PATH")
 
 # Pricing as of 2026-06 (USD per million tokens)
 _COST_PER_MTOK: dict[str, dict[str, float]] = {

@@ -20,7 +20,9 @@ from decimal import Decimal
 
 log = logging.getLogger(__name__)
 
-_DB_PATH = os.getenv("SUPPORT_DB_PATH", "/tmp/warden_support.db")
+from warden.config import data_path  # noqa: E402
+
+_DB_PATH = data_path("warden_support.db", "SUPPORT_DB_PATH")
 
 # Minimal knowledge base — production would be a vector DB
 _KB: dict[str, str] = {

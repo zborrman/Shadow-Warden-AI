@@ -10,13 +10,14 @@ Spend ceiling enforced at boundary level (see AuthorizationBoundary.spend_ceilin
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import time
 
 log = logging.getLogger(__name__)
 
-_DB_PATH = os.getenv("GROWTH_DB_PATH", "/tmp/warden_growth.db")
+from warden.config import data_path  # noqa: E402
+
+_DB_PATH = data_path("warden_growth.db", "GROWTH_DB_PATH")
 
 
 def _db() -> sqlite3.Connection:

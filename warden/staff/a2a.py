@@ -18,7 +18,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
-import os
 import sqlite3
 import time
 import uuid
@@ -29,7 +28,9 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-_DB_PATH: str = os.getenv("STAFF_A2A_DB_PATH", "/tmp/warden_staff_a2a.db")
+from warden.config import data_path  # noqa: E402
+
+_DB_PATH: str = data_path("warden_staff_a2a.db", "STAFF_A2A_DB_PATH")
 
 
 def _hmac_key() -> bytes:
