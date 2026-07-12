@@ -24,6 +24,44 @@ log = logging.getLogger(__name__)
 _MAX_ITER = 8
 
 
+def _preflight_reserve(tenant_id: str, agent_id: str) -> tuple[str | None, bool]:
+    """Reserve the SAC wallet estimate for this run. Returns (hold_id, blocked).
+
+    Fail-open: disabled, unavailable, or erroring wallet never blocks a run —
+    only an explicit InsufficientFundsError does. ``hold_id`` is None whenever
+    there is nothing to settle later (feature off / reservation skipped).
+    """
+    try:
+        from warden.config import settings  # noqa: PLC0415
+        if not settings.sac_preflight_enabled:
+            return None, False
+        from warden.sac.preflight import InsufficientFundsError, reserve  # noqa: PLC0415
+        try:
+            hold_id = reserve(tenant_id, settings.sac_preflight_estimate_usd,
+                               reason="staff_agent_run", agent_id=agent_id)
+            return hold_id, False
+        except InsufficientFundsError:
+            return None, True
+    except Exception as exc:  # noqa: BLE001 — wallet unavailable must not block the run
+        from warden.observability import Reason, record_failopen  # noqa: PLC0415
+        record_failopen("sac_preflight", Reason.BACKEND_ERROR, exc)
+        return None, False
+
+
+def _preflight_settle(hold_id: str | None, agent_id: str, model: str, input_tokens: int, output_tokens: int) -> None:
+    """Commit the actual token cost against the hold. Fail-open, no-op if unheld."""
+    if not hold_id:
+        return
+    try:
+        from warden.sac.preflight import commit  # noqa: PLC0415
+        from warden.staff.economics import compute_cost_usd  # noqa: PLC0415
+        actual = compute_cost_usd(model, input_tokens, output_tokens)
+        commit(hold_id, actual, agent_id=agent_id)
+    except Exception as exc:  # noqa: BLE001
+        from warden.observability import Reason, record_failopen  # noqa: PLC0415
+        record_failopen("sac_preflight", Reason.BACKEND_ERROR, exc)
+
+
 def _record_cost(
     tenant_id: str, agent_id: str, query: str, model: str,
     input_tokens: int, output_tokens: int,
@@ -85,6 +123,13 @@ class StaffAgentRunner:
         autonomy = boundary.autonomy_level if boundary else 1
         model = _MODEL_BY_LEVEL.get(autonomy, _MODEL_BY_LEVEL[1])
 
+        hold_id, blocked = _preflight_reserve(tenant_id, self.AGENT_ID)
+        if blocked:
+            return {
+                "response": f"{self.AGENT_ID} agent blocked — insufficient SAC wallet balance.",
+                "tools_used": [], "input_tokens": 0, "output_tokens": 0, "latency_ms": 0.0,
+            }
+
         client = anthropic.AsyncAnthropic(api_key=api_key)
         history: list[dict] = [{"role": "user", "content": query}]
         tools_used: list[str] = []
@@ -113,6 +158,7 @@ class StaffAgentRunner:
                 history.append({"role": "assistant", "content": final})
                 elapsed = round((time.perf_counter() - t0) * 1000, 1)
                 _record_cost(tenant_id, self.AGENT_ID, query, model, total_input, total_output)
+                _preflight_settle(hold_id, self.AGENT_ID, model, total_input, total_output)
                 span.end(total_input, total_output, detail=f"reply_chars={len(final)}")
                 return {
                     "response": final,
@@ -162,6 +208,7 @@ class StaffAgentRunner:
 
         elapsed = round((time.perf_counter() - t0) * 1000, 1)
         _record_cost(tenant_id, self.AGENT_ID, query, model, total_input, total_output)
+        _preflight_settle(hold_id, self.AGENT_ID, model, total_input, total_output)
         span.end(total_input, total_output, detail="max_iter")
         return {
             "response": "Max iterations reached without conclusive answer.",

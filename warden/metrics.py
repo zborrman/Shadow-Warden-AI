@@ -74,9 +74,9 @@ try:
             ["pattern_type", "severity"],
         )
     except ValueError:
-        AGENT_ANOMALIES_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+        AGENT_ANOMALIES_TOTAL = cast(Counter, REGISTRY._names_to_collectors.get(
             "warden_agent_anomalies_total"
-        )
+        ))
 
     try:
         AGENT_SESSION_BLOCKS = Counter(
