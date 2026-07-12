@@ -20,10 +20,12 @@ from __future__ import annotations
 import logging
 import os
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.marketplace.seller_agent")
 
 _DEMAND_FACTOR = float(os.getenv("MARKETPLACE_DEMAND_FACTOR", "0.5"))
-_DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 
 
 class SellerAgent:

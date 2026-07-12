@@ -7,7 +7,6 @@ No money moves without explicit human approval — analogous to SAR filing.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -15,11 +14,12 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
+from warden.config import data_path
 from warden.protocols.acp.models import RefundRequest
 
 log = logging.getLogger("warden.acp.refund")
 
-_DB_PATH = os.getenv("ACP_DB_PATH", "/tmp/warden_acp.db")
+_DB_PATH = data_path("warden_acp.db", "ACP_DB_PATH")
 _db_lock = threading.RLock()
 
 

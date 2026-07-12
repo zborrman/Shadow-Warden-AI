@@ -8,16 +8,17 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.business_intelligence.repository")
 
-_DB_PATH = os.getenv("BI_DB_PATH", "/tmp/warden_bi.db")
+_DB_PATH = data_path("warden_bi.db", "BI_DB_PATH")
 _db_lock = threading.RLock()
 _CACHE_TTL_MINUTES = 15
 

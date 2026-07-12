@@ -26,16 +26,17 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import sqlite3
 import threading
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.marketplace.data_lifecycle")
 
-_DB_PATH      = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
-_LIFECYCLE_DB = os.getenv("LIFECYCLE_DB_PATH", "/tmp/warden_lifecycle.db")
+_DB_PATH      = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+_LIFECYCLE_DB = data_path("warden_lifecycle.db", "LIFECYCLE_DB_PATH")
 _db_lock      = threading.RLock()
 
 _DEFAULT_TTLS: dict[str, int] = {

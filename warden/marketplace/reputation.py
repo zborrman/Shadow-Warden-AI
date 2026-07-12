@@ -30,12 +30,13 @@ Score bands: UNKNOWN (<3 trades), LOW (<0.4), MEDIUM (<0.7), HIGH (>=0.7)
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass, field
+
+from warden.config import data_path
 
 log = logging.getLogger("warden.marketplace.reputation")
 
-_DB_PATH             = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH             = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _MIN_TRADES_FOR_SCORE = 3
 
 

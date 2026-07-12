@@ -33,7 +33,6 @@ Known AI agent providers
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -41,9 +40,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.communities.oauth_discovery")
 
-_OAUTH_DB = os.getenv("OAUTH_DB_PATH", "/tmp/warden_oauth.db")
+_OAUTH_DB = data_path("warden_oauth.db", "OAUTH_DB_PATH")
 _db_lock  = threading.RLock()
 
 

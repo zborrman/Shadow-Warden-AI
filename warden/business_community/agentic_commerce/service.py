@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -26,10 +25,11 @@ from warden.business_community.agentic_commerce.ap2 import AP2Processor
 from warden.business_community.agentic_commerce.mcp_bridge import MCPBridge
 from warden.business_community.agentic_commerce.models import MCPIntent, PurchaseOrder
 from warden.business_community.agentic_commerce.ucp import UCPClient
+from warden.config import data_path
 
 log = logging.getLogger("warden.commerce.service")
 
-_DB_PATH = os.getenv("COMMERCE_DB_PATH", "/tmp/warden_commerce.db")
+_DB_PATH = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
 _db_lock = threading.RLock()
 
 

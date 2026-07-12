@@ -22,9 +22,11 @@ from __future__ import annotations
 import logging
 import os
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.marketplace.buyer_agent")
 
-_DB_PATH        = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH        = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _STRETCH_FACTOR = float(os.getenv("MARKETPLACE_BUYER_STRETCH", "1.10"))
 _MIN_REP_SCORE  = float(os.getenv("MARKETPLACE_MIN_SELLER_REP", "0.0"))
 # First-Proposal Bias Guard: minimum alternatives to evaluate before committing.

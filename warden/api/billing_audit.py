@@ -19,11 +19,12 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 
 from warden.billing.feature_gate import require_feature
+from warden.config import data_path
 
 router = APIRouter(prefix="/billing/audit", tags=["billing-audit"])
 _Gate = require_feature("billing_audit_enabled")
 
-_DB_PATH = os.getenv("BILLING_AUDIT_DB_PATH", "/tmp/warden_billing_audit.db")
+_DB_PATH = data_path("warden_billing_audit.db", "BILLING_AUDIT_DB_PATH")
 
 
 @router.get("/chain/{tenant_id}", dependencies=[_Gate])

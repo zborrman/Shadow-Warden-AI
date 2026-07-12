@@ -48,6 +48,8 @@ from typing import Any
 
 import httpx
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.agent.healer")
 
 _BASE    = "http://localhost:8001"
@@ -59,7 +61,7 @@ _PREDICT_AHEAD  = 3    # forecast 3 readings ahead (~1.5h)
 _BYPASS_LIMIT   = 0.15
 
 # SQLite file for rolling metrics + recipe cache
-_METRICS_DB = os.getenv("HEALER_METRICS_DB", "/tmp/warden_healer_metrics.db")
+_METRICS_DB = data_path("warden_healer_metrics.db", "HEALER_METRICS_DB")
 
 
 def _ts() -> str:

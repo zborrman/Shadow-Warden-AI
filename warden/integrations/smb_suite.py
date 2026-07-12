@@ -17,17 +17,18 @@ Tiers: Community Business+ (smb_suite_enabled)
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.integrations.smb_suite")
 
-_SEP_DB_PATH   = os.getenv("SEP_DB_PATH",        "/tmp/warden_sep.db")
-_VENDOR_DB_PATH = os.getenv("VENDOR_GOV_DB_PATH", "/tmp/warden_vendor.db")
-_COST_DB_PATH  = os.getenv("COST_ALLOC_DB_PATH",  "/tmp/warden_costs.db")
+_SEP_DB_PATH   = data_path("warden_sep.db", "SEP_DB_PATH")
+_VENDOR_DB_PATH = data_path("warden_vendor.db", "VENDOR_GOV_DB_PATH")
+_COST_DB_PATH  = data_path("warden_costs.db", "COST_ALLOC_DB_PATH")
 
 
 @dataclass

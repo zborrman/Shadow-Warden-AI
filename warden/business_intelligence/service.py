@@ -15,20 +15,20 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import sqlite3
 from datetime import UTC, datetime, timedelta
 
 from warden.business_intelligence.benchmarking import build_benchmarks
 from warden.business_intelligence.predictive import predict_incidents
 from warden.business_intelligence.repository import cache_get, cache_set
+from warden.config import data_path
 
 log = logging.getLogger("warden.business_intelligence.service")
 
-_SEP_DB   = os.getenv("SEP_DB_PATH",      "/tmp/warden_sep.db")
-_VENDOR_DB = os.getenv("VENDOR_GOV_DB_PATH", "/tmp/warden_vendor.db")
-_COST_DB  = os.getenv("COST_ALLOC_DB_PATH",  "/tmp/warden_costs.db")
-_LOGS_PATH = os.getenv("LOGS_PATH",           "/tmp/warden_logs.json")
+_SEP_DB   = data_path("warden_sep.db", "SEP_DB_PATH")
+_VENDOR_DB = data_path("warden_vendor.db", "VENDOR_GOV_DB_PATH")
+_COST_DB  = data_path("warden_costs.db", "COST_ALLOC_DB_PATH")
+_LOGS_PATH = data_path("warden_logs.json", "LOGS_PATH")
 
 
 def _open(db_path: str) -> sqlite3.Connection:

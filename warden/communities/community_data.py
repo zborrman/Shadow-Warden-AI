@@ -12,7 +12,9 @@ import time
 import uuid
 from dataclasses import dataclass
 
-COMM_DB_PATH = os.getenv("COMM_DB_PATH", "/tmp/warden_communities.db")
+from warden.config import data_path
+
+COMM_DB_PATH = data_path("warden_communities.db", "COMM_DB_PATH")
 _lock = threading.RLock()
 
 FILE_SIZE_LIMIT = int(os.getenv("COMM_FILE_MAX_BYTES", str(100 * 1024 * 1024)))  # 100 MB

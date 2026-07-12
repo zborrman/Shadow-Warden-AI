@@ -33,16 +33,17 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import sqlite3
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.webhooks.engine")
 
-_DB_PATH  = os.getenv("WEBHOOKS_DB_PATH", "/tmp/warden_webhooks.db")
+_DB_PATH  = data_path("warden_webhooks.db", "WEBHOOKS_DB_PATH")
 _db_lock  = threading.RLock()
 _MAX_RETRY = 3
 

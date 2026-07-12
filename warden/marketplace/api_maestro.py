@@ -24,16 +24,16 @@ DAO governance can reverse isolation via a `restore_agent` proposal.
 from __future__ import annotations
 
 import logging
-import os
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
+from warden.config import data_path
 from warden.marketplace.maestro import get_maestro_service
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_maestro")
 
-_DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace MAESTRO"], dependencies=[Depends(marketplace_rate_limit)])
 

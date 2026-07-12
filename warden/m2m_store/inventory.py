@@ -7,13 +7,14 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+
+from warden.config import data_path
 
 from .models import Order, Product
 
@@ -22,7 +23,7 @@ _db_lock = threading.RLock()
 
 
 def _get_db_path() -> str:
-    return os.getenv("M2M_STORE_DB_PATH", "/tmp/warden_m2m_store.db")
+    return data_path("warden_m2m_store.db", "M2M_STORE_DB_PATH")
 
 
 @contextmanager

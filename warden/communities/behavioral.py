@@ -30,16 +30,17 @@ from __future__ import annotations
 
 import logging
 import math
-import os
 import sqlite3
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.communities.behavioral")
 
-_BEHAVIORAL_DB = os.getenv("BEHAVIORAL_DB_PATH", "/tmp/warden_behavioral.db")
+_BEHAVIORAL_DB = data_path("warden_behavioral.db", "BEHAVIORAL_DB_PATH")
 _db_lock = threading.RLock()
 
 # Redis-style in-memory fallback (no dependency on fakeredis)

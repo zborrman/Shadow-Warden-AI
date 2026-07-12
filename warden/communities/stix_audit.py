@@ -47,7 +47,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -55,9 +54,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.communities.stix_audit")
 
-_SEP_DB_PATH = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+_SEP_DB_PATH = data_path("warden_sep.db", "SEP_DB_PATH")
 _db_lock     = threading.RLock()
 
 _STIX_SPEC_VERSION = "2.1"

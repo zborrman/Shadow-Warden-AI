@@ -26,11 +26,12 @@ from datetime import UTC, datetime
 from cryptography.fernet import Fernet
 
 from warden.business_community.agentic_commerce.models import Mandate, Receipt
+from warden.config import data_path
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.commerce.ap2")
 
-_DB_PATH  = os.getenv("COMMERCE_DB_PATH", "/tmp/warden_commerce.db")
+_DB_PATH  = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
 _vault_key = os.getenv("VAULT_MASTER_KEY", "")
 _FERNET   = Fernet(_vault_key.encode() if _vault_key else Fernet.generate_key())
 def _hmac_key() -> bytes:

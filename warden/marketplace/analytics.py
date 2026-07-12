@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sqlite3
 import time as _time
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
-from warden.config import settings
+from warden.config import data_path, settings
 
 log = logging.getLogger("warden.marketplace.analytics")
 
@@ -400,7 +399,7 @@ def _build_live_metrics(db_path: str = "") -> dict:
     Combines summary + fairness + tiers + 7-day volume series.
     Runs in a thread executor so it never blocks the event loop.
     """
-    db = db_path or os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db = db_path or data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     summary  = get_summary(period_days=30, db_path=db)
     fair     = fairness_stats(period_days=30, db_path=db)
     tiers    = model_tier_distribution(period_days=7, db_path=db)
@@ -481,7 +480,7 @@ async def get_live_metrics(db_path: str = "") -> dict:
 
 def get_recent_trades(limit: int = 6, db_path: str = "") -> list[dict]:
     """Return the most recent marketplace trades for the live ticker."""
-    db = db_path or os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db = db_path or data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     try:
         with _conn(db) as con:
             rows = con.execute(

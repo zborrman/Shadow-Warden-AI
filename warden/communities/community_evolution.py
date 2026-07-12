@@ -5,13 +5,14 @@ Rules are screened through the warden filter for malicious content.
 """
 from __future__ import annotations
 
-import os
 import threading
 import time
 import uuid
 from dataclasses import dataclass
 
-COMM_DB_PATH = os.getenv("COMM_DB_PATH", "/tmp/warden_communities.db")
+from warden.config import data_path
+
+COMM_DB_PATH = data_path("warden_communities.db", "COMM_DB_PATH")
 _lock = threading.RLock()
 
 RULE_TYPES = ("regex_pattern", "embedding_example", "jailbreak_signature", "compound_rule")

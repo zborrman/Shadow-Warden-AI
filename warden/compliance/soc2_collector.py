@@ -29,6 +29,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.compliance.soc2_collector")
 
 
@@ -41,7 +43,7 @@ def _logs_path() -> Path:
 
 
 def _clearing_db() -> str:
-    return os.getenv("MARKETPLACE_CLEARING_DB_PATH", "/tmp/warden_marketplace_clearing.db")
+    return data_path("warden_marketplace_clearing.db", "MARKETPLACE_CLEARING_DB_PATH")
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -135,7 +137,7 @@ def _collect_availability(since_ts: float, until_ts: float) -> dict[str, Any]:
 
     try:
         import sqlite3
-        uptime_db = os.getenv("UPTIME_DB_PATH", "/tmp/warden_uptime.db")
+        uptime_db = data_path("warden_uptime.db", "UPTIME_DB_PATH")
         con = sqlite3.connect(uptime_db, timeout=5)
         tables = {r[0] for r in con.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
@@ -193,8 +195,8 @@ def _collect_processing_integrity(since_ts: float, until_ts: float) -> dict[str,
 
     candidate_dbs = [
         _clearing_db(),
-        os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db"),
-        "/tmp/warden_m2m.db",
+        data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH"),
+        data_path("warden_m2m.db"),
     ]
 
     for db_path in candidate_dbs:
@@ -308,7 +310,7 @@ def _collect_confidentiality(since_ts: float, until_ts: float) -> dict[str, Any]
 
     try:
         import sqlite3
-        inv_db = os.getenv("SECRETS_INV_DB_PATH", "/tmp/warden_secrets_inv.db")
+        inv_db = data_path("warden_secrets_inv.db", "SECRETS_INV_DB_PATH")
         if Path(inv_db).exists():
             con = sqlite3.connect(inv_db, timeout=5)
             tables = {r[0] for r in con.execute(

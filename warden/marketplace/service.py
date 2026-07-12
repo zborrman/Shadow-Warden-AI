@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 from collections.abc import Generator
@@ -23,6 +22,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from warden.config import data_path
 from warden.db.sqlite_pragmas import init_pragmas
 from warden.marketplace.agent import get_agent
 from warden.marketplace.tokenizer import AssetTokenizer
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("warden.marketplace.service")
 
-_DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _db_lock = threading.RLock()
 
 _VALID_ASSET_TYPES = {"rule", "model", "signals"}

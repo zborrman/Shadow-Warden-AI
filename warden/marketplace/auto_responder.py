@@ -22,15 +22,16 @@ steps from executing.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import threading
 import uuid
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.marketplace.auto_responder")
 
-_DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _db_lock = threading.RLock()
 
 

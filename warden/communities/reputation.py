@@ -29,9 +29,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import StrEnum
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.communities.reputation")
 
-_DB_PATH = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+_DB_PATH = data_path("warden_sep.db", "SEP_DB_PATH")
 
 BADGE_THRESHOLDS = [
     ("ELITE",       750),
@@ -233,7 +235,7 @@ def get_trusted_entry_candidates(min_age_days: int = 30) -> list[str]:
     Used by sova_trusted_entry_cron to award TRUSTED_ENTRY +3 automatically.
     """
     import sqlite3 as _sqlite3
-    sep_db = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+    sep_db = data_path("warden_sep.db", "SEP_DB_PATH")
     try:
         conn = _sqlite3.connect(sep_db, check_same_thread=False)
         conn.row_factory = _sqlite3.Row

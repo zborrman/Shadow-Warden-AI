@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -19,9 +18,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.vendor_gov.registry")
 
-_DB_PATH  = os.getenv("VENDOR_GOV_DB_PATH", "/tmp/warden_vendor.db")
+_DB_PATH  = data_path("warden_vendor.db", "VENDOR_GOV_DB_PATH")
 _db_lock  = threading.RLock()
 
 _PROVIDER_TYPES = {"LLM", "EMBEDDING", "TOOL", "AGENT", "OTHER"}

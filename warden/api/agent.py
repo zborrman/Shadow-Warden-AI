@@ -403,7 +403,6 @@ async def apply_community_recommendation(
     Returns immediately with `status=pending` if approval required, or
     `status=applied` if `auto_approve=true` env is set (admin use only).
     """
-    import os as _os  # noqa: PLC0415
     import sqlite3  # noqa: PLC0415
 
     t0 = time.perf_counter()
@@ -412,7 +411,8 @@ async def apply_community_recommendation(
         raise HTTPException(status_code=400, detail="Invalid UECIID format")
 
     # Fetch the UECIID record
-    db_path = _os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+    from warden.config import data_path  # noqa: PLC0415
+    db_path = data_path("warden_sep.db", "SEP_DB_PATH")
     try:
         with sqlite3.connect(db_path) as conn:
             conn.row_factory = sqlite3.Row

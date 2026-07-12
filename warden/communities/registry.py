@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 from dataclasses import dataclass, field
@@ -37,13 +36,11 @@ from warden.communities.clearance import ClearanceLevel, check_downgrade_require
 from warden.communities.id_generator import new_community_id, new_member_id
 from warden.communities.key_archive import KeyStatus, store_keypair
 from warden.communities.keypair import generate_community_keypair
+from warden.config import data_path
 
 log = logging.getLogger("warden.communities.registry")
 
-_REGISTRY_DB_PATH = os.getenv(
-    "COMMUNITY_REGISTRY_PATH",
-    "/tmp/warden_community_registry.db",
-)
+_REGISTRY_DB_PATH = data_path("warden_community_registry.db", "COMMUNITY_REGISTRY_PATH")
 
 _db_lock = threading.RLock()
 

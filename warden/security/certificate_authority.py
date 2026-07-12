@@ -23,9 +23,11 @@ import threading
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.security.certificate_authority")
 
-_DB_PATH   = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH   = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 _CERT_TTL_DAYS = int(os.getenv("ANS_CERT_TTL_DAYS", "365"))
 _db_lock   = threading.RLock()

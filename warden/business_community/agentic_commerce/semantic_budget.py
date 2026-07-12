@@ -22,6 +22,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.commerce.semantic_budget")
 
 # Sentinel value — no limit configured
@@ -93,10 +95,9 @@ def _fetch_mtd_spend_direct(tenant_id: str) -> float:
     Direct SQLite fallback — reads from commerce_orders for the current month.
     Used when TimescaleDB is not available (dev, test).
     """
-    import os
     import sqlite3
     from datetime import UTC, datetime
-    db = os.getenv("COMMERCE_DB_PATH", "/tmp/warden_commerce.db")
+    db = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
     try:
         con = sqlite3.connect(db, check_same_thread=False)
         con.row_factory = sqlite3.Row

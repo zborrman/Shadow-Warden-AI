@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -14,6 +13,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
+from warden.config import data_path
 from warden.semantic_layer.models import SemanticModel
 
 log = logging.getLogger("warden.semantic_layer.repository")
@@ -22,7 +22,7 @@ _db_lock = threading.RLock()
 
 
 def _db_path() -> str:
-    return os.getenv("SEMANTIC_DB_PATH", "/tmp/warden_semantic.db")
+    return data_path("warden_semantic.db", "SEMANTIC_DB_PATH")
 
 
 @contextmanager

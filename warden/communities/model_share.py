@@ -42,16 +42,16 @@ import hashlib
 import hmac as _hmac
 import json
 import logging
-import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from warden.config import data_path
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.communities.model_share")
 
-_DB_PATH   = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+_DB_PATH   = data_path("warden_sep.db", "SEP_DB_PATH")
 
 
 def _hmac_key() -> bytes:

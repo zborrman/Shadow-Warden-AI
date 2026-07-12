@@ -21,12 +21,13 @@ from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime, timedelta
 
+from warden.config import data_path
 from warden.protocols.acp.models import SharedPaymentToken
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.acp.token_vault")
 
-_DB_PATH  = os.getenv("ACP_DB_PATH", "/tmp/warden_acp.db")
+_DB_PATH  = data_path("warden_acp.db", "ACP_DB_PATH")
 def _hmac_key() -> bytes:
     return resolve_key("ACP_HMAC_KEY", purpose="acp_spt")
 _db_lock  = threading.RLock()

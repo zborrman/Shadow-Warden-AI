@@ -18,17 +18,18 @@ Output: CommunityIntelReport (JSON-serialisable) used by:
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.communities.intelligence")
 
-_SEP_DB_PATH      = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
-_REGISTRY_DB_PATH = os.getenv("COMMUNITY_REGISTRY_PATH", "/tmp/warden_community_registry.db")
-_BEHAVIORAL_DB    = os.getenv("BEHAVIORAL_DB_PATH", "/tmp/warden_behavioral.db")
+_SEP_DB_PATH      = data_path("warden_sep.db", "SEP_DB_PATH")
+_REGISTRY_DB_PATH = data_path("warden_community_registry.db", "COMMUNITY_REGISTRY_PATH")
+_BEHAVIORAL_DB    = data_path("warden_behavioral.db", "BEHAVIORAL_DB_PATH")
 
 
 # ── Data model ────────────────────────────────────────────────────────────────

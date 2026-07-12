@@ -15,7 +15,6 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -24,11 +23,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from warden.config import data_path
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.communities.training_records")
 
-_DB_PATH  = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+_DB_PATH  = data_path("warden_sep.db", "SEP_DB_PATH")
 _db_lock  = threading.RLock()
 
 

@@ -137,9 +137,18 @@ off ephemeral `/tmp` onto a persisted volume; per-module `X_DB_PATH` overrides s
 backward-compatible (defaults to `/tmp`). All 17 `config.py` path defaults routed through it plus
 the staff cluster (a2a, economics, bdr, compliance_kyc, growth, support) as the module-wiring
 proof. 10 property tests (override precedence, relocation, dir creation, legacy parity). ruff +
-mypy clean. **Follow-on slices:** sweep remaining direct `os.getenv("*_DB_PATH", "/tmp/…")` call
-sites (marketplace ~35, communities/SEP ~12, secrets/compliance/protocols) onto `data_path`;
-unify migrations; nightly encrypted backup; turn ClickHouse on for GSAM.
+mypy clean.
+
+**Slice 2 ✅ DONE (2026-07-12):** completed the direct-call-site sweep — all remaining
+`os.getenv("*_DB_PATH", "/tmp/…")` defaults in real module code routed onto `data_path`
+(79 files auto-swept via verified regex + 2 multi-line `os.getenv` in communities/charter+registry
++ 1 bare literal in soc2_collector). Clusters: marketplace (~35), communities/SEP (~14),
+financial, secrets_gov, protocols/acp, m2m_store, business_intelligence, compliance, voice, push,
+sovereign, vendor_gov, kya, tokenomics, security, semantic_layer, webhooks, agent/api. Zero
+`/tmp/warden*` literals remain outside tests + Streamlit display pages. ruff + mypy clean;
+966 tests green across affected subsystems (1 pre-existing unrelated failure). **Follow-on:**
+unify migrations (one Alembic/Turso DDL registry); nightly encrypted backup for all DBs; turn
+ClickHouse on for GSAM in prod.
 
 - **Kill `/tmp/*.db` prod defaults**: route every module DB through `warden/db/turso.py` or a
   single `DATA_DIR` (persisted volume) — a config sweep like the T1–T12 Settings ratchet.

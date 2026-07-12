@@ -13,14 +13,15 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import threading
 from dataclasses import asdict, dataclass, field
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.compliance.framework_builder")
 
-_DB_PATH  = os.getenv("COMPLIANCE_BUILDER_DB_PATH", "/tmp/warden_frameworks.db")
+_DB_PATH  = data_path("warden_frameworks.db", "COMPLIANCE_BUILDER_DB_PATH")
 _db_lock  = threading.RLock()
 
 

@@ -20,9 +20,11 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.financial.cost_allocation")
 
-_DB_PATH = os.getenv("COST_ALLOC_DB_PATH", "/tmp/warden_costs.db")
+_DB_PATH = data_path("warden_costs.db", "COST_ALLOC_DB_PATH")
 _db_lock = threading.RLock()
 
 _COST_TYPES = {"api_usage", "audit", "compliance", "incident", "training", "other"}

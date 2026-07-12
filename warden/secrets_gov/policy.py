@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-_DB_PATH = os.environ.get("SECRETS_DB_PATH", "/tmp/warden_secrets.db")
+from warden.config import data_path
+
+_DB_PATH = data_path("warden_secrets.db", "SECRETS_DB_PATH")
 
 
 @contextmanager

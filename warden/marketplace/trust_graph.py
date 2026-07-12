@@ -14,17 +14,17 @@ Falls back to pure-Python PageRank when networkx is unavailable.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import threading
 from collections import defaultdict, deque
 from typing import Any
 
+from warden.config import data_path
 from warden.db.sqlite_pragmas import init_pragmas
 
 log = logging.getLogger("warden.marketplace.trust_graph")
 
-_DB_PATH          = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH          = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _DAMPING          = 0.85
 _MAX_ITER         = 100
 _RECALC_EVERY     = 10   # full PageRank recompute after N incremental updates

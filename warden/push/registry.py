@@ -16,7 +16,6 @@ DB path: PUSH_DB_PATH env var (default /tmp/warden_push.db).
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -24,9 +23,11 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.push.registry")
 
-_DB_PATH = os.getenv("PUSH_DB_PATH", "/tmp/warden_push.db")
+_DB_PATH = data_path("warden_push.db", "PUSH_DB_PATH")
 _MAX_DEVICES_PER_TENANT = 50
 _db_lock = threading.RLock()
 

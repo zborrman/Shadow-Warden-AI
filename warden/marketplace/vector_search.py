@@ -26,11 +26,13 @@ import logging
 import os
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.marketplace.vector_search")
 
 _VECTOR_ENABLED = os.getenv("MARKETPLACE_VECTOR_SEARCH", "false").lower() == "true"
 _PG_DSN         = os.getenv("DATABASE_URL", "")
-_SQLITE_DB      = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_SQLITE_DB      = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _EMBED_DIM      = 384   # all-MiniLM-L6-v2 output dimension
 
 
@@ -195,7 +197,7 @@ def _sqlite_fallback(
     import contextlib  # noqa: PLC0415
     import sqlite3  # noqa: PLC0415
 
-    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     # Ensure sponsored columns exist (additive migration — no-op on current DBs)
     try:
         _mig = sqlite3.connect(db_path)

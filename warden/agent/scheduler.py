@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from warden.config import settings
+from warden.config import data_path, settings
 
 log = logging.getLogger("warden.agent.scheduler")
 
@@ -822,7 +822,7 @@ async def sova_marketplace_state_sync(ctx: dict) -> dict:
 
     log.info("sova: marketplace state sync [%s]", _ts())
 
-    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     state_path = Path(settings.agents_md_path)
 
     negotiations: list[dict] = []

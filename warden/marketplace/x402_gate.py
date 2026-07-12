@@ -32,12 +32,14 @@ from decimal import Decimal
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.marketplace.x402_gate")
 _x402_audit_log = logging.getLogger("warden.x402.audit")
 
 _X402_ENABLED      = os.getenv("X402_GATE_ENABLED", "false").lower() == "true"
 _SEARCH_FEE_USD    = Decimal(os.getenv("MARKETPLACE_SEARCH_FEE_USD", "0.000001"))
-_DB_PATH           = os.getenv("MARKETPLACE_X402_DB_PATH", "/tmp/warden_x402_marketplace.db")
+_DB_PATH           = data_path("warden_x402_marketplace.db", "MARKETPLACE_X402_DB_PATH")
 _PAYMENT_ADDR      = os.getenv("MARKETPLACE_X402_PAYMENT_ADDRESS", "0x0000000000000000000000000000000000000000")
 _db_lock           = threading.RLock()
 _NONCE_TTL_SECONDS = 300  # 5 minutes — must match PAYMENT-REQUIRED expires_at window

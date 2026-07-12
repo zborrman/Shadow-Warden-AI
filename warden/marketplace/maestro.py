@@ -32,9 +32,11 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.marketplace.maestro")
 
-_DB_PATH       = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH       = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _db_lock       = threading.RLock()
 _COLLUSION_TTL = 90 * 86_400   # 90 days in seconds
 

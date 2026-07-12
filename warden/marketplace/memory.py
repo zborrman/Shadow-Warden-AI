@@ -25,10 +25,12 @@ import sqlite3
 import time
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.marketplace.memory")
 
 _REDIS_URL   = os.getenv("REDIS_URL", "redis://localhost:6379")
-_FALLBACK_DB = os.getenv("HANDOFF_DB_PATH", "/tmp/warden_handoff.db")
+_FALLBACK_DB = data_path("warden_handoff.db", "HANDOFF_DB_PATH")
 _TTL         = int(os.getenv("HANDOFF_MEMORY_TTL", "3600"))   # 1 hour
 
 

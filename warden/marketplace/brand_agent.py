@@ -23,12 +23,11 @@ Integration in dispatch_action():
 from __future__ import annotations
 
 import logging
-import os
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from warden.config import settings
+from warden.config import data_path, settings
 
 log = logging.getLogger("warden.marketplace.brand_agent")
 
@@ -148,7 +147,7 @@ class BrandAgentFilter:
         try:
             from warden.marketplace.agent import get_agent  # noqa: PLC0415
 
-            db = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+            db = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
             agent = get_agent(buyer_did, db_path=db)
             if agent is not None and agent.status == "suspended":
                 log.warning("BrandAgent: deny-list blocked suspended DID=%s...", buyer_did[:24])
@@ -164,7 +163,7 @@ class BrandAgentFilter:
         try:
             from warden.marketplace.reputation import ReputationEngine  # noqa: PLC0415
 
-            db = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+            db = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
             rep = ReputationEngine().get_score(buyer_did, db_path=db)
             return rep.score
         except Exception:
@@ -224,7 +223,7 @@ class BrandAgentFilter:
         try:
             from warden.marketplace.agent import get_agent  # noqa: PLC0415
 
-            db = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+            db = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
             agent = get_agent(buyer_did, db_path=db)
             if agent is None:
                 return True  # unregistered agent passes (registration gate is separate)

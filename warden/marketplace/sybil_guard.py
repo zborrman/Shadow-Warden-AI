@@ -22,11 +22,12 @@ import sqlite3
 import threading
 from datetime import UTC, datetime, timedelta
 
+from warden.config import data_path
 from warden.db.sqlite_pragmas import init_pragmas
 
 log = logging.getLogger("warden.marketplace.sybil_guard")
 
-_DB_PATH        = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH        = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _WINDOW_HOURS   = int(os.getenv("SYBIL_CIRCULAR_WINDOW_HOURS", "24"))
 _Z_THRESHOLD    = float(os.getenv("SYBIL_Z_THRESHOLD", "3.0"))
 _FLAG_TTL_HOURS = 72

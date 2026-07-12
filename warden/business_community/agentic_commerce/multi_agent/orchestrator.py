@@ -8,7 +8,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -17,9 +16,11 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.commerce.orchestrator")
 
-_DB_PATH = os.getenv("COMMERCE_DB_PATH", "/tmp/warden_commerce.db")
+_DB_PATH = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
 _db_lock = threading.RLock()
 
 

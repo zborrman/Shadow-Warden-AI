@@ -35,12 +35,14 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.m2m_store.analytics")
 _db_lock = threading.RLock()
 
 
 def _get_db_path() -> str:
-    return os.getenv("M2M_ANALYTICS_DB_PATH", os.getenv("M2M_STORE_DB_PATH", "/tmp/warden_m2m_store.db"))
+    return os.getenv("M2M_ANALYTICS_DB_PATH", data_path("warden_m2m_store.db", "M2M_STORE_DB_PATH"))
 
 
 @contextmanager

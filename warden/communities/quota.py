@@ -42,14 +42,15 @@ Guest tunnel "tax"
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import threading
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.communities.quota")
 
-_QUOTA_DB_PATH = os.getenv("QUOTA_DB_PATH", "/tmp/warden_quota.db")
+_QUOTA_DB_PATH = data_path("warden_quota.db", "QUOTA_DB_PATH")
 _db_lock = threading.RLock()
 
 

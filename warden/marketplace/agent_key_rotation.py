@@ -28,11 +28,12 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from warden.config import data_path
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.agent_key_rotation")
 
-_DB_PATH          = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH          = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _ROTATION_MAX_DAYS = int(os.getenv("AGENT_KEY_ROTATION_MAX_DAYS", "90"))
 _db_lock          = threading.RLock()
 

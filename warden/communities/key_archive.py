@@ -24,12 +24,13 @@ Root Key Rollover flow (see rotation.py for the ARQ worker):
 from __future__ import annotations
 
 import logging
-import os
 import threading
 import time
 from dataclasses import dataclass
 from datetime import UTC
 from enum import StrEnum
+
+from warden.config import data_path
 
 log = logging.getLogger("warden.communities.key_archive")
 
@@ -86,7 +87,7 @@ def invalidate_cache(community_id: str, kid: str) -> None:
 
 # ── SQLite-backed archive (used in tests / air-gapped) ───────────────────────
 
-_ARCHIVE_DB_PATH = os.getenv("COMMUNITY_KEY_ARCHIVE_PATH", "/tmp/warden_community_key_archive.db")
+_ARCHIVE_DB_PATH = data_path("warden_community_key_archive.db", "COMMUNITY_KEY_ARCHIVE_PATH")
 
 def _get_sqlite():
     import sqlite3

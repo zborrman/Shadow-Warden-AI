@@ -24,9 +24,11 @@ from dataclasses import dataclass
 
 from fastapi import HTTPException
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.voice.x402")
 
-_DB_PATH      = os.getenv("VOICE_X402_DB_PATH", "/tmp/warden_voice_x402.db")
+_DB_PATH      = data_path("warden_voice_x402.db", "VOICE_X402_DB_PATH")
 _CHAIN_RPC    = os.getenv("VOICE_X402_RPC", "https://rpc-amoy.polygon.technology")
 _PAYMENT_ADDR = os.getenv("VOICE_X402_PAYMENT_ADDRESS", "0x0000000000000000000000000000000000000000")
 _db_lock      = threading.RLock()

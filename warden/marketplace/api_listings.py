@@ -10,6 +10,7 @@ import time
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
+from warden.config import data_path
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.observability import Reason, record_failopen
 
@@ -164,7 +165,7 @@ async def sponsor_listing(
     if body.days < 1 or body.days > 365:
         raise HTTPException(status_code=422, detail="days must be 1–365.")
 
-    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     until_ts = time.strftime(
         "%Y-%m-%dT%H:%M:%SZ",

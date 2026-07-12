@@ -28,6 +28,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Respons
 from pydantic import BaseModel
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.config import data_path
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.api")
@@ -260,7 +261,7 @@ async def _action_send_message(
     **_: Any,
 ) -> dict:
     """Stage 3: send a text message within an active negotiation channel."""
-    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     _ensure_table(db_path, """
         CREATE TABLE IF NOT EXISTS marketplace_messages (
             msg_id          TEXT PRIMARY KEY,
@@ -292,7 +293,7 @@ async def _action_send_proposal(
     **_: Any,
 ) -> dict:
     """Stage 3: send a structured order proposal (quantity + SLA + max price)."""
-    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     _ensure_table(db_path, """
         CREATE TABLE IF NOT EXISTS marketplace_proposals (
             proposal_id         TEXT PRIMARY KEY,
@@ -337,7 +338,7 @@ async def _action_reject_proposal(
     **_: Any,
 ) -> dict:
     """Stage 4: explicitly reject a single negotiation proposal."""
-    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     try:
         con = sqlite3.connect(db_path)
         con.execute(
@@ -642,7 +643,7 @@ async def market_clear(body: ClearRequest) -> dict:
     """
     from warden.marketplace.clearing import ClearingEngine  # noqa: PLC0415
 
-    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     engine  = ClearingEngine(db_path=db_path)
     result  = await engine.clear_async(
         winner_neg_id=body.winner_negotiation_id,
@@ -761,7 +762,7 @@ async def analytics_sql_query(
         log.warning("analytics_sql_query: confused deputy rejected caller=%s", caller_id[:40])
         return {"error": err, "rows": []}
 
-    db_path = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     try:
         con = sqlite3.connect(db_path, check_same_thread=False)
         con.row_factory = sqlite3.Row
@@ -1105,7 +1106,7 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
 
     from warden.marketplace.analytics import get_summary, get_volume_series  # noqa: PLC0415
 
-    db = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+    db = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     summary = get_summary(period_days=period_days, db_path=db)
     volume = get_volume_series(period_days=period_days, db_path=db)
 

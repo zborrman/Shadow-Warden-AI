@@ -36,11 +36,12 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+from warden.config import data_path
 from warden.db.sqlite_pragmas import init_pragmas
 
 log = logging.getLogger("warden.marketplace.negotiation")
 
-_DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
+_DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _db_lock = threading.RLock()
 _MAX_ROUNDS = int(os.getenv("MARKETPLACE_MAX_NEGOTIATION_ROUNDS", "5"))
 

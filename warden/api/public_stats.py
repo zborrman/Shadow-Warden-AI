@@ -12,12 +12,13 @@ GDPR rules applied
 from __future__ import annotations
 
 import logging
-import os
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
+
+from warden.config import data_path
 
 log = logging.getLogger("warden.api.public_stats")
 
@@ -36,7 +37,7 @@ def _load_entries() -> list[dict]:
 def _sep_count() -> int:
     try:
         import sqlite3
-        db = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+        db = data_path("warden_sep.db", "SEP_DB_PATH")
         with sqlite3.connect(db) as conn:
             row = conn.execute("SELECT COUNT(*) FROM sep_ueciid_index").fetchone()
             return int(row[0]) if row else 0
@@ -165,7 +166,7 @@ async def public_leaderboard() -> JSONResponse:
 def _get_ueciid_record(ueciid: str) -> dict | None:
     try:
         import sqlite3
-        db = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+        db = data_path("warden_sep.db", "SEP_DB_PATH")
         with sqlite3.connect(db) as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(

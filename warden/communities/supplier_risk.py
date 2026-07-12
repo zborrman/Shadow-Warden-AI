@@ -16,7 +16,6 @@ Tiers: Community Business+ (supplier_risk_enabled)
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 import threading
 import uuid
@@ -24,9 +23,11 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.communities.supplier_risk")
 
-_DB_PATH = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+_DB_PATH = data_path("warden_sep.db", "SEP_DB_PATH")
 _db_lock = threading.RLock()
 
 _RISK_LABELS = {(0.0, 0.35): "LOW", (0.35, 0.60): "MEDIUM", (0.60, 0.80): "HIGH", (0.80, 1.01): "CRITICAL"}

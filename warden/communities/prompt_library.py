@@ -22,9 +22,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from warden.config import data_path
+
 log = logging.getLogger("warden.communities.prompt_library")
 
-_DB_PATH = os.getenv("SEP_DB_PATH", "/tmp/warden_sep.db")
+_DB_PATH = data_path("warden_sep.db", "SEP_DB_PATH")
 _db_lock = threading.RLock()
 
 _VISIBILITIES = {"community", "peered", "private"}

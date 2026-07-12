@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from warden.auth_guard import require_api_key
+from warden.config import data_path
 from warden.secrets_gov.inventory import SecretsInventory
 from warden.secrets_gov.lifecycle import LifecycleManager
 from warden.secrets_gov.policy import SecretsPolicy, SecretsPolicyEngine
@@ -18,7 +19,7 @@ router = APIRouter(tags=["secrets"], dependencies=[Depends(require_api_key)])
 
 
 def _get_db_path() -> str:
-    return os.environ.get("SECRETS_DB_PATH", "/tmp/warden_secrets.db")
+    return data_path("warden_secrets.db", "SECRETS_DB_PATH")
 
 
 def _get_inventory() -> SecretsInventory:

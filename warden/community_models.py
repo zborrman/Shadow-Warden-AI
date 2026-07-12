@@ -4,13 +4,14 @@ Uses the same SEP_DB_PATH pattern as sep.py / stix_audit.py.
 """
 from __future__ import annotations
 
-import os
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-_DB_PATH = os.getenv("COMMUNITY_DB_PATH", "/tmp/warden_community.db")
+from warden.config import data_path
+
+_DB_PATH = data_path("warden_community.db", "COMMUNITY_DB_PATH")
 
 
 def _conn() -> sqlite3.Connection:
