@@ -461,51 +461,6 @@ async def proxy_chat(
                             out.append(_d["content"])
                     return out
 
-                async def _collect_or_emit(chunk: dict) -> bool:
-                    """
-                    Buffer or emit one chunk.  Returns False when the stream
-                    should be terminated (fast-scan blocked the content).
-                    nonlocal: _live_mode, _buf_len
-                    """
-                    nonlocal _live_mode, _buf_len
-                    _chunks.append(chunk)
-                    _piece_parts = _extract_parts(chunk)
-                    _parts.extend(_piece_parts)
-                    _piece_len = sum(len(p) for p in _piece_parts)
-                    _buf_len += _piece_len
-
-                    if _must_buffer:
-                        return True  # always buffer when masking is active
-
-                    if _live_mode:
-                        # Already in live mode — emit immediately
-                        yield_chunk = (f"data: {json.dumps(chunk)}\n\n").encode()
-                        return yield_chunk  # type: ignore[return-value]  # signal: caller must yield this
-
-                    # Check if we've accumulated enough for fast-scan
-                    if _buf_len >= _STREAM_FAST_SCAN_BUFFER or _piece_len == 0:
-                        _buf_text = "".join(_parts)
-                        if _OUTPUT_GUARD_ENABLED and _buf_text:
-                            _og_fast = get_output_guard()
-                            _fast_ogr = _og_fast.scan(_buf_text)
-                            if _fast_ogr.risky:
-                                # Block: surface the risk immediately
-                                for _f in _fast_ogr.findings:
-                                    with contextlib.suppress(Exception):
-                                        OUTPUT_GUARD_BLOCKS.labels(
-                                            tenant_id=_tenant_id, risk=_f.risk.value
-                                        ).inc()
-                                log.warning(
-                                    "output_guard_fast_scan_blocked tenant=%r risks=%r",
-                                    _tenant_id, _fast_ogr.risk_types,
-                                )
-                                return False   # signal: terminate stream
-                        # Fast-scan passed — flush buffer and go live
-                        _live_mode = True
-                        return True  # caller flushes buffered chunks
-
-                    return True  # still buffering
-
                 if model.lower().startswith("bedrock/"):
                     # ── Bedrock: always full-buffer (binary protocol) ─────
                     from warden.providers.bedrock import stream_bedrock
