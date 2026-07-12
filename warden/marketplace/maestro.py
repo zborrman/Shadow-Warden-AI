@@ -402,7 +402,8 @@ class CollusionDetector:
     _ROUND_THRESHOLD       = 2
     _PRICE_DELTA_THRESHOLD = 5.0   # percent
     _MIN_OBSERVATIONS      = 3     # min negotiation samples before flagging
-    _TACIT_CORR_THRESHOLD  = 0.80  # Pearson correlation for vertical tacit collusion
+    _TACIT_CORR_THRESHOLD  = 0.80  # reference rho0 for the Bayesian correlation test
+    _TACIT_POSTERIOR_CONF  = 0.90  # flag when P(rho > rho0 | data) >= this
     _TACIT_MIN_SELLERS     = 3     # minimum sellers needed for market-level scan
     _TACIT_WINDOW          = 100   # last N clearing prices per seller
 
@@ -584,13 +585,23 @@ class CollusionDetector:
                 return 0.0
             return num / (denom_x * denom_y)
 
+        from warden.marketplace.bayesian_stats import posterior_p_correlation_exceeds
+
         sellers = list(eligible.keys())
         high_corr_counts: dict[str, int] = dict.fromkeys(sellers, 0)
 
         for i in range(len(sellers)):
             for j in range(i + 1, len(sellers)):
-                corr = abs(_pearson(eligible[sellers[i]], eligible[sellers[j]]))
-                if corr >= self._TACIT_CORR_THRESHOLD:
+                pair_a, pair_b = eligible[sellers[i]], eligible[sellers[j]]
+                corr = abs(_pearson(pair_a, pair_b))
+                n = min(len(pair_a), len(pair_b))
+                # Bayesian correlation test (Fisher-z + Jeffreys-equivalent prior):
+                # flag on posterior confidence the *true* correlation exceeds the
+                # reference, not just the sample point estimate — thin-data
+                # samples (n close to the minimum) need a higher r to reach the
+                # same posterior confidence, cutting false flags on 3-4 samples.
+                p_exceeds = posterior_p_correlation_exceeds(corr, n, self._TACIT_CORR_THRESHOLD)
+                if p_exceeds >= self._TACIT_POSTERIOR_CONF:
                     high_corr_counts[sellers[i]] += 1
                     high_corr_counts[sellers[j]] += 1
 
