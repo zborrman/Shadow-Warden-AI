@@ -187,6 +187,39 @@ def require_api_key(api_key: str | None = Security(_API_KEY_HEADER)) -> AuthResu
     )
 
 
+def tier_header_trusted() -> bool:
+    """Whether a client-supplied ``X-Tenant-Tier`` header may set the plan tier.
+
+    Honoured only when auth is not enforced (dev / air-gapped / test). In
+    production — a real key configured and ``ALLOW_UNAUTHENTICATED`` off — the
+    header is spoofable and must be ignored; the tier is derived from the
+    authenticated tenant's billing plan instead.
+    """
+    if settings.allow_unauthenticated:
+        return True
+    return not _VALID_KEY and not _KEYS_PATH
+
+
+def resolve_tenant_id(api_key: str | None) -> str | None:
+    """Best-effort tenant_id for *api_key* without raising; ``None`` if unresolved.
+
+    Mirrors :func:`require_api_key`'s lookup but never raises, so callers can
+    derive the authenticated tenant's real plan tier. Returns ``None`` in dev
+    mode (no auth configured) so callers fall back to their own defaults.
+    """
+    if not _VALID_KEY and not _KEYS_PATH:
+        return None
+    if not api_key:
+        return None
+    if _KEYS_PATH:
+        entry = _lookup_multi_key(api_key)
+        if entry:
+            return entry.tenant_id
+    if _VALID_KEY and hmac.compare_digest(api_key.encode(), _VALID_KEY.encode()):
+        return "default"
+    return None
+
+
 def get_rate_limit(api_key: str) -> int:
     """Return the configured rate limit (req/min) for an API key.
 

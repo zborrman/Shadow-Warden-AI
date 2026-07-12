@@ -683,15 +683,46 @@ def _min_tier_for_capacity(feature: str) -> str:
 
 # ── FastAPI dependencies ───────────────────────────────────────────────────────
 
+def _request_api_key(request: Request) -> str:
+    """Pull the API key from the X-API-Key header or a Bearer token."""
+    key = request.headers.get("x-api-key") or ""
+    if not key:
+        auth = request.headers.get("authorization", "")
+        if auth[:7].lower() == "bearer ":
+            key = auth[7:]
+    return key
+
+
 def _get_tenant_tier(request: Request) -> str:
-    """Extract plan tier from request state (set by auth middleware) or header."""
+    """Resolve the plan tier for *request*.
+
+    The client-supplied ``X-Tenant-Tier`` header is trusted only in dev/test
+    (``auth_guard.tier_header_trusted``); for authenticated production requests
+    the tier is derived from the tenant's billing plan so it cannot be spoofed.
+
+    Order: request.state.tenant (upstream auth) → header (dev/test only) →
+    authenticated tenant's LemonBilling plan → ``"starter"``.
+    """
+    from warden.auth_guard import resolve_tenant_id, tier_header_trusted
+
     state  = getattr(request, "state", None)
     tenant = getattr(state, "tenant", None)
-    if isinstance(tenant, dict) and "tier" in tenant:
-        return tenant["tier"]
-    if isinstance(tenant, dict) and "plan" in tenant:
-        return tenant["plan"]
-    return request.headers.get("X-Tenant-Tier", "starter")
+    if isinstance(tenant, dict) and tenant.get("tier"):
+        return str(tenant["tier"])
+    if isinstance(tenant, dict) and tenant.get("plan"):
+        return str(tenant["plan"])
+
+    if tier_header_trusted():
+        return request.headers.get("X-Tenant-Tier", "starter")
+
+    tenant_id = resolve_tenant_id(_request_api_key(request))
+    if tenant_id:
+        try:
+            from warden.lemon_billing import get_lemon_billing
+            return get_lemon_billing().get_plan(tenant_id)
+        except Exception:
+            return "starter"
+    return "starter"
 
 
 def require_plan(*plans: str):
