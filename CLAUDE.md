@@ -10,6 +10,14 @@
 ## Deploy Rule
 - **After each modernization-plan Phase passes its tests, merge to `main` and push.** CI autodeploy (`DEPLOY_SSH_KEY/HOST/USER/PATH`) pulls `main` and runs `docker compose up` on the Hetzner VPS — do not skip the merge/push step or the server stays stale. Do not batch multiple phases into one merge.
 
+## Modernization Governance (canonical: `docs/unified-modernization-roadmap.md`)
+Two modernization tracks run in parallel; that registry is the single source of truth for status, ownership, and shared-file conflicts. Rules:
+- **Two tracks, prefixed IDs — never a bare "Phase N" in commits/PRs:**
+  - **Track A — Security Remediation (`SR-*`)**, source `MODERNIZATION_PLAN.md`. Owns: authn/authz, SSRF, IDOR/GDPR, request-path invariants, CI/supply-chain hardening.
+  - **Track B — Deep-Eng / Math (`DE-*`)**, source `docs/modernization-plan-v8.md`. Owns: ML/detection math (TDA, MAESTRO, Causal, embeddings), GSAM, **storage/data-layer**, runtime-isolation math.
+- **Shared files (coordinate before editing; run the other track's tests):** `causal_arbiter.py`, the data layer, `staff_dispatch`/`BoundaryRegistry`, `net_guard`/Inner-Warden SSRF, key-hygiene (`resolve_key`/JIT lease). See the roadmap's conflict table for the per-file rule.
+- **C2 data-layer is one workstream, led by Track B** (SR-5 folds into DE-6). Track A does not open a separate DB-consolidation effort; it contributes the "one context-manager, DDL-once" requirement to Track B's PRs.
+
 ## Autonomous Security Loop (Loop Engineering)
 
 The project runs a nightly autonomous audit cycle at 02:00 UTC via `.github/workflows/autonomous-security-loop.yml`.
