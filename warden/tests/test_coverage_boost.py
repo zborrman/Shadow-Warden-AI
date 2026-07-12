@@ -22,17 +22,19 @@ class TestTopologyGuard:
 
     def test_compute_fallback_empty_freq(self):
         from warden.topology_guard import _compute_fallback
-        score, b0, b1 = _compute_fallback("text", {})
+        score, b0, b1, h1 = _compute_fallback("text", {})
         assert score == 0.5
         assert b0 == 1.0
         assert b1 == 0.0
+        assert h1 == 0.0
 
     def test_compute_fallback_normal_text(self):
         from warden.topology_guard import _compute_fallback, _ngram_freq
         text = "the quick brown fox jumps over the lazy dog"
         freq = _ngram_freq(text)
-        score, b0, b1 = _compute_fallback(text, freq)
+        score, b0, b1, h1 = _compute_fallback(text, freq)
         assert 0.0 <= score <= 1.0
+        assert h1 == 0.0
 
     def test_has_ripser_returns_bool(self):
         import warden.topology_guard as tg

@@ -204,3 +204,63 @@ class TestFailOpen:
             assert type(result).__name__ == "TopoResult"
             # is_noise could be True or False — just must not raise and must be bool
             assert isinstance(result.is_noise, bool)
+
+
+class TestH1Persistence:
+    """Phase 3: birth-death lifetime of the longest-lived H₁ (1-cycle)."""
+
+    def test_h1_max_lifetime_defaults_to_zero_without_ripser(self):
+        for text in NATURAL_SAMPLES + NOISE_SAMPLES:
+            result = scan(text)
+            assert result.h1_max_lifetime == 0.0
+
+    def test_h1_max_lifetime_field_present_and_non_negative(self):
+        result = scan("The security gateway validates every request token carefully.")
+        assert hasattr(result, "h1_max_lifetime")
+        assert result.h1_max_lifetime >= 0.0
+
+    def test_compute_ripser_returns_h1_lifetime(self, monkeypatch):
+        import numpy as np
+
+        from warden import topology_guard as tg
+
+        class _FakeRipserModule:
+            @staticmethod
+            def ripser(points, maxdim=1):
+                # H0: two components, one long-lived; H1: one 1-cycle, lifetime 0.4
+                return {
+                    "dgms": [
+                        np.array([[0.0, 1.0], [0.0, 0.3]]),
+                        np.array([[0.1, 0.5]]),
+                    ]
+                }
+
+        monkeypatch.setitem(__import__("sys").modules, "ripser", _FakeRipserModule())
+        freq = tg._ngram_freq("the quick brown fox jumps over the lazy dog repeatedly " * 3)
+        noise_score, beta0, beta1, h1_max_lifetime = tg._compute_ripser(
+            "the quick brown fox jumps over the lazy dog repeatedly " * 3, freq
+        )
+        assert h1_max_lifetime == pytest.approx(0.4, abs=1e-6)
+        assert beta1 > 0
+        assert 0.0 <= noise_score <= 1.0
+
+    def test_tda_persistence_flag_changes_blend_weight(self, monkeypatch):
+        import numpy as np
+
+        from warden import topology_guard as tg
+
+        class _FakeRipserModule:
+            @staticmethod
+            def ripser(points, maxdim=1):
+                return {"dgms": [np.array([[0.0, 1.0]]), np.array([[0.0, 0.9]])]}
+
+        monkeypatch.setitem(__import__("sys").modules, "ripser", _FakeRipserModule())
+        text = "the quick brown fox jumps over the lazy dog repeatedly " * 3
+        freq = tg._ngram_freq(text)
+
+        monkeypatch.setattr(tg.settings, "tda_persistence_enabled", False)
+        score_off, *_ = tg._compute_ripser(text, freq)
+        monkeypatch.setattr(tg.settings, "tda_persistence_enabled", True)
+        score_on, *_ = tg._compute_ripser(text, freq)
+
+        assert score_off != score_on
