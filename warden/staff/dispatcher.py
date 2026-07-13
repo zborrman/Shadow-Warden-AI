@@ -76,4 +76,7 @@ async def staff_dispatch(
         handler: Callable[..., Any] = STAFF_TOOL_HANDLERS[tool_name]  # type: ignore[assignment]
         return await handler(**tool_input)
 
-    return await traced_dispatch(tool_name, tool_input)
+    # already_gated: this function just ran boundary + velocity + quarantine for
+    # agent_id. Letting traced_dispatch re-run them would double-count velocity and
+    # could trip a false loop alert on a single legitimate call.
+    return await traced_dispatch(tool_name, tool_input, agent_id, already_gated=True)

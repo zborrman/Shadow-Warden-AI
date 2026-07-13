@@ -1,6 +1,6 @@
 {
-  "type_ignore": 224,
-  "noqa": 824,
+  "type_ignore": 223,
+  "noqa": 830,
   "per_file": {
     "agent_monitor.py": {
       "type_ignore": 0,
@@ -90,10 +90,6 @@
       "type_ignore": 1,
       "noqa": 0
     },
-    "openai_proxy.py": {
-      "type_ignore": 1,
-      "noqa": 0
-    },
     "output_guard.py": {
       "type_ignore": 0,
       "noqa": 3
@@ -151,6 +147,10 @@
       "noqa": 5
     },
     "worm_guard.py": {
+      "type_ignore": 0,
+      "noqa": 6
+    },
+    "agent/gate.py": {
       "type_ignore": 0,
       "noqa": 6
     },

@@ -2791,14 +2791,26 @@ _URL_SENSITIVE_TOOLS: frozenset[str] = frozenset({
 })
 
 
-async def traced_dispatch(tool_name: str, tool_input: dict[str, Any]) -> Any:
+async def traced_dispatch(
+    tool_name: str,
+    tool_input: dict[str, Any],
+    agent_id: str = "sova",
+    *,
+    already_gated: bool = False,
+) -> Any:
     """
-    OTel-traced tool dispatch for SOVA.
+    OTel-traced tool dispatch for SOVA / MasterAgent sub-agents.
 
     Wraps TOOL_HANDLERS[tool_name] in an OpenTelemetry span so every tool
     call is visible in Jaeger / OTEL collector with name, duration, and error.
     GDPR-safe: only metadata emitted (tool name, input/output sizes, tenant_id).
     Falls back to direct dispatch when OTel is disabled.
+
+    Phase 7: every caller also passes the shared agentic gate (boundary + velocity
+    + GSAM quarantine) — see warden/agent/gate.py. ``agent_id`` identifies the caller
+    to that gate ("sova", or "master:<sub_agent>"). ``already_gated=True`` is used by
+    staff_dispatch, which ran the identical checks itself; re-running them there would
+    double-count velocity and could trip a false loop alert.
     """
     import time as _time
     handler = TOOL_HANDLERS.get(tool_name)
@@ -2809,6 +2821,14 @@ async def traced_dispatch(tool_name: str, tool_input: dict[str, Any]) -> Any:
     tenant_id = str(tool_input.get("tenant_id", "unknown"))
     input_bytes = len(str(tool_input))
 
+    # Agentic gate: boundary (fail-CLOSED) + velocity + GSAM quarantine, the same
+    # three checks Digital Staff get. Skipped only when staff_dispatch already ran them.
+    if not already_gated:
+        from warden.agent.gate import agentic_gate
+        _denied = agentic_gate(agent_id, tool_name, tool_input)
+        if _denied is not None:
+            return _denied
+
     # SAC Inner Warden: screen the call (SSRF/exfil, fail-CLOSED) + emit a
     # metadata-only GSAM observation (fail-OPEN). A blocked call is not
     # dispatched; the guard being unavailable never bricks tool execution.
@@ -2816,7 +2836,7 @@ async def traced_dispatch(tool_name: str, tool_input: dict[str, Any]) -> Any:
         from warden.sac.guard import screen_and_emit
         _url_sensitive = tool_name in _URL_SENSITIVE_TOOLS
         _verdict = screen_and_emit(
-            "sova", tenant_id, tool_name, tool_input, url_sensitive=_url_sensitive
+            agent_id, tenant_id, tool_name, tool_input, url_sensitive=_url_sensitive
         )
         if _verdict.blocked:
             return {"error": "blocked_by_sac_guard", "reason": _verdict.reason,

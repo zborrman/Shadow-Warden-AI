@@ -28,11 +28,19 @@ _REFUND_INTENT_PREFIX = "staff:refund_intent:"
 
 
 class AgentRole(StrEnum):
+    # Digital Staff (STAFF-01…05)
     BDR = "BDR"
     GROWTH = "GROWTH"
     COMPLIANCE = "COMPLIANCE"
     QA = "QA"
     SUPPORT = "SUPPORT"
+    # Agentic operators (Phase 7) — SOVA and the MasterAgent sub-agents now pass
+    # through the same boundary + velocity + quarantine gate as Digital Staff.
+    SOVA = "SOVA"
+    SOVA_OPERATOR = "SOVA_OPERATOR"
+    THREAT_HUNTER = "THREAT_HUNTER"
+    FORENSICS = "FORENSICS"
+    DATA_PRIVACY = "DATA_PRIVACY"
 
 
 class BoundaryViolationError(RuntimeError):

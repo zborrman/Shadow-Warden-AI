@@ -210,7 +210,27 @@ item was already on `resolve_key` (commit 34e54cd6), but the sweep found a worse
   raw-env reads of signing-key-shaped secrets. A ratchet, not a ban, because provider-issued webhook
   secrets (Stripe/Slack/Lemon) genuinely cannot be derived. 7 regression tests pin the bypass shut.
 
-**Remaining:** extend BoundaryRegistry to SOVA/MasterAgent; BrowserSandbox process isolation.
+**Slice 2 ✅ DONE (2026-07-13) — BoundaryRegistry extended to SOVA/MasterAgent.**
+`warden/agent/gate.py` — `agentic_gate()` applies the same three checks Digital Staff get
+(boundary fail-CLOSED → velocity → GSAM quarantine, additive) to every agentic tool call, and
+`traced_dispatch` now runs it for all non-staff callers.
+
+The sweep found a **privilege escalation**: `MasterAgent` bypassed `traced_dispatch` entirely
+(`master.py` called `TOOL_HANDLERS[name]` directly), so its sub-agents had **no SAC guard / SSRF
+screen, no boundary, no velocity limit, no quarantine and no OTel span**. Worse, `_AGENT_TOOLS` only
+filtered which tools were *offered* to the model — a sub-agent that named a tool outside its own
+subset still executed it, i.e. least privilege was advertised but never enforced. MasterAgent now
+dispatches through `traced_dispatch` under a namespaced id (`master:<sub_agent>`), and its boundary
+is seeded **from `_AGENT_TOOLS` itself**, so the subset is enforced for real.
+
+Boundaries are seeded from the authoritative tables (SOVA = every `TOOL_HANDLERS` key; each
+sub-agent = its `_AGENT_TOOLS` list) by an idempotent `ensure_agentic_boundaries()`. `staff_dispatch`
+passes `already_gated=True` so its calls are not double-counted by the velocity guard (which would
+trip a false loop alert on a single legitimate call). STAFF-01/02 are untouched — the staff path
+still calls `check_and_dispatch` + `record_and_check` itself. New `AgentRole` members are additive.
+11 tests.
+
+**Remaining:** BrowserSandbox process isolation (seccomp/restricted-user sidecar, drop `--no-sandbox`).
 
 - **Extend BoundaryRegistry to SOVA/MasterAgent**, not just staff — every agentic tool call
   through one boundary + velocity + GSAM-quarantine gate. (SAC guard is already the shared

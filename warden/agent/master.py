@@ -37,6 +37,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
+from warden.agent.gate import master_agent_id
 from warden.config import settings
 from warden.secret_keys import resolve_key
 
@@ -352,11 +353,22 @@ async def _run_sub_agent(
                 tool_input["tenant_id"] = tenant_id
             tools_used.append(tool_name)
 
-            handler = _tools.TOOL_HANDLERS.get(tool_name)
+            # Phase 7: dispatch through traced_dispatch, NOT TOOL_HANDLERS directly.
+            # The direct call bypassed the SAC guard (no SSRF screen), the boundary,
+            # velocity, quarantine and the OTel span — and _AGENT_TOOLS only limits
+            # which tools are *offered* to the model, so a sub-agent naming a tool
+            # outside its subset still executed it. The boundary now enforces that
+            # subset for real (agent id is namespaced: "master:<sub_agent>").
             try:
-                result       = await handler(**tool_input) if handler else {"error": f"Unknown tool: {tool_name}"}
-                result_text  = json.dumps(result, default=str)
-                is_error     = False
+                if tool_name not in _tools.TOOL_HANDLERS:
+                    result_text = json.dumps({"error": f"Unknown tool: {tool_name}"})
+                    is_error    = True
+                else:
+                    result      = await _tools.traced_dispatch(
+                        tool_name, tool_input, master_agent_id(str(agent_type.value)),
+                    )
+                    result_text = json.dumps(result, default=str)
+                    is_error    = False
             except Exception as exc:
                 result_text  = f"Tool error: {exc}"
                 is_error     = True
