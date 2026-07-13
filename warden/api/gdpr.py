@@ -30,7 +30,15 @@ from warden.config import settings
 
 log = logging.getLogger("warden.api.gdpr")
 
-router = APIRouter(prefix="/gdpr", tags=["gdpr"])
+# Router-level auth: every /gdpr endpoint requires a valid API key. Without this
+# the path-based endpoints (DELETE /purge/tenant/{id}, GET /audit/{id}, session
+# purge/export) were unauthenticated — any caller could erase or read another
+# tenant's data. (The /export and /purge body endpoints already had it.)
+router = APIRouter(
+    prefix="/gdpr",
+    tags=["gdpr"],
+    dependencies=[Depends(require_api_key)],
+)
 
 # In-memory GDPR audit trail (last 500 operations, survives restarts via S3 if enabled)
 _audit: list[dict] = []
