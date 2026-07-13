@@ -2468,7 +2468,7 @@ async def _run_filter_pipeline(
                 "observed_high_risk":   _label_high,
             }
             if background_tasks is not None:
-                background_tasks.add_task(lambda k=_cu_kwargs: _causal_online_update(**k))
+                background_tasks.add_task(_causal_online_update, **_cu_kwargs)
             else:
                 _causal_online_update(**_cu_kwargs)
         except Exception as _exc:  # noqa: BLE001
