@@ -60,6 +60,6 @@ class TestRealAllowlists:
         from warden.api.monitor import _MONITOR_UPDATE_COLS
         from warden.portal_router import _PORTAL_KEY_UPDATE_COLS, _PORTAL_USER_UPDATE_COLS
 
-        assert _MONITOR_UPDATE_COLS == {"name", "interval_s", "is_active"}
-        assert _PORTAL_USER_UPDATE_COLS == {"display_name", "notify_high", "notify_block"}
-        assert _PORTAL_KEY_UPDATE_COLS == {"label", "rate_limit"}
+        assert sorted(_MONITOR_UPDATE_COLS) == ["interval_s", "is_active", "name"]
+        assert sorted(_PORTAL_USER_UPDATE_COLS) == ["display_name", "notify_block", "notify_high"]
+        assert sorted(_PORTAL_KEY_UPDATE_COLS) == ["label", "rate_limit"]
