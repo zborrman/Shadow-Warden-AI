@@ -563,16 +563,13 @@ jobs:
         continue-on-error: true
         run: bandit -r warden/ -ll -i --exclude warden/tests -f screen
 
-      # Semgrep: targeted rules for the classes this codebase actually cares about —
-      # SSRF, SQL injection, hardcoded secrets.
-      # NOTE: observing (continue-on-error) for its first runs. Neither semgrep nor
-      # gitleaks can be executed on the dev machine (semgrep is Linux-only; gitleaks is
-      # an action), so their finding count here is unverified. Landing them as hard gates
-      # sight-unseen would redden main on the first push. Flip both to gating once a run
-      # shows a clean/triaged baseline — same discipline as the bandit gate above, which
-      # is gating precisely because its zero-HIGH baseline was verified locally.
+      # Semgrep: SSRF / SQLi / hardcoded-secret rules. GATING.
+      # Its first (observing) run reported 6 blocking findings — all XXE: stdlib
+      # xml.etree parsing untrusted SAML assertions and external threat feeds, which
+      # resolves external entities (file exfiltration, SSRF, billion-laughs). Those are
+      # fixed (defusedxml + warden/tests/test_xxe_hardening.py), so this gate now starts
+      # from a clean baseline and a new ERROR-severity finding fails the build.
       - name: Run semgrep (SSRF / SQLi / secrets)
-        continue-on-error: true
         run: |
           semgrep --config p/security-audit \
                   --config p/secrets \
@@ -583,9 +580,8 @@ jobs:
                   warden/
 
       # Gitleaks: secrets committed to git history (a live key in an old commit is still
-      # a live key). Observing on first run — see the note above.
+      # a live key). GATING — its first run scanned clean ("no leaks found").
       - name: Run gitleaks (secrets in history)
-        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

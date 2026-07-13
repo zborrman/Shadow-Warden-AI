@@ -19,9 +19,13 @@ from __future__ import annotations
 
 import logging
 import os
-import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+
+# defusedxml, not stdlib xml.etree: every document parsed here is UNTRUSTED
+# (SAML assertion / external threat feed), and xml.etree resolves external
+# entities -> XXE: local-file exfiltration, SSRF, and billion-laughs DoS.
+from defusedxml.ElementTree import fromstring as _xml_fromstring
 
 log = logging.getLogger("warden.threat_intel.sources")
 
@@ -248,7 +252,7 @@ class ArxivSource(ThreatSource):
                 follow_redirects=True,
             )
             resp.raise_for_status()
-            root = ET.fromstring(resp.text)
+            root = _xml_fromstring(resp.text)
         except Exception as exc:
             log.warning("ArxivSource: fetch failed — %s", exc)
             return []
@@ -303,7 +307,7 @@ class OwaspLlmSource(ThreatSource):
             import httpx
             resp = httpx.get(self._ATOM_URL, timeout=self.timeout, follow_redirects=True)
             resp.raise_for_status()
-            root = ET.fromstring(resp.text)
+            root = _xml_fromstring(resp.text)
         except Exception as exc:
             log.warning("OwaspLlmSource: fetch failed — %s", exc)
             return []

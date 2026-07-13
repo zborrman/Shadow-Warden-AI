@@ -45,9 +45,13 @@ import logging
 import re
 import secrets
 import time
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, datetime
+
+# defusedxml, not stdlib xml.etree: every document parsed here is UNTRUSTED
+# (SAML assertion / external threat feed), and xml.etree resolves external
+# entities -> XXE: local-file exfiltration, SSRF, and billion-laughs DoS.
+from defusedxml.ElementTree import fromstring as _xml_fromstring
 
 from warden.config import settings
 
@@ -132,7 +136,7 @@ async def _load_idp_metadata() -> dict:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(_IDP_META_URL)
             resp.raise_for_status()
-            root = ET.fromstring(resp.text)
+            root = _xml_fromstring(resp.text)
             sso_el = root.find(".//md:SingleSignOnService[@Binding='urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect']", _NS)
             slo_el = root.find(".//md:SingleLogoutService[@Binding='urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect']", _NS)
             cert_el = root.find(".//md:KeyDescriptor[@use='signing']//ds:X509Certificate", _NS)
@@ -187,7 +191,7 @@ async def build_authn_request() -> tuple[str, str]:
 def _parse_saml_response(saml_response_b64: str) -> dict:
     try:
         xml_bytes = base64.b64decode(saml_response_b64 + "==")
-        root      = ET.fromstring(xml_bytes)
+        root      = _xml_fromstring(xml_bytes)
     except Exception as exc:
         raise ValueError(f"Failed to decode SAML response: {exc}") from exc
 

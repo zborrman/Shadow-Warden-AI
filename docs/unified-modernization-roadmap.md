@@ -32,7 +32,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 | SR-4 | Invariants: SAR pre-screen, A2A boundary, GDPR-logs, refund key, Settings secrets | ✅ merged | #148 |
 | SR-5 | **DB-layer consolidation** | ✅ delivered under DE-6 (`WARDEN_DATA_DIR`/`data_path`, `/tmp` sweep, `db/ddl_registry.py` DDL-once) — C2 as decided |
 | SR-6 | Fail-open observability | ✅ done — `record_failopen()` + `warden_stage_failopen_total` + FAILOPEN-01 ratchet (`test_no_new_counterless_failopen`, baseline 200) |
-| SR-7 | CI/supply-chain hardening | 🟡 partial — bandit **gating at HIGH** (0 findings after fixes), semgrep + gitleaks landed observing; SBOM/SLSA/Trivy/pip-audit/ZAP/Nuclei already existed. Coverage→85% still open |
+| SR-7 | CI/supply-chain hardening | ✅ gates in — bandit (HIGH), **semgrep** and **gitleaks** all GATING at a verified-clean baseline; SBOM/SLSA/Trivy/pip-audit/ZAP/Nuclei already existed. Coverage→85% (SR-7.2) + mutation testing (SR-7.3) still open |
 | SR-8 | Doc-vs-code reconciliation | ✅ done — JIT lease is real (`warden/gsam/jit_lease.py`, fail-CLOSED); this table reconciled against code |
 
 ## Track B — Deep-Eng / Math (from `docs/modernization-plan-v8.md`)
@@ -85,6 +85,14 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
     detection corpus) and on the LND client (which ships a bearer macaroon); SHA-1 in a cache key; and
     raw bidi/trojan-source control characters in `obfuscation.py`'s own source (now codepoints).
     `shadow_ai/discovery.py` keeps `verify=False` deliberately — it is a credential-free internal probe.
+  - Turning **semgrep** on surfaced 6 more, all **XXE**: stdlib `xml.etree` parsing *untrusted* XML —
+    the SAML assertion an attacker POSTs to the ACS endpoint, plus external threat/ArXiv feeds. External
+    entities resolve, so this allowed local-file exfiltration, SSRF and billion-laughs DoS. Fixed with
+    `defusedxml` at all 4 call sites (`auth/saml.py`, `brain/threat_feed.py`, `threat_intel/sources.py`),
+    pinned in requirements, and pinned shut by `warden/tests/test_xxe_hardening.py`.
+  - **Lesson:** semgrep and gitleaks were landed *observing* precisely because they could not be run on
+    the dev box. That call was right — semgrep failed on its first run. Gating them sight-unseen would
+    have reddened `main`. Both gate now, from a verified baseline.
 
 ## Immediate actions
 
@@ -92,9 +100,8 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 2. ~~Merge SR-5 and DE-6~~ — done (DE-6 delivered both).
 3. ~~Land #154 / GSAM chain~~ — #154 merged (1c920552).
 4. Add the C1 regression test (calibration + drift-gate coexist) as the first shared-file guardrail. **Still open.**
-5. **SR-7 remainder:** flip semgrep + gitleaks from observing to gating once their first CI run shows a
-   clean/triaged baseline; then raise the coverage floor 75% → 85% (SR-7.2) and extend mutation testing
-   (SR-7.3). Bandit is already gating at HIGH.
+5. **SR-7 remainder:** all three SAST/secret gates now gate (bandit HIGH / semgrep ERROR / gitleaks).
+   Still open: coverage floor 75% → 85% (SR-7.2) and extending mutation testing (SR-7.3).
 6. **DE-7 remainder:** BrowserSandbox process isolation (seccomp/restricted-user sidecar).
 7. **SR-1.4b / SR-2.3 need an owner decision** (GDPR IDOR policy: operator-admin vs self-service;
    net_guard validated-IP pinning needs a TLS-SNI-safe transport design).

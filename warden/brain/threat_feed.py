@@ -28,7 +28,11 @@ import logging
 import os
 from datetime import UTC, datetime
 from typing import Any
-from xml.etree import ElementTree
+
+# defusedxml, not stdlib xml.etree: every document parsed here is UNTRUSTED
+# (SAML assertion / external threat feed), and xml.etree resolves external
+# entities -> XXE: local-file exfiltration, SSRF, and billion-laughs DoS.
+from defusedxml.ElementTree import fromstring as _xml_fromstring
 
 log = logging.getLogger("warden.brain.threat_feed")
 
@@ -92,7 +96,7 @@ async def _fetch_rss(url: str, label: str) -> list[str]:
         return []
     items: list[str] = []
     try:
-        root = ElementTree.fromstring(raw)
+        root = _xml_fromstring(raw)
         ns = {"atom": "http://www.w3.org/2005/Atom"}
         entries = root.findall(".//item") or root.findall(".//atom:entry", ns)
         for entry in entries[:10]:
