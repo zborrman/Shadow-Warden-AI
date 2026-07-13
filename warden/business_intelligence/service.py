@@ -38,8 +38,10 @@ def _open(db_path: str) -> sqlite3.Connection:
 
 
 def _cache_key(*parts: str) -> str:
+    # SHA-256, not SHA-1: this is only a cache key, but a security product should not
+    # ship a broken hash primitive at all (and it costs nothing to use a sound one).
     raw = ":".join(parts)
-    return hashlib.sha1(raw.encode()).hexdigest()[:24]
+    return hashlib.sha256(raw.encode()).hexdigest()[:24]
 
 
 # ── AI Usage Analytics ─────────────────────────────────────────────────────────

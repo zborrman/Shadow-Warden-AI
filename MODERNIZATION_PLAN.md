@@ -5,7 +5,7 @@
 **Дата:** 2026-07-10 · **Основание:** `AUDIT_REPORT_2026-07-10.md` (≈70 находок) + анализ архитектуры
 **Цель:** довести кодовую базу до стандартов топовых компаний (Stripe / Cloudflare / Datadog-уровень): безопасность по умолчанию, тестируемость, наблюдаемость, детерминированный SDLC.
 
-> **Статус исполнения:** Фаза 0 (CRITICAL marketplace SQL) — ✅ **выполнено** в этой сессии (`warden/marketplace/api.py`: добавлена авторизация `require_api_key`, обязательный scoping, defence-in-depth против DDL/DML-смаглинга). Остальные фазы — расписаны ниже для последовательного исполнения. Каждый пункт помечается риском, объёмом и критериями приёмки.
+> **Статус исполнения (2026-07-13):** Track A (SR-*) закрыт по основным пунктам. SR-0/1/2/3/4 ✅; SR-5 доставлен внутри DE-6 (WARDEN_DATA_DIR + ddl_registry, решение C2); SR-6 ✅ (record_failopen + warden_stage_failopen_total + ratchet FAILOPEN-01); SR-2.4 ✅ (CORS /ext/* allowlist + отказ от `CORS_ORIGINS=*` при credentials); SR-7 🟡 (bandit гейтит на HIGH — 0 находок после фиксов; semgrep/gitleaks — в режиме наблюдения; coverage 85% и mutation-testing остаются); SR-8 ✅ (реестр сверен с кодом). Канонический статус — `docs/unified-modernization-roadmap.md`. Открыты решения владельца: SR-1.4b (GDPR IDOR policy), SR-2.3 (IP-pinning).
 
 ---
 

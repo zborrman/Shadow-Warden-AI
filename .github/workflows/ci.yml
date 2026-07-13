@@ -529,6 +529,67 @@ jobs:
       - name: Run mypy
         run: MYPYPATH=. mypy warden/ --ignore-missing-imports --no-strict-optional
 
+  # ── SAST + Secret Scanning (SR-7.1) ──────────────────────────────────────────
+  # Complements the existing supply-chain jobs (pip-audit, Trivy, SBOM, SLSA) and the
+  # DAST ones (ZAP, Nuclei). These three are the static half: code SAST, targeted
+  # SSRF/SQLi/secret rules, and secrets committed to git history.
+  # Gating, not informational — a HIGH-confidence finding fails the build.
+  sast:
+    name: SAST + Secret Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0          # gitleaks needs full history to scan past commits
+
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install scanners
+        run: pip install "bandit[toml]" semgrep
+
+      # Bandit SAST. GATING at HIGH severity + MEDIUM+ confidence: that set is at zero
+      # today (the TLS-verify-off, weak-hash and bidi-literal findings were fixed), so a
+      # new HIGH fails the build. MEDIUM is reported but non-blocking — there are ~70,
+      # mostly f-string SQL in internal queries and /tmp paths; ratcheting those down is
+      # tracked separately rather than pretended away with a blanket ignore.
+      - name: Run bandit (SAST — gating on HIGH)
+        run: bandit -r warden/ -lll -i --exclude warden/tests -f screen
+
+      - name: Run bandit (MEDIUM — informational)
+        continue-on-error: true
+        run: bandit -r warden/ -ll -i --exclude warden/tests -f screen
+
+      # Semgrep: targeted rules for the classes this codebase actually cares about —
+      # SSRF, SQL injection, hardcoded secrets.
+      # NOTE: observing (continue-on-error) for its first runs. Neither semgrep nor
+      # gitleaks can be executed on the dev machine (semgrep is Linux-only; gitleaks is
+      # an action), so their finding count here is unverified. Landing them as hard gates
+      # sight-unseen would redden main on the first push. Flip both to gating once a run
+      # shows a clean/triaged baseline — same discipline as the bandit gate above, which
+      # is gating precisely because its zero-HIGH baseline was verified locally.
+      - name: Run semgrep (SSRF / SQLi / secrets)
+        continue-on-error: true
+        run: |
+          semgrep --config p/security-audit \
+                  --config p/secrets \
+                  --config p/sql-injection \
+                  --severity ERROR \
+                  --error \
+                  --exclude 'warden/tests' \
+                  warden/
+
+      # Gitleaks: secrets committed to git history (a live key in an old commit is still
+      # a live key). Observing on first run — see the note above.
+      - name: Run gitleaks (secrets in history)
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # ── Docker Build Smoke Test ──────────────────────────────────────────────────
   #
   # Two-phase gate:

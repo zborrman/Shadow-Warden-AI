@@ -202,14 +202,14 @@ class TestExtUnmask:
         assert resp.status_code == 200
         assert resp.json()["unmasked"] == text
 
-    def test_unmask_wildcard_cors(self, client):
-        """POST /ext/unmask must include Access-Control-Allow-Origin: *"""
+    def test_unmask_cors_echoes_extension_origin(self, client):
+        """POST /ext/unmask echoes the extension Origin back (SR-2.4, was wildcard)."""
         resp = client.post(
             "/ext/unmask",
             json={"text": "hello", "session_id": "any"},
             headers={"Origin": "chrome-extension://abc"},
         )
-        assert resp.headers.get("Access-Control-Allow-Origin") == "*"
+        assert resp.headers.get("Access-Control-Allow-Origin") == "chrome-extension://abc"
 
     def test_unmask_cors_preflight(self, client):
         """OPTIONS /ext/unmask returns 204 + CORS headers."""
@@ -221,7 +221,7 @@ class TestExtUnmask:
             },
         )
         assert resp.status_code == 204
-        assert resp.headers.get("Access-Control-Allow-Origin") == "*"
+        assert resp.headers.get("Access-Control-Allow-Origin") == "chrome-extension://abc"
 
     def test_unmask_no_tokens_returns_text_unchanged(self, client):
         """Text with no [TYPE_N] tokens must be returned as-is."""

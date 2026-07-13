@@ -22,18 +22,18 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 | SR-0 | CRITICAL marketplace SQL | ✅ merged | #148 |
 | SR-1.2/1.3 | Router auth (staff/secrets/red-team/doc-intel) + admin fail-closed | ✅ merged | #148 |
 | SR-1.1 | Tenant tier from billing plan, not `X-Tenant-Tier` header | ✅ merged | #149 |
-| SR-1.4 | `/gdpr` router auth (unauthenticated erasure closed) | 🟡 open | #154 |
+| SR-1.4 | `/gdpr` router auth (unauthenticated erasure closed) | ✅ merged | #154 (1c920552) |
 | SR-1.4b | GDPR IDOR tenant-ownership match (`purge_tenant`/`audit`) | ⬜ deferred — **policy call** (operator-admin vs self-service) | — |
 | SR-2 | 8 SSRF sinks through `net_guard` + no-redirect | ✅ merged | #148 |
 | SR-2.3 | net_guard validated-IP pinning (TOCTOU/DNS-rebind) | ⬜ deferred — needs TLS-SNI-safe transport design; LOW | — |
-| SR-2.4 | CORS `/ext/*` allowlist | ⬜ remaining | — |
+| SR-2.4 | CORS `/ext/*` allowlist + refuse `CORS_ORIGINS=*` with credentials | ✅ merged | (SR-7/8 batch) |
 | SR-3 | Correctness: Semantic params, STIX race, ZSET, OpenAI URL, stream-unmask, priv-esc, blocking-I/O | ✅ merged | #148 |
-| SR-3.8 | Remove dead `_collect_or_emit` | 🟡 open | #154 |
+| SR-3.8 | Remove dead `_collect_or_emit` | ✅ merged | #154 (1c920552) |
 | SR-4 | Invariants: SAR pre-screen, A2A boundary, GDPR-logs, refund key, Settings secrets | ✅ merged | #148 |
-| SR-5 | **DB-layer consolidation** (62 `_conn`/DDL copies → one layer) | ⬜ remaining — **see conflict C2 (merge with DE-6)** |
-| SR-6 | Fail-open observability (`record_failopen`, `warden_failopen_total`) | ⬜ remaining |
-| SR-7 | CI/supply-chain hardening (bandit/semgrep/gitleaks/SBOM, coverage→85%) | ⬜ remaining |
-| SR-8 | Doc-vs-code reconciliation (JIT lease now exists via SAC/GSAM — verify) | ⬜ remaining |
+| SR-5 | **DB-layer consolidation** | ✅ delivered under DE-6 (`WARDEN_DATA_DIR`/`data_path`, `/tmp` sweep, `db/ddl_registry.py` DDL-once) — C2 as decided |
+| SR-6 | Fail-open observability | ✅ done — `record_failopen()` + `warden_stage_failopen_total` + FAILOPEN-01 ratchet (`test_no_new_counterless_failopen`, baseline 200) |
+| SR-7 | CI/supply-chain hardening | 🟡 partial — bandit **gating at HIGH** (0 findings after fixes), semgrep + gitleaks landed observing; SBOM/SLSA/Trivy/pip-audit/ZAP/Nuclei already existed. Coverage→85% still open |
+| SR-8 | Doc-vs-code reconciliation | ✅ done — JIT lease is real (`warden/gsam/jit_lease.py`, fail-CLOSED); this table reconciled against code |
 
 ## Track B — Deep-Eng / Math (from `docs/modernization-plan-v8.md`)
 
@@ -44,8 +44,8 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 | DE-3 | Embedding + hyperbolic model upgrade (TDA H1 slice done) | 🟡 in-flight | #152 (slice) |
 | DE-4 | Bayesian MAESTRO & reputation (collusion slice done) | 🟡 in-flight | #153 (slice) |
 | DE-5 | Causal Arbiter online Robbins-Monro calibration | ✅ merged | (c946b1f1) |
-| DE-6 | **Data-layer consolidation** + turn ClickHouse on (category 11) | ⬜ remaining — **merge with SR-5** |
-| DE-7 | Runtime isolation & key hygiene (categories 3,7) + §6 security S1–S5 | ⬜ remaining — **overlaps SR-4.4/SR-7** |
+| DE-6 | **Data-layer consolidation** + ClickHouse | ✅ merged — `WARDEN_DATA_DIR`, /tmp sweep, encrypted nightly backup, DDL registry, `GET /gsam/health` (CH was already on in compose) |
+| DE-7 | Runtime isolation & key hygiene | 🟡 2/3 — fail-CLOSED mandate signing (unsigned-mandate bypass fixed, 17a57067) + agentic boundary gate for SOVA/Master (8e12047e). BrowserSandbox process isolation remains |
 
 ---
 
@@ -74,9 +74,27 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 - **2026-07-12 — C2 (data-layer) RESOLVED: Track B leads.** SR-5 does **not** spawn a separate DB-consolidation effort; it folds into DE-6, which is already in flight (`421f2ea6` "data-layer consolidation, Phase 6 slice 1"). Track A's contribution to DE-6 is a requirement, not a parallel PR: *one connection context-manager, DDL applied once at startup (not per call), guaranteed `close()`; retire the ~62 duplicated `_conn`/DDL helpers.* Track A will review DE-6 PRs against that checklist.
 - **Open guardrail (C1):** first shared-file change to `causal_arbiter.py` on either side must add a test asserting the DE-5 online calibration and the SR-3 25%/zero-prior drift gate hold simultaneously.
 
+- **2026-07-13 — SR-8 reconciliation done; Track A closed out.** The table above was re-derived from
+  the code, not from the plan text. Findings worth recording:
+  - The plan's "JIT lease missing" gap (SR-8.1) is **stale** — `warden/gsam/jit_lease.py` exists and is
+    fail-CLOSED. Likewise SR-4.4's refund key was already on `resolve_key`.
+  - SR-5 was never worked as a separate effort (C2 held): it is satisfied by DE-6.
+  - SR-6 was already satisfied by the FAILOPEN-01 ratchet + `warden_stage_failopen_total`.
+  - Enabling bandit surfaced **three real HIGH findings the plan had not listed**, now fixed:
+    `verify=False` on the MISP threat-intel feed (a MITM could inject IOCs/rules straight into the
+    detection corpus) and on the LND client (which ships a bearer macaroon); SHA-1 in a cache key; and
+    raw bidi/trojan-source control characters in `obfuscation.py`'s own source (now codepoints).
+    `shadow_ai/discovery.py` keeps `verify=False` deliberately — it is a credential-free internal probe.
+
 ## Immediate actions
 
 1. Adopt the `SR-*` / `DE-*` prefixes; retire bare "Phase N" in messages.
-2. Merge SR-5 and DE-6 into one data-layer workstream (Track B).
-3. Land the open SR PR (#154) and the GSAM chain (#138–#143) before starting SR-5/DE-6 so the base is stable.
-4. Add the C1 regression test (calibration + drift-gate coexist) as the first shared-file guardrail.
+2. ~~Merge SR-5 and DE-6~~ — done (DE-6 delivered both).
+3. ~~Land #154 / GSAM chain~~ — #154 merged (1c920552).
+4. Add the C1 regression test (calibration + drift-gate coexist) as the first shared-file guardrail. **Still open.**
+5. **SR-7 remainder:** flip semgrep + gitleaks from observing to gating once their first CI run shows a
+   clean/triaged baseline; then raise the coverage floor 75% → 85% (SR-7.2) and extend mutation testing
+   (SR-7.3). Bandit is already gating at HIGH.
+6. **DE-7 remainder:** BrowserSandbox process isolation (seccomp/restricted-user sidecar).
+7. **SR-1.4b / SR-2.3 need an owner decision** (GDPR IDOR policy: operator-admin vs self-service;
+   net_guard validated-IP pinning needs a TLS-SNI-safe transport design).

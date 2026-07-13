@@ -1045,9 +1045,30 @@ _DEFAULT_CORS = ",".join([
     "https://gemini.google.com",
     "https://copilot.microsoft.com",
 ])
+def _cors_origins() -> list[str]:
+    """
+    Parse CORS_ORIGINS, refusing the wildcard while credentials are enabled (SR-2.4).
+
+    Starlette does not reject `allow_origins=["*"] + allow_credentials=True`: it
+    reflects the request Origin *and* sends Allow-Credentials, which is full
+    credentialed cross-origin access from any site. An operator setting
+    CORS_ORIGINS=* should not silently get that, so we fall back to the explicit
+    allowlist and say so loudly.
+    """
+    raw = [o.strip() for o in os.getenv("CORS_ORIGINS", _DEFAULT_CORS).split(",") if o.strip()]
+    if "*" in raw:
+        log.error(
+            "CORS_ORIGINS=* is refused while allow_credentials=True (it would grant "
+            "credentialed cross-origin access to any site). Falling back to the default "
+            "allowlist. Set an explicit origin list instead."
+        )
+        raw = [o for o in raw if o != "*"] or _DEFAULT_CORS.split(",")
+    return raw
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", _DEFAULT_CORS).split(","),
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["POST", "GET", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-API-Key", "X-Request-ID", "Authorization"],
@@ -1059,33 +1080,70 @@ app.add_middleware(
 app.add_middleware(MTLSMiddleware)
 
 
+#: Origin schemes the browser extension can legitimately present. The extension ID
+#: is unknown at build time, so we cannot pin a full origin — but we can pin the
+#: *scheme*, which no ordinary web page can forge (SR-2.4).
+_EXT_ORIGIN_SCHEMES = ("chrome-extension://", "moz-extension://", "safari-web-extension://")
+
+
+def _ext_allowed_origin(origin: str) -> str | None:
+    """Return the origin to echo for /ext/*, or None when it is not allowed."""
+    if not origin:
+        return None
+    if origin.startswith(_EXT_ORIGIN_SCHEMES):
+        return origin
+    extra = [o.strip() for o in os.getenv("EXT_CORS_ORIGINS", "").split(",") if o.strip()]
+    return origin if origin in extra else None
+
+
 class _ExtensionCORSMiddleware(BaseHTTPMiddleware):
     """
-    Wildcard CORS for /ext/* routes used by the Shadow Warden browser extension.
+    Scheme-restricted CORS for /ext/* routes used by the Shadow Warden browser extension.
 
-    chrome-extension:// and moz-extension:// origins cannot be whitelisted
-    statically because the extension ID is unknown at build time.  Routes under
-    /ext/ accept any origin; the X-API-Key header provides the actual auth.
+    Previously this returned `Access-Control-Allow-Origin: *` to *every* origin, so any
+    web page could invoke /ext/* from a browser context. The extension ID is unknown at
+    build time, so a full origin cannot be pinned — but the *scheme* can: only
+    chrome-extension:// / moz-extension:// / safari-web-extension:// origins (plus an
+    optional EXT_CORS_ORIGINS allowlist) are echoed now. Anything else gets no CORS
+    headers and is blocked by the browser.
 
-    This middleware runs outermost (registered last), so it:
+    Credentials are never allowed here — auth on /ext/* is the X-API-Key header, which a
+    hostile page cannot obtain, so there is no reason to let cookies ride along.
+
+    Registered last (outermost), so it:
       • Short-circuits OPTIONS preflight for /ext/* — bypasses CORSMiddleware
       • Overwrites any CORS headers on the final response for /ext/* routes
     """
-    _HEADERS: dict[str, str] = {
-        "Access-Control-Allow-Origin":  "*",
+    _BASE_HEADERS: dict[str, str] = {
         "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Request-ID, Authorization",
         "Access-Control-Max-Age":       "600",
+        "Vary":                         "Origin",
     }
 
     async def dispatch(self, request: Request, call_next):
         if not request.url.path.startswith("/ext/"):
             return await call_next(request)
+
+        allowed = _ext_allowed_origin(request.headers.get("origin", ""))
+
         if request.method == "OPTIONS":
-            return Response(status_code=204, headers=self._HEADERS)
+            if allowed is None:
+                # Preflight from a non-extension origin: answer without CORS headers,
+                # so the browser refuses the actual request.
+                return Response(status_code=204, headers={"Vary": "Origin"})
+            return Response(
+                status_code=204,
+                headers={**self._BASE_HEADERS, "Access-Control-Allow-Origin": allowed},
+            )
+
         response = await call_next(request)
-        for key, val in self._HEADERS.items():
+        if allowed is None:
+            response.headers["Vary"] = "Origin"
+            return response
+        for key, val in self._BASE_HEADERS.items():
             response.headers[key] = val
+        response.headers["Access-Control-Allow-Origin"] = allowed
         return response
 
 

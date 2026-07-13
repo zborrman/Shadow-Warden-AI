@@ -50,6 +50,25 @@ _DEV_MODE  = settings.l402_dev_mode
 _TTL_S     = settings.l402_token_ttl_s  # 10 min default
 
 
+def _lnd_verify() -> bool | str:
+    """
+    TLS verification target for the LND connection.
+
+    Returns the CA-bundle path when L402_LND_TLS_CERT is set (the right way to trust
+    LND's self-signed cert), else the L402_LND_VERIFY_SSL bool. Defaults to True —
+    disabling verification exposes the macaroon to a MITM, so it must be deliberate.
+    """
+    cert = settings.l402_lnd_tls_cert
+    if cert:
+        return cert
+    if not settings.l402_lnd_verify_ssl:
+        log.warning(
+            "L402: TLS verification DISABLED for the LND connection — the macaroon is "
+            "exposed to a man-in-the-middle. Prefer L402_LND_TLS_CERT=/path/to/tls.cert."
+        )
+    return settings.l402_lnd_verify_ssl
+
+
 # ── Macaroon ───────────────────────────────────────────────────────────────────
 
 def _sign_macaroon(root: str) -> str:
@@ -174,7 +193,11 @@ async def create_invoice(
     if _LND_URL and _LND_MAC and not _DEV_MODE:
         try:
             import httpx  # noqa: PLC0415
-            async with httpx.AsyncClient(verify=False, timeout=10.0) as client:  # noqa: S501
+            # The macaroon below is a bearer credential. This used to be a hardcoded
+            # verify=False, so a MITM on the LND connection could lift it and drain the
+            # node. Verify by default; LND's self-signed cert is supported by pointing
+            # L402_LND_TLS_CERT at its tls.cert.
+            async with httpx.AsyncClient(verify=_lnd_verify(), timeout=10.0) as client:
                 resp = await client.post(
                     f"{_LND_URL}/v1/invoices",
                     headers={"Grpc-Metadata-macaroon": _LND_MAC},

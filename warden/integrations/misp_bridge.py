@@ -240,7 +240,14 @@ async def _http_poll_loop() -> None:
             since = (
                 datetime.now(UTC) - timedelta(seconds=_MISP_POLL_INTERVAL * 2)
             ).strftime("%Y-%m-%d")
-            async with httpx.AsyncClient(timeout=30.0, verify=False) as client:  # noqa: S501
+            # TLS verification ON by default (MISP_VERIFY_SSL). It used to be hardcoded
+            # verify=False: a MITM on the threat-intel feed could then inject arbitrary
+            # IOCs/rules straight into Warden's detection corpus — a supply-chain attack
+            # on the security product itself. Operators with a private CA can still opt
+            # out explicitly via MISP_VERIFY_SSL=false.
+            async with httpx.AsyncClient(
+                timeout=30.0, verify=settings.misp_verify_ssl
+            ) as client:
                 resp = await client.post(
                     f"{_MISP_API_URL.rstrip('/')}/events/restSearch",
                     headers={

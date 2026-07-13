@@ -755,6 +755,12 @@ class Settings:
     l402_lnd_url: str = field(default_factory=lambda: _env("L402_LND_URL", ""))
     l402_lnd_macaroon_hex: str = field(default_factory=lambda: _env("L402_LND_MACAROON_HEX", ""))
     l402_dev_mode: bool = field(default_factory=lambda: _bool("L402_DEV_MODE", True))
+    # TLS to the Lightning node. The macaroon is a bearer credential, so verification
+    # is ON by default — it used to be hardcoded verify=False, which let a MITM steal
+    # the macaroon. LND ships a self-signed cert, so point L402_LND_TLS_CERT at its
+    # tls.cert (preferred), or set L402_LND_VERIFY_SSL=false to knowingly opt out.
+    l402_lnd_verify_ssl: bool = field(default_factory=lambda: _bool("L402_LND_VERIFY_SSL", True))
+    l402_lnd_tls_cert: str = field(default_factory=lambda: _env("L402_LND_TLS_CERT", ""))
     l402_token_ttl_s: int = field(default_factory=lambda: _int("L402_TOKEN_TTL_S", 600))
 
     # ── Marketplace DAO governance (warden/marketplace/governance.py) ────────────

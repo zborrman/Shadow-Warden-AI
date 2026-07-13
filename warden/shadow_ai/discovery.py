@@ -212,8 +212,13 @@ async def _probe_host(ip: str, port: int) -> dict | None:
     url = f"{scheme}://{ip}:{port}/"
 
     try:
+        # verify=False is deliberate here and safe: this is an unauthenticated
+        # fingerprinting probe of internal hosts, which normally present self-signed or
+        # mismatched certs. No credential is ever sent (no auth header, no cookie, no
+        # body), and redirects are off — so there is nothing for a MITM to capture. The
+        # same is NOT true of the LND/MISP clients, which do carry secrets and verify.
         async with httpx.AsyncClient(
-            verify=False,
+            verify=False,  # nosec B501 — credential-free internal probe, see above
             timeout=_PROBE_TIMEOUT,
             follow_redirects=False,
         ) as client:

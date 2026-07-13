@@ -105,18 +105,21 @@ _MAX_DECODE_DEPTH = 3
 # false positives from copy-pasted PDF/Word text with orphaned BiDi marks.
 # Callers receive `bidi_stripped=True` and may apply a risk score boost.
 
-_BIDI_CONTROLS = re.compile(
-    "["
-    "‪‫‬‭‮"  # LRE RLE PDF LRO RLO
-    "⁦⁧⁨⁩"         # LRI RLI FSI PDI
-    "​‌‍‎‏"  # ZWSP ZWNJ ZWJ LRM RLM
-    "­"                            # soft hyphen
-    "﻿"                            # BOM / ZWNBSP
-    "]"
+# Codepoints, not literals: these are the very characters used for trojan-source /
+# bidi-override attacks (CVE-2021-42574). Keeping them as raw literals would put
+# invisible reordering controls into our own source (and trips bandit B613).
+_BIDI_CODEPOINTS: tuple[int, ...] = (
+    0x202A, 0x202B, 0x202C, 0x202D, 0x202E,   # LRE RLE PDF LRO RLO
+    0x2066, 0x2067, 0x2068, 0x2069,           # LRI RLI FSI PDI
+    0x200B, 0x200C, 0x200D, 0x200E, 0x200F,   # ZWSP ZWNJ ZWJ LRM RLM
+    0x00AD,                                   # soft hyphen
+    0xFEFF,                                   # BOM / ZWNBSP
 )
+_BIDI_CONTROLS = re.compile("[" + "".join(map(chr, _BIDI_CODEPOINTS)) + "]")
 
-# Trojan Source attack patterns: directional overrides used mid-identifier
-_TROJAN_SOURCE = re.compile("[‮⁦⁧⁨⁩]")
+# Directional overrides used mid-identifier (the actual Trojan Source vector).
+_TROJAN_CODEPOINTS: tuple[int, ...] = (0x202E, 0x2066, 0x2067, 0x2068, 0x2069)
+_TROJAN_SOURCE = re.compile("[" + "".join(map(chr, _TROJAN_CODEPOINTS)) + "]")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
