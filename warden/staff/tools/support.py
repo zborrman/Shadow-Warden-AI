@@ -18,9 +18,10 @@ import sqlite3
 import time
 from decimal import Decimal
 
+from warden.config import data_path
+
 log = logging.getLogger(__name__)
 
-from warden.config import data_path  # noqa: E402
 
 _DB_PATH = data_path("warden_support.db", "SUPPORT_DB_PATH")
 

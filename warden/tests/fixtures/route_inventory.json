@@ -618,6 +618,7 @@
     "WS /ws/events"
   ],
   "warden.api.xai": [
+    "GET /xai/calibration",
     "GET /xai/dashboard",
     "GET /xai/explain/{request_id}",
     "GET /xai/report/{request_id}",
@@ -734,6 +735,7 @@
     "DELETE /gsam/lease/{lease_id}",
     "GET /gsam/agents/{agent_id}/stats",
     "GET /gsam/compliance/score",
+    "GET /gsam/health",
     "GET /gsam/heatmap",
     "GET /gsam/lease/{lease_id}",
     "POST /gsam/lease",

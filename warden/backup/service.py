@@ -18,7 +18,8 @@ Design
   • Encryption: Fernet (AES-128-CBC + HMAC-SHA256) via ``VAULT_MASTER_KEY``.
     **Fail-CLOSED**: no key → RuntimeError, no plaintext ever written to disk.
   • Rotation: keep the last ``SNAPSHOT_KEEP`` snapshot directories (default 7).
-  • Optional off-box ship to S3/MinIO — **fail-OPEN** (never blocks the backup).
+  • Optional off-box ship to S3/MinIO — degrades without blocking the backup, and
+    every such degradation emits a ``record_failopen`` counter (FAILOPEN-01).
 
 GDPR: snapshots contain application DBs only (never prompt/response content, which
 is never persisted). Encrypted at rest with the same key class as the vault.
@@ -33,8 +34,10 @@ import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from warden.config import data_dir, data_path
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.backup")
 
@@ -57,8 +60,13 @@ _DB_VARS: dict[str, tuple[str, str]] = {
 }
 
 
-def _fernet():  # type: ignore[no-untyped-def]
-    """Return a Fernet cipher from VAULT_MASTER_KEY. Fail-CLOSED if unset."""
+def _fernet() -> Any:
+    """Return a Fernet cipher from VAULT_MASTER_KEY. Fail-CLOSED if unset.
+
+    Returns ``Any`` because ``cryptography`` is imported lazily (it is an optional
+    dep at import time); annotating rather than suppressing keeps the no-new-
+    ``type: ignore`` ratchet honest.
+    """
     key = os.getenv("VAULT_MASTER_KEY", "")
     if not key:
         raise RuntimeError("VAULT_MASTER_KEY not set — refusing to write unencrypted backups")
@@ -117,9 +125,9 @@ def run_backup(label: str = "", *, ship: bool = False) -> Path:
     """
     Take Fernet-encrypted snapshots of all discovered SQLite DBs.
 
-    Returns the snapshot directory. Fail-CLOSED on the encryption key; individual
-    DB failures are logged and skipped (best-effort per DB). When ``ship`` is True,
-    also pushes the encrypted files off-box (fail-OPEN).
+    Returns the snapshot directory. Fail-CLOSED on the encryption key; a single DB
+    that cannot be snapshotted is skipped (and counted) rather than losing the whole
+    run. When ``ship`` is True, also pushes the encrypted files off-box.
     """
     ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     snap_dir = _SNAPSHOT_DIR / ts
@@ -153,6 +161,7 @@ def run_backup(label: str = "", *, ship: bool = False) -> Path:
             log.debug("backup: %s (%s) → %d bytes", name, db_path, len(plaintext))
         except Exception as exc:  # noqa: BLE001
             log.warning("backup: %s failed — %s", name, exc)
+            record_failopen("backup_snapshot", Reason.BACKEND_ERROR, exc)
 
     if label:
         (snap_dir / "label.txt").write_text(label)
@@ -169,8 +178,10 @@ def ship_backup(snap_dir: Path) -> int:
     """
     Best-effort off-box ship of encrypted snapshot files to S3/MinIO.
 
-    Fail-OPEN: any error (S3 disabled, boto3 missing, network) is logged and
-    returns the count shipped so far. Never raises.
+    The local encrypted snapshot is already durable, so a ship failure (S3 disabled,
+    boto3 missing, network) degrades instead of raising — but every degradation emits
+    a ``record_failopen`` counter so the loss of off-box copies is alertable, never
+    silent. Returns the number of files shipped.
     """
     shipped = 0
     try:
@@ -190,10 +201,12 @@ def ship_backup(snap_dir: Path) -> int:
                 shipped += 1
             except Exception as exc:  # noqa: BLE001
                 log.warning("backup: ship %s failed — %s", key, exc)
+                record_failopen("backup_ship", Reason.NETWORK_ERROR, exc)
         if shipped:
             log.info("backup: shipped %d encrypted files to S3 (%s)", shipped, S3_BUCKET_EVIDENCE)
     except Exception as exc:  # noqa: BLE001
-        log.debug("backup: S3 ship unavailable (fail-open): %s", exc)
+        log.debug("backup: S3 ship unavailable: %s", exc)
+        record_failopen("backup_ship", Reason.BACKEND_ERROR, exc)
     return shipped
 
 

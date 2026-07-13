@@ -157,7 +157,31 @@ single source of truth: discovers every `warden_*.db` under `data_dir()`, SQLite
 8 tests (round-trip integrity, ciphertext-not-plaintext, fail-closed-no-leak, empty no-op,
 rotation, ship fail-open). ruff + mypy clean.
 
-**Follow-on:** unify migrations (one Alembic/Turso DDL registry); turn ClickHouse on for GSAM in prod.
+**Slice 4 ✅ DONE (2026-07-13):** DDL registry + ClickHouse observability.
+
+*Migrations unification* — `warden/db/ddl_registry.py`. **Deliberately not** folded into the Alembic
+tree: that tree targets the PostgreSQL app DB (`DATABASE_URL`), whereas the ~98 module DBs are
+independent, optional, created-on-demand SQLite files; forcing them through a global migration run
+would couple optional subsystems to it. The registry gives the same wins without that coupling:
+`register(db_key, module, ddl)` at import time + `ensure_schema(conn, db_key, path)` that is **lazy**
+(applied on first connection, so workers/tests that never run the FastAPI lifespan still get their
+tables — a startup-only `apply_all()` would silently break them), **memoized** (DDL-once per DB per
+process instead of on every connection), **persistent** (`_warden_ddl_applied` tracks module+checksum
+across restarts), **drift-detecting** (changed checksum → re-apply), and **fail-safe** (tracking
+failure ⇒ execute DDL directly; never lose tables). Staff cluster (`a2a`, `economics`) converted as
+the proof, with per-DB keys so schemas don't cross-leak into each other's files. 11 tests.
+
+*ClickHouse for GSAM* — already fully wired in `docker-compose.yml` (service + `init.sql` +
+`GSAM_CLICKHOUSE_ENABLED=true` default, deliberately outside warden's `depends_on` so the gateway
+boots without it). The real gap was that the collector is **fail-OPEN** toward ClickHouse — it spools
+to NDJSON and replays — so a broken OLAP store fails *silently*. `collector.stats()` even documented
+itself as "Health snapshot for GET /gsam/health", but **that route was never added**. Added
+`GET /gsam/health` exposing `clickhouse_enabled/reachable`, `spool_bytes`, queue depth/dropped, plus a
+`degraded` flag (enabled-but-unreachable, or spool backlog, or drops) — the condition worth alerting
+on. 6 tests.
+
+**Follow-on ratchet:** convert the remaining ~96 modules' inline `CREATE TABLE IF NOT EXISTS` onto
+`ddl_registry` (mechanical, cluster-by-cluster, same style as the `data_path` sweep).
 
 - **Kill `/tmp/*.db` prod defaults**: route every module DB through `warden/db/turso.py` or a
   single `DATA_DIR` (persisted volume) — a config sweep like the T1–T12 Settings ratchet.

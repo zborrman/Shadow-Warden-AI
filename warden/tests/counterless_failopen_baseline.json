@@ -1,5 +1,5 @@
 {
-  "total": 201,
+  "total": 200,
   "per_file": {
     "warden/agent/master.py": 1,
     "warden/agent/tools.py": 2,
@@ -45,7 +45,6 @@
     "warden/communities/sep.py": 1,
     "warden/compliance/bundler.py": 1,
     "warden/compliance/posture_service.py": 1,
-    "warden/config.py": 1,
     "warden/crypto/hsm.py": 2,
     "warden/crypto/memory_protection.py": 2,
     "warden/crypto/pqc.py": 1,

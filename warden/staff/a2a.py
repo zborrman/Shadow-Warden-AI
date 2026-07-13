@@ -26,9 +26,11 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from typing import Any
 
+from warden.config import data_path
+from warden.db.ddl_registry import ensure_schema, register
+
 log = logging.getLogger(__name__)
 
-from warden.config import data_path  # noqa: E402
 
 _DB_PATH: str = data_path("warden_staff_a2a.db", "STAFF_A2A_DB_PATH")
 
@@ -51,6 +53,8 @@ _A2A_DDL = """
     CREATE INDEX IF NOT EXISTS idx_a2a_caller ON staff_a2a_calls(caller_agent_id, ts);
 """
 
+register("staff_a2a", "staff_a2a", _A2A_DDL)
+
 
 @contextmanager
 def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
@@ -67,7 +71,7 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
         con = sqlite3.connect(effective, check_same_thread=False)
         con.row_factory = sqlite3.Row
         con.execute("PRAGMA journal_mode=WAL")
-        con.executescript(_A2A_DDL)
+        ensure_schema(con, "staff_a2a", effective)
         try:
             yield con
             con.commit()
@@ -80,7 +84,7 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
         if is_turso_enabled("staff"):
             with get_connection("staff", fallback_path=_DB_PATH) as con:  # type: ignore[assignment]
                 with suppress(Exception):
-                    con.executescript(_A2A_DDL)
+                    ensure_schema(con, "staff_a2a", _DB_PATH)
                 yield con
             return
     except ImportError:
@@ -89,7 +93,7 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
     con = sqlite3.connect(_DB_PATH, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_A2A_DDL)
+    ensure_schema(con, "staff_a2a", _DB_PATH)
     try:
         yield con
         con.commit()

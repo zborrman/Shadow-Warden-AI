@@ -13,9 +13,10 @@ from __future__ import annotations
 import logging
 import time
 
+from warden.config import data_path
+
 log = logging.getLogger(__name__)
 
-from warden.config import data_path  # noqa: E402
 
 _DB_PATH = data_path("warden_bdr.db", "BDR_DB_PATH")
 

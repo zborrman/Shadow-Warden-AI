@@ -17,9 +17,10 @@ import sqlite3
 import time
 from typing import Any
 
+from warden.config import data_path
+
 log = logging.getLogger(__name__)
 
-from warden.config import data_path  # noqa: E402
 
 _DB_PATH = data_path("warden_compliance.db", "COMPLIANCE_DB_PATH")
 

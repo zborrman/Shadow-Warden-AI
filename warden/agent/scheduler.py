@@ -987,11 +987,14 @@ async def sova_nightly_backup(ctx: dict) -> dict:
     WARDEN_DATA_DIR, with off-box ship to S3/MinIO when configured.
 
     Delegates to warden.backup.service.run_backup (single source of truth,
-    shared with scripts/db_snapshot.py). Fail-CLOSED on VAULT_MASTER_KEY;
-    fail-OPEN on the S3 ship. Runs off the event loop via asyncio.to_thread.
+    shared with scripts/db_snapshot.py). Fail-CLOSED on VAULT_MASTER_KEY.
+    A failed run is counted (record_failopen) and Slack-alerted, never silent.
+    Runs off the event loop via asyncio.to_thread.
     """
     import asyncio  # noqa: PLC0415
     from datetime import UTC, datetime  # noqa: PLC0415
+
+    from warden.observability import Reason, record_failopen  # noqa: PLC0415
 
     try:
         from warden.backup.service import run_backup  # noqa: PLC0415
@@ -1004,5 +1007,6 @@ async def sova_nightly_backup(ctx: dict) -> dict:
         return {"status": "ok", "snapshot": str(snap_dir), "dbs": dbs}
     except Exception as exc:
         log.error("nightly_backup: FAILED — %s", exc)
+        record_failopen("backup_nightly", Reason.BACKEND_ERROR, exc)
         await _slack(f"🛑 *Nightly DB backup FAILED*: {exc}")
         return {"status": "error", "error": str(exc)}

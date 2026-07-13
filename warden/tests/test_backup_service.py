@@ -41,13 +41,15 @@ def svc(monkeypatch, tmp_path):
               "AUTH_DB_PATH", "VENDOR_GOV_DB_PATH", "COST_ALLOC_DB_PATH",
               "MARKETPLACE_X402_DB_PATH", "SAC_WALLET_DB_PATH", "BILLING_AUDIT_DB_PATH"):
         monkeypatch.delenv(v, raising=False)
-    import warden.config as cfg
-    importlib.reload(cfg)
+    # NB: do NOT reload warden.config here. config.data_dir()/data_path() read env
+    # at call time, so a reload is unnecessary — and it would mint new class objects
+    # (e.g. ConfigValidationError), breaking isinstance/pytest.raises in any test
+    # module that imported them earlier in the session. Only the backup service
+    # needs reloading, because it snapshots SNAPSHOT_DIR/SNAPSHOT_KEEP at import.
     import warden.backup.service as s
     mod = importlib.reload(s)
     yield mod, data, snaps
     monkeypatch.delenv("WARDEN_DATA_DIR", raising=False)
-    importlib.reload(cfg)
 
 
 class TestDiscovery:

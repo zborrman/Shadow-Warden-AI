@@ -161,6 +161,7 @@ def online_update(
             return True
     except Exception as exc:
         log.debug("online_update error (ignored): %s", exc)
+        record_failopen("causal_online", Reason.BACKEND_ERROR, exc)
         return False
 
 

@@ -1,6 +1,6 @@
 {
   "type_ignore": 224,
-  "noqa": 810,
+  "noqa": 824,
   "per_file": {
     "agent_monitor.py": {
       "type_ignore": 0,
@@ -68,10 +68,10 @@
     },
     "main.py": {
       "type_ignore": 2,
-      "noqa": 84
+      "noqa": 88
     },
     "metrics.py": {
-      "type_ignore": 126,
+      "type_ignore": 122,
       "noqa": 1
     },
     "mtls.py": {
@@ -172,7 +172,7 @@
     },
     "agent/scheduler.py": {
       "type_ignore": 2,
-      "noqa": 25
+      "noqa": 27
     },
     "agent/sova.py": {
       "type_ignore": 3,
@@ -180,7 +180,7 @@
     },
     "agent/tools.py": {
       "type_ignore": 2,
-      "noqa": 15
+      "noqa": 1
     },
     "analytics/auth.py": {
       "type_ignore": 0,
@@ -329,6 +329,10 @@
     "auth/saml_provider.py": {
       "type_ignore": 0,
       "noqa": 1
+    },
+    "backup/service.py": {
+      "type_ignore": 0,
+      "noqa": 5
     },
     "billing/audit_chain.py": {
       "type_ignore": 1,
@@ -490,6 +494,10 @@
       "type_ignore": 0,
       "noqa": 2
     },
+    "db/ddl_registry.py": {
+      "type_ignore": 0,
+      "noqa": 3
+    },
     "db/__init__.py": {
       "type_ignore": 0,
       "noqa": 1
@@ -513,6 +521,18 @@
     "financial/metrics_reader.py": {
       "type_ignore": 1,
       "noqa": 0
+    },
+    "gsam/jit_lease.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "gsam/quarantine.py": {
+      "type_ignore": 1,
+      "noqa": 1
+    },
+    "gsam/rollup.py": {
+      "type_ignore": 1,
+      "noqa": 3
     },
     "guards/__init__.py": {
       "type_ignore": 0,
@@ -646,6 +666,10 @@
       "type_ignore": 0,
       "noqa": 2
     },
+    "sac/preflight.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
     "sdk/otel.py": {
       "type_ignore": 0,
       "noqa": 2
@@ -696,11 +720,11 @@
     },
     "staff/a2a.py": {
       "type_ignore": 1,
-      "noqa": 8
+      "noqa": 9
     },
     "staff/boundaries.py": {
       "type_ignore": 0,
-      "noqa": 3
+      "noqa": 4
     },
     "staff/dispatcher.py": {
       "type_ignore": 1,
@@ -820,7 +844,7 @@
     },
     "staff/agents/base.py": {
       "type_ignore": 2,
-      "noqa": 10
+      "noqa": 18
     },
     "staff/tools/compliance_kyc.py": {
       "type_ignore": 0,

@@ -10,7 +10,6 @@ Covers warden.config.data_dir / data_path:
 """
 from __future__ import annotations
 
-import importlib
 import os
 
 from warden import config as cfg
@@ -67,25 +66,21 @@ class TestSettingsWiring:
         monkeypatch.setenv("WARDEN_DATA_DIR", str(tmp_path))
         for var in ("SEP_DB_PATH", "MARKETPLACE_DB_PATH", "GSAM_DB_PATH", "AUTH_DB_PATH"):
             monkeypatch.delenv(var, raising=False)
-        # Rebuild the settings snapshot under the patched env.
-        reloaded = importlib.reload(cfg)
-        try:
-            assert reloaded.settings.marketplace_db_path == str(tmp_path / "warden_marketplace.db")
-            assert not reloaded.settings.marketplace_db_path.startswith("/tmp/")
-        finally:
-            # Restore the module to a clean default-env state for other tests.
-            monkeypatch.delenv("WARDEN_DATA_DIR", raising=False)
-            importlib.reload(cfg)
+        # Build a FRESH Settings snapshot rather than importlib.reload(cfg): the
+        # dataclass re-evaluates its default_factory against the current env, and a
+        # reload would mint new class objects (ConfigValidationError, …), breaking
+        # pytest.raises/isinstance in test modules that imported them earlier.
+        fresh = cfg.Settings()
+        assert fresh.marketplace_db_path == str(tmp_path / "warden_marketplace.db")
+        assert not fresh.marketplace_db_path.startswith("/tmp/")
 
 
 class TestStaffClusterWiring:
     def test_staff_a2a_db_under_data_dir(self, monkeypatch, tmp_path):
         monkeypatch.setenv("WARDEN_DATA_DIR", str(tmp_path))
         monkeypatch.delenv("STAFF_A2A_DB_PATH", raising=False)
-        import warden.staff.a2a as a2a
-        reloaded = importlib.reload(a2a)
-        try:
-            assert str(tmp_path / "warden_staff_a2a.db") == reloaded._DB_PATH
-        finally:
-            monkeypatch.delenv("WARDEN_DATA_DIR", raising=False)
-            importlib.reload(reloaded)
+        # a2a snapshots _DB_PATH at import, so resolve through data_path directly
+        # instead of reloading the module (reload rebinds its classes session-wide).
+        assert cfg.data_path("warden_staff_a2a.db", "STAFF_A2A_DB_PATH") == str(
+            tmp_path / "warden_staff_a2a.db"
+        )

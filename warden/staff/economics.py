@@ -15,9 +15,11 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 
+from warden.config import data_path
+from warden.db.ddl_registry import ensure_schema, register
+
 log = logging.getLogger(__name__)
 
-from warden.config import data_path  # noqa: E402
 
 _DB_PATH: str = data_path("warden_staff_economics.db", "STAFF_ECONOMICS_DB_PATH")
 
@@ -62,6 +64,8 @@ _STAFF_DDL = """
     CREATE INDEX IF NOT EXISTS idx_sac_tenant ON staff_action_costs(tenant_id, ts);
 """
 
+register("staff_economics", "staff_economics", _STAFF_DDL)
+
 
 def _db(path: str = _DB_PATH) -> sqlite3.Connection:
     """Return a SQLite or Turso connection for the staff economics database."""
@@ -84,13 +88,13 @@ def _db(path: str = _DB_PATH) -> sqlite3.Connection:
             ctx = get_connection("staff", fallback_path=_DB_PATH)
             con = ctx.__enter__()
             with suppress(Exception):
-                con.executescript(_STAFF_DDL)
+                ensure_schema(con, "staff_economics", _DB_PATH)
             return _TursoProxy(con)  # type: ignore[return-value]
     except (ImportError, Exception):
         pass
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
-    conn.executescript(_STAFF_DDL)
+    ensure_schema(conn, "staff_economics", path)
     conn.commit()
     return conn
 
