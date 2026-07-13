@@ -10,10 +10,21 @@ Security checks (in order)
 ───────────────────────────
   1. Agent status == 'active'
   2. invoice_hash present and not expired (anti-replay)
-  3. HMAC-SHA256 signature (when MANDATE_SECRET is set)
+  3. HMAC-SHA256 signature — ALWAYS required (fail-CLOSED, see below)
   4. amount ≤ invoice price (anti-hallucination / anti-manipulation)
   5. amount ≤ agent max_per_item
   6. monthly_spend + amount ≤ agent monthly_budget
+
+Key hygiene (Phase 7)
+─────────────────────
+The signing key comes from ``resolve_key("MANDATE_SECRET", purpose="agentic_mandate")``:
+an explicit MANDATE_SECRET wins (unchanged for deployments that set it), otherwise the
+key is derived from the boot-validated VAULT_MASTER_KEY.
+
+This check used to be skipped entirely when MANDATE_SECRET was unset — i.e. any
+deployment that forgot to set it accepted **unsigned** mandates and let a caller spend
+against an agent's budget. Signature verification is now unconditional: if no key can
+be resolved the mandate is DENIED, never waved through.
 
 Invoice lifecycle
 ─────────────────
@@ -27,15 +38,31 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
-import os
 import secrets
 import threading
 import time
 import uuid
 
+from warden.secret_keys import InsecureKeyError, resolve_key
+
 log = logging.getLogger("warden.agentic.mandate")
 
-_MANDATE_SECRET: str = os.getenv("MANDATE_SECRET", "")
+
+def _mandate_key() -> bytes:
+    """Signing key for agent payment mandates. Resolved per-call (never at import,
+    so tests/operators can set the env late). Raises InsecureKeyError in production
+    when neither MANDATE_SECRET nor VAULT_MASTER_KEY is configured."""
+    return resolve_key("MANDATE_SECRET", purpose="agentic_mandate")
+
+
+def sign_mandate(invoice_hash: str, sku: str, amount: float, agent_id: str) -> str:
+    """Produce the canonical HMAC-SHA256 signature for a mandate.
+
+    Exposed so agents (and tests) sign with exactly the same canonical form the
+    validator checks — a divergence here would silently reject every mandate.
+    """
+    canonical = f"{invoice_hash}:{sku}:{amount}:{agent_id}"
+    return hmac.new(_mandate_key(), canonical.encode(), hashlib.sha256).hexdigest()
 
 # In-memory invoice store: invoice_hash → {sku, price, expiry, agent_id}
 _invoices:      dict[str, dict] = {}
@@ -134,16 +161,18 @@ def validate_mandate(mandate: dict, agent_record: dict) -> MandateResult:
     if amount < 0:
         return MandateResult(False, "Amount must be non-negative.")
 
-    # 3 ── HMAC signature ──────────────────────────────────────────────────────
-    if _MANDATE_SECRET:
-        canonical    = f"{invoice_hash}:{sku}:{amount}:{agent_id_in}"
-        expected_sig = hmac.new(
-            _MANDATE_SECRET.encode(),
-            canonical.encode(),
-            hashlib.sha256,
-        ).hexdigest()
-        if not signature or not hmac.compare_digest(expected_sig, signature):
-            return MandateResult(False, "Invalid mandate signature.")
+    # 3 ── HMAC signature — unconditional, fail-CLOSED ─────────────────────────
+    # Never skip this. An unsigned mandate is an unauthorized spend instruction;
+    # if the key cannot be resolved we deny rather than wave the payment through.
+    try:
+        expected_sig = sign_mandate(invoice_hash, sku, amount, agent_id_in)
+    except InsecureKeyError:
+        log.error(
+            "mandate: no signing key (set MANDATE_SECRET or VAULT_MASTER_KEY) — denying mandate"
+        )
+        return MandateResult(False, "Mandate signing key not configured.")
+    if not signature or not hmac.compare_digest(expected_sig, signature):
+        return MandateResult(False, "Invalid mandate signature.")
 
     # 4 ── Invoice existence + expiry ─────────────────────────────────────────
     with _invoice_lock:

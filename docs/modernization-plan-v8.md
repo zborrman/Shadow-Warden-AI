@@ -192,6 +192,26 @@ on. 6 tests.
 
 ### Phase 7 — Runtime isolation & key hygiene (categories 3, 7)
 
+**Slice 1 ✅ DONE (2026-07-13) — key hygiene.** The plan's "`staff/boundaries.py` refund intent"
+item was already on `resolve_key` (commit 34e54cd6), but the sweep found a worse, unlisted hole:
+
+- **`warden/agentic/mandate.py` accepted UNSIGNED payment mandates.** `validate_mandate()` verified
+  the HMAC only `if _MANDATE_SECRET:`, and `_MANDATE_SECRET` was read from env *at import* with a
+  `""` default. Any deployment that never set `MANDATE_SECRET` therefore skipped signature
+  verification entirely — a caller could spend against an agent's budget with no signature. Now:
+  key via `resolve_key("MANDATE_SECRET", purpose="agentic_mandate")` (resolved per-call, never at
+  import), verification **unconditional**, and an unresolvable key **DENIES** instead of waving the
+  payment through. Explicit `MANDATE_SECRET` is still used verbatim, so existing signatures keep
+  verifying. New `sign_mandate()` export keeps signer/validator canonical forms from drifting.
+- **`warden/api/bot_entity.py`** minted a *random ephemeral* JWT secret when `BOT_JWT_SECRET` was
+  unset (tokens silently died each restart; prod never failed closed) → now `resolve_key`, with the
+  operator override honoured verbatim so existing tokens still verify.
+- **CI gate:** `warden/tests/test_no_new_raw_signing_key.py` — baseline ratchet (9, was 10) over
+  raw-env reads of signing-key-shaped secrets. A ratchet, not a ban, because provider-issued webhook
+  secrets (Stripe/Slack/Lemon) genuinely cannot be derived. 7 regression tests pin the bypass shut.
+
+**Remaining:** extend BoundaryRegistry to SOVA/MasterAgent; BrowserSandbox process isolation.
+
 - **Extend BoundaryRegistry to SOVA/MasterAgent**, not just staff — every agentic tool call
   through one boundary + velocity + GSAM-quarantine gate. (SAC guard is already the shared
   screen point; add the boundary check beside it.)

@@ -81,11 +81,13 @@ import jwt as pyjwt
 from warden.communities.clearance import ClearanceLevel
 from warden.communities.id_generator import new_member_id
 from warden.config import settings
+from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.api.bot_entity")
 
 BOT_TOKEN_TTL_S:  int = settings.bot_token_ttl_s
-BOT_JWT_SECRET:   str = os.getenv("BOT_JWT_SECRET", "")
+# NB: no module-level BOT_JWT_SECRET snapshot — the key is resolved per-call in
+# _get_secret() via resolve_key, so it can never be captured empty at import time.
 _BOT_DB_PATH:     str = settings.bot_db_path
 
 _db_lock = threading.RLock()
@@ -154,13 +156,20 @@ def _row_to_bot(row) -> BotEntity:
 # ── JWT helpers ───────────────────────────────────────────────────────────────
 
 def _get_secret() -> str:
-    secret = BOT_JWT_SECRET or os.getenv("BOT_JWT_SECRET", "")
-    if not secret:
-        # Ephemeral secret (dev/test) — tokens invalid across restarts
-        log.warning("BOT_JWT_SECRET not set — using ephemeral secret. Set in production.")
-        secret = os.urandom(32).hex()
-        os.environ["BOT_JWT_SECRET"] = secret
-    return secret
+    """
+    Signing key for bot-entity JWTs (Phase 7 key hygiene).
+
+    Previously this minted a random ephemeral secret when BOT_JWT_SECRET was unset
+    and wrote it back into os.environ — so tokens silently died on every restart and
+    production never failed closed. resolve_key instead honours an explicit
+    BOT_JWT_SECRET, else derives a stable domain-separated subkey from the
+    boot-validated VAULT_MASTER_KEY, else raises (dev/test excepted).
+    """
+    explicit = os.getenv("BOT_JWT_SECRET", "")
+    if explicit:
+        return explicit          # operator override — verbatim, so existing tokens still verify
+    # Derived path: hex-encode, since PyJWT wants a str key and the subkey is raw bytes.
+    return resolve_key("BOT_JWT_SECRET", purpose="bot_entity_jwt").hex()
 
 
 def _ip_in_whitelist(caller_ip: str, allowed_ips: list[str]) -> bool:

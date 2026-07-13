@@ -1,0 +1,11 @@
+{
+  "total": 9,
+  "per_file": {
+    "api/bot_entity.py": 1,
+    "api/slack_commands.py": 1,
+    "api/webhook.py": 1,
+    "auth/router.py": 2,
+    "auth/saml_provider.py": 3,
+    "communities/entity_store.py": 1
+  }
+}
