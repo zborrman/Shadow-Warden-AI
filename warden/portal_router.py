@@ -44,6 +44,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from warden.config import settings
 from warden.db.connection import get_db
+from warden.db.sql_safety import safe_set_clause
 
 log = logging.getLogger("warden.portal")
 
@@ -104,6 +105,11 @@ _JWT_ALGORITHM   = "HS256"
 _ACCESS_TTL_MIN  = settings.portal_access_token_ttl
 _REFRESH_TTL_DAY = settings.portal_refresh_token_ttl
 _COOKIE_NAME     = "warden_refresh"
+
+#: Columns the portal PATCH endpoints may touch — the f-string SET clauses can only
+#: interpolate names from these (warden/db/sql_safety.py).
+_PORTAL_USER_UPDATE_COLS = frozenset({"display_name", "notify_high", "notify_block"})
+_PORTAL_KEY_UPDATE_COLS  = frozenset({"label", "rate_limit"})
 
 router = APIRouter(tags=["portal"])
 _bearer = HTTPBearer(auto_error=False)
@@ -592,10 +598,10 @@ async def patch_me(
     if not updates:
         raise HTTPException(status_code=422, detail="No fields to update.")
 
-    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
+    set_clause = safe_set_clause(updates, _PORTAL_USER_UPDATE_COLS)
     updates["id"] = me.user_id
     await db.execute(
-        text(f"UPDATE warden_core.portal_users SET {set_clause} WHERE id = :id"),
+        text(f"UPDATE warden_core.portal_users SET {set_clause} WHERE id = :id"),  # nosemgrep: avoid-sqlalchemy-text -- set_clause is allowlisted, values bound
         updates,
     )
     await db.commit()
@@ -703,10 +709,10 @@ async def patch_key(
         updates["rate_limit"] = body.rate_limit
     if not updates:
         raise HTTPException(status_code=422, detail="No fields to update.")
-    set_clause = ", ".join(f"{k} = :{k}" for k in updates)
+    set_clause = safe_set_clause(updates, _PORTAL_KEY_UPDATE_COLS)
     updates.update({"id": key_id, "tid": me.tenant_id})
     await db.execute(
-        text(f"UPDATE warden_core.portal_api_keys SET {set_clause} WHERE id=:id AND tenant_id=:tid"),
+        text(f"UPDATE warden_core.portal_api_keys SET {set_clause} WHERE id=:id AND tenant_id=:tid"),  # nosemgrep: avoid-sqlalchemy-text -- set_clause is allowlisted, values bound
         updates,
     )
     await db.commit()

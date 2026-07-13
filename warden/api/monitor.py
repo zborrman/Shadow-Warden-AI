@@ -24,8 +24,13 @@ from sqlalchemy import text
 
 from warden.auth_guard import AuthResult, require_api_key
 from warden.db.connection import get_async_engine
+from warden.db.sql_safety import safe_set_clause
 
 log = logging.getLogger("warden.api.monitor")
+
+#: Columns PATCH /monitors/{id} may touch. The f-string SET clause can only ever
+#: interpolate names from this list (warden/db/sql_safety.py).
+_MONITOR_UPDATE_COLS = frozenset({"name", "interval_s", "is_active"})
 
 router = APIRouter(prefix="/monitors", tags=["uptime"])
 
@@ -127,12 +132,12 @@ async def patch_monitor(
     if not updates:
         raise HTTPException(status_code=422, detail="No fields to update.")
 
-    set_clause = ", ".join(f"{k}=:{k}" for k in updates)
+    set_clause = safe_set_clause(updates, _MONITOR_UPDATE_COLS, assign="{col}=:{col}")
     updates.update({"id": monitor_id, "tid": auth.tenant_id,
                     "updated_at": "NOW()"})
     async with get_async_engine().begin() as conn:
         await conn.execute(
-            text(f"UPDATE warden_core.monitors SET {set_clause}, updated_at=NOW() "  # noqa: S608
+            text(f"UPDATE warden_core.monitors SET {set_clause}, updated_at=NOW() "  # noqa: S608  # nosemgrep: avoid-sqlalchemy-text -- set_clause is allowlisted, values bound
                  "WHERE id=:id AND tenant_id=:tid"),
             updates,
         )
