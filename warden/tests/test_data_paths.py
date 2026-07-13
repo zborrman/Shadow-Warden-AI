@@ -42,7 +42,9 @@ class TestDataPath:
         monkeypatch.delenv("SEP_DB_PATH", raising=False)
         got = cfg.data_path("warden_sep.db", "SEP_DB_PATH")
         assert got == str(tmp_path / "warden_sep.db")
-        assert not got.startswith("/tmp/")
+        # Must no longer sit at the LEGACY hardcoded location. (Don't assert the path
+        # isn't under /tmp: on Linux CI pytest's tmp_path is itself /tmp/pytest-of-*.)
+        assert got != os.path.join("/tmp", "warden_sep.db")
 
     def test_creates_non_tmp_base(self, monkeypatch, tmp_path):
         base = tmp_path / "nested" / "data"
@@ -72,7 +74,8 @@ class TestSettingsWiring:
         # pytest.raises/isinstance in test modules that imported them earlier.
         fresh = cfg.Settings()
         assert fresh.marketplace_db_path == str(tmp_path / "warden_marketplace.db")
-        assert not fresh.marketplace_db_path.startswith("/tmp/")
+        # Legacy hardcoded default is gone (see note above re: /tmp on Linux CI).
+        assert fresh.marketplace_db_path != os.path.join("/tmp", "warden_marketplace.db")
 
 
 class TestStaffClusterWiring:
