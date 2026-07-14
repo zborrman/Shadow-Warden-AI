@@ -72,7 +72,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 - **2026-07-12 — Registry adopted as canon.** Wired into `CLAUDE.md` ("Modernization Governance") so both efforts read the same rules. `SR-*`/`DE-*` prefixes are now required; bare "Phase N" is retired.
 - **2026-07-12 — Track owners assigned** (above). The session that has been landing security PRs (#148/#149/#154) drives **Track A**; the session landing the deep-eng/GSAM PRs (#150–#153, Phase-6 data-layer) drives **Track B**.
 - **2026-07-12 — C2 (data-layer) RESOLVED: Track B leads.** SR-5 does **not** spawn a separate DB-consolidation effort; it folds into DE-6, which is already in flight (`421f2ea6` "data-layer consolidation, Phase 6 slice 1"). Track A's contribution to DE-6 is a requirement, not a parallel PR: *one connection context-manager, DDL applied once at startup (not per call), guaranteed `close()`; retire the ~62 duplicated `_conn`/DDL helpers.* Track A will review DE-6 PRs against that checklist.
-- **Open guardrail (C1):** first shared-file change to `causal_arbiter.py` on either side must add a test asserting the DE-5 online calibration and the SR-3 25%/zero-prior drift gate hold simultaneously.
+- **C1 guardrail ✅ (2026-07-14):** `warden/tests/test_causal_c1_guardrail.py` asserts DE-5 online calibration and the SR-3 25%/zero-prior drift gate coexist — shared `0.25` bound, per-step online clamp, batch gate still rejects >25% drift after online updates, ordering invariant survives adversarial slow-burn, zero-prior safe on both paths.
 
 - **2026-07-13 — SR-8 reconciliation done; Track A closed out.** The table above was re-derived from
   the code, not from the plan text. Findings worth recording:
@@ -99,7 +99,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 1. Adopt the `SR-*` / `DE-*` prefixes; retire bare "Phase N" in messages.
 2. ~~Merge SR-5 and DE-6~~ — done (DE-6 delivered both).
 3. ~~Land #154 / GSAM chain~~ — #154 merged (1c920552).
-4. Add the C1 regression test (calibration + drift-gate coexist) as the first shared-file guardrail. **Still open.**
+4. ~~C1 regression test~~ — done (`test_causal_c1_guardrail.py`).
 5. **SR-7 remainder:** all three SAST/secret gates now gate (bandit HIGH / semgrep ERROR / gitleaks).
    Still open: coverage floor 75% → 85% (SR-7.2) and extending mutation testing (SR-7.3).
 6. **DE-7 remainder:** BrowserSandbox process isolation (seccomp/restricted-user sidecar).
