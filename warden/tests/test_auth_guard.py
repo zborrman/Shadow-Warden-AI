@@ -162,3 +162,190 @@ def test_different_keys_different_rate_limits(tmp_path, monkeypatch):
 
     assert trial.rate_limit == 10
     assert pro.rate_limit   == 600
+
+
+# ── _load_key_store edge cases ────────────────────────────────────────────────
+
+def test_load_key_store_empty_path_returns_empty(monkeypatch):
+    """No WARDEN_API_KEYS_PATH configured → empty store, no error."""
+    _reset_store()
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    assert ag._load_key_store() == []
+
+
+def test_load_key_store_missing_file_disables_multikey(tmp_path, monkeypatch):
+    """A configured-but-nonexistent key file must not crash — multi-key stays empty."""
+    _reset_store()
+    monkeypatch.setattr(ag, "_KEYS_PATH", str(tmp_path / "does-not-exist.json"))
+    assert ag._load_key_store() == []
+
+
+def test_load_key_store_malformed_json_is_swallowed(tmp_path, monkeypatch):
+    """Corrupt key file must fail-safe to an empty store, not raise."""
+    _reset_store()
+    p = tmp_path / "keys.json"
+    p.write_text("{ this is not valid json ]")
+    monkeypatch.setattr(ag, "_KEYS_PATH", str(p))
+    assert ag._load_key_store() == []
+
+
+def test_load_key_store_is_memoized(tmp_path, monkeypatch):
+    """Second call returns the cached store without re-reading the file."""
+    _reset_store()
+    key_file = _write_key_file(tmp_path, [
+        {"key_hash": _sha256("k"), "tenant_id": "t", "label": "", "active": True},
+    ])
+    monkeypatch.setattr(ag, "_KEYS_PATH", key_file)
+    first = ag._load_key_store()
+    assert len(first) == 1
+    # Truncate the file; a memoized store must not notice.
+    Path(key_file).write_text("{}")
+    assert ag._load_key_store() is first
+
+
+# ── resolve_tenant_id ─────────────────────────────────────────────────────────
+
+def test_resolve_tenant_id_dev_mode_returns_none(monkeypatch):
+    monkeypatch.setattr(ag, "_VALID_KEY", "")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    assert ag.resolve_tenant_id("anything") is None
+
+
+def test_resolve_tenant_id_missing_key_returns_none(monkeypatch):
+    monkeypatch.setattr(ag, "_VALID_KEY", "secret")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    assert ag.resolve_tenant_id(None) is None
+
+
+def test_resolve_tenant_id_single_key(monkeypatch):
+    monkeypatch.setattr(ag, "_VALID_KEY", "secret")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    assert ag.resolve_tenant_id("secret") == "default"
+    assert ag.resolve_tenant_id("wrong") is None
+
+
+def test_resolve_tenant_id_multi_key(tmp_path, monkeypatch):
+    _reset_store()
+    key_file = _write_key_file(tmp_path, [
+        {"key_hash": _sha256("acme-key"), "tenant_id": "acme",
+         "label": "", "active": True},
+    ])
+    monkeypatch.setattr(ag, "_VALID_KEY", "")
+    monkeypatch.setattr(ag, "_KEYS_PATH", key_file)
+    assert ag.resolve_tenant_id("acme-key") == "acme"
+    assert ag.resolve_tenant_id("unknown-key") is None
+
+
+# ── reload_keys ───────────────────────────────────────────────────────────────
+
+def test_reload_keys_picks_up_new_file_contents(tmp_path, monkeypatch):
+    """reload_keys clears the memoized store and re-reads from disk."""
+    _reset_store()
+    key_file = _write_key_file(tmp_path, [
+        {"key_hash": _sha256("one"), "tenant_id": "t1", "label": "", "active": True},
+    ])
+    monkeypatch.setattr(ag, "_KEYS_PATH", key_file)
+    assert ag.reload_keys() == 1
+
+    # Add a second key on disk, then force a reload.
+    _write_key_file(tmp_path, [
+        {"key_hash": _sha256("one"), "tenant_id": "t1", "label": "", "active": True},
+        {"key_hash": _sha256("two"), "tenant_id": "t2", "label": "", "active": True},
+    ])
+    assert ag.reload_keys() == 2
+
+
+# ── set_default_rate_limit ────────────────────────────────────────────────────
+
+def test_set_default_rate_limit_updates_box_and_env(monkeypatch):
+    monkeypatch.delenv("RATE_LIMIT_PER_MINUTE", raising=False)
+    monkeypatch.setattr(ag, "_rate_limit_box", [60])   # isolate from global state
+    ag.set_default_rate_limit(123)
+    assert ag._rate_limit_box[0] == 123
+    assert ag.os.environ["RATE_LIMIT_PER_MINUTE"] == "123"
+
+
+def test_set_default_rate_limit_floors_at_one(monkeypatch):
+    monkeypatch.delenv("RATE_LIMIT_PER_MINUTE", raising=False)
+    monkeypatch.setattr(ag, "_rate_limit_box", [60])
+    ag.set_default_rate_limit(0)
+    assert ag._rate_limit_box[0] == 1
+
+
+# ── require_api_key missing-key 401 ───────────────────────────────────────────
+
+def test_require_api_key_missing_header_raises_401(monkeypatch):
+    from fastapi import HTTPException
+    monkeypatch.setattr(ag, "_VALID_KEY", "secret")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    with pytest.raises(HTTPException) as exc:
+        ag.require_api_key(api_key=None)
+    assert exc.value.status_code == 401
+
+
+# ── tier_header_trusted ───────────────────────────────────────────────────────
+
+def test_tier_header_trusted_when_unauthenticated_allowed(monkeypatch):
+    monkeypatch.setattr(ag.settings, "allow_unauthenticated", True)
+    assert ag.tier_header_trusted() is True
+
+
+def test_tier_header_trusted_false_in_production(monkeypatch):
+    """Real key configured + auth enforced → client X-Tenant-Tier must be ignored."""
+    monkeypatch.setattr(ag.settings, "allow_unauthenticated", False)
+    monkeypatch.setattr(ag, "_VALID_KEY", "secret")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    assert ag.tier_header_trusted() is False
+
+
+def test_tier_header_trusted_in_dev_mode(monkeypatch):
+    monkeypatch.setattr(ag.settings, "allow_unauthenticated", False)
+    monkeypatch.setattr(ag, "_VALID_KEY", "")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    assert ag.tier_header_trusted() is True
+
+
+# ── get_rate_limit ────────────────────────────────────────────────────────────
+
+def test_get_rate_limit_empty_key_is_default(monkeypatch):
+    monkeypatch.setattr(ag, "_rate_limit_box", [55])
+    assert ag.get_rate_limit("") == 55
+
+
+def test_get_rate_limit_multi_key(tmp_path, monkeypatch):
+    _reset_store()
+    key_file = _write_key_file(tmp_path, [
+        {"key_hash": _sha256("fast-key"), "tenant_id": "fast",
+         "label": "", "active": True, "rate_limit": 999},
+    ])
+    monkeypatch.setattr(ag, "_VALID_KEY", "")
+    monkeypatch.setattr(ag, "_KEYS_PATH", key_file)
+    assert ag.get_rate_limit("fast-key") == 999
+
+
+def test_get_rate_limit_single_key_and_unknown(monkeypatch):
+    monkeypatch.setattr(ag, "_VALID_KEY", "secret")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    monkeypatch.setattr(ag, "_rate_limit_box", [88])
+    assert ag.get_rate_limit("secret") == 88
+    assert ag.get_rate_limit("nope") == 88   # unknown → default
+
+
+# ── require_ext_auth (hybrid OIDC / API-key) ──────────────────────────────────
+
+def test_require_ext_auth_bearer_uses_oidc(monkeypatch):
+    """A Bearer token routes through Warden Identity (OIDC) and never logs raw email."""
+    import warden.auth.oidc_guard as oidc
+    monkeypatch.setattr(oidc, "verify_oidc_token", lambda tok: ("acme-tenant", "user@acme.com"))
+    result = ag.require_ext_auth(x_api_key=None, authorization="Bearer abc.def.ghi")
+    assert result.tenant_id == "acme-tenant"
+    assert result.api_key == ""
+    assert result.entity_key  # GDPR-safe hash, non-empty
+
+
+def test_require_ext_auth_falls_back_to_api_key(monkeypatch):
+    """No Bearer header → classic API-key auth path."""
+    monkeypatch.setattr(ag, "_VALID_KEY", "secret")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    result = ag.require_ext_auth(x_api_key="secret", authorization=None)
+    assert result.tenant_id == "default"
