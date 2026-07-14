@@ -29,8 +29,14 @@ jobs:
           # Retry to absorb transient edge blips (a single Cloudflare 502/504 or
           # timeout is normal and must not red the pipeline). Only a persistent
           # non-200 across all attempts is treated as a real outage.
-          ATTEMPTS=4
-          DELAY=10
+          #
+          # Budget must outlast a routine deploy restart: warden has
+          # stop_grace_period 30s and a cold boot loads the ML model, so the old
+          # 4x10s (~40s) window false-alarmed when this scheduled probe coincided
+          # with `docker compose up`. 6x20s (~100s) comfortably covers a restart
+          # while a genuine multi-minute outage still fails within the 5-min job cap.
+          ATTEMPTS=6
+          DELAY=20
           CODE=000
           for i in $(seq 1 "$ATTEMPTS"); do
             CODE=$(curl -s -m 15 -o /tmp/health_body -w '%{http_code}' \
