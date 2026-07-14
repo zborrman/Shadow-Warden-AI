@@ -74,6 +74,47 @@ class TestWebhookSSRF:
         ep = create_endpoint("t1", "https://8.8.8.8/hook", "sekret", ["filter.blocked"])
         assert ep.url == "https://8.8.8.8/hook"
 
+    @pytest.mark.asyncio
+    async def test_delivery_uses_pinned_send(self, monkeypatch):
+        """SR-2.3: _deliver_once must route through send_pinned_async (validate + pin),
+        not a bare httpx.post that would re-resolve at connect time."""
+        import warden.net_guard as ng
+        from warden.webhooks.engine import WebhookEndpoint, _deliver_once
+
+        seen = {}
+
+        async def _fake_send(method, url, *, content, headers, timeout):
+            seen.update(method=method, url=url, content=content, headers=headers)
+
+            class _Resp:
+                status_code = 202
+            return _Resp()
+
+        monkeypatch.setattr(ng, "send_pinned_async", _fake_send)
+        ep = WebhookEndpoint(id="w1", tenant_id="t1", url="https://8.8.8.8/hook",
+                             secret="sekret", events=["filter.blocked"], enabled=True,
+                             created_at="2026-01-01T00:00:00Z")
+        code = await _deliver_once(ep, {"event_type": "filter.blocked"}, attempt=1)
+        assert code == 202
+        assert seen["method"] == "POST"
+        assert seen["url"] == "https://8.8.8.8/hook"
+        assert seen["headers"]["X-Warden-Signature"].startswith("sha256=")
+
+    @pytest.mark.asyncio
+    async def test_delivery_ssrf_returns_zero(self, monkeypatch):
+        """A rebind detected at delivery time (SSRFError) must fail the delivery, not raise."""
+        import warden.net_guard as ng
+        from warden.webhooks.engine import WebhookEndpoint, _deliver_once
+
+        async def _raise(*a, **k):
+            raise ng.SSRFError("rebind to private IP")
+
+        monkeypatch.setattr(ng, "send_pinned_async", _raise)
+        ep = WebhookEndpoint(id="w2", tenant_id="t1", url="https://evil.example.com/hook",
+                             secret="sekret", events=["filter.blocked"], enabled=True,
+                             created_at="2026-01-01T00:00:00Z")
+        assert await _deliver_once(ep, {"event_type": "filter.blocked"}, attempt=1) == 0
+
 
 # ── 3. secret_keys resolver ─────────────────────────────────────────────────
 

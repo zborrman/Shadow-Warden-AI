@@ -173,15 +173,13 @@ async def _deliver_once(endpoint: WebhookEndpoint, payload: dict, attempt: int) 
         "User-Agent":         "ShadowWarden/1.0",
     }
     try:
-        import httpx  # noqa: PLC0415
-
-        from warden.net_guard import assert_public_url  # noqa: PLC0415
-        # Re-validate at delivery time — defends against DNS rebinding between
-        # registration and firing, and against rows written before this guard.
-        assert_public_url(endpoint.url)
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.post(endpoint.url, content=body, headers=headers)
-            return resp.status_code
+        from warden.net_guard import send_pinned_async  # noqa: PLC0415
+        # Validate AND pin at delivery time: send_pinned_async re-validates the URL
+        # (defending against DNS rebinding between registration and firing, and rows
+        # written before this guard) and dials the validated IP directly — so httpx
+        # cannot re-resolve to an internal address at connect time (TOCTOU closed).
+        resp = await send_pinned_async("POST", endpoint.url, content=body, headers=headers, timeout=5)
+        return resp.status_code
     except Exception as exc:
         log.debug("webhook delivery failed attempt=%d url=%s — %s", attempt, endpoint.url, exc)
         return 0

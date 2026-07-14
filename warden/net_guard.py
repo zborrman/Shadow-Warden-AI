@@ -22,9 +22,17 @@ from __future__ import annotations
 import ipaddress
 import os
 import socket
+from typing import Any
 from urllib.parse import urlparse
 
-__all__ = ["SSRFError", "assert_public_url", "is_public_url", "resolve_validated_ips"]
+__all__ = [
+    "SSRFError",
+    "assert_public_url",
+    "build_pinned_url",
+    "is_public_url",
+    "resolve_validated_ips",
+    "send_pinned_async",
+]
 
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
 
@@ -152,3 +160,101 @@ def is_public_url(url: str) -> bool:
         return True
     except SSRFError:
         return False
+
+
+# ── Connection pinning (closes the DNS-rebind / TOCTOU window) ─────────────────
+#
+# assert_public_url resolves + validates a host, but a caller that then hands the
+# URL to httpx lets httpx *re-resolve* at connect time — attacker DNS can answer
+# "public" during the check and "127.0.0.1 / 169.254.169.254" a moment later at
+# connect. The only robust fix is to dial one of the IPs validated *here* while
+# preserving the Host header and TLS SNI so the certificate still verifies against
+# the real hostname (not the IP).
+
+def _select_pinned_ip(ips: list[str]) -> str:
+    """Prefer an IPv4 address (broadest egress compatibility); else the first IP."""
+    for ip in ips:
+        if ":" not in ip:
+            return ip
+    return ips[0]
+
+
+def build_pinned_url(url: str) -> tuple[str, str, str]:
+    """
+    Validate *url* (SSRF, fail-closed) and return ``(connect_url, host_header, sni_hostname)``.
+
+    ``connect_url``  — *url* with its host replaced by a validated public IP, so a
+                       client connects to that exact address and cannot re-resolve.
+    ``host_header``  — the original host (plus non-default port) for the HTTP ``Host`` header.
+    ``sni_hostname`` — the original hostname, used as the TLS ``server_hostname`` so the
+                       certificate verifies against the real name, not the pinned IP.
+
+    Raises :class:`SSRFError` on any blocked/unresolvable host. Userinfo, path, query
+    and fragment are preserved.
+    """
+    ips = resolve_validated_ips(url)          # fail-closed: raises on any blocked IP
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").strip()
+
+    ip = _select_pinned_ip(ips)
+    ip_netloc = f"[{ip}]" if ":" in ip else ip
+    if parsed.port:
+        ip_netloc = f"{ip_netloc}:{parsed.port}"
+
+    # Preserve userinfo (user[:pass]@) if present.
+    userinfo = ""
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password:
+            userinfo += f":{parsed.password}"
+        userinfo += "@"
+
+    connect_url = parsed._replace(netloc=f"{userinfo}{ip_netloc}").geturl()
+
+    default_port = 443 if parsed.scheme == "https" else 80
+    host_header = f"{host}:{parsed.port}" if parsed.port and parsed.port != default_port else host
+
+    return connect_url, host_header, host
+
+
+async def send_pinned_async(
+    method: str,
+    url: str,
+    *,
+    headers: dict | None = None,
+    content: bytes | None = None,
+    json: Any = None,
+    timeout: float = 5.0,
+    verify: bool = True,
+    follow_redirects: bool = False,
+    transport: Any = None,
+) -> Any:
+    """
+    SSRF-safe outbound HTTP request: validate *url*, pin the connection to a validated
+    IP, and preserve the Host header + TLS SNI. Returns the ``httpx.Response``.
+
+    Raises :class:`SSRFError` before any network I/O if the URL is unsafe.
+
+    ``follow_redirects`` is **False** by default and should stay that way: a redirect
+    to an internal URL would re-open the SSRF hole, because the redirected hop is
+    resolved and dialled *without* this pinning. A caller that must follow redirects
+    has to re-validate every hop itself.
+    """
+    import httpx  # lazy — keeps net_guard importable without httpx
+
+    connect_url, host_header, sni_hostname = build_pinned_url(url)
+
+    hdrs = {k: v for k, v in (headers or {}).items() if k.lower() != "host"}
+    hdrs["Host"] = host_header
+
+    async with httpx.AsyncClient(
+        timeout=timeout, verify=verify, transport=transport, follow_redirects=follow_redirects
+    ) as client:
+        return await client.request(
+            method,
+            connect_url,
+            headers=hdrs,
+            content=content,
+            json=json,
+            extensions={"sni_hostname": sni_hostname},
+        )
