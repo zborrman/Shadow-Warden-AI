@@ -166,3 +166,63 @@ class TestOnlineState:
         for key in ("obfusc_pos", "obfusc_neg", "n_obfusc_pos", "n_obfusc_neg", "samples"):
             assert key in st
         assert st["samples"] >= 1
+
+
+# ── Fail-open error paths (SR-7.2) ────────────────────────────────────────────
+#
+# The arbiter is a detection component: every internal error must fail OPEN
+# (never block a legitimate request) and, where applicable, record a failopen
+# telemetry event. These pin the four exception handlers.
+
+class TestFailOpenPaths:
+    def test_online_update_bad_input_returns_false_and_records_failopen(self, monkeypatch):
+        """A non-numeric predicted_p raises inside online_update → caught, False, telemetry."""
+        seen = {}
+        monkeypatch.setattr(
+            ca, "record_failopen",
+            lambda stage, reason, exc: seen.update(stage=stage),
+        )
+        # object() is not float-convertible → TypeError inside the try block.
+        result = ca.online_update(
+            obfuscation_detected=True, predicted_p=object(), observed_high_risk=True  # type: ignore[arg-type]
+        )
+        assert result is False
+        assert seen.get("stage") == "causal_online"
+
+    def test_calibrate_skips_malformed_json_lines(self, tmp_path):
+        """A corrupt NDJSON line is skipped (continue), valid lines still counted."""
+        p = tmp_path / "logs.json"
+        good = '{"flags": ["OBFUSCATION"], "risk_level": "BLOCK", "payload_len": 300}'
+        clean = '{"flags": [], "risk_level": "LOW", "payload_len": 20}'
+        lines = [good, good, "{ not valid json", clean, clean]
+        p.write_text("\n".join(lines) + "\n")
+        # min_samples=4: the 4 valid entries clear the bar; the bad line is skipped.
+        # Returns True or False depending on the drift gate, but must not raise.
+        result = ca.calibrate_from_logs(str(p), min_samples=4)
+        assert result in (True, False)
+
+    def test_calibrate_directory_path_fails_open(self, tmp_path):
+        """A path that exists but can't be read as a file → caught, returns False."""
+        # tmp_path is a directory: exists() is True, open('r') raises → outer except.
+        assert ca.calibrate_from_logs(str(tmp_path), min_samples=1) is False
+
+    def test_arbitrate_fails_open_on_internal_error(self, monkeypatch):
+        """If a node mechanism raises, arbitrate returns a safe not-high-risk result."""
+        seen = {}
+        monkeypatch.setattr(
+            ca, "record_failopen",
+            lambda stage, reason, exc: seen.update(stage=stage),
+        )
+
+        def _boom(_x):
+            raise RuntimeError("sigmoid exploded")
+
+        monkeypatch.setattr(ca, "_sigmoid", _boom)
+        res = ca.arbitrate(
+            ml_score=0.9, ers_score=0.9, obfuscation_detected=True,
+            block_history=5, tool_tier=2, content_entropy=5.0,
+        )
+        assert res.is_high_risk is False        # fail-open: never block on error
+        assert res.risk_probability == 0.0
+        assert "fail-open" in res.detail
+        assert seen.get("stage") == "causal"
