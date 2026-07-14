@@ -159,3 +159,153 @@ class TestCheckActionFailOpen:
         )
         with pytest.raises(ValueError):
             set_policy(pol)
+
+
+# ── Expiry semantics ────────────────────────────────────────────────────────────
+
+class TestExpiry:
+    def test_is_expired_false_when_no_expiry(self):
+        from warden.marketplace.autonomy import AutonomyPolicy
+        pol = AutonomyPolicy("a", 2, 1.0, 1.0, expires_at=None)
+        assert pol.is_expired() is False
+
+    def test_is_expired_true_for_past_timestamp(self):
+        from warden.marketplace.autonomy import AutonomyPolicy
+        pol = AutonomyPolicy("a", 2, 1.0, 1.0, expires_at="2000-01-01T00:00:00Z")
+        assert pol.is_expired() is True
+
+    def test_is_expired_false_for_far_future(self):
+        from warden.marketplace.autonomy import AutonomyPolicy
+        pol = AutonomyPolicy("a", 2, 1.0, 1.0, expires_at="2999-01-01T00:00:00Z")
+        assert pol.is_expired() is False
+
+    def test_get_policy_ignores_expired_stored_policy(self):
+        """A persisted-but-expired policy must resolve to None (agent falls back to L1)."""
+        from warden.marketplace.autonomy import check_action, get_policy
+        _make_policy("agent-expired", level=3, max_spend=100.0,
+                     expires="2000-01-01T00:00:00Z")
+        assert get_policy("agent-expired") is None
+        assert check_action("agent-expired", "search", 50.0) == "REQUIRE_APPROVAL"
+
+
+# ── Redis cache path (fake redis) ───────────────────────────────────────────────
+
+class _FakeRedis:
+    def __init__(self):
+        self.store: dict[str, str] = {}
+
+    def setex(self, key, ttl, val):
+        self.store[key] = val
+
+    def get(self, key):
+        return self.store.get(key)
+
+    def delete(self, key):
+        self.store.pop(key, None)
+
+
+class TestRedisCachePath:
+    def test_set_get_roundtrip_through_cache(self, monkeypatch):
+        """With a live cache, set_policy writes it and get_policy reads it back
+        (exercising to_dict / _dict_to_policy serialization)."""
+        import warden.marketplace.autonomy as a
+        fake = _FakeRedis()
+        monkeypatch.setattr(a, "_redis", lambda: fake)
+        _make_policy("agent-cached", level=2, max_spend=7.5, allowed=["search"])
+        assert fake.store, "policy should have been cached"
+        pol = a.get_policy("agent-cached")
+        assert pol is not None and pol.level == 2 and pol.max_spend_usd == 7.5
+
+    def test_delete_clears_cache_entry(self, monkeypatch):
+        import warden.marketplace.autonomy as a
+        fake = _FakeRedis()
+        monkeypatch.setattr(a, "_redis", lambda: fake)
+        _make_policy("agent-cache-del", level=3, max_spend=1.0)
+        assert fake.store
+        a.delete_policy("agent-cache-del")
+        assert fake.store == {}
+
+    def test_expired_cache_hit_returns_none(self, monkeypatch):
+        """A cached-but-expired policy resolves to None without touching SQLite."""
+        import warden.marketplace.autonomy as a
+        fake = _FakeRedis()
+        monkeypatch.setattr(a, "_redis", lambda: fake)
+        fake.store["marketplace:autonomy:agent-stale"] = a.json.dumps({
+            "agent_id": "agent-stale", "level": 3, "max_spend_usd": 100.0,
+            "daily_spend_usd": 0.0, "allowed_actions": ["search"],
+            "require_approval_above_usd": 0.01,
+            "expires_at": "2000-01-01T00:00:00Z", "created_by": "t",
+        })
+        assert a.get_policy("agent-stale") is None
+
+    def test_redis_errors_are_swallowed(self, monkeypatch):
+        """Cache get/set/del must never raise into the caller (fail-open)."""
+        import warden.marketplace.autonomy as a
+
+        class _Boom:
+            def setex(self, *a):  # noqa: ANN002
+                raise RuntimeError("redis down")
+
+            def get(self, *a):  # noqa: ANN002
+                raise RuntimeError("redis down")
+
+            def delete(self, *a):  # noqa: ANN002
+                raise RuntimeError("redis down")
+
+        monkeypatch.setattr(a, "_redis", lambda: _Boom())
+        # None of these should raise despite the failing backend.
+        _make_policy("agent-redis-boom", level=2)
+        assert a.get_policy("agent-redis-boom") is not None   # SQLite fallback
+        assert a.delete_policy("agent-redis-boom") is True
+
+
+# ── Malformed persistence + error fallbacks ─────────────────────────────────────
+
+class TestErrorFallbacks:
+    def test_row_with_bad_allowed_actions_json_falls_back_to_default(self, monkeypatch):
+        """A corrupt allowed_actions column must not crash — falls back to defaults."""
+        import sqlite3
+
+        import warden.marketplace.autonomy as a
+        monkeypatch.setattr(a, "_redis", lambda: None)   # force SQLite read
+        _make_policy("agent-badjson", level=3, max_spend=100.0)
+        con = sqlite3.connect(a._DB_PATH)
+        con.execute(
+            "UPDATE marketplace_autonomy_policies SET allowed_actions=? WHERE agent_id=?",
+            ("{not valid json", "agent-badjson"),
+        )
+        con.commit()
+        con.close()
+        pol = a.get_policy("agent-badjson")
+        assert pol is not None
+        assert pol.allowed_actions == ["search", "negotiate", "clear"]
+
+    def test_get_policy_sqlite_error_returns_none(self, monkeypatch):
+        """A SQLite failure in get_policy must fail-safe to None, not raise."""
+        import sqlite3
+
+        import warden.marketplace.autonomy as a
+        monkeypatch.setattr(a, "_redis", lambda: None)
+
+        def _boom():
+            raise sqlite3.OperationalError("db locked")
+
+        monkeypatch.setattr(a, "_conn", _boom)
+        assert a.get_policy("anything") is None
+
+    def test_check_action_unknown_level_is_require_approval(self, monkeypatch):
+        """A policy with a corrupt level (bypassing set_policy validation) → safe default."""
+        import warden.marketplace.autonomy as a
+        pol = a.AutonomyPolicy("agent-weird", 7, 1.0, 1.0, allowed_actions=["search"])
+        monkeypatch.setattr(a, "get_policy", lambda _id: pol)
+        assert a.check_action("agent-weird", "search", 0.0) == "REQUIRE_APPROVAL"
+
+    def test_check_action_fails_open_on_exception(self, monkeypatch):
+        """If get_policy raises, check_action must fail-open to REQUIRE_APPROVAL."""
+        import warden.marketplace.autonomy as a
+
+        def _boom(_id):
+            raise RuntimeError("store exploded")
+
+        monkeypatch.setattr(a, "get_policy", _boom)
+        assert a.check_action("agent-x", "search", 0.0) == "REQUIRE_APPROVAL"
