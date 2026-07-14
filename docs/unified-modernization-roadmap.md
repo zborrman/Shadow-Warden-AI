@@ -25,7 +25,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 | SR-1.4 | `/gdpr` router auth (unauthenticated erasure closed) | ✅ merged | #154 (1c920552) |
 | SR-1.4b | GDPR IDOR tenant-ownership match | ✅ done — own-tenant-or-`X-Admin-Key` on `purge_tenant`/`audit`; bulk `purge/before` now admin-only. Policy fork resolved: self-service default + operator override. |
 | SR-2 | 8 SSRF sinks through `net_guard` + no-redirect | ✅ merged | #148 |
-| SR-2.3 | net_guard validated-IP pinning (TOCTOU/DNS-rebind) | ⬜ deferred — needs TLS-SNI-safe transport design; LOW | — |
+| SR-2.3 | net_guard validated-IP pinning (TOCTOU/DNS-rebind) | 🟡 primitive done — `resolve_validated_ips()` returns the validated IPs a pinned transport must dial; wiring the pinned httpx transport into live callers (needs real-host TLS-SNI test) remains | — |
 | SR-2.4 | CORS `/ext/*` allowlist + refuse `CORS_ORIGINS=*` with credentials | ✅ merged | (SR-7/8 batch) |
 | SR-3 | Correctness: Semantic params, STIX race, ZSET, OpenAI URL, stream-unmask, priv-esc, blocking-I/O | ✅ merged | #148 |
 | SR-3.8 | Remove dead `_collect_or_emit` | ✅ merged | #154 (1c920552) |
@@ -103,5 +103,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 5. **SR-7 remainder:** all three SAST/secret gates now gate (bandit HIGH / semgrep ERROR / gitleaks).
    Still open: coverage floor 75% → 85% (SR-7.2) and extending mutation testing (SR-7.3).
 6. **DE-7 remainder:** BrowserSandbox process isolation (seccomp/restricted-user sidecar).
-7. **SR-2.3 needs an owner decision** — net_guard validated-IP pinning needs a TLS-SNI-safe transport
-   design. (SR-1.4b resolved: own-tenant-or-admin, self-service default + operator override.)
+7. **SR-2.3 transport wiring** — the validated-IP resolver (`resolve_validated_ips`) is done + tested;
+   the remaining step is a pinned httpx transport (connect to the validated IP, preserve Host/SNI) wired
+   into the live outbound callers. That step needs a real-host TLS-SNI test and auto-deploys to prod, so
+   it was NOT shipped blind. (SR-1.4b resolved: own-tenant-or-admin.)

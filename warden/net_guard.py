@@ -24,7 +24,7 @@ import os
 import socket
 from urllib.parse import urlparse
 
-__all__ = ["SSRFError", "assert_public_url", "is_public_url"]
+__all__ = ["SSRFError", "assert_public_url", "is_public_url", "resolve_validated_ips"]
 
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
 
@@ -63,6 +63,62 @@ def _resolve_all(host: str) -> list[str]:
     return list({str(info[4][0]) for info in infos})
 
 
+def resolve_validated_ips(url: str) -> list[str]:
+    """
+    Resolve *url*'s host and return the set of IPs, raising :class:`SSRFError` if any
+    is a blocked (private/loopback/link-local/metadata/reserved) address.
+
+    This is the building block for closing the TOCTOU / DNS-rebind gap (SR-2.3): a
+    caller that validates a URL with :func:`assert_public_url` and then hands the URL
+    to httpx lets httpx **re-resolve** at connect time — so attacker-controlled DNS can
+    answer "public" during the check and "127.0.0.1 / 169.254.169.254" at connect. The
+    only robust fix is to pin the connection to one of the IPs validated *here* (while
+    preserving Host/SNI). This function returns exactly those validated IPs so a pinned
+    transport can dial them directly instead of re-resolving.
+
+    A raw-IP host returns itself (already validated, no DNS). Fail-closed throughout.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception as exc:
+        raise SSRFError(f"unparseable URL: {exc}") from exc
+
+    host = (parsed.hostname or "").strip()
+    if not host:
+        raise SSRFError("URL has no host")
+
+    # Raw-IP host: validate directly, no DNS.
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        if _ip_is_blocked(literal):
+            raise SSRFError(f"IP address in blocked range: {host}")
+        return [host]
+
+    if host.lower() in _METADATA_HOSTS:
+        raise SSRFError("cloud-metadata host is blocked")
+
+    try:
+        addresses = _resolve_all(host)
+    except OSError as exc:
+        raise SSRFError(f"DNS resolution failed for {host}: {exc}") from exc
+    if not addresses:
+        raise SSRFError(f"no addresses resolved for {host}")
+
+    for addr in addresses:
+        if addr in _METADATA_HOSTS:
+            raise SSRFError("cloud-metadata address is blocked")
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError as exc:
+            raise SSRFError(f"unparseable resolved address {addr}") from exc
+        if _ip_is_blocked(ip):
+            raise SSRFError(f"{host} resolves to blocked range: {addr}")
+    return addresses
+
+
 def assert_public_url(url: str) -> None:
     """Validate *url* for outbound use, raising :class:`SSRFError` if unsafe.
 
@@ -84,36 +140,9 @@ def assert_public_url(url: str) -> None:
     if _allow_private():
         return
 
-    if host.lower() in _METADATA_HOSTS:
-        raise SSRFError("cloud-metadata host is blocked")
-
-    # Raw-IP host: check directly, no DNS.
-    try:
-        literal = ipaddress.ip_address(host)
-    except ValueError:
-        literal = None
-    if literal is not None:
-        if _ip_is_blocked(literal):
-            raise SSRFError(f"IP address in blocked range: {host}")
-        return
-
-    # Hostname: resolve and check every returned address (DNS-rebind defence).
-    try:
-        addresses = _resolve_all(host)
-    except OSError as exc:
-        raise SSRFError(f"DNS resolution failed for {host}: {exc}") from exc
-    if not addresses:
-        raise SSRFError(f"no addresses resolved for {host}")
-
-    for addr in addresses:
-        if addr in _METADATA_HOSTS:
-            raise SSRFError("cloud-metadata address is blocked")
-        try:
-            ip = ipaddress.ip_address(addr)
-        except ValueError as exc:
-            raise SSRFError(f"unparseable resolved address {addr}") from exc
-        if _ip_is_blocked(ip):
-            raise SSRFError(f"{host} resolves to blocked range: {addr}")
+    # Resolve + validate every address (raw-IP, metadata, and DNS-rebind defence all
+    # live in resolve_validated_ips — one place, so the two entry points can't drift).
+    resolve_validated_ips(url)
 
 
 def is_public_url(url: str) -> bool:
