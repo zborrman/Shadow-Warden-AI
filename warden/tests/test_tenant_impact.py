@@ -261,8 +261,11 @@ class TestTimeline:
 
     def test_timeline_counts_entries_in_correct_day(self, tmp_path):
         entries = [
-            _make_log_entry("t", allowed=False, days_ago=0.1),  # today
-            _make_log_entry("t", allowed=False, days_ago=0.1),  # today
+            # days_ago=0.0 == exactly now, so these always fall in today's date bucket.
+            # (0.1 == ~2.4h ago, which lands in *yesterday* when the run starts before
+            # 02:24 UTC — the midnight-boundary flake this test used to have.)
+            _make_log_entry("t", allowed=False, days_ago=0.0),  # today
+            _make_log_entry("t", allowed=False, days_ago=0.0),  # today
             _make_log_entry("t", allowed=False, days_ago=2.0),  # 2 days ago
         ]
         log_path = _write_logs(tmp_path, entries)
