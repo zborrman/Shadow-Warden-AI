@@ -16,19 +16,67 @@ All write operations are logged to the GDPR audit trail (in-memory + optional S3
 """
 from __future__ import annotations
 
+import hmac
 import json
 import logging
+import os
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from warden.analytics import logger as event_logger
-from warden.auth_guard import require_api_key
+from warden.auth_guard import AuthResult, require_api_key
 from warden.config import settings
 
 log = logging.getLogger("warden.api.gdpr")
+
+
+def _is_admin(x_admin_key: str) -> bool:
+    """Constant-time check of the operator override key. Fail-closed: unset ADMIN_KEY
+    never authorises anyone (an empty configured key must not match an empty header)."""
+    admin_key = os.getenv("ADMIN_KEY", "")
+    return bool(admin_key) and hmac.compare_digest(x_admin_key, admin_key)
+
+
+def require_tenant_owner_or_admin(
+    tenant_id: str,
+    auth: AuthResult = Depends(require_api_key),
+    x_admin_key: str = Header(""),
+) -> None:
+    """
+    Authorize a tenant-scoped GDPR operation (SR-1.4b — closes the IDOR).
+
+    A valid API key alone was enough to erase or read ANY tenant's data because the
+    handlers trusted the `{tenant_id}` in the URL. Now the caller's own resolved
+    tenant (from its key) must match the path tenant — self-service, own data only —
+    unless it presents a valid X-Admin-Key (the operator-admin path, resolving the
+    self-service-vs-admin question). Anything else is 403.
+    """
+    if _is_admin(x_admin_key):
+        return
+    if auth.tenant_id != tenant_id:
+        log.warning(
+            "GDPR IDOR blocked: key-tenant=%s attempted tenant=%s", auth.tenant_id, tenant_id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You may only operate on your own tenant. Operator access requires X-Admin-Key.",
+        )
+
+
+def require_admin_only(x_admin_key: str = Header("")) -> None:
+    """
+    Operator-admin gate for cross-tenant destructive ops. `DELETE /purge/before/{date}`
+    erases EVERY tenant's data before a date, so a per-tenant key must not authorise it —
+    that is an operator action. Fail-closed: no valid X-Admin-Key ⇒ 403.
+    """
+    if not _is_admin(x_admin_key):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cross-tenant bulk purge requires X-Admin-Key.",
+        )
 
 # Router-level auth: every /gdpr endpoint requires a valid API key. Without this
 # the path-based endpoints (DELETE /purge/tenant/{id}, GET /audit/{id}, session
@@ -178,6 +226,7 @@ async def export_session(session_id: str) -> ExportResult:
     "/purge/before/{iso_date}",
     response_model=PurgeResult,
     summary="Bulk erase all log entries before a given ISO date (Art. 17)",
+    dependencies=[Depends(require_admin_only)],
 )
 async def purge_before_date(iso_date: str) -> PurgeResult:
     try:
@@ -210,6 +259,7 @@ async def purge_before_date(iso_date: str) -> PurgeResult:
     "/purge/tenant/{tenant_id}",
     response_model=PurgeResult,
     summary="Erase all log entries for a specific tenant (GDPR contract termination)",
+    dependencies=[Depends(require_tenant_owner_or_admin)],
 )
 async def purge_tenant(tenant_id: str) -> PurgeResult:
     removed = 0
@@ -277,6 +327,7 @@ async def retention_policy() -> dict:
 @router.get(
     "/audit/{tenant_id}",
     summary="Last GDPR operations recorded for this tenant",
+    dependencies=[Depends(require_tenant_owner_or_admin)],
 )
 async def gdpr_audit(tenant_id: str) -> dict:
     tenant_ops = [e for e in _audit if not tenant_id or e.get("tenant_id") == tenant_id or e.get("subject", "").startswith(tenant_id)]

@@ -23,7 +23,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 | SR-1.2/1.3 | Router auth (staff/secrets/red-team/doc-intel) + admin fail-closed | ✅ merged | #148 |
 | SR-1.1 | Tenant tier from billing plan, not `X-Tenant-Tier` header | ✅ merged | #149 |
 | SR-1.4 | `/gdpr` router auth (unauthenticated erasure closed) | ✅ merged | #154 (1c920552) |
-| SR-1.4b | GDPR IDOR tenant-ownership match (`purge_tenant`/`audit`) | ⬜ deferred — **policy call** (operator-admin vs self-service) | — |
+| SR-1.4b | GDPR IDOR tenant-ownership match | ✅ done — own-tenant-or-`X-Admin-Key` on `purge_tenant`/`audit`; bulk `purge/before` now admin-only. Policy fork resolved: self-service default + operator override. |
 | SR-2 | 8 SSRF sinks through `net_guard` + no-redirect | ✅ merged | #148 |
 | SR-2.3 | net_guard validated-IP pinning (TOCTOU/DNS-rebind) | ⬜ deferred — needs TLS-SNI-safe transport design; LOW | — |
 | SR-2.4 | CORS `/ext/*` allowlist + refuse `CORS_ORIGINS=*` with credentials | ✅ merged | (SR-7/8 batch) |
@@ -103,5 +103,5 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 5. **SR-7 remainder:** all three SAST/secret gates now gate (bandit HIGH / semgrep ERROR / gitleaks).
    Still open: coverage floor 75% → 85% (SR-7.2) and extending mutation testing (SR-7.3).
 6. **DE-7 remainder:** BrowserSandbox process isolation (seccomp/restricted-user sidecar).
-7. **SR-1.4b / SR-2.3 need an owner decision** (GDPR IDOR policy: operator-admin vs self-service;
-   net_guard validated-IP pinning needs a TLS-SNI-safe transport design).
+7. **SR-2.3 needs an owner decision** — net_guard validated-IP pinning needs a TLS-SNI-safe transport
+   design. (SR-1.4b resolved: own-tenant-or-admin, self-service default + operator override.)
