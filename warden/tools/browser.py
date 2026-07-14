@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import os
 import tempfile
 from collections import deque
 from dataclasses import dataclass, field
@@ -170,6 +171,46 @@ class Context7Manager:
 
 # ── BrowserSandbox ────────────────────────────────────────────────────────────
 
+def _browser_launch_args(enable_sandbox: bool | None = None) -> list[str]:
+    """
+    Build the Chromium launch flags (DE-7 process isolation).
+
+    ``--no-sandbox`` disables Chromium's own multi-process sandbox. It has been on
+    unconditionally because the container historically could not satisfy the kernel
+    requirements for the real sandbox (user namespaces + a seccomp profile). That is
+    the single biggest isolation gap for the browser tool: a compromised renderer
+    (malicious page → RCE in Chromium) runs with no OS-level containment.
+
+    When the runtime CAN provide the sandbox — non-root user + a Chromium seccomp
+    profile mounted via ``security_opt`` (see docker/seccomp/chrome.json) — set
+    ``BROWSER_ENABLE_SANDBOX=true`` and ``--no-sandbox`` is dropped, restoring the
+    renderer sandbox. Default is False, so existing deployments are unchanged and the
+    trusted internal visual-patrol keeps working; it is an opt-in hardening, not a
+    behaviour change forced on every operator.
+
+    The remaining flags are always-on defence-in-depth and safe everywhere: they cut
+    the renderer's attack surface without affecting whether Chromium launches.
+    """
+    if enable_sandbox is None:
+        enable_sandbox = os.getenv("BROWSER_ENABLE_SANDBOX", "false").strip().lower() == "true"
+
+    args = [
+        "--disable-dev-shm-usage",           # required inside Docker (small /dev/shm)
+        "--disable-gpu",
+        "--disable-extensions",
+        # Defence-in-depth — shrink the renderer's reachable surface.
+        "--disable-background-networking",   # no telemetry/update phone-home
+        "--disable-sync",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-features=MediaRouter",
+    ]
+    if not enable_sandbox:
+        # Kernel can't provide the sandbox → keep the legacy escape hatch.
+        args.insert(0, "--no-sandbox")
+    return args
+
+
 class BrowserSandbox:
     """
     Async context manager wrapping a headless Chromium session.
@@ -221,12 +262,7 @@ class BrowserSandbox:
         self._browser    = await self._playwright.chromium.launch(
             headless=self.headless,
             slow_mo=self.slow_mo,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",    # required inside Docker
-                "--disable-gpu",
-                "--disable-extensions",
-            ],
+            args=_browser_launch_args(),
         )
 
         ctx_kwargs: dict[str, Any] = {

@@ -230,7 +230,18 @@ trip a false loop alert on a single legitimate call). STAFF-01/02 are untouched 
 still calls `check_and_dispatch` + `record_and_check` itself. New `AgentRole` members are additive.
 11 tests.
 
-**Remaining:** BrowserSandbox process isolation (seccomp/restricted-user sidecar, drop `--no-sandbox`).
+**Slice 3 ✅ DONE (2026-07-14) — BrowserSandbox process isolation.** `--no-sandbox` (which disables
+Chromium's renderer sandbox — the biggest isolation gap for the browser tool) is now conditional:
+`_browser_launch_args()` drops it when `BROWSER_ENABLE_SANDBOX=true`, restoring the real sandbox once
+the runtime provides it (non-root user + Chromium seccomp profile via `security_opt`). Default false =
+unchanged legacy behaviour, so trusted internal visual-patrol keeps working — opt-in hardening, not a
+forced change. Added always-on defence-in-depth flags (disable background-networking/sync/media-router/
+extensions). Operator enablement in `docs/browser-sandbox-hardening.md` (points at the canonical upstream
+Chromium seccomp profile rather than a hand-rolled one; `--cap-add=SYS_ADMIN` explicitly rejected as
+worse). Flag logic unit-tested (`test_browser_sandbox_args.py`, 5 tests); end-to-end launch under the
+profile must be validated on a real Playwright host (CI image has no Chromium). **Phase 7 (DE-7) complete.**
+
+This was the last named engineering item across both modernization plans.
 
 - **Extend BoundaryRegistry to SOVA/MasterAgent**, not just staff — every agentic tool call
   through one boundary + velocity + GSAM-quarantine gate. (SAC guard is already the shared

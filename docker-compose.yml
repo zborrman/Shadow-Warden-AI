@@ -119,6 +119,11 @@ services:
       - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-300}
       # Browser sandbox deferred (slim image has no Chromium binary)
       - BROWSER_ENABLED=false
+      # DE-7: when the browser tool IS enabled (Playwright image, e.g. admin/arq-worker),
+      # set true to drop Chromium's --no-sandbox and restore the renderer sandbox. Requires
+      # a non-root user + a Chromium seccomp profile mounted via security_opt — see
+      # docs/browser-sandbox-hardening.md. Default false = unchanged legacy behaviour.
+      - BROWSER_ENABLE_SANDBOX=${BROWSER_ENABLE_SANDBOX:-false}
       # mTLS disabled — plain HTTP between nginx and warden
       - MTLS_ENABLED=false
       # OpenTelemetry — enable by setting OTEL_ENABLED=true in .env
