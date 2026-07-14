@@ -186,3 +186,43 @@ class TestGetEngineSingleton:
         e1 = get_engine()
         e2 = get_engine()
         assert e1 is e2
+
+
+# ── Session lifecycle / TTL hygiene (SR-7.2) ──────────────────────────────────
+#
+# PII in the vault must not outlive its TTL. These pin the expiry-purge and the
+# session helpers so masked originals can't linger in memory indefinitely.
+
+class TestSessionLifecycle:
+    def test_expired_session_is_purged(self, engine):
+        import time
+
+        from warden.masking import engine as eng_mod
+        # Seed a vault entry, then age the session past its TTL.
+        engine.mask("Contact bob@example.com", "old-session")
+        vault = engine._vault
+        assert "old-session" in vault._sessions
+        vault._sessions["old-session"].created = (
+            time.monotonic() - eng_mod._SESSION_TTL_S - 1.0
+        )
+        # Touching any session triggers _purge_expired → the aged one is dropped.
+        engine.mask("Contact carol@example.com", "new-session")
+        assert "old-session" not in vault._sessions
+        assert "new-session" in vault._sessions
+
+    def test_unmask_empty_session_returns_text_unchanged(self, engine):
+        assert engine.unmask("nothing to see", "") == "nothing to see"
+
+    def test_unmask_unknown_session_returns_text_unchanged(self, engine):
+        assert engine.unmask("[EMAIL_1] hi", "never-created") == "[EMAIL_1] hi"
+
+    def test_create_session_returns_unique_ids(self, engine):
+        a = engine.create_session()
+        b = engine.create_session()
+        assert a and b and a != b
+
+    def test_invalidate_session_removes_vault(self, engine):
+        engine.mask("Contact dave@example.com", "kill-me")
+        assert "kill-me" in engine._vault._sessions
+        engine.invalidate_session("kill-me")
+        assert "kill-me" not in engine._vault._sessions
