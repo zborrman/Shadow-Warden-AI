@@ -108,3 +108,67 @@ def test_disabled_gsam_blocks_issue(_db, monkeypatch):
     monkeypatch.setattr(jl.settings, "gsam_enabled", False)
     with pytest.raises(jl.LeaseError, match="disabled"):
         jl.issue_lease("agent-1", "t", "scope-a")
+
+
+# ── Input validation + Redis metadata cache (SR-7.2) ──────────────────────────
+
+def test_empty_scope_rejected(_db):
+    """A lease must be scope-bound — an empty scope is a hard ValueError."""
+    with pytest.raises(ValueError, match="scope is required"):
+        jl.issue_lease("agent-1", "t", "")
+
+
+class _FakeRedis:
+    def __init__(self):
+        self.store = {}
+
+    def set(self, key, val, ex=None):
+        self.store[key] = (val, ex)
+
+    def delete(self, key):
+        self.store.pop(key, None)
+
+
+def test_issue_caches_metadata_in_redis(_db):
+    """Redis is a best-effort metadata cache — the cached blob carries no secret."""
+    import json
+    r = _FakeRedis()
+    lease = jl.issue_lease("agent-1", "t", "scope-a", redis=r)
+    key = f"{jl._REDIS_PREFIX}{lease['lease_id']}"
+    assert key in r.store
+    blob, ex = r.store[key]
+    assert ex and ex >= 30                      # positive TTL floored at 30s
+    cached = json.loads(blob)
+    assert "credential" not in cached and "hmac_sig" not in cached
+
+
+def test_redeem_invalidates_redis(_db):
+    r = _FakeRedis()
+    lease = jl.issue_lease("agent-1", "t", "scope-a", redis=r)
+    key = f"{jl._REDIS_PREFIX}{lease['lease_id']}"
+    assert key in r.store
+    jl.redeem_lease(lease["lease_id"], "agent-1", redis=r)
+    assert key not in r.store                    # single-use → cache cleared
+
+
+def test_revoke_invalidates_redis(_db):
+    r = _FakeRedis()
+    lease = jl.issue_lease("agent-1", "t", "scope-a", redis=r)
+    assert jl.revoke_lease(lease["lease_id"], redis=r) is True
+    assert f"{jl._REDIS_PREFIX}{lease['lease_id']}" not in r.store
+    # A revoked lease can no longer be redeemed.
+    with pytest.raises(jl.LeaseError):
+        jl.redeem_lease(lease["lease_id"], "agent-1")
+
+
+def test_redis_cache_errors_are_swallowed(_db):
+    """A failing redis backend must not break issuance (best-effort cache)."""
+    class _BoomRedis:
+        def set(self, *a, **k):
+            raise RuntimeError("redis down")
+
+        def delete(self, *a, **k):
+            raise RuntimeError("redis down")
+
+    lease = jl.issue_lease("agent-1", "t", "scope-a", redis=_BoomRedis())
+    assert lease["status"] == "ACTIVE"          # issuance still succeeded

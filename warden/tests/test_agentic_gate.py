@@ -113,6 +113,56 @@ class TestQuarantineIsAdditive:
         assert agentic_gate(SOVA_AGENT_ID, "get_health", {"tenant_id": "t1"}) is None
 
 
+class TestVelocityGate:
+    def test_velocity_alert_is_logged_and_does_not_block(self, monkeypatch):
+        """Velocity is advisory: an alert is logged but the call still proceeds."""
+        from types import SimpleNamespace
+        alert = SimpleNamespace(
+            agent_id=SOVA_AGENT_ID, kind="loop", tool_name="get_health",
+            count=99, window_s=60,
+        )
+        monkeypatch.setattr(
+            "warden.agent.gate.VelocityGuard.record_and_check",
+            lambda self, *a, **k: alert,
+        )
+        assert agentic_gate(SOVA_AGENT_ID, "get_health", {"tenant_id": "t1"}) is None
+
+    def test_velocity_backend_error_is_fail_open(self, monkeypatch):
+        """A velocity backend failure must degrade (record_failopen), never brick dispatch."""
+        seen = {}
+        monkeypatch.setattr(
+            "warden.agent.gate.record_failopen",
+            lambda stage, reason, exc: seen.update(stage=stage),
+        )
+
+        def _boom(self, *a, **k):
+            raise RuntimeError("redis down")
+
+        monkeypatch.setattr("warden.agent.gate.VelocityGuard.record_and_check", _boom)
+        assert agentic_gate(SOVA_AGENT_ID, "get_health", {"tenant_id": "t1"}) is None
+        assert seen.get("stage") == "agentic_velocity"
+
+
+class TestSeedingResilience:
+    def test_seeding_failure_does_not_raise(self, monkeypatch):
+        """If the tool tables can't be read, seeding must swallow the error — an
+        unseeded agent is then denied fail-CLOSED by the boundary check."""
+        _reset_for_tests()
+
+        class _BadReg:
+            def get(self, _id):
+                raise RuntimeError("registry exploded")
+
+            def put(self, _b):  # pragma: no cover - never reached
+                raise AssertionError("should not put")
+
+        # Must not raise despite the failing registry.
+        ensure_agentic_boundaries(registry=_BadReg())
+        # And an unseeded agent is denied (fail-CLOSED) on the real registry.
+        _reset_for_tests()
+        ensure_agentic_boundaries()
+
+
 class TestStaffNotDoubleGated:
     @pytest.mark.asyncio
     async def test_traced_dispatch_skips_gate_when_already_gated(self, monkeypatch):
