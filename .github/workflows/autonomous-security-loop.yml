@@ -161,8 +161,19 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Pre-accept trust dialog, mark onboarding complete, and inject primaryApiKey
-          # so claude --print doesn't prompt for trust or show "Not logged in" in CI.
+          # Pre-accept trust dialog, mark onboarding complete, inject primaryApiKey,
+          # AND pre-approve the custom API key so `claude --print` doesn't prompt for
+          # trust OR show "Not logged in / Please run /login" in headless CI.
+          #
+          # Newer @anthropic-ai/claude-code gates a custom ANTHROPIC_API_KEY behind a
+          # "Do you want to use this API key?" prompt whose answer is stored as the
+          # last 20 chars of the key in customApiKeyResponses.approved. In --print mode
+          # that prompt can't be answered, so the key is treated as unapproved and the
+          # CLI reports "Not logged in". Seeding the approval entry is the fix.
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is empty — the Maker/Checker sub-agents cannot authenticate."
+            exit 1
+          fi
           mkdir -p "$HOME/.claude"
           python3 - <<'PYEOF'
           import json, os, pathlib
@@ -179,14 +190,35 @@ jobs:
           existing["hasCompletedOnboarding"] = True
           if api_key:
               existing["primaryApiKey"] = api_key
+              # Pre-approve this exact key so headless --print never prompts.
+              resp = existing.get("customApiKeyResponses") or {}
+              approved = set(resp.get("approved") or [])
+              approved.add(api_key[-20:])
+              resp["approved"] = sorted(approved)
+              resp["rejected"] = sorted(set(resp.get("rejected") or []))
+              existing["customApiKeyResponses"] = resp
           projects = existing.get("projects", {})
           projects[workspace] = {"hasTrustDialogAccepted": True}
           existing["projects"] = projects
           cfg_path.write_text(json.dumps(existing, indent=2))
           key_status = "yes" if api_key else "NO - set ANTHROPIC_API_KEY secret"
           print("Claude Code CI config written: workspace=" + workspace)
-          print("API key injected: " + key_status)
+          print("API key injected + approved: " + key_status)
           PYEOF
+
+      - name: Verify Claude Code auth (fail fast)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Smoke-test auth up front so a broken key fails here with a clear message,
+          # instead of surfacing as a bogus "Checker rejection" deep in the loop.
+          OUT=$(claude --print --dangerously-skip-permissions "Reply with exactly: AUTH_OK" 2>&1 || true)
+          echo "auth probe output: $OUT"
+          if ! echo "$OUT" | grep -q "AUTH_OK"; then
+            echo "::error::Claude Code is not authenticated in CI (got: $OUT). Check ANTHROPIC_API_KEY and the customApiKeyResponses seeding."
+            exit 1
+          fi
+          echo "Claude Code auth verified."
 
       - name: Install Python deps
         run: |
