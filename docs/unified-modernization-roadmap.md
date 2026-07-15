@@ -10,6 +10,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 |---|---|---|---|
 | **A — Security Remediation** | `MODERNIZATION_PLAN.md` | Audit findings: auth, SSRF, IDOR, GDPR, invariants, DB-layer, CI hardening | `SR-*` |
 | **B — Deep-Eng / Math** | `docs/modernization-plan-v8.md` | TDA, MAESTRO/reputation, Causal calibration, GSAM, embeddings, data-layer, runtime isolation | `DE-*` |
+| **C — FinOps / Monetization** | `docs/fintech-development-plan.md` | Billing math (wallet unification), real-time cost rating, margin-aware routing, capacity/SLO math, reliability-as-revenue, growth accounting | `FM-*` |
 
 > **Rule:** commit messages and PR titles carry the track prefix (`SR-1.4`, `DE-5`), never a bare "Phase N".
 
@@ -46,6 +47,20 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 | DE-5 | Causal Arbiter online Robbins-Monro calibration | ✅ merged | (c946b1f1) |
 | DE-6 | **Data-layer consolidation** + ClickHouse | ✅ merged — `WARDEN_DATA_DIR`, /tmp sweep, encrypted nightly backup, DDL registry, `GET /gsam/health` (CH was already on in compose) |
 | DE-7 | Runtime isolation & key hygiene | 🟡 2/3 — fail-CLOSED mandate signing (unsigned-mandate bypass fixed, 17a57067) + agentic boundary gate for SOVA/Master (8e12047e). BrowserSandbox process isolation remains |
+
+## Track C — FinOps / Monetization (from `docs/fintech-development-plan.md`)
+
+| ID | Item | Status | PR |
+|---|---|---|---|
+| FM-0 | Quick wins: SARIF export, `cached_tokens` GSAM column, uptime monitors ×4 hostnames | ⬜ proposed | — |
+| FM-1 | Unified wallet availability math (prepaid+trial+bonus−hold, one `available_usd()`) | ⬜ proposed | — |
+| FM-2 | Real-time cost rating — CH `billing_session_ledger` SummingMergeTree + MV, prompt-cache discount | ⬜ proposed | — |
+| FM-3 | Margin-aware model routing + per-tier pricing floor (additive after security gates) | ⬜ proposed | — |
+| FM-4 | 4 GB-node efficiency: mem-limit audit, M/G/1 capacity ceiling; MILP archived until ≥2 nodes | ⬜ proposed | — |
+| FM-5 | Reliability = revenue: 2× cloudflared replicas, error-budget burn-rate alerts | ⬜ proposed | — |
+| FM-6 | Growth accounting: funnel events, viral coefficient K, LTV/NRR dashboard | ⬜ proposed | — |
+
+Track C shared-file notes: `staff/economics.py` pricing dict (C-shared with Track B GSAM), GSAM schema (`gsam/schema.py` + `docker/clickhouse/init.sql` must stay in sync), `sac/preflight.py` wallet. FM never weakens a security gate — margin logic is additive after fail-closed checks.
 
 ---
 
