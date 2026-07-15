@@ -60,7 +60,11 @@ class TestOnlineLearnsButIsBounded:
                 ca.online_update(obfuscation_detected=obf, predicted_p=0.5, observed_high_risk=label)
                 after = ca._cpt.obfusc_pos if obf else ca._cpt.obfusc_neg
                 if before > 0 and after != before:
-                    assert abs(after - before) / before <= 0.25 + 1e-9
+                    # The step is clamped to 25% of `before`, but online_update stores the
+                    # result via round(new_theta, 4). That 4-dp rounding can push the committed
+                    # delta up to half a unit in the last place (5e-5) beyond the raw 25% clamp —
+                    # a storage artefact, not a loosened poisoning gate. Bound it accordingly.
+                    assert abs(after - before) <= 0.25 * before + 5e-5
 
     def test_slow_burn_many_steps_cannot_invert_ordering(self):
         """

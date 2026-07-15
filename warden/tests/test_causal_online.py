@@ -87,8 +87,14 @@ class TestDriftClamp:
                 )
                 after = ca._cpt.obfusc_pos if obf else ca._cpt.obfusc_neg
                 if before > 0 and after != before:
-                    drift = abs(after - before) / before
-                    assert drift <= 0.25 + 1e-6, f"drift {drift:.3f} exceeds 25% clamp"
+                    # Step clamped to 25% of `before`; online_update then stores
+                    # round(new_theta, 4), which can add up to half a ULP (5e-5) to the
+                    # committed delta. That is a storage-rounding artefact, not a loosened
+                    # gate, so allow it in the bound (robust to any starting cell value).
+                    delta = abs(after - before)
+                    assert delta <= 0.25 * before + 5e-5, (
+                        f"delta {delta:.5f} exceeds 25% clamp of before={before:.5f}"
+                    )
 
     def test_ordering_invariant_preserved(self):
         # Hammer obfusc_neg upward and obfusc_pos downward; they must not cross.
