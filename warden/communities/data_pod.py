@@ -292,16 +292,10 @@ def probe_pod(pod_id: str) -> dict[str, Any]:
     import time
     t0 = time.perf_counter()
     try:
-        import httpx
-
-        from warden.net_guard import assert_public_url
+        from warden.net_guard import send_pinned
         endpoint = pod.minio_endpoint.rstrip("/") + "/minio/health/live"
-        assert_public_url(endpoint)  # SSRF guard: community-supplied pod endpoint
-        resp = httpx.get(
-            endpoint,
-            timeout=5.0,
-            follow_redirects=False,
-        )
+        # SSRF guard: community-supplied pod endpoint — validate AND pin.
+        resp = send_pinned("GET", endpoint, timeout=5.0)
         latency_ms = round((time.perf_counter() - t0) * 1000, 1)
         return {
             "status":      "ok" if resp.status_code < 400 else "degraded",

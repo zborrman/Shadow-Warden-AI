@@ -47,16 +47,13 @@ class UCPClient:
         Returns None when the store does not implement UCP.
         """
         try:
-            import httpx
-
-            from warden.net_guard import assert_public_url
+            from warden.net_guard import send_pinned_async
             parsed = urlparse(domain if "://" in domain else f"https://{domain}")
             url = f"{parsed.scheme}://{parsed.netloc}/.well-known/ucp"
-            assert_public_url(url)  # SSRF guard: caller-supplied store domain
-            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
-                r = await client.get(url)
-                if r.status_code == 200:
-                    return UCPCapabilities(r.json())
+            # SSRF guard: caller-supplied store domain — validate AND pin.
+            r = await send_pinned_async("GET", url, timeout=self.timeout)
+            if r.status_code == 200:
+                return UCPCapabilities(r.json())
         except Exception as exc:
             log.debug("UCP discovery failed for %s: %s", domain, exc)
         return None
@@ -71,17 +68,14 @@ class UCPClient:
         if not store.search_url:
             return []
         try:
-            import httpx
-
-            from warden.net_guard import assert_public_url
-            assert_public_url(store.search_url)  # SSRF guard: store-supplied URL
-            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
-                r = await client.get(
-                    store.search_url,
-                    params={"q": query, "limit": limit},
-                )
-                if r.status_code == 200:
-                    return r.json().get("items", [])
+            from warden.net_guard import send_pinned_async
+            # SSRF guard: store-supplied URL — validate AND pin.
+            r = await send_pinned_async(
+                "GET", store.search_url, params={"q": query, "limit": limit},
+                timeout=self.timeout,
+            )
+            if r.status_code == 200:
+                return r.json().get("items", [])
         except Exception as exc:
             log.warning("UCP product search failed: %s", exc)
         return []
@@ -97,17 +91,14 @@ class UCPClient:
         if not store.cart_url:
             return {"error": "store_does_not_support_cart"}
         try:
-            import httpx
-
-            from warden.net_guard import assert_public_url
+            from warden.net_guard import send_pinned_async
             payload: dict[str, Any] = {"product_id": product_id, "qty": qty}
             if cart_id:
                 payload["cart_id"] = cart_id
-            assert_public_url(store.cart_url)  # SSRF guard: store-supplied URL
-            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
-                r = await client.post(store.cart_url, json=payload)
-                if r.status_code in (200, 201):
-                    return r.json()
+            # SSRF guard: store-supplied URL — validate AND pin.
+            r = await send_pinned_async("POST", store.cart_url, json=payload, timeout=self.timeout)
+            if r.status_code in (200, 201):
+                return r.json()
         except Exception as exc:
             log.warning("UCP add_to_cart failed: %s", exc)
         return {"error": "cart_failed"}
@@ -126,20 +117,17 @@ class UCPClient:
         if not store.checkout_url:
             return {"error": "store_does_not_support_checkout"}
         try:
-            import httpx
-
-            from warden.net_guard import assert_public_url
+            from warden.net_guard import send_pinned_async
             payload = {
                 "cart_id": cart_id,
                 "payment_protocol": "ap2",
                 "mandate_id": mandate_id,
                 "buyer_ref": tenant_id,
             }
-            assert_public_url(store.checkout_url)  # SSRF guard: store-supplied URL
-            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
-                r = await client.post(store.checkout_url, json=payload)
-                if r.status_code in (200, 201):
-                    return r.json()
+            # SSRF guard: store-supplied URL — validate AND pin.
+            r = await send_pinned_async("POST", store.checkout_url, json=payload, timeout=self.timeout)
+            if r.status_code in (200, 201):
+                return r.json()
         except Exception as exc:
             log.warning("UCP checkout failed: %s", exc)
         return {"error": "checkout_failed"}

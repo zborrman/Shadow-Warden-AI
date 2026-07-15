@@ -24,9 +24,7 @@ import ssl
 import time
 from datetime import UTC, datetime
 
-import httpx
-
-from warden.net_guard import SSRFError, assert_public_url
+from warden.net_guard import SSRFError, assert_public_url, send_pinned_async
 
 log = logging.getLogger("warden.probe_worker")
 
@@ -53,13 +51,11 @@ async def _probe_http(url: str) -> dict:
             "error":       f"blocked (SSRF guard): {exc}",
         }
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=False,
-            timeout=_PROBE_TIMEOUT_S,
-            verify=True,
-            headers=_PROBE_HEADERS,
-        ) as client:
-            resp = await client.get(url)
+        # Pin to the IP validated above so the connect can't re-resolve to an
+        # internal host (TOCTOU). send_pinned_async re-validates + pins.
+        resp = await send_pinned_async(
+            "GET", url, headers=_PROBE_HEADERS, timeout=_PROBE_TIMEOUT_S, verify=True,
+        )
         return {
             "is_up":       resp.status_code < 500,
             "status_code": resp.status_code,

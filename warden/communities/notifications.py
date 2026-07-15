@@ -40,8 +40,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
 
-import httpx
-
 from warden.config import settings
 
 log = logging.getLogger("warden.communities.notifications")
@@ -307,11 +305,11 @@ async def _send_slack(url: str, event_type: str, payload: dict[str, Any], commun
             "ts":     int(datetime.now(UTC).timestamp()),
         }],
     }
-    from warden.net_guard import assert_public_url
-    assert_public_url(url)  # SSRF guard: subscriber-controlled webhook target
-    async with httpx.AsyncClient(timeout=8, follow_redirects=False) as client:
-        r = await client.post(url, json=body)
-        r.raise_for_status()
+    from warden.net_guard import send_pinned_async
+    # SSRF guard: subscriber-controlled webhook target — validate AND pin to the
+    # validated IP so httpx can't re-resolve to an internal host at connect time.
+    r = await send_pinned_async("POST", url, json=body, timeout=8)
+    r.raise_for_status()
 
 
 # ── Teams ─────────────────────────────────────────────────────────────────────
@@ -332,11 +330,10 @@ async def _send_teams(url: str, event_type: str, payload: dict[str, Any], commun
             "markdown":         True,
         }],
     }
-    from warden.net_guard import assert_public_url
-    assert_public_url(url)  # SSRF guard: subscriber-controlled webhook target
-    async with httpx.AsyncClient(timeout=8, follow_redirects=False) as client:
-        r = await client.post(url, json=body)
-        r.raise_for_status()
+    from warden.net_guard import send_pinned_async
+    # SSRF guard: subscriber-controlled webhook target — validate AND pin.
+    r = await send_pinned_async("POST", url, json=body, timeout=8)
+    r.raise_for_status()
 
 
 # ── Email ─────────────────────────────────────────────────────────────────────

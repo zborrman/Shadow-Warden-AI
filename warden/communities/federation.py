@@ -240,18 +240,14 @@ def _get_peers(community_id: str) -> list[str]:
 
 def _push_to_peer(peer_url: str, fv: FederatedVerdict) -> bool:
     try:
-        import httpx as _httpx  # noqa: PLC0415
-
-        from warden.net_guard import assert_public_url
+        from warden.net_guard import send_pinned  # noqa: PLC0415
         target = f"{peer_url.rstrip('/')}/sep/federation/ingest"
-        assert_public_url(target)  # SSRF guard: peer-supplied webhook URL
-        with _httpx.Client(timeout=5, follow_redirects=False) as client:
-            r = client.post(
-                target,
-                json=asdict(fv),
-                headers={"Content-Type": "application/json"},
-            )
-            return r.status_code < 400
+        # SSRF guard: peer-supplied URL — validate AND pin to the validated IP.
+        r = send_pinned(
+            "POST", target, json=asdict(fv),
+            headers={"Content-Type": "application/json"}, timeout=5,
+        )
+        return r.status_code < 400
     except Exception as exc:
         log.debug("federation: push to %s failed: %s", peer_url, exc)
         return False

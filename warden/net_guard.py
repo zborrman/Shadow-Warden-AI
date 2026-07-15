@@ -31,6 +31,7 @@ __all__ = [
     "build_pinned_url",
     "is_public_url",
     "resolve_validated_ips",
+    "send_pinned",
     "send_pinned_async",
 ]
 
@@ -217,19 +218,15 @@ def build_pinned_url(url: str) -> tuple[str, str, str]:
     return connect_url, host_header, host
 
 
-async def send_pinned_async(
-    method: str,
-    url: str,
-    *,
-    headers: dict | None = None,
-    content: bytes | None = None,
-    json: Any = None,
-    timeout: float = 5.0,
-    verify: bool = True,
-    follow_redirects: bool = False,
-    transport: Any = None,
-) -> Any:
-    """
+def _pinned_call_parts(url: str, headers: dict | None) -> tuple[str, dict, dict]:
+    """Validate + pin *url*; return (connect_url, headers-with-real-Host, extensions)."""
+    connect_url, host_header, sni_hostname = build_pinned_url(url)
+    hdrs = {k: v for k, v in (headers or {}).items() if k.lower() != "host"}
+    hdrs["Host"] = host_header
+    return connect_url, hdrs, {"sni_hostname": sni_hostname}
+
+
+_PIN_DOC = """
     SSRF-safe outbound HTTP request: validate *url*, pin the connection to a validated
     IP, and preserve the Host header + TLS SNI. Returns the ``httpx.Response``.
 
@@ -239,22 +236,59 @@ async def send_pinned_async(
     to an internal URL would re-open the SSRF hole, because the redirected hop is
     resolved and dialled *without* this pinning. A caller that must follow redirects
     has to re-validate every hop itself.
-    """
+"""
+
+
+async def send_pinned_async(
+    method: str,
+    url: str,
+    *,
+    headers: dict | None = None,
+    content: bytes | None = None,
+    json: Any = None,
+    params: Any = None,
+    timeout: float = 5.0,
+    verify: bool = True,
+    follow_redirects: bool = False,
+    transport: Any = None,
+) -> Any:
     import httpx  # lazy — keeps net_guard importable without httpx
 
-    connect_url, host_header, sni_hostname = build_pinned_url(url)
-
-    hdrs = {k: v for k, v in (headers or {}).items() if k.lower() != "host"}
-    hdrs["Host"] = host_header
-
+    connect_url, hdrs, extensions = _pinned_call_parts(url, headers)
     async with httpx.AsyncClient(
         timeout=timeout, verify=verify, transport=transport, follow_redirects=follow_redirects
     ) as client:
         return await client.request(
-            method,
-            connect_url,
-            headers=hdrs,
-            content=content,
-            json=json,
-            extensions={"sni_hostname": sni_hostname},
+            method, connect_url, headers=hdrs, content=content, json=json,
+            params=params, extensions=extensions,
         )
+
+
+def send_pinned(
+    method: str,
+    url: str,
+    *,
+    headers: dict | None = None,
+    content: bytes | None = None,
+    json: Any = None,
+    params: Any = None,
+    timeout: float = 5.0,
+    verify: bool = True,
+    follow_redirects: bool = False,
+    transport: Any = None,
+) -> Any:
+    """Synchronous counterpart to :func:`send_pinned_async`."""
+    import httpx  # lazy
+
+    connect_url, hdrs, extensions = _pinned_call_parts(url, headers)
+    with httpx.Client(
+        timeout=timeout, verify=verify, transport=transport, follow_redirects=follow_redirects
+    ) as client:
+        return client.request(
+            method, connect_url, headers=hdrs, content=content, json=json,
+            params=params, extensions=extensions,
+        )
+
+
+send_pinned_async.__doc__ = _PIN_DOC
+send_pinned.__doc__ = "Synchronous counterpart to send_pinned_async.\n" + _PIN_DOC

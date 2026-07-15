@@ -211,3 +211,55 @@ async def test_real_host_tls_sni_roundtrip():
     except (httpx.ConnectError, httpx.ConnectTimeout, SSRFError) as exc:
         pytest.skip(f"no network / DNS for real-host SNI test: {exc}")
     assert resp.status_code in (200, 404, 301, 302)
+
+
+# ── SR-2.3 follow-on: sync send_pinned + params passthrough ────────────────────
+
+from warden.net_guard import send_pinned  # noqa: E402
+
+
+class TestSendPinnedSync:
+    def test_sync_dials_ip_but_sends_host_and_sni(self):
+        captured = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["url"] = request.url
+            captured["host"] = request.headers.get("host")
+            captured["sni"] = request.extensions.get("sni_hostname")
+            return httpx.Response(200)
+
+        with _dns("93.184.216.34"):
+            resp = send_pinned(
+                "POST", "https://example.com/hook", json={"a": 1},
+                transport=httpx.MockTransport(handler),
+            )
+        assert resp.status_code == 200
+        assert captured["url"].host == "93.184.216.34"
+        assert captured["host"] == "example.com"
+        assert captured["sni"] == "example.com"
+
+    def test_sync_blocked_url_raises_before_network(self):
+        sent = False
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal sent
+            sent = True
+            return httpx.Response(200)
+
+        with _dns("10.0.0.5"), pytest.raises(SSRFError):
+            send_pinned("GET", "https://evil.example.com/", transport=httpx.MockTransport(handler))
+        assert sent is False
+
+    def test_params_are_forwarded(self):
+        captured = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["query"] = dict(request.url.params)
+            return httpx.Response(200)
+
+        with _dns("93.184.216.34"):
+            send_pinned(
+                "GET", "https://example.com/search", params={"q": "abc", "limit": 5},
+                transport=httpx.MockTransport(handler),
+            )
+        assert captured["query"] == {"q": "abc", "limit": "5"}
