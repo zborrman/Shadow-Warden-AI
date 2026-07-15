@@ -42,7 +42,6 @@ import json
 import os
 import subprocess
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 
 # ── Skip patterns ─────────────────────────────────────────────────────────────
@@ -246,6 +245,74 @@ def build_pr_comment(results: list[dict], agg: str, meta: dict) -> str:
     return "\n".join(lines)
 
 
+# ── SARIF (GitHub Code Scanning) ──────────────────────────────────────────────
+
+# Map Warden verdicts to SARIF levels. SARIF only has error/warning/note/none;
+# BLOCK/HIGH → error, MEDIUM/FLAG → warning, everything else → note.
+_SARIF_LEVEL = {"BLOCK": "error", "HIGH": "error", "MEDIUM": "warning",
+                "FLAG": "warning", "LOW": "note", "ALLOW": "note",
+                "PASS": "note", "SKIP": "none", "ERROR": "warning"}
+
+
+def _sarif_level(verdict: str) -> str:
+    return _SARIF_LEVEL.get(verdict.upper(), "note")
+
+
+def build_sarif(results: list[dict], meta: dict) -> dict:
+    """Render scan results as a SARIF 2.1.0 log for the GitHub Security tab.
+
+    One `result` per scanned item whose verdict is at or above MEDIUM — clean
+    items are omitted so the Code Scanning view shows only actionable findings.
+    The commit_message item maps to the repo root; file items map to their path.
+    """
+    sarif_results = []
+    rule_ids: dict[str, dict] = {}
+    for r in results:
+        verdict = r.get("verdict", "ALLOW")
+        if risk_num(verdict) < risk_num("MEDIUM"):
+            continue
+        label = r.get("label", "scan")
+        # A file item's label IS its repo path; these two are logical, not files.
+        uri = ".github/warden-scan" if label in ("commit_message", "staged_diff") else label
+        flags = r.get("flags", [])
+        secrets = r.get("secrets_found", [])
+        rule_id = f"warden/{verdict.lower()}"
+        rule_ids.setdefault(rule_id, {
+            "id": rule_id,
+            "name": f"Warden{verdict.title()}Finding",
+            "shortDescription": {"text": f"Shadow Warden {verdict} verdict"},
+            "defaultConfiguration": {"level": _sarif_level(verdict)},
+        })
+        detail = ", ".join(flags[:5]) or "policy violation"
+        if secrets:
+            detail += f" · secrets: {', '.join(secrets[:3])}"
+        sarif_results.append({
+            "ruleId": rule_id,
+            "level": _sarif_level(verdict),
+            "message": {"text": f"[{verdict}] {label}: {detail}"},
+            "locations": [{
+                "physicalLocation": {
+                    "artifactLocation": {"uri": uri},
+                    "region": {"startLine": 1},
+                }
+            }],
+        })
+    return {
+        "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": {"driver": {
+                "name": "ShadowWardenAI",
+                "informationUri": "https://shadow-warden-ai.com",
+                "version": "1.0.0",
+                "rules": list(rule_ids.values()),
+            }},
+            "results": sarif_results,
+            "properties": {"commit": meta.get("sha", ""), "repo": meta.get("repo", "")},
+        }],
+    }
+
+
 # ── CI mode ───────────────────────────────────────────────────────────────────
 
 def run_ci(args: argparse.Namespace, api_url: str, api_key: str, tenant_id: str) -> int:
@@ -307,6 +374,13 @@ def run_ci(args: argparse.Namespace, api_url: str, api_key: str, tenant_id: str)
         comment = build_pr_comment(results, agg, meta)
         Path("warden_pr_comment.md").write_text(comment, encoding="utf-8")
 
+    # SARIF for the GitHub Code Scanning tab (always emit, even if empty —
+    # upload-sarif needs a valid file to clear stale alerts on a clean run)
+    if args.sarif:
+        sarif = build_sarif(results, meta)
+        Path(args.sarif).write_text(json.dumps(sarif, indent=2), encoding="utf-8")
+        print(f"  wrote SARIF ({len(sarif['runs'][0]['results'])} findings) -> {args.sarif}")
+
     fail_on = (args.fail_on or os.getenv("WARDEN_FAIL_ON", "BLOCK")).upper()
     if risk_num(agg) >= risk_num(fail_on):
         print(f"\n✖ Warden scan FAILED (verdict={agg} ≥ fail_on={fail_on})", file=sys.stderr)
@@ -364,6 +438,7 @@ def main() -> None:
     parser.add_argument("--content",      default="",  help="Override text to scan")
     parser.add_argument("--fail-on",      default="",  help="BLOCK or HIGH (default: BLOCK)")
     parser.add_argument("--out",          default="scan_result.json")
+    parser.add_argument("--sarif",        default="",  help="Path to write SARIF 2.1.0 for Code Scanning")
     parser.add_argument("--summary-file", default="",  help="Path to append GitHub step summary")
     args = parser.parse_args()
 

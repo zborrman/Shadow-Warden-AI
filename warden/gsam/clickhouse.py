@@ -14,6 +14,7 @@ from warden.config import settings
 from warden.gsam.schema import (
     CLICKHOUSE_COLUMNS,
     CLICKHOUSE_DATABASE_DDL,
+    CLICKHOUSE_MIGRATIONS,
     CLICKHOUSE_TABLE_DDL,
 )
 from warden.observability import Reason, record_failopen
@@ -79,6 +80,15 @@ class GsamClickHouse:
         try:
             client.command(CLICKHOUSE_DATABASE_DDL)
             client.command(CLICKHOUSE_TABLE_DDL)
+            # Additive column back-fills for pre-existing tables (idempotent).
+            # A failing migration must not block ingest, so swallow per-statement —
+            # but count it so a persistently-failing back-fill is observable.
+            for migration in CLICKHOUSE_MIGRATIONS:
+                try:
+                    client.command(migration)
+                except Exception as exc:
+                    log.debug("GSAM ClickHouse migration skipped (fail-open): %s", exc)
+                    record_failopen("gsam_clickhouse", Reason.BACKEND_ERROR, exc)
             self._schema_ready = True
             log.info("GSAM ClickHouse schema ready")
             return True

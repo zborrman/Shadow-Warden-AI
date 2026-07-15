@@ -149,6 +149,21 @@ def test_ddl_strings_sane():
     assert schema.CLICKHOUSE_DATABASE_DDL.startswith("CREATE DATABASE IF NOT EXISTS")
 
 
+def test_cached_tokens_present_everywhere():
+    # FM-2 depends on cached_tokens flowing model → columns → DDL.
+    assert "cached_tokens" in schema.Observation().to_row()
+    assert "cached_tokens" in schema.CLICKHOUSE_COLUMNS
+    assert "cached_tokens UInt32" in schema.CLICKHOUSE_TABLE_DDL
+
+
+def test_cached_tokens_migration_is_idempotent_and_additive():
+    # Pre-v7.7 tables need a back-fill; CREATE ... IF NOT EXISTS won't add it.
+    migs = schema.CLICKHOUSE_MIGRATIONS
+    assert any("cached_tokens" in m for m in migs)
+    for m in migs:
+        assert "ADD COLUMN IF NOT EXISTS" in m  # safe to re-run on every boot
+
+
 # ── Settings defaults ─────────────────────────────────────────────────────────
 
 def test_settings_defaults():

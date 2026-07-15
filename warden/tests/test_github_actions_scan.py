@@ -23,7 +23,7 @@ def _args(**kwargs) -> argparse.Namespace:
     defaults = {
         "mode": "ci", "event": "push", "sha": "abc123def456",
         "repo": "owner/repo", "pr": "", "content": "", "fail_on": "BLOCK",
-        "out": "scan_result.json", "summary_file": "",
+        "out": "scan_result.json", "sarif": "", "summary_file": "",
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
@@ -372,3 +372,47 @@ class TestRunPreCommit:
             rc = scan.run_pre_commit(args, "http://api", "key", "tenant")
 
         assert rc == 0
+
+
+# ── SARIF (FM-0) ──────────────────────────────────────────────────────────────
+
+class TestSarif:
+    def _res(self, label, verdict, flags=None, secrets=None):
+        return {"label": label, "verdict": verdict, "flags": flags or [],
+                "secrets_found": secrets or []}
+
+    def test_only_medium_and_above_emitted(self):
+        results = [
+            self._res("commit_message", "ALLOW"),
+            self._res("a.py", "LOW"),
+            self._res("b.py", "MEDIUM", flags=["sensitive_topic"]),
+            self._res("c.py", "HIGH", flags=["injection"]),
+            self._res("d.py", "BLOCK", secrets=["aws_key"]),
+        ]
+        sarif = scan.build_sarif(results, {"sha": "deadbeef", "repo": "o/r"})
+        rows = sarif["runs"][0]["results"]
+        assert len(rows) == 3  # MEDIUM, HIGH, BLOCK — clean/LOW dropped
+
+    def test_valid_sarif_shape(self):
+        sarif = scan.build_sarif([self._res("x.py", "BLOCK")], {"sha": "s", "repo": "r"})
+        assert sarif["version"] == "2.1.0"
+        assert sarif["runs"][0]["tool"]["driver"]["name"] == "ShadowWardenAI"
+        row = sarif["runs"][0]["results"][0]
+        assert row["level"] == "error"
+        assert row["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "x.py"
+
+    def test_logical_labels_map_to_placeholder_uri(self):
+        sarif = scan.build_sarif([self._res("commit_message", "HIGH")], {})
+        uri = sarif["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+        assert uri == ".github/warden-scan"
+
+    def test_level_mapping(self):
+        assert scan._sarif_level("BLOCK") == "error"
+        assert scan._sarif_level("HIGH") == "error"
+        assert scan._sarif_level("MEDIUM") == "warning"
+        assert scan._sarif_level("LOW") == "note"
+
+    def test_clean_run_emits_empty_valid_sarif(self):
+        sarif = scan.build_sarif([self._res("ok.py", "ALLOW")], {"sha": "s"})
+        assert sarif["runs"][0]["results"] == []
+        assert sarif["version"] == "2.1.0"  # still valid so upload clears stale alerts

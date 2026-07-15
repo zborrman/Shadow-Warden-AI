@@ -46,6 +46,7 @@ class Observation(BaseModel):
     provider: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
+    cached_tokens: int = 0     # prompt-cache read hits (billed at ~10% of input rate)
     execution_cost: float = 0.0
     latency_ms: float = 0.0
 
@@ -89,7 +90,7 @@ CLICKHOUSE_COLUMNS: tuple[str, ...] = (
     "ts", "trace_id", "span_id", "parent_span_id", "session_id",
     "tenant_id", "agent_id", "project_id", "contract_id", "role",
     "event", "payload_kind", "status",
-    "model", "provider", "input_tokens", "output_tokens",
+    "model", "provider", "input_tokens", "output_tokens", "cached_tokens",
     "execution_cost", "latency_ms",
     "syscalls_count", "unauthorized_commands_flag", "network_calls_count",
     "resolved_domains",
@@ -122,6 +123,7 @@ CREATE TABLE IF NOT EXISTS gsam.gsam_observations
     provider LowCardinality(String) CODEC(ZSTD(1)),
     input_tokens UInt32 CODEC(ZSTD(1)),
     output_tokens UInt32 CODEC(ZSTD(1)),
+    cached_tokens UInt32 DEFAULT 0 CODEC(ZSTD(1)),
     execution_cost Float64 CODEC(ZSTD(1)),
     latency_ms Float64 CODEC(ZSTD(1)),
 
@@ -144,3 +146,13 @@ ORDER BY (tenant_id, agent_id, toUnixTimestamp(ts), trace_id)
 TTL date + INTERVAL 30 DAY
 SETTINGS ttl_only_drop_parts = 1
 """
+
+# Idempotent, additive migrations for tables created before a column existed.
+# `CREATE TABLE IF NOT EXISTS` never alters an existing table, so a column added
+# to the DDL above must also be back-filled here with `ADD COLUMN IF NOT EXISTS`.
+# Run after the CREATE in ensure_schema(); each is idempotent and safe to re-run
+# (the caller swallows + counts any failure — see clickhouse.py).
+CLICKHOUSE_MIGRATIONS: tuple[str, ...] = (
+    "ALTER TABLE gsam.gsam_observations "
+    "ADD COLUMN IF NOT EXISTS cached_tokens UInt32 DEFAULT 0 AFTER output_tokens",
+)

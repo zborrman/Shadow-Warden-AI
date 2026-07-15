@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS gsam.gsam_observations
     provider LowCardinality(String) CODEC(ZSTD(1)),
     input_tokens UInt32 CODEC(ZSTD(1)),
     output_tokens UInt32 CODEC(ZSTD(1)),
+    cached_tokens UInt32 DEFAULT 0 CODEC(ZSTD(1)),
     execution_cost Float64 CODEC(ZSTD(1)),
     latency_ms Float64 CODEC(ZSTD(1)),
 
