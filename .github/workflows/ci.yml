@@ -939,36 +939,33 @@ jobs:
           docker compose pull --quiet --ignore-buildable 2>/dev/null || docker compose pull --quiet || true
 
           echo "── [3/4] Restart services ──────────────────────────────────"
-          # Step 1: compose down removes all project-tracked containers cleanly.
-          # This handles new services (e.g. warden-loki) that weren't running
-          # before but whose name conflicts with a container left by a prior
-          # failed deploy run.
-          docker compose down --remove-orphans 2>/dev/null || true
-          # Step 2: belt-and-suspenders — remove any warden-* stray containers
-          # that live outside compose's project scope (e.g. created by docker run).
-          docker ps -aq --filter "name=warden-" | xargs -r docker rm -f 2>/dev/null || true
-
-          # Build all services in two passes to avoid corrupted-cache regression:
+          # Build FIRST, while the old stack keeps serving. `docker compose build`
+          # never touches running containers, so there is zero downtime during the
+          # slow --no-cache pass — the outage is deferred to the quick down+up swap
+          # at the very end. (Previously this step ran `down` BEFORE the build, so
+          # prod stayed fully down for the entire 3-8 min build — a multi-minute
+          # outage window, and Cloudflare HTTP 530s, on every merge to main.)
           #
-          # Pass 1 — admin + arq-worker with --no-cache.
-          #   Their python:3.11-slim base layer is prone to BuildKit cache
-          #   corruption (wrong Alpine layer cached under the slim digest).
-          #   --no-cache forces a fresh pull; creates correct images.
-          #
-          # Pass 2 — remaining buildable services with normal cache (fast).
-          #   warden/analytics/portal/dashboard are unaffected by the slim
-          #   corruption (different base images or their own isolated layers).
-          #
-          # Then 'up --no-build' starts everything from the pre-built images —
-          # never touching the cache again, so the corruption can't re-enter.
+          # Two-pass build to avoid corrupted-cache regression:
+          # Pass 1 — admin + arq-worker with --no-cache. Their python:3.11-slim base
+          #   layer is prone to BuildKit cache corruption (wrong Alpine layer cached
+          #   under the slim digest); --no-cache forces a fresh, correct image.
+          # Pass 2 — remaining buildable services with normal cache (fast). warden/
+          #   analytics/portal/dashboard use different bases / isolated layers.
           echo "   building admin + arq-worker (no-cache)..."
           docker compose build --no-cache admin arq-worker 2>&1 | tail -10
           echo "   building warden analytics portal dashboard..."
           docker compose build warden analytics portal dashboard 2>&1 | tail -10
 
-          # Second cleanup pass: remove any containers that were (re)created
-          # during the build phase (e.g. by a watchdog/cron on the server).
+          # ── The swap: this is now the ONLY downtime window (container recreate +
+          # warden model warmup, ~30-60 s). `down` removes all project-tracked
+          # containers cleanly, which also clears any stale container whose name
+          # conflicts with a new service (e.g. warden-loki) left by a prior failed
+          # deploy. Doing it here (right before `up`, after the build) fully covers
+          # that case, since a name conflict only bites at container-create time.
           docker compose down --remove-orphans 2>/dev/null || true
+          # belt-and-suspenders — remove any warden-* strays outside compose's
+          # project scope (e.g. created by docker run or a watchdog).
           docker ps -aq --filter "name=warden-" | xargs -r docker rm -f 2>/dev/null || true
 
           # Use --no-build: all images were just built above.
