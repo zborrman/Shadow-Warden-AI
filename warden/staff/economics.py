@@ -17,19 +17,25 @@ from dataclasses import dataclass, field
 
 from warden.config import data_path
 from warden.db.ddl_registry import ensure_schema, register
-from warden.finops.rating import (
-    DEFAULT_RATES as _DEFAULT_RATES,  # noqa: F401  (back-compat re-export)
-)
-from warden.finops.rating import PRICE_BOOK as _COST_PER_MTOK  # noqa: F401  (back-compat re-export)
+from warden.finops.rating import DEFAULT_RATES as _DEFAULT_RATES
+from warden.finops.rating import PRICE_BOOK as _COST_PER_MTOK
 from warden.finops.rating import rate_usage
 
 log = logging.getLogger(__name__)
 
+# Pricing is owned by warden.finops.rating (the single source of truth); the two
+# aliases below preserve this module's historical import surface. Listed in
+# __all__ so they read as intentional re-exports, not dead imports.
+__all__ = [
+    "ActionCost",
+    "TokenCostTracker",
+    "_COST_PER_MTOK",
+    "_DEFAULT_RATES",
+    "compute_cost_usd",
+    "get_tracker",
+]
 
 _DB_PATH: str = data_path("warden_staff_economics.db", "STAFF_ECONOMICS_DB_PATH")
-
-# Pricing is owned by warden.finops.rating (the single source of truth); the two
-# aliases above preserve this module's historical import surface.
 
 
 def compute_cost_usd(
