@@ -6,6 +6,17 @@ tracker, the GSAM billing ledger, and the billing/overage subsystem. No I/O.
 """
 from __future__ import annotations
 
+from warden.finops.capacity import (
+    CapacityCeiling,
+    MemAudit,
+    audit_mem_limits,
+    capacity_ceiling,
+    max_rps_for_latency,
+    max_rps_for_utilization,
+    mg1_response_seconds,
+    mg1_wait_seconds,
+    utilization,
+)
 from warden.finops.margin import (
     DEFAULT_FLOOR_MARGIN,
     MarginVerdict,
@@ -36,14 +47,22 @@ __all__ = [
     "CACHE_READ_DISCOUNT",
     "DEFAULT_FLOOR_MARGIN",
     "PRICE_BOOK",
+    "CapacityCeiling",
     "CostBreakdown",
     "MarginVerdict",
+    "MemAudit",
     "RoutingDecision",
     "WalletComponents",
+    "audit_mem_limits",
     "available_usd",
     "blended_input_rate",
+    "capacity_ceiling",
     "evaluate_margin",
     "margin_fraction",
+    "max_rps_for_latency",
+    "max_rps_for_utilization",
+    "mg1_response_seconds",
+    "mg1_wait_seconds",
     "pick_model_within_margin",
     "price_for",
     "pricing_floor_usd",
@@ -52,4 +71,5 @@ __all__ = [
     "resolve_wallet",
     "spend_breakdown",
     "tier_revenue_per_request",
+    "utilization",
 ]
