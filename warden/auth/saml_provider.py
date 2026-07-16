@@ -64,10 +64,10 @@ _OTP_PREFIX  = "saml:otp:"
 _OTP_TTL     = settings.saml_otp_ttl         # seconds
 _SESSION_TTL = settings.saml_session_ttl     # 8 hours
 
-# NB: SAML_JWT_SECRET kept as a live env read (below and at call sites) —
-# dynamically monkeypatch.setenv'd and importlib.reload()'d per-test in
-# test_saml.py.
-_JWT_SECRET     = os.getenv("SAML_JWT_SECRET", "")
+# SAML_JWT_SECRET is read fresh at each call site (issue_jwt / verify_jwt), never
+# cached at import — an import-time snapshot would capture "" before the env is set
+# and can't be monkeypatch.setenv'd + importlib.reload()'d per-test. Both call sites
+# fail CLOSED when the secret is unset (raise on issue, return None on verify).
 _ALLOWED_DOMAINS: frozenset[str] = frozenset(
     d.strip() for d in settings.saml_allowed_domains.split(",") if d.strip()
 )

@@ -206,9 +206,19 @@ item was already on `resolve_key` (commit 34e54cd6), but the sweep found a worse
 - **`warden/api/bot_entity.py`** minted a *random ephemeral* JWT secret when `BOT_JWT_SECRET` was
   unset (tokens silently died each restart; prod never failed closed) → now `resolve_key`, with the
   operator override honoured verbatim so existing tokens still verify.
-- **CI gate:** `warden/tests/test_no_new_raw_signing_key.py` — baseline ratchet (9, was 10) over
+- **CI gate:** `warden/tests/test_no_new_raw_signing_key.py` — baseline ratchet (8, was 10) over
   raw-env reads of signing-key-shaped secrets. A ratchet, not a ban, because provider-issued webhook
   secrets (Stripe/Slack/Lemon) genuinely cannot be derived. 7 regression tests pin the bypass shut.
+
+**S2 ✅ DONE (2026-07-16) — `resolve_key` migration finished + grep gate confirmed.** Audit of the
+§6c #3 "incomplete `resolve_key` adoption" risk: the two stated items were already shipped in Slice 1
+(refund-intent on `resolve_key`; the ratchet grep gate). A sweep of the remaining 9 baseline reads
+confirmed **no forgeable fail-open signing path survives** — each is either fail-CLOSED by an explicit
+empty-secret check (`saml_provider` raises/returns None; `auth/router._secret()` raises) or a
+provider-issued webhook/cloud credential that cannot be derived (Slack, Lemon Squeezy, AWS). One
+genuine reduction: `saml_provider._JWT_SECRET` was a **dead import-time snapshot** of the signing
+secret (never referenced — both call sites re-read fresh) → removed, dropping the ratchet 9 → 8.
+key-mgmt 76 → 86 (with S1). No forgeable-key path remains open.
 
 **Slice 2 ✅ DONE (2026-07-13) — BoundaryRegistry extended to SOVA/MasterAgent.**
 `warden/agent/gate.py` — `agentic_gate()` applies the same three checks Digital Staff get
