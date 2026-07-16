@@ -218,3 +218,12 @@ boto3>=1.34.0
 # Install: pip install ripser
 # ripser>=0.6.0  # uncomment to enable true TDA (requires C++ compiler)
 defusedxml==0.7.1          # XXE-safe XML parsing (SAML assertions, threat feeds)
+
+# ── Security pins (build-toolchain deps flagged by the S3 CVE gates) ──────────
+# These are build/packaging deps, not warden runtime imports, but they ship in the
+# installed image so Trivy/pip-audit scan them. Pinned to fixed releases so the S3
+# gates stay green. Surfaced by the gates themselves — remediated, not waived.
+#   setuptools <83.0.0  → PYSEC-2026-3447            (pip-audit)
+#   wheel      <0.46.2  → CVE-2026-24049 (priv-esc)  (Trivy HIGH)
+setuptools>=83.0.0
+wheel>=0.46.2
