@@ -871,10 +871,15 @@ services:
   # ── CLOUDFLARE TUNNEL ──────────────────────────────────────────────────────
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: cloudflared
+    # No container_name — a fixed name pins the service to one container and
+    # blocks replicas. Two cloudflared instances sharing one tunnel token is
+    # Cloudflare's supported HA pattern: they register as redundant connections
+    # on the same tunnel and Cloudflare load-balances / fails over between them,
+    # so a single crashing/redeploying replica no longer drops the edge.
     restart: always
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     deploy:
+      replicas: 2
       resources:
         limits:
           cpus: "0.1"
