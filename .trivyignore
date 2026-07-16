@@ -1,0 +1,17 @@
+# Trivy gate allowlist (S3, modernization-plan-v8 §6d) — read by the trivy-action
+# "gate on actionable CVEs" step in .github/workflows/ci.yml.
+#
+# Each entry WAIVES a HIGH/CRITICAL container CVE that has a fix but cannot be
+# remediated from warden/requirements.txt, with a justification and a review note.
+# This is auditable (one reviewable line per CVE in git history), never a blanket
+# `continue-on-error`. Prefer a requirements pin over an entry here whenever the
+# package is a top-level dependency.
+
+# CVE-2026-23949 — jaraco.context path traversal (HIGH).
+# The flagged copy is VENDORED inside setuptools (`setuptools/_vendor/jaraco.context
+# -5.3.0`), not a top-level import, so a requirements pin cannot replace it — only a
+# setuptools release that vendors jaraco.context>=6.1.0 can. The vuln is a build-time
+# path traversal that triggers only when *building* a malicious package; the runtime
+# uvicorn image never builds packages from untrusted input, so it is not reachable in
+# production. Revisit when bumping setuptools past a release that vendors the fix.
+CVE-2026-23949

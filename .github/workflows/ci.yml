@@ -492,12 +492,34 @@ jobs:
       - name: Install warden requirements
         run: pip install -r warden/requirements.txt --quiet
 
-      - name: Run pip-audit
+      - name: Run pip-audit (full report — informational)
         run: |
           pip install pip-audit --quiet
-          pip-audit --skip-editable --desc on 2>&1 | tee pip-audit-report.txt
-          echo "Exit code: $?"
-        continue-on-error: true   # informational; set false to block on CVEs
+          pip-audit --skip-editable --desc on 2>&1 | tee pip-audit-report.txt || true
+
+      # S3 (modernization-plan-v8 §6d): CVE scanning promoted informational → GATING,
+      # but only on *actionable* CVEs — a dependency vuln that has a published fix
+      # version. Unfixable upstream disclosures stay informational: we can't remediate
+      # them and they must never block a merge (nor the autodeploy, which does not need
+      # this job). Baseline at introduction: 0 fixable. Waive a genuinely-stuck fixable
+      # CVE by adding its ID to .github/pip-audit-ignore (auditable, not a blanket skip).
+      - name: Gate on FIXABLE dependency CVEs
+        run: |
+          IGNORE=""
+          if [ -f .github/pip-audit-ignore ]; then
+            while read -r line; do
+              id="${line%%#*}"; id="$(echo "$id" | tr -d '[:space:]')"
+              [ -n "$id" ] && IGNORE="$IGNORE --ignore-vuln $id"
+            done < .github/pip-audit-ignore
+          fi
+          pip-audit --skip-editable --format json --output pip-audit.json $IGNORE || true
+          FIXABLE=$(jq '[.dependencies[]?.vulns[]? | select((.fix_versions // []) | length > 0)] | length' pip-audit.json)
+          echo "Fixable dependency CVEs: $FIXABLE"
+          if [ "$FIXABLE" -gt 0 ]; then
+            echo "::error::$FIXABLE fixable dependency CVE(s) — upgrade the package(s) or waive in .github/pip-audit-ignore"
+            jq -r '.dependencies[]? as $d | $d.vulns[]? | select((.fix_versions//[])|length>0) | "  \($d.name) \($d.version) — \(.id) → fix: \((.fix_versions)|join(", "))"' pip-audit.json
+            exit 1
+          fi
 
       - name: Upload pip-audit report
         uses: actions/upload-artifact@v4
@@ -690,8 +712,8 @@ jobs:
       # ── Trivy container CVE scan ──────────────────────────────────────────────
       # Scans the built warden image for OS + library CVEs.
       # Results are uploaded as SARIF to GitHub Security → Code scanning alerts.
-      # continue-on-error so a new CVE never blocks a hotfix deploy.
-      - name: Trivy — container CVE scan
+      # This SARIF step is report-only; the actionable-CVE gate is the step below.
+      - name: Trivy — container CVE scan (SARIF report)
         uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: warden-ci:${{ github.sha }}
@@ -708,6 +730,20 @@ jobs:
           sarif_file: trivy-results.sarif
           category: trivy-container
         continue-on-error: true
+
+      # S3 (modernization-plan-v8 §6d): container CVE scanning promoted
+      # informational → GATING on *actionable* CVEs only — HIGH/CRITICAL that have a
+      # fix (ignore-unfixed). Un-fixable OS CVEs stay in the SARIF dashboard above but
+      # never block. docker-build is NOT in the deploy job's `needs`, so a red here
+      # blocks PR merges without ever stalling a hotfix autodeploy from main.
+      - name: Trivy — gate on actionable CVEs (HIGH/CRITICAL with a fix)
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: warden-ci:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
 
       - name: Cleanup
         if: always()

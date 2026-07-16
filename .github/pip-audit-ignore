@@ -1,0 +1,12 @@
+# pip-audit gate allowlist (S3, modernization-plan-v8 §6d)
+#
+# One vulnerability ID per line (e.g. GHSA-xxxx-xxxx-xxxx or PYSEC-YYYY-NNN) to
+# WAIVE a FIXABLE dependency CVE that we cannot yet upgrade past (breaking change,
+# pinned transitive dep, awaiting a compatible release). Blank lines and lines that
+# start with '#' are ignored; an inline '# reason' after the ID is fine.
+#
+# This is deliberately auditable — each waiver is an explicit, reviewable line in git
+# history, not a blanket `continue-on-error`. Un-fixable CVEs need no entry here; the
+# gate already ignores anything without a published fix.
+#
+# Empty = nothing waived. Keep it that way whenever possible.
