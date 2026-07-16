@@ -300,18 +300,19 @@ test.describe('Agentic Marketplace Dashboard', () => {
   test.beforeEach(async ({ page }) => {
     // /marketplace 301s to /agentic
     await page.goto('/agentic');
-    // Use section.am-hero (first/only section) to avoid strict-mode violation
-    await expect(page.locator('section.am-hero')).toBeVisible({ timeout: 10_000 });
+    // mk-hero is the first/only hero section on the redesigned marketplace page
+    await expect(page.locator('section.mk-hero')).toBeVisible({ timeout: 10_000 });
   });
 
   // ── Hero stat counters ─────────────────────────────────────────────────────
-  test('hero stat bar has 4 stat elements', async ({ page }) => {
-    const stats = page.locator('.am-stat-n');
-    await expect(stats).toHaveCount(4);
+  test('hero stat bar has 5 stat elements', async ({ page }) => {
+    // 4 SSE-updatable counters + 1 static "Platform Take Rate" card
+    const stats = page.locator('.stats-bar .stat-n');
+    await expect(stats).toHaveCount(5);
   });
 
   test('stat IDs are present for SSE updates', async ({ page }) => {
-    for (const id of ['stat-communities', 'stat-assets', 'stat-trades', 'stat-auto']) {
+    for (const id of ['st-agents', 'st-listings', 'st-trades', 'st-vol']) {
       await expect(page.locator(`#${id}`)).toBeVisible();
     }
   });
@@ -319,59 +320,47 @@ test.describe('Agentic Marketplace Dashboard', () => {
   // ── Chart.js canvases ─────────────────────────────────────────────────────
   test('chart canvas elements exist in the DOM', async ({ page }) => {
     // Chart.js canvases must be present regardless of CDN load
-    for (const id of ['chart-volume', 'chart-fairness', 'chart-tiers']) {
+    for (const id of ['chart-volume', 'chart-payments', 'chart-agents']) {
       await expect(page.locator(`canvas#${id}`)).toBeAttached();
     }
   });
 
-  test('chart canvases are visible in the intelligence section', async ({ page }) => {
-    // Scroll to the intelligence section first
-    await page.locator('#intelligence').scrollIntoViewIfNeeded();
-    for (const id of ['chart-volume', 'chart-fairness']) {
+  test('chart canvases are visible in the analytics section', async ({ page }) => {
+    // Scroll to the analytics section first
+    await page.locator('#analytics').scrollIntoViewIfNeeded();
+    for (const id of ['chart-volume', 'chart-payments']) {
       await expect(page.locator(`canvas#${id}`)).toBeVisible();
     }
   });
 
-  test('chart status elements do NOT show offline fallback text', async ({ page }) => {
-    // Wait for Chart.js CDN to load (up to 8s)
-    await page.waitForTimeout(3_000);
-    for (const id of ['chart-volume-status', 'chart-fairness-status', 'chart-tiers-status']) {
-      const el = page.locator(`#${id}`);
-      if (await el.isVisible().catch(() => false)) {
-        await expect(el).not.toHaveText(/unavailable offline/i);
-      }
-    }
+  test('live market ticker element is present', async ({ page }) => {
+    // The ticker is fed live trade data via SSE; it must render regardless of feed state
+    await expect(page.locator('#ticker')).toBeAttached();
   });
 
-  // ── Governance cards ───────────────────────────────────────────────────────
-  test('governance section has all 4 metric cards', async ({ page }) => {
-    for (const id of ['gov-fairness', 'gov-alternatives', 'gov-trades']) {
+  // ── Marketplace data tables ─────────────────────────────────────────────────
+  test('marketplace tables render (agents, tools, auctions, trades)', async ({ page }) => {
+    for (const id of ['agents-table', 'tools-table', 'auctions-grid', 'trades-body']) {
       await expect(page.locator(`#${id}`)).toBeAttached();
     }
   });
 
-  // ── CTA buttons ───────────────────────────────────────────────────────────
-  test('"Create community" button links to /community/new', async ({ page }) => {
-    // The community sidebar has a #btn-create-comm button; scroll to it
-    const btn = page.locator('#btn-create-comm');
-    await btn.scrollIntoViewIfNeeded();
-    await expect(btn).toBeVisible();
-    // There are also hero/section links to /community/new
-    const heroLink = page.locator('a[href="/community/new"]').first();
-    await expect(heroLink).toBeAttached();
+  // ── Core sections ───────────────────────────────────────────────────────────
+  test('core marketplace sections are present', async ({ page }) => {
+    for (const id of ['analytics', 'agents', 'tools', 'auctions', 'payments']) {
+      await expect(page.locator(`section#${id}`)).toBeAttached();
+    }
   });
 
   test('agent-protocol link tag is present on /agentic', async ({ page }) => {
     await expect(page.locator('link[rel="agent-protocol"]')).toHaveCount(1);
   });
 
-  // ── ROI Calculator ─────────────────────────────────────────────────────────
-  test('ROI calculator section renders with tier select', async ({ page }) => {
-    await page.locator('#roi').scrollIntoViewIfNeeded();
-    await expect(page.locator('#mp-tier')).toBeVisible();
-    // Changing tier should update calculator output
-    await page.selectOption('#mp-tier', 'pro');
-    await expect(page.locator('#mp-tier')).toHaveValue('pro');
+  // ── Settlement / protocol sections ──────────────────────────────────────────
+  test('payments and protocol sections render', async ({ page }) => {
+    await page.locator('#payments').scrollIntoViewIfNeeded();
+    await expect(page.locator('section#payments')).toBeVisible();
+    await expect(page.locator('section#protocol')).toBeAttached();
   });
 });
 
