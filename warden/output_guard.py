@@ -112,10 +112,10 @@ OWASP_LABEL: dict[BusinessRisk, str] = {
 }
 
 _REPLACEMENT: dict[BusinessRisk, str] = {
-    BusinessRisk.PRICE_MANIPULATION:  "[Цена уточняется — обратитесь к менеджеру / Please contact our team for pricing]",
-    BusinessRisk.UNAUTHORIZED_COMMIT: "[Это требует подтверждения — пожалуйста, свяжитесь с нами / Please verify with our team]",
+    BusinessRisk.PRICE_MANIPULATION:  "[Please contact our team for pricing]",
+    BusinessRisk.UNAUTHORIZED_COMMIT: "[Please verify with our team]",
     BusinessRisk.COMPETITOR_MENTION:  "[external service]",
-    BusinessRisk.POLICY_VIOLATION:    "[Пожалуйста, уточните политику у менеджера / Please verify this policy with our team]",
+    BusinessRisk.POLICY_VIOLATION:    "[Please verify this policy with our team]",
     BusinessRisk.HALLUCINATED_URL:    "[link removed — please verify with official sources]",
     BusinessRisk.HALLUCINATED_STAT:   "[statistic unverified — please check primary sources]",
     BusinessRisk.PII_LEAKAGE:         "[PII REDACTED]",
@@ -228,10 +228,10 @@ _COMMITMENT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\blegally\s+entitled\b",                re.IGNORECASE), "legal entitlement claim"),
     (re.compile(r"\bcompensation\s+of\s+\$?\d",          re.IGNORECASE), "compensation claim"),
     # Russian — guarantees/promises
-    (re.compile(r"\bгарантирую\b",                        re.IGNORECASE), "AI гарантирую"),
-    (re.compile(r"\bмы\s+гарантируем\b",                  re.IGNORECASE), "company гарантируем"),
-    (re.compile(r"\bобещаю\b",                            re.IGNORECASE), "AI обещаю"),
-    (re.compile(r"\bмы\s+обещаем\b",                      re.IGNORECASE), "company обещаем"),
+    (re.compile(r"\bгарантирую\b",                        re.IGNORECASE), "AI guarantee RU"),
+    (re.compile(r"\bмы\s+гарантируем\b",                  re.IGNORECASE), "company guarantee RU"),
+    (re.compile(r"\bобещаю\b",                            re.IGNORECASE), "AI promise RU"),
+    (re.compile(r"\bмы\s+обещаем\b",                      re.IGNORECASE), "company promise RU"),
     (re.compile(r"\bвы\s+получите\b",                     re.IGNORECASE), "delivery commitment RU"),
     (re.compile(r"\bмы\s+(?:вернём|вернем|компенсируем|возместим)", re.IGNORECASE), "refund/comp RU"),
 ]

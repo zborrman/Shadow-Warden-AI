@@ -111,7 +111,7 @@ async def alert_poisoning_event(
 
     if _SLACK_WEBHOOK:
         try:
-            rollback_note = " • Corpus автоматически восстановлен из снимка." if rollback_done else ""
+            rollback_note = " • Corpus automatically restored from snapshot." if rollback_done else ""
             await _slack_alert(
                 attack_type  = f"data_poisoning:{attack_vector}",
                 risk_level   = "block",
@@ -214,17 +214,17 @@ async def _telegram_poisoning_alert(
     """Send a Telegram Bot message for a high-confidence poisoning detection."""
     score_pct = int(poisoning_score * 100)
     rollback_line = (
-        "\n\n✅ *Corpus автоматически восстановлен из снимка.* Self-Healing сработал."
+        "\n\n✅ *Corpus automatically restored from snapshot.* Self-Healing kicked in."
         if rollback_done
         else ""
     )
     text = (
-        f"🚨 *Shadow Warden — Атака обнаружена!*\n\n"
-        f"Кто-то пытался отравить мой ИИ — но Варден всё поймал.\n\n"
-        f"🔬 *Вектор атаки:* `{attack_vector}`\n"
-        f"📊 *Уверенность:* {score_pct}%\n"
-        f"🏢 *Тенант:* `{tenant_id}`\n"
-        f"📝 *Детали:* {detail[:200]}"
+        f"🚨 *Shadow Warden — Attack detected!*\n\n"
+        f"Someone tried to poison my AI — but Warden caught it all.\n\n"
+        f"🔬 *Attack vector:* `{attack_vector}`\n"
+        f"📊 *Confidence:* {score_pct}%\n"
+        f"🏢 *Tenant:* `{tenant_id}`\n"
+        f"📝 *Details:* {detail[:200]}"
         f"{rollback_line}"
     )
     await _send_telegram(text)
@@ -238,14 +238,14 @@ async def _telegram_rollback_alert(
 ) -> None:
     """Send a Telegram Bot message when corpus auto-rollback is triggered."""
     text = (
-        f"🛡 *Shadow Warden — Self-Healing активирован!*\n\n"
-        f"Corpus ИИ был частично отравлен. Warden автоматически откатился к "
-        f"последнему здоровому снимку.\n\n"
-        f"🏢 *Тенант:* `{tenant_id}`\n"
-        f"🕯 *Упавших canary:* {failing_canaries}\n"
-        f"📐 *Дрейф центроида:* {drift:.4f}\n"
-        f"📝 *Детали:* {detail[:200]}\n\n"
-        f"✅ Corpus восстановлен. Система работает в штатном режиме."
+        f"🛡 *Shadow Warden — Self-Healing activated!*\n\n"
+        f"The AI corpus was partially poisoned. Warden automatically rolled back "
+        f"to the last healthy snapshot.\n\n"
+        f"🏢 *Tenant:* `{tenant_id}`\n"
+        f"🕯 *Failed canaries:* {failing_canaries}\n"
+        f"📐 *Centroid drift:* {drift:.4f}\n"
+        f"📝 *Details:* {detail[:200]}\n\n"
+        f"✅ Corpus restored. System operating normally."
     )
     await _send_telegram(text)
 

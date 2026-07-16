@@ -84,17 +84,17 @@ _RISK_EMOJI: dict[str, str] = {
 
 _RISK_DESCRIPTION: dict[str, str] = {
     BusinessRisk.PRICE_MANIPULATION:  (
-        "Бот предложил цену или скидку, которая нарушает ваши правила ценообразования."
+        "The bot offered a price or discount that violates your pricing rules."
     ),
     BusinessRisk.UNAUTHORIZED_COMMIT: (
-        "Бот взял на себя обязательство от имени магазина без авторизации "
-        "(«гарантирую», «вы получите», «мы доставим»)."
+        "The bot made a commitment on the store's behalf without authorization "
+        "(\"I guarantee\", \"you will receive\", \"we will deliver\")."
     ),
     BusinessRisk.COMPETITOR_MENTION:  (
-        "Бот упомянул конкурента в ответе клиенту."
+        "The bot mentioned a competitor in its reply to the customer."
     ),
     BusinessRisk.POLICY_VIOLATION:    (
-        "Бот сослался на политику магазина (возврат, гарантия), которую не уполномочен сообщать."
+        "The bot cited a store policy (returns, warranty) it is not authorized to state."
     ),
 }
 
@@ -130,16 +130,16 @@ def _telegram_text(
     desc  = _RISK_DESCRIPTION.get(finding.risk.value, finding.detail)
     sid   = session_id or "—"
     return (
-        f"🛒 *Shadow Warden — Предупреждение*\n\n"
-        f"{emoji} *Нарушение:* `{finding.risk.value}`\n"
-        f"📝 *Описание:* {desc}\n\n"
-        f"💬 *Фрагмент ответа бота:*\n"
+        f"🛒 *Shadow Warden — Warning*\n\n"
+        f"{emoji} *Violation:* `{finding.risk.value}`\n"
+        f"📝 *Description:* {desc}\n\n"
+        f"💬 *Bot response snippet:*\n"
         f"```\n{finding.snippet[:200]}\n```\n\n"
-        f"👤 *Пользователь:* `{user_id}`\n"
-        f"🔗 *Сессия:* `{sid}`\n"
-        f"🏢 *Тенант:* `{tenant_id}`\n\n"
-        f"_Ответ клиенту был автоматически исправлен. "
-        f"Рекомендуем проверить этот диалог._"
+        f"👤 *User:* `{user_id}`\n"
+        f"🔗 *Session:* `{sid}`\n"
+        f"🏢 *Tenant:* `{tenant_id}`\n\n"
+        f"_The customer reply was automatically corrected. "
+        f"We recommend reviewing this conversation._"
     )
 
 
