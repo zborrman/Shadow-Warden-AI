@@ -44,7 +44,8 @@ test.describe('Global Navigation', () => {
   });
 
   // ── Business Community dropdown ────────────────────────────────────────────
-  test('Business Community dropdown shows sub-items on hover', async ({ page }) => {
+  test('Business Community dropdown shows sub-items on hover', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
     const { dropdown } = await hoverNavItem(page, 'Business Community');
     await expect(dropdown).toBeVisible();
     // Verify known sub-items from roadmap.json
@@ -53,7 +54,8 @@ test.describe('Global Navigation', () => {
     await expect(dropdown.locator('a', { hasText: 'Business Intelligence' })).toBeVisible();
   });
 
-  test('Business Community → Agentic Commerce link has correct href', async ({ page }) => {
+  test('Business Community → Agentic Commerce link has correct href', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
     const { dropdown } = await hoverNavItem(page, 'Business Community');
     await expect(dropdown).toBeVisible();
     const link = dropdown.locator('a', { hasText: 'Agentic Commerce' });
@@ -61,7 +63,8 @@ test.describe('Global Navigation', () => {
   });
 
   // ── Cyber Security dropdown ────────────────────────────────────────────────
-  test('Cyber Security dropdown shows sub-items on hover', async ({ page }) => {
+  test('Cyber Security dropdown shows sub-items on hover', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
     const { dropdown } = await hoverNavItem(page, 'Cyber Security');
     await expect(dropdown).toBeVisible();
     await expect(dropdown.locator('a', { hasText: 'Agentic SOC' })).toBeVisible();
@@ -71,14 +74,16 @@ test.describe('Global Navigation', () => {
     await expect(dropdown.locator('a', { hasText: 'Trust Center' })).toBeVisible();
   });
 
-  test('Cyber Security → Agentic SOC link has correct href', async ({ page }) => {
+  test('Cyber Security → Agentic SOC link has correct href', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
     const { dropdown } = await hoverNavItem(page, 'Cyber Security');
     const link = dropdown.locator('a', { hasText: 'Agentic SOC' });
     await expect(link).toHaveAttribute('href', '/cyber-security/agentic-soc');
   });
 
   // ── Tunnel dropdown ────────────────────────────────────────────────────────
-  test('Tunnel dropdown shows MASQUE Tunnels and Per-Tenant Routing', async ({ page }) => {
+  test('Tunnel dropdown shows MASQUE Tunnels and Per-Tenant Routing', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
     const { dropdown } = await hoverNavItem(page, 'Tunnel');
     await expect(dropdown).toBeVisible();
     await expect(dropdown.locator('a', { hasText: 'MASQUE Tunnels' })).toBeVisible();
@@ -86,7 +91,8 @@ test.describe('Global Navigation', () => {
     await expect(dropdown.locator('a', { hasText: 'Sovereign AI Cloud' })).toBeVisible();
   });
 
-  test('Tunnel → MASQUE Tunnels link has correct href', async ({ page }) => {
+  test('Tunnel → MASQUE Tunnels link has correct href', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
     const { dropdown } = await hoverNavItem(page, 'Tunnel');
     const link = dropdown.locator('a', { hasText: 'MASQUE Tunnels' });
     await expect(link).toHaveAttribute('href', '/tunnel/masque-tunnels');
@@ -106,7 +112,8 @@ test.describe('Global Navigation', () => {
     }
   });
 
-  test('GitHub link opens in new tab', async ({ page }) => {
+  test('GitHub link opens in new tab', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'GitHub link lives in the desktop nav (hidden behind hamburger on mobile)');
     const gh = page.locator('#navbar a[href*="github.com"]');
     await expect(gh).toBeVisible();
     await expect(gh).toHaveAttribute('target', '_blank');
@@ -128,7 +135,8 @@ test.describe('Global Navigation', () => {
   });
 
   // ── Theme toggle ───────────────────────────────────────────────────────────
-  test('theme toggle button is present and clickable', async ({ page }) => {
+  test('theme toggle button is present and clickable', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'theme toggle lives in the desktop nav (hidden behind hamburger on mobile)');
     const toggle = page.locator('#theme-toggle');
     await expect(toggle).toBeVisible();
     await toggle.click();
