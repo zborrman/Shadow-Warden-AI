@@ -124,7 +124,7 @@ def _detect_faces(np_array) -> list[tuple[int, int, int, int]]:
         scaleFactor  = 1.1,
         minNeighbors = 5,
         minSize      = (30, 30),
-        flags        = cv2.CASCADE_SCALE_IMAGE,
+        flags        = getattr(cv2, "CASCADE_SCALE_IMAGE", 2),
     )
     if len(hits) == 0:
         return []

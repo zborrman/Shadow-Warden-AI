@@ -144,7 +144,7 @@ class FIDOProvider:
             from webauthn import verify_registration_response as _verify
             from webauthn.helpers.structs import RegistrationCredential
             try:
-                parsed = RegistrationCredential.parse_raw(json.dumps(credential))
+                parsed = RegistrationCredential.model_validate_json(json.dumps(credential))
             except Exception:
                 # Credential cannot be parsed as a real WebAuthn response — use stub path
                 raise ImportError from None  # falls to stub handler below
@@ -214,7 +214,7 @@ class FIDOProvider:
             from webauthn import verify_authentication_response as _verify
             from webauthn.helpers.structs import AuthenticationCredential
             result = _verify(
-                credential=AuthenticationCredential.parse_raw(json.dumps(assertion)),
+                credential=AuthenticationCredential.model_validate_json(json.dumps(assertion)),
                 expected_challenge=row["challenge"].encode(),
                 expected_rp_id=_RP_ID,
                 expected_origin=_ORIGIN,

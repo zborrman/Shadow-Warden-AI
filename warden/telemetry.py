@@ -104,7 +104,7 @@ def setup_telemetry(app: Any = None) -> None:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
                 OTLPSpanExporter as GrpcExporter,
             )
-            exporter = GrpcExporter(endpoint=_ENDPOINT, insecure=True)
+            exporter: Any = GrpcExporter(endpoint=_ENDPOINT, insecure=True)
             log.info("OTel: using gRPC exporter → %s", _ENDPOINT)
         except ImportError:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import (

@@ -411,7 +411,7 @@ class StripeBilling:
     def _refresh_subscription(self, sub_id: str) -> None:
         import stripe as _stripe  # noqa: PLC0415
         sub = _stripe.Subscription.retrieve(sub_id)
-        self._on_subscription_updated(sub)
+        self._on_subscription_updated(dict(sub))
 
     def _set_status_by_sub(self, sub_id: str, status: str) -> None:
         with self._lock:
