@@ -12,10 +12,12 @@ Endpoints:
   GET    /monitors/{id}/status           — latest probe result
   GET    /monitors/{id}/uptime?hours=24  — uptime % + avg latency
   GET    /monitors/{id}/history?limit=50 — recent probe results
+  GET    /monitors/error-budget          — SLA error-budget report (FM-5)
 """
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -104,6 +106,78 @@ async def list_monitors(
             {"tid": auth.tenant_id},
         )
     return [dict(r._mapping) for r in rows]
+
+
+@router.get("/error-budget")
+async def error_budget_report(
+    window_days: int = 30,
+    tier: str = "pro",
+    auth: AuthResult = Depends(require_api_key),
+) -> dict[str, Any]:
+    """SLA error-budget report across all of the tenant's monitors (FM-5).
+
+    Uptime comes from the ``probe_hourly`` continuous aggregate over
+    ``window_days``; each monitor's budget is scored against the ``tier`` SLA
+    target (docs/sla.md §2). ``burn_1h`` is the instantaneous burn rate over the
+    last hour — >1 means the budget is draining faster than sustainable. All
+    scoring is delegated to the pure ``warden.reliability`` math.
+
+    Registered before ``/{monitor_id}`` so the literal path isn't captured as an id.
+    """
+    from warden.reliability import budget as _b
+
+    window_days = max(1, min(window_days, 90))
+    sla = _b.sla_for_tier(tier)
+
+    async with get_async_engine().connect() as conn:
+        rows = await conn.execute(
+            text("""
+                SELECT m.id, m.name, m.url,
+                       ROUND(AVG(ph.uptime_pct) FILTER (
+                           WHERE ph.bucket >= NOW() - :wd * INTERVAL '1 day'
+                       )::numeric, 4) AS uptime_window,
+                       ROUND(AVG(ph.uptime_pct) FILTER (
+                           WHERE ph.bucket >= NOW() - INTERVAL '1 hour'
+                       )::numeric, 4) AS uptime_1h
+                FROM warden_core.monitors m
+                LEFT JOIN warden_core.probe_hourly ph
+                       ON ph.monitor_id = m.id AND ph.tenant_id = m.tenant_id
+                WHERE m.tenant_id = :tid
+                GROUP BY m.id, m.name, m.url
+            """),
+            {"tid": auth.tenant_id, "wd": window_days},
+        )
+        monitors = [dict(r._mapping) for r in rows]
+
+    report: list[dict[str, Any]] = []
+    worst_consumed = 0.0
+    for m in monitors:
+        # No probe history yet → treat as perfect (100%) rather than a false breach.
+        up = float(m["uptime_window"]) if m["uptime_window"] is not None else 100.0
+        up_1h = float(m["uptime_1h"]) if m["uptime_1h"] is not None else 100.0
+        b = _b.error_budget(up, sla_target=sla, window_days=window_days)
+        burn_1h = _b.burn_rate(up_1h, sla)
+        report.append({
+            "monitor_id":        str(m["id"]),
+            "name":              m["name"],
+            "url":               m["url"],
+            "uptime_pct":        up,
+            "consumed_fraction": b.consumed_fraction,
+            "remaining_minutes": b.remaining_minutes,
+            "exhausted":         b.exhausted,
+            "burn_1h":           round(burn_1h, 3) if math.isfinite(burn_1h) else None,
+        })
+        if math.isfinite(b.consumed_fraction):
+            worst_consumed = max(worst_consumed, b.consumed_fraction)
+
+    return {
+        "tier":                    tier.strip().lower(),
+        "sla_target":              sla,
+        "window_days":             window_days,
+        "monitors":                report,
+        "worst_consumed_fraction": round(worst_consumed, 6),
+        "any_exhausted":           any(r["exhausted"] for r in report),
+    }
 
 
 @router.get("/{monitor_id}")

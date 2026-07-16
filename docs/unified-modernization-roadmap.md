@@ -52,12 +52,12 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 
 | ID | Item | Status | PR |
 |---|---|---|---|
-| FM-0 | Quick wins: SARIF export, `cached_tokens` GSAM column, uptime monitors ×4 hostnames | ⬜ proposed | — |
+| FM-0 | Quick wins: SARIF export, `cached_tokens` GSAM column, uptime monitors ×4 hostnames | 🟡 2/3 — SARIF + `cached_tokens` merged (4ab0e15f); uptime monitors folded into FM-5 | 4ab0e15f |
 | FM-1 | Unified wallet availability math (prepaid+trial+bonus−hold, one `available_usd()`) | ⬜ proposed | — |
 | FM-2 | Real-time cost rating — CH `billing_session_ledger` SummingMergeTree + MV, prompt-cache discount | ⬜ proposed | — |
 | FM-3 | Margin-aware model routing + per-tier pricing floor (additive after security gates) | ⬜ proposed | — |
 | FM-4 | 4 GB-node efficiency: mem-limit audit, M/G/1 capacity ceiling; MILP archived until ≥2 nodes | ⬜ proposed | — |
-| FM-5 | Reliability = revenue: 2× cloudflared replicas, error-budget burn-rate alerts | ⬜ proposed | — |
+| FM-5 | Reliability = revenue: 2× cloudflared replicas, error-budget burn-rate alerts | 🟡 in-flight — pure error-budget + multiwindow burn-rate math (`warden/reliability/`) + `GET /monitors/error-budget` landed; cloudflared replicas + monitor creation + Slack alert routing remain (operational) | — |
 | FM-6 | Growth accounting: funnel events, viral coefficient K, LTV/NRR dashboard | ⬜ proposed | — |
 
 Track C shared-file notes: `staff/economics.py` pricing dict (C-shared with Track B GSAM), GSAM schema (`gsam/schema.py` + `docker/clickhouse/init.sql` must stay in sync), `sac/preflight.py` wallet. FM never weakens a security gate — margin logic is additive after fail-closed checks.

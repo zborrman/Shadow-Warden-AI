@@ -291,6 +291,7 @@
   "warden.api.monitor": [
     "DELETE /monitors/{monitor_id}",
     "GET /monitors/",
+    "GET /monitors/error-budget",
     "GET /monitors/{monitor_id}",
     "GET /monitors/{monitor_id}/history",
     "GET /monitors/{monitor_id}/status",
