@@ -17,24 +17,31 @@ from dataclasses import dataclass, field
 
 from warden.config import data_path
 from warden.db.ddl_registry import ensure_schema, register
+from warden.finops.rating import (
+    DEFAULT_RATES as _DEFAULT_RATES,  # noqa: F401  (back-compat re-export)
+)
+from warden.finops.rating import PRICE_BOOK as _COST_PER_MTOK  # noqa: F401  (back-compat re-export)
+from warden.finops.rating import rate_usage
 
 log = logging.getLogger(__name__)
 
 
 _DB_PATH: str = data_path("warden_staff_economics.db", "STAFF_ECONOMICS_DB_PATH")
 
-# Pricing as of 2026-06 (USD per million tokens)
-_COST_PER_MTOK: dict[str, dict[str, float]] = {
-    "claude-haiku-4-5-20251001": {"input": 0.80,  "output": 4.00},
-    "claude-sonnet-4-6":         {"input": 3.00,  "output": 15.00},
-    "claude-opus-4-8":           {"input": 15.00, "output": 75.00},
-}
-_DEFAULT_RATES = {"input": 3.00, "output": 15.00}
+# Pricing is owned by warden.finops.rating (the single source of truth); the two
+# aliases above preserve this module's historical import surface.
 
 
-def compute_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
-    rates = _COST_PER_MTOK.get(model, _DEFAULT_RATES)
-    return (input_tokens * rates["input"] + output_tokens * rates["output"]) / 1_000_000
+def compute_cost_usd(
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cached_tokens: int = 0,
+) -> float:
+    """USD cost of one call. `cached_tokens` (prompt-cache reads) bill at a
+    fraction of the input rate — see warden.finops.rating. Backward compatible:
+    2-positional-arg callers get the old fresh-input-only behaviour."""
+    return rate_usage(model, input_tokens, output_tokens, cached_tokens).total_usd
 
 
 @dataclass

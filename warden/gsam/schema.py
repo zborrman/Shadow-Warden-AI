@@ -156,3 +156,49 @@ CLICKHOUSE_MIGRATIONS: tuple[str, ...] = (
     "ALTER TABLE gsam.gsam_observations "
     "ADD COLUMN IF NOT EXISTS cached_tokens UInt32 DEFAULT 0 AFTER output_tokens",
 )
+
+# ── FM-2 real-time cost rating: billing ledger ────────────────────────────────
+# A SummingMergeTree pre-aggregation of raw token counts per
+# (date, tenant, agent, model, provider). It stores UNITS ONLY — the price book
+# lives in warden.finops.rating and is applied at read time, so a price change
+# never requires a ClickHouse rewrite. The materialized view folds each new
+# observation insert into the ledger (it does not backfill history). Applied by
+# clickhouse.py::ensure_schema, each statement swallowed + counted like the migrations.
+CLICKHOUSE_BILLING_DDL: tuple[str, ...] = (
+    """
+    CREATE TABLE IF NOT EXISTS gsam.billing_session_ledger
+    (
+        date Date,
+        tenant_id LowCardinality(String),
+        agent_id LowCardinality(String),
+        model LowCardinality(String),
+        provider LowCardinality(String),
+        calls UInt64,
+        input_tokens UInt64,
+        output_tokens UInt64,
+        cached_tokens UInt64,
+        execution_cost Float64
+    )
+    ENGINE = SummingMergeTree()
+    PARTITION BY toYYYYMM(date)
+    ORDER BY (tenant_id, agent_id, model, provider, date)
+    """,
+    """
+    CREATE MATERIALIZED VIEW IF NOT EXISTS gsam.billing_session_ledger_mv
+    TO gsam.billing_session_ledger
+    AS SELECT
+        toDate(ts) AS date,
+        tenant_id,
+        agent_id,
+        model,
+        provider,
+        count() AS calls,
+        sum(input_tokens) AS input_tokens,
+        sum(output_tokens) AS output_tokens,
+        sum(cached_tokens) AS cached_tokens,
+        sum(execution_cost) AS execution_cost
+    FROM gsam.gsam_observations
+    WHERE (input_tokens > 0) OR (output_tokens > 0) OR (cached_tokens > 0)
+    GROUP BY date, tenant_id, agent_id, model, provider
+    """,
+)

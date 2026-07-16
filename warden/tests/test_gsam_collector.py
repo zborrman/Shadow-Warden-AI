@@ -164,6 +164,21 @@ def test_cached_tokens_migration_is_idempotent_and_additive():
         assert "ADD COLUMN IF NOT EXISTS" in m  # safe to re-run on every boot
 
 
+def test_billing_ledger_ddl_is_summing_and_idempotent():
+    # FM-2 ledger: a SummingMergeTree fed by a materialized view, both IF NOT
+    # EXISTS so ensure_schema can re-run them on every boot.
+    ddls = schema.CLICKHOUSE_BILLING_DDL
+    joined = "\n".join(ddls)
+    assert "billing_session_ledger" in joined
+    assert "SummingMergeTree" in joined
+    assert "MATERIALIZED VIEW IF NOT EXISTS" in joined
+    for d in ddls:
+        assert "IF NOT EXISTS" in d
+    # It aggregates raw token units — the price book is NOT baked into SQL.
+    assert "sum(cached_tokens)" in joined
+    assert "$" not in joined and "0.10" not in joined
+
+
 # ── Settings defaults ─────────────────────────────────────────────────────────
 
 def test_settings_defaults():

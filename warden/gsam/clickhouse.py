@@ -12,6 +12,7 @@ import threading
 
 from warden.config import settings
 from warden.gsam.schema import (
+    CLICKHOUSE_BILLING_DDL,
     CLICKHOUSE_COLUMNS,
     CLICKHOUSE_DATABASE_DDL,
     CLICKHOUSE_MIGRATIONS,
@@ -88,6 +89,14 @@ class GsamClickHouse:
                     client.command(migration)
                 except Exception as exc:
                     log.debug("GSAM ClickHouse migration skipped (fail-open): %s", exc)
+                    record_failopen("gsam_clickhouse", Reason.BACKEND_ERROR, exc)
+            # FM-2 billing ledger (SummingMergeTree + MV) — additive, same
+            # fail-open discipline so a ledger DDL problem never blocks ingest.
+            for ddl in CLICKHOUSE_BILLING_DDL:
+                try:
+                    client.command(ddl)
+                except Exception as exc:
+                    log.debug("GSAM ClickHouse billing DDL skipped (fail-open): %s", exc)
                     record_failopen("gsam_clickhouse", Reason.BACKEND_ERROR, exc)
             self._schema_ready = True
             log.info("GSAM ClickHouse schema ready")

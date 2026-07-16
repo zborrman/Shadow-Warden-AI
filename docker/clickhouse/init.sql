@@ -50,3 +50,41 @@ PARTITION BY toYYYYMM(date)
 ORDER BY (tenant_id, agent_id, toUnixTimestamp(ts), trace_id)
 TTL date + INTERVAL 30 DAY
 SETTINGS ttl_only_drop_parts = 1;
+
+-- FM-2 real-time cost rating: billing ledger.
+-- Mirrors warden/gsam/schema.py CLICKHOUSE_BILLING_DDL — keep both in sync.
+-- Stores raw token UNITS only; the price book (warden.finops.rating) is applied
+-- at read time so a price change never rewrites ClickHouse.
+CREATE TABLE IF NOT EXISTS gsam.billing_session_ledger
+(
+    date Date,
+    tenant_id LowCardinality(String),
+    agent_id LowCardinality(String),
+    model LowCardinality(String),
+    provider LowCardinality(String),
+    calls UInt64,
+    input_tokens UInt64,
+    output_tokens UInt64,
+    cached_tokens UInt64,
+    execution_cost Float64
+)
+ENGINE = SummingMergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (tenant_id, agent_id, model, provider, date);
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS gsam.billing_session_ledger_mv
+TO gsam.billing_session_ledger
+AS SELECT
+    toDate(ts) AS date,
+    tenant_id,
+    agent_id,
+    model,
+    provider,
+    count() AS calls,
+    sum(input_tokens) AS input_tokens,
+    sum(output_tokens) AS output_tokens,
+    sum(cached_tokens) AS cached_tokens,
+    sum(execution_cost) AS execution_cost
+FROM gsam.gsam_observations
+WHERE (input_tokens > 0) OR (output_tokens > 0) OR (cached_tokens > 0)
+GROUP BY date, tenant_id, agent_id, model, provider;
