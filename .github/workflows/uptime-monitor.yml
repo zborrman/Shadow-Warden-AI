@@ -21,7 +21,7 @@ jobs:
   probe:
     name: Probe /health
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Probe public health endpoint
         id: probe
@@ -30,12 +30,14 @@ jobs:
           # timeout is normal and must not red the pipeline). Only a persistent
           # non-200 across all attempts is treated as a real outage.
           #
-          # Budget must outlast a routine deploy restart: warden has
-          # stop_grace_period 30s and a cold boot loads the ML model, so the old
-          # 4x10s (~40s) window false-alarmed when this scheduled probe coincided
-          # with `docker compose up`. 6x20s (~100s) comfortably covers a restart
-          # while a genuine multi-minute outage still fails within the 5-min job cap.
-          ATTEMPTS=6
+          # Budget must outlast a routine deploy swap. The CI deploy builds images
+          # first (old stack still serving), then does a down+up swap whose only
+          # gap is the container recreate + warden ML-model warmup (~2.5-3 min).
+          # The old 6x20s (~100s) budget false-alarmed on that swap (HTTP 530 on
+          # every attempt when a scheduled probe coincided with a deploy). 12x20s
+          # (~4 min) comfortably covers the swap, while a genuine outage longer than
+          # that still fails within the 8-min job cap.
+          ATTEMPTS=12
           DELAY=20
           CODE=000
           for i in $(seq 1 "$ATTEMPTS"); do
