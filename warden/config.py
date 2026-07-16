@@ -76,7 +76,12 @@ def data_path(filename: str, override_env: str | None = None) -> str:
 
     An explicit per-module env override (``override_env``) wins when set, so
     existing ``X_DB_PATH`` overrides keep working. When the base dir is not the
-    legacy /tmp, it is created best-effort (persisted volumes may start empty).
+    legacy /tmp, it is created best-effort (persisted volumes may start empty)
+    with mode ``0o700`` (S1) — these DBs hold PII/secret material, so the base
+    dir must never be world-readable. The ``chmod`` also tightens a dir that
+    pre-existed with looser permissions; both are best-effort and no-ops on
+    filesystems (e.g. Windows) that don't honour POSIX modes. ``/tmp`` itself is
+    never chmod-ed — its shared sticky-bit permissions are the OS's to own.
     """
     if override_env:
         override = os.getenv(override_env)
@@ -85,7 +90,9 @@ def data_path(filename: str, override_env: str | None = None) -> str:
     base = data_dir()
     if base != _DEFAULT_DATA_DIR:
         with suppress(OSError):
-            os.makedirs(base, exist_ok=True)
+            os.makedirs(base, mode=0o700, exist_ok=True)
+        with suppress(OSError):
+            os.chmod(base, 0o700)
     return os.path.join(base, filename)
 
 
@@ -852,6 +859,13 @@ class Settings:
     # Region tag stamped on global blocklist / corpus-sync events.
     warden_region: str = field(
         default_factory=lambda: _env("WARDEN_REGION", "default")
+    )
+    # Deployment environment (S1). "dev" (default) keeps every historic
+    # behaviour — an unset env is unchanged. Set WARDEN_ENV=production (or
+    # "prod") on the real deploy so validate() rejects secret-bearing SQLite
+    # DBs sitting under ephemeral, potentially world-readable /tmp.
+    warden_env: str = field(
+        default_factory=lambda: _env("WARDEN_ENV", "dev").strip().lower()
     )
 
 
@@ -1856,6 +1870,11 @@ class Settings:
     # ── Validation & audit (Deep-Eng P1) ────────────────────
     _SECRET_HINT = ("key", "token", "secret", "password", "webhook_url", "routing_key")
 
+    @property
+    def is_prod(self) -> bool:
+        """True on a production deploy (WARDEN_ENV in {prod, production})."""
+        return self.warden_env in ("prod", "production")
+
     def validate(self) -> list[str]:
         """Return human-readable config problems (empty list = healthy).
 
@@ -1898,6 +1917,23 @@ class Settings:
                 Fernet(self.vault_master_key.encode())
             except Exception as exc:  # noqa: BLE001
                 problems.append(f"VAULT_MASTER_KEY is not a valid Fernet key: {exc!r}")
+
+        # Secret-bearing SQLite DBs must not live under /tmp in prod (S1).
+        # Every module DB resolves under data_dir(); the masking vault, secrets
+        # inventory, staff economics, ACP token vault etc. hold PII/secret
+        # material. /tmp is ephemeral and often world-readable — one prod
+        # misconfig there leaks credentials. Flag it so CONFIG_FAILCLOSED can
+        # crash-loop the deploy instead of serving from /tmp. Dev is unaffected.
+        if self.is_prod:
+            # Normalise with POSIX semantics (prod is Linux); avoid os.path.abspath,
+            # which rewrites "/tmp" to a drive path on a Windows dev/test host.
+            base = data_dir().replace("\\", "/").rstrip("/") or "/"
+            if base == "/tmp" or base.startswith("/tmp/"):
+                problems.append(
+                    f"WARDEN_DATA_DIR resolves under /tmp ({base!r}) in prod — "
+                    "secret-bearing SQLite DBs would be ephemeral/world-readable. "
+                    "Set WARDEN_DATA_DIR to a persisted, mode-0700 volume."
+                )
 
         return problems
 
