@@ -44,6 +44,7 @@ from arq.connections import RedisSettings
 from warden.agent.scheduler import (
     sova_community_watchdog,
     sova_corpus_watchdog,
+    sova_error_budget_alert,
     sova_marketplace_state_sync,
     sova_morning_brief,
     sova_nightly_backup,
@@ -101,6 +102,7 @@ class WorkerSettings:
         sova_upgrade_scan,
         sova_corpus_watchdog,
         sova_tunnel_health_check,
+        sova_error_budget_alert,     # FM-5 — SLA burn-rate alerts
         sova_visual_patrol,
         sova_community_watchdog,
         sova_obsidian_watchdog,
@@ -164,6 +166,9 @@ class WorkerSettings:
             minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
             timeout=60,
         ),
+
+        # ── SLA error-budget burn-rate alert — every 30 minutes (FM-5) ────────
+        cron(sova_error_budget_alert, minute={0, 30}, timeout=60),
 
         # ── SOVA Agent — visual patrol nightly 03:00 UTC ─────────────────────
         cron(sova_visual_patrol, hour=3, minute=0, timeout=300),

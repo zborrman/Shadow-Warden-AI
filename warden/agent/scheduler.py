@@ -22,6 +22,7 @@ import logging
 from datetime import UTC, datetime
 
 from warden.config import data_path, settings
+from warden.reliability.budget import evaluate_burn_alert, sla_for_tier
 
 log = logging.getLogger("warden.agent.scheduler")
 
@@ -1010,3 +1011,173 @@ async def sova_nightly_backup(ctx: dict) -> dict:
         record_failopen("backup_nightly", Reason.BACKEND_ERROR, exc)
         await _slack(f"🛑 *Nightly DB backup FAILED*: {exc}")
         return {"status": "error", "error": str(exc)}
+
+
+# ── FM-5: multiwindow SLA error-budget burn-rate alert ───────────────────────
+#
+# Turns the pure burn-rate math (warden.reliability.budget) into a live Slack
+# signal. The 2026-07-15 tunnel outage burned a month's Pro budget invisibly
+# because nothing paged on it — this is that page. Additive + read-only: no
+# security path, no gate; it only reads probe_results and posts to Slack.
+
+# Monitor-row column → burn-table window label. The columns are produced by the
+# per-window FILTER aggregation in `sova_error_budget_alert`'s query.
+_BURN_WINDOW_COLS: tuple[tuple[str, str], ...] = (
+    ("up_5m", "5m"), ("up_30m", "30m"), ("up_1h", "1h"), ("up_2h", "2h"),
+    ("up_6h", "6h"), ("up_1d", "1d"), ("up_3d", "3d"),
+)
+
+
+def _burn_windows_from_row(row: dict) -> dict[str, float]:
+    """Map a monitor row's per-window uptime columns to burn-table window labels.
+
+    A None column (no probes in that window yet) becomes 100% — missing data must
+    never fabricate a false breach (same convention as the error-budget report).
+    """
+    windows: dict[str, float] = {}
+    for col, label in _BURN_WINDOW_COLS:
+        val = row.get(col)
+        windows[label] = 100.0 if val is None else float(val)
+    return windows
+
+
+def _evaluate_monitor_burns(rows: list[dict], sla_target: float) -> list[dict]:
+    """Pure: evaluate the multiwindow burn table per monitor, one entry per FIRING
+    monitor (empty when nothing burns fast enough to alert)."""
+    firing: list[dict] = []
+    for row in rows:
+        alert = evaluate_burn_alert(_burn_windows_from_row(row), sla_target)
+        if alert is not None:
+            firing.append({
+                "monitor_id":   str(row.get("id", "?")),
+                "name":         row.get("name", "?"),
+                "url":          row.get("url", "?"),
+                "severity":     alert.severity,
+                "long_window":  alert.long_window,
+                "short_window": alert.short_window,
+                "long_burn":    alert.long_burn,
+                "short_burn":   alert.short_burn,
+                "label":        alert.label,
+            })
+    return firing
+
+
+def _format_burn_slack(firing: list[dict], ts: str, tier: str) -> str:
+    """Pure: render the burn-alert Slack message, pages ranked before tickets."""
+    order = {"page": 0, "ticket": 1}
+    ranked = sorted(firing, key=lambda f: order.get(f["severity"], 9))
+    icon = "🔴" if any(f["severity"] == "page" for f in ranked) else "🟠"
+    lines = [f"{icon} *SLA Error-Budget Burn Alert* [{ts}] — tier `{tier}`"]
+    for f in ranked:
+        sev = "PAGE" if f["severity"] == "page" else "TICKET"
+        lines.append(
+            f"• *{sev}* `{f['name']}` — {f['label']} "
+            f"(burn {f['long_window']}={f['long_burn']}× / {f['short_window']}={f['short_burn']}×)"
+        )
+    return "\n".join(lines)
+
+
+async def _aioredis_client():
+    """Return an async Redis client, or None when Redis is not configured."""
+    import os
+    url = os.getenv("REDIS_URL", "")
+    if not url or url == "memory://":
+        return None
+    try:
+        import redis.asyncio as aioredis
+        return aioredis.from_url(url)
+    except Exception:
+        return None
+
+
+async def _filter_burn_cooldown(firing: list[dict], cooldown_s: int = 3600) -> list[dict]:
+    """Drop firing alerts still inside their per-(monitor,severity) Redis cooldown
+    so one ongoing incident doesn't re-page every run.
+
+    Resilient: on any Redis error (or no Redis) the alert is kept — a broken
+    cooldown must never swallow a page.
+    """
+    if not firing:
+        return []
+    r = await _aioredis_client()
+    if r is None:
+        return firing
+    out: list[dict] = []
+    for f in firing:
+        key = f"sova:burn_alert:{f['monitor_id']}:{f['severity']}"
+        try:
+            # SET NX EX → truthy only when the key was absent (not in cooldown).
+            was_set = await r.set(key, _ts(), ex=cooldown_s, nx=True)
+            if was_set:
+                out.append(f)
+        except Exception as exc:
+            log.debug("burn cooldown check failed (alerting anyway): %s", exc)
+            out.append(f)
+    return out
+
+
+async def sova_error_budget_alert(ctx: dict) -> dict:
+    """
+    Every 30 minutes — multiwindow SLA error-budget burn-rate alerting (FM-5).
+
+    Reads each active platform monitor's uptime over the burn-table windows
+    (5m…3d) from ``probe_results`` and evaluates the Google SRE multiwindow table
+    (``warden.reliability.budget``). Pages/tickets to Slack only when BOTH a long
+    and a short window burn past threshold — a single blip never pages, a real
+    outage does. A per-(monitor,severity) Redis cooldown prevents spam.
+
+    Additive + read-only: no security path, no gate. Skips cleanly when the
+    TimescaleDB monitor store is unavailable (dev/test without Postgres).
+    """
+    import os
+
+    from sqlalchemy import text
+
+    from warden.db.connection import get_async_engine
+
+    log.info("sova: error-budget burn alert [%s]", _ts())
+
+    tier = os.getenv("BURN_ALERT_TIER", "pro")
+    sla = sla_for_tier(tier)
+    tenant_id = settings.default_tenant_id
+
+    try:
+        async with get_async_engine().connect() as conn:
+            result = await conn.execute(
+                text("""
+                    SELECT m.id, m.name, m.url,
+                      ROUND(AVG(pr.is_up::int) FILTER (WHERE pr.time >= NOW() - INTERVAL '5 minutes')::numeric  * 100, 4) AS up_5m,
+                      ROUND(AVG(pr.is_up::int) FILTER (WHERE pr.time >= NOW() - INTERVAL '30 minutes')::numeric * 100, 4) AS up_30m,
+                      ROUND(AVG(pr.is_up::int) FILTER (WHERE pr.time >= NOW() - INTERVAL '1 hour')::numeric     * 100, 4) AS up_1h,
+                      ROUND(AVG(pr.is_up::int) FILTER (WHERE pr.time >= NOW() - INTERVAL '2 hours')::numeric    * 100, 4) AS up_2h,
+                      ROUND(AVG(pr.is_up::int) FILTER (WHERE pr.time >= NOW() - INTERVAL '6 hours')::numeric    * 100, 4) AS up_6h,
+                      ROUND(AVG(pr.is_up::int) FILTER (WHERE pr.time >= NOW() - INTERVAL '1 day')::numeric      * 100, 4) AS up_1d,
+                      ROUND(AVG(pr.is_up::int) FILTER (WHERE pr.time >= NOW() - INTERVAL '3 days')::numeric     * 100, 4) AS up_3d
+                    FROM warden_core.monitors m
+                    LEFT JOIN warden_core.probe_results pr
+                           ON pr.monitor_id = m.id AND pr.tenant_id = m.tenant_id
+                    WHERE m.tenant_id = :tid AND m.is_active = true
+                    GROUP BY m.id, m.name, m.url
+                """),
+                {"tid": tenant_id},
+            )
+            rows = [dict(r._mapping) for r in result]
+    except Exception as exc:
+        log.debug("error-budget alert: monitor store unavailable — skipping: %s", exc)
+        return {"status": "skip", "ts": _ts(), "reason": "monitor store unavailable"}
+
+    firing = _evaluate_monitor_burns(rows, sla)
+    to_alert = await _filter_burn_cooldown(firing)
+
+    if to_alert:
+        await _slack(_format_burn_slack(to_alert, _ts(), tier))
+
+    log.info("error-budget alert: monitors=%d firing=%d alerted=%d",
+             len(rows), len(firing), len(to_alert))
+    return {
+        "status":   "alerted" if to_alert else "ok",
+        "ts":       _ts(),
+        "monitors": len(rows),
+        "firing":   len(firing),
+        "alerted":  len(to_alert),
+    }
