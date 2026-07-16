@@ -24,6 +24,13 @@ from warden.finops.rating import (
     price_for,
     rate_usage,
 )
+from warden.finops.wallet import (
+    WalletComponents,
+    available_usd,
+    resolve_available_usd,
+    resolve_wallet,
+    spend_breakdown,
+)
 
 __all__ = [
     "CACHE_READ_DISCOUNT",
@@ -32,6 +39,8 @@ __all__ = [
     "CostBreakdown",
     "MarginVerdict",
     "RoutingDecision",
+    "WalletComponents",
+    "available_usd",
     "blended_input_rate",
     "evaluate_margin",
     "margin_fraction",
@@ -39,5 +48,8 @@ __all__ = [
     "price_for",
     "pricing_floor_usd",
     "rate_usage",
+    "resolve_available_usd",
+    "resolve_wallet",
+    "spend_breakdown",
     "tier_revenue_per_request",
 ]
