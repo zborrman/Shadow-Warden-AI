@@ -1020,6 +1020,19 @@ jobs:
             }
           }
 
+          # Second, unscoped pass — catches config drift the scoped pass above
+          # can't see: a brand-new service definition (e.g. R3's `autoheal`) or
+          # a config-only change (labels, env) on one of the 13 NON-buildable
+          # services (proxy/postgres/redis/minio/clickhouse/...). Those never
+          # get an image rebuild, so they're invisible to the scoped pass by
+          # design — but `docker compose up` still detects a docker-compose.yml
+          # diff for them independently of any image change. No --wait here
+          # (same minio-init incompatibility as above, this time unavoidable
+          # since the whole project is in scope) — already-correct containers
+          # are a verified no-op (proven live during R2: only elapsed-time
+          # changes, zero recreates, when nothing actually differs).
+          docker compose up -d --no-build --remove-orphans 2>&1 | tail -20
+
           echo "── [3b/4] Prune build cache ────────────────────────────────"
           # On a 40 GB disk the Docker build cache accumulates ~4-5 GB per week
           # (every --build pass creates new layers; old ones are not auto-removed).
