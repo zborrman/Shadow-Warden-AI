@@ -63,20 +63,18 @@ def _db() -> sqlite3.Connection:
 
 
 async def _prescreen_text(text: str, tenant_id: str) -> bool:
-    """Rec-1: return True if text passes filter (clean), False if blocked. Fail-open = True."""
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=5) as c:
-            r = await c.post(
-                "http://localhost:8001/filter",
-                json={"content": text[:4000], "tenant_id": tenant_id},
-            )
-            if r.status_code == 200 and r.json().get("blocked"):
-                log.warning("COMPLIANCE: content blocked by filter — potential injection in input")
-                return False
-    except Exception as exc:  # noqa: BLE001
-        log.debug("COMPLIANCE: filter prescreen unavailable (fail-open): %s", exc)
-    return True
+    """Rec-1: return True if text passes filter (clean) OR the filter is unreachable,
+    False only if the filter positively blocks (fail-CLOSED on a real block).
+
+    S6: delegates to the shared fail-**safe** pre-screen — a filter timeout is no longer a
+    silent bypass but an observable (record_failopen), audited, throttled one. The bool
+    contract is unchanged for callers: blocked → False; clean/bypassed → True.
+    """
+    from warden.staff.tools._prescreen import prescreen_freetext
+    result = await prescreen_freetext(
+        text, tenant_id, agent_id="compliance", stage_detail="compliance_kyc"
+    )
+    return result.allowed
 
 
 async def screen_sanctions_list(

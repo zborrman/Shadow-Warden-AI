@@ -97,20 +97,12 @@ async def generate_seo_content(
         f"Target length: {word_count} words."
     )
 
-    # Rec-1: pre-screen draft through filter (fail-open)
-    injection_clean = True
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=5) as c:
-            r = await c.post(
-                "http://localhost:8001/filter",
-                json={"content": content_draft, "tenant_id": tenant_id},
-            )
-            if r.status_code == 200 and r.json().get("blocked"):
-                log.warning("GROWTH: SEO draft blocked by filter (injection detected) topic=%s", topic)
-                injection_clean = False
-    except Exception as exc:  # noqa: BLE001
-        log.debug("GROWTH: filter pre-screen unavailable (fail-open): %s", exc)
+    # Rec-1: pre-screen draft through filter — S6 fail-SAFE (observable + throttled bypass).
+    from warden.staff.tools._prescreen import prescreen_freetext
+    _pre = await prescreen_freetext(
+        content_draft, tenant_id, agent_id="growth", stage_detail=f"seo:{topic[:40]}"
+    )
+    injection_clean = _pre.allowed
 
     conn = _db()
     try:
