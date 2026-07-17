@@ -287,7 +287,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 512M
+          memory: 1024M
         reservations:
           memory: 128M
     environment:
@@ -429,7 +429,8 @@ services:
     networks:
       - warden-net
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8123/ping"]
+      # 127.0.0.1, not localhost: the container has no IPv6, so localhost→::1 refuses
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8123/ping"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -437,7 +438,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1g
+          memory: 2g
 
   # ── REDIS ───────────────────────────────────────────────────────────────────
   redis:
