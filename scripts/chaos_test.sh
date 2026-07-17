@@ -4,9 +4,11 @@
 # Chaos engineering — random service kill + fail-open verification
 #
 # Scenarios:
-#   1. Kill redis → verify filter still passes requests (fail-open)
-#   2. Kill warden → verify health endpoint recovers after restart
-#   3. Kill minio  → verify evidence vault degrades gracefully (no crash)
+#   1. Kill redis      → verify filter still passes requests (fail-open)
+#   2. Kill warden     → verify health endpoint recovers after restart
+#   3. Kill minio      → verify evidence vault degrades gracefully (no crash)
+#   4. Kill clickhouse → verify filter unaffected (GSAM spools NDJSON, fail-open)
+#   5. Kill postgres   → verify filter unaffected (not in the /filter hot path)
 #
 # Usage:
 #   bash scripts/chaos_test.sh [scenario_num]  # run specific scenario
@@ -153,6 +155,66 @@ scenario_minio_kill() {
     _pass "MinIO restarted"
 }
 
+# ── Scenario 4: ClickHouse kill (R6) ──────────────────────────────────────────
+scenario_clickhouse_kill() {
+    _log "=== Scenario 4: ClickHouse kill ==="
+
+    _log "Stopping clickhouse..."
+    docker compose -f "$COMPOSE_FILE" stop clickhouse 2>/dev/null || true
+    sleep 2
+
+    # GSAM's observation stream is fail-open toward ClickHouse (spools NDJSON
+    # and replays on recovery) — /filter must be completely unaffected.
+    verdict=$(_filter "Will this work without ClickHouse?" 2>/dev/null || echo "ERROR")
+    if [[ "$verdict" != "ERROR" ]]; then
+        _pass "Filter works without ClickHouse (GSAM fail-open): verdict=$verdict"
+    else
+        _fail "Filter crashed when ClickHouse died"
+    fi
+
+    status=$(_health 2>/dev/null || echo "error")
+    if [[ "$status" != "error" ]]; then
+        _pass "Health endpoint still responds without ClickHouse: $status"
+    else
+        _fail "Health endpoint failed without ClickHouse"
+    fi
+
+    _log "Restarting clickhouse..."
+    docker compose -f "$COMPOSE_FILE" start clickhouse 2>/dev/null || true
+    sleep 3
+    _pass "ClickHouse restarted"
+}
+
+# ── Scenario 5: Postgres kill (R6) ────────────────────────────────────────────
+scenario_postgres_kill() {
+    _log "=== Scenario 5: Postgres kill ==="
+
+    _log "Stopping postgres..."
+    docker compose -f "$COMPOSE_FILE" stop postgres 2>/dev/null || true
+    sleep 2
+
+    # DATABASE_URL/postgres is used by billing/marketplace/uptime-monitor —
+    # NOT the /filter hot path — so this should be a complete no-op for it.
+    verdict=$(_filter "Will this work without Postgres?" 2>/dev/null || echo "ERROR")
+    if [[ "$verdict" != "ERROR" ]]; then
+        _pass "Filter works without Postgres (not in hot path): verdict=$verdict"
+    else
+        _fail "Filter crashed when Postgres died"
+    fi
+
+    status=$(_health 2>/dev/null || echo "error")
+    if [[ "$status" != "error" ]]; then
+        _pass "Health endpoint still responds without Postgres: $status"
+    else
+        _fail "Health endpoint failed without Postgres"
+    fi
+
+    _log "Restarting postgres..."
+    docker compose -f "$COMPOSE_FILE" start postgres 2>/dev/null || true
+    sleep 3
+    _pass "Postgres restarted"
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 main() {
     local scenario="${1:-all}"
@@ -168,16 +230,20 @@ main() {
     _log "Service health: $status"
 
     case "$scenario" in
-        1|redis)   scenario_redis_kill ;;
-        2|restart) scenario_warden_restart ;;
-        3|minio)   scenario_minio_kill ;;
+        1|redis)      scenario_redis_kill ;;
+        2|restart)    scenario_warden_restart ;;
+        3|minio)      scenario_minio_kill ;;
+        4|clickhouse) scenario_clickhouse_kill ;;
+        5|postgres)   scenario_postgres_kill ;;
         all)
             scenario_redis_kill
             scenario_warden_restart
             scenario_minio_kill
+            scenario_clickhouse_kill
+            scenario_postgres_kill
             ;;
         *)
-            echo "Usage: $0 [1|2|3|all|redis|restart|minio]"
+            echo "Usage: $0 [1|2|3|4|5|all|redis|restart|minio|clickhouse|postgres]"
             exit 1
             ;;
     esac

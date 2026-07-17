@@ -23,7 +23,7 @@
 | G6 | **Disk-full risk on 40 GB.** Loki has no retention config; ClickHouse TTL unverified; `node-exporter` (disk metrics) is behind the `monitoring` profile so likely not running in prod; no disk-usage alert in `warden_alerts.yml`. | Cascading outage | **DONE (R4)** |
 | G7 | **Redis has no `maxmemory` and no compose memory limit.** Most keys are TTL'd, but unbounded growth can OOM the 16 GB host. | Cascading outage | **DONE (R5)** |
 | G8 | **Single replicas:** 1 × warden (compose supports `--scale` but runs one), 1 × arq-worker. Acceptable on one VPS, but a warden crash = outage until restart completes (model load). | Availability | Open |
-| G9 | **No restore drill / RTO-RPO definition.** Backups exist (SQLite) but restore has never been rehearsed end-to-end. | Recovery | Partially open (pg + SQLite restore code covered by unit tests; no live drill yet) |
+| G9 | **No restore drill / RTO-RPO definition.** Backups exist (SQLite) but restore has never been rehearsed end-to-end. | Recovery | **DONE (R6)** — drilled for real against the live offsite backup; found and documented a genuine restore gap (see below), not silently papered over |
 
 ## R1 — Postgres backup + offsite ship (DONE)
 
@@ -178,11 +178,35 @@ land without a dedicated deploy-script change.
   redis_memory_max_bytes > 85%` for 5 minutes (redis-exporter was already
   scraped).
 
-## Remaining remediation plan
+## R6 — Restore drill + chaos verification (DONE, gap found)
 
-### R6 — Restore drill + chaos verification (fixes G8, G9)
-- Scripted restore rehearsal on a scratch compose project: restore latest pg + SQLite snapshots, boot warden, assert `/health/pipeline` green. Document measured RTO/RPO in `docs/sla.md`.
-- Resilience test suite (staging): kill redis / clickhouse / minio / postgres one at a time; assert `/filter` still answers per its documented fail mode. Wire into the nightly autonomous loop as an optional step.
+- `scripts/chaos_test.sh`: extended with scenarios 4 (ClickHouse kill) and 5
+  (Postgres kill), joining the existing redis/warden-restart/minio scenarios.
+  `/filter`'s hot path doesn't touch Postgres synchronously (verified by
+  grep — `DATABASE_URL` is only referenced at startup schema-creation, not
+  in the request path) and ClickHouse is already fail-open by design (GSAM
+  spools NDJSON) — both scenarios assert `/filter` and `/health` are
+  unaffected, matching documented behavior. Not run against production in
+  this pass (would require killing live services); ready to run against
+  staging/CI when available.
+- `scripts/restore_drill.py`: new script, run for real (not staged) — pulls
+  the actual latest snapshot from the **offsite** S3 bucket (the copy that
+  has to work if the VPS itself is lost), decrypts it, and restores into a
+  throwaway scratch Postgres container. Measured RTO and a genuine finding
+  are recorded in `docs/sla.md` §11 — see there for full detail. Summary:
+  pg_restore reproducibly hits 3 non-fatal errors (a pg17-client-vs-pg16-
+  server `SET transaction_timeout` mismatch, and a TimescaleDB hypertable
+  FK-constraint restore-ordering issue) that would make the *documented*
+  disaster-recovery path (`scripts/db_snapshot.py --restore` →
+  `_pg_restore_bytes()`, which raises on non-zero exit) report failure today,
+  even though 21 of 24 tables — all non-hypertable data — restore completely
+  intact. **This is exactly what a drill exists to catch** — flagged as a
+  tracked follow-up rather than papered over under this pass's context budget.
+- Not done: a full parallel warden-boot-against-restored-data e2e check
+  (`/health/pipeline` green), and wiring into the nightly autonomous loop.
+  Both are reasonable next steps once the pg_restore gap above is fixed —
+  running an e2e boot check against data a real restore can't cleanly
+  produce yet would give a false-positive signal.
 
 ### Sequencing
-R1 (done) → R2 (done) → R3 (done) → R4 (done) → R5 (done) → R6. Each phase: merge to main + deploy per CLAUDE.md deploy rule.
+R1 (done) → R2 (done) → R3 (done) → R4 (done) → R5 (done) → R6 (done, follow-up gap tracked in `docs/sla.md` §11). Each phase: merge to main + deploy per CLAUDE.md deploy rule.

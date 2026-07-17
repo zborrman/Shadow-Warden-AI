@@ -161,4 +161,55 @@ The following are excluded from uptime calculations and SLA credits:
 
 ---
 
-*Shadow Warden AI · sla.md · v1.0 · 2026-04-10*
+## 11. Backup Restore RTO/RPO (measured, R6)
+
+Measured 2026-07-17 via `scripts/restore_drill.py`, pulling the real latest
+snapshot from the offsite S3 target (not a synthetic test file) into a
+throwaway scratch Postgres — the actual disaster-recovery path, not a
+simulation.
+
+| Stage | Measured time |
+|---|---|
+| Fetch latest snapshot from offsite S3 | ~1.5–1.8s |
+| Start scratch Postgres 16 (TimescaleDB image) | ~2–5s |
+| `pg_restore` the encrypted dump | ~5–26s |
+| **Total measured RTO (Postgres data only)** | **~10–30s** |
+
+**RPO:** bounded by the nightly `sova_nightly_backup` cron (03:30 UTC) —
+worst case up to ~24h of Postgres/SQLite state loss if the VPS is lost
+minutes before the next scheduled backup.
+
+### Finding from the drill (open, not yet fixed)
+
+The drill did **not** pass clean — 3 non-fatal `pg_restore` errors on every
+run, reproducible:
+
+1. `unrecognized configuration parameter "transaction_timeout"` — the pg_dump
+   client is Postgres 17 (`warden/Dockerfile`, R1), but the actual server is
+   Postgres 16 (`timescale/timescaledb:latest-pg16`). A v17 dump's `SET
+   transaction_timeout = 0` preamble is rejected by a v16 server. Cosmetic in
+   isolation (pg_restore continues past it), but a real version-skew bug.
+2. `table "probe_results" is not a hypertable` / `ONLY option not supported
+   on hypertable operations` — the uptime-monitor hypertable's foreign-key
+   constraints fail to restore against a fresh TimescaleDB instance, even
+   with `CREATE EXTENSION timescaledb` pre-run. TimescaleDB's chunk-based
+   internal partitioning needs FK constraints reapplied in a specific order
+   pg_restore's default dependency resolution doesn't get right.
+
+**Why this matters:** `warden/backup/service.py::_pg_restore_bytes()` — the
+function the *documented, real* disaster-recovery path
+(`scripts/db_snapshot.py --restore`) calls — checks `pg_restore`'s exit code
+and raises on non-zero, exactly the code this drill exercised. A real
+restore of this database today would report failure via that path even
+though the drill showed 21 of 24 tables (all non-hypertable data) restore
+completely intact. This is precisely what a restore drill is for: "we have
+backups" was true; "the documented one-command restore definitely works"
+was not, until measured. **Follow-up needed:** either make
+`_pg_restore_bytes()` tolerate pg_restore's ignored-error exit code
+(distinguishing it from a genuine hard failure) and script FK-constraint
+reapplication for hypertables, or adopt TimescaleDB-aware backup tooling.
+Tracked as a known gap, not silently patched under this pass.
+
+---
+
+*Shadow Warden AI · sla.md · v1.1 · 2026-07-17*
