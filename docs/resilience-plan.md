@@ -21,7 +21,7 @@
 | G4 | **Unhealthy containers are never restarted.** Docker healthchecks mark state but compose does not act on it — a hung (not crashed) warden stays hung until manual intervention. | Availability | **DONE (R3)** |
 | G5 | **`PIPELINE_TIMEOUT_MS=0` (default).** The fail-open/closed timeout machinery in `main.py:2901` is built but disabled — a hung pipeline stage blocks uvicorn workers indefinitely. | Availability | **DONE (R3)** — verified live: `pipeline_timeout_ms:5000` |
 | G6 | **Disk-full risk on 40 GB.** Loki has no retention config; ClickHouse TTL unverified; `node-exporter` (disk metrics) is behind the `monitoring` profile so likely not running in prod; no disk-usage alert in `warden_alerts.yml`. | Cascading outage | **DONE (R4)** |
-| G7 | **Redis has no `maxmemory` and no compose memory limit.** Most keys are TTL'd, but unbounded growth can OOM the 16 GB host. | Cascading outage | Open |
+| G7 | **Redis has no `maxmemory` and no compose memory limit.** Most keys are TTL'd, but unbounded growth can OOM the 16 GB host. | Cascading outage | **DONE (R5)** |
 | G8 | **Single replicas:** 1 × warden (compose supports `--scale` but runs one), 1 × arq-worker. Acceptable on one VPS, but a warden crash = outage until restart completes (model load). | Availability | Open |
 | G9 | **No restore drill / RTO-RPO definition.** Backups exist (SQLite) but restore has never been rehearsed end-to-end. | Recovery | Partially open (pg + SQLite restore code covered by unit tests; no live drill yet) |
 
@@ -163,14 +163,26 @@ land without a dedicated deploy-script change.
   `warden-host-disk-high` rule — `node_filesystem_avail_bytes{mountpoint="/"}`
   > 80% used for 10 minutes, `severity: warning`.
 
-## Remaining remediation plan
+## R5 — Redis bounds (DONE)
 
-### R5 — Redis bounds (fixes G7)
-- `redis-server --maxmemory 1gb --maxmemory-policy noeviction` (noeviction: ERS/ban/approval keys must not be silently evicted; the cache already fails open on errors) + compose memory limit + Grafana alert via redis-exporter.
+- `docker-compose.yml`: `redis-server ... --maxmemory 1gb --maxmemory-policy
+  noeviction` + `deploy.resources.limits.memory: 1280M` (1GB cap + AOF
+  rewrite/fork headroom). `noeviction`, not an LRU policy: ERS scores,
+  shadow-ban state, and approval tokens must never be silently evicted —
+  past the cap, writes fail loudly instead (the cache layer already fails
+  open on any Redis error, so a refused write degrades safely).
+  Verified live usage before applying: 1.9MB used, 0 (unbounded) configured
+  — ample headroom, no risk of immediately evicting/rejecting anything.
+- `grafana/provisioning/alerting/warden_alerts.yml`: new
+  `warden-redis-memory-high` rule on `redis_memory_used_bytes /
+  redis_memory_max_bytes > 85%` for 5 minutes (redis-exporter was already
+  scraped).
+
+## Remaining remediation plan
 
 ### R6 — Restore drill + chaos verification (fixes G8, G9)
 - Scripted restore rehearsal on a scratch compose project: restore latest pg + SQLite snapshots, boot warden, assert `/health/pipeline` green. Document measured RTO/RPO in `docs/sla.md`.
 - Resilience test suite (staging): kill redis / clickhouse / minio / postgres one at a time; assert `/filter` still answers per its documented fail mode. Wire into the nightly autonomous loop as an optional step.
 
 ### Sequencing
-R1 (done) → R2 (done) → R3 (done) → R4 (done) → R5 → R6. Each phase: merge to main + deploy per CLAUDE.md deploy rule.
+R1 (done) → R2 (done) → R3 (done) → R4 (done) → R5 (done) → R6. Each phase: merge to main + deploy per CLAUDE.md deploy rule.

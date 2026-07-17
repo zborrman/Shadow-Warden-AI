@@ -549,6 +549,52 @@ groups:
             Runbook: docs.shadow-warden-ai.com/guides/slo-burn-runbook
             Dashboard: http://localhost:3000/d/warden-overview
 
+      # ── R5: Redis Memory Near Cap ─────────────────────────────────────────────
+      # redis-exporter:9121 already scraped (job "redis"). R5 set
+      # maxmemory=1gb / maxmemory-policy=noeviction — at the cap, WRITEs start
+      # failing (OOM command not allowed) rather than silently evicting
+      # security-relevant keys (ERS scores, shadow-ban state, approval
+      # tokens). This should fire well before that point.
+      - uid: warden-redis-memory-high
+        title: "Warden — Redis memory above 85% of maxmemory"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                redis_memory_used_bytes / redis_memory_max_bytes * 100
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 85"
+        noDataState: OK
+        execErrState: OK
+        for: 5m
+        labels:
+          severity: warning
+          team: warden
+          category: capacity
+        annotations:
+          summary: "Redis memory usage above 85% of the 1GB maxmemory cap"
+          description: >
+            Redis is approaching its maxmemory ceiling. Policy is noeviction, so
+            further writes will start failing (not silently evict) once the cap
+            is hit — check for a runaway key pattern (missing TTL) or genuine
+            growth requiring a higher cap.
+
       # ── 9. Host Disk Usage High (R4) ─────────────────────────────────────────
       # Requires node-exporter running (COMPOSE_PROFILES=monitoring in prod
       # .env — profile-gated off by default for Windows/WSL2 dev, where the

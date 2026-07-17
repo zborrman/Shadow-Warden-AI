@@ -486,9 +486,19 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: redis-server --save 60 1 --loglevel warning --appendonly yes
+    # R5 — bounded memory: most keys are TTL'd already, but unbounded growth
+    # (e.g. a runaway per-request key pattern) could OOM the 16GB host.
+    # noeviction (not an LRU policy): ERS scores / shadow-ban / approval-token
+    # keys must never be silently evicted for correctness — the cache layer
+    # already fails open on any Redis error, so a write refusal at the 1GB
+    # ceiling degrades safely rather than corrupting security state.
+    command: redis-server --save 60 1 --loglevel warning --appendonly yes --maxmemory 1gb --maxmemory-policy noeviction
     volumes:
       - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 1280M   # 1GB maxmemory + AOF rewrite/fork headroom
     networks:
       - warden-net
     healthcheck:
