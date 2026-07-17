@@ -50,6 +50,7 @@
     "POST /agent/sova",
     "POST /agent/sova/community/apply/{ueciid}",
     "POST /agent/sova/community/lookup",
+    "POST /agent/sova/stream",
     "POST /agent/sova/task/{job}"
   ],
   "warden.api.agent_sandbox": [

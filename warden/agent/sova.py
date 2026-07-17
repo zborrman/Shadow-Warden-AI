@@ -25,7 +25,7 @@ import logging
 import os
 import time
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, cast
 
 log = logging.getLogger("warden.agent.sova")
 
@@ -53,7 +53,7 @@ def _cached_tools(tool_defs: list[dict]) -> list[dict]:
 # ── Cost tracking + structured logging (Phase 2) ─────────────────────────────
 # SOVA reuses the Digital-Staff economics tracker and structured JSON logger so
 # its spend and lifecycle events land in the same SQLite table / Loki schema.
-# Every helper is fail-OPEN: observability must never brick the agent loop.
+# Every helper is resilient: observability must never brick the agent loop.
 
 def _make_span(tenant_id: str, model: str, query: str):
     """Start a structured-log AgentSpan for this run, or None if unavailable."""
@@ -62,8 +62,8 @@ def _make_span(tenant_id: str, model: str, query: str):
         span = _slog.AgentSpan("sova", tenant_id, model, query=query)
         span.start()
         return span
-    except Exception as exc:  # noqa: BLE001
-        log.debug("sova: structured_log span unavailable (fail-open): %s", exc)
+    except Exception as exc:
+        log.debug("sova: structured_log span unavailable (degraded): %s", exc)
         return None
 
 
@@ -92,8 +92,8 @@ def _record_cost(tenant_id: str, model: str, input_tokens: int, output_tokens: i
             tenant_id, "sova", "query", model, input_tokens, output_tokens
         )
         return entry.cost_usd
-    except Exception as exc:  # noqa: BLE001
-        log.debug("sova: cost record failed (fail-open): %s", exc)
+    except Exception as exc:
+        log.debug("sova: cost record failed (degraded): %s", exc)
         return 0.0
 
 
@@ -101,7 +101,7 @@ def _record_cost(tenant_id: str, model: str, input_tokens: int, output_tokens: i
 # `memory.semantic_search` existed but was never called (nor written to). Phase 3
 # reads relevant past SOVA findings into context and stores each final answer's
 # embedding. GDPR-safe: memory.py only ever stores *assistant* text, never user
-# input. Both paths are fail-OPEN and no-op without PGVECTOR_URL.
+# input. Both paths are resilient and no-op without PGVECTOR_URL.
 
 def _recall_context(query: str, limit: int = 3) -> str:
     """Return a short context block of semantically-similar past SOVA answers."""
@@ -116,8 +116,8 @@ def _recall_context(query: str, limit: int = 3) -> str:
             sim = h.get("similarity")
             lines.append(f"- (sim={sim}) {str(h.get('content', ''))[:300]}")
         return "\n".join(lines)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("sova: semantic recall unavailable (fail-open): %s", exc)
+    except Exception as exc:
+        log.debug("sova: semantic recall unavailable (degraded): %s", exc)
         return ""
 
 
@@ -129,8 +129,8 @@ def _store_memory(session_id: str, text: str) -> None:
     try:
         from warden.agent import memory
         memory.store_message_embedding(session_id, "assistant", text)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("sova: memory store failed (fail-open): %s", exc)
+    except Exception as exc:
+        log.debug("sova: memory store failed (degraded): %s", exc)
 
 
 # Tool profiles keep the *offered* tool set smaller for narrow tasks WITHOUT
@@ -153,7 +153,7 @@ _profiles_cache: dict[str, frozenset[str]] | None = None
 
 
 def _get_profiles(all_names: frozenset[str]) -> dict[str, frozenset[str]]:
-    global _profiles_cache  # noqa: PLW0603
+    global _profiles_cache
     if _profiles_cache is None:
         _profiles_cache = {
             prof: frozenset(_CORE_TOOLS | {
@@ -225,7 +225,7 @@ def _resolve_model(
             log.info("sova: adaptive route → %s (score=%.2f)", tier.upper(), score)
             return m, tier, score
         return _MODEL, "opus", 1.0
-    except Exception:  # noqa: BLE001
+    except Exception:
         return _MODEL, "opus", 1.0
 
 
@@ -315,7 +315,7 @@ async def run_query(
 
     client = anthropic.AsyncAnthropic(api_key=api_key)
 
-    # Structured lifecycle span (fail-open). GDPR: logs query length, never content.
+    # Structured lifecycle span (degraded). GDPR: logs query length, never content.
     span = _make_span(tenant_id, _active_model, query)
 
     # ── Load conversation history ─────────────────────────────────────────────
@@ -346,9 +346,9 @@ async def run_query(
         response = await client.messages.create(
             model=_active_model,
             max_tokens=max_tokens,
-            system=system_blocks,      # type: ignore[arg-type]
-            tools=_cached_tool_defs,   # type: ignore[arg-type]
-            messages=history,          # type: ignore[arg-type]
+            system=cast(Any, system_blocks),
+            tools=cast(Any, _cached_tool_defs),
+            messages=cast(Any, history),
         )
 
         # Accumulate token usage
@@ -436,8 +436,8 @@ async def run_query(
     fallback = await client.messages.create(
         model=_active_model,
         max_tokens=1024,
-        system=system_blocks,  # type: ignore[arg-type]
-        messages=history + [{"role": "user", "content": "Summarize your findings so far in a concise response."}],  # type: ignore[arg-type]
+        system=cast(Any, system_blocks),
+        messages=cast(Any, history + [{"role": "user", "content": "Summarize your findings so far in a concise response."}]),
     )
     fu = fallback.usage
     total_input  += fu.input_tokens
@@ -549,9 +549,9 @@ async def stream_query(
         async with client.messages.stream(
             model=active_model,
             max_tokens=max_tokens,
-            system=system_blocks,      # type: ignore[arg-type]
-            tools=tool_defs,           # type: ignore[arg-type]
-            messages=history,          # type: ignore[arg-type]
+            system=cast(Any, system_blocks),
+            tools=cast(Any, tool_defs),
+            messages=cast(Any, history),
         ) as stream:
             async for delta in stream.text_stream:
                 round_text.append(delta)
@@ -588,7 +588,7 @@ async def stream_query(
                 result = await _tools.traced_dispatch(tool_name, tool_input)
                 _span_tool(span, tool_name, phase="result", status="ok")
                 return block, json.dumps(result, default=str), False
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.warning("sova.stream: tool=%s error: %s", tool_name, exc)
                 _span_tool(span, tool_name, phase="result", status="error", detail=str(exc))
                 return block, f"Tool error: {exc}", True
@@ -613,8 +613,8 @@ async def stream_query(
     async with client.messages.stream(
         model=active_model,
         max_tokens=1024,
-        system=system_blocks,      # type: ignore[arg-type]
-        messages=history + [{"role": "user", "content": "Summarize your findings so far in a concise response."}],  # type: ignore[arg-type]
+        system=cast(Any, system_blocks),
+        messages=cast(Any, history + [{"role": "user", "content": "Summarize your findings so far in a concise response."}]),
     ) as stream:
         async for delta in stream.text_stream:
             summary_parts.append(delta)
