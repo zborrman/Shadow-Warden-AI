@@ -18,22 +18,17 @@ FROM python:3.11-slim
 WORKDIR /warden
 
 # System deps — apt cache mount avoids re-downloading packages on every build.
+# postgresql-client (R1 backups): the base image's own repo ships v17, which is
+# newer than the timescale/timescaledb:latest-pg16 server — pg_dump/pg_restore
+# support dumping from an older major server than the client, so no PGDG repo
+# is needed. (Do NOT pin postgresql-client-16 via PGDG: on this base image's
+# codename, PGDG's libpq5 conflicts with the system libldap, and apt fails.)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
         gcc g++ libgomp1 curl gosu git \
         cmake ninja-build libssl-dev astyle \
-    && rm -rf /var/lib/apt/lists/*
-
-# postgresql-client-16 (R1 backups) — bookworm ships client 15, which refuses to
-# dump the pg16 server (timescale/timescaledb:latest-pg16), so pull from PGDG.
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-        -o /usr/share/keyrings/pgdg.asc \
-    && echo "deb [signed-by=/usr/share/keyrings/pgdg.asc] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
-        > /etc/apt/sources.list.d/pgdg.list \
-    && apt-get update && apt-get install -y --no-install-recommends postgresql-client-16 \
+        postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python deps (three-step: liboqs → torch CPU-only → everything else) ─────

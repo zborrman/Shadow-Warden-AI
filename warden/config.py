@@ -941,6 +941,25 @@ class Settings:
         default_factory=lambda: _env("S3_REGION", "us-east-1")
     )
 
+    # ── Offsite backup ship (R1) — S3 target on different hardware than the VPS,
+    # so the encrypted nightly snapshot survives loss of the host itself. Unset =
+    # ship_backup() sends zero offsite copies (degrades quietly, counted).
+    offsite_s3_endpoint: str = field(
+        default_factory=lambda: _env("OFFSITE_S3_ENDPOINT", "")
+    )
+    offsite_s3_access_key: str = field(
+        default_factory=lambda: _env("OFFSITE_S3_ACCESS_KEY", "")
+    )
+    offsite_s3_secret_key: str = field(
+        default_factory=lambda: _env("OFFSITE_S3_SECRET_KEY", "")
+    )
+    offsite_s3_bucket: str = field(
+        default_factory=lambda: _env("OFFSITE_S3_BUCKET", "warden-backups")
+    )
+    offsite_s3_region: str = field(
+        default_factory=lambda: _env("OFFSITE_S3_REGION", "us-east-1")
+    )
+
     # ── Database (Postgres/SQLAlchemy) ──────────────────────────────────────────
     # SQLAlchemy DSN. Empty = feature disabled / SQLite fallback per caller.
     database_url: str = field(

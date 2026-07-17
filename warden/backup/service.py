@@ -26,7 +26,9 @@ Design
     every such degradation emits a ``record_failopen`` counter (FAILOPEN-01).
   • Offsite ship (R1): ``OFFSITE_S3_ENDPOINT/ACCESS_KEY/SECRET_KEY/BUCKET`` point at
     an S3 target on *different hardware* (Backblaze/Wasabi/Storage Box gateway…) —
-    the same-host MinIO copy does not survive loss of the VPS. Fail-OPEN, counted.
+    the same-host MinIO copy does not survive loss of the VPS. Degrades quietly
+    (never raises) when unreachable, and every degradation is counted via
+    ``record_failopen``.
 
 GDPR: snapshots contain application DBs only (never prompt/response content, which
 is never persisted). Encrypted at rest with the same key class as the vault.
@@ -45,7 +47,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from warden.config import data_dir, data_path
+from warden.config import data_dir, data_path, settings
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.backup")
@@ -158,7 +160,7 @@ def _pg_dump_bytes(url: str) -> bytes:
     exe = shutil.which("pg_dump")
     if exe is None:
         raise RuntimeError("pg_dump not found on PATH (install postgresql-client-16)")
-    proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
+    proc = subprocess.run(
         [exe, "--format=custom", "--no-password", f"--dbname={url}"],
         capture_output=True,
         timeout=_PG_TIMEOUT_S,
@@ -181,7 +183,7 @@ def _pg_restore_bytes(url: str, dump: bytes) -> None:
             os.write(tmp_fd, dump)
         finally:
             os.close(tmp_fd)
-        proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
+        proc = subprocess.run(
             [exe, "--clean", "--if-exists", "--no-password", f"--dbname={url}", tmp_name],
             capture_output=True,
             timeout=_PG_TIMEOUT_S,
@@ -245,7 +247,7 @@ def run_backup(label: str = "", *, ship: bool = False) -> Path:
             (snap_dir / _PG_ARTIFACT).write_bytes(f.encrypt(dump))
             ok += 1
             log.info("backup: postgres pg_dump → %d bytes (encrypted)", len(dump))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.warning("backup: postgres dump failed — %s", exc)
             record_failopen("backup_pg_dump", Reason.BACKEND_ERROR, exc)
 
@@ -263,24 +265,23 @@ def run_backup(label: str = "", *, ship: bool = False) -> Path:
 def _offsite_client() -> tuple[Any | None, str]:
     """
     boto3 client for the OFFSITE_S3_* target (R1) — an S3 endpoint on different
-    hardware than this VPS. Returns (None, "") when not configured; raises only
-    inside ``ship_backup``'s fail-open envelope.
+    hardware than this VPS. Returns (None, "") when not configured; any raise
+    here is caught and counted by the caller, ``ship_backup``.
     """
-    endpoint = os.getenv("OFFSITE_S3_ENDPOINT", "").strip()
-    access = os.getenv("OFFSITE_S3_ACCESS_KEY", "").strip()
-    secret = os.getenv("OFFSITE_S3_SECRET_KEY", "").strip()
+    endpoint = settings.offsite_s3_endpoint.strip()
+    access = settings.offsite_s3_access_key.strip()
+    secret = settings.offsite_s3_secret_key.strip()
     if not (endpoint and access and secret):
         return None, ""
-    bucket = os.getenv("OFFSITE_S3_BUCKET", "warden-backups").strip()
-    import boto3  # noqa: PLC0415 — optional dep, lazy like warden.storage.s3
+    import boto3  # optional dep, lazy like warden.storage.s3
     client = boto3.client(
         "s3",
         endpoint_url=endpoint,
         aws_access_key_id=access,
         aws_secret_access_key=secret,
-        region_name=os.getenv("OFFSITE_S3_REGION", "us-east-1"),
+        region_name=settings.offsite_s3_region,
     )
-    return client, bucket
+    return client, settings.offsite_s3_bucket.strip()
 
 
 def _put_all(client: Any, bucket: str, snap_dir: Path, target: str) -> int:
@@ -331,7 +332,7 @@ def ship_backup(snap_dir: Path) -> int:
         off_client, off_bucket = _offsite_client()
         if off_client is not None:
             shipped += _put_all(off_client, off_bucket, snap_dir, "offsite S3")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning("backup: offsite ship unavailable: %s", exc)
         record_failopen("backup_ship_offsite", Reason.BACKEND_ERROR, exc)
     return shipped
@@ -407,7 +408,7 @@ def restore(snap_path: str, db_name: str | None = None) -> int:
                 _pg_restore_bytes(pg_url, f.decrypt(pg_enc.read_bytes()))
                 restored += 1
                 log.info("backup: restored postgres from %s", pg_enc.name)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.warning("backup: restore postgres failed — %s", exc)
     return restored
 
