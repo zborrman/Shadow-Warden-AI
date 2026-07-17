@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from warden.agent.tool_budget import run_within_budget
 from warden.config import settings
 
 log = logging.getLogger("warden.agent.tools")
@@ -2856,7 +2857,7 @@ async def traced_dispatch(
         from warden.observability import Reason as _Reason
         from warden.observability import record_failopen as _record_failopen
         _record_failopen("otel_tracing", _Reason.IMPORT_MISSING, _otel_err)
-        return await handler(**tool_input)
+        return await run_within_budget(tool_name, lambda: handler(**tool_input))
 
     with tracer.start_as_current_span(f"sova.tool.{tool_name}") as span:
         span.set_attribute("tool.name", tool_name)
@@ -2864,7 +2865,7 @@ async def traced_dispatch(
         span.set_attribute("tool.tenant_id", tenant_id)
         t0 = _time.perf_counter()
         try:
-            result = await handler(**tool_input)
+            result = await run_within_budget(tool_name, lambda: handler(**tool_input))
             span.set_attribute("tool.output_bytes", len(str(result)))
             span.set_attribute("tool.success", True)
             span.set_attribute("tool.duration_ms", round((_time.perf_counter() - t0) * 1000, 1))

@@ -315,6 +315,17 @@ services:
         condition: service_healthy
     networks:
       - warden-net
+    # ── S4 / DE-7 — browser process isolation (opt-in) ──────────────────────────
+    # arq-worker is the service that actually drives Chromium (sova_visual_patrol,
+    # visual_* tools). It already runs as the non-root UID 10001 from warden/Dockerfile.
+    # To restore Chromium's renderer sandbox (drop --no-sandbox): add
+    #   - BROWSER_ENABLE_SANDBOX=true
+    # to the `environment:` block above, and uncomment the `security_opt` block below
+    # after providing the seccomp profile per docker/seccomp/README.md. Left off by
+    # default so behaviour is unchanged; requires a host that allows unprivileged user
+    # namespaces (kernel.unprivileged_userns_clone=1). See docs/browser-sandbox-hardening.md.
+    # security_opt:
+    #   - seccomp=./docker/seccomp/chrome.json
 
   # ── POSTGRES ────────────────────────────────────────────────────────────────
   postgres:

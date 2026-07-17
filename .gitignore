@@ -118,3 +118,8 @@ scan_result.json
 # Turso DB credentials — never commit
 .env.turso
 .env.*
+
+# Chromium seccomp profile — fetched at deploy time, pinned by checksum, not committed
+# (security-critical upstream artifact — see docker/seccomp/README.md)
+docker/seccomp/chrome.json
+docker/seccomp/chrome.json.sha256
