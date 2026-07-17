@@ -18,9 +18,9 @@ Every tool dispatch is wrapped in:
 * a **concurrency budget** for the heavyweight in-process browser tools — an
   ``asyncio.Semaphore`` caps simultaneous Chromium launches.
 
-This is **fail-safe, not fail-open**: exceeding the budget is a bounded, logged denial,
-never a silent pass. Pure asyncio — no new dependency. Budgets are env-tunable so an
-operator can widen them for a slow patrol target without a code change.
+This is **fail-safe**: exceeding a budget denies with a bounded, logged ``tool_timeout``
+result — it never silently lets the call run on. Pure asyncio — no new dependency. Budgets
+are env-tunable so an operator can widen them for a slow patrol target without a code change.
 """
 from __future__ import annotations
 
