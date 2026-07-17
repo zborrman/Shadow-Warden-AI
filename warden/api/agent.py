@@ -16,10 +16,12 @@ Auth: standard X-API-Key (same as all other warden routes).
 """
 from __future__ import annotations
 
+import json
 import time
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from warden.auth_guard import AuthResult, require_api_key
@@ -143,6 +145,37 @@ async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaRespo
         cache_read_tokens = result["cache_read_tokens"],
         latency_ms        = result["latency_ms"],
         session_id        = body.session_id,
+    )
+
+
+@router.post("/sova/stream", summary="Query SOVA agent (streaming SSE)")
+async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> StreamingResponse:
+    """
+    Streaming variant of ``POST /agent/sova``. Returns a Server-Sent Events
+    stream of the agent loop: routing status, live answer tokens, tool-use /
+    tool-result events, and a final ``done`` event carrying the same metadata
+    (tokens, cost, latency, tools_used) that the non-streaming endpoint returns.
+
+    Each SSE frame is ``data: <json>\\n\\n`` where ``<json>`` is one event dict.
+    """
+    from warden.agent.sova import stream_query
+
+    async def _sse():
+        try:
+            async for event in stream_query(
+                query      = body.query,
+                session_id = body.session_id,
+                tenant_id  = body.tenant_id,
+                max_tokens = body.max_tokens,
+            ):
+                yield f"data: {json.dumps(event, default=str)}\n\n"
+        except Exception as exc:  # noqa: BLE001 — surface as a terminal SSE error, never 500 mid-stream
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        _sse(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

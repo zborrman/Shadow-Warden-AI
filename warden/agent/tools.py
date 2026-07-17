@@ -30,6 +30,10 @@ _BASE      = "http://localhost:8001"
 _API_KEY   = settings.warden_api_key
 _TIMEOUT   = 30.0
 
+# Vision model for in-process Claude Vision tools (visual_assert_page, visual_diff).
+# Env-overridable, same default generation as the SOVA loop model.
+_VISION_MODEL = os.getenv("SOVA_MODEL", "claude-opus-4-8")
+
 
 def _headers(tenant: str = "default") -> dict:
     return {
@@ -236,7 +240,7 @@ async def visual_assert_page(
         import anthropic as _anthropic
         client = _anthropic.AsyncAnthropic(api_key=api_key)
         msg = await client.messages.create(
-            model="claude-opus-4-6",
+            model=_VISION_MODEL,
             max_tokens=1024,
             messages=[{
                 "role": "user",
@@ -443,7 +447,7 @@ async def visual_diff(
         import anthropic as _anthropic
         client = _anthropic.AsyncAnthropic(api_key=api_key)
         msg = await client.messages.create(
-            model="claude-opus-4-6",
+            model=_VISION_MODEL,
             max_tokens=512,
             messages=[{
                 "role": "user",
