@@ -47,6 +47,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 | DE-5 | Causal Arbiter online Robbins-Monro calibration | ✅ merged | (c946b1f1) |
 | DE-6 | **Data-layer consolidation** + ClickHouse | ✅ merged — `WARDEN_DATA_DIR`, /tmp sweep, encrypted nightly backup, DDL registry, `GET /gsam/health` (CH was already on in compose) |
 | DE-7 | Runtime isolation & key hygiene | 🟡 2/3 — fail-CLOSED mandate signing (unsigned-mandate bypass fixed, 17a57067) + agentic boundary gate for SOVA/Master (8e12047e). BrowserSandbox process isolation remains |
+| DE-8 | SOVA agent runtime modernization | ✅ core shipped (branch `feat/sova-modernization`) — **P1** prompt-cache the 75-tool prefix + parallel tool dispatch + centralized model (`claude-opus-4-8`, `SOVA_MODEL`); **P2** cost tracking via staff economics (`agent_id="sova"`) + `AgentSpan` structured logs; **P3** activated the previously-dead semantic-memory recall/store (pgvector, fail-open) + cache-safe tool profiles (`full`/`ops`/`community`/`compliance`); **P4** adaptive routing (Sonnet default, Opus on complexity/HIGH MAESTRO; `SOVA_ADAPTIVE_ROUTING`) + `stream_query()` + SSE `POST /agent/sova/stream`. 18 unit tests. Reuses `staff/economics.py` + `staff/structured_log.py` read-only — additive `staff_action_costs` rows, no schema/pricing change (C-shared, see Track C note). | _pending_ |
 
 ## Track C — FinOps / Monetization (from `docs/fintech-development-plan.md`)
 
