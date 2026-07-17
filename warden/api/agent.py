@@ -169,7 +169,7 @@ async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> St
                 max_tokens = body.max_tokens,
             ):
                 yield f"data: {json.dumps(event, default=str)}\n\n"
-        except Exception as exc:  # noqa: BLE001 — surface as a terminal SSE error, never 500 mid-stream
+        except Exception as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
 
     return StreamingResponse(
