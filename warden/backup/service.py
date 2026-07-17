@@ -18,18 +18,27 @@ Design
   • Encryption: Fernet (AES-128-CBC + HMAC-SHA256) via ``VAULT_MASTER_KEY``.
     **Fail-CLOSED**: no key → RuntimeError, no plaintext ever written to disk.
   • Rotation: keep the last ``SNAPSHOT_KEEP`` snapshot directories (default 7).
+  • Postgres (R1): when ``DATABASE_URL`` is set, ``pg_dump --format=custom`` of the
+    application database is encrypted into the same snapshot dir as
+    ``postgres.pgdump.enc``. A pg failure never loses the SQLite snapshots (counted
+    via ``record_failopen``); the Fernet key stays fail-CLOSED for both.
   • Optional off-box ship to S3/MinIO — degrades without blocking the backup, and
     every such degradation emits a ``record_failopen`` counter (FAILOPEN-01).
+  • Offsite ship (R1): ``OFFSITE_S3_ENDPOINT/ACCESS_KEY/SECRET_KEY/BUCKET`` point at
+    an S3 target on *different hardware* (Backblaze/Wasabi/Storage Box gateway…) —
+    the same-host MinIO copy does not survive loss of the VPS. Fail-OPEN, counted.
 
 GDPR: snapshots contain application DBs only (never prompt/response content, which
 is never persisted). Encrypted at rest with the same key class as the vault.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
 import sqlite3
+import subprocess
 import sys
 import tempfile
 from datetime import UTC, datetime
@@ -58,6 +67,12 @@ _DB_VARS: dict[str, tuple[str, str]] = {
     "sac_wallet":  ("SAC_WALLET_DB_PATH",        "warden_sac_wallet.db"),
     "billing_audit": ("BILLING_AUDIT_DB_PATH",   "warden_billing_audit.db"),
 }
+
+
+# Postgres dump artifact name inside a snapshot dir (not warden_*.db — it must
+# never collide with the SQLite restore loop, which only globs *.db.enc).
+_PG_ARTIFACT = "postgres.pgdump.enc"
+_PG_TIMEOUT_S = int(os.getenv("PG_BACKUP_TIMEOUT_S", "300"))
 
 
 def _fernet() -> Any:
@@ -121,6 +136,65 @@ def discover_dbs() -> dict[str, Path]:
     return found
 
 
+# ── Postgres (R1) ─────────────────────────────────────────────────────────────
+
+def _pg_url() -> str:
+    """
+    DATABASE_URL normalised for libpq tools: the SQLAlchemy driver suffix
+    (``postgresql+asyncpg://``) is stripped to ``postgresql://``. Empty string
+    when unset/malformed, or when PG_BACKUP_ENABLED=false.
+    """
+    if os.getenv("PG_BACKUP_ENABLED", "true").strip().lower() in ("false", "0", "no"):
+        return ""
+    url = os.getenv("DATABASE_URL", "").strip()
+    if "://" not in url:
+        return ""
+    scheme, rest = url.split("://", 1)
+    return f"{scheme.split('+', 1)[0]}://{rest}"
+
+
+def _pg_dump_bytes(url: str) -> bytes:
+    """``pg_dump --format=custom`` → bytes. Raises on any failure."""
+    exe = shutil.which("pg_dump")
+    if exe is None:
+        raise RuntimeError("pg_dump not found on PATH (install postgresql-client-16)")
+    proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
+        [exe, "--format=custom", "--no-password", f"--dbname={url}"],
+        capture_output=True,
+        timeout=_PG_TIMEOUT_S,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"pg_dump rc={proc.returncode}: {proc.stderr.decode(errors='replace')[:400]}"
+        )
+    return proc.stdout
+
+
+def _pg_restore_bytes(url: str, dump: bytes) -> None:
+    """``pg_restore --clean --if-exists`` a custom-format dump. Raises on failure."""
+    exe = shutil.which("pg_restore")
+    if exe is None:
+        raise RuntimeError("pg_restore not found on PATH (install postgresql-client-16)")
+    tmp_fd, tmp_name = tempfile.mkstemp(suffix=".pgdump")
+    try:
+        try:
+            os.write(tmp_fd, dump)
+        finally:
+            os.close(tmp_fd)
+        proc = subprocess.run(  # noqa: S603 — fixed argv, no shell
+            [exe, "--clean", "--if-exists", "--no-password", f"--dbname={url}", tmp_name],
+            capture_output=True,
+            timeout=_PG_TIMEOUT_S,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"pg_restore rc={proc.returncode}: {proc.stderr.decode(errors='replace')[:400]}"
+            )
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+
+
 def run_backup(label: str = "", *, ship: bool = False) -> Path:
     """
     Take Fernet-encrypted snapshots of all discovered SQLite DBs.
@@ -135,8 +209,9 @@ def run_backup(label: str = "", *, ship: bool = False) -> Path:
 
     f = _fernet()  # fail-closed before touching any DB
     dbs = discover_dbs()
+    pg_url = _pg_url()
 
-    if not dbs:
+    if not dbs and not pg_url:
         log.info("backup: no SQLite databases found under %s — nothing to do", data_dir())
         return snap_dir
 
@@ -163,50 +238,102 @@ def run_backup(label: str = "", *, ship: bool = False) -> Path:
             log.warning("backup: %s failed — %s", name, exc)
             record_failopen("backup_snapshot", Reason.BACKEND_ERROR, exc)
 
+    # Postgres — a pg failure must never cost the SQLite snapshots above.
+    if pg_url:
+        try:
+            dump = _pg_dump_bytes(pg_url)
+            (snap_dir / _PG_ARTIFACT).write_bytes(f.encrypt(dump))
+            ok += 1
+            log.info("backup: postgres pg_dump → %d bytes (encrypted)", len(dump))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backup: postgres dump failed — %s", exc)
+            record_failopen("backup_pg_dump", Reason.BACKEND_ERROR, exc)
+
     if label:
         (snap_dir / "label.txt").write_text(label)
 
     _rotate()
-    log.info("backup: %d/%d DBs snapshotted → %s", ok, len(dbs), snap_dir)
+    log.info("backup: %d/%d DBs snapshotted → %s", ok, len(dbs) + (1 if pg_url else 0), snap_dir)
 
     if ship:
         ship_backup(snap_dir)
     return snap_dir
 
 
+def _offsite_client() -> tuple[Any | None, str]:
+    """
+    boto3 client for the OFFSITE_S3_* target (R1) — an S3 endpoint on different
+    hardware than this VPS. Returns (None, "") when not configured; raises only
+    inside ``ship_backup``'s fail-open envelope.
+    """
+    endpoint = os.getenv("OFFSITE_S3_ENDPOINT", "").strip()
+    access = os.getenv("OFFSITE_S3_ACCESS_KEY", "").strip()
+    secret = os.getenv("OFFSITE_S3_SECRET_KEY", "").strip()
+    if not (endpoint and access and secret):
+        return None, ""
+    bucket = os.getenv("OFFSITE_S3_BUCKET", "warden-backups").strip()
+    import boto3  # noqa: PLC0415 — optional dep, lazy like warden.storage.s3
+    client = boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=access,
+        aws_secret_access_key=secret,
+        region_name=os.getenv("OFFSITE_S3_REGION", "us-east-1"),
+    )
+    return client, bucket
+
+
+def _put_all(client: Any, bucket: str, snap_dir: Path, target: str) -> int:
+    """Upload every *.enc in the snapshot dir; count successes, count failures."""
+    shipped = 0
+    for enc in sorted(Path(snap_dir).glob("*.enc")):
+        key = f"backups/{snap_dir.name}/{enc.name}"
+        try:
+            client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=enc.read_bytes(),
+                ContentType="application/octet-stream",
+            )
+            shipped += 1
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backup: ship %s → %s failed — %s", key, target, exc)
+            record_failopen("backup_ship", Reason.NETWORK_ERROR, exc)
+    if shipped:
+        log.info("backup: shipped %d encrypted files to %s (%s)", shipped, target, bucket)
+    return shipped
+
+
 def ship_backup(snap_dir: Path) -> int:
     """
-    Best-effort off-box ship of encrypted snapshot files to S3/MinIO.
+    Best-effort off-box ship of encrypted snapshot files (``*.enc`` — SQLite and
+    the Postgres dump) to two independent targets:
 
-    The local encrypted snapshot is already durable, so a ship failure (S3 disabled,
+      1. the platform S3/MinIO (``S3_*`` — same host: fast, but shares the VPS's fate)
+      2. the offsite S3 (``OFFSITE_S3_*`` — different hardware: survives host loss)
+
+    The local encrypted snapshot is already durable, so a ship failure (disabled,
     boto3 missing, network) degrades instead of raising — but every degradation emits
     a ``record_failopen`` counter so the loss of off-box copies is alertable, never
-    silent. Returns the number of files shipped.
+    silent. Returns the total number of file-copies shipped across both targets.
     """
     shipped = 0
     try:
         from warden.storage.s3 import S3_BUCKET_EVIDENCE, _get_client  # noqa: PLC0415
         client = _get_client()
-        if client is None:
-            return 0
-        for enc in sorted(Path(snap_dir).glob("*.db.enc")):
-            key = f"backups/{snap_dir.name}/{enc.name}"
-            try:
-                client.put_object(
-                    Bucket=S3_BUCKET_EVIDENCE,
-                    Key=key,
-                    Body=enc.read_bytes(),
-                    ContentType="application/octet-stream",
-                )
-                shipped += 1
-            except Exception as exc:  # noqa: BLE001
-                log.warning("backup: ship %s failed — %s", key, exc)
-                record_failopen("backup_ship", Reason.NETWORK_ERROR, exc)
-        if shipped:
-            log.info("backup: shipped %d encrypted files to S3 (%s)", shipped, S3_BUCKET_EVIDENCE)
+        if client is not None:
+            shipped += _put_all(client, S3_BUCKET_EVIDENCE, snap_dir, "local S3/MinIO")
     except Exception as exc:  # noqa: BLE001
         log.debug("backup: S3 ship unavailable: %s", exc)
         record_failopen("backup_ship", Reason.BACKEND_ERROR, exc)
+
+    try:
+        off_client, off_bucket = _offsite_client()
+        if off_client is not None:
+            shipped += _put_all(off_client, off_bucket, snap_dir, "offsite S3")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("backup: offsite ship unavailable: %s", exc)
+        record_failopen("backup_ship_offsite", Reason.BACKEND_ERROR, exc)
     return shipped
 
 
@@ -226,7 +353,7 @@ def list_snapshots() -> list[dict]:
         return []
     out: list[dict] = []
     for d in sorted(x for x in _SNAPSHOT_DIR.iterdir() if x.is_dir()):
-        files = list(d.glob("*.db.enc"))
+        files = list(d.glob("*.enc"))
         label = (d / "label.txt").read_text().strip() if (d / "label.txt").exists() else ""
         out.append({"ts": d.name, "path": str(d), "dbs": len(files), "label": label})
     return out
@@ -235,7 +362,8 @@ def list_snapshots() -> list[dict]:
 def restore(snap_path: str, db_name: str | None = None) -> int:
     """
     Decrypt and atomically restore a snapshot. If ``db_name`` is given, restore
-    only that DB. Returns the number of DBs restored. Fail-CLOSED on the key.
+    only that DB (``postgres`` targets the pg dump). Returns the number of DBs
+    restored. Fail-CLOSED on the key.
     """
     snap_dir = Path(snap_path)
     if not snap_dir.exists():
@@ -266,6 +394,21 @@ def restore(snap_path: str, db_name: str | None = None) -> int:
             log.info("backup: restored %s → %s", name, target)
         except Exception as exc:  # noqa: BLE001
             log.warning("backup: restore %s failed — %s", name, exc)
+
+    # Postgres (R1) — restore the pg dump when present and requested.
+    pg_enc = snap_dir / _PG_ARTIFACT
+    if pg_enc.exists() and db_name in (None, "postgres"):
+        pg_url = _pg_url()
+        if not pg_url:
+            log.warning("backup: %s present but DATABASE_URL unset — skipping pg restore",
+                        _PG_ARTIFACT)
+        else:
+            try:
+                _pg_restore_bytes(pg_url, f.decrypt(pg_enc.read_bytes()))
+                restored += 1
+                log.info("backup: restored postgres from %s", pg_enc.name)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("backup: restore postgres failed — %s", exc)
     return restored
 
 

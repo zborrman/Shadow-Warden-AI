@@ -8,6 +8,7 @@ Covers:
   - empty data dir → no-op (no crash)
   - rotation keeps last SNAPSHOT_KEEP directories
   - ship_backup is fail-open when S3 disabled
+  - R1: pg_dump artifact (encrypted, fail-open vs SQLite), pg restore, offsite ship
 """
 from __future__ import annotations
 
@@ -39,7 +40,10 @@ def svc(monkeypatch, tmp_path):
     # Clear per-module DB overrides so discovery uses data_dir only.
     for v in ("MARKETPLACE_DB_PATH", "SEP_DB_PATH", "BI_DB_PATH", "GSAM_DB_PATH",
               "AUTH_DB_PATH", "VENDOR_GOV_DB_PATH", "COST_ALLOC_DB_PATH",
-              "MARKETPLACE_X402_DB_PATH", "SAC_WALLET_DB_PATH", "BILLING_AUDIT_DB_PATH"):
+              "MARKETPLACE_X402_DB_PATH", "SAC_WALLET_DB_PATH", "BILLING_AUDIT_DB_PATH",
+              # R1 — keep pg + offsite paths inert unless a test opts in.
+              "DATABASE_URL", "PG_BACKUP_ENABLED", "OFFSITE_S3_ENDPOINT",
+              "OFFSITE_S3_ACCESS_KEY", "OFFSITE_S3_SECRET_KEY", "OFFSITE_S3_BUCKET"):
         monkeypatch.delenv(v, raising=False)
     # NB: do NOT reload warden.config here. config.data_dir()/data_path() read env
     # at call time, so a reload is unnecessary — and it would mint new class objects
@@ -138,3 +142,107 @@ class TestShipFailOpen:
         _mk_db(data / "warden_sep.db", ["x"])
         snap = s.run_backup()
         assert s.ship_backup(snap) == 0   # never raises
+
+
+class TestPostgres:
+    _URL = "postgresql+asyncpg://u:p@h:5432/db"
+
+    def test_pg_url_strips_sqlalchemy_driver(self, svc, monkeypatch):
+        s, _, _ = svc
+        monkeypatch.setenv("DATABASE_URL", self._URL)
+        assert s._pg_url() == "postgresql://u:p@h:5432/db"
+
+    def test_pg_url_empty_when_unset_or_disabled(self, svc, monkeypatch):
+        s, _, _ = svc
+        assert s._pg_url() == ""                      # DATABASE_URL unset (fixture)
+        monkeypatch.setenv("DATABASE_URL", self._URL)
+        monkeypatch.setenv("PG_BACKUP_ENABLED", "false")
+        assert s._pg_url() == ""                      # opt-out flag wins
+
+    def test_backup_writes_encrypted_pg_artifact(self, svc, monkeypatch):
+        import os
+        s, data, _ = svc
+        monkeypatch.setenv("DATABASE_URL", self._URL)
+        monkeypatch.setattr(s, "_pg_dump_bytes", lambda url: b"PGDMP-fake-dump-bytes")
+        snap = s.run_backup()
+        blob = (snap / "postgres.pgdump.enc").read_bytes()
+        assert b"PGDMP" not in blob                   # ciphertext, not plaintext
+        f = Fernet(os.environ["VAULT_MASTER_KEY"].encode())
+        assert f.decrypt(blob) == b"PGDMP-fake-dump-bytes"
+
+    def test_pg_failure_never_loses_sqlite_snapshots(self, svc, monkeypatch):
+        s, data, _ = svc
+        _mk_db(data / "warden_sep.db", ["x"])
+        monkeypatch.setenv("DATABASE_URL", self._URL)
+
+        def _boom(url):
+            raise RuntimeError("pg_dump rc=1: connection refused")
+
+        monkeypatch.setattr(s, "_pg_dump_bytes", _boom)
+        snap = s.run_backup()                          # must not raise
+        assert (snap / "sep.db.enc").exists()
+        assert not (snap / "postgres.pgdump.enc").exists()
+
+    def test_restore_invokes_pg_restore_with_decrypted_dump(self, svc, monkeypatch):
+        s, data, _ = svc
+        monkeypatch.setenv("DATABASE_URL", self._URL)
+        monkeypatch.setattr(s, "_pg_dump_bytes", lambda url: b"PGDMP-round-trip")
+        snap = s.run_backup()
+
+        calls = []
+        monkeypatch.setattr(s, "_pg_restore_bytes", lambda url, dump: calls.append((url, dump)))
+        n = s.restore(str(snap), db_name="postgres")
+        assert n == 1
+        assert calls == [("postgresql://u:p@h:5432/db", b"PGDMP-round-trip")]
+
+    def test_restore_skips_pg_without_database_url(self, svc, monkeypatch):
+        s, data, _ = svc
+        monkeypatch.setenv("DATABASE_URL", self._URL)
+        monkeypatch.setattr(s, "_pg_dump_bytes", lambda url: b"PGDMP-x")
+        snap = s.run_backup()
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.setattr(s, "_pg_restore_bytes",
+                            lambda url, dump: pytest.fail("must not be called"))
+        assert s.restore(str(snap), db_name="postgres") == 0
+
+
+class _StubS3:
+    def __init__(self):
+        self.keys: list[str] = []
+
+    def put_object(self, Bucket, Key, Body, ContentType):  # noqa: N803 — boto3 API
+        self.keys.append(Key)
+
+
+class TestOffsiteShip:
+    def test_offsite_ships_every_enc_file(self, svc, monkeypatch):
+        s, data, _ = svc
+        monkeypatch.setenv("S3_ENABLED", "false")      # local target off
+        _mk_db(data / "warden_sep.db", ["x"])
+        monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@h/db")
+        monkeypatch.setattr(s, "_pg_dump_bytes", lambda url: b"PGDMP-x")
+        snap = s.run_backup()
+
+        stub = _StubS3()
+        monkeypatch.setattr(s, "_offsite_client", lambda: (stub, "warden-backups"))
+        assert s.ship_backup(snap) == 2                # sep.db.enc + postgres.pgdump.enc
+        assert sorted(k.rsplit("/", 1)[-1] for k in stub.keys) == [
+            "postgres.pgdump.enc", "sep.db.enc",
+        ]
+
+    def test_offsite_failure_never_raises(self, svc, monkeypatch):
+        s, data, _ = svc
+        monkeypatch.setenv("S3_ENABLED", "false")
+        _mk_db(data / "warden_sep.db", ["x"])
+        snap = s.run_backup()
+
+        def _boom():
+            raise RuntimeError("offsite endpoint unreachable")
+
+        monkeypatch.setattr(s, "_offsite_client", _boom)
+        assert s.ship_backup(snap) == 0                # fail-open, counted
+
+    def test_offsite_unconfigured_is_none(self, svc):
+        s, _, _ = svc
+        client, bucket = s._offsite_client()
+        assert client is None and bucket == ""

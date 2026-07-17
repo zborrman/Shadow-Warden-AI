@@ -7,9 +7,12 @@ the historical CLI used by the autonomous loop's Step 1b (subprocess call).
 
 Usage:
     python scripts/db_snapshot.py                   # snapshot all DBs under WARDEN_DATA_DIR
+                                                    # + pg_dump of DATABASE_URL (R1)
     python scripts/db_snapshot.py --ship            # also push encrypted files to S3/MinIO
+                                                    # + OFFSITE_S3_* target (R1)
     python scripts/db_snapshot.py --list            # list existing snapshots
     python scripts/db_snapshot.py --restore <path>  # decrypt + restore snapshot
+    python scripts/db_snapshot.py --restore <path> --db postgres   # pg only
     python scripts/db_snapshot.py --purge           # delete snapshots beyond retention
 
 Encryption: Fernet (AES-128-CBC + HMAC-SHA256) via VAULT_MASTER_KEY (fail-closed).

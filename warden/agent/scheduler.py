@@ -985,7 +985,8 @@ async def sova_soc2_daily_collect(ctx: dict) -> dict:
 async def sova_nightly_backup(ctx: dict) -> dict:
     """
     Nightly 03:30 UTC — Fernet-encrypted backup of every SQLite DB under
-    WARDEN_DATA_DIR, with off-box ship to S3/MinIO when configured.
+    WARDEN_DATA_DIR plus a pg_dump of DATABASE_URL (R1), with off-box ship to
+    S3/MinIO and the OFFSITE_S3_* target when configured.
 
     Delegates to warden.backup.service.run_backup (single source of truth,
     shared with scripts/db_snapshot.py). Fail-CLOSED on VAULT_MASTER_KEY.
@@ -1001,7 +1002,7 @@ async def sova_nightly_backup(ctx: dict) -> dict:
         from warden.backup.service import run_backup  # noqa: PLC0415
         label = f"nightly-{datetime.now(UTC).strftime('%Y%m%d')}"
         snap_dir = await asyncio.to_thread(run_backup, label, ship=True)
-        dbs = len(list(snap_dir.glob("*.db.enc")))
+        dbs = len(list(snap_dir.glob("*.enc")))
         log.info("nightly_backup: %d DBs → %s", dbs, snap_dir)
         if dbs == 0:
             await _slack("⚠️ *Nightly DB backup* produced 0 snapshots — check WARDEN_DATA_DIR.")
