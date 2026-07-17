@@ -825,8 +825,11 @@ services:
     restart: unless-stopped
     expose:
       - "3100"
+    # R4 — bounded 7-day retention (grafana/loki-config.yaml); the image's
+    # baked-in default config retains logs forever.
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
+      - ./grafana/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
     deploy:
       resources:

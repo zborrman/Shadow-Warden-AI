@@ -19,8 +19,8 @@
 | G2 | **All backups stayed on the same host.** SQLite snapshots shipped to MinIO *on the same VPS*; single Hetzner box was a total SPOF (disk, host, region). | Data loss | **DONE (R1)** |
 | G3 | **Deploy = full-stack outage.** CI runs `docker compose down` → `up`: every merge to main drops prod for the container-recreate + model-warmup window (warden `start_period: 180s`). | Availability | **DONE for 18/19 services (R2)** — warden's own brief gap remains, see below |
 | G4 | **Unhealthy containers are never restarted.** Docker healthchecks mark state but compose does not act on it — a hung (not crashed) warden stays hung until manual intervention. | Availability | **DONE (R3)** |
-| G5 | **`PIPELINE_TIMEOUT_MS=0` (default).** The fail-open/closed timeout machinery in `main.py:2901` is built but disabled — a hung pipeline stage blocks uvicorn workers indefinitely. | Availability | **DONE (R3)** — machinery + alert shipped; prod `.env` activation is a manual operator step |
-| G6 | **Disk-full risk on 40 GB.** Loki has no retention config; ClickHouse TTL unverified; `node-exporter` (disk metrics) is behind the `monitoring` profile so likely not running in prod; no disk-usage alert in `warden_alerts.yml`. | Cascading outage | Open |
+| G5 | **`PIPELINE_TIMEOUT_MS=0` (default).** The fail-open/closed timeout machinery in `main.py:2901` is built but disabled — a hung pipeline stage blocks uvicorn workers indefinitely. | Availability | **DONE (R3)** — verified live: `pipeline_timeout_ms:5000` |
+| G6 | **Disk-full risk on 40 GB.** Loki has no retention config; ClickHouse TTL unverified; `node-exporter` (disk metrics) is behind the `monitoring` profile so likely not running in prod; no disk-usage alert in `warden_alerts.yml`. | Cascading outage | **DONE (R4)** |
 | G7 | **Redis has no `maxmemory` and no compose memory limit.** Most keys are TTL'd, but unbounded growth can OOM the 16 GB host. | Cascading outage | Open |
 | G8 | **Single replicas:** 1 × warden (compose supports `--scale` but runs one), 1 × arq-worker. Acceptable on one VPS, but a warden crash = outage until restart completes (model load). | Availability | Open |
 | G9 | **No restore drill / RTO-RPO definition.** Backups exist (SQLite) but restore has never been rehearsed end-to-end. | Recovery | Partially open (pg + SQLite restore code covered by unit tests; no live drill yet) |
@@ -125,18 +125,45 @@ before R2; everything else in front of and around it stays up.
   distinct from the existing per-stage fail-open alert — this one means the
   *entire* pipeline timed out and the raw request passed with zero filtering).
   Fires on any increase over 5 minutes, `severity: critical`.
-- **Operator step (not yet applied to prod):** set `PIPELINE_TIMEOUT_MS=5000`
-  in `/opt/shadow-warden/.env` and recreate `warden` to activate the
-  fail-open/closed timeout machinery that already exists in `main.py` but is
-  inert at the default `0`. `WARDEN_FAIL_STRATEGY` (already `open` in prod)
-  governs what happens on timeout; this only makes the timeout itself fire.
+- **Operator step — done live on prod:** `PIPELINE_TIMEOUT_MS=5000` set in
+  `/opt/shadow-warden/.env`, `warden` recreated. Verified via
+  `GET /api/config`: `"pipeline_timeout_ms":5000, "fail_strategy":"open"`.
+
+**Discovered mid-rollout and fixed separately:** R2's scoped deploy (only the
+6 rebuilt services) doesn't see config-only changes on the other 13 services
+— a brand-new service (`autoheal`) and label changes on `proxy`/`postgres`/
+`redis` were invisible to it. Fixed with a second unscoped
+`docker compose up -d --no-build --remove-orphans` pass after the scoped
+one (commit `dbb5db68`) — verified idempotent (true no-op) when nothing
+changed, and this is also what makes R4's Loki config mount below actually
+land without a dedicated deploy-script change.
+
+## R4 — Disk hygiene + alerts (DONE)
+
+- `grafana/loki-config.yaml`: new file, identical to the `grafana/loki:2.9.4`
+  image's baked-in default config (extracted directly from the image —
+  schema/storage/paths must match whatever's already in the `loki-data`
+  volume) plus `limits_config.retention_period: 168h` and an enabled
+  `compactor`. Mounted over `/etc/loki/local-config.yaml` in
+  `docker-compose.yml`. Without this Loki retained logs forever; current
+  volume was 1.3GB and growing unboundedly.
+- `docker/clickhouse/init.sql` already had a 30-day TTL on the GSAM
+  observations table — no change needed, gap didn't exist.
+- `node-exporter`: started live via `docker compose --profile monitoring up
+  -d node-exporter` (not baked into `.env`/`COMPOSE_PROFILES` — that would
+  also silently activate `cadvisor`, which needs `privileged: true`, a
+  materially bigger security surface deserving its own explicit decision,
+  out of scope here). Verified it survives a subsequent unscoped
+  `--remove-orphans` pass without the profile flag — Compose treats an
+  inactive-profile service as intentionally excluded, not orphaned, so it's
+  safe across every future regular deploy without any `ci.yml` change.
+  Prometheus was already scraping `node-exporter:9100` (job `"node"`) the
+  whole time — the target just never resolved until now.
+- `grafana/provisioning/alerting/warden_alerts.yml`: new
+  `warden-host-disk-high` rule — `node_filesystem_avail_bytes{mountpoint="/"}`
+  > 80% used for 10 minutes, `severity: warning`.
 
 ## Remaining remediation plan
-
-### R4 — Disk hygiene + alerts (fixes G6)
-- Loki: mount a config with `limits_config.retention_period: 168h` + compactor.
-- Verify `docker/clickhouse/init.sql` has a TTL on the observations table; add one (e.g. 30d) if missing.
-- Run `node-exporter` in prod (`--profile monitoring`) and add a Grafana alert: disk > 80%.
 
 ### R5 — Redis bounds (fixes G7)
 - `redis-server --maxmemory 1gb --maxmemory-policy noeviction` (noeviction: ERS/ban/approval keys must not be silently evicted; the cache already fails open on errors) + compose memory limit + Grafana alert via redis-exporter.
@@ -146,4 +173,4 @@ before R2; everything else in front of and around it stays up.
 - Resilience test suite (staging): kill redis / clickhouse / minio / postgres one at a time; assert `/filter` still answers per its documented fail mode. Wire into the nightly autonomous loop as an optional step.
 
 ### Sequencing
-R1 (done) → R2 (done) → R3 (done) → R4 → R5 → R6. Each phase: merge to main + deploy per CLAUDE.md deploy rule.
+R1 (done) → R2 (done) → R3 (done) → R4 (done) → R5 → R6. Each phase: merge to main + deploy per CLAUDE.md deploy rule.

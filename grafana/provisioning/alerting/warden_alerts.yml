@@ -549,6 +549,58 @@ groups:
             Runbook: docs.shadow-warden-ai.com/guides/slo-burn-runbook
             Dashboard: http://localhost:3000/d/warden-overview
 
+      # ── 9. Host Disk Usage High (R4) ─────────────────────────────────────────
+      # Requires node-exporter running (COMPOSE_PROFILES=monitoring in prod
+      # .env — profile-gated off by default for Windows/WSL2 dev, where the
+      # required host-mount propagation isn't available). Prometheus already
+      # scrapes node-exporter:9100 (job "node") regardless of whether the
+      # target is actually up, so this alert simply has no data until the
+      # profile is enabled — noDataState: OK below avoids a false page from
+      # that dev-default gap, but "no data" here in prod means node-exporter
+      # isn't running and should be investigated too.
+      - uid: warden-host-disk-high
+        title: "Warden — Host disk usage above 80%"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                (1 - node_filesystem_avail_bytes{mountpoint="/", fstype!="tmpfs"}
+                / node_filesystem_size_bytes{mountpoint="/", fstype!="tmpfs"}) * 100
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 80"
+        noDataState: OK
+        execErrState: OK
+        for: 10m
+        labels:
+          severity: warning
+          team: warden
+          category: disk
+        annotations:
+          summary: "Host root filesystem usage above 80%"
+          description: >
+            The VPS root filesystem has been above 80% used for 10 minutes.
+            On the current 40GB disk this is ~8GB free. Check `docker system df`
+            for reclaimable build cache/images, and Loki/ClickHouse volume
+            growth (both have retention policies as of R4, but verify they're
+            actually enforcing). Escalates to critical behavior (deploys
+            failing, containers unable to start) well before 100%.
+
   - orgId: 1
     name: warden_domain
     folder: Shadow Warden
