@@ -962,6 +962,53 @@ groups:
             stage/reason in Prometheus. Common causes: Redis down (redis_unavailable),
             model not loaded (model_not_loaded), upstream timeout.
 
+      # ── R3: Pipeline-timeout bypass (whole request skipped security filtering) ──
+      # Distinct from the per-stage fail-open above: this fires when the ENTIRE
+      # pipeline timed out (PIPELINE_TIMEOUT_MS) and WARDEN_FAIL_STRATEGY=open let
+      # the raw, unfiltered request through — every guard was skipped, not just
+      # one stage. Only fires at all once PIPELINE_TIMEOUT_MS > 0 (R3); at the
+      # default 0 the timeout machinery is disabled and this counter never moves.
+      - uid: warden-filter-bypass-spike
+        title: "Warden — Pipeline-timeout bypass firing (unfiltered requests passed)"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(increase(warden_filter_bypasses_total[5m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        noDataState: OK
+        execErrState: Alerting
+        for: 0m
+        labels:
+          severity: critical
+          team: warden
+        annotations:
+          summary: "Warden pipeline-timeout bypass firing — requests skipped ALL security filtering"
+          description: >
+            warden_filter_bypasses_total increased in the last 5 minutes: the full
+            filter pipeline exceeded PIPELINE_TIMEOUT_MS and, under
+            WARDEN_FAIL_STRATEGY=open, passed the request through completely
+            unfiltered. Check /health for pipeline_timeout_ms and stage latencies —
+            likely cause: ML model contention, Redis/DB latency spike, or a hung
+            downstream call in one of the 9 pipeline stages.
+
       # ── Live pipeline canary missing known jailbreaks (detector degraded) ────
       - uid: warden-pipeline-canary-missed
         title: "Warden — Pipeline canary missing jailbreaks"

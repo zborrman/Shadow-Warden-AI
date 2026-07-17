@@ -18,8 +18,8 @@
 | G1 | **No automated Postgres backup.** `pg_dump` existed only in docs. TimescaleDB data (uptime monitors, app data) was unrecoverable on volume loss. | Data loss | **DONE (R1)** |
 | G2 | **All backups stayed on the same host.** SQLite snapshots shipped to MinIO *on the same VPS*; single Hetzner box was a total SPOF (disk, host, region). | Data loss | **DONE (R1)** |
 | G3 | **Deploy = full-stack outage.** CI runs `docker compose down` → `up`: every merge to main drops prod for the container-recreate + model-warmup window (warden `start_period: 180s`). | Availability | **DONE for 18/19 services (R2)** — warden's own brief gap remains, see below |
-| G4 | **Unhealthy containers are never restarted.** Docker healthchecks mark state but compose does not act on it — a hung (not crashed) warden stays hung until manual intervention. | Availability | Open |
-| G5 | **`PIPELINE_TIMEOUT_MS=0` (default).** The fail-open/closed timeout machinery in `main.py:2901` is built but disabled — a hung pipeline stage blocks uvicorn workers indefinitely. | Availability | Open |
+| G4 | **Unhealthy containers are never restarted.** Docker healthchecks mark state but compose does not act on it — a hung (not crashed) warden stays hung until manual intervention. | Availability | **DONE (R3)** |
+| G5 | **`PIPELINE_TIMEOUT_MS=0` (default).** The fail-open/closed timeout machinery in `main.py:2901` is built but disabled — a hung pipeline stage blocks uvicorn workers indefinitely. | Availability | **DONE (R3)** — machinery + alert shipped; prod `.env` activation is a manual operator step |
 | G6 | **Disk-full risk on 40 GB.** Loki has no retention config; ClickHouse TTL unverified; `node-exporter` (disk metrics) is behind the `monitoring` profile so likely not running in prod; no disk-usage alert in `warden_alerts.yml`. | Cascading outage | Open |
 | G7 | **Redis has no `maxmemory` and no compose memory limit.** Most keys are TTL'd, but unbounded growth can OOM the 16 GB host. | Cascading outage | Open |
 | G8 | **Single replicas:** 1 × warden (compose supports `--scale` but runs one), 1 × arq-worker. Acceptable on one VPS, but a warden crash = outage until restart completes (model load). | Availability | Open |
@@ -101,11 +101,37 @@ than building it unasked. Until then, warden itself still has a bounded
 (~30-180s, cold-start dependent) gap during its own recreate, same as
 before R2; everything else in front of and around it stays up.
 
-## Remaining remediation plan
+## R3 — Auto-restart on unhealthy + pipeline timeout (DONE)
 
-### R3 — Auto-restart on unhealthy + pipeline timeout (fixes G4, G5)
-- Add `willfarrell/autoheal` service (label-scoped to warden, proxy, redis, postgres) or a systemd watchdog on the VPS.
-- Set `PIPELINE_TIMEOUT_MS=5000` in prod `.env` (fail strategy stays explicit via `WARDEN_FAIL_STRATEGY`); alert on `FILTER_BYPASSES_TOTAL` spikes.
+- `docker-compose.yml`: new `autoheal` service (`willfarrell/autoheal:latest`,
+  0.1 CPU / 64M limit, read-only `docker.sock` mount, no exposed ports).
+  Watches for Docker `health_status: unhealthy` events and restarts any
+  container labeled `autoheal=true`. Labeled: `warden`, `proxy`, `postgres`,
+  `redis` — the highest-value, lowest-risk targets (warden is stateless;
+  proxy just reloads config; postgres/redis are crash-safe via WAL/AOF
+  replay). Deliberately NOT blanket-applied to every service — a scoped,
+  reviewable rollout rather than restarting things indiscriminately.
+  `AUTOHEAL_START_PERIOD=60` gives the stack a minute after autoheal itself
+  boots before it acts, layered on top of each container's own Docker
+  `start_period` (already 180s for warden) so cold-start warmup is never
+  mistaken for a hang.
+  **Security note:** mounting `docker.sock` grants this container the
+  ability to restart any container on the host. Scoped down to the
+  well-known, single-purpose autoheal image with no other capabilities —
+  flagging the tradeoff explicitly rather than treating a privileged mount as
+  routine on a security product's own infrastructure.
+- `grafana/provisioning/alerting/warden_alerts.yml`: new `warden-filter-bypass-spike`
+  rule on `warden_filter_bypasses_total` (the pipeline-timeout bypass counter,
+  distinct from the existing per-stage fail-open alert — this one means the
+  *entire* pipeline timed out and the raw request passed with zero filtering).
+  Fires on any increase over 5 minutes, `severity: critical`.
+- **Operator step (not yet applied to prod):** set `PIPELINE_TIMEOUT_MS=5000`
+  in `/opt/shadow-warden/.env` and recreate `warden` to activate the
+  fail-open/closed timeout machinery that already exists in `main.py` but is
+  inert at the default `0`. `WARDEN_FAIL_STRATEGY` (already `open` in prod)
+  governs what happens on timeout; this only makes the timeout itself fire.
+
+## Remaining remediation plan
 
 ### R4 — Disk hygiene + alerts (fixes G6)
 - Loki: mount a config with `limits_config.retention_period: 168h` + compactor.
@@ -120,4 +146,4 @@ before R2; everything else in front of and around it stays up.
 - Resilience test suite (staging): kill redis / clickhouse / minio / postgres one at a time; assert `/filter` still answers per its documented fail mode. Wire into the nightly autonomous loop as an optional step.
 
 ### Sequencing
-R1 (done) → R2 (done) → R3 → R4 → R5 → R6. R3 is independent and highest remaining value. Each phase: merge to main + deploy per CLAUDE.md deploy rule.
+R1 (done) → R2 (done) → R3 (done) → R4 → R5 → R6. Each phase: merge to main + deploy per CLAUDE.md deploy rule.

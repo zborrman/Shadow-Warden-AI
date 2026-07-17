@@ -48,6 +48,8 @@ services:
     image: caddy:2-alpine
     container_name: warden-proxy
     restart: unless-stopped
+    labels:
+      - "autoheal=true"   # R3 — hung-but-not-crashed proxy gets auto-restarted
     logging:
       driver: "json-file"
       options:
@@ -83,6 +85,8 @@ services:
     # container_name removed — allows docker compose up --scale warden=N
     restart: unless-stopped
     stop_grace_period: 30s
+    labels:
+      - "autoheal=true"   # R3 — hung (healthcheck-failing, not crashed) warden gets auto-restarted
     logging:
       driver: "json-file"
       options:
@@ -360,6 +364,8 @@ services:
     image: timescale/timescaledb:latest-pg16
     container_name: warden-postgres
     restart: unless-stopped
+    labels:
+      - "autoheal=true"   # R3 — wedged (healthcheck-failing) postgres gets auto-restarted; WAL replay makes this crash-safe
     logging:
       driver: "json-file"
       options:
@@ -473,6 +479,8 @@ services:
     image: redis:7-alpine
     container_name: warden-redis
     restart: unless-stopped
+    labels:
+      - "autoheal=true"   # R3 — wedged (healthcheck-failing) redis gets auto-restarted; AOF makes this crash-safe
     logging:
       driver: "json-file"
       options:
@@ -488,6 +496,40 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # ── AUTOHEAL (R3 — restart containers Docker marks unhealthy) ───────────────
+  # Docker's own healthcheck only *reports* status (visible in `docker ps`);
+  # nothing acts on a container stuck "unhealthy" (process up, but wedged —
+  # not crashed, so `restart: unless-stopped` never fires) without this.
+  # Scoped to warden/proxy/redis/postgres via the `autoheal=true` label above —
+  # the highest-value, lowest-risk restart targets (each already handles a
+  # restart safely: warden is stateless, proxy reloads config, postgres/redis
+  # are crash-safe via WAL/AOF replay). Not blanket-applied to every service.
+  #
+  # NOTE: mounting docker.sock grants this container the ability to restart
+  # any Docker container on the host — a real privilege, scoped down here to
+  # the well-known, single-purpose willfarrell/autoheal image with no other
+  # capabilities, no exposed ports, and a read-only socket mount (blocks
+  # filesystem-level tampering with the socket; does not restrict the Docker
+  # API calls autoheal legitimately needs to make over that same connection).
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: warden-autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=10
+      - AUTOHEAL_START_PERIOD=60
+      - AUTOHEAL_DEFAULT_STOP_TIMEOUT=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
+    networks:
+      - warden-net
 
   # ── ANALYTICS ──────────────────────────────────────────────────────────────
   analytics:
