@@ -38,9 +38,13 @@ import logging
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.web3.key_rotation")
 
@@ -66,14 +70,13 @@ CREATE TABLE IF NOT EXISTS key_rotations (
 CREATE INDEX IF NOT EXISTS idx_kr_agent ON key_rotations(agent_id, status);
 CREATE INDEX IF NOT EXISTS idx_kr_deadline ON key_rotations(deadline_at, status);
 """
+register("key_rotation", "warden.web3.key_rotation", _SCHEMA)
 
 
-def _conn(path: str = _ROTATION_DB) -> sqlite3.Connection:
-    con = sqlite3.connect(path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_SCHEMA)
-    return con
+@contextmanager
+def _conn(path: str = _ROTATION_DB) -> Generator[sqlite3.Connection, None, None]:
+    with open_db("key_rotation", path, module_default_path=_ROTATION_DB) as con:
+        yield con
 
 
 # ── Smart contract interface (optional) ───────────────────────────────────────
@@ -104,9 +107,8 @@ class KeyRotationManager:
     def __init__(self, rotation_db: str = _ROTATION_DB, marketplace_db: str = _DB_PATH) -> None:
         self.rotation_db    = rotation_db
         self.marketplace_db = marketplace_db
-        with _db_lock:
-            con = _conn(rotation_db)
-            con.close()
+        with _db_lock, _conn(rotation_db):
+            pass  # schema is ensured automatically by _conn()
 
     async def schedule_rotation(
         self,
@@ -137,16 +139,13 @@ class KeyRotationManager:
             "status":       "pending",
         }
 
-        with _db_lock:
-            con = _conn(self.rotation_db)
+        with _db_lock, _conn(self.rotation_db) as con:
             con.execute(
                 """INSERT INTO key_rotations
                    (rotation_id, agent_id, new_key_hash, scheduled_at, deadline_at, status)
                    VALUES (:rotation_id,:agent_id,:new_key_hash,:scheduled_at,:deadline_at,:status)""",
                 row,
             )
-            con.commit()
-            con.close()
 
         # Try on-chain commitment (non-blocking)
         _chain_schedule(agent_id, new_key_hash, int(deadline.timestamp()))
@@ -170,15 +169,13 @@ class KeyRotationManager:
         """
         new_key_hash = hashlib.sha256(new_public_key.encode()).hexdigest()
 
-        with _db_lock:
-            con = _conn(self.rotation_db)
+        with _db_lock, _conn(self.rotation_db) as con:
             row = con.execute(
                 """SELECT * FROM key_rotations
                    WHERE agent_id=? AND status='pending'
                    ORDER BY scheduled_at DESC LIMIT 1""",
                 (agent_id,),
             ).fetchone()
-            con.close()
 
         if not row:
             raise ValueError(f"No pending rotation found for agent {agent_id!r}")
@@ -197,16 +194,13 @@ class KeyRotationManager:
         await self._emit_kafka(agent_id, "key_rotated")
 
         now = datetime.now(UTC).isoformat()
-        with _db_lock:
-            con = _conn(self.rotation_db)
+        with _db_lock, _conn(self.rotation_db) as con:
             con.execute(
                 """UPDATE key_rotations
                    SET status='completed', completed_at=?, old_cert_id=?, new_cert_id=?
                    WHERE rotation_id=?""",
                 (now, old_cert_id, new_cert_id, row["rotation_id"]),
             )
-            con.commit()
-            con.close()
 
         log.info("KeyRotation: completed agent=%s old_cert=%s new_cert=%s",
                  agent_id, old_cert_id, new_cert_id)
@@ -222,8 +216,7 @@ class KeyRotationManager:
     async def check_overdue(self) -> list[str]:
         """Return agent_ids whose rotation deadline has passed without completion."""
         now = datetime.now(UTC).isoformat()
-        with _db_lock:
-            con = _conn(self.rotation_db)
+        with _db_lock, _conn(self.rotation_db) as con:
             rows = con.execute(
                 "SELECT DISTINCT agent_id FROM key_rotations WHERE deadline_at <= ? AND status='pending'",
                 (now,),
@@ -233,8 +226,6 @@ class KeyRotationManager:
                 "UPDATE key_rotations SET status='overdue' WHERE deadline_at <= ? AND status='pending'",
                 (now,),
             )
-            con.commit()
-            con.close()
 
         overdue = [r["agent_id"] for r in rows]
         if overdue:

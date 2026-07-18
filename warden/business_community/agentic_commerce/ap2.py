@@ -121,6 +121,14 @@ class AP2Processor:
     Payment execution validates mandate conditions before processing.
     """
 
+    def __init__(self, db_path: str | None = None) -> None:
+        # Resolved at instantiation, not at module import — so tests that swap
+        # COMMERCE_DB_PATH per-test (e.g. via a tmp_path fixture) get isolated
+        # storage. A frozen module-level default would silently keep pointing
+        # at whichever path was current the first time this module was ever
+        # imported in the process.
+        self._db_path = db_path or data_path("warden_commerce.db", "COMMERCE_DB_PATH")
+
     # ── Mandate management ────────────────────────────────────────────────────
 
     def create_mandate(
@@ -149,7 +157,7 @@ class AP2Processor:
         )
         mandate.signature = _sign_mandate(mandate)
 
-        with _db_lock, _conn() as con:
+        with _db_lock, _conn(self._db_path) as con:
             con.execute(
                 "INSERT INTO commerce_mandates(id, tenant_id, data_enc, created_at) VALUES(?,?,?,?)",
                 (mandate.id, tenant_id, _encrypt(mandate.to_dict()), mandate.created_at),
@@ -158,7 +166,7 @@ class AP2Processor:
         return mandate
 
     def get_mandate(self, mandate_id: str, tenant_id: str) -> Mandate | None:
-        with _db_lock, _conn() as con:
+        with _db_lock, _conn(self._db_path) as con:
             row = con.execute(
                 "SELECT data_enc FROM commerce_mandates WHERE id=? AND tenant_id=?",
                 (mandate_id, tenant_id),
@@ -168,7 +176,7 @@ class AP2Processor:
         return Mandate(**_decrypt(row["data_enc"]))
 
     def list_mandates(self, tenant_id: str) -> list[Mandate]:
-        with _db_lock, _conn() as con:
+        with _db_lock, _conn(self._db_path) as con:
             rows = con.execute(
                 "SELECT data_enc FROM commerce_mandates WHERE tenant_id=? ORDER BY created_at DESC",
                 (tenant_id,),
@@ -180,7 +188,7 @@ class AP2Processor:
         if not m:
             return False
         m.status = "REVOKED"
-        with _db_lock, _conn() as con:
+        with _db_lock, _conn(self._db_path) as con:
             con.execute(
                 "UPDATE commerce_mandates SET data_enc=? WHERE id=? AND tenant_id=?",
                 (_encrypt(m.to_dict()), mandate_id, tenant_id),
@@ -239,7 +247,7 @@ class AP2Processor:
         if m.remaining() <= 0:
             m.status = "SUSPENDED"
 
-        with _db_lock, _conn() as con:
+        with _db_lock, _conn(self._db_path) as con:
             con.execute(
                 "UPDATE commerce_mandates SET data_enc=? WHERE id=? AND tenant_id=?",
                 (_encrypt(m.to_dict()), mandate_id, tenant_id),
@@ -256,7 +264,7 @@ class AP2Processor:
             payment_method="AP2",
             merchant=merchant,
         )
-        with _db_lock, _conn() as con:
+        with _db_lock, _conn(self._db_path) as con:
             con.execute(
                 "INSERT INTO commerce_receipts(id, order_id, data_json, created_at) VALUES(?,?,?,?)",
                 (receipt.id, order_ref, json.dumps(receipt.to_dict()), receipt.timestamp),
@@ -272,7 +280,7 @@ class AP2Processor:
         }
 
     def get_receipt(self, order_id: str) -> Receipt | None:
-        with _db_lock, _conn() as con:
+        with _db_lock, _conn(self._db_path) as con:
             row = con.execute(
                 "SELECT data_json FROM commerce_receipts WHERE order_id=?",
                 (order_id,),

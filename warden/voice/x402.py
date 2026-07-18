@@ -20,11 +20,15 @@ import sqlite3
 import threading
 import time
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from fastapi import HTTPException
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.voice.x402")
 
@@ -33,30 +37,35 @@ _CHAIN_RPC    = os.getenv("VOICE_X402_RPC", "https://rpc-amoy.polygon.technology
 _PAYMENT_ADDR = os.getenv("VOICE_X402_PAYMENT_ADDRESS", "0x0000000000000000000000000000000000000000")
 _db_lock      = threading.RLock()
 
+_VOICE_X402_DDL = """
+    CREATE TABLE IF NOT EXISTS x402_balances (
+        agent_id    TEXT PRIMARY KEY,
+        balance_usd REAL NOT NULL DEFAULT 0.0,
+        updated_at  TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS x402_channels (
+        channel_id  TEXT PRIMARY KEY,
+        agent_id    TEXT NOT NULL,
+        initial_usd REAL NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'open',
+        created_at  TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS x402_transactions (
+        tx_id       TEXT PRIMARY KEY,
+        agent_id    TEXT NOT NULL,
+        amount_usd  REAL NOT NULL,
+        resource    TEXT NOT NULL,
+        verified    INTEGER NOT NULL DEFAULT 0,
+        ts          TEXT NOT NULL
+    );
+"""
+register("voice_x402", "warden.voice.x402", _VOICE_X402_DDL)
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS x402_balances (
-            agent_id    TEXT PRIMARY KEY,
-            balance_usd REAL NOT NULL DEFAULT 0.0,
-            updated_at  TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS x402_channels (
-            channel_id  TEXT PRIMARY KEY,
-            agent_id    TEXT NOT NULL,
-            initial_usd REAL NOT NULL,
-            status      TEXT NOT NULL DEFAULT 'open',
-            created_at  TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS x402_transactions (
-            tx_id       TEXT PRIMARY KEY,
-            agent_id    TEXT NOT NULL,
-            amount_usd  REAL NOT NULL,
-            resource    TEXT NOT NULL,
-            verified    INTEGER NOT NULL DEFAULT 0,
-            ts          TEXT NOT NULL
-        );
-    """)
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("voice_x402", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 @dataclass
@@ -103,17 +112,12 @@ class X402Protocol:
         if not tx_hash:
             return False
         # Check if already verified locally
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
-                row = con.execute(
-                    "SELECT verified FROM x402_transactions WHERE tx_id = ?", (tx_hash,)
-                ).fetchone()
-                if row and row[0]:
-                    return True
-            finally:
-                con.close()
+        with _db_lock, _conn() as con:
+            row = con.execute(
+                "SELECT verified FROM x402_transactions WHERE tx_id = ?", (tx_hash,)
+            ).fetchone()
+            if row and row[0]:
+                return True
         # Attempt on-chain verification
         try:
             return self._verify_on_chain(tx_hash, expected_amount, expected_recipient)
@@ -125,105 +129,76 @@ class X402Protocol:
         """Open a pre-funded payment channel for the agent."""
         cid = str(uuid.uuid4())
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
-                con.execute(
-                    "INSERT INTO x402_channels (channel_id, agent_id, initial_usd, status, created_at) "
-                    "VALUES (?, ?, ?, 'open', ?)",
-                    (cid, agent_id, initial_balance_usd, now),
-                )
-                con.execute(
-                    "INSERT INTO x402_balances (agent_id, balance_usd, updated_at) VALUES (?, ?, ?) "
-                    "ON CONFLICT(agent_id) DO UPDATE SET balance_usd = balance_usd + excluded.balance_usd, "
-                    "updated_at = excluded.updated_at",
-                    (agent_id, initial_balance_usd, now),
-                )
-                con.commit()
-            finally:
-                con.close()
+        with _db_lock, _conn() as con:
+            con.execute(
+                "INSERT INTO x402_channels (channel_id, agent_id, initial_usd, status, created_at) "
+                "VALUES (?, ?, ?, 'open', ?)",
+                (cid, agent_id, initial_balance_usd, now),
+            )
+            con.execute(
+                "INSERT INTO x402_balances (agent_id, balance_usd, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(agent_id) DO UPDATE SET balance_usd = balance_usd + excluded.balance_usd, "
+                "updated_at = excluded.updated_at",
+                (agent_id, initial_balance_usd, now),
+            )
         return cid
 
     # ── Balance management ─────────────────────────────────────────────────────
 
     def get_balance(self, agent_id: str) -> float:
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
-                row = con.execute(
-                    "SELECT balance_usd FROM x402_balances WHERE agent_id = ?", (agent_id,)
-                ).fetchone()
-                return float(row[0]) if row else 0.0
-            finally:
-                con.close()
+        with _db_lock, _conn() as con:
+            row = con.execute(
+                "SELECT balance_usd FROM x402_balances WHERE agent_id = ?", (agent_id,)
+            ).fetchone()
+            return float(row[0]) if row else 0.0
 
     def deduct(self, agent_id: str, amount_usd: float, resource: str) -> bool:
         """Deduct amount from agent balance.  Returns False if insufficient."""
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
-                row = con.execute(
-                    "SELECT balance_usd FROM x402_balances WHERE agent_id = ?", (agent_id,)
-                ).fetchone()
-                balance = float(row[0]) if row else 0.0
-                if balance < amount_usd:
-                    return False
-                new_bal = balance - amount_usd
-                con.execute(
-                    "UPDATE x402_balances SET balance_usd = ?, updated_at = ? WHERE agent_id = ?",
-                    (new_bal, now, agent_id),
-                )
-                con.execute(
-                    "INSERT INTO x402_transactions (tx_id, agent_id, amount_usd, resource, verified, ts) "
-                    "VALUES (?, ?, ?, ?, 1, ?)",
-                    (str(uuid.uuid4()), agent_id, amount_usd, resource, now),
-                )
-                con.commit()
-                return True
-            finally:
-                con.close()
+        with _db_lock, _conn() as con:
+            row = con.execute(
+                "SELECT balance_usd FROM x402_balances WHERE agent_id = ?", (agent_id,)
+            ).fetchone()
+            balance = float(row[0]) if row else 0.0
+            if balance < amount_usd:
+                return False
+            new_bal = balance - amount_usd
+            con.execute(
+                "UPDATE x402_balances SET balance_usd = ?, updated_at = ? WHERE agent_id = ?",
+                (new_bal, now, agent_id),
+            )
+            con.execute(
+                "INSERT INTO x402_transactions (tx_id, agent_id, amount_usd, resource, verified, ts) "
+                "VALUES (?, ?, ?, ?, 1, ?)",
+                (str(uuid.uuid4()), agent_id, amount_usd, resource, now),
+            )
+            return True
 
     def confirm_payment(self, tx_hash: str, agent_id: str, amount_usd: float, resource: str) -> bool:
         """Confirm external payment and credit agent balance."""
         if not self.verify_payment(tx_hash, amount_usd, _PAYMENT_ADDR):
             return False
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
-                con.execute(
-                    "INSERT INTO x402_transactions (tx_id, agent_id, amount_usd, resource, verified, ts) "
-                    "VALUES (?, ?, ?, ?, 1, ?)",
-                    (tx_hash, agent_id, amount_usd, resource, now),
-                )
-                con.execute(
-                    "INSERT INTO x402_balances (agent_id, balance_usd, updated_at) VALUES (?, ?, ?) "
-                    "ON CONFLICT(agent_id) DO UPDATE SET "
-                    "balance_usd = balance_usd + excluded.balance_usd, updated_at = excluded.updated_at",
-                    (agent_id, amount_usd, now),
-                )
-                con.commit()
-                return True
-            finally:
-                con.close()
+        with _db_lock, _conn() as con:
+            con.execute(
+                "INSERT INTO x402_transactions (tx_id, agent_id, amount_usd, resource, verified, ts) "
+                "VALUES (?, ?, ?, ?, 1, ?)",
+                (tx_hash, agent_id, amount_usd, resource, now),
+            )
+            con.execute(
+                "INSERT INTO x402_balances (agent_id, balance_usd, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(agent_id) DO UPDATE SET "
+                "balance_usd = balance_usd + excluded.balance_usd, updated_at = excluded.updated_at",
+                (agent_id, amount_usd, now),
+            )
+            return True
 
     def close_channel(self, channel_id: str) -> bool:
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
-                con.execute(
-                    "UPDATE x402_channels SET status = 'closed' WHERE channel_id = ?", (channel_id,)
-                )
-                con.commit()
-                return True
-            finally:
-                con.close()
+        with _db_lock, _conn() as con:
+            con.execute(
+                "UPDATE x402_channels SET status = 'closed' WHERE channel_id = ?", (channel_id,)
+            )
+            return True
 
     # ── On-chain verification (best-effort) ────────────────────────────────────
 

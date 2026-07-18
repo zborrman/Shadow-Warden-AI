@@ -1,5 +1,5 @@
 {
-  "total": 116,
+  "total": 106,
   "per_file": {
     "agent/scheduler.py": 1,
     "agentic/registry.py": 1,
@@ -76,8 +76,6 @@
     "threat_intel/store.py": 1,
     "threat_store.py": 1,
     "tokenomics/outcome_pricing.py": 1,
-    "voice/guardian.py": 3,
-    "voice/x402.py": 6,
-    "web3/key_rotation.py": 2
+    "web3/key_rotation.py": 1
   }
 }

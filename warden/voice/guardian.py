@@ -19,9 +19,13 @@ import re
 import sqlite3
 import threading
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.voice.guardian")
 
@@ -59,23 +63,29 @@ class GuardianResult:
             self.reasons = []
 
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS voice_user_stats (
-            user_id         TEXT PRIMARY KEY,
-            purchase_count  INTEGER NOT NULL DEFAULT 0,
-            amount_sum      REAL NOT NULL DEFAULT 0.0,
-            amount_sq_sum   REAL NOT NULL DEFAULT 0.0,
-            updated_at      TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS voice_block_log (
-            id          TEXT PRIMARY KEY,
-            user_id     TEXT NOT NULL,
-            reason      TEXT NOT NULL,
-            transcript  TEXT NOT NULL DEFAULT '',
-            ts          TEXT NOT NULL
-        );
-    """)
+_VOICE_GUARDIAN_DDL = """
+    CREATE TABLE IF NOT EXISTS voice_user_stats (
+        user_id         TEXT PRIMARY KEY,
+        purchase_count  INTEGER NOT NULL DEFAULT 0,
+        amount_sum      REAL NOT NULL DEFAULT 0.0,
+        amount_sq_sum   REAL NOT NULL DEFAULT 0.0,
+        updated_at      TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS voice_block_log (
+        id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL,
+        reason      TEXT NOT NULL,
+        transcript  TEXT NOT NULL DEFAULT '',
+        ts          TEXT NOT NULL
+    );
+"""
+register("voice_guardian", "warden.voice.guardian", _VOICE_GUARDIAN_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("voice_guardian", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 class VoiceGuardian:
@@ -235,49 +245,32 @@ class VoiceGuardian:
     def record_purchase(self, user_id: str, amount: float) -> None:
         """Update user purchase stats for anomaly baseline."""
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
-                con.execute("""
-                    INSERT INTO voice_user_stats (user_id, purchase_count, amount_sum, amount_sq_sum, updated_at)
-                    VALUES (?, 1, ?, ?, ?)
-                    ON CONFLICT(user_id) DO UPDATE SET
-                        purchase_count = purchase_count + 1,
-                        amount_sum     = amount_sum + excluded.amount_sum,
-                        amount_sq_sum  = amount_sq_sum + excluded.amount_sq_sum,
-                        updated_at     = excluded.updated_at
-                """, (user_id, amount, amount ** 2, now))
-                con.commit()
-            finally:
-                con.close()
+        with _db_lock, _conn() as con:
+            con.execute("""
+                INSERT INTO voice_user_stats (user_id, purchase_count, amount_sum, amount_sq_sum, updated_at)
+                VALUES (?, 1, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    purchase_count = purchase_count + 1,
+                    amount_sum     = amount_sum + excluded.amount_sum,
+                    amount_sq_sum  = amount_sq_sum + excluded.amount_sq_sum,
+                    updated_at     = excluded.updated_at
+            """, (user_id, amount, amount ** 2, now))
 
     def _load_stats(self, user_id: str) -> dict:
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
-                con.row_factory = sqlite3.Row
-                row = con.execute(
-                    "SELECT * FROM voice_user_stats WHERE user_id = ?", (user_id,)
-                ).fetchone()
-                return dict(row) if row else {"purchase_count": 0, "amount_sum": 0.0, "amount_sq_sum": 0.0}
-            finally:
-                con.close()
+        with _db_lock, _conn() as con:
+            row = con.execute(
+                "SELECT * FROM voice_user_stats WHERE user_id = ?", (user_id,)
+            ).fetchone()
+            return dict(row) if row else {"purchase_count": 0, "amount_sum": 0.0, "amount_sq_sum": 0.0}
 
     def _log_block(self, user_id: str, reasons: list, transcript: str) -> None:
         import uuid
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        with _db_lock:
-            con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                _ensure_schema(con)
+        try:
+            with _db_lock, _conn() as con:
                 con.execute(
                     "INSERT INTO voice_block_log (id, user_id, reason, transcript, ts) VALUES (?, ?, ?, ?, ?)",
                     (str(uuid.uuid4()), user_id, json.dumps(reasons), transcript[:500], now),
                 )
-                con.commit()
-            except Exception:
-                pass
-            finally:
-                con.close()
+        except Exception:
+            pass
