@@ -21,6 +21,8 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.financial.cost_allocation")
 
@@ -29,41 +31,34 @@ _db_lock = threading.RLock()
 
 _COST_TYPES = {"api_usage", "audit", "compliance", "incident", "training", "other"}
 
+_COST_ALLOC_DDL = """
+    CREATE TABLE IF NOT EXISTS cost_allocations (
+        alloc_id     TEXT PRIMARY KEY,
+        tenant_id    TEXT NOT NULL,
+        vendor_id    TEXT NOT NULL DEFAULT '',
+        department   TEXT NOT NULL DEFAULT 'default',
+        project      TEXT NOT NULL DEFAULT '',
+        cost_type    TEXT NOT NULL DEFAULT 'api_usage',
+        amount_usd   REAL NOT NULL DEFAULT 0.0,
+        currency     TEXT NOT NULL DEFAULT 'USD',
+        period_month TEXT NOT NULL,
+        notes        TEXT NOT NULL DEFAULT '',
+        recorded_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ca_tenant_month ON cost_allocations(tenant_id, period_month);
+    CREATE INDEX IF NOT EXISTS idx_ca_dept         ON cost_allocations(tenant_id, department);
+    CREATE INDEX IF NOT EXISTS idx_ca_vendor       ON cost_allocations(vendor_id);
+    CREATE INDEX IF NOT EXISTS idx_ca_type         ON cost_allocations(tenant_id, cost_type);
+"""
+
+# Shares warden_costs.db with budget.py — same db_key, distinct module.
+register("costs", "cost_allocation", _COST_ALLOC_DDL)
+
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db("costs", db_path, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS cost_allocations (
-            alloc_id     TEXT PRIMARY KEY,
-            tenant_id    TEXT NOT NULL,
-            vendor_id    TEXT NOT NULL DEFAULT '',
-            department   TEXT NOT NULL DEFAULT 'default',
-            project      TEXT NOT NULL DEFAULT '',
-            cost_type    TEXT NOT NULL DEFAULT 'api_usage',
-            amount_usd   REAL NOT NULL DEFAULT 0.0,
-            currency     TEXT NOT NULL DEFAULT 'USD',
-            period_month TEXT NOT NULL,
-            notes        TEXT NOT NULL DEFAULT '',
-            recorded_at  TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_ca_tenant_month ON cost_allocations(tenant_id, period_month);
-        CREATE INDEX IF NOT EXISTS idx_ca_dept         ON cost_allocations(tenant_id, department);
-        CREATE INDEX IF NOT EXISTS idx_ca_vendor       ON cost_allocations(vendor_id);
-        CREATE INDEX IF NOT EXISTS idx_ca_type         ON cost_allocations(tenant_id, cost_type);
-    """)
-    con.commit()
 
 
 def record_cost(

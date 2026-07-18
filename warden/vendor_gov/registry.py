@@ -19,11 +19,49 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.vendor_gov.registry")
 
 _DB_PATH  = data_path("warden_vendor.db", "VENDOR_GOV_DB_PATH")
 _db_lock  = threading.RLock()
+
+_VENDOR_GOV_DDL = """
+    CREATE TABLE IF NOT EXISTS ai_vendors (
+        vendor_id     TEXT PRIMARY KEY,
+        tenant_id     TEXT NOT NULL,
+        display_name  TEXT NOT NULL,
+        website       TEXT NOT NULL DEFAULT '',
+        provider_type TEXT NOT NULL DEFAULT 'LLM',
+        risk_tier     TEXT NOT NULL DEFAULT 'MEDIUM',
+        status        TEXT NOT NULL DEFAULT 'active',
+        contact_email TEXT NOT NULL DEFAULT '',
+        tags          TEXT NOT NULL DEFAULT '{}',
+        created_at    TEXT NOT NULL,
+        updated_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_av_tenant ON ai_vendors(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_av_status  ON ai_vendors(tenant_id, status);
+
+    CREATE TABLE IF NOT EXISTS vendor_dpa_records (
+        dpa_id        TEXT PRIMARY KEY,
+        vendor_id     TEXT NOT NULL,
+        tenant_id     TEXT NOT NULL,
+        dpa_type      TEXT NOT NULL DEFAULT 'GDPR_ART28',
+        signed_at     TEXT,
+        expires_at    TEXT,
+        doc_ref       TEXT NOT NULL DEFAULT '',
+        status        TEXT NOT NULL DEFAULT 'active',
+        notes         TEXT NOT NULL DEFAULT '',
+        created_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_dpa_vendor  ON vendor_dpa_records(vendor_id);
+    CREATE INDEX IF NOT EXISTS idx_dpa_tenant  ON vendor_dpa_records(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_dpa_expires ON vendor_dpa_records(expires_at);
+"""
+
+register("vendor_gov", "vendor_gov", _VENDOR_GOV_DDL)
 
 _PROVIDER_TYPES = {"LLM", "EMBEDDING", "TOOL", "AGENT", "OTHER"}
 _RISK_TIERS     = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
@@ -92,52 +130,8 @@ class DPARecord:
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db("vendor_gov", db_path, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS ai_vendors (
-            vendor_id     TEXT PRIMARY KEY,
-            tenant_id     TEXT NOT NULL,
-            display_name  TEXT NOT NULL,
-            website       TEXT NOT NULL DEFAULT '',
-            provider_type TEXT NOT NULL DEFAULT 'LLM',
-            risk_tier     TEXT NOT NULL DEFAULT 'MEDIUM',
-            status        TEXT NOT NULL DEFAULT 'active',
-            contact_email TEXT NOT NULL DEFAULT '',
-            tags          TEXT NOT NULL DEFAULT '{}',
-            created_at    TEXT NOT NULL,
-            updated_at    TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_av_tenant ON ai_vendors(tenant_id);
-        CREATE INDEX IF NOT EXISTS idx_av_status  ON ai_vendors(tenant_id, status);
-
-        CREATE TABLE IF NOT EXISTS vendor_dpa_records (
-            dpa_id        TEXT PRIMARY KEY,
-            vendor_id     TEXT NOT NULL,
-            tenant_id     TEXT NOT NULL,
-            dpa_type      TEXT NOT NULL DEFAULT 'GDPR_ART28',
-            signed_at     TEXT,
-            expires_at    TEXT,
-            doc_ref       TEXT NOT NULL DEFAULT '',
-            status        TEXT NOT NULL DEFAULT 'active',
-            notes         TEXT NOT NULL DEFAULT '',
-            created_at    TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_dpa_vendor  ON vendor_dpa_records(vendor_id);
-        CREATE INDEX IF NOT EXISTS idx_dpa_tenant  ON vendor_dpa_records(tenant_id);
-        CREATE INDEX IF NOT EXISTS idx_dpa_expires ON vendor_dpa_records(expires_at);
-    """)
-    con.commit()
 
 
 def register_vendor(

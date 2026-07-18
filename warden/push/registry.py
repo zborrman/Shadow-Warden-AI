@@ -24,6 +24,8 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.push.registry")
 
@@ -31,31 +33,24 @@ _DB_PATH = data_path("warden_push.db", "PUSH_DB_PATH")
 _MAX_DEVICES_PER_TENANT = 50
 _db_lock = threading.RLock()
 
+_PUSH_DDL = """
+    CREATE TABLE IF NOT EXISTS push_device_tokens (
+        token_id      TEXT PRIMARY KEY,
+        tenant_id     TEXT NOT NULL,
+        device_token  TEXT NOT NULL UNIQUE,
+        platform      TEXT NOT NULL DEFAULT 'android',
+        registered_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_push_tenant ON push_device_tokens(tenant_id);
+"""
+
+register("push", "push", _PUSH_DDL)
+
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db("push", db_path, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS push_device_tokens (
-            token_id      TEXT PRIMARY KEY,
-            tenant_id     TEXT NOT NULL,
-            device_token  TEXT NOT NULL UNIQUE,
-            platform      TEXT NOT NULL DEFAULT 'android',
-            registered_at TEXT NOT NULL
-        )
-    """)
-    con.execute("CREATE INDEX IF NOT EXISTS idx_push_tenant ON push_device_tokens(tenant_id)")
 
 
 def register_device(

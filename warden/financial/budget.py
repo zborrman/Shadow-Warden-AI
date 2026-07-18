@@ -18,6 +18,8 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.financial.budget")
 
@@ -27,51 +29,44 @@ _db_lock = threading.RLock()
 _PERIOD_TYPES   = {"monthly", "quarterly", "annual"}
 _APPROVAL_STATUSES = {"pending", "approved", "rejected"}
 
+_BUDGET_DDL = """
+    CREATE TABLE IF NOT EXISTS budget_caps (
+        cap_id      TEXT PRIMARY KEY,
+        tenant_id   TEXT NOT NULL,
+        department  TEXT NOT NULL DEFAULT 'default',
+        period_type TEXT NOT NULL DEFAULT 'monthly',
+        cap_usd     REAL NOT NULL,
+        alert_pct   REAL NOT NULL DEFAULT 0.80,
+        status      TEXT NOT NULL DEFAULT 'active',
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_bc_tenant_dept ON budget_caps(tenant_id, department);
+
+    CREATE TABLE IF NOT EXISTS budget_approvals (
+        approval_id  TEXT PRIMARY KEY,
+        tenant_id    TEXT NOT NULL,
+        requested_by TEXT NOT NULL,
+        department   TEXT NOT NULL,
+        amount_usd   REAL NOT NULL,
+        reason       TEXT NOT NULL DEFAULT '',
+        status       TEXT NOT NULL DEFAULT 'pending',
+        reviewed_by  TEXT,
+        reviewed_at  TEXT,
+        created_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ba_tenant  ON budget_approvals(tenant_id, status);
+    CREATE INDEX IF NOT EXISTS idx_ba_dept    ON budget_approvals(tenant_id, department);
+"""
+
+# Shares warden_costs.db with cost_allocation.py — same db_key, distinct module.
+register("costs", "budget", _BUDGET_DDL)
+
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db("costs", db_path, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS budget_caps (
-            cap_id      TEXT PRIMARY KEY,
-            tenant_id   TEXT NOT NULL,
-            department  TEXT NOT NULL DEFAULT 'default',
-            period_type TEXT NOT NULL DEFAULT 'monthly',
-            cap_usd     REAL NOT NULL,
-            alert_pct   REAL NOT NULL DEFAULT 0.80,
-            status      TEXT NOT NULL DEFAULT 'active',
-            created_at  TEXT NOT NULL,
-            updated_at  TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_bc_tenant_dept ON budget_caps(tenant_id, department);
-
-        CREATE TABLE IF NOT EXISTS budget_approvals (
-            approval_id  TEXT PRIMARY KEY,
-            tenant_id    TEXT NOT NULL,
-            requested_by TEXT NOT NULL,
-            department   TEXT NOT NULL,
-            amount_usd   REAL NOT NULL,
-            reason       TEXT NOT NULL DEFAULT '',
-            status       TEXT NOT NULL DEFAULT 'pending',
-            reviewed_by  TEXT,
-            reviewed_at  TEXT,
-            created_at   TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_ba_tenant  ON budget_approvals(tenant_id, status);
-        CREATE INDEX IF NOT EXISTS idx_ba_dept    ON budget_approvals(tenant_id, department);
-    """)
-    con.commit()
 
 
 def set_budget_cap(

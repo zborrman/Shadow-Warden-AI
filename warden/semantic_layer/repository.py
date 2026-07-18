@@ -14,11 +14,40 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.semantic_layer.models import SemanticModel
 
 log = logging.getLogger("warden.semantic_layer.repository")
 
 _db_lock = threading.RLock()
+
+_SEMANTIC_DDL = """
+    CREATE TABLE IF NOT EXISTS semantic_models (
+        id          TEXT PRIMARY KEY,
+        tenant_id   TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        definition  TEXT NOT NULL,    -- JSON of SemanticModel
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sm_tenant ON semantic_models(tenant_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_sm_name ON semantic_models(tenant_id, name);
+
+    CREATE TABLE IF NOT EXISTS semantic_query_log (
+        id          TEXT PRIMARY KEY,
+        tenant_id   TEXT NOT NULL,
+        model_id    TEXT NOT NULL,
+        metrics     TEXT,
+        dimensions  TEXT,
+        sql_text    TEXT,
+        exec_ms     REAL,
+        row_count   INTEGER,
+        created_at  TEXT NOT NULL
+    );
+"""
+
+register("semantic_layer", "semantic_layer", _SEMANTIC_DDL)
 
 
 def _db_path() -> str:
@@ -27,45 +56,13 @@ def _db_path() -> str:
 
 @contextmanager
 def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    canonical = _db_path()
     if db_path is None:
-        db_path = _db_path()
-    with _db_lock:
-        con = sqlite3.connect(db_path, check_same_thread=False)
-        con.row_factory = sqlite3.Row
-        con.execute("PRAGMA journal_mode=WAL")
-        _ensure_schema(con)
-        try:
-            yield con
-            con.commit()
-        finally:
-            con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS semantic_models (
-            id          TEXT PRIMARY KEY,
-            tenant_id   TEXT NOT NULL,
-            name        TEXT NOT NULL,
-            definition  TEXT NOT NULL,    -- JSON of SemanticModel
-            created_at  TEXT NOT NULL,
-            updated_at  TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_sm_tenant ON semantic_models(tenant_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_sm_name ON semantic_models(tenant_id, name);
-
-        CREATE TABLE IF NOT EXISTS semantic_query_log (
-            id          TEXT PRIMARY KEY,
-            tenant_id   TEXT NOT NULL,
-            model_id    TEXT NOT NULL,
-            metrics     TEXT,
-            dimensions  TEXT,
-            sql_text    TEXT,
-            exec_ms     REAL,
-            row_count   INTEGER,
-            created_at  TEXT NOT NULL
-        );
-    """)
+        db_path = canonical
+    with _db_lock, open_db(
+        "semantic_layer", db_path, module_default_path=canonical
+    ) as con:
+        yield con
 
 
 def create_model(model: SemanticModel) -> SemanticModel:
