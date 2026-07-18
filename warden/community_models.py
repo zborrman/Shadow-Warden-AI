@@ -5,60 +5,69 @@ Uses the same SEP_DB_PATH pattern as sep.py / stix_audit.py.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 _DB_PATH = data_path("warden_community.db", "COMMUNITY_DB_PATH")
 
+_COMMUNITY_MODELS_DDL = """
+CREATE TABLE IF NOT EXISTS community_members (
+    id          TEXT PRIMARY KEY,
+    tenant_id   TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    role        TEXT NOT NULL DEFAULT 'member',
+    joined_at   TEXT NOT NULL,
+    UNIQUE(tenant_id, user_id)
+);
 
-def _conn() -> sqlite3.Connection:
-    c = sqlite3.connect(_DB_PATH)
-    c.row_factory = sqlite3.Row
-    return c
+CREATE TABLE IF NOT EXISTS community_posts (
+    id           TEXT PRIMARY KEY,
+    tenant_id    TEXT NOT NULL,
+    author_id    TEXT NOT NULL,
+    content      TEXT NOT NULL,
+    source       TEXT NOT NULL DEFAULT 'manual',
+    obsidian_ueciid TEXT,
+    nim_verdict  TEXT,
+    nim_score    REAL,
+    status       TEXT NOT NULL DEFAULT 'pending',
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS community_comments (
+    id        TEXT PRIMARY KEY,
+    post_id   TEXT NOT NULL REFERENCES community_posts(id),
+    tenant_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    content   TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_posts_tenant   ON community_posts(tenant_id, status, created_at);
+CREATE INDEX IF NOT EXISTS idx_comments_post  ON community_comments(post_id);
+"""
+register("community_models", "warden.community_models", _COMMUNITY_MODELS_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("community_models", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 def init_db() -> None:
-    with _conn() as c:
-        c.executescript("""
-        CREATE TABLE IF NOT EXISTS community_members (
-            id          TEXT PRIMARY KEY,
-            tenant_id   TEXT NOT NULL,
-            user_id     TEXT NOT NULL,
-            display_name TEXT NOT NULL,
-            role        TEXT NOT NULL DEFAULT 'member',
-            joined_at   TEXT NOT NULL,
-            UNIQUE(tenant_id, user_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS community_posts (
-            id           TEXT PRIMARY KEY,
-            tenant_id    TEXT NOT NULL,
-            author_id    TEXT NOT NULL,
-            content      TEXT NOT NULL,
-            source       TEXT NOT NULL DEFAULT 'manual',
-            obsidian_ueciid TEXT,
-            nim_verdict  TEXT,
-            nim_score    REAL,
-            status       TEXT NOT NULL DEFAULT 'pending',
-            created_at   TEXT NOT NULL,
-            updated_at   TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS community_comments (
-            id        TEXT PRIMARY KEY,
-            post_id   TEXT NOT NULL REFERENCES community_posts(id),
-            tenant_id TEXT NOT NULL,
-            author_id TEXT NOT NULL,
-            content   TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_posts_tenant   ON community_posts(tenant_id, status, created_at);
-        CREATE INDEX IF NOT EXISTS idx_comments_post  ON community_comments(post_id);
-        """)
+    """Schema is ensured automatically by _conn(); kept as a no-op entry point
+    for callers (warden/api/community.py) that invoke it eagerly at import."""
+    with _conn():
+        pass
 
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────

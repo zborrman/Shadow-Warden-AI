@@ -257,12 +257,11 @@ def _rewrap_batch(
     Returns (done, failed).
     """
     from warden.communities.clearance import ClearanceEnvelope, rewrap_envelope_cek
-    from warden.communities.entity_store import _db_lock, _get_conn
+    from warden.communities.entity_store import _conn, _db_lock
 
     done = failed = 0
 
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         rows = conn.execute(
             "SELECT entity_id, clearance, cek_wrapped_b64, nonce_b64, "
             "pay_nonce_b64, sig_b64, sender_mid "
@@ -287,8 +286,7 @@ def _rewrap_batch(
                 sig_b64         = row["sig_b64"],
             )
             updated = rewrap_envelope_cek(env, old_kp, new_kp)
-            with _db_lock:
-                c = _get_conn()
+            with _db_lock, _conn() as c:
                 c.execute(
                     "UPDATE community_entities "
                     "SET kid=?, cek_wrapped_b64=?, nonce_b64=?, sig_b64=? "
@@ -302,7 +300,6 @@ def _rewrap_batch(
                         community_id,
                     ),
                 )
-                c.commit()
             done += 1
         except Exception as exc:
             log.error(

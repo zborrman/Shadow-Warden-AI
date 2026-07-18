@@ -285,7 +285,7 @@ class TestExpireEntities(_StoreBase):
 
     def test_expired_entities_are_deleted(self):
         from warden.communities.entity_store import (
-            _get_conn,
+            _conn,
             expire_entities,
             list_entities,
             store_entity,
@@ -295,12 +295,11 @@ class TestExpireEntities(_StoreBase):
 
         # Backdate expires_at to the past directly in DB
         past = (datetime.now(UTC) - timedelta(days=1)).isoformat()
-        with _get_conn() as conn:
+        with _conn() as conn:
             conn.execute(
                 "UPDATE community_entities SET expires_at=? WHERE entity_id=?",
                 (past, meta.entity_id),
             )
-            conn.commit()
 
         count = expire_entities(cid)
         self.assertEqual(count, 1)

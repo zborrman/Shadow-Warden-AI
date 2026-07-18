@@ -26,11 +26,16 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC
 from enum import StrEnum
+from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.key_archive")
 
@@ -89,26 +94,27 @@ def invalidate_cache(community_id: str, kid: str) -> None:
 
 _ARCHIVE_DB_PATH = data_path("warden_community_key_archive.db", "COMMUNITY_KEY_ARCHIVE_PATH")
 
-def _get_sqlite():
-    import sqlite3
-    conn = sqlite3.connect(_ARCHIVE_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS community_key_archive (
-            community_id    TEXT NOT NULL,
-            kid             TEXT NOT NULL,
-            status          TEXT NOT NULL DEFAULT 'ACTIVE',
-            ed25519_pub_b64 TEXT NOT NULL,
-            x25519_pub_b64  TEXT NOT NULL,
-            ed_priv_enc_b64 TEXT,
-            x_priv_enc_b64  TEXT,
-            created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            shredded_at     TEXT,
-            PRIMARY KEY (community_id, kid)
-        )
-    """)
-    conn.commit()
-    return conn
+_KEY_ARCHIVE_DDL = """
+    CREATE TABLE IF NOT EXISTS community_key_archive (
+        community_id    TEXT NOT NULL,
+        kid             TEXT NOT NULL,
+        status          TEXT NOT NULL DEFAULT 'ACTIVE',
+        ed25519_pub_b64 TEXT NOT NULL,
+        x25519_pub_b64  TEXT NOT NULL,
+        ed_priv_enc_b64 TEXT,
+        x_priv_enc_b64  TEXT,
+        created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        shredded_at     TEXT,
+        PRIMARY KEY (community_id, kid)
+    );
+"""
+register("key_archive", "warden.communities.key_archive", _KEY_ARCHIVE_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[Any, None, None]:
+    with open_db("key_archive", _ARCHIVE_DB_PATH, module_default_path=_ARCHIVE_DB_PATH) as con:
+        yield con
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -137,19 +143,18 @@ def store_keypair(keypair, status: KeyStatus = KeyStatus.ACTIVE) -> None:
         created_at      = now,
         shredded_at     = None,
     )
-    conn = _get_sqlite()
-    conn.execute("""
-        INSERT OR REPLACE INTO community_key_archive
-          (community_id, kid, status, ed25519_pub_b64, x25519_pub_b64,
-           ed_priv_enc_b64, x_priv_enc_b64, created_at, shredded_at)
-        VALUES (?,?,?,?,?,?,?,?,?)
-    """, (
-        entry.community_id, entry.kid, str(entry.status),
-        entry.ed25519_pub_b64, entry.x25519_pub_b64,
-        entry.ed_priv_enc_b64, entry.x_priv_enc_b64,
-        entry.created_at, entry.shredded_at,
-    ))
-    conn.commit()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO community_key_archive
+              (community_id, kid, status, ed25519_pub_b64, x25519_pub_b64,
+               ed_priv_enc_b64, x_priv_enc_b64, created_at, shredded_at)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, (
+            entry.community_id, entry.kid, str(entry.status),
+            entry.ed25519_pub_b64, entry.x25519_pub_b64,
+            entry.ed_priv_enc_b64, entry.x_priv_enc_b64,
+            entry.created_at, entry.shredded_at,
+        ))
     _set_cache(entry)
     log.info("KeyArchive: stored kid=%s community=%s status=%s",
              keypair.kid, keypair.community_id[:8], status)
@@ -161,11 +166,11 @@ def get_entry(community_id: str, kid: str) -> ArchiveEntry | None:
     if cached:
         return cached
 
-    conn = _get_sqlite()
-    row = conn.execute(
-        "SELECT * FROM community_key_archive WHERE community_id=? AND kid=?",
-        (community_id, kid)
-    ).fetchone()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM community_key_archive WHERE community_id=? AND kid=?",
+            (community_id, kid)
+        ).fetchone()
     if not row:
         return None
 
@@ -176,11 +181,11 @@ def get_entry(community_id: str, kid: str) -> ArchiveEntry | None:
 
 def get_active_entry(community_id: str) -> ArchiveEntry | None:
     """Return the currently ACTIVE keypair entry for a community."""
-    conn = _get_sqlite()
-    row = conn.execute(
-        "SELECT * FROM community_key_archive WHERE community_id=? AND status='ACTIVE' LIMIT 1",
-        (community_id,)
-    ).fetchone()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM community_key_archive WHERE community_id=? AND status='ACTIVE' LIMIT 1",
+            (community_id,)
+        ).fetchone()
     if not row:
         return None
     entry = _row_to_entry(row)
@@ -190,12 +195,11 @@ def get_active_entry(community_id: str) -> ArchiveEntry | None:
 
 def set_status(community_id: str, kid: str, status: KeyStatus) -> bool:
     """Update the status of a key entry. Returns True if a row was modified."""
-    conn = _get_sqlite()
-    cur = conn.execute(
-        "UPDATE community_key_archive SET status=? WHERE community_id=? AND kid=?",
-        (str(status), community_id, kid)
-    )
-    conn.commit()
+    with _conn() as conn:
+        cur = conn.execute(
+            "UPDATE community_key_archive SET status=? WHERE community_id=? AND kid=?",
+            (str(status), community_id, kid)
+        )
     invalidate_cache(community_id, kid)
     log.info("KeyArchive: status→%s kid=%s community=%s", status, kid, community_id[:8])
     return cur.rowcount > 0
@@ -218,18 +222,17 @@ def crypto_shred(community_id: str, kid: str) -> bool:
     from datetime import datetime
     now = datetime.now(UTC).isoformat()
 
-    conn = _get_sqlite()
-    cur = conn.execute("""
-        UPDATE community_key_archive
-           SET status          = 'SHREDDED',
-               ed_priv_enc_b64 = NULL,
-               x_priv_enc_b64  = NULL,
-               shredded_at     = ?
-         WHERE community_id = ?
-           AND kid           = ?
-           AND status       != 'SHREDDED'
-    """, (now, community_id, kid))
-    conn.commit()
+    with _conn() as conn:
+        cur = conn.execute("""
+            UPDATE community_key_archive
+               SET status          = 'SHREDDED',
+                   ed_priv_enc_b64 = NULL,
+                   x_priv_enc_b64  = NULL,
+                   shredded_at     = ?
+             WHERE community_id = ?
+               AND kid           = ?
+               AND status       != 'SHREDDED'
+        """, (now, community_id, kid))
     invalidate_cache(community_id, kid)
     if cur.rowcount > 0:
         log.warning(
@@ -269,11 +272,11 @@ def load_keypair_from_entry(entry: ArchiveEntry):
 
 def list_entries(community_id: str) -> list[ArchiveEntry]:
     """Return all key archive entries for a community, newest first."""
-    conn = _get_sqlite()
-    rows = conn.execute(
-        "SELECT * FROM community_key_archive WHERE community_id=? ORDER BY created_at DESC",
-        (community_id,)
-    ).fetchall()
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM community_key_archive WHERE community_id=? ORDER BY created_at DESC",
+            (community_id,)
+        ).fetchall()
     return [_row_to_entry(r) for r in rows]
 
 

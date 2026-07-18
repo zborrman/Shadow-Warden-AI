@@ -54,13 +54,17 @@ from __future__ import annotations
 import base64
 import logging
 import os
-import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.entity_store")
 
@@ -71,36 +75,34 @@ _db_lock        = threading.RLock()
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_ENTITY_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS community_entities (
-            entity_id       TEXT PRIMARY KEY,
-            community_id    TEXT NOT NULL,
-            kid             TEXT NOT NULL,
-            clearance       TEXT NOT NULL DEFAULT 'PUBLIC',
-            cek_wrapped_b64 TEXT NOT NULL,
-            nonce_b64       TEXT NOT NULL,
-            pay_nonce_b64   TEXT NOT NULL,
-            sig_b64         TEXT NOT NULL,
-            sender_mid      TEXT NOT NULL,
-            s3_key          TEXT,
-            byte_size       INTEGER NOT NULL DEFAULT 0,
-            content_type    TEXT NOT NULL DEFAULT 'application/octet-stream',
-            status          TEXT NOT NULL DEFAULT 'ACTIVE',
-            created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            expires_at      TEXT
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS ce_community_idx ON community_entities(community_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS ce_kid_idx ON community_entities(community_id, kid)
-    """)
-    conn.commit()
-    return conn
+_ENTITY_STORE_DDL = """
+    CREATE TABLE IF NOT EXISTS community_entities (
+        entity_id       TEXT PRIMARY KEY,
+        community_id    TEXT NOT NULL,
+        kid             TEXT NOT NULL,
+        clearance       TEXT NOT NULL DEFAULT 'PUBLIC',
+        cek_wrapped_b64 TEXT NOT NULL,
+        nonce_b64       TEXT NOT NULL,
+        pay_nonce_b64   TEXT NOT NULL,
+        sig_b64         TEXT NOT NULL,
+        sender_mid      TEXT NOT NULL,
+        s3_key          TEXT,
+        byte_size       INTEGER NOT NULL DEFAULT 0,
+        content_type    TEXT NOT NULL DEFAULT 'application/octet-stream',
+        status          TEXT NOT NULL DEFAULT 'ACTIVE',
+        created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        expires_at      TEXT
+    );
+    CREATE INDEX IF NOT EXISTS ce_community_idx ON community_entities(community_id);
+    CREATE INDEX IF NOT EXISTS ce_kid_idx ON community_entities(community_id, kid);
+"""
+register("entity_store", "warden.communities.entity_store", _ENTITY_STORE_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[Any, None, None]:
+    with open_db("entity_store", _ENTITY_DB_PATH, module_default_path=_ENTITY_DB_PATH) as con:
+        yield con
 
 
 # ── Data model ────────────────────────────────────────────────────────────────
@@ -280,8 +282,7 @@ def store_entity(
             "entity_store: S3 unavailable, storing payload inline entity=%s", entity_id[:8]
         )
 
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         conn.execute("""
             INSERT OR REPLACE INTO community_entities
               (entity_id, community_id, kid, clearance, cek_wrapped_b64, nonce_b64,
@@ -294,7 +295,6 @@ def store_entity(
             envelope.sig_b64, envelope.sender_mid, key, byte_size,
             content_type, "ACTIVE", now, expires_at,
         ))
-        conn.commit()
 
     # Record usage after successful storage
     record_upload(community_id, byte_size)
@@ -324,8 +324,7 @@ def store_entity(
 
 def get_entity_meta(entity_id: str, community_id: str) -> EntityMeta | None:
     """Return entity metadata without downloading the payload."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row  = conn.execute(
             "SELECT * FROM community_entities WHERE entity_id=? AND community_id=? AND status='ACTIVE'",
             (entity_id, community_id)
@@ -383,13 +382,11 @@ def delete_entity(entity_id: str, community_id: str) -> bool:
         _s3_delete(meta.s3_key)
 
     # Soft-delete metadata row
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         conn.execute(
             "UPDATE community_entities SET status='DELETED' WHERE entity_id=? AND community_id=?",
             (entity_id, community_id)
         )
-        conn.commit()
 
     # Release storage quota
     release_storage(community_id, meta.byte_size)
@@ -408,8 +405,7 @@ def list_entities(
     offset: int = 0,
 ) -> list[EntityMeta]:
     """List active entities for a community, newest first."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         if clearance_filter:
             rows = conn.execute(
                 "SELECT * FROM community_entities "
@@ -434,8 +430,7 @@ def expire_entities(community_id: str) -> int:
     Returns count of entities deleted.
     """
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         rows = conn.execute(
             "SELECT entity_id, byte_size, s3_key FROM community_entities "
             "WHERE community_id=? AND status='ACTIVE' AND expires_at IS NOT NULL AND expires_at < ?",

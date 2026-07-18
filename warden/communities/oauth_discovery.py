@@ -36,11 +36,15 @@ import logging
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.oauth_discovery")
 
@@ -73,31 +77,30 @@ _RISK_ORDER = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_OAUTH_DB, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS oauth_grants (
-            grant_id     TEXT PRIMARY KEY,
-            community_id TEXT NOT NULL,
-            member_id    TEXT NOT NULL,
-            provider     TEXT NOT NULL,
-            display_name TEXT NOT NULL,
-            scopes       TEXT NOT NULL DEFAULT '[]',
-            risk_level   TEXT NOT NULL DEFAULT 'MEDIUM',
-            status       TEXT NOT NULL DEFAULT 'ACTIVE',
-            verdict      TEXT NOT NULL DEFAULT 'MONITOR',
-            detected_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            revoked_at   TEXT
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_oauth_community
-            ON oauth_grants(community_id, status)
-    """)
-    conn.commit()
-    return conn
+_OAUTH_DDL = """
+    CREATE TABLE IF NOT EXISTS oauth_grants (
+        grant_id     TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL,
+        member_id    TEXT NOT NULL,
+        provider     TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        scopes       TEXT NOT NULL DEFAULT '[]',
+        risk_level   TEXT NOT NULL DEFAULT 'MEDIUM',
+        status       TEXT NOT NULL DEFAULT 'ACTIVE',
+        verdict      TEXT NOT NULL DEFAULT 'MONITOR',
+        detected_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        revoked_at   TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_oauth_community
+        ON oauth_grants(community_id, status);
+"""
+register("oauth_discovery", "warden.communities.oauth_discovery", _OAUTH_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("oauth_discovery", _OAUTH_DB, module_default_path=_OAUTH_DB) as con:
+        yield con
 
 
 # ── Data model ────────────────────────────────────────────────────────────────
@@ -194,8 +197,7 @@ def register_oauth_grant(
     display = _AI_PROVIDER_CATALOG.get(key, {}).get("display", provider)
     grant_id = f"OAG-{uuid.uuid4().hex[:12].upper()}"
 
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         conn.execute(
             """INSERT OR IGNORE INTO oauth_grants
                (grant_id, community_id, member_id, provider, display_name, scopes, risk_level, verdict)
@@ -203,7 +205,6 @@ def register_oauth_grant(
             (grant_id, community_id, member_id, provider, display,
              _json.dumps(scopes), risk_level, verdict),
         )
-        conn.commit()
 
     log.info(
         "oauth_grant registered community=%s member=%s provider=%s risk=%s verdict=%s",
@@ -222,8 +223,8 @@ def register_oauth_grant(
 
 
 def get_grant(grant_id: str) -> OAuthGrant | None:
-    conn = _get_conn()
-    row = conn.execute("SELECT * FROM oauth_grants WHERE grant_id=?", (grant_id,)).fetchone()
+    with _conn() as conn:
+        row = conn.execute("SELECT * FROM oauth_grants WHERE grant_id=?", (grant_id,)).fetchone()
     return _row_to_grant(row) if row else None
 
 
@@ -231,23 +232,21 @@ def list_grants(
     community_id: str,
     status: str = "ACTIVE",
 ) -> list[OAuthGrant]:
-    conn = _get_conn()
-    rows = conn.execute(
-        "SELECT * FROM oauth_grants WHERE community_id=? AND status=? ORDER BY detected_at DESC",
-        (community_id, status),
-    ).fetchall()
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM oauth_grants WHERE community_id=? AND status=? ORDER BY detected_at DESC",
+            (community_id, status),
+        ).fetchall()
     return [_row_to_grant(r) for r in rows]
 
 
 def revoke_grant(grant_id: str) -> OAuthGrant:
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         conn.execute(
             "UPDATE oauth_grants SET status='REVOKED', revoked_at=? WHERE grant_id=?",
             (now, grant_id),
         )
-        conn.commit()
     log.info("oauth_grant revoked grant_id=%s", grant_id)
     return get_grant(grant_id)
 

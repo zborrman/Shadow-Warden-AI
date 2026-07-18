@@ -34,6 +34,8 @@ import smtplib
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
@@ -41,6 +43,8 @@ from email.mime.text import MIMEText
 from typing import Any
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.notifications")
 
@@ -61,27 +65,28 @@ VALID_CHANNELS = {"slack", "teams", "email"}
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _conn() -> sqlite3.Connection:
-    c = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS community_notification_subs (
-            sub_id       TEXT PRIMARY KEY,
-            community_id TEXT NOT NULL,
-            tenant_id    TEXT NOT NULL,
-            channel      TEXT NOT NULL,     -- slack | teams | email
-            target       TEXT NOT NULL,     -- webhook URL or email address
-            label        TEXT NOT NULL DEFAULT '',
-            events       TEXT NOT NULL DEFAULT 'member_joined,transfer_completed,compliance_changed,evolution_published',
-            active       INTEGER NOT NULL DEFAULT 1,
-            created_at   TEXT NOT NULL
-        )
-    """)
-    c.execute("CREATE INDEX IF NOT EXISTS idx_cns_community ON community_notification_subs(community_id)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_cns_tenant   ON community_notification_subs(tenant_id)")
-    c.commit()
-    return c
+_NOTIFICATIONS_DDL = """
+    CREATE TABLE IF NOT EXISTS community_notification_subs (
+        sub_id       TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL,
+        tenant_id    TEXT NOT NULL,
+        channel      TEXT NOT NULL,     -- slack | teams | email
+        target       TEXT NOT NULL,     -- webhook URL or email address
+        label        TEXT NOT NULL DEFAULT '',
+        events       TEXT NOT NULL DEFAULT 'member_joined,transfer_completed,compliance_changed,evolution_published',
+        active       INTEGER NOT NULL DEFAULT 1,
+        created_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_cns_community ON community_notification_subs(community_id);
+    CREATE INDEX IF NOT EXISTS idx_cns_tenant   ON community_notification_subs(tenant_id);
+"""
+register("notifications", "warden.communities.notifications", _NOTIFICATIONS_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("notifications", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 @dataclass
@@ -153,8 +158,7 @@ def subscribe(
         active       = True,
         created_at   = datetime.now(UTC).isoformat(),
     )
-    with _db_lock:
-        c = _conn()
+    with _db_lock, _conn() as c:
         c.execute(
             """INSERT INTO community_notification_subs
                (sub_id, community_id, tenant_id, channel, target, label, events, active, created_at)
@@ -162,13 +166,11 @@ def subscribe(
             (sub.sub_id, community_id, tenant_id, channel, target,
              label, ",".join(evts), 1, sub.created_at),
         )
-        c.commit()
     return sub
 
 
 def list_subscriptions(community_id: str, tenant_id: str | None = None) -> list[NotificationSub]:
-    with _db_lock:
-        c = _conn()
+    with _db_lock, _conn() as c:
         if tenant_id:
             rows = c.execute(
                 "SELECT * FROM community_notification_subs WHERE community_id=? AND tenant_id=? ORDER BY created_at DESC",
@@ -183,24 +185,20 @@ def list_subscriptions(community_id: str, tenant_id: str | None = None) -> list[
 
 
 def unsubscribe(sub_id: str, tenant_id: str) -> bool:
-    with _db_lock:
-        c = _conn()
+    with _db_lock, _conn() as c:
         cur = c.execute(
             "DELETE FROM community_notification_subs WHERE sub_id=? AND tenant_id=?",
             (sub_id, tenant_id),
         )
-        c.commit()
         return cur.rowcount > 0
 
 
 def set_active(sub_id: str, tenant_id: str, active: bool) -> bool:
-    with _db_lock:
-        c = _conn()
+    with _db_lock, _conn() as c:
         cur = c.execute(
             "UPDATE community_notification_subs SET active=? WHERE sub_id=? AND tenant_id=?",
             (1 if active else 0, sub_id, tenant_id),
         )
-        c.commit()
         return cur.rowcount > 0
 
 

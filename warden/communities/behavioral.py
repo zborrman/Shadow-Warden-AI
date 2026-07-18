@@ -30,13 +30,16 @@ from __future__ import annotations
 
 import logging
 import math
-import sqlite3
 import threading
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.behavioral")
 
@@ -50,39 +53,36 @@ _mem_lock = threading.RLock()
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_BEHAVIORAL_DB, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS behavioral_events (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            community_id TEXT NOT NULL,
-            event_type   TEXT NOT NULL,
-            value        REAL NOT NULL DEFAULT 1.0,
-            data_class   TEXT NOT NULL DEFAULT 'GENERAL',
-            hour_utc     INTEGER NOT NULL,
-            recorded_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_bev_community_type
-            ON behavioral_events(community_id, event_type, recorded_at)
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS behavioral_baselines (
-            community_id TEXT NOT NULL,
-            event_type   TEXT NOT NULL,
-            mean         REAL NOT NULL DEFAULT 0.0,
-            stddev       REAL NOT NULL DEFAULT 1.0,
-            sample_count INTEGER NOT NULL DEFAULT 0,
-            p99          REAL NOT NULL DEFAULT 0.0,
-            computed_at  TEXT NOT NULL,
-            PRIMARY KEY (community_id, event_type)
-        )
-    """)
-    conn.commit()
-    return conn
+_BEHAVIORAL_DDL = """
+    CREATE TABLE IF NOT EXISTS behavioral_events (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        community_id TEXT NOT NULL,
+        event_type   TEXT NOT NULL,
+        value        REAL NOT NULL DEFAULT 1.0,
+        data_class   TEXT NOT NULL DEFAULT 'GENERAL',
+        hour_utc     INTEGER NOT NULL,
+        recorded_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_bev_community_type
+        ON behavioral_events(community_id, event_type, recorded_at);
+    CREATE TABLE IF NOT EXISTS behavioral_baselines (
+        community_id TEXT NOT NULL,
+        event_type   TEXT NOT NULL,
+        mean         REAL NOT NULL DEFAULT 0.0,
+        stddev       REAL NOT NULL DEFAULT 1.0,
+        sample_count INTEGER NOT NULL DEFAULT 0,
+        p99          REAL NOT NULL DEFAULT 0.0,
+        computed_at  TEXT NOT NULL,
+        PRIMARY KEY (community_id, event_type)
+    );
+"""
+register("behavioral", "warden.communities.behavioral", _BEHAVIORAL_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[Any, None, None]:
+    with open_db("behavioral", _BEHAVIORAL_DB, module_default_path=_BEHAVIORAL_DB) as con:
+        yield con
 
 
 # ── Data models ───────────────────────────────────────────────────────────────
@@ -154,15 +154,13 @@ def record_event(
     """Record one behavioral event. Fire-and-forget; never raises."""
     try:
         hour_utc = datetime.now(UTC).hour
-        with _db_lock:
-            conn = _get_conn()
+        with _db_lock, _conn() as conn:
             conn.execute(
                 """INSERT INTO behavioral_events
                    (community_id, event_type, value, data_class, hour_utc)
                    VALUES (?,?,?,?,?)""",
                 (community_id, event_type, value, data_class, hour_utc),
             )
-            conn.commit()
     except Exception as exc:  # noqa: BLE001
         log.debug("behavioral record_event failed: %s", exc)
 
@@ -175,44 +173,43 @@ def compute_baseline(
     days: int = 30,
 ) -> BaselineSnapshot:
     """Recompute and store the mean/stddev/p99 baseline from recent history."""
-    conn = _get_conn()
-    # Rough approximation: filter by days via rowid ordering (good enough for SQLite)
-    rows = conn.execute(
-        """
-        SELECT value FROM behavioral_events
-        WHERE community_id=? AND event_type=?
-          AND recorded_at >= datetime('now', ?)
-        ORDER BY recorded_at
-        """,
-        (community_id, event_type, f"-{days} days"),
-    ).fetchall()
+    with _db_lock, _conn() as conn:
+        # Rough approximation: filter by days via rowid ordering (good enough for SQLite)
+        rows = conn.execute(
+            """
+            SELECT value FROM behavioral_events
+            WHERE community_id=? AND event_type=?
+              AND recorded_at >= datetime('now', ?)
+            ORDER BY recorded_at
+            """,
+            (community_id, event_type, f"-{days} days"),
+        ).fetchall()
 
-    values = [float(r["value"]) for r in rows]
-    if not values:
-        snap = BaselineSnapshot(
-            community_id=community_id,
-            event_type=event_type,
-            mean=0.0, stddev=1.0, sample_count=0, p99=0.0,
-            computed_at=datetime.now(UTC).isoformat(),
-        )
-    else:
-        n = len(values)
-        mean = sum(values) / n
-        variance = sum((v - mean) ** 2 for v in values) / max(n - 1, 1)
-        stddev = math.sqrt(variance) or 1.0
-        sorted_vals = sorted(values)
-        p99_idx = min(int(0.99 * n), n - 1)
-        snap = BaselineSnapshot(
-            community_id=community_id,
-            event_type=event_type,
-            mean=mean,
-            stddev=stddev,
-            sample_count=n,
-            p99=sorted_vals[p99_idx],
-            computed_at=datetime.now(UTC).isoformat(),
-        )
+        values = [float(r["value"]) for r in rows]
+        if not values:
+            snap = BaselineSnapshot(
+                community_id=community_id,
+                event_type=event_type,
+                mean=0.0, stddev=1.0, sample_count=0, p99=0.0,
+                computed_at=datetime.now(UTC).isoformat(),
+            )
+        else:
+            n = len(values)
+            mean = sum(values) / n
+            variance = sum((v - mean) ** 2 for v in values) / max(n - 1, 1)
+            stddev = math.sqrt(variance) or 1.0
+            sorted_vals = sorted(values)
+            p99_idx = min(int(0.99 * n), n - 1)
+            snap = BaselineSnapshot(
+                community_id=community_id,
+                event_type=event_type,
+                mean=mean,
+                stddev=stddev,
+                sample_count=n,
+                p99=sorted_vals[p99_idx],
+                computed_at=datetime.now(UTC).isoformat(),
+            )
 
-    with _db_lock:
         conn.execute(
             """INSERT OR REPLACE INTO behavioral_baselines
                (community_id, event_type, mean, stddev, sample_count, p99, computed_at)
@@ -223,17 +220,16 @@ def compute_baseline(
                 snap.computed_at,
             ),
         )
-        conn.commit()
 
     return snap
 
 
 def get_baseline(community_id: str, event_type: str) -> BaselineSnapshot | None:
-    conn = _get_conn()
-    row = conn.execute(
-        "SELECT * FROM behavioral_baselines WHERE community_id=? AND event_type=?",
-        (community_id, event_type),
-    ).fetchone()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM behavioral_baselines WHERE community_id=? AND event_type=?",
+            (community_id, event_type),
+        ).fetchone()
     if not row:
         return None
     return BaselineSnapshot(
@@ -332,22 +328,22 @@ def get_community_risk_summary(community_id: str) -> dict[str, Any]:
 
 def list_recent_anomalies(community_id: str, limit: int = 50) -> list[dict]:
     """Return recent events that would trigger ELEVATED/CRITICAL anomalies."""
-    conn = _get_conn()
-    rows = conn.execute(
-        """
-        SELECT e.event_type, e.value, e.recorded_at,
-               b.mean, b.stddev
-        FROM behavioral_events e
-        LEFT JOIN behavioral_baselines b
-          ON e.community_id=b.community_id AND e.event_type=b.event_type
-        WHERE e.community_id=?
-          AND b.stddev IS NOT NULL AND b.stddev > 0
-          AND ABS((e.value - b.mean) / b.stddev) >= 2.0
-        ORDER BY e.recorded_at DESC
-        LIMIT ?
-        """,
-        (community_id, limit),
-    ).fetchall()
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT e.event_type, e.value, e.recorded_at,
+                   b.mean, b.stddev
+            FROM behavioral_events e
+            LEFT JOIN behavioral_baselines b
+              ON e.community_id=b.community_id AND e.event_type=b.event_type
+            WHERE e.community_id=?
+              AND b.stddev IS NOT NULL AND b.stddev > 0
+              AND ABS((e.value - b.mean) / b.stddev) >= 2.0
+            ORDER BY e.recorded_at DESC
+            LIMIT ?
+            """,
+            (community_id, limit),
+        ).fetchall()
     out = []
     for r in rows:
         stddev = r["stddev"] or 1.0
