@@ -85,6 +85,7 @@ Track C shared-file notes: `staff/economics.py` pricing dict (C-shared with Trac
 
 ## Decisions log
 
+- **2026-07-18 — S7 done; §6d S1–S7 security-hardening backlog CLOSED.** S5 was recognised as already delivered (= DE-7 Phase 7 Slice 2, `agentic_gate()`, 2026-07-13). S7 repaired the weekly DAST (`pentest.yml`): Nuclei install 404 fixed (versioned release asset via API), and a new `zap-api-scan` job drives ZAP off `/openapi.json` against an ephemeral CI-booted warden — the old "green" baseline had scanned exactly one URI (`/robots.txt`). Pen-test (annual) + threat-model refresh (semi-annual) cadence in `docs/security-model.md` §8.
 - **2026-07-12 — Registry adopted as canon.** Wired into `CLAUDE.md` ("Modernization Governance") so both efforts read the same rules. `SR-*`/`DE-*` prefixes are now required; bare "Phase N" is retired.
 - **2026-07-12 — Track owners assigned** (above). The session that has been landing security PRs (#148/#149/#154) drives **Track A**; the session landing the deep-eng/GSAM PRs (#150–#153, Phase-6 data-layer) drives **Track B**.
 - **2026-07-12 — C2 (data-layer) RESOLVED: Track B leads.** SR-5 does **not** spawn a separate DB-consolidation effort; it folds into DE-6, which is already in flight (`421f2ea6` "data-layer consolidation, Phase 6 slice 1"). Track A's contribution to DE-6 is a requirement, not a parallel PR: *one connection context-manager, DDL applied once at startup (not per call), guaranteed `close()`; retire the ~62 duplicated `_conn`/DDL helpers.* Track A will review DE-6 PRs against that checklist.
