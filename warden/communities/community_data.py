@@ -10,9 +10,14 @@ import os
 import threading
 import time
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
+from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 COMM_DB_PATH = data_path("warden_communities.db", "COMM_DB_PATH")
 _lock = threading.RLock()
@@ -37,37 +42,40 @@ class CommunityFile:
     context: str = ""
 
 
-def _db():
-    import sqlite3
-    c = sqlite3.connect(COMM_DB_PATH, check_same_thread=False)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    c.executescript("""
-        CREATE TABLE IF NOT EXISTS community_files (
-            file_id             TEXT PRIMARY KEY,
-            community_id        TEXT NOT NULL,
-            uploader_tenant_id  TEXT NOT NULL,
-            filename            TEXT NOT NULL,
-            content_type        TEXT NOT NULL DEFAULT 'application/octet-stream',
-            size_bytes          INTEGER NOT NULL DEFAULT 0,
-            ueciid              TEXT NOT NULL DEFAULT '',
-            s3_key              TEXT NOT NULL DEFAULT '',
-            sha256              TEXT NOT NULL DEFAULT '',
-            uploaded_at         TEXT NOT NULL,
-            download_count      INTEGER NOT NULL DEFAULT 0,
-            status              TEXT NOT NULL DEFAULT 'active'
-        );
-        CREATE INDEX IF NOT EXISTS idx_cf_community ON community_files(community_id, status);
-        CREATE INDEX IF NOT EXISTS idx_cf_uploader  ON community_files(uploader_tenant_id);
-    """)
-    # Migration: add context column for existing databases
-    try:
-        c.execute("ALTER TABLE community_files ADD COLUMN context TEXT NOT NULL DEFAULT ''")
-        c.commit()
-    except Exception:
-        pass
-    c.commit()
-    return c
+# Shares warden_communities.db with membership.py / network.py /
+# community_evolution.py / community_factory.py — same db_key, distinct module.
+# `context` is baked into CREATE for fresh DBs; the ALTER below is a one-time
+# additive migration for pre-existing deployments created before that column
+# existed. ALTER TABLE ADD COLUMN is not idempotent, so it can't go in the
+# registered DDL — it stays as a suppress-wrapped statement run once per
+# real connection, exactly as before.
+_COMMUNITY_DATA_DDL = """
+    CREATE TABLE IF NOT EXISTS community_files (
+        file_id             TEXT PRIMARY KEY,
+        community_id        TEXT NOT NULL,
+        uploader_tenant_id  TEXT NOT NULL,
+        filename            TEXT NOT NULL,
+        content_type        TEXT NOT NULL DEFAULT 'application/octet-stream',
+        size_bytes          INTEGER NOT NULL DEFAULT 0,
+        ueciid              TEXT NOT NULL DEFAULT '',
+        s3_key              TEXT NOT NULL DEFAULT '',
+        sha256              TEXT NOT NULL DEFAULT '',
+        uploaded_at         TEXT NOT NULL,
+        download_count      INTEGER NOT NULL DEFAULT 0,
+        status              TEXT NOT NULL DEFAULT 'active'
+    );
+    CREATE INDEX IF NOT EXISTS idx_cf_community ON community_files(community_id, status);
+    CREATE INDEX IF NOT EXISTS idx_cf_uploader  ON community_files(uploader_tenant_id);
+"""
+register("communities", "warden.communities.community_data", _COMMUNITY_DATA_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[Any, None, None]:
+    with open_db("communities", COMM_DB_PATH, module_default_path=COMM_DB_PATH) as con:
+        with suppress(Exception):
+            con.execute("ALTER TABLE community_files ADD COLUMN context TEXT NOT NULL DEFAULT ''")
+        yield con
 
 
 def _assign_ueciid() -> str:
@@ -131,29 +139,29 @@ def register_file(
         uploaded_at=ts,
         context=context,
     )
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         db.execute(
             "INSERT INTO community_files VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (fid, community_id, uploader_tenant_id, filename, content_type,
              size_bytes, ueciid, s3_key, sha256, ts, 0, "active", context),
         )
-        db.commit()
     return cf
 
 
 def list_files(community_id: str, status: str = "active") -> list[CommunityFile]:
-    rows = _db().execute(
-        "SELECT * FROM community_files WHERE community_id=? AND status=? ORDER BY uploaded_at DESC",
-        (community_id, status),
-    ).fetchall()
+    with _conn() as db:
+        rows = db.execute(
+            "SELECT * FROM community_files WHERE community_id=? AND status=? ORDER BY uploaded_at DESC",
+            (community_id, status),
+        ).fetchall()
     return [CommunityFile(**dict(r)) for r in rows]
 
 
 def get_file(file_id: str) -> CommunityFile | None:
-    row = _db().execute(
-        "SELECT * FROM community_files WHERE file_id=?", (file_id,)
-    ).fetchone()
+    with _conn() as db:
+        row = db.execute(
+            "SELECT * FROM community_files WHERE file_id=?", (file_id,)
+        ).fetchone()
     return CommunityFile(**dict(row)) if row else None
 
 
@@ -161,34 +169,31 @@ def delete_file(file_id: str, requester_tenant_id: str) -> bool:
     f = get_file(file_id)
     if not f or f.uploader_tenant_id != requester_tenant_id:
         return False
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         db.execute(
             "UPDATE community_files SET status='deleted' WHERE file_id=?", (file_id,)
         )
-        db.commit()
     return True
 
 
 def increment_download(file_id: str) -> None:
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         db.execute(
             "UPDATE community_files SET download_count=download_count+1 WHERE file_id=?",
             (file_id,),
         )
-        db.commit()
 
 
 def get_data_stats(community_id: str) -> dict:
-    row = _db().execute(
-        """SELECT COUNT(*) AS total_files,
-                  COALESCE(SUM(size_bytes), 0) AS total_bytes,
-                  COALESCE(SUM(download_count), 0) AS total_downloads
-           FROM community_files
-           WHERE community_id=? AND status='active'""",
-        (community_id,),
-    ).fetchone()
+    with _conn() as db:
+        row = db.execute(
+            """SELECT COUNT(*) AS total_files,
+                      COALESCE(SUM(size_bytes), 0) AS total_bytes,
+                      COALESCE(SUM(download_count), 0) AS total_downloads
+               FROM community_files
+               WHERE community_id=? AND status='active'""",
+            (community_id,),
+        ).fetchone()
     d = dict(row)
     d["total_mb"] = round(d["total_bytes"] / (1024 * 1024), 2)
     return d

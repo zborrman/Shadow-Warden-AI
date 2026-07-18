@@ -8,9 +8,14 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 COMM_DB_PATH = data_path("warden_communities.db", "COMM_DB_PATH")
 _lock = threading.RLock()
@@ -33,30 +38,32 @@ class EvolutionBundle:
     threat_score: float = 0.0
 
 
-def _db():
-    import sqlite3
-    c = sqlite3.connect(COMM_DB_PATH, check_same_thread=False)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    c.executescript("""
-        CREATE TABLE IF NOT EXISTS evolution_bundles (
-            bundle_id           TEXT PRIMARY KEY,
-            community_id        TEXT NOT NULL,
-            publisher_tenant_id TEXT NOT NULL,
-            rule_type           TEXT NOT NULL DEFAULT 'jailbreak_signature',
-            rule_content        TEXT NOT NULL,
-            ueciid              TEXT NOT NULL DEFAULT '',
-            status              TEXT NOT NULL DEFAULT 'pending_review',
-            published_at        TEXT NOT NULL,
-            reviewed_at         TEXT NOT NULL DEFAULT '',
-            import_count        INTEGER NOT NULL DEFAULT 0,
-            threat_score        REAL NOT NULL DEFAULT 0.0
-        );
-        CREATE INDEX IF NOT EXISTS idx_eb_community ON evolution_bundles(community_id, status);
-        CREATE INDEX IF NOT EXISTS idx_eb_status    ON evolution_bundles(status);
-    """)
-    c.commit()
-    return c
+# Shares warden_communities.db with membership.py / network.py /
+# community_data.py / community_factory.py — same db_key, distinct module.
+_EVOLUTION_DDL = """
+    CREATE TABLE IF NOT EXISTS evolution_bundles (
+        bundle_id           TEXT PRIMARY KEY,
+        community_id        TEXT NOT NULL,
+        publisher_tenant_id TEXT NOT NULL,
+        rule_type           TEXT NOT NULL DEFAULT 'jailbreak_signature',
+        rule_content        TEXT NOT NULL,
+        ueciid              TEXT NOT NULL DEFAULT '',
+        status              TEXT NOT NULL DEFAULT 'pending_review',
+        published_at        TEXT NOT NULL,
+        reviewed_at         TEXT NOT NULL DEFAULT '',
+        import_count        INTEGER NOT NULL DEFAULT 0,
+        threat_score        REAL NOT NULL DEFAULT 0.0
+    );
+    CREATE INDEX IF NOT EXISTS idx_eb_community ON evolution_bundles(community_id, status);
+    CREATE INDEX IF NOT EXISTS idx_eb_status    ON evolution_bundles(status);
+"""
+register("communities", "warden.communities.community_evolution", _EVOLUTION_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[Any, None, None]:
+    with open_db("communities", COMM_DB_PATH, module_default_path=COMM_DB_PATH) as con:
+        yield con
 
 
 def _assign_ueciid() -> str:
@@ -109,45 +116,40 @@ def share_rule(
         published_at=ts,
         threat_score=threat_score,
     )
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         db.execute(
             "INSERT INTO evolution_bundles VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (bid, community_id, publisher_tenant_id, rule_type, rule_content,
              ueciid, "pending_review", ts, "", 0, threat_score),
         )
-        db.commit()
     return bundle
 
 
 def get_bundle(bundle_id: str) -> EvolutionBundle | None:
-    row = _db().execute(
-        "SELECT * FROM evolution_bundles WHERE bundle_id=?", (bundle_id,)
-    ).fetchone()
+    with _conn() as db:
+        row = db.execute(
+            "SELECT * FROM evolution_bundles WHERE bundle_id=?", (bundle_id,)
+        ).fetchone()
     return EvolutionBundle(**dict(row)) if row else None
 
 
 def approve_rule(bundle_id: str, reviewer_tenant_id: str) -> bool:  # noqa: ARG001
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         cur = db.execute(
             "UPDATE evolution_bundles SET status='approved', reviewed_at=? WHERE bundle_id=?",
             (ts, bundle_id),
         )
-        db.commit()
         return cur.rowcount > 0
 
 
 def reject_rule(bundle_id: str) -> bool:
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         cur = db.execute(
             "UPDATE evolution_bundles SET status='rejected', reviewed_at=? WHERE bundle_id=?",
             (ts, bundle_id),
         )
-        db.commit()
         return cur.rowcount > 0
 
 
@@ -168,13 +170,11 @@ def import_rule(bundle_id: str, target_community_id: str) -> bool:  # noqa: ARG0
     except Exception:
         pass  # fail-open — still record the import
 
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         db.execute(
             "UPDATE evolution_bundles SET import_count=import_count+1 WHERE bundle_id=?",
             (bundle_id,),
         )
-        db.commit()
     return True
 
 
@@ -192,19 +192,20 @@ def list_bundles(
         sql += " AND status=?"
         params.append(status)
     sql += f" ORDER BY published_at DESC LIMIT {limit}"
-    return [EvolutionBundle(**dict(r)) for r in _db().execute(sql, params).fetchall()]
+    with _conn() as db:
+        return [EvolutionBundle(**dict(r)) for r in db.execute(sql, params).fetchall()]
 
 
 def get_evolution_stats(community_id: str) -> dict:
-    db = _db()
-    row = db.execute(
-        """SELECT
-               COUNT(*) AS total,
-               SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) AS approved,
-               SUM(CASE WHEN status='pending_review' THEN 1 ELSE 0 END) AS pending,
-               SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) AS rejected,
-               SUM(import_count) AS total_imports
-           FROM evolution_bundles WHERE community_id=?""",
-        (community_id,),
-    ).fetchone()
+    with _conn() as db:
+        row = db.execute(
+            """SELECT
+                   COUNT(*) AS total,
+                   SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) AS approved,
+                   SUM(CASE WHEN status='pending_review' THEN 1 ELSE 0 END) AS pending,
+                   SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) AS rejected,
+                   SUM(import_count) AS total_imports
+               FROM evolution_bundles WHERE community_id=?""",
+            (community_id,),
+        ).fetchone()
     return dict(row)

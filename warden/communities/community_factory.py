@@ -11,10 +11,14 @@ import sqlite3
 import threading
 import time
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 COMM_DB_PATH = data_path("warden_communities.db", "COMM_DB_PATH")
 _lock = threading.RLock()
@@ -35,28 +39,30 @@ class Community:
     audit_enabled: bool = False
 
 
-def _db():
-    import sqlite3
-    c = sqlite3.connect(COMM_DB_PATH, check_same_thread=False)
-    c.row_factory = sqlite3.Row
-    c.execute("PRAGMA journal_mode=WAL")
-    c.executescript("""
-        CREATE TABLE IF NOT EXISTS communities (
-            community_id      TEXT PRIMARY KEY,
-            name              TEXT NOT NULL,
-            description       TEXT NOT NULL DEFAULT '',
-            creator_tenant_id TEXT NOT NULL,
-            created_at        TEXT NOT NULL,
-            status            TEXT NOT NULL DEFAULT 'active',
-            visibility        TEXT NOT NULL DEFAULT 'private',
-            join_policy       TEXT NOT NULL DEFAULT 'invite',
-            settings          TEXT NOT NULL DEFAULT '{}'
-        );
-        CREATE INDEX IF NOT EXISTS idx_cm_creator ON communities(creator_tenant_id);
-        CREATE INDEX IF NOT EXISTS idx_cm_vis    ON communities(visibility, status);
-    """)
-    c.commit()
-    return c
+# Shares warden_communities.db with membership.py / network.py /
+# community_data.py / community_evolution.py — same db_key, distinct module.
+_FACTORY_DDL = """
+    CREATE TABLE IF NOT EXISTS communities (
+        community_id      TEXT PRIMARY KEY,
+        name              TEXT NOT NULL,
+        description       TEXT NOT NULL DEFAULT '',
+        creator_tenant_id TEXT NOT NULL,
+        created_at        TEXT NOT NULL,
+        status            TEXT NOT NULL DEFAULT 'active',
+        visibility        TEXT NOT NULL DEFAULT 'private',
+        join_policy       TEXT NOT NULL DEFAULT 'invite',
+        settings          TEXT NOT NULL DEFAULT '{}'
+    );
+    CREATE INDEX IF NOT EXISTS idx_cm_creator ON communities(creator_tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_cm_vis    ON communities(visibility, status);
+"""
+register("communities", "warden.communities.community_factory", _FACTORY_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[Any, None, None]:
+    with open_db("communities", COMM_DB_PATH, module_default_path=COMM_DB_PATH) as con:
+        yield con
 
 
 def _row_to_community(row: sqlite3.Row) -> Community:
@@ -114,14 +120,12 @@ def create_community(
         keypair_generated=kp_generated,
         audit_enabled=True,
     )
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         db.execute(
             "INSERT INTO communities VALUES (?,?,?,?,?,?,?,?,?)",
             (cid, name, description, creator_tenant_id, ts,
              "active", visibility, join_policy, json.dumps(final_settings)),
         )
-        db.commit()
 
     # Auto-provision a default marketplace agent for the community (fail-open)
     import contextlib
@@ -149,9 +153,10 @@ def _setup_marketplace_defaults(community_id: str, tenant_id: str) -> None:
 
 
 def get_community(community_id: str) -> Community | None:
-    row = _db().execute(
-        "SELECT * FROM communities WHERE community_id=?", (community_id,)
-    ).fetchone()
+    with _conn() as db:
+        row = db.execute(
+            "SELECT * FROM communities WHERE community_id=?", (community_id,)
+        ).fetchone()
     return _row_to_community(row) if row else None
 
 
@@ -169,7 +174,8 @@ def list_communities(
         sql += " AND visibility=?"
         params.append(visibility)
     sql += " ORDER BY created_at DESC"
-    return [_row_to_community(r) for r in _db().execute(sql, params).fetchall()]
+    with _conn() as db:
+        return [_row_to_community(r) for r in db.execute(sql, params).fetchall()]
 
 
 def patch_community(
@@ -188,35 +194,29 @@ def patch_community(
     if not updates:
         return False
     params.append(community_id)
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         cur = db.execute(
             f"UPDATE communities SET {', '.join(updates)} WHERE community_id=?",
             params,
         )
-        db.commit()
         return cur.rowcount > 0
 
 
 def update_community_settings(community_id: str, settings: dict) -> bool:
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         cur = db.execute(
             "UPDATE communities SET settings=? WHERE community_id=?",
             (json.dumps(settings), community_id),
         )
-        db.commit()
         return cur.rowcount > 0
 
 
 def update_community_status(community_id: str, status: str) -> bool:
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         cur = db.execute(
             "UPDATE communities SET status=? WHERE community_id=?",
             (status, community_id),
         )
-        db.commit()
         return cur.rowcount > 0
 
 
@@ -224,20 +224,18 @@ def delete_community(community_id: str, requester_tenant_id: str) -> bool:
     c = get_community(community_id)
     if not c or c.creator_tenant_id != requester_tenant_id:
         return False
-    with _lock:
-        db = _db()
+    with _lock, _conn() as db:
         db.execute("DELETE FROM communities WHERE community_id=?", (community_id,))
-        db.commit()
     return True
 
 
 def get_community_stats() -> dict:
-    db = _db()
-    total  = db.execute("SELECT COUNT(*) FROM communities").fetchone()[0]
-    active = db.execute("SELECT COUNT(*) FROM communities WHERE status='active'").fetchone()[0]
-    public = db.execute(
-        "SELECT COUNT(*) FROM communities WHERE visibility='public'"
-    ).fetchone()[0]
+    with _conn() as db:
+        total  = db.execute("SELECT COUNT(*) FROM communities").fetchone()[0]
+        active = db.execute("SELECT COUNT(*) FROM communities WHERE status='active'").fetchone()[0]
+        public = db.execute(
+            "SELECT COUNT(*) FROM communities WHERE visibility='public'"
+        ).fetchone()[0]
     return {
         "total": total,
         "active": active,
