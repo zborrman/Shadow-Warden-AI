@@ -28,11 +28,15 @@ import logging
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.charter")
 
@@ -42,49 +46,53 @@ _db_lock = threading.RLock()
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_REGISTRY_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS community_charters (
-            charter_id          TEXT PRIMARY KEY,
-            community_id        TEXT NOT NULL,
-            version             INTEGER NOT NULL DEFAULT 1,
-            title               TEXT NOT NULL,
-            transparency        TEXT NOT NULL DEFAULT 'REQUIRED',
-            data_minimization   TEXT NOT NULL DEFAULT 'STRICT',
-            accountability      TEXT NOT NULL,
-            sustainability      TEXT NOT NULL DEFAULT 'STANDARD',
-            allowed_data_classes TEXT NOT NULL DEFAULT '["GENERAL","PII","FINANCIAL"]',
-            prohibited_actions  TEXT NOT NULL DEFAULT '[]',
-            auto_block_threshold REAL NOT NULL DEFAULT 0.70,
-            content_hash        TEXT NOT NULL,
-            status              TEXT NOT NULL DEFAULT 'DRAFT',
-            created_by          TEXT NOT NULL,
-            created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            published_at        TEXT,
-            superseded_at       TEXT,
-            UNIQUE(community_id, version)
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS community_charter_accepts (
-            accept_id       TEXT PRIMARY KEY,
-            charter_id      TEXT NOT NULL,
-            community_id    TEXT NOT NULL,
-            member_id       TEXT NOT NULL,
-            accepted_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            ip_fingerprint  TEXT,
-            UNIQUE(charter_id, member_id)
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_charters_community
-            ON community_charters(community_id, status)
-    """)
-    conn.commit()
-    return conn
+# Shares warden_community_registry.db with registry.py — same db_key, distinct
+# module. list_pending_acceptances() below JOINs against registry.py's
+# community_members table; registering both modules under one db_key means
+# whichever connects first applies both schemas, so the join target always
+# exists regardless of call order.
+_CHARTER_DDL = """
+    CREATE TABLE IF NOT EXISTS community_charters (
+        charter_id          TEXT PRIMARY KEY,
+        community_id        TEXT NOT NULL,
+        version             INTEGER NOT NULL DEFAULT 1,
+        title               TEXT NOT NULL,
+        transparency        TEXT NOT NULL DEFAULT 'REQUIRED',
+        data_minimization   TEXT NOT NULL DEFAULT 'STRICT',
+        accountability      TEXT NOT NULL,
+        sustainability      TEXT NOT NULL DEFAULT 'STANDARD',
+        allowed_data_classes TEXT NOT NULL DEFAULT '["GENERAL","PII","FINANCIAL"]',
+        prohibited_actions  TEXT NOT NULL DEFAULT '[]',
+        auto_block_threshold REAL NOT NULL DEFAULT 0.70,
+        content_hash        TEXT NOT NULL,
+        status              TEXT NOT NULL DEFAULT 'DRAFT',
+        created_by          TEXT NOT NULL,
+        created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        published_at        TEXT,
+        superseded_at       TEXT,
+        UNIQUE(community_id, version)
+    );
+    CREATE TABLE IF NOT EXISTS community_charter_accepts (
+        accept_id       TEXT PRIMARY KEY,
+        charter_id      TEXT NOT NULL,
+        community_id    TEXT NOT NULL,
+        member_id       TEXT NOT NULL,
+        accepted_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        ip_fingerprint  TEXT,
+        UNIQUE(charter_id, member_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_charters_community ON community_charters(community_id, status);
+"""
+
+register("community_registry", "charter", _CHARTER_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "community_registry", _REGISTRY_DB_PATH, module_default_path=_REGISTRY_DB_PATH
+    ) as con:
+        yield con
 
 
 # ── Data models ───────────────────────────────────────────────────────────────
@@ -204,8 +212,7 @@ def create_charter(
         "auto_block_threshold": auto_block_threshold,
     }
 
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT COALESCE(MAX(version),0) as v FROM community_charters WHERE community_id=?",
             (community_id,),
@@ -228,7 +235,6 @@ def create_charter(
                 auto_block_threshold, content_hash, created_by,
             ),
         )
-        conn.commit()
 
     log.info("charter created community=%s charter_id=%s version=%d", community_id, charter_id, version)
     return get_charter(charter_id)
@@ -236,8 +242,7 @@ def create_charter(
 
 def publish_charter(charter_id: str) -> CharterRecord:
     """Activate a DRAFT charter; supersede any previously ACTIVE one."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM community_charters WHERE charter_id=?", (charter_id,)
         ).fetchone()
@@ -259,35 +264,34 @@ def publish_charter(charter_id: str) -> CharterRecord:
             "UPDATE community_charters SET status='ACTIVE', published_at=? WHERE charter_id=?",
             (now, charter_id),
         )
-        conn.commit()
 
     log.info("charter published charter_id=%s community=%s", charter_id, community_id)
     return get_charter(charter_id)
 
 
 def get_charter(charter_id: str) -> CharterRecord | None:
-    conn = _get_conn()
-    row = conn.execute(
-        "SELECT * FROM community_charters WHERE charter_id=?", (charter_id,)
-    ).fetchone()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM community_charters WHERE charter_id=?", (charter_id,)
+        ).fetchone()
     return _row_to_charter(row) if row else None
 
 
 def get_active_charter(community_id: str) -> CharterRecord | None:
-    conn = _get_conn()
-    row = conn.execute(
-        "SELECT * FROM community_charters WHERE community_id=? AND status='ACTIVE' LIMIT 1",
-        (community_id,),
-    ).fetchone()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM community_charters WHERE community_id=? AND status='ACTIVE' LIMIT 1",
+            (community_id,),
+        ).fetchone()
     return _row_to_charter(row) if row else None
 
 
 def list_charters(community_id: str) -> list[CharterRecord]:
-    conn = _get_conn()
-    rows = conn.execute(
-        "SELECT * FROM community_charters WHERE community_id=? ORDER BY version DESC",
-        (community_id,),
-    ).fetchall()
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM community_charters WHERE community_id=? ORDER BY version DESC",
+            (community_id,),
+        ).fetchall()
     return [_row_to_charter(r) for r in rows]
 
 
@@ -300,61 +304,59 @@ def accept_charter(
     ip_fingerprint: str = "",
 ) -> dict[str, str]:
     """Record a member's explicit acceptance of the charter."""
-    conn = _get_conn()
-    row = conn.execute(
-        "SELECT community_id, status FROM community_charters WHERE charter_id=?",
-        (charter_id,),
-    ).fetchone()
-    if not row:
-        raise KeyError(f"Charter {charter_id!r} not found")
-    if row["status"] != "ACTIVE":
-        raise ValueError(f"Cannot accept charter in status {row['status']!r}")
-
     accept_id = f"ACC-{uuid.uuid4().hex[:12].upper()}"
-    with _db_lock:
+    with _db_lock, _conn() as conn:
+        row = conn.execute(
+            "SELECT community_id, status FROM community_charters WHERE charter_id=?",
+            (charter_id,),
+        ).fetchone()
+        if not row:
+            raise KeyError(f"Charter {charter_id!r} not found")
+        if row["status"] != "ACTIVE":
+            raise ValueError(f"Cannot accept charter in status {row['status']!r}")
+
         conn.execute(
             """INSERT OR REPLACE INTO community_charter_accepts
                (accept_id, charter_id, community_id, member_id, ip_fingerprint)
                VALUES (?,?,?,?,?)""",
             (accept_id, charter_id, row["community_id"], member_id, ip_fingerprint),
         )
-        conn.commit()
 
     log.info("charter accepted charter_id=%s member_id=%s", charter_id, member_id)
     return {"accept_id": accept_id, "charter_id": charter_id, "member_id": member_id}
 
 
 def get_member_acceptance(charter_id: str, member_id: str) -> dict | None:
-    conn = _get_conn()
-    row = conn.execute(
-        "SELECT * FROM community_charter_accepts WHERE charter_id=? AND member_id=?",
-        (charter_id, member_id),
-    ).fetchone()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM community_charter_accepts WHERE charter_id=? AND member_id=?",
+            (charter_id, member_id),
+        ).fetchone()
     return dict(row) if row else None
 
 
 def list_pending_acceptances(community_id: str) -> list[dict]:
     """Members who have not yet accepted the currently ACTIVE charter."""
-    conn = _get_conn()
-    charter_row = conn.execute(
-        "SELECT charter_id FROM community_charters WHERE community_id=? AND status='ACTIVE' LIMIT 1",
-        (community_id,),
-    ).fetchone()
-    if not charter_row:
-        return []
-    charter_id = charter_row["charter_id"]
+    with _conn() as conn:
+        charter_row = conn.execute(
+            "SELECT charter_id FROM community_charters WHERE community_id=? AND status='ACTIVE' LIMIT 1",
+            (community_id,),
+        ).fetchone()
+        if not charter_row:
+            return []
+        charter_id = charter_row["charter_id"]
 
-    rows = conn.execute(
-        """
-        SELECT m.member_id, m.display_name
-        FROM community_members m
-        WHERE m.community_id=? AND m.status='ACTIVE'
-          AND m.member_id NOT IN (
-              SELECT member_id FROM community_charter_accepts WHERE charter_id=?
-          )
-        """,
-        (community_id, charter_id),
-    ).fetchall()
+        rows = conn.execute(
+            """
+            SELECT m.member_id, m.display_name
+            FROM community_members m
+            WHERE m.community_id=? AND m.status='ACTIVE'
+              AND m.member_id NOT IN (
+                  SELECT member_id FROM community_charter_accepts WHERE charter_id=?
+              )
+            """,
+            (community_id, charter_id),
+        ).fetchall()
     return [dict(r) for r in rows]
 
 

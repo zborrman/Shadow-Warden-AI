@@ -29,6 +29,8 @@ import json
 import logging
 import sqlite3
 import threading
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -37,6 +39,8 @@ from warden.communities.id_generator import new_community_id, new_member_id
 from warden.communities.key_archive import KeyStatus, store_keypair
 from warden.communities.keypair import generate_community_keypair
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.registry")
 
@@ -47,61 +51,55 @@ _db_lock = threading.RLock()
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_REGISTRY_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS communities (
-            community_id    TEXT PRIMARY KEY,
-            tenant_id       TEXT NOT NULL,
-            display_name    TEXT NOT NULL DEFAULT '',
-            description     TEXT NOT NULL DEFAULT '',
-            tier            TEXT NOT NULL DEFAULT 'business',
-            active_kid      TEXT NOT NULL DEFAULT 'v1',
-            status          TEXT NOT NULL DEFAULT 'ACTIVE',
-            created_by      TEXT NOT NULL,
-            created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            settings        TEXT NOT NULL DEFAULT '{}'
-        )
-    """)
-    # Additive migration for existing DBs (no-op when column already present)
-    try:
-        conn.execute("ALTER TABLE communities ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'")
-        conn.commit()
-    except sqlite3.OperationalError:
-        pass
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS community_members (
-            member_id       TEXT PRIMARY KEY,
-            community_id    TEXT NOT NULL REFERENCES communities(community_id),
-            tenant_id       TEXT NOT NULL,
-            external_id     TEXT NOT NULL,
-            display_name    TEXT NOT NULL DEFAULT '',
-            clearance       TEXT NOT NULL DEFAULT 'PUBLIC',
-            role            TEXT NOT NULL DEFAULT 'MEMBER',
-            status          TEXT NOT NULL DEFAULT 'ACTIVE',
-            invited_by      TEXT,
-            joined_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS cm_community_idx
-            ON community_members(community_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS cm_external_idx
-            ON community_members(community_id, external_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS communities_tenant_idx
-            ON communities(tenant_id)
-    """)
-    conn.commit()
-    return conn
+# Shares warden_community_registry.db with charter.py — same db_key, distinct
+# module. `settings` is baked into CREATE for fresh DBs; the ALTER below is a
+# one-time additive migration for pre-existing deployments created before that
+# column existed. It cannot be folded into the registered DDL (ALTER TABLE ADD
+# COLUMN is not idempotent — it errors on a column that already exists), so it
+# stays as a try/except run once per real connection, exactly as before.
+_REGISTRY_DDL = """
+    CREATE TABLE IF NOT EXISTS communities (
+        community_id    TEXT PRIMARY KEY,
+        tenant_id       TEXT NOT NULL,
+        display_name    TEXT NOT NULL DEFAULT '',
+        description     TEXT NOT NULL DEFAULT '',
+        tier            TEXT NOT NULL DEFAULT 'business',
+        active_kid      TEXT NOT NULL DEFAULT 'v1',
+        status          TEXT NOT NULL DEFAULT 'ACTIVE',
+        created_by      TEXT NOT NULL,
+        created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        settings        TEXT NOT NULL DEFAULT '{}'
+    );
+    CREATE TABLE IF NOT EXISTS community_members (
+        member_id       TEXT PRIMARY KEY,
+        community_id    TEXT NOT NULL REFERENCES communities(community_id),
+        tenant_id       TEXT NOT NULL,
+        external_id     TEXT NOT NULL,
+        display_name    TEXT NOT NULL DEFAULT '',
+        clearance       TEXT NOT NULL DEFAULT 'PUBLIC',
+        role            TEXT NOT NULL DEFAULT 'MEMBER',
+        status          TEXT NOT NULL DEFAULT 'ACTIVE',
+        invited_by      TEXT,
+        joined_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE INDEX IF NOT EXISTS cm_community_idx ON community_members(community_id);
+    CREATE INDEX IF NOT EXISTS cm_external_idx ON community_members(community_id, external_id);
+    CREATE INDEX IF NOT EXISTS communities_tenant_idx ON communities(tenant_id);
+"""
+
+register("community_registry", "registry", _REGISTRY_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "community_registry", _REGISTRY_DB_PATH, module_default_path=_REGISTRY_DB_PATH
+    ) as con:
+        with suppress(sqlite3.OperationalError):
+            con.execute("ALTER TABLE communities ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'")
+        yield con
 
 
 # ── Data models ───────────────────────────────────────────────────────────────
@@ -203,8 +201,7 @@ def create_community(
 
     settings_json = json.dumps(settings or {})
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         conn.execute("""
             INSERT INTO communities
               (community_id, tenant_id, display_name, description, tier,
@@ -214,7 +211,6 @@ def create_community(
             community_id, tenant_id, display_name, description, tier,
             "v1", "ACTIVE", created_by, now, now, settings_json,
         ))
-        conn.commit()
 
     log.info(
         "registry: created community=%s tenant=%s tier=%s",
@@ -237,8 +233,7 @@ def create_community(
 
 def get_community(community_id: str) -> CommunityRecord | None:
     """Return CommunityRecord or None."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM communities WHERE community_id=?",
             (community_id,)
@@ -248,8 +243,7 @@ def get_community(community_id: str) -> CommunityRecord | None:
 
 def list_communities(tenant_id: str) -> list[CommunityRecord]:
     """List all communities for a tenant, newest first."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         rows = conn.execute(
             "SELECT * FROM communities WHERE tenant_id=? ORDER BY created_at DESC",
             (tenant_id,)
@@ -260,13 +254,11 @@ def list_communities(tenant_id: str) -> list[CommunityRecord]:
 def _update_community_kid(community_id: str, new_kid: str) -> None:
     """Internal: update active_kid after successful key rotation."""
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         conn.execute(
             "UPDATE communities SET active_kid=?, updated_at=? WHERE community_id=?",
             (new_kid, now, community_id)
         )
-        conn.commit()
 
 
 # ── Member CRUD ───────────────────────────────────────────────────────────────
@@ -289,8 +281,7 @@ def invite_member(
     Raises ValueError if external_id is already a member of this community.
     """
     # Check for existing membership
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         existing = conn.execute(
             "SELECT member_id FROM community_members "
             "WHERE community_id=? AND external_id=? AND status='ACTIVE'",
@@ -312,7 +303,6 @@ def invite_member(
             member_id, community_id, tenant_id, external_id, display_name,
             clearance.name, role, "ACTIVE", invited_by, now, now,
         ))
-        conn.commit()
 
     log.info(
         "registry: invited member=%s community=%s clearance=%s",
@@ -335,8 +325,7 @@ def invite_member(
 
 def get_member(community_id: str, member_id: str) -> MemberRecord | None:
     """Return MemberRecord or None."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM community_members WHERE community_id=? AND member_id=?",
             (community_id, member_id)
@@ -346,8 +335,7 @@ def get_member(community_id: str, member_id: str) -> MemberRecord | None:
 
 def get_member_by_external(community_id: str, external_id: str) -> MemberRecord | None:
     """Look up a membership by the caller's own user ID."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM community_members "
             "WHERE community_id=? AND external_id=? AND status='ACTIVE'",
@@ -358,8 +346,7 @@ def get_member_by_external(community_id: str, external_id: str) -> MemberRecord 
 
 def list_members(community_id: str, active_only: bool = True) -> list[MemberRecord]:
     """List all members of a community."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         if active_only:
             rows = conn.execute(
                 "SELECT * FROM community_members WHERE community_id=? AND status='ACTIVE' "
@@ -389,8 +376,7 @@ def update_clearance(
     rotation.initiate_rotation() to prevent the demoted member from
     using cached keys to read future CONFIDENTIAL/RESTRICTED content.
     """
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM community_members WHERE community_id=? AND member_id=? AND status='ACTIVE'",
             (community_id, member_id)
@@ -407,7 +393,6 @@ def update_clearance(
             "WHERE community_id=? AND member_id=?",
             (new_clearance.name, now, community_id, member_id)
         )
-        conn.commit()
 
     log.info(
         "registry: clearance update member=%s %s→%s rotation_required=%s",
@@ -437,14 +422,12 @@ def remove_member(community_id: str, member_id: str) -> bool:
     Returns True if the member was found and deactivated.
     """
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         cur = conn.execute(
             "UPDATE community_members SET status='REMOVED', updated_at=? "
             "WHERE community_id=? AND member_id=? AND status='ACTIVE'",
             (now, community_id, member_id)
         )
-        conn.commit()
 
     removed = cur.rowcount > 0
     if removed:

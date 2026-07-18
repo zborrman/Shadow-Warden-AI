@@ -1,5 +1,5 @@
 {
-  "total": 133,
+  "total": 131,
   "per_file": {
     "agent/healer.py": 1,
     "agent/scheduler.py": 1,
@@ -19,7 +19,6 @@
     "business_community/agentic_commerce/semantic_budget.py": 1,
     "business_intelligence/service.py": 1,
     "communities/behavioral.py": 1,
-    "communities/charter.py": 1,
     "communities/community_data.py": 1,
     "communities/community_evolution.py": 1,
     "communities/community_factory.py": 1,
@@ -35,7 +34,6 @@
     "communities/oauth_discovery.py": 1,
     "communities/peering.py": 1,
     "communities/prompt_library.py": 1,
-    "communities/registry.py": 1,
     "communities/reputation.py": 2,
     "communities/sep.py": 1,
     "communities/stix_audit.py": 1,
