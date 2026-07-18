@@ -75,7 +75,7 @@ structure in `docs/fintech-architecture.md`. FT owns **money semantics**
 
 | ID | Item | Status | PR |
 |---|---|---|---|
-| FT-3a | AP2 key hotfix — per-call `resolve_key("AP2_VAULT_KEY")`, no `Fernet.generate_key()` fallback (pulled forward from FT-3) | ⬜ next up (Wave 0) | — |
+| FT-3a | AP2 key hotfix — per-call Fernet resolution, no `Fernet.generate_key()` fallback, fail-closed in prod (pulled forward from FT-3) | ✅ done — `_fernet()` per-call, backward-compatible with `VAULT_MASTER_KEY` ciphertext, `InsecureKeyError` in prod; 6 regression tests (`test_ap2_vault_key.py`). Committed on `deeng/de6-p1-open-db-helper` pending clean rebranch/merge | 83177629 |
 | FT-0 | Money foundations: `ledger/money.py` (int micro-USD), money-mutation inventory, float-money + `REAL`-column ratchets | ⬜ | — |
 | FT-1 | Double-entry ledger core (`warden/ledger/` journal/accounts/holds/rollup, hash-chained, idempotency-keyed) | ⬜ | — |
 | FT-2 | Migrate balance writers (credits, wallet funding, preflight holds) + trial/bonus as `promo:*` accounts (NF-1) + monetary referral kickback (NF-2) | ⬜ | — |
