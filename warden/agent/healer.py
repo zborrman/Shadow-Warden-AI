@@ -49,6 +49,8 @@ from typing import Any
 import httpx
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.agent.healer")
 
@@ -70,30 +72,27 @@ def _ts() -> str:
 
 # ── SQLite helpers ─────────────────────────────────────────────────────────────
 
+_HEALER_DDL = """
+    CREATE TABLE IF NOT EXISTS bypass_metrics (
+        ts           INTEGER,
+        bypass_rate  REAL,
+        filter_rps   REAL,
+        cb_status    TEXT
+    );
+    CREATE TABLE IF NOT EXISTS incident_recipes (
+        fingerprint  TEXT PRIMARY KEY,
+        remedy       TEXT,
+        used_count   INTEGER DEFAULT 0,
+        last_used    INTEGER DEFAULT 0
+    );
+"""
+register("healer", "warden.agent.healer", _HEALER_DDL)
+
+
 @contextmanager
 def _db() -> Generator[sqlite3.Connection, None, None]:
-    conn = sqlite3.connect(_METRICS_DB, timeout=5)
-    try:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS bypass_metrics (
-                ts           INTEGER,
-                bypass_rate  REAL,
-                filter_rps   REAL,
-                cb_status    TEXT
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS incident_recipes (
-                fingerprint  TEXT PRIMARY KEY,
-                remedy       TEXT,
-                used_count   INTEGER DEFAULT 0,
-                last_used    INTEGER DEFAULT 0
-            )
-        """)
-        conn.commit()
-        yield conn
-    finally:
-        conn.close()
+    with open_db("healer", _METRICS_DB, module_default_path=_METRICS_DB) as con:
+        yield con
 
 
 def _record_metric(bypass_rate: float, filter_rps: float, cb_status: str) -> None:

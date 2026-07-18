@@ -42,14 +42,17 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import sqlite3
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 import httpx
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.retry import WEBHOOK_RETRY, async_retry
 
 log = logging.getLogger("warden.webhook_dispatch")
@@ -63,26 +66,23 @@ _RISK_ORDER: dict[str, int] = {"low": 0, "medium": 1, "high": 2, "block": 3}
 
 # ── Database helpers ──────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+_WEBHOOK_DDL = """
+    CREATE TABLE IF NOT EXISTS webhooks (
+        tenant_id   TEXT PRIMARY KEY,
+        url         TEXT NOT NULL,
+        secret      TEXT NOT NULL,
+        min_risk    TEXT NOT NULL DEFAULT 'high',
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL
+    );
+"""
+register("webhook_dispatch", "warden.webhook_dispatch", _WEBHOOK_DDL)
 
 
-def _init_db() -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(_DB_PATH)), exist_ok=True)
-    with _get_conn() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS webhooks (
-                tenant_id   TEXT PRIMARY KEY,
-                url         TEXT NOT NULL,
-                secret      TEXT NOT NULL,
-                min_risk    TEXT NOT NULL DEFAULT 'high',
-                created_at  TEXT NOT NULL,
-                updated_at  TEXT NOT NULL
-            )
-        """)
-        conn.commit()
+@contextmanager
+def _get_conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("webhook_dispatch", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 # ── WebhookStore ──────────────────────────────────────────────────────────────
@@ -91,7 +91,8 @@ class WebhookStore:
     """CRUD for per-tenant webhook configuration."""
 
     def __init__(self) -> None:
-        _init_db()
+        with _get_conn():
+            pass  # schema is ensured automatically by _get_conn()
 
     def register(
         self,
@@ -114,14 +115,12 @@ class WebhookStore:
                 """,
                 (tenant_id, url, secret, min_risk, now, now),
             )
-            conn.commit()
         log.info("Webhook registered: tenant=%s url=%s min_risk=%s", tenant_id, url, min_risk)
 
     def deregister(self, tenant_id: str) -> bool:
         """Return True if a row was deleted."""
         with _get_conn() as conn:
             cur = conn.execute("DELETE FROM webhooks WHERE tenant_id = ?", (tenant_id,))
-            conn.commit()
         return cur.rowcount > 0
 
     def get(self, tenant_id: str) -> dict | None:

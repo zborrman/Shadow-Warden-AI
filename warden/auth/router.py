@@ -36,6 +36,8 @@ import re
 import sqlite3
 import threading
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any
 
 import bcrypt
@@ -43,6 +45,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.auth")
 
@@ -71,18 +75,21 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # ── SQLite user store ──────────────────────────────────────────────────────────
 
-def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS users ("
-        "  id            INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "  email         TEXT    NOT NULL UNIQUE COLLATE NOCASE,"
-        "  password_hash TEXT    NOT NULL,"
-        "  created_at    TEXT    NOT NULL DEFAULT (datetime('now'))"
-        ")"
-    )
-    conn.commit()
-    return conn
+_AUTH_DDL = """
+    CREATE TABLE IF NOT EXISTS users (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        email         TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+        password_hash TEXT    NOT NULL,
+        created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+"""
+register("auth", "warden.auth.router", _AUTH_DDL)
+
+
+@contextmanager
+def _db() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("auth", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 def _db_get_user(email: str) -> str | None:
@@ -105,7 +112,6 @@ def _db_create_user(email: str, pw_hash: str) -> bool:
             conn.execute(
                 "INSERT INTO users (email, password_hash) VALUES (?, ?)", (email, pw_hash)
             )
-            conn.commit()
         return True
     except sqlite3.IntegrityError:
         return False

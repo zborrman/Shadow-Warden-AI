@@ -1,7 +1,6 @@
 {
-  "total": 120,
+  "total": 116,
   "per_file": {
-    "agent/healer.py": 1,
     "agent/scheduler.py": 1,
     "agentic/registry.py": 1,
     "analytics/pages/23_Marketplace_Admin.py": 1,
@@ -9,10 +8,8 @@
     "analytics/pages/9_Billing.py": 2,
     "api/agent.py": 1,
     "api/billing_audit.py": 1,
-    "api/bot_entity.py": 1,
     "api/public_stats.py": 2,
     "audit_trail.py": 1,
-    "auth/router.py": 1,
     "backup/service.py": 2,
     "billing/__init__.py": 1,
     "billing/audit_chain.py": 2,
@@ -81,7 +78,6 @@
     "tokenomics/outcome_pricing.py": 1,
     "voice/guardian.py": 3,
     "voice/x402.py": 6,
-    "web3/key_rotation.py": 2,
-    "webhook_dispatch.py": 1
+    "web3/key_rotation.py": 2
   }
 }

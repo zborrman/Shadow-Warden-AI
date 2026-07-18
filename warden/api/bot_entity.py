@@ -73,6 +73,8 @@ import sqlite3
 import threading
 import time
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -81,6 +83,8 @@ import jwt as pyjwt
 from warden.communities.clearance import ClearanceLevel
 from warden.communities.id_generator import new_member_id
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.api.bot_entity")
@@ -95,29 +99,29 @@ _db_lock = threading.RLock()
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_BOT_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS community_bots (
-            bot_id          TEXT PRIMARY KEY,
-            community_id    TEXT NOT NULL,
-            tenant_id       TEXT NOT NULL,
-            display_name    TEXT NOT NULL DEFAULT '',
-            clearance       TEXT NOT NULL DEFAULT 'PUBLIC',
-            allowed_ips     TEXT NOT NULL DEFAULT '[]',
-            scopes          TEXT NOT NULL DEFAULT '["read"]',
-            status          TEXT NOT NULL DEFAULT 'ACTIVE',
-            created_by      TEXT,
-            created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS bots_community_idx ON community_bots(community_id)
-    """)
-    conn.commit()
-    return conn
+_BOT_ENTITY_DDL = """
+    CREATE TABLE IF NOT EXISTS community_bots (
+        bot_id          TEXT PRIMARY KEY,
+        community_id    TEXT NOT NULL,
+        tenant_id       TEXT NOT NULL,
+        display_name    TEXT NOT NULL DEFAULT '',
+        clearance       TEXT NOT NULL DEFAULT 'PUBLIC',
+        allowed_ips     TEXT NOT NULL DEFAULT '[]',
+        scopes          TEXT NOT NULL DEFAULT '["read"]',
+        status          TEXT NOT NULL DEFAULT 'ACTIVE',
+        created_by      TEXT,
+        created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE INDEX IF NOT EXISTS bots_community_idx ON community_bots(community_id);
+"""
+register("bot_entity", "warden.api.bot_entity", _BOT_ENTITY_DDL)
+
+
+@contextmanager
+def _get_conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("bot_entity", _BOT_DB_PATH, module_default_path=_BOT_DB_PATH) as con:
+        yield con
 
 
 # ── Data model ────────────────────────────────────────────────────────────────
@@ -218,8 +222,7 @@ def create_bot(
     bot_id = new_member_id(community_id)
     now = datetime.now(UTC).isoformat()
 
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         conn.execute("""
             INSERT INTO community_bots
               (bot_id, community_id, tenant_id, display_name, clearance,
@@ -230,7 +233,6 @@ def create_bot(
             json.dumps(allowed_ips), json.dumps(scopes),
             "ACTIVE", created_by, now, now,
         ))
-        conn.commit()
 
     log.info(
         "bot_entity: created bot=%s community=%s clearance=%s ips=%s",
@@ -253,8 +255,7 @@ def create_bot(
 
 def get_bot(bot_id: str) -> BotEntity | None:
     """Return BotEntity or None."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         row = conn.execute(
             "SELECT * FROM community_bots WHERE bot_id=?", (bot_id,)
         ).fetchone()
@@ -263,8 +264,7 @@ def get_bot(bot_id: str) -> BotEntity | None:
 
 def list_bots(community_id: str, active_only: bool = True) -> list[BotEntity]:
     """List bots registered in a community."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         if active_only:
             rows = conn.execute(
                 "SELECT * FROM community_bots WHERE community_id=? AND status='ACTIVE' "
@@ -389,11 +389,9 @@ def revoke_bot_token(jti: str, ttl_s: int = BOT_TOKEN_TTL_S + 3600) -> None:
 def deactivate_bot(bot_id: str) -> bool:
     """Soft-deactivate a bot (prevents new token issuance)."""
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _get_conn() as conn:
         cur = conn.execute(
             "UPDATE community_bots SET status='DEACTIVATED', updated_at=? WHERE bot_id=?",
             (now, bot_id)
         )
-        conn.commit()
     return cur.rowcount > 0
