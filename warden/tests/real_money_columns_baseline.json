@@ -1,0 +1,28 @@
+{
+  "total": 51,
+  "per_file": {
+    "agentic/registry.py": 2,
+    "app_factory.py": 5,
+    "billing/__init__.py": 2,
+    "financial/budget.py": 3,
+    "financial/cost_allocation.py": 1,
+    "gsam/rollup.py": 1,
+    "m2m_store/analytics.py": 4,
+    "marketplace/api.py": 1,
+    "marketplace/autonomy.py": 3,
+    "marketplace/clearing.py": 4,
+    "marketplace/escrow.py": 1,
+    "marketplace/listing.py": 2,
+    "marketplace/maestro.py": 1,
+    "marketplace/negotiation.py": 2,
+    "marketplace/x402_gate.py": 2,
+    "protocols/acp/refund.py": 1,
+    "protocols/acp/token_vault.py": 3,
+    "shadow_ai/discovery.py": 2,
+    "staff/economics.py": 1,
+    "staff/tools/growth.py": 3,
+    "tokenomics/outcome_pricing.py": 2,
+    "voice/guardian.py": 2,
+    "voice/x402.py": 3
+  }
+}
