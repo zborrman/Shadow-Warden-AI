@@ -65,6 +65,32 @@ Track C shared-file notes: `staff/economics.py` pricing dict (C-shared with Trac
 
 ---
 
+## Track F — Fintech / Money Layer (from `docs/fintech-grade-commerce-plan.md`)
+
+Registered 2026-07-18. Sequencing lives in `docs/master-kickoff-plan.md`; target
+structure in `docs/fintech-architecture.md`. FT owns **money semantics**
+(ledger, authorization posture, settlement, financial compliance); ledger
+*storage* is C2-shared with Track B (DE-6 `open_db`/`ddl_registry`); cost/margin
+*math* stays Track C (`finops/rating.py` price-book is the only rate table).
+
+| ID | Item | Status | PR |
+|---|---|---|---|
+| FT-3a | AP2 key hotfix — per-call `resolve_key("AP2_VAULT_KEY")`, no `Fernet.generate_key()` fallback (pulled forward from FT-3) | ⬜ next up (Wave 0) | — |
+| FT-0 | Money foundations: `ledger/money.py` (int micro-USD), money-mutation inventory, float-money + `REAL`-column ratchets | ⬜ | — |
+| FT-1 | Double-entry ledger core (`warden/ledger/` journal/accounts/holds/rollup, hash-chained, idempotency-keyed) | ⬜ | — |
+| FT-2 | Migrate balance writers (credits, wallet funding, preflight holds) + trial/bonus as `promo:*` accounts (NF-1) + monetary referral kickback (NF-2) | ⬜ | — |
+| FT-3 | Fail-closed money gates + Idempotency-Key on money endpoints + remove financial `INSERT OR REPLACE` | ⬜ | — |
+| FT-4 | Settlement worker + nightly reconciliation + transactional outbox (absorbs NF-3) | ⬜ | — |
+| FT-5 | Compliance: KYB behind KYA, sanctions at settlement, AML on journal stream, licensing-posture doc | ⬜ | — |
+| FT-6 | Consolidation: single `authorize_payment()` chokepoint (+ ratchet), one x402 impl, one order model (absorbs NF-6/MI-4) | ⬜ | — |
+| FT-7 | Assurance: money-conservation property tests, chaos tests, auditor export, SOC 2 mapping | ⬜ continuous | — |
+
+Related non-FT items scheduled in the kickoff plan: MI-1/MI-2 (GSAM taps +
+quarantine gate in marketplace — Track B), NF-5 mediator (Track B, DE-4),
+MI-5 tunnel enforcement v1 (Track B, coordinate `net_guard` with Track A).
+
+---
+
 ## Conflict zones (shared files — ownership rules)
 
 | # | File / surface | Track A touched | Track B touched | Reconciliation rule |

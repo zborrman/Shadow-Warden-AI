@@ -11,6 +11,7 @@ Mandate signatures use Ed25519 (via communities/keypair.py) + HMAC-SHA256.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -34,10 +35,31 @@ from warden.secret_keys import resolve_key
 log = logging.getLogger("warden.commerce.ap2")
 
 _DB_PATH  = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
-_vault_key = os.getenv("VAULT_MASTER_KEY", "")
-_FERNET   = Fernet(_vault_key.encode() if _vault_key else Fernet.generate_key())
+
+
 def _hmac_key() -> bytes:
     return resolve_key("AP2_HMAC_KEY", purpose="ap2_mandate")
+
+
+def _fernet() -> Fernet:
+    """Resolve the mandate-vault Fernet cipher per call, fail-CLOSED.
+
+    VAULT_MASTER_KEY is the boot-validated Fernet key (CLAUDE.md #1); production
+    always has it, so mandates encrypted before this change stay decryptable.
+    There is deliberately NO random fallback: the previous module-level
+    ``Fernet(... else Fernet.generate_key())`` was evaluated at import (before the
+    env was populated) and silently rotated the key on every restart, rendering
+    every stored mandate permanently undecryptable. With no master key, dev/test
+    derive a deterministic key via ``resolve_key``; production raises
+    ``InsecureKeyError`` rather than encrypt under an ephemeral key.
+    """
+    key = os.getenv("VAULT_MASTER_KEY", "")
+    if key:
+        return Fernet(key.encode())
+    derived = resolve_key("AP2_VAULT_KEY", purpose="ap2_vault")  # dev key, or raises in prod
+    return Fernet(base64.urlsafe_b64encode(derived[:32]))
+
+
 _db_lock  = threading.RLock()
 
 _AP2_DDL = """
@@ -84,11 +106,11 @@ def _sign_mandate(mandate: Mandate) -> str:
 
 
 def _encrypt(data: dict) -> bytes:
-    return _FERNET.encrypt(json.dumps(data).encode())
+    return _fernet().encrypt(json.dumps(data).encode())
 
 
 def _decrypt(blob: bytes) -> dict:
-    return json.loads(_FERNET.decrypt(blob))
+    return json.loads(_fernet().decrypt(blob))
 
 
 class AP2Processor:
