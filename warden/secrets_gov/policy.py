@@ -2,42 +2,45 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 _DB_PATH = data_path("warden_secrets.db", "SECRETS_DB_PATH")
+
+_POLICY_DDL = """
+    CREATE TABLE IF NOT EXISTS secrets_policy (
+        tenant_id               TEXT PRIMARY KEY,
+        max_age_days            INTEGER NOT NULL DEFAULT 90,
+        rotation_interval_days  INTEGER NOT NULL DEFAULT 30,
+        alert_days_before_expiry INTEGER NOT NULL DEFAULT 14,
+        auto_retire_expired     INTEGER NOT NULL DEFAULT 0,
+        require_expiry_date     INTEGER NOT NULL DEFAULT 0,
+        forbidden_name_patterns TEXT NOT NULL DEFAULT '[]',
+        require_tags            TEXT NOT NULL DEFAULT '[]',
+        updated_at              TEXT NOT NULL
+    );
+"""
+
+# Shares warden_secrets.db with inventory.py — same db_key, distinct module.
+register("secrets", "policy", _POLICY_DDL)
 
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH):
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    try:
+    with open_db("secrets", db_path, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def _init_policy_table(db_path: str = _DB_PATH) -> None:
-    with _conn(db_path) as con:
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS secrets_policy (
-                tenant_id               TEXT PRIMARY KEY,
-                max_age_days            INTEGER NOT NULL DEFAULT 90,
-                rotation_interval_days  INTEGER NOT NULL DEFAULT 30,
-                alert_days_before_expiry INTEGER NOT NULL DEFAULT 14,
-                auto_retire_expired     INTEGER NOT NULL DEFAULT 0,
-                require_expiry_date     INTEGER NOT NULL DEFAULT 0,
-                forbidden_name_patterns TEXT NOT NULL DEFAULT '[]',
-                require_tags            TEXT NOT NULL DEFAULT '[]',
-                updated_at              TEXT NOT NULL
-            );
-        """)
+    """Kept for existing callers passing a custom db_path — _conn() already
+    ensures schema via the registry, so this is now just a connect-and-discard."""
+    with _conn(db_path):
+        pass
 
 
 _init_policy_table()

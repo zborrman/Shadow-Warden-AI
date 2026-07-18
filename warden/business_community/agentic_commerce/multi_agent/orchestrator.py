@@ -17,38 +17,35 @@ from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.commerce.orchestrator")
 
 _DB_PATH = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
 _db_lock = threading.RLock()
 
+_ORCHESTRATOR_DDL = """
+    CREATE TABLE IF NOT EXISTS commerce_auctions (
+        id         TEXT PRIMARY KEY,
+        tenant_id  TEXT NOT NULL,
+        request    TEXT NOT NULL,
+        status     TEXT NOT NULL DEFAULT 'running',
+        winner     TEXT,
+        proposals  TEXT,
+        created_at TEXT NOT NULL
+    );
+"""
+
+# Shares warden_commerce.db with service.py and ap2.py — same db_key,
+# distinct module name.
+register("commerce", "orchestrator", _ORCHESTRATOR_DDL)
+
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db("commerce", _DB_PATH, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS commerce_auctions (
-            id         TEXT PRIMARY KEY,
-            tenant_id  TEXT NOT NULL,
-            request    TEXT NOT NULL,
-            status     TEXT NOT NULL DEFAULT 'running',
-            winner     TEXT,
-            proposals  TEXT,
-            created_at TEXT NOT NULL
-        )
-    """)
 
 
 class MultiAgentOrchestrator:

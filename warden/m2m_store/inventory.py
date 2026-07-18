@@ -15,11 +15,36 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 from .models import Order, Product
 
 log = logging.getLogger("warden.m2m_store.inventory")
 _db_lock = threading.RLock()
+
+_INVENTORY_DDL = """
+    CREATE TABLE IF NOT EXISTS m2m_products (
+        id TEXT PRIMARY KEY,
+        data_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS m2m_reservations (
+        reservation_id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL,
+        qty INTEGER NOT NULL,
+        expires_at TEXT NOT NULL,
+        released INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS m2m_orders (
+        id TEXT PRIMARY KEY,
+        data_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+"""
+
+# Shares warden_m2m_store.db with analytics.py — same db_key, distinct module.
+register("m2m_store", "inventory", _INVENTORY_DDL)
 
 
 def _get_db_path() -> str:
@@ -28,37 +53,9 @@ def _get_db_path() -> str:
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_get_db_path(), check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    path = _get_db_path()
+    with open_db("m2m_store", path, module_default_path=path) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS m2m_products (
-            id TEXT PRIMARY KEY,
-            data_json TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS m2m_reservations (
-            reservation_id TEXT PRIMARY KEY,
-            product_id TEXT NOT NULL,
-            qty INTEGER NOT NULL,
-            expires_at TEXT NOT NULL,
-            released INTEGER DEFAULT 0
-        );
-        CREATE TABLE IF NOT EXISTS m2m_orders (
-            id TEXT PRIMARY KEY,
-            data_json TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
-    """)
 
 
 class InventoryManager:

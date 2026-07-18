@@ -19,6 +19,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.auth.fido")
 
@@ -28,38 +30,31 @@ _RP_NAME  = settings.fido_rp_name
 _ORIGIN   = settings.fido_origin
 _db_lock  = threading.RLock()
 
+_FIDO_DDL = """
+    CREATE TABLE IF NOT EXISTS fido_credentials (
+        id              TEXT PRIMARY KEY,
+        tenant_id       TEXT NOT NULL,
+        credential_id   TEXT NOT NULL UNIQUE,
+        public_key      TEXT NOT NULL,
+        sign_count      INTEGER DEFAULT 0,
+        created_at      TEXT NOT NULL,
+        last_used       TEXT
+    );
+    CREATE TABLE IF NOT EXISTS fido_challenges (
+        challenge   TEXT PRIMARY KEY,
+        tenant_id   TEXT NOT NULL,
+        purpose     TEXT NOT NULL,
+        created_at  TEXT NOT NULL
+    );
+"""
+
+register("fido", "fido", _FIDO_DDL)
+
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db("fido", _DB_PATH, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS fido_credentials (
-            id              TEXT PRIMARY KEY,
-            tenant_id       TEXT NOT NULL,
-            credential_id   TEXT NOT NULL UNIQUE,
-            public_key      TEXT NOT NULL,
-            sign_count      INTEGER DEFAULT 0,
-            created_at      TEXT NOT NULL,
-            last_used       TEXT
-        );
-        CREATE TABLE IF NOT EXISTS fido_challenges (
-            challenge   TEXT PRIMARY KEY,
-            tenant_id   TEXT NOT NULL,
-            purpose     TEXT NOT NULL,
-            created_at  TEXT NOT NULL
-        );
-    """)
 
 
 def _b64url(data: bytes) -> str:

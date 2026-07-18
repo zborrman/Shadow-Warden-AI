@@ -26,37 +26,35 @@ from warden.business_community.agentic_commerce.mcp_bridge import MCPBridge
 from warden.business_community.agentic_commerce.models import MCPIntent, PurchaseOrder
 from warden.business_community.agentic_commerce.ucp import UCPClient
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.commerce.service")
 
 _DB_PATH = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
 _db_lock = threading.RLock()
 
+_SERVICE_DDL = """
+    CREATE TABLE IF NOT EXISTS commerce_orders (
+        id          TEXT PRIMARY KEY,
+        tenant_id   TEXT NOT NULL,
+        mandate_id  TEXT NOT NULL,
+        data_json   TEXT NOT NULL,
+        created_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_co_tenant ON commerce_orders(tenant_id);
+"""
+
+# Shares warden_commerce.db with ap2.py and orchestrator.py — same db_key,
+# distinct module name. commerce_orders overlaps with ap2.py's DDL; both are
+# idempotent CREATE TABLE IF NOT EXISTS so applying either first is safe.
+register("commerce", "service", _SERVICE_DDL)
+
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db("commerce", _DB_PATH, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS commerce_orders (
-            id          TEXT PRIMARY KEY,
-            tenant_id   TEXT NOT NULL,
-            mandate_id  TEXT NOT NULL,
-            data_json   TEXT NOT NULL,
-            created_at  TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_co_tenant ON commerce_orders(tenant_id);
-    """)
 
 
 class AgenticCommerceService:

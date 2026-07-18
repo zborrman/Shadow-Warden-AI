@@ -27,6 +27,8 @@ from cryptography.fernet import Fernet
 
 from warden.business_community.agentic_commerce.models import Mandate, Receipt
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.commerce.ap2")
@@ -38,46 +40,41 @@ def _hmac_key() -> bytes:
     return resolve_key("AP2_HMAC_KEY", purpose="ap2_mandate")
 _db_lock  = threading.RLock()
 
+_AP2_DDL = """
+    CREATE TABLE IF NOT EXISTS commerce_mandates (
+        id              TEXT PRIMARY KEY,
+        tenant_id       TEXT NOT NULL,
+        data_enc        BLOB NOT NULL,
+        created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_mandates_tenant ON commerce_mandates(tenant_id);
+
+    CREATE TABLE IF NOT EXISTS commerce_orders (
+        id              TEXT PRIMARY KEY,
+        tenant_id       TEXT NOT NULL,
+        mandate_id      TEXT NOT NULL,
+        data_json       TEXT NOT NULL,
+        created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_orders_tenant ON commerce_orders(tenant_id);
+
+    CREATE TABLE IF NOT EXISTS commerce_receipts (
+        id              TEXT PRIMARY KEY,
+        order_id        TEXT NOT NULL,
+        data_json       TEXT NOT NULL,
+        created_at      TEXT NOT NULL
+    );
+"""
+
+# Shares warden_commerce.db with service.py and orchestrator.py — same db_key,
+# distinct module name.
+register("commerce", "ap2", _AP2_DDL)
+
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db("commerce", db_path, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS commerce_mandates (
-            id              TEXT PRIMARY KEY,
-            tenant_id       TEXT NOT NULL,
-            data_enc        BLOB NOT NULL,
-            created_at      TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_mandates_tenant ON commerce_mandates(tenant_id);
-
-        CREATE TABLE IF NOT EXISTS commerce_orders (
-            id              TEXT PRIMARY KEY,
-            tenant_id       TEXT NOT NULL,
-            mandate_id      TEXT NOT NULL,
-            data_json       TEXT NOT NULL,
-            created_at      TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_orders_tenant ON commerce_orders(tenant_id);
-
-        CREATE TABLE IF NOT EXISTS commerce_receipts (
-            id              TEXT PRIMARY KEY,
-            order_id        TEXT NOT NULL,
-            data_json       TEXT NOT NULL,
-            created_at      TEXT NOT NULL
-        );
-    """)
 
 
 def _sign_mandate(mandate: Mandate) -> str:

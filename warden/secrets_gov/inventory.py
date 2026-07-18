@@ -9,53 +9,57 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 _DB_PATH = data_path("warden_secrets.db", "SECRETS_DB_PATH")
+
+_INVENTORY_DDL = """
+    CREATE TABLE IF NOT EXISTS secrets_vaults (
+        vault_id     TEXT PRIMARY KEY,
+        tenant_id    TEXT NOT NULL,
+        vault_type   TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        config_enc   TEXT NOT NULL,
+        created_at   TEXT NOT NULL,
+        last_synced  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_sv_tenant ON secrets_vaults(tenant_id);
+
+    CREATE TABLE IF NOT EXISTS secrets_inventory (
+        secret_id    TEXT PRIMARY KEY,
+        tenant_id    TEXT NOT NULL,
+        vault_id     TEXT NOT NULL,
+        name         TEXT NOT NULL,
+        vault_type   TEXT NOT NULL,
+        status       TEXT NOT NULL DEFAULT 'active',
+        risk_score   REAL NOT NULL DEFAULT 0.0,
+        created_at   TEXT,
+        last_rotated TEXT,
+        expires_at   TEXT,
+        tags         TEXT NOT NULL DEFAULT '{}',
+        synced_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_si_tenant  ON secrets_inventory(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_si_vault   ON secrets_inventory(vault_id);
+    CREATE INDEX IF NOT EXISTS idx_si_status  ON secrets_inventory(status);
+"""
+
+# Shares warden_secrets.db with policy.py — same db_key, distinct module.
+register("secrets", "inventory", _INVENTORY_DDL)
 
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH):
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    try:
+    with open_db("secrets", db_path, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def _init_db(db_path: str = _DB_PATH) -> None:
-    with _conn(db_path) as con:
-        con.executescript("""
-            CREATE TABLE IF NOT EXISTS secrets_vaults (
-                vault_id     TEXT PRIMARY KEY,
-                tenant_id    TEXT NOT NULL,
-                vault_type   TEXT NOT NULL,
-                display_name TEXT NOT NULL,
-                config_enc   TEXT NOT NULL,
-                created_at   TEXT NOT NULL,
-                last_synced  TEXT
-            );
-            CREATE INDEX IF NOT EXISTS idx_sv_tenant ON secrets_vaults(tenant_id);
-
-            CREATE TABLE IF NOT EXISTS secrets_inventory (
-                secret_id    TEXT PRIMARY KEY,
-                tenant_id    TEXT NOT NULL,
-                vault_id     TEXT NOT NULL,
-                name         TEXT NOT NULL,
-                vault_type   TEXT NOT NULL,
-                status       TEXT NOT NULL DEFAULT 'active',
-                risk_score   REAL NOT NULL DEFAULT 0.0,
-                created_at   TEXT,
-                last_rotated TEXT,
-                expires_at   TEXT,
-                tags         TEXT NOT NULL DEFAULT '{}',
-                synced_at    TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_si_tenant  ON secrets_inventory(tenant_id);
-            CREATE INDEX IF NOT EXISTS idx_si_vault   ON secrets_inventory(vault_id);
-            CREATE INDEX IF NOT EXISTS idx_si_status  ON secrets_inventory(status);
-        """)
+    """Kept for existing callers passing a custom db_path — _conn() already
+    ensures schema via the registry, so this is now just a connect-and-discard."""
+    with _conn(db_path):
+        pass
 
 
 _init_db()

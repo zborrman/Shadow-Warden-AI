@@ -93,6 +93,14 @@ def ensure_schema(conn: Any, db_key: str, db_path: str = "") -> int:
     ``db_path`` scopes the in-process memo — pass the concrete file path so two
     different SQLite files sharing a db_key are tracked independently.
     Fail-safe: on any tracking error, the DDL is executed directly.
+
+    The in-process memo alone is never trusted to skip work: a test (or any
+    caller) can delete and recreate the file at the same ``db_path`` string
+    within one process lifetime, which would otherwise make ``ensure_schema``
+    believe a fresh, empty file already has its tables. Every call re-verifies
+    against ``conn``'s own tracking table (one indexed SELECT) before deciding
+    what is pending — cheap relative to the ``sqlite3.connect()`` this always
+    follows, and it is what keeps re-running the full DDL script rare, not this.
     """
     with _lock:
         modules = dict(_REGISTRY.get(db_key, {}))
@@ -100,14 +108,6 @@ def ensure_schema(conn: Any, db_key: str, db_path: str = "") -> int:
         return 0
 
     scope = db_path or db_key
-    pending: list[tuple[str, str, str]] = []   # (module, ddl, checksum)
-    for module, ddl in modules.items():
-        cs = checksum(ddl)
-        if (scope, module, cs) in _applied:
-            continue
-        pending.append((module, ddl, cs))
-    if not pending:
-        return 0
 
     applied = 0
     try:
@@ -119,11 +119,18 @@ def ensure_schema(conn: Any, db_key: str, db_path: str = "") -> int:
         log.debug("ddl_registry: tracking unavailable for %s (%s); applying directly", db_key, exc)
         seen = {}
 
-    now = datetime.now(UTC).isoformat()
-    for module, ddl, cs in pending:
+    pending: list[tuple[str, str, str]] = []   # (module, ddl, checksum)
+    for module, ddl in modules.items():
+        cs = checksum(ddl)
         if seen.get(module) == cs:
             _applied.add((scope, module, cs))
             continue
+        pending.append((module, ddl, cs))
+    if not pending:
+        return 0
+
+    now = datetime.now(UTC).isoformat()
+    for module, ddl, cs in pending:
         try:
             conn.executescript(ddl)
             try:

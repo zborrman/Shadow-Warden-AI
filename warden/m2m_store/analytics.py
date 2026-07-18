@@ -36,6 +36,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
 
 log = logging.getLogger("warden.m2m_store.analytics")
 _db_lock = threading.RLock()
@@ -47,15 +48,14 @@ def _get_db_path() -> str:
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_get_db_path(), check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    ensure_analytics_schema(con)
-    try:
+    # ensure_analytics_schema() is not registry-managed (it's public API also
+    # called standalone with con=None elsewhere) — open_db still runs the
+    # m2m_store registry DDL (from inventory.py) once; harmless double-apply
+    # since every statement is idempotent (CREATE ... IF NOT EXISTS).
+    path = _get_db_path()
+    with open_db("m2m_store", path, module_default_path=path) as con:
+        ensure_analytics_schema(con)
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def ensure_analytics_schema(con: sqlite3.Connection | None = None) -> None:

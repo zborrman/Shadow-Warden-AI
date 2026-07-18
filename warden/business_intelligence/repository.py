@@ -15,6 +15,8 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.business_intelligence.repository")
 
@@ -22,45 +24,29 @@ _DB_PATH = data_path("warden_bi.db", "BI_DB_PATH")
 _db_lock = threading.RLock()
 _CACHE_TTL_MINUTES = 15
 
+_BI_REPO_DDL = """
+    CREATE TABLE IF NOT EXISTS intelligence_cache (
+        cache_key   TEXT PRIMARY KEY,
+        tenant_id   TEXT NOT NULL,
+        report_type TEXT NOT NULL DEFAULT 'unknown',
+        payload     TEXT NOT NULL DEFAULT '{}',
+        created_at  TEXT NOT NULL,
+        expires_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ic_tenant ON intelligence_cache(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_ic_expires ON intelligence_cache(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_ic_tenant_exp ON intelligence_cache(tenant_id, expires_at);
+"""
+
+register("business_intelligence", "repository", _BI_REPO_DDL)
+
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    with _db_lock:
-        con = sqlite3.connect(_DB_PATH)
-        con.execute("PRAGMA journal_mode=WAL")
-        con.row_factory = sqlite3.Row
-        try:
-            yield con
-            con.commit()
-        finally:
-            con.close()
-
-
-def _ensure_schema() -> None:
-    with _conn() as con:
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS intelligence_cache (
-                cache_key   TEXT PRIMARY KEY,
-                tenant_id   TEXT NOT NULL,
-                report_type TEXT NOT NULL DEFAULT 'unknown',
-                payload     TEXT NOT NULL DEFAULT '{}',
-                created_at  TEXT NOT NULL,
-                expires_at  TEXT NOT NULL
-            )
-        """)
-        con.execute(
-            "CREATE INDEX IF NOT EXISTS idx_ic_tenant ON intelligence_cache(tenant_id)"
-        )
-        con.execute(
-            "CREATE INDEX IF NOT EXISTS idx_ic_expires ON intelligence_cache(expires_at)"
-        )
-        con.execute(
-            "CREATE INDEX IF NOT EXISTS idx_ic_tenant_exp"
-            " ON intelligence_cache(tenant_id, expires_at)"
-        )
-
-
-_ensure_schema()
+    with _db_lock, open_db(
+        "business_intelligence", _DB_PATH, module_default_path=_DB_PATH
+    ) as con:
+        yield con
 
 
 def cache_get(cache_key: str) -> dict | None:
