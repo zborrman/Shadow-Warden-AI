@@ -33,10 +33,18 @@ def _ts() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
-async def _run(task: str, session_id: str) -> str:
+async def _run(task: str, session_id: str, tool_profile: str = "full") -> str:
+    """Run a scheduled SOVA task.
+
+    ``tool_profile`` narrows the offered tool set (DE-8, P3) for single-domain
+    jobs so the model is offered only the relevant subset. Cross-cutting jobs
+    (e.g. the morning brief spans ops + community + obsidian) MUST stay "full",
+    or the model can be starved of a tool it needs. Prompt caching (P1) and
+    adaptive routing (P4) apply to every job regardless of profile.
+    """
     from warden.agent.sova import run_task
     try:
-        return await run_task(task, session_id=session_id)
+        return await run_task(task, session_id=session_id, tool_profile=tool_profile)
     except Exception as exc:
         log.error("sova scheduler: task='%s' error: %s", task[:60], exc)
         return f"SOVA error: {exc}"
@@ -179,6 +187,9 @@ async def sova_rotation_check(ctx: dict) -> dict:
         "Report all actions taken with community IDs and key versions."
     )
 
+    # Stays "full": the community profile's keyword heuristic misses list_communities
+    # (plural) and get_rotation_progress, which this job needs — a narrow profile
+    # would starve it. Widening the heuristic is a separate follow-up.
     response = await _run(task, session_id="sched-rotation-check")
     log.info("sova: rotation check complete (%d chars)", len(response))
     return {"status": "ok", "ts": _ts(), "chars": len(response)}
@@ -204,7 +215,8 @@ async def sova_sla_report(ctx: dict) -> dict:
         "Include specific numbers — uptime %, latency ms, incident durations."
     )
 
-    response = await _run(task, session_id="sched-sla-report")
+    # ops-only job: uptime monitors (list/uptime/history) + slack
+    response = await _run(task, session_id="sched-sla-report", tool_profile="ops")
     log.info("sova: SLA report complete (%d chars)", len(response))
     return {"status": "ok", "ts": _ts(), "chars": len(response)}
 
@@ -228,7 +240,8 @@ async def sova_upgrade_scan(ctx: dict) -> dict:
         "(5) Post the upgrade candidate list to Slack with recommended tier upgrades."
     )
 
-    response = await _run(task, session_id="sched-upgrade-scan")
+    # ops-only job: billing quota + tenant impact + slack
+    response = await _run(task, session_id="sched-upgrade-scan", tool_profile="ops")
     log.info("sova: upgrade scan complete (%d chars)", len(response))
     return {"status": "ok", "ts": _ts(), "chars": len(response)}
 

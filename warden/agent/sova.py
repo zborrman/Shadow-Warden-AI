@@ -3,10 +3,15 @@ warden/agent/sova.py
 ─────────────────────
 SOVA — Shadow Operations & Vigilance Agent
 
-Core agent loop powered by Claude Opus 4.6 with:
-  • Prompt caching on the system prompt (cache_control: ephemeral)
-  • Tool use for all 27 Shadow Warden capabilities
-  • Redis-backed conversation memory per session
+Core agentic loop (DE-8) with:
+  • Adaptive model routing — Sonnet by default, Opus on complexity / HIGH MAESTRO
+    risk; marketplace actions via the M2M router. Model id from SOVA_MODEL
+    (default claude-opus-4-8); disable with SOVA_ADAPTIVE_ROUTING=false.
+  • Prompt caching on the system prompt AND the tool-schema prefix (ephemeral)
+  • Cache-safe tool profiles (full / ops / community / compliance)
+  • Parallel tool dispatch, plus a streaming variant (stream_query / SSE)
+  • Cost + structured-log capture via the shared Digital-Staff modules
+  • Redis-backed conversation memory + optional pgvector semantic recall
   • Graceful error handling — tool errors returned as tool_result content
 
 Usage
