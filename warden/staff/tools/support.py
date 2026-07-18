@@ -16,9 +16,13 @@ import logging
 import os
 import sqlite3
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from decimal import Decimal
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger(__name__)
 
@@ -35,36 +39,36 @@ _KB: dict[str, str] = {
     "gdpr": "Submit GDPR requests to privacy@shadow-warden-ai.com with subject GDPR-REQUEST.",
 }
 
+_SUPPORT_DDL = """
+    CREATE TABLE IF NOT EXISTS tickets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        subject TEXT,
+        body TEXT,
+        status TEXT DEFAULT 'OPEN',
+        resolution TEXT,
+        created_at INTEGER,
+        resolved_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS refund_intents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        agent_id TEXT,
+        amount_usd TEXT,
+        reason TEXT,
+        sig TEXT,
+        status TEXT DEFAULT 'PENDING_COUNTERSIGN',
+        created_at INTEGER
+    );
+"""
 
-def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS tickets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            subject TEXT,
-            body TEXT,
-            status TEXT DEFAULT 'OPEN',
-            resolution TEXT,
-            created_at INTEGER,
-            resolved_at INTEGER
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS refund_intents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            agent_id TEXT,
-            amount_usd TEXT,
-            reason TEXT,
-            sig TEXT,
-            status TEXT DEFAULT 'PENDING_COUNTERSIGN',
-            created_at INTEGER
-        )
-    """)
-    conn.commit()
-    return conn
+register("staff_support", "support", _SUPPORT_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("staff_support", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 async def get_ticket(
@@ -73,8 +77,7 @@ async def get_ticket(
     status: str | None = None,
     limit: int = 10,
 ) -> dict:
-    conn = _db()
-    try:
+    with _conn() as conn:
         if ticket_id is not None:
             row = conn.execute(
                 "SELECT * FROM tickets WHERE id=? AND tenant_id=?", (ticket_id, tenant_id)
@@ -91,8 +94,6 @@ async def get_ticket(
         sql += f" ORDER BY created_at DESC LIMIT {min(limit, 50)}"
         rows = conn.execute(sql, params).fetchall()
         return {"tickets": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        conn.close()
 
 
 async def resolve_ticket_kb(
@@ -105,8 +106,7 @@ async def resolve_ticket_kb(
     kb_answer = _KB.get(category.lower(), "")
     resolution = custom_resolution or kb_answer or "Resolved by support agent."
 
-    conn = _db()
-    try:
+    with _conn() as conn:
         row = conn.execute(
             "SELECT * FROM tickets WHERE id=? AND tenant_id=?", (ticket_id, tenant_id)
         ).fetchone()
@@ -117,7 +117,6 @@ async def resolve_ticket_kb(
             "UPDATE tickets SET status='RESOLVED', resolution=?, resolved_at=? WHERE id=? AND tenant_id=?",
             (resolution, int(time.time()), ticket_id, tenant_id),
         )
-        conn.commit()
         return {
             "ticket_id": ticket_id,
             "status": "RESOLVED",
@@ -125,8 +124,6 @@ async def resolve_ticket_kb(
             "kb_category": category,
             "kb_hit": bool(kb_answer),
         }
-    finally:
-        conn.close()
 
 
 _HIGH_RISK_REFUND_COUNTRIES: frozenset[str] = frozenset(
@@ -196,13 +193,11 @@ async def issue_refund(
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc), "issued": False}
 
-    conn = _db()
-    try:
+    with _conn() as conn:
         cur = conn.execute(
             "INSERT INTO refund_intents (tenant_id,agent_id,amount_usd,reason,sig,status,created_at) VALUES (?,?,?,?,?,?,?)",
             (tenant_id, agent_id, amount_usd, reason, intent["sig"], "PENDING_COUNTERSIGN", int(time.time())),
         )
-        conn.commit()
         log.info("SUPPORT: refund intent #%d queued tenant=%s amount=$%s", cur.lastrowid, tenant_id, amount_usd)
         return {
             "intent_id": cur.lastrowid,
@@ -212,8 +207,6 @@ async def issue_refund(
             "sig": intent["sig"],
             "note": "Intent signed — billing backend will countersign and process.",
         }
-    finally:
-        conn.close()
 
 
 async def get_billing_status(

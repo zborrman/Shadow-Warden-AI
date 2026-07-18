@@ -12,44 +12,48 @@ from __future__ import annotations
 import logging
 import sqlite3
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger(__name__)
 
 
 _DB_PATH = data_path("warden_growth.db", "GROWTH_DB_PATH")
 
+_GROWTH_DDL = """
+    CREATE TABLE IF NOT EXISTS seo_drafts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        topic TEXT,
+        content TEXT,
+        injection_clean INTEGER DEFAULT 1,
+        status TEXT DEFAULT 'PENDING_REVIEW',
+        created_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS budget_proposals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        channel TEXT,
+        current_usd REAL,
+        proposed_usd REAL,
+        delta_usd REAL,
+        rationale TEXT,
+        status TEXT DEFAULT 'PENDING_HUMAN_APPROVAL',
+        created_at INTEGER
+    );
+"""
 
-def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS seo_drafts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            topic TEXT,
-            content TEXT,
-            injection_clean INTEGER DEFAULT 1,
-            status TEXT DEFAULT 'PENDING_REVIEW',
-            created_at INTEGER
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS budget_proposals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            channel TEXT,
-            current_usd REAL,
-            proposed_usd REAL,
-            delta_usd REAL,
-            rationale TEXT,
-            status TEXT DEFAULT 'PENDING_HUMAN_APPROVAL',
-            created_at INTEGER
-        )
-    """)
-    conn.commit()
-    return conn
+register("staff_growth", "growth", _GROWTH_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("staff_growth", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 async def fetch_market_signals(
@@ -104,16 +108,12 @@ async def generate_seo_content(
     )
     injection_clean = _pre.allowed
 
-    conn = _db()
-    try:
+    with _conn() as conn:
         cur = conn.execute(
             "INSERT INTO seo_drafts (tenant_id,topic,content,injection_clean,status,created_at) VALUES (?,?,?,?,?,?)",
             (tenant_id, topic, content_draft, int(injection_clean), "PENDING_REVIEW", int(time.time())),
         )
-        conn.commit()
         draft_id = cur.lastrowid
-    finally:
-        conn.close()
 
     return {
         "draft_id": draft_id,
@@ -133,13 +133,11 @@ async def adjust_ad_budget(
 ) -> dict:
     """Propose budget adjustment. Always requires human approval — logs to queue."""
     delta = proposed_usd - current_usd
-    conn = _db()
-    try:
+    with _conn() as conn:
         cur = conn.execute(
             "INSERT INTO budget_proposals (tenant_id,channel,current_usd,proposed_usd,delta_usd,rationale,status,created_at) VALUES (?,?,?,?,?,?,?,?)",
             (tenant_id, channel, current_usd, proposed_usd, delta, rationale, "PENDING_HUMAN_APPROVAL", int(time.time())),
         )
-        conn.commit()
         return {
             "proposal_id": cur.lastrowid,
             "channel": channel,
@@ -147,8 +145,6 @@ async def adjust_ad_budget(
             "status": "PENDING_HUMAN_APPROVAL",
             "note": "Budget proposals always require explicit human authorization.",
         }
-    finally:
-        conn.close()
 
 
 GROWTH_TOOL_HANDLERS = {

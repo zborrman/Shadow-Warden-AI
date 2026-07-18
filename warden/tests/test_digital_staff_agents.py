@@ -283,15 +283,13 @@ class TestSupportTools:
 
         async def _run():
             # Create ticket directly
-            from warden.staff.tools.support import _db
-            conn = _db()
-            cur = conn.execute(
-                "INSERT INTO tickets (tenant_id,subject,body,status,created_at) VALUES (?,?,?,?,?)",
-                ("t1", "Login issue", "I cannot log in", "OPEN", int(time.time())),
-            )
-            conn.commit()
-            tid = cur.lastrowid
-            conn.close()
+            from warden.staff.tools.support import _conn
+            with _conn() as conn:
+                cur = conn.execute(
+                    "INSERT INTO tickets (tenant_id,subject,body,status,created_at) VALUES (?,?,?,?,?)",
+                    ("t1", "Login issue", "I cannot log in", "OPEN", int(time.time())),
+                )
+                tid = cur.lastrowid
 
             r = await resolve_ticket_kb(tenant_id="t1", ticket_id=tid, category="login")
             assert r["status"] == "RESOLVED"

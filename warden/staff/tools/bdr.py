@@ -11,59 +11,61 @@ Storage: Redis keys under staff:bdr:{tenant_id}:*
 from __future__ import annotations
 
 import logging
+import sqlite3
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger(__name__)
 
 
 _DB_PATH = data_path("warden_bdr.db", "BDR_DB_PATH")
 
+_BDR_DDL = """
+    CREATE TABLE IF NOT EXISTS leads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        company TEXT NOT NULL,
+        contact TEXT,
+        email TEXT,
+        status TEXT DEFAULT 'NEW',
+        score REAL DEFAULT 0.0,
+        notes TEXT,
+        created_at INTEGER,
+        updated_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS email_drafts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        to_email TEXT NOT NULL,
+        subject TEXT,
+        body TEXT,
+        lead_id INTEGER,
+        status TEXT DEFAULT 'PENDING_REVIEW',
+        created_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS meeting_slots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        contact TEXT,
+        proposed_at TEXT,
+        duration_min INTEGER DEFAULT 30,
+        status TEXT DEFAULT 'PROPOSED',
+        created_at INTEGER
+    );
+"""
 
-def _db():
-    import sqlite3
-    conn = sqlite3.connect(_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS leads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            company TEXT NOT NULL,
-            contact TEXT,
-            email TEXT,
-            status TEXT DEFAULT 'NEW',
-            score REAL DEFAULT 0.0,
-            notes TEXT,
-            created_at INTEGER,
-            updated_at INTEGER
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS email_drafts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            to_email TEXT NOT NULL,
-            subject TEXT,
-            body TEXT,
-            lead_id INTEGER,
-            status TEXT DEFAULT 'PENDING_REVIEW',
-            created_at INTEGER
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS meeting_slots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            contact TEXT,
-            proposed_at TEXT,
-            duration_min INTEGER DEFAULT 30,
-            status TEXT DEFAULT 'PROPOSED',
-            created_at INTEGER
-        )
-    """)
-    conn.commit()
-    return conn
+register("staff_bdr", "bdr", _BDR_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("staff_bdr", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 async def crm_search(
@@ -72,8 +74,7 @@ async def crm_search(
     status: str | None = None,
     limit: int = 20,
 ) -> dict:
-    conn = _db()
-    try:
+    with _conn() as conn:
         sql = "SELECT * FROM leads WHERE tenant_id=?"
         params: list = [tenant_id]
         if query:
@@ -85,8 +86,6 @@ async def crm_search(
         sql += f" ORDER BY updated_at DESC LIMIT {min(limit, 100)}"
         rows = conn.execute(sql, params).fetchall()
         return {"leads": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        conn.close()
 
 
 async def crm_upsert_lead(
@@ -99,24 +98,19 @@ async def crm_upsert_lead(
     notes: str = "",
     lead_id: int | None = None,
 ) -> dict:
-    conn = _db()
     now = int(time.time())
-    try:
+    with _conn() as conn:
         if lead_id:
             conn.execute(
                 "UPDATE leads SET company=?,contact=?,email=?,status=?,score=?,notes=?,updated_at=? WHERE id=? AND tenant_id=?",
                 (company, contact, email, status, score, notes, now, lead_id, tenant_id),
             )
-            conn.commit()
             return {"lead_id": lead_id, "action": "updated"}
         cur = conn.execute(
             "INSERT INTO leads (tenant_id,company,contact,email,status,score,notes,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
             (tenant_id, company, contact, email, status, score, notes, now, now),
         )
-        conn.commit()
         return {"lead_id": cur.lastrowid, "action": "created"}
-    finally:
-        conn.close()
 
 
 async def send_email_draft(
@@ -127,14 +121,12 @@ async def send_email_draft(
     lead_id: int | None = None,
 ) -> dict:
     """Queue a draft for human review — never sends autonomously."""
-    conn = _db()
     now = int(time.time())
-    try:
+    with _conn() as conn:
         cur = conn.execute(
             "INSERT INTO email_drafts (tenant_id,to_email,subject,body,lead_id,status,created_at) VALUES (?,?,?,?,?,?,?)",
             (tenant_id, to_email, subject, body, lead_id, "PENDING_REVIEW", now),
         )
-        conn.commit()
         draft_id = cur.lastrowid
         log.info("BDR: email draft %d queued for human review (to=%s)", draft_id, to_email)
         return {
@@ -142,8 +134,6 @@ async def send_email_draft(
             "status": "PENDING_REVIEW",
             "note": "Draft queued for human approval — not sent autonomously.",
         }
-    finally:
-        conn.close()
 
 
 async def schedule_meeting_slot(
@@ -153,21 +143,17 @@ async def schedule_meeting_slot(
     duration_min: int = 30,
 ) -> dict:
     """Propose a calendar slot — places in queue, human confirms."""
-    conn = _db()
     now = int(time.time())
-    try:
+    with _conn() as conn:
         cur = conn.execute(
             "INSERT INTO meeting_slots (tenant_id,contact,proposed_at,duration_min,status,created_at) VALUES (?,?,?,?,?,?)",
             (tenant_id, contact, proposed_at, duration_min, "PROPOSED", now),
         )
-        conn.commit()
         return {
             "slot_id": cur.lastrowid,
             "status": "PROPOSED",
             "note": "Proposed slot queued for human confirmation.",
         }
-    finally:
-        conn.close()
 
 
 BDR_TOOL_HANDLERS = {

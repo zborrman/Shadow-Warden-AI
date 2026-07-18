@@ -15,9 +15,13 @@ import json
 import logging
 import sqlite3
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger(__name__)
 
@@ -30,36 +34,36 @@ _BUILTIN_DENYLIST: set[str] = {
     "sanctioned_demo_corp",
 }
 
+_COMPLIANCE_DDL = """
+    CREATE TABLE IF NOT EXISTS screening_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        subject TEXT,
+        list_name TEXT,
+        hit INTEGER DEFAULT 0,
+        score REAL,
+        details TEXT,
+        screened_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS sar_drafts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id TEXT NOT NULL,
+        subject TEXT,
+        risk_level TEXT,
+        narrative TEXT,
+        evidence TEXT,
+        status TEXT DEFAULT 'DRAFT',
+        created_at INTEGER
+    );
+"""
 
-def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS screening_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            subject TEXT,
-            list_name TEXT,
-            hit INTEGER DEFAULT 0,
-            score REAL,
-            details TEXT,
-            screened_at INTEGER
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sar_drafts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tenant_id TEXT NOT NULL,
-            subject TEXT,
-            risk_level TEXT,
-            narrative TEXT,
-            evidence TEXT,
-            status TEXT DEFAULT 'DRAFT',
-            created_at INTEGER
-        )
-    """)
-    conn.commit()
-    return conn
+register("staff_compliance", "compliance_kyc", _COMPLIANCE_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("staff_compliance", _DB_PATH, module_default_path=_DB_PATH) as con:
+        yield con
 
 
 async def _prescreen_text(text: str, tenant_id: str) -> bool:
@@ -114,15 +118,11 @@ async def screen_sanctions_list(
         "fuzzy_score": round(score, 3),
     }
 
-    conn = _db()
-    try:
+    with _conn() as conn:
         conn.execute(
             "INSERT INTO screening_log (tenant_id,subject,list_name,hit,score,details,screened_at) VALUES (?,?,?,?,?,?,?)",
             (tenant_id, subject_name, list_name, int(hit), score, json.dumps(details), int(time.time())),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
     return {
         "subject": subject_name,
@@ -231,13 +231,11 @@ async def generate_sar(
         "STATUS: DRAFT — Requires compliance officer review and signature before filing."
     )
 
-    conn = _db()
-    try:
+    with _conn() as conn:
         cur = conn.execute(
             "INSERT INTO sar_drafts (tenant_id,subject,risk_level,narrative,evidence,status,created_at) VALUES (?,?,?,?,?,?,?)",
             (tenant_id, subject_name, risk_level, narrative, json.dumps(evidence_ids or []), "DRAFT", int(time.time())),
         )
-        conn.commit()
         return {
             "sar_id": cur.lastrowid,
             "status": "DRAFT",
@@ -245,8 +243,6 @@ async def generate_sar(
             "narrative_preview": narrative[:300] + "...",
             "note": "Draft queued for compliance officer sign-off. Not filed autonomously.",
         }
-    finally:
-        conn.close()
 
 
 COMPLIANCE_TOOL_HANDLERS = {

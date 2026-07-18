@@ -1,5 +1,5 @@
 {
-  "total": 140,
+  "total": 136,
   "per_file": {
     "agent/healer.py": 1,
     "agent/scheduler.py": 1,
@@ -90,10 +90,6 @@
     "sovereign/audit.py": 1,
     "staff/a2a.py": 2,
     "staff/economics.py": 1,
-    "staff/tools/bdr.py": 1,
-    "staff/tools/compliance_kyc.py": 1,
-    "staff/tools/growth.py": 1,
-    "staff/tools/support.py": 1,
     "stripe_billing.py": 1,
     "threat_intel/store.py": 1,
     "threat_store.py": 1,

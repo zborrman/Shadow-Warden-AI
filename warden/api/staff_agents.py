@@ -19,7 +19,6 @@ GET  /staff/agents/a2a/audit             — A2A cross-agent call audit log
 from __future__ import annotations
 
 import logging
-import sqlite3
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -74,9 +73,9 @@ async def agent_query(agent_id: str, req: AgentQueryRequest) -> dict[str, Any]:
 
 # ── BDR endpoints ──────────────────────────────────────────────────────────────
 
-def _bdr_db() -> sqlite3.Connection:
-    from warden.staff.tools.bdr import _db  # noqa: PLC0415
-    return _db()
+def _bdr_db():
+    from warden.staff.tools.bdr import _conn  # noqa: PLC0415
+    return _conn()
 
 
 @router.get("/bdr/leads")
@@ -87,21 +86,17 @@ async def bdr_leads(tenant_id: str = "default", status: str | None = None, limit
 
 @router.get("/bdr/drafts/email")
 async def bdr_email_drafts(tenant_id: str = "default") -> dict:
-    db = _bdr_db()
-    try:
+    with _bdr_db() as db:
         rows = db.execute(
             "SELECT * FROM email_drafts WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
             (tenant_id,)
         ).fetchall()
         return {"drafts": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        db.close()
 
 
 @router.post("/bdr/drafts/email/{draft_id}/approve")
 async def approve_email_draft(draft_id: int, tenant_id: str = "default") -> dict:
-    db = _bdr_db()
-    try:
+    with _bdr_db() as db:
         row = db.execute(
             "SELECT * FROM email_drafts WHERE id=? AND tenant_id=?", (draft_id, tenant_id)
         ).fetchone()
@@ -111,62 +106,49 @@ async def approve_email_draft(draft_id: int, tenant_id: str = "default") -> dict
             "UPDATE email_drafts SET status='APPROVED' WHERE id=? AND tenant_id=?",
             (draft_id, tenant_id),
         )
-        db.commit()
         return {"draft_id": draft_id, "status": "APPROVED"}
-    finally:
-        db.close()
 
 
 @router.get("/bdr/meeting-slots")
 async def bdr_meeting_slots(tenant_id: str = "default") -> dict:
-    db = _bdr_db()
-    try:
+    with _bdr_db() as db:
         rows = db.execute(
             "SELECT * FROM meeting_slots WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
             (tenant_id,)
         ).fetchall()
         return {"slots": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        db.close()
 
 
 # ── Growth endpoints ───────────────────────────────────────────────────────────
 
-def _growth_db() -> sqlite3.Connection:
-    from warden.staff.tools.growth import _db  # noqa: PLC0415
-    return _db()
+def _growth_db():
+    from warden.staff.tools.growth import _conn  # noqa: PLC0415
+    return _conn()
 
 
 @router.get("/growth/drafts/seo")
 async def growth_seo_drafts(tenant_id: str = "default") -> dict:
-    db = _growth_db()
-    try:
+    with _growth_db() as db:
         rows = db.execute(
             "SELECT id, tenant_id, topic, injection_clean, status, created_at FROM seo_drafts WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
             (tenant_id,)
         ).fetchall()
         return {"drafts": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        db.close()
 
 
 @router.get("/growth/proposals")
 async def growth_budget_proposals(tenant_id: str = "default") -> dict:
-    db = _growth_db()
-    try:
+    with _growth_db() as db:
         rows = db.execute(
             "SELECT * FROM budget_proposals WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
             (tenant_id,)
         ).fetchall()
         return {"proposals": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        db.close()
 
 
 @router.post("/growth/proposals/{proposal_id}/approve")
 async def approve_budget_proposal(proposal_id: int, tenant_id: str = "default") -> dict:
-    db = _growth_db()
-    try:
+    with _growth_db() as db:
         row = db.execute(
             "SELECT * FROM budget_proposals WHERE id=? AND tenant_id=?", (proposal_id, tenant_id)
         ).fetchone()
@@ -176,36 +158,29 @@ async def approve_budget_proposal(proposal_id: int, tenant_id: str = "default") 
             "UPDATE budget_proposals SET status='APPROVED' WHERE id=? AND tenant_id=?",
             (proposal_id, tenant_id),
         )
-        db.commit()
         return {"proposal_id": proposal_id, "status": "APPROVED"}
-    finally:
-        db.close()
 
 
 # ── Compliance endpoints ───────────────────────────────────────────────────────
 
-def _compliance_db() -> sqlite3.Connection:
-    from warden.staff.tools.compliance_kyc import _db  # noqa: PLC0415
-    return _db()
+def _compliance_db():
+    from warden.staff.tools.compliance_kyc import _conn  # noqa: PLC0415
+    return _conn()
 
 
 @router.get("/compliance/sars")
 async def compliance_sars(tenant_id: str = "default") -> dict:
-    db = _compliance_db()
-    try:
+    with _compliance_db() as db:
         rows = db.execute(
             "SELECT id, tenant_id, subject, risk_level, status, created_at FROM sar_drafts WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
             (tenant_id,)
         ).fetchall()
         return {"sars": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        db.close()
 
 
 @router.post("/compliance/sars/{sar_id}/approve")
 async def approve_sar(sar_id: int, tenant_id: str = "default") -> dict:
-    db = _compliance_db()
-    try:
+    with _compliance_db() as db:
         row = db.execute(
             "SELECT * FROM sar_drafts WHERE id=? AND tenant_id=?", (sar_id, tenant_id)
         ).fetchone()
@@ -215,30 +190,24 @@ async def approve_sar(sar_id: int, tenant_id: str = "default") -> dict:
             "UPDATE sar_drafts SET status='FILED' WHERE id=? AND tenant_id=?",
             (sar_id, tenant_id),
         )
-        db.commit()
         return {"sar_id": sar_id, "status": "FILED"}
-    finally:
-        db.close()
 
 
 @router.get("/compliance/screening-log")
 async def compliance_screening_log(tenant_id: str = "default", limit: int = 50) -> dict:
-    db = _compliance_db()
-    try:
+    with _compliance_db() as db:
         rows = db.execute(
             "SELECT * FROM screening_log WHERE tenant_id=? ORDER BY screened_at DESC LIMIT ?",
             (tenant_id, min(limit, 200))
         ).fetchall()
         return {"entries": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        db.close()
 
 
 # ── Support endpoints ──────────────────────────────────────────────────────────
 
-def _support_db() -> sqlite3.Connection:
-    from warden.staff.tools.support import _db  # noqa: PLC0415
-    return _db()
+def _support_db():
+    from warden.staff.tools.support import _conn  # noqa: PLC0415
+    return _conn()
 
 
 @router.get("/support/tickets")
@@ -250,36 +219,28 @@ async def support_tickets(tenant_id: str = "default", status: str | None = None)
 @router.post("/support/tickets")
 async def create_support_ticket(req: CreateTicketRequest) -> dict:
     import time
-    db = _support_db()
-    try:
+    with _support_db() as db:
         now = int(time.time())
         cur = db.execute(
             "INSERT INTO tickets (tenant_id,subject,body,status,created_at) VALUES (?,?,?,?,?)",
             (req.tenant_id, req.subject, req.body, "OPEN", now),
         )
-        db.commit()
         return {"ticket_id": cur.lastrowid, "status": "OPEN"}
-    finally:
-        db.close()
 
 
 @router.get("/support/refunds")
 async def support_refund_intents(tenant_id: str = "default") -> dict:
-    db = _support_db()
-    try:
+    with _support_db() as db:
         rows = db.execute(
             "SELECT id,tenant_id,agent_id,amount_usd,reason,status,created_at FROM refund_intents WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
             (tenant_id,)
         ).fetchall()
         return {"refunds": [dict(r) for r in rows], "count": len(rows)}
-    finally:
-        db.close()
 
 
 @router.post("/support/refunds/{intent_id}/approve")
 async def approve_refund_intent(intent_id: int, tenant_id: str = "default") -> dict:
-    db = _support_db()
-    try:
+    with _support_db() as db:
         row = db.execute(
             "SELECT * FROM refund_intents WHERE id=? AND tenant_id=?", (intent_id, tenant_id)
         ).fetchone()
@@ -289,10 +250,7 @@ async def approve_refund_intent(intent_id: int, tenant_id: str = "default") -> d
             "UPDATE refund_intents SET status='APPROVED_FOR_PROCESSING' WHERE id=? AND tenant_id=?",
             (intent_id, tenant_id),
         )
-        db.commit()
         return {"intent_id": intent_id, "status": "APPROVED_FOR_PROCESSING"}
-    finally:
-        db.close()
 
 
 # ── Unit Economics endpoints ───────────────────────────────────────────────────
