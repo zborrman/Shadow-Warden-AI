@@ -306,4 +306,17 @@ Shadow Warden AI follows responsible disclosure. Security researchers can report
 
 All 9 requirements shipped in v6.1 (2026-06-17). Test coverage: 62 dedicated tests, all passing.
 
-*Shadow Warden AI · security-model.md · Updated v6.1 · 2026-06-19*
+## 8. External Assessment Cadence (S7)
+
+| Activity | Cadence | Mechanism |
+|----------|---------|-----------|
+| DAST — edge (TLS, headers, cookies) | Weekly (Sun 02:00 UTC) | `pentest.yml` → ZAP baseline vs `api.shadow-warden-ai.com` |
+| DAST — API surface | Weekly (same run) | `pentest.yml` → ZAP API scan driven by `/openapi.json` against an ephemeral warden booted in CI (bypasses Cloudflare; no prod alert noise) |
+| Template-based vuln scan | Weekly (same run) | `pentest.yml` → Nuclei critical/high; job fails on any critical finding |
+| External penetration test | Annual (or after a major architecture change) | Commissioned third party; report filed in the MinIO evidence vault (`warden-evidence/pentests/`) |
+| Threat-model refresh | Semi-annual (Jan / Jul), or with any new agentic surface | Review §1 of this document + `docs/sac-architecture.md` non-goals; log outcome in the roadmap decisions log |
+
+Scan evidence is shipped to MinIO (`warden-evidence/pentests/<date>/`) by the
+`upload-evidence` job for SOC 2 / ISO 27001 auditor collection.
+
+*Shadow Warden AI · security-model.md · Updated v7.8 (S7) · 2026-07-18*
