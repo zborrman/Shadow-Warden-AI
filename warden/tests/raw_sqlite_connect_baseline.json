@@ -1,5 +1,5 @@
 {
-  "total": 136,
+  "total": 133,
   "per_file": {
     "agent/healer.py": 1,
     "agent/scheduler.py": 1,
@@ -35,7 +35,6 @@
     "communities/oauth_discovery.py": 1,
     "communities/peering.py": 1,
     "communities/prompt_library.py": 1,
-    "communities/quota.py": 1,
     "communities/registry.py": 1,
     "communities/reputation.py": 2,
     "communities/sep.py": 1,
@@ -44,7 +43,6 @@
     "communities/training_records.py": 1,
     "community_models.py": 1,
     "compliance/evidence_bundle.py": 3,
-    "compliance/framework_builder.py": 1,
     "compliance/soc2_collector.py": 3,
     "data_policy.py": 1,
     "db/ddl_registry.py": 1,
@@ -97,7 +95,6 @@
     "voice/guardian.py": 3,
     "voice/x402.py": 6,
     "web3/key_rotation.py": 2,
-    "webhook_dispatch.py": 1,
-    "webhooks/engine.py": 1
+    "webhook_dispatch.py": 1
   }
 }

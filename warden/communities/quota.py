@@ -44,9 +44,13 @@ from __future__ import annotations
 import logging
 import sqlite3
 import threading
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.quota")
 
@@ -56,29 +60,30 @@ _db_lock = threading.RLock()
 
 # ── SQLite fallback store ─────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_QUOTA_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS quota_counters (
-            community_id    TEXT NOT NULL,
-            metric          TEXT NOT NULL,
-            value_bytes     INTEGER NOT NULL DEFAULT 0,
-            updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            PRIMARY KEY (community_id, metric)
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS quota_events (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            community_id    TEXT NOT NULL,
-            event_type      TEXT NOT NULL,
-            bytes           INTEGER NOT NULL,
-            created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        )
-    """)
-    conn.commit()
-    return conn
+_QUOTA_DDL = """
+    CREATE TABLE IF NOT EXISTS quota_counters (
+        community_id    TEXT NOT NULL,
+        metric          TEXT NOT NULL,
+        value_bytes     INTEGER NOT NULL DEFAULT 0,
+        updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        PRIMARY KEY (community_id, metric)
+    );
+    CREATE TABLE IF NOT EXISTS quota_events (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        community_id    TEXT NOT NULL,
+        event_type      TEXT NOT NULL,
+        bytes           INTEGER NOT NULL,
+        created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+"""
+
+register("quota", "quota", _QUOTA_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db("quota", _QUOTA_DB_PATH, module_default_path=_QUOTA_DB_PATH) as con:
+        yield con
 
 
 def _bw_metric() -> str:
@@ -145,8 +150,7 @@ def _bonus_key(community_id: str) -> str:
 # ── Fallback SQLite counter ───────────────────────────────────────────────────
 
 def _sqlite_get(community_id: str, metric: str) -> int:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT value_bytes FROM quota_counters WHERE community_id=? AND metric=?",
             (community_id, metric)
@@ -155,8 +159,7 @@ def _sqlite_get(community_id: str, metric: str) -> int:
 
 
 def _sqlite_incr(community_id: str, metric: str, delta: int) -> int:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         conn.execute("""
             INSERT INTO quota_counters (community_id, metric, value_bytes)
             VALUES (?, ?, ?)
@@ -164,7 +167,6 @@ def _sqlite_incr(community_id: str, metric: str, delta: int) -> int:
             DO UPDATE SET value_bytes = value_bytes + excluded.value_bytes,
                           updated_at  = strftime('%Y-%m-%dT%H:%M:%fZ','now')
         """, (community_id, metric, delta))
-        conn.commit()
         row = conn.execute(
             "SELECT value_bytes FROM quota_counters WHERE community_id=? AND metric=?",
             (community_id, metric)
