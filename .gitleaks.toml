@@ -1,0 +1,11 @@
+title = "Shadow Warden AI — gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives: DDL registry module-name string literals (not secrets)"
+regexTarget = "line"
+regexes = [
+  '''register\("key_rotation", "warden\.web3\.key_rotation", _SCHEMA\)''',
+]
