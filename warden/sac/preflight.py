@@ -29,8 +29,43 @@ from datetime import UTC, datetime
 from warden.config import settings
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.sac.preflight")
+
+
+# ── FT-2 dual-run: mirror the two-phase hold lifecycle into the ledger ────────
+# reserve → operations.reserve, commit → capture, release → void. Gated on
+# settings.ledger_dual_write (default off) and guarded end-to-end (import + call)
+# so the shadow ledger can never break the authoritative preflight path.
+def _mirror_reserve(hold_id: str, tenant_id: str, est_micros: int) -> None:
+    try:
+        from warden.ledger import dual_write, operations
+        from warden.ledger.accounts import tenant_cash
+        from warden.ledger.money import Money
+        dual_write.mirror("sac.reserve", operations.reserve, hold_id,
+                          tenant_cash(tenant_id), Money.from_micros(est_micros))
+    except Exception as exc:  # shadow ledger (or its import) must never break preflight
+        record_failopen("sac_ledger_mirror", Reason.BACKEND_ERROR, exc)
+
+
+def _mirror_commit(hold_id: str, charge_micros: int) -> None:
+    try:
+        from warden.ledger import dual_write, operations
+        from warden.ledger.accounts import platform_fees
+        from warden.ledger.money import Money
+        dual_write.mirror("sac.commit", operations.capture, hold_id,
+                          platform_fees(), Money.from_micros(charge_micros))
+    except Exception as exc:
+        record_failopen("sac_ledger_mirror", Reason.BACKEND_ERROR, exc)
+
+
+def _mirror_release(hold_id: str) -> None:
+    try:
+        from warden.ledger import dual_write, operations
+        dual_write.mirror("sac.release", operations.void, hold_id)
+    except Exception as exc:
+        record_failopen("sac_ledger_mirror", Reason.BACKEND_ERROR, exc)
 
 _db_lock = threading.RLock()
 _MICROS = 1_000_000  # micro-USD per USD
@@ -147,6 +182,7 @@ def reserve(tenant_id: str, est_cost_usd: float, reason: str = "", agent_id: str
             (hold_id, tenant_id, est, "HELD", reason, datetime.now(UTC).isoformat()),
         )
     _audit(tenant_id, "preflight_reserve", _to_usd(est), agent_id)
+    _mirror_reserve(hold_id, tenant_id, est)
     return hold_id
 
 
@@ -188,6 +224,8 @@ def commit(
             (datetime.now(UTC).isoformat(), hold_id),
         )
     _audit(tenant_id, "preflight_commit", _to_usd(charge), agent_id)
+    # Ledger capture caps at the held amount; preflight may charge up to balance.
+    _mirror_commit(hold_id, min(charge, held))
     return {
         "hold_id": hold_id, "committed_usd": _to_usd(charge),
         "released_usd": _to_usd(max(0, held - charge)), "wallet": get_wallet(tenant_id),
@@ -211,6 +249,7 @@ def release(
             (datetime.now(UTC).isoformat(), hold_id),
         )
     _audit(tenant_id, "preflight_release", _to_usd(held), agent_id)
+    _mirror_release(hold_id)
     return {"hold_id": hold_id, "released_usd": _to_usd(held), "wallet": get_wallet(tenant_id)}
 
 
