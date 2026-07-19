@@ -26,11 +26,13 @@ import os
 import sqlite3
 import threading
 import time
+import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 
 from warden.config import data_path
 from warden.db.sqlite_pragmas import init_pragmas
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.credits")
 
@@ -183,6 +185,38 @@ def _db_deduct_credits(tenant_id: str, amount: int) -> bool:
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
+_CREDIT_MICROS = 1_000  # 1 credit = $0.001 = 1000 µUSD
+
+
+def _mirror_credit_grant(tenant_id: str, credits: int) -> None:
+    """FT-2 dual-run: mirror a credit grant into the ledger. Fully guarded —
+    neither the import nor the mirror may ever break the live credit path."""
+    try:
+        from warden.ledger import dual_write, operations
+        from warden.ledger.money import Money
+        dual_write.mirror(
+            "credits.grant", operations.grant_credits, tenant_id,
+            Money.from_micros(credits * _CREDIT_MICROS),
+            idempotency_key=f"credits-grant-{tenant_id}-{uuid.uuid4().hex}",
+        )
+    except Exception as exc:  # shadow ledger (or its import) must never break credits
+        record_failopen("credits_ledger_mirror", Reason.BACKEND_ERROR, exc)
+
+
+def _mirror_credit_spend(tenant_id: str, credits: int) -> None:
+    """FT-2 dual-run: mirror a credit deduction into the ledger. Fully guarded."""
+    try:
+        from warden.ledger import dual_write, operations
+        from warden.ledger.money import Money
+        dual_write.mirror(
+            "credits.spend", operations.spend_credits, tenant_id,
+            Money.from_micros(credits * _CREDIT_MICROS),
+            idempotency_key=f"credits-spend-{tenant_id}-{uuid.uuid4().hex}",
+        )
+    except Exception as exc:  # shadow ledger (or its import) must never break credits
+        record_failopen("credits_ledger_mirror", Reason.BACKEND_ERROR, exc)
+
+
 def purchase_credits(tenant_id: str, package_id: str) -> int:
     """Add credits for *package_id* to *tenant_id*. Returns new balance.
 
@@ -197,6 +231,7 @@ def purchase_credits(tenant_id: str, package_id: str) -> int:
     amount = package["credits"]
     new_balance = _db_add_credits(tenant_id, amount)
     _redis_sync(tenant_id, new_balance)
+    _mirror_credit_grant(tenant_id, amount)
     log.info("credits: purchased package=%s credits=%d tenant=%s new_balance=%d",
              package_id, amount, tenant_id, new_balance)
     return new_balance
@@ -222,6 +257,7 @@ def deduct_credits(tenant_id: str, amount: int = 1) -> bool:
                 import contextlib
                 with contextlib.suppress(Exception):
                     _db_deduct_credits(tenant_id, amount)
+                _mirror_credit_spend(tenant_id, amount)
                 return True
             else:
                 # Restore Redis (went negative — insufficient balance)
@@ -235,6 +271,7 @@ def deduct_credits(tenant_id: str, amount: int = 1) -> bool:
     if result:
         balance = _db_get_balance(tenant_id)
         _redis_sync(tenant_id, balance)
+        _mirror_credit_spend(tenant_id, amount)
     return result
 
 

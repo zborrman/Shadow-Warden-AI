@@ -8,10 +8,10 @@ it. Two hard rules make this safe to switch on in production:
 
   * **Gated** — mirroring only runs when `settings.ledger_dual_write` is true
     (default off), so merging this changes nothing until an operator opts in.
-  * **Fail-OPEN** — a ledger write that raises is swallowed (logged + counted);
-    it must never break the authoritative live money path. This is the opposite
-    posture from the ledger's own writes, which fail-closed — here the ledger is
-    a shadow, not the record.
+  * **Fails open** — a ledger write that raises is swallowed (counted via
+    `record_failopen`); it must never break the authoritative live money path.
+    The opposite posture from the ledger's own writes, which fail-closed — here
+    the ledger is a shadow, not the record.
 
 `reconcile` is deliberately generic (the caller supplies the counter value) so
 this module never imports the higher-level billing modules — the `ledger` layer
@@ -26,6 +26,7 @@ from typing import Any
 from warden.config import settings
 from warden.ledger import journal
 from warden.ledger.money import Money
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.ledger.dual_write")
 
@@ -39,18 +40,20 @@ def enabled() -> bool:
 
 
 def mirror(label: str, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
-    """Fail-OPEN mirror of a ledger operation. No-op unless dual-write is enabled.
+    """Best-effort mirror of a ledger operation. No-op unless dual-write is enabled.
 
-    Any exception (including `LedgerError`) is swallowed — the caller's live path
-    already succeeded and must not be undone by a shadow-ledger hiccup.
+    Any exception (including `LedgerError`) is swallowed and counted via
+    `record_failopen` — the caller's live path already succeeded and must not be
+    undone by a shadow-ledger hiccup.
     """
     if not enabled():
         return
     global _mirror_failures
     try:
         fn(*args, **kwargs)
-    except Exception as exc:  # noqa: BLE001 — shadow write must never break live money
+    except Exception as exc:
         _mirror_failures += 1
+        record_failopen("ledger_dual_write", Reason.BACKEND_ERROR, exc)
         log.warning("ledger dual-write mirror failed (%s): %s", label, exc)
 
 
