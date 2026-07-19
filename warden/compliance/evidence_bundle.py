@@ -31,6 +31,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import settings
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.compliance.evidence_bundle")
 
@@ -44,8 +45,7 @@ _LOGS_PATH        = settings.logs_path
 
 def _collect_stix_chain(community_id: str) -> list[dict[str, Any]]:
     try:
-        import sqlite3
-        con = sqlite3.connect(_SEP_DB_PATH)
+        con = open_db_readonly(_SEP_DB_PATH)
         rows = con.execute(
             "SELECT bundle_json FROM sep_stix_chain WHERE community_id=? ORDER BY seq",
             (community_id,),
@@ -83,8 +83,7 @@ def _collect_posture_sync(tenant_id: str) -> dict[str, Any]:
 
 def _collect_training(tenant_id: str) -> list[dict[str, Any]]:
     try:
-        import sqlite3
-        con = sqlite3.connect(_TRAINING_DB_PATH)
+        con = open_db_readonly(_TRAINING_DB_PATH)
         rows = con.execute(
             "SELECT record_json FROM training_records WHERE tenant_id=? ORDER BY completed_at DESC",
             (tenant_id,),
@@ -98,8 +97,7 @@ def _collect_training(tenant_id: str) -> list[dict[str, Any]]:
 
 def _collect_vendor_dpa(tenant_id: str) -> list[dict[str, Any]]:
     try:
-        import sqlite3
-        con = sqlite3.connect(_VENDOR_DB_PATH)
+        con = open_db_readonly(_VENDOR_DB_PATH)
         rows = con.execute(
             "SELECT vendor_json FROM vendor_records WHERE tenant_id=? OR tenant_id IS NULL",
             (tenant_id,),

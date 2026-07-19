@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.compliance.soc2_collector")
 
@@ -136,9 +137,8 @@ def _collect_availability(since_ts: float, until_ts: float) -> dict[str, Any]:
     db_pool_healthy: bool | None = None
 
     try:
-        import sqlite3
         uptime_db = data_path("warden_uptime.db", "UPTIME_DB_PATH")
-        con = sqlite3.connect(uptime_db, timeout=5)
+        con = open_db_readonly(uptime_db)
         tables = {r[0] for r in con.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
         ).fetchall()}
@@ -203,8 +203,7 @@ def _collect_processing_integrity(since_ts: float, until_ts: float) -> dict[str,
         if not Path(db_path).exists():
             continue
         try:
-            import sqlite3
-            con = sqlite3.connect(db_path, timeout=5)
+            con = open_db_readonly(db_path)
             tables = {r[0] for r in con.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()}
@@ -309,10 +308,9 @@ def _collect_confidentiality(since_ts: float, until_ts: float) -> dict[str, Any]
     vault_accesses: int | str = 0
 
     try:
-        import sqlite3
         inv_db = data_path("warden_secrets_inv.db", "SECRETS_INV_DB_PATH")
         if Path(inv_db).exists():
-            con = sqlite3.connect(inv_db, timeout=5)
+            con = open_db_readonly(inv_db)
             tables = {r[0] for r in con.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()}

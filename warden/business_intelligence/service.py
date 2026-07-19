@@ -22,6 +22,7 @@ from warden.business_intelligence.benchmarking import build_benchmarks
 from warden.business_intelligence.predictive import predict_incidents
 from warden.business_intelligence.repository import cache_get, cache_set
 from warden.config import data_path
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.business_intelligence.service")
 
@@ -32,9 +33,7 @@ _LOGS_PATH = data_path("warden_logs.json", "LOGS_PATH")
 
 
 def _open(db_path: str) -> sqlite3.Connection:
-    con = sqlite3.connect(db_path)
-    con.row_factory = sqlite3.Row
-    return con
+    return open_db_readonly(db_path)
 
 
 def _cache_key(*parts: str) -> str:

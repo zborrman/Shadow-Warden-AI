@@ -139,3 +139,28 @@ def open_persistent_db(
     init_pragmas(con, foreign_keys=foreign_keys)
     ensure_schema(con, db_key, db_path)
     return con
+
+
+def open_db_readonly(
+    db_path: str,
+    *,
+    row_factory: bool = True,
+    check_same_thread: bool = False,
+) -> sqlite3.Connection:
+    """
+    Return a read-only connection to a DB this process doesn't own the schema
+    for (a peer module's tables, read by a cross-module report/collector).
+
+    Uses SQLite's URI ``mode=ro`` — a missing file raises immediately instead
+    of silently creating an empty one, which a plain read-write ``connect``
+    would do. Callers already wrap these reads in a broad except-and-return-
+    default clause, so this only tightens a foreign-schema read; it never
+    applies pragmas or touches the DDL registry, since this connection never
+    writes and doesn't own the table it's reading.
+    """
+    con = sqlite3.connect(
+        f"file:{db_path}?mode=ro", uri=True, check_same_thread=check_same_thread
+    )
+    if row_factory:
+        con.row_factory = sqlite3.Row
+    return con
