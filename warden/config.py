@@ -470,8 +470,8 @@ class Settings:
 
     # ── Ledger dual-run (warden/ledger/dual_write.py, FT-2) ──────────────────────
     # When true, live balance writers ALSO mirror into the double-entry ledger
-    # (fail-open). Existing counters stay authoritative; a recon job compares the
-    # two. Default off — the ledger proves itself before anything reads from it.
+    # (failing open). Existing counters stay authoritative; a recon job compares
+    # the two. Default off — the ledger proves itself before anything reads from it.
     ledger_dual_write: bool = field(
         default_factory=lambda: _bool("LEDGER_DUAL_WRITE", False)
     )
