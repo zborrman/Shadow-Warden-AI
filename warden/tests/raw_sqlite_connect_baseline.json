@@ -1,5 +1,5 @@
 {
-  "total": 87,
+  "total": 84,
   "per_file": {
     "agent/scheduler.py": 1,
     "analytics/pages/23_Marketplace_Admin.py": 1,
@@ -23,9 +23,6 @@
     "communities/training_records.py": 1,
     "db/ddl_registry.py": 1,
     "db/sqlite_pragmas.py": 1,
-    "gsam/jit_lease.py": 1,
-    "gsam/quarantine.py": 1,
-    "gsam/rollup.py": 1,
     "integrations/smb_suite.py": 1,
     "kya/profile.py": 1,
     "m2m_store/analytics.py": 1,

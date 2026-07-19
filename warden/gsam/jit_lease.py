@@ -35,6 +35,8 @@ from contextlib import contextmanager, suppress
 from datetime import UTC, datetime, timedelta
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.gsam.jit_lease")
@@ -57,6 +59,7 @@ _GSAM_LEASES_DDL = """
     );
     CREATE INDEX IF NOT EXISTS idx_gsam_leases_agent ON gsam_leases(agent_id, created_at);
 """
+register("gsam", "warden.gsam.jit_lease", _GSAM_LEASES_DDL)
 
 
 class LeaseError(RuntimeError):
@@ -71,24 +74,10 @@ def _lease_key() -> bytes:
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
     """Yield a Turso-or-SQLite connection for the GSAM database."""
-    with suppress(ImportError):
-        from warden.db.turso import get_connection, is_turso_enabled
-        if is_turso_enabled("gsam"):
-            with get_connection("gsam", fallback_path=settings.gsam_db_path) as con:
-                with suppress(Exception):
-                    con.executescript(_GSAM_LEASES_DDL)
-                yield con  # type: ignore[misc]
-            return
-
-    con = sqlite3.connect(settings.gsam_db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_GSAM_LEASES_DDL)
-    try:
+    with open_db(
+        "gsam", settings.gsam_db_path, turso_name="gsam", module_default_path=settings.gsam_db_path
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def _sign(lease_id: str, agent_id: str, tenant_id: str, scope: str, expires_at: str) -> str:

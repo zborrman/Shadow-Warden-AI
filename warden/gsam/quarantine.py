@@ -22,6 +22,8 @@ from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.gsam.quarantine")
 
@@ -43,27 +45,15 @@ _QUARANTINE_DDL = """
     );
     CREATE INDEX IF NOT EXISTS idx_gsam_quarantine_agent ON gsam_quarantine_log(agent_id, ts);
 """
+register("gsam", "warden.gsam.quarantine", _QUARANTINE_DDL)
 
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    with suppress(ImportError):
-        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
-        if is_turso_enabled("gsam"):
-            with get_connection("gsam", fallback_path=settings.gsam_db_path) as con:
-                with suppress(Exception):
-                    con.executescript(_QUARANTINE_DDL)
-                yield con  # type: ignore[misc]
-            return
-    con = sqlite3.connect(settings.gsam_db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_QUARANTINE_DDL)
-    try:
+    with open_db(
+        "gsam", settings.gsam_db_path, turso_name="gsam", module_default_path=settings.gsam_db_path
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def quarantine_agent(agent_id: str, drift_score: float, reason: str = "drift", redis=None) -> None:

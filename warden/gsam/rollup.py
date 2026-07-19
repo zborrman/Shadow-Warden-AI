@@ -20,6 +20,8 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.gsam import drift as _drift
 
 log = logging.getLogger("warden.gsam.rollup")
@@ -58,6 +60,7 @@ _ROLLUP_DDL = """
         released_at TEXT NOT NULL DEFAULT ''
     );
 """
+register("gsam", "warden.gsam.rollup", _ROLLUP_DDL)
 
 
 @dataclass
@@ -110,23 +113,10 @@ def fold_batch(batch: Iterable[dict]) -> dict[tuple[str, str, str], StatDelta]:
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    with suppress(ImportError):
-        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
-        if is_turso_enabled("gsam"):
-            with get_connection("gsam", fallback_path=settings.gsam_db_path) as con:
-                with suppress(Exception):
-                    con.executescript(_ROLLUP_DDL)
-                yield con  # type: ignore[misc]
-            return
-    con = sqlite3.connect(settings.gsam_db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_ROLLUP_DDL)
-    try:
+    with open_db(
+        "gsam", settings.gsam_db_path, turso_name="gsam", module_default_path=settings.gsam_db_path
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def _update_drift(con: sqlite3.Connection, agent_id: str, freq: dict[str, int]) -> float:
