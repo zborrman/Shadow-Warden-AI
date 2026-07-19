@@ -1,5 +1,5 @@
 {
-  "total": 84,
+  "total": 83,
   "per_file": {
     "agent/scheduler.py": 1,
     "analytics/pages/23_Marketplace_Admin.py": 1,
@@ -53,7 +53,6 @@
     "marketplace/x402_gate.py": 3,
     "protocols/acp/refund.py": 1,
     "protocols/acp/token_vault.py": 1,
-    "sac/preflight.py": 1,
     "security/certificate_authority.py": 1,
     "sovereign/audit.py": 1,
     "staff/a2a.py": 2,

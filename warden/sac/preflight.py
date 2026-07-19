@@ -27,6 +27,8 @@ from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.sac.preflight")
 
@@ -51,6 +53,7 @@ _WALLET_DDL = """
     );
     CREATE INDEX IF NOT EXISTS idx_sac_holds_tenant ON sac_holds(tenant_id, status);
 """
+register("sac_wallet", "warden.sac.preflight", _WALLET_DDL)
 
 
 class InsufficientFundsError(RuntimeError):
@@ -71,23 +74,11 @@ def _to_usd(micros: int) -> float:
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    with suppress(ImportError):
-        from warden.db.turso import get_connection, is_turso_enabled
-        if is_turso_enabled("sac_wallet"):
-            with get_connection("sac_wallet", fallback_path=settings.sac_wallet_db_path) as con:
-                with suppress(Exception):
-                    con.executescript(_WALLET_DDL)
-                yield con  # type: ignore[misc]
-            return
-    con = sqlite3.connect(settings.sac_wallet_db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_WALLET_DDL)
-    try:
+    with open_db(
+        "sac_wallet", settings.sac_wallet_db_path,
+        turso_name="sac_wallet", module_default_path=settings.sac_wallet_db_path,
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def _audit(tenant_id: str, event: str, amount_usd: float, agent_id: str = "") -> None:
