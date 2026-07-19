@@ -36,7 +36,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
-from warden.db.connect import open_db
+from warden.db.connect import open_db, open_persistent_db
 
 log = logging.getLogger("warden.m2m_store.analytics")
 _db_lock = threading.RLock()
@@ -62,8 +62,7 @@ def ensure_analytics_schema(con: sqlite3.Connection | None = None) -> None:
     """Create all 10 analytics tables if they do not exist (idempotent)."""
     close_after = con is None
     if con is None:
-        con = sqlite3.connect(_get_db_path(), check_same_thread=False)
-        con.execute("PRAGMA journal_mode=WAL")
+        con = open_persistent_db("m2m_store", _get_db_path())
     con.executescript("""
         CREATE TABLE IF NOT EXISTS mp_listings (
             id              TEXT PRIMARY KEY,

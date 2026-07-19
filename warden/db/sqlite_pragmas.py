@@ -4,7 +4,7 @@ import sqlite3
 def init_pragmas(conn: sqlite3.Connection, *, foreign_keys: bool = True) -> None:
     """Apply the standard Shadow Warden SQLite pragma set to an open connection.
 
-    Call immediately after sqlite3.connect(), before any DDL or DML.
+    Call immediately after opening the connection, before any DDL or DML.
     foreign_keys=False only for modules with known cross-DB references not yet resolved.
     """
     conn.execute("PRAGMA journal_mode=WAL")

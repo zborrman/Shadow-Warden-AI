@@ -31,42 +31,45 @@ import logging
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.sovereign.audit")
 
 _DB_PATH = data_path("warden_sep.db", "SEP_DB_PATH")
 _lock    = threading.RLock()
 
+_SOVEREIGN_AUDIT_DDL = """
+    CREATE TABLE IF NOT EXISTS sep_routing_audit (
+        id            TEXT PRIMARY KEY,
+        tenant_id     TEXT NOT NULL,
+        entity_ueciid TEXT,
+        tunnel_id     TEXT,
+        jurisdiction  TEXT NOT NULL,
+        action        TEXT NOT NULL,
+        compliant     INTEGER NOT NULL DEFAULT 0,
+        reason        TEXT NOT NULL,
+        frameworks    TEXT NOT NULL DEFAULT '[]',
+        latency_ms    REAL,
+        recorded_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sra_tenant ON sep_routing_audit(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_sra_action ON sep_routing_audit(action);
+"""
+register("sep", "warden.sovereign.audit", _SOVEREIGN_AUDIT_DDL)
 
-def _conn() -> sqlite3.Connection:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.execute("PRAGMA journal_mode=WAL")
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS sep_routing_audit (
-            id            TEXT PRIMARY KEY,
-            tenant_id     TEXT NOT NULL,
-            entity_ueciid TEXT,
-            tunnel_id     TEXT,
-            jurisdiction  TEXT NOT NULL,
-            action        TEXT NOT NULL,
-            compliant     INTEGER NOT NULL DEFAULT 0,
-            reason        TEXT NOT NULL,
-            frameworks    TEXT NOT NULL DEFAULT '[]',
-            latency_ms    REAL,
-            recorded_at   TEXT NOT NULL
-        )
-    """)
-    con.execute(
-        "CREATE INDEX IF NOT EXISTS idx_sra_tenant ON sep_routing_audit(tenant_id)"
-    )
-    con.execute(
-        "CREATE INDEX IF NOT EXISTS idx_sra_action ON sep_routing_audit(action)"
-    )
-    con.commit()
-    return con
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "sep", _DB_PATH, turso_name="sep", module_default_path=_DB_PATH
+    ) as con:
+        yield con
 
 
 def log_routing_decision(
@@ -83,8 +86,7 @@ def log_routing_decision(
     record_id = str(uuid.uuid4())
     now       = datetime.now(UTC).isoformat()
     try:
-        with _lock:
-            con = _conn()
+        with _lock, _conn() as con:
             con.execute(
                 """
                 INSERT OR IGNORE INTO sep_routing_audit
@@ -106,8 +108,6 @@ def log_routing_decision(
                     now,
                 ),
             )
-            con.commit()
-            con.close()
     except Exception as exc:
         log.debug("sovereign audit: write failed: %s", exc)
     return record_id
@@ -122,8 +122,7 @@ def list_decisions(
     Query routing audit records.  Returns newest-first.
     """
     try:
-        with _lock:
-            con = _conn()
+        with _lock, _conn() as con:
             where_parts: list[str] = []
             params: list = []
             if tenant_id:
@@ -138,7 +137,6 @@ def list_decisions(
                 params + [limit],
             ).fetchall()
             cols = [d[0] for d in con.execute("PRAGMA table_info(sep_routing_audit)").fetchall()]
-            con.close()
             result = []
             for row in rows:
                 d = dict(zip(cols, row, strict=False))

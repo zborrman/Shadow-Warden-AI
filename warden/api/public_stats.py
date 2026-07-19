@@ -19,6 +19,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
 from warden.config import data_path
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.api.public_stats")
 
@@ -36,9 +37,9 @@ def _load_entries() -> list[dict]:
 
 def _sep_count() -> int:
     try:
-        import sqlite3
+        from contextlib import closing
         db = data_path("warden_sep.db", "SEP_DB_PATH")
-        with sqlite3.connect(db) as conn:
+        with closing(open_db_readonly(db)) as conn:
             row = conn.execute("SELECT COUNT(*) FROM sep_ueciid_index").fetchone()
             return int(row[0]) if row else 0
     except Exception:
@@ -165,10 +166,9 @@ async def public_leaderboard() -> JSONResponse:
 
 def _get_ueciid_record(ueciid: str) -> dict | None:
     try:
-        import sqlite3
+        from contextlib import closing
         db = data_path("warden_sep.db", "SEP_DB_PATH")
-        with sqlite3.connect(db) as conn:
-            conn.row_factory = sqlite3.Row
+        with closing(open_db_readonly(db)) as conn:
             row = conn.execute(
                 "SELECT * FROM sep_ueciid_index WHERE ueciid=?", (ueciid,)
             ).fetchone()

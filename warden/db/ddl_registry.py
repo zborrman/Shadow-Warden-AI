@@ -99,7 +99,7 @@ def ensure_schema(conn: Any, db_key: str, db_path: str = "") -> int:
     within one process lifetime, which would otherwise make ``ensure_schema``
     believe a fresh, empty file already has its tables. Every call re-verifies
     against ``conn``'s own tracking table (one indexed SELECT) before deciding
-    what is pending — cheap relative to the ``sqlite3.connect()`` this always
+    what is pending — cheap relative to opening the connection this always
     follows, and it is what keeps re-running the full DDL script rare, not this.
     """
     with _lock:

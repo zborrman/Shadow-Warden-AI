@@ -436,7 +436,7 @@ async def apply_community_recommendation(
     Returns immediately with `status=pending` if approval required, or
     `status=applied` if `auto_approve=true` env is set (admin use only).
     """
-    import sqlite3  # noqa: PLC0415
+    from contextlib import closing  # noqa: PLC0415
 
     t0 = time.perf_counter()
 
@@ -445,10 +445,10 @@ async def apply_community_recommendation(
 
     # Fetch the UECIID record
     from warden.config import data_path  # noqa: PLC0415
+    from warden.db.connect import open_db_readonly  # noqa: PLC0415
     db_path = data_path("warden_sep.db", "SEP_DB_PATH")
     try:
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
+        with closing(open_db_readonly(db_path)) as conn:
             row = conn.execute(
                 "SELECT * FROM sep_ueciid_index WHERE ueciid=?", (ueciid,)
             ).fetchone()
