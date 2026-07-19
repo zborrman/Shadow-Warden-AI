@@ -468,6 +468,14 @@ class Settings:
         default_factory=lambda: _float("BRIDGE_ERS_RESTRICT", 0.70)
     )
 
+    # ── Ledger dual-run (warden/ledger/dual_write.py, FT-2) ──────────────────────
+    # When true, live balance writers ALSO mirror into the double-entry ledger
+    # (fail-open). Existing counters stay authoritative; a recon job compares the
+    # two. Default off — the ledger proves itself before anything reads from it.
+    ledger_dual_write: bool = field(
+        default_factory=lambda: _bool("LEDGER_DUAL_WRITE", False)
+    )
+
     # ── Entity Risk Scoring (warden/entity_risk.py) ──────────────────────────────
     ers_enabled: bool = field(
         default_factory=lambda: _bool("ERS_ENABLED", True)

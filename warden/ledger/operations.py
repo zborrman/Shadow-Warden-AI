@@ -27,7 +27,7 @@ from warden.ledger.journal import Posting, Transaction
 from warden.ledger.money import Money
 
 __all__ = [
-    "topup", "grant_trial", "grant_bonus", "grant_credits", "purchase",
+    "topup", "grant_trial", "grant_bonus", "grant_credits", "spend_credits", "purchase",
     "reserve", "capture", "void",
 ]
 
@@ -62,6 +62,19 @@ def grant_credits(
         idempotency_key, "grant_credits",
         [Posting(accounts.tenant_credits(tenant_id), amount),
          Posting(accounts.processor_clearing(processor), -amount)],
+        db_path=db_path,
+    )
+
+
+def spend_credits(
+    tenant_id: str, amount: Money, *, idempotency_key: str, db_path: str | None = None,
+) -> Transaction:
+    """Consume prepaid credits — the credit's value is recognised as platform revenue."""
+    _require_positive(amount, "spend amount")
+    return journal.post(
+        idempotency_key, "spend_credits",
+        [Posting(accounts.tenant_credits(tenant_id), -amount),
+         Posting(accounts.platform_fees(), amount)],
         db_path=db_path,
     )
 
