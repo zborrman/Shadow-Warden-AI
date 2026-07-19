@@ -283,3 +283,16 @@ def get_balance(tenant_id: str) -> int:
     balance = _db_get_balance(tenant_id)
     _redis_sync(tenant_id, balance)
     return balance
+
+
+def all_balances() -> dict[str, int]:
+    """Every tenant's credit balance from SQLite (the durable source of truth).
+
+    Used by the FT-2 ledger reconciliation job. Reads SQLite, not Redis — Redis is
+    a fast-path cache and may lag; the SQLite table is authoritative.
+    """
+    with _db_lock, _conn() as con:
+        rows = con.execute(
+            "SELECT tenant_id, balance_credits FROM marketplace_credits"
+        ).fetchall()
+    return {r["tenant_id"]: int(r["balance_credits"]) for r in rows}
