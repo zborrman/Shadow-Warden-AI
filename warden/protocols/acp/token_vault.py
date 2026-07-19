@@ -22,6 +22,8 @@ from contextlib import contextmanager, suppress
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.protocols.acp.models import SharedPaymentToken
 from warden.secret_keys import resolve_key
 
@@ -75,30 +77,14 @@ _ACP_DDL = """
     );
     CREATE INDEX IF NOT EXISTS idx_acp_refunds_tenant ON acp_refunds(tenant_id, status);
 """
+register("acp", "warden.protocols.acp.token_vault", _ACP_DDL)
 
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
     """Yield a Turso-or-SQLite connection for the ACP database."""
-    try:
-        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
-        if is_turso_enabled("acp"):
-            with get_connection("acp", fallback_path=_DB_PATH) as con:
-                with suppress(Exception):
-                    con.executescript(_ACP_DDL)
-                yield con  # type: ignore[misc]
-            return
-    except ImportError:
-        pass
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_ACP_DDL)
-    try:
+    with open_db("acp", _DB_PATH, turso_name="acp", module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── HMAC helpers ───────────────────────────────────────────────────────────────

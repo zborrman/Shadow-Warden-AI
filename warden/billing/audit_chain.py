@@ -35,12 +35,14 @@ import sqlite3
 import threading
 import uuid
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.billing.audit_chain")
 
@@ -90,6 +92,7 @@ _DDL = """
         anchored_at TEXT NOT NULL
     );
 """
+register("billing_audit", "warden.billing.audit_chain", _DDL)
 
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
@@ -99,45 +102,14 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
     """
     Yield a connection with schema applied.
 
-    Priority:
-      1. Explicit db_path → always use local SQLite (test isolation, explicit path)
-      2. Turso env vars set → use Turso remote connection
-      3. Fallback → local SQLite at _DB_PATH
+    Priority (unchanged): explicit db_path forces local SQLite (test isolation);
+    otherwise routes through Turso when enabled, else local SQLite at _DB_PATH.
     """
-    if db_path is not None:
-        # Explicit path → local SQLite (used by tests + explicit overrides)
-        con = sqlite3.connect(db_path, check_same_thread=False)
-        con.row_factory = sqlite3.Row
-        con.execute("PRAGMA journal_mode=WAL")
-        con.executescript(_DDL)
-        try:
-            yield con
-            con.commit()
-        finally:
-            con.close()
-        return
-
-    try:
-        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
-        if is_turso_enabled("billing_audit"):
-            with get_connection("billing_audit", fallback_path=_DB_PATH) as con:  # type: ignore[assignment]
-                with suppress(Exception):
-                    con.executescript(_DDL)
-                yield con
-            return
-    except ImportError:
-        pass
-
-    # Local SQLite fallback
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_DDL)
-    try:
+    with open_db(
+        "billing_audit", db_path if db_path is not None else _DB_PATH,
+        turso_name="billing_audit", module_default_path=_DB_PATH,
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Hash helpers ───────────────────────────────────────────────────────────────

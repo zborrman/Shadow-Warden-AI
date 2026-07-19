@@ -15,6 +15,8 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.protocols.acp.models import RefundRequest
 
 log = logging.getLogger("warden.acp.refund")
@@ -22,32 +24,33 @@ log = logging.getLogger("warden.acp.refund")
 _DB_PATH = data_path("warden_acp.db", "ACP_DB_PATH")
 _db_lock = threading.RLock()
 
+# Mirrors token_vault.py's acp_refunds definition (same physical table, shared
+# "acp" db_key) — kept self-sufficient so this module's schema is complete
+# even if token_vault.py hasn't been imported yet in this process.
+_ACP_REFUNDS_DDL = """
+    CREATE TABLE IF NOT EXISTS acp_refunds (
+        refund_id   TEXT PRIMARY KEY,
+        order_id    TEXT NOT NULL,
+        merchant_id TEXT NOT NULL,
+        agent_id    TEXT NOT NULL,
+        tenant_id   TEXT NOT NULL,
+        amount      REAL NOT NULL,
+        currency    TEXT NOT NULL DEFAULT 'USD',
+        reason      TEXT NOT NULL DEFAULT '',
+        status      TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
+        stix_chain_id TEXT NOT NULL DEFAULT '',
+        created_at  TEXT NOT NULL,
+        resolved_at TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_acp_refunds_tenant ON acp_refunds(tenant_id, status);
+"""
+register("acp", "warden.protocols.acp.refund", _ACP_REFUNDS_DDL)
+
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS acp_refunds (
-            refund_id    TEXT PRIMARY KEY,
-            order_id     TEXT NOT NULL,
-            merchant_id  TEXT NOT NULL,
-            agent_id     TEXT NOT NULL,
-            tenant_id    TEXT NOT NULL,
-            amount       REAL NOT NULL,
-            currency     TEXT NOT NULL DEFAULT 'USD',
-            reason       TEXT,
-            status       TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
-            stix_chain_id TEXT DEFAULT '',
-            created_at   TEXT NOT NULL
-        )
-    """)
-    try:
+    with open_db("acp", _DB_PATH, turso_name="acp", module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def request_refund(
