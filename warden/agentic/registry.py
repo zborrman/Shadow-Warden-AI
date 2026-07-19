@@ -25,11 +25,57 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
+
 log = logging.getLogger("warden.agentic.registry")
 
 
 def _db_path() -> Path:
     return Path(os.getenv("AGENT_REGISTRY_DB_PATH", "/warden/data/agent_registry.db"))
+
+
+_AGENTIC_REGISTRY_DDL = """
+    CREATE TABLE IF NOT EXISTS agents (
+        agent_id             TEXT PRIMARY KEY,
+        tenant_id            TEXT NOT NULL,
+        name                 TEXT NOT NULL,
+        provider             TEXT NOT NULL DEFAULT '',
+        status               TEXT NOT NULL DEFAULT 'active',
+        max_per_item         REAL NOT NULL DEFAULT 0.0,
+        monthly_budget       REAL NOT NULL DEFAULT 0.0,
+        require_confirmation INTEGER NOT NULL DEFAULT 0,
+        allowed_categories   TEXT NOT NULL DEFAULT '[]',
+        mandate_ttl_seconds  INTEGER NOT NULL DEFAULT 300,
+        created_at           TEXT NOT NULL,
+        updated_at           TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_agents_tenant
+        ON agents(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_agents_status
+        ON agents(status);
+
+    CREATE TABLE IF NOT EXISTS activity_log (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id      TEXT NOT NULL,
+        agent_id       TEXT NOT NULL,
+        action         TEXT NOT NULL,
+        sku            TEXT NOT NULL DEFAULT '',
+        amount         REAL NOT NULL DEFAULT 0.0,
+        currency       TEXT NOT NULL DEFAULT 'USD',
+        status         TEXT NOT NULL,
+        reason         TEXT NOT NULL DEFAULT '',
+        transaction_id TEXT NOT NULL DEFAULT '',
+        timestamp      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_activity_tenant
+        ON activity_log(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_activity_agent
+        ON activity_log(agent_id);
+    CREATE INDEX IF NOT EXISTS idx_activity_ts
+        ON activity_log(timestamp);
+"""
+register("agentic_registry", "warden.agentic.registry", _AGENTIC_REGISTRY_DDL)
 
 
 class AgentRegistry:
@@ -40,61 +86,11 @@ class AgentRegistry:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = self._open()
-        self._init_schema()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.executescript("""
-                CREATE TABLE IF NOT EXISTS agents (
-                    agent_id             TEXT PRIMARY KEY,
-                    tenant_id            TEXT NOT NULL,
-                    name                 TEXT NOT NULL,
-                    provider             TEXT NOT NULL DEFAULT '',
-                    status               TEXT NOT NULL DEFAULT 'active',
-                    max_per_item         REAL NOT NULL DEFAULT 0.0,
-                    monthly_budget       REAL NOT NULL DEFAULT 0.0,
-                    require_confirmation INTEGER NOT NULL DEFAULT 0,
-                    allowed_categories   TEXT NOT NULL DEFAULT '[]',
-                    mandate_ttl_seconds  INTEGER NOT NULL DEFAULT 300,
-                    created_at           TEXT NOT NULL,
-                    updated_at           TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_agents_tenant
-                    ON agents(tenant_id);
-                CREATE INDEX IF NOT EXISTS idx_agents_status
-                    ON agents(status);
-
-                CREATE TABLE IF NOT EXISTS activity_log (
-                    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tenant_id      TEXT NOT NULL,
-                    agent_id       TEXT NOT NULL,
-                    action         TEXT NOT NULL,
-                    sku            TEXT NOT NULL DEFAULT '',
-                    amount         REAL NOT NULL DEFAULT 0.0,
-                    currency       TEXT NOT NULL DEFAULT 'USD',
-                    status         TEXT NOT NULL,
-                    reason         TEXT NOT NULL DEFAULT '',
-                    transaction_id TEXT NOT NULL DEFAULT '',
-                    timestamp      TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_activity_tenant
-                    ON activity_log(tenant_id);
-                CREATE INDEX IF NOT EXISTS idx_activity_agent
-                    ON activity_log(agent_id);
-                CREATE INDEX IF NOT EXISTS idx_activity_ts
-                    ON activity_log(timestamp);
-            """)
-            self._conn.commit()
+        return open_persistent_db("agentic_registry", str(self._path))
 
     # ── Agent CRUD ────────────────────────────────────────────────────────────
 

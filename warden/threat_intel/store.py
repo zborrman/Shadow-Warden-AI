@@ -21,6 +21,8 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
 from warden.schemas import ThreatIntelItem, ThreatIntelStats, ThreatIntelStatus
 
 log = logging.getLogger("warden.threat_intel.store")
@@ -28,6 +30,50 @@ log = logging.getLogger("warden.threat_intel.store")
 THREAT_INTEL_DB_PATH = Path(
     os.getenv("THREAT_INTEL_DB_PATH", "/warden/data/threat_intel.db")
 )
+
+_THREAT_INTEL_DDL = """
+    CREATE TABLE IF NOT EXISTS threat_intel_items (
+        id               TEXT PRIMARY KEY,
+        source           TEXT NOT NULL,
+        title            TEXT NOT NULL DEFAULT '',
+        url              TEXT NOT NULL DEFAULT '',
+        source_url_hash  TEXT NOT NULL UNIQUE,
+        published_at     TEXT,
+        raw_description  TEXT NOT NULL DEFAULT '',
+        relevance_score  REAL,
+        owasp_category   TEXT,
+        attack_pattern   TEXT NOT NULL DEFAULT '',
+        detection_hint   TEXT NOT NULL DEFAULT '',
+        countermeasure   TEXT NOT NULL DEFAULT '',
+        status           TEXT NOT NULL DEFAULT 'new',
+        rules_generated  INTEGER NOT NULL DEFAULT 0,
+        created_at       TEXT NOT NULL,
+        analyzed_at      TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ti_status
+        ON threat_intel_items(status);
+    CREATE INDEX IF NOT EXISTS idx_ti_source
+        ON threat_intel_items(source);
+    CREATE INDEX IF NOT EXISTS idx_ti_owasp
+        ON threat_intel_items(owasp_category);
+    CREATE INDEX IF NOT EXISTS idx_ti_created
+        ON threat_intel_items(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS threat_intel_countermeasures (
+        id              TEXT PRIMARY KEY,
+        threat_item_id  TEXT NOT NULL
+            REFERENCES threat_intel_items(id),
+        rule_id         TEXT NOT NULL,
+        rule_type       TEXT NOT NULL,
+        rule_value      TEXT NOT NULL,
+        created_at      TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_cm_threat
+        ON threat_intel_countermeasures(threat_item_id);
+"""
+register("threat_intel", "warden.threat_intel.store", _THREAT_INTEL_DDL)
 
 
 class ThreatIntelStore:
@@ -49,67 +95,11 @@ class ThreatIntelStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = self._open()
-        self._init_schema()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(
-            str(self._path),
-            check_same_thread=False,
-            timeout=30,  # seconds to wait for WAL lock before raising OperationalError
-        )
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.executescript("""
-                CREATE TABLE IF NOT EXISTS threat_intel_items (
-                    id               TEXT PRIMARY KEY,
-                    source           TEXT NOT NULL,
-                    title            TEXT NOT NULL DEFAULT '',
-                    url              TEXT NOT NULL DEFAULT '',
-                    source_url_hash  TEXT NOT NULL UNIQUE,
-                    published_at     TEXT,
-                    raw_description  TEXT NOT NULL DEFAULT '',
-                    relevance_score  REAL,
-                    owasp_category   TEXT,
-                    attack_pattern   TEXT NOT NULL DEFAULT '',
-                    detection_hint   TEXT NOT NULL DEFAULT '',
-                    countermeasure   TEXT NOT NULL DEFAULT '',
-                    status           TEXT NOT NULL DEFAULT 'new',
-                    rules_generated  INTEGER NOT NULL DEFAULT 0,
-                    created_at       TEXT NOT NULL,
-                    analyzed_at      TEXT
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_ti_status
-                    ON threat_intel_items(status);
-                CREATE INDEX IF NOT EXISTS idx_ti_source
-                    ON threat_intel_items(source);
-                CREATE INDEX IF NOT EXISTS idx_ti_owasp
-                    ON threat_intel_items(owasp_category);
-                CREATE INDEX IF NOT EXISTS idx_ti_created
-                    ON threat_intel_items(created_at DESC);
-
-                CREATE TABLE IF NOT EXISTS threat_intel_countermeasures (
-                    id              TEXT PRIMARY KEY,
-                    threat_item_id  TEXT NOT NULL
-                        REFERENCES threat_intel_items(id),
-                    rule_id         TEXT NOT NULL,
-                    rule_type       TEXT NOT NULL,
-                    rule_value      TEXT NOT NULL,
-                    created_at      TEXT NOT NULL
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_cm_threat
-                    ON threat_intel_countermeasures(threat_item_id);
-            """)
-            self._conn.commit()
+        return open_persistent_db("threat_intel", str(self._path))
 
     # ── Write ─────────────────────────────────────────────────────────────────
 

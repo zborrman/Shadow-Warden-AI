@@ -28,6 +28,9 @@ import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
+
 log = logging.getLogger("warden.rule_ledger")
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -37,6 +40,23 @@ LEDGER_PATH = Path(
 )
 RETIRE_AFTER_DAYS    = int(os.getenv("RULE_RETIRE_DAYS",    "30"))
 FP_RETIRE_THRESHOLD  = int(os.getenv("RULE_FP_THRESHOLD",   "3"))
+
+_RULE_LEDGER_DDL = """
+    CREATE TABLE IF NOT EXISTS rules (
+        rule_id          TEXT PRIMARY KEY,
+        source           TEXT NOT NULL DEFAULT 'evolution',
+        created_at       TEXT NOT NULL,
+        pattern_snippet  TEXT NOT NULL,
+        rule_type        TEXT NOT NULL DEFAULT 'regex_pattern',
+        activation_count INTEGER NOT NULL DEFAULT 0,
+        last_fired_at    TEXT,
+        fp_reports       INTEGER NOT NULL DEFAULT 0,
+        status           TEXT NOT NULL DEFAULT 'pending_review'
+    );
+    CREATE INDEX IF NOT EXISTS idx_rules_status ON rules(status);
+    CREATE INDEX IF NOT EXISTS idx_rules_type ON rules(rule_type);
+"""
+register("rule_ledger", "warden.rule_ledger", _RULE_LEDGER_DDL)
 
 
 # ── RuleLedger ────────────────────────────────────────────────────────────────
@@ -67,38 +87,11 @@ class RuleLedger:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = self._open()
-        self._init_schema()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.execute("""
-                CREATE TABLE IF NOT EXISTS rules (
-                    rule_id          TEXT PRIMARY KEY,
-                    source           TEXT NOT NULL DEFAULT 'evolution',
-                    created_at       TEXT NOT NULL,
-                    pattern_snippet  TEXT NOT NULL,
-                    rule_type        TEXT NOT NULL DEFAULT 'regex_pattern',
-                    activation_count INTEGER NOT NULL DEFAULT 0,
-                    last_fired_at    TEXT,
-                    fp_reports       INTEGER NOT NULL DEFAULT 0,
-                    status           TEXT NOT NULL DEFAULT 'pending_review'
-                )
-            """)
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_rules_status ON rules(status)"
-            )
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_rules_type ON rules(rule_type)"
-            )
-            self._conn.commit()
+        return open_persistent_db("rule_ledger", str(self._path), row_factory=False)
 
     # ── Write ─────────────────────────────────────────────────────────────────
 

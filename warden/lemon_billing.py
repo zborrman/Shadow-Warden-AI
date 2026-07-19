@@ -44,6 +44,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from warden.config import settings
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.lemon_billing")
 
@@ -66,6 +68,35 @@ _LS_API_BASE = "https://api.lemonsqueezy.com/v1"
 def _db_path() -> Path:
     """Resolved lazily so test env vars set after import are respected."""
     return Path(os.getenv("LEMONSQUEEZY_DB_PATH", "/warden/data/lemon.db"))
+
+
+_LEMON_BILLING_DDL = """
+    CREATE TABLE IF NOT EXISTS subscriptions (
+        tenant_id         TEXT PRIMARY KEY,
+        ls_customer_id    TEXT,
+        ls_sub_id         TEXT,
+        ls_sub_item_id    TEXT,
+        plan              TEXT NOT NULL DEFAULT 'starter',
+        status            TEXT NOT NULL DEFAULT 'active',
+        renews_at         TEXT,
+        updated_at        TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_subs_ls_sub
+        ON subscriptions(ls_sub_id);
+    CREATE TABLE IF NOT EXISTS webhook_events (
+        event_id        TEXT PRIMARY KEY,
+        event_name      TEXT NOT NULL,
+        processed_at    TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS tenant_feature_flags (
+        tenant_id                TEXT PRIMARY KEY,
+        post_quantum_cryptography INTEGER NOT NULL DEFAULT 0,
+        sova_agent               INTEGER NOT NULL DEFAULT 0,
+        marketplace_node         INTEGER NOT NULL DEFAULT 0,
+        updated_at               TEXT NOT NULL
+    );
+"""
+register("lemon_billing", "warden.lemon_billing", _LEMON_BILLING_DDL)
 
 
 # ── Plan definitions ──────────────────────────────────────────────────────────
@@ -146,47 +177,11 @@ class LemonBilling:
         self._lock    = threading.Lock()
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._conn    = self._open()
-        self._init_schema()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.executescript("""
-                CREATE TABLE IF NOT EXISTS subscriptions (
-                    tenant_id         TEXT PRIMARY KEY,
-                    ls_customer_id    TEXT,
-                    ls_sub_id         TEXT,
-                    ls_sub_item_id    TEXT,
-                    plan              TEXT NOT NULL DEFAULT 'starter',
-                    status            TEXT NOT NULL DEFAULT 'active',
-                    renews_at         TEXT,
-                    updated_at        TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_subs_ls_sub
-                    ON subscriptions(ls_sub_id);
-                CREATE TABLE IF NOT EXISTS webhook_events (
-                    event_id        TEXT PRIMARY KEY,
-                    event_name      TEXT NOT NULL,
-                    processed_at    TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS tenant_feature_flags (
-                    tenant_id                TEXT PRIMARY KEY,
-                    post_quantum_cryptography INTEGER NOT NULL DEFAULT 0,
-                    sova_agent               INTEGER NOT NULL DEFAULT 0,
-                    marketplace_node         INTEGER NOT NULL DEFAULT 0,
-                    updated_at               TEXT NOT NULL
-                );
-            """)
-            self._conn.commit()
+        return open_persistent_db("lemon_billing", str(self._path))
 
     # ── Plan / quota queries ──────────────────────────────────────────────────
 

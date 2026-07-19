@@ -18,7 +18,8 @@ import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.billing")
 
@@ -33,6 +34,35 @@ LOGS_PATH = Path(
 )
 
 BILLING_AGG_INTERVAL = int(os.getenv("BILLING_AGG_INTERVAL", "60"))   # seconds
+
+_BILLING_DDL = """
+    CREATE TABLE IF NOT EXISTS billing_daily (
+        date      TEXT    NOT NULL,
+        tenant_id TEXT    NOT NULL,
+        requests  INTEGER NOT NULL DEFAULT 0,
+        blocked   INTEGER NOT NULL DEFAULT 0,
+        cost_usd  REAL    NOT NULL DEFAULT 0.0,
+        tokens    INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (date, tenant_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_bd_tenant
+        ON billing_daily(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_bd_tenant_date
+        ON billing_daily(tenant_id, date);
+
+    CREATE TABLE IF NOT EXISTS tenant_quotas (
+        tenant_id  TEXT PRIMARY KEY,
+        quota_usd  REAL NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS agg_watermark (
+        id      INTEGER PRIMARY KEY,
+        last_ts TEXT    NOT NULL DEFAULT ''
+    );
+    INSERT OR IGNORE INTO agg_watermark (id, last_ts) VALUES (1, '');
+"""
+register("billing", "warden.billing", _BILLING_DDL)
 
 
 # ── BillingStore ──────────────────────────────────────────────────────────────
@@ -67,45 +97,11 @@ class BillingStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = self._open()
-        self._init_schema()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        init_pragmas(conn)
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.executescript("""
-                CREATE TABLE IF NOT EXISTS billing_daily (
-                    date      TEXT    NOT NULL,
-                    tenant_id TEXT    NOT NULL,
-                    requests  INTEGER NOT NULL DEFAULT 0,
-                    blocked   INTEGER NOT NULL DEFAULT 0,
-                    cost_usd  REAL    NOT NULL DEFAULT 0.0,
-                    tokens    INTEGER NOT NULL DEFAULT 0,
-                    PRIMARY KEY (date, tenant_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_bd_tenant
-                    ON billing_daily(tenant_id);
-                CREATE INDEX IF NOT EXISTS idx_bd_tenant_date
-                    ON billing_daily(tenant_id, date);
-
-                CREATE TABLE IF NOT EXISTS tenant_quotas (
-                    tenant_id  TEXT PRIMARY KEY,
-                    quota_usd  REAL NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS agg_watermark (
-                    id      INTEGER PRIMARY KEY,
-                    last_ts TEXT    NOT NULL DEFAULT ''
-                );
-                INSERT OR IGNORE INTO agg_watermark (id, last_ts) VALUES (1, '');
-            """)
-            self._conn.commit()
+        return open_persistent_db("billing", str(self._path), row_factory=False)
 
     # ── Aggregation ───────────────────────────────────────────────────────────
 

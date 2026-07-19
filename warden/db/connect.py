@@ -110,3 +110,32 @@ def open_db(
         con.commit()
     finally:
         con.close()
+
+
+def open_persistent_db(
+    db_key: str,
+    db_path: str,
+    *,
+    row_factory: bool = True,
+    foreign_keys: bool = True,
+    check_same_thread: bool = False,
+) -> sqlite3.Connection:
+    """
+    Return a long-lived connection with pragmas applied and schema ensured once.
+
+    For the ``self._conn`` class pattern — one connection opened in ``__init__``
+    and held for the instance's lifetime — where ``open_db``'s per-call
+    context manager doesn't fit: these classes commit explicitly inside their
+    own ``threading.Lock``-protected write methods, so there is no single call
+    boundary to auto-commit/close around. The caller owns the returned
+    connection and must call ``.close()`` itself.
+
+    No Turso routing (unlike ``open_db``) — none of the ``self._conn``-holding
+    modules are Turso-active; add it here if that changes.
+    """
+    con = sqlite3.connect(db_path, check_same_thread=check_same_thread)
+    if row_factory:
+        con.row_factory = sqlite3.Row
+    init_pragmas(con, foreign_keys=foreign_keys)
+    ensure_schema(con, db_key, db_path)
+    return con

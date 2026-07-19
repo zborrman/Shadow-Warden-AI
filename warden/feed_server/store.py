@@ -20,12 +20,62 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
+
 log = logging.getLogger("warden.feed_server.store")
 
 _DB_PATH = Path(__import__("os").getenv("FEED_DB_PATH", "/warden/data/feed_server.db"))
 
 # Submission rate cap per source_id per calendar day
 _DAILY_SUBMIT_CAP = int(__import__("os").getenv("FEED_DAILY_SUBMIT_CAP", "50"))
+
+_FEED_SERVER_DDL = """
+    CREATE TABLE IF NOT EXISTS rules (
+        rule_id     TEXT PRIMARY KEY,
+        rule_type   TEXT NOT NULL,
+        value       TEXT NOT NULL UNIQUE,
+        attack_type TEXT NOT NULL DEFAULT 'jailbreak',
+        risk_level  TEXT NOT NULL DEFAULT 'high',
+        source_id   TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'pending',
+        published   TEXT,
+        submitted   TEXT NOT NULL,
+        downloads   INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_rules_status  ON rules(status);
+    CREATE INDEX IF NOT EXISTS idx_rules_source  ON rules(source_id);
+
+    -- Tracks every source that has submitted a given rule value.
+    -- Populated on first submit AND on every dedup hit (different source,
+    -- same value) so that auto_vet can correctly count unique sources.
+    CREATE TABLE IF NOT EXISTS rule_sources (
+        rule_id   TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        submitted TEXT NOT NULL,
+        UNIQUE(rule_id, source_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_rule_sources_rule ON rule_sources(rule_id);
+
+    CREATE TABLE IF NOT EXISTS subscriptions (
+        sub_id      TEXT PRIMARY KEY,
+        key_hash    TEXT NOT NULL UNIQUE,
+        tier        TEXT NOT NULL DEFAULT 'free',
+        label       TEXT NOT NULL DEFAULT '',
+        active      INTEGER NOT NULL DEFAULT 1,
+        created_at  TEXT NOT NULL,
+        last_seen   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_log (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts          TEXT NOT NULL,
+        rule_id     TEXT,
+        action      TEXT NOT NULL,
+        detail      TEXT
+    );
+"""
+register("feed_server", "warden.feed_server.store", _FEED_SERVER_DDL)
 
 
 class FeedStore:
@@ -36,66 +86,11 @@ class FeedStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = self._open()
-        self._init_schema()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.executescript("""
-                CREATE TABLE IF NOT EXISTS rules (
-                    rule_id     TEXT PRIMARY KEY,
-                    rule_type   TEXT NOT NULL,
-                    value       TEXT NOT NULL UNIQUE,
-                    attack_type TEXT NOT NULL DEFAULT 'jailbreak',
-                    risk_level  TEXT NOT NULL DEFAULT 'high',
-                    source_id   TEXT NOT NULL,
-                    status      TEXT NOT NULL DEFAULT 'pending',
-                    published   TEXT,
-                    submitted   TEXT NOT NULL,
-                    downloads   INTEGER NOT NULL DEFAULT 0
-                );
-                CREATE INDEX IF NOT EXISTS idx_rules_status  ON rules(status);
-                CREATE INDEX IF NOT EXISTS idx_rules_source  ON rules(source_id);
-
-                -- Tracks every source that has submitted a given rule value.
-                -- Populated on first submit AND on every dedup hit (different source,
-                -- same value) so that auto_vet can correctly count unique sources.
-                CREATE TABLE IF NOT EXISTS rule_sources (
-                    rule_id   TEXT NOT NULL,
-                    source_id TEXT NOT NULL,
-                    submitted TEXT NOT NULL,
-                    UNIQUE(rule_id, source_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_rule_sources_rule ON rule_sources(rule_id);
-
-                CREATE TABLE IF NOT EXISTS subscriptions (
-                    sub_id      TEXT PRIMARY KEY,
-                    key_hash    TEXT NOT NULL UNIQUE,
-                    tier        TEXT NOT NULL DEFAULT 'free',
-                    label       TEXT NOT NULL DEFAULT '',
-                    active      INTEGER NOT NULL DEFAULT 1,
-                    created_at  TEXT NOT NULL,
-                    last_seen   TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS audit_log (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ts          TEXT NOT NULL,
-                    rule_id     TEXT,
-                    action      TEXT NOT NULL,
-                    detail      TEXT
-                );
-            """)
-            self._conn.commit()
+        return open_persistent_db("feed_server", str(self._path))
 
     def _audit(self, action: str, rule_id: str | None = None, detail: str = "") -> None:
         self._conn.execute(

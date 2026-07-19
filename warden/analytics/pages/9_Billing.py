@@ -18,6 +18,7 @@ import pandas as pd
 import streamlit as st
 
 from warden.config import settings
+from warden.db.connect import open_db
 
 st.set_page_config(page_title="Billing", page_icon="💳", layout="wide")
 
@@ -56,14 +57,11 @@ _PORTAL     = settings.billing_page_portal_url
 def _load_subscriptions() -> pd.DataFrame:
     if not _DB_PATH.exists():
         return pd.DataFrame()
-    import sqlite3
-    conn = sqlite3.connect(str(_DB_PATH))
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT tenant_id, ls_customer_id, ls_sub_id, plan, status, renews_at, updated_at "
-        "FROM subscriptions ORDER BY updated_at DESC"
-    ).fetchall()
-    conn.close()
+    with open_db("lemon_billing", str(_DB_PATH), module_default_path=str(_DB_PATH)) as conn:
+        rows = conn.execute(
+            "SELECT tenant_id, ls_customer_id, ls_sub_id, plan, status, renews_at, updated_at "
+            "FROM subscriptions ORDER BY updated_at DESC"
+        ).fetchall()
     if not rows:
         return pd.DataFrame()
     return pd.DataFrame([dict(r) for r in rows])
@@ -73,15 +71,12 @@ def _load_subscriptions() -> pd.DataFrame:
 def _load_webhook_events(limit: int = 100) -> pd.DataFrame:
     if not _DB_PATH.exists():
         return pd.DataFrame()
-    import sqlite3
-    conn = sqlite3.connect(str(_DB_PATH))
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT event_id, event_name, processed_at FROM webhook_events "
-        "ORDER BY processed_at DESC LIMIT ?",
-        (limit,),
-    ).fetchall()
-    conn.close()
+    with open_db("lemon_billing", str(_DB_PATH), module_default_path=str(_DB_PATH)) as conn:
+        rows = conn.execute(
+            "SELECT event_id, event_name, processed_at FROM webhook_events "
+            "ORDER BY processed_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
     if not rows:
         return pd.DataFrame()
     return pd.DataFrame([dict(r) for r in rows])

@@ -34,12 +34,57 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from warden.config import settings
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.threat_store")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
 THREAT_DB_PATH = Path(settings.threat_db_path)
+
+_THREAT_STORE_DDL = """
+    CREATE TABLE IF NOT EXISTS threat_events (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts         TEXT NOT NULL,
+        ip         TEXT NOT NULL DEFAULT '',
+        tenant_id  TEXT NOT NULL DEFAULT 'default',
+        event_type TEXT NOT NULL,
+        risk_level TEXT NOT NULL DEFAULT '',
+        flags      TEXT NOT NULL DEFAULT '[]',
+        pattern    TEXT NOT NULL DEFAULT '',
+        severity   TEXT NOT NULL DEFAULT '',
+        session_id TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_te_ip
+        ON threat_events(ip);
+    CREATE INDEX IF NOT EXISTS idx_te_tenant
+        ON threat_events(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_te_ts
+        ON threat_events(ts);
+
+    CREATE TABLE IF NOT EXISTS attacker_profiles (
+        ip           TEXT NOT NULL,
+        tenant_id    TEXT NOT NULL DEFAULT 'default',
+        first_seen   TEXT NOT NULL,
+        last_seen    TEXT NOT NULL,
+        block_count  INTEGER NOT NULL DEFAULT 0,
+        threat_count INTEGER NOT NULL DEFAULT 0,
+        threat_types TEXT NOT NULL DEFAULT '[]',
+        PRIMARY KEY (ip, tenant_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS blocked_ips (
+        ip         TEXT NOT NULL,
+        tenant_id  TEXT NOT NULL DEFAULT 'default',
+        reason     TEXT NOT NULL DEFAULT '',
+        blocked_at TEXT NOT NULL,
+        blocked_by TEXT NOT NULL DEFAULT 'manual',
+        expires_at TEXT,
+        PRIMARY KEY (ip, tenant_id)
+    );
+"""
+register("threat_store", "warden.threat_store", _THREAT_STORE_DDL)
 
 # Auto-block: if an IP accumulates this many block events within the window,
 # it is automatically added to blocked_ips.  Set 0 to disable auto-block.
@@ -77,7 +122,6 @@ class ThreatStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self.__conn: sqlite3.Connection = self._open()
-        self._init_schema()
 
     @property
     def _conn(self) -> sqlite3.Connection:
@@ -94,55 +138,7 @@ class ThreatStore:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.executescript("""
-                CREATE TABLE IF NOT EXISTS threat_events (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ts         TEXT NOT NULL,
-                    ip         TEXT NOT NULL DEFAULT '',
-                    tenant_id  TEXT NOT NULL DEFAULT 'default',
-                    event_type TEXT NOT NULL,
-                    risk_level TEXT NOT NULL DEFAULT '',
-                    flags      TEXT NOT NULL DEFAULT '[]',
-                    pattern    TEXT NOT NULL DEFAULT '',
-                    severity   TEXT NOT NULL DEFAULT '',
-                    session_id TEXT NOT NULL DEFAULT ''
-                );
-                CREATE INDEX IF NOT EXISTS idx_te_ip
-                    ON threat_events(ip);
-                CREATE INDEX IF NOT EXISTS idx_te_tenant
-                    ON threat_events(tenant_id);
-                CREATE INDEX IF NOT EXISTS idx_te_ts
-                    ON threat_events(ts);
-
-                CREATE TABLE IF NOT EXISTS attacker_profiles (
-                    ip           TEXT NOT NULL,
-                    tenant_id    TEXT NOT NULL DEFAULT 'default',
-                    first_seen   TEXT NOT NULL,
-                    last_seen    TEXT NOT NULL,
-                    block_count  INTEGER NOT NULL DEFAULT 0,
-                    threat_count INTEGER NOT NULL DEFAULT 0,
-                    threat_types TEXT NOT NULL DEFAULT '[]',
-                    PRIMARY KEY (ip, tenant_id)
-                );
-
-                CREATE TABLE IF NOT EXISTS blocked_ips (
-                    ip         TEXT NOT NULL,
-                    tenant_id  TEXT NOT NULL DEFAULT 'default',
-                    reason     TEXT NOT NULL DEFAULT '',
-                    blocked_at TEXT NOT NULL,
-                    blocked_by TEXT NOT NULL DEFAULT 'manual',
-                    expires_at TEXT,
-                    PRIMARY KEY (ip, tenant_id)
-                );
-            """)
-            self._conn.commit()
+        return open_persistent_db("threat_store", str(self._path), row_factory=False)
 
     # ── Event recording ───────────────────────────────────────────────────────
 

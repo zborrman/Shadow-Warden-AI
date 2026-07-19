@@ -58,6 +58,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from warden.config import settings
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.stripe_billing")
 
@@ -89,6 +91,28 @@ PLAN_RATE_LIMITS: dict[str, int] = {
 #: Stripe price ID → plan name (built at import time from env vars)
 _PRICE_TO_PLAN: dict[str, str] = {}
 
+_STRIPE_BILLING_DDL = """
+    CREATE TABLE IF NOT EXISTS subscriptions (
+        tenant_id              TEXT PRIMARY KEY,
+        stripe_customer_id     TEXT,
+        stripe_subscription_id TEXT,
+        plan                   TEXT NOT NULL DEFAULT 'free',
+        status                 TEXT NOT NULL DEFAULT 'active',
+        current_period_end     TEXT,
+        admin_email            TEXT,
+        updated_at             TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_subs_customer
+        ON subscriptions(stripe_customer_id);
+
+    CREATE TABLE IF NOT EXISTS webhook_events (
+        event_id    TEXT PRIMARY KEY,
+        event_type  TEXT NOT NULL,
+        processed_at TEXT NOT NULL
+    );
+"""
+register("stripe_billing", "warden.stripe_billing", _STRIPE_BILLING_DDL)
+
 
 def _build_price_map() -> None:
     if _STRIPE_PRICE_STARTUP:
@@ -118,49 +142,11 @@ class StripeBilling:
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = self._open()
-        self._init_schema()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.executescript("""
-                CREATE TABLE IF NOT EXISTS subscriptions (
-                    tenant_id              TEXT PRIMARY KEY,
-                    stripe_customer_id     TEXT,
-                    stripe_subscription_id TEXT,
-                    plan                   TEXT NOT NULL DEFAULT 'free',
-                    status                 TEXT NOT NULL DEFAULT 'active',
-                    current_period_end     TEXT,
-                    admin_email            TEXT,
-                    updated_at             TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_subs_customer
-                    ON subscriptions(stripe_customer_id);
-
-                CREATE TABLE IF NOT EXISTS webhook_events (
-                    event_id    TEXT PRIMARY KEY,
-                    event_type  TEXT NOT NULL,
-                    processed_at TEXT NOT NULL
-                );
-            """)
-            self._conn.commit()
-
-        # Migrate existing DBs: add admin_email column if missing (SQLite
-        # doesn't support IF NOT EXISTS on ALTER TABLE)
-        try:
-            self._conn.execute("ALTER TABLE subscriptions ADD COLUMN admin_email TEXT")
-            self._conn.commit()
-        except Exception:
-            pass  # column already exists — ignore
+        return open_persistent_db("stripe_billing", str(self._path))
 
     # ── Plan / quota queries ──────────────────────────────────────────────────
 

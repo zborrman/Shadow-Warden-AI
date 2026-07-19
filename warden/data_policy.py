@@ -52,9 +52,35 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
+
 log = logging.getLogger("warden.data_policy")
 
 POLICY_DB_PATH = Path(os.getenv("POLICY_DB_PATH", "/warden/data/data_policy.db"))
+
+_DATA_POLICY_DDL = """
+    CREATE TABLE IF NOT EXISTS policy_rules (
+        rule_id      TEXT PRIMARY KEY,
+        tenant_id    TEXT    NOT NULL,
+        data_class   TEXT    NOT NULL,
+        trigger_type TEXT    NOT NULL,
+        value        TEXT    NOT NULL,
+        description  TEXT    NOT NULL DEFAULT '',
+        active       INTEGER NOT NULL DEFAULT 1,
+        created_at   TEXT    NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pr_tenant
+        ON policy_rules(tenant_id);
+
+    CREATE TABLE IF NOT EXISTS tenant_settings (
+        tenant_id           TEXT PRIMARY KEY,
+        default_class       TEXT    NOT NULL DEFAULT 'green',
+        block_cloud_yellow  INTEGER NOT NULL DEFAULT 1,
+        updated_at          TEXT    NOT NULL
+    );
+"""
+register("data_policy", "warden.data_policy", _DATA_POLICY_DDL)
 
 
 # ── Classification levels ─────────────────────────────────────────────────────
@@ -207,7 +233,6 @@ class DataPolicyEngine:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock  = threading.Lock()
         self._conn  = self._open()
-        self._init_schema()
         # Compiled pattern cache: tenant_id → [(rule_id, data_class, Pattern)]
         self._cache: dict[str, list[tuple[str, str, re.Pattern]]] = {}
 
@@ -503,35 +528,7 @@ class DataPolicyEngine:
     # ── Schema & lifecycle ─────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.executescript("""
-                CREATE TABLE IF NOT EXISTS policy_rules (
-                    rule_id      TEXT PRIMARY KEY,
-                    tenant_id    TEXT    NOT NULL,
-                    data_class   TEXT    NOT NULL,
-                    trigger_type TEXT    NOT NULL,
-                    value        TEXT    NOT NULL,
-                    description  TEXT    NOT NULL DEFAULT '',
-                    active       INTEGER NOT NULL DEFAULT 1,
-                    created_at   TEXT    NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_pr_tenant
-                    ON policy_rules(tenant_id);
-
-                CREATE TABLE IF NOT EXISTS tenant_settings (
-                    tenant_id           TEXT PRIMARY KEY,
-                    default_class       TEXT    NOT NULL DEFAULT 'green',
-                    block_cloud_yellow  INTEGER NOT NULL DEFAULT 1,
-                    updated_at          TEXT    NOT NULL
-                );
-            """)
-            self._conn.commit()
+        return open_persistent_db("data_policy", str(self._path), row_factory=False)
 
     def close(self) -> None:
         self._conn.close()

@@ -44,11 +44,34 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
+
 log = logging.getLogger("warden.audit_trail")
 
 AUDIT_DB_PATH  = Path(os.getenv("AUDIT_TRAIL_PATH", "/warden/data/audit_trail.db"))
 _GENESIS_HASH  = "0" * 64   # sentinel prev_hash for the very first entry
 _ENABLED       = os.getenv("AUDIT_TRAIL_ENABLED", "true").lower() != "false"
+
+_AUDIT_TRAIL_DDL = """
+    CREATE TABLE IF NOT EXISTS audit_chain (
+        seq            INTEGER PRIMARY KEY AUTOINCREMENT,
+        recorded_at    TEXT    NOT NULL,
+        request_id     TEXT    NOT NULL,
+        tenant_id      TEXT    NOT NULL,
+        risk_level     TEXT    NOT NULL,
+        action         TEXT    NOT NULL,
+        reason         TEXT    NOT NULL DEFAULT '',
+        flags          TEXT    NOT NULL DEFAULT '[]',
+        processing_ms  REAL    NOT NULL DEFAULT 0.0,
+        prev_hash      TEXT    NOT NULL,
+        entry_hash     TEXT    NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_tenant    ON audit_chain(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_recorded  ON audit_chain(recorded_at);
+    CREATE INDEX IF NOT EXISTS idx_audit_action    ON audit_chain(action);
+"""
+register("audit_trail", "warden.audit_trail", _AUDIT_TRAIL_DDL)
 
 
 # ── Data model ─────────────────────────────────────────────────────────────────
@@ -104,43 +127,11 @@ class AuditTrail:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock    = threading.Lock()
         self._conn    = self._open()
-        self._init_schema()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _open(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        return conn
-
-    def _init_schema(self) -> None:
-        with self._lock:
-            self._conn.execute("""
-                CREATE TABLE IF NOT EXISTS audit_chain (
-                    seq            INTEGER PRIMARY KEY AUTOINCREMENT,
-                    recorded_at    TEXT    NOT NULL,
-                    request_id     TEXT    NOT NULL,
-                    tenant_id      TEXT    NOT NULL,
-                    risk_level     TEXT    NOT NULL,
-                    action         TEXT    NOT NULL,
-                    reason         TEXT    NOT NULL DEFAULT '',
-                    flags          TEXT    NOT NULL DEFAULT '[]',
-                    processing_ms  REAL    NOT NULL DEFAULT 0.0,
-                    prev_hash      TEXT    NOT NULL,
-                    entry_hash     TEXT    NOT NULL
-                )
-            """)
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_audit_tenant    ON audit_chain(tenant_id)"
-            )
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_audit_recorded  ON audit_chain(recorded_at)"
-            )
-            self._conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_audit_action    ON audit_chain(action)"
-            )
-            self._conn.commit()
+        return open_persistent_db("audit_trail", str(self._path), row_factory=False)
 
     @staticmethod
     def _compute_hash(prev_hash: str, payload: dict[str, Any]) -> str:
