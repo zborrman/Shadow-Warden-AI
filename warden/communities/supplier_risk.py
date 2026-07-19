@@ -24,6 +24,8 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db, open_db_readonly
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.supplier_risk")
 
@@ -41,40 +43,34 @@ _WEIGHTS = {
 }
 
 
+_SUPPLIER_RISK_DDL = """
+    CREATE TABLE IF NOT EXISTS supplier_risk_assessments (
+        assessment_id      TEXT PRIMARY KEY,
+        community_id       TEXT NOT NULL,
+        vendor_id          TEXT NOT NULL,
+        data_access        REAL NOT NULL DEFAULT 0.5,
+        ai_capability      REAL NOT NULL DEFAULT 0.5,
+        compliance_posture REAL NOT NULL DEFAULT 0.5,
+        peering_history    REAL NOT NULL DEFAULT 0.5,
+        disclosure_recency REAL NOT NULL DEFAULT 0.5,
+        composite_score    REAL NOT NULL DEFAULT 0.5,
+        risk_label         TEXT NOT NULL DEFAULT 'MEDIUM',
+        assessed_at        TEXT NOT NULL,
+        notes              TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_sra_community ON supplier_risk_assessments(community_id);
+    CREATE INDEX IF NOT EXISTS idx_sra_vendor    ON supplier_risk_assessments(vendor_id);
+    CREATE INDEX IF NOT EXISTS idx_sra_risk      ON supplier_risk_assessments(community_id, risk_label);
+"""
+register("sep", "warden.communities.supplier_risk", _SUPPLIER_RISK_DDL)
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "sep", db_path, turso_name="sep", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS supplier_risk_assessments (
-            assessment_id      TEXT PRIMARY KEY,
-            community_id       TEXT NOT NULL,
-            vendor_id          TEXT NOT NULL,
-            data_access        REAL NOT NULL DEFAULT 0.5,
-            ai_capability      REAL NOT NULL DEFAULT 0.5,
-            compliance_posture REAL NOT NULL DEFAULT 0.5,
-            peering_history    REAL NOT NULL DEFAULT 0.5,
-            disclosure_recency REAL NOT NULL DEFAULT 0.5,
-            composite_score    REAL NOT NULL DEFAULT 0.5,
-            risk_label         TEXT NOT NULL DEFAULT 'MEDIUM',
-            assessed_at        TEXT NOT NULL,
-            notes              TEXT NOT NULL DEFAULT ''
-        );
-        CREATE INDEX IF NOT EXISTS idx_sra_community ON supplier_risk_assessments(community_id);
-        CREATE INDEX IF NOT EXISTS idx_sra_vendor    ON supplier_risk_assessments(vendor_id);
-        CREATE INDEX IF NOT EXISTS idx_sra_risk      ON supplier_risk_assessments(community_id, risk_label);
-    """)
-    con.commit()
 
 
 def _score_to_label(score: float) -> str:
@@ -90,8 +86,7 @@ def _compute_compliance_posture(vendor_id: str, tenant_id: str, db_path: str) ->
     1.0 = terrible compliance (no DPAs or all expired)
     """
     try:
-        con = sqlite3.connect(db_path, check_same_thread=False)
-        con.row_factory = sqlite3.Row
+        con = open_db_readonly(db_path)
         rows = con.execute(
             "SELECT status, expires_at FROM vendor_dpa_records WHERE vendor_id=? AND tenant_id=?",
             (vendor_id, tenant_id),
@@ -117,8 +112,7 @@ def _compute_peering_history(community_id: str, vendor_id: str, db_path: str) ->
     Based on sep_transfers rejection rate.
     """
     try:
-        con = sqlite3.connect(db_path, check_same_thread=False)
-        con.row_factory = sqlite3.Row
+        con = open_db_readonly(db_path)
         rows = con.execute(
             "SELECT status FROM sep_transfers WHERE source_community_id=? LIMIT 100",
             (community_id,),

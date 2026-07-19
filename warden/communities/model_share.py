@@ -43,10 +43,14 @@ import hmac as _hmac
 import json
 import logging
 import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.communities.model_share")
@@ -73,25 +77,30 @@ class ModelBundle:
     created_at:        str
 
 
-def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(_DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sep_model_bundles (
-            ueciid            TEXT PRIMARY KEY,
-            source_community  TEXT NOT NULL,
-            bundle_type       TEXT NOT NULL,
-            rule_count        INTEGER,
-            rules_hash        TEXT,
-            rules_json        TEXT,
-            attack_types_json TEXT,
-            effectiveness     REAL,
-            hmac_sig          TEXT,
-            pqc_signature     TEXT,
-            created_at        TEXT
-        )
-    """)
-    conn.commit()
-    return conn
+_MODEL_SHARE_DDL = """
+    CREATE TABLE IF NOT EXISTS sep_model_bundles (
+        ueciid            TEXT PRIMARY KEY,
+        source_community  TEXT NOT NULL,
+        bundle_type       TEXT NOT NULL,
+        rule_count        INTEGER,
+        rules_hash        TEXT,
+        rules_json        TEXT,
+        attack_types_json TEXT,
+        effectiveness     REAL,
+        hmac_sig          TEXT,
+        pqc_signature     TEXT,
+        created_at        TEXT
+    );
+"""
+register("sep", "warden.communities.model_share", _MODEL_SHARE_DDL)
+
+
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "sep", _DB_PATH, turso_name="sep", module_default_path=_DB_PATH
+    ) as con:
+        yield con
 
 
 def _sign(payload: str) -> str:
@@ -153,8 +162,7 @@ def create_bundle(
 
 
 def _store_bundle(bundle: ModelBundle) -> None:
-    conn = _db()
-    try:
+    with _conn() as conn:
         conn.execute("""
             INSERT OR REPLACE INTO sep_model_bundles
             (ueciid, source_community, bundle_type, rule_count, rules_hash,
@@ -167,14 +175,10 @@ def _store_bundle(bundle: ModelBundle) -> None:
             bundle.effectiveness, bundle.hmac_sig, bundle.pqc_signature,
             bundle.created_at,
         ))
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def get_bundle(ueciid: str, include_rules: bool = False) -> dict | None:
-    conn = _db()
-    try:
+    with _conn() as conn:
         row = conn.execute(
             "SELECT * FROM sep_model_bundles WHERE ueciid = ?", (ueciid,)
         ).fetchone()
@@ -187,13 +191,10 @@ def get_bundle(ueciid: str, include_rules: bool = False) -> dict | None:
         if include_rules:
             d["rules"] = json.loads(rules_json)
         return d
-    finally:
-        conn.close()
 
 
 def list_bundles(source_community: str | None = None) -> list[dict]:
-    conn = _db()
-    try:
+    with _conn() as conn:
         sql = "SELECT ueciid, source_community, bundle_type, rule_count, attack_types_json, effectiveness, created_at FROM sep_model_bundles"
         params: tuple = ()
         if source_community:
@@ -213,8 +214,6 @@ def list_bundles(source_community: str | None = None) -> list[dict]:
                 "created_at":       row[6],
             })
         return result
-    finally:
-        conn.close()
 
 
 def import_bundle(bundle_payload: dict, importing_community: str) -> dict:

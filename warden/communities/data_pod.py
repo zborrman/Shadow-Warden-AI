@@ -38,51 +38,53 @@ import os
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.data_pod")
 
 _SEP_DB_PATH = data_path("warden_sep.db", "SEP_DB_PATH")
 _db_lock     = threading.RLock()
 
+_DATA_POD_DDL = """
+    CREATE TABLE IF NOT EXISTS sep_data_pods (
+        pod_id          TEXT PRIMARY KEY,
+        community_id    TEXT NOT NULL,
+        jurisdiction    TEXT NOT NULL,       -- EU | US | UK | etc.
+        minio_endpoint  TEXT NOT NULL,       -- https://fsn1.your-objectstorage.com
+        minio_region    TEXT NOT NULL DEFAULT 'eu-central-1',
+        access_key      TEXT NOT NULL DEFAULT '',
+        secret_key_enc  TEXT NOT NULL DEFAULT '',  -- Fernet-encrypted
+        data_classes    TEXT NOT NULL DEFAULT '["GENERAL"]',  -- JSON array
+        bucket          TEXT NOT NULL DEFAULT 'warden-evidence',
+        is_primary      INTEGER NOT NULL DEFAULT 0,
+        status          TEXT NOT NULL DEFAULT 'ACTIVE',  -- ACTIVE | SUSPENDED
+        notes           TEXT NOT NULL DEFAULT '',
+        created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE INDEX IF NOT EXISTS pod_community_idx
+        ON sep_data_pods(community_id);
+    CREATE INDEX IF NOT EXISTS pod_jurisdiction_idx
+        ON sep_data_pods(jurisdiction);
+"""
+register("sep", "warden.communities.data_pod", _DATA_POD_DDL)
+
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sep_data_pods (
-            pod_id          TEXT PRIMARY KEY,
-            community_id    TEXT NOT NULL,
-            jurisdiction    TEXT NOT NULL,       -- EU | US | UK | etc.
-            minio_endpoint  TEXT NOT NULL,       -- https://fsn1.your-objectstorage.com
-            minio_region    TEXT NOT NULL DEFAULT 'eu-central-1',
-            access_key      TEXT NOT NULL DEFAULT '',
-            secret_key_enc  TEXT NOT NULL DEFAULT '',  -- Fernet-encrypted
-            data_classes    TEXT NOT NULL DEFAULT '["GENERAL"]',  -- JSON array
-            bucket          TEXT NOT NULL DEFAULT 'warden-evidence',
-            is_primary      INTEGER NOT NULL DEFAULT 0,
-            status          TEXT NOT NULL DEFAULT 'ACTIVE',  -- ACTIVE | SUSPENDED
-            notes           TEXT NOT NULL DEFAULT '',
-            created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS pod_community_idx
-            ON sep_data_pods(community_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS pod_jurisdiction_idx
-            ON sep_data_pods(jurisdiction)
-    """)
-    conn.commit()
-    return conn
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "sep", _SEP_DB_PATH, turso_name="sep", module_default_path=_SEP_DB_PATH
+    ) as con:
+        yield con
 
 
 # ── Crypto helpers ────────────────────────────────────────────────────────────
@@ -178,8 +180,7 @@ def register_pod(
     data_classes   = data_classes or ["GENERAL"]
     secret_key_enc = _encrypt_secret(secret_key)
 
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         if is_primary:
             conn.execute(
                 "UPDATE sep_data_pods SET is_primary=0 WHERE community_id=? AND jurisdiction=?",
@@ -195,7 +196,6 @@ def register_pod(
             access_key, secret_key_enc, json.dumps(data_classes),
             bucket, int(is_primary), notes, now,
         ))
-        conn.commit()
 
     log.info(
         "data_pod: registered pod=%s community=%s jurisdiction=%s endpoint=%s",
@@ -211,8 +211,7 @@ def register_pod(
 
 
 def get_pod(pod_id: str) -> DataPod | None:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM sep_data_pods WHERE pod_id=?", (pod_id,)
         ).fetchone()
@@ -220,8 +219,7 @@ def get_pod(pod_id: str) -> DataPod | None:
 
 
 def list_pods(community_id: str) -> list[DataPod]:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         rows = conn.execute(
             "SELECT * FROM sep_data_pods WHERE community_id=? ORDER BY is_primary DESC, created_at",
             (community_id,),
@@ -314,22 +312,18 @@ def probe_pod(pod_id: str) -> dict[str, Any]:
 
 
 def suspend_pod(pod_id: str) -> bool:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         n = conn.execute(
             "UPDATE sep_data_pods SET status='SUSPENDED' WHERE pod_id=?", (pod_id,)
         ).rowcount
-        conn.commit()
     return n > 0
 
 
 def decommission_pod(pod_id: str) -> bool:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         n = conn.execute(
             "DELETE FROM sep_data_pods WHERE pod_id=?", (pod_id,)
         ).rowcount
-        conn.commit()
     log.info("data_pod: decommissioned pod=%s", pod_id[:8])
     return n > 0
 

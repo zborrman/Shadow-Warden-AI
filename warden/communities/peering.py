@@ -42,6 +42,8 @@ import logging
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -51,6 +53,8 @@ from warden.communities.sep import (
     sign_transfer_proof,
 )
 from warden.config import settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.peering")
 
@@ -58,66 +62,67 @@ _SEP_DB_PATH     = settings.sep_db_path
 _db_lock         = threading.RLock()
 _VALID_POLICIES  = {"MIRROR_ONLY", "REWRAP_ALLOWED", "FULL_SYNC"}
 
+_PEERING_DDL = """
+    CREATE TABLE IF NOT EXISTS sep_peerings (
+        peering_id            TEXT PRIMARY KEY,
+        initiator_community   TEXT NOT NULL,
+        target_community      TEXT NOT NULL,
+        policy                TEXT NOT NULL DEFAULT 'REWRAP_ALLOWED',
+        status                TEXT NOT NULL DEFAULT 'PENDING',
+        handshake_token_hash  TEXT NOT NULL,
+        initiator_mid         TEXT NOT NULL,
+        accepted_by_mid       TEXT,
+        created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        accepted_at           TEXT,
+        revoked_at            TEXT,
+        notes                 TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS peering_initiator_idx
+        ON sep_peerings(initiator_community);
+    CREATE INDEX IF NOT EXISTS peering_target_idx
+        ON sep_peerings(target_community);
+    CREATE TABLE IF NOT EXISTS sep_transfers (
+        transfer_id           TEXT PRIMARY KEY,
+        peering_id            TEXT NOT NULL,
+        source_community_id   TEXT NOT NULL,
+        target_community_id   TEXT NOT NULL,
+        source_entity_id      TEXT NOT NULL,
+        source_ueciid         TEXT NOT NULL,
+        target_ueciid         TEXT,
+        initiator_mid         TEXT NOT NULL,
+        purpose               TEXT NOT NULL DEFAULT 'sharing',
+        status                TEXT NOT NULL DEFAULT 'PENDING',
+        causal_proof_json     TEXT NOT NULL DEFAULT '{}',
+        sovereign_ok          INTEGER NOT NULL DEFAULT 1,
+        sovereign_reason      TEXT NOT NULL DEFAULT '',
+        transferred_at        TEXT,
+        created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE INDEX IF NOT EXISTS transfer_peering_idx
+        ON sep_transfers(peering_id);
+    CREATE INDEX IF NOT EXISTS transfer_source_ueciid_idx
+        ON sep_transfers(source_ueciid);
+    CREATE TABLE IF NOT EXISTS fed_trust_flags (
+        flag_id          TEXT PRIMARY KEY,
+        agent_did        TEXT NOT NULL,
+        flag_type        TEXT NOT NULL,
+        source_community TEXT NOT NULL,
+        created_at       TEXT NOT NULL,
+        expires_at       TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ftf_agent ON fed_trust_flags(agent_did);
+"""
+register("sep", "warden.communities.peering", _PEERING_DDL)
+
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sep_peerings (
-            peering_id            TEXT PRIMARY KEY,
-            initiator_community   TEXT NOT NULL,
-            target_community      TEXT NOT NULL,
-            policy                TEXT NOT NULL DEFAULT 'REWRAP_ALLOWED',
-            status                TEXT NOT NULL DEFAULT 'PENDING',
-            handshake_token_hash  TEXT NOT NULL,
-            initiator_mid         TEXT NOT NULL,
-            accepted_by_mid       TEXT,
-            created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-            accepted_at           TEXT,
-            revoked_at            TEXT,
-            notes                 TEXT NOT NULL DEFAULT ''
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS peering_initiator_idx
-            ON sep_peerings(initiator_community)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS peering_target_idx
-            ON sep_peerings(target_community)
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sep_transfers (
-            transfer_id           TEXT PRIMARY KEY,
-            peering_id            TEXT NOT NULL,
-            source_community_id   TEXT NOT NULL,
-            target_community_id   TEXT NOT NULL,
-            source_entity_id      TEXT NOT NULL,
-            source_ueciid         TEXT NOT NULL,
-            target_ueciid         TEXT,
-            initiator_mid         TEXT NOT NULL,
-            purpose               TEXT NOT NULL DEFAULT 'sharing',
-            status                TEXT NOT NULL DEFAULT 'PENDING',
-            causal_proof_json     TEXT NOT NULL DEFAULT '{}',
-            sovereign_ok          INTEGER NOT NULL DEFAULT 1,
-            sovereign_reason      TEXT NOT NULL DEFAULT '',
-            transferred_at        TEXT,
-            created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS transfer_peering_idx
-            ON sep_transfers(peering_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS transfer_source_ueciid_idx
-            ON sep_transfers(source_ueciid)
-    """)
-    conn.commit()
-    return conn
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "sep", _SEP_DB_PATH, turso_name="sep", module_default_path=_SEP_DB_PATH
+    ) as con:
+        yield con
 
 
 # ── Data models ────────────────────────────────────────────────────────────────
@@ -244,8 +249,7 @@ def initiate_peering(
     token, token_hash   = _issue_handshake_token(peering_id)
     now                 = datetime.now(UTC).isoformat()
 
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         dup = conn.execute(
             "SELECT peering_id FROM sep_peerings "
             "WHERE initiator_community=? AND target_community=? AND status='ACTIVE'",
@@ -264,7 +268,6 @@ def initiate_peering(
             peering_id, initiator_community, target_community, policy,
             "PENDING", token_hash, initiator_mid, notes, now,
         ))
-        conn.commit()
 
     log.info(
         "peering: initiated id=%s %s→%s policy=%s",
@@ -293,8 +296,7 @@ def accept_peering(
     """
     Accept a PENDING peering.  Raises ValueError if token invalid or status != PENDING.
     """
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM sep_peerings WHERE peering_id=? AND status='PENDING'",
             (peering_id,),
@@ -309,7 +311,6 @@ def accept_peering(
             "WHERE peering_id=?",
             (accepted_by_mid, now, peering_id),
         )
-        conn.commit()
 
     log.info("peering: accepted id=%s by mid=%s", peering_id[:8], accepted_by_mid[:8])
     return PeeringRecord(
@@ -330,14 +331,12 @@ def accept_peering(
 def revoke_peering(peering_id: str) -> bool:
     """Revoke a PENDING or ACTIVE peering → REVOKED. Returns True if found."""
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         cur = conn.execute(
             "UPDATE sep_peerings SET status='REVOKED', revoked_at=? "
             "WHERE peering_id=? AND status IN ('PENDING','ACTIVE')",
             (now, peering_id),
         )
-        conn.commit()
     revoked = cur.rowcount > 0
     if revoked:
         log.info("peering: revoked id=%s", peering_id[:8])
@@ -345,8 +344,7 @@ def revoke_peering(peering_id: str) -> bool:
 
 
 def get_peering(peering_id: str) -> PeeringRecord | None:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM sep_peerings WHERE peering_id=?", (peering_id,)
         ).fetchone()
@@ -355,8 +353,7 @@ def get_peering(peering_id: str) -> PeeringRecord | None:
 
 def list_peerings(community_id: str, status_filter: str | None = None) -> list[PeeringRecord]:
     """List peerings where *community_id* is initiator OR target."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         if status_filter:
             rows = conn.execute(
                 "SELECT * FROM sep_peerings "
@@ -497,8 +494,7 @@ def transfer_entity(
 
     transferred_at = now if status == "TRANSFERRED" else None
 
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         conn.execute("""
             INSERT INTO sep_transfers
               (transfer_id, peering_id, source_community_id, target_community_id,
@@ -513,7 +509,6 @@ def transfer_entity(
             int(sovereign_ok), sovereign_reason,
             transferred_at, now,
         ))
-        conn.commit()
 
     # ── STIX 2.1 Audit Chain — append regardless of status ────────────────────
     try:
@@ -591,8 +586,7 @@ def list_transfers(
     limit:        int = 100,
 ) -> list[TransferRecord]:
     """List transfer records by peering or community."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         if peering_id:
             rows = conn.execute(
                 "SELECT * FROM sep_transfers WHERE peering_id=? "
@@ -615,8 +609,7 @@ def list_transfers(
 
 
 def get_transfer(transfer_id: str) -> TransferRecord | None:
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         row = conn.execute(
             "SELECT * FROM sep_transfers WHERE transfer_id=?", (transfer_id,)
         ).fetchone()
@@ -625,26 +618,8 @@ def get_transfer(transfer_id: str) -> TransferRecord | None:
 
 # ── FederatedTrustRegistry (SEC-06) ───────────────────────────────────────────
 
-_FEDERATED_SCHEMA = """
-CREATE TABLE IF NOT EXISTS fed_trust_flags (
-    flag_id          TEXT PRIMARY KEY,
-    agent_did        TEXT NOT NULL,
-    flag_type        TEXT NOT NULL,
-    source_community TEXT NOT NULL,
-    created_at       TEXT NOT NULL,
-    expires_at       TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_ftf_agent ON fed_trust_flags(agent_did);
-"""
-
 _FED_LOCK = threading.RLock()
 _FED_TTL_DAYS = settings.federated_trust_flag_ttl_days
-
-
-def _fed_conn() -> sqlite3.Connection:
-    con = _get_conn()
-    con.executescript(_FEDERATED_SCHEMA)
-    return con
 
 
 class FederatedTrustRegistry:
@@ -668,15 +643,13 @@ class FederatedTrustRegistry:
         now        = datetime.now(UTC)
         expires_at = now + timedelta(days=_FED_TTL_DAYS)
 
-        with _FED_LOCK:
-            con = _fed_conn()
+        with _FED_LOCK, _conn() as con:
             con.execute(
                 """INSERT INTO fed_trust_flags
                    (flag_id, agent_did, flag_type, source_community, created_at, expires_at)
                    VALUES (?,?,?,?,?,?)""",
                 (flag_id, agent_did, flag_type, source_community, now.isoformat(), expires_at.isoformat()),
             )
-            con.commit()
 
         # Push to Redis for cross-process / cross-pod visibility
         shared_to = 0
@@ -715,8 +688,7 @@ class FederatedTrustRegistry:
         now = datetime.now(UTC).isoformat()
 
         # Check local DB
-        with _FED_LOCK:
-            con = _fed_conn()
+        with _FED_LOCK, _conn() as con:
             row = con.execute(
                 "SELECT 1 FROM fed_trust_flags WHERE agent_did=? AND expires_at > ? LIMIT 1",
                 (agent_did, now),
@@ -747,12 +719,10 @@ class FederatedTrustRegistry:
     def expire_flags() -> int:
         """Remove all flags past their TTL. Returns count of removed flags."""
         now = datetime.now(UTC).isoformat()
-        with _FED_LOCK:
-            con = _fed_conn()
+        with _FED_LOCK, _conn() as con:
             cur = con.execute(
                 "DELETE FROM fed_trust_flags WHERE expires_at <= ?", (now,)
             )
-            con.commit()
             removed = cur.rowcount
         log.info("FedTrust: expired %d flags", removed)
         return removed

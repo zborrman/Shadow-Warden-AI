@@ -50,11 +50,15 @@ import logging
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.stix_audit")
 
@@ -64,40 +68,41 @@ _db_lock     = threading.RLock()
 _STIX_SPEC_VERSION = "2.1"
 _CHAIN_GENESIS_HASH = "0" * 64
 
+# UNIQUE so a forked chain (two workers picking the same seq) fails at the DB
+# level, not just under the in-process lock. The plain index is the
+# always-succeeds baseline; _conn() best-effort-upgrades it to UNIQUE below
+# (a legacy table with pre-existing duplicate (community_id, seq) rows would
+# fail that upgrade — the plain index keeps working either way).
+_STIX_AUDIT_DDL = """
+    CREATE TABLE IF NOT EXISTS sep_stix_chain (
+        chain_id      TEXT PRIMARY KEY,
+        community_id  TEXT NOT NULL,      -- the source community of the transfer
+        transfer_id   TEXT NOT NULL UNIQUE,
+        bundle_json   TEXT NOT NULL,
+        bundle_hash   TEXT NOT NULL,      -- SHA-256 of canonical bundle_json
+        prev_hash     TEXT NOT NULL,      -- hash of preceding bundle (chain link)
+        seq           INTEGER NOT NULL,   -- sequence number within community
+        created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+    CREATE INDEX IF NOT EXISTS stix_community_seq_idx
+        ON sep_stix_chain(community_id, seq);
+"""
+register("sep", "warden.communities.stix_audit", _STIX_AUDIT_DDL)
+
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
-def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sep_stix_chain (
-            chain_id      TEXT PRIMARY KEY,
-            community_id  TEXT NOT NULL,      -- the source community of the transfer
-            transfer_id   TEXT NOT NULL UNIQUE,
-            bundle_json   TEXT NOT NULL,
-            bundle_hash   TEXT NOT NULL,      -- SHA-256 of canonical bundle_json
-            prev_hash     TEXT NOT NULL,      -- hash of preceding bundle (chain link)
-            seq           INTEGER NOT NULL,   -- sequence number within community
-            created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-        )
-    """)
-    # UNIQUE so a forked chain (two workers picking the same seq) fails at the DB
-    # level, not just under the in-process lock. Fall back to a plain index if a
-    # legacy table already holds duplicate (community_id, seq) rows.
-    try:
-        conn.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS stix_community_seq_uidx
-                ON sep_stix_chain(community_id, seq)
-        """)
-    except sqlite3.IntegrityError:
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS stix_community_seq_idx
-                ON sep_stix_chain(community_id, seq)
-        """)
-    conn.commit()
-    return conn
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "sep", _SEP_DB_PATH, turso_name="sep", module_default_path=_SEP_DB_PATH
+    ) as con:
+        with suppress(sqlite3.IntegrityError, sqlite3.OperationalError):
+            con.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS stix_community_seq_uidx "
+                "ON sep_stix_chain(community_id, seq)"
+            )
+        yield con
 
 
 # ── STIX 2.1 object builders ──────────────────────────────────────────────────
@@ -290,22 +295,21 @@ def append_transfer(
     # and rebuild the bundle with the next seq on collision.
     last_exc: Exception | None = None
     for _attempt in range(6):
-        with _db_lock:
-            conn = _get_conn()
-            prev_hash, seq = _last_hash(source_community_id, conn)
+        try:
+            with _db_lock, _conn() as conn:
+                prev_hash, seq = _last_hash(source_community_id, conn)
 
-            bundle    = _build_bundle(
-                stix_objects = [src_identity, tgt_identity, relationship, note],
-                prev_hash    = prev_hash,
-                community_id = source_community_id,
-                seq          = seq,
-            )
-            canonical_bundle = _canonical_json(bundle)
-            bundle_hash      = hashlib.sha256(canonical_bundle.encode()).hexdigest()
-            chain_id         = str(uuid.uuid4())
-            now              = datetime.now(UTC).isoformat()
+                bundle    = _build_bundle(
+                    stix_objects = [src_identity, tgt_identity, relationship, note],
+                    prev_hash    = prev_hash,
+                    community_id = source_community_id,
+                    seq          = seq,
+                )
+                canonical_bundle = _canonical_json(bundle)
+                bundle_hash      = hashlib.sha256(canonical_bundle.encode()).hexdigest()
+                chain_id         = str(uuid.uuid4())
+                now              = datetime.now(UTC).isoformat()
 
-            try:
                 conn.execute("""
                     INSERT INTO sep_stix_chain
                       (chain_id, community_id, transfer_id, bundle_json,
@@ -315,12 +319,10 @@ def append_transfer(
                     chain_id, source_community_id, transfer_id, canonical_bundle,
                     bundle_hash, prev_hash, seq, now,
                 ))
-                conn.commit()
-                break
-            except sqlite3.IntegrityError as exc:
-                conn.rollback()
-                last_exc = exc
-                continue
+            break
+        except sqlite3.IntegrityError as exc:
+            last_exc = exc
+            continue
     else:
         raise RuntimeError(
             f"stix_audit: could not append transfer {transfer_id} after retries: {last_exc}"
@@ -344,8 +346,7 @@ def append_transfer(
 
 def get_chain(community_id: str, limit: int = 100, offset: int = 0) -> list[ChainEntry]:
     """Return ordered audit chain entries for *community_id* (oldest first)."""
-    with _db_lock:
-        conn = _get_conn()
+    with _db_lock, _conn() as conn:
         rows = conn.execute(
             "SELECT * FROM sep_stix_chain WHERE community_id=? "
             "ORDER BY seq ASC LIMIT ? OFFSET ?",

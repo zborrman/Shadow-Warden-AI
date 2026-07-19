@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.incident_register")
 
@@ -71,43 +73,37 @@ class IncidentRecord:
         }
 
 
+_INCIDENT_REGISTER_DDL = """
+    CREATE TABLE IF NOT EXISTS ai_incidents (
+        incident_id      TEXT PRIMARY KEY,
+        tenant_id        TEXT NOT NULL,
+        community_id     TEXT NOT NULL DEFAULT '',
+        title            TEXT NOT NULL,
+        severity         TEXT NOT NULL DEFAULT 'MEDIUM',
+        category         TEXT NOT NULL DEFAULT 'OTHER',
+        description      TEXT NOT NULL DEFAULT '',
+        affected_system  TEXT NOT NULL DEFAULT '',
+        vendor_id        TEXT NOT NULL DEFAULT '',
+        request_id       TEXT NOT NULL DEFAULT '',
+        status           TEXT NOT NULL DEFAULT 'open',
+        resolved_at      TEXT,
+        stix_chain_id    TEXT NOT NULL DEFAULT '',
+        created_at       TEXT NOT NULL,
+        updated_at       TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_inc_tenant   ON ai_incidents(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_inc_severity ON ai_incidents(severity, status);
+    CREATE INDEX IF NOT EXISTS idx_inc_status   ON ai_incidents(tenant_id, status);
+"""
+register("sep", "warden.communities.incident_register", _INCIDENT_REGISTER_DDL)
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "sep", db_path, turso_name="sep", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS ai_incidents (
-            incident_id      TEXT PRIMARY KEY,
-            tenant_id        TEXT NOT NULL,
-            community_id     TEXT NOT NULL DEFAULT '',
-            title            TEXT NOT NULL,
-            severity         TEXT NOT NULL DEFAULT 'MEDIUM',
-            category         TEXT NOT NULL DEFAULT 'OTHER',
-            description      TEXT NOT NULL DEFAULT '',
-            affected_system  TEXT NOT NULL DEFAULT '',
-            vendor_id        TEXT NOT NULL DEFAULT '',
-            request_id       TEXT NOT NULL DEFAULT '',
-            status           TEXT NOT NULL DEFAULT 'open',
-            resolved_at      TEXT,
-            stix_chain_id    TEXT NOT NULL DEFAULT '',
-            created_at       TEXT NOT NULL,
-            updated_at       TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_inc_tenant   ON ai_incidents(tenant_id);
-        CREATE INDEX IF NOT EXISTS idx_inc_severity ON ai_incidents(severity, status);
-        CREATE INDEX IF NOT EXISTS idx_inc_status   ON ai_incidents(tenant_id, status);
-    """)
-    con.commit()
 
 
 def log_incident(
@@ -191,36 +187,22 @@ def _append_to_stix(
         canonical = json.dumps(bundle, sort_keys=True, separators=(",", ":"))
         b_hash    = hashlib.sha256(canonical.encode()).hexdigest()
 
-        con = sqlite3.connect(db_path, check_same_thread=False)
-        con.row_factory = sqlite3.Row
-        con.execute("PRAGMA journal_mode=WAL")
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS sep_stix_chain (
-                chain_id     TEXT PRIMARY KEY,
-                community_id TEXT NOT NULL,
-                transfer_id  TEXT NOT NULL UNIQUE,
-                bundle_json  TEXT NOT NULL,
-                bundle_hash  TEXT NOT NULL,
-                prev_hash    TEXT NOT NULL,
-                seq          INTEGER NOT NULL,
-                created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-            )
-        """)
-        row = con.execute(
-            "SELECT bundle_hash, seq FROM sep_stix_chain WHERE community_id=? ORDER BY seq DESC LIMIT 1",
-            (community_id,),
-        ).fetchone()
-        prev_hash = row["bundle_hash"] if row else "0" * 64
-        seq       = (row["seq"] + 1) if row else 0
+        with open_db(
+            "sep", db_path, turso_name="sep", module_default_path=_DB_PATH
+        ) as con:
+            row = con.execute(
+                "SELECT bundle_hash, seq FROM sep_stix_chain WHERE community_id=? ORDER BY seq DESC LIMIT 1",
+                (community_id,),
+            ).fetchone()
+            prev_hash = row["bundle_hash"] if row else "0" * 64
+            seq       = (row["seq"] + 1) if row else 0
 
-        con.execute(
-            """INSERT OR IGNORE INTO sep_stix_chain
-               (chain_id, community_id, transfer_id, bundle_json, bundle_hash, prev_hash, seq, created_at)
-               VALUES (?,?,?,?,?,?,?,?)""",
-            (chain_id, community_id, incident_id, canonical, b_hash, prev_hash, seq, now),
-        )
-        con.commit()
-        con.close()
+            con.execute(
+                """INSERT OR IGNORE INTO sep_stix_chain
+                   (chain_id, community_id, transfer_id, bundle_json, bundle_hash, prev_hash, seq, created_at)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (chain_id, community_id, incident_id, canonical, b_hash, prev_hash, seq, now),
+            )
         return chain_id
     except Exception as exc:
         log.warning("incident_register: STIX append failed for %s — %s", incident_id, exc)

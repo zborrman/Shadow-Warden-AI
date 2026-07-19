@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.prompt_library")
 
@@ -73,45 +75,39 @@ class PromptEntry:
         }
 
 
+_PROMPT_LIBRARY_DDL = """
+    CREATE TABLE IF NOT EXISTS prompt_library (
+        prompt_id    TEXT PRIMARY KEY,
+        ueciid       TEXT NOT NULL UNIQUE,
+        community_id TEXT NOT NULL,
+        created_by   TEXT NOT NULL,
+        title        TEXT NOT NULL,
+        description  TEXT NOT NULL DEFAULT '',
+        prompt_text  TEXT NOT NULL,
+        category     TEXT NOT NULL DEFAULT 'general',
+        tags         TEXT NOT NULL DEFAULT '[]',
+        version      INTEGER NOT NULL DEFAULT 1,
+        parent_id    TEXT,
+        use_count    INTEGER NOT NULL DEFAULT 0,
+        status       TEXT NOT NULL DEFAULT 'active',
+        visibility   TEXT NOT NULL DEFAULT 'community',
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pl_community ON prompt_library(community_id);
+    CREATE INDEX IF NOT EXISTS idx_pl_ueciid    ON prompt_library(ueciid);
+    CREATE INDEX IF NOT EXISTS idx_pl_category  ON prompt_library(community_id, category);
+    CREATE INDEX IF NOT EXISTS idx_pl_status    ON prompt_library(community_id, status);
+"""
+register("sep", "warden.communities.prompt_library", _PROMPT_LIBRARY_DDL)
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "sep", db_path, turso_name="sep", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS prompt_library (
-            prompt_id    TEXT PRIMARY KEY,
-            ueciid       TEXT NOT NULL UNIQUE,
-            community_id TEXT NOT NULL,
-            created_by   TEXT NOT NULL,
-            title        TEXT NOT NULL,
-            description  TEXT NOT NULL DEFAULT '',
-            prompt_text  TEXT NOT NULL,
-            category     TEXT NOT NULL DEFAULT 'general',
-            tags         TEXT NOT NULL DEFAULT '[]',
-            version      INTEGER NOT NULL DEFAULT 1,
-            parent_id    TEXT,
-            use_count    INTEGER NOT NULL DEFAULT 0,
-            status       TEXT NOT NULL DEFAULT 'active',
-            visibility   TEXT NOT NULL DEFAULT 'community',
-            created_at   TEXT NOT NULL,
-            updated_at   TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_pl_community ON prompt_library(community_id);
-        CREATE INDEX IF NOT EXISTS idx_pl_ueciid    ON prompt_library(ueciid);
-        CREATE INDEX IF NOT EXISTS idx_pl_category  ON prompt_library(community_id, category);
-        CREATE INDEX IF NOT EXISTS idx_pl_status    ON prompt_library(community_id, status);
-    """)
-    con.commit()
 
 
 def _assign_ueciid() -> str:

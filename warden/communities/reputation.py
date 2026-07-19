@@ -22,7 +22,6 @@ returns rank + badge + entry_count + points with no tenant identifier.
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -30,6 +29,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from warden.config import data_path
+from warden.db.connect import open_db, open_db_readonly
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.reputation")
 
@@ -107,35 +108,33 @@ def _badge_for(points: int, forced: str | None = None) -> str:
     return "NEWCOMER"
 
 
+_REPUTATION_DDL = """
+    CREATE TABLE IF NOT EXISTS community_reputation (
+        tenant_id   TEXT PRIMARY KEY,
+        points      INTEGER NOT NULL DEFAULT 0,
+        badge       TEXT    NOT NULL DEFAULT 'NEWCOMER',
+        entry_count INTEGER NOT NULL DEFAULT 0,
+        forced_badge TEXT,
+        updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS reputation_events (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenant_id  TEXT    NOT NULL,
+        event_type TEXT    NOT NULL,
+        delta      INTEGER NOT NULL,
+        ref_ueciid TEXT,
+        created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+"""
+register("sep", "warden.communities.reputation", _REPUTATION_DDL)
+
+
 @contextmanager
 def _db() -> Generator[sqlite3.Connection, None, None]:
-    conn = sqlite3.connect(os.getenv("SEP_DB_PATH", _DB_PATH), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    try:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS community_reputation (
-                tenant_id   TEXT PRIMARY KEY,
-                points      INTEGER NOT NULL DEFAULT 0,
-                badge       TEXT    NOT NULL DEFAULT 'NEWCOMER',
-                entry_count INTEGER NOT NULL DEFAULT 0,
-                forced_badge TEXT,
-                updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS reputation_events (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                tenant_id  TEXT    NOT NULL,
-                event_type TEXT    NOT NULL,
-                delta      INTEGER NOT NULL,
-                ref_ueciid TEXT,
-                created_at TEXT    NOT NULL DEFAULT (datetime('now'))
-            )
-        """)
-        conn.commit()
+    with open_db(
+        "sep", _DB_PATH, turso_name="sep", module_default_path=_DB_PATH
+    ) as conn:
         yield conn
-    finally:
-        conn.close()
 
 
 def award_points(tenant_id: str, event_type: str, ref_ueciid: str = "") -> ReputationRecord:
@@ -234,11 +233,8 @@ def get_trusted_entry_candidates(min_age_days: int = 30) -> list[str]:
 
     Used by sova_trusted_entry_cron to award TRUSTED_ENTRY +3 automatically.
     """
-    import sqlite3 as _sqlite3
-    sep_db = data_path("warden_sep.db", "SEP_DB_PATH")
     try:
-        conn = _sqlite3.connect(sep_db, check_same_thread=False)
-        conn.row_factory = _sqlite3.Row
+        conn = open_db_readonly(_DB_PATH)
         rows = conn.execute("""
             SELECT DISTINCT community_id
             FROM sep_ueciid_index

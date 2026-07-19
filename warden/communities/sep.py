@@ -61,13 +61,15 @@ import sqlite3
 import string
 import threading
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from warden.communities.id_generator import new_entity_id
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.communities.sep")
 
@@ -103,6 +105,7 @@ _SEP_DDL = """
     CREATE INDEX IF NOT EXISTS pod_community_idx
         ON sep_pod_tags(community_id);
 """
+register("sep", "warden.communities.sep", _SEP_DDL)
 
 
 # ── UECIID codec ──────────────────────────────────────────────────────────────
@@ -159,32 +162,11 @@ def ueciid_to_snowflake(ueciid: str) -> int:
 
 @contextmanager
 def _get_conn() -> Generator[sqlite3.Connection, None, None]:
-    """
-    Yield a DB connection — Turso (if TURSO_URL_SEP is set) or local SQLite.
-
-    Priority: explicit env var → Turso remote → local SQLite at _SEP_DB_PATH.
-    Fail-open: ImportError or Turso unavailability falls through to SQLite.
-    """
-    try:
-        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
-        if is_turso_enabled("sep"):
-            with get_connection("sep", fallback_path=_SEP_DB_PATH) as con:
-                with suppress(Exception):
-                    con.executescript(_SEP_DDL)
-                yield con  # type: ignore[misc]
-            return
-    except ImportError:
-        pass
-
-    con = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_SEP_DDL)
-    try:
+    """Yield a DB connection — Turso (if enabled) or local SQLite at _SEP_DB_PATH."""
+    with open_db(
+        "sep", _SEP_DB_PATH, turso_name="sep", module_default_path=_SEP_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── UECIID index ───────────────────────────────────────────────────────────────

@@ -18,12 +18,12 @@ Output: CommunityIntelReport (JSON-serialisable) used by:
 from __future__ import annotations
 
 import logging
-import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.communities.intelligence")
 
@@ -119,8 +119,7 @@ class CommunityIntelReport:
 def _fetch_transfer_stats(community_id: str) -> TransferStats:
     stats = TransferStats()
     try:
-        conn = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
+        conn = open_db_readonly(_SEP_DB_PATH)
         rows = conn.execute(
             "SELECT status, target_data_class, target_community FROM sep_transfers WHERE source_community=?",
             (community_id,),
@@ -150,8 +149,7 @@ def _fetch_transfer_stats(community_id: str) -> TransferStats:
 def _fetch_peering_stats(community_id: str) -> PeeringStats:
     stats = PeeringStats()
     try:
-        conn = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
+        conn = open_db_readonly(_SEP_DB_PATH)
         rows = conn.execute(
             """SELECT status, policy FROM sep_peerings
                WHERE initiator_community=? OR target_community=?""",
@@ -173,8 +171,7 @@ def _fetch_peering_stats(community_id: str) -> PeeringStats:
 def _fetch_governance_stats(community_id: str) -> GovernanceStats:
     stats = GovernanceStats()
     try:
-        conn = sqlite3.connect(_REGISTRY_DB_PATH, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
+        conn = open_db_readonly(_REGISTRY_DB_PATH)
 
         charter_row = conn.execute(
             "SELECT charter_id, version FROM community_charters WHERE community_id=? AND status='ACTIVE' LIMIT 1",

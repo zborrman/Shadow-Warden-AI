@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.communities.training_records")
@@ -86,49 +88,43 @@ class TrainingCompletion:
         }
 
 
+_TRAINING_RECORDS_DDL = """
+    CREATE TABLE IF NOT EXISTS ai_training_programs (
+        program_id    TEXT PRIMARY KEY,
+        community_id  TEXT NOT NULL,
+        title         TEXT NOT NULL,
+        description   TEXT NOT NULL DEFAULT '',
+        required_for  TEXT NOT NULL DEFAULT '[]',
+        passing_score REAL NOT NULL DEFAULT 0.8,
+        valid_days    INTEGER NOT NULL DEFAULT 365,
+        created_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_atp_community ON ai_training_programs(community_id);
+
+    CREATE TABLE IF NOT EXISTS ai_training_completions (
+        completion_id TEXT PRIMARY KEY,
+        program_id    TEXT NOT NULL,
+        community_id  TEXT NOT NULL,
+        employee_id   TEXT NOT NULL,
+        score         REAL NOT NULL DEFAULT 1.0,
+        passed        INTEGER NOT NULL DEFAULT 1,
+        completed_at  TEXT NOT NULL,
+        expires_at    TEXT NOT NULL,
+        attestation   TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_atc_employee ON ai_training_completions(community_id, employee_id);
+    CREATE INDEX IF NOT EXISTS idx_atc_program  ON ai_training_completions(program_id);
+    CREATE INDEX IF NOT EXISTS idx_atc_expires  ON ai_training_completions(expires_at);
+"""
+register("sep", "warden.communities.training_records", _TRAINING_RECORDS_DDL)
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "sep", db_path, turso_name="sep", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
-
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS ai_training_programs (
-            program_id    TEXT PRIMARY KEY,
-            community_id  TEXT NOT NULL,
-            title         TEXT NOT NULL,
-            description   TEXT NOT NULL DEFAULT '',
-            required_for  TEXT NOT NULL DEFAULT '[]',
-            passing_score REAL NOT NULL DEFAULT 0.8,
-            valid_days    INTEGER NOT NULL DEFAULT 365,
-            created_at    TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_atp_community ON ai_training_programs(community_id);
-
-        CREATE TABLE IF NOT EXISTS ai_training_completions (
-            completion_id TEXT PRIMARY KEY,
-            program_id    TEXT NOT NULL,
-            community_id  TEXT NOT NULL,
-            employee_id   TEXT NOT NULL,
-            score         REAL NOT NULL DEFAULT 1.0,
-            passed        INTEGER NOT NULL DEFAULT 1,
-            completed_at  TEXT NOT NULL,
-            expires_at    TEXT NOT NULL,
-            attestation   TEXT NOT NULL DEFAULT ''
-        );
-        CREATE INDEX IF NOT EXISTS idx_atc_employee ON ai_training_completions(community_id, employee_id);
-        CREATE INDEX IF NOT EXISTS idx_atc_program  ON ai_training_completions(program_id);
-        CREATE INDEX IF NOT EXISTS idx_atc_expires  ON ai_training_completions(expires_at);
-    """)
-    con.commit()
 
 
 def _sign_completion(completion_id: str, program_id: str, employee_id: str, score: float, ts: str) -> str:
