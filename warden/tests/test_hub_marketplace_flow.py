@@ -203,6 +203,19 @@ class TestEscrowLifecycle:
         status = data.get("status", "")
         assert status in ("confirmed", "completed", "released")
 
+    def test_fund_unknown_escrow_returns_404(self, client):
+        """FT-3: nonexistent escrow_id is a 404, distinct from an illegal
+        state transition (409) on a real escrow."""
+        resp = client.post("/marketplace/escrow/ESC-DOES-NOT-EXIST/fund")
+        assert resp.status_code == 404
+
+    def test_refund_already_confirmed_escrow_returns_409(self, client):
+        """FT-3: re-funding an escrow already in 'confirmed' state is a
+        state conflict (409), not a generic 400."""
+        eid = TestListingFlow.escrow_id
+        resp = client.post(f"/marketplace/escrow/{eid}/fund")
+        assert resp.status_code == 409
+
 
 # ── 7. Readiness after setup ──────────────────────────────────────────────────
 

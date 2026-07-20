@@ -56,30 +56,44 @@ async def create_escrow(body: EscrowCreateRequest) -> dict:
     return escrow.to_dict()
 
 
+def _require_escrow(svc, escrow_id: str):  # noqa: ANN001, ANN202
+    """404 when the escrow doesn't exist — distinct from a 409 state conflict."""
+    esc = svc.get_escrow(escrow_id)
+    if esc is None:
+        raise HTTPException(status_code=404, detail=f"Escrow '{escrow_id}' not found.")
+    return esc
+
+
 @router.post("/escrow/{escrow_id}/fund")
 async def fund_escrow(escrow_id: str) -> dict:
     from warden.marketplace.escrow import EscrowService
-    ok = EscrowService().fund_escrow(escrow_id)
+    svc = EscrowService()
+    _require_escrow(svc, escrow_id)
+    ok = svc.fund_escrow(escrow_id)
     if not ok:
-        raise HTTPException(status_code=400, detail="Cannot fund escrow in current state.")
+        raise HTTPException(status_code=409, detail="Cannot fund escrow in current state.")
     return {"funded": True, "escrow_id": escrow_id}
 
 
 @router.post("/escrow/{escrow_id}/deliver")
 async def deliver_asset(escrow_id: str, body: DeliverRequest) -> dict:
     from warden.marketplace.escrow import EscrowService
-    ok = EscrowService().deliver_asset(escrow_id, body.asset_hash)
+    svc = EscrowService()
+    _require_escrow(svc, escrow_id)
+    ok = svc.deliver_asset(escrow_id, body.asset_hash)
     if not ok:
-        raise HTTPException(status_code=400, detail="Cannot deliver in current state.")
+        raise HTTPException(status_code=409, detail="Cannot deliver in current state.")
     return {"delivered": True, "asset_hash": body.asset_hash}
 
 
 @router.post("/escrow/{escrow_id}/confirm")
 async def confirm_receipt(escrow_id: str) -> dict:
     from warden.marketplace.escrow import EscrowService
-    ok = EscrowService().confirm_receipt(escrow_id)
+    svc = EscrowService()
+    _require_escrow(svc, escrow_id)
+    ok = svc.confirm_receipt(escrow_id)
     if not ok:
-        raise HTTPException(status_code=400, detail="Cannot confirm in current state.")
+        raise HTTPException(status_code=409, detail="Cannot confirm in current state.")
     with contextlib.suppress(Exception):
         MARKETPLACE_ESCROW_ACTIVE.dec()
     return {"confirmed": True, "escrow_id": escrow_id}
@@ -88,19 +102,23 @@ async def confirm_receipt(escrow_id: str) -> dict:
 @router.post("/escrow/{escrow_id}/dispute")
 async def raise_dispute(escrow_id: str, body: DisputeRequest) -> dict:
     from warden.marketplace.escrow import EscrowService
-    ok = EscrowService().raise_dispute(escrow_id, body.reason)
+    svc = EscrowService()
+    _require_escrow(svc, escrow_id)
+    ok = svc.raise_dispute(escrow_id, body.reason)
     if not ok:
-        raise HTTPException(status_code=400, detail="Cannot raise dispute in current state.")
+        raise HTTPException(status_code=409, detail="Cannot raise dispute in current state.")
     return {"disputed": True, "reason": body.reason}
 
 
 @router.post("/escrow/{escrow_id}/resolve")
 async def resolve_dispute(escrow_id: str, body: dict) -> dict:
     from warden.marketplace.escrow import EscrowService
+    svc = EscrowService()
+    _require_escrow(svc, escrow_id)
     release_to_buyer = bool(body.get("release_to_buyer", True))
-    ok = EscrowService().resolve_dispute(escrow_id, release_to_buyer)
+    ok = svc.resolve_dispute(escrow_id, release_to_buyer)
     if not ok:
-        raise HTTPException(status_code=400, detail="Cannot resolve dispute in current state.")
+        raise HTTPException(status_code=409, detail="Cannot resolve dispute in current state.")
     verdict = "resolved_buyer" if release_to_buyer else "resolved_seller"
     return {"resolved": True, "verdict": verdict}
 
