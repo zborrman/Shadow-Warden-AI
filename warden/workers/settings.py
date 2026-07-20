@@ -63,6 +63,7 @@ from warden.workers.content_filter import moderate_post
 from warden.workers.cve_scanner import scan_cves
 from warden.workers.dunning import process_dunning
 from warden.workers.gdpr_retention import run_gdpr_retention
+from warden.workers.ledger_recon_job import nightly_ledger_recon
 from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
@@ -122,6 +123,8 @@ class WorkerSettings:
         run_gdpr_retention,
         # x402 settlement (FT-4 slice 1)
         settle_x402_deductions,
+        # Ledger reconciliation (FT-4 slice 2)
+        nightly_ledger_recon,
     ]
 
     cron_jobs = [
@@ -208,6 +211,9 @@ class WorkerSettings:
 
         # ── x402 pending-deduction settlement — every 15 minutes (FT-4) ──────
         cron(settle_x402_deductions, minute={0, 15, 30, 45}, timeout=60),
+
+        # ── Ledger reconciliation — daily at 04:00 UTC (FT-4 slice 2) ────────
+        cron(nightly_ledger_recon, hour=4, minute=0, timeout=300),
     ]
 
     on_startup  = startup
