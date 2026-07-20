@@ -69,6 +69,7 @@ from warden.workers.reaper import (
 )
 from warden.workers.settings_watcher import watch_config_drift
 from warden.workers.weekly_report import send_weekly_reports
+from warden.workers.x402_settlement import settle_x402_deductions
 
 logging.basicConfig(
     level=logging.INFO,
@@ -119,6 +120,8 @@ class WorkerSettings:
         watch_config_drift,
         # GDPR retention
         run_gdpr_retention,
+        # x402 settlement (FT-4 slice 1)
+        settle_x402_deductions,
     ]
 
     cron_jobs = [
@@ -202,6 +205,9 @@ class WorkerSettings:
 
         # ── Nightly encrypted DB backup — daily at 03:30 UTC (Phase 6) ───────
         cron(sova_nightly_backup, hour=3, minute=30, timeout=600),
+
+        # ── x402 pending-deduction settlement — every 15 minutes (FT-4) ──────
+        cron(settle_x402_deductions, minute={0, 15, 30, 45}, timeout=60),
     ]
 
     on_startup  = startup
