@@ -24,6 +24,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.security.certificate_authority")
 
@@ -46,6 +48,7 @@ CREATE TABLE IF NOT EXISTS ans_certificates (
 );
 CREATE INDEX IF NOT EXISTS idx_ans_agent ON ans_certificates(agent_id);
 """
+register("marketplace", "warden.security.certificate_authority", _SCHEMA)
 
 
 def _get_stable_ca_key():
@@ -67,11 +70,10 @@ def _get_stable_ca_key():
 
 
 def _conn(db_path: str = _DB_PATH) -> sqlite3.Connection:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_SCHEMA)
-    return con
+    # No Turso routing here (unlike open_db) — this class holds a connection
+    # across a get/close pair rather than a single call, same tradeoff as
+    # open_persistent_db's other self._conn-holding callers.
+    return open_persistent_db("marketplace", db_path)
 
 
 def _redis():

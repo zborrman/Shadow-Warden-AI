@@ -21,6 +21,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_persistent_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.tokenomics.outcome_pricing")
 
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS outcome_listings (
     settled_at      TEXT
 );
 """
+register("marketplace", "warden.tokenomics.outcome_pricing", _SCHEMA)
 
 
 @dataclass
@@ -65,11 +68,9 @@ class OutcomeListing:
 
 
 def _conn(db_path: str = _DB_PATH) -> sqlite3.Connection:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_SCHEMA)
-    return con
+    # No Turso routing here (unlike open_db) — this class holds a connection
+    # across a get/close pair rather than a single call.
+    return open_persistent_db("marketplace", db_path)
 
 
 class OutcomePricingService:

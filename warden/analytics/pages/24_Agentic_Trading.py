@@ -11,9 +11,10 @@ Tabs
 """
 import json
 import os
-import sqlite3
 
 import streamlit as st
+
+from warden.db.connect import open_db_readonly
 
 st.set_page_config(page_title="Agentic Trading", page_icon="⚡", layout="wide")
 st.title("⚡ Agentic Trading Monitor")
@@ -46,9 +47,7 @@ def _badge(status: str) -> str:
 
 
 def _conn():
-    con = sqlite3.connect(_DB_PATH)
-    con.row_factory = sqlite3.Row
-    return con
+    return open_db_readonly(_DB_PATH)
 
 
 def _query(sql: str, params: tuple = ()) -> list[dict]:

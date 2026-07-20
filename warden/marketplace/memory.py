@@ -21,11 +21,12 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sqlite3
 import time
 from typing import Any
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.memory")
 
@@ -33,35 +34,28 @@ _REDIS_URL   = os.getenv("REDIS_URL", "redis://localhost:6379")
 _FALLBACK_DB = data_path("warden_handoff.db", "HANDOFF_DB_PATH")
 _TTL         = int(os.getenv("HANDOFF_MEMORY_TTL", "3600"))   # 1 hour
 
+_HANDOFF_DDL = """
+    CREATE TABLE IF NOT EXISTS handoff_memory
+    (key TEXT PRIMARY KEY, payload TEXT, expires_at REAL);
+"""
+register("handoff", "warden.marketplace.memory", _HANDOFF_DDL)
+
 
 # ── SQLite helpers ─────────────────────────────────────────────────────────────
 
-def _sqlite_ensure() -> None:
-    con = sqlite3.connect(_FALLBACK_DB)
-    con.execute(
-        "CREATE TABLE IF NOT EXISTS handoff_memory "
-        "(key TEXT PRIMARY KEY, payload TEXT, expires_at REAL)"
-    )
-    con.commit()
-    con.close()
-
-
 def _sqlite_write(key: str, payload: str, ttl: int) -> None:
-    con = sqlite3.connect(_FALLBACK_DB)
-    con.execute(
-        "INSERT OR REPLACE INTO handoff_memory (key, payload, expires_at) VALUES (?,?,?)",
-        (key, payload, time.time() + ttl),
-    )
-    con.commit()
-    con.close()
+    with open_db("handoff", _FALLBACK_DB, module_default_path=_FALLBACK_DB) as con:
+        con.execute(
+            "INSERT OR REPLACE INTO handoff_memory (key, payload, expires_at) VALUES (?,?,?)",
+            (key, payload, time.time() + ttl),
+        )
 
 
 def _sqlite_read(key: str) -> str | None:
-    con = sqlite3.connect(_FALLBACK_DB)
-    row = con.execute(
-        "SELECT payload, expires_at FROM handoff_memory WHERE key=?", (key,)
-    ).fetchone()
-    con.close()
+    with open_db("handoff", _FALLBACK_DB, module_default_path=_FALLBACK_DB) as con:
+        row = con.execute(
+            "SELECT payload, expires_at FROM handoff_memory WHERE key=?", (key,)
+        ).fetchone()
     if row and row[1] > time.time():
         return row[0]
     return None
@@ -99,7 +93,6 @@ class AgentHandoffMemory:
         self._redis_url  = redis_url
         self._redis: Any = None
         self._use_sqlite = (redis_url == "memory://")
-        _sqlite_ensure()
 
     async def _get_redis(self) -> Any | None:
         if self._use_sqlite:

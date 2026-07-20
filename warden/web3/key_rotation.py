@@ -263,15 +263,14 @@ class KeyRotationManager:
         try:
             import time
             now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            with _db_lock:
-                con = sqlite3.connect(self.marketplace_db, check_same_thread=False)
-                con.execute("PRAGMA journal_mode=WAL")
+            with _db_lock, open_db(
+                "marketplace", self.marketplace_db, turso_name="marketplace",
+                module_default_path=self.marketplace_db,
+            ) as con:
                 con.execute(
                     "UPDATE marketplace_agents SET public_key=?, last_key_rotation_at=? WHERE agent_id=?",
                     (new_public_key, now, agent_id),
                 )
-                con.commit()
-                con.close()
         except Exception as exc:
             log.debug("KeyRotation._update_agent_pubkey: %s", exc)
 

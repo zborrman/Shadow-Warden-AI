@@ -12,9 +12,10 @@ Tabs
 """
 import json
 import os
-import sqlite3
 
 import streamlit as st
+
+from warden.db.connect import open_db_readonly
 
 st.set_page_config(page_title="Marketplace Admin", page_icon="🏪", layout="wide")
 st.title("🏪 M2M Agentic Marketplace")
@@ -23,9 +24,7 @@ _DB_PATH = os.getenv("MARKETPLACE_DB_PATH", "/tmp/warden_marketplace.db")
 
 
 def _conn():
-    con = sqlite3.connect(_DB_PATH)
-    con.row_factory = sqlite3.Row
-    return con
+    return open_db_readonly(_DB_PATH)
 
 
 def _agents():

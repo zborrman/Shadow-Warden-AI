@@ -85,10 +85,9 @@ async def export_chain(tenant_id: str) -> PlainTextResponse:
 @router.get("/evm/{tenant_id}", dependencies=[_Gate])
 async def get_evm_anchors(tenant_id: str) -> dict:
     """Return EVM attestation anchor history for the tenant."""
-    import sqlite3  # noqa: PLC0415
+    from warden.db.connect import open_db_readonly  # noqa: PLC0415
     try:
-        con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-        con.row_factory = sqlite3.Row
+        con = open_db_readonly(_DB_PATH)
         rows = con.execute(
             "SELECT * FROM billing_audit_evm_anchors WHERE tenant_id=? ORDER BY tip_seq DESC LIMIT 100",
             (tenant_id,),

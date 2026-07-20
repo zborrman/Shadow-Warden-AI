@@ -17,7 +17,6 @@ Tiers: Community Business+ (smb_suite_enabled)
 from __future__ import annotations
 
 import logging
-import sqlite3
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -75,41 +74,35 @@ def _assign_ueciid() -> str:
 def _append_stix(ueciid: str, tenant_id: str, community_id: str) -> str:
     import hashlib
     import json
+
+    from warden.db.connect import open_db
     try:
-        con = sqlite3.connect(_SEP_DB_PATH, check_same_thread=False)
-        con.execute("PRAGMA journal_mode=WAL")
-        con.execute("""CREATE TABLE IF NOT EXISTS sep_stix_chain (
-            entry_id   TEXT PRIMARY KEY,
-            community_id TEXT NOT NULL DEFAULT '',
-            bundle_json  TEXT NOT NULL,
-            prev_hash    TEXT NOT NULL,
-            seq          INTEGER NOT NULL DEFAULT 0,
-            created_at   TEXT NOT NULL
-        )""")
-        con.commit()
-        row = con.execute(
-            "SELECT bundle_json, seq FROM sep_stix_chain WHERE community_id=? ORDER BY seq DESC LIMIT 1",
-            (community_id,),
-        ).fetchone()
-        prev_hash = hashlib.sha256(row[0].encode()).hexdigest() if row else "0" * 64
-        seq       = (row[1] + 1) if row else 1
-        entry_id  = str(uuid.uuid4())
-        now       = datetime.now(UTC).isoformat()
-        bundle    = json.dumps({
-            "type": "bundle", "id": f"bundle--{entry_id}",
-            "spec_version": "2.1",
-            "x-chain": {"prev_hash": prev_hash, "seq": seq},
-            "objects": [{"type": "note", "id": f"note--{entry_id}",
-                         "created": now, "modified": now,
-                         "content": f"SMB Suite provisioned: tenant={tenant_id} community={community_id} ueciid={ueciid}",
-                         "object_refs": [f"identity--{entry_id}"]}],
-        }, separators=(",", ":"), sort_keys=True)
-        con.execute(
-            "INSERT INTO sep_stix_chain (entry_id, community_id, bundle_json, prev_hash, seq, created_at) VALUES (?,?,?,?,?,?)",
-            (entry_id, community_id, bundle, prev_hash, seq, now),
-        )
-        con.commit()
-        con.close()
+        # sep_stix_chain is owned by warden.communities.stix_audit — this file
+        # only writes into the shared "sep" db, it does not register the DDL.
+        with open_db(
+            "sep", _SEP_DB_PATH, turso_name="sep", module_default_path=_SEP_DB_PATH
+        ) as con:
+            row = con.execute(
+                "SELECT bundle_json, seq FROM sep_stix_chain WHERE community_id=? ORDER BY seq DESC LIMIT 1",
+                (community_id,),
+            ).fetchone()
+            prev_hash = hashlib.sha256(row[0].encode()).hexdigest() if row else "0" * 64
+            seq       = (row[1] + 1) if row else 1
+            entry_id  = str(uuid.uuid4())
+            now       = datetime.now(UTC).isoformat()
+            bundle    = json.dumps({
+                "type": "bundle", "id": f"bundle--{entry_id}",
+                "spec_version": "2.1",
+                "x-chain": {"prev_hash": prev_hash, "seq": seq},
+                "objects": [{"type": "note", "id": f"note--{entry_id}",
+                             "created": now, "modified": now,
+                             "content": f"SMB Suite provisioned: tenant={tenant_id} community={community_id} ueciid={ueciid}",
+                             "object_refs": [f"identity--{entry_id}"]}],
+            }, separators=(",", ":"), sort_keys=True)
+            con.execute(
+                "INSERT INTO sep_stix_chain (entry_id, community_id, bundle_json, prev_hash, seq, created_at) VALUES (?,?,?,?,?,?)",
+                (entry_id, community_id, bundle, prev_hash, seq, now),
+            )
         return entry_id
     except Exception as exc:
         log.warning("smb_suite: stix append failed: %s", exc)
