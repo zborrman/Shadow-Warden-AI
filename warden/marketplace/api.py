@@ -1230,12 +1230,27 @@ async def purchase_credits_endpoint(body: CreditsPurchaseRequest, request: Reque
 
     For direct testing (integration tests, webhook simulation), grants credits immediately.
     Returns new balance and package details.
+
+    Requires an ``Idempotency-Key`` header (FT-3): without one, a retried Lemon
+    Squeezy webhook or a double-submitted checkout call granted credits TWICE —
+    real money creation, since the credit balance is directly spendable. A
+    replayed key returns the original balance unchanged and grants nothing new.
     """
+    from fastapi import HTTPException  # noqa: PLC0415
+
     from warden.marketplace.credits import CREDIT_PACKAGES, purchase_credits  # noqa: PLC0415
+
+    idempotency_key = request.headers.get("Idempotency-Key", "").strip()
+    if not idempotency_key:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "idempotency_key_required",
+                    "message": "Send an Idempotency-Key header (e.g. the payment "
+                               "provider's event/order ID) with every credit purchase."},
+        )
 
     package = CREDIT_PACKAGES.get(body.package_id)
     if package is None:
-        from fastapi import HTTPException  # noqa: PLC0415
         raise HTTPException(
             status_code=400,
             detail={"error": "unknown_package",
@@ -1249,7 +1264,7 @@ async def purchase_credits_endpoint(body: CreditsPurchaseRequest, request: Reque
     else:
         tenant_id = request.headers.get("X-Tenant-ID", "unknown")
 
-    new_balance = purchase_credits(tenant_id, body.package_id)
+    new_balance = purchase_credits(tenant_id, body.package_id, idempotency_key=idempotency_key)
     return {
         "ok":          True,
         "package_id":  body.package_id,

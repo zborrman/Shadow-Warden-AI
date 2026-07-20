@@ -77,6 +77,14 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
             reserved_credits INTEGER NOT NULL DEFAULT 0,
             updated_at       TEXT    NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS marketplace_credit_purchases (
+            idempotency_key TEXT PRIMARY KEY,
+            tenant_id       TEXT    NOT NULL,
+            package_id      TEXT    NOT NULL,
+            credits_added   INTEGER NOT NULL,
+            new_balance     INTEGER NOT NULL,
+            created_at      TEXT    NOT NULL
+        );
     """)
 
 
@@ -217,21 +225,72 @@ def _mirror_credit_spend(tenant_id: str, credits: int) -> None:
         record_failopen("credits_ledger_mirror", Reason.BACKEND_ERROR, exc)
 
 
-def purchase_credits(tenant_id: str, package_id: str) -> int:
-    """Add credits for *package_id* to *tenant_id*. Returns new balance.
+def _read_purchase(idempotency_key: str) -> dict | None:
+    with _conn() as con:
+        row = con.execute(
+            "SELECT tenant_id, package_id, credits_added, new_balance "
+            "FROM marketplace_credit_purchases WHERE idempotency_key=?",
+            (idempotency_key,),
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "tenant_id": row["tenant_id"], "package_id": row["package_id"],
+        "credits_added": row["credits_added"], "new_balance": row["new_balance"],
+    }
+
+
+def purchase_credits(tenant_id: str, package_id: str, idempotency_key: str | None = None) -> int:
+    """Add credits for *package_id* to *tenant_id*. Returns new balance. Idempotent.
 
     In production this is called from the Lemon Squeezy webhook handler after
     payment confirmation — not directly from the API (which should redirect to
     checkout). Tests can call it directly to seed balances.
+
+    ``idempotency_key`` (e.g. the webhook's event ID / order ID) makes a retried
+    grant a no-op: without it, a retried webhook or double-submitted checkout
+    call credited a tenant's spendable balance TWICE (real money creation, not
+    just a duplicate log row — worse than the clearing-log duplication FT-3
+    already closed). Callers that omit it get the old un-deduplicated behaviour
+    (only acceptable for direct test seeding); the API endpoint always supplies
+    one.
     """
     package = CREDIT_PACKAGES.get(package_id)
     if not package:
         raise ValueError(f"Unknown credit package: {package_id!r}. "
                          f"Valid: {list(CREDIT_PACKAGES)}")
     amount = package["credits"]
-    new_balance = _db_add_credits(tenant_id, amount)
-    _redis_sync(tenant_id, new_balance)
-    _mirror_credit_grant(tenant_id, amount)
+
+    if idempotency_key:
+        # The whole check-then-grant-then-record sequence is serialized under
+        # _db_lock (the same lock guarding every other credit mutation in this
+        # module) so two concurrent calls with the same key cannot both pass
+        # the "not yet purchased" check before either records it — closing the
+        # double-grant race, not just deduplicating the log row.
+        with _db_lock:
+            existing = _read_purchase(idempotency_key)
+            if existing is not None:
+                log.info("credits: replayed purchase key=%s tenant=%s (no new credits granted)",
+                         idempotency_key, tenant_id)
+                return existing["new_balance"]
+
+            new_balance = _db_add_credits(tenant_id, amount)
+            _redis_sync(tenant_id, new_balance)
+            _mirror_credit_grant(tenant_id, amount)
+
+            now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            with _conn() as con:
+                con.execute(
+                    "INSERT INTO marketplace_credit_purchases"
+                    "(idempotency_key, tenant_id, package_id, credits_added, new_balance, created_at) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (idempotency_key, tenant_id, package_id, amount, new_balance, now),
+                )
+    else:
+        new_balance = _db_add_credits(tenant_id, amount)
+        _redis_sync(tenant_id, new_balance)
+        _mirror_credit_grant(tenant_id, amount)
+
     log.info("credits: purchased package=%s credits=%d tenant=%s new_balance=%d",
              package_id, amount, tenant_id, new_balance)
     return new_balance
