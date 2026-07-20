@@ -280,13 +280,14 @@ def test_cross_chain_listing_polygon(client, auth_headers):
     assert listing_id
 
     # Attempt a purchase — escrow should be created (USDC_SIMULATE=true)
+    # FT-3: /purchase now requires an Idempotency-Key header.
     buy_resp = client.post(
         f"/marketplace/listings/{listing_id}/purchase",
         json={
             "buyer_agent_id": "prod-agent-001",
             "community_id": "prod-community",
         },
-        headers=auth_headers,
+        headers={**auth_headers, "Idempotency-Key": "prod-readiness-cross-chain-1"},
     )
     # 200/201 = escrow created; 404 = listing not found (acceptable); 422 = missing field
     assert buy_resp.status_code in (200, 201, 404, 422)

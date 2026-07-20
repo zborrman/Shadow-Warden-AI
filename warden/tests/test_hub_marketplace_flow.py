@@ -166,9 +166,10 @@ class TestListingFlow:
         assert TestListingFlow.listing_id in ids
 
     def test_buy_listing_creates_escrow(self, client):
+        # FT-3: /purchase now requires an Idempotency-Key header.
         resp = client.post(f"/marketplace/listings/{TestListingFlow.listing_id}/purchase", json={
             "buyer_agent_id": TestAgentRegistration.agent_id,
-        })
+        }, headers={"Idempotency-Key": "hub-flow-test-buy-1"})
         assert resp.status_code in (200, 201), resp.text
         data = resp.json()
         assert "escrow_id" in data

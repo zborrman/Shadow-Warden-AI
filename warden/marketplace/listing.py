@@ -16,7 +16,7 @@ import sqlite3
 import threading
 import uuid
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -72,12 +72,23 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
             escrow_id      TEXT NOT NULL DEFAULT '',
             negotiation_id TEXT NOT NULL DEFAULT '',
             purchased_at   TEXT NOT NULL,
-            completed_at   TEXT
+            completed_at   TEXT,
+            idempotency_key TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_mp_buyer  ON marketplace_purchases(buyer_agent);
         CREATE INDEX IF NOT EXISTS idx_mp_seller ON marketplace_purchases(seller_agent);
         CREATE INDEX IF NOT EXISTS idx_mp_listing ON marketplace_purchases(listing_id);
     """)
+    # Additive migration for existing databases (pre-FT-3 schema).
+    with suppress(Exception):
+        con.execute("ALTER TABLE marketplace_purchases ADD COLUMN idempotency_key TEXT")
+    # Partial-unique-by-value: SQLite UNIQUE indexes allow unlimited NULLs, so
+    # rows without a key (legacy/no-key callers) are unconstrained; rows WITH a
+    # key can be inserted at most once — exactly the dedup semantics needed.
+    con.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_mp_idempotency_key "
+        "ON marketplace_purchases(idempotency_key) WHERE idempotency_key IS NOT NULL"
+    )
 
 
 def _migrate_chain_column(con: sqlite3.Connection) -> None:
@@ -356,6 +367,7 @@ def create_purchase(
     price_paid: float,
     negotiation_id: str = "",
     db_path: str = _DB_PATH,
+    idempotency_key: str | None = None,
 ) -> Purchase:
     purchase_id = f"PUR-{uuid.uuid4().hex[:12].upper()}"
     now = datetime.now(UTC).isoformat()
@@ -376,16 +388,26 @@ def create_purchase(
         con.execute(
             """INSERT INTO marketplace_purchases
                (purchase_id, listing_id, asset_id, buyer_agent, seller_agent,
-                price_paid, status, escrow_id, negotiation_id, purchased_at, completed_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                price_paid, status, escrow_id, negotiation_id, purchased_at, completed_at,
+                idempotency_key)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 purchase.purchase_id, purchase.listing_id, purchase.asset_id,
                 purchase.buyer_agent, purchase.seller_agent, purchase.price_paid,
                 purchase.status, purchase.escrow_id, purchase.negotiation_id,
-                purchase.purchased_at, purchase.completed_at,
+                purchase.purchased_at, purchase.completed_at, idempotency_key,
             ),
         )
     return purchase
+
+
+def get_purchase_by_idempotency_key(idempotency_key: str, db_path: str = _DB_PATH) -> Purchase | None:
+    """Look up a purchase by its client-supplied idempotency key (FT-3)."""
+    with _conn(db_path) as con:
+        row = con.execute(
+            "SELECT * FROM marketplace_purchases WHERE idempotency_key=?", (idempotency_key,)
+        ).fetchone()
+    return _row_to_purchase(row) if row else None
 
 
 def get_purchase(purchase_id: str, db_path: str = _DB_PATH) -> Purchase | None:
@@ -448,8 +470,42 @@ def purchase_listing(
     listing_id: str,
     buyer_agent_id: str,
     db_path: str = _DB_PATH,
+    idempotency_key: str | None = None,
 ) -> dict:
-    """Atomically buy a listing: create purchase record + escrow + trigger import."""
+    """Atomically buy a listing: create purchase record + escrow + trigger import.
+
+    ``idempotency_key`` (FT-3): without one, a retried POST /purchase call (double
+    -submit, webhook retry) created a SECOND purchase record + a SECOND escrow for
+    the same buyer intent on the same listing — a real double-charge/double-escrow
+    bug, not just a duplicate log row. When a key is given, the whole check-then-
+    create sequence runs under ``_db_lock`` and a replay returns the original
+    purchase's response unchanged, creating nothing new.
+    """
+    if idempotency_key:
+        with _db_lock:
+            existing = get_purchase_by_idempotency_key(idempotency_key, db_path=db_path)
+            if existing is not None:
+                cached_listing = get_listing(existing.listing_id, db_path=db_path)
+                log.info("listing: replayed purchase key=%s purchase=%s (nothing created)",
+                         idempotency_key, existing.purchase_id)
+                return {
+                    "purchase_id": existing.purchase_id,
+                    "listing_id":  existing.listing_id,
+                    "asset_id":    existing.asset_id,
+                    "asset_type":  cached_listing.asset_type if cached_listing else "",
+                    "price_paid":  existing.price_paid,
+                    "escrow_id":   existing.escrow_id,
+                    "chain":       cached_listing.chain if cached_listing else "",
+                    "status":      existing.status,
+                    "replayed":    True,
+                }
+            return _do_purchase(listing_id, buyer_agent_id, db_path, idempotency_key)
+    return _do_purchase(listing_id, buyer_agent_id, db_path, idempotency_key)
+
+
+def _do_purchase(
+    listing_id: str, buyer_agent_id: str, db_path: str, idempotency_key: str | None,
+) -> dict:
     listing = get_listing(listing_id, db_path=db_path)
     if listing is None:
         raise ValueError(f"Listing '{listing_id}' not found.")
@@ -463,6 +519,7 @@ def purchase_listing(
         seller_agent=listing.seller_agent,
         price_paid=listing.price_usd,
         db_path=db_path,
+        idempotency_key=idempotency_key,
     )
 
     try:
@@ -481,6 +538,15 @@ def purchase_listing(
         log.warning("Escrow creation failed for %s: %s", purchase.purchase_id, exc)
         escrow_id = ""
 
+    if escrow_id:
+        # Persist so a later replay (or get_purchase/list_purchases) sees the
+        # real escrow_id instead of the placeholder "" create_purchase wrote.
+        with _db_lock, _conn(db_path) as con:
+            con.execute(
+                "UPDATE marketplace_purchases SET escrow_id=? WHERE purchase_id=?",
+                (escrow_id, purchase.purchase_id),
+            )
+
     return {
         "purchase_id": purchase.purchase_id,
         "listing_id":  listing_id,
@@ -490,6 +556,7 @@ def purchase_listing(
         "escrow_id":   escrow_id,
         "chain":       listing.chain,
         "status":      "pending",
+        "replayed":    False,
     }
 
 
