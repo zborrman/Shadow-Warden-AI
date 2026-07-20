@@ -1,5 +1,5 @@
 {
-  "total": 16,
+  "total": 15,
   "per_file": {
     "agent/scheduler.py": 1,
     "analytics/pages/23_Marketplace_Admin.py": 1,
@@ -9,7 +9,6 @@
     "business_community/agentic_commerce/semantic_budget.py": 1,
     "integrations/smb_suite.py": 1,
     "kya/profile.py": 1,
-    "marketplace/maestro.py": 1,
     "marketplace/memory.py": 3,
     "security/certificate_authority.py": 1,
     "tokenomics/outcome_pricing.py": 1,
