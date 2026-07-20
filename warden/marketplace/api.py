@@ -657,6 +657,7 @@ async def market_clear(body: ClearRequest) -> dict:
         "rejected_neg_ids": result.rejected_neg_ids,
         "cleared_at":       result.cleared_at,
         "pg_write_ok":      result.pg_write_ok,
+        "replayed":         result.replayed,
     }
 
 
