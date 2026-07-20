@@ -1,5 +1,5 @@
 {
-  "total": 55,
+  "total": 52,
   "per_file": {
     "agent/scheduler.py": 1,
     "analytics/pages/23_Marketplace_Admin.py": 1,
@@ -35,8 +35,6 @@
     "marketplace/vector_search.py": 2,
     "marketplace/x402_gate.py": 3,
     "security/certificate_authority.py": 1,
-    "staff/a2a.py": 2,
-    "staff/economics.py": 1,
     "tokenomics/outcome_pricing.py": 1,
     "web3/key_rotation.py": 1
   }

@@ -13,10 +13,13 @@ from __future__ import annotations
 import logging
 import sqlite3
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 from warden.config import data_path
-from warden.db.ddl_registry import ensure_schema, register
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.finops.rating import DEFAULT_RATES as _DEFAULT_RATES
 from warden.finops.rating import PRICE_BOOK as _COST_PER_MTOK
 from warden.finops.rating import rate_usage
@@ -80,36 +83,13 @@ _STAFF_DDL = """
 register("staff_economics", "staff_economics", _STAFF_DDL)
 
 
-def _db(path: str = _DB_PATH) -> sqlite3.Connection:
-    """Return a SQLite or Turso connection for the staff economics database."""
-    try:
-        from contextlib import suppress  # noqa: PLC0415
-
-        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
-        if is_turso_enabled("staff") and path == _DB_PATH:
-            # Return a proxy that mimics sqlite3.Connection commit/close lifecycle
-            class _TursoProxy:
-                def __init__(self, inner):
-                    self._c = inner
-                def execute(self, sql, params=()):
-                    return self._c.execute(sql, params)
-                def commit(self):
-                    pass
-                def close(self):
-                    pass
-                row_factory = None
-            ctx = get_connection("staff", fallback_path=_DB_PATH)
-            con = ctx.__enter__()
-            with suppress(Exception):
-                ensure_schema(con, "staff_economics", _DB_PATH)
-            return _TursoProxy(con)  # type: ignore[return-value]
-    except (ImportError, Exception):
-        pass
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    ensure_schema(conn, "staff_economics", path)
-    conn.commit()
-    return conn
+@contextmanager
+def _conn(path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+    """Yield a SQLite or Turso connection for the staff economics database."""
+    with open_db(
+        "staff_economics", path, turso_name="staff", module_default_path=_DB_PATH
+    ) as con:
+        yield con
 
 
 class TokenCostTracker:
@@ -138,16 +118,14 @@ class TokenCostTracker:
             cost_usd=cost,
         )
         try:
-            conn = _db(self._db_path)
-            conn.execute(
-                "INSERT INTO staff_action_costs "
-                "(tenant_id,agent_id,action,model,input_tokens,output_tokens,cost_usd,ts) "
-                "VALUES (?,?,?,?,?,?,?,?)",
-                (tenant_id, agent_id, action, model,
-                 input_tokens, output_tokens, cost, entry.ts),
-            )
-            conn.commit()
-            conn.close()
+            with _conn(self._db_path) as conn:
+                conn.execute(
+                    "INSERT INTO staff_action_costs "
+                    "(tenant_id,agent_id,action,model,input_tokens,output_tokens,cost_usd,ts) "
+                    "VALUES (?,?,?,?,?,?,?,?)",
+                    (tenant_id, agent_id, action, model,
+                     input_tokens, output_tokens, cost, entry.ts),
+                )
             log.debug(
                 "ECONOMICS: tenant=%s agent=%s action=%s model=%s cost=$%.6f",
                 tenant_id, agent_id, action, model, cost,
@@ -177,23 +155,22 @@ class TokenCostTracker:
         """Per-action cost breakdown for the last N days."""
         since = int(time.time()) - days * 86400
         try:
-            conn = _db(self._db_path)
-            rows = conn.execute(
-                """
-                SELECT agent_id, action, model,
-                       COUNT(*) as calls,
-                       SUM(input_tokens) as total_input,
-                       SUM(output_tokens) as total_output,
-                       SUM(cost_usd) as total_cost,
-                       AVG(cost_usd) as avg_cost
-                FROM staff_action_costs
-                WHERE tenant_id = ? AND ts >= ?
-                GROUP BY agent_id, action, model
-                ORDER BY total_cost DESC
-                """,
-                (tenant_id, since),
-            ).fetchall()
-            conn.close()
+            with _conn(self._db_path) as conn:
+                rows = conn.execute(
+                    """
+                    SELECT agent_id, action, model,
+                           COUNT(*) as calls,
+                           SUM(input_tokens) as total_input,
+                           SUM(output_tokens) as total_output,
+                           SUM(cost_usd) as total_cost,
+                           AVG(cost_usd) as avg_cost
+                    FROM staff_action_costs
+                    WHERE tenant_id = ? AND ts >= ?
+                    GROUP BY agent_id, action, model
+                    ORDER BY total_cost DESC
+                    """,
+                    (tenant_id, since),
+                ).fetchall()
             actions = [
                 {
                     "agent_id": r["agent_id"],

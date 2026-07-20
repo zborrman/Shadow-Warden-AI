@@ -22,12 +22,13 @@ import sqlite3
 import time
 import uuid
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
 from warden.config import data_path
-from warden.db.ddl_registry import ensure_schema, register
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger(__name__)
 
@@ -59,46 +60,16 @@ register("staff_a2a", "staff_a2a", _A2A_DDL)
 @contextmanager
 def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
     """
-    Yield a DB connection — Turso "staff" (if TURSO_URL_STAFF is set) or local SQLite.
+    Yield a DB connection — Turso "staff" (if enabled) or local SQLite.
 
     A non-default explicit db_path bypasses Turso (test isolation via tmp_path).
     Passing None or _DB_PATH routes through Turso when available.
     """
     effective = db_path or _DB_PATH
-    use_local = effective != _DB_PATH
-
-    if use_local:
-        con = sqlite3.connect(effective, check_same_thread=False)
-        con.row_factory = sqlite3.Row
-        con.execute("PRAGMA journal_mode=WAL")
-        ensure_schema(con, "staff_a2a", effective)
-        try:
-            yield con
-            con.commit()
-        finally:
-            con.close()
-        return
-
-    try:
-        from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
-        if is_turso_enabled("staff"):
-            with get_connection("staff", fallback_path=_DB_PATH) as con:  # type: ignore[assignment]
-                with suppress(Exception):
-                    ensure_schema(con, "staff_a2a", _DB_PATH)
-                yield con
-            return
-    except ImportError:
-        pass
-
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    ensure_schema(con, "staff_a2a", _DB_PATH)
-    try:
+    with open_db(
+        "staff_a2a", effective, turso_name="staff", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 # Pre-wired cross-agent call table.
 # Key: (caller_agent_id, target_agent_id, tool_name) → permitted
