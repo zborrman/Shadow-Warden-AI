@@ -28,10 +28,14 @@ import os
 import sqlite3
 import time
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.clearing")
 
@@ -52,27 +56,32 @@ class ClearingResult:
     seller_net_usd:   float = 0.0
 
 
-def _ensure_clearing_table(db_path: str) -> None:
-    con = sqlite3.connect(db_path)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS marketplace_clearing_log (
-            clearing_id      TEXT PRIMARY KEY,
-            winner_neg_id    TEXT NOT NULL,
-            buyer_agent_id   TEXT NOT NULL,
-            rejected_neg_ids TEXT NOT NULL,
-            cleared_at       REAL NOT NULL,
-            platform_fee_usd REAL NOT NULL DEFAULT 0.0,
-            seller_net_usd   REAL NOT NULL DEFAULT 0.0
-        )
-    """)
-    # Additive migration for existing databases
-    import contextlib
-    with contextlib.suppress(Exception):
-        con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN platform_fee_usd REAL NOT NULL DEFAULT 0.0")
-    with contextlib.suppress(Exception):
-        con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN seller_net_usd REAL NOT NULL DEFAULT 0.0")
-    con.commit()
-    con.close()
+_CLEARING_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_clearing_log (
+        clearing_id      TEXT PRIMARY KEY,
+        winner_neg_id    TEXT NOT NULL,
+        buyer_agent_id   TEXT NOT NULL,
+        rejected_neg_ids TEXT NOT NULL,
+        cleared_at       REAL NOT NULL,
+        platform_fee_usd REAL NOT NULL DEFAULT 0.0,
+        seller_net_usd   REAL NOT NULL DEFAULT 0.0
+    );
+"""
+register("marketplace", "warden.marketplace.clearing", _CLEARING_DDL)
+
+
+@contextmanager
+def _conn(db_path: str) -> Generator[sqlite3.Connection, None, None]:
+    # ALTER ADD COLUMN is not idempotent (errors on a column that already exists),
+    # so it cannot be folded into the registered DDL — stays a suppress-per-connect.
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
+        with suppress(Exception):
+            con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN platform_fee_usd REAL NOT NULL DEFAULT 0.0")
+        with suppress(Exception):
+            con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN seller_net_usd REAL NOT NULL DEFAULT 0.0")
+        yield con
 
 
 class ClearingEngine:
@@ -84,7 +93,8 @@ class ClearingEngine:
 
     def __init__(self, db_path: str = _DB_PATH) -> None:
         self.db_path = db_path
-        _ensure_clearing_table(db_path)
+        with _conn(db_path):  # ensure schema exists
+            pass
 
     # ── Public API ──────────────────────────────────────────────────────────────
 
@@ -138,12 +148,11 @@ class ClearingEngine:
     def _fetch_agreed_price(self, winner_neg_id: str) -> float:
         """Return the agreed price from the winner negotiation record, or 0.0 if unavailable."""
         try:
-            con = sqlite3.connect(self.db_path)
-            row = con.execute(
-                "SELECT agreed_price FROM marketplace_negotiations WHERE negotiation_id = ?",
-                (winner_neg_id,),
-            ).fetchone()
-            con.close()
+            with _conn(self.db_path) as con:
+                row = con.execute(
+                    "SELECT agreed_price FROM marketplace_negotiations WHERE negotiation_id = ?",
+                    (winner_neg_id,),
+                ).fetchone()
             return float(row[0]) if row and row[0] is not None else 0.0
         except Exception:
             return 0.0
@@ -151,27 +160,25 @@ class ClearingEngine:
     def _reject_losers(self, winner_neg_id: str, buyer_agent_id: str) -> list[str]:
         """Update all non-winner pending negotiations to 'cleared_by_market'."""
         try:
-            con = sqlite3.connect(self.db_path)
-            rows = con.execute(
-                """
-                SELECT negotiation_id FROM marketplace_negotiations
-                WHERE  buyer_agent_id = ?
-                  AND  negotiation_id != ?
-                  AND  status IN ('pending', 'active', 'counter_offered')
-                """,
-                (buyer_agent_id, winner_neg_id),
-            ).fetchall()
-            rejected_ids = [r[0] for r in rows]
-            if rejected_ids:
-                placeholders = ",".join("?" * len(rejected_ids))
-                con.execute(
-                    f"UPDATE marketplace_negotiations "
-                    f"SET status='cleared_by_market' "
-                    f"WHERE negotiation_id IN ({placeholders})",
-                    rejected_ids,
-                )
-                con.commit()
-            con.close()
+            with _conn(self.db_path) as con:
+                rows = con.execute(
+                    """
+                    SELECT negotiation_id FROM marketplace_negotiations
+                    WHERE  buyer_agent_id = ?
+                      AND  negotiation_id != ?
+                      AND  status IN ('pending', 'active', 'counter_offered')
+                    """,
+                    (buyer_agent_id, winner_neg_id),
+                ).fetchall()
+                rejected_ids = [r[0] for r in rows]
+                if rejected_ids:
+                    placeholders = ",".join("?" * len(rejected_ids))
+                    con.execute(
+                        f"UPDATE marketplace_negotiations "
+                        f"SET status='cleared_by_market' "
+                        f"WHERE negotiation_id IN ({placeholders})",
+                        rejected_ids,
+                    )
             return rejected_ids
         except Exception as exc:
             log.warning("ClearingEngine._reject_losers: %s", exc)
@@ -179,26 +186,24 @@ class ClearingEngine:
 
     def _write_sqlite(self, rec: ClearingResult) -> None:
         try:
-            con = sqlite3.connect(self.db_path)
-            con.execute(
-                """
-                INSERT OR REPLACE INTO marketplace_clearing_log
-                    (clearing_id, winner_neg_id, buyer_agent_id, rejected_neg_ids,
-                     cleared_at, platform_fee_usd, seller_net_usd)
-                VALUES (?,?,?,?,?,?,?)
-                """,
-                (
-                    rec.clearing_id,
-                    rec.winner_neg_id,
-                    rec.buyer_agent_id,
-                    json.dumps(rec.rejected_neg_ids),
-                    rec.cleared_at,
-                    rec.platform_fee_usd,
-                    rec.seller_net_usd,
-                ),
-            )
-            con.commit()
-            con.close()
+            with _conn(self.db_path) as con:
+                con.execute(
+                    """
+                    INSERT OR REPLACE INTO marketplace_clearing_log
+                        (clearing_id, winner_neg_id, buyer_agent_id, rejected_neg_ids,
+                         cleared_at, platform_fee_usd, seller_net_usd)
+                    VALUES (?,?,?,?,?,?,?)
+                    """,
+                    (
+                        rec.clearing_id,
+                        rec.winner_neg_id,
+                        rec.buyer_agent_id,
+                        json.dumps(rec.rejected_neg_ids),
+                        rec.cleared_at,
+                        rec.platform_fee_usd,
+                        rec.seller_net_usd,
+                    ),
+                )
         except Exception as exc:
             log.warning("ClearingEngine._write_sqlite: %s", exc)
 

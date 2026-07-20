@@ -18,12 +18,11 @@ from __future__ import annotations
 import logging
 import math
 import os
-import sqlite3
 import threading
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.marketplace.sybil_guard")
 
@@ -58,8 +57,7 @@ class SybilGuard:
         """Return (agent_A, agent_B) pairs that traded both directions in WINDOW_HOURS."""
         cutoff = (datetime.now(UTC) - timedelta(hours=_WINDOW_HOURS)).isoformat()
         try:
-            con = sqlite3.connect(db_path, check_same_thread=False)
-            init_pragmas(con)
+            con = open_db_readonly(db_path)
             rows = con.execute(
                 "SELECT DISTINCT buyer_agent, seller_agent FROM marketplace_purchases"
                 " WHERE purchased_at >= ? AND status != 'cancelled'",
@@ -90,8 +88,7 @@ class SybilGuard:
             day_ago   = (now - timedelta(days=1)).isoformat()
             month_ago = (now - timedelta(days=30)).isoformat()
 
-            con = sqlite3.connect(db_path, check_same_thread=False)
-            init_pragmas(con)
+            con = open_db_readonly(db_path)
             count_24h = int(
                 con.execute(
                     "SELECT COUNT(*) FROM marketplace_purchases"

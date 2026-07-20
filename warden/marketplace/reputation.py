@@ -33,6 +33,7 @@ import logging
 from dataclasses import dataclass, field
 
 from warden.config import data_path
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.marketplace.reputation")
 
@@ -170,10 +171,7 @@ class ReputationEngine:
 
     def _fetch_stats(self, agent_id: str, db_path: str) -> dict:
         try:
-            import sqlite3
-            con = sqlite3.connect(db_path)
-            con.row_factory = sqlite3.Row
-            con.execute("PRAGMA journal_mode=WAL")
+            con = open_db_readonly(db_path)
             row = con.execute(
                 """
                 SELECT

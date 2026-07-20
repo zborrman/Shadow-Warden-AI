@@ -4,13 +4,13 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
-import sqlite3
 import time
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from warden.config import data_path
+from warden.db.connect import open_db
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.observability import Reason, record_failopen
 
@@ -172,16 +172,16 @@ async def sponsor_listing(
         time.gmtime(time.time() + body.days * 86400),
     )
     try:
-        con = sqlite3.connect(db_path)
-        result = con.execute(
-            "UPDATE marketplace_listings "
-            "SET is_sponsored=1, sponsored_until=? "
-            "WHERE listing_id=? AND status='active'",
-            (until_ts, listing_id),
-        )
-        updated = result.rowcount
-        con.commit()
-        con.close()
+        with open_db(
+            "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
+        ) as con:
+            result = con.execute(
+                "UPDATE marketplace_listings "
+                "SET is_sponsored=1, sponsored_until=? "
+                "WHERE listing_id=? AND status='active'",
+                (until_ts, listing_id),
+            )
+            updated = result.rowcount
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

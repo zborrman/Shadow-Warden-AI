@@ -33,7 +33,8 @@ from dataclasses import asdict, dataclass, field
 from typing import Literal
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.autonomy")
 
@@ -70,33 +71,28 @@ class AutonomyPolicy:
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_autonomy_policies (
-            agent_id                   TEXT PRIMARY KEY,
-            level                      INTEGER NOT NULL DEFAULT 1,
-            max_spend_usd              REAL    NOT NULL DEFAULT 0.0,
-            daily_spend_usd            REAL    NOT NULL DEFAULT 0.0,
-            allowed_actions            TEXT    NOT NULL DEFAULT '["search","negotiate","clear"]',
-            require_approval_above_usd REAL    NOT NULL DEFAULT 0.01,
-            expires_at                 TEXT,
-            created_by                 TEXT    NOT NULL DEFAULT '',
-            updated_at                 TEXT    NOT NULL
-        );
-    """)
+_AUTONOMY_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_autonomy_policies (
+        agent_id                   TEXT PRIMARY KEY,
+        level                      INTEGER NOT NULL DEFAULT 1,
+        max_spend_usd              REAL    NOT NULL DEFAULT 0.0,
+        daily_spend_usd            REAL    NOT NULL DEFAULT 0.0,
+        allowed_actions            TEXT    NOT NULL DEFAULT '["search","negotiate","clear"]',
+        require_approval_above_usd REAL    NOT NULL DEFAULT 0.01,
+        expires_at                 TEXT,
+        created_by                 TEXT    NOT NULL DEFAULT '',
+        updated_at                 TEXT    NOT NULL
+    );
+"""
+register("marketplace", "warden.marketplace.autonomy", _AUTONOMY_DDL)
 
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "marketplace", _DB_PATH, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Redis helpers ──────────────────────────────────────────────────────────────

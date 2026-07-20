@@ -30,7 +30,8 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.kya")
 
@@ -60,32 +61,27 @@ class KYARecord:
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_kya_records (
-            agent_id        TEXT PRIMARY KEY,
-            owner_tenant_id TEXT NOT NULL DEFAULT '',
-            kya_status      TEXT NOT NULL DEFAULT 'PENDING',
-            risk_score      REAL NOT NULL DEFAULT 0.5,
-            screened_at     TEXT NOT NULL,
-            flags           TEXT NOT NULL DEFAULT '[]'
-        );
-        CREATE INDEX IF NOT EXISTS idx_kya_status ON marketplace_kya_records(kya_status);
-        CREATE INDEX IF NOT EXISTS idx_kya_owner  ON marketplace_kya_records(owner_tenant_id);
-    """)
+_KYA_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_kya_records (
+        agent_id        TEXT PRIMARY KEY,
+        owner_tenant_id TEXT NOT NULL DEFAULT '',
+        kya_status      TEXT NOT NULL DEFAULT 'PENDING',
+        risk_score      REAL NOT NULL DEFAULT 0.5,
+        screened_at     TEXT NOT NULL,
+        flags           TEXT NOT NULL DEFAULT '[]'
+    );
+    CREATE INDEX IF NOT EXISTS idx_kya_status ON marketplace_kya_records(kya_status);
+    CREATE INDEX IF NOT EXISTS idx_kya_owner  ON marketplace_kya_records(owner_tenant_id);
+"""
+register("marketplace", "warden.marketplace.kya", _KYA_DDL)
 
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "marketplace", _DB_PATH, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sqlite3
 import time
 import uuid
 from typing import Any, Literal
@@ -29,6 +28,8 @@ from pydantic import BaseModel
 
 from warden.auth_guard import AuthResult, require_api_key
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.api")
@@ -247,11 +248,32 @@ async def _action_search(
     return {"results": results, "count": len(results), "query": query}
 
 
-def _ensure_table(db_path: str, ddl: str) -> None:
-    con = sqlite3.connect(db_path)
-    con.execute(ddl)
-    con.commit()
-    con.close()
+_MESSAGES_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_messages (
+        msg_id          TEXT PRIMARY KEY,
+        negotiation_id  TEXT NOT NULL,
+        from_agent_id   TEXT NOT NULL,
+        message         TEXT NOT NULL,
+        created_at      REAL NOT NULL
+    );
+"""
+register("marketplace", "warden.marketplace.api.messages", _MESSAGES_DDL)
+
+_PROPOSALS_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_proposals (
+        proposal_id         TEXT PRIMARY KEY,
+        buyer_agent_id      TEXT NOT NULL,
+        seller_agent_id     TEXT NOT NULL,
+        listing_id          TEXT NOT NULL,
+        quantity            INTEGER NOT NULL DEFAULT 1,
+        max_price_per_unit  REAL    NOT NULL DEFAULT 0,
+        sla_hours           INTEGER NOT NULL DEFAULT 24,
+        message             TEXT    NOT NULL DEFAULT '',
+        status              TEXT    NOT NULL DEFAULT 'pending',
+        created_at          REAL    NOT NULL
+    );
+"""
+register("marketplace", "warden.marketplace.api.proposals", _PROPOSALS_DDL)
 
 
 async def _action_send_message(
@@ -262,23 +284,14 @@ async def _action_send_message(
 ) -> dict:
     """Stage 3: send a text message within an active negotiation channel."""
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
-    _ensure_table(db_path, """
-        CREATE TABLE IF NOT EXISTS marketplace_messages (
-            msg_id          TEXT PRIMARY KEY,
-            negotiation_id  TEXT NOT NULL,
-            from_agent_id   TEXT NOT NULL,
-            message         TEXT NOT NULL,
-            created_at      REAL NOT NULL
-        )
-    """)
     msg_id = str(uuid.uuid4())[:12]
-    con = sqlite3.connect(db_path)
-    con.execute(
-        "INSERT INTO marketplace_messages VALUES (?,?,?,?,?)",
-        (msg_id, negotiation_id, from_agent_id, message[:5000], time.time()),
-    )
-    con.commit()
-    con.close()
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
+    ) as con:
+        con.execute(
+            "INSERT INTO marketplace_messages VALUES (?,?,?,?,?)",
+            (msg_id, negotiation_id, from_agent_id, message[:5000], time.time()),
+        )
     return {"msg_id": msg_id, "negotiation_id": negotiation_id, "status": "sent"}
 
 
@@ -294,31 +307,17 @@ async def _action_send_proposal(
 ) -> dict:
     """Stage 3: send a structured order proposal (quantity + SLA + max price)."""
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
-    _ensure_table(db_path, """
-        CREATE TABLE IF NOT EXISTS marketplace_proposals (
-            proposal_id         TEXT PRIMARY KEY,
-            buyer_agent_id      TEXT NOT NULL,
-            seller_agent_id     TEXT NOT NULL,
-            listing_id          TEXT NOT NULL,
-            quantity            INTEGER NOT NULL DEFAULT 1,
-            max_price_per_unit  REAL    NOT NULL DEFAULT 0,
-            sla_hours           INTEGER NOT NULL DEFAULT 24,
-            message             TEXT    NOT NULL DEFAULT '',
-            status              TEXT    NOT NULL DEFAULT 'pending',
-            created_at          REAL    NOT NULL
-        )
-    """)
     proposal_id = str(uuid.uuid4())[:16]
-    con = sqlite3.connect(db_path)
-    con.execute(
-        "INSERT INTO marketplace_proposals VALUES (?,?,?,?,?,?,?,?,'pending',?)",
-        (
-            proposal_id, buyer_agent_id, seller_agent_id, listing_id,
-            quantity, max_price_per_unit, sla_hours, message[:5000], time.time(),
-        ),
-    )
-    con.commit()
-    con.close()
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
+    ) as con:
+        con.execute(
+            "INSERT INTO marketplace_proposals VALUES (?,?,?,?,?,?,?,?,'pending',?)",
+            (
+                proposal_id, buyer_agent_id, seller_agent_id, listing_id,
+                quantity, max_price_per_unit, sla_hours, message[:5000], time.time(),
+            ),
+        )
     return {
         "proposal_id":    proposal_id,
         "status":         "sent",
@@ -340,15 +339,15 @@ async def _action_reject_proposal(
     """Stage 4: explicitly reject a single negotiation proposal."""
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     try:
-        con = sqlite3.connect(db_path)
-        con.execute(
-            "UPDATE marketplace_negotiations SET status=? "
-            "WHERE negotiation_id=? AND buyer_agent_id=?",
-            (reason, negotiation_id, buyer_agent_id),
-        )
-        con.commit()
-        affected = con.execute("SELECT changes()").fetchone()[0]
-        con.close()
+        with open_db(
+            "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
+        ) as con:
+            con.execute(
+                "UPDATE marketplace_negotiations SET status=? "
+                "WHERE negotiation_id=? AND buyer_agent_id=?",
+                (reason, negotiation_id, buyer_agent_id),
+            )
+            affected = con.execute("SELECT changes()").fetchone()[0]
         return {
             "negotiation_id": negotiation_id,
             "status":         reason,
@@ -732,8 +731,6 @@ async def analytics_sql_query(
        is rejected.  This prevents one caller from reading another agent's
        escrows, negotiations, credits, or x402 balances.
     """
-    import sqlite3
-
     stmt = body.sql.strip()
     upper = stmt.upper()
     if not upper.startswith("SELECT"):
@@ -764,11 +761,11 @@ async def analytics_sql_query(
 
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     try:
-        con = sqlite3.connect(db_path, check_same_thread=False)
-        con.row_factory = sqlite3.Row
-        cur = con.execute(stmt, body.params)
-        rows = [dict(r) for r in cur.fetchmany(500)]  # cap at 500 rows
-        con.close()
+        with open_db(
+            "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
+        ) as con:
+            cur = con.execute(stmt, body.params)
+            rows = [dict(r) for r in cur.fetchmany(500)]  # cap at 500 rows
         return {"rows": rows, "count": len(rows), "scoped_by": caller_id}
     except Exception as exc:
         log.warning("analytics_sql_query error: %s", exc)
@@ -1102,8 +1099,6 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
     """Combined chart data: volume series + payment breakdown + agent activity + summary.
     Single endpoint so the marketplace frontend makes one call for all charts.
     """
-    import sqlite3 as _sq  # noqa: PLC0415
-
     from warden.marketplace.analytics import get_summary, get_volume_series  # noqa: PLC0415
 
     db = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
@@ -1117,63 +1112,62 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
     top_agents: list[dict] = []
 
     try:
-        con = _sq.connect(db)
-        con.row_factory = _sq.Row
-        # Payment method breakdown from purchases
-        try:
-            rows = con.execute(
-                "SELECT payment_method, COUNT(*) as cnt FROM marketplace_purchases "
-                "WHERE status='completed' GROUP BY payment_method"
-            ).fetchall()
-            for r in rows:
-                m = str(r["payment_method"] or "flex_credits").lower()
-                if "l402" in m or "lightning" in m:
-                    payment_breakdown["l402_lightning"] += int(r["cnt"])
-                elif "x402" in m or "usdc" in m:
-                    payment_breakdown["x402_usdc"] += int(r["cnt"])
-                else:
-                    payment_breakdown["flex_credits"] += int(r["cnt"])
-        except Exception:
-            pass
+        with open_db(
+            "marketplace", db, turso_name="marketplace", module_default_path=db
+        ) as con:
+            # Payment method breakdown from purchases
+            try:
+                rows = con.execute(
+                    "SELECT payment_method, COUNT(*) as cnt FROM marketplace_purchases "
+                    "WHERE status='completed' GROUP BY payment_method"
+                ).fetchall()
+                for r in rows:
+                    m = str(r["payment_method"] or "flex_credits").lower()
+                    if "l402" in m or "lightning" in m:
+                        payment_breakdown["l402_lightning"] += int(r["cnt"])
+                    elif "x402" in m or "usdc" in m:
+                        payment_breakdown["x402_usdc"] += int(r["cnt"])
+                    else:
+                        payment_breakdown["flex_credits"] += int(r["cnt"])
+            except Exception:
+                pass
 
-        # Daily agent activity (new registrations per day)
-        try:
-            rows = con.execute(
-                f"SELECT DATE(registered_at) as d, COUNT(*) as cnt FROM marketplace_agents "
-                f"WHERE registered_at >= date('now', '-{period_days} days') "
-                f"GROUP BY DATE(registered_at) ORDER BY d"
-            ).fetchall()
-            agent_activity = [{"date": r["d"], "count": int(r["cnt"])} for r in rows]
-        except Exception:
-            pass
+            # Daily agent activity (new registrations per day)
+            try:
+                rows = con.execute(
+                    f"SELECT DATE(registered_at) as d, COUNT(*) as cnt FROM marketplace_agents "
+                    f"WHERE registered_at >= date('now', '-{period_days} days') "
+                    f"GROUP BY DATE(registered_at) ORDER BY d"
+                ).fetchall()
+                agent_activity = [{"date": r["d"], "count": int(r["cnt"])} for r in rows]
+            except Exception:
+                pass
 
-        # KYA distribution
-        try:
-            rows = con.execute(
-                "SELECT kya_status, COUNT(*) as cnt FROM marketplace_kya GROUP BY kya_status"
-            ).fetchall()
-            for r in rows:
-                s = str(r["kya_status"]).upper()
-                if s in kya_distribution:
-                    kya_distribution[s] = int(r["cnt"])
-        except Exception:
-            pass
+            # KYA distribution
+            try:
+                rows = con.execute(
+                    "SELECT kya_status, COUNT(*) as cnt FROM marketplace_kya GROUP BY kya_status"
+                ).fetchall()
+                for r in rows:
+                    s = str(r["kya_status"]).upper()
+                    if s in kya_distribution:
+                        kya_distribution[s] = int(r["cnt"])
+            except Exception:
+                pass
 
-        # Top agents by volume
-        try:
-            rows = con.execute(
-                "SELECT buyer_agent as agent_id, COALESCE(SUM(price_paid),0) as vol, COUNT(*) as trades "
-                "FROM marketplace_purchases WHERE status='completed' "
-                "GROUP BY buyer_agent ORDER BY vol DESC LIMIT 8"
-            ).fetchall()
-            top_agents = [
-                {"agent_id": r["agent_id"], "volume_usd": round(float(r["vol"]), 2), "trades": int(r["trades"])}
-                for r in rows
-            ]
-        except Exception:
-            pass
-
-        con.close()
+            # Top agents by volume
+            try:
+                rows = con.execute(
+                    "SELECT buyer_agent as agent_id, COALESCE(SUM(price_paid),0) as vol, COUNT(*) as trades "
+                    "FROM marketplace_purchases WHERE status='completed' "
+                    "GROUP BY buyer_agent ORDER BY vol DESC LIMIT 8"
+                ).fetchall()
+                top_agents = [
+                    {"agent_id": r["agent_id"], "volume_usd": round(float(r["vol"]), 2), "trades": int(r["trades"])}
+                    for r in rows
+                ]
+            except Exception:
+                pass
     except Exception:
         pass
 
