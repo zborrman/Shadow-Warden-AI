@@ -27,7 +27,8 @@ import logging
 import os
 import sqlite3
 import time
-import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -50,6 +51,7 @@ class ClearingResult:
     pg_write_ok:      bool = False
     platform_fee_usd: float = 0.0
     seller_net_usd:   float = 0.0
+    replayed:         bool = False
 
 
 def _ensure_clearing_table(db_path: str) -> None:
@@ -86,6 +88,14 @@ class ClearingEngine:
         self.db_path = db_path
         _ensure_clearing_table(db_path)
 
+    @contextmanager
+    def _conn(self) -> Generator[sqlite3.Connection, None, None]:
+        con = sqlite3.connect(self.db_path)
+        try:
+            yield con
+        finally:
+            con.close()
+
     # ── Public API ──────────────────────────────────────────────────────────────
 
     def clear(
@@ -93,13 +103,22 @@ class ClearingEngine:
         winner_neg_id: str,
         buyer_agent_id: str,
     ) -> ClearingResult:
-        """Synchronous clearing (safe to call from non-async contexts).
+        """Synchronous clearing (safe to call from non-async contexts). Idempotent.
 
-        Rejects all pending/active negotiations for buyer except the winner,
-        then records the clearing event in SQLite.
+        A negotiation clears exactly once, so ``winner_neg_id`` IS the natural
+        idempotency key — ``clearing_id`` is derived from it deterministically
+        (never ``uuid.uuid4()``, which made every retry mint a fresh row). A
+        retried/duplicate call for an already-cleared negotiation returns the
+        original record (``replayed=True``) and re-runs nothing: no second
+        auto-reject pass, no second fee computation, no second log line.
         """
-        rejected    = self._reject_losers(winner_neg_id, buyer_agent_id)
-        clearing_id = str(uuid.uuid4())
+        clearing_id = f"clear-{winner_neg_id}"
+        existing = self._read_by_id(clearing_id)
+        if existing is not None:
+            existing.replayed = True
+            return existing
+
+        rejected = self._reject_losers(winner_neg_id, buyer_agent_id)
 
         # Compute platform take rate (Decimal math — float arithmetic is prohibited in billing)
         agreed_price = self._fetch_agreed_price(winner_neg_id)
@@ -117,11 +136,20 @@ class ClearingEngine:
             seller_net_usd=float(net_dec),
         )
         self._write_sqlite(rec)
+        # Re-read: under a concurrent race, another caller's INSERT may have won
+        # (ON CONFLICT DO NOTHING made ours a no-op) — the re-read returns
+        # whichever row is canonical, so both callers agree on one clearing.
+        # cleared_at is a fresh time.time() per call, so a mismatch means our
+        # own write lost the race and we are, in effect, the "replay".
+        canonical = self._read_by_id(clearing_id)
+        if canonical is not None and canonical.cleared_at != rec.cleared_at:
+            canonical.replayed = True
+        result = canonical or rec
         log.info(
-            "ClearingEngine: buyer=%s winner=%s rejected=%d",
-            buyer_agent_id[:32], winner_neg_id[:12], len(rejected),
+            "ClearingEngine: buyer=%s winner=%s rejected=%d replayed=%s",
+            buyer_agent_id[:32], winner_neg_id[:12], len(rejected), result.replayed,
         )
-        return rec
+        return result
 
     async def clear_async(
         self,
@@ -138,12 +166,11 @@ class ClearingEngine:
     def _fetch_agreed_price(self, winner_neg_id: str) -> float:
         """Return the agreed price from the winner negotiation record, or 0.0 if unavailable."""
         try:
-            con = sqlite3.connect(self.db_path)
-            row = con.execute(
-                "SELECT agreed_price FROM marketplace_negotiations WHERE negotiation_id = ?",
-                (winner_neg_id,),
-            ).fetchone()
-            con.close()
+            with self._conn() as con:
+                row = con.execute(
+                    "SELECT agreed_price FROM marketplace_negotiations WHERE negotiation_id = ?",
+                    (winner_neg_id,),
+                ).fetchone()
             return float(row[0]) if row and row[0] is not None else 0.0
         except Exception:
             return 0.0
@@ -151,27 +178,26 @@ class ClearingEngine:
     def _reject_losers(self, winner_neg_id: str, buyer_agent_id: str) -> list[str]:
         """Update all non-winner pending negotiations to 'cleared_by_market'."""
         try:
-            con = sqlite3.connect(self.db_path)
-            rows = con.execute(
-                """
-                SELECT negotiation_id FROM marketplace_negotiations
-                WHERE  buyer_agent_id = ?
-                  AND  negotiation_id != ?
-                  AND  status IN ('pending', 'active', 'counter_offered')
-                """,
-                (buyer_agent_id, winner_neg_id),
-            ).fetchall()
-            rejected_ids = [r[0] for r in rows]
-            if rejected_ids:
-                placeholders = ",".join("?" * len(rejected_ids))
-                con.execute(
-                    f"UPDATE marketplace_negotiations "
-                    f"SET status='cleared_by_market' "
-                    f"WHERE negotiation_id IN ({placeholders})",
-                    rejected_ids,
-                )
-                con.commit()
-            con.close()
+            with self._conn() as con:
+                rows = con.execute(
+                    """
+                    SELECT negotiation_id FROM marketplace_negotiations
+                    WHERE  buyer_agent_id = ?
+                      AND  negotiation_id != ?
+                      AND  status IN ('pending', 'active', 'counter_offered')
+                    """,
+                    (buyer_agent_id, winner_neg_id),
+                ).fetchall()
+                rejected_ids = [r[0] for r in rows]
+                if rejected_ids:
+                    placeholders = ",".join("?" * len(rejected_ids))
+                    con.execute(
+                        f"UPDATE marketplace_negotiations "
+                        f"SET status='cleared_by_market' "
+                        f"WHERE negotiation_id IN ({placeholders})",
+                        rejected_ids,
+                    )
+                    con.commit()
             return rejected_ids
         except Exception as exc:
             log.warning("ClearingEngine._reject_losers: %s", exc)
@@ -179,28 +205,49 @@ class ClearingEngine:
 
     def _write_sqlite(self, rec: ClearingResult) -> None:
         try:
-            con = sqlite3.connect(self.db_path)
-            con.execute(
-                """
-                INSERT OR REPLACE INTO marketplace_clearing_log
-                    (clearing_id, winner_neg_id, buyer_agent_id, rejected_neg_ids,
-                     cleared_at, platform_fee_usd, seller_net_usd)
-                VALUES (?,?,?,?,?,?,?)
-                """,
-                (
-                    rec.clearing_id,
-                    rec.winner_neg_id,
-                    rec.buyer_agent_id,
-                    json.dumps(rec.rejected_neg_ids),
-                    rec.cleared_at,
-                    rec.platform_fee_usd,
-                    rec.seller_net_usd,
-                ),
-            )
-            con.commit()
-            con.close()
+            with self._conn() as con:
+                con.execute(
+                    """
+                    INSERT INTO marketplace_clearing_log
+                        (clearing_id, winner_neg_id, buyer_agent_id, rejected_neg_ids,
+                         cleared_at, platform_fee_usd, seller_net_usd)
+                    VALUES (?,?,?,?,?,?,?)
+                    ON CONFLICT(clearing_id) DO NOTHING
+                    """,
+                    (
+                        rec.clearing_id,
+                        rec.winner_neg_id,
+                        rec.buyer_agent_id,
+                        json.dumps(rec.rejected_neg_ids),
+                        rec.cleared_at,
+                        rec.platform_fee_usd,
+                        rec.seller_net_usd,
+                    ),
+                )
+                con.commit()
         except Exception as exc:
             log.warning("ClearingEngine._write_sqlite: %s", exc)
+
+    def _read_by_id(self, clearing_id: str) -> ClearingResult | None:
+        """Read back a clearing record by its (deterministic) clearing_id."""
+        try:
+            with self._conn() as con:
+                row = con.execute(
+                    "SELECT clearing_id, winner_neg_id, buyer_agent_id, rejected_neg_ids, "
+                    "cleared_at, platform_fee_usd, seller_net_usd "
+                    "FROM marketplace_clearing_log WHERE clearing_id = ?",
+                    (clearing_id,),
+                ).fetchone()
+        except Exception as exc:
+            log.warning("ClearingEngine._read_by_id: %s", exc)
+            return None
+        if row is None:
+            return None
+        return ClearingResult(
+            clearing_id=row[0], winner_neg_id=row[1], buyer_agent_id=row[2],
+            rejected_neg_ids=json.loads(row[3]), cleared_at=row[4],
+            platform_fee_usd=row[5], seller_net_usd=row[6],
+        )
 
     async def _write_postgres(self, rec: ClearingResult) -> bool:
         """Write to PostgreSQL marketplace_clearing_log table. Fail-open."""
