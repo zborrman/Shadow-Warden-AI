@@ -766,6 +766,15 @@ try:
     except ValueError:
         EDGE_PACK_ANALYZE_TOTAL = REGISTRY._names_to_collectors.get("warden_edge_pack_analyze_total")  # type: ignore[attr-defined, assignment]
 
+    # ── Ledger reconciliation drift (FT-4 slice 2) ───────────────────────────
+    try:
+        LEDGER_RECON_DRIFT_USD = Gauge(
+            "warden_ledger_recon_drift_usd",
+            "Absolute USD drift between the ledger and its authoritative counters, last recon run",
+        )
+    except ValueError:
+        LEDGER_RECON_DRIFT_USD = REGISTRY._names_to_collectors.get("warden_ledger_recon_drift_usd")  # type: ignore[attr-defined, assignment]
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -845,3 +854,4 @@ except ImportError:
     ANS_CERTS_ISSUED_TOTAL          = _Noop()  # type: ignore[assignment]
     ANS_CERTS_REVOKED_TOTAL         = _Noop()  # type: ignore[assignment]
     EDGE_PACK_ANALYZE_TOTAL         = _Noop()  # type: ignore[assignment]
+    LEDGER_RECON_DRIFT_USD          = _Noop()  # type: ignore[assignment]
