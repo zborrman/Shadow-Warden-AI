@@ -260,3 +260,27 @@ def recent_agent_cost_usd(agent_id: str, hours: int = 1) -> float:
         stats = read_agent_stats(agent_id, hours=hours)
         return round(sum(h["cost_usd"] for h in stats["hours"]), 6)
     return 0.0
+
+
+def list_holds_since(cutoff_iso: str) -> list[dict]:
+    """Read-only recon accessor: sac_holds rows created at/after `cutoff_iso`.
+
+    Used by `warden.finops.ledger_recon.holds_drift()` to compare the
+    authoritative two-phase hold state machine against its FT-2 ledger
+    mirror, scoped to holds created after dual-write was enabled.
+    """
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT hold_id, tenant_id, status, created_at FROM sac_holds "
+            "WHERE created_at >= ? ORDER BY created_at",
+            (cutoff_iso,),
+        ).fetchall()
+    return [
+        {
+            "hold_id": r["hold_id"],
+            "tenant_id": r["tenant_id"],
+            "status": r["status"],
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]

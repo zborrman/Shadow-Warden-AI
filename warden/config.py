@@ -475,6 +475,15 @@ class Settings:
     ledger_dual_write: bool = field(
         default_factory=lambda: _bool("LEDGER_DUAL_WRITE", False)
     )
+    # ISO-8601 UTC timestamp of when LEDGER_DUAL_WRITE was flipped on for this
+    # tenant/deployment. Holds reconciliation (warden/finops/ledger_recon.py::
+    # holds_drift()) only compares sac_holds rows created at/after this cutoff —
+    # holds created before dual-write was enabled never got a ledger mirror by
+    # design, so comparing them would just be permanent false-positive noise.
+    # Unset (default "") means holds_drift() is a no-op until an operator sets it.
+    ledger_holds_recon_cutoff_ts: str = field(
+        default_factory=lambda: os.getenv("LEDGER_HOLDS_RECON_CUTOFF_TS", "")
+    )
 
     # ── Entity Risk Scoring (warden/entity_risk.py) ──────────────────────────────
     ers_enabled: bool = field(

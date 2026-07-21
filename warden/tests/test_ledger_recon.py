@@ -8,12 +8,15 @@ source is unavailable — it observes, never blocks.
 """
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 
 from warden.config import settings
 from warden.finops import ledger_recon
-from warden.ledger import journal
+from warden.ledger import journal, operations
 from warden.marketplace import credits
+from warden.sac import preflight as p
 
 
 @pytest.fixture
@@ -73,3 +76,83 @@ def test_all_balances_enumerates(wired):
     credits.purchase_credits("t2", "credits_1000")
     balances = credits.all_balances()
     assert balances == {"t1": 100, "t2": 1000}
+
+
+# ── FT-4 remainder — holds_drift() ────────────────────────────────────────────
+# Same physical-DB isolation trick as `wired`, plus the sac_wallet DB (live hold
+# state machine) pointed at its own tmp file. `journal._DB_PATH` doubles as the
+# ledger-side holds DB (warden/ledger/holds.py shares the journal's db_key).
+
+@pytest.fixture
+def wired_holds(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "sac_wallet_db_path", str(tmp_path / "wallet.db"))
+    monkeypatch.setattr(journal, "_DB_PATH", str(tmp_path / "ledger.db"))
+    monkeypatch.setattr(settings, "ledger_dual_write", True)
+    monkeypatch.setattr(settings, "ledger_holds_recon_cutoff_ts", "1970-01-01T00:00:00+00:00")
+
+
+class TestHoldsDrift:
+    def test_no_mismatch_after_mirrored_reserve(self, wired_holds):
+        p.deposit("t1", 1.0)
+        p.reserve("t1", 0.10)
+        rep = ledger_recon.holds_drift()
+        assert rep == {"holds_checked": 1, "mismatched": 0, "ok": True, "details": []}
+
+    def test_missing_in_ledger_when_mirror_never_ran(self, wired_holds, monkeypatch):
+        monkeypatch.setattr(settings, "ledger_dual_write", False)
+        p.deposit("t1", 1.0)
+        hid = p.reserve("t1", 0.10)  # live-only, no ledger mirror at all
+        monkeypatch.setattr(settings, "ledger_dual_write", True)
+
+        rep = ledger_recon.holds_drift()
+        assert rep["ok"] is False
+        assert rep["mismatched"] == 1
+        assert rep["details"][0] == {
+            "hold_id": hid, "tenant_id": "t1",
+            "issue": "missing_in_ledger", "live_status": "HELD",
+        }
+
+    def test_status_mismatch_when_release_mirror_fails(self, wired_holds, monkeypatch):
+        p.deposit("t1", 1.0)
+        hid = p.reserve("t1", 0.10)  # mirrors fine → ledger HELD
+
+        def _boom(*a, **k):
+            raise RuntimeError("ledger down")
+        monkeypatch.setattr(operations, "void", _boom)
+        p.release(hid)  # live → RELEASED; mirror raises, swallowed → ledger stays HELD
+
+        rep = ledger_recon.holds_drift()
+        assert rep["ok"] is False
+        assert rep["details"][0] == {
+            "hold_id": hid, "tenant_id": "t1", "issue": "status_mismatch",
+            "live_status": "RELEASED", "ledger_status": "HELD",
+        }
+
+    def test_holds_before_cutoff_are_excluded(self, wired_holds, monkeypatch):
+        monkeypatch.setattr(settings, "ledger_dual_write", False)
+        p.deposit("t1", 1.0)
+        p.reserve("t1", 0.10)  # live-only — would be a mismatch if in scope
+        monkeypatch.setattr(settings, "ledger_dual_write", True)
+
+        # Cutoff set after the hold's created_at → excluded from recon entirely.
+        future = datetime.now(UTC).replace(year=2999).isoformat()
+        monkeypatch.setattr(settings, "ledger_holds_recon_cutoff_ts", future)
+
+        rep = ledger_recon.holds_drift()
+        assert rep == {"holds_checked": 0, "mismatched": 0, "ok": True, "details": []}
+
+    def test_unset_cutoff_is_a_noop(self, wired_holds, monkeypatch):
+        monkeypatch.setattr(settings, "ledger_dual_write", False)
+        p.deposit("t1", 1.0)
+        p.reserve("t1", 0.10)  # would be a mismatch if checked
+        monkeypatch.setattr(settings, "ledger_holds_recon_cutoff_ts", "")
+
+        rep = ledger_recon.holds_drift()
+        assert rep == {"holds_checked": 0, "mismatched": 0, "ok": True, "details": []}
+
+    def test_fail_soft_when_source_unavailable(self, wired_holds, monkeypatch):
+        def _boom(_cutoff):
+            raise RuntimeError("db down")
+        monkeypatch.setattr(p, "list_holds_since", _boom)
+        rep = ledger_recon.holds_drift()  # must not raise
+        assert rep == {"holds_checked": 0, "mismatched": 0, "ok": True, "details": []}

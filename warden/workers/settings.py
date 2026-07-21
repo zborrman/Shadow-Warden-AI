@@ -67,7 +67,7 @@ from warden.workers.content_filter import moderate_post
 from warden.workers.cve_scanner import scan_cves
 from warden.workers.dunning import process_dunning
 from warden.workers.gdpr_retention import run_gdpr_retention
-from warden.workers.ledger_recon_job import nightly_ledger_recon
+from warden.workers.ledger_recon_job import nightly_holds_recon, nightly_ledger_recon
 from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
@@ -129,6 +129,8 @@ class WorkerSettings:
         settle_x402_deductions,
         # Ledger reconciliation (FT-4 slice 2)
         nightly_ledger_recon,
+        # Ledger holds reconciliation (FT-4 remainder)
+        nightly_holds_recon,
         # Clearing outbox relay (FT-4 slice 3)
         relay_clearing_outbox,
         # Clearing outbox retention/cleanup (FT-4 remainder)
@@ -222,6 +224,9 @@ class WorkerSettings:
 
         # ── Ledger reconciliation — daily at 04:00 UTC (FT-4 slice 2) ────────
         cron(nightly_ledger_recon, hour=4, minute=0, timeout=300),
+
+        # ── Ledger holds reconciliation — daily at 04:15 UTC (FT-4 remainder) ─
+        cron(nightly_holds_recon, hour=4, minute=15, timeout=300),
 
         # ── Clearing outbox relay — every 5 minutes (FT-4 slice 3) ───────────
         cron(

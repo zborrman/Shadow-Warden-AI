@@ -134,3 +134,25 @@ def test_no_expected_tenant_id_skips_ownership_check(_db):
     hold_id = p.reserve("tenant-a", 0.10)
     out = p.commit(hold_id, 0.05)  # no expected_tenant_id
     assert out["committed_usd"] == pytest.approx(0.05)
+
+
+class TestListHoldsSince:
+    """Read-only recon accessor for warden.finops.ledger_recon.holds_drift()."""
+
+    def test_returns_hold_with_expected_fields(self, _db):
+        p.deposit("t1", 1.0)
+        hid = p.reserve("t1", 0.10)
+        rows = p.list_holds_since("1970-01-01T00:00:00+00:00")
+        assert rows == [{
+            "hold_id": hid, "tenant_id": "t1", "status": "HELD",
+            "created_at": rows[0]["created_at"],
+        }]
+
+    def test_cutoff_excludes_earlier_holds(self, _db):
+        p.deposit("t1", 1.0)
+        p.reserve("t1", 0.10)
+        rows = p.list_holds_since("2999-01-01T00:00:00+00:00")
+        assert rows == []
+
+    def test_no_holds_returns_empty_list(self, _db):
+        assert p.list_holds_since("1970-01-01T00:00:00+00:00") == []
