@@ -14,6 +14,7 @@ from warden.config import settings
 from warden.finops import ledger_recon
 from warden.ledger import journal
 from warden.marketplace import credits
+from warden.sac import preflight
 
 
 @pytest.fixture
@@ -22,6 +23,7 @@ def wired(tmp_path, monkeypatch):
     # the mirror write and the recon read share one consistent ledger.
     monkeypatch.setattr(credits, "_DB_PATH", str(tmp_path / "mkt.db"))
     monkeypatch.setattr(journal, "_DB_PATH", str(tmp_path / "ledger.db"))
+    monkeypatch.setattr(preflight.settings, "sac_wallet_db_path", str(tmp_path / "wallet.db"))
     monkeypatch.setattr(settings, "ledger_dual_write", True)
 
 
@@ -73,3 +75,58 @@ def test_all_balances_enumerates(wired):
     credits.purchase_credits("t2", "credits_1000")
     balances = credits.all_balances()
     assert balances == {"t1": 100, "t2": 1000}
+
+
+class TestHoldDrift:
+    def test_no_drift_after_mirrored_reserve(self, wired):
+        preflight.deposit("t1", 1.0)
+        preflight.reserve("t1", 0.10)  # mirrored (dual-write on)
+
+        rep = ledger_recon.hold_drift()
+        assert rep["holds_checked"] == 1
+        assert rep["drifted"] == 0
+        assert rep["ok"] is True
+        assert rep["total_abs_drift_micros"] == 0
+
+    def test_detects_unmirrored_hold_drift(self, wired, monkeypatch):
+        preflight.deposit("t1", 1.0)
+        monkeypatch.setattr(settings, "ledger_dual_write", False)
+        hid = preflight.reserve("t1", 0.10)  # live hold created, never mirrored
+        monkeypatch.setattr(settings, "ledger_dual_write", True)
+
+        rep = ledger_recon.hold_drift()
+        assert rep["drifted"] == 1
+        assert rep["ok"] is False
+        assert rep["details"][0]["hold_id"] == hid
+        assert rep["details"][0]["tenant_id"] == "t1"
+        # ledger 0 − live 100_000 = -100_000 µUSD
+        assert rep["details"][0]["drift_micros"] == -100_000
+        assert rep["total_abs_drift_micros"] == 100_000
+
+    def test_resolved_hold_self_clears_even_if_never_mirrored(self, wired, monkeypatch):
+        preflight.deposit("t1", 1.0)
+        monkeypatch.setattr(settings, "ledger_dual_write", False)
+        hid = preflight.reserve("t1", 0.10)  # never mirrored
+        preflight.release(hid)               # resolved — out of scope now
+        monkeypatch.setattr(settings, "ledger_dual_write", True)
+
+        rep = ledger_recon.hold_drift()
+        assert rep == {
+            "holds_checked": 0, "drifted": 0,
+            "total_abs_drift_micros": 0, "ok": True, "details": [],
+        }
+
+    def test_empty_is_ok_by_vacuity(self, wired):
+        rep = ledger_recon.hold_drift()
+        assert rep == {
+            "holds_checked": 0, "drifted": 0,
+            "total_abs_drift_micros": 0, "ok": True, "details": [],
+        }
+
+    def test_fail_soft_when_source_unavailable(self, wired, monkeypatch):
+        def _boom():
+            raise RuntimeError("db down")
+        monkeypatch.setattr(preflight, "open_holds", _boom)
+        rep = ledger_recon.hold_drift()  # must not raise
+        assert rep["ok"] is True
+        assert rep["holds_checked"] == 0
