@@ -59,6 +59,7 @@ from warden.agent.scheduler import (
     sova_visual_patrol,
 )
 from warden.brain.online_learner import online_learning_job
+from warden.workers.aml_monitor_job import nightly_aml_scan
 from warden.workers.clearing_outbox_relay import (
     purge_clearing_outbox,
     relay_clearing_outbox,
@@ -135,6 +136,8 @@ class WorkerSettings:
         relay_clearing_outbox,
         # Clearing outbox retention/cleanup (FT-4 remainder)
         purge_clearing_outbox,
+        # AML structuring sweep on the journal (FT-5)
+        nightly_aml_scan,
     ]
 
     cron_jobs = [
@@ -237,6 +240,9 @@ class WorkerSettings:
 
         # ── Clearing outbox retention — weekly Sunday 05:00 UTC (FT-4) ───────
         cron(purge_clearing_outbox, weekday=6, hour=5, minute=0, timeout=120),
+
+        # ── AML structuring sweep — daily 04:20 UTC (FT-5) ───────────────────
+        cron(nightly_aml_scan, hour=4, minute=20, timeout=300),
     ]
 
     on_startup  = startup

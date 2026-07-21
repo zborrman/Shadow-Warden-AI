@@ -176,3 +176,74 @@ class TestChainIntegrity:
         ok, broken = journal.verify_chain(db_path=db)
         assert ok is False
         assert broken == 2
+
+
+# ── Read primitives for account-scoped scans (FT-5 AML monitor) ────────────────
+class TestPostingsForAccount:
+    def test_returns_all_postings_oldest_first(self, db):
+        acct = accounts.tenant_cash("t1")
+        for n in range(1, 4):
+            journal.post(f"idem-p{n}", "xfer", [
+                Posting(acct, Money.from_usd(str(n))),
+                Posting(accounts.platform_fees(), Money.from_usd(str(-n))),
+            ], db_path=db)
+        postings = journal.postings_for_account(acct, db_path=db)
+        assert len(postings) == 3
+        # insertion order preserved — amounts posted 1, 2, 3 in that order
+        assert [p["amount"] for p in postings] == [
+            Money.from_usd("1"), Money.from_usd("2"), Money.from_usd("3"),
+        ]
+        assert all(p["kind"] == "xfer" for p in postings)
+
+    def test_since_filter_excludes_older(self, db):
+        acct = accounts.tenant_cash("t2")
+        journal.post("idem-old", "xfer", [
+            Posting(acct, Money.from_usd("1")),
+            Posting(accounts.platform_fees(), Money.from_usd("-1")),
+        ], db_path=db)
+        # A since_iso far in the future excludes everything already posted.
+        from datetime import UTC, datetime, timedelta
+        future = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+        postings = journal.postings_for_account(acct, since_iso=future, db_path=db)
+        assert postings == []
+
+    def test_since_filter_includes_recent(self, db):
+        acct = accounts.tenant_cash("t3")
+        from datetime import UTC, datetime, timedelta
+        past = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        journal.post("idem-recent", "xfer", [
+            Posting(acct, Money.from_usd("1")),
+            Posting(accounts.platform_fees(), Money.from_usd("-1")),
+        ], db_path=db)
+        postings = journal.postings_for_account(acct, since_iso=past, db_path=db)
+        assert len(postings) == 1
+
+    def test_empty_account_returns_empty_list(self, db):
+        assert journal.postings_for_account(accounts.tenant_cash("never-posted"), db_path=db) == []
+
+
+class TestDistinctAccounts:
+    def test_lists_every_account_that_posted(self, db):
+        journal.post("idem-d1", "xfer", [
+            Posting(accounts.tenant_cash("t1"), Money.from_usd("1")),
+            Posting(accounts.platform_fees(), Money.from_usd("-1")),
+        ], db_path=db)
+        journal.post("idem-d2", "xfer", [
+            Posting(accounts.tenant_cash("t2"), Money.from_usd("1")),
+            Posting(accounts.platform_fees(), Money.from_usd("-1")),
+        ], db_path=db)
+        accts = journal.distinct_accounts(db_path=db)
+        assert accounts.tenant_cash("t1") in accts
+        assert accounts.tenant_cash("t2") in accts
+        assert accounts.platform_fees() in accts
+
+    def test_namespace_filter(self, db):
+        journal.post("idem-d3", "xfer", [
+            Posting(accounts.tenant_cash("t1"), Money.from_usd("1")),
+            Posting(accounts.platform_fees(), Money.from_usd("-1")),
+        ], db_path=db)
+        accts = journal.distinct_accounts(namespace=accounts.Namespace.TENANT, db_path=db)
+        assert accts == [accounts.tenant_cash("t1")]
+
+    def test_empty_ledger_returns_empty_list(self, db):
+        assert journal.distinct_accounts(db_path=db) == []
