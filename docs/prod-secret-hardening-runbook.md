@@ -11,7 +11,7 @@
 | 1 | `PORTAL_JWT_SECRET=change-me` | **P0** | Portal is internet-facing and signs session JWTs with this. Known secret ⇒ **forgeable sessions**. |
 | 2 | `DB_PASSWORD=change-me` | **P0** | Postgres role `warden_user` password is the default placeholder. (Postgres is internal-network-only, limiting blast radius, but it's a known credential.) |
 | 3 | `SECRET_KEY=change-me` | **P0** | App secret is a placeholder. |
-| 4 | `WARDEN_ENV` unset + `WARDEN_DATA_DIR` unset | **P0** | App runs in `dev` mode → S1 fail-closed guard never fires; module SQLite DBs (PII/secret material) default to `/tmp` — **wiped on reboot**, world-readable. |
+| 4 | `WARDEN_ENV` unset + `WARDEN_DATA_DIR` unset | **P0** | App runs in `dev` mode → S1 fail-closed guard never fires; module SQLite DBs (PII/secret material) default to `/tmp` — **wiped on reboot**, world-readable, and invisible to the nightly backup (isolated per-container `/tmp`). The compose change in this PR persists the data dir by default; the prod-posture flip stays operator opt-in. |
 
 Not a problem: `ALLOW_UNAUTHENTICATED` unset is safe (auth is fail-closed while `WARDEN_API_KEY` is set); `VAULT_MASTER_KEY`, `OFFSITE_S3_*`, `CORS_ORIGINS` all correct.
 
@@ -25,28 +25,28 @@ cd /opt/shadow-warden
 cp .env ".env.bak.$(date +%Y%m%dT%H%M%S)"    # rollback point
 ```
 
-## Step 1 — Persist the data dir (do this FIRST)
+## How env vars actually reach the containers (read this first)
 
-`./data` on the host is already bind-mounted to `/warden/data` in `warden` and `arq-worker`. Point the app's data dir at it and tighten perms:
+Verified 2026-07-21 on the box: **no service uses `env_file: .env`.** `.env` reaches a container **only** where `docker-compose.yml` explicitly interpolates `${VAR}` inside that service's `environment:` block. And `docker-compose.yml` is **pulled from `main`** on every deploy (`git reset --hard origin/main`), so any var that isn't already wired must be added in the compose file **via git**, not by editing the file on the box (a local edit is wiped on the next deploy).
 
+Consequences:
+- `SECRET_KEY`, `PORTAL_JWT_SECRET` — already wired (`${SECRET_KEY:-…}` in warden; `${PORTAL_JWT_SECRET:-}` in warden + portal) → rotatable by an `.env` value change + `docker compose up -d`.
+- `DB_PASSWORD` — reaches warden **and** arq-worker indirectly, interpolated into `DATABASE_URL=postgresql+asyncpg://warden_user:${DB_PASSWORD:-change-me}@postgres:5432/warden`. Rotating it means: `ALTER ROLE` + `.env` value change + recreate **warden, arq-worker, postgres-exporter**.
+- `WARDEN_DATA_DIR`, `WARDEN_ENV`, `CONFIG_FAILCLOSED` — were wired **nowhere**. Now wired into warden + arq-worker by the compose change that ships with this runbook (defaults `/warden/data` / `dev` / `false`). Once that lands on `main` and deploys, the data dir **persists by default** and the prod flags become opt-in via `.env`.
+
+> Also observed: both warden and arq-worker run as **root** (uid 0), though `warden/Dockerfile` intends non-root UID 10001. Track that as a separate defense-in-depth item; it's why the `/warden/data` `0700` chmod is safe here (root owns the process).
+
+## Step 1 — Persist the data dir (handled by the compose change in this PR)
+
+The `WARDEN_DATA_DIR=${WARDEN_DATA_DIR:-/warden/data}` wiring in this PR makes module SQLite DBs land on the persisted `./data` bind mount **by default** on the next deploy — no `.env` edit needed. This also fixes a latent backup gap: arq-worker's nightly backup scans `data_dir()`, which was its own isolated `/tmp`, so it saw **none** of the module DBs warden wrote to warden's separate `/tmp`; now both share `/warden/data`.
+
+After the deploy, confirm it took effect:
 ```bash
-# 1a. host dir mode 0700 (S1 requires secret DBs not be world-readable)
-chmod 700 /opt/shadow-warden/data
-
-# 1b. set the var in .env
-grep -q '^WARDEN_DATA_DIR=' .env && sed -i 's#^WARDEN_DATA_DIR=.*#WARDEN_DATA_DIR=/warden/data#' .env \
-  || echo 'WARDEN_DATA_DIR=/warden/data' >> .env
+docker compose exec -T warden python3 -c "from warden.config import data_dir; print(data_dir())"   # want /warden/data
+docker compose exec -T warden sh -c 'ls /warden/data/warden_*.db 2>/dev/null | head'                # DBs now here
+chmod 700 /opt/shadow-warden/data                                                                    # tighten the host mount
 ```
-
-**Verify the var actually reaches the containers.** `WARDEN_DATA_DIR` is not in an explicit `environment:` block in `docker-compose.yml`, so it only propagates if `warden` and `arq-worker` use `env_file: .env`:
-
-```bash
-python3 -c "import yaml; d=yaml.safe_load(open('docker-compose.yml')); print('warden env_file:', d['services']['warden'].get('env_file','NONE')); print('arq-worker env_file:', d['services']['arq-worker'].get('env_file','NONE'))"
-```
-- If both show `.env` → done, the var propagates.
-- If either shows `NONE` → add `WARDEN_DATA_DIR=/warden/data` to that service's `environment:` block (a compose edit → this becomes a repo change + redeploy, not just an `.env` edit).
-
-Nothing to migrate: the current `/tmp` DBs are ephemeral, so there is no prod data to move — this only makes *future* module DBs persist.
+Nothing to migrate: the old `/tmp` DBs are ephemeral, so there is no prod data to move.
 
 ## Step 2 — Rotate the three `change-me` secrets
 
@@ -80,7 +80,7 @@ for kv in 'WARDEN_ENV=production' 'CONFIG_FAILCLOSED=true' 'ALLOW_UNAUTHENTICATE
   k=${kv%%=*}; grep -q "^${k}=" .env && sed -i "s#^${k}=.*#${kv}#" .env || echo "$kv" >> .env
 done
 ```
-With `CONFIG_FAILCLOSED=true`, if `WARDEN_DATA_DIR` still resolved under `/tmp` the app would crash on boot — that's the S1 guard. Step 1 is what makes this safe.
+These flags are wired into compose (this PR) with safe `dev`/`false` defaults, so they take effect the moment they're set in `.env` + a recreate. **Only flip these after confirming Step 1** — i.e. `data_dir()` reports `/warden/data`, not `/tmp`. With `CONFIG_FAILCLOSED=true`, a data dir still resolving under `/tmp` crashes the app on boot by design (that is the S1 guard doing its job).
 
 ## Step 4 — Apply and verify
 
