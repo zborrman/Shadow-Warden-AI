@@ -211,6 +211,58 @@ def get_transaction(tx_id: str, *, db_path: str | None = None) -> Transaction | 
         return _row_to_tx(con, row)
 
 
+def postings_for_account(
+    account: str, *, since_iso: str | None = None, db_path: str | None = None
+) -> list[dict]:
+    """Every posting on *account*, oldest first, each carrying its own tx kind
+    and timestamp — the read primitive AML-style monitors scan (FT-5).
+
+    ``since_iso`` filters to postings with ``created_at >= since_iso``
+    (ISO-8601 string compare, consistent with how timestamps are stored).
+    """
+    accounts.validate(account)
+    with _conn(db_path) as con:
+        if since_iso:
+            rows = con.execute(
+                """SELECT p.tx_id, p.amount_micros, p.created_at, t.kind
+                   FROM ledger_postings p JOIN ledger_transactions t ON t.tx_id = p.tx_id
+                   WHERE p.account=? AND p.created_at >= ?
+                   ORDER BY p.id""",
+                (account, since_iso),
+            ).fetchall()
+        else:
+            rows = con.execute(
+                """SELECT p.tx_id, p.amount_micros, p.created_at, t.kind
+                   FROM ledger_postings p JOIN ledger_transactions t ON t.tx_id = p.tx_id
+                   WHERE p.account=?
+                   ORDER BY p.id""",
+                (account,),
+            ).fetchall()
+    return [
+        {
+            "tx_id": r["tx_id"],
+            "amount": Money.from_micros(int(r["amount_micros"])),
+            "created_at": r["created_at"],
+            "kind": r["kind"],
+        }
+        for r in rows
+    ]
+
+
+def distinct_accounts(*, namespace: str | None = None, db_path: str | None = None) -> list[str]:
+    """Every distinct account id that has ever posted, optionally filtered to
+    one namespace prefix (e.g. ``"tenant"``) — the enumeration primitive for
+    account-scoped batch scans (FT-5 AML monitor).
+    """
+    with _conn(db_path) as con:
+        rows = con.execute("SELECT DISTINCT account FROM ledger_postings").fetchall()
+    all_accounts = [r["account"] for r in rows]
+    if namespace is None:
+        return all_accounts
+    prefix = f"{namespace}:"
+    return [a for a in all_accounts if a.startswith(prefix)]
+
+
 def verify_chain(*, db_path: str | None = None) -> tuple[bool, int | None]:
     """Re-hash the chain in seq order. Returns (ok, broken_seq).
 
