@@ -101,8 +101,10 @@ class TestBalanceAndDeduct:
         monkeypatch.setattr(g, "_X402_ENABLED", True)
         # seed a balance
         import sqlite3
+
+        from warden.db.ddl_registry import ensure_schema
         con = sqlite3.connect(g._DB_PATH)
-        g._ensure_schema(con)
+        ensure_schema(con, "marketplace_x402", g._DB_PATH)
         con.execute("INSERT INTO x402_balances (agent_id, balance_usd, updated_at) VALUES (?,?,?)",
                     ("a1", 1.0, "now"))
         con.commit()
