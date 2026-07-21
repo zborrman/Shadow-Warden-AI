@@ -11,6 +11,7 @@ import pytest
 from warden.config import settings
 from warden.ledger import journal
 from warden.marketplace import credits
+from warden.sac import preflight
 from warden.workers import ledger_recon_job as job
 
 
@@ -18,6 +19,7 @@ from warden.workers import ledger_recon_job as job
 def wired(tmp_path, monkeypatch):
     monkeypatch.setattr(credits, "_DB_PATH", str(tmp_path / "mkt.db"))
     monkeypatch.setattr(journal, "_DB_PATH", str(tmp_path / "ledger.db"))
+    monkeypatch.setattr(preflight.settings, "sac_wallet_db_path", str(tmp_path / "wallet.db"))
     monkeypatch.setattr(settings, "ledger_dual_write", True)
 
 
@@ -30,8 +32,9 @@ def alerts(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _reset_gauge():
-    # Module-level Prometheus singleton — reset so test order never matters.
+    # Module-level Prometheus singletons — reset so test order never matters.
     job.LEDGER_RECON_DRIFT_USD.set(0.0)
+    job.LEDGER_RECON_HOLD_DRIFT_USD.set(0.0)
     yield
 
 
@@ -85,4 +88,58 @@ class TestArqEntryPoint:
     @pytest.mark.asyncio
     async def test_nightly_ledger_recon_returns_report(self, wired, alerts):
         result = await job.nightly_ledger_recon(ctx={})
+        assert result["ok"] is True
+
+
+class TestRunHoldReconciliation:
+    def test_clean_state_no_alert_gauge_zero(self, wired, alerts):
+        preflight.deposit("t1", 1.0)
+        preflight.reserve("t1", 0.10)  # mirrored, zero drift
+
+        report = job.run_hold_reconciliation()
+
+        assert report["ok"] is True
+        assert alerts == []
+        assert job.LEDGER_RECON_HOLD_DRIFT_USD._value.get() == 0.0
+
+    def test_drift_fires_alert_and_sets_gauge(self, wired, alerts, monkeypatch):
+        preflight.deposit("t1", 1.0)
+        monkeypatch.setattr(settings, "ledger_dual_write", False)
+        preflight.reserve("t1", 0.10)  # never mirrored → drift
+        monkeypatch.setattr(settings, "ledger_dual_write", True)
+
+        report = job.run_hold_reconciliation()
+
+        assert report["ok"] is False
+        assert report["drifted"] == 1
+        assert len(alerts) == 1
+        assert "drift" in alerts[0].lower()
+        # 100_000 micros = $0.10
+        assert job.LEDGER_RECON_HOLD_DRIFT_USD._value.get() == pytest.approx(0.10)
+
+    def test_returns_underlying_report_unchanged(self, wired, alerts):
+        report = job.run_hold_reconciliation()
+        assert report == {
+            "holds_checked": 0, "drifted": 0,
+            "total_abs_drift_micros": 0, "ok": True, "details": [],
+        }
+
+    def test_alert_failure_is_non_fatal(self, wired, monkeypatch):
+        preflight.deposit("t1", 1.0)
+        monkeypatch.setattr(settings, "ledger_dual_write", False)
+        preflight.reserve("t1", 0.10)
+        monkeypatch.setattr(settings, "ledger_dual_write", True)
+
+        def _boom(*a, **kw):
+            raise RuntimeError("slack down")
+        monkeypatch.setattr(job, "send_alert", _boom)
+
+        report = job.run_hold_reconciliation()  # must not raise
+        assert report["ok"] is False
+
+
+class TestHoldArqEntryPoint:
+    @pytest.mark.asyncio
+    async def test_nightly_hold_recon_returns_report(self, wired, alerts):
+        result = await job.nightly_hold_recon(ctx={})
         assert result["ok"] is True

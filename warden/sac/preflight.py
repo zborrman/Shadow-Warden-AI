@@ -150,6 +150,25 @@ def get_wallet(tenant_id: str) -> dict:
     }
 
 
+def open_holds() -> list[dict]:
+    """Enumerate every currently-open (status='HELD') hold.
+
+    The durable, authoritative source for reconciliation against the ledger's
+    per-hold `hold:{hold_id}` contra accounts — a hold drops out of this list
+    the moment it resolves (commit or release), so a hold that predates
+    dual-write being enabled self-clears from any drift report as soon as it
+    resolves rather than drifting forever (unlike a persistent balance).
+    """
+    with _db_lock, _conn() as con:
+        rows = con.execute(
+            "SELECT hold_id, tenant_id, amount_micros FROM sac_holds WHERE status='HELD'"
+        ).fetchall()
+    return [
+        {"hold_id": r["hold_id"], "tenant_id": r["tenant_id"], "amount_micros": int(r["amount_micros"])}
+        for r in rows
+    ]
+
+
 def deposit(tenant_id: str, amount_usd: float) -> dict:
     """Fund a wallet (privileged operation). Returns the updated wallet."""
     micros = _to_micros(amount_usd)

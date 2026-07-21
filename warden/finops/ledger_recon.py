@@ -11,6 +11,16 @@ Credits reconcile exactly: `marketplace/credits.py` is the sole writer of the
 credit balance, so ledger `tenant:{id}:credits` (µUSD) must equal
 `balance_credits × 1000` for every tenant.
 
+Holds (`hold_drift`, FT-4 remainder) reconcile differently: `hold:{hold_id}`
+is a per-transaction contra account, not a per-tenant running balance, so each
+currently-open hold (`sac.preflight.open_holds()`, status='HELD') is checked
+individually against its own ledger account. A hold that predates dual-write
+being enabled has no mirrored ledger entry yet and reads as drift — but
+because holds are short-lived (reserve → commit/release within one agent
+run), that hold drops out of the open-hold set the moment it resolves, so the
+false positive self-clears quickly instead of persisting like an unbackfilled
+credit balance would.
+
 Cross-module reads use lazy imports (the `finops/growth.py` pattern) so this
 stays an error-swallowing adapter over the billing modules, not a hard import
 dependency. Pure computation — no metrics/cron wiring here (that is FT-4).
@@ -65,6 +75,50 @@ def _summary(details: list[dict], tenants_checked: int | None = None) -> dict:
     total = sum(abs(d["drift_micros"]) for d in details)
     return {
         "tenants_checked": tenants_checked if tenants_checked is not None else 0,
+        "drifted": len(details),
+        "total_abs_drift_micros": total,
+        "ok": len(details) == 0,
+        "details": details,
+    }
+
+
+def hold_drift() -> dict:
+    """Compare every currently-open hold's ledger balance to its live amount.
+
+    Returns a summary:
+        {holds_checked, drifted, total_abs_drift_micros, ok, details}
+    where ``details`` lists only the drifted holds. Fail-soft: any read error
+    yields an empty, ``ok``-by-vacuity report rather than raising.
+    """
+    try:
+        from warden.ledger import accounts, dual_write
+        from warden.sac import preflight
+    except Exception as exc:
+        log.debug("ledger_recon: modules unavailable (%s)", exc)
+        return _hold_summary([])
+
+    try:
+        holds = preflight.open_holds()
+    except Exception as exc:
+        log.debug("ledger_recon: hold enumeration failed (%s)", exc)
+        return _hold_summary([])
+
+    details: list[dict] = []
+    for h in holds:
+        try:
+            rep = dual_write.reconcile(accounts.hold(h["hold_id"]), h["amount_micros"])
+        except Exception as exc:
+            log.debug("ledger_recon: reconcile failed hold=%s (%s)", h["hold_id"], exc)
+            continue
+        if not rep["ok"]:
+            details.append({"hold_id": h["hold_id"], "tenant_id": h["tenant_id"], **rep})
+    return _hold_summary(details, holds_checked=len(holds))
+
+
+def _hold_summary(details: list[dict], holds_checked: int | None = None) -> dict:
+    total = sum(abs(d["drift_micros"]) for d in details)
+    return {
+        "holds_checked": holds_checked if holds_checked is not None else 0,
         "drifted": len(details),
         "total_abs_drift_micros": total,
         "ok": len(details) == 0,
