@@ -125,6 +125,7 @@ Three access tiers for marketplace participation:
 19. **KYA revoke requires X-Admin-Key.** `POST /marketplace/agents/{id}/kya/revoke` uses `ADMIN_KEY` env var, same as `/billing/addons/grant`.
 20. **MasterAgent autonomy check is fail-open.** `check_action()` exceptions → fall through to text-scan for REQUIRES_APPROVAL. Never block MasterAgent execution on autonomy policy errors.
 21. **KYB enforcement is opt-in and fail-conservative, never fail-open toward ALLOW.** `KYB_ENFORCEMENT_ENABLED` defaults `false` — existing tenants are never retroactively capped by shipping `kyb.py`. Once enabled, a KYA/KYB lookup failure caps the agent at REQUIRE_APPROVAL (same as an unverified owner), it never resolves to ALLOW. But if the flag itself can't be read, behavior must still fall back to "enforcement off" — never let a broken flag read silently cap every agent in production.
+22. **Sanctions screening never blocks or delays clearing.** `clearing.py::clear_async()` calls `sanctions.screen_settlement_party()` after the outbox relay step; any exception is caught inside `_screen_sanctions()` and only logged. A HIT opens a `COMPLIANCE` incident via `incident_register.log_incident()` — it never raises, blocks, reverses, or holds the transaction. Opt-in via `SANCTIONS_SCREENING_ENABLED` (default `false`).
 
 ### Monetization Modules
 
@@ -137,6 +138,7 @@ Three access tiers for marketplace participation:
 | `api_listings.py` | `POST /listings/{id}/sponsor` — admin-grant sponsored status |
 | `kya.py` | KYA framework — `KYARecord`, register/screen/revoke, Bayesian risk score via ERS |
 | `kyb.py` | KYB framework (FT-5) — `KYBRecord`, owner (tenant) manual-review queue, sits behind KYA |
+| `sanctions.py` | Sanctions screening at settlement (FT-5) — reuses staff `screen_sanctions_list()`, buyer-only, opens `incident_register` case on a hit, never blocks |
 | `credits.py` | Flex Credits — prepaid balances, Redis DECRBY atomic deduct, SQLite persistence |
 | `autonomy.py` | Progressive autonomy — `AutonomyPolicy`, L1/L2/L3 `check_action()`, Redis + SQLite; KYB-gates via `_owner_kyb_unverified()` |
 
@@ -182,6 +184,26 @@ enforcement is off, or even unreadable, behavior is always unchanged from
 before this framework existed. No payout-hold half exists: `docs/
 licensing-posture.md` found no real payout mechanism anywhere in the
 codebase for KYB status to gate.
+
+## Sanctions Screening at Settlement (FT-5)
+
+Screens the buyer of every clearing run against the (stub) sanctions
+denylist, reusing the existing STAFF-05 `screen_sanctions_list()` tool.
+
+```
+clear_async() → _screen_sanctions(buyer_agent_id, clearing_id)
+              → sanctions.screen_settlement_party(buyer_agent_id, clearing_id)
+                  1. resolve owner tenant via kya.get_kya_record()
+                  2. resolve display name via kyb.get_kyb_record().business_name
+                  3. screen_sanctions_list(tenant_id, subject_name)
+                  4. HIT → incident_register.log_incident(category="COMPLIANCE")
+```
+
+Opt-in (`SANCTIONS_SCREENING_ENABLED=false` default) and purely
+observational — a HIT never blocks, delays, or reverses the clearing
+transaction; it opens a case for human follow-up. Buyer-only in this slice:
+seller screening needs a listing→seller_agent_id path `ClearingResult`
+doesn't expose yet.
 
 ## Flex Credits (v7.1)
 
@@ -240,3 +262,4 @@ SQLite: `marketplace_autonomy_policies` in `MARKETPLACE_DB_PATH`.
 | `KYA_VERIFIED_ONLY` | `false` | Reject non-VERIFIED agents from search results |
 | `KYA_AUTO_VERIFY_SCORE_THRESHOLD` | `0.3` | Auto-VERIFIED when risk_score ≤ this value |
 | `KYB_ENFORCEMENT_ENABLED` | `false` | Cap `autonomy.check_action()` at REQUIRE_APPROVAL when the agent's owner isn't KYB-VERIFIED |
+| `SANCTIONS_SCREENING_ENABLED` | `false` | Screen the buyer of every `clear_async()` run against the sanctions list |

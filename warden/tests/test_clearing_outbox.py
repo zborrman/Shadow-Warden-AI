@@ -202,3 +202,39 @@ class TestPurgeRelayedOutbox:
     def test_fresh_db_with_no_rows_is_a_noop(self, tmp_path):
         result = purge_relayed_outbox(db_path=str(tmp_path / "empty.db"), older_than_days=30.0)
         assert result == {"purged": 0, "remaining_relayed": 0}
+
+
+class TestSanctionsScreeningWiring:
+    """FT-5: clear_async() calls sanctions screening as a best-effort step."""
+
+    @pytest.mark.asyncio
+    async def test_clear_async_calls_sanctions_screening_when_enabled(self, db, monkeypatch):
+        monkeypatch.setenv("SANCTIONS_SCREENING_ENABLED", "true")
+        monkeypatch.setattr("warden.marketplace.clearing._PG_DSN", "")
+        calls = []
+
+        async def _fake_screen(buyer_agent_id, clearing_id):
+            calls.append((buyer_agent_id, clearing_id))
+            return {"screened": True}
+
+        monkeypatch.setattr(
+            "warden.marketplace.sanctions.screen_settlement_party", _fake_screen
+        )
+        engine = ClearingEngine(db_path=db)
+        rec = await engine.clear_async("neg-winner", "buyer-1")
+        assert calls == [("buyer-1", rec.clearing_id)]
+
+    @pytest.mark.asyncio
+    async def test_clear_async_survives_sanctions_screening_failure(self, db, monkeypatch):
+        monkeypatch.setenv("SANCTIONS_SCREENING_ENABLED", "true")
+        monkeypatch.setattr("warden.marketplace.clearing._PG_DSN", "")
+
+        async def _boom(buyer_agent_id, clearing_id):
+            raise RuntimeError("sanctions module exploded")
+
+        monkeypatch.setattr(
+            "warden.marketplace.sanctions.screen_settlement_party", _boom
+        )
+        engine = ClearingEngine(db_path=db)
+        rec = await engine.clear_async("neg-winner", "buyer-1")  # must not raise
+        assert rec.clearing_id == "clear-neg-winner"
