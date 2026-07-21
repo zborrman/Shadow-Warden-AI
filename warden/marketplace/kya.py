@@ -191,11 +191,27 @@ def register_agent(agent_id: str, owner_tenant_id: str) -> KYARecord:
     return record
 
 
+def _require_kyb_behind_kya(owner_tenant_id: str, agent_id: str, flags: list[str]) -> None:
+    """FT-5: a FLAGGED agent escalates KYB on its owning tenant.
+
+    Guarded (lazy import + broad except) so a KYB failure can never break KYA
+    screening — the same posture as the ledger dual-write mirrors.
+    """
+    if not owner_tenant_id:
+        return
+    try:
+        from warden.marketplace import kyb
+        kyb.require_kyb(owner_tenant_id, reason=f"kya_flagged:{','.join(flags) or 'unspecified'}:{agent_id[:16]}")
+    except Exception as exc:
+        log.warning("kya: kyb escalation failed for tenant=%s: %s", owner_tenant_id, exc)
+
+
 def screen_agent(agent_id: str) -> KYARecord:
     """Run risk screening and update kya_status.
 
     Auto-VERIFIED when risk_score ≤ KYA_AUTO_VERIFY_SCORE_THRESHOLD.
-    FLAGGED when risk_score > threshold.
+    FLAGGED when risk_score > threshold — this also escalates a KYB
+    requirement onto the agent's owning tenant (FT-5, "KYB behind KYA").
     Fail-open: screening errors leave status as PENDING.
     """
     try:
@@ -225,7 +241,10 @@ def screen_agent(agent_id: str) -> KYARecord:
         _cache_set(agent_id, status)
         log.info("kya: screened agent=%s status=%s risk=%.2f flags=%s",
                  agent_id[:32], status, risk, flags)
-        return _row_to_record(row)
+        record = _row_to_record(row)
+        if status == "FLAGGED":
+            _require_kyb_behind_kya(record.owner_tenant_id, agent_id, flags)
+        return record
 
     except Exception as exc:
         log.warning("kya: screen_agent fail-open for %s: %s", agent_id[:32], exc)

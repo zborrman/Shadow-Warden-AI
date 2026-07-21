@@ -111,6 +111,106 @@ class TestKYARevoke:
         revoke_agent("did:shadow:ghost-agent", reason="does_not_exist")   # must not raise
 
 
+class TestKybEscalation:
+    """FT-5: a FLAGGED agent escalates KYB onto its owning tenant.
+
+    `importlib.reload()` is needed to force FLAGGED via the module-level
+    `_AUTO_VERIFY_THRESHOLD` (bound at import time from the env var) — but a
+    bare reload leaks that threshold into every later test sharing this
+    process. `test_screen_respects_custom_threshold` above does exactly this
+    with no cleanup, so `kya._AUTO_VERIFY_THRESHOLD` can already be stale by
+    the time this class's tests start (the env var itself reverts via
+    monkeypatch, but nothing re-reloads the module to match). This fixture
+    reloads to the true default *before* each test (so this class doesn't
+    inherit contamination) and again *after* (so it doesn't leave any).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _reset_kya_module(self):
+        import importlib
+
+        import warden.marketplace.kya as kya_mod
+        original = os.environ.get("KYA_AUTO_VERIFY_SCORE_THRESHOLD")
+        os.environ.pop("KYA_AUTO_VERIFY_SCORE_THRESHOLD", None)
+        importlib.reload(kya_mod)  # start every test from the true default
+        yield
+        if original is None:
+            os.environ.pop("KYA_AUTO_VERIFY_SCORE_THRESHOLD", None)
+        else:
+            os.environ["KYA_AUTO_VERIFY_SCORE_THRESHOLD"] = original
+        importlib.reload(kya_mod)
+
+    def test_flagged_agent_triggers_kyb(self, monkeypatch):
+        import importlib
+
+        import warden.marketplace.kya as kya
+
+        calls: list[tuple] = []
+        monkeypatch.setenv("KYA_AUTO_VERIFY_SCORE_THRESHOLD", "0.0")  # force FLAGGED
+        importlib.reload(kya)
+        monkeypatch.setattr(
+            "warden.marketplace.kyb.require_kyb",
+            lambda tenant_id, reason: calls.append((tenant_id, reason)),
+        )
+
+        kya.register_agent("did:shadow:flag-escalate", "tenant-escalate")
+        rec = kya.screen_agent("did:shadow:flag-escalate")
+
+        assert rec.kya_status == "FLAGGED"
+        assert len(calls) == 1
+        assert calls[0][0] == "tenant-escalate"
+        assert "kya_flagged" in calls[0][1]
+
+    def test_verified_agent_does_not_trigger_kyb(self, monkeypatch):
+        import warden.marketplace.kya as kya
+
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            "warden.marketplace.kyb.require_kyb",
+            lambda tenant_id, reason: calls.append((tenant_id, reason)),
+        )
+
+        kya.register_agent("did:shadow:no-escalate", "tenant-clean")
+        rec = kya.screen_agent("did:shadow:no-escalate")
+
+        assert rec.kya_status == "VERIFIED"
+        assert calls == []
+
+    def test_kyb_failure_does_not_break_screening(self, monkeypatch):
+        import importlib
+
+        import warden.marketplace.kya as kya
+
+        monkeypatch.setenv("KYA_AUTO_VERIFY_SCORE_THRESHOLD", "0.0")  # force FLAGGED
+        importlib.reload(kya)
+
+        def _boom(tenant_id, reason):
+            raise RuntimeError("kyb db down")
+        monkeypatch.setattr("warden.marketplace.kyb.require_kyb", _boom)
+
+        kya.register_agent("did:shadow:kyb-down", "tenant-resilient")
+        rec = kya.screen_agent("did:shadow:kyb-down")  # must not raise
+        assert rec.kya_status == "FLAGGED"
+
+    def test_no_owner_tenant_skips_escalation(self, monkeypatch):
+        import importlib
+
+        import warden.marketplace.kya as kya
+
+        calls: list[tuple] = []
+        monkeypatch.setenv("KYA_AUTO_VERIFY_SCORE_THRESHOLD", "0.0")  # force FLAGGED
+        importlib.reload(kya)
+        monkeypatch.setattr(
+            "warden.marketplace.kyb.require_kyb",
+            lambda tenant_id, reason: calls.append((tenant_id, reason)),
+        )
+
+        # No register_agent() call — screen_agent on an unknown agent has no owner.
+        rec = kya.screen_agent("did:shadow:never-registered")
+        assert rec.kya_status == "FLAGGED"
+        assert calls == []
+
+
 class TestKYAToDict:
     def test_to_dict_returns_dict(self):
         from warden.marketplace.kya import register_agent
