@@ -117,6 +117,16 @@ services:
       - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
       - WARDEN_API_KEY=${WARDEN_API_KEY:-}
       - ALLOW_UNAUTHENTICATED=${ALLOW_UNAUTHENTICATED:-false}
+      # Prod hardening (S1): persist secret/PII module SQLite DBs on the ./data
+      # bind mount instead of ephemeral /tmp, and enable the fail-closed prod
+      # posture. Defaults are backward-compatible (dev/false); set WARDEN_ENV=
+      # production + CONFIG_FAILCLOSED=true in .env to opt in. WARDEN_DATA_DIR
+      # persists by DEFAULT — /warden/data is the same bind mount arq-worker's
+      # nightly backup scans, so this also makes the backup actually cover the
+      # module DBs (previously each container's /tmp was isolated).
+      - WARDEN_ENV=${WARDEN_ENV:-dev}
+      - WARDEN_DATA_DIR=${WARDEN_DATA_DIR:-/warden/data}
+      - CONFIG_FAILCLOSED=${CONFIG_FAILCLOSED:-false}
       - SUPER_ADMIN_KEY=${SUPER_ADMIN_KEY:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://shadow-warden-ai.com,https://www.shadow-warden-ai.com,http://localhost:3000}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
@@ -306,6 +316,13 @@ services:
           memory: 128M
     environment:
       - ARQ_MODE=1
+      # Must match warden's data dir so the nightly backup (which runs HERE)
+      # discovers the module DBs warden writes — they share the ./data bind
+      # mount. Without this, arq-worker's data_dir() is its own isolated /tmp
+      # and the backup silently scans an empty set.
+      - WARDEN_ENV=${WARDEN_ENV:-dev}
+      - WARDEN_DATA_DIR=${WARDEN_DATA_DIR:-/warden/data}
+      - CONFIG_FAILCLOSED=${CONFIG_FAILCLOSED:-false}
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-warden}
       - LOGS_PATH=/warden/data/logs.json
