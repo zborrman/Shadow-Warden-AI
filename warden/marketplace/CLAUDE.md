@@ -124,6 +124,7 @@ Three access tiers for marketplace participation:
 18. **KYA registration is fail-open.** `register_market_agent()` proceeds even if KYA screening fails; `kya_status` defaults to "PENDING" on error.
 19. **KYA revoke requires X-Admin-Key.** `POST /marketplace/agents/{id}/kya/revoke` uses `ADMIN_KEY` env var, same as `/billing/addons/grant`.
 20. **MasterAgent autonomy check is fail-open.** `check_action()` exceptions → fall through to text-scan for REQUIRES_APPROVAL. Never block MasterAgent execution on autonomy policy errors.
+21. **KYB enforcement is opt-in and fail-conservative, never fail-open toward ALLOW.** `KYB_ENFORCEMENT_ENABLED` defaults `false` — existing tenants are never retroactively capped by shipping `kyb.py`. Once enabled, a KYA/KYB lookup failure caps the agent at REQUIRE_APPROVAL (same as an unverified owner), it never resolves to ALLOW. But if the flag itself can't be read, behavior must still fall back to "enforcement off" — never let a broken flag read silently cap every agent in production.
 
 ### Monetization Modules
 
@@ -135,8 +136,9 @@ Three access tiers for marketplace participation:
 | `vector_search.py` | Sponsored boost in Python — fetch with HNSW index, apply +0.15 in memory |
 | `api_listings.py` | `POST /listings/{id}/sponsor` — admin-grant sponsored status |
 | `kya.py` | KYA framework — `KYARecord`, register/screen/revoke, Bayesian risk score via ERS |
+| `kyb.py` | KYB framework (FT-5) — `KYBRecord`, owner (tenant) manual-review queue, sits behind KYA |
 | `credits.py` | Flex Credits — prepaid balances, Redis DECRBY atomic deduct, SQLite persistence |
-| `autonomy.py` | Progressive autonomy — `AutonomyPolicy`, L1/L2/L3 `check_action()`, Redis + SQLite |
+| `autonomy.py` | Progressive autonomy — `AutonomyPolicy`, L1/L2/L3 `check_action()`, Redis + SQLite; KYB-gates via `_owner_kyb_unverified()` |
 
 ## KYA Framework (v7.1)
 
@@ -151,6 +153,35 @@ revoke_agent(agent_id, reason)            → None (status → REVOKED, Redis cl
 
 Risk scoring v1: ERS Redis score proxy (`ers:{agent_id}` ≥ 0.75 → HIGH_VELOCITY flag).
 v2: Persona/Crossmint external identity API integration.
+
+## KYB Framework (FT-5)
+
+Know Your Business: verifies the legal entity that *owns* an agent's DID —
+sits one level up from KYA, which only screens the agent's own behavior.
+
+```
+submit_for_review(tenant_id, business_name) → KYBRecord{PENDING}   # queues for manual review
+approve_kyb(tenant_id, reviewer)            → KYBRecord{VERIFIED}
+reject_kyb(tenant_id, reviewer, reason)     → KYBRecord{REJECTED}
+flag_kyb(tenant_id, reviewer, reason)       → KYBRecord{FLAGGED}
+get_kyb_status(tenant_id)                   → "PENDING" | "VERIFIED" | "FLAGGED" | "REJECTED"
+```
+
+v1 has one `KYBProvider`: `ManualReviewProvider`, which always defers to
+PENDING — there is no auto-verification path yet. The pluggable interface
+exists so a Persona/Sumsub adapter can be dropped in later (v2) without
+touching call sites.
+
+**Enforcement is opt-in** (`KYB_ENFORCEMENT_ENABLED=false` default): when
+on, `autonomy.check_action()` caps an agent at REQUIRE_APPROVAL — the L1
+behavior — whenever its KYA-registered owner isn't KYB-VERIFIED, regardless
+of the agent's own configured L2/L3 policy. "Agent inherits the owner's
+compliance status." A KYB/KYA lookup failure while enforcement is on fails
+toward capped (conservative), never toward silently allowing — but if
+enforcement is off, or even unreadable, behavior is always unchanged from
+before this framework existed. No payout-hold half exists: `docs/
+licensing-posture.md` found no real payout mechanism anywhere in the
+codebase for KYB status to gate.
 
 ## Flex Credits (v7.1)
 
@@ -208,3 +239,4 @@ SQLite: `marketplace_autonomy_policies` in `MARKETPLACE_DB_PATH`.
 | `PLATFORM_WALLET_ADDRESS` | `` | Platform wallet for fee settlement (v2) |
 | `KYA_VERIFIED_ONLY` | `false` | Reject non-VERIFIED agents from search results |
 | `KYA_AUTO_VERIFY_SCORE_THRESHOLD` | `0.3` | Auto-VERIFIED when risk_score ≤ this value |
+| `KYB_ENFORCEMENT_ENABLED` | `false` | Cap `autonomy.check_action()` at REQUIRE_APPROVAL when the agent's owner isn't KYB-VERIFIED |

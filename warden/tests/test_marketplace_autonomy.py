@@ -309,3 +309,66 @@ class TestErrorFallbacks:
 
         monkeypatch.setattr(a, "get_policy", _boom)
         assert a.check_action("agent-x", "search", 0.0) == "REQUIRE_APPROVAL"
+
+
+class TestKYBGate:
+    """FT-5: owner unverified caps autonomy at L1, opt-in via KYB_ENFORCEMENT_ENABLED."""
+
+    def test_enforcement_off_by_default_l3_allows_regardless_of_owner(self):
+        """No KYA/KYB setup at all for the owner — enforcement off → unaffected."""
+        from warden.marketplace.autonomy import check_action
+        _make_policy("agent-kyb-off", level=3, max_spend=5.0)
+        assert check_action("agent-kyb-off", "search", 1.0) == "ALLOW"
+
+    def test_enforcement_on_owner_unverified_caps_l3_to_require_approval(self, monkeypatch):
+        monkeypatch.setenv("KYB_ENFORCEMENT_ENABLED", "true")
+        from warden.marketplace.autonomy import check_action
+        from warden.marketplace.kya import register_agent
+
+        register_agent("agent-kyb-unverified", "tenant-no-kyb")
+        _make_policy("agent-kyb-unverified", level=3, max_spend=5.0)
+        assert check_action("agent-kyb-unverified", "search", 1.0) == "REQUIRE_APPROVAL"
+
+    def test_enforcement_on_owner_verified_allows_l3(self, monkeypatch):
+        monkeypatch.setenv("KYB_ENFORCEMENT_ENABLED", "true")
+        from warden.marketplace.autonomy import check_action
+        from warden.marketplace.kya import register_agent
+        from warden.marketplace.kyb import approve_kyb, submit_for_review
+
+        register_agent("agent-kyb-verified", "tenant-verified")
+        submit_for_review("tenant-verified", business_name="Verified Co")
+        approve_kyb("tenant-verified", reviewer="ops-1")
+        _make_policy("agent-kyb-verified", level=3, max_spend=5.0)
+        assert check_action("agent-kyb-verified", "search", 1.0) == "ALLOW"
+
+    def test_enforcement_on_no_kya_record_at_all_caps(self, monkeypatch):
+        """No KYA registration → owner unknown → treated as unverified, not a crash."""
+        monkeypatch.setenv("KYB_ENFORCEMENT_ENABLED", "true")
+        from warden.marketplace.autonomy import check_action
+
+        _make_policy("agent-kyb-no-kya", level=3, max_spend=5.0)
+        assert check_action("agent-kyb-no-kya", "search", 1.0) == "REQUIRE_APPROVAL"
+
+    def test_enforcement_on_lookup_failure_caps_conservatively(self, monkeypatch):
+        monkeypatch.setenv("KYB_ENFORCEMENT_ENABLED", "true")
+        import warden.marketplace.kya as kya_mod
+        from warden.marketplace.autonomy import check_action
+
+        def _boom(_id):
+            raise RuntimeError("kya store exploded")
+
+        monkeypatch.setattr(kya_mod, "get_kya_record", _boom)
+        _make_policy("agent-kyb-boom", level=3, max_spend=5.0)
+        assert check_action("agent-kyb-boom", "search", 1.0) == "REQUIRE_APPROVAL"
+
+    def test_enforcement_flag_itself_unreadable_defaults_to_off(self, monkeypatch):
+        """If even enforcement_enabled() blows up, must not retroactively cap everyone."""
+        import warden.marketplace.kyb as kyb_mod
+        from warden.marketplace.autonomy import check_action
+
+        def _boom():
+            raise RuntimeError("env read exploded")
+
+        monkeypatch.setattr(kyb_mod, "enforcement_enabled", _boom)
+        _make_policy("agent-kyb-flag-boom", level=3, max_spend=5.0)
+        assert check_action("agent-kyb-flag-boom", "search", 1.0) == "ALLOW"
