@@ -59,7 +59,10 @@ from warden.agent.scheduler import (
     sova_visual_patrol,
 )
 from warden.brain.online_learner import online_learning_job
-from warden.workers.clearing_outbox_relay import relay_clearing_outbox
+from warden.workers.clearing_outbox_relay import (
+    purge_clearing_outbox,
+    relay_clearing_outbox,
+)
 from warden.workers.content_filter import moderate_post
 from warden.workers.cve_scanner import scan_cves
 from warden.workers.dunning import process_dunning
@@ -128,6 +131,8 @@ class WorkerSettings:
         nightly_ledger_recon,
         # Clearing outbox relay (FT-4 slice 3)
         relay_clearing_outbox,
+        # Clearing outbox retention/cleanup (FT-4 remainder)
+        purge_clearing_outbox,
     ]
 
     cron_jobs = [
@@ -224,6 +229,9 @@ class WorkerSettings:
             minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
             timeout=120,
         ),
+
+        # ── Clearing outbox retention — weekly Sunday 05:00 UTC (FT-4) ───────
+        cron(purge_clearing_outbox, weekday=6, hour=5, minute=0, timeout=120),
     ]
 
     on_startup  = startup
