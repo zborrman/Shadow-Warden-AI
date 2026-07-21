@@ -191,11 +191,21 @@ class ClearingEngine:
         """Async version — also relays the clearing record to PostgreSQL via
         the transactional outbox (enqueue is synchronous and durable; the
         relay attempt itself is fail-open, but a failure leaves the row
-        queued rather than losing it)."""
+        queued rather than losing it), and screens the buyer against the
+        sanctions list (FT-5, opt-in via SANCTIONS_SCREENING_ENABLED,
+        never blocks — see warden/marketplace/sanctions.py)."""
         rec = self.clear(winner_neg_id, buyer_agent_id)
         self._enqueue_outbox(rec)
         rec.pg_write_ok = await self._relay_outbox_row(rec.clearing_id)
+        await self._screen_sanctions(buyer_agent_id, rec.clearing_id)
         return rec
+
+    async def _screen_sanctions(self, buyer_agent_id: str, clearing_id: str) -> None:
+        try:
+            from warden.marketplace.sanctions import screen_settlement_party
+            await screen_settlement_party(buyer_agent_id, clearing_id)
+        except Exception as exc:
+            log.warning("clearing: sanctions screening failed (non-fatal): %s", exc)
 
     # ── Internal helpers ────────────────────────────────────────────────────────
 
