@@ -21,6 +21,7 @@ import logging
 import os
 
 from warden.config import data_path
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.marketplace.seller_agent")
 
@@ -149,9 +150,7 @@ class SellerAgent:
 
     def _listing_stats(self, asset_type: str) -> dict:
         try:
-            import sqlite3
-            con = sqlite3.connect(self.db_path)
-            con.row_factory = sqlite3.Row
+            con = open_db_readonly(self.db_path)
             row = con.execute(
                 """SELECT COUNT(*) AS active, COALESCE(AVG(price_usd), 0) AS avg_price
                    FROM marketplace_listings

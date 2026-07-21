@@ -23,6 +23,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.importer")
@@ -47,19 +49,15 @@ CREATE INDEX IF NOT EXISTS idx_mi_purchase ON marketplace_imports(purchase_id);
 CREATE INDEX IF NOT EXISTS idx_mi_buyer    ON marketplace_imports(buyer_agent);
 CREATE INDEX IF NOT EXISTS idx_mi_type     ON marketplace_imports(asset_type);
 """
+register("marketplace", "warden.marketplace.importer", _SCHEMA)
 
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_SCHEMA)
-    try:
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Result ────────────────────────────────────────────────────────────────────

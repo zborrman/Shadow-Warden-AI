@@ -14,13 +14,12 @@ Falls back to pure-Python PageRank when networkx is unavailable.
 from __future__ import annotations
 
 import logging
-import sqlite3
 import threading
 from collections import defaultdict, deque
 from typing import Any
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.marketplace.trust_graph")
 
@@ -72,8 +71,7 @@ class TrustGraph:
     def _load_trades(self, db_path: str) -> dict:
         agg: dict[tuple, list] = defaultdict(lambda: [0.0, 0])
         try:
-            con = sqlite3.connect(db_path, check_same_thread=False)
-            init_pragmas(con)
+            con = open_db_readonly(db_path)
             rows = con.execute(
                 "SELECT buyer_agent, seller_agent, status FROM marketplace_purchases"
             ).fetchall()

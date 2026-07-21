@@ -95,12 +95,12 @@ def _fetch_mtd_spend_direct(tenant_id: str) -> float:
     Direct SQLite fallback — reads from commerce_orders for the current month.
     Used when TimescaleDB is not available (dev, test).
     """
-    import sqlite3
     from datetime import UTC, datetime
+
+    from warden.db.connect import open_db_readonly
     db = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
     try:
-        con = sqlite3.connect(db, check_same_thread=False)
-        con.row_factory = sqlite3.Row
+        con = open_db_readonly(db)
         month_start = datetime.now(UTC).strftime("%Y-%m-01")
         row = con.execute(
             "SELECT COALESCE(SUM(json_extract(data_json,'$.total')), 0.0) AS total "

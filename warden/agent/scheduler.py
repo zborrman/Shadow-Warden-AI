@@ -845,9 +845,8 @@ async def sova_marketplace_state_sync(ctx: dict) -> dict:
     maestro_flags: list[dict] = []
 
     try:
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
+        from warden.db.connect import open_db_readonly  # noqa: PLC0415
+        conn = open_db_readonly(db_path)
         cur = conn.cursor()
 
         cur.execute(

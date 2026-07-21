@@ -38,7 +38,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.escrow")
 
@@ -53,31 +54,31 @@ _DELIVERY_TIMEOUT_HOURS = int(os.getenv("ESCROW_DELIVERY_TIMEOUT_HOURS", "48"))
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_escrow (
-            escrow_id        TEXT PRIMARY KEY,
-            purchase_id      TEXT NOT NULL DEFAULT '',
-            listing_id       TEXT NOT NULL,
-            buyer_agent      TEXT NOT NULL,
-            seller_agent     TEXT NOT NULL,
-            amount_usd       REAL NOT NULL DEFAULT 0.0,
-            contract_address TEXT NOT NULL DEFAULT '',
-            status           TEXT NOT NULL DEFAULT 'pending_deposit',
-            asset_hash       TEXT NOT NULL DEFAULT '',
-            dispute_reason   TEXT NOT NULL DEFAULT '',
-            chain            TEXT NOT NULL DEFAULT 'sepolia',
-            created_at       TEXT NOT NULL,
-            funded_at        TEXT,
-            delivered_at     TEXT,
-            confirmed_at     TEXT,
-            expires_at       TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_esc_buyer  ON marketplace_escrow(buyer_agent);
-        CREATE INDEX IF NOT EXISTS idx_esc_seller ON marketplace_escrow(seller_agent);
-        CREATE INDEX IF NOT EXISTS idx_esc_listing ON marketplace_escrow(listing_id);
-        CREATE INDEX IF NOT EXISTS idx_esc_chain  ON marketplace_escrow(chain);
-    """)
+_ESCROW_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_escrow (
+        escrow_id        TEXT PRIMARY KEY,
+        purchase_id      TEXT NOT NULL DEFAULT '',
+        listing_id       TEXT NOT NULL,
+        buyer_agent      TEXT NOT NULL,
+        seller_agent     TEXT NOT NULL,
+        amount_usd       REAL NOT NULL DEFAULT 0.0,
+        contract_address TEXT NOT NULL DEFAULT '',
+        status           TEXT NOT NULL DEFAULT 'pending_deposit',
+        asset_hash       TEXT NOT NULL DEFAULT '',
+        dispute_reason   TEXT NOT NULL DEFAULT '',
+        chain            TEXT NOT NULL DEFAULT 'sepolia',
+        created_at       TEXT NOT NULL,
+        funded_at        TEXT,
+        delivered_at     TEXT,
+        confirmed_at     TEXT,
+        expires_at       TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_esc_buyer  ON marketplace_escrow(buyer_agent);
+    CREATE INDEX IF NOT EXISTS idx_esc_seller ON marketplace_escrow(seller_agent);
+    CREATE INDEX IF NOT EXISTS idx_esc_listing ON marketplace_escrow(listing_id);
+    CREATE INDEX IF NOT EXISTS idx_esc_chain  ON marketplace_escrow(chain);
+"""
+register("marketplace", "warden.marketplace.escrow", _ESCROW_DDL)
 
 
 def _migrate_chain_column(con: sqlite3.Connection) -> None:
@@ -91,16 +92,11 @@ def _migrate_chain_column(con: sqlite3.Connection) -> None:
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    _migrate_chain_column(con)
-    try:
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
+        _migrate_chain_column(con)
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Dataclass ─────────────────────────────────────────────────────────────────

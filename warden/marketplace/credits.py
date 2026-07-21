@@ -31,7 +31,8 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.credits")
@@ -69,36 +70,31 @@ CREDIT_PACKAGES: dict[str, dict] = {
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_credits (
-            tenant_id        TEXT PRIMARY KEY,
-            balance_credits  INTEGER NOT NULL DEFAULT 0,
-            reserved_credits INTEGER NOT NULL DEFAULT 0,
-            updated_at       TEXT    NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS marketplace_credit_purchases (
-            idempotency_key TEXT PRIMARY KEY,
-            tenant_id       TEXT    NOT NULL,
-            package_id      TEXT    NOT NULL,
-            credits_added   INTEGER NOT NULL,
-            new_balance     INTEGER NOT NULL,
-            created_at      TEXT    NOT NULL
-        );
-    """)
+_CREDITS_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_credits (
+        tenant_id        TEXT PRIMARY KEY,
+        balance_credits  INTEGER NOT NULL DEFAULT 0,
+        reserved_credits INTEGER NOT NULL DEFAULT 0,
+        updated_at       TEXT    NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS marketplace_credit_purchases (
+        idempotency_key TEXT PRIMARY KEY,
+        tenant_id       TEXT    NOT NULL,
+        package_id      TEXT    NOT NULL,
+        credits_added   INTEGER NOT NULL,
+        new_balance     INTEGER NOT NULL,
+        created_at      TEXT    NOT NULL
+    );
+"""
+register("marketplace", "warden.marketplace.credits", _CREDITS_DDL)
 
 
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "marketplace", _DB_PATH, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Redis helpers ──────────────────────────────────────────────────────────────

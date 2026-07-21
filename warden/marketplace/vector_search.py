@@ -195,18 +195,19 @@ def _sqlite_fallback(
     Reads MARKETPLACE_DB_PATH at call time so test monkeypatching works.
     """
     import contextlib  # noqa: PLC0415
-    import sqlite3  # noqa: PLC0415
+
+    from warden.db.connect import open_db, open_db_readonly  # noqa: PLC0415
 
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     # Ensure sponsored columns exist (additive migration — no-op on current DBs)
     try:
-        _mig = sqlite3.connect(db_path)
-        with contextlib.suppress(Exception):
-            _mig.execute("ALTER TABLE marketplace_listings ADD COLUMN is_sponsored INTEGER NOT NULL DEFAULT 0")
-        with contextlib.suppress(Exception):
-            _mig.execute("ALTER TABLE marketplace_listings ADD COLUMN sponsored_until TEXT")
-        _mig.commit()
-        _mig.close()
+        with open_db(
+            "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
+        ) as _mig:
+            with contextlib.suppress(Exception):
+                _mig.execute("ALTER TABLE marketplace_listings ADD COLUMN is_sponsored INTEGER NOT NULL DEFAULT 0")
+            with contextlib.suppress(Exception):
+                _mig.execute("ALTER TABLE marketplace_listings ADD COLUMN sponsored_until TEXT")
     except Exception:
         pass
     terms = [t.strip() for t in query.lower().split() if t.strip()]
@@ -220,8 +221,7 @@ def _sqlite_fallback(
         params.append(asset_type)
     params.append(limit)
     try:
-        con = sqlite3.connect(db_path)
-        con.row_factory = sqlite3.Row
+        con = open_db_readonly(db_path)
         rows = con.execute(
             f"""
             SELECT listing_id, title, asset_type, price_usd,

@@ -28,7 +28,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.agent")
 
@@ -62,24 +63,28 @@ def pubkey_to_agent_id(pub_b64: str) -> str:
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_agents (
-            agent_id     TEXT PRIMARY KEY,
-            community_id TEXT NOT NULL,
-            tenant_id    TEXT NOT NULL,
-            public_key   TEXT NOT NULL,
-            capabilities TEXT NOT NULL DEFAULT '[]',
-            status       TEXT NOT NULL DEFAULT 'active',
-            mandate_id   TEXT NOT NULL DEFAULT '',
-            created_at   TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_mkt_agents_community
-            ON marketplace_agents(community_id);
-        CREATE INDEX IF NOT EXISTS idx_mkt_agents_tenant
-            ON marketplace_agents(tenant_id);
-    """)
-    # Additive migrations — safe to run on every connection
+_AGENTS_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_agents (
+        agent_id     TEXT PRIMARY KEY,
+        community_id TEXT NOT NULL,
+        tenant_id    TEXT NOT NULL,
+        public_key   TEXT NOT NULL,
+        capabilities TEXT NOT NULL DEFAULT '[]',
+        status       TEXT NOT NULL DEFAULT 'active',
+        mandate_id   TEXT NOT NULL DEFAULT '',
+        created_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_mkt_agents_community
+        ON marketplace_agents(community_id);
+    CREATE INDEX IF NOT EXISTS idx_mkt_agents_tenant
+        ON marketplace_agents(tenant_id);
+"""
+register("marketplace", "warden.marketplace.agent", _AGENTS_DDL)
+
+
+def _ensure_columns(con: sqlite3.Connection) -> None:
+    # ALTER ADD COLUMN is not idempotent (errors on a column that already exists),
+    # so it cannot be folded into the registered DDL — stays a suppress-per-connect.
     for col, defn in [
         ("name",         "TEXT NOT NULL DEFAULT ''"),
         ("budget_limit", "REAL NOT NULL DEFAULT 1000.0"),
@@ -93,15 +98,11 @@ def _ensure_schema(con: sqlite3.Connection) -> None:
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
+        _ensure_columns(con)
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Dataclass ─────────────────────────────────────────────────────────────────

@@ -23,12 +23,15 @@ import logging
 import os
 import sqlite3
 import threading
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from warden.config import data_path
+from warden.db.connect import open_db
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.agent_key_rotation")
@@ -56,12 +59,13 @@ def _migrate(con: sqlite3.Connection) -> None:
         pass  # column already exists
 
 
-def _conn():
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    _migrate(con)
-    return con
+@contextmanager
+def _conn() -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "marketplace", _DB_PATH, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
+        _migrate(con)
+        yield con
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -117,13 +121,11 @@ def rotate_agent_key(agent_id: str, body: KeyRotationRequest) -> dict:
         raise HTTPException(status_code=400, detail=f"new_public_key must be valid base64: {exc}") from exc
 
     # Load agent
-    with _db_lock:
-        con = _conn()
+    with _db_lock, _conn() as con:
         row = con.execute(
             "SELECT * FROM marketplace_agents WHERE agent_id=? AND tenant_id=?",
             (agent_id, body.tenant_id),
         ).fetchone()
-        con.close()
 
     if not row:
         raise HTTPException(status_code=404, detail="Agent not found or wrong tenant.")
@@ -156,16 +158,13 @@ def rotate_agent_key(agent_id: str, body: KeyRotationRequest) -> dict:
 
     # 3. Update agent record
     now = datetime.now(UTC).isoformat()
-    with _db_lock:
-        con = _conn()
+    with _db_lock, _conn() as con:
         con.execute(
             """UPDATE marketplace_agents
                SET public_key=?, last_key_rotation_at=?
                WHERE agent_id=?""",
             (body.new_public_key, now, agent_id),
         )
-        con.commit()
-        con.close()
 
     _emit_rotation_event(agent_id, body.new_public_key)
 
@@ -182,13 +181,11 @@ def rotate_agent_key(agent_id: str, body: KeyRotationRequest) -> dict:
 @router.get("/agents/{agent_id}/key-rotation-status")
 def key_rotation_status(agent_id: str) -> dict:
     """Return rotation status and whether the agent is overdue."""
-    with _db_lock:
-        con = _conn()
+    with _db_lock, _conn() as con:
         row = con.execute(
             "SELECT last_key_rotation_at, status FROM marketplace_agents WHERE agent_id=?",
             (agent_id,),
         ).fetchone()
-        con.close()
 
     if not row:
         raise HTTPException(status_code=404, detail="Agent not found.")
@@ -199,14 +196,11 @@ def key_rotation_status(agent_id: str) -> dict:
 
     if overdue and row["status"] == "active":
         # Reduce capabilities to empty — agent must rotate before trading
-        with _db_lock:
-            con = _conn()
+        with _db_lock, _conn() as con:
             con.execute(
                 "UPDATE marketplace_agents SET capabilities='[]' WHERE agent_id=? AND status='active'",
                 (agent_id,),
             )
-            con.commit()
-            con.close()
         log.warning("Key rotation: overdue agent=%s capabilities reduced", agent_id)
 
     return {

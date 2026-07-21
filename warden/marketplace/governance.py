@@ -23,7 +23,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
 from warden.config import settings
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.governance")
 
@@ -36,48 +37,43 @@ _DAO_ENABLED = settings.dao_governance_enabled
 PROPOSAL_TYPES = {"dispute_resolution", "parameter_change", "agent_block"}
 
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS dao_proposals (
-            proposal_id   TEXT PRIMARY KEY,
-            community_id  TEXT NOT NULL,
-            proposer_id   TEXT NOT NULL,
-            title         TEXT NOT NULL,
-            description   TEXT NOT NULL DEFAULT '',
-            proposal_type TEXT NOT NULL,
-            target_id     TEXT NOT NULL DEFAULT '',
-            options       TEXT NOT NULL DEFAULT '["yes","no"]',
-            status        TEXT NOT NULL DEFAULT 'active',
-            created_at    TEXT NOT NULL,
-            expires_at    TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_dao_community ON dao_proposals(community_id);
-        CREATE INDEX IF NOT EXISTS idx_dao_status    ON dao_proposals(status);
+_GOVERNANCE_DDL = """
+    CREATE TABLE IF NOT EXISTS dao_proposals (
+        proposal_id   TEXT PRIMARY KEY,
+        community_id  TEXT NOT NULL,
+        proposer_id   TEXT NOT NULL,
+        title         TEXT NOT NULL,
+        description   TEXT NOT NULL DEFAULT '',
+        proposal_type TEXT NOT NULL,
+        target_id     TEXT NOT NULL DEFAULT '',
+        options       TEXT NOT NULL DEFAULT '["yes","no"]',
+        status        TEXT NOT NULL DEFAULT 'active',
+        created_at    TEXT NOT NULL,
+        expires_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_dao_community ON dao_proposals(community_id);
+    CREATE INDEX IF NOT EXISTS idx_dao_status    ON dao_proposals(status);
 
-        CREATE TABLE IF NOT EXISTS dao_votes (
-            vote_id     TEXT PRIMARY KEY,
-            proposal_id TEXT NOT NULL,
-            voter_id    TEXT NOT NULL,
-            choice      INTEGER NOT NULL DEFAULT 0,
-            weight      REAL    NOT NULL DEFAULT 1.0,
-            created_at  TEXT    NOT NULL,
-            UNIQUE(proposal_id, voter_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_vote_proposal ON dao_votes(proposal_id);
-    """)
+    CREATE TABLE IF NOT EXISTS dao_votes (
+        vote_id     TEXT PRIMARY KEY,
+        proposal_id TEXT NOT NULL,
+        voter_id    TEXT NOT NULL,
+        choice      INTEGER NOT NULL DEFAULT 0,
+        weight      REAL    NOT NULL DEFAULT 1.0,
+        created_at  TEXT    NOT NULL,
+        UNIQUE(proposal_id, voter_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_vote_proposal ON dao_votes(proposal_id);
+"""
+register("marketplace", "warden.marketplace.governance", _GOVERNANCE_DDL)
 
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 @dataclass

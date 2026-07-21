@@ -28,10 +28,14 @@ import json
 import logging
 import sqlite3
 import threading
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.data_lifecycle")
 
@@ -60,14 +64,15 @@ CREATE TABLE IF NOT EXISTS mkt_data_lifecycle (
 );
 CREATE INDEX IF NOT EXISTS idx_lcm_expires ON mkt_data_lifecycle(expires_at, purged);
 """
+register("marketplace_lifecycle", "warden.marketplace.data_lifecycle", _SCHEMA)
 
 
-def _conn(path: str = _LIFECYCLE_DB) -> sqlite3.Connection:
-    con = sqlite3.connect(path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_SCHEMA)
-    return con
+@contextmanager
+def _conn(path: str = _LIFECYCLE_DB) -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "marketplace_lifecycle", path, module_default_path=_LIFECYCLE_DB
+    ) as con:
+        yield con
 
 
 # ── Dataclass ─────────────────────────────────────────────────────────────────
@@ -93,9 +98,8 @@ class DataLifecycleManager:
     def __init__(self, lifecycle_db: str = _LIFECYCLE_DB, marketplace_db: str = _DB_PATH) -> None:
         self.lifecycle_db   = lifecycle_db
         self.marketplace_db = marketplace_db
-        with _db_lock:
-            con = _conn(lifecycle_db)
-            con.close()
+        with _db_lock, _conn(lifecycle_db):
+            pass
 
     # ── Registration ─────────────────────────────────────────────────────────
 
@@ -118,16 +122,13 @@ class DataLifecycleManager:
             purged=False,
             purged_at=None,
         )
-        with _db_lock:
-            con = _conn(self.lifecycle_db)
+        with _db_lock, _conn(self.lifecycle_db) as con:
             con.execute(
                 """INSERT OR IGNORE INTO mkt_data_lifecycle
                    (entity_type, entity_id, registered_at, expires_at, purged)
                    VALUES (?,?,?,?,0)""",
                 (entity_type, entity_id, entry.registered_at, entry.expires_at),
             )
-            con.commit()
-            con.close()
         return entry
 
     # ── Check ─────────────────────────────────────────────────────────────────
@@ -135,13 +136,11 @@ class DataLifecycleManager:
     def check_expired(self) -> list[LifecycleEntry]:
         """Return all non-purged entries past their TTL."""
         now = datetime.now(UTC).isoformat()
-        with _db_lock:
-            con = _conn(self.lifecycle_db)
+        with _db_lock, _conn(self.lifecycle_db) as con:
             rows = con.execute(
                 "SELECT * FROM mkt_data_lifecycle WHERE expires_at <= ? AND purged=0",
                 (now,),
             ).fetchall()
-            con.close()
         return [
             LifecycleEntry(
                 entity_type=r["entity_type"],
@@ -190,23 +189,21 @@ class DataLifecycleManager:
             log.debug("lifecycle: unknown entity_type=%s — skipping content purge", etype)
 
         now = datetime.now(UTC).isoformat()
-        with _db_lock:
-            con = _conn(self.lifecycle_db)
+        with _db_lock, _conn(self.lifecycle_db) as con:
             con.execute(
                 "UPDATE mkt_data_lifecycle SET purged=1, purged_at=? WHERE entity_type=? AND entity_id=?",
                 (now, etype, eid),
             )
-            con.commit()
-            con.close()
 
     # ── Per-type purge logic ──────────────────────────────────────────────────
 
     def _purge_negotiation(self, negotiation_id: str) -> None:
         """Zero out offer messages and delete the negotiation record."""
         try:
-            with _db_lock:
-                con = sqlite3.connect(self.marketplace_db, check_same_thread=False)
-                con.execute("PRAGMA journal_mode=WAL")
+            with _db_lock, open_db(
+                "marketplace", self.marketplace_db,
+                turso_name="marketplace", module_default_path=_DB_PATH,
+            ) as con:
                 con.execute(
                     "UPDATE marketplace_offers SET message='' WHERE negotiation_id=?",
                     (negotiation_id,),
@@ -215,8 +212,6 @@ class DataLifecycleManager:
                     "DELETE FROM marketplace_negotiations WHERE negotiation_id=?",
                     (negotiation_id,),
                 )
-                con.commit()
-                con.close()
             log.info("lifecycle: negotiation purged id=%s", negotiation_id)
         except Exception as exc:
             log.warning("lifecycle: negotiation purge failed id=%s: %s", negotiation_id, exc)
@@ -224,10 +219,10 @@ class DataLifecycleManager:
     def _anonymise_escrow(self, escrow_id: str) -> None:
         """Replace sensitive escrow fields with a SHA-256 audit hash, retain record."""
         try:
-            with _db_lock:
-                con = sqlite3.connect(self.marketplace_db, check_same_thread=False)
-                con.row_factory = sqlite3.Row
-                con.execute("PRAGMA journal_mode=WAL")
+            with _db_lock, open_db(
+                "marketplace", self.marketplace_db,
+                turso_name="marketplace", module_default_path=_DB_PATH,
+            ) as con:
                 row = con.execute(
                     "SELECT * FROM marketplace_escrows WHERE escrow_id=?", (escrow_id,)
                 ).fetchone()
@@ -245,8 +240,6 @@ class DataLifecycleManager:
                         "UPDATE marketplace_escrows SET memo=? WHERE escrow_id=?",
                         (f"audit_hash:{audit_hash}", escrow_id),
                     )
-                con.commit()
-                con.close()
             log.info("lifecycle: escrow anonymised id=%s", escrow_id)
         except Exception as exc:
             log.warning("lifecycle: escrow anonymise failed id=%s: %s", escrow_id, exc)

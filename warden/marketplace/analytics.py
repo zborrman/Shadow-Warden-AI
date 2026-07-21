@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sqlite3
 import time as _time
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path, settings
+from warden.db.connect import open_db_readonly
 
 log = logging.getLogger("warden.marketplace.analytics")
 
@@ -22,8 +22,7 @@ _DB_PATH = settings.marketplace_db_path
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH):
-    con = sqlite3.connect(db_path)
-    con.row_factory = sqlite3.Row
+    con = open_db_readonly(db_path)
     try:
         yield con
     finally:

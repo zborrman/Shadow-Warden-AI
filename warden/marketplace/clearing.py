@@ -39,11 +39,13 @@ import os
 import sqlite3
 import time
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.clearing")
 
@@ -65,47 +67,42 @@ class ClearingResult:
     replayed:         bool = False
 
 
-def _ensure_clearing_table(db_path: str) -> None:
-    con = sqlite3.connect(db_path)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS marketplace_clearing_log (
-            clearing_id      TEXT PRIMARY KEY,
-            winner_neg_id    TEXT NOT NULL,
-            buyer_agent_id   TEXT NOT NULL,
-            rejected_neg_ids TEXT NOT NULL,
-            cleared_at       REAL NOT NULL,
-            platform_fee_usd REAL NOT NULL DEFAULT 0.0,
-            seller_net_usd   REAL NOT NULL DEFAULT 0.0
-        )
-    """)
-    # Additive migration for existing databases
-    import contextlib
-    with contextlib.suppress(Exception):
-        con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN platform_fee_usd REAL NOT NULL DEFAULT 0.0")
-    with contextlib.suppress(Exception):
-        con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN seller_net_usd REAL NOT NULL DEFAULT 0.0")
-    con.commit()
-    con.close()
+_CLEARING_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_clearing_log (
+        clearing_id      TEXT PRIMARY KEY,
+        winner_neg_id    TEXT NOT NULL,
+        buyer_agent_id   TEXT NOT NULL,
+        rejected_neg_ids TEXT NOT NULL,
+        cleared_at       REAL NOT NULL,
+        platform_fee_usd REAL NOT NULL DEFAULT 0.0,
+        seller_net_usd   REAL NOT NULL DEFAULT 0.0
+    );
+    CREATE TABLE IF NOT EXISTS marketplace_clearing_outbox (
+        clearing_id  TEXT PRIMARY KEY,
+        payload_json TEXT NOT NULL,
+        status       TEXT NOT NULL DEFAULT 'pending',
+        attempts     INTEGER NOT NULL DEFAULT 0,
+        created_at   REAL NOT NULL,
+        relayed_at   REAL
+    );
+    CREATE INDEX IF NOT EXISTS idx_clearing_outbox_status
+        ON marketplace_clearing_outbox(status);
+"""
+register("marketplace", "warden.marketplace.clearing", _CLEARING_DDL)
 
 
-def _ensure_outbox_table(db_path: str) -> None:
-    con = sqlite3.connect(db_path)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS marketplace_clearing_outbox (
-            clearing_id  TEXT PRIMARY KEY,
-            payload_json TEXT NOT NULL,
-            status       TEXT NOT NULL DEFAULT 'pending',
-            attempts     INTEGER NOT NULL DEFAULT 0,
-            created_at   REAL NOT NULL,
-            relayed_at   REAL
-        )
-    """)
-    con.execute(
-        "CREATE INDEX IF NOT EXISTS idx_clearing_outbox_status "
-        "ON marketplace_clearing_outbox(status)"
-    )
-    con.commit()
-    con.close()
+@contextmanager
+def _conn(db_path: str) -> Generator[sqlite3.Connection, None, None]:
+    # ALTER ADD COLUMN is not idempotent (errors on a column that already exists),
+    # so it cannot be folded into the registered DDL — stays a suppress-per-connect.
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
+        with suppress(Exception):
+            con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN platform_fee_usd REAL NOT NULL DEFAULT 0.0")
+        with suppress(Exception):
+            con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN seller_net_usd REAL NOT NULL DEFAULT 0.0")
+        yield con
 
 
 class ClearingEngine:
@@ -117,16 +114,8 @@ class ClearingEngine:
 
     def __init__(self, db_path: str = _DB_PATH) -> None:
         self.db_path = db_path
-        _ensure_clearing_table(db_path)
-        _ensure_outbox_table(db_path)
-
-    @contextmanager
-    def _conn(self) -> Generator[sqlite3.Connection, None, None]:
-        con = sqlite3.connect(self.db_path)
-        try:
-            yield con
-        finally:
-            con.close()
+        with _conn(db_path):  # ensure schema exists
+            pass
 
     # ── Public API ──────────────────────────────────────────────────────────────
 
@@ -212,7 +201,7 @@ class ClearingEngine:
     def _fetch_agreed_price(self, winner_neg_id: str) -> float:
         """Return the agreed price from the winner negotiation record, or 0.0 if unavailable."""
         try:
-            with self._conn() as con:
+            with _conn(self.db_path) as con:
                 row = con.execute(
                     "SELECT agreed_price FROM marketplace_negotiations WHERE negotiation_id = ?",
                     (winner_neg_id,),
@@ -224,7 +213,7 @@ class ClearingEngine:
     def _reject_losers(self, winner_neg_id: str, buyer_agent_id: str) -> list[str]:
         """Update all non-winner pending negotiations to 'cleared_by_market'."""
         try:
-            with self._conn() as con:
+            with _conn(self.db_path) as con:
                 rows = con.execute(
                     """
                     SELECT negotiation_id FROM marketplace_negotiations
@@ -243,7 +232,6 @@ class ClearingEngine:
                         f"WHERE negotiation_id IN ({placeholders})",
                         rejected_ids,
                     )
-                    con.commit()
             return rejected_ids
         except Exception as exc:
             log.warning("ClearingEngine._reject_losers: %s", exc)
@@ -251,7 +239,7 @@ class ClearingEngine:
 
     def _write_sqlite(self, rec: ClearingResult) -> None:
         try:
-            with self._conn() as con:
+            with _conn(self.db_path) as con:
                 con.execute(
                     """
                     INSERT INTO marketplace_clearing_log
@@ -270,14 +258,13 @@ class ClearingEngine:
                         rec.seller_net_usd,
                     ),
                 )
-                con.commit()
         except Exception as exc:
             log.warning("ClearingEngine._write_sqlite: %s", exc)
 
     def _read_by_id(self, clearing_id: str) -> ClearingResult | None:
         """Read back a clearing record by its (deterministic) clearing_id."""
         try:
-            with self._conn() as con:
+            with _conn(self.db_path) as con:
                 row = con.execute(
                     "SELECT clearing_id, winner_neg_id, buyer_agent_id, rejected_neg_ids, "
                     "cleared_at, platform_fee_usd, seller_net_usd "
@@ -313,7 +300,7 @@ class ClearingEngine:
             "seller_net_usd":   rec.seller_net_usd,
         }
         try:
-            with self._conn() as con:
+            with _conn(self.db_path) as con:
                 con.execute(
                     "INSERT INTO marketplace_clearing_outbox "
                     "(clearing_id, payload_json, status, attempts, created_at) "
@@ -321,7 +308,6 @@ class ClearingEngine:
                     "ON CONFLICT(clearing_id) DO NOTHING",
                     (rec.clearing_id, json.dumps(payload), time.time()),
                 )
-                con.commit()
         except Exception as exc:
             log.warning("ClearingEngine._enqueue_outbox: %s", exc)
 
@@ -357,7 +343,7 @@ class ClearingEngine:
         the row stays 'pending' (attempts incremented) for a later retry —
         never lost, never raised to the caller."""
         try:
-            with self._conn() as con:
+            with _conn(self.db_path) as con:
                 row = con.execute(
                     "SELECT payload_json, status FROM marketplace_clearing_outbox "
                     "WHERE clearing_id = ?",
@@ -378,25 +364,23 @@ class ClearingEngine:
         except Exception as exc:
             log.debug("ClearingEngine._relay_outbox_row: relay failed (queued for retry): %s", exc)
             try:
-                with self._conn() as con:
+                with _conn(self.db_path) as con:
                     con.execute(
                         "UPDATE marketplace_clearing_outbox SET attempts = attempts + 1 "
                         "WHERE clearing_id = ?",
                         (clearing_id,),
                     )
-                    con.commit()
             except Exception as exc2:
                 log.warning("ClearingEngine._relay_outbox_row: attempts bump failed: %s", exc2)
             return False
 
         try:
-            with self._conn() as con:
+            with _conn(self.db_path) as con:
                 con.execute(
                     "UPDATE marketplace_clearing_outbox SET status='relayed', relayed_at=? "
                     "WHERE clearing_id = ?",
                     (time.time(), clearing_id),
                 )
-                con.commit()
         except Exception as exc:
             log.warning("ClearingEngine._relay_outbox_row: status update failed: %s", exc)
         log.debug("ClearingEngine: relayed clearing_id=%s", clearing_id[:16])
@@ -412,7 +396,7 @@ async def relay_pending(db_path: str = _DB_PATH, limit: int = 50) -> dict:
     """
     engine = ClearingEngine(db_path=db_path)
     try:
-        with engine._conn() as con:
+        with _conn(engine.db_path) as con:
             rows = con.execute(
                 "SELECT clearing_id FROM marketplace_clearing_outbox "
                 "WHERE status = 'pending' ORDER BY created_at ASC LIMIT ?",
@@ -449,7 +433,7 @@ def purge_relayed_outbox(
     cutoff = time.time() - older_than_days * 86400
     engine = ClearingEngine(db_path=db_path)
     try:
-        with engine._conn() as con:
+        with _conn(engine.db_path) as con:
             cur = con.execute(
                 "DELETE FROM marketplace_clearing_outbox WHERE clearing_id IN ("
                 "  SELECT clearing_id FROM marketplace_clearing_outbox "
@@ -458,7 +442,6 @@ def purge_relayed_outbox(
                 (cutoff, limit),
             )
             purged = cur.rowcount if cur.rowcount is not None and cur.rowcount > 0 else 0
-            con.commit()
             remaining = con.execute(
                 "SELECT COUNT(*) FROM marketplace_clearing_outbox WHERE status = 'relayed'"
             ).fetchone()[0]

@@ -37,7 +37,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.negotiation")
 
@@ -85,50 +86,45 @@ def _scan_injection(text: str) -> bool:
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_negotiations (
-            negotiation_id TEXT PRIMARY KEY,
-            listing_id     TEXT NOT NULL,
-            buyer_agent    TEXT NOT NULL,
-            seller_agent   TEXT NOT NULL,
-            asset_ueciid   TEXT NOT NULL DEFAULT '',
-            status         TEXT NOT NULL DEFAULT 'open',
-            current_price  REAL NOT NULL DEFAULT 0.0,
-            round_count    INTEGER NOT NULL DEFAULT 0,
-            created_at     TEXT NOT NULL,
-            updated_at     TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_mn_listing ON marketplace_negotiations(listing_id);
-        CREATE INDEX IF NOT EXISTS idx_mn_buyer   ON marketplace_negotiations(buyer_agent);
-        CREATE INDEX IF NOT EXISTS idx_mn_seller  ON marketplace_negotiations(seller_agent);
+_NEGOTIATION_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_negotiations (
+        negotiation_id TEXT PRIMARY KEY,
+        listing_id     TEXT NOT NULL,
+        buyer_agent    TEXT NOT NULL,
+        seller_agent   TEXT NOT NULL,
+        asset_ueciid   TEXT NOT NULL DEFAULT '',
+        status         TEXT NOT NULL DEFAULT 'open',
+        current_price  REAL NOT NULL DEFAULT 0.0,
+        round_count    INTEGER NOT NULL DEFAULT 0,
+        created_at     TEXT NOT NULL,
+        updated_at     TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_mn_listing ON marketplace_negotiations(listing_id);
+    CREATE INDEX IF NOT EXISTS idx_mn_buyer   ON marketplace_negotiations(buyer_agent);
+    CREATE INDEX IF NOT EXISTS idx_mn_seller  ON marketplace_negotiations(seller_agent);
 
-        CREATE TABLE IF NOT EXISTS marketplace_offers (
-            offer_id       TEXT PRIMARY KEY,
-            negotiation_id TEXT NOT NULL,
-            from_agent     TEXT NOT NULL,
-            offer_type     TEXT NOT NULL DEFAULT 'offer',
-            price          REAL NOT NULL DEFAULT 0.0,
-            message        TEXT NOT NULL DEFAULT '',
-            round          INTEGER NOT NULL DEFAULT 1,
-            signature      TEXT NOT NULL DEFAULT '',
-            created_at     TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_mo_negotiation ON marketplace_offers(negotiation_id);
-    """)
+    CREATE TABLE IF NOT EXISTS marketplace_offers (
+        offer_id       TEXT PRIMARY KEY,
+        negotiation_id TEXT NOT NULL,
+        from_agent     TEXT NOT NULL,
+        offer_type     TEXT NOT NULL DEFAULT 'offer',
+        price          REAL NOT NULL DEFAULT 0.0,
+        message        TEXT NOT NULL DEFAULT '',
+        round          INTEGER NOT NULL DEFAULT 1,
+        signature      TEXT NOT NULL DEFAULT '',
+        created_at     TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_mo_negotiation ON marketplace_offers(negotiation_id);
+"""
+register("marketplace", "warden.marketplace.negotiation", _NEGOTIATION_DDL)
 
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────
