@@ -36,3 +36,19 @@ async def relay_clearing_outbox(ctx: dict) -> dict:
     else:
         log.debug("clearing_outbox_relay: %s", summary)
     return summary
+
+
+async def purge_clearing_outbox(ctx: dict) -> dict:
+    """ARQ cron entry point — retention/cleanup for confirmed-relayed rows.
+
+    Same explicit-`_DB_PATH`-argument pattern as `relay_clearing_outbox`
+    (module-level default parameters bind at def-time, not call-time).
+    Only deletes rows already marked 'relayed'; anything still 'pending' is
+    left untouched regardless of age.
+    """
+    summary = clearing.purge_relayed_outbox(db_path=clearing._DB_PATH, older_than_days=30.0)
+    if summary["purged"]:
+        log.info("purge_clearing_outbox: purged %d relayed rows", summary["purged"])
+    else:
+        log.debug("purge_clearing_outbox: %s", summary)
+    return summary

@@ -11,10 +11,11 @@ it 'pending' for `relay_pending()` to retry later, instead of losing it.
 from __future__ import annotations
 
 import sqlite3
+import time
 
 import pytest
 
-from warden.marketplace.clearing import ClearingEngine, relay_pending
+from warden.marketplace.clearing import ClearingEngine, purge_relayed_outbox, relay_pending
 
 
 @pytest.fixture
@@ -143,3 +144,61 @@ class TestRelayPending:
         again = await engine._relay_outbox_row(rec.clearing_id)
         assert again is True
         assert calls["n"] == 1  # no second Postgres call — already relayed
+
+
+class TestPurgeRelayedOutbox:
+    @pytest.mark.asyncio
+    async def test_pending_row_is_never_purged_regardless_of_age(self, db, monkeypatch):
+        monkeypatch.setattr("warden.marketplace.clearing._PG_DSN", "")
+        engine = ClearingEngine(db_path=db)
+        rec = await engine.clear_async("neg-winner", "buyer-1")  # relay fails -> stays pending
+
+        con = sqlite3.connect(db)
+        con.execute(
+            "UPDATE marketplace_clearing_outbox SET created_at = ? WHERE clearing_id = ?",
+            (time.time() - 999 * 86400, rec.clearing_id),
+        )
+        con.commit()
+        con.close()
+
+        result = purge_relayed_outbox(db_path=db, older_than_days=30.0)
+        assert result == {"purged": 0, "remaining_relayed": 0}
+        status, _, _ = _outbox_row(db, rec.clearing_id)
+        assert status == "pending"
+
+    @pytest.mark.asyncio
+    async def test_relayed_row_younger_than_window_is_kept(self, db, monkeypatch):
+        async def _ok_insert(self, payload):
+            return None
+        monkeypatch.setattr(ClearingEngine, "_pg_insert", _ok_insert)
+        engine = ClearingEngine(db_path=db)
+        rec = await engine.clear_async("neg-winner", "buyer-1")  # relays immediately
+
+        result = purge_relayed_outbox(db_path=db, older_than_days=30.0)
+        assert result == {"purged": 0, "remaining_relayed": 1}
+        status, _, _ = _outbox_row(db, rec.clearing_id)
+        assert status == "relayed"
+
+    @pytest.mark.asyncio
+    async def test_relayed_row_older_than_window_is_purged(self, db, monkeypatch):
+        async def _ok_insert(self, payload):
+            return None
+        monkeypatch.setattr(ClearingEngine, "_pg_insert", _ok_insert)
+        engine = ClearingEngine(db_path=db)
+        rec = await engine.clear_async("neg-winner", "buyer-1")
+
+        con = sqlite3.connect(db)
+        con.execute(
+            "UPDATE marketplace_clearing_outbox SET relayed_at = ? WHERE clearing_id = ?",
+            (time.time() - 31 * 86400, rec.clearing_id),
+        )
+        con.commit()
+        con.close()
+
+        result = purge_relayed_outbox(db_path=db, older_than_days=30.0)
+        assert result == {"purged": 1, "remaining_relayed": 0}
+        assert _outbox_row(db, rec.clearing_id) is None
+
+    def test_fresh_db_with_no_rows_is_a_noop(self, tmp_path):
+        result = purge_relayed_outbox(db_path=str(tmp_path / "empty.db"), older_than_days=30.0)
+        assert result == {"purged": 0, "remaining_relayed": 0}

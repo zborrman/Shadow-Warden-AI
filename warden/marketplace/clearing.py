@@ -18,9 +18,11 @@ record it was ever tried. Now every clearing enqueues a durable
 Postgres attempt; `clear_async()` tries an immediate relay as before, but a
 failure just leaves the row pending instead of losing it. `relay_pending()`
 drains whatever is still pending — call it from a scheduled worker for
-at-least-once delivery. Recon (comparing outbox status to what Postgres
-actually holds) is a further slice; this one guarantees nothing silently
-diverges without at least being recorded as owing a retry.
+at-least-once delivery. `purge_relayed_outbox()` prunes confirmed-relayed
+rows past a retention window so the table doesn't grow forever; it never
+touches a 'pending' row regardless of age. Recon (comparing outbox status to
+what Postgres actually holds) is a further slice; this one guarantees
+nothing silently diverges without at least being recorded as owing a retry.
 
 Usage:
     engine = ClearingEngine()
@@ -421,3 +423,37 @@ async def relay_pending(db_path: str = _DB_PATH, limit: int = 50) -> dict:
         "relayed": relayed,
         "still_pending": len(clearing_ids) - relayed,
     }
+
+
+def purge_relayed_outbox(
+    db_path: str = _DB_PATH, older_than_days: float = 30.0, limit: int = 1000
+) -> dict:
+    """Delete confirmed-relayed outbox rows older than `older_than_days`.
+
+    Retention/cleanup for the FT-4 slice 3 outbox — rows accumulated forever
+    with no pruning. Only ever deletes status='relayed' rows; a 'pending' row
+    is never purged regardless of age, so a stalled relay can't silently lose
+    its retry record. Fail-soft: a read/delete error returns a zero summary
+    rather than raising.
+    """
+    cutoff = time.time() - older_than_days * 86400
+    engine = ClearingEngine(db_path=db_path)
+    try:
+        with engine._conn() as con:
+            cur = con.execute(
+                "DELETE FROM marketplace_clearing_outbox WHERE clearing_id IN ("
+                "  SELECT clearing_id FROM marketplace_clearing_outbox "
+                "  WHERE status = 'relayed' AND relayed_at < ? LIMIT ?"
+                ")",
+                (cutoff, limit),
+            )
+            purged = cur.rowcount if cur.rowcount is not None and cur.rowcount > 0 else 0
+            con.commit()
+            remaining = con.execute(
+                "SELECT COUNT(*) FROM marketplace_clearing_outbox WHERE status = 'relayed'"
+            ).fetchone()[0]
+    except Exception as exc:
+        log.warning("purge_relayed_outbox: failed: %s", exc)
+        return {"purged": 0, "remaining_relayed": 0}
+
+    return {"purged": purged, "remaining_relayed": remaining}
