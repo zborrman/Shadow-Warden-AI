@@ -1,10 +1,9 @@
 {
-  "total": 52,
+  "total": 51,
   "per_file": {
     "agent/scheduler.py": 1,
     "analytics/pages/23_Marketplace_Admin.py": 1,
     "analytics/pages/24_Agentic_Trading.py": 1,
-    "api/billing_audit.py": 1,
     "backup/service.py": 2,
     "business_community/agentic_commerce/semantic_budget.py": 1,
     "integrations/smb_suite.py": 1,
