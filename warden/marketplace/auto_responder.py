@@ -25,37 +25,40 @@ import logging
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.auto_responder")
 
 _DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _db_lock = threading.RLock()
 
+_ISOLATION_DDL = """
+    CREATE TABLE IF NOT EXISTS agent_isolation_log (
+        isolation_id  TEXT PRIMARY KEY,
+        agent_id      TEXT NOT NULL,
+        reason        TEXT NOT NULL,
+        isolated_at   TEXT NOT NULL,
+        restored_at   TEXT,
+        dao_proposal  TEXT
+    );
+"""
+register("marketplace", "warden.marketplace.auto_responder", _ISOLATION_DDL)
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _conn(path: str = _DB_PATH) -> sqlite3.Connection:
-    con = sqlite3.connect(path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    return con
-
-
-def _ensure_isolation_table(con: sqlite3.Connection) -> None:
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS agent_isolation_log (
-            isolation_id  TEXT PRIMARY KEY,
-            agent_id      TEXT NOT NULL,
-            reason        TEXT NOT NULL,
-            isolated_at   TEXT NOT NULL,
-            restored_at   TEXT,
-            dao_proposal  TEXT
-        )
-    """)
-    con.commit()
+@contextmanager
+def _conn(path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "marketplace", path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
+        yield con
 
 
 # ── AutoResponder ─────────────────────────────────────────────────────────────
@@ -111,17 +114,13 @@ class AutoResponder:
 
         # Persist isolation record
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
-                _ensure_isolation_table(con)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     """INSERT OR REPLACE INTO agent_isolation_log
                        (isolation_id, agent_id, reason, isolated_at)
                        VALUES (?,?,?,?)""",
                     (isolation_id, agent_id, reason, now),
                 )
-                con.commit()
-                con.close()
         except Exception as exc:
             log.warning("AutoResponder: could not persist isolation record: %s", exc)
 
@@ -150,17 +149,13 @@ class AutoResponder:
 
         # Update isolation log
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
-                _ensure_isolation_table(con)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     """UPDATE agent_isolation_log
                        SET restored_at=?, dao_proposal=?
                        WHERE agent_id=? AND restored_at IS NULL""",
                     (now, dao_proposal_id, agent_id),
                 )
-                con.commit()
-                con.close()
         except Exception as exc:
             log.warning("AutoResponder: could not update isolation log on restore: %s", exc)
 
@@ -170,14 +165,11 @@ class AutoResponder:
 
     def _suspend_capabilities(self, agent_id: str) -> bool:
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     "UPDATE marketplace_agents SET capabilities='[]', status='suspended' WHERE agent_id=?",
                     (agent_id,),
                 )
-                con.commit()
-                con.close()
             return True
         except Exception as exc:
             log.warning("AutoResponder._suspend_capabilities: %s", exc)
@@ -185,14 +177,11 @@ class AutoResponder:
 
     def _restore_capabilities(self, agent_id: str) -> bool:
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     "UPDATE marketplace_agents SET capabilities='[\"buy\",\"sell\",\"negotiate\"]', status='active' WHERE agent_id=?",
                     (agent_id,),
                 )
-                con.commit()
-                con.close()
             return True
         except Exception as exc:
             log.warning("AutoResponder._restore_capabilities: %s", exc)
@@ -200,14 +189,11 @@ class AutoResponder:
 
     def _cancel_listings(self, agent_id: str) -> bool:
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     "UPDATE marketplace_listings SET status='cancelled' WHERE seller_agent_id=? AND status='active'",
                     (agent_id,),
                 )
-                con.commit()
-                con.close()
             return True
         except Exception as exc:
             log.warning("AutoResponder._cancel_listings: %s", exc)
@@ -215,15 +201,12 @@ class AutoResponder:
 
     def _cancel_escrows(self, agent_id: str) -> bool:
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     """UPDATE marketplace_escrows SET status='cancelled'
                        WHERE (buyer_agent=? OR seller_agent=?) AND status IN ('pending','funded')""",
                     (agent_id, agent_id),
                 )
-                con.commit()
-                con.close()
             return True
         except Exception as exc:
             log.warning("AutoResponder._cancel_escrows: %s", exc)

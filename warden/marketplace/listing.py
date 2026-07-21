@@ -21,7 +21,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.listing")
 
@@ -34,61 +35,51 @@ _SIGNAL_STALE_HOURS = int(os.getenv("MARKETPLACE_SIGNAL_STALE_HOURS", "48"))
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_listings (
-            listing_id       TEXT PRIMARY KEY,
-            asset_id         TEXT NOT NULL,
-            seller_agent     TEXT NOT NULL,
-            community_id     TEXT NOT NULL,
-            tenant_id        TEXT NOT NULL,
-            asset_type       TEXT NOT NULL DEFAULT 'rule',
-            price_usd        REAL NOT NULL DEFAULT 0.0,
-            currency         TEXT NOT NULL DEFAULT 'USD',
-            pricing_strategy TEXT NOT NULL DEFAULT 'fixed',
-            status           TEXT NOT NULL DEFAULT 'active',
-            demand_score     REAL NOT NULL DEFAULT 0.5,
-            listed_at        TEXT NOT NULL,
-            expires_at       TEXT,
-            sold_at          TEXT,
-            chain            TEXT NOT NULL DEFAULT 'sepolia',
-            is_sponsored     INTEGER NOT NULL DEFAULT 0,
-            sponsored_until  TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_ml_seller   ON marketplace_listings(seller_agent);
-        CREATE INDEX IF NOT EXISTS idx_ml_status   ON marketplace_listings(status);
-        CREATE INDEX IF NOT EXISTS idx_ml_type     ON marketplace_listings(asset_type);
-        CREATE INDEX IF NOT EXISTS idx_ml_community ON marketplace_listings(community_id);
-        CREATE INDEX IF NOT EXISTS idx_ml_chain    ON marketplace_listings(chain);
+_LISTING_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_listings (
+        listing_id       TEXT PRIMARY KEY,
+        asset_id         TEXT NOT NULL,
+        seller_agent     TEXT NOT NULL,
+        community_id     TEXT NOT NULL,
+        tenant_id        TEXT NOT NULL,
+        asset_type       TEXT NOT NULL DEFAULT 'rule',
+        price_usd        REAL NOT NULL DEFAULT 0.0,
+        currency         TEXT NOT NULL DEFAULT 'USD',
+        pricing_strategy TEXT NOT NULL DEFAULT 'fixed',
+        status           TEXT NOT NULL DEFAULT 'active',
+        demand_score     REAL NOT NULL DEFAULT 0.5,
+        listed_at        TEXT NOT NULL,
+        expires_at       TEXT,
+        sold_at          TEXT,
+        chain            TEXT NOT NULL DEFAULT 'sepolia',
+        is_sponsored     INTEGER NOT NULL DEFAULT 0,
+        sponsored_until  TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_ml_seller   ON marketplace_listings(seller_agent);
+    CREATE INDEX IF NOT EXISTS idx_ml_status   ON marketplace_listings(status);
+    CREATE INDEX IF NOT EXISTS idx_ml_type     ON marketplace_listings(asset_type);
+    CREATE INDEX IF NOT EXISTS idx_ml_community ON marketplace_listings(community_id);
+    CREATE INDEX IF NOT EXISTS idx_ml_chain    ON marketplace_listings(chain);
 
-        CREATE TABLE IF NOT EXISTS marketplace_purchases (
-            purchase_id    TEXT PRIMARY KEY,
-            listing_id     TEXT NOT NULL,
-            asset_id       TEXT NOT NULL,
-            buyer_agent    TEXT NOT NULL,
-            seller_agent   TEXT NOT NULL,
-            price_paid     REAL NOT NULL,
-            status         TEXT NOT NULL DEFAULT 'pending',
-            escrow_id      TEXT NOT NULL DEFAULT '',
-            negotiation_id TEXT NOT NULL DEFAULT '',
-            purchased_at   TEXT NOT NULL,
-            completed_at   TEXT,
-            idempotency_key TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_mp_buyer  ON marketplace_purchases(buyer_agent);
-        CREATE INDEX IF NOT EXISTS idx_mp_seller ON marketplace_purchases(seller_agent);
-        CREATE INDEX IF NOT EXISTS idx_mp_listing ON marketplace_purchases(listing_id);
-    """)
-    # Additive migration for existing databases (pre-FT-3 schema).
-    with suppress(Exception):
-        con.execute("ALTER TABLE marketplace_purchases ADD COLUMN idempotency_key TEXT")
-    # Partial-unique-by-value: SQLite UNIQUE indexes allow unlimited NULLs, so
-    # rows without a key (legacy/no-key callers) are unconstrained; rows WITH a
-    # key can be inserted at most once — exactly the dedup semantics needed.
-    con.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_mp_idempotency_key "
-        "ON marketplace_purchases(idempotency_key) WHERE idempotency_key IS NOT NULL"
-    )
+    CREATE TABLE IF NOT EXISTS marketplace_purchases (
+        purchase_id    TEXT PRIMARY KEY,
+        listing_id     TEXT NOT NULL,
+        asset_id       TEXT NOT NULL,
+        buyer_agent    TEXT NOT NULL,
+        seller_agent   TEXT NOT NULL,
+        price_paid     REAL NOT NULL,
+        status         TEXT NOT NULL DEFAULT 'pending',
+        escrow_id      TEXT NOT NULL DEFAULT '',
+        negotiation_id TEXT NOT NULL DEFAULT '',
+        purchased_at   TEXT NOT NULL,
+        completed_at   TEXT,
+        idempotency_key TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_mp_buyer  ON marketplace_purchases(buyer_agent);
+    CREATE INDEX IF NOT EXISTS idx_mp_seller ON marketplace_purchases(seller_agent);
+    CREATE INDEX IF NOT EXISTS idx_mp_listing ON marketplace_purchases(listing_id);
+"""
+register("marketplace", "warden.marketplace.listing", _LISTING_DDL)
 
 
 def _migrate_chain_column(con: sqlite3.Connection) -> None:
@@ -122,20 +113,29 @@ def _migrate_kya_column(con: sqlite3.Connection) -> None:
         )
 
 
+def _migrate_idempotency_column(con: sqlite3.Connection) -> None:
+    """Add idempotency_key column + unique index to databases that predate FT-3."""
+    with suppress(Exception):
+        con.execute("ALTER TABLE marketplace_purchases ADD COLUMN idempotency_key TEXT")
+    # Partial-unique-by-value: SQLite UNIQUE indexes allow unlimited NULLs, so
+    # rows without a key (legacy/no-key callers) are unconstrained; rows WITH a
+    # key can be inserted at most once — exactly the dedup semantics needed.
+    con.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_mp_idempotency_key "
+        "ON marketplace_purchases(idempotency_key) WHERE idempotency_key IS NOT NULL"
+    )
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    _migrate_chain_column(con)
-    _migrate_sponsored_columns(con)
-    _migrate_kya_column(con)
-    try:
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
+        _migrate_chain_column(con)
+        _migrate_sponsored_columns(con)
+        _migrate_kya_column(con)
+        _migrate_idempotency_column(con)
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────

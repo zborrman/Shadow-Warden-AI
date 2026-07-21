@@ -18,11 +18,13 @@ import logging
 import sqlite3
 import threading
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.kya.profile")
 
@@ -54,6 +56,7 @@ _DDL = """
     );
     CREATE INDEX IF NOT EXISTS idx_kte_did ON kya_trust_events(did, ts);
 """
+register("marketplace", "warden.kya.profile", _DDL)
 
 
 @dataclass
@@ -85,29 +88,10 @@ class AgentProfile:
 @contextmanager
 def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
     effective = db_path or _DB_PATH
-    use_local  = effective != _DB_PATH
-
-    if not use_local:
-        try:
-            from warden.db.turso import get_connection, is_turso_enabled  # noqa: PLC0415
-            if is_turso_enabled("marketplace"):
-                with get_connection("marketplace", fallback_path=_DB_PATH) as con:
-                    with suppress(Exception):
-                        con.executescript(_DDL)
-                    yield con  # type: ignore[misc]
-                return
-        except ImportError:
-            pass
-
-    con = sqlite3.connect(effective, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_DDL)
-    try:
+    with open_db(
+        "marketplace", effective, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────

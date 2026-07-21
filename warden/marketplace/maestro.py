@@ -29,10 +29,14 @@ import re
 import sqlite3
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 
 from warden.config import data_path
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.maestro")
 
@@ -88,14 +92,15 @@ CREATE TABLE IF NOT EXISTS maestro_flags (
 );
 CREATE INDEX IF NOT EXISTS idx_mf_agent ON maestro_flags(agent_id, flag_type);
 """
+register("marketplace", "warden.marketplace.maestro", _SCHEMA)
 
 
-def _conn(db_path: str = _DB_PATH) -> sqlite3.Connection:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
-    con.executescript(_SCHEMA)
-    return con
+@contextmanager
+def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
+        yield con
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -217,8 +222,7 @@ class GoalMisalignmentDetector:
         """Update rolling stats for an agent after a trade. Fail-open."""
         try:
             now = datetime.now(UTC).isoformat()
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 row = con.execute(
                     "SELECT * FROM maestro_agent_stats WHERE agent_id=?", (agent_id,)
                 ).fetchone()
@@ -256,8 +260,6 @@ class GoalMisalignmentDetector:
                             now,
                         ),
                     )
-                con.commit()
-                con.close()
         except Exception as exc:
             log.debug("GoalMisalignment.record_trade: %s", exc)
 
@@ -275,8 +277,7 @@ class GoalMisalignmentDetector:
             return 0.0
 
     def _evaluate(self, agent_id: str) -> float:
-        with _db_lock:
-            con = _conn(self.db_path)
+        with _db_lock, _conn(self.db_path) as con:
             row = con.execute(
                 "SELECT * FROM maestro_agent_stats WHERE agent_id=?", (agent_id,)
             ).fetchone()
@@ -291,14 +292,12 @@ class GoalMisalignmentDetector:
 
         agent_avg_discount = row["discount_sum"] / row["total_trades"]
 
-        with _db_lock:
-            con = _conn(self.db_path)
+        with _db_lock, _conn(self.db_path) as con:
             # Community mean discount
             peer_rows = con.execute(
                 "SELECT discount_sum, total_trades FROM maestro_agent_stats WHERE community_id=?",
                 (community_id,),
             ).fetchall()
-            con.close()
 
         peer_discounts = [
             r["discount_sum"] / r["total_trades"]
@@ -325,14 +324,11 @@ class GoalMisalignmentDetector:
 
         score = violations / max_checks
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     "UPDATE maestro_agent_stats SET misalignment=?, updated_at=? WHERE agent_id=?",
                     (score, datetime.now(UTC).isoformat(), agent_id),
                 )
-                con.commit()
-                con.close()
         except Exception:
             pass
 
@@ -344,13 +340,11 @@ class GoalMisalignmentDetector:
 
     def get_misalignment_score(self, agent_id: str) -> float:
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 row = con.execute(
                     "SELECT misalignment FROM maestro_agent_stats WHERE agent_id=?",
                     (agent_id,),
                 ).fetchone()
-                con.close()
             return float(row["misalignment"]) if row else 0.0
         except Exception:
             return 0.0
@@ -366,8 +360,7 @@ class GoalMisalignmentDetector:
     @staticmethod
     def _flag_agent(agent_id: str, flag_type: str, score: float, details: dict) -> None:
         try:
-            with _db_lock:
-                con = _conn()
+            with _db_lock, _conn() as con:
                 con.execute(
                     """INSERT OR REPLACE INTO maestro_flags
                        (flag_id, agent_id, flag_type, score, details, created_at)
@@ -381,8 +374,6 @@ class GoalMisalignmentDetector:
                         datetime.now(UTC).isoformat(),
                     ),
                 )
-                con.commit()
-                con.close()
         except Exception:
             pass
 
@@ -444,20 +435,17 @@ class CollusionDetector:
             abs(final_price_usd - initial_price_usd) / max(abs(initial_price_usd), 0.01) * 100
         )
 
-        with _db_lock:
-            con = _conn(self.db_path)
+        with _db_lock, _conn(self.db_path) as con:
             con.execute(
                 """INSERT INTO maestro_negotiations
                    (pair_key, agent_a, agent_b, rounds, price_delta_pct, created_at)
                    VALUES (?,?,?,?,?,?)""",
                 (pair_key, agent_a, agent_b, rounds, delta_pct, now),
             )
-            con.commit()
             rows = con.execute(
                 "SELECT rounds, price_delta_pct FROM maestro_negotiations WHERE pair_key=? ORDER BY created_at DESC LIMIT 20",
                 (pair_key,),
             ).fetchall()
-            con.close()
 
         if len(rows) < self._MIN_OBSERVATIONS:
             return 0.0
@@ -481,13 +469,11 @@ class CollusionDetector:
         """Return the collusion score for a pair. Fail-open → 0.0."""
         try:
             pair_key = "_".join(sorted([agent_a, agent_b]))
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 rows = con.execute(
                     "SELECT rounds, price_delta_pct FROM maestro_negotiations WHERE pair_key=? ORDER BY created_at DESC LIMIT 20",
                     (pair_key,),
                 ).fetchall()
-                con.close()
             if len(rows) < self._MIN_OBSERVATIONS:
                 return 0.0
             suspicious = sum(
@@ -512,15 +498,13 @@ class CollusionDetector:
     def get_collusion_partners(self, agent_id: str) -> list[str]:
         """Return list of agents this agent has been flagged colluding with."""
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 rows = con.execute(
                     """SELECT details FROM maestro_flags
                        WHERE agent_id=? AND flag_type='collusion'
                        ORDER BY created_at DESC LIMIT 10""",
                     (agent_id,),
                 ).fetchall()
-                con.close()
             partners = set()
             for row in rows:
                 try:
@@ -552,8 +536,7 @@ class CollusionDetector:
             return {}
 
     def _scan_market_prices(self) -> dict[str, float]:
-        with _db_lock:
-            con = _conn(self.db_path)
+        with _db_lock, _conn(self.db_path) as con:
             rows = con.execute(
                 """SELECT seller_agent_id, seller_net_usd, cleared_at
                    FROM marketplace_clearing_log
@@ -561,7 +544,6 @@ class CollusionDetector:
                    LIMIT ?""",
                 (self._TACIT_WINDOW * 20,),
             ).fetchall()
-            con.close()
 
         from collections import defaultdict
         seller_prices: dict[str, list[float]] = defaultdict(list)
@@ -732,13 +714,11 @@ class ModelPoisoningDetector:
     # ── Baseline management ───────────────────────────────────────────────────
 
     def _get_or_build_baseline(self, community_id: str) -> dict:
-        with _db_lock:
-            con = _conn(self.db_path)
+        with _db_lock, _conn(self.db_path) as con:
             row = con.execute(
                 "SELECT * FROM maestro_asset_baselines WHERE community_id=?",
                 (community_id,),
             ).fetchone()
-            con.close()
         if row:
             return dict(row)
         return self._build_baseline(community_id)
@@ -746,15 +726,13 @@ class ModelPoisoningDetector:
     def _build_baseline(self, community_id: str) -> dict:
         """Build baseline from active rules in marketplace_listings for community."""
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 rows = con.execute(
                     """SELECT content FROM marketplace_listings
                        WHERE community_id=? AND status='active' AND asset_type IN ('rule','detection_rule')
                        LIMIT 200""",
                     (community_id,),
                 ).fetchall()
-                con.close()
         except Exception:
             return {}
 
@@ -784,8 +762,7 @@ class ModelPoisoningDetector:
             "updated_at":    now,
         }
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     """INSERT OR REPLACE INTO maestro_asset_baselines
                        (community_id, rule_count, avg_length, avg_word_count, avg_complexity,
@@ -794,8 +771,6 @@ class ModelPoisoningDetector:
                                :std_length,:std_word_count,:std_complexity,:updated_at)""",
                     baseline,
                 )
-                con.commit()
-                con.close()
         except Exception:
             pass
 
@@ -814,8 +789,7 @@ class ModelPoisoningDetector:
                 baseline[avg_key] = new_avg
             baseline["rule_count"] = n + 1
             baseline["updated_at"] = datetime.now(UTC).isoformat()
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 con.execute(
                     """INSERT OR REPLACE INTO maestro_asset_baselines
                        (community_id, rule_count, avg_length, avg_word_count, avg_complexity,
@@ -824,8 +798,6 @@ class ModelPoisoningDetector:
                                :std_length,:std_word_count,:std_complexity,:updated_at)""",
                     baseline,
                 )
-                con.commit()
-                con.close()
         except Exception:
             pass
 
@@ -912,25 +884,21 @@ class BehavioralAnomalyDetector:
 
     def _load_stats(self, agent_id: str) -> dict | None:
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 row = con.execute(
                     "SELECT * FROM maestro_agent_stats WHERE agent_id=?", (agent_id,)
                 ).fetchone()
-                con.close()
             return dict(row) if row else None
         except Exception:
             return None
 
     def _days_since_first_trade(self, agent_id: str) -> float:
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 row = con.execute(
                     "SELECT MIN(created_at) FROM maestro_flags WHERE agent_id=?",
                     (agent_id,),
                 ).fetchone()
-                con.close()
             if row and row[0]:
                 then = datetime.fromisoformat(row[0])
                 if then.tzinfo is None:
@@ -950,13 +918,11 @@ class BehavioralAnomalyDetector:
             pass
         # Simple fallback: look at all agents in this community
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 rows = con.execute(
                     "SELECT total_trades, discount_sum FROM maestro_agent_stats WHERE community_id=?",
                     (community_id,),
                 ).fetchall()
-                con.close()
             values = [float(r["total_trades"]) for r in rows if r["total_trades"] > 0]
             if len(values) < 3:
                 return None
@@ -1069,15 +1035,13 @@ class MaestroService:
     def list_flagged_agents(self, limit: int = 100) -> list[dict]:
         """Return all agents with active MAESTRO flags, newest first."""
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 rows = con.execute(
                     """SELECT agent_id, flag_type, score, details, created_at
                        FROM maestro_flags
                        ORDER BY created_at DESC LIMIT ?""",
                     (limit,),
                 ).fetchall()
-                con.close()
             return [dict(r) for r in rows]
         except Exception:
             return []
@@ -1085,15 +1049,13 @@ class MaestroService:
     def get_historical_scores(self, agent_id: str) -> list[dict]:
         """Return misalignment history from flags table."""
         try:
-            with _db_lock:
-                con = _conn(self.db_path)
+            with _db_lock, _conn(self.db_path) as con:
                 rows = con.execute(
                     """SELECT score, created_at FROM maestro_flags
                        WHERE agent_id=? AND flag_type='misalignment'
                        ORDER BY created_at ASC LIMIT 100""",
                     (agent_id,),
                 ).fetchall()
-                con.close()
             return [{"score": r["score"], "ts": r["created_at"]} for r in rows]
         except Exception:
             return []

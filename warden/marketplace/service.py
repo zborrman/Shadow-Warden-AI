@@ -23,7 +23,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.marketplace.agent import get_agent
 from warden.marketplace.tokenizer import AssetTokenizer
 
@@ -40,38 +41,33 @@ _VALID_ASSET_TYPES = {"rule", "model", "signals"}
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_assets (
-            asset_id        TEXT PRIMARY KEY,
-            asset_type      TEXT NOT NULL,
-            token_data      TEXT NOT NULL,
-            ipfs_hash       TEXT NOT NULL DEFAULT '',
-            seller_agent_id TEXT NOT NULL,
-            community_id    TEXT NOT NULL,
-            tenant_id       TEXT NOT NULL,
-            created_at      TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_mkt_assets_agent
-            ON marketplace_assets(seller_agent_id);
-        CREATE INDEX IF NOT EXISTS idx_mkt_assets_type
-            ON marketplace_assets(asset_type);
-        CREATE INDEX IF NOT EXISTS idx_mkt_assets_community
-            ON marketplace_assets(community_id);
-    """)
+_ASSETS_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_assets (
+        asset_id        TEXT PRIMARY KEY,
+        asset_type      TEXT NOT NULL,
+        token_data      TEXT NOT NULL,
+        ipfs_hash       TEXT NOT NULL DEFAULT '',
+        seller_agent_id TEXT NOT NULL,
+        community_id    TEXT NOT NULL,
+        tenant_id       TEXT NOT NULL,
+        created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_mkt_assets_agent
+        ON marketplace_assets(seller_agent_id);
+    CREATE INDEX IF NOT EXISTS idx_mkt_assets_type
+        ON marketplace_assets(asset_type);
+    CREATE INDEX IF NOT EXISTS idx_mkt_assets_community
+        ON marketplace_assets(community_id);
+"""
+register("marketplace", "warden.marketplace.service", _ASSETS_DDL)
 
 
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    try:
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+    ) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 # ── Registry functions ────────────────────────────────────────────────────────
