@@ -38,7 +38,8 @@ from dataclasses import asdict, dataclass, field
 from typing import Protocol
 
 from warden.config import data_path
-from warden.db.sqlite_pragmas import init_pragmas
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.marketplace.kyb")
 
@@ -46,6 +47,21 @@ _DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 _db_lock = threading.RLock()
 
 _VALID_STATUSES = frozenset({"PENDING", "VERIFIED", "FLAGGED", "REJECTED"})
+
+_KYB_DDL = """
+    CREATE TABLE IF NOT EXISTS marketplace_kyb_records (
+        tenant_id     TEXT PRIMARY KEY,
+        kyb_status    TEXT NOT NULL DEFAULT 'PENDING',
+        business_name TEXT NOT NULL DEFAULT '',
+        provider      TEXT NOT NULL DEFAULT 'manual',
+        submitted_at  TEXT NOT NULL DEFAULT '',
+        reviewed_at   TEXT NOT NULL DEFAULT '',
+        reviewer      TEXT NOT NULL DEFAULT '',
+        notes         TEXT NOT NULL DEFAULT '[]'
+    );
+    CREATE INDEX IF NOT EXISTS idx_kyb_status ON marketplace_kyb_records(kyb_status);
+"""
+register("marketplace", "warden.marketplace.kyb", _KYB_DDL)
 
 
 def enforcement_enabled() -> bool:
@@ -87,35 +103,10 @@ class ManualReviewProvider:
         return "PENDING"
 
 
-# ── Schema ────────────────────────────────────────────────────────────────────
-
-def _ensure_schema(con: sqlite3.Connection) -> None:
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS marketplace_kyb_records (
-            tenant_id     TEXT PRIMARY KEY,
-            kyb_status    TEXT NOT NULL DEFAULT 'PENDING',
-            business_name TEXT NOT NULL DEFAULT '',
-            provider      TEXT NOT NULL DEFAULT 'manual',
-            submitted_at  TEXT NOT NULL DEFAULT '',
-            reviewed_at   TEXT NOT NULL DEFAULT '',
-            reviewer      TEXT NOT NULL DEFAULT '',
-            notes         TEXT NOT NULL DEFAULT '[]'
-        );
-        CREATE INDEX IF NOT EXISTS idx_kyb_status ON marketplace_kyb_records(kyb_status);
-    """)
-
-
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
-    con = sqlite3.connect(_DB_PATH, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    init_pragmas(con)
-    _ensure_schema(con)
-    try:
+    with open_db("marketplace", _DB_PATH, module_default_path=_DB_PATH) as con:
         yield con
-        con.commit()
-    finally:
-        con.close()
 
 
 def _now() -> str:
