@@ -118,10 +118,24 @@ async def search_listings(
 
 
 @router.post("/listings/{listing_id}/purchase", status_code=201)
-async def buy_listing(listing_id: str, body: PurchaseRequest) -> dict:
+async def buy_listing(
+    listing_id: str, body: PurchaseRequest,
+    idempotency_key: str = Header(default="", alias="Idempotency-Key"),
+) -> dict:
+    """Buy a listing. Requires an Idempotency-Key header (FT-3): without one, a
+    retried call (double-submit, webhook retry) created a second purchase record
+    + a second escrow for the same buyer intent — a real double-charge, not just
+    a duplicate log row. A replayed key returns the original purchase unchanged."""
+    if not idempotency_key.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "idempotency_key_required",
+                    "message": "Send an Idempotency-Key header with every purchase."},
+        )
     from warden.marketplace.listing import purchase_listing as _buy
     try:
-        result = _buy(listing_id=listing_id, buyer_agent_id=body.buyer_agent_id)
+        result = _buy(listing_id=listing_id, buyer_agent_id=body.buyer_agent_id,
+                     idempotency_key=idempotency_key.strip())
         try:
             asset_type = result.get("asset_type", "unknown")
             price = result.get("price_usd", 0.0)
