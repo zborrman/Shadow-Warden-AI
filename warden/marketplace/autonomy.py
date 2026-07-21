@@ -244,6 +244,33 @@ def delete_policy(agent_id: str) -> bool:
     return deleted
 
 
+def _owner_kyb_unverified(agent_id: str) -> bool:
+    """True when KYB_ENFORCEMENT_ENABLED and the agent's owner isn't VERIFIED.
+
+    Two separate try blocks on purpose: if enforcement is off (default) or
+    the flag can't even be read, this must return False no matter what —
+    zero behavior change for deployments that haven't opted in. Only once
+    enforcement is confirmed on does a lookup failure count as unverified
+    (the conservative direction, not silently allowing). Lazy imports avoid
+    a module-load cycle with kya.py/kyb.py.
+    """
+    try:
+        from warden.marketplace import kyb  # noqa: PLC0415
+        if not kyb.enforcement_enabled():
+            return False
+    except Exception:
+        return False
+
+    try:
+        from warden.marketplace import kya  # noqa: PLC0415
+        record = kya.get_kya_record(agent_id)
+        owner_tenant_id = record.owner_tenant_id if record else ""
+        return kyb.get_kyb_status(owner_tenant_id) != "VERIFIED"
+    except Exception as exc:
+        log.debug("autonomy: KYB lookup failed for agent=%s: %s", agent_id[:32], exc)
+        return True
+
+
 def check_action(
     agent_id: str,
     action: str,
@@ -259,6 +286,12 @@ def check_action(
                         else → BLOCK
       No policy:       default L1 → REQUIRE_APPROVAL (safe default)
 
+    KYB gate (FT-5, opt-in via KYB_ENFORCEMENT_ENABLED): when enabled, an
+    agent whose owning tenant is not KYB-VERIFIED is capped at L1 behavior
+    regardless of its configured policy level — the agent inherits the
+    owner's compliance status. Off by default so existing deployments are
+    not retroactively capped the moment this ships.
+
     Fail-open: exceptions → REQUIRE_APPROVAL (never BLOCK on error).
     """
     try:
@@ -267,6 +300,11 @@ def check_action(
         if policy is None:
             log.debug("autonomy: no policy for agent=%s → default L1 REQUIRE_APPROVAL",
                       agent_id[:32])
+            return "REQUIRE_APPROVAL"
+
+        if _owner_kyb_unverified(agent_id):
+            log.debug("autonomy: owner KYB unverified for agent=%s → capped REQUIRE_APPROVAL",
+                       agent_id[:32])
             return "REQUIRE_APPROVAL"
 
         level = policy.level
