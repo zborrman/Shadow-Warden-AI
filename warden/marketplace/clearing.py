@@ -6,19 +6,28 @@ ClearingEngine — final transaction clearing (Stage 4 of the M2M lifecycle).
 After the buyer evaluates all collected proposals and selects a winner:
   1. All other pending negotiations for that buyer are auto-rejected
      (status → 'cleared_by_market'), preventing stale open sessions
-  2. Clearing record dual-written:
-       SQLite → marketplace_clearing_log  (synchronous, always, Layer 1)
-       PostgreSQL → marketplace_clearing_log  (async, fail-open, Layer 3)
+  2. Clearing record written to SQLite (synchronous, always, Layer 1) —
+     the authoritative local record
   3. Structured result returned with winner + list of rejected negotiation IDs
 
-Dual-write rationale: SQLite provides immediate local consistency; PostgreSQL
-provides the cross-tenant audit trail needed for the STIX chain and SOC dashboard.
+PostgreSQL relay (FT-4 slice 3 — transactional outbox): the cross-tenant
+audit copy PostgreSQL needs for the STIX chain and SOC dashboard used to be
+a fire-and-forget async write — a failed attempt vanished silently, no
+record it was ever tried. Now every clearing enqueues a durable
+`marketplace_clearing_outbox` row (status pending/relayed) *before* the
+Postgres attempt; `clear_async()` tries an immediate relay as before, but a
+failure just leaves the row pending instead of losing it. `relay_pending()`
+drains whatever is still pending — call it from a scheduled worker for
+at-least-once delivery. Recon (comparing outbox status to what Postgres
+actually holds) is a further slice; this one guarantees nothing silently
+diverges without at least being recorded as owing a retry.
 
 Usage:
     engine = ClearingEngine()
     result = await engine.clear_async(winner_neg_id, buyer_agent_id)
     # result.rejected_neg_ids — IDs auto-rejected
-    # result.pg_write_ok     — True if PostgreSQL write succeeded
+    # result.pg_write_ok     — True if the immediate relay attempt succeeded
+    #                          (False just means it's queued for retry)
 """
 from __future__ import annotations
 
@@ -77,6 +86,26 @@ def _ensure_clearing_table(db_path: str) -> None:
     con.close()
 
 
+def _ensure_outbox_table(db_path: str) -> None:
+    con = sqlite3.connect(db_path)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS marketplace_clearing_outbox (
+            clearing_id  TEXT PRIMARY KEY,
+            payload_json TEXT NOT NULL,
+            status       TEXT NOT NULL DEFAULT 'pending',
+            attempts     INTEGER NOT NULL DEFAULT 0,
+            created_at   REAL NOT NULL,
+            relayed_at   REAL
+        )
+    """)
+    con.execute(
+        "CREATE INDEX IF NOT EXISTS idx_clearing_outbox_status "
+        "ON marketplace_clearing_outbox(status)"
+    )
+    con.commit()
+    con.close()
+
+
 class ClearingEngine:
     """Executes final-stage market clearing for a completed negotiation round.
 
@@ -87,6 +116,7 @@ class ClearingEngine:
     def __init__(self, db_path: str = _DB_PATH) -> None:
         self.db_path = db_path
         _ensure_clearing_table(db_path)
+        _ensure_outbox_table(db_path)
 
     @contextmanager
     def _conn(self) -> Generator[sqlite3.Connection, None, None]:
@@ -156,9 +186,13 @@ class ClearingEngine:
         winner_neg_id: str,
         buyer_agent_id: str,
     ) -> ClearingResult:
-        """Async version — also writes clearing record to PostgreSQL (fail-open)."""
+        """Async version — also relays the clearing record to PostgreSQL via
+        the transactional outbox (enqueue is synchronous and durable; the
+        relay attempt itself is fail-open, but a failure leaves the row
+        queued rather than losing it)."""
         rec = self.clear(winner_neg_id, buyer_agent_id)
-        rec.pg_write_ok = await self._write_postgres(rec)
+        self._enqueue_outbox(rec)
+        rec.pg_write_ok = await self._relay_outbox_row(rec.clearing_id)
         return rec
 
     # ── Internal helpers ────────────────────────────────────────────────────────
@@ -249,14 +283,44 @@ class ClearingEngine:
             platform_fee_usd=row[5], seller_net_usd=row[6],
         )
 
-    async def _write_postgres(self, rec: ClearingResult) -> bool:
-        """Write to PostgreSQL marketplace_clearing_log table. Fail-open."""
-        if not _PG_DSN:
-            return False
-        try:
-            import asyncpg  # noqa: PLC0415
+    # ── Transactional outbox (FT-4 slice 3) ───────────────────────────────────
 
-            conn = await asyncpg.connect(_PG_DSN, timeout=5)
+    def _enqueue_outbox(self, rec: ClearingResult) -> None:
+        """Durably record that this clearing owes a Postgres relay.
+
+        Idempotent on clearing_id: a replayed clear() re-enqueues nothing new
+        (ON CONFLICT DO NOTHING) — one clearing, at most one outbox row.
+        """
+        payload = {
+            "clearing_id":      rec.clearing_id,
+            "winner_neg_id":    rec.winner_neg_id,
+            "buyer_agent_id":   rec.buyer_agent_id,
+            "rejected_neg_ids": rec.rejected_neg_ids,
+            "cleared_at":       rec.cleared_at,
+            "platform_fee_usd": rec.platform_fee_usd,
+            "seller_net_usd":   rec.seller_net_usd,
+        }
+        try:
+            with self._conn() as con:
+                con.execute(
+                    "INSERT INTO marketplace_clearing_outbox "
+                    "(clearing_id, payload_json, status, attempts, created_at) "
+                    "VALUES (?, ?, 'pending', 0, ?) "
+                    "ON CONFLICT(clearing_id) DO NOTHING",
+                    (rec.clearing_id, json.dumps(payload), time.time()),
+                )
+                con.commit()
+        except Exception as exc:
+            log.warning("ClearingEngine._enqueue_outbox: %s", exc)
+
+    async def _pg_insert(self, payload: dict) -> None:
+        """Raw Postgres insert. Raises on any failure — callers decide the fallback."""
+        if not _PG_DSN:
+            raise RuntimeError("DATABASE_URL not configured")
+        import asyncpg  # noqa: PLC0415
+
+        conn = await asyncpg.connect(_PG_DSN, timeout=5)
+        try:
             await conn.execute(
                 """
                 INSERT INTO marketplace_clearing_log
@@ -265,17 +329,95 @@ class ClearingEngine:
                 VALUES ($1, $2, $3, $4, to_timestamp($5), $6, $7)
                 ON CONFLICT (clearing_id) DO NOTHING
                 """,
-                rec.clearing_id,
-                rec.winner_neg_id,
-                rec.buyer_agent_id,
-                json.dumps(rec.rejected_neg_ids),
-                rec.cleared_at,
-                rec.platform_fee_usd,
-                rec.seller_net_usd,
+                payload["clearing_id"],
+                payload["winner_neg_id"],
+                payload["buyer_agent_id"],
+                json.dumps(payload["rejected_neg_ids"]),
+                payload["cleared_at"],
+                payload["platform_fee_usd"],
+                payload["seller_net_usd"],
             )
+        finally:
             await conn.close()
-            log.debug("ClearingEngine: pg write ok clearing_id=%s", rec.clearing_id[:8])
-            return True
+
+    async def _relay_outbox_row(self, clearing_id: str) -> bool:
+        """Attempt to relay one outbox row to Postgres. Fail-open: on failure
+        the row stays 'pending' (attempts incremented) for a later retry —
+        never lost, never raised to the caller."""
+        try:
+            with self._conn() as con:
+                row = con.execute(
+                    "SELECT payload_json, status FROM marketplace_clearing_outbox "
+                    "WHERE clearing_id = ?",
+                    (clearing_id,),
+                ).fetchone()
         except Exception as exc:
-            log.debug("ClearingEngine._write_postgres fail-open: %s", exc)
+            log.warning("ClearingEngine._relay_outbox_row: read failed: %s", exc)
             return False
+
+        if row is None:
+            return False
+        if row[1] == "relayed":
+            return True  # already relayed — idempotent no-op
+
+        payload = json.loads(row[0])
+        try:
+            await self._pg_insert(payload)
+        except Exception as exc:
+            log.debug("ClearingEngine._relay_outbox_row: relay failed (queued for retry): %s", exc)
+            try:
+                with self._conn() as con:
+                    con.execute(
+                        "UPDATE marketplace_clearing_outbox SET attempts = attempts + 1 "
+                        "WHERE clearing_id = ?",
+                        (clearing_id,),
+                    )
+                    con.commit()
+            except Exception as exc2:
+                log.warning("ClearingEngine._relay_outbox_row: attempts bump failed: %s", exc2)
+            return False
+
+        try:
+            with self._conn() as con:
+                con.execute(
+                    "UPDATE marketplace_clearing_outbox SET status='relayed', relayed_at=? "
+                    "WHERE clearing_id = ?",
+                    (time.time(), clearing_id),
+                )
+                con.commit()
+        except Exception as exc:
+            log.warning("ClearingEngine._relay_outbox_row: status update failed: %s", exc)
+        log.debug("ClearingEngine: relayed clearing_id=%s", clearing_id[:16])
+        return True
+
+
+async def relay_pending(db_path: str = _DB_PATH, limit: int = 50) -> dict:
+    """Drain up to `limit` pending outbox rows — the worker-facing entry point.
+
+    Async (the relay itself is asyncpg-based) — await directly from an ARQ
+    job function, no nested event loop. Returns
+    {"attempted": N, "relayed": N, "still_pending": N}.
+    """
+    engine = ClearingEngine(db_path=db_path)
+    try:
+        with engine._conn() as con:
+            rows = con.execute(
+                "SELECT clearing_id FROM marketplace_clearing_outbox "
+                "WHERE status = 'pending' ORDER BY created_at ASC LIMIT ?",
+                (limit,),
+            ).fetchall()
+    except Exception as exc:
+        log.warning("relay_pending: read failed: %s", exc)
+        return {"attempted": 0, "relayed": 0, "still_pending": 0}
+
+    clearing_ids = [r[0] for r in rows]
+    relayed = 0
+    for cid in clearing_ids:
+        if await engine._relay_outbox_row(cid):
+            relayed += 1
+
+    return {
+        "attempted": len(clearing_ids),
+        "relayed": relayed,
+        "still_pending": len(clearing_ids) - relayed,
+    }
