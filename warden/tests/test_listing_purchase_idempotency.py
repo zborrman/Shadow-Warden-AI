@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
+from warden.db.ddl_registry import ensure_schema
 from warden.marketplace import listing
 
 
@@ -24,7 +25,7 @@ from warden.marketplace import listing
 def db(tmp_path):
     path = str(tmp_path / "mkt.db")
     con = sqlite3.connect(path)
-    listing._ensure_schema(con)
+    ensure_schema(con, "marketplace", path)
     now = datetime.now(UTC).isoformat()
     con.execute(
         """INSERT INTO marketplace_listings

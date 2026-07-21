@@ -338,6 +338,28 @@ jobs:
           path: /tmp/warden-model-cache
           key: warden-model-all-minilm-l6-v2-v1
 
+      # Collection-integrity gate (BLOCKING): a test file that fails to import
+      # or collect — e.g. it references a helper a refactor removed — must fail
+      # the build loudly, not slip through. This exact hole let #190 merge green
+      # with 8 broken money-path tests (stale `_ensure_schema` refs after the
+      # DE-6 open_db migration). `--collect-only` runs no tests, so it's fast;
+      # `-o addopts=""` strips the repo's default --cov flags, otherwise a
+      # collect-only run covers nothing and the --cov-fail-under gate masks the
+      # real collection error with a misleading 0% coverage failure.
+      - name: Test collection gate (no import/collection errors)
+        run: pytest warden/tests/ warden/m2m_store/tests/ warden/business_intelligence/tests/ --collect-only -q -o addopts="" --no-header
+        env:
+          ANTHROPIC_API_KEY: ""
+          SEMANTIC_THRESHOLD: "0.72"
+          WARDEN_API_KEY: ""
+          ALLOW_UNAUTHENTICATED: "true"
+          LOGS_PATH: "/tmp/collect_logs.json"
+          DYNAMIC_RULES_PATH: "/tmp/collect_rules.json"
+          REDIS_URL: "memory://"
+          MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+          AUDIT_TRAIL_PATH: "/tmp/audit_trail_collect.db"
+          IMAGE_GUARD_ENABLED: "false"
+
       - name: Run unit and integration tests
         run: pytest warden/tests/ -v --tb=short -m "not adversarial and not slow" --junitxml=results/test-${{ matrix.python-version }}.xml
         env:
