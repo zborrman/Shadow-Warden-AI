@@ -9,26 +9,37 @@ anonymous caller into a single bucket.
 """
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
+from starlette.requests import Request
 
 from warden.client_ip import _trusted_networks, get_client_ip, is_trusted_proxy
 
 
-class _Headers(dict):
-    """Case-insensitive lookup, matching Starlette's ``Request.headers``."""
+def _req(peer: str | None, **headers: str) -> Request:
+    """A real Starlette Request built from an ASGI scope.
 
-    def get(self, key, default=None):  # type: ignore[override]
-        return super().get(key.lower(), default)
-
-
-def _req(peer: str | None, **headers: str):
-    """Minimal Request stand-in: only .client.host and .headers are read."""
-    lowered = _Headers({k.lower().replace("_", "-"): v for k, v in headers.items()})
-    return SimpleNamespace(
-        client=SimpleNamespace(host=peer) if peer is not None else None,
-        headers=lowered,
+    Deliberately not a hand-rolled double: header lookup in Starlette is
+    case-insensitive and ``request.client`` is an ``Address`` tuple, and a stub
+    that got either detail wrong would test something the app never does.
+    """
+    raw = [
+        (k.lower().replace("_", "-").encode(), v.encode())
+        for k, v in headers.items()
+    ]
+    return Request(
+        {
+            "type": "http",
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/",
+            "raw_path": b"/",
+            "query_string": b"",
+            "root_path": "",
+            "server": ("testserver", 80),
+            "client": (peer, 51234) if peer is not None else None,
+            "headers": raw,
+        }
     )
 
 
@@ -149,7 +160,14 @@ class TestMarketplaceBucketKey:
         assert _bucket_key(a) != _bucket_key(b)
 
     def test_key_material_is_not_echoed_into_the_bucket_name(self):
+        """Known vector — the bucket name must be exactly the opaque digest."""
+        import hashlib
+
         from warden.marketplace.rate_limit import _bucket_key
 
-        key = _bucket_key(_req("172.18.0.5", **{"x-api-key": "super-secret-key"}))
-        assert "super-secret-key" not in key
+        secret = "super-secret-key"
+        expected = "k:" + hashlib.sha256(secret.encode()).hexdigest()[:24]
+
+        key = _bucket_key(_req("172.18.0.5", **{"x-api-key": secret}))
+        assert key == expected
+        assert secret not in key

@@ -383,7 +383,11 @@ OTEL_SERVICE_NAME=shadow-warden                            # Jaeger service labe
 NEXT_PUBLIC_API_URL=https://api.shadow-warden-ai.com
 NEXT_PUBLIC_ANALYTICS_URL=https://api.shadow-warden-ai.com
 NEXT_PUBLIC_GRAFANA_URL=http://91.98.234.160:3000
-NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
+# Jaeger is bound to 127.0.0.1 (no authentication — it must not be on a public
+# IP). Reach it via `ssh -L 16686:127.0.0.1:16686 root@<host>`, or put it behind
+# a vhost + Cloudflare Access and point this at that hostname. Do NOT set it
+# back to http://<public-ip>:16686.
+NEXT_PUBLIC_JAEGER_URL=http://127.0.0.1:16686
 ```
 
 ## Design Constraints

@@ -159,15 +159,28 @@ Leaving `80/443` open to the world means anyone who resolves the origin IP
 bypasses **every** Cloudflare control — WAF, OWASP ruleset, rate limiting, Bot
 Fight, the preflight Worker. Full (Strict) TLS does not prevent this.
 
+Add the Cloudflare rules **first** and only then drop the public ones — if the
+CIDR fetch fails or returns an error page, deleting first leaves the origin
+unreachable from everywhere including Cloudflare.
+
 ```bash
-# Allow only Cloudflare's published ranges (https://www.cloudflare.com/ips/)
-ufw delete allow 80/tcp
-ufw delete allow 443/tcp
-for cidr in $(curl -s https://www.cloudflare.com/ips-v4) $(curl -s https://www.cloudflare.com/ips-v6); do
+# 1. Fetch the ranges and fail loudly rather than proceeding on an empty list
+CF_IPS="$(curl -fsS https://www.cloudflare.com/ips-v4) $(curl -fsS https://www.cloudflare.com/ips-v6)" \
+  || { echo "cloudflare ip fetch failed — aborting, firewall unchanged"; exit 1; }
+
+# 2. Install the allow rules
+for cidr in $CF_IPS; do
   ufw allow from "$cidr" to any port 443 proto tcp
   ufw allow from "$cidr" to any port 80  proto tcp
 done
+
+# 3. Verify you can still reach the site through Cloudflare, THEN close the world
+curl -fsS -o /dev/null https://api.shadow-warden-ai.com/health || { echo "probe failed — not closing"; exit 1; }
+ufw delete allow 80/tcp
+ufw delete allow 443/tcp
 ```
+
+Keep an out-of-band console (Hetzner rescue) open while doing this.
 
 Stronger still: drop the public `80/443` bind entirely and let the
 `cloudflared` tunnel replicas be the only ingress. Pair either option with

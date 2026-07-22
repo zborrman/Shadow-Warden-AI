@@ -43,18 +43,22 @@ export default {
       // routes, where every legitimate client sends a buffered JSON body.
       if (isBodyMethod) {
         const rawLength = request.headers.get("content-length");
-        const contentLength = parseInt(rawLength || "0", 10);
+        // parseInt() is too forgiving to gate on: it reads "0junk" as 0 and
+        // "1e9" as 1, so a non-canonical header would sail under the limit.
+        // Require a bare decimal string, and treat anything else as undeclared.
+        const isCanonical = rawLength !== null && /^\d+$/.test(rawLength.trim());
+        const contentLength = isCanonical ? Number(rawLength.trim()) : null;
 
-        if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+        if (contentLength !== null && contentLength > MAX_BODY_BYTES) {
           return jsonError(413, "payload_too_large", {
             max_bytes: MAX_BODY_BYTES,
             received_bytes: contentLength,
           });
         }
 
-        if (requiresJson && (rawLength === null || !Number.isFinite(contentLength))) {
+        if (requiresJson && contentLength === null) {
           return jsonError(411, "length_required", {
-            detail: "Content-Length is required; chunked bodies are not accepted",
+            detail: "A canonical Content-Length is required; chunked bodies are not accepted",
           });
         }
       }

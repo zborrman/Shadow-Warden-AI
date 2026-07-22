@@ -52,6 +52,94 @@ here. Rate limiting (above) and Bot Fight allowlisting still apply; only the
 payload-inspection managed rules are skipped. Do **not** widen the skip to other
 paths — everything except these three analysis endpoints keeps full OWASP coverage.
 
+## The skip rule is the most dangerous object in this zone
+
+A zone audit on 2026-07-22 found the live configuration had drifted from
+everything above into a near-total WAF bypass. It is written down here because
+the drift was invisible: the dashboard shows a rule named "Bypass API" that
+looks routine, and nothing in CI or the repo compares the zone against this doc.
+
+What was actually deployed — one custom rule, **order First**, on **every
+hostname in the zone**:
+
+```
+(http.request.uri.path contains "/portal/") or (http.request.uri.path contains "/health")  or
+(http.request.uri.path contains "/filter")  or (http.request.uri.path contains "/v1/")     or
+(http.request.uri.path contains "/api/")    or (http.request.uri.path contains "/metrics") or
+(http.request.uri.path contains "/admin")   or (http.request.uri.path contains "/tenant")
+→ Skip: All remaining custom rules + All rate limiting rules + All managed rules
+```
+
+Three separate failures compound here:
+
+1. **No hostname predicate.** It applied to the marketing site, the portal, the
+   dashboard and analytics, not just `api.*`.
+2. **`contains`, not `in` / `starts_with`.** `/health` also matched
+   `/health/pipeline`; `/filter` also matched any path with that substring.
+3. **Three skip components instead of one.** Rate limiting and managed rules were
+   both disabled, not just the payload-inspection rulesets the analysis
+   endpoints legitimately need.
+
+The concrete consequence: `shadow-warden-ai.com/api/*` is the same-origin auth
+proxy (see `docker/Caddyfile`), so `/api/auth/login` and `/api/auth/signup` ran
+with no WAF, **no rate limiting, and no leaked-credential check** — unbounded
+credential stuffing at the edge. `contains "/admin"` removed the same three
+layers from the admin surface. Because the rule ran first and skipped all
+remaining custom rules, `allow-health-probes` never executed and any *future*
+security rule would have been silently dead on arrival.
+
+### Rules for writing a skip
+
+- **Always scope by `http.host`.** A path predicate alone hits every hostname.
+- **Never use `contains` on a path.** Use `in {"/a" "/b"}` for exact paths or
+  `starts_with(http.request.uri.path, "/prefix/")` for subtrees.
+- **Skip exactly one component.** If you need managed rules off, check only
+  *All managed rules*. `All rate limiting rules` and `All remaining custom
+  rules` are almost never the right answer — the second one also disables every
+  rule you add later.
+- **Never skip anything on an auth or admin path.** `/auth/*`, `/admin*`,
+  `/tenant*`, `/billing/*`, `/secrets/*` keep full coverage, always.
+- **Order matters.** A first-position skip preempts the whole ruleset.
+
+### Correct replacement
+
+Two narrow rules replace the single broad one:
+
+```
+# A — managed rules only, analysis endpoints only
+(http.host eq "api.shadow-warden-ai.com" and (
+   http.request.uri.path in {"/filter" "/ext/filter"} or
+   starts_with(http.request.uri.path, "/v1/")))
+→ Skip: All managed rules   (nothing else)
+
+# B — Super Bot Fight Mode only, browser XHR only
+(http.host in {"shadow-warden-ai.com" "www.shadow-warden-ai.com"} and
+   starts_with(http.request.uri.path, "/api/")) or
+(http.host eq "app.shadow-warden-ai.com")
+→ Skip: All Super Bot Fight Mode Rules   (nothing else)
+```
+
+Rule B exists because Bot Fight Mode 403s browser XHR — the real reason
+`/portal/` and `/api/` were originally added to the bypass. That is a Bot Fight
+problem and takes a Bot Fight skip; it never justified disabling the WAF.
+
+**Apply in this order.** Narrow the expression *first*, then uncheck the skip
+components. Doing it the other way round re-enables managed rules against the
+old broad expression, which means OWASP starts 403-ing `/filter` payloads at the
+edge and the product stops working (see the CRITICAL note above).
+
+After applying, watch Security → Events for 10 minutes: `/portal/` and `/api/`
+will be under managed rules for the first time. If legitimate portal XHR trips a
+rule, add an exception for that specific ruleset ID — never a broad path bypass.
+
+### Rate limiting was never deployed
+
+The same audit found **one** rate-limiting rule in the zone (`Leaked credential
+check`) and none of the five listed at the top of this document — and that one
+was itself skipped on every path the bypass rule matched. Treat the table above
+as a to-do list, not a description, until each rule is confirmed in the
+dashboard. Start with `/auth/*` at 10 req/60s.
+
 ### Bot Fight Mode
 
 Enable **Super Bot Fight Mode** on the zone.
@@ -75,7 +163,7 @@ Deploy a thin Cloudflare Worker at `api.shadow-warden-ai.com/_preflight` that:
 2. Rejects bodies > 1MB before they reach Vercel/warden
 3. Adds `CF-Ray` to request for distributed tracing correlation
 
-Source of truth: [`cloudflare/preflight-worker/src/index.js`](../cloudflare/preflight-worker/src/index.js).
+Source of truth: `cloudflare/preflight-worker/src/index.js`.
 
 Two non-obvious properties of that Worker:
 
