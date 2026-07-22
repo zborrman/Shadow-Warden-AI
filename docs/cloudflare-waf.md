@@ -146,16 +146,23 @@ Two narrow rules replace the single broad one:
    starts_with(http.request.uri.path, "/v1/")))
 → Skip: All managed rules   (nothing else)
 
-# B — Super Bot Fight Mode only, browser XHR only
-(http.host in {"shadow-warden-ai.com" "www.shadow-warden-ai.com"} and
-   starts_with(http.request.uri.path, "/api/")) or
-(http.host eq "app.shadow-warden-ai.com")
+# B — Super Bot Fight Mode only, browser XHR paths only
+(http.host in {"shadow-warden-ai.com" "www.shadow-warden-ai.com"
+               "app.shadow-warden-ai.com"} and
+   starts_with(http.request.uri.path, "/api/"))
 → Skip: All Super Bot Fight Mode Rules   (nothing else)
 ```
 
 Rule B exists because Bot Fight Mode 403s browser XHR — the real reason
 `/portal/` and `/api/` were originally added to the bypass. That is a Bot Fight
 problem and takes a Bot Fight skip; it never justified disabling the WAF.
+
+Note the path predicate applies to `app.*` too. An earlier draft of this rule
+skipped that host entirely, which would have taken Super Bot Fight Mode off
+every portal route — document loads, assets and all — to fix a problem that only
+affects XHR. Real browsers pass Bot Fight on document loads; it is the
+`fetch`/`XHR` calls that get scored. If the portal calls something outside
+`/api/`, add that exact path to the list — never widen back to the bare host.
 
 **Apply in this order.** Narrow the expression *first*, then uncheck the skip
 components. Doing it the other way round re-enables managed rules against the
@@ -193,8 +200,13 @@ Enable **Super Bot Fight Mode** on the zone.
 > Allowlist by **verified bot / AS number / service token**, not by CIDR:
 > - Vercel → match `cf.verified_bot_category` or send a shared secret header
 >   from the Vercel function and gate on it (`http.request.headers["x-origin-token"][0] eq "<secret>"`).
-> - GitHub Actions → `192.30.252.0/22`, `185.199.108.0/22` (GitHub-owned, safe
->   to pin), or use the `allow-health-probes` skip rule below.
+> - GitHub Actions → use the `allow-health-probes` skip rule below. Do **not**
+>   try to pin runner CIDRs: `192.30.252.0/22` and `185.199.108.0/22` are
+>   GitHub's web / hooks / Pages ranges, **not** hosted-runner egress. Hosted
+>   runners leave from dynamic Azure addresses published under the `actions` key
+>   of `https://api.github.com/meta`, and that list changes weekly — an allowlist
+>   built from it is stale before it is useful, and the two ranges above simply
+>   never match, so the probe stays blocked while the rule looks correct.
 
 ### Cloudflare Workers Pre-filter (C3 from improvement plan)
 
