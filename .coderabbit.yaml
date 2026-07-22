@@ -1,0 +1,176 @@
+---
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+tone_instructions: |
+  Be terse and technical. Cite file:line. When flagging a violated invariant,
+  name it (e.g. "STAFF-02", "fail-closed key resolution", "DDL registry") rather
+  than describing it generically. Do not restate what the diff already makes obvious.
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  estimate_code_review_effort: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+  abort_on_close: true
+
+  labeling_instructions:
+    - label: "track-a-security"
+      instructions: |
+        Apply when the PR title/commits carry an `SR-*` prefix or touch
+        authn/authz, SSRF, IDOR/GDPR, request-path invariants, or CI/supply-chain
+        hardening (Track A, MODERNIZATION_PLAN.md).
+    - label: "track-b-deepeng"
+      instructions: |
+        Apply when the PR title/commits carry a `DE-*` prefix or touch ML/detection
+        math, GSAM, storage/data-layer, or runtime-isolation math (Track B,
+        docs/modernization-plan-v8.md).
+    - label: "shared-file-conflict"
+      instructions: |
+        Apply when the diff touches causal_arbiter.py, the data layer,
+        staff_dispatch/BoundaryRegistry, net_guard/Inner-Warden SSRF, or
+        resolve_key/JIT-lease key hygiene — files owned jointly by both tracks
+        per the roadmap's conflict table.
+  auto_apply_labels: true
+
+  path_filters:
+    - "!**/*.lock"
+    - "!**/package-lock.json"
+    - "!**/pnpm-lock.yaml"
+    - "!dashboard/public/**"
+    - "!site/public/**"
+    - "!**/node_modules/**"
+    - "!**/*.min.js"
+    - "!**/data/logs.json"
+
+  path_instructions:
+    - path: "**/*.py"
+      instructions: |
+        This repo is Shadow Warden AI, a security gateway. Enforce these invariants
+        (see CLAUDE.md for full context):
+        - GDPR: request/response CONTENT must never be logged — only metadata
+          (type, length, timing). Flag any log/print/span that includes raw text,
+          decoded payloads, or PII.
+        - Signing keys must be resolved via `warden.secret_keys.resolve_key(env_name,
+          purpose=...)`, never `os.getenv("X_SECRET", "")` with a silent skip-if-empty
+          fallback — that is a fail-open signature bypass. Keys must be resolved
+          per-call, not cached at module import time.
+        - No new raw `sqlite3.connect()` calls outside `warden/db/`. Module DBs must
+          go through `open_db()` / `open_persistent_db()` / `open_db_readonly()` and
+          register DDL via `warden/db/ddl_registry.py` (`register()` + `ensure_schema()`),
+          never `conn.executescript(DDL)` inline on every connection.
+        - Module DB file paths must resolve via `data_path("name.db", "X_DB_PATH")`
+          from `warden/config.py` — never hardcode `/tmp/...`.
+        - Outbound URLs reached from agent tool calls must be screened by
+          `warden.net_guard` (SSRF/exfil, fail-CLOSED) before dispatch — never call an
+          agent-controlled URL directly with httpx/requests.
+        - Digital Staff code (`warden/staff/**`) must call
+          `BoundaryRegistry.check_and_dispatch()` and `VelocityGuard.record_and_check()`
+          on every tool dispatch (STAFF-01/02), never bypass by calling
+          `TOOL_HANDLERS` directly.
+        - `AgentRole` must stay `StrEnum`; the boundary exception class must stay
+          `BoundaryViolationError` (N818-compliant name).
+        - Agent-generated artifacts (BDR emails, growth proposals, SAR documents,
+          refund intents) must be created with `status=PENDING_REVIEW` /
+          `PENDING_HUMAN_APPROVAL` — agents must never self-approve.
+        - Two Track IDs govern this repo: `SR-*` (security, MODERNIZATION_PLAN.md)
+          and `DE-*` (deep-eng/math, docs/modernization-plan-v8.md). Flag PR/commit
+          titles using a bare "Phase N" instead of a prefixed ID.
+
+    - path: "warden/causal_arbiter.py"
+      instructions: |
+        Shared file between Track A (security) and Track B (deep-eng/math) per
+        docs/unified-modernization-roadmap.md. Flag changes here with a reminder to
+        confirm both tracks' test suites were run and that no CPT calibration shift
+        exceeds 25% per update (anti-poisoning drift gate).
+
+    - path: "warden/staff/dispatcher.py"
+      instructions: |
+        Shared file (Track A + Track B coordination table). Verify STAFF-01/02
+        (boundary check then velocity guard) still run unconditionally, and that any
+        additive gate (e.g. GSAM quarantine) is layered after them, never replacing them.
+
+    - path: "warden/net_guard.py"
+      instructions: |
+        Shared SSRF/exfil guard (Inner-Warden). Enforcement here must fail CLOSED for
+        security decisions. Do not introduce a fail-open path for URL/IP screening.
+
+    - path: "warden/secret_keys.py"
+      instructions: |
+        Central key-hygiene module. Any new signing/verification code elsewhere must
+        route through `resolve_key()` here rather than reading env vars directly.
+        Verify: explicit env override > derived subkey from VAULT_MASTER_KEY > raise
+        (never a silent empty-string fallback).
+
+    - path: "warden/db/ddl_registry.py"
+      instructions: |
+        DDL registry must stay lazy (first-connection, not startup-only), memoized
+        per module+checksum, and fail-safe (tracking failure still applies DDL).
+        Flag any change that converts this to an eager/startup-only `apply_all()`.
+
+    - path: "{site,dashboard,portal}/**"
+      instructions: |
+        All UI strings, comments, and copy in this repo must be English-only
+        (project rule). Flag any non-English text (Russian, Hebrew, or otherwise)
+        in these directories.
+
+    - path: "**/*.{astro,tsx,ts,jsx}"
+      instructions: |
+        Flag any hardcoded non-English UI copy. Prefer existing design-system
+        components from `packages/ui/` over ad-hoc styling for new components.
+
+    - path: "warden/tests/**"
+      instructions: |
+        Tests must set `ALLOW_UNAUTHENTICATED=true` when `WARDEN_API_KEY` is blank
+        (fail-closed auth default). Prefer real module APIs over mocks for security
+        contract tests (see test_contract_security.py pattern) — mocking the security
+        surface under test defeats the point of the test.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        CI changes: confirm coverage gate stays >=75%, ruff/mypy still run, and
+        pytest collection errors still fail the job (don't let collection errors
+        pass silently — this was a real prior incident, see preprod audit).
+
+  tools:
+    ruff:
+      enabled: true
+    github-checks:
+      enabled: true
+      timeout_ms: 90000
+    markdownlint:
+      enabled: true
+    languagetool:
+      enabled: false
+    gitleaks:
+      enabled: true
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    simplify:
+      enabled: true
+    autofix:
+      enabled: true
+    fix_ci:
+      enabled: true
+    unit_tests:
+      enabled: false
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: "auto"
+  issues:
+    scope: "auto"
