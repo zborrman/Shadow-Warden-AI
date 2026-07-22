@@ -231,9 +231,18 @@ verdict — a bug in the plumbing) fails open with
 `record_failopen("payments_authorize", ...)`, never blocking existing
 deployments that haven't opted in.
 
-**Not yet wired** (FT-6 remaining scope): `clearing.py::clear_async()` and
-`credits.py::purchase_credits()` — the survey that motivated this slice found
-both also run zero of these checks today.
+**Also wired**: `clearing.py::clear()` (both the sync method and `clear_async()`,
+which calls it) — the check runs *before* `_reject_losers()`, not after, so a
+DENY/REQUIRE_APPROVAL verdict can't leave sibling negotiations already marked
+`cleared_by_market` out from under a clearing that never happened.
+
+**Deliberately NOT wired**: `credits.py::purchase_credits()`. Its own docstring
+says it: called from the Lemon Squeezy webhook *after* an external payment
+processor already confirmed and settled the charge — this is fulfillment, not
+an agent spend decision. Autonomy/Budget Guardian checks exist to gate
+*agent-initiated* spend against a policy; there's no agent making a choice at
+that call site to authorize. Wiring it in anyway would be a category error
+dressed up as completeness.
 
 ## Flex Credits (v7.1)
 
