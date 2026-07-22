@@ -60,6 +60,14 @@ _DB_PATH = settings.auth_db_path
 # Signup rate limit: max 5 registrations per IP per hour
 _SIGNUP_RATE_LIMIT = settings.auth_signup_rate_limit
 _SIGNUP_RATE_WINDOW = 3600
+
+# Login rate limit: separate budget from signup — a login flood must not be
+# spendable out of the signup allowance, and vice versa. Counts every attempt,
+# not just failures: an attacker who knows one valid password would otherwise
+# get an unmetered oracle for the rest.
+_LOGIN_RATE_LIMIT = int(os.getenv("AUTH_LOGIN_RATE_LIMIT", "10"))
+_LOGIN_RATE_WINDOW = int(os.getenv("AUTH_LOGIN_RATE_WINDOW", "300"))
+
 _rate_lock = threading.Lock()
 _rate_store: dict[str, list[float]] = collections.defaultdict(list)
 
@@ -189,17 +197,28 @@ def _set_session_cookie(resp: JSONResponse) -> None:
     pass
 
 
-def _rate_check(ip: str) -> bool:
-    """Return True if IP is within rate limit, False if exceeded."""
+def _rate_check(
+    ip: str,
+    *,
+    limit: int = _SIGNUP_RATE_LIMIT,
+    window: int = _SIGNUP_RATE_WINDOW,
+    bucket: str = "signup",
+) -> bool:
+    """Return True if IP is within rate limit, False if exceeded.
+
+    The bucket name namespaces the counter so login and signup can't drain each
+    other's allowance. Defaults preserve the original signup-only behaviour.
+    """
+    key = f"{bucket}:{ip}"
     now = time.time()
-    cutoff = now - _SIGNUP_RATE_WINDOW
+    cutoff = now - window
     with _rate_lock:
-        timestamps = _rate_store[ip]
+        timestamps = _rate_store[key]
         # evict old entries
-        _rate_store[ip] = [t for t in timestamps if t > cutoff]
-        if len(_rate_store[ip]) >= _SIGNUP_RATE_LIMIT:
+        _rate_store[key] = [t for t in timestamps if t > cutoff]
+        if len(_rate_store[key]) >= limit:
             return False
-        _rate_store[ip].append(now)
+        _rate_store[key].append(now)
     return True
 
 
@@ -238,6 +257,21 @@ def _cookie_response(email: str, *, status: int = 200, body: dict | None = None)
 
 @router.post("/login", summary="Issue session cookie (HttpOnly, Secure)")
 async def login(request: Request) -> JSONResponse:
+    # Credential stuffing gate. This endpoint had no limit of any kind, at any
+    # layer: the Cloudflare bypass rule disabled edge rate limiting on it, and
+    # nothing in-app counted attempts.
+    client_ip = get_client_ip(request) or "unknown"
+    if not _rate_check(
+        client_ip,
+        limit=_LOGIN_RATE_LIMIT,
+        window=_LOGIN_RATE_WINDOW,
+        bucket="login",
+    ):
+        return JSONResponse(
+            {"detail": "Too many login attempts. Please try again later."},
+            status_code=429,
+        )
+
     try:
         body = await request.json()
         email: str = (body.get("email") or "").strip().lower()
@@ -270,7 +304,7 @@ async def login(request: Request) -> JSONResponse:
 async def signup(request: Request) -> JSONResponse:
     # Rate limit by client IP
     client_ip = get_client_ip(request) or "unknown"
-    if not _rate_check(client_ip):
+    if not _rate_check(client_ip, bucket="signup"):
         return JSONResponse(
             {"detail": "Too many registration attempts. Please try again later."},
             status_code=429,

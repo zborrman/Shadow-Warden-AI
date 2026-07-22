@@ -4,15 +4,49 @@
 
 ### Rate Limiting Rules
 
-Apply these via **Cloudflare Dashboard → Security → WAF → Rate Limiting** (or Terraform):
+> **The Pro plan allows 2 rate-limiting rules for the whole zone.** One is spent
+> on `Leaked credential check`, so there is exactly **one** free slot. The
+> five-rule table this document used to carry was never deployable — that is why
+> none of it was ever in the zone. Spend the slot on the credential endpoints and
+> enforce the rest in warden, which now keys on the real client IP
+> (`warden/client_ip.py`); before that fix every anonymous caller shared one
+> bucket and the in-app limiter was effectively inert.
 
-| Rule Name | Expression | Limit | Period | Action |
-|-----------|-----------|-------|--------|--------|
-| Staff agents throttle | `http.request.uri.path matches "^/staff/agents/"` | 30 req | 60s | Block |
-| Filter endpoint | `http.request.uri.path eq "/filter"` | 200 req | 60s | Block |
-| SOVA agent | `http.request.uri.path matches "^/agent/"` | 20 req | 60s | Block |
-| Auth endpoints | `http.request.uri.path matches "^/auth/"` | 10 req | 60s | Block |
-| Batch filter | `http.request.uri.path eq "/filter/batch"` | 50 req | 60s | Block |
+**The one edge rule — Cloudflare Dashboard → Security → WAF → Rate limiting rules:**
+
+- **Name:** `auth-credential-throttle`
+- **Expression** (use *Edit expression*):
+
+```
+(http.request.method eq "POST" and (
+  (http.host eq "api.shadow-warden-ai.com" and
+     http.request.uri.path in {"/auth/login" "/auth/signup"}) or
+  (http.host in {"shadow-warden-ai.com" "www.shadow-warden-ai.com"} and
+     http.request.uri.path in {"/api/auth/login" "/api/auth/signup"})
+))
+```
+
+- **Rate:** 10 requests / 1 minute, counting by *IP*
+- **Action:** Block, duration 10 minutes
+
+Both host branches are required. The browser does not call `api.*` for auth — the
+marketing site proxies same-origin through `/api/auth/*` (`docker/Caddyfile`,
+`handle /api/*`), so a rule matching only `/auth/` misses the path real users and
+real attackers actually hit. `POST` and exact paths keep `GET /auth/me`, which
+fires on every page load, out of the counter.
+
+This rule does nothing until the `Bypass API` custom rule stops skipping
+`All rate limiting rules` — see the skip section below.
+
+**Enforced in warden, not at the edge** (no free slots):
+
+| Surface | Where | Control |
+|---------|-------|---------|
+| `/auth/login` | `warden/auth/router.py` | 10 / 5 min per IP (`AUTH_LOGIN_RATE_LIMIT`, `AUTH_LOGIN_RATE_WINDOW`) |
+| `/auth/signup` | `warden/auth/router.py` | `auth_signup_rate_limit` / hour per IP |
+| `/filter`, `/filter/batch` | `warden/limiter.py` | per-tenant `RATE_LIMIT_PER_MINUTE`, keyed on API key then client IP |
+| `/marketplace/*` | `warden/marketplace/rate_limit.py` | `MARKETPLACE_RATE_LIMIT_PER_MINUTE` per API key / IP |
+| `/staff/agents/*`, `/agent/*` | `warden/staff/*`, velocity guard | `VelocityGuard.record_and_check()` |
 
 ### WAF Custom Rules
 
@@ -135,10 +169,16 @@ rule, add an exception for that specific ruleset ID — never a broad path bypas
 ### Rate limiting was never deployed
 
 The same audit found **one** rate-limiting rule in the zone (`Leaked credential
-check`) and none of the five listed at the top of this document — and that one
-was itself skipped on every path the bypass rule matched. Treat the table above
-as a to-do list, not a description, until each rule is confirmed in the
-dashboard. Start with `/auth/*` at 10 req/60s.
+check`) and none of the five this document used to list — and that one was
+itself skipped on every path the bypass rule matched, `Leaked credential check`
+included, because `contains "/api/"` covers the same-origin auth proxy.
+
+The root cause was not neglect: **Pro allows 2 rate-limiting rules total**, so
+the documented five could never have been created. Documentation that asks for
+an impossible configuration produces exactly this outcome — nobody deploys it,
+and the gap reads as "someone will get to it" rather than "this is unbuildable".
+The section at the top of this file now describes one deployable edge rule and
+names where every other limit actually lives in warden.
 
 ### Bot Fight Mode
 
