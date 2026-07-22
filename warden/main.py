@@ -1003,7 +1003,7 @@ app = FastAPI(
         "**Rate limiting:** Per-tenant sliding window (default 60 req/min). "
         "Shadow-ban at ERS score ≥ 0.75."
     ),
-    version="7.6.0",
+    version="7.7.0",
     contact={"name": "Shadow Warden AI", "url": "https://shadow-warden-ai.com", "email": "security@shadow-warden-ai.com"},
     license_info={"name": "Proprietary", "url": "https://shadow-warden-ai.com/terms"},
     openapi_tags=[

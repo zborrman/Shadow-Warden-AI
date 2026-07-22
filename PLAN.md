@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 7.0 · Last updated 2026-06-27**
+**Version 7.7 · Last updated 2026-07-22**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 

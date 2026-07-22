@@ -5,15 +5,36 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://api.shadow-warden-ai.com/:path*" },
-    { "source": "/enterprise-settings", "destination": "/enterprise-settings.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" },
-    { "source": "/settings", "destination": "/settings.html" },
-    { "source": "/fraud-score", "destination": "/fraud-score.html" },
-    { "source": "/community", "destination": "/community.html" },
-    { "source": "/incident",  "destination": "/incident.html" }
+    { "source": "/api/auth/:path*", "destination": "https://api.shadow-warden-ai.com/auth/:path*" },
+    { "source": "/api/marketplace/analytics/:path*", "destination": "https://api.shadow-warden-ai.com/marketplace/analytics/:path*" },
+    { "source": "/api/settings/:path*", "destination": "https://api.shadow-warden-ai.com/settings/:path*" },
+    { "source": "/api/compliance/:path*", "destination": "https://api.shadow-warden-ai.com/compliance/:path*" },
+    { "source": "/api/public/:path*", "destination": "https://api.shadow-warden-ai.com/public/:path*" },
+    { "source": "/api/agent/session", "destination": "https://api.shadow-warden-ai.com/agent/session" },
+    { "source": "/api/agent/manifest", "destination": "https://api.shadow-warden-ai.com/agent/manifest" },
+    { "source": "/api/agent/manifests", "destination": "https://api.shadow-warden-ai.com/agent/manifests" },
+    { "source": "/api/ips/block", "destination": "https://api.shadow-warden-ai.com/ips/block" },
+    { "source": "/api/stats", "destination": "https://api.shadow-warden-ai.com/stats" },
+    { "source": "/api/config", "destination": "https://api.shadow-warden-ai.com/config" },
+    { "source": "/api/contact", "destination": "https://api.shadow-warden-ai.com/contact" },
+    { "source": "/api/health", "destination": "https://api.shadow-warden-ai.com/health" }
   ],
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://app.lemonsqueezy.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.shadow-warden-ai.com https://billing.shadow-warden-ai.workers.dev; frame-src 'self' https://app.lemonsqueezy.com; upgrade-insecure-requests"
+        },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
+      ]
+    },
     {
       "source": "/_astro/(.*)",
       "headers": [

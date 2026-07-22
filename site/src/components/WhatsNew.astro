@@ -1,10 +1,53 @@
 ---
 const releases = [
   {
-    version: 'v7.6',
+    version: 'v7.7',
     date: 'Jul 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '📡',
+        title: 'GSAM Observation Stream',
+        tier: 'All Plans',
+        desc: 'Global Statistic Agentic Marketplace — a metadata-only agent observation stream (ClickHouse + fail-open NDJSON spool) fed by 5 GDPR-allowlist ingest taps. Tool-input text never leaves the process; only shape, timing, and payload_kind are recorded.',
+        tags: ['GSAM', 'Observability', 'GDPR'],
+      },
+      {
+        icon: '📉',
+        title: 'Drift Detection & Agent Quarantine',
+        tier: 'All Plans',
+        desc: 'Pure-function EWMA total-variation drift against per-agent payload_kind baselines, gated by an anti-inflation co-occurrence rule (mirrors the Causal Arbiter’s 25% CPT drift gate). A breach quarantines the agent through an additive gate layered onto staff_dispatch — the existing boundary and velocity checks are never weakened.',
+        tags: ['GSAM', 'Drift Detection', 'Quarantine'],
+      },
+      {
+        icon: '🔑',
+        title: 'Hermes JIT Credential Lease',
+        tier: 'Enterprise',
+        desc: 'warden/gsam/jit_lease.py issues single-use, HMAC-signed credential leases — fail-CLOSED (503 with no key material) and never returns a secret on issue; only a scope-bound redeem call returns the capability, once.',
+        tags: ['GSAM', 'Credential Lease', 'Fail-Closed'],
+      },
+      {
+        icon: '📊',
+        title: 'GSAM Read APIs & Dashboards',
+        tier: 'Pro+',
+        desc: 'GET /gsam/heatmap, /gsam/agents/{id}/stats, and /gsam/compliance/score read the hourly SQLite rollup (never ClickHouse directly). New gsam_agent_stats Semantic Layer model plus Streamlit and SOC dashboard panels.',
+        tags: ['GSAM', 'API', 'Dashboard'],
+      },
+      {
+        icon: '✅',
+        title: 'CI Posture Gate',
+        tier: 'All Plans',
+        desc: '--gsam-posture added to the warden-scan CI driver — surfaces marketplace agent compliance score and quarantine count directly in the CI job summary.',
+        tags: ['CI', 'GSAM', 'Compliance'],
+      },
+    ],
+  },
+  {
+    version: 'v7.6',
+    date: 'Jul 2026',
+    badge: 'Previous',
+    badgeColor: '#6366f1',
     items: [
       {
         icon: '🛒',
