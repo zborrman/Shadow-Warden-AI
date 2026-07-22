@@ -205,6 +205,36 @@ transaction; it opens a case for human follow-up. Buyer-only in this slice:
 seller screening needs a listing→seller_agent_id path `ClearingResult`
 doesn't expose yet.
 
+## authorize_payment() Chokepoint (FT-6)
+
+Composes the checks that already existed but nothing called together before
+a purchase: autonomy level + Budget Guardian (always), AP2 mandate
+verification (only when a `mandate_id` is given). Lives in
+`warden/payments/authorize.py`, not this package, since it's meant to be a
+cross-cutting primitive other domains (agentic_commerce, voice) can also
+call — mirrors `warden/agent/gate.py::agentic_gate()`'s role for tool calls.
+
+```
+purchase_listing() → _do_purchase() → _authorize_purchase(buyer_agent_id, price_usd)
+    → resolve buyer's owner tenant via kya.get_kya_record() (same pattern as sanctions.py)
+    → authorize_payment(tenant_id, buyer_agent_id, "purchase", price_usd, merchant=tenant_id)
+        DENY / REQUIRE_APPROVAL → raise ValueError (blocks purchase, → HTTP 400)
+        ALLOW                   → purchase proceeds
+```
+
+Opt-in (`AUTHORIZE_PAYMENT_ENFORCED=false` default). REQUIRE_APPROVAL blocks
+rather than queueing for human review — there's no approval-token/Redis/Slack
+plumbing wired into this synchronous purchase flow (unlike MasterAgent's
+REQUIRES_APPROVAL pattern), so a hard stop is the conservative choice for
+money movement. A failure in the authorization call itself (not a clean
+verdict — a bug in the plumbing) fails open with
+`record_failopen("payments_authorize", ...)`, never blocking existing
+deployments that haven't opted in.
+
+**Not yet wired** (FT-6 remaining scope): `clearing.py::clear_async()` and
+`credits.py::purchase_credits()` — the survey that motivated this slice found
+both also run zero of these checks today.
+
 ## Flex Credits (v7.1)
 
 Prepaid balance system — 1 credit = $0.001 = 1 marketplace search.
@@ -263,3 +293,4 @@ SQLite: `marketplace_autonomy_policies` in `MARKETPLACE_DB_PATH`.
 | `KYA_AUTO_VERIFY_SCORE_THRESHOLD` | `0.3` | Auto-VERIFIED when risk_score ≤ this value |
 | `KYB_ENFORCEMENT_ENABLED` | `false` | Cap `autonomy.check_action()` at REQUIRE_APPROVAL when the agent's owner isn't KYB-VERIFIED |
 | `SANCTIONS_SCREENING_ENABLED` | `false` | Screen the buyer of every `clear_async()` run against the sanctions list |
+| `AUTHORIZE_PAYMENT_ENFORCED` | `false` | Run `payments/authorize.py::authorize_payment()` before `purchase_listing()` — DENY/REQUIRE_APPROVAL both block the purchase |
