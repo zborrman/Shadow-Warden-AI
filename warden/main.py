@@ -89,6 +89,7 @@ from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
 from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.causal_arbiter import arbitrate as _causal_arbitrate
+from warden.client_ip import get_client_ip
 from warden.config import settings
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
@@ -2836,7 +2837,7 @@ async def filter_content(
 ) -> FilterResponse:
     rid = getattr(request.state, "request_id", "-")
     _enforce_tenant_rate_limit(auth, rid)
-    client_ip = request.client.host if request.client else ""
+    client_ip = get_client_ip(request)
 
     # ── ERS check: enrich auth, shadow ban confirmed attackers ────────────
     auth = _ers_enrich(auth, client_ip)
@@ -2979,7 +2980,7 @@ async def demo_filter(
     background_tasks: BackgroundTasks,
 ) -> FilterResponse:
     rid = getattr(request.state, "request_id", str(uuid.uuid4()))
-    client_ip = request.client.host if request.client else ""
+    client_ip = get_client_ip(request)
     return await _run_filter_pipeline(payload, rid, _DEMO_AUTH, background_tasks, client_ip)
 
 
@@ -3004,7 +3005,7 @@ async def ext_filter_content(
 ) -> FilterResponse:
     rid = getattr(request.state, "request_id", "-")
     _enforce_tenant_rate_limit(auth, rid)
-    client_ip = request.client.host if request.client else ""
+    client_ip = get_client_ip(request)
     auth = _ers_enrich(auth, client_ip)
     if auth.shadow_ban:
         return FilterResponse(
@@ -3171,7 +3172,7 @@ async def filter_batch(
 ) -> _BatchResponse:
     rid_base = getattr(request.state, "request_id", str(uuid.uuid4()))
     _enforce_tenant_rate_limit(auth, rid_base)
-    client_ip = request.client.host if request.client else ""
+    client_ip = get_client_ip(request)
     results = []
     for i, item in enumerate(payload.items):
         rid = f"{rid_base}:batch-{i}"
@@ -3291,7 +3292,7 @@ async def filter_multimodal(
             strict    = payload.strict,
             context   = payload.context,
         )
-        client_ip = request.client.host if request.client else ""
+        client_ip = get_client_ip(request)
         text_resp = await _run_filter_pipeline(filter_req, rid, auth, background_tasks, client_ip)
         text_risk  = text_resp.risk_level
         text_flags = list(text_resp.semantic_flags)

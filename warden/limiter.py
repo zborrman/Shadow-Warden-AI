@@ -16,9 +16,9 @@ import os
 
 from fastapi import Request
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from warden.auth_guard import get_rate_limit
+from warden.client_ip import get_client_ip
 
 # Default fallback limit (used by get_rate_limit for unrecognised / IP keys).
 _RATE_LIMIT = os.getenv("RATE_LIMIT_PER_MINUTE", "60")
@@ -29,8 +29,13 @@ def tenant_key(request: Request) -> str:
 
     Keying on the API key means each tenant gets their own independent bucket
     even when all requests arrive from the same nginx IP.
+
+    The fallback must NOT be the proxy socket address: behind Cloudflare → Caddy
+    that is one constant value for the whole internet, so every anonymous caller
+    would share a single bucket. ``get_client_ip`` unwraps the forwarded headers
+    when (and only when) the peer is a trusted proxy.
     """
-    return request.headers.get("x-api-key") or get_remote_address(request)
+    return request.headers.get("x-api-key") or get_client_ip(request) or "anonymous"
 
 
 def tenant_limit(key: str) -> str:

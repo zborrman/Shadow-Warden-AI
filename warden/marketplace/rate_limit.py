@@ -12,10 +12,13 @@ Usage:
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import time
 
 from fastapi import HTTPException, Request, Response
+
+from warden.client_ip import get_client_ip
 
 _RATE_LIMIT = int(os.getenv("MARKETPLACE_RATE_LIMIT_PER_MINUTE", "100"))
 _RATE_WINDOW = 60
@@ -65,15 +68,31 @@ def _check_and_count(tenant_id: str) -> tuple[bool, int]:
     return allowed, remaining
 
 
-async def marketplace_rate_limit(request: Request, response: Response) -> None:
-    tenant_id = (
-        request.headers.get("X-Tenant-ID")
-        or request.headers.get("X-API-Key", "")[:16]
-        or request.client.host
-        or "anonymous"
-    )
+def _bucket_key(request: Request) -> str:
+    """Identity this request is throttled under.
 
-    allowed, remaining = _check_and_count(tenant_id)
+    Must be something the caller cannot choose at will. ``X-Tenant-ID`` is
+    plain client-supplied text carrying no proof of anything — keying on it let
+    a caller mint a fresh quota per request just by rotating the header, which
+    is the whole limit gone. Only the API key (a bearer secret) and the client
+    IP (asserted by the trusted proxy chain, see ``warden.client_ip``) qualify.
+
+    The key is hashed so neither key material nor a raw address ends up in a
+    Redis key name or an error log.
+    """
+    api_key = request.headers.get("X-API-Key", "")
+    if api_key:
+        return "k:" + hashlib.sha256(api_key.encode()).hexdigest()[:24]
+
+    client_ip = get_client_ip(request)
+    if client_ip:
+        return "i:" + hashlib.sha256(client_ip.encode()).hexdigest()[:24]
+
+    return "anonymous"
+
+
+async def marketplace_rate_limit(request: Request, response: Response) -> None:
+    allowed, remaining = _check_and_count(_bucket_key(request))
     response.headers["X-RateLimit-Limit"] = str(_RATE_LIMIT)
     response.headers["X-RateLimit-Remaining"] = str(remaining)
     response.headers["X-RateLimit-Reset"] = str(int(time.time()) + _RATE_WINDOW)

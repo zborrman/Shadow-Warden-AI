@@ -54,9 +54,19 @@ paths — everything except these three analysis endpoints keeps full OWASP cove
 
 ### Bot Fight Mode
 
-Enable **Super Bot Fight Mode** on the zone. Allowlist:
-- Vercel edge network (`104.18.0.0/16`, `104.21.0.0/16`)
-- GitHub Actions (`192.30.252.0/22`, `185.199.108.0/22`)
+Enable **Super Bot Fight Mode** on the zone.
+
+> ⚠️ **Do not allowlist `104.18.0.0/16` / `104.21.0.0/16`.** Those are
+> *Cloudflare's own* proxy ranges, not Vercel-specific — allowlisting them lets
+> any request routed through any Cloudflare zone (including an attacker's own
+> Worker) skip bot protection. Vercel deployments served through Cloudflare
+> share that space, which is exactly why it is not an identity.
+>
+> Allowlist by **verified bot / AS number / service token**, not by CIDR:
+> - Vercel → match `cf.verified_bot_category` or send a shared secret header
+>   from the Vercel function and gate on it (`http.request.headers["x-origin-token"][0] eq "<secret>"`).
+> - GitHub Actions → `192.30.252.0/22`, `185.199.108.0/22` (GitHub-owned, safe
+>   to pin), or use the `allow-health-probes` skip rule below.
 
 ### Cloudflare Workers Pre-filter (C3 from improvement plan)
 
@@ -65,30 +75,18 @@ Deploy a thin Cloudflare Worker at `api.shadow-warden-ai.com/_preflight` that:
 2. Rejects bodies > 1MB before they reach Vercel/warden
 3. Adds `CF-Ray` to request for distributed tracing correlation
 
-```javascript
-// workers/preflight.js
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
+Source of truth: [`cloudflare/preflight-worker/src/index.js`](../cloudflare/preflight-worker/src/index.js).
 
-    // Only check POST endpoints
-    if (request.method === 'POST') {
-      const contentLength = parseInt(request.headers.get('content-length') || '0');
-      if (contentLength > 1_048_576) {
-        return new Response(JSON.stringify({
-          error: 'payload_too_large',
-          max_bytes: 1048576
-        }), { status: 413, headers: { 'Content-Type': 'application/json' } });
-      }
-    }
+Two non-obvious properties of that Worker:
 
-    // Pass through with CF-Ray for tracing
-    const headers = new Headers(request.headers);
-    headers.set('X-CF-Ray', request.headers.get('cf-ray') || '');
-    return fetch(new Request(request, { headers }));
-  }
-};
-```
+- **`Content-Length` is not trusted on its own.** It is client-supplied and
+  absent entirely on a `Transfer-Encoding: chunked` upload, so a size check
+  alone is bypassable by streaming. The Worker rejects a body-bearing request
+  to a guarded API prefix with **411** when no valid length is declared.
+- **Only `CF-Connecting-IP` is promoted to `X-Real-IP`.** `X-Forwarded-For` is
+  client-supplied and must never become an identity header; when
+  `CF-Connecting-IP` is absent the Worker *deletes* `X-Real-IP` rather than
+  passing a client-authored one through. See the client-IP contract below.
 
 ## Cache Rules (Pro plan)
 
@@ -108,6 +106,73 @@ response would leak one tenant's verdict to another.
 - **SSL mode:** Full (Strict) — requires valid origin cert (Caddy handles Let's Encrypt)
 - **Min TLS version:** TLS 1.2 (enforce in SSL/TLS → Edge Certificates)
 - **HSTS:** Max-age 1 year, includeSubDomains, preload — already set in Caddyfile
+
+## Origin lockdown — everything above is edge-only
+
+Every rule on this page runs at the Cloudflare edge. A request sent straight to
+the origin IP skips **all** of it: rate limiting, the OWASP ruleset, Bot Fight,
+the `/staff/` API-key rule, the preflight Worker. Full (Strict) TLS does not
+prevent this — it only proves the origin holds a valid cert.
+
+Two controls close it, and both are required:
+
+1. **Authenticated Origin Pulls (mTLS).** SSL/TLS → Origin Server → enable
+   *Authenticated Origin Pulls* (zone-level), then make Caddy require the
+   Cloudflare client certificate on the public vhosts:
+
+   ```
+   tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
+       client_auth {
+           mode                 require_and_verify
+           trusted_ca_cert_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+       }
+   }
+   ```
+
+   CA bundle: <https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/>
+
+2. **Host firewall.** Allow `80/443` only from Cloudflare's published ranges
+   (<https://www.cloudflare.com/ips/>), or — better — drop the public
+   `80/443` bind entirely and let the `cloudflared` tunnel be the only ingress.
+   `docker-compose.yml` already runs two `cloudflared` replicas.
+
+Ports that must **never** be published on the public interface (they are bound
+to `127.0.0.1` in `docker-compose.yml` — reach them over SSH port-forward):
+
+| Port | Service | Why |
+|------|---------|-----|
+| `16686` | Jaeger UI | No authentication whatsoever; traces carry request metadata |
+| `9000` | MinIO S3 API | Evidence Vault + log objects; only consumed in-cluster |
+| `9091` | MinIO Console | Credential-stuffing target with no WAF in front |
+
+Grafana (`3001`) has its own auth and is still published for the SOC dashboard
+deep-links; move it behind a `grafana.shadow-warden-ai.com` vhost + Cloudflare
+Access when convenient.
+
+## Client IP contract (Cloudflare → Caddy → warden)
+
+warden never sees the client socket — the peer is always the Caddy container.
+`request.client.host` is therefore a single constant for the entire internet,
+and keying ERS / shadow ban / rate limits on it collapses every anonymous
+caller into one bucket (one attacker shadow-bans everybody, and the per-minute
+quota is shared globally).
+
+The chain is now explicit:
+
+1. Cloudflare sets `CF-Connecting-IP` at the edge, overwriting any client value.
+2. `docker/Caddyfile` declares `trusted_proxies` (Cloudflare ranges +
+   `private_ranges` for the `cloudflared` container) and
+   `client_ip_headers CF-Connecting-IP X-Forwarded-For`, then **overwrites**
+   `CF-Connecting-IP` / `X-Real-IP` / `X-Forwarded-For` with `{client_ip}` on
+   every `reverse_proxy` (the `(client_ip_headers)` snippet). A direct-to-origin
+   request from an untrusted peer gets its socket address substituted, so forged
+   headers cannot survive.
+3. `warden/client_ip.py::get_client_ip()` reads those headers **only** when the
+   peer is inside `TRUSTED_PROXY_CIDRS` (default: loopback + RFC1918).
+
+**Never read `request.client.host`, `get_remote_address()`, or a raw
+`X-Forwarded-For` header directly in request code** — always call
+`get_client_ip(request)`. Guarded by `warden/tests/test_client_ip.py`.
 
 ## Verified Routes
 

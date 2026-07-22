@@ -30,33 +30,43 @@ export default {
         return fetch(request);
       }
 
+      const isBodyMethod = request.method === "POST" || request.method === "PUT";
+      const requiresJson =
+        isBodyMethod &&
+        JSON_REQUIRED_PREFIXES.some((prefix) => path.startsWith(prefix));
+
       // ── 1. Payload size gate ────────────────────────────────────────────────
-      if (request.method === "POST" || request.method === "PUT") {
-        const contentLength = parseInt(
-          request.headers.get("content-length") || "0",
-          10,
-        );
-        if (contentLength > MAX_BODY_BYTES) {
+      // Content-Length is client-supplied and absent entirely on a chunked
+      // (Transfer-Encoding: chunked) upload — trusting it alone lets an attacker
+      // stream an unbounded body straight past this gate. A declared length is
+      // checked here; an undeclared one is rejected outright on the guarded API
+      // routes, where every legitimate client sends a buffered JSON body.
+      if (isBodyMethod) {
+        const rawLength = request.headers.get("content-length");
+        const contentLength = parseInt(rawLength || "0", 10);
+
+        if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
           return jsonError(413, "payload_too_large", {
             max_bytes: MAX_BODY_BYTES,
             received_bytes: contentLength,
           });
         }
+
+        if (requiresJson && (rawLength === null || !Number.isFinite(contentLength))) {
+          return jsonError(411, "length_required", {
+            detail: "Content-Length is required; chunked bodies are not accepted",
+          });
+        }
       }
 
       // ── 2. Content-Type enforcement ─────────────────────────────────────────
-      if (request.method === "POST" || request.method === "PUT") {
-        const requiresJson = JSON_REQUIRED_PREFIXES.some((prefix) =>
-          path.startsWith(prefix),
-        );
-        if (requiresJson) {
-          const ct = request.headers.get("content-type") || "";
-          if (!ct.includes("application/json") && !ct.includes("multipart/form-data")) {
-            return jsonError(415, "unsupported_media_type", {
-              required: "application/json",
-              received: ct || "(none)",
-            });
-          }
+      if (requiresJson) {
+        const ct = request.headers.get("content-type") || "";
+        if (!ct.includes("application/json") && !ct.includes("multipart/form-data")) {
+          return jsonError(415, "unsupported_media_type", {
+            required: "application/json",
+            received: ct || "(none)",
+          });
         }
       }
 
@@ -67,13 +77,15 @@ export default {
         headers.set("X-CF-Ray", cfRay);
       }
 
-      // Forward real client IP so warden can use it for ERS / shadow ban
-      const clientIp =
-        request.headers.get("cf-connecting-ip") ||
-        request.headers.get("x-forwarded-for") ||
-        "";
+      // Forward real client IP so warden can use it for ERS / shadow ban.
+      // Only CF-Connecting-IP is authoritative here — Cloudflare overwrites it
+      // at the edge on every request. X-Forwarded-For is client-supplied and
+      // must never be promoted into an identity header.
+      const clientIp = request.headers.get("cf-connecting-ip") || "";
       if (clientIp) {
-        headers.set("X-Real-IP", clientIp.split(",")[0].trim());
+        headers.set("X-Real-IP", clientIp);
+      } else {
+        headers.delete("X-Real-IP");
       }
 
       return fetch(new Request(request, { headers }));

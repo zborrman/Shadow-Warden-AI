@@ -44,6 +44,7 @@ import bcrypt
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from warden.client_ip import get_client_ip
 from warden.config import settings
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -268,7 +269,7 @@ async def login(request: Request) -> JSONResponse:
 @router.post("/signup", summary="Register new account and auto-login (HttpOnly cookie)")
 async def signup(request: Request) -> JSONResponse:
     # Rate limit by client IP
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown").split(",")[0].strip()
+    client_ip = get_client_ip(request) or "unknown"
     if not _rate_check(client_ip):
         return JSONResponse(
             {"detail": "Too many registration attempts. Please try again later."},

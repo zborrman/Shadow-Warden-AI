@@ -145,7 +145,34 @@ ufw delete allow 22/tcp
 ufw allow from YOUR_IP to any port 22
 ```
 
-Docker Compose internal ports (5432, 6379, 9000, 9001, 3000, 8501) must **not** be bound to `0.0.0.0`. In `docker-compose.yml`, omit the host-port mapping or use `127.0.0.1:PORT:PORT`.
+Docker Compose internal ports (5432, 6379, 9000, 9091, 3000, 8501, 16686) must **not** be bound to `0.0.0.0`. In `docker-compose.yml`, omit the host-port mapping or use `127.0.0.1:PORT:PORT`. MinIO (`9000`/`9091`) and Jaeger (`16686`) are already pinned to loopback there — Jaeger in particular has **no authentication at all**, so a `0.0.0.0` bind publishes request-trace metadata to the internet.
+
+Reach them over an SSH port-forward instead:
+
+```bash
+ssh -L 16686:127.0.0.1:16686 -L 9091:127.0.0.1:9091 root@<host>
+```
+
+### Restrict 80/443 to Cloudflare
+
+Leaving `80/443` open to the world means anyone who resolves the origin IP
+bypasses **every** Cloudflare control — WAF, OWASP ruleset, rate limiting, Bot
+Fight, the preflight Worker. Full (Strict) TLS does not prevent this.
+
+```bash
+# Allow only Cloudflare's published ranges (https://www.cloudflare.com/ips/)
+ufw delete allow 80/tcp
+ufw delete allow 443/tcp
+for cidr in $(curl -s https://www.cloudflare.com/ips-v4) $(curl -s https://www.cloudflare.com/ips-v6); do
+  ufw allow from "$cidr" to any port 443 proto tcp
+  ufw allow from "$cidr" to any port 80  proto tcp
+done
+```
+
+Stronger still: drop the public `80/443` bind entirely and let the
+`cloudflared` tunnel replicas be the only ingress. Pair either option with
+**Authenticated Origin Pulls** (mTLS from the Cloudflare edge) — see
+`docs/cloudflare-waf.md` § *Origin lockdown*.
 
 ---
 
