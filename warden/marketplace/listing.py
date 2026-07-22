@@ -503,6 +503,52 @@ def purchase_listing(
     return _do_purchase(listing_id, buyer_agent_id, db_path, idempotency_key)
 
 
+def _resolve_buyer_tenant_id(buyer_agent_id: str) -> str:
+    """buyer_agent_id is a DID; the Budget Guardian is tenant-scoped. Falls
+    back to the raw agent_id when there's no KYA record (unknown owner) —
+    still worth authorizing, just under a less meaningful tenant identity.
+    """
+    try:
+        from warden.marketplace.kya import get_kya_record
+        record = get_kya_record(buyer_agent_id)
+        if record and record.owner_tenant_id:
+            return record.owner_tenant_id
+    except Exception as exc:
+        log.debug("listing: kya lookup failed for buyer=%s: %s", buyer_agent_id[:32], exc)
+    return buyer_agent_id
+
+
+def _authorize_purchase(buyer_agent_id: str, amount_usd: float) -> None:
+    """FT-6 money-authorization chokepoint — see warden/payments/authorize.py.
+
+    No-op unless AUTHORIZE_PAYMENT_ENFORCED=true. When a clean call decides
+    DENY or REQUIRE_APPROVAL, raises ValueError so `buy_listing()` maps it to
+    HTTP 400 (same convention this function already uses for "not found"/
+    "not active"). REQUIRE_APPROVAL blocks rather than proceeding — there is
+    no human-approval queue wired into this synchronous purchase flow yet
+    (unlike MasterAgent's REQUIRES_APPROVAL/Redis/Slack pattern), so treating
+    it as a hard stop is the conservative choice for money movement.
+
+    If the call to authorize_payment() itself fails outright (not a clean
+    fail-soft verdict — a bug in this plumbing), fails open: a broken
+    authorization import must never retroactively brick a purchase flow
+    nobody has opted into yet.
+    """
+    try:
+        from warden.payments.authorize import authorize_payment
+        tenant_id = _resolve_buyer_tenant_id(buyer_agent_id)
+        result = authorize_payment(tenant_id, buyer_agent_id, "purchase", amount_usd,
+                                    merchant=tenant_id)
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        log.warning("listing: authorize_payment call failed, purchase proceeds: %s", exc)
+        record_failopen("payments_authorize", Reason.BACKEND_ERROR, exc)
+        return
+
+    if result.verdict in ("DENY", "REQUIRE_APPROVAL"):
+        raise ValueError(f"Purchase not authorized ({result.verdict}): {'; '.join(result.reasons)}")
+
+
 def _do_purchase(
     listing_id: str, buyer_agent_id: str, db_path: str, idempotency_key: str | None,
 ) -> dict:
@@ -511,6 +557,8 @@ def _do_purchase(
         raise ValueError(f"Listing '{listing_id}' not found.")
     if listing.status != "active":
         raise ValueError(f"Listing '{listing_id}' is not active (status={listing.status}).")
+
+    _authorize_purchase(buyer_agent_id, listing.price_usd)
 
     purchase = create_purchase(
         listing_id=listing_id,
