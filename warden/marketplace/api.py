@@ -644,10 +644,14 @@ async def market_clear(body: ClearRequest) -> dict:
 
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     engine  = ClearingEngine(db_path=db_path)
-    result  = await engine.clear_async(
-        winner_neg_id=body.winner_negotiation_id,
-        buyer_agent_id=body.buyer_agent_id,
-    )
+    try:
+        result = await engine.clear_async(
+            winner_neg_id=body.winner_negotiation_id,
+            buyer_agent_id=body.buyer_agent_id,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {
         "clearing_id":      result.clearing_id,
         "winner_neg_id":    result.winner_neg_id,
