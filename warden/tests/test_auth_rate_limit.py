@@ -82,6 +82,79 @@ class TestRateCheck:
         assert auth_router._rate_check("198.51.100.9") is False
 
 
+class TestStoreIsBounded:
+    """The counter store must not grow once per distinct source address.
+
+    Keying on the real client IP (rather than the one constant proxy address it
+    used to see) means an attacker rotating addresses would otherwise allocate a
+    dict entry per request, forever.
+    """
+
+    def test_aged_out_buckets_are_dropped(self, monkeypatch):
+        import time
+
+        monkeypatch.setattr(auth_router, "_RATE_STORE_MAX_KEYS", 5)
+        stale = time.time() - (auth_router._SIGNUP_RATE_WINDOW + 60)
+
+        with auth_router._rate_lock:
+            for i in range(50):
+                auth_router._rate_store[f"login:198.51.100.{i}"] = [stale]
+
+        auth_router._rate_check("203.0.113.1", limit=3, window=60, bucket="login")
+
+        assert len(auth_router._rate_store) == 1
+        assert "login:203.0.113.1" in auth_router._rate_store
+
+    def test_active_buckets_are_capped(self, monkeypatch):
+        import time
+
+        monkeypatch.setattr(auth_router, "_RATE_STORE_MAX_KEYS", 10)
+        now = time.time()
+
+        with auth_router._rate_lock:
+            for i in range(50):
+                # all fresh — nothing has aged out, so the cap must bite
+                auth_router._rate_store[f"login:198.51.100.{i}"] = [now - i]
+
+        auth_router._rate_check("203.0.113.1", limit=3, window=60, bucket="login")
+
+        assert len(auth_router._rate_store) <= 11
+
+    def test_sweep_keeps_the_most_recently_active(self, monkeypatch):
+        import time
+
+        monkeypatch.setattr(auth_router, "_RATE_STORE_MAX_KEYS", 3)
+        now = time.time()
+
+        with auth_router._rate_lock:
+            for i in range(10):
+                auth_router._rate_store[f"login:198.51.100.{i}"] = [now - i]
+            auth_router._sweep_rate_store(now)
+
+        # lower index == more recent timestamp == kept
+        assert "login:198.51.100.0" in auth_router._rate_store
+        assert "login:198.51.100.9" not in auth_router._rate_store
+
+    def test_limit_still_enforced_while_sweeping(self, monkeypatch):
+        """A sweep must never hand an over-limit caller a fresh allowance."""
+        import time
+
+        monkeypatch.setattr(auth_router, "_RATE_STORE_MAX_KEYS", 2)
+        now = time.time()
+
+        for _ in range(3):
+            auth_router._rate_check("203.0.113.7", limit=3, window=60, bucket="login")
+
+        with auth_router._rate_lock:
+            for i in range(20):
+                auth_router._rate_store[f"login:198.51.100.{i}"] = [now]
+
+        assert (
+            auth_router._rate_check("203.0.113.7", limit=3, window=60, bucket="login")
+            is False
+        )
+
+
 class TestLoginEndpoint:
     def test_login_returns_429_once_the_limit_is_hit(self, monkeypatch):
         from fastapi import FastAPI

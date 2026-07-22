@@ -17,7 +17,7 @@
 - **Name:** `auth-credential-throttle`
 - **Expression** (use *Edit expression*):
 
-```
+```text
 (http.request.method eq "POST" and (
   (http.host eq "api.shadow-warden-ai.com" and
      http.request.uri.path in {"/auth/login" "/auth/signup"}) or
@@ -50,7 +50,7 @@ This rule does nothing until the `Bypass API` custom rule stops skipping
 
 ### WAF Custom Rules
 
-```
+```text
 # Block requests missing X-API-Key on staff agent routes
 (http.request.uri.path matches "^/staff/" and not http.request.headers["x-api-key"][*] exists)
 
@@ -96,7 +96,7 @@ looks routine, and nothing in CI or the repo compares the zone against this doc.
 What was actually deployed — one custom rule, **order First**, on **every
 hostname in the zone**:
 
-```
+```text
 (http.request.uri.path contains "/portal/") or (http.request.uri.path contains "/health")  or
 (http.request.uri.path contains "/filter")  or (http.request.uri.path contains "/v1/")     or
 (http.request.uri.path contains "/api/")    or (http.request.uri.path contains "/metrics") or
@@ -139,7 +139,7 @@ security rule would have been silently dead on arrival.
 
 Two narrow rules replace the single broad one:
 
-```
+```text
 # A — managed rules only, analysis endpoints only
 (http.host eq "api.shadow-warden-ai.com" and (
    http.request.uri.path in {"/filter" "/ext/filter"} or
@@ -248,14 +248,14 @@ Two controls close it, and both are required:
    *Authenticated Origin Pulls* (zone-level), then make Caddy require the
    Cloudflare client certificate on the public vhosts:
 
-   ```
+```text
    tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
        client_auth {
            mode                 require_and_verify
            trusted_ca_cert_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
        }
    }
-   ```
+```
 
    CA bundle: <https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/>
 

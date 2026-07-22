@@ -68,6 +68,14 @@ _SIGNUP_RATE_WINDOW = 3600
 _LOGIN_RATE_LIMIT = int(os.getenv("AUTH_LOGIN_RATE_LIMIT", "10"))
 _LOGIN_RATE_WINDOW = int(os.getenv("AUTH_LOGIN_RATE_WINDOW", "300"))
 
+# Hard cap on tracked buckets. Entries are only evicted when their own key is
+# touched again, so without a sweep this dict grows once per distinct client
+# address and never shrinks — and now that the limiter sees the *real* client IP
+# rather than one constant proxy address, an attacker rotating source addresses
+# turns that into unbounded memory growth. The sweep runs only when the store is
+# over the cap, so the common path stays a single dict lookup.
+_RATE_STORE_MAX_KEYS = int(os.getenv("AUTH_RATE_STORE_MAX_KEYS", "10000"))
+
 _rate_lock = threading.Lock()
 _rate_store: dict[str, list[float]] = collections.defaultdict(list)
 
@@ -197,6 +205,28 @@ def _set_session_cookie(resp: JSONResponse) -> None:
     pass
 
 
+def _sweep_rate_store(now: float) -> None:
+    """Drop aged-out buckets. Caller must hold ``_rate_lock``.
+
+    Removes any bucket whose newest attempt is older than the longest window in
+    use, then — if the store is still over the cap because every bucket is
+    genuinely active — evicts least-recently-active buckets down to the cap.
+    Eviction can only forget a *counter*, never grant a session, and the
+    least-recently-active entries are the ones least likely to be mid-attack.
+    """
+    horizon = max(_SIGNUP_RATE_WINDOW, _LOGIN_RATE_WINDOW)
+    cutoff = now - horizon
+
+    for key in [k for k, ts in _rate_store.items() if not ts or ts[-1] <= cutoff]:
+        del _rate_store[key]
+
+    overflow = len(_rate_store) - _RATE_STORE_MAX_KEYS
+    if overflow > 0:
+        oldest = sorted(_rate_store, key=lambda k: _rate_store[k][-1])[:overflow]
+        for key in oldest:
+            del _rate_store[key]
+
+
 def _rate_check(
     ip: str,
     *,
@@ -213,6 +243,8 @@ def _rate_check(
     now = time.time()
     cutoff = now - window
     with _rate_lock:
+        if len(_rate_store) > _RATE_STORE_MAX_KEYS:
+            _sweep_rate_store(now)
         timestamps = _rate_store[key]
         # evict old entries
         _rate_store[key] = [t for t in timestamps if t > cutoff]
