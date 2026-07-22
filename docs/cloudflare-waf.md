@@ -334,10 +334,22 @@ monitors (GitHub Actions runners, the server's own outbound probes). The
 
 - **Name:** `allow-health-probes`
 - **Expression:**
-  `(http.request.uri.path eq "/health" and http.request.method eq "GET")`
-- **Action:** Skip → *All remaining custom rules* + **Bot Fight Mode**
+  `(http.host eq "api.shadow-warden-ai.com" and http.request.uri.path eq "/health" and http.request.method eq "GET")`
+- **Action:** Skip → **Super Bot Fight Mode Rules** only
 - **Order:** first
 
+Three deliberate narrowings, all learned from the `Bypass API` incident above:
+
+- **`http.host` is required.** Without it the rule matches `/health` on *every*
+  hostname in the zone — the marketing site, the portal, the dashboard — and a
+  bare `path eq "/health"` skip is exactly the shape of drift that produced the
+  original bypass.
+- **Skip only Super Bot Fight Mode**, not *All remaining custom rules*. Bot
+  Fight is the only thing that blocks a datacenter-origin probe; skipping all
+  custom rules would preempt every security rule ordered after this one (this
+  rule is `First`), which is the specific failure the audit found.
+- **`/health` exactly**, never `contains`. `/health/pipeline` returns per-stage
+  internals and stays protected.
+
 `/health` returns only aggregate status (no tenant data, no content), so
-exposing it to unauthenticated automation is safe. Do NOT widen the path —
-`/health/pipeline` stays protected.
+exposing that one path to unauthenticated automation is safe.
