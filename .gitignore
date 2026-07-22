@@ -112,6 +112,12 @@ portal/tsconfig.tsbuildinfo
 data/evolution_dataset.jsonl
 data/corpus_snapshot.json
 data/AGENTS.md
+
+# Runtime artifacts written on the production host (encrypted backups, GDPR/SOC2
+# archives, operator-disabled Grafana provisioning) — never part of the source tree
+data/snapshots/
+data/compliance_archives/
+grafana/provisioning/alerting/disabled/
 .env.sepolia
 scan_result.json
 

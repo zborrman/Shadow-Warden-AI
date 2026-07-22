@@ -920,7 +920,10 @@ jobs:
 
       - name: Pull latest code on server
         # Docker containers run as root and can leave .git/ files owned by root,
-        # blocking git fetch for the deploy user. Fix ownership first, then pull.
+        # blocking git fetch for the deploy user. Fix ownership of .git only —
+        # a repo-wide `chmod -R a+rwX` would make the production tree (including
+        # .env with live secrets) world-readable AND world-writable, and it is what
+        # left data/*.jsonl|sql|json permanently mode-dirty (644 -> 755) on the host.
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -934,10 +937,14 @@ jobs:
               -o ConnectTimeout=15 -o ServerAliveInterval=20 -o ServerAliveCountMax=3 \
             "${SSH_USER}@${SSH_HOST}" bash -s << EOF || { echo "⚠️  Server unreachable — skipping pull"; exit 0; }
           set -euo pipefail
-          # Fix any root-owned files left by Docker (including .git/FETCH_HEAD)
-          docker run --rm -v "${SSH_PATH}:/r" alpine chmod -R a+rwX /r 2>/dev/null || true
+          # Fix any root-owned git metadata left by Docker (including .git/FETCH_HEAD).
+          # Scoped to .git/ and to chown — never chmod the worktree.
+          docker run --rm -v "${SSH_PATH}:/r" alpine chown -R \$(id -u):\$(id -g) /r/.git 2>/dev/null || true
 
           cd "${SSH_PATH}"
+          # Bind-mounted files get their mode rewritten by containers; ignore mode
+          # churn so it never shows up as a dirty worktree / pull conflict.
+          git config core.fileMode false
           git fetch origin main
           git reset --hard origin/main
           echo "── Code updated to: \$(git log --oneline -1)"
