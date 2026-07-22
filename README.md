@@ -4,9 +4,21 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.6 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.7 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.7
+
+| Feature | Description |
+|---------|-------------|
+| **GSAM Observation Stream** | Global Statistic Agentic Marketplace — metadata-only agent observation stream (ClickHouse + fail-open NDJSON spool) with 5 GDPR-allowlist ingest taps. No tool-input text ever leaves the process. |
+| **Drift Detection & Quarantine** | Pure-function economics/drift math — EWMA total-variation drift against per-agent baselines with an anti-inflation co-occurrence rule. Drift breach quarantines the agent via an additive gate layered onto `staff_dispatch` (STAFF-01/02 boundary + velocity checks preserved). |
+| **Hermes JIT Credential Lease** | `warden/gsam/jit_lease.py` — fail-CLOSED (503 without a resolved secret), HMAC single-use lease on `gsam_leases`; the issue response never contains a secret, only redeem returns a scope-bound capability once. |
+| **GSAM Read APIs & Dashboards** | `GET /gsam/heatmap`, `/gsam/agents/{id}/stats`, `/gsam/compliance/score` read the hourly SQLite rollup (never ClickHouse directly); `gsam_agent_stats` Semantic Layer model plus Streamlit/SOC dashboard panels. |
+| **CI Posture Gate** | `--gsam-posture` added to `warden-scan` CI — surfaces marketplace agent compliance score and quarantine count directly in the CI job summary. |
 
 ---
 

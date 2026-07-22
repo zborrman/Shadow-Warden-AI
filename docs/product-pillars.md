@@ -1,4 +1,4 @@
-# Shadow Warden AI — Final Development Lists (v7.6)
+# Shadow Warden AI — Final Development Lists (v7.7)
 
 Definitive, code-grounded development inventory across the three product pillars.
 Every entry maps to shipped modules in `warden/`. Status legend: **✅ Shipped** ·
@@ -87,6 +87,7 @@ anti-Sybil, and MAESTRO collusion detection.
 - ✅ MAESTRO — tacit/vertical collusion detection, Pearson ≥0.80 (`marketplace/maestro.py`, `api_maestro.py`)
 - ✅ Data lifecycle + governance (`marketplace/data_lifecycle.py`, `governance.py`, `api_governance.py`)
 - ✅ Importer for external rule/asset ingest (`marketplace/importer.py`)
+- ✅ GSAM — metadata-only observation stream, EWMA drift detection, agent quarantine, fail-CLOSED Hermes JIT credential lease (`gsam/`, v7.7)
 
 ### 2.4 Protocols
 - ✅ A2A — Agent-to-Agent card + HMAC call tokens (`protocols/a2a/`, `staff/a2a.py`)
@@ -152,7 +153,7 @@ it. GDPR-hard: content is never logged, only metadata.
 - ✅ ISO 27001:2022 full 93-control mapping (`analytics/pages/18_ISO27001.py`)
 - ✅ Secrets Governance — vault connectors, inventory, policy, lifecycle (`secrets_gov/`)
 
-### 3.7 Platform Hardening (v7.5–v7.6, ongoing)
+### 3.7 Platform Hardening (v7.5–v7.7, ongoing)
 - ✅ Application Factory — `register_router_safe` isolates sub-routers from the pipeline (`app_factory.py`)
 - ✅ Route-inventory guard — clean-subprocess, env-tolerant OpenAPI diff (`tests/test_route_inventory.py`)
 - ✅ Adversarial ratchet — full-pipeline blocking baseline (`tests/test_adversarial_ratchet.py`)
