@@ -46,9 +46,34 @@ mutmut-cache/
 .DS_Store
 Thumbs.db
 
+# Secrets — never upload
+.env
+.env.*
+*.env
+
 # Vercel only needs the landing/ folder (root-anchored so landing/dashboard/analytics/ is NOT excluded)
 /warden/
 /analytics/
 /grafana/
 /postgres/
 /redis/
+/site/
+/dashboard/
+/portal/
+/packages/
+/scripts/
+/docs/
+/skills/
+/.agents/
+/.claude/
+/.github/
+/docker/
+/protocols/
+/obsidian-plugin/
+/memory/
+/workflows/
+*.md
+
+# Unlinked static mock that enumerates every secret env var name (ADMIN_KEY,
+# WARDEN_API_KEY, ANTHROPIC_API_KEY …) — recon aid, not a real page.
+/landing/enterprise-settings.html
