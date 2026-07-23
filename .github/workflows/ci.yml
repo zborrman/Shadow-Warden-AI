@@ -21,6 +21,9 @@ jobs:
       - uses: actions/checkout@v4.2.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # On PRs, check out the PR head branch (not the detached merge ref) so
+          # the dist-sync commit can be pushed back to it.
+          ref: ${{ github.head_ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -43,15 +46,22 @@ jobs:
           path: site/dist/
           retention-days: 7
 
-      # Sync Astro dist → landing/ and commit back to main so Vercel auto-deploys.
-      # Only runs on push to main (not PRs). Uses GITHUB_TOKEN (built-in).
+      # Sync Astro dist → landing/ and commit back to the PR branch, so main only
+      # ever receives an already-synced landing/ through the normal merge. main is
+      # a protected branch — pushing the sync commit straight to it (the old
+      # approach) is rejected with GH006 and fails every deploy. Runs on PRs from
+      # this repo only (forks can't push to head_ref); uses GITHUB_TOKEN.
       #
       # Strategy: copy ONLY index.html files (Astro output) preserving directory
       # structure. This is safe because manually-maintained landing files use
       # explicit names (e.g. enterprise-settings.html) — never index.html — so
       # there is no collision. New Astro pages are picked up automatically.
+      #
+      # No [skip ci]: the pushed commit becomes the new PR head, and required
+      # checks must report on it. The sync is idempotent (re-running finds no
+      # diff → no commit), so this settles in one extra run without looping.
       - name: Sync dist → landing/ and push (Vercel deploy)
-        if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -76,8 +86,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "landing/ unchanged — no commit needed"
           else
-            git commit -m "chore(landing): sync Astro dist [skip ci]"
-            git push origin main
+            git commit -m "chore(landing): sync Astro dist"
+            git push origin "HEAD:${{ github.head_ref }}"
           fi
 
   # ── MkDocs Documentation Build ──────────────────────────────────────────────
