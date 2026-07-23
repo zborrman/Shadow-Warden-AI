@@ -82,23 +82,33 @@ never reference these new columns and keep working unmodified).
 | `receipt_json` | — | `commerce_receipts.data_json` (joined on `order_id`) | *(new — nullable)* |
 | `metadata_json` | any `Order` field not listed above | any `PurchaseOrder`/`MCPIntent` field not listed above | unused for native rows |
 
-**Open item, deliberately not resolved here**: `commerce_orders` has no `asset_id`
-equivalent — `PurchaseOrder.store_url` is a merchant URL, not an asset identifier, and
-`items: list[OrderItem]` (see `models.py`) is a multi-item cart, not a single asset.
-`marketplace_purchases.asset_id` is `NOT NULL` today; agentic_commerce rows can't
-populate it the same way marketplace rows do. Options: (a) relax `asset_id` to
-nullable for non-marketplace domains, (b) synthesize a value from `store_url`, or (c)
-put `items`/`store_url` in `metadata_json` and leave `asset_id` empty-string for this
-domain. This is a product decision, not an implementation detail — resolve it before
-Phase A's migration, not during it.
+**Resolved**: `commerce_orders` has no `asset_id` equivalent — `PurchaseOrder.store_url`
+is a merchant URL, not an asset identifier, and `items: list[OrderItem]` is a
+multi-item cart, not a single asset. Decision: relax `asset_id` to nullable rather than
+synthesize a meaningless value or use an empty-string sentinel. `marketplace_purchases.
+asset_id` is `NOT NULL` today, and SQLite has no `ALTER COLUMN` — relaxing it requires a
+full table rebuild (create-copy-drop-rename), a materially different risk class than
+adding a nullable column. That rebuild is scoped to **Phase B** (below), timed to when
+agentic_commerce dual-write actually needs to insert a NULL `asset_id` — not done
+pre-emptively in Phase A, so Phase A keeps its "zero behavior change, every reader
+unaffected" property intact.
 
-## Migration sequencing (all phases are future slices, not part of this PR)
+## Migration sequencing
 
-1. **Phase A — schema only.** Land the `ALTER TABLE` migration above as an additive,
-   idempotent `_migrate_order_consolidation_columns()` in `listing.py` (same pattern as
-   the existing four `_migrate_*` functions). No behavior change; every current reader
-   is unaffected since the new columns are nullable and unused until Phase B.
-2. **Phase B — dual-write.** `m2m_store.InventoryManager.save_order()`/`.ship()` and
+1. **✅ Phase A — schema only, DONE.** `_migrate_order_consolidation_columns()` in
+   `listing.py` (same pattern as the existing four `_migrate_*` functions) added nine
+   nullable columns (`domain` defaults to `'marketplace'`) plus `idx_mp_domain`/
+   `idx_mp_tenant` indexes. Purely additive `ALTER TABLE ADD COLUMN` — no behavior
+   change, every current reader unaffected, 5 dedicated tests + full marketplace/
+   analytics/Sybil/trust-graph regression suite green.
+2. **Phase B — dual-write + asset_id rebuild (next, not started).** Two things land
+   together since Phase B is the first point either is needed: (a) the `asset_id`
+   NOT NULL → nullable table rebuild described above, tested against a copy of
+   production-shaped data before running for real: create `marketplace_purchases_new`
+   with the relaxed constraint, `INSERT INTO ... SELECT` from the old table preserving
+   every existing value, `DROP`+`RENAME`, recreate all indexes, wrapped in one explicit
+   transaction so a mid-way failure rolls back cleanly rather than leaving a half-built
+   table; (b) `m2m_store.InventoryManager.save_order()`/`.ship()` and
    `agentic_commerce.service._save_order()` gain a second write: after their existing
    blob-table write succeeds, upsert a mirrored fielded row into
    `marketplace_purchases` with the appropriate `domain`. Reads are unchanged — still
@@ -115,14 +125,15 @@ Phase A's migration, not during it.
    window before a final cleanup PR drops them. Never drop in the same PR that cuts
    over reads.
 
-## Non-goals for this document
+## Status
 
-- No code in this PR touches `m2m_orders`, `commerce_orders`, `commerce_receipts`, or
-  `marketplace_purchases`'s schema — only the literal duplicate `commerce_orders` DDL
-  text (ap2.py/service.py) was deduplicated, which is unrelated to this migration.
-- Does not resolve the two TBD mapping cells above — that requires reading
-  `agentic_commerce/models.py::PurchaseOrder` field-by-field, which is Phase A's first
-  concrete task, not this survey's.
+- Phase A shipped (nine additive nullable columns + two indexes on
+  `marketplace_purchases`; `commerce_orders` DDL dedup landed in the prior slice).
+- `commerce_orders` → `asset_id` mapping resolved (nullable, deferred rebuild to
+  Phase B — see above).
+- Phase B (dual-write + the `asset_id` table rebuild) is the next slice and has not
+  started. `m2m_orders`/`commerce_orders`/`commerce_receipts` are untouched — still the
+  only writers/readers for their respective domains.
 - Does not estimate a timeline beyond what `fintech-grade-commerce-plan.md` already
   states (FT-6 "Consolidation (2 weeks)" covers all three FT-6 sub-parts, of which this
   is the largest).

@@ -126,6 +126,35 @@ def _migrate_idempotency_column(con: sqlite3.Connection) -> None:
     )
 
 
+def _migrate_order_consolidation_columns(con: sqlite3.Connection) -> None:
+    """FT-6 order-model consolidation, Phase A (docs/order-model-consolidation-plan.md).
+
+    Additive-only: nine nullable columns so m2m_store/agentic_commerce rows can
+    eventually mirror into this table without touching any existing row or
+    reader. `domain` defaults to 'marketplace' so every pre-existing row is
+    correctly attributed without a backfill. Does NOT touch `asset_id`'s NOT
+    NULL constraint — relaxing an existing constraint needs a table rebuild
+    (SQLite has no ALTER COLUMN), a different risk class than adding a
+    column; that rebuild is scoped to Phase B, when agentic_commerce dual-write
+    actually needs to insert a NULL asset_id, not run pre-emptively here.
+    """
+    for column, ddl_type in (
+        ("domain", "TEXT NOT NULL DEFAULT 'marketplace'"),
+        ("tenant_id", "TEXT"),
+        ("mandate_id", "TEXT"),
+        ("payment_token", "TEXT"),
+        ("reservation_id", "TEXT"),
+        ("stix_chain_id", "TEXT"),
+        ("shipped_at", "TEXT"),
+        ("receipt_json", "TEXT"),
+        ("metadata_json", "TEXT"),
+    ):
+        with suppress(Exception):
+            con.execute(f"ALTER TABLE marketplace_purchases ADD COLUMN {column} {ddl_type}")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_mp_domain ON marketplace_purchases(domain)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_mp_tenant ON marketplace_purchases(tenant_id)")
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     with open_db(
@@ -135,6 +164,7 @@ def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
         _migrate_sponsored_columns(con)
         _migrate_kya_column(con)
         _migrate_idempotency_column(con)
+        _migrate_order_consolidation_columns(con)
         yield con
 
 
