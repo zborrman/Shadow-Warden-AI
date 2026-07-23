@@ -35,6 +35,7 @@ from fastapi.responses import JSONResponse
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.payments.x402_balance import X402_BALANCES_DDL, deduct_floor, get_balance
 
 log = logging.getLogger("warden.marketplace.x402_gate")
 _x402_audit_log = logging.getLogger("warden.x402.audit")
@@ -49,12 +50,8 @@ _NONCE_TTL_SECONDS = 300  # 5 minutes — must match PAYMENT-REQUIRED expires_at
 
 # ── Schema ─────────────────────────────────────────────────────────────────────
 
-_X402_DDL = """
-    CREATE TABLE IF NOT EXISTS x402_balances (
-        agent_id    TEXT PRIMARY KEY,
-        balance_usd REAL NOT NULL DEFAULT 0.0,
-        updated_at  TEXT NOT NULL
-    );
+_X402_DDL = f"""
+    {X402_BALANCES_DDL}
     CREATE TABLE IF NOT EXISTS x402_pending_deductions (
         deduction_id TEXT PRIMARY KEY,
         agent_id     TEXT NOT NULL,
@@ -163,10 +160,7 @@ def _log_payment_bypassed(tenant_id: str, resource: str, reason: str) -> None:
 def _has_sufficient_balance(agent_id: str) -> bool:
     """Check whether agent's pre-funded balance covers the search fee."""
     with _db_lock, open_db("marketplace_x402", _DB_PATH, module_default_path=_DB_PATH) as con:
-        row = con.execute(
-            "SELECT balance_usd FROM x402_balances WHERE agent_id = ?", (agent_id,)
-        ).fetchone()
-        balance = Decimal(str(row[0])) if row else Decimal("0")
+        balance = Decimal(str(get_balance(con, agent_id)))
         return balance >= _SEARCH_FEE_USD
 
 
@@ -302,12 +296,7 @@ async def deduct_payment(agent_id: str, resource: str, amount_usd: Decimal | Non
                 (str(uuid.uuid4()), agent_id, float(amount), resource, now),
             )
             # Deduct from pre-funded balance immediately
-            con.execute(
-                "UPDATE x402_balances "
-                "SET balance_usd = MAX(0, balance_usd - ?), updated_at = ? "
-                "WHERE agent_id = ?",
-                (float(amount), now, agent_id),
-            )
+            deduct_floor(con, agent_id, float(amount))
         log.debug("x402 deduction queued: agent=%s resource=%s amount=%s", agent_id[:24], resource, amount)
 
         # Billing audit chain — fail-open

@@ -29,6 +29,12 @@ from fastapi import HTTPException
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.payments.x402_balance import (
+    X402_BALANCES_DDL,
+    credit_balance,
+    deduct_strict,
+    get_balance,
+)
 
 log = logging.getLogger("warden.voice.x402")
 
@@ -37,12 +43,8 @@ _CHAIN_RPC    = os.getenv("VOICE_X402_RPC", "https://rpc-amoy.polygon.technology
 _PAYMENT_ADDR = os.getenv("VOICE_X402_PAYMENT_ADDRESS", "0x0000000000000000000000000000000000000000")
 _db_lock      = threading.RLock()
 
-_VOICE_X402_DDL = """
-    CREATE TABLE IF NOT EXISTS x402_balances (
-        agent_id    TEXT PRIMARY KEY,
-        balance_usd REAL NOT NULL DEFAULT 0.0,
-        updated_at  TEXT NOT NULL
-    );
+_VOICE_X402_DDL = f"""
+    {X402_BALANCES_DDL}
     CREATE TABLE IF NOT EXISTS x402_channels (
         channel_id  TEXT PRIMARY KEY,
         agent_id    TEXT NOT NULL,
@@ -135,38 +137,21 @@ class X402Protocol:
                 "VALUES (?, ?, ?, 'open', ?)",
                 (cid, agent_id, initial_balance_usd, now),
             )
-            con.execute(
-                "INSERT INTO x402_balances (agent_id, balance_usd, updated_at) VALUES (?, ?, ?) "
-                "ON CONFLICT(agent_id) DO UPDATE SET balance_usd = balance_usd + excluded.balance_usd, "
-                "updated_at = excluded.updated_at",
-                (agent_id, initial_balance_usd, now),
-            )
+            credit_balance(con, agent_id, initial_balance_usd)
         return cid
 
     # ── Balance management ─────────────────────────────────────────────────────
 
     def get_balance(self, agent_id: str) -> float:
         with _db_lock, _conn() as con:
-            row = con.execute(
-                "SELECT balance_usd FROM x402_balances WHERE agent_id = ?", (agent_id,)
-            ).fetchone()
-            return float(row[0]) if row else 0.0
+            return get_balance(con, agent_id)
 
     def deduct(self, agent_id: str, amount_usd: float, resource: str) -> bool:
         """Deduct amount from agent balance.  Returns False if insufficient."""
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         with _db_lock, _conn() as con:
-            row = con.execute(
-                "SELECT balance_usd FROM x402_balances WHERE agent_id = ?", (agent_id,)
-            ).fetchone()
-            balance = float(row[0]) if row else 0.0
-            if balance < amount_usd:
+            if not deduct_strict(con, agent_id, amount_usd):
                 return False
-            new_bal = balance - amount_usd
-            con.execute(
-                "UPDATE x402_balances SET balance_usd = ?, updated_at = ? WHERE agent_id = ?",
-                (new_bal, now, agent_id),
-            )
             con.execute(
                 "INSERT INTO x402_transactions (tx_id, agent_id, amount_usd, resource, verified, ts) "
                 "VALUES (?, ?, ?, ?, 1, ?)",
@@ -185,12 +170,7 @@ class X402Protocol:
                 "VALUES (?, ?, ?, ?, 1, ?)",
                 (tx_hash, agent_id, amount_usd, resource, now),
             )
-            con.execute(
-                "INSERT INTO x402_balances (agent_id, balance_usd, updated_at) VALUES (?, ?, ?) "
-                "ON CONFLICT(agent_id) DO UPDATE SET "
-                "balance_usd = balance_usd + excluded.balance_usd, updated_at = excluded.updated_at",
-                (agent_id, amount_usd, now),
-            )
+            credit_balance(con, agent_id, amount_usd)
             return True
 
     def close_channel(self, channel_id: str) -> bool:
