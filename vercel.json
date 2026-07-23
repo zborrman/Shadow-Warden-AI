@@ -11,6 +11,7 @@
     { "source": "/api/compliance/:path*", "destination": "https://api.shadow-warden-ai.com/compliance/:path*" },
     { "source": "/api/public/:path*", "destination": "https://api.shadow-warden-ai.com/public/:path*" },
     { "source": "/api/agent/session", "destination": "https://api.shadow-warden-ai.com/agent/session" },
+    { "source": "/api/agent/session/:path*", "destination": "https://api.shadow-warden-ai.com/agent/session/:path*" },
     { "source": "/api/agent/manifest", "destination": "https://api.shadow-warden-ai.com/agent/manifest" },
     { "source": "/api/agent/manifests", "destination": "https://api.shadow-warden-ai.com/agent/manifests" },
     { "source": "/api/ips/block", "destination": "https://api.shadow-warden-ai.com/ips/block" },
