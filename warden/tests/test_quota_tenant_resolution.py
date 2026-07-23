@@ -10,8 +10,6 @@ middleware resolves the API key to a real tenant.
 """
 from __future__ import annotations
 
-import pytest
-
 from warden.billing import quota_middleware as qm
 
 
