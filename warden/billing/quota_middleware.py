@@ -67,17 +67,44 @@ def _quota_key(tenant_id: str) -> str:
 
 def _get_tenant_id_from_scope(scope: dict) -> str:
     """
-    Extract tenant_id from the request state set by auth middleware,
-    or fall back to the X-Tenant-ID header.
+    Resolve the caller's tenant_id.
+
+    NOTE ON ORDERING: this middleware runs at the ASGI layer, i.e. BEFORE the
+    route's ``Depends(require_api_key)`` executes, and there is no auth
+    *middleware* that populates ``request.state.tenant``. So the state branch is
+    effectively never populated in production, and a bare fallback to
+    ``"anonymous"`` collapses EVERY authenticated caller — who sends
+    ``X-API-Key`` but not ``X-Tenant-ID`` — into one shared bucket. That let the
+    entire ``/filter`` endpoint hit the starter 1000/month cap in aggregate and
+    hard-block all traffic. So we resolve the API key ourselves here, the same
+    way ``require_api_key`` will, before conceding "anonymous".
     """
     state  = scope.get("state", {})
     tenant = getattr(state, "tenant", None) or (state if isinstance(state, dict) else {})
     if isinstance(tenant, dict) and tenant.get("tenant_id"):
         return str(tenant["tenant_id"])
-    # Header fallback (b"x-tenant-id")
+
     headers = dict(scope.get("headers", []))
+
+    # Explicit X-Tenant-ID header wins if the caller set one.
     raw = headers.get(b"x-tenant-id", b"").decode("utf-8", errors="ignore")
-    return raw or "anonymous"
+    if raw:
+        return raw
+
+    # Resolve the API key → tenant, mirroring require_api_key. A single-key
+    # deployment maps every key to "default"; a multi-key store maps each key to
+    # its own tenant, giving each customer their own quota bucket.
+    api_key = headers.get(b"x-api-key", b"").decode("utf-8", errors="ignore")
+    if api_key:
+        try:
+            from warden.auth_guard import resolve_tenant_id
+            resolved = resolve_tenant_id(api_key)
+            if resolved:
+                return resolved
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("quota_middleware: tenant resolve failed: %r", _exc)
+
+    return "anonymous"
 
 
 def _get_plan_from_scope(scope: dict, tenant_id: str) -> str:

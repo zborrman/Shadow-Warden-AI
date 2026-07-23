@@ -117,6 +117,15 @@ services:
       - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
       - WARDEN_API_KEY=${WARDEN_API_KEY:-}
       - ALLOW_UNAUTHENTICATED=${ALLOW_UNAUTHENTICATED:-false}
+      # TEMPORARY MITIGATION: soft-block the monthly quota instead of returning
+      # 429. This deployment is single-key (WARDEN_API_KEY, no
+      # WARDEN_API_KEYS_PATH), so every caller resolves to the "default" tenant
+      # and shares ONE starter 1000/month bucket — which was exhausted and
+      # hard-blocked the whole /filter endpoint. Soft-block keeps quota
+      # accounting + overage logging but stops the 429. Re-enable by setting
+      # QUOTA_HARD_BLOCK=true in the prod .env once per-tenant quotas are
+      # meaningful (multi-key store) or the default cap is revisited.
+      - QUOTA_HARD_BLOCK=${QUOTA_HARD_BLOCK:-false}
       # Prod hardening (S1): persist secret/PII module SQLite DBs on the ./data
       # bind mount instead of ephemeral /tmp, and enable the fail-closed prod
       # posture. Defaults are backward-compatible (dev/false); set WARDEN_ENV=
