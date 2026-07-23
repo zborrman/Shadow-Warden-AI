@@ -78,6 +78,13 @@ def _get_tenant_id_from_scope(scope: dict) -> str:
     entire ``/filter`` endpoint hit the starter 1000/month cap in aggregate and
     hard-block all traffic. So we resolve the API key ourselves here, the same
     way ``require_api_key`` will, before conceding "anonymous".
+
+    IDENTITY IS TRUST-ANCHORED TO THE API KEY, never to a client-supplied
+    ``X-Tenant-ID`` header. Charging quota against a header value the caller
+    controls would let an unauthenticated request pick whose bucket it drains —
+    burn a victim tenant's allowance, or name an unlimited-plan tenant to evade
+    its own quota entirely. The only tenant selectors are populated auth state
+    (trusted) and ``resolve_tenant_id`` over the presented key.
     """
     state  = scope.get("state", {})
     tenant = getattr(state, "tenant", None) or (state if isinstance(state, dict) else {})
@@ -85,11 +92,6 @@ def _get_tenant_id_from_scope(scope: dict) -> str:
         return str(tenant["tenant_id"])
 
     headers = dict(scope.get("headers", []))
-
-    # Explicit X-Tenant-ID header wins if the caller set one.
-    raw = headers.get(b"x-tenant-id", b"").decode("utf-8", errors="ignore")
-    if raw:
-        return raw
 
     # Resolve the API key → tenant, mirroring require_api_key. A single-key
     # deployment maps every key to "default"; a multi-key store maps each key to
@@ -102,7 +104,7 @@ def _get_tenant_id_from_scope(scope: dict) -> str:
             if resolved:
                 return resolved
         except Exception as _exc:  # noqa: BLE001
-            log.debug("quota_middleware: tenant resolve failed: %r", _exc)
+            log.debug("quota_middleware: tenant resolve failed (%s)", type(_exc).__name__)
 
     return "anonymous"
 
