@@ -21,7 +21,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
-from warden.business_community.agentic_commerce.ap2 import AP2Processor
+from warden.business_community.agentic_commerce.ap2 import COMMERCE_ORDERS_DDL, AP2Processor
 from warden.business_community.agentic_commerce.mcp_bridge import MCPBridge
 from warden.business_community.agentic_commerce.models import MCPIntent, PurchaseOrder
 from warden.business_community.agentic_commerce.ucp import UCPClient
@@ -34,21 +34,11 @@ log = logging.getLogger("warden.commerce.service")
 _DB_PATH = data_path("warden_commerce.db", "COMMERCE_DB_PATH")
 _db_lock = threading.RLock()
 
-_SERVICE_DDL = """
-    CREATE TABLE IF NOT EXISTS commerce_orders (
-        id          TEXT PRIMARY KEY,
-        tenant_id   TEXT NOT NULL,
-        mandate_id  TEXT NOT NULL,
-        data_json   TEXT NOT NULL,
-        created_at  TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_co_tenant ON commerce_orders(tenant_id);
-"""
-
 # Shares warden_commerce.db with ap2.py and orchestrator.py — same db_key,
-# distinct module name. commerce_orders overlaps with ap2.py's DDL; both are
-# idempotent CREATE TABLE IF NOT EXISTS so applying either first is safe.
-register("commerce", "service", _SERVICE_DDL)
+# distinct module name. commerce_orders is owned by ap2.py (COMMERCE_ORDERS_DDL);
+# imported here rather than re-declared, so there's exactly one DDL text for the
+# table instead of two copies that happened to stay in sync by convention.
+register("commerce", "service", COMMERCE_ORDERS_DDL)
 
 
 @contextmanager
