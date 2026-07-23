@@ -21,7 +21,9 @@
 
 	handle {
 		reverse_proxy warden:8001 {
-			header_up X-Real-IP    {remote_host}
+			header_up CF-Connecting-IP {remote_host}
+			header_up X-Real-IP        {remote_host}
+			header_up X-Forwarded-For  {remote_host}
 		}
 	}
 }
@@ -29,13 +31,17 @@
 # ── Tenant Portal ─────────────────────────────────────────────────────────────
 :8081 {
 	reverse_proxy portal:3001 {
-		header_up X-Real-IP {remote_host}
+		header_up CF-Connecting-IP {remote_host}
+		header_up X-Real-IP        {remote_host}
+		header_up X-Forwarded-For  {remote_host}
 	}
 }
 
 # ── Analytics API ─────────────────────────────────────────────────────────────
 :8082 {
 	reverse_proxy analytics:8002 {
-		header_up X-Real-IP {remote_host}
+		header_up CF-Connecting-IP {remote_host}
+		header_up X-Real-IP        {remote_host}
+		header_up X-Forwarded-For  {remote_host}
 	}
 }

@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Request
 
 from warden import entity_risk as _ers
 from warden.auth_guard import AuthResult, require_api_key
+from warden.client_ip import get_client_ip
 
 router = APIRouter(prefix="/ers", tags=["security"])
 
@@ -40,7 +41,7 @@ def _ers_dominant_flag(counts: dict, total: int) -> str:
 )
 async def ers_score_self(request: Request, auth: AuthResult = Depends(require_api_key)):
     """Return the ERS score for the caller's own entity key."""
-    client_ip  = request.client.host if request.client else ""
+    client_ip  = get_client_ip(request)
     entity_key = _ers.make_entity_key(auth.tenant_id, client_ip)
     result    = _ers.score(entity_key)
     last_flag = _ers_dominant_flag(result.counts, result.total_1h)

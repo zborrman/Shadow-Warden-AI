@@ -44,6 +44,7 @@ import bcrypt
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from warden.client_ip import get_client_ip
 from warden.config import settings
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -59,6 +60,22 @@ _DB_PATH = settings.auth_db_path
 # Signup rate limit: max 5 registrations per IP per hour
 _SIGNUP_RATE_LIMIT = settings.auth_signup_rate_limit
 _SIGNUP_RATE_WINDOW = 3600
+
+# Login rate limit: separate budget from signup — a login flood must not be
+# spendable out of the signup allowance, and vice versa. Counts every attempt,
+# not just failures: an attacker who knows one valid password would otherwise
+# get an unmetered oracle for the rest.
+_LOGIN_RATE_LIMIT = int(os.getenv("AUTH_LOGIN_RATE_LIMIT", "10"))
+_LOGIN_RATE_WINDOW = int(os.getenv("AUTH_LOGIN_RATE_WINDOW", "300"))
+
+# Hard cap on tracked buckets. Entries are only evicted when their own key is
+# touched again, so without a sweep this dict grows once per distinct client
+# address and never shrinks — and now that the limiter sees the *real* client IP
+# rather than one constant proxy address, an attacker rotating source addresses
+# turns that into unbounded memory growth. The sweep runs only when the store is
+# over the cap, so the common path stays a single dict lookup.
+_RATE_STORE_MAX_KEYS = int(os.getenv("AUTH_RATE_STORE_MAX_KEYS", "10000"))
+
 _rate_lock = threading.Lock()
 _rate_store: dict[str, list[float]] = collections.defaultdict(list)
 
@@ -188,17 +205,52 @@ def _set_session_cookie(resp: JSONResponse) -> None:
     pass
 
 
-def _rate_check(ip: str) -> bool:
-    """Return True if IP is within rate limit, False if exceeded."""
+def _sweep_rate_store(now: float) -> None:
+    """Drop aged-out buckets. Caller must hold ``_rate_lock``.
+
+    Removes any bucket whose newest attempt is older than the longest window in
+    use, then — if the store is still over the cap because every bucket is
+    genuinely active — evicts least-recently-active buckets down to the cap.
+    Eviction can only forget a *counter*, never grant a session, and the
+    least-recently-active entries are the ones least likely to be mid-attack.
+    """
+    horizon = max(_SIGNUP_RATE_WINDOW, _LOGIN_RATE_WINDOW)
+    cutoff = now - horizon
+
+    for key in [k for k, ts in _rate_store.items() if not ts or ts[-1] <= cutoff]:
+        del _rate_store[key]
+
+    overflow = len(_rate_store) - _RATE_STORE_MAX_KEYS
+    if overflow > 0:
+        oldest = sorted(_rate_store, key=lambda k: _rate_store[k][-1])[:overflow]
+        for key in oldest:
+            del _rate_store[key]
+
+
+def _rate_check(
+    ip: str,
+    *,
+    limit: int = _SIGNUP_RATE_LIMIT,
+    window: int = _SIGNUP_RATE_WINDOW,
+    bucket: str = "signup",
+) -> bool:
+    """Return True if IP is within rate limit, False if exceeded.
+
+    The bucket name namespaces the counter so login and signup can't drain each
+    other's allowance. Defaults preserve the original signup-only behaviour.
+    """
+    key = f"{bucket}:{ip}"
     now = time.time()
-    cutoff = now - _SIGNUP_RATE_WINDOW
+    cutoff = now - window
     with _rate_lock:
-        timestamps = _rate_store[ip]
+        if len(_rate_store) > _RATE_STORE_MAX_KEYS:
+            _sweep_rate_store(now)
+        timestamps = _rate_store[key]
         # evict old entries
-        _rate_store[ip] = [t for t in timestamps if t > cutoff]
-        if len(_rate_store[ip]) >= _SIGNUP_RATE_LIMIT:
+        _rate_store[key] = [t for t in timestamps if t > cutoff]
+        if len(_rate_store[key]) >= limit:
             return False
-        _rate_store[ip].append(now)
+        _rate_store[key].append(now)
     return True
 
 
@@ -237,6 +289,21 @@ def _cookie_response(email: str, *, status: int = 200, body: dict | None = None)
 
 @router.post("/login", summary="Issue session cookie (HttpOnly, Secure)")
 async def login(request: Request) -> JSONResponse:
+    # Credential stuffing gate. This endpoint had no limit of any kind, at any
+    # layer: the Cloudflare bypass rule disabled edge rate limiting on it, and
+    # nothing in-app counted attempts.
+    client_ip = get_client_ip(request) or "unknown"
+    if not _rate_check(
+        client_ip,
+        limit=_LOGIN_RATE_LIMIT,
+        window=_LOGIN_RATE_WINDOW,
+        bucket="login",
+    ):
+        return JSONResponse(
+            {"detail": "Too many login attempts. Please try again later."},
+            status_code=429,
+        )
+
     try:
         body = await request.json()
         email: str = (body.get("email") or "").strip().lower()
@@ -268,8 +335,8 @@ async def login(request: Request) -> JSONResponse:
 @router.post("/signup", summary="Register new account and auto-login (HttpOnly cookie)")
 async def signup(request: Request) -> JSONResponse:
     # Rate limit by client IP
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown").split(",")[0].strip()
-    if not _rate_check(client_ip):
+    client_ip = get_client_ip(request) or "unknown"
+    if not _rate_check(client_ip, bucket="signup"):
         return JSONResponse(
             {"detail": "Too many registration attempts. Please try again later."},
             status_code=429,

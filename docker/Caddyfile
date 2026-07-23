@@ -31,12 +31,47 @@
 	admin 0.0.0.0:2019
 	servers {
 		metrics
+
+		# ── Trusted proxy chain ───────────────────────────────────────────────
+		# Two paths reach this proxy: the Cloudflare edge straight to :443, and
+		# the `cloudflared` tunnel container on the docker network. Only those
+		# peers may assert a client IP; anyone hitting the origin directly gets
+		# their socket address used instead, so forwarded headers cannot be
+		# spoofed to poison ERS / shadow ban / rate-limit buckets.
+		#
+		# Cloudflare ranges: https://www.cloudflare.com/ips/ (re-check on change)
+		trusted_proxies static \
+			private_ranges \
+			173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
+			141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
+			197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
+			104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 \
+			2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
+			2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+
+		# Resolve {client_ip} from CF-Connecting-IP (Cloudflare overwrites it at
+		# the edge on every request) and fall back to X-Forwarded-For. Ignored
+		# entirely when the peer is not in trusted_proxies above.
+		client_ip_headers CF-Connecting-IP X-Forwarded-For
 	}
 }
 
 # ── HTTP → HTTPS redirect ─────────────────────────────────────────────────────
 http:// {
 	redir https://{host}{uri} 301
+}
+
+# ── Client-IP forwarding snippet (reused by every reverse_proxy) ──────────────
+# {client_ip} is the address resolved through the trusted_proxies chain above —
+# the true visitor when the request came via Cloudflare, the raw socket address
+# when someone hit the origin directly. All three headers are *overwritten* (not
+# appended), so a forged CF-Connecting-IP / X-Real-IP / X-Forwarded-For from an
+# untrusted client is replaced before it reaches an upstream that trusts them.
+(client_ip_headers) {
+	header_up CF-Connecting-IP  {client_ip}
+	header_up X-Real-IP         {client_ip}
+	header_up X-Forwarded-For   {client_ip}
+	header_up X-Forwarded-Proto {scheme}
 }
 
 # ── Security header snippet (reused across all HTTPS sites) ───────────────────
@@ -70,15 +105,15 @@ api.shadow-warden-ai.com {
 
 	# Health probe (used by Caddy's own healthcheck on port 80 via HTTP redirect)
 	handle /health {
-		reverse_proxy warden:8001
+		reverse_proxy warden:8001 {
+			import client_ip_headers
+		}
 	}
 
 	# WebSocket connections (community live metrics, compliance push)
 	handle /ws/* {
 		reverse_proxy warden:8001 {
-			header_up X-Real-IP        {remote_host}
-			header_up X-Forwarded-For  {remote_host}
-			header_up X-Forwarded-Proto {scheme}
+			import client_ip_headers
 			header_up Connection        {>Connection}
 			header_up Upgrade           {>Upgrade}
 		}
@@ -87,10 +122,7 @@ api.shadow-warden-ai.com {
 	# All API traffic → Warden FastAPI gateway
 	handle {
 		reverse_proxy warden:8001 {
-			# Forward real client IP
-			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
+			import client_ip_headers
 		}
 	}
 }
@@ -103,9 +135,7 @@ app.shadow-warden-ai.com {
 
 	handle {
 		reverse_proxy portal:3001 {
-			header_up X-Real-IP        {remote_host}
-			header_up X-Forwarded-For  {remote_host}
-			header_up X-Forwarded-Proto {scheme}
+			import client_ip_headers
 		}
 	}
 }
@@ -118,9 +148,7 @@ analytics.shadow-warden-ai.com {
 
 	handle {
 		reverse_proxy analytics:8002 {
-			header_up X-Real-IP        {remote_host}
-			header_up X-Forwarded-For  {remote_host}
-			header_up X-Forwarded-Proto {scheme}
+			import client_ip_headers
 		}
 	}
 }
@@ -144,9 +172,7 @@ portal.shadow-warden-ai.com {
 
 	handle {
 		reverse_proxy dashboard:3002 {
-			header_up X-Real-IP        {remote_host}
-			header_up X-Forwarded-For  {remote_host}
-			header_up X-Forwarded-Proto {scheme}
+			import client_ip_headers
 		}
 	}
 }
@@ -159,9 +185,7 @@ dash.shadow-warden-ai.com {
 
 	handle {
 		reverse_proxy dashboard:3002 {
-			header_up X-Real-IP        {remote_host}
-			header_up X-Forwarded-For  {remote_host}
-			header_up X-Forwarded-Proto {scheme}
+			import client_ip_headers
 		}
 	}
 }
@@ -192,9 +216,7 @@ marketplace.shadow-warden-ai.com {
 	handle {
 		reverse_proxy https://shadow-warden-marketplace.zbrvladimir.workers.dev {
 			header_up Host                shadow-warden-marketplace.zbrvladimir.workers.dev
-			header_up X-Real-IP           {remote_host}
-			header_up X-Forwarded-For     {remote_host}
-			header_up X-Forwarded-Proto   {scheme}
+			import client_ip_headers
 			header_up X-Forwarded-Host    {host}
 		}
 	}
@@ -224,9 +246,7 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 	handle /api/* {
 		uri strip_prefix /api
 		reverse_proxy warden:8001 {
-			header_up X-Real-IP        {remote_host}
-			header_up X-Forwarded-For  {remote_host}
-			header_up X-Forwarded-Proto {scheme}
+			import client_ip_headers
 		}
 	}
 

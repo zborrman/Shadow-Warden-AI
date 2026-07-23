@@ -383,7 +383,11 @@ OTEL_SERVICE_NAME=shadow-warden                            # Jaeger service labe
 NEXT_PUBLIC_API_URL=https://api.shadow-warden-ai.com
 NEXT_PUBLIC_ANALYTICS_URL=https://api.shadow-warden-ai.com
 NEXT_PUBLIC_GRAFANA_URL=http://91.98.234.160:3000
-NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
+# Jaeger is bound to 127.0.0.1 (no authentication — it must not be on a public
+# IP). Reach it via `ssh -L 16686:127.0.0.1:16686 root@<host>`, or put it behind
+# a vhost + Cloudflare Access and point this at that hostname. Do NOT set it
+# back to http://<public-ip>:16686.
+NEXT_PUBLIC_JAEGER_URL=http://127.0.0.1:16686
 ```
 
 ## Design Constraints
@@ -411,6 +415,8 @@ NEXT_PUBLIC_JAEGER_URL=http://91.98.234.160:16686
 - **Redis socket timeouts**: `cache.py` uses `socket_connect_timeout=5, socket_timeout=3`. Do not tighten below these values — values below 2s/1s cause false cache-miss cascades under transient Redis load.
 - **Docker stop_grace_period: 30s**: warden service in `docker-compose.yml` is set to `stop_grace_period: 30s` so in-flight requests complete before the container exits on deploy or restart.
 - **No root package.json**: the repo root has no `package.json`. `portal/` and `dashboard/` are standalone npm projects with their own lock files. `packages/ui/` has its own `package.json` but is not a workspace member. Do not add a root `package.json` with `workspaces` — it breaks `npm ci` in subdirectories on Linux npm v10.
+- **Client IP behind Cloudflare**: request code must resolve the caller with `warden.client_ip.get_client_ip(request)` — **never** `request.client.host`, `get_remote_address()`, or a raw `X-Forwarded-For` read. warden's peer is always the Caddy container, so the socket address is one constant for the whole internet: keying ERS / shadow ban / slowapi / marketplace quota on it puts every anonymous caller in a single bucket (one attacker shadow-bans everyone, and the per-minute quota is shared globally). `get_client_ip()` honours `CF-Connecting-IP` → `X-Real-IP` → `X-Forwarded-For` **only** when the peer is inside `TRUSTED_PROXY_CIDRS` (default loopback + RFC1918), so a direct-to-origin request cannot spoof an identity. `docker/Caddyfile` is the other half: `trusted_proxies` (Cloudflare ranges + `private_ranges` for `cloudflared`) + `client_ip_headers`, and the `(client_ip_headers)` snippet *overwrites* all three headers with `{client_ip}` on every `reverse_proxy`. The only exception is `mtls.py`, which logs the true TLS peer by design. See `docs/cloudflare-waf.md`; guarded by `warden/tests/test_client_ip.py`.
+- **Cloudflare rules are edge-only**: every WAF / rate-limit / Bot-Fight rule is bypassed by a request sent straight to the origin IP. Keep Authenticated Origin Pulls (mTLS) + a Cloudflare-only host firewall on `80/443`, and never publish `16686` (Jaeger — zero auth), `9000`/`9091` (MinIO) on the public interface; they are bound to `127.0.0.1` in `docker-compose.yml`. Never allowlist `104.18.0.0/16` / `104.21.0.0/16` in Bot Fight — those are Cloudflare's own proxy ranges, not an identity.
 - **Fail-closed auth (#11)**: startup raises `RuntimeError` if `WARDEN_API_KEY` and `WARDEN_API_KEYS_PATH` are both unset, unless `ALLOW_UNAUTHENTICATED=true`. Tests set `ALLOW_UNAUTHENTICATED=true` in `conftest.py`.
 - **VAULT_MASTER_KEY validation (#1)**: startup validates Fernet key format and halts with a clear error if invalid. Used by communities/sovereign/data_pod for at-rest encryption of private key material.
 - **Shadow ban randomness (#3)**: `_pick_response()` uses `secrets.choice()` — not deterministic hash — to prevent fingerprinting. `_GASLIGHT_POOL` has 30+ entries.

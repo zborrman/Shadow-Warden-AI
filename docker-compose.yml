@@ -421,8 +421,14 @@ services:
     volumes:
       - minio-data:/data
     ports:
-      - "9000:9000"   # S3 API (internal + optional external access)
-      - "9091:9091"   # MinIO Console UI (9001 reserved for Portainer on this host)
+      # Loopback-only: every in-cluster consumer reaches MinIO over the
+      # warden-net docker network (http://minio:9000), so nothing needs these
+      # on the public origin IP — where they sat outside Cloudflare, exposing
+      # the object store (evidence bundles, logs) to credential stuffing with
+      # no WAF or rate limit in front. Tunnel in for console access:
+      #   ssh -L 9091:127.0.0.1:9091 <host>
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9091:9091"   # MinIO Console UI (9001 reserved for Portainer on this host)
     networks:
       - warden-net
     healthcheck:
@@ -824,7 +830,11 @@ services:
         max-size: "10m"
         max-file: "3"
     ports:
-      - "16686:16686"    # Jaeger UI
+      # Loopback-only: the Jaeger UI has no authentication at all and traces
+      # carry request metadata. Publishing it on 0.0.0.0 put it on the public
+      # origin IP, outside Cloudflare — no WAF, no rate limit, no auth.
+      # Reach it over an SSH tunnel: ssh -L 16686:127.0.0.1:16686 <host>
+      - "127.0.0.1:16686:16686"    # Jaeger UI
     expose:
       - "4317"           # OTLP gRPC (collector → jaeger)
     deploy:
