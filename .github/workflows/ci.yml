@@ -947,9 +947,14 @@ jobs:
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
+          # Only ssh connectivity failures (rc 255) are tolerated as "server
+          # unreachable → skip". A non-zero rc from the remote script itself
+          # (e.g. git fetch failing on root-owned .git) must FAIL the job — else
+          # the next step would deploy a stale checkout. Do not blanket `|| exit 0`.
+          set +e
           ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=no \
               -o ConnectTimeout=15 -o ServerAliveInterval=20 -o ServerAliveCountMax=3 \
-            "${SSH_USER}@${SSH_HOST}" bash -s << EOF || { echo "⚠️  Server unreachable — skipping pull"; exit 0; }
+            "${SSH_USER}@${SSH_HOST}" bash -s << EOF
           set -euo pipefail
           # Fix any root-owned git metadata left by Docker (including .git/FETCH_HEAD).
           # Scoped to .git/ and to chown — never chmod the worktree.
@@ -963,6 +968,15 @@ jobs:
           git reset --hard origin/main
           echo "── Code updated to: \$(git log --oneline -1)"
           EOF
+          rc=$?
+          set -e
+          if [ "$rc" -eq 255 ]; then
+            echo "⚠️  Server unreachable (ssh rc=255) — skipping pull"
+            exit 0
+          elif [ "$rc" -ne 0 ]; then
+            echo "❌ Remote pull failed (rc=$rc) — aborting before deploy so we never ship a stale checkout"
+            exit "$rc"
+          fi
 
       - name: Deploy via SSH
         env:
