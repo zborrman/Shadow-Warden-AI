@@ -77,7 +77,15 @@ jobs:
             echo "landing/ unchanged — no commit needed"
           else
             git commit -m "chore(landing): sync Astro dist [skip ci]"
-            git push origin main
+            # main is a protected branch requiring status checks, so a bare push
+            # from inside a main-triggered run is rejected ("N of N required
+            # status checks are expected"). That is a marketing-asset sync — it
+            # must never fail the pipeline, and above all must never block the
+            # Deploy to VPS job (see its `needs:`). Treat a rejected push as a
+            # no-op: Vercel still deploys from the merge commit itself.
+            git push origin main || {
+              echo "::warning::landing sync push rejected (protected branch) — skipping, Vercel deploys from the merge commit"
+            }
           fi
 
   # ── MkDocs Documentation Build ──────────────────────────────────────────────
@@ -902,7 +910,13 @@ jobs:
   deploy:
     name: Deploy to VPS
     runs-on: ubuntu-latest
-    needs: [test, lint, site-build]
+    # Deliberately NOT gated on site-build: that job rebuilds the static Astro
+    # marketing site and is orthogonal to the VPS API gateway. Coupling them let
+    # a marketing-asset sync failure (a rejected push to protected main) silently
+    # skip every production deploy — which is exactly how a merged security fix
+    # sat undeployed. The API deploy waits on the checks that actually validate
+    # the API: test + lint.
+    needs: [test, lint]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
     steps:
