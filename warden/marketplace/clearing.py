@@ -105,6 +105,47 @@ def _conn(db_path: str) -> Generator[sqlite3.Connection, None, None]:
         yield con
 
 
+def _resolve_buyer_tenant_id(buyer_agent_id: str) -> str:
+    """buyer_agent_id is a DID; the Budget Guardian is tenant-scoped. Falls
+    back to the raw agent_id when there's no KYA record (unknown owner) —
+    still worth authorizing, just under a less meaningful tenant identity.
+    Same pattern as listing.py/sanctions.py's own resolvers.
+    """
+    try:
+        from warden.marketplace.kya import get_kya_record
+        record = get_kya_record(buyer_agent_id)
+        if record and record.owner_tenant_id:
+            return record.owner_tenant_id
+    except Exception as exc:
+        log.debug("clearing: kya lookup failed for buyer=%s: %s", buyer_agent_id[:32], exc)
+    return buyer_agent_id
+
+
+def _authorize_clearing(buyer_agent_id: str, amount_usd: float) -> None:
+    """FT-6 money-authorization chokepoint — see warden/payments/authorize.py.
+
+    No-op unless AUTHORIZE_PAYMENT_ENFORCED=true. Runs before the clearing
+    record is written (inside clear(), not just clear_async()) so a DENY/
+    REQUIRE_APPROVAL verdict stops the trade before any row is created —
+    same convention as listing.py's _authorize_purchase(): both raise
+    ValueError, and both fail open if the authorization call itself blows up
+    (a plumbing bug must never brick a clearing flow nobody opted into).
+    """
+    try:
+        from warden.payments.authorize import authorize_payment
+        tenant_id = _resolve_buyer_tenant_id(buyer_agent_id)
+        result = authorize_payment(tenant_id, buyer_agent_id, "clear", amount_usd,
+                                    merchant=tenant_id)
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        log.warning("clearing: authorize_payment call failed, clearing proceeds: %s", exc)
+        record_failopen("payments_authorize", Reason.BACKEND_ERROR, exc)
+        return
+
+    if result.verdict in ("DENY", "REQUIRE_APPROVAL"):
+        raise ValueError(f"Clearing not authorized ({result.verdict}): {'; '.join(result.reasons)}")
+
+
 class ClearingEngine:
     """Executes final-stage market clearing for a completed negotiation round.
 
@@ -139,10 +180,15 @@ class ClearingEngine:
             existing.replayed = True
             return existing
 
+        # Authorize before any state mutation (FT-6): a DENY/REQUIRE_APPROVAL
+        # verdict must stop the trade before losing negotiations are rejected,
+        # not after.
+        agreed_price = self._fetch_agreed_price(winner_neg_id)
+        _authorize_clearing(buyer_agent_id, agreed_price)
+
         rejected = self._reject_losers(winner_neg_id, buyer_agent_id)
 
         # Compute platform take rate (Decimal math — float arithmetic is prohibited in billing)
-        agreed_price = self._fetch_agreed_price(winner_neg_id)
         agreed_dec   = Decimal(str(agreed_price))
         fee_dec      = (agreed_dec * _TAKE_RATE).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
         net_dec      = agreed_dec - fee_dec
