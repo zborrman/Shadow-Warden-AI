@@ -72,7 +72,7 @@ jobs:
       # ── 4. Upload artifact (always, for audit trail) ──────────────────────────
       - name: Upload scan result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name:            warden-scan-${{ github.sha }}
           path:            scan_result.json
