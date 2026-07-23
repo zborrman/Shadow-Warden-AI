@@ -62,15 +62,10 @@ def _fernet() -> Fernet:
 
 _db_lock  = threading.RLock()
 
-_AP2_DDL = """
-    CREATE TABLE IF NOT EXISTS commerce_mandates (
-        id              TEXT PRIMARY KEY,
-        tenant_id       TEXT NOT NULL,
-        data_enc        BLOB NOT NULL,
-        created_at      TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_mandates_tenant ON commerce_mandates(tenant_id);
-
+# Single source of truth for commerce_orders — service.py imports this rather
+# than carrying its own copy (FT-6 order-model consolidation, slice 1: kill
+# the literal duplicate DDL before the bigger cross-domain schema migration).
+COMMERCE_ORDERS_DDL = """
     CREATE TABLE IF NOT EXISTS commerce_orders (
         id              TEXT PRIMARY KEY,
         tenant_id       TEXT NOT NULL,
@@ -79,6 +74,18 @@ _AP2_DDL = """
         created_at      TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_orders_tenant ON commerce_orders(tenant_id);
+"""
+
+_AP2_DDL = f"""
+    CREATE TABLE IF NOT EXISTS commerce_mandates (
+        id              TEXT PRIMARY KEY,
+        tenant_id       TEXT NOT NULL,
+        data_enc        BLOB NOT NULL,
+        created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_mandates_tenant ON commerce_mandates(tenant_id);
+
+    {COMMERCE_ORDERS_DDL}
 
     CREATE TABLE IF NOT EXISTS commerce_receipts (
         id              TEXT PRIMARY KEY,
