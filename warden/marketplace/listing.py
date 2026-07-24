@@ -155,6 +155,143 @@ def _migrate_order_consolidation_columns(con: sqlite3.Connection) -> None:
     con.execute("CREATE INDEX IF NOT EXISTS idx_mp_tenant ON marketplace_purchases(tenant_id)")
 
 
+def _migrate_relax_asset_id_nullable(con: sqlite3.Connection) -> None:
+    """FT-6 order-model consolidation, Phase B — relax asset_id to nullable.
+
+    SQLite has no ALTER COLUMN, so loosening an existing NOT NULL constraint
+    means a full table rebuild: create the new shape, copy every row
+    byte-for-byte (this only relaxes a constraint — no existing row has a
+    NULL asset_id today, so nothing can be lost), drop the old table,
+    rename, recreate every index. No explicit BEGIN/COMMIT here — `con` (from
+    `open_db()`) already has a transaction open by the time it's yielded to
+    us (via `ensure_schema`'s own bookkeeping writes), so issuing a second
+    `BEGIN` would raise "cannot start a transaction within a transaction".
+    Atomicity instead comes from `open_db()`'s own try/finally: it commits
+    once, after this whole `_conn()` body returns; if any statement below
+    raises, that commit is skipped and the connection closes uncommitted,
+    which SQLite rolls back on its own. Idempotency check via PRAGMA
+    table_info runs first, so this executes at most once per database, ever.
+    """
+    info = con.execute("PRAGMA table_info(marketplace_purchases)").fetchall()
+    asset_id_row = next((row for row in info if row[1] == "asset_id"), None)
+    if asset_id_row is None or asset_id_row[3] == 0:   # notnull flag already 0
+        return
+    con.execute(
+        """
+        CREATE TABLE marketplace_purchases_new (
+            purchase_id     TEXT PRIMARY KEY,
+            listing_id      TEXT NOT NULL,
+            asset_id        TEXT,
+            buyer_agent     TEXT NOT NULL,
+            seller_agent    TEXT NOT NULL,
+            price_paid      REAL NOT NULL,
+            status          TEXT NOT NULL DEFAULT 'pending',
+            escrow_id       TEXT NOT NULL DEFAULT '',
+            negotiation_id  TEXT NOT NULL DEFAULT '',
+            purchased_at    TEXT NOT NULL,
+            completed_at    TEXT,
+            idempotency_key TEXT,
+            domain          TEXT NOT NULL DEFAULT 'marketplace',
+            tenant_id       TEXT,
+            mandate_id      TEXT,
+            payment_token   TEXT,
+            reservation_id  TEXT,
+            stix_chain_id   TEXT,
+            shipped_at      TEXT,
+            receipt_json    TEXT,
+            metadata_json   TEXT
+        )
+        """
+    )
+    cols = (
+        "purchase_id, listing_id, asset_id, buyer_agent, seller_agent, price_paid, "
+        "status, escrow_id, negotiation_id, purchased_at, completed_at, idempotency_key, "
+        "domain, tenant_id, mandate_id, payment_token, reservation_id, stix_chain_id, "
+        "shipped_at, receipt_json, metadata_json"
+    )
+    con.execute(
+        f"INSERT INTO marketplace_purchases_new ({cols}) "
+        f"SELECT {cols} FROM marketplace_purchases"
+    )
+    con.execute("DROP TABLE marketplace_purchases")
+    con.execute("ALTER TABLE marketplace_purchases_new RENAME TO marketplace_purchases")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_mp_buyer ON marketplace_purchases(buyer_agent)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_mp_seller ON marketplace_purchases(seller_agent)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_mp_listing ON marketplace_purchases(listing_id)")
+    con.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_mp_idempotency_key "
+        "ON marketplace_purchases(idempotency_key) WHERE idempotency_key IS NOT NULL"
+    )
+    con.execute("CREATE INDEX IF NOT EXISTS idx_mp_domain ON marketplace_purchases(domain)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_mp_tenant ON marketplace_purchases(tenant_id)")
+
+
+def upsert_mirrored_order(
+    domain: str,
+    purchase_id: str,
+    *,
+    buyer_agent: str = "",
+    seller_agent: str = "",
+    asset_id: str | None = None,
+    price_paid: float = 0.0,
+    status: str = "pending",
+    tenant_id: str | None = None,
+    mandate_id: str | None = None,
+    payment_token: str | None = None,
+    reservation_id: str | None = None,
+    stix_chain_id: str | None = None,
+    shipped_at: str | None = None,
+    receipt_json: str | None = None,
+    metadata_json: str | None = None,
+    purchased_at: str | None = None,
+    db_path: str | None = None,
+) -> None:
+    """FT-6 Phase B dual-write: mirror a non-marketplace order into marketplace_purchases.
+
+    Callers (m2m_store.InventoryManager, agentic_commerce.service) call this
+    AFTER their own domain table write already succeeded — this is a mirror,
+    not the source of truth, so a mirror failure must never surface as a
+    failure of the caller's real write. Upserts on purchase_id (the primary
+    key), so a second call with the same purchase_id (e.g. status/shipped_at/
+    receipt_json updates) updates the existing mirrored row instead of
+    inserting a duplicate.
+
+    ``db_path`` defaults to ``None`` (resolved to the module's ``_DB_PATH``
+    inside the function body, not as a bound default) rather than following
+    this file's usual ``= _DB_PATH`` pattern — unlike every other function
+    here, this one is called from OTHER modules that don't know marketplace's
+    path, so it must observe test-time monkeypatching of ``listing._DB_PATH``,
+    which a def-time-bound default cannot.
+    """
+    now = purchased_at or datetime.now(UTC).isoformat()
+    try:
+        with _conn(db_path or _DB_PATH) as con:
+            con.execute(
+                "INSERT INTO marketplace_purchases "
+                "(purchase_id, listing_id, asset_id, buyer_agent, seller_agent, price_paid, "
+                " status, purchased_at, domain, tenant_id, mandate_id, payment_token, "
+                " reservation_id, stix_chain_id, shipped_at, receipt_json, metadata_json) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+                # price_paid is deliberately NOT in this UPDATE SET: it's set once at
+                # order-creation time; a later status/receipt/shipped_at update call
+                # (e.g. ap2.py's receipt mirror) omits it and must not zero it out.
+                "ON CONFLICT(purchase_id) DO UPDATE SET "
+                "status=excluded.status, "
+                "shipped_at=COALESCE(excluded.shipped_at, marketplace_purchases.shipped_at), "
+                "receipt_json=COALESCE(excluded.receipt_json, marketplace_purchases.receipt_json), "
+                "metadata_json=COALESCE(excluded.metadata_json, marketplace_purchases.metadata_json)",
+                (
+                    purchase_id, "", asset_id, buyer_agent, seller_agent, price_paid,
+                    status, now, domain, tenant_id, mandate_id, payment_token,
+                    reservation_id, stix_chain_id, shipped_at, receipt_json, metadata_json,
+                ),
+            )
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        log.warning("marketplace_purchases mirror write failed, source-of-truth write unaffected: %s", exc)
+        record_failopen("marketplace_mirror_order", Reason.BACKEND_ERROR, exc)
+
+
 @contextmanager
 def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     with open_db(
@@ -165,6 +302,7 @@ def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
         _migrate_kya_column(con)
         _migrate_idempotency_column(con)
         _migrate_order_consolidation_columns(con)
+        _migrate_relax_asset_id_nullable(con)
         yield con
 
 

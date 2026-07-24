@@ -184,6 +184,32 @@ class InventoryManager:
                 "INSERT OR REPLACE INTO m2m_orders(id, data_json, created_at) VALUES(?,?,?)",
                 (order.id, order.model_dump_json(), order.created_at or datetime.now(UTC).isoformat()),
             )
+        self._mirror_to_marketplace(order)
+
+    def _mirror_to_marketplace(self, order: Order) -> None:
+        """FT-6 Phase B dual-write — m2m_orders stays the source of truth."""
+        try:
+            import json as _json
+
+            from warden.marketplace.listing import upsert_mirrored_order
+            upsert_mirrored_order(
+                "m2m_store",
+                order.id,
+                buyer_agent=order.agent_id,
+                asset_id=order.product_id,
+                price_paid=order.total,
+                status=order.status,
+                tenant_id=order.tenant_id or None,
+                mandate_id=order.mandate_id or None,
+                payment_token=order.payment_token or None,
+                reservation_id=order.reservation_id or None,
+                stix_chain_id=order.stix_chain_id or None,
+                shipped_at=order.shipped_at or None,
+                metadata_json=_json.dumps({"offer_id": order.offer_id, "qty": order.qty}),
+                purchased_at=order.created_at or None,
+            )
+        except Exception as exc:
+            log.debug("m2m_orders -> marketplace_purchases mirror unavailable: %s", exc)
 
     def get_order(self, order_id: str) -> Order | None:
         with _db_lock, _conn() as con:

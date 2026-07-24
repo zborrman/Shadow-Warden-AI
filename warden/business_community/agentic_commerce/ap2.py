@@ -276,6 +276,14 @@ class AP2Processor:
                 "INSERT INTO commerce_receipts(id, order_id, data_json, created_at) VALUES(?,?,?,?)",
                 (receipt.id, order_ref, json.dumps(receipt.to_dict()), receipt.timestamp),
             )
+        try:
+            from warden.marketplace.listing import upsert_mirrored_order
+            upsert_mirrored_order(
+                "agentic_commerce", order_ref,
+                status="PAID", receipt_json=json.dumps(receipt.to_dict()),
+            )
+        except Exception as exc:
+            log.debug("commerce_receipts -> marketplace_purchases mirror unavailable: %s", exc)
 
         log.info("Payment executed: txn=%s mandate=%s amount=%.2f merchant=%s", transaction_id, mandate_id, amount, merchant)
         return {

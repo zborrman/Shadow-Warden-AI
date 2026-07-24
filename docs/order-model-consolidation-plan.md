@@ -101,20 +101,32 @@ unaffected" property intact.
    `idx_mp_tenant` indexes. Purely additive `ALTER TABLE ADD COLUMN` — no behavior
    change, every current reader unaffected, 5 dedicated tests + full marketplace/
    analytics/Sybil/trust-graph regression suite green.
-2. **Phase B — dual-write + asset_id rebuild (next, not started).** Two things land
-   together since Phase B is the first point either is needed: (a) the `asset_id`
-   NOT NULL → nullable table rebuild described above, tested against a copy of
-   production-shaped data before running for real: create `marketplace_purchases_new`
-   with the relaxed constraint, `INSERT INTO ... SELECT` from the old table preserving
-   every existing value, `DROP`+`RENAME`, recreate all indexes, wrapped in one explicit
-   transaction so a mid-way failure rolls back cleanly rather than leaving a half-built
-   table; (b) `m2m_store.InventoryManager.save_order()`/`.ship()` and
-   `agentic_commerce.service._save_order()` gain a second write: after their existing
-   blob-table write succeeds, upsert a mirrored fielded row into
-   `marketplace_purchases` with the appropriate `domain`. Reads are unchanged — still
-   from the original blob tables. This is the safe bake period; run it long enough to
-   compare row counts/spot-check field values between the blob and fielded copies
-   before trusting the fielded copy as authoritative.
+2. **✅ Phase B — dual-write + asset_id rebuild, DONE.** `_migrate_relax_asset_id_nullable()`
+   rebuilds `marketplace_purchases` (create-copy-drop-rename, all indexes recreated) the
+   first time it sees `asset_id` still `NOT NULL`; every subsequent call short-circuits on
+   a `PRAGMA table_info` check. No explicit `BEGIN`/`COMMIT` — `open_db()`'s connection
+   already has a transaction open by the time it's yielded (from `ensure_schema`'s own
+   bookkeeping), so atomicity comes from `open_db()`'s own commit-once/close-on-exception
+   instead (an explicit `BEGIN IMMEDIATE` raised `OperationalError: cannot start a
+   transaction within a transaction` in testing — fixed before this landed). New
+   `warden/marketplace/listing.py::upsert_mirrored_order()` is the single write path both
+   dual-writers call; `m2m_store.InventoryManager.save_order()` and
+   `agentic_commerce.service.AgenticCommerceService._save_order()` (plus `ap2.py`'s receipt
+   write) call it after their own blob-table write already succeeded. Reads are still from
+   the original blob tables — Phase C's job, not this one.
+
+   Two real bugs caught during implementation, not just at review: (1) the upsert's
+   `ON CONFLICT` clause originally included `price_paid=excluded.price_paid` — a later
+   status/receipt-only call (e.g. `ap2.py`'s receipt mirror, which never passes
+   `price_paid`) would have zeroed out the real price on every update; fixed by dropping
+   `price_paid` from the `UPDATE SET` entirely (set once at creation, never touched
+   again) and wrapping `shipped_at`/`receipt_json`/`metadata_json` in `COALESCE` so an
+   omitted field preserves its previous value instead of overwriting with `NULL`.
+   (2) `upsert_mirrored_order`'s `db_path` parameter can't use this file's usual
+   `= _DB_PATH` bound-default pattern, because it's called from OTHER modules that rely
+   entirely on the default and need test-time monkeypatching of `listing._DB_PATH` to
+   work — a def-time-bound default can't see that. Resolved dynamically inside the
+   function body instead (`db_path or _DB_PATH`).
 3. **Phase C — cutover reads.** Once Phase B's dual-write has been running cleanly,
    switch `list_orders()`/`get_order()`/`order_history()`/`get_receipt()` to query
    `marketplace_purchases WHERE domain = ...` instead of the original blob tables.
@@ -129,11 +141,15 @@ unaffected" property intact.
 
 - Phase A shipped (nine additive nullable columns + two indexes on
   `marketplace_purchases`; `commerce_orders` DDL dedup landed in the prior slice).
-- `commerce_orders` → `asset_id` mapping resolved (nullable, deferred rebuild to
-  Phase B — see above).
-- Phase B (dual-write + the `asset_id` table rebuild) is the next slice and has not
-  started. `m2m_orders`/`commerce_orders`/`commerce_receipts` are untouched — still the
-  only writers/readers for their respective domains.
+- Phase B shipped (`asset_id` rebuild + `m2m_store`/`agentic_commerce` dual-write via
+  `upsert_mirrored_order()`). `m2m_orders`/`commerce_orders`/`commerce_receipts` remain
+  the source of truth — every read still goes through them. Two mirror rows exist per
+  order from now on: the original blob row (authoritative) and a fielded
+  `marketplace_purchases` row (best-effort, fail-soft, for Phase C to eventually read
+  from once trusted).
+- Phase C (cutover reads) is next and has not started — needs a bake period on Phase B's
+  dual-write first (compare row counts / spot-check field values between the blob and
+  fielded copies) before any reader is switched over.
 - Does not estimate a timeline beyond what `fintech-grade-commerce-plan.md` already
   states (FT-6 "Consolidation (2 weeks)" covers all three FT-6 sub-parts, of which this
   is the largest).
