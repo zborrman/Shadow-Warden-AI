@@ -117,6 +117,13 @@ services:
       - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
       - WARDEN_API_KEY=${WARDEN_API_KEY:-}
       - ALLOW_UNAUTHENTICATED=${ALLOW_UNAUTHENTICATED:-false}
+      # Shared secret proving a request came through the Vercel edge rewrite
+      # (www.* → Vercel → api.*), so get_client_ip trusts the forwarded real
+      # client IP. Must equal VERCEL_PROXY_SECRET in the Vercel project env.
+      # Empty = feature off (fail-safe). The service uses an explicit env list
+      # (no env_file), so this passthrough is required for the .env value to
+      # reach the container.
+      - VERCEL_PROXY_SECRET=${VERCEL_PROXY_SECRET:-}
       # TEMPORARY MITIGATION: soft-block the monthly quota instead of returning
       # 429. This deployment is single-key (WARDEN_API_KEY, no
       # WARDEN_API_KEYS_PATH), so every caller resolves to the "default" tenant
