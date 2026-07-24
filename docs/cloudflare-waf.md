@@ -254,27 +254,42 @@ the origin IP skips **all** of it: rate limiting, the OWASP ruleset, Bot Fight,
 the `/staff/` API-key rule, the preflight Worker. Full (Strict) TLS does not
 prevent this — it only proves the origin holds a valid cert.
 
-Two controls close it, and both are required:
+**Implemented (2026-07-24): iptables `DOCKER-USER` allowlist.** Only Cloudflare
+source IPs may reach the Docker-published `80/443` on the public NIC (`eth0`);
+everything else is dropped. Verified: a direct hit to the origin IP times out,
+the Cloudflare path stays `200`/`401`.
 
-1. **Authenticated Origin Pulls (mTLS).** SSL/TLS → Origin Server → enable
-   *Authenticated Origin Pulls* (zone-level), then make Caddy require the
-   Cloudflare client certificate on the public vhosts:
+- Script: `/usr/local/sbin/cf-origin-lock.sh` — builds ipset `cf4`/`cf6` from
+  `cloudflare.com/ips-v4|v6` (cached to `/etc/cf-origin-lock/`, **fails closed**
+  if the list is unavailable), then inserts 4 `DOCKER-USER` rules scoped to
+  `-i eth0`: RETURN (allow) CF source on `tcp 80,443` + `udp 443` (HTTP/3), DROP
+  the rest. Idempotent, tagged `--comment cf-lock`.
+- Boot persistence: `cf-origin-lock.service` (systemd oneshot,
+  `After=docker.service network-online.target`, enabled) reapplies the rules on
+  every boot — a reboot clears iptables and Docker recreates `DOCKER-USER` empty.
+- Refresh CF ranges: re-run the script or `systemctl restart cf-origin-lock`.
+- Recovery if ingress breaks: `iptables -F DOCKER-USER; ip6tables -F DOCKER-USER`
+  restores open access. SSH/`22` is never touched by these rules.
 
-```text
-   tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-       client_auth {
-           mode                 require_and_verify
-           trusted_ca_cert_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
-       }
-   }
-```
+Two traps that make the "obvious" fixes silently ineffective here:
 
-   CA bundle: <https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/>
+- **ufw does NOT work.** Docker publishes ports via its own iptables DNAT that
+  runs *before* ufw's `INPUT` chain, so `ufw deny`/allowlists have zero effect on
+  container-published ports. The only reliable hook is `DOCKER-USER` (it runs
+  before Docker's own FORWARD rules). Scoping to `-i eth0` is required — without
+  it the DROP also kills internal `cloudflared → proxy` and inter-container
+  traffic.
+- **Caddy `client_auth` (Authenticated Origin Pulls) does NOT work.** All vhosts
+  share one multi-SAN cert, and Caddy v2.11.4 silently drops
+  `client_authentication` when it consolidates the connection policies of ≥2
+  same-cert subjects — `caddy adapt | grep -c client_authentication` returns `0`
+  while `caddy validate` still says "valid". Tried in #216/#217, removed in #219
+  as security theater. The Cloudflare "Global" Authenticated Origin Pulls toggle
+  is ON but inert without origin-side enforcement — harmless, left on.
 
-2. **Host firewall.** Allow `80/443` only from Cloudflare's published ranges
-   (<https://www.cloudflare.com/ips/>), or — better — drop the public
-   `80/443` bind entirely and let the `cloudflared` tunnel be the only ingress.
-   `docker-compose.yml` already runs two `cloudflared` replicas.
+Alternative for later: drop the public `80/443` bind entirely and let the
+`cloudflared` tunnel (two replicas already in `docker-compose.yml`) be the only
+ingress — then there is no public origin port to lock at all.
 
 Ports that must **never** be published on the public interface (they are bound
 to `127.0.0.1` in `docker-compose.yml` — reach them over SSH port-forward):
