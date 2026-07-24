@@ -139,7 +139,17 @@ def update_drift(agent_id: str, events: list) -> float:
     merged = blend_vectors(prev_vec, new_vec, lam)
     _save_baseline(agent_id, merged, new_ewma, sample_count + len(labels))
     _emit_drift(agent_id, new_ewma)
+    _maybe_quarantine(agent_id, new_ewma)
     return new_ewma
+
+
+def _maybe_quarantine(agent_id: str, drift_score: float) -> None:
+    """Quarantine the agent when drift crosses the configured threshold."""
+    if drift_score < settings.gsam_drift_quarantine_threshold:
+        return
+    with contextlib.suppress(Exception):
+        from warden.gsam.quarantine import quarantine  # noqa: PLC0415
+        quarantine(agent_id, reason="drift_threshold", drift_score=drift_score)
 
 
 def get_drift(agent_id: str) -> float:

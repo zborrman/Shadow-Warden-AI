@@ -417,6 +417,28 @@ async def dispatch_action(
             except Exception as exc:
                 log.debug("dispatch_action: brand agent fail-open: %s", exc)
 
+    # GSAM quarantine gate — fail-open: infra errors never block a dispatch.
+    _gsam_agent = (
+        (body.payload.get("agent_id") or body.payload.get("buyer_agent_id")
+         or body.payload.get("from_agent_id") or request.headers.get("X-Agent-ID", ""))
+        if isinstance(body.payload, dict) else request.headers.get("X-Agent-ID", "")
+    )
+    if _gsam_agent:
+        try:
+            from warden.gsam.quarantine import is_quarantined  # noqa: PLC0415
+
+            if is_quarantined(str(_gsam_agent)):
+                log.info("dispatch_action: GSAM quarantined agent=%s action=%s",
+                         str(_gsam_agent)[:32], body.action_type)
+                return {
+                    "gsam_quarantined": True,
+                    "action_type":      body.action_type,
+                    "agent_id":         str(_gsam_agent),
+                    "reason":           "agent under GSAM drift quarantine",
+                }
+        except Exception as exc:
+            log.debug("dispatch_action: gsam quarantine fail-open: %s", exc)
+
     # Load sub-module handlers (existing 9 types)
     handlers: dict[str, Any] = {
         # Stage 2

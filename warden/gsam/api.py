@@ -11,8 +11,9 @@ returns queue counters, never observation data.
 from __future__ import annotations
 
 import logging
+import os
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from warden.gsam.collector import gsam_emit, stats
@@ -90,3 +91,29 @@ async def ingest_observation(body: ExternalObservation) -> dict:
 async def gsam_health() -> dict:
     """Collector health — queue depth, spool size, ClickHouse reachability."""
     return stats()
+
+
+def _require_admin(x_admin_key: str | None) -> None:
+    admin_key = os.getenv("ADMIN_KEY", "")
+    if not admin_key or x_admin_key != admin_key:
+        raise HTTPException(status_code=403, detail="X-Admin-Key required.")
+
+
+@router.get("/quarantine", dependencies=_GSAM_GATE)
+async def list_quarantine() -> dict:
+    """List agents currently under GSAM drift quarantine."""
+    from warden.gsam.quarantine import list_active  # noqa: PLC0415
+    active = list_active()
+    return {"count": len(active), "agents": active}
+
+
+@router.post("/quarantine/{agent_id}/release", dependencies=_GSAM_GATE)
+async def release_quarantine(
+    agent_id: str,
+    x_admin_key: str | None = Header(default=None),
+) -> dict:
+    """Release an agent from quarantine (admin-only, X-Admin-Key)."""
+    _require_admin(x_admin_key)
+    from warden.gsam.quarantine import release  # noqa: PLC0415
+    release(agent_id)
+    return {"released": True, "agent_id": agent_id}
