@@ -74,25 +74,22 @@ http:// {
 	header_up X-Forwarded-Proto {scheme}
 }
 
-# ── Authenticated Origin Pulls snippet (mTLS: Cloudflare edge → origin) ───────
-# Requires every TLS client (i.e. the Cloudflare edge) to present the shared
-# Cloudflare origin-pull client certificate. A request sent straight to the
-# origin IP has no such cert and the handshake is rejected — this is what makes
+# ── Authenticated Origin Pulls (mTLS: Cloudflare edge → origin) ───────────────
+# Every public vhost's `tls` block inlines a `client_auth` policy requiring the
+# shared Cloudflare origin-pull client certificate. A request sent straight to
+# the origin IP has no such cert and the TLS handshake is rejected — this makes
 # every edge-only WAF / rate-limit / Bot-Fight rule un-bypassable.
 #
-# The trusted CA is Cloudflare's shared origin-pull CA (matches the "Global"
-# Authenticated Origin Pulls toggle in the dashboard):
+# NOTE: this MUST be inlined per-vhost. A Caddyfile snippet imported *inside* a
+# `tls {}` block does NOT expand — Caddy reports the config valid but emits no
+# client_authentication policy (silent no-op, verified on Caddy v2.11.4). Do not
+# refactor these back into an `import`.
+#
+# Trusted CA = Cloudflare's shared origin-pull CA (matches the dashboard's
+# "Global" Authenticated Origin Pulls toggle):
 #   https://developers.cloudflare.com/ssl/static/authenticated_origin_pull_ca.pem
-# Download it into the ./ssl mount as cloudflare-origin-pull-ca.pem BEFORE
-# deploying this config, or Caddy will reject ALL traffic on these vhosts.
-(cloudflare_aop) {
-	client_auth {
-		mode require_and_verify
-		trust_pool file {
-			pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
-		}
-	}
-}
+# It must exist at /etc/caddy/ssl/cloudflare-origin-pull-ca.pem BEFORE deploy or
+# Caddy rejects ALL traffic on these vhosts.
 
 # ── Security header snippet (reused across all HTTPS sites) ───────────────────
 (security_headers) {
@@ -117,7 +114,12 @@ http:// {
 # ── API Gateway ───────────────────────────────────────────────────────────────
 api.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-		import cloudflare_aop
+		client_auth {
+			mode require_and_verify
+			trust_pool file {
+				pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+			}
+		}
 	}
 
 	import security_headers
@@ -152,7 +154,12 @@ api.shadow-warden-ai.com {
 # ── Tenant Portal (Next.js) ───────────────────────────────────────────────────
 app.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-		import cloudflare_aop
+		client_auth {
+			mode require_and_verify
+			trust_pool file {
+				pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+			}
+		}
 	}
 
 	import security_headers
@@ -167,7 +174,12 @@ app.shadow-warden-ai.com {
 # ── Analytics Dashboard ───────────────────────────────────────────────────────
 analytics.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-		import cloudflare_aop
+		client_auth {
+			mode require_and_verify
+			trust_pool file {
+				pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+			}
+		}
 	}
 
 	import security_headers
@@ -182,7 +194,12 @@ analytics.shadow-warden-ai.com {
 # ── Portal / SOC Dashboard (Next.js) — public-facing login + SOC UI ─────────
 portal.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-		import cloudflare_aop
+		client_auth {
+			mode require_and_verify
+			trust_pool file {
+				pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+			}
+		}
 	}
 
 	import security_headers
@@ -208,7 +225,12 @@ portal.shadow-warden-ai.com {
 # ── SOC Dashboard (Next.js) ──────────────────────────────────────────────────
 dash.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-		import cloudflare_aop
+		client_auth {
+			mode require_and_verify
+			trust_pool file {
+				pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+			}
+		}
 	}
 
 	import security_headers
@@ -223,7 +245,12 @@ dash.shadow-warden-ai.com {
 # ── API Documentation (Redoc) ────────────────────────────────────────────────
 docs.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-		import cloudflare_aop
+		client_auth {
+			mode require_and_verify
+			trust_pool file {
+				pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+			}
+		}
 	}
 
 	import security_headers
@@ -238,7 +265,12 @@ docs.shadow-warden-ai.com {
 # HSTS headers on-domain while letting the Worker serve from Cloudflare's edge.
 marketplace.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-		import cloudflare_aop
+		client_auth {
+			mode require_and_verify
+			trust_pool file {
+				pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+			}
+		}
 	}
 
 	import security_headers
@@ -259,7 +291,12 @@ marketplace.shadow-warden-ai.com {
 # ── Landing Page (static) ─────────────────────────────────────────────────────
 shadow-warden-ai.com, www.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem {
-		import cloudflare_aop
+		client_auth {
+			mode require_and_verify
+			trust_pool file {
+				pem_file /etc/caddy/ssl/cloudflare-origin-pull-ca.pem
+			}
+		}
 	}
 
 	import security_headers
