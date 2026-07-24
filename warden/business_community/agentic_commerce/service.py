@@ -169,6 +169,35 @@ class AgenticCommerceService:
                 (order.id, order.tenant_id, order.mandate_id,
                  json.dumps(order.to_dict()), order.created_at),
             )
+        self._mirror_to_marketplace(order)
+
+    def _mirror_to_marketplace(self, order: PurchaseOrder) -> None:
+        """FT-6 Phase B dual-write — commerce_orders stays the source of truth.
+
+        No asset_id equivalent for this domain (store_url is a merchant, not
+        an asset; items is a multi-item cart) — left NULL, per the resolved
+        Phase A/B decision in docs/order-model-consolidation-plan.md.
+        """
+        try:
+            from warden.marketplace.listing import upsert_mirrored_order
+            upsert_mirrored_order(
+                "agentic_commerce",
+                order.id,
+                price_paid=order.total,
+                status=order.status,
+                tenant_id=order.tenant_id or None,
+                mandate_id=order.mandate_id or None,
+                stix_chain_id=order.stix_chain_id or None,
+                metadata_json=json.dumps({
+                    "store_url": order.store_url,
+                    "items": [item.model_dump() for item in order.items],
+                    "mcp_intent": order.mcp_intent,
+                    "ueciid": order.ueciid,
+                }),
+                purchased_at=order.created_at or None,
+            )
+        except Exception as exc:
+            log.debug("commerce_orders -> marketplace_purchases mirror unavailable: %s", exc)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
