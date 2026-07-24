@@ -22,11 +22,23 @@ def _scope(headers: dict[str, str], *, state=None) -> dict:
 
 
 class TestTenantResolution:
-    def test_explicit_x_tenant_id_header_wins(self):
-        assert qm._get_tenant_id_from_scope(_scope({"X-Tenant-ID": "acme"})) == "acme"
+    def test_client_supplied_x_tenant_id_cannot_select_the_bucket(self):
+        """A spoofable header must not choose whose quota is charged."""
+        got = qm._get_tenant_id_from_scope(_scope({"X-Tenant-ID": "victim-tenant"}))
+        assert got == "anonymous"
+        assert got != "victim-tenant"
 
-    def test_populated_state_wins_over_everything(self):
-        s = _scope({"X-Tenant-ID": "hdr"}, state={"tenant_id": "from-state"})
+    def test_x_tenant_id_cannot_override_a_resolved_key(self, monkeypatch):
+        monkeypatch.setattr(
+            "warden.auth_guard.resolve_tenant_id",
+            lambda key: "real-tenant",
+            raising=True,
+        )
+        s = _scope({"X-API-Key": "k", "X-Tenant-ID": "enterprise-unlimited"})
+        assert qm._get_tenant_id_from_scope(s) == "real-tenant"
+
+    def test_populated_state_wins(self):
+        s = _scope({"X-API-Key": "k"}, state={"tenant_id": "from-state"})
         assert qm._get_tenant_id_from_scope(s) == "from-state"
 
     def test_api_key_resolves_to_tenant(self, monkeypatch):
@@ -54,6 +66,32 @@ class TestTenantResolution:
 
     def test_no_key_no_header_falls_back_to_anonymous(self):
         assert qm._get_tenant_id_from_scope(_scope({})) == "anonymous"
+
+
+class TestRealResolverContract:
+    """Exercise the actual auth_guard.resolve_tenant_id, not a mock, so a change
+    to its return contract would break this."""
+
+    def test_single_key_deployment_resolves_to_default(self, monkeypatch):
+        import warden.auth_guard as ag
+
+        monkeypatch.setattr(ag, "_VALID_KEY", "s3cret-key", raising=False)
+        monkeypatch.setattr(ag, "_KEYS_PATH", "", raising=False)
+
+        # The real resolver maps the configured single key → "default".
+        assert ag.resolve_tenant_id("s3cret-key") == "default"
+        # A spoofed X-Tenant-ID alongside the key must not divert the bucket —
+        # exercised through the real resolver path, not a mock.
+        scope = _scope({"X-API-Key": "s3cret-key", "X-Tenant-ID": "unlimited-tenant"})
+        assert qm._get_tenant_id_from_scope(scope) == "default"
+
+    def test_wrong_key_is_anonymous(self, monkeypatch):
+        import warden.auth_guard as ag
+
+        monkeypatch.setattr(ag, "_VALID_KEY", "s3cret-key", raising=False)
+        monkeypatch.setattr(ag, "_KEYS_PATH", "", raising=False)
+
+        assert qm._get_tenant_id_from_scope(_scope({"X-API-Key": "wrong"})) == "anonymous"
 
     def test_resolver_failure_is_swallowed_to_anonymous(self, monkeypatch):
         def boom(key):
