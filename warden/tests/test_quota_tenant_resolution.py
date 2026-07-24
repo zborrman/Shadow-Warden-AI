@@ -80,7 +80,10 @@ class TestRealResolverContract:
 
         # The real resolver maps the configured single key → "default".
         assert ag.resolve_tenant_id("s3cret-key") == "default"
-        assert qm._get_tenant_id_from_scope(_scope({"X-API-Key": "s3cret-key"})) == "default"
+        # A spoofed X-Tenant-ID alongside the key must not divert the bucket —
+        # exercised through the real resolver path, not a mock.
+        scope = _scope({"X-API-Key": "s3cret-key", "X-Tenant-ID": "unlimited-tenant"})
+        assert qm._get_tenant_id_from_scope(scope) == "default"
 
     def test_wrong_key_is_anonymous(self, monkeypatch):
         import warden.auth_guard as ag
