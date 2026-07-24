@@ -1,0 +1,52 @@
+# Regression alarm for the Cloudflare-only origin lockdown.
+#
+# Runs from GitHub's runners (a non-Cloudflare source IP), so a direct hit to the
+# origin IP MUST be dropped by the DOCKER-USER firewall (see deploy/origin-lockdown/).
+# If the origin ever answers directly, the lockdown has regressed — every edge WAF /
+# rate-limit / skip rule is bypassable again — and this job FAILS (+ optional Slack).
+name: origin-lockdown-probe
+
+on:
+  schedule:
+    - cron: "17 */6 * * *" # every 6 hours
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Direct-to-origin must be refused
+        env:
+          # Override in repo settings → Variables if the origin IP changes.
+          ORIGIN_IP: ${{ vars.ORIGIN_IP }}
+          HOSTN: api.shadow-warden-ai.com
+        run: |
+          set -u
+          IP="${ORIGIN_IP:-91.98.234.160}"
+          fail=0
+          for port in 443 80; do
+            [ "$port" = 443 ] && url="https://$HOSTN/health" || url="http://$HOSTN/health"
+            code=$(curl -sS -k --resolve "$HOSTN:$port:$IP" --max-time 15 \
+                     -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo 000)
+            echo "direct-to-origin :$port -> HTTP $code"
+            if [ "$code" != "000" ]; then
+              echo "::error::Origin reachable DIRECTLY on :$port (HTTP $code) — Cloudflare-only lockdown is BROKEN. See deploy/origin-lockdown/."
+              fail=1
+            fi
+          done
+          # Context only (not a failure condition here): the Cloudflare path should stay up.
+          cf=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "https://$HOSTN/health" 2>/dev/null || echo 000)
+          echo "via Cloudflare -> HTTP $cf"
+          exit $fail
+
+      - name: Alert Slack on regression
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          [ -z "$SLACK_WEBHOOK_URL" ] && { echo "no webhook configured; skipping Slack alert"; exit 0; }
+          curl -s -X POST "$SLACK_WEBHOOK_URL" -H 'Content-Type: application/json' \
+            --data '{"text":":rotating_light: *Origin lockdown regression* — api.shadow-warden-ai.com is reachable directly at the origin IP, bypassing Cloudflare WAF/rate-limit. Re-run `deploy/origin-lockdown/install.sh` on the VPS. https://github.com/zborrman/Shadow-Warden-AI/blob/main/deploy/origin-lockdown/README.md"}'

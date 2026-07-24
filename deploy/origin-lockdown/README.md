@@ -11,7 +11,13 @@ directory pins the control that closes that hole, so a server rebuild or re-run 
 |------|---------|
 | `cf-origin-lock.sh` | Builds an ipset of Cloudflare ranges, inserts `DOCKER-USER` rules scoped to the public NIC: allow CF source on tcp 80,443 + udp 443, drop the rest. Fails **closed**. |
 | `cf-origin-lock.service` | systemd oneshot that reapplies the rules after Docker on every boot (a reboot clears iptables). |
-| `install.sh` | Installs both, enables + starts the service. Idempotent. |
+| `cf-origin-lock-refresh.timer` | Weekly timer that re-runs the service so a change to Cloudflare's ranges can't break the edge path or leave stale allows. |
+| `install.sh` | Installs the script, service, and timer; enables + starts them. Idempotent. |
+
+Regression alarm: `.github/workflows/origin-lockdown-probe.yml` runs every 6h from
+GitHub's runners (a non-Cloudflare IP) and **fails + Slack-alerts** if a direct hit
+to the origin IP ever succeeds — i.e. if the lockdown regresses. Set repo variable
+`ORIGIN_IP` if the origin address changes; set secret `SLACK_WEBHOOK_URL` for alerts.
 
 ## Install / re-apply
 
@@ -37,8 +43,9 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://api.shadow-warden-ai.com/healt
 
 ## Refresh Cloudflare ranges
 
-`systemctl restart cf-origin-lock` (or re-run the script). Consider a weekly
-`systemd` timer so a Cloudflare range change can't silently break the edge path.
+Automatic: `cf-origin-lock-refresh.timer` re-runs the service weekly
+(`systemctl list-timers cf-origin-lock-refresh`). Manual: `systemctl restart
+cf-origin-lock` (or re-run the script).
 
 ## Why not the "obvious" approaches
 

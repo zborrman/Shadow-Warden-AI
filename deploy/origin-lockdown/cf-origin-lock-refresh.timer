@@ -1,0 +1,13 @@
+[Unit]
+Description=Weekly refresh of Cloudflare origin-lock ranges (re-runs cf-origin-lock.service)
+Documentation=https://github.com/zborrman/Shadow-Warden-AI/blob/main/deploy/origin-lockdown/README.md
+
+[Timer]
+# Sunday 04:00; catch up if the machine was off at the scheduled time.
+OnCalendar=Sun *-*-* 04:00:00
+Persistent=true
+# Trigger the existing oneshot, which re-fetches CF ranges and reapplies the rules.
+Unit=cf-origin-lock.service
+
+[Install]
+WantedBy=timers.target
