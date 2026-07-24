@@ -15,14 +15,19 @@ if ! command -v ipset &>/dev/null; then
   apt-get update -qq && apt-get install -y ipset
 fi
 
-install -m 0755 "$HERE/cf-origin-lock.sh"      /usr/local/sbin/cf-origin-lock.sh
-install -m 0644 "$HERE/cf-origin-lock.service" /etc/systemd/system/cf-origin-lock.service
+install -m 0755 "$HERE/cf-origin-lock.sh"            /usr/local/sbin/cf-origin-lock.sh
+install -m 0644 "$HERE/cf-origin-lock.service"       /etc/systemd/system/cf-origin-lock.service
+install -m 0644 "$HERE/cf-origin-lock-refresh.timer" /etc/systemd/system/cf-origin-lock-refresh.timer
 
 systemctl daemon-reload
 systemctl enable --now cf-origin-lock.service
+# Weekly refresh so a change to Cloudflare's published ranges can't silently
+# break the edge path or leave stale allows.
+systemctl enable --now cf-origin-lock-refresh.timer
 
 echo "── cf-origin-lock status ──"
 systemctl is-active cf-origin-lock.service
 iptables -L DOCKER-USER -n | grep -c cf-lock | sed 's/^/DOCKER-USER cf-lock rules: /'
+systemctl is-active cf-origin-lock-refresh.timer | sed 's/^/refresh timer: /'
 echo "Done. Verify from OUTSIDE: a direct hit to the origin IP on :80/:443 should"
 echo "time out, while the Cloudflare path stays 200. Recovery: iptables -F DOCKER-USER"
