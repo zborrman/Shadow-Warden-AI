@@ -29,11 +29,17 @@ traffic actually flows through the zone.
 """
 from __future__ import annotations
 
+import hmac
 import ipaddress
 import os
 from functools import lru_cache
 
 from fastapi import Request
+
+# Headers a verified Vercel edge hop uses to carry the true client through a
+# server-side rewrite (www.* → Vercel → api.*). See get_client_ip.
+_VERCEL_SECRET_HEADER = "x-warden-proxy-secret"
+_VERCEL_CLIENT_IP_HEADER = "x-warden-client-ip"
 
 _DEFAULT_TRUSTED = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
@@ -78,6 +84,23 @@ def get_client_ip(request: Request) -> str:
 
     if not is_trusted_proxy(peer):
         return peer
+
+    # Verified Vercel-rewrite hop. The browser's same-origin /api/auth/* call is
+    # server-side rewritten by Vercel to api.*, so the standard forward headers
+    # (CF-Connecting-IP etc.) carry Vercel's egress IP, not the user's — which
+    # would collapse every browser login into one shared rate-limit bucket. The
+    # Vercel edge middleware re-asserts the true client in a dedicated header,
+    # proven by a shared secret so a direct-to-origin attacker cannot forge it.
+    # Fail-safe: an unset/mismatched secret simply ignores the header (current
+    # behaviour), never a bypass.
+    from warden.config import settings
+    secret = settings.vercel_proxy_secret
+    if secret:
+        presented = request.headers.get(_VERCEL_SECRET_HEADER, "")
+        if presented and hmac.compare_digest(presented, secret):
+            vercel_ip = request.headers.get(_VERCEL_CLIENT_IP_HEADER, "").split(",")[0].strip()
+            if vercel_ip:
+                return vercel_ip
 
     for header in _FORWARD_HEADERS:
         value = request.headers.get(header)

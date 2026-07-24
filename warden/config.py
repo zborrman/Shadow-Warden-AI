@@ -194,6 +194,15 @@ class Settings:
         default_factory=lambda: _int("WEBHOOK_MAX_RETRIES", 3)
     )
 
+    # ── Vercel edge proxy ──────────────────────────────────────────────────────
+    # Shared secret proving a request reached api.* through the Vercel edge
+    # rewrite (www.* → Vercel → api.*), so warden can trust the real client IP it
+    # forwards. NOT a signing key: empty simply disables the trust (fail-safe,
+    # never a bypass) — see warden/client_ip.py.
+    vercel_proxy_secret: str = field(
+        default_factory=lambda: _env("VERCEL_PROXY_SECRET", "")
+    )
+
     # ── NIM / NVIDIA ───────────────────────────────────────────────────────────
     # NVIDIA API key — required to call NIM.
     nvidia_api_key: str = field(
