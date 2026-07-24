@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 7.6 · Last updated 2026-07-04**
+**Version 7.7 · Last updated 2026-07-09**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -19,6 +19,20 @@ Every item on this roadmap competes across three inputs:
 We publish an updated priority snapshot every quarter. The `📋 Planned` items below reflect the current ranking; re-ordering happens openly — if something drops, the reason appears in the changelog.
 
 > **Release cadence:** patch versions (4.x.y) ship weekly; minor versions (4.x) ship when a delivery block is complete; major versions (5.0) ship on a quarterly cycle tied to infrastructure milestones.
+
+---
+
+## v7.7 Release — 2026-07-09 — GSAM (Global Statistic Agentic Marketplace)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| GSAM-01 | Foundations — `warden/gsam/` package: `Observation` metadata-only schema, ClickHouse client (guarded import) + fail-open NDJSON spool, bounded `gsam_emit()` collector daemon, Turso `gsam` DB, `gsam_enabled` feature key (Pro+), first-class `clickhouse` compose service (no `service_healthy` gate) | ✅ |
+| GSAM-02 | Ingest taps + router — 5 GDPR-allowlist taps (`structured_log`, `economics`, `billing.audit_chain`, `marketplace.dispatch_action`, `mcp.gateway`); `POST /gsam/observations` (external sensor, `extra=forbid`) + `GET /gsam/health`; all taps fail-open `put_nowait` | ✅ |
+| GSAM-03 | Math + drift + rollup — `math.py` (session_cost, ROI zero-cost guard, EWMA drift, weighted cosine, anti-inflation co-occurrence rule); `drift.py` per-agent EWMA baseline (SQLite, in-mem fallback); `rollup.py` hourly `gsam_agent_stats` collector sink | ✅ |
+| GSAM-04 | Quarantine — `quarantine.py` Redis `SETEX` flag (in-proc fallback) + SQLite journal, `is_quarantined()` fail-open; drift-threshold trigger; marketplace + staff dispatch gates (STAFF-01/02 preserved); admin list/release API | ✅ |
+| GSAM-05 | JIT credential lease — Hermes-style, **fail-CLOSED** (503 without `gsam_lease_secret`); HMAC-SHA256 signed, single-use atomic redeem, TTL + tamper rejection; approval token via Slack only; secret never in a response | ✅ |
+| GSAM-06 | Read APIs + Semantic Layer + dashboards — `/gsam/heatmap`, `/gsam/agents/{id}/stats`, `/gsam/compliance/score` (Pro+, rollup-backed); `gsam_agent_stats` semantic model (SQLite, never ClickHouse); Streamlit page 26 + Next.js SOC page | ✅ |
+| GSAM-07 | CI governance posture + docs — `--gsam-posture` flag renders anti-inflation posture in the warden-scan step summary (guarded import); CLAUDE.md / README / ROADMAP / MEMORY updates; v7.7 bump | ✅ |
 
 ---
 

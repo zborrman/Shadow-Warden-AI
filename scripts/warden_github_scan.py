@@ -42,7 +42,6 @@ import json
 import os
 import subprocess
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 
 # ── Skip patterns ─────────────────────────────────────────────────────────────
@@ -208,6 +207,48 @@ def build_step_summary(results: list[dict], agg: str) -> str:
     return "\n".join(lines)
 
 
+def gsam_posture_section(results: list[dict]) -> str:
+    """Optional GSAM anti-inflation governance posture for the step summary.
+
+    Maps this scan's findings onto GSAM inflation-pattern labels and scores them
+    with warden.gsam.math.anti_inflation_score. Guarded import — returns "" when
+    the GSAM package is unavailable (keeps the scanner dependency-free).
+    """
+    try:
+        from warden.gsam.math import anti_inflation_score  # noqa: PLC0415
+    except Exception:  # noqa: BLE001
+        return ""
+
+    block = sum(1 for r in results if r.get("verdict", "").upper() == "BLOCK")
+    high  = sum(1 for r in results if risk_num(r.get("verdict", "")) >= risk_num("HIGH"))
+    flags = sum(1 for r in results if r.get("verdict", "").upper() == "FLAG")
+    secrets = sum(1 for r in results if r.get("secrets_found"))
+
+    patterns: list[str] = []
+    if block:
+        patterns.append("cost_spike_no_value")   # strong
+    if high >= 2:
+        patterns.append("circular_agent_calls")  # strong
+    if secrets:
+        patterns.append("self_dealing")          # strong
+    if flags:
+        patterns.append("elevated_frequency")    # weak
+
+    score = anti_inflation_score(patterns)
+    icon = "🔴" if score["critical"] else ("🟡" if score["score"] < 1.0 else "🟢")
+    lines = [
+        "",
+        "### 📊 GSAM Governance Posture",
+        "",
+        f"{icon} **Anti-inflation compliance score: {score['score']:.2f}**"
+        + ("  · **CRITICAL** (co-occurring strong signals)" if score["critical"] else ""),
+        "",
+        f"> strong: {', '.join(score['strong_patterns']) or '—'}"
+        f" · weak: {', '.join(score['weak_patterns']) or '—'}",
+    ]
+    return "\n".join(lines)
+
+
 def build_pr_comment(results: list[dict], agg: str, meta: dict) -> str:
     lines = [
         f"## {_icon(agg)} Shadow Warden AI — {agg}",
@@ -296,6 +337,8 @@ def run_ci(args: argparse.Namespace, api_url: str, api_key: str, tenant_id: str)
     # GitHub step summary
     if args.summary_file:
         summary = build_step_summary(results, agg)
+        if getattr(args, "gsam_posture", False):
+            summary += "\n" + gsam_posture_section(results)
         try:
             with open(args.summary_file, "a", encoding="utf-8") as f:
                 f.write(summary + "\n")
@@ -365,6 +408,8 @@ def main() -> None:
     parser.add_argument("--fail-on",      default="",  help="BLOCK or HIGH (default: BLOCK)")
     parser.add_argument("--out",          default="scan_result.json")
     parser.add_argument("--summary-file", default="",  help="Path to append GitHub step summary")
+    parser.add_argument("--gsam-posture", action="store_true",
+                        help="Append the GSAM anti-inflation governance posture to the step summary")
     args = parser.parse_args()
 
     api_url   = os.getenv("WARDEN_API_URL",    "https://api.shadow-warden-ai.com")
