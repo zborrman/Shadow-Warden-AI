@@ -34,7 +34,7 @@ Consequences:
 - `DB_PASSWORD` — reaches warden **and** arq-worker indirectly, interpolated into `DATABASE_URL=postgresql+asyncpg://warden_user:${DB_PASSWORD:-change-me}@postgres:5432/warden`. Rotating it means: `ALTER ROLE` + `.env` value change + recreate **warden, arq-worker, postgres-exporter**.
 - `WARDEN_DATA_DIR`, `WARDEN_ENV`, `CONFIG_FAILCLOSED` — were wired **nowhere**. Now wired into warden + arq-worker by the compose change that ships with this runbook (defaults `/warden/data` / `dev` / `false`). Once that lands on `main` and deploys, the data dir **persists by default** and the prod flags become opt-in via `.env`.
 
-> Also observed: both warden and arq-worker run as **root** (uid 0), though `warden/Dockerfile` intends non-root UID 10001. Track that as a separate defense-in-depth item; it's why the `/warden/data` `0700` chmod is safe here (root owns the process).
+> Note on container user: the app runs **non-root as `wardenuser` (UID 10001)** — verified: uvicorn PID 1 and its workers are `wardenuser`. The Dockerfile deliberately has no `USER` directive (starts as root) and drops privileges via `gosu` in `entrypoint.sh`, so a `docker compose exec … id` returns `root` (exec uses the image's default user, not the running process's) — that is **not** a regression. The `/warden/data` bind mount is owned `wardenuser:warden`, so the `0700` chmod there is owned by the app user.
 
 ## Step 1 — Persist the data dir (handled by the compose change in this PR)
 
