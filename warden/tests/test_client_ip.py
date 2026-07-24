@@ -96,6 +96,49 @@ class TestResolution:
         req = _req("172.18.0.5", **{"x-forwarded-for": "198.51.100.7, 172.18.0.5"})
         assert get_client_ip(req) == "198.51.100.7"
 
+    def test_vercel_hop_real_ip_used_with_valid_secret(self, monkeypatch):
+        monkeypatch.setattr("warden.config.settings.vercel_proxy_secret", "s3cr3t", raising=False)
+        req = _req(
+            "172.18.0.5",
+            **{
+                "x-warden-proxy-secret": "s3cr3t",
+                "x-warden-client-ip": "203.0.113.42",
+                "cf-connecting-ip": "76.76.21.9",  # Vercel egress — must be overridden
+            },
+        )
+        assert get_client_ip(req) == "203.0.113.42"
+
+    def test_vercel_hop_ignored_when_secret_wrong(self, monkeypatch):
+        monkeypatch.setattr("warden.config.settings.vercel_proxy_secret", "s3cr3t", raising=False)
+        req = _req(
+            "172.18.0.5",
+            **{
+                "x-warden-proxy-secret": "WRONG",
+                "x-warden-client-ip": "203.0.113.42",
+                "cf-connecting-ip": "76.76.21.9",
+            },
+        )
+        # Falls through to the normal forward headers, never the spoofed IP.
+        assert get_client_ip(req) == "76.76.21.9"
+
+    def test_vercel_hop_ignored_when_secret_unset(self, monkeypatch):
+        monkeypatch.setattr("warden.config.settings.vercel_proxy_secret", "", raising=False)
+        req = _req(
+            "172.18.0.5",
+            **{"x-warden-proxy-secret": "anything", "x-warden-client-ip": "203.0.113.42",
+               "cf-connecting-ip": "76.76.21.9"},
+        )
+        assert get_client_ip(req) == "76.76.21.9"
+
+    def test_vercel_headers_from_untrusted_peer_are_ignored(self, monkeypatch):
+        """The secret header only counts once the peer is already a trusted proxy."""
+        monkeypatch.setattr("warden.config.settings.vercel_proxy_secret", "s3cr3t", raising=False)
+        req = _req(
+            "203.0.113.9",  # untrusted direct-to-origin
+            **{"x-warden-proxy-secret": "s3cr3t", "x-warden-client-ip": "10.0.0.1"},
+        )
+        assert get_client_ip(req) == "203.0.113.9"
+
     def test_untrusted_peer_cannot_spoof_identity(self):
         """Direct-to-origin request: headers are ignored, socket address wins."""
         req = _req(

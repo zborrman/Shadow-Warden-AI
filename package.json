@@ -1,0 +1,8 @@
+{
+  "name": "shadow-warden-root",
+  "private": true,
+  "description": "Root scope exists ONLY to supply @vercel/edge for the Vercel Edge Middleware (middleware.ts) that re-asserts the real client IP across the www→Vercel→api rewrite. Intentionally has NO \"workspaces\" key — that would break `npm ci` in portal/ and dashboard/ (see CLAUDE.md).",
+  "dependencies": {
+    "@vercel/edge": "^1.2.2"
+  }
+}
