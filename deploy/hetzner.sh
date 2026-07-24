@@ -112,14 +112,18 @@ if command -v ufw &>/dev/null; then
     ufw default deny incoming  >/dev/null 2>&1
     ufw default allow outgoing >/dev/null 2>&1
     ufw allow 22/tcp    comment "SSH"
-    ufw allow 80/tcp    comment "HTTP (redirect to HTTPS)"
-    ufw allow 443/tcp   comment "HTTPS"
+    # NOTE: do NOT `ufw allow 80/443` here. Docker publishes those ports via its
+    # own iptables DNAT that runs BEFORE ufw's INPUT chain, so a ufw rule on
+    # 80/443 is inert for the proxy container (and misleadingly implies ufw
+    # governs them). Access to 80/443 is restricted to Cloudflare source IPs by
+    # the DOCKER-USER chain — installed in Step 7b below via
+    # deploy/origin-lockdown/install.sh. See docs/cloudflare-waf.md.
     # Internal ports — restrict to loopback; expose only via reverse-proxy
     # Uncomment the lines below if you need direct access from a trusted CIDR:
     # ufw allow from 10.0.0.0/8 to any port 8001 comment "Warden API (internal)"
     # ufw allow from 10.0.0.0/8 to any port 8501 comment "Dashboard (internal)"
     ufw --force enable >/dev/null 2>&1
-    ok "UFW enabled: 22, 80, 443 open. Warden 8001/8501 restricted to loopback."
+    ok "UFW enabled: SSH allowed; 80/443 gated by DOCKER-USER (Step 7b), not ufw."
 else
     warn "UFW not found — skipping firewall configuration."
 fi
@@ -437,6 +441,19 @@ UNIT
 systemctl daemon-reload
 systemctl enable "$SYSTEMD_UNIT"
 ok "systemd unit enabled: $SYSTEMD_UNIT.service (auto-start on reboot)."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 7b — Origin lockdown (Cloudflare-only ingress on 80/443)
+# ─────────────────────────────────────────────────────────────────────────────
+info "Step 7b/7 — Locking origin to Cloudflare source IPs (DOCKER-USER) …"
+
+if [[ -f "$DEPLOY_DIR/deploy/origin-lockdown/install.sh" ]]; then
+    bash "$DEPLOY_DIR/deploy/origin-lockdown/install.sh" \
+        && ok "Origin lockdown active: 80/443 reachable only from Cloudflare." \
+        || warn "Origin lockdown install failed — origin may be reachable directly. Run deploy/origin-lockdown/install.sh manually."
+else
+    warn "deploy/origin-lockdown/install.sh not found — origin is NOT locked to Cloudflare. Direct-to-origin bypasses all edge WAF rules."
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DONE — Print status

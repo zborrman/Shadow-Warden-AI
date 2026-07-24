@@ -1,0 +1,16 @@
+[Unit]
+Description=Restrict Docker-published 80/443 to Cloudflare IPs (DOCKER-USER)
+Documentation=https://github.com/zborrman/Shadow-Warden-AI/blob/main/docs/cloudflare-waf.md
+# A reboot clears iptables and Docker recreates DOCKER-USER empty, so the rules
+# must be reapplied AFTER docker.service on every boot.
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/cf-origin-lock.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
