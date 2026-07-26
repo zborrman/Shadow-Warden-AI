@@ -29,12 +29,15 @@ jobs:
           fail=0
           for port in 443 80; do
             [ "$port" = 443 ] && url="https://$HOSTN/health" || url="http://$HOSTN/health"
-            code=$(curl -sS -k --resolve "$HOSTN:$port:$IP" --max-time 15 \
-                     -o /dev/null -w '%{http_code}' "$url" 2>/dev/null)
-            rc=$?
-            # curl still writes '000' via -w on a timeout/refused connection (rc != 0);
-            # don't also append a fallback "000" on top of it (was producing "000000").
-            [ $rc -ne 0 ] && code=000
+            # GH Actions runs this script as `bash -e`, so a bare `code=$(curl ...)`
+            # whose curl fails (e.g. exit 28 on the expected timeout) kills the job
+            # before the fallback ever runs. Testing the assignment in `if` exempts
+            # it from errexit, so a blocked/timed-out probe becomes code=000 instead
+            # of an uncaught script failure.
+            if ! code=$(curl -sS -k --resolve "$HOSTN:$port:$IP" --max-time 15 \
+                     -o /dev/null -w '%{http_code}' "$url" 2>/dev/null); then
+              code=000
+            fi
             echo "direct-to-origin :$port -> HTTP $code"
             if [ "$code" != "000" ]; then
               echo "::error::Origin reachable DIRECTLY on :$port (HTTP $code) — Cloudflare-only lockdown is BROKEN. See deploy/origin-lockdown/."
@@ -42,8 +45,9 @@ jobs:
             fi
           done
           # Context only (not a failure condition here): the Cloudflare path should stay up.
-          cf=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "https://$HOSTN/health" 2>/dev/null)
-          [ $? -ne 0 ] && cf=000
+          if ! cf=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "https://$HOSTN/health" 2>/dev/null); then
+            cf=000
+          fi
           echo "via Cloudflare -> HTTP $cf"
           exit $fail
 
