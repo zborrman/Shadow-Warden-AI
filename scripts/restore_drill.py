@@ -105,27 +105,29 @@ def start_scratch_postgres() -> None:
         "-p", f"{DRILL_PG_PORT}:5432",
         "timescale/timescaledb:latest-pg16",
     ])
+    # The official postgres entrypoint (which the TimescaleDB image is built on)
+    # boots a TEMPORARY server for initdb / docker-entrypoint-initdb.d on first
+    # run, shuts it down, then execs the REAL server. pg_isready can report ready
+    # against that temporary instance and have it shut down moments later
+    # ("FATAL: the database system is shutting down") — a fixed sleep after
+    # pg_isready is not a reliable buffer for a two-phase boot with no fixed
+    # duration. Poll the actual operation we need (CREATE EXTENSION, which also
+    # pre-creates the extension the real prod DB has via
+    # shared_preload_libraries=timescaledb + init.sql) instead of a proxy signal;
+    # only raise once it has failed to succeed for the full window.
+    last_err = ""
     for _ in range(60):
         r = subprocess.run(
-            ["docker", "exec", DRILL_PG_CONTAINER, "pg_isready", "-U", "postgres"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            ["docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres", "-d", "warden",
+             "-c", "CREATE EXTENSION IF NOT EXISTS timescaledb;"],
+            capture_output=True, text=True,
         )
         if r.returncode == 0:
-            break
+            print("[drill] scratch postgres ready (timescaledb extension created)")
+            return
+        last_err = r.stderr.strip()
         time.sleep(1)
-    else:
-        raise RuntimeError("scratch postgres did not become ready in 60s")
-    # pg_isready flips true before TimescaleDB's own post-init (extension load,
-    # background workers) has settled — an immediate connect can race a still-
-    # restarting server. A short fixed buffer is cheap insurance.
-    time.sleep(3)
-    # Pre-create the extension — the real prod DB has it enabled via
-    # `shared_preload_libraries=timescaledb` + init.sql; a bare pg_restore
-    # into a fresh DB without it first fails hypertable FK restoration.
-    _run([
-        "docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres", "-d", "warden",
-        "-c", "CREATE EXTENSION IF NOT EXISTS timescaledb;",
-    ])
+    raise RuntimeError(f"scratch postgres never became stably ready in 60s: {last_err}")
 
 
 def restore_pg(snap_dir: Path) -> int:
