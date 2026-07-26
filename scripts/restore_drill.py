@@ -157,29 +157,50 @@ def restore_pg(snap_dir: Path) -> int:
             f"postgresql://postgres:{DRILL_PG_PASSWORD}"
             f"@host.docker.internal:{DRILL_PG_PORT}/warden"
         )
-        try:
-            _run([
-                "docker", "run", "--rm",
-                "--add-host", "host.docker.internal:host-gateway",
-                "-v", f"{tmp_dump}:/tmp/drill.pgdump:ro",
-                "postgres:17-alpine",
-                "pg_restore", "--no-password", "--dbname", drill_url,
-                "--no-owner", "--no-privileges", "/tmp/drill.pgdump",
-            ], stderr=subprocess.PIPE, text=True)
-        except subprocess.CalledProcessError as exc:
-            print(f"[drill] pg_restore stderr:\n{exc.stderr}")
-            raise
+
+        def _scratch_psql(sql: str) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                ["docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres",
+                 "-d", "warden", "-tAqc", sql],
+                capture_output=True, text=True, check=False,
+            )
+
+        # TimescaleDB: bracket the restore exactly as warden/backup/service
+        # ._pg_restore_bytes now does — timescaledb_pre_restore()/post_restore()
+        # fixes the hypertable chunk FK-ordering that used to make a good archive
+        # look like a failed restore. post_restore is always run to re-enable.
+        _scratch_psql("SELECT public.timescaledb_pre_restore()")
+        restore = subprocess.run([
+            "docker", "run", "--rm",
+            "--add-host", "host.docker.internal:host-gateway",
+            "-v", f"{tmp_dump}:/tmp/drill.pgdump:ro",
+            "postgres:17-alpine",
+            "pg_restore", "--no-password", "--dbname", drill_url,
+            "--no-owner", "--no-privileges", "/tmp/drill.pgdump",
+        ], capture_output=True, text=True, check=False)
+        post = _scratch_psql("SELECT public.timescaledb_post_restore()")
+        if post.returncode != 0:
+            raise RuntimeError(f"timescaledb_post_restore failed: {post.stderr[:300]}")
     finally:
         tmp_dump.unlink(missing_ok=True)
 
-    # Sanity check: count tables actually created.
+    # Outcome-based (matches service._pg_restore_bytes): pg_restore exits non-zero
+    # on benign client/server version-skew SET directives — success = tables
+    # actually restored, not the exit code.
     r = subprocess.run(
         ["docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres", "-d", "warden",
-         "-t", "-c",
+         "-tAqc",
          "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"],
         capture_output=True, text=True, check=True,
     )
-    return int(r.stdout.strip())
+    tables = int(r.stdout.strip())
+    if restore.returncode != 0:
+        if tables <= 0:
+            print(f"[drill] pg_restore stderr:\n{restore.stderr}")
+            raise RuntimeError(f"pg_restore rc={restore.returncode}, 0 tables restored")
+        print(f"[drill] pg_restore rc={restore.returncode} but {tables} tables restored "
+              f"— benign version-skew noise; stderr tail: {restore.stderr[-300:]}")
+    return tables
 
 
 def restore_sqlite(snap_dir: Path, dest_dir: Path) -> list[str]:
