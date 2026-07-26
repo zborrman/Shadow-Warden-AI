@@ -41,7 +41,16 @@ sys.path.insert(0, str(REPO))
 
 DRILL_PG_CONTAINER = "warden-drill-postgres"
 DRILL_PG_PASSWORD = "drill-only-not-a-real-secret"
-DRILL_PG_PORT = "15433"  # avoid colliding with a real local postgres on 5432
+DRILL_PG_PORT = "15433"  # host-side debug access only; internal traffic uses DRILL_NETWORK
+DRILL_NETWORK = "warden-drill-net"
+# MUST match docker-compose.yml's `postgres.image` exactly (R6 finding
+# 2026-07-26): a floating `latest-pg16` scratch target let the drill silently
+# test against a NEWER TimescaleDB extension version than the one that made the
+# real backup, hitting timescaledb_post_restore()'s "catalog version mismatch"
+# on an otherwise-good dump — a drill-only false failure that also means a real
+# floating-tag production pin is a live disaster-recovery risk. Bump this in
+# lockstep with docker-compose.yml, verified by a clean drill run before merge.
+DRILL_PG_IMAGE = "timescale/timescaledb:2.26.2-pg16"
 
 
 def _timed(label: str):
@@ -98,34 +107,56 @@ def fetch_latest_offsite(tmpdir: Path) -> Path:
 def start_scratch_postgres() -> None:
     _run(["docker", "rm", "-f", DRILL_PG_CONTAINER],
          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    # A dedicated user-defined network so the pg_restore client container (below)
+    # reaches this one by CONTAINER NAME over Docker's embedded DNS — not via
+    # host.docker.internal + the published port, which depends on the host's
+    # NAT "hairpin" path working (container -> host gateway IP -> DNAT back into
+    # another container). That path is host-firewall/NAT-state sensitive and was
+    # observed to time out after a host reboot; a shared network has no such
+    # dependency. -p is kept only for host-side debugging (--keep).
+    subprocess.run(["docker", "network", "rm", DRILL_NETWORK],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    _run(["docker", "network", "create", DRILL_NETWORK])
     _run([
         "docker", "run", "-d", "--name", DRILL_PG_CONTAINER,
+        "--network", DRILL_NETWORK,
         "-e", f"POSTGRES_PASSWORD={DRILL_PG_PASSWORD}",
         "-e", "POSTGRES_DB=warden",
         "-p", f"{DRILL_PG_PORT}:5432",
-        "timescale/timescaledb:latest-pg16",
+        DRILL_PG_IMAGE,
     ])
-    for _ in range(60):
+    # The official postgres entrypoint (which the TimescaleDB image is built on)
+    # boots a TEMPORARY server for initdb / docker-entrypoint-initdb.d on first
+    # run, shuts it down, then execs the REAL server — and observed live,
+    # TimescaleDB's own first-activation of the extension can trigger a further
+    # brief internal restart cycle on top of that. This has shown up as at least
+    # three different transient error strings across separate runs ("the
+    # database system is shutting down", "...is starting up", and even
+    # "No such file or directory" on the socket mid-cycle) — not a stable set to
+    # pattern-match. Rather than retry on specific error text, require several
+    # CONSECUTIVE successful checks before declaring the server ready: any point
+    # still mid-restart-cycle will fail at least one check and reset the streak,
+    # so only a server that has been responsive for the full window proceeds.
+    last_err = ""
+    consecutive_ok = 0
+    need_consecutive = 3
+    for _ in range(90):
         r = subprocess.run(
-            ["docker", "exec", DRILL_PG_CONTAINER, "pg_isready", "-U", "postgres"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            ["docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres", "-d", "warden",
+             "-c", "CREATE EXTENSION IF NOT EXISTS timescaledb;"],
+            capture_output=True, text=True,
         )
         if r.returncode == 0:
-            break
+            consecutive_ok += 1
+            if consecutive_ok >= need_consecutive:
+                print(f"[drill] scratch postgres stably ready "
+                      f"({need_consecutive} consecutive checks, timescaledb extension created)")
+                return
+        else:
+            consecutive_ok = 0
+            last_err = r.stderr.strip()
         time.sleep(1)
-    else:
-        raise RuntimeError("scratch postgres did not become ready in 60s")
-    # pg_isready flips true before TimescaleDB's own post-init (extension load,
-    # background workers) has settled — an immediate connect can race a still-
-    # restarting server. A short fixed buffer is cheap insurance.
-    time.sleep(3)
-    # Pre-create the extension — the real prod DB has it enabled via
-    # `shared_preload_libraries=timescaledb` + init.sql; a bare pg_restore
-    # into a fresh DB without it first fails hypertable FK restoration.
-    _run([
-        "docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres", "-d", "warden",
-        "-c", "CREATE EXTENSION IF NOT EXISTS timescaledb;",
-    ])
+    raise RuntimeError(f"scratch postgres never became stably ready: {last_err}")
 
 
 def restore_pg(snap_dir: Path) -> int:
@@ -146,16 +177,18 @@ def restore_pg(snap_dir: Path) -> int:
     try:
         # pg_restore must match (or exceed) the pg_dump version that made the
         # archive — the scratch server's OWN bundled client is Postgres 16's
-        # (timescale/timescaledb:latest-pg16), but warden/Dockerfile (R1)
-        # installs Debian trixie's postgresql-client, which is v17: real
-        # backups are v17-format archives a v16 pg_restore can't read
-        # ("unsupported version in file header"). Run pg_restore from a
-        # matching postgres:17 client container instead of the server's own,
-        # over the network — this is exactly the drill catching a real
-        # version-skew risk, not a drill-only artifact.
+        # (DRILL_PG_IMAGE), but warden/Dockerfile (R1) installs Debian trixie's
+        # postgresql-client, which is v17: real backups are v17-format archives
+        # a v16 pg_restore can't read ("unsupported version in file header").
+        # Run pg_restore from a matching postgres:17 client container instead
+        # of the server's own — this is exactly the drill catching a real
+        # version-skew risk, not a drill-only artifact. Connect via the
+        # DRILL_NETWORK + container name (Docker's embedded DNS), not
+        # host.docker.internal + the published port — see the comment in
+        # start_scratch_postgres().
         drill_url = (
             f"postgresql://postgres:{DRILL_PG_PASSWORD}"
-            f"@host.docker.internal:{DRILL_PG_PORT}/warden"
+            f"@{DRILL_PG_CONTAINER}:5432/warden"
         )
 
         def _scratch_psql(sql: str) -> subprocess.CompletedProcess:
@@ -169,15 +202,51 @@ def restore_pg(snap_dir: Path) -> int:
         # ._pg_restore_bytes now does — timescaledb_pre_restore()/post_restore()
         # fixes the hypertable chunk FK-ordering that used to make a good archive
         # look like a failed restore. post_restore is always run to re-enable.
-        _scratch_psql("SELECT public.timescaledb_pre_restore()")
-        restore = subprocess.run([
+        # Not hard-failed here on a bad returncode (start_scratch_postgres's
+        # consecutive-success check should make this reliable now), but logged
+        # rather than silently swallowed — useful signal if something upstream
+        # is still unstable.
+        pre = _scratch_psql("SELECT public.timescaledb_pre_restore()")
+        if pre.returncode != 0:
+            print(f"[drill] timescaledb_pre_restore() returned non-zero (continuing): "
+                  f"{pre.stderr.strip()[:300]}")
+
+        restore_cmd = [
             "docker", "run", "--rm",
-            "--add-host", "host.docker.internal:host-gateway",
+            "--network", DRILL_NETWORK,
             "-v", f"{tmp_dump}:/tmp/drill.pgdump:ro",
             "postgres:17-alpine",
-            "pg_restore", "--no-password", "--dbname", drill_url,
+            "pg_restore", "--no-password", "--dbname", drill_url, "--verbose",
             "--no-owner", "--no-privileges", "/tmp/drill.pgdump",
-        ], capture_output=True, text=True, check=False)
+        ]
+        # Observed live: CREATE EXTENSION timescaledb succeeding over the local
+        # docker-exec socket (start_scratch_postgres) does not guarantee the TCP
+        # listener stays up — TimescaleDB can trigger its own brief internal
+        # restart shortly after first activation, which lands right in this
+        # window ("the database system is starting up"/"shutting down" over the
+        # NETWORK path, even though the socket path just reported ready). Retry
+        # the whole pg_restore on that specific transient condition; a content-
+        # level failure (version-skew SET, hypertable ordering) won't match
+        # these strings and falls straight through to the outcome-based check
+        # below rather than being retried pointlessly.
+        for attempt in range(5):
+            restore = subprocess.run(restore_cmd, capture_output=True, text=True, check=False)
+            transient = restore.returncode != 0 and (
+                "starting up" in restore.stderr or "shutting down" in restore.stderr
+            )
+            if not transient:
+                break
+            tail = restore.stderr.strip().splitlines()[-1] if restore.stderr.strip() else ""
+            print(f"[drill] pg_restore hit a transient server-state error "
+                  f"(attempt {attempt + 1}/5), retrying in 3s: {tail}")
+            time.sleep(3)
+
+        if restore.returncode != 0:
+            print("[drill] pg_restore exited non-zero — full output printed below "
+                  "once tables-restored is known (may be benign)")
+        else:
+            print("[drill] pg_restore completed cleanly")
+
         post = _scratch_psql("SELECT public.timescaledb_post_restore()")
         if post.returncode != 0:
             raise RuntimeError(f"timescaledb_post_restore failed: {post.stderr[:300]}")
@@ -187,16 +256,30 @@ def restore_pg(snap_dir: Path) -> int:
     # Outcome-based (matches service._pg_restore_bytes): pg_restore exits non-zero
     # on benign client/server version-skew SET directives — success = tables
     # actually restored, not the exit code.
+    #
+    # Count user tables across ALL non-system schemas, not just 'public': the app's
+    # tables live in the `warden_core` schema (the dump recreates them there), so a
+    # `table_schema='public'` check counts 0 on a fully-successful restore and
+    # reports a false FAIL (R6 finding 2026-07-26 — this was the "0 tables restored"
+    # mystery: the restore was perfect, the sanity query targeted the wrong schema).
+    # Exclude pg_catalog/information_schema and TimescaleDB's internal schemas so
+    # the number reflects real application tables, not the hundreds of hypertable
+    # chunks under _timescaledb_internal.
     r = subprocess.run(
         ["docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres", "-d", "warden",
          "-tAqc",
-         "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"],
+         "SELECT count(*) FROM information_schema.tables "
+         "WHERE table_type='BASE TABLE' AND table_schema NOT IN "
+         "('pg_catalog','information_schema','_timescaledb_internal',"
+         "'_timescaledb_catalog','_timescaledb_config','_timescaledb_cache',"
+         "'timescaledb_information','timescaledb_experimental')"],
         capture_output=True, text=True, check=True,
     )
     tables = int(r.stdout.strip())
     if restore.returncode != 0:
         if tables <= 0:
-            print(f"[drill] pg_restore stderr:\n{restore.stderr}")
+            print(f"[drill] pg_restore FULL stdout (--verbose):\n{restore.stdout}")
+            print(f"[drill] pg_restore FULL stderr:\n{restore.stderr}")
             raise RuntimeError(f"pg_restore rc={restore.returncode}, 0 tables restored")
         print(f"[drill] pg_restore rc={restore.returncode} but {tables} tables restored "
               f"— benign version-skew noise; stderr tail: {restore.stderr[-300:]}")
@@ -224,11 +307,14 @@ def restore_sqlite(snap_dir: Path, dest_dir: Path) -> list[str]:
 
 def teardown(keep: bool) -> None:
     if keep:
-        print(f"[drill] --keep set: leaving {DRILL_PG_CONTAINER} running for inspection")
+        print(f"[drill] --keep set: leaving {DRILL_PG_CONTAINER} "
+              f"(network {DRILL_NETWORK}) running for inspection")
         return
     subprocess.run(["docker", "rm", "-f", DRILL_PG_CONTAINER],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    print("[drill] scratch postgres removed")
+    subprocess.run(["docker", "network", "rm", DRILL_NETWORK],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    print("[drill] scratch postgres + network removed")
 
 
 def main() -> int:
