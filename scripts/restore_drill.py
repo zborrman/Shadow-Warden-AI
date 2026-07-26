@@ -127,27 +127,36 @@ def start_scratch_postgres() -> None:
     ])
     # The official postgres entrypoint (which the TimescaleDB image is built on)
     # boots a TEMPORARY server for initdb / docker-entrypoint-initdb.d on first
-    # run, shuts it down, then execs the REAL server. pg_isready can report ready
-    # against that temporary instance and have it shut down moments later
-    # ("FATAL: the database system is shutting down") — a fixed sleep after
-    # pg_isready is not a reliable buffer for a two-phase boot with no fixed
-    # duration. Poll the actual operation we need (CREATE EXTENSION, which also
-    # pre-creates the extension the real prod DB has via
-    # shared_preload_libraries=timescaledb + init.sql) instead of a proxy signal;
-    # only raise once it has failed to succeed for the full window.
+    # run, shuts it down, then execs the REAL server — and observed live,
+    # TimescaleDB's own first-activation of the extension can trigger a further
+    # brief internal restart cycle on top of that. This has shown up as at least
+    # three different transient error strings across separate runs ("the
+    # database system is shutting down", "...is starting up", and even
+    # "No such file or directory" on the socket mid-cycle) — not a stable set to
+    # pattern-match. Rather than retry on specific error text, require several
+    # CONSECUTIVE successful checks before declaring the server ready: any point
+    # still mid-restart-cycle will fail at least one check and reset the streak,
+    # so only a server that has been responsive for the full window proceeds.
     last_err = ""
-    for _ in range(60):
+    consecutive_ok = 0
+    need_consecutive = 3
+    for _ in range(90):
         r = subprocess.run(
             ["docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres", "-d", "warden",
              "-c", "CREATE EXTENSION IF NOT EXISTS timescaledb;"],
             capture_output=True, text=True,
         )
         if r.returncode == 0:
-            print("[drill] scratch postgres ready (timescaledb extension created)")
-            return
-        last_err = r.stderr.strip()
+            consecutive_ok += 1
+            if consecutive_ok >= need_consecutive:
+                print(f"[drill] scratch postgres stably ready "
+                      f"({need_consecutive} consecutive checks, timescaledb extension created)")
+                return
+        else:
+            consecutive_ok = 0
+            last_err = r.stderr.strip()
         time.sleep(1)
-    raise RuntimeError(f"scratch postgres never became stably ready in 60s: {last_err}")
+    raise RuntimeError(f"scratch postgres never became stably ready: {last_err}")
 
 
 def restore_pg(snap_dir: Path) -> int:
@@ -193,7 +202,14 @@ def restore_pg(snap_dir: Path) -> int:
         # ._pg_restore_bytes now does — timescaledb_pre_restore()/post_restore()
         # fixes the hypertable chunk FK-ordering that used to make a good archive
         # look like a failed restore. post_restore is always run to re-enable.
-        _scratch_psql("SELECT public.timescaledb_pre_restore()")
+        # Not hard-failed here on a bad returncode (start_scratch_postgres's
+        # consecutive-success check should make this reliable now), but logged
+        # rather than silently swallowed — useful signal if something upstream
+        # is still unstable.
+        pre = _scratch_psql("SELECT public.timescaledb_pre_restore()")
+        if pre.returncode != 0:
+            print(f"[drill] timescaledb_pre_restore() returned non-zero (continuing): "
+                  f"{pre.stderr.strip()[:300]}")
 
         restore_cmd = [
             "docker", "run", "--rm",
@@ -224,6 +240,12 @@ def restore_pg(snap_dir: Path) -> int:
             print(f"[drill] pg_restore hit a transient server-state error "
                   f"(attempt {attempt + 1}/5), retrying in 3s: {tail}")
             time.sleep(3)
+
+        if restore.returncode != 0:
+            print(f"[drill] pg_restore exited non-zero (may be benign — judged by "
+                  f"tables-restored below): {restore.stderr.strip()[-500:]}")
+        else:
+            print("[drill] pg_restore completed cleanly")
 
         post = _scratch_psql("SELECT public.timescaledb_post_restore()")
         if post.returncode != 0:
