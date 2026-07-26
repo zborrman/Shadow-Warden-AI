@@ -216,7 +216,7 @@ def restore_pg(snap_dir: Path) -> int:
             "--network", DRILL_NETWORK,
             "-v", f"{tmp_dump}:/tmp/drill.pgdump:ro",
             "postgres:17-alpine",
-            "pg_restore", "--no-password", "--dbname", drill_url,
+            "pg_restore", "--no-password", "--dbname", drill_url, "--verbose",
             "--no-owner", "--no-privileges", "/tmp/drill.pgdump",
         ]
         # Observed live: CREATE EXTENSION timescaledb succeeding over the local
@@ -242,8 +242,8 @@ def restore_pg(snap_dir: Path) -> int:
             time.sleep(3)
 
         if restore.returncode != 0:
-            print(f"[drill] pg_restore exited non-zero (may be benign — judged by "
-                  f"tables-restored below): {restore.stderr.strip()[-500:]}")
+            print("[drill] pg_restore exited non-zero — full output printed below "
+                  "once tables-restored is known (may be benign)")
         else:
             print("[drill] pg_restore completed cleanly")
 
@@ -265,7 +265,8 @@ def restore_pg(snap_dir: Path) -> int:
     tables = int(r.stdout.strip())
     if restore.returncode != 0:
         if tables <= 0:
-            print(f"[drill] pg_restore stderr:\n{restore.stderr}")
+            print(f"[drill] pg_restore FULL stdout (--verbose):\n{restore.stdout}")
+            print(f"[drill] pg_restore FULL stderr:\n{restore.stderr}")
             raise RuntimeError(f"pg_restore rc={restore.returncode}, 0 tables restored")
         print(f"[drill] pg_restore rc={restore.returncode} but {tables} tables restored "
               f"— benign version-skew noise; stderr tail: {restore.stderr[-300:]}")
