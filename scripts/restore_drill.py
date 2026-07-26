@@ -256,10 +256,23 @@ def restore_pg(snap_dir: Path) -> int:
     # Outcome-based (matches service._pg_restore_bytes): pg_restore exits non-zero
     # on benign client/server version-skew SET directives — success = tables
     # actually restored, not the exit code.
+    #
+    # Count user tables across ALL non-system schemas, not just 'public': the app's
+    # tables live in the `warden_core` schema (the dump recreates them there), so a
+    # `table_schema='public'` check counts 0 on a fully-successful restore and
+    # reports a false FAIL (R6 finding 2026-07-26 — this was the "0 tables restored"
+    # mystery: the restore was perfect, the sanity query targeted the wrong schema).
+    # Exclude pg_catalog/information_schema and TimescaleDB's internal schemas so
+    # the number reflects real application tables, not the hundreds of hypertable
+    # chunks under _timescaledb_internal.
     r = subprocess.run(
         ["docker", "exec", DRILL_PG_CONTAINER, "psql", "-U", "postgres", "-d", "warden",
          "-tAqc",
-         "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'"],
+         "SELECT count(*) FROM information_schema.tables "
+         "WHERE table_type='BASE TABLE' AND table_schema NOT IN "
+         "('pg_catalog','information_schema','_timescaledb_internal',"
+         "'_timescaledb_catalog','_timescaledb_config','_timescaledb_cache',"
+         "'timescaledb_information','timescaledb_experimental')"],
         capture_output=True, text=True, check=True,
     )
     tables = int(r.stdout.strip())
