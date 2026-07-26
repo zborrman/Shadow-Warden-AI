@@ -127,10 +127,27 @@ unaffected" property intact.
    entirely on the default and need test-time monkeypatching of `listing._DB_PATH` to
    work — a def-time-bound default can't see that. Resolved dynamically inside the
    function body instead (`db_path or _DB_PATH`).
-3. **Phase C — cutover reads.** Once Phase B's dual-write has been running cleanly,
-   switch `list_orders()`/`get_order()`/`order_history()`/`get_receipt()` to query
-   `marketplace_purchases WHERE domain = ...` instead of the original blob tables.
-   Requires updating each domain's own tests to assert against the new table.
+3. **Phase C — cutover reads (blocked on a bake period, not on more code).** Concrete
+   go/no-go gate before this phase starts — do not treat "the code compiles" as
+   sufficient:
+   - Dual-write (Phase B) must have been live in production for a real stretch of
+     wall-clock time, not just merged. There is no fixed day-count here; the point is
+     "enough live orders flowed through both write paths to trust a comparison," which
+     depends on actual order volume, not a calendar guess made in an editing session.
+   - Run a reconciliation query per domain: `SELECT COUNT(*) FROM m2m_orders` vs.
+     `SELECT COUNT(*) FROM marketplace_purchases WHERE domain='m2m_store'` (same for
+     `commerce_orders`/`agentic_commerce`) — counts must match. A gap means the mirror
+     is silently failing somewhere (check `warden.failopen` logs for
+     `marketplace_mirror_order` entries — Phase B wired `record_failopen` for exactly
+     this).
+   - Spot-check field values on a sample of mirrored rows against their blob-table
+     source (`price_paid`, `status`, `asset_id`/`tenant_id`/`mandate_id`) — an
+     off-by-mapping bug (e.g. a field silently mapped to the wrong column) wouldn't
+     show up as a missing row, only as a wrong value.
+   - Only once both checks pass: switch `list_orders()`/`get_order()`/
+     `order_history()`/`get_receipt()` to query `marketplace_purchases WHERE domain =
+     ...` instead of the original blob tables. Requires updating each domain's own
+     tests to assert against the new table.
 4. **Phase D — freeze, don't drop.** Once nothing reads from `m2m_orders`,
    `commerce_orders`, or `commerce_receipts`, mark them read-only (revoke the
    `save_order`/`_save_order` write paths, or simply stop calling them) for a safety
