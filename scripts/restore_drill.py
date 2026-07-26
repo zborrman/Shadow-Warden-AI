@@ -41,7 +41,8 @@ sys.path.insert(0, str(REPO))
 
 DRILL_PG_CONTAINER = "warden-drill-postgres"
 DRILL_PG_PASSWORD = "drill-only-not-a-real-secret"
-DRILL_PG_PORT = "15433"  # avoid colliding with a real local postgres on 5432
+DRILL_PG_PORT = "15433"  # host-side debug access only; internal traffic uses DRILL_NETWORK
+DRILL_NETWORK = "warden-drill-net"
 
 
 def _timed(label: str):
@@ -98,8 +99,19 @@ def fetch_latest_offsite(tmpdir: Path) -> Path:
 def start_scratch_postgres() -> None:
     _run(["docker", "rm", "-f", DRILL_PG_CONTAINER],
          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    # A dedicated user-defined network so the pg_restore client container (below)
+    # reaches this one by CONTAINER NAME over Docker's embedded DNS — not via
+    # host.docker.internal + the published port, which depends on the host's
+    # NAT "hairpin" path working (container -> host gateway IP -> DNAT back into
+    # another container). That path is host-firewall/NAT-state sensitive and was
+    # observed to time out after a host reboot; a shared network has no such
+    # dependency. -p is kept only for host-side debugging (--keep).
+    subprocess.run(["docker", "network", "rm", DRILL_NETWORK],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    _run(["docker", "network", "create", DRILL_NETWORK])
     _run([
         "docker", "run", "-d", "--name", DRILL_PG_CONTAINER,
+        "--network", DRILL_NETWORK,
         "-e", f"POSTGRES_PASSWORD={DRILL_PG_PASSWORD}",
         "-e", "POSTGRES_DB=warden",
         "-p", f"{DRILL_PG_PORT}:5432",
@@ -152,12 +164,14 @@ def restore_pg(snap_dir: Path) -> int:
         # installs Debian trixie's postgresql-client, which is v17: real
         # backups are v17-format archives a v16 pg_restore can't read
         # ("unsupported version in file header"). Run pg_restore from a
-        # matching postgres:17 client container instead of the server's own,
-        # over the network — this is exactly the drill catching a real
-        # version-skew risk, not a drill-only artifact.
+        # matching postgres:17 client container instead of the server's own —
+        # this is exactly the drill catching a real version-skew risk, not a
+        # drill-only artifact. Connect via the DRILL_NETWORK + container name
+        # (Docker's embedded DNS), not host.docker.internal + the published
+        # port — see the comment in start_scratch_postgres().
         drill_url = (
             f"postgresql://postgres:{DRILL_PG_PASSWORD}"
-            f"@host.docker.internal:{DRILL_PG_PORT}/warden"
+            f"@{DRILL_PG_CONTAINER}:5432/warden"
         )
 
         def _scratch_psql(sql: str) -> subprocess.CompletedProcess:
@@ -174,7 +188,7 @@ def restore_pg(snap_dir: Path) -> int:
         _scratch_psql("SELECT public.timescaledb_pre_restore()")
         restore = subprocess.run([
             "docker", "run", "--rm",
-            "--add-host", "host.docker.internal:host-gateway",
+            "--network", DRILL_NETWORK,
             "-v", f"{tmp_dump}:/tmp/drill.pgdump:ro",
             "postgres:17-alpine",
             "pg_restore", "--no-password", "--dbname", drill_url,
@@ -226,11 +240,14 @@ def restore_sqlite(snap_dir: Path, dest_dir: Path) -> list[str]:
 
 def teardown(keep: bool) -> None:
     if keep:
-        print(f"[drill] --keep set: leaving {DRILL_PG_CONTAINER} running for inspection")
+        print(f"[drill] --keep set: leaving {DRILL_PG_CONTAINER} "
+              f"(network {DRILL_NETWORK}) running for inspection")
         return
     subprocess.run(["docker", "rm", "-f", DRILL_PG_CONTAINER],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    print("[drill] scratch postgres removed")
+    subprocess.run(["docker", "network", "rm", DRILL_NETWORK],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    print("[drill] scratch postgres + network removed")
 
 
 def main() -> int:
